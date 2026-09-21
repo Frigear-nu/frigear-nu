@@ -38,7 +38,9 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@nuxt/kit": "^4.5.2"
+    "@nuxt/kit": "^4.5.2",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",
