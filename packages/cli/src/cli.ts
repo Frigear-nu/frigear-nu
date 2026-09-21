@@ -6,8 +6,8 @@ const mainCmd = defineCommand({
     version: '0.0.1',
   },
   subCommands: {
-    'module:upgrade': import('./module/upgrade.ts').then((module) => module.default),
-    'module:create': import('./module/create.ts').then((module) => module.default)
+    'module:upgrade': import('./module/upgrade.ts').then(module => module.default),
+    'module:create': import('./module/create.ts').then(module => module.default),
   },
 })
 
