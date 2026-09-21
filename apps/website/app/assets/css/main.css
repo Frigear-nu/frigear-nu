@@ -1,18 +1,24 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-@theme static {
-  --font-sans: 'Public Sans', sans-serif;
+/**
+ * Content below is ONLY for advanced color linears that cannot be done in the file it is used in
+ **/
+@utility fancy-text {
+  @apply bg-linear-to-r from-blue-700 via-25% via-secondary-800 to-purple-600 bg-clip-text text-transparent;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  filter:
+    drop-shadow(0 0 1.5px rgb(124 58 237 / 0.40))
+    drop-shadow(0 0 6px rgb(59 130 246 / 0.18));
 }
+
+@utility gradient-linear-br-teal-purple {
+  @apply bg-linear-to-br from-teal-200/90 via-purple-200/50 to-transparent;
+
+  @variant dark {
+    @apply bg-linear-to-br from-cyan-700/20 via-25% via-lime-600/10 to-45% to-transparent;
+  }
+}
+
+
+

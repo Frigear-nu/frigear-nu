@@ -2,6 +2,24 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  '@sentry/cli': true
   esbuild: true
   unrs-resolver: true
   vue-demi: true
+minimumReleaseAgeExclude:
+  - '@nuxt/content@3.16.1'
+  - '@sentry/browser-utils@10.75.1'
+  - '@sentry/browser@10.75.1'
+  - '@sentry/cloudflare@10.75.1'
+  - '@sentry/core@10.75.1'
+  - '@sentry/feedback@10.75.1'
+  - '@sentry/node-core@10.75.1'
+  - '@sentry/node@10.75.1'
+  - '@sentry/nuxt@10.75.1'
+  - '@sentry/opentelemetry@10.75.1'
+  - '@sentry/replay-canvas@10.75.1'
+  - '@sentry/replay@10.75.1'
+  - '@sentry/server-utils@10.75.1'
+  - '@sentry/vue@10.75.1'
+  - drizzle-kit@0.31.11
+  - drizzle-orm@0.45.3

@@ -4,7 +4,11 @@
   "private": true,
   "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "cli": "node ./packages/cli/bin/cli.mjs"
+    "cli": "node ./packages/cli/bin/cli.mjs",
+    "test": "pnpm -r --parallel test",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "lint:fix": "pnpm -r --parallel lint:fix"
   },
   "bin": {
     "frigear-nu": "./packages/cli/bin/cli.mjs"

@@ -2,7 +2,16 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    '@nuxthub/core',
+    '@nuxt/content',
+    '@nuxtjs/i18n',
+    '@nuxtjs/device',
+    '@pinia/nuxt',
+    '@pinia/colada-nuxt',
+    'nuxt-qrcode',
+    '@sentry/nuxt/module',
+    '@norbiros/nuxt-auto-form',
   ],
 
   devtools: {
@@ -23,6 +32,11 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
+    }
+  },
+  nitro: {
+    experimental: {
+      tasks: true,
     }
   }
 })
