@@ -10,7 +10,9 @@
   },
   "scripts": {
     "build": "unbuild .",
-    "dev": "node bin/cli.mjs"
+    "dev": "node bin/cli.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "citty": "^0.2.2",
