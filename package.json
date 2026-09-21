@@ -1,0 +1,12 @@
+{
+  "name": "@frigear-nu/root",
+  "description": "Nuxt 4.5 project for Frigear.nu",
+  "private": true,
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "cli": "node ./packages/cli/bin/cli.mjs"
+  },
+  "bin": {
+    "frigear-nu": "./packages/cli/bin/cli.mjs"
+  }
+}

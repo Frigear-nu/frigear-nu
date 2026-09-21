@@ -1,0 +1,12 @@
+.git
+.cursor
+.nuxt
+.output
+coverage
+dist
+node_modules
+**/node_modules
+.env
+.env.*
+**/.env
+**/.env.*

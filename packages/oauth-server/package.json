@@ -1,0 +1,11 @@
+{
+  "name": "@frigear-nu/oauth-server",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/module.ts",
+    "./composables": "./src/runtime/composables/index.ts",
+    "./composables/*": "./src/runtime/composables/*.ts"
+  }
+}
