@@ -1,0 +1,70 @@
+name: project-application
+title: form.application.title
+description: form.application.description
+delivery:
+  - channel: email
+    destination: ["${contact.default}"]
+# Resubmittable means you can start over at the end, possibly with carry-over details.
+preview:
+  - organizationInfo.organizationName
+  - contactInfo.fullName
+  - contactInfo.email
+resubmittable:
+  start: contactInfo
+  alert:
+    title: You started over!
+    description: You can continue, we saved some of the details from earlier.
+  fields:
+    - contactInfo.fullName
+    - contactInfo.email
+    - contactInfo.phone
+    - organizationInfo.organizationName
+    - organizationInfo.organizationNumber
+    - organizationInfo.organizationAddressStreet
+    - organizationInfo.organizationAddressCo
+    - organizationInfo.organizationAddressPostcode
+    - organizationInfo.organizationAddressCity
+    - organizationInfo.accountableParties
+    - organizationInfo.organizationEmail
+    - organizationInfo.organizationPhone
+    - organizationAbout.organizationAbout
+    - organizationAbout.organizationWebsite
+    - organizationAbout.organizationFacebook
+    - organizationAbout.organizationInstagram
+    - organizationAbout.organizationTikTok
+    - organizationAbout.organizationYouTube
+    - organizationAbout.organizationLinkedIn
+    - financialInfo.bankName
+    - financialInfo.regNr
+    - financialInfo.accountNumber
+    - financialInfo.financialPatrons
+    - branding.logo
+# In the future we could define forms a bit like this
+#form:
+#  steps:
+#    - id: personal
+#      icon: i-lucide-user
+#      fields:
+#        - name: name
+#          label:
+#            da: Danish label
+#            en: English label
+#          rules: text|required|min:3|max:255
+#        - name: dob
+#          label: forms.projectApplication.dob
+#          rules: date|required
+#        - name: startingAt
+#          label: forms.projectApplication.startingAt
+#          rules: datetime|required
+#        - name: description
+#          label: forms.projectApplication.description
+#          rules: textarea|required|min:3|max:255
+#        - name: avatar
+#          label: forms.projectApplication.avatar
+#          rules: file|required
+#        - name: attachments
+#          label: forms.projectApplication.attachments
+#          rules: file|array|min:1|max:10|maxsize:10240
+#        - name: notes
+#          label: forms.projectApplication.notes
+#          rules: textarea|array

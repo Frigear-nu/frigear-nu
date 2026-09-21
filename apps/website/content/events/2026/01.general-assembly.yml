@@ -1,0 +1,137 @@
+title: General Assembly 2026
+date: 2026-03-21
+# Idk, this is ISO UTC or something...
+start: 2026-03-21 14:00
+end: 2026-03-21 23:00
+address:
+  value: Ved Amagerbanen 13
+  link: "https://www.google.com/maps/place/Ved+Amagerbanen+13,+2300+K%C3%B8benhavn/@55.6679328,12.6218006,829m/data=!3m2!1e3!4b1!4m6!3m5!1s0x4653acc981b5d573:0x1e92a0fe2608b662!8m2!3d55.6679328!4d12.6243755!16s%2Fg%2F11bw42xwjt"
+image:
+  src: /images/volunteers/fgr/info-hero-desktop-1200x400.png
+  alt: Frigear volunteers
+name:
+  da: Generalforsamling 2026 + afterparty
+  en: General Assembly 2026 + afterparty
+description:
+  da: For awesome Frigear medlemmer ...
+  en: For aesome Frigear members ...
+# Replaces ${var_name} in the correct environment.
+variables:
+  production:
+    default_ticket_stripe_id: prod_U4VmvOsK6N77at
+    carnivore_stripe_id: prod_U30CCwoLfWM9cv
+    vegetarian_stripe_id: prod_U30NvkM8xzL3Sh
+  staging:
+    default_ticket_stripe_id: prod_U86IiINi4lfa2w
+    carnivore_stripe_id: price_1T9q7PKA7HeOLrjzrwffbOcW
+    vegetarian_stripe_id: price_1T9q7PKA7HeOLrjznM4mfAdf
+  development:
+    default_ticket_stripe_id: prod_U3cYQWfWJTh40Q
+    carnivore_stripe_id: prod_U3ceq0o7yfwf66
+    vegetarian_stripe_id: prod_U3cd1y2poAqNyl
+body:
+  da: |
+    ::callout{class="bg-primary/10 mt-0"}
+    **🐼 ᏀᎬᏁᎬᎡᎪᏞᎱᎾᎡᏚᎪᎷᏞᏆᏁᏀ ᎾᏀ ᎱᎬᏚᎢ 🐼** :br
+    ::
+    ::h2{.mt-0}
+    𝗙𝗿𝗶𝗴𝗲𝗮𝗿 𝗶𝗻𝗱𝗸𝗮𝗹𝗱𝗲𝗿 𝘁𝗶𝗹 𝗚𝗙 𝗼𝗴 𝗽𝗮𝗿𝘁𝘆 𝗳𝗼𝗿 𝗺𝗲𝗱𝗹𝗲𝗺𝗺𝗲𝗿𝗻𝗲 . . . :br
+    ::
+    **F𝘆𝗿 𝗱𝗮𝘁𝗲𝗻 𝗶 𝗸𝗮𝗹𝗲𝗻𝗱𝗲𝗿𝗲𝗻 💜 -𝗼𝗴 𝗱𝗲𝗹 💜**
+    ::span{.text-muted}
+    **𝗩𝗶 𝘀𝗸𝗮𝗹 𝗯𝗹𝗮𝗻𝗱𝘁 𝗮𝗻𝗱𝗲𝘁 . . .** :br :br
+    ::    
+    ##### :arrow_forward: Bᴇsʟᴜᴛᴛᴇ ʜᴠɪʟᴋᴇ ᴀᴡᴇsᴏᴍᴇ ғʀɪᴠɪʟʟɪɢᴅʀᴇᴠɴᴇ ᴘʀᴏᴊᴇᴋᴛᴇʀ ʙʟᴀɴᴅᴛ ᴀɴsøɢɴɪɴɢᴇʀɴᴇ sᴏᴍ sᴋᴀʟ ᴍᴏᴅᴛᴀɢᴇ ᴍɪᴅʟᴇʀ ғʀᴀ sɪᴅsᴛᴇ ᴀ̊ʀs Fʀɪɢᴇᴀʀ ᴏᴠᴇʀsᴋᴜᴅ.
+    ::span{.text-muted .font-bold}
+    📢 _H𝘷𝑜𝘳𝑑𝘢𝑛 𝑚𝘢𝑛 𝑎𝘯𝑠ø𝑔𝘦𝑟, 𝑠𝘦𝑛𝘥𝑒𝘴 𝘶𝑑 𝑡𝘪𝑙 𝑚𝘦𝑑𝘭𝑒𝘮𝑚𝘦𝑟 𝑜𝘨 𝘷𝑜𝘳𝑒𝘴 𝘚𝑜𝘔𝑒 𝑘𝘢𝑛𝘢𝑙𝘦𝑟 𝐴𝘚𝐴𝘗, -𝘴𝑎̊ ℎ𝘢𝑚𝘮𝑒𝘳 𝘥𝑒𝘯 𝘧𝑜𝘭𝑙𝘰𝑤 𝑘𝘯𝑎𝘱!_ :br :br
+    ::
+    ##### :arrow_forward: Bᴇʜᴀɴᴅʟᴇ ɪɴᴅᴋᴏᴍɴᴇ ғᴏʀsʟᴀɢ.
+    ::span{.text-muted .font-bold}
+    📢 _H𝘢𝘳 𝘥𝘶 𝘥𝘦𝘯 𝘧𝘦𝘥𝘦𝘴𝘵𝘦 𝘪𝘥𝘦 𝘵𝘪𝘭 𝘦𝘵 𝘪𝘯𝘵𝘦𝘳𝘯𝘵 𝘮𝘦𝘥𝘭𝘦𝘮𝘴𝘱𝘳𝘰𝘫𝘦𝘬𝘵 𝘥𝘶 𝘨𝘦𝘳𝘯𝘦 𝘷𝘪𝘭 𝘱𝘪𝘵𝘤𝘩𝘦, -𝘴𝘢̊ 𝘦𝘳 𝘥𝘦𝘵 𝘩𝘦𝘳!_ :br :br
+    ::
+    ##### :arrow_forward: Væʟɢᴇ ʙᴇsᴛʏʀᴇʟsᴇ, ᴏɢ sᴛʏʀᴇɢʀᴜᴘᴘᴇʀ.
+    ::span{.text-muted .font-bold}
+    📢 _H𝘢𝘳 𝘥𝘶 𝘥𝘦 𝘷𝘪𝘭𝘥𝘦 𝘣𝘦𝘴𝘵𝘺𝘳𝘦𝘭𝘴𝘦𝘴 𝘴𝘬𝘪𝘭𝘭𝘴 𝘰𝘨 ø𝘯𝘴𝘬𝘦𝘳 𝘢𝘵 𝘣𝘪𝘥𝘳𝘢𝘨𝘦 𝘮𝘦𝘥 𝘥𝘪𝘯 𝘷𝘪𝘥𝘦𝘯 𝘰𝘨 𝘵𝘪𝘥 𝘪 𝘦𝘯 𝘧𝘳𝘪𝘷𝘪𝘭𝘭𝘪𝘨-𝘥𝘳𝘦𝘷𝘦𝘵 𝘯𝘰𝘯𝘱𝘳𝘰𝘧𝘪𝘵 𝘧𝘰𝘳𝘦𝘯𝘪𝘯𝘨, -𝘴𝘢̊ 𝘳𝘪𝘷 𝘦𝘯 𝘢𝘯𝘴ø𝘨𝘯𝘪𝘯𝘨 𝘢𝘧𝘴𝘵𝘦𝘥. . ._ :br :br
+    ::
+    ##### :arrow_forward: Gᴏᴏᴅ-ᴊᴏʙ-ғɪᴠᴇ, -ʜᴏᴘᴘᴇ ᴛɪʟ ɴᴀᴊs DJ-ᴍᴜᴢɪᴋ, ᴅʀɪᴋᴋᴇ ᴅʀɪɴᴋs & ғᴀᴅøʟ, ᴏɢ ᴀʟᴛ ᴍᴜʟɪɢᴛ ᴀɴᴅᴇᴛ ɢᴀᴋᴋᴇᴛ ᴛɪʟ ᴇғᴛᴇʀғᴇsᴛᴇɴ.
+    ::span{.text-muted .font-bold}
+    📢 _Husk at fange billet tilmelding til mad og drikke, -eller om du bare deltager ..._  :br :br
+    ::
+
+  en: |
+    ::callout{class="bg-primary/10 mt-0"}
+    **🐼 GENERAL ASSEMPLY & AFTERPARTY 🐼** :br
+    ::
+    ::h2{.mt-0}
+    𝗙𝗿𝗶𝗴𝗲𝗮𝗿 is calling members to the General Assembly . . . :br
+    ::
+    **Smack it in your calendar 💜 -and share 💜**
+    ::span{.text-muted}
+    **Among other things, we´re gonna . . .** :br :br
+    ::    
+    ##### :arrow_forward: Decide last yearts profit towards nonprofit volunteer driven projects.
+    ::span{.text-muted .font-bold}
+    📢 _How to apply can be found under the funding page!_ :br :br
+    ::
+    ##### :arrow_forward: Have a look at incoming suggestions for the org. in general.
+    ::span{.text-muted .font-bold}
+    📢 _You got the most awesome-est idea brewing? THIS is where you pitch it!_ :br :br
+    ::
+    ##### :arrow_forward: Decide boardmembers and control groups.
+    ::span{.text-muted .font-bold}
+    📢 _You got what it takes, then throw us an application under the bboard page . . ._ :br :br
+    ::
+    ##### :arrow_forward: Gᴏᴏᴅ-ᴊᴏʙ-ғɪᴠᴇ, -Jump around to awesome DJ tunes and get a few drinks on.
+    ::span{.text-muted .font-bold}
+    📢 _Remember to catch your free attendence ticket, -and add food and drinks addon if you're feeling hungry at meetings ..._  :br :br
+    ::
+
+
+# Tickets and ticket products
+defaultTicket: default
+requirements:
+  - type: membership # the only supported type of requirement for now
+    method: any # this is the default value
+    title:
+      da: Medlemmer
+      en: Members
+    icon: i-lucide-user-star
+    color: warning
+tickets:
+  # We cna have a free ticket, (arbitrary how many type you want to add.)
+  default:
+    name:
+      da: Tilmelding
+      en: Admission
+    description:
+      da: "[{{ticket}}s billet]{.text-primary}"
+      en: "[{{ticket}} ticket]{.text-primary}."
+    price: 0
+    hidePrice: true
+    stripeId: "${default_ticket_stripe_id}"
+    currency: DKK
+    products:
+      title:
+        da: Mad
+        en: Food
+      require: one_of
+      items:
+        - id: ${carnivore_stripe_id}
+          label: Carnivore
+          description:
+            da: Mad & drikke under mødet
+            en: Food & drinks during assembly
+          price: 52.66
+          currency: DKK
+        - id: ${vegetarian_stripe_id}
+          label: Vegan
+          description:
+            da: Mad & drikke under mødet
+            en: Food & drinks during assembly
+          price: 52.67
+          currency: DKK
+        - id: none
+          label: None
+          description: Nada..
+          price: 0
+

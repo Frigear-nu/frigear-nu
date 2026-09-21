@@ -1,0 +1,16 @@
+title: Frigear
+logo:
+  light: /logo.png
+  dark: /logo-dark.png
+  class: h-16 p-1
+navigation:
+  - label: HJEM
+    to: /
+  - label: MEDLEMSKAB
+    to: /membership
+  - label: PROJEKTSTØTTE
+    to: /funding
+  - label: FORENINGEN
+    to: /info
+  - label: EVENTS
+    to: /events

@@ -1,0 +1,6 @@
+name: board-member-application
+title: form.board-member-application.title
+description: form.board-member-application.description
+delivery:
+  - channel: email
+    destination: ["${contact.default}"]

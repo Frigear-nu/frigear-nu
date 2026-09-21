@@ -1,0 +1,60 @@
+left:
+  - "&copy; 2023 - {fullYear} ★ **[FRIGEAR]{.text-primary}** ★ CVR-nr: 44353261"
+sections:
+  - label: NAVIGATION
+    children:
+      - label: Hjem
+        to: /
+      - label: Medlemskab
+        to: /membership
+      - label: Events
+        to: /events
+  - label: NYTTIGE LINKS
+    children:
+      - label: Konto
+        to: /account
+      - label: Foreningen
+        to: /info
+      - label: Support
+        to: /#contact
+  - label: ANDET
+    children:
+      - label: Projektstøtte
+        to: /funding
+      - label: Bestyrelse
+        to: /board
+      - label: Branding
+        to: /branding
+  - label: LOVGIVNING
+    children:
+      - label: GDPR
+        to: /legal/gdpr
+      - label: Betingelser
+        to: /legal/terms
+      - label: Sikkerhed
+        to: /legal/security
+right:  
+  - icon: i-simple-icons-github
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://github.com/frigear-nu/nuxt-frigear-nu
+  - icon: i-simple-icons-instagram
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://www.instagram.com/frigear.nu 
+  - icon: i-simple-icons-facebook
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://www.facebook.com/Frigear.nu 
+  - icon: i-simple-icons-linkedin
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://www.linkedin.com/company/frigear
+  - icon: i-simple-icons-tiktok
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://www.tiktok.com/@frigear.nu
+  - icon: i-simple-icons-youtube
+    target: _blank
+    rel: "noopener noreferrer"
+    to: https://www.youtube.com/@frigear

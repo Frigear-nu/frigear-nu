@@ -1,0 +1,129 @@
+# schema: content.config.ts @ collections: { events }
+# @see<content.config.ts>
+title: Local General Assembly
+date: 2026-03-15
+start: 2026-03-15 19:00
+end: 2026-03-15 23:59
+address: Kongens gade 123, 45. sal
+image: /images/volunteers/fgr/info-hero-desktop-1200x400.png
+name:
+  da: "LOCAL: Generalforsamling 2026"
+  en: "LOCAL: General Assembly 2026"
+description:
+  da: Generalforsamling for Frigear medlemmer 2026
+  en: General Assembly for Frigear members 2026
+body:
+  da: |
+    ::callout{class="bg-primary/10 mt-0"}
+    **NB:** Om du er 🎯 scorer du de bedste billetter 🏆
+    ::
+    ::h2{.mt-0}
+    📆 Samling igen
+    ::
+    Vi samles igen for at...
+    **Brug markdown her**... Om du ønsker...
+    
+    ## 🪄 Variables
+    
+    | Variable                            | Current Value                       |
+    |-------------------------------------|-------------------------------------|
+    | `{{$event.name}}`                   | {{$event.name}}                     |
+    | `{{$event.date}}`                   | {{$event.date}}                     |
+    | `{{$event.start}}`                  | {{$event.start}}                    |
+    | `{{$event.end}}`                    | {{$event.end}}                      |
+    | `{{$event.address}}`                | {{$event.address}}                  |
+    | `{{$event.image}}`                  | {{$event.image}}                    |
+    | `{{$event.excerpt}}`                | {{$event.excerpt}}                  |
+    | `{{$event.description}}`            | {{$event.description}}              |
+    | `{{$event.tickets.<key>.stripeId}}` | {{$event.tickets.default.stripeId}} |
+    
+    ### 🥓 Bacon ipsum
+    
+    Bacon ipsum dolor amet pork belly pork loin, pork chop bresaola
+    hamburger ham hock.
+    Beef ribs pork loin, pork chop bresaola hamburger ham hock
+    biltong pork chop.
+    Beef ribs pork loin, pork chop bresaola hamburger ham hock
+    biltong pork chop.
+    Beef ribs pork loin, pork chop bresaola hamburger ham hock
+    biltong pork chop.
+
+  en: |
+    ::h2{.mt-0}
+    We meet again
+    ::
+    Emptiness...
+
+# Tickets and ticket products
+defaultTicket: default
+# If you set `public: false`, it will not be listed on the main website, you need a link.
+# public: false
+# If you want the event to be public, but only bookable by a "requirement":
+#requirements:
+#  - type: membership # the only supported type of requirement for now
+#    title:
+#      da: Bare for medlemmer
+#      en: Members only
+#    method: any # this is the default value
+tickets:
+  # We can have a free ticket, (arbitrary how many types you want to add to `tickets.<any-key>`)
+  default:
+    stripeId: prod_U3cYQWfWJTh40Q # this is a free ticket -> but we require "one_of" products
+    name:
+      da: Adgang
+      en: Admission
+    description:
+      da: "[{{ticket}} billett]{.text-primary} til alle festligheter i Frigear. :br det er veldig godt at lave en god beskrivelse for no."
+      en: |
+        [{{ticket}} ticket]{.text-primary}.
+        
+        - 100% gratis for alle
+    price: 0
+    # this "hidePrice: boolean | undefined" prevents showing "Free" or "Gratis" next to the main ticket, since this
+    # event only has a single ticket and prices are determined based on food.
+    hidePrice: true
+    currency: DKK
+    # This is a "membership" ticket, so we can add a "membership" requirement.
+    # If this is provided, a check will be performed to ensure the user has the correct membership - client + server side.
+    requirements:
+      - type: membership # the only supported type of requirement for now
+        method: one_of # you can also provide "any" or nothing here, which is the default value
+        # This is a list of values that the user must have ^ one of
+        # This can only be a stripe price_id.
+        # this is empty by default, so it is only required for the "one_of" method.
+        priceIds:
+          #- price_1StvgVGeoReTs5WFxfZVRCrO # monthly
+          - price_1SwjTWGeoReTs5WFdT0Yv801 # quarter
+          - price_1SwjTWGeoReTs5WFNsz7DK7P # annual
+        # Set a specific label for this requirement
+        title:
+          da: Kun for Medlemmer
+          en: Members only
+    products:
+      # this should probably be on the individual ticket...
+      #require: one_of # require at least one of the products below to be selected
+      # TODO: Might be nice to have multiple "categories" or addons separated - like "steps"?
+      title:
+        da: Mad
+        en: Food
+      items:
+        - id: prod_U3ceq0o7yfwf66
+          label: Carnivore
+          description:
+            da: Dansk Carnivore beskrivelse
+            en: |
+              English [Carnivore]{.font-bold.text-primary} description
+          # This must be provided, so there is some work to keep things in sync for now.
+          price: 52.66
+          currency: DKK
+        - id: prod_U3cd1y2poAqNyl
+          label: Vegan
+          description:
+            da: Vegansk beskrivelse
+            en: |
+              English [Vegan]{.font-bold.text-primary} description. :br
+              This supports _full_ markdown - but no nuxt-ui components.
+          price: 52.67
+          currency: DKK
+        - id: notastripeproduct
+          label: None

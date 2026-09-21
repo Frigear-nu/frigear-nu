@@ -1,0 +1,20 @@
+# content/forms/03.test.yml
+name: test
+title: A Simple test form
+delivery:
+  - channel: email
+    destination:
+      - "${contact.default}"
+resubmittable:
+  start: first
+  alert:
+    title:
+      en: You started over!
+      da: Du startede over!
+    description:
+      en: You can continue, we saved some of the details from earlier.
+      da: Du ka fortsette, vi gemte nogle af de oplysninger fra tidligere.
+    color: success # optional
+  fields:
+    - background.background
+    - background.purpose
