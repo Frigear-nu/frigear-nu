@@ -1,8 +1,8 @@
-import { addTemplate, type Resolver } from "@nuxt/kit";
+import { addTemplate, type Resolver } from '@nuxt/kit'
 
 export const addModuleManifest = (
   moduleName: string,
-  resolver: Resolver,
+  _resolver: Resolver,
 ) => {
   // TODO: This will add a built file with the details about this module.
 

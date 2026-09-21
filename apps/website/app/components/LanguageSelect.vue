@@ -3,7 +3,7 @@ const { locale, locales, switchLocalePath } = useSiteI18n()
 
 const localeObj = computed(() => locales.find(l => l.code === locale.value) || {
   name: locale.value,
-  code: locale.value,
+  code: locale.value
 })
 
 function getFlagUrl(locale: string): string {
@@ -34,7 +34,7 @@ function getFlagUrl(locale: string): string {
     ur: 'pk',
     vi: 'vn',
     es: 'es',
-    id: 'id',
+    id: 'id'
   }
 
   const baseLanguage = locale.split('-')[0]?.toLowerCase() || locale

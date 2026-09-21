@@ -1,8 +1,7 @@
-
 const myModuleInfo = {
   name: ':moduleName:',
   version: ':moduleVersion:',
-  description: ':moduleDescription:'
+  description: ':moduleDescription:',
 } as const
 
 type ModuleInfo = typeof myModuleInfo

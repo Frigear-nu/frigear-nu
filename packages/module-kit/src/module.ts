@@ -1,5 +1,5 @@
-import { defineNuxtModule, addPlugin, createResolver } from '@nuxt/kit'
-import {defu} from 'defu'
+import { defineNuxtModule, createResolver } from '@nuxt/kit'
+import { defu } from 'defu'
 
 // Module options TypeScript interface definition
 export interface ModuleOptions {
@@ -19,17 +19,17 @@ export default defineNuxtModule<ModuleOptions>({
     _modules: [],
   },
   setup(_options, _nuxt) {
-    const resolver = createResolver(import.meta.url)
+    const _resolver = createResolver(import.meta.url)
 
     _nuxt.options.moduleKit ||= {}
     _nuxt.options.moduleKit._modules = defu(
       _nuxt.options.moduleKit?._modules || [],
-      _options._modules || []
+      _options._modules || [],
     ) as string[]
   },
   hooks: {
-    'module:done': (module) => {
+    'module:done': (_module) => {
       // Ensure we call any setup functionality, register migrations etc...?
-    }
-  }
+    },
+  },
 })

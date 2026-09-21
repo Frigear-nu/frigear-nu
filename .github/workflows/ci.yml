@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changed workspace projects
+    runs-on: ubuntu-latest
+    outputs:
+      filter: ${{ steps.filter.outputs.filter }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine pnpm --filter argument
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          # Only scope the run to changed apps/** & packages/** projects (and
+          # anything that depends on them) for pull requests and ordinary
+          # pushes with known history. Fall back to running against the
+          # whole workspace whenever we can't safely compute a diff (e.g.
+          # first push of a branch, force-pushes, or manual dispatch).
+          ref=""
+
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
+            if git cat-file -e "$BASE_SHA" 2>/dev/null; then
+              ref="$BASE_SHA"
+            fi
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            if git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+              ref="$BEFORE_SHA"
+            fi
+          fi
+
+          if [ -n "$ref" ]; then
+            echo "Scoping run to projects changed since $ref"
+            # Exclude the workspace root ("!.") so root-level file changes
+            # (lockfile, workspace config, this workflow, ...) don't trigger
+            # the root package's own aggregate scripts on top of the
+            # per-project ones selected below.
+            echo "filter=--filter=...[$ref] --filter=!." >> "$GITHUB_OUTPUT"
+          else
+            echo "Running against the whole workspace"
+            echo "filter=" >> "$GITHUB_OUTPUT"
+          fi
+
+  lint:
+    name: Lint
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run lint
+
+  test:
+    name: Test
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run test
