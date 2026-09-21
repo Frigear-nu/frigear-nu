@@ -1,6 +1,5 @@
-
 export const users = {
   id: '...',
   email: '...',
-  //... roles, timestamps++...
+  // ... roles, timestamps++...
 }

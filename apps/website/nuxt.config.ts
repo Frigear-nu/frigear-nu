@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     '@pinia/colada-nuxt',
     'nuxt-qrcode',
     '@sentry/nuxt/module',
-    '@norbiros/nuxt-auto-form',
+    '@norbiros/nuxt-auto-form'
   ],
 
   devtools: {
@@ -25,6 +25,11 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-06-30',
+  nitro: {
+    experimental: {
+      tasks: true
+    }
+  },
 
   eslint: {
     config: {
@@ -32,11 +37,6 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
-    }
-  },
-  nitro: {
-    experimental: {
-      tasks: true,
     }
   }
 })

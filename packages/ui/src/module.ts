@@ -1,8 +1,7 @@
 import { defineNuxtModule, createResolver, addComponentsDir, addImportsDir } from '@nuxt/kit'
-import { defaultI18nConfig } from "./internal/utils";
+import { defaultI18nConfig } from './internal/utils'
 
 const resolver = createResolver(import.meta.url)
-
 
 export default defineNuxtModule({
   meta: {
@@ -41,8 +40,8 @@ export default defineNuxtModule({
     addImportsDir(resolver.resolve('./runtime/utils'))
   },
   hooks: {
-    'i18n:registerModule': register => {
+    'i18n:registerModule': (register) => {
       register(defaultI18nConfig(resolver))
-    }
-  }
+    },
+  },
 })
