@@ -48,6 +48,16 @@ export default defineNuxtConfig({
     kv: true,
   },
 
+  $production: {
+    hub: {
+      db: {
+        dialect: 'sqlite',
+        driver: 'd1',
+        connection: { databaseId: '' },
+        applyMigrationsDuringBuild: false,
+      },
+    },
+  },
   eslint: {
     config: {
       stylistic: {

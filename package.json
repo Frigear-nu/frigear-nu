@@ -8,7 +8,11 @@
     "test": "pnpm -r --parallel test",
     "typecheck": "pnpm -r --parallel typecheck",
     "lint": "pnpm -r --parallel lint",
-    "lint:fix": "pnpm -r --parallel lint:fix"
+    "lint:fix": "pnpm -r --parallel lint:fix",
+    "build:packages": "pnpm --filter './packages/**' build",
+    "build:website": "pnpm --filter './apps/website' build",
+    "cloudflare:build": "pnpm build:packages && pnpm build:website",
+    "cloudflare:deploy": "npx wrangler --cwd ./apps/website deploy && npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json"
   },
   "bin": {
     "frigear-nu": "./packages/cli/bin/cli.mjs"
