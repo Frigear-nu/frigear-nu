@@ -3,7 +3,9 @@ import type { ButtonProps } from '@nuxt/ui'
 
 const { data: config } = await useConfig()
 
-const footerRightLinks = computed(() => config.value?.footer?.right as ButtonProps[] | undefined)
+function getFooterRightLinks(): ButtonProps[] | undefined {
+  return config.value?.footer?.right as ButtonProps[] | undefined
+}
 </script>
 
 <template>
@@ -30,7 +32,7 @@ const footerRightLinks = computed(() => config.value?.footer?.right as ButtonPro
       v-if="config?.footer && config?.footer.right"
       #right
     >
-      <AppFooterRight :links="footerRightLinks" />
+      <AppFooterRight :links="getFooterRightLinks()" />
     </template>
   </UFooter>
 </template>
