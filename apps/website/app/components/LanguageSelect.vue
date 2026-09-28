@@ -1,7 +1,9 @@
 <script setup lang="ts">
-const { locale, locales, switchLocalePath } = useSiteI18n()
+const { locale, locales } = useI18n()
+const switchLocalePath = useSwitchLocalePath()
+const availableLocales = computed(() => normalizeLocales(locales.value))
 
-const localeObj = computed(() => locales.find(l => l.code === locale.value) || {
+const localeObj = computed(() => availableLocales.value.find(localeItem => localeItem.code === locale.value) || {
   name: locale.value,
   code: locale.value,
 })
@@ -68,12 +70,12 @@ function getFlagUrl(locale: string): string {
       <template #content>
         <ul class="flex flex-col">
           <li
-            v-for="localeItem in locales"
+            v-for="localeItem in availableLocales"
             :key="localeItem.code"
           >
             <NuxtLink
               class="flex justify-between py-1.5 px-2 gap-1 hover:bg-muted"
-              :to="switchLocalePath(localeItem.code as never) as string"
+              :to="switchLocalePath(localeItem.code)"
               :aria-label="localeItem.name"
             >
               <span class="text-sm">
