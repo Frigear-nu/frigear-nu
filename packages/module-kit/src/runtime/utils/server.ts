@@ -1,5 +1,6 @@
 import { addServerHandler } from '@nuxt/kit'
 import { moduleApiUrl } from './url'
+import type { Nuxt } from "@nuxt/schema";
 
 export const addModuleServerRoute = (
   moduleName: string,
@@ -13,4 +14,13 @@ export const addModuleServerRoute = (
       moduleName,
     } as never,
   })
+}
+
+
+type DbExtenderFn = (props: { dialect: string, paths: string[] })=> Promise<void>
+export const extendDatabaseSchema = async (
+  nuxt: Nuxt,
+  extender: DbExtenderFn,
+  ) => {
+  return nuxt.hook('hub:db:schema:extend', extender)
 }
