@@ -3,7 +3,7 @@ import type { ButtonProps } from '@nuxt/ui'
 
 const { data: config } = await useConfig()
 
-const footerRightLinks = computed(() => (config.value?.footer?.right ?? []) as ButtonProps[])
+const footerRightLinks = computed(() => config.value?.footer?.right as ButtonProps[] | undefined)
 </script>
 
 <template>
