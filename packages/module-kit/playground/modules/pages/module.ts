@@ -27,12 +27,6 @@ export default defineNuxtModule({
         file: resolver.resolve('./app/pages/hello-page.vue'),
       })
     })
-
-    addModuleServerRoute(moduleName, '/api/hello', {
-      method: 'get',
-      handler: resolver.resolve('./server/api/hello.ts'),
-    })
-
     // Should be mounted on /api/${moduleName}/hello
     addModuleServerRoute(moduleName, 'hello', {
       method: 'get',

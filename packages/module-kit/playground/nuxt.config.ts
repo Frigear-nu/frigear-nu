@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  modules: ['@frigear-nu/module-kit', './modules/pages/module'],
+  modules: ['../src/module', './modules/pages/module'],
   devtools: { enabled: true },
   compatibilityDate: 'latest',
 })

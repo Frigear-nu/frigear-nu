@@ -22,9 +22,6 @@
     "*": {
       ".": [
         "./dist/types.d.mts"
-      ],
-      "utils": [
-        "./dist/runtime/utils/index.d.ts"
       ]
     }
   },
