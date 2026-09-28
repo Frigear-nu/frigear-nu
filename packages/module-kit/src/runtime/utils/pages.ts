@@ -20,9 +20,9 @@ export const extendModulePages = (
 ) => {
   return extendPages((nuxtPages) => {
     const eligiblePages = nuxtPages.filter(p => p.meta?.moduleName === moduleName)
-    const updatedPages = handler(eligiblePages) ?? eligiblePages
-
-    nuxtPages.push(...updatedPages.map((page) => {
+    const remainingPages = nuxtPages.filter(p => p.meta?.moduleName !== moduleName)
+    const updatedPages = handler([...eligiblePages]) ?? eligiblePages
+    const modulePages = updatedPages.map((page) => {
       return {
         ...page,
         // Module pages ALWAYS get their prefix injected.
@@ -32,6 +32,8 @@ export const extendModulePages = (
           ...page.meta,
         },
       }
-    }))
+    })
+
+    nuxtPages.splice(0, nuxtPages.length, ...remainingPages, ...modulePages)
   })
 }

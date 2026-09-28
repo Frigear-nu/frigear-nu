@@ -8,12 +8,13 @@
   "exports": {
     ".": {
       "types": "./dist/types.d.mts",
-      "import": "./dist/module.mjs"
+      "import": "./dist/module.mjs",
+      "default": "./dist/module.mjs"
     },
     "./utils": {
-      "types": "./src/runtime/utils/index.ts",
-      "import": "./src/runtime/utils/index.ts",
-      "default": "./src/runtime/utils/index.ts"
+      "types": "./dist/runtime/utils/index.d.ts",
+      "import": "./dist/runtime/utils/index.js",
+      "default": "./dist/runtime/utils/index.js"
     }
   },
   "main": "./dist/module.mjs",
@@ -23,13 +24,12 @@
         "./dist/types.d.mts"
       ],
       "utils": [
-        "./src/runtime/utils/index.ts"
+        "./dist/runtime/utils/index.d.ts"
       ]
     }
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "workspaces": [
     "playground"
