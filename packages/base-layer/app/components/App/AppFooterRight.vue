@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import type { ButtonProps } from '@nuxt/ui'
 
+type FooterLink = {
+  'label'?: string
+  'to'?: string
+  'icon'?: string
+  'variant'?: ButtonProps['variant']
+  'size'?: ButtonProps['size']
+  'target'?: string
+  'aria-label'?: string
+}
+
 const props = defineProps<{
-  links?: ButtonProps[]
+  links?: FooterLink[]
 }>()
 
 const appConfig = useAppConfig()
 const github = computed(() => appConfig.github as { url?: string } | undefined)
-const defaultLinks = computed<ButtonProps[]>(() => {
+const defaultLinks = computed<FooterLink[]>(() => {
   const links = Object.entries(appConfig.socials || {}).map(([key, url]) => ({
     'icon': `i-simple-icons-${key}`,
     'to': url,
@@ -26,8 +36,7 @@ const defaultLinks = computed<ButtonProps[]>(() => {
 
   return links
 })
-
-const footerLinks = computed<ButtonProps[]>(() => props.links !== undefined ? props.links : defaultLinks.value)
+const footerLinks = computed<FooterLink[]>(() => props.links !== undefined ? props.links : defaultLinks.value)
 </script>
 
 <template>

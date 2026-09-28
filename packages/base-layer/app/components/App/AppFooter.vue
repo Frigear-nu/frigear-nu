@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import type { ButtonProps } from '@nuxt/ui'
-
 const { data: config } = await useConfig()
-
-function getFooterRightLinks(): ButtonProps[] | undefined {
-  return config.value?.footer?.right as ButtonProps[] | undefined
-}
 </script>
 
 <template>
@@ -32,7 +26,7 @@ function getFooterRightLinks(): ButtonProps[] | undefined {
       v-if="config?.footer && config?.footer.right"
       #right
     >
-      <AppFooterRight :links="getFooterRightLinks()" />
+      <AppFooterRight :links="config?.footer.right" />
     </template>
   </UFooter>
 </template>

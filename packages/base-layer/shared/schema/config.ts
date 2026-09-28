@@ -41,8 +41,8 @@ export const WebsiteConfigSchema = z.object({
       label: z.string(),
       to: z.string(),
       icon: z.string().optional(),
-      variant: z.string().optional(),
-      size: z.string().optional(),
+      variant: z.enum(['link', 'solid', 'outline', 'soft', 'subtle', 'ghost']).optional(),
+      size: z.enum(['xs', 'sm', 'md', 'lg', 'xl']).optional(),
     })).optional(),
   }).optional(),
 })
