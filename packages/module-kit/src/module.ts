@@ -1,4 +1,5 @@
 import { defineNuxtModule, createResolver } from '@nuxt/kit'
+
 export { extendDatabaseSchema } from './runtime/utils/server'
 
 // Module options TypeScript interface definition
