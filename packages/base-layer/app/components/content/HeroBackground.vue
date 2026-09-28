@@ -7,7 +7,6 @@ const { isLoading } = useLoadingIndicator()
 const hasAppeared = ref(false)
 const isSettled = ref(false)
 
-const APPEAR_DELAY = 0
 const SETTLE_DELAY = 1000
 
 let settleTimeout: ReturnType<typeof setTimeout> | undefined

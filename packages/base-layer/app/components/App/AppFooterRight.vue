@@ -6,21 +6,22 @@ const props = defineProps<{
 }>()
 
 const appConfig = useAppConfig()
+const github = computed(() => appConfig.github as { url?: string } | undefined)
 
-const footerLinks = computed(() => props.links || [
+const footerLinks = computed<ButtonProps[]>(() => props.links || [
   ...Object.entries(appConfig.socials || {}).map(([key, url]) => ({
     'icon': `i-simple-icons-${key}`,
     'to': url,
     'target': '_blank',
     'aria-label': `${key} social link`,
   })),
-  appConfig.github && appConfig.github.url && {
+  github.value?.url && {
     'icon': 'i-simple-icons-github',
-    'to': appConfig.github.url,
+    'to': github.value.url,
     'target': '_blank',
     'aria-label': 'GitHub repository',
   },
-].filter(Boolean))
+].filter(Boolean) as ButtonProps[])
 </script>
 
 <template>

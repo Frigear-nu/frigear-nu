@@ -6,5 +6,9 @@ declare module 'nuxt/schema' {
         mobile?: boolean
       }
     }
+    socials?: Record<string, string>
+    github?: {
+      url?: string
+    }
   }
 }
