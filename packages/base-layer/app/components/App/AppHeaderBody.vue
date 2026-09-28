@@ -4,7 +4,7 @@ import type { ContentNavigationItem } from '@nuxt/content'
 const { data: config } = await useConfig()
 
 const items = computed(() => {
-  const iconOnMobile = useAppConfig().header.icon.mobile
+  const iconOnMobile = useAppConfig().header?.icon?.mobile
 
   if (typeof iconOnMobile === 'boolean' && !iconOnMobile) {
     return config.value?.navigation?.map(item => ({

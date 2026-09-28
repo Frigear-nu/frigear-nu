@@ -16,7 +16,6 @@ const props = defineProps<{
 }>()
 
 const appConfig = useAppConfig()
-const github = computed(() => appConfig.github as { url?: string } | undefined)
 const defaultLinks = computed<FooterLink[]>(() => {
   const links = Object.entries(appConfig.socials || {}).map(([key, url]) => ({
     'icon': `i-simple-icons-${key}`,
@@ -25,10 +24,10 @@ const defaultLinks = computed<FooterLink[]>(() => {
     'aria-label': `${key} social link`,
   }))
 
-  if (github.value?.url) {
+  if (appConfig.github?.url) {
     links.push({
       'icon': 'i-simple-icons-github',
-      'to': github.value.url,
+      'to': appConfig.github.url,
       'target': '_blank',
       'aria-label': 'GitHub repository',
     })

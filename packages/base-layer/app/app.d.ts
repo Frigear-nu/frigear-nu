@@ -11,4 +11,17 @@ declare module 'nuxt/schema' {
       url?: string
     }
   }
+
+  interface AppConfig {
+    header?: {
+      icon?: {
+        desktop?: boolean
+        mobile?: boolean
+      }
+    }
+    socials?: Record<string, string>
+    github?: {
+      url?: string
+    }
+  }
 }

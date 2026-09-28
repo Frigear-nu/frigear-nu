@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { data: config } = await useConfig()
 const items = computed(() => {
-  const iconOnDesktop = useAppConfig().header.icon.desktop
+  const iconOnDesktop = useAppConfig().header?.icon?.desktop
 
   if (typeof iconOnDesktop === 'boolean' && !iconOnDesktop) {
     return config.value?.navigation?.map(item => ({
