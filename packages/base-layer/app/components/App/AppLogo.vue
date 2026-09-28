@@ -2,14 +2,14 @@
 import { name } from '~~/package.json'
 
 const { data: config } = await useConfig()
-const logoLight = computed(() => stringOrPropValue(config.value?.logo, 'light') || stringOrPropValue(config.value?.logo, 'dark'))
-const logoDark = computed(() => stringOrPropValue(config.value?.logo, 'dark') || stringOrPropValue(config.value?.logo, 'light'))
+const logoLight = computed(() => stringOrPropValue(config.value?.logo, 'light') || stringOrPropValue(config.value?.logo, 'dark') || '')
+const logoDark = computed(() => stringOrPropValue(config.value?.logo, 'dark') || stringOrPropValue(config.value?.logo, 'light') || '')
 const logoAlt = computed(() => stringOrPropValue(config.value?.logo, 'alt') || stringOrPropValue(config.value?.name, 'long') || name)
 </script>
 
 <template>
   <UColorModeImage
-    v-if="logoLight && logoDark"
+    v-if="config?.logo"
     :light="logoLight"
     :dark="logoDark"
     :alt="logoAlt"
