@@ -8,7 +8,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "eslint:fix": "eslint . --fix",
+    "lint:fix": "eslint . --fix",
     "typecheck": "nuxt typecheck",
     "dev:prepare": "nuxt prepare"
   },
@@ -40,7 +40,6 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
-    "better-sqlite3": "^13.0.3",
     "eslint": "^10.10.0",
     "eslint-plugin-better-tailwindcss": "^4.7.0",
     "typescript": "^6.0.3",

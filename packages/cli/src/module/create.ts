@@ -1,9 +1,9 @@
 import { defineCommand } from 'citty'
 import { kebabCase } from 'scule'
 import { join, resolve } from 'node:path'
-import { defineCommandArgs } from "../utils/args.ts";
-import { readPackageJson, writePackageJson } from "../utils/files.ts";
-import { downloadTemplateToDir } from "../utils/template.ts";
+import { defineCommandArgs } from '../utils/args.ts'
+import { readPackageJson, writePackageJson } from '../utils/files.ts'
+import { downloadTemplateToDir } from '../utils/template.ts'
 import consola from 'consola'
 
 export default defineCommand({

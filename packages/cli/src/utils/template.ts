@@ -1,4 +1,4 @@
-import { downloadTemplate } from "giget";
+import { downloadTemplate } from 'giget'
 
 export const downloadTemplateToDir = async (
   { template, path, cwd }:
@@ -7,5 +7,5 @@ export const downloadTemplateToDir = async (
   return downloadTemplate(template, {
     cwd,
     dir: path,
-  });
-};
+  })
+}
