@@ -6,7 +6,19 @@ type LocaleOption = {
 
 const { locale, locales } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
-const availableLocales = computed(() => (locales.value || []) as LocaleOption[])
+const availableLocales = computed<LocaleOption[]>(() => (locales.value || []).map((localeItem) => {
+  if (typeof localeItem === 'string') {
+    return {
+      code: localeItem,
+      name: localeItem
+    }
+  }
+
+  return {
+    code: localeItem.code,
+    name: localeItem.name || localeItem.code
+  }
+}))
 
 const localeObj = computed<LocaleOption>(() => availableLocales.value.find(localeItem => localeItem.code === locale.value) || {
   name: locale.value,
