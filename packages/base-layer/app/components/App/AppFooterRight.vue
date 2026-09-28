@@ -27,7 +27,7 @@ const defaultLinks = computed<ButtonProps[]>(() => {
   return links
 })
 
-const footerLinks = computed<ButtonProps[]>(() => props.links?.length ? props.links : defaultLinks.value)
+const footerLinks = computed<ButtonProps[]>(() => props.links !== undefined ? props.links : defaultLinks.value)
 </script>
 
 <template>
