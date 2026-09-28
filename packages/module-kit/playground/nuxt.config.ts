@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  modules: ['../src/module', './modules/pages/module'],
+  modules: ['../src/module', './modules/pages'],
   devtools: { enabled: true },
   compatibilityDate: 'latest',
 })

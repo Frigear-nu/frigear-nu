@@ -1,24 +1,24 @@
 import { kebabCase } from 'scule'
-import { joinURL } from 'ufo'
+import { joinURL, withLeadingSlash } from 'ufo'
 
 // if it starts with a / it is an absolute path, otherwise it is a relative path
 export const moduleUrl = (
   moduleName: string,
   path?: string,
 ) => {
-  return joinURL(
+  return withLeadingSlash(joinURL(
     path?.startsWith('/') ? '' : kebabCase(moduleName),
     path ?? '',
-  )
+  ))
 }
 
 export const moduleApiUrl = (
   moduleName: string,
   path?: string,
 ) => {
-  return joinURL(
-    path?.startsWith('/') ? '' : 'api',
+  return withLeadingSlash(joinURL(
+    'api',
     path?.startsWith('/') ? '' : kebabCase(moduleName),
     path ?? '',
-  )
+  ))
 }
