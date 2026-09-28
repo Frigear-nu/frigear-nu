@@ -1,18 +1,8 @@
 import { defineNuxtModule, createResolver } from '@nuxt/kit'
-import { defu } from 'defu'
 
 // Module options TypeScript interface definition
 export interface ModuleOptions {
   _modules?: string[]
-}
-
-declare module '@nuxt/schema' {
-  interface NuxtConfig {
-    moduleKit?: ModuleOptions
-  }
-  interface NuxtOptions {
-    moduleKit?: ModuleOptions
-  }
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -31,9 +21,11 @@ export default defineNuxtModule<ModuleOptions>({
     const _resolver = createResolver(import.meta.url)
 
     _nuxt.options.moduleKit ||= {}
-    _nuxt.options.moduleKit._modules = defu(
-      _nuxt.options.moduleKit?._modules || [],
-      _options._modules || [],
-    ) as string[]
+    _nuxt.options.moduleKit._modules = [
+      ...new Set([
+        ...(_nuxt.options.moduleKit._modules ?? []),
+        ...(_options._modules ?? []),
+      ]),
+    ]
   },
 })

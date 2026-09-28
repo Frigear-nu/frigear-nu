@@ -1,46 +1,42 @@
-import { defineNuxtModule, addServerHandler, createResolver } from "@nuxt/kit";
-import { registerModule, extendModulePages } from "@frigear-nu/module-kit/utils";
-import { addModuleServerRoute } from "@frigear-nu/module-kit/utils";
+import { defineNuxtModule, createResolver } from '@nuxt/kit'
+import { addModuleServerRoute, extendModulePages, registerModule } from '../../../src/runtime/utils'
 
-const moduleName = "module-kit-playground";
+const moduleName = 'module-kit-playground'
 export default defineNuxtModule({
   meta: {
     name: moduleName,
-    configKey: "moduleKitPlayground",
+    configKey: 'moduleKitPlayground',
   },
   moduleDependencies: {
-    "@frigear-nu/module-kit": {
-      version: "workspace:*",
-    },
+    '@frigear-nu/module-kit': {},
   },
   defaults: {},
   setup(_options, _nuxt) {
-    const resolver = createResolver(import.meta.url);
+    const resolver = createResolver(import.meta.url)
     // Module setup logic here
-    registerModule(moduleName, _nuxt);
+    registerModule(moduleName, _nuxt)
 
     extendModulePages(moduleName, (pages) => {
       pages.push({
-        route: "/hello",
-        file: resolver.resolve("./app/pages/hello.vue"),
+        path: '/hello',
+        file: resolver.resolve('./app/pages/hello-page.vue'),
       })
 
       pages.push({
-        route: 'hello', // should become ${moduleName}/hello
-        file: resolver.resolve("./app/pages/hello.vue"),
+        path: 'hello', // should become ${moduleName}/hello
+        file: resolver.resolve('./app/pages/hello-page.vue'),
       })
-    });
+    })
 
-
-    addModuleServerRoute(moduleName, "/api/hello", {
-      method: "GET",
-      handler: resolver.resolve("./server/api/hello.ts"),
-    });
+    addModuleServerRoute(moduleName, '/api/hello', {
+      method: 'get',
+      handler: resolver.resolve('./server/api/hello.ts'),
+    })
 
     // Should be mounted on /api/${moduleName}/hello
-    addModuleServerRoute(moduleName, "hello", {
-      method: "GET",
-      handler: resolver.resolve("./server/api/hello.ts"),
-    });
+    addModuleServerRoute(moduleName, 'hello', {
+      method: 'get',
+      handler: resolver.resolve('./server/api/hello.ts'),
+    })
   },
-});
+})

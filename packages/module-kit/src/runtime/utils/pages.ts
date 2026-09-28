@@ -16,11 +16,13 @@ export const defineModulePage = (moduleName: string, page: NuxtPage): NuxtPage =
 
 export const extendModulePages = (
   moduleName: string,
-  handler: (pages: NuxtPage[]) => NuxtPage[],
+  handler: (pages: NuxtPage[]) => NuxtPage[] | undefined,
 ) => {
   return extendPages((nuxtPages) => {
     const eligiblePages = nuxtPages.filter(p => p.meta?.moduleName === moduleName)
-    nuxtPages.push(...handler(eligiblePages).map((page) => {
+    const updatedPages = handler(eligiblePages) ?? eligiblePages
+
+    nuxtPages.push(...updatedPages.map((page) => {
       return {
         ...page,
         // Module pages ALWAYS get their prefix injected.

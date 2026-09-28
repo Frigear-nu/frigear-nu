@@ -11,8 +11,9 @@
       "import": "./dist/module.mjs"
     },
     "./utils": {
-      "types": "./dist/runtime/utils/index.d.ts",
-      "import": "./dist/runtime/utils/index.js"
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
     }
   },
   "main": "./dist/module.mjs",
@@ -20,11 +21,15 @@
     "*": {
       ".": [
         "./dist/types.d.mts"
+      ],
+      "utils": [
+        "./src/runtime/utils/index.ts"
       ]
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "workspaces": [
     "playground"
