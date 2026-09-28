@@ -1,5 +1,6 @@
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
 import { defu } from 'defu'
+import { extendDatabaseSchema } from '../../module-kit/src/runtime/utils/server'
 
 export type ModuleOptions = {
   // When the mode is server, it also registers the
@@ -39,7 +40,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     console.log('Module options', moduleOptions)
 
-    nuxt.hook('hub:db:schema:extend', async ({ dialect, paths }) => {
+    extendDatabaseSchema(nuxt, async ({ dialect, paths }) => {
       // TODO: In the future load migrations depending on the client mode?
       console.log('Adding schema for dialect', dialect)
       paths.push(await resolver.resolvePath(`./db/schema.${dialect}`))
