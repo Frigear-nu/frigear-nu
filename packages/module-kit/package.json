@@ -10,7 +10,10 @@
       "types": "./dist/types.d.mts",
       "import": "./dist/module.mjs"
     },
-    "./utils": "./src/utils/index.ts"
+    "./utils": {
+      "types": "./dist/runtime/utils/index.d.ts",
+      "import": "./dist/runtime/utils/index.js"
+    }
   },
   "main": "./dist/module.mjs",
   "typesVersions": {
@@ -28,6 +31,7 @@
   ],
   "scripts": {
     "postinstall": "nuxt prepare",
+    "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev": "npm run dev:prepare && nuxt dev playground",
     "dev:build": "nuxt build playground",

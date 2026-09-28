@@ -1,5 +1,5 @@
 import { addServerHandler } from '@nuxt/kit'
-import { moduleApiUrl } from '../runtime/utils/url'
+import { moduleApiUrl } from './url'
 
 export type ModuleServerHandler = Parameters<typeof addServerHandler>[0]['handler']
 

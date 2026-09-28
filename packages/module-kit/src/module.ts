@@ -6,6 +6,15 @@ export interface ModuleOptions {
   _modules?: string[]
 }
 
+declare module '@nuxt/schema' {
+  interface NuxtConfig {
+    moduleKit?: ModuleOptions
+  }
+  interface NuxtOptions {
+    moduleKit?: ModuleOptions
+  }
+}
+
 export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@frigear-nu/module-kit',
@@ -26,10 +35,5 @@ export default defineNuxtModule<ModuleOptions>({
       _nuxt.options.moduleKit?._modules || [],
       _options._modules || [],
     ) as string[]
-  },
-  hooks: {
-    'module:done': (_module) => {
-      // Ensure we call any setup functionality, register migrations etc...?
-    },
   },
 })
