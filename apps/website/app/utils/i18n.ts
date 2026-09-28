@@ -13,13 +13,13 @@ export function normalizeLocales(locales?: readonly LocaleLike[] | null): Normal
     if (typeof localeItem === 'string') {
       return {
         code: localeItem,
-        name: localeItem
+        name: localeItem,
       }
     }
 
     return {
       code: localeItem.code,
-      name: localeItem.name || localeItem.code
+      name: localeItem.name || localeItem.code,
     }
   })
 }

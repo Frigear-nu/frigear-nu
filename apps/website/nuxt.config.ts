@@ -11,32 +11,49 @@ export default defineNuxtConfig({
     '@pinia/colada-nuxt',
     'nuxt-qrcode',
     '@sentry/nuxt/module',
-    '@norbiros/nuxt-auto-form'
+    '@norbiros/nuxt-auto-form',
   ],
 
   devtools: {
-    enabled: true
+    enabled: true,
   },
 
   css: ['~/assets/css/main.css'],
+  // .content @ defaults
+  content: {
+    experimental: {
+      sqliteConnector: 'native',
+    },
+  },
 
   routeRules: {
-    '/': { prerender: true }
+    '/': { prerender: true },
   },
 
   compatibilityDate: '2026-06-30',
+
+  // .nitro @ defaults
   nitro: {
     experimental: {
-      tasks: true
-    }
+      tasks: true,
+    },
+  },
+
+  // .hub @ defaults
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      casing: 'snake_case',
+    },
+    kv: true,
   },
 
   eslint: {
     config: {
       stylistic: {
-        commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
-  }
+        commaDangle: 'always-multiline',
+        braceStyle: '1tbs',
+      },
+    },
+  },
 })

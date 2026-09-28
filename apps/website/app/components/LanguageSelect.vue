@@ -5,7 +5,7 @@ const availableLocales = computed(() => normalizeLocales(locales.value))
 
 const localeObj = computed(() => availableLocales.value.find(localeItem => localeItem.code === locale.value) || {
   name: locale.value,
-  code: locale.value
+  code: locale.value,
 })
 
 function getFlagUrl(locale: string): string {
@@ -36,7 +36,7 @@ function getFlagUrl(locale: string): string {
     ur: 'pk',
     vi: 'vn',
     es: 'es',
-    id: 'id'
+    id: 'id',
   }
 
   const baseLanguage = locale.split('-')[0]?.toLowerCase() || locale

@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty'
-import { defineCommandArgs } from "../utils/args.ts";
-import consola  from 'consola'
+import { defineCommandArgs } from '../utils/args.ts'
+import consola from 'consola'
 
 export default defineCommand({
   meta: {
@@ -11,13 +11,13 @@ export default defineCommand({
     package: {
       type: 'string',
       default: '',
-    }
+    },
   }),
-  async run ({args}) {
+  async run({ args }) {
     const logger = consola.withTag('module:upgrade')
-    const { package: packageName, cwd } = args
+    void args
 
     // TODO: Implement the upgrade logic here
     logger.info('//TODO: Upgrading module...')
-  }
+  },
 })

@@ -11,9 +11,9 @@ export default withNuxt(
         entryPoint: 'app/assets/css/main.css',
         attributes: [
           ...getDefaultAttributes(),
-          ['^v-bind:ui$', [{ match: 'objectValues' }]]
-        ]
-      }
-    }
-  }
+          ['^v-bind:ui$', [{ match: 'objectValues' }]],
+        ],
+      },
+    },
+  },
 )
