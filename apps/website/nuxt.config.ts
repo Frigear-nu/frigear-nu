@@ -20,9 +20,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
   // .content @ defaults
-  content: {
-    experimental: {
-      sqliteConnector: 'native',
+  $development: {
+    content: {
+      experimental: {
+        sqliteConnector: 'native',
+      },
     },
   },
 
@@ -53,7 +55,7 @@ export default defineNuxtConfig({
       db: {
         dialect: 'sqlite',
         driver: 'd1',
-        connection: { databaseId: '' },
+        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
         applyMigrationsDuringBuild: false,
       },
     },
