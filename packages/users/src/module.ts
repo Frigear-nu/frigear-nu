@@ -1,6 +1,6 @@
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
 import { defu } from 'defu'
-import { extendDatabaseSchema } from '@frigear-nu/module-kit'
+import { extendDatabaseSchema } from '@frigear-nu/module-kit/utils'
 
 export type ModuleOptions = {
   // When the mode is server, it also registers the
