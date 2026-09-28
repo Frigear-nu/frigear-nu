@@ -15,7 +15,7 @@ export default defineCommand({
   }),
   async run({ args }) {
     const logger = consola.withTag('module:upgrade')
-    const { package: packageName, cwd } = args
+    void args
 
     // TODO: Implement the upgrade logic here
     logger.info('//TODO: Upgrading module...')
