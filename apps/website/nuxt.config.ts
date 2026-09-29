@@ -14,12 +14,6 @@ export default defineNuxtConfig({
     '@norbiros/nuxt-auto-form',
   ],
 
-  devtools: {
-    enabled: true,
-  },
-
-  css: ['~/assets/css/main.css'],
-  // .content @ defaults
   $development: {
     content: {
       experimental: {
@@ -27,6 +21,23 @@ export default defineNuxtConfig({
       },
     },
   },
+
+  $production: {
+    hub: {
+      db: {
+        dialect: 'sqlite',
+        driver: 'd1',
+        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+        applyMigrationsDuringBuild: false,
+      },
+    },
+  },
+
+  devtools: {
+    enabled: true,
+  },
+
+  css: ['~/assets/css/main.css'],
 
   routeRules: {
     '/': { prerender: true },
@@ -48,17 +59,6 @@ export default defineNuxtConfig({
       casing: 'snake_case',
     },
     kv: true,
-  },
-
-  $production: {
-    hub: {
-      db: {
-        dialect: 'sqlite',
-        driver: 'd1',
-        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
-        applyMigrationsDuringBuild: false,
-      },
-    },
   },
   eslint: {
     config: {
