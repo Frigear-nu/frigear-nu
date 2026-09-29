@@ -1,5 +1,5 @@
-import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
-import { existsSync } from 'node:fs'
+import { createResolver, defineNuxtModule } from '@nuxt/kit'
+import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
 
 export type ModuleOptions = {
   // When the mode is server, it also registers the
@@ -23,7 +23,7 @@ export type ModuleOptions = {
   }
 }
 
-declare module 'nuxt/schema' {
+declare module '@nuxt/schema' {
   interface NuxtConfig {
     users?: ModuleOptions
   }
@@ -36,36 +36,16 @@ export default defineNuxtModule<ModuleOptions>({
   meta: { name: '@frigear-nu/users', configKey: 'users' },
   defaults: { mode: 'server', settings: { migrations: true, schemas: { users: 'default' } } },
   async setup(options, nuxt) {
-    const { resolve, resolvePath } = createResolver(import.meta.url)
-    const rootResolver = createResolver(nuxt.options.rootDir)
-
     if (options.mode === 'client') {
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
     }
     else if (options.mode === 'server') {
-      const schemaOpt = options.settings?.schemas?.users ?? 'default'
-
-      nuxt.hook('hub:db:schema:extend', async ({ paths, dialect }) => {
-        // Full override: host owns the table entirely
-        if (schemaOpt !== 'default') {
-          paths.push(await resolvePath(schemaOpt, { cwd: nuxt.options.rootDir }))
-          return
-        }
-
-        // Default: module table, optionally extended by a host file
-        const extendFile = await rootResolver.resolvePath(`server/db/users.extend.${dialect}`)
-        const hasExtend = existsSync(extendFile)
-
-        const tpl = addTemplate({
-          filename: `#users/schema.${dialect}.ts`,
-          write: true, // drizzle-kit needs the file on disk
-          getContents: () => `
-import { defineUsersTable } from '${resolve(`./runtime/db/schema.${dialect}`)}'
-${hasExtend ? `import extra from '${extendFile}'` : 'const extra = {}'}
-export const users = defineUsersTable(extra)
-`,
-        })
-        paths.push(tpl.dst)
+      extendDatabaseTable(nuxt, {
+        name: 'users',
+        factory: 'defineUsersTable',
+        resolver: createResolver(import.meta.url),
+        schema: dialect => `./runtime/db/schema.${dialect}`,
+        override: options.settings?.schemas?.users,
       })
     }
   },
