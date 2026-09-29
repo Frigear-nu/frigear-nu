@@ -134,7 +134,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm cloudflare:web:build
+        run: pnpm cloudflare:build
 
       - name: Deploy
         run: pnpm cloudflare:web:deploy
@@ -163,7 +163,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm cloudflare:web:build
+        run: pnpm cloudflare:build
 
       - name: Deploy Preview
         run: pnpm cloudflare:web:deploy-preview
