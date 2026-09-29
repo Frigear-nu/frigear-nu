@@ -1,7 +1,4 @@
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
-import { defu } from 'defu'
-import { extendDatabaseSchema } from '@frigear-nu/module-kit/utils'
-import * as fs from 'node:fs'
 import { existsSync } from 'node:fs'
 
 export type ModuleOptions = {
@@ -63,7 +60,7 @@ export default defineNuxtModule<ModuleOptions>({
           filename: `#users/schema.${dialect}.ts`,
           write: true, // drizzle-kit needs the file on disk
           getContents: () => `
-import { defineUsersTable } from '${resolve(`./db/users.${dialect}`)}'
+import { defineUsersTable } from '${resolve(`./runtime/db/schema.${dialect}`)}'
 ${hasExtend ? `import extra from '${extendFile}'` : 'const extra = {}'}
 export const users = defineUsersTable(extra)
 `,
