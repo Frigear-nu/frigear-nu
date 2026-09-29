@@ -19,7 +19,7 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n',
     (_, nuxt) => {
       if (!nuxt.options.css.find(css => css.includes('main.css'))) {
-        nuxt.options.css.push(resolver.resolve('/app/assets/css/main.css'))
+        nuxt.options.css.push(resolver.resolve('./app/assets/css/main.css'))
       }
     },
   ],
