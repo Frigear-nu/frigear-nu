@@ -21,4 +21,14 @@ extendDatabaseTable(nuxt, {
 })
 ```
 
-The schema file exports the named factory, which accepts an object of additional columns and returns a table. The host application can add columns by default-exporting them from `server/db/<name>.extend.<dialect>.ts`. Pass `extensionFile: dialect => 'path/to/columns.' + dialect + '.ts'` to use another file relative to the application's root. If `override` is a path instead of `'default'`, the host schema replaces the generated table entirely; the path is also resolved from the application's root directory.
+The schema file exports the named factory, which accepts an object of additional columns and returns a table. Other modules can register column files during setup:
+
+```ts
+registerDatabaseTableExtension(nuxt, {
+  name: 'users',
+  resolver: createResolver(import.meta.url),
+  file: dialect => `./runtime/db/extra.${dialect}`,
+})
+```
+
+Each file default-exports an object of columns. Existing registered files are merged in registration order (later fields replace earlier fields); missing files for a dialect are skipped. Files at `server/db/<name>.extend.<dialect>.ts` in Nuxt layers are merged next, from base layers toward the host application. Pass `extensionFile: dialect => 'path/to/columns.' + dialect + '.ts'` to change the per-layer file location. If `override` is a path instead of `'default'`, the host schema replaces the generated table entirely; the path is resolved from the application's root directory.
