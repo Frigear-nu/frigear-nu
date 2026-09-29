@@ -43,7 +43,7 @@ export default defineNuxtModule<ModuleOptions>({
     extendDatabaseSchema(nuxt, async ({ dialect, paths }) => {
       // TODO: In the future load migrations depending on the client mode?
       console.log('Adding schema for dialect', dialect)
-      paths.push(await resolver.resolvePath(`./db/schema.${dialect}`))
+      paths.push(await resolver.resolvePath(`./runtime/db/schema.${dialect}`))
     })
   },
 })
