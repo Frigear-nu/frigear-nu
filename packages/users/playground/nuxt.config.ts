@@ -5,6 +5,13 @@ export default defineNuxtConfig({
   ],
   devtools: { enabled: true },
   compatibilityDate: 'latest',
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      driver: 'libsql',
+      connection: { url: 'file:./db.sqlite' },
+    },
+  },
   users: {
     mode: 'server',
     settings: { migrations: true },

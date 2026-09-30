@@ -43,8 +43,24 @@
     "@frigear-nu/module-kit": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.5.2",
+    "defu": "^6.1.7",
     "drizzle-kit": "^0.31.11",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "nuxt-auth-utils": "^0.5.30",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@nuxthub/core": "^0.10.8",
+    "@simplewebauthn/browser": "^11.0.0",
+    "@simplewebauthn/server": "^11.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@simplewebauthn/browser": {
+      "optional": true
+    },
+    "@simplewebauthn/server": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",
@@ -52,6 +68,7 @@
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.5.2",
     "@nuxt/test-utils": "^4.3.2",
+    "@nuxthub/core": "^0.10.8",
     "@types/node": "latest",
     "changelogen": "^0.6.2",
     "eslint": "^10.10.0",

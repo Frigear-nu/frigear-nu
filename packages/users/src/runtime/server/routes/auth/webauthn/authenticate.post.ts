@@ -1,0 +1,29 @@
+import { db, schema } from '@nuxthub/db'
+
+import { eq } from 'drizzle-orm'
+
+export default defineWebAuthnAuthenticateEventHandler({
+  async allowCredentials(_event, userName) {
+    if (!userName) return undefined
+
+    const user = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, userName) })
+    if (!user) throw createError({ statusCode: 400, statusMessage: 'User not found.' })
+
+    const credentials = await db.query.userCredentials.findMany({ where: (t, { eq }) => eq(t.userId, user.id) })
+    if (!credentials.length) throw createError({ statusCode: 400, statusMessage: 'No passkeys registered for this user.' })
+
+    return credentials.map(credential => ({ id: credential.id }))
+  },
+  async getCredential(_event, credentialId) {
+    const credential = await db.query.userCredentials.findFirst({ where: (t, { eq }) => eq(t.id, credentialId) })
+    if (!credential) throw createError({ statusCode: 400, statusMessage: 'Credential not found.' })
+    return credential
+  },
+  async onSuccess(event, { credential, authenticationInfo }) {
+    await db.update(schema.userCredentials)
+      .set({ counter: authenticationInfo.newCounter })
+      .where(eq(schema.userCredentials.id, credential.id))
+
+    await setUserSession(event, { user: { id: credential.userId } })
+  },
+})

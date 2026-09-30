@@ -12,6 +12,11 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - ⛰ Manages users & their schema in teh standard frigear way.
 - 🚠 Can be extended using other modules or fields on metadata
 - 🌲 Simple to use, supports billing & subscriptions.
+- 🔑 Email/password login & registration, with an on/off switch.
+- 🔐 Passkey (WebAuthn) registration, authentication & credential management.
+- 🪪 "Simple" OAuth routes for GitHub, Google & Discord, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils).
+- 🧩 Overridable composables (`useAuthLogin`, `useAuthRegister`, `useAuthPasskeys`) and opt-in login/register pages.
+- 🧵 Session enrichment: the logged-in user is loaded from the database and mapped into the session on every request.
 
 ## Quick Setup
 
@@ -22,6 +27,64 @@ npx nuxt module add @frigear-nu/users
 ```
 
 That's it! You can now use @frigear-nu/users in your Nuxt app ✨
+
+This module requires [`@nuxthub/core`](https://hub.nuxt.com) to be configured in the host app, since it relies on it for
+the `users` (and, when WebAuthn is enabled, `user_credentials`) database table.
+
+## Configuration
+
+Configure the module via the `users` key in `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@nuxthub/core', '@frigear-nu/users'],
+  users: {
+    mode: 'server',
+    settings: {
+      // Enable/disable email + password login & register routes, composables and pages.
+      // Defaults to `true`.
+      password: true,
+      // Enable passkey (WebAuthn) registration/authentication routes, composables and DB table.
+      // Requires the optional `@simplewebauthn/browser` and `@simplewebauthn/server` peer deps.
+      // Defaults to `false`.
+      webAuthn: false,
+      // Registers the login/register pages (`/login`, `/register`). Off by default, since it
+      // switches the consuming app into Vue Router's "pages" mode. Set to `true` to opt in.
+      pages: false,
+      session: {
+        // Path to a function (default export) mapping the raw DB user to the session user shape.
+        mapper: '~/server/utils/map-session-user',
+      },
+      // Registers any of the supported "simple" nuxt-auth-utils OAuth routes
+      // (e.g. `/api/auth/github`) and forwards the given credentials to `runtimeConfig.oauth`.
+      oauth: {
+        github: { clientId: '...', clientSecret: '...' },
+        google: true, // reads NUXT_OAUTH_GOOGLE_CLIENT_ID / _CLIENT_SECRET from env
+      },
+    },
+  },
+})
+```
+
+### Routes
+
+| Route | Enabled by | Description |
+| --- | --- | --- |
+| `POST /api/auth/login` | `settings.password` | Email/password login |
+| `POST /api/auth/register` | `settings.password` | Email/password registration |
+| `POST /api/auth/webauthn/register` | `settings.webAuthn` | Register a new passkey |
+| `POST /api/auth/webauthn/authenticate` | `settings.webAuthn` | Authenticate with a passkey |
+| `GET /api/auth/webauthn/credentials` | `settings.webAuthn` | List the current user's passkeys |
+| `DELETE /api/auth/webauthn/credentials/:id` | `settings.webAuthn` | Remove one of the current user's passkeys |
+| `GET /api/auth/github`, `/google`, `/discord` | `settings.oauth.<provider>` | "Simple" OAuth login |
+
+### Composables
+
+- `useAuthLogin()` / `useAuthRegister()` – wrap the password routes above.
+- `useAuthPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
+
+All composables are registered via Nuxt's import ecosystem, so they can be overridden by re-declaring a composable of
+the same name in the consuming app.
 
 
 ## Contribution
