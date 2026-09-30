@@ -9,8 +9,8 @@ export function defineUsersTable<T extends Record<string, SQLiteColumnBuilderBas
     email: text().notNull().unique(),
     password: text(),
     avatar: text(),
-    ...(extra ?? ({} as T)), // located here since we want it to appear here...
     createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer({ mode: 'timestamp' }).notNull().$onUpdateFn(() => new Date()),
+    ...(extra ?? ({} as T)), // extended columns always come last, after the table's own fields
   })
 }
