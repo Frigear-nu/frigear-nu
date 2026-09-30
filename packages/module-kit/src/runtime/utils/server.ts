@@ -1,6 +1,7 @@
 import { addTemplate, createResolver } from '@nuxt/kit'
 import { existsSync } from 'node:fs'
 import type { Nuxt } from '@nuxt/schema'
+import type { ColumnBuilderBase } from 'drizzle-orm'
 
 type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
 type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
@@ -10,6 +11,13 @@ declare module '@nuxt/schema' {
     'hub:db:schema:extend': DbExtenderFn
     'module-kit:db:table:extend': TableExtenderFn
   }
+}
+
+export const defineExtendedColumns = <T extends Record<string, ColumnBuilderBase>>(
+  table: string,
+  columns: T,
+) => {
+  return columns
 }
 
 export const extendDatabaseSchema = async (
@@ -62,7 +70,7 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) =
     }
 
     const template = addTemplate({
-      filename: `#${name}/schema.${dialect}.ts`,
+      filename: `${name}/schema.${dialect}.ts`,
       write: true,
       getContents: () => `
 import { ${factory} } from ${JSON.stringify(resolver.resolve(schema(dialect)))}
