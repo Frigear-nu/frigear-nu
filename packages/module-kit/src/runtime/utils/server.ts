@@ -14,7 +14,6 @@ declare module '@nuxt/schema' {
 }
 
 export const defineExtendedColumns = <T extends Record<string, ColumnBuilderBase>>(
-  table: string,
   columns: T,
 ) => {
   return columns
@@ -60,13 +59,21 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) =
       return
     }
 
-    const extensions: string[] = []
-    await nuxt.callHook('module-kit:db:table:extend', { name, dialect, paths: extensions })
+    const registered: string[] = []
+    await nuxt.callHook('module-kit:db:table:extend', { name, dialect, paths: registered })
+    const extensions = registered.map(file => ({ file, legacy: false }))
 
     const layerRoots = [...new Set(nuxt.options._layers?.map(layer => layer.config.rootDir).reverse() ?? [])]
     for (const root of [...layerRoots.filter(root => root !== nuxt.options.rootDir), nuxt.options.rootDir]) {
-      const extensionPath = await createResolver(root).resolvePath(extensionFile?.(dialect) ?? `server/db/${name}.extend.${dialect}`)
-      if (existsSync(extensionPath)) extensions.push(extensionPath)
+      const rootResolver = createResolver(root)
+      const extensionPath = await rootResolver.resolvePath(extensionFile?.(dialect) ?? `server/db/extend.${dialect}.ts`)
+      if (existsSync(extensionPath)) {
+        extensions.push({ file: extensionPath, legacy: false })
+      }
+      else if (!extensionFile) {
+        const legacyPath = await rootResolver.resolvePath(`server/db/${name}.extend.${dialect}`)
+        if (existsSync(legacyPath)) extensions.push({ file: legacyPath, legacy: true })
+      }
     }
 
     const template = addTemplate({
@@ -74,8 +81,8 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) =
       write: true,
       getContents: () => `
 import { ${factory} } from ${JSON.stringify(resolver.resolve(schema(dialect)))}
-${extensions.map((file, index) => `import extra${index} from ${JSON.stringify(file)}`).join('\n')}
-export const ${name} = ${factory}({ ${extensions.map((_, index) => `...extra${index}`).join(', ')} })
+${extensions.map(({ file }, index) => `import * as extra${index} from ${JSON.stringify(file)}`).join('\n')}
+export const ${name} = ${factory}({ ${extensions.map(({ legacy }, index) => legacy ? `...extra${index}.default` : `...(extra${index}[${JSON.stringify(name)} as keyof typeof extra${index}] ?? {})`).join(', ')} })
 `,
     })
     paths.push(template.dst)

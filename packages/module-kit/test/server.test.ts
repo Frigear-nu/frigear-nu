@@ -53,7 +53,7 @@ function setup(override?: string, extensionFile?: (dialect: string) => string, l
 describe('extendDatabaseTable', () => {
   it('generates a schema from the module factory without an extension file', async () => {
     const { run } = setup()
-    expect(await run()).toEqual(['/generated/#accounts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     expect(template.write).toBe(true)
     expect((template.getContents as () => string)()).toContain('export const accounts = defineAccountsTable({  })')
@@ -63,23 +63,56 @@ describe('extendDatabaseTable', () => {
   it('imports an application extension file when present', async () => {
     const { rootDir, run } = setup()
     mkdirSync(join(rootDir, 'server/db'), { recursive: true })
-    const extension = join(rootDir, 'server/db/accounts.extend.sqlite.ts')
-    writeFileSync(extension, 'export default {}')
+    const extension = join(rootDir, 'server/db/extend.sqlite.ts')
+    writeFileSync(extension, 'export const accounts = {}')
     await run()
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     expect((template.getContents as () => string)())
-      .toContain(`import extra0 from ${JSON.stringify(extension)}`)
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect((template.getContents as () => string)())
+      .toContain('extra0["accounts" as keyof typeof extra0]')
+  })
+
+  it('selects each table from the same named-export extension file', async () => {
+    const { nuxt, rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const extension = join(rootDir, 'server/db/extend.sqlite.ts')
+    writeFileSync(extension, 'export const accounts = {}; export const posts = {}')
+    extendDatabaseTable(nuxt, {
+      name: 'posts',
+      factory: 'definePostsTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/posts.${dialect}`,
+    })
+    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
+    expect((accountTemplate.getContents as () => string)()).toContain('extra0["accounts" as keyof typeof extra0]')
+    expect((postTemplate.getContents as () => string)()).toContain('extra0["posts" as keyof typeof extra0]')
+    expect((postTemplate.getContents as () => string)()).toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
   })
 
   it('accepts a custom extension file path', async () => {
     const { rootDir, run } = setup(undefined, dialect => `server/db/custom.${dialect}.ts`)
     const extension = join(rootDir, 'server/db/custom.sqlite.ts')
     mkdirSync(join(rootDir, 'server/db'), { recursive: true })
-    writeFileSync(extension, 'export default {}')
+    writeFileSync(extension, 'export const accounts = {}')
     await run()
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     expect((template.getContents as () => string)())
-      .toContain(`import extra0 from ${JSON.stringify(extension)}`)
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+  })
+
+  it('supports legacy per-table default exports when no shared extension exists', async () => {
+    const { rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const extension = join(rootDir, 'server/db/accounts.extend.sqlite.ts')
+    writeFileSync(extension, 'export default {}')
+    await run()
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect(content).toContain('...extra0.default')
   })
 
   it('merges registered modules and layers in order, with the host last', async () => {
@@ -89,10 +122,10 @@ describe('extendDatabaseTable', () => {
     const { nuxt, rootDir, run } = setup(undefined, undefined, [nested, base])
     for (const dir of [base, nested, rootDir]) {
       mkdirSync(join(dir, 'server/db'), { recursive: true })
-      writeFileSync(join(dir, 'server/db/accounts.extend.sqlite.ts'), 'export default {}')
+      writeFileSync(join(dir, 'server/db/extend.sqlite.ts'), 'export const accounts = {}; export const other = {}')
     }
-    writeFileSync(join(rootDir, 'server/db/first.sqlite.ts'), 'export default {}')
-    writeFileSync(join(rootDir, 'server/db/second.sqlite.ts'), 'export default {}')
+    writeFileSync(join(rootDir, 'server/db/first.sqlite.ts'), 'export const accounts = {}')
+    writeFileSync(join(rootDir, 'server/db/second.sqlite.ts'), 'export const accounts = {}')
     registerDatabaseTableExtension(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
@@ -111,12 +144,13 @@ describe('extendDatabaseTable', () => {
     await run()
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
-    expect(content).toContain('export const accounts = defineAccountsTable({ ...extra0, ...extra1, ...extra2, ...extra3, ...extra4 })')
+    expect(content).toContain('export const accounts = defineAccountsTable({ ...(extra0["accounts" as keyof typeof extra0]')
+    expect(content).toContain('...(extra4["accounts" as keyof typeof extra4]')
     expect(content).not.toContain('ignored.sqlite')
     expect(content.indexOf('first.sqlite')).toBeLessThan(content.indexOf('second.sqlite'))
-    expect(content.indexOf('second.sqlite')).toBeLessThan(content.indexOf(JSON.stringify(join(base, 'server/db/accounts.extend.sqlite.ts'))))
-    expect(content.indexOf(JSON.stringify(join(base, 'server/db/accounts.extend.sqlite.ts')))).toBeLessThan(content.indexOf(JSON.stringify(join(nested, 'server/db/accounts.extend.sqlite.ts'))))
-    expect(content.indexOf(JSON.stringify(join(nested, 'server/db/accounts.extend.sqlite.ts')))).toBeLessThan(content.indexOf(JSON.stringify(join(rootDir, 'server/db/accounts.extend.sqlite.ts'))))
+    expect(content.indexOf('second.sqlite')).toBeLessThan(content.indexOf(JSON.stringify(join(base, 'server/db/extend.sqlite.ts'))))
+    expect(content.indexOf(JSON.stringify(join(base, 'server/db/extend.sqlite.ts')))).toBeLessThan(content.indexOf(JSON.stringify(join(nested, 'server/db/extend.sqlite.ts'))))
+    expect(content.indexOf(JSON.stringify(join(nested, 'server/db/extend.sqlite.ts')))).toBeLessThan(content.indexOf(JSON.stringify(join(rootDir, 'server/db/extend.sqlite.ts'))))
   })
 
   it('skips registered files that are unavailable for the dialect', async () => {
