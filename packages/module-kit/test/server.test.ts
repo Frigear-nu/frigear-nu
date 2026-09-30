@@ -112,7 +112,38 @@ describe('extendDatabaseTable', () => {
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
     expect(content).toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
-    expect(content).toContain('...extra0.default')
+    expect(content).toContain('Object.entries(extra0).find(([key]) => key === \'default\')')
+  })
+
+  it('keeps a legacy table extension alongside a shared extension for another table', async () => {
+    const { rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const legacy = join(rootDir, 'server/db/accounts.extend.sqlite.ts')
+    const shared = join(rootDir, 'server/db/extend.sqlite.ts')
+    writeFileSync(legacy, 'export default {}')
+    writeFileSync(shared, 'export const posts = {}')
+    await run()
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain(`import * as extra0 from ${JSON.stringify(legacy)}`)
+    expect(content).toContain(`import * as extra1 from ${JSON.stringify(shared)}`)
+  })
+
+  it('supports registered default exports as well as named table exports', async () => {
+    const { nuxt, rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const extension = join(rootDir, 'server/db/registered.sqlite.ts')
+    writeFileSync(extension, 'export default {}')
+    registerDatabaseTableExtension(nuxt, {
+      name: 'accounts',
+      resolver: createResolver(rootDir),
+      file: () => 'server/db/registered.sqlite.ts',
+    })
+    await run()
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect(content).toContain('Object.entries(extra0).find(([key]) => key === \'default\')')
   })
 
   it('merges registered modules and layers in order, with the host last', async () => {
