@@ -1,52 +1,158 @@
-import { createResolver, defineNuxtModule } from '@nuxt/kit'
-import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { defu } from 'defu'
+import {
+  addImports,
+  addImportsDir,
+  addServerHandler,
+  createResolver,
+  defineNuxtModule,
+  extendPages,
+} from '@nuxt/kit'
+import { extendDatabaseTable, moduleApiUrl, moduleUrl } from '@frigear-nu/module-kit/utils'
+import { objectPick } from '@vueuse/core'
+import type { NuxtPage } from '@nuxt/schema'
 
-export type ModuleOptions = {
-  // When the mode is server, it also registers the
-  // oauth stuff so the app can be used to log in with as well as to.
+type SharedModuleOptions = {
+  schema?: boolean
+  login?: string
+  register?: string | boolean
+  middleware?: boolean
+}
+type ModuleServerOptions = SharedModuleOptions & {
   mode: 'server'
-  settings?: {
-    migrations?: boolean
-    schemas?: {
-      users?: 'default' | string // can be any file path to a drizzle schema file, or 'default' to use the default one.
-    }
-  }
-} | {
-  // Client means that the application does not have it's own auth,
-  // but relies on a central auth server to log in and manage users - e.g frigear.nu
+}
+type ModuleClientOptions = SharedModuleOptions & {
   mode: 'client'
-  settings?: {
-    // the handler, export default that maps a user from oauth format to object.
-    // The default should follow the table structure.
-    mapFromHttp?: string
-    migrations?: false
-  }
+  mapFromHttp?: string
 }
 
-declare module '@nuxt/schema' {
-  interface NuxtConfig {
-    users?: ModuleOptions
-  }
+type PublicModuleOptions = {
+  mode: 'server' | 'client'
+  login?: string
+  register?: string | boolean
+  middleware?: boolean
+}
+
+export type ModuleOptions = ModuleServerOptions | ModuleClientOptions
+
+declare module 'nuxt/schema' {
   interface RuntimeConfig {
     users?: ModuleOptions
   }
+
+  interface PublicRuntimeConfig {
+    users: PublicModuleOptions
+  }
 }
 
+const moduleName = 'users'
 export default defineNuxtModule<ModuleOptions>({
-  meta: { name: '@frigear-nu/users', configKey: 'users' },
-  defaults: { mode: 'server', settings: { migrations: true, schemas: { users: 'default' } } },
-  async setup(options, nuxt) {
+  meta: {
+    name: `@frigear-nu/${moduleName}`,
+    configKey: moduleName,
+  },
+  defaults: {
+    mode: 'server',
+    schema: true,
+    login: '/login',
+    register: false,
+    middleware: true,
+  },
+  moduleDependencies: {
+    '@frigear-nu/module-kit': {},
+    '@nuxthub/core': {
+      optional: true, // might not be required in consuming client side app?
+      defaults: {
+        db: {
+          dialect: 'sqlite',
+          casing: 'snake_case',
+        },
+        kv: true,
+      },
+    },
+    '@nuxt/ui': {}, // not sure.. but we need it for typing...
+    'nuxt-auth-utils': {
+      defaults: {
+        webauthn: true,
+      },
+    },
+  },
+  async setup(_options, nuxt) {
+    const resolver = createResolver(import.meta.url)
+    const options = nuxt.options.users = defu(
+      nuxt.options?.users as ModuleOptions,
+      nuxt.options.runtimeConfig?.users as ModuleOptions,
+      _options,
+    ) as ModuleOptions
+
+    // So this can be consumed in components
+    nuxt.options.runtimeConfig.public.users = defu(
+      nuxt.options.runtimeConfig.public.users as PublicModuleOptions,
+      objectPick(options, ['mode', 'login', 'register', 'middleware']) as PublicModuleOptions,
+    ) as PublicModuleOptions
+
+    // ..
     if (options.mode === 'client') {
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
     }
     else if (options.mode === 'server') {
-      extendDatabaseTable(nuxt, {
-        name: 'users',
-        factory: 'defineUsersTable',
-        resolver: createResolver(import.meta.url),
-        schema: dialect => `./runtime/db/schema.${dialect}`,
-        override: options.settings?.schemas?.users,
+      // ...
+      if (options.schema) {
+        // Ensure we have the default user table:
+        await extendDatabaseTable(nuxt, {
+          name: moduleName,
+          factory: 'defineUsersTable',
+          resolver,
+          schema: dialect => `./runtime/server/db/schema.${dialect}`,
+        })
+      }
+
+      const pages: NuxtPage[] = []
+
+      if (options.login) {
+        pages.push({
+          name: `${moduleName}-login`,
+          path: options.login,
+          file: resolver.resolve('./runtime/app/pages/login.vue'),
+        })
+      }
+
+      if (options.register) {
+        pages.push({
+          name: `${moduleName}-register`,
+          path: typeof options.register === 'string'
+            ? options.register
+            : moduleUrl(moduleName, '/register'),
+          file: resolver.resolve('./runtime/app/pages/register.vue'),
+        })
+      }
+
+      extendPages((paths) => {
+        for (const page of pages) {
+          if (!paths.some(p => p.path === page.path)) {
+            paths.push(page)
+          }
+        }
       })
+
+      if (options.middleware) {
+      // Add the session middleware
+        addServerHandler({
+          middleware: true,
+          handler: resolver.resolve('./runtime/server/middleware/session'),
+        })
+      }
+
+      // this can be overridden by the consuming app if needed, but we provide a default implementation for convenience
+      addImports([
+        {
+          name: 'useUserLogin',
+          from: resolver.resolve('./runtime/app/composables/useUserLogin'),
+        },
+        {
+          name: 'useUserRegistration',
+          from: resolver.resolve('./runtime/app/composables/useUserRegistration'),
+        },
+      ])
     }
   },
 })

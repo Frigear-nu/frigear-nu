@@ -15,30 +15,28 @@ export default defineNuxtConfig({
     '@frigear-nu/users',
   ],
 
-  $development: {
-    content: {
-      experimental: {
-        sqliteConnector: 'native',
-      },
-    },
-  },
-
-  $production: {
-    hub: {
-      db: {
-        dialect: 'sqlite',
-        driver: 'd1',
-        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
-        applyMigrationsDuringBuild: false,
-      },
-    },
-  },
+  // $production: {
+  //   hub: {
+  //     db: {
+  //       dialect: 'sqlite',
+  //       driver: 'd1',
+  //       connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+  //       applyMigrationsDuringBuild: false,
+  //     },
+  //   },
+  // },
 
   devtools: {
     enabled: true,
   },
 
   css: ['~/assets/css/main.css'],
+
+  content: {
+    experimental: {
+      sqliteConnector: 'native',
+    },
+  },
 
   routeRules: {
     '/': { prerender: true },
@@ -58,7 +56,6 @@ export default defineNuxtConfig({
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
-      driver: 'libsql',
     },
     kv: true,
   },
@@ -71,4 +68,9 @@ export default defineNuxtConfig({
     },
   },
 
+  users: {
+    mode: 'server',
+    login: '/sign-in',
+    register: '/sign-up',
+  },
 })

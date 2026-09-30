@@ -44,7 +44,11 @@
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.5.2",
     "drizzle-kit": "^0.31.11",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "nuxt-auth-utils": "^0.5.30",
+    "defu": "^6.1.7",
+    "@vueuse/core": "^15.0.0",
+    "@nuxthub/core": "^0.10.8"
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",
