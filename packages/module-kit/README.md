@@ -34,6 +34,9 @@ registerDatabaseTableExtension(nuxt, {
 Each extension file exports column objects named for their tables. For example, a Nuxt layer can extend several tables in `server/db/extend.sqlite.ts`:
 
 ```ts
+import { text } from 'drizzle-orm/sqlite-core'
+import { defineExtendedColumns } from '@frigear-nu/module-kit/utils'
+
 export const users = defineExtendedColumns({ locale: text().default('da') })
 export const posts = defineExtendedColumns({ summary: text() })
 ```
