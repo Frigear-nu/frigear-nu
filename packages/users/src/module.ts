@@ -25,6 +25,15 @@ const OAUTH_ENV_VARS = {
 } as const
 type OAuthProvider = keyof typeof OAUTH_ENV_VARS
 
+// The subset of settings composables/pages need to read on the client, exposed through
+// `runtimeConfig.public.users`.
+type PublicModuleOptions = {
+  password: boolean
+  webAuthn: boolean
+  oauth: OAuthProvider[]
+  pages: { login?: string, register?: string }
+}
+
 export type ModuleOptions = {
   // When the mode is server, it also registers the
   // oauth stuff so the app can be used to log in with as well as to.
@@ -39,9 +48,13 @@ export type ModuleOptions = {
     password?: boolean
     // Enables WebAuthn (passkey) registration/authentication routes, composables and DB table.
     webAuthn?: boolean
-    // Whether to register the login/register pages. Off by default since it switches the
-    // consuming app into Vue Router's pages mode; set to `true` to opt in.
-    pages?: boolean
+    // Registers the built-in login/register pages. Each accepts a custom path (string), `true`
+    // for the default path, or `false`/omitted to disable. Enabling a page requires `@nuxt/ui`
+    // to be installed in the consuming app, since the shipped pages are built with it.
+    pages?: {
+      login?: string | boolean
+      register?: string | boolean
+    }
     session?: {
       // Path to a function (default export) mapping the raw DB user to the session user shape.
       mapper?: string
@@ -75,7 +88,14 @@ declare module '@nuxt/schema' {
 
   interface PublicRuntimeConfig {
     authMethods: AuthMethodObject[]
+    users?: PublicModuleOptions
   }
+}
+
+function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
+  if (typeof setting === 'string') return setting
+  if (setting === true) return defaultPath
+  return undefined
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -87,7 +107,7 @@ export default defineNuxtModule<ModuleOptions>({
       schemas: { users: 'default' },
       password: true,
       webAuthn: false,
-      pages: false,
+      pages: {},
     },
   },
   moduleDependencies: {
@@ -159,11 +179,11 @@ export default defineNuxtModule<ModuleOptions>({
       authMethods.push({ label: withI18n ? 'auth.emailPassword.label' : 'Email & Password', value: 'emailPassword', icon: 'i-lucide-user-lock' })
       addServerHandler({ route: '/api/auth/login', handler: resolver.resolve('./runtime/server/routes/auth/login.post') })
       addServerHandler({ route: '/api/auth/register', handler: resolver.resolve('./runtime/server/routes/auth/register.post') })
-      addImports([
-        { name: 'useAuthLogin', from: resolver.resolve('./runtime/app/composables/useAuthLogin') },
-        { name: 'useAuthRegister', from: resolver.resolve('./runtime/app/composables/useAuthRegister') },
-      ])
     }
+    addImports([
+      { name: 'useUserLogin', from: resolver.resolve('./runtime/app/composables/useUserLogin') },
+      { name: 'useUserRegistration', from: resolver.resolve('./runtime/app/composables/useUserRegistration') },
+    ])
 
     if (withWebAuthn) {
       authMethods.push({ label: withI18n ? 'auth.passkeys.label' : 'Passkey', value: 'passkeys', icon: 'i-lucide-key' })
@@ -171,9 +191,10 @@ export default defineNuxtModule<ModuleOptions>({
       addServerHandler({ route: '/api/auth/webauthn/authenticate', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/authenticate.post') })
       addServerHandler({ route: '/api/auth/webauthn/credentials', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/credentials/index.get') })
       addServerHandler({ route: '/api/auth/webauthn/credentials/:id', method: 'delete', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/credentials/[id].delete') })
-      addImports([{ name: 'useAuthPasskeys', from: resolver.resolve('./runtime/app/composables/useAuthPasskeys') }])
     }
+    addImports([{ name: 'useUserPasskeys', from: resolver.resolve('./runtime/app/composables/useUserPasskeys') }])
 
+    const enabledOauthProviders: OAuthProvider[] = []
     for (const provider of Object.keys(OAUTH_ENV_VARS) as OAuthProvider[]) {
       if (!settings.oauth?.[provider]) continue
 
@@ -181,15 +202,23 @@ export default defineNuxtModule<ModuleOptions>({
       if (!process.env[clientIdVar] || !process.env[clientSecretVar]) continue
       authMethods.push({ label: withI18n ? `auth.oauth.${provider}.label` : upperFirst(provider), value: provider })
       addServerHandler({ route: `/api/auth/${provider}`, handler: resolver.resolve(`./runtime/server/routes/auth/${provider}.get`) })
+      enabledOauthProviders.push(provider)
     }
+
+    // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather
+    // than enabled by default, since they require `@nuxt/ui` to be installed in the consuming app.
+    const loginPath = withPassword || enabledOauthProviders.length > 0 || withWebAuthn
+      ? resolvePagePath(settings.pages?.login, '/login')
+      : undefined
+    const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
 
     nuxt.options.runtimeConfig.public.authMethods = authMethods
 
     const authManifest: AuthManifest = {
       methods: authMethods,
       pages: {
-        login: withPassword ? '/login' : undefined,
-        register: withPassword ? '/register' : undefined,
+        login: loginPath,
+        register: registerPath,
       },
     }
 
@@ -199,19 +228,24 @@ export default defineNuxtModule<ModuleOptions>({
       getContents: () => JSON.stringify(authManifest, null, 2),
     })
 
-    // Login/register pages switch the consuming app into Vue Router's pages mode, so they
-    // are opt-in (`settings.pages: true`) rather than enabled by default.
-    if (settings.pages === true) {
+    if (loginPath || registerPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
-        if (withPassword && !existingPaths.has('/login')) {
-          pages.push({ name: 'login', path: '/login', file: resolver.resolve('./runtime/app/pages/login.vue') })
+        if (loginPath && !existingPaths.has(loginPath)) {
+          pages.push({ name: 'users-login', path: loginPath, file: resolver.resolve('./runtime/app/pages/login.vue') })
         }
-        if (withPassword && !existingPaths.has('/register')) {
-          pages.push({ name: 'register', path: '/register', file: resolver.resolve('./runtime/app/pages/register.vue') })
+        if (registerPath && !existingPaths.has(registerPath)) {
+          pages.push({ name: 'users-register', path: registerPath, file: resolver.resolve('./runtime/app/pages/register.vue') })
         }
       })
+    }
+
+    nuxt.options.runtimeConfig.public.users = {
+      password: withPassword,
+      webAuthn: withWebAuthn,
+      oauth: enabledOauthProviders,
+      pages: { login: loginPath, register: registerPath },
     }
   },
 })

@@ -15,7 +15,7 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - 🔑 Email/password login & registration, with an on/off switch.
 - 🔐 Passkey (WebAuthn) registration, authentication & credential management.
 - 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
-- 🧩 Overridable composables (`useAuthLogin`, `useAuthRegister`, `useAuthPasskeys`) and opt-in login/register pages.
+- 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
 - 🧵 Session enrichment: the logged-in user is mapped into the session once, at login/registration time.
 
 ## Quick Setup
@@ -48,9 +48,13 @@ export default defineNuxtConfig({
       // Requires the optional `@simplewebauthn/browser` and `@simplewebauthn/server` peer deps.
       // Defaults to `false`.
       webAuthn: false,
-      // Registers the login/register pages (`/login`, `/register`). Off by default, since it
-      // switches the consuming app into Vue Router's "pages" mode. Set to `true` to opt in.
-      pages: false,
+      // Registers the login/register pages, built with `@nuxt/ui` (an optional peer dependency,
+      // required only when a page is enabled). Off by default; set to `true` for the default
+      // path (`/login`, `/register`) or a custom path string to opt in.
+      pages: {
+        login: true,
+        register: '/sign-up',
+      },
       session: {
         // Path to a function (default export) mapping the raw DB user to the session user shape.
         mapper: '~/server/utils/map-session-user',
@@ -81,10 +85,17 @@ export default defineNuxtConfig({
 | `DELETE /api/auth/webauthn/credentials/:id` | `settings.webAuthn` | Remove one of the current user's passkeys |
 | `GET /api/auth/github`, `/google` | `settings.oauth.<provider>` + matching env vars | "Simple" OAuth login |
 
+### Pages
+
+| Page | Enabled by | Description |
+| --- | --- | --- |
+| Login | `settings.pages.login` | Renders a `UAuthForm` with the password fields and/or OAuth provider buttons that are actually enabled |
+| Register | `settings.pages.register` | Renders a `UAuthForm` for name/email/password registration |
+
 ### Composables
 
-- `useAuthLogin()` / `useAuthRegister()` – wrap the password routes above.
-- `useAuthPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
+- `useUserLogin()` / `useUserRegistration()` – wrap the password routes above, and expose `isEnabled`/`passwordLoginEnabled`/`passkeyLoginEnabled`/`oauthProviders` computed from the module's public runtime config so the shipped pages (or your own) can render conditionally.
+- `useUserPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
 
 All composables are registered via Nuxt's import ecosystem, so they can be overridden by re-declaring a composable of
 the same name in the consuming app.

@@ -1,4 +1,8 @@
-export const useAuthPasskeys = () => {
+export const useUserPasskeys = () => {
+  const config = useRuntimeConfig().public.users
+
+  const isEnabled = computed(() => config?.webAuthn === true)
+
   const { register, authenticate } = useWebAuthn({
     registerEndpoint: '/api/auth/webauthn/register',
     authenticateEndpoint: '/api/auth/webauthn/authenticate',
@@ -21,5 +25,5 @@ export const useAuthPasskeys = () => {
     return $fetch(`/api/auth/webauthn/credentials/${id}`, { method: 'DELETE' })
   }
 
-  return { registerPasskey, authenticateWithPasskey, listPasskeys, removePasskey }
+  return { isEnabled, registerPasskey, authenticateWithPasskey, listPasskeys, removePasskey }
 }

@@ -1,4 +1,8 @@
-export const useAuthRegister = () => {
+export const useUserRegistration = () => {
+  const config = useRuntimeConfig().public.users
+
+  const isEnabled = computed(() => config?.password === true)
+
   const pending = ref(false)
   const error = ref<string | null>(null)
 
@@ -19,5 +23,5 @@ export const useAuthRegister = () => {
     }
   }
 
-  return { register, pending, error }
+  return { register, pending, error, isEnabled }
 }

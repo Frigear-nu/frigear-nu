@@ -1,48 +1,44 @@
 <script setup lang="ts">
 defineOptions({ name: 'UsersLoginPage' })
 
-const { login, pending, error } = useAuthLogin()
+const { login, pending, error, passwordLoginEnabled, oauthProviders } = useUserLogin()
 
-const email = ref('')
-const password = ref('')
+const fields = computed(() => passwordLoginEnabled.value
+  ? [
+      { name: 'email', type: 'text' as const, label: 'Email', required: true },
+      { name: 'password', type: 'password' as const, label: 'Password', required: true },
+    ]
+  : [])
 
-async function onSubmit() {
-  await login({ email: email.value, password: password.value })
+async function onSubmit(payload: { data: { email: string, password: string } }) {
+  await login(payload.data)
   await navigateTo('/')
 }
 </script>
 
 <template>
-  <form @submit.prevent="onSubmit">
-    <h1>Log in</h1>
-    <p v-if="error">
-      {{ error }}
-    </p>
-    <label>
-      Email
-      <input
-        v-model="email"
-        type="email"
-        name="email"
-        autocomplete="email"
-        required
-      >
-    </label>
-    <label>
-      Password
-      <input
-        v-model="password"
-        type="password"
-        name="password"
-        autocomplete="current-password"
-        required
-      >
-    </label>
-    <button
-      type="submit"
-      :disabled="pending"
-    >
-      Log in
-    </button>
-  </form>
+  <UContainer>
+    <UPage>
+      <UPageBody>
+        <UAuthForm
+          title="Log in"
+          :fields="fields"
+          :providers="oauthProviders"
+          :loading="pending"
+          :submit="{ label: 'Log in' }"
+          @submit="onSubmit"
+        >
+          <template
+            v-if="error"
+            #validation
+          >
+            <UAlert
+              color="error"
+              :title="error"
+            />
+          </template>
+        </UAuthForm>
+      </UPageBody>
+    </UPage>
+  </UContainer>
 </template>
