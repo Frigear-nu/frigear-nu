@@ -9,7 +9,6 @@ export default defineNuxtConfig({
     db: {
       dialect: 'sqlite',
       driver: 'libsql',
-      connection: { url: 'file:./db.sqlite' },
     },
   },
   users: {

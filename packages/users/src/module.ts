@@ -1,5 +1,16 @@
-import { addImports, addServerHandler, addServerImportsDir, addServerTemplate, createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
+import {
+  addImports,
+  addServerHandler,
+  addServerImportsDir,
+  addServerTemplate,
+  addTemplate,
+  createResolver,
+  defineNuxtModule,
+  extendPages,
+} from '@nuxt/kit'
+import { upperFirst } from 'scule'
 import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import type { AuthMethodObject, AuthManifest } from './types'
 
 // We ship ready-to-use "simple" OAuth routes for these providers only. nuxt-auth-utils itself
 // supports many more (https://github.com/atinux/nuxt-auth-utils) - for any other provider, the
@@ -57,8 +68,13 @@ declare module '@nuxt/schema' {
   interface NuxtConfig {
     users?: ModuleOptions
   }
+
   interface RuntimeConfig {
     users?: ModuleOptions
+  }
+
+  interface PublicRuntimeConfig {
+    authMethods: AuthMethodObject[]
   }
 }
 
@@ -74,15 +90,25 @@ export default defineNuxtModule<ModuleOptions>({
       pages: false,
     },
   },
-  moduleDependencies: (nuxt) => {
-    const options = nuxt.options.users
-    if (options?.mode === 'client') return {}
-
-    return {
-      'nuxt-auth-utils': {
-        defaults: { webAuthn: options?.settings?.webAuthn === true },
+  moduleDependencies: {
+    '@nuxthub/core': {
+      version: '>=0.0.1',
+      defaults: {
+        db: {
+          dialect: 'sqlite',
+          driver: 'libsql',
+          casing: 'snake_case',
+          connection: { url: 'file:./db.sqlite' },
+        },
+        kv: true,
       },
-    }
+    },
+    '@frigear-nu/module-kit': {
+      version: '>=0.0.1',
+    },
+    'nuxt-auth-utils': {
+      version: '>=0.0.1',
+    },
   },
   async setup(options, nuxt) {
     if (options.mode === 'client') {
@@ -94,8 +120,12 @@ export default defineNuxtModule<ModuleOptions>({
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
     const withWebAuthn = settings.webAuthn === true
+    const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
+    const authMethods: AuthMethodObject[] = []
 
-    extendDatabaseTable(nuxt, {
+    // if i18n is installed, we push the label keys instead of english:
+
+    await extendDatabaseTable(nuxt, {
       name: 'users',
       factory: 'defineUsersTable',
       resolver,
@@ -104,7 +134,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     if (withWebAuthn) {
-      extendDatabaseTable(nuxt, {
+      await extendDatabaseTable(nuxt, {
         name: 'userCredentials',
         factory: 'defineUserCredentialsTable',
         resolver,
@@ -126,6 +156,7 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 
     if (withPassword) {
+      authMethods.push({ label: withI18n ? 'auth.emailPassword.label' : 'Email & Password', value: 'emailPassword', icon: 'i-lucide-user-lock' })
       addServerHandler({ route: '/api/auth/login', handler: resolver.resolve('./runtime/server/routes/auth/login.post') })
       addServerHandler({ route: '/api/auth/register', handler: resolver.resolve('./runtime/server/routes/auth/register.post') })
       addImports([
@@ -135,6 +166,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (withWebAuthn) {
+      authMethods.push({ label: withI18n ? 'auth.passkeys.label' : 'Passkey', value: 'passkeys', icon: 'i-lucide-key' })
       addServerHandler({ route: '/api/auth/webauthn/register', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/register.post') })
       addServerHandler({ route: '/api/auth/webauthn/authenticate', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/authenticate.post') })
       addServerHandler({ route: '/api/auth/webauthn/credentials', handler: resolver.resolve('./runtime/server/routes/auth/webauthn/credentials/index.get') })
@@ -147,9 +179,25 @@ export default defineNuxtModule<ModuleOptions>({
 
       const [clientIdVar, clientSecretVar] = OAUTH_ENV_VARS[provider]
       if (!process.env[clientIdVar] || !process.env[clientSecretVar]) continue
-
+      authMethods.push({ label: withI18n ? `auth.oauth.${provider}.label` : upperFirst(provider), value: provider })
       addServerHandler({ route: `/api/auth/${provider}`, handler: resolver.resolve(`./runtime/server/routes/auth/${provider}.get`) })
     }
+
+    nuxt.options.runtimeConfig.public.authMethods = authMethods
+
+    const authManifest: AuthManifest = {
+      methods: authMethods,
+      pages: {
+        login: withPassword ? '/login' : undefined,
+        register: withPassword ? '/register' : undefined,
+      },
+    }
+
+    addTemplate({
+      filename: 'users/auth.manifest.json',
+      write: true,
+      getContents: () => JSON.stringify(authManifest, null, 2),
+    })
 
     // Login/register pages switch the consuming app into Vue Router's pages mode, so they
     // are opt-in (`settings.pages: true`) rather than enabled by default.

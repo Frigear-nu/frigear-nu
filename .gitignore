@@ -4,3 +4,4 @@ node_modules
 .idea
 packages/users/playground/.data
 *.sqlite
+apps/website/.data
