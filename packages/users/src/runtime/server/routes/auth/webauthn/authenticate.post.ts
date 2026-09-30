@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 
 export default defineWebAuthnAuthenticateEventHandler({
   async allowCredentials(_event, userName) {
-    if (!userName) return undefined
+    if (!userName) return []
 
     const user = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, userName) })
     if (!user) throw createError({ statusCode: 400, statusMessage: 'User not found.' })
