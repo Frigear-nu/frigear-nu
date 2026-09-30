@@ -29,6 +29,6 @@ export default defineWebAuthnRegisterEventHandler({
       transports: credential.transports,
     })
 
-    await setUserSession(event, { user: { id: dbUser.id } })
+    await setUserSession(event, { user: mapUserToSession(dbUser) })
   },
 })

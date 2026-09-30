@@ -467,9 +467,6 @@ importers:
       '@simplewebauthn/server':
         specifier: ^11.0.0
         version: 11.0.0
-      defu:
-        specifier: ^6.1.7
-        version: 6.1.7
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11

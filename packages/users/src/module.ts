@@ -1,13 +1,18 @@
-import { addImports, addServerHandler, addServerImportsDir, addServerPlugin, addServerTemplate, createResolver, defineNuxtModule, installModule } from '@nuxt/kit'
+import { addImports, addServerHandler, addServerImportsDir, addServerTemplate, createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
 import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
-import { defu } from 'defu'
 
-type OAuthProviderConfig = { clientId?: string, clientSecret?: string }
-
-// The "simple" nuxt-auth-utils OAuth routes we ship out of the box. Each key maps to a
-// static `./runtime/server/routes/auth/<provider>.get.ts` route bundled with this module.
-const SUPPORTED_OAUTH_PROVIDERS = ['github', 'google', 'discord'] as const
-type OAuthProvider = typeof SUPPORTED_OAUTH_PROVIDERS[number]
+// We ship ready-to-use "simple" OAuth routes for these providers only. nuxt-auth-utils itself
+// supports many more (https://github.com/atinux/nuxt-auth-utils) - for any other provider, the
+// implementing app can add its own `/api/auth/<provider>.get.ts` route using the matching
+// `defineOAuth<Provider>EventHandler`, which is auto-imported once this module installs
+// `nuxt-auth-utils`. The client id/secret for every provider are read by nuxt-auth-utils itself
+// from `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars, so we
+// don't duplicate that configuration here - we only need to know whether to register the route.
+const OAUTH_ENV_VARS = {
+  github: ['NUXT_OAUTH_GITHUB_CLIENT_ID', 'NUXT_OAUTH_GITHUB_CLIENT_SECRET'],
+  google: ['NUXT_OAUTH_GOOGLE_CLIENT_ID', 'NUXT_OAUTH_GOOGLE_CLIENT_SECRET'],
+} as const
+type OAuthProvider = keyof typeof OAUTH_ENV_VARS
 
 export type ModuleOptions = {
   // When the mode is server, it also registers the
@@ -30,9 +35,11 @@ export type ModuleOptions = {
       // Path to a function (default export) mapping the raw DB user to the session user shape.
       mapper?: string
     }
-    // Registers any of the supported "simple" nuxt-auth-utils OAuth routes (e.g. `/api/auth/github`)
-    // and forwards the given credentials to `runtimeConfig.oauth`.
-    oauth?: Partial<Record<OAuthProvider, OAuthProviderConfig | true>>
+    // Registers the "simple" OAuth routes we ship (e.g. `/api/auth/github`). The provider's
+    // client id/secret are configured the same way nuxt-auth-utils expects them (env vars), so
+    // there's nothing else to configure here - the route is only registered when the matching
+    // env vars are set.
+    oauth?: Partial<Record<OAuthProvider, boolean>>
   }
 } | {
   // Client means that the application does not have it's own auth,
@@ -67,6 +74,16 @@ export default defineNuxtModule<ModuleOptions>({
       pages: false,
     },
   },
+  moduleDependencies: (nuxt) => {
+    const options = nuxt.options.users
+    if (options?.mode === 'client') return {}
+
+    return {
+      'nuxt-auth-utils': {
+        defaults: { webAuthn: options?.settings?.webAuthn === true },
+      },
+    }
+  },
   async setup(options, nuxt) {
     if (options.mode === 'client') {
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
@@ -77,8 +94,6 @@ export default defineNuxtModule<ModuleOptions>({
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
     const withWebAuthn = settings.webAuthn === true
-
-    await installModule('nuxt-auth-utils', { webAuthn: withWebAuthn })
 
     extendDatabaseTable(nuxt, {
       name: 'users',
@@ -109,7 +124,6 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/session'))
 
     if (withPassword) {
       addServerHandler({ route: '/api/auth/login', handler: resolver.resolve('./runtime/server/routes/auth/login.post') })
@@ -128,21 +142,19 @@ export default defineNuxtModule<ModuleOptions>({
       addImports([{ name: 'useAuthPasskeys', from: resolver.resolve('./runtime/app/composables/useAuthPasskeys') }])
     }
 
-    for (const provider of SUPPORTED_OAUTH_PROVIDERS) {
-      const config = settings.oauth?.[provider]
-      if (!config) continue
+    for (const provider of Object.keys(OAUTH_ENV_VARS) as OAuthProvider[]) {
+      if (!settings.oauth?.[provider]) continue
+
+      const [clientIdVar, clientSecretVar] = OAUTH_ENV_VARS[provider]
+      if (!process.env[clientIdVar] || !process.env[clientSecretVar]) continue
 
       addServerHandler({ route: `/api/auth/${provider}`, handler: resolver.resolve(`./runtime/server/routes/auth/${provider}.get`) })
-      nuxt.options.runtimeConfig.oauth = defu(
-        nuxt.options.runtimeConfig.oauth,
-        { [provider]: config === true ? {} : config },
-      )
     }
 
     // Login/register pages switch the consuming app into Vue Router's pages mode, so they
     // are opt-in (`settings.pages: true`) rather than enabled by default.
     if (settings.pages === true) {
-      nuxt.hook('pages:extend', (pages) => {
+      extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
         if (withPassword && !existingPaths.has('/login')) {

@@ -14,9 +14,9 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - 🌲 Simple to use, supports billing & subscriptions.
 - 🔑 Email/password login & registration, with an on/off switch.
 - 🔐 Passkey (WebAuthn) registration, authentication & credential management.
-- 🪪 "Simple" OAuth routes for GitHub, Google & Discord, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils).
+- 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
 - 🧩 Overridable composables (`useAuthLogin`, `useAuthRegister`, `useAuthPasskeys`) and opt-in login/register pages.
-- 🧵 Session enrichment: the logged-in user is loaded from the database and mapped into the session on every request.
+- 🧵 Session enrichment: the logged-in user is mapped into the session once, at login/registration time.
 
 ## Quick Setup
 
@@ -55,11 +55,14 @@ export default defineNuxtConfig({
         // Path to a function (default export) mapping the raw DB user to the session user shape.
         mapper: '~/server/utils/map-session-user',
       },
-      // Registers any of the supported "simple" nuxt-auth-utils OAuth routes
-      // (e.g. `/api/auth/github`) and forwards the given credentials to `runtimeConfig.oauth`.
+      // Registers the "simple" OAuth routes we ship (`/api/auth/github`, `/api/auth/google`).
+      // Each provider's client id/secret are read by nuxt-auth-utils itself from the standard
+      // `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars - the
+      // route is only registered when both are set. Any other provider supported by
+      // nuxt-auth-utils can be added directly in the consuming app.
       oauth: {
-        github: { clientId: '...', clientSecret: '...' },
-        google: true, // reads NUXT_OAUTH_GOOGLE_CLIENT_ID / _CLIENT_SECRET from env
+        github: true,
+        google: true,
       },
     },
   },
@@ -76,7 +79,7 @@ export default defineNuxtConfig({
 | `POST /api/auth/webauthn/authenticate` | `settings.webAuthn` | Authenticate with a passkey |
 | `GET /api/auth/webauthn/credentials` | `settings.webAuthn` | List the current user's passkeys |
 | `DELETE /api/auth/webauthn/credentials/:id` | `settings.webAuthn` | Remove one of the current user's passkeys |
-| `GET /api/auth/github`, `/google`, `/discord` | `settings.oauth.<provider>` | "Simple" OAuth login |
+| `GET /api/auth/github`, `/google` | `settings.oauth.<provider>` + matching env vars | "Simple" OAuth login |
 
 ### Composables
 

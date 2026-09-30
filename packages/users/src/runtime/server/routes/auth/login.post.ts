@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password.' })
   }
 
-  await setUserSession(event, { user: { id: user.id } })
+  await setUserSession(event, { user: mapUserToSession(user) })
 
   return { id: user.id }
 })

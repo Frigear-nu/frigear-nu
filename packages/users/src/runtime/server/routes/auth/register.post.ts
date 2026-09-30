@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const hashed = await hashPassword(password)
   const [user] = await db.insert(schema.users).values({ name, email, password: hashed }).returning()
 
-  await setUserSession(event, { user: { id: user.id } })
+  await setUserSession(event, { user: mapUserToSession(user) })
 
   return { id: user.id }
 })

@@ -26,7 +26,7 @@ export async function handleOAuthUser(event: H3Event, provider: string, profile:
     dbUser = created
   }
 
-  await setUserSession(event, { user: { id: dbUser.id } })
+  await setUserSession(event, { user: mapUserToSession(dbUser) })
 
   return sendRedirect(event, '/')
 }

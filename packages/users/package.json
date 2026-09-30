@@ -43,7 +43,6 @@
     "@frigear-nu/module-kit": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.5.2",
-    "defu": "^6.1.7",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
     "nuxt-auth-utils": "^0.5.30",

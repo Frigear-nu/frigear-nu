@@ -24,6 +24,9 @@ export default defineWebAuthnAuthenticateEventHandler({
       .set({ counter: authenticationInfo.newCounter })
       .where(eq(schema.userCredentials.id, credential.id))
 
-    await setUserSession(event, { user: { id: credential.userId } })
+    const dbUser = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, credential.userId) })
+    if (!dbUser) throw createError({ statusCode: 400, statusMessage: 'User not found.' })
+
+    await setUserSession(event, { user: mapUserToSession(dbUser) })
   },
 })
