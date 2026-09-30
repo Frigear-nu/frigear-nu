@@ -12,6 +12,7 @@ export default defineNuxtConfig({
     'nuxt-qrcode',
     '@sentry/nuxt/module',
     '@norbiros/nuxt-auto-form',
+    '@frigear-nu/users',
   ],
 
   $development: {
@@ -57,6 +58,7 @@ export default defineNuxtConfig({
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
+      driver: 'libsql',
     },
     kv: true,
   },
@@ -68,4 +70,5 @@ export default defineNuxtConfig({
       },
     },
   },
+
 })

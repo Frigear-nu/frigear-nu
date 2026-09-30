@@ -1,6 +1,12 @@
 export default defineNuxtConfig({
-  modules: ['@frigear-nu/users'],
+  modules: [
+    '@nuxthub/core',
+    '@frigear-nu/users',
+  ],
   devtools: { enabled: true },
   compatibilityDate: 'latest',
-  myModule: {},
+  users: {
+    mode: 'server',
+    settings: { migrations: true },
+  },
 })
