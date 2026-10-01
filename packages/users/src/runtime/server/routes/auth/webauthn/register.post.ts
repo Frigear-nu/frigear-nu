@@ -3,6 +3,18 @@ import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 
 export default defineWebAuthnRegisterEventHandler({
+  async storeChallenge(_event, challenge, attemptId) {
+    await useStorage().setItem(`webauthn:registration:${attemptId}`, challenge)
+  },
+  async getChallenge(_event, attemptId) {
+    const key = `webauthn:registration:${attemptId}`
+    const challenge = await useStorage().getItem<string>(key)
+    await useStorage().removeItem(key)
+
+    if (!challenge) throw createError({ statusCode: 400, statusMessage: 'Registration challenge expired.' })
+
+    return challenge
+  },
   async validateUser(userBody, event) {
     const session = await getUserSession(event)
 
