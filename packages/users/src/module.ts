@@ -128,6 +128,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
+      defaults: { webAuthn: true },
     },
   },
   async setup(options, nuxt) {
