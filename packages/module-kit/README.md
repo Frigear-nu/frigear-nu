@@ -21,7 +21,7 @@ extendDatabaseTable(nuxt, {
 })
 ```
 
-The schema file exports the named factory, which accepts an object of additional columns and returns a table. Other modules can register column files during setup:
+The schema file exports the named factory, which accepts an object of additional columns and returns a table. The factory must spread the received `extra` columns *last* in the object passed to the table builder (after every one of its own fields, including timestamps), so extended columns always end up last in the generated migration, matching the order they were registered in. Other modules can register column files during setup:
 
 ```ts
 registerDatabaseTableExtension(nuxt, {
