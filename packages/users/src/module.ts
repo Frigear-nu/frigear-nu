@@ -208,7 +208,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather
     // than enabled by default, since they require `@nuxt/ui` to be installed in the consuming app.
-    const loginPath = withPassword || enabledOauthProviders.length > 0 || withWebAuthn
+    const loginPath = withPassword || enabledOauthProviders.length > 0
       ? resolvePagePath(settings.pages?.login, '/login')
       : undefined
     const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
