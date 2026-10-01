@@ -15,7 +15,12 @@ export default defineWebAuthnRegisterEventHandler({
   async onSuccess(event, { credential, user }) {
     let dbUser = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, user.userName) })
 
-    if (!dbUser) {
+    if (dbUser) {
+      const session = await getUserSession(event)
+      if (session.user?.email !== dbUser.email) {
+        throw createError({ statusCode: 403, statusMessage: 'Authenticate before adding a passkey to this account.' })
+      }
+    } else {
       const [created] = await db.insert(schema.users).values({ name: user.userName, email: user.userName }).returning()
       dbUser = created
     }
