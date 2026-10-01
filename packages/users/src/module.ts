@@ -16,14 +16,10 @@ import type { AuthMethodObject, AuthManifest } from './types'
 // supports many more (https://github.com/atinux/nuxt-auth-utils) - for any other provider, the
 // implementing app can add its own `/api/auth/<provider>.get.ts` route using the matching
 // `defineOAuth<Provider>EventHandler`, which is auto-imported once this module installs
-// `nuxt-auth-utils`. The client id/secret for every provider are read by nuxt-auth-utils itself
-// from `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars, so we
-// don't duplicate that configuration here - we only need to know whether to register the route.
-const OAUTH_ENV_VARS = {
-  github: ['NUXT_OAUTH_GITHUB_CLIENT_ID', 'NUXT_OAUTH_GITHUB_CLIENT_SECRET'],
-  google: ['NUXT_OAUTH_GOOGLE_CLIENT_ID', 'NUXT_OAUTH_GOOGLE_CLIENT_SECRET'],
-} as const
-type OAuthProvider = keyof typeof OAUTH_ENV_VARS
+// `nuxt-auth-utils`. Provider credentials are read by nuxt-auth-utils from runtime environment
+// variables, so route registration only depends on the provider being enabled in module settings.
+const OAUTH_PROVIDERS = ['github', 'google'] as const
+type OAuthProvider = typeof OAUTH_PROVIDERS[number]
 
 // The subset of settings composables/pages need to read on the client, exposed through
 // `runtimeConfig.public.users`.
@@ -61,8 +57,7 @@ export type ModuleOptions = {
     }
     // Registers the "simple" OAuth routes we ship (e.g. `/api/auth/github`). The provider's
     // client id/secret are configured the same way nuxt-auth-utils expects them (env vars), so
-    // there's nothing else to configure here - the route is only registered when the matching
-    // env vars are set.
+    // there's nothing else to configure here.
     oauth?: Partial<Record<OAuthProvider, boolean>>
   }
 } | {
@@ -196,11 +191,9 @@ export default defineNuxtModule<ModuleOptions>({
     addImports([{ name: 'useUserPasskeys', from: resolver.resolve('./runtime/app/composables/useUserPasskeys') }])
 
     const enabledOauthProviders: OAuthProvider[] = []
-    for (const provider of Object.keys(OAUTH_ENV_VARS) as OAuthProvider[]) {
+    for (const provider of OAUTH_PROVIDERS) {
       if (!settings.oauth?.[provider]) continue
 
-      const [clientIdVar, clientSecretVar] = OAUTH_ENV_VARS[provider]
-      if (!process.env[clientIdVar] || !process.env[clientSecretVar]) continue
       authMethods.push({ label: withI18n ? `auth.oauth.${provider}.label` : upperFirst(provider), value: provider })
       addServerHandler({ route: `/api/auth/${provider}`, handler: resolver.resolve(`./runtime/server/routes/auth/${provider}.get`) })
       enabledOauthProviders.push(provider)

@@ -61,8 +61,8 @@ export default defineNuxtConfig({
       },
       // Registers the "simple" OAuth routes we ship (`/api/auth/github`, `/api/auth/google`).
       // Each provider's client id/secret are read by nuxt-auth-utils itself from the standard
-      // `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars - the
-      // route is only registered when both are set. Any other provider supported by
+      // `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars.
+      // Route registration depends only on these flags. Any other provider supported by
       // nuxt-auth-utils can be added directly in the consuming app.
       oauth: {
         github: true,
@@ -83,7 +83,7 @@ export default defineNuxtConfig({
 | `POST /api/auth/webauthn/authenticate` | `settings.webAuthn` | Authenticate with a passkey |
 | `GET /api/auth/webauthn/credentials` | `settings.webAuthn` | List the current user's passkeys |
 | `DELETE /api/auth/webauthn/credentials/:id` | `settings.webAuthn` | Remove one of the current user's passkeys |
-| `GET /api/auth/github`, `/google` | `settings.oauth.<provider>` + matching env vars | "Simple" OAuth login |
+| `GET /api/auth/github`, `/google` | `settings.oauth.<provider>` | "Simple" OAuth login |
 
 ### Pages
 
