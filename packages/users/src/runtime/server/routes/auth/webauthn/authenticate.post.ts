@@ -3,6 +3,19 @@ import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 
 export default defineWebAuthnAuthenticateEventHandler({
+  async storeChallenge(_event, challenge, attemptId) {
+    await useStorage().setItem(`attempt:${attemptId}`, challenge)
+  },
+  async getChallenge(_event, attemptId) {
+    const storage = useStorage()
+    const key = `attempt:${attemptId}`
+    const challenge = await storage.getItem<string>(key)
+    await storage.removeItem(key)
+
+    if (!challenge) throw createError({ statusCode: 400, statusMessage: 'Challenge expired.' })
+
+    return challenge
+  },
   async allowCredentials(_event, userName) {
     if (!userName) return []
 
