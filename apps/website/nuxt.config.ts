@@ -76,7 +76,7 @@ export default defineNuxtConfig({
   users: {
     mode: 'server',
     settings: {
-      pages: { login: true, register: true }
+      pages: { login: true, register: true },
       password: true,
       migrations: true,
     },
