@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/module-kit",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "private": false,
   "description": "Frigear Module Kit",
