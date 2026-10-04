@@ -1,19 +1,23 @@
 ---
 title: Module Kit
-description: A module kit for building Frigear ecosystem applications and packages.
+description: Helpers for building Frigear Nuxt modules and extending database schemas.
 ---
 
 
-A simple nuxt module to simplify development of other nuxt modules within frigear.
+A shared toolkit for building Nuxt modules in the Frigear workspace. It currently provides helpers for composing and
+extending database schemas while keeping table-specific behavior in the modules that own those tables.
 
 ## Purpose
 
-- Be a shared module kit for building nuxt modules within frigear – as generic as possible within the frigear requirements
-- E.g building a 'user' or 'blog' or 'post' module for frigear-nu
+- Share common module-development utilities across Frigear packages.
+- Let one module add columns to a table owned by another module without replacing its schema.
+
+The package is consumed by workspace modules such as [`@frigear-nu/users`](/packages/users).
 
 ## Extending a database table
 
-Modules can register a table schema using `extendDatabaseTable` from `@frigear-nu/module-kit/utils`:
+The table-owning module registers its schema with `extendDatabaseTable` from
+`@frigear-nu/module-kit/utils`:
 
 ```ts
 extendDatabaseTable(nuxt, {
@@ -35,7 +39,8 @@ registerDatabaseTableExtension(nuxt, {
 })
 ```
 
-Each extension file exports column objects named for their tables. For example, a Nuxt layer can extend several tables in `server/db/extend.sqlite.ts`:
+Each extension file exports column objects named for their tables. For example, a Nuxt layer can extend multiple tables
+in `server/db/extend.sqlite.ts`:
 
 ```ts
 export const users = defineExtendedColumns({ locale: text().default('da') })

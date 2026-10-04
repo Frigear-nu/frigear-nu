@@ -1,7 +1,7 @@
 ---
 seo:
   title: Frigear Development Docs
-  description: Documentation for Frigear applications and packages.
+  description: Developer documentation for Frigear Nuxt applications, layers, modules, and packages.
 ---
 
 ::u-page-hero
@@ -9,7 +9,7 @@ seo:
 Frigear Development Docs
 
 #description
-Build and extend Frigear applications and packages with the modules, layers, and utilities provided by the Frigear ecosystem.
+Guides to the Nuxt applications and shared code in the Frigear workspace.
 
 #links
   :::u-button
@@ -27,7 +27,7 @@ Build and extend Frigear applications and packages with the modules, layers, and
   color: neutral
   icon: i-lucide-github
   size: xl
-  to: https://github.com/frigear-nu/frigear-nu
+  to: https://github.com/Frigear-nu/frigear-nu
   variant: outline
   target: _blank
   ---
@@ -37,19 +37,42 @@ Build and extend Frigear applications and packages with the modules, layers, and
 
 ::u-page-section
 #title
-Applications and packages
+Explore the workspace
 
 #features
   :::u-page-feature
   ---
   icon: i-lucide-layout-dashboard
-  to: /getting-started/introduction
+  to: /applications/website
   ---
   #title
-  Frigear Applications
+  Applications
 
   #description
-  Learn how the modules, layers, and utilities fit together to build Frigear applications.
+  Learn about the main website and the documentation application.
   :::
 
+  :::u-page-feature
+  ---
+  icon: i-lucide-layers-3
+  to: /layers
+  ---
+  #title
+  Layers
+
+  #description
+  Reuse Nuxt configuration and conventions across applications.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-boxes
+  to: /modules
+  ---
+  #title
+  Modules and packages
+
+  #description
+  Explore the reusable functionality shared by Frigear applications.
+  :::
 ::
