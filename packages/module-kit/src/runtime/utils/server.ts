@@ -19,6 +19,14 @@ export const defineExtendedColumns = <T extends Record<string, ColumnBuilderBase
   return columns
 }
 
+type TableDefinerFn = (extras: Record<string, ColumnBuilderBase>) => Record<string, ColumnBuilderBase>
+
+export const defineTable = (table: TableDefinerFn) => {
+  return (extras: Record<string, ColumnBuilderBase>) => {
+    return table(extras)
+  }
+}
+
 export const extendDatabaseSchema = async (
   nuxt: Nuxt,
   extender: DbExtenderFn,

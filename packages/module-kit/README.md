@@ -12,6 +12,8 @@ A simple nuxt module to simplify development of other nuxt modules within frigea
 Modules can register a table schema using `extendDatabaseTable` from `@frigear-nu/module-kit/utils`:
 
 ```ts
+import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+
 extendDatabaseTable(nuxt, {
   name: 'users',
   factory: 'defineUsersTable',
@@ -23,8 +25,9 @@ extendDatabaseTable(nuxt, {
 
 ```ts
 import { ColumnBuilderBase } from "drizzle-orm";
+import { defineTable } from "@frigear-nu/module-kit/utils"
 
-const defineUsersTable = (extras: Record<string, ColumnBuilderBase>) => {
+const defineUsersTable = defineTable((extras: Record<string, ColumnBuilderBase>) => {
   return sqliteTable('users', {
     id: serial('id').primaryKey(),
     email: text('email').notNull().unique(),
@@ -33,13 +36,16 @@ const defineUsersTable = (extras: Record<string, ColumnBuilderBase>) => {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
     ...extras || {},
   })
-}
+})
 ```
+
 
 
 The schema file exports the named factory, which accepts an object of additional columns and returns a table. The factory must spread the received `extra` columns *last* in the object passed to the table builder (after every one of its own fields, including timestamps), so extended columns always end up last in the generated migration, matching the order they were registered in. Other modules can register column files during setup:
 
 ```ts
+import { registerDatabaseTableExtension } from '@frigear-nu/module-kit/utils'
+
 registerDatabaseTableExtension(nuxt, {
   name: 'users',
   resolver: createResolver(import.meta.url),
