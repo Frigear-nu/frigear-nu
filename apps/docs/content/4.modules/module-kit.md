@@ -70,36 +70,38 @@ moduleApiUrl('OAuthServer', 'token') // => '/api/o-auth-server/token'
 These helpers let one module own a Drizzle table while letting other modules (and host applications) extend it with
 additional columns, without the owning module needing to know about them.
 
-### `defineTable`
+### `defineExtendableTable`
 
-Wraps a Drizzle table factory so it accepts an `extras` object of additional columns. The factory must spread
-`extras` *last*, after its own fields (including timestamps), so extended columns always end up last in the
-generated migration, matching the order they were registered in:
+Wraps a Drizzle table factory so it receives a single `{ name, columns }` object instead of a plain columns object.
+Passing `name` through means the table's name only has to be maintained in one place — the `registerDatabaseTable`
+call — instead of being duplicated as a string literal inside the factory itself. The factory must spread `columns`
+*last*, after its own fields (including timestamps), so extended columns always end up last in the generated
+migration, matching the order they were registered in:
 
 ```ts
 import type { ColumnBuilderBase } from 'drizzle-orm'
-import { defineTable } from '@frigear-nu/module-kit/utils'
+import { defineExtendableTable } from '@frigear-nu/module-kit/utils'
 
-const defineUsersTable = defineTable((extras: Record<string, ColumnBuilderBase>) => {
-  return sqliteTable('users', {
+const defineUsersTable = defineExtendableTable(({ name, columns }: { name: string, columns: Record<string, ColumnBuilderBase> }) => {
+  return sqliteTable(name, {
     id: serial('id').primaryKey(),
     email: text('email').notNull().unique(),
     password: text('password').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    ...extras || {},
+    ...columns,
   })
 })
 ```
 
-### `extendDatabaseTable`
+### `registerDatabaseTable`
 
-The table-owning module registers its schema with `extendDatabaseTable`. It generates the table by importing the
-named `factory` from `schema`, merging in any columns registered through `registerDatabaseTableExtension` and any
-Nuxt-layer extension files, then calling the factory:
+The table-owning module registers its schema with `registerDatabaseTable`. It generates the table by importing the
+named `factory` from `schema`, merging in any columns registered through `extendDatabaseTable` and any Nuxt-layer
+extension files, then calling the factory with `{ name, columns }`:
 
 ```ts
-extendDatabaseTable(nuxt, {
+registerDatabaseTable(nuxt, {
   name: 'users',
   factory: 'defineUsersTable',
   resolver: createResolver(import.meta.url),
@@ -108,26 +110,26 @@ extendDatabaseTable(nuxt, {
 })
 ```
 
-### `registerDatabaseTableExtension`
+### `extendDatabaseTable`
 
 Other modules can register column files during setup:
 
 ```ts
-registerDatabaseTableExtension(nuxt, {
+extendDatabaseTable(nuxt, {
   name: 'users',
   resolver: createResolver(import.meta.url),
   file: dialect => `./runtime/db/extra.${dialect}`,
 })
 ```
 
-### `defineExtendedColumns`
+### `defineTableColumns`
 
 A typed identity helper for defining a table's extension columns. Each extension file exports column objects named
 for their tables. For example, a Nuxt layer can extend multiple tables in `server/db/extend.sqlite.ts`:
 
 ```ts
-export const users = defineExtendedColumns({ locale: text().default('da') })
-export const posts = defineExtendedColumns({ summary: text() })
+export const users = defineTableColumns({ locale: text().default('da') })
+export const posts = defineTableColumns({ summary: text() })
 ```
 
 Only the export matching the table being built is used. Existing registered files are merged in registration order
@@ -138,9 +140,9 @@ shared export can override them. Pass `extensionFile: dialect => 'path/to/column
 per-layer file location. If `override` is a path instead of `'default'`, the host schema replaces the generated table
 entirely; the path is resolved from the application's root directory.
 
-### `extendDatabaseSchema`
+### `onDatabaseSchemaExtend`
 
-Lower-level primitive behind `extendDatabaseTable`. Registers a callback on the `hub:db:schema:extend` hook, which
+Lower-level primitive behind `registerDatabaseTable`. Registers a callback on the `hub:db:schema:extend` hook, which
 receives the current `dialect` and the `paths` array of schema files to include in the generated database schema.
-Most modules should use `extendDatabaseTable` instead, unless they need full control over how their schema file is
+Most modules should use `registerDatabaseTable` instead, unless they need full control over how their schema file is
 built.
