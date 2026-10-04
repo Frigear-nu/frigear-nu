@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fileURLToPath } from 'node:url'
-import { parseRegularTableExport } from '../src/runtime/utils/regular-table'
+import { listRegularTableExportNames, parseRegularTableExport } from '../src/runtime/utils/regular-table'
 
 const fixture = fileURLToPath(new URL('./fixtures/regular/schema.sqlite.ts', import.meta.url))
 
@@ -45,5 +45,17 @@ describe('parseRegularTableExport', () => {
     const file = fileURLToPath(new URL('./fixtures/regular/default-export.sqlite.ts', import.meta.url))
     const result = parseRegularTableExport(file, 'default')
     expect([...result!.properties.keys()]).toEqual(['legacyColumn'])
+  })
+})
+
+describe('listRegularTableExportNames', () => {
+  it('lists every table-like named export in the file', () => {
+    const file = fileURLToPath(new URL('./fixtures/regular/multi.sqlite.ts', import.meta.url))
+    expect(listRegularTableExportNames(file)).toEqual(['users', 'userPasskeys'])
+  })
+
+  it('does not include the default export', () => {
+    const file = fileURLToPath(new URL('./fixtures/regular/default-export.sqlite.ts', import.meta.url))
+    expect(listRegularTableExportNames(file)).toEqual([])
   })
 })

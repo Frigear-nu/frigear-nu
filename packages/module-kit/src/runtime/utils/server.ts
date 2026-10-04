@@ -2,7 +2,7 @@ import { addTemplate, createResolver } from '@nuxt/kit'
 import { existsSync } from 'node:fs'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
-import { parseRegularTableExport } from './regular-table'
+import { listRegularTableExportNames, parseRegularTableExport } from './regular-table'
 
 type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
 type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
@@ -58,9 +58,12 @@ type DatabaseTableOptions = {
    * The name of the table's export (e.g. `users`). Pass an array of names (e.g. `['users', 'userPasskeys']`) to
    * register several tables that are exported from the same `schema` file in one go - they're generated into a
    * single file so that tables can reference each other (e.g. a foreign key `.references(() => users.id)`). An
-   * array of names is only supported when `factory` is omitted.
+   * array of names (or omitting `name` entirely) is only supported when `factory` is omitted.
+   *
+   * When omitted, every table-like export in `schema` (and its extension files) is registered automatically - this
+   * is equivalent to passing an array of every such export's name.
    */
-  name: string | string[]
+  name?: string | string[]
   /**
    * The exported factory function name to call with merged extension columns (e.g. `defineUsersTable`), as produced
    * by `defineExtendableTable`. When omitted, `schema` (and every registered/layer extension file) is treated as a
@@ -101,18 +104,17 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) 
  * through `extendDatabaseTable` and any Nuxt-layer extension files, then calling the factory with
  * `{ name, columns }`.
  *
- * When `name` is an array, every table is generated into a single file - this lets tables declared
- * in the same `schema` file reference each other directly (e.g. a foreign key
+ * When `name` is an array, or omitted entirely, every (named or auto-discovered) table is generated into a single
+ * file - this lets tables declared in the same `schema` file reference each other directly (e.g. a foreign key
  * `.references(() => users.id)` from a `userPasskeys` table), since they share the same module scope.
  */
 export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) => {
   const { name, factory, resolver, schema, override, extensionFile } = options
-  const names = Array.isArray(name) ? name : [name]
 
-  if (names.length > 1 && factory) {
+  if (factory && (name === undefined || Array.isArray(name))) {
     throw new Error(
-      '[module-kit] registerDatabaseTable does not support an array of "name" together with "factory". '
-      + 'Omit "factory" to register multiple tables from the same regular drizzle schema file.',
+      '[module-kit] registerDatabaseTable requires a single "name" (not an array, and not omitted) when "factory" is set. '
+      + 'Omit "factory" to register multiple (or auto-discovered) tables from the same regular drizzle schema file.',
     )
   }
 
@@ -120,6 +122,16 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
     if (override && override !== 'default') {
       paths.push(await resolver.resolvePath(override, { cwd: nuxt.options.rootDir }))
       return
+    }
+
+    const schemaPath = await resolver.resolvePath(schema(dialect))
+    const names = name === undefined ? listRegularTableExportNames(schemaPath) : (Array.isArray(name) ? name : [name])
+
+    if (names.length === 0) {
+      throw new Error(
+        `[module-kit] Could not find any table exports in "${schemaPath}" to register. `
+        + `"schema" must be a regular drizzle file, e.g. \`export const users = sqliteTable('users', { ... })\`.`,
+      )
     }
 
     const extensionsByName = new Map<string, Array<{ file: string, legacy: boolean }>>()
@@ -145,7 +157,6 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
     }
 
     if (!factory) {
-      const schemaPath = await resolver.resolvePath(schema(dialect))
       const template = buildRegularTableTemplate({ names, dialect, schemaPath, extensionsByName })
       paths.push(template.dst)
       return

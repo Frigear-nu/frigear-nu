@@ -93,6 +93,47 @@ registerDatabaseTable(nuxt, {
 })
 ```
 
+#### Registering multiple tables from one schema file
+
+Pass an array of names, or omit `name` entirely, to register every table exported from the same `schema` file in one
+go. This generates all of the tables into a single file instead of one file per table, so tables declared in that
+file can reference each other directly - e.g. a foreign key via `.references(() => users.id)` - since they share the
+same module scope:
+
+```ts
+// runtime/db/schema.sqlite.ts
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+})
+
+export const userPasskeys = sqliteTable('user_passkeys', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  userId: integer().notNull().references(() => users.id, { onDelete: 'cascade' }),
+})
+```
+
+```ts
+// registers both `users` and `userPasskeys`
+registerDatabaseTable(nuxt, {
+  name: ['users', 'userPasskeys'],
+  resolver: createResolver(import.meta.url),
+  schema: dialect => `./runtime/db/schema.${dialect}`,
+})
+
+// equivalent - every table-like export in the schema file is auto-discovered when `name` is omitted
+registerDatabaseTable(nuxt, {
+  resolver: createResolver(import.meta.url),
+  schema: dialect => `./runtime/db/schema.${dialect}`,
+})
+```
+
+Each table's extension files (registered through `extendDatabaseTable`, plus Nuxt-layer `extend.<dialect>.ts` files)
+are still merged independently, per table name. An array of names, or omitting `name`, is only supported when
+`factory` is also omitted - a `factory` is always called for exactly one, explicitly named table.
+
 ### `extendDatabaseTable`
 
 Other modules can register column files during setup. These can be regular files too — either a full table
