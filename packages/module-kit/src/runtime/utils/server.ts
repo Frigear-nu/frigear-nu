@@ -79,7 +79,16 @@ type DatabaseTableOptions = {
 }
 
 type TableExtensionOptions = {
-  name: string
+  /**
+   * The name of the table to extend (e.g. `users`). Pass an array of names (e.g. `['users', 'userPasskeys']`) when
+   * `file` exports columns for several tables at once - it's resolved and parsed once per matching table, same as
+   * if `extendDatabaseTable` had been called separately for each name with the same `file`.
+   *
+   * When omitted, `file` is registered against every table - whichever table(s) it actually has a matching export
+   * for (parsed the same way as the shared Nuxt-layer `server/db/extend.<dialect>.ts` files) pick up its columns;
+   * tables it has no matching export for are unaffected.
+   */
+  name?: string | string[]
   resolver: ReturnType<typeof createResolver>
   file: (dialect: string) => string
 }
@@ -90,8 +99,9 @@ type TableExtensionOptions = {
  * `registerDatabaseTable` listens to.
  */
 export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) => {
+  const names = options.name === undefined ? undefined : (Array.isArray(options.name) ? options.name : [options.name])
   nuxt.hook('module-kit:db:table:extend', async ({ name, dialect, paths }) => {
-    if (name === options.name) {
+    if (names === undefined || names.includes(name)) {
       const file = await options.resolver.resolvePath(options.file(dialect))
       if (existsSync(file)) paths.push(file)
     }

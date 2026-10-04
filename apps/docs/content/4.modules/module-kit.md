@@ -162,6 +162,38 @@ call with the merged columns and deduplicated imports. The base `schema` file mu
 `sqliteTable('users', { ... })`) matching `name`, since it determines which factory (`sqliteTable`/`pgTable`/etc.) and
 SQL table name to use for the merged result.
 
+`name` also accepts an array, so a single `file` can export extension columns for several tables in one go, the same
+way `registerDatabaseTable` does:
+
+```ts
+extendDatabaseTable(nuxt, {
+  name: ['users', 'userPasskeys'],
+  resolver: createResolver(import.meta.url),
+  file: dialect => `./runtime/db/extra.${dialect}`,
+})
+```
+
+```ts
+// runtime/db/extra.sqlite.ts
+export const users = sqliteTable('users', {
+  locale: text().default('da'),
+})
+export const userPasskeys = sqliteTable('user_passkeys', {
+  label: text(),
+})
+```
+
+`name` can also be omitted entirely, in which case `file` is registered against every table that generates a schema -
+whichever table(s) it actually has a matching export for pick up its columns, exactly as the shared Nuxt-layer
+`server/db/extend.<dialect>.ts` files already do; tables with no matching export in `file` are left untouched:
+
+```ts
+extendDatabaseTable(nuxt, {
+  resolver: createResolver(import.meta.url),
+  file: dialect => `./runtime/db/extra.${dialect}`,
+})
+```
+
 ### Using a `factory`
 
 Pass `factory` to `registerDatabaseTable` when you need shared defaults (e.g. timestamps) applied consistently across
