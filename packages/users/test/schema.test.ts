@@ -6,8 +6,11 @@ import { defineUsersTable } from '../src/runtime/db/schema.sqlite'
 describe('defineUsersTable', () => {
   it('keeps the base columns first and places extended columns last', () => {
     const table = defineUsersTable({
-      locale: text().default('da'),
-      stripeCustomerId: text(),
+      name: 'users',
+      columns: {
+        locale: text().default('da'),
+        stripeCustomerId: text(),
+      },
     })
 
     expect(Object.keys(getTableColumns(table))).toEqual([

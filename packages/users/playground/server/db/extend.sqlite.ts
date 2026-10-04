@@ -1,7 +1,7 @@
 import { text } from 'drizzle-orm/sqlite-core'
-import { defineExtendedColumns } from '@frigear-nu/module-kit/utils'
+import { defineTableColumns } from '@frigear-nu/module-kit/utils'
 
-export const users = defineExtendedColumns({
+export const users = defineTableColumns({
   locale: text().default('da'),
   stripeCustomerId: text(),
 })

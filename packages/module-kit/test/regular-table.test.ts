@@ -25,7 +25,7 @@ describe('parseRegularTableExport', () => {
     expect([...result!.properties.keys()]).toEqual(['locale'])
   })
 
-  it('unwraps a single-argument wrapper call like defineExtendedColumns', () => {
+  it('unwraps a single-argument wrapper call like defineTableColumns', () => {
     const file = fileURLToPath(new URL('./fixtures/regular/wrapped.sqlite.ts', import.meta.url))
     const result = parseRegularTableExport(file, 'accounts')
     expect(result!.tableCall).toBeUndefined()

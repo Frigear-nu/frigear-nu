@@ -1,5 +1,5 @@
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
-import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
 
 export type ModuleOptions = {
   // When the mode is server, it also registers the
@@ -40,7 +40,7 @@ export default defineNuxtModule<ModuleOptions>({
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
     }
     else if (options.mode === 'server') {
-      extendDatabaseTable(nuxt, {
+      registerDatabaseTable(nuxt, {
         name: 'users',
         factory: 'defineUsersTable',
         resolver: createResolver(import.meta.url),

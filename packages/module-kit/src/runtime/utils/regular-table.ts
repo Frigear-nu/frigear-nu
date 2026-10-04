@@ -12,13 +12,13 @@ export type ParsedTableExport = {
 
 /**
  * Parses a "regular" drizzle schema file - i.e. a file that exports a table (or a plain columns object) without
- * requiring any `defineTable`/`defineExtendedColumns` wrapper - and extracts the column properties and imports
- * belonging to the export matching `exportName`. Supports:
+ * requiring any `defineExtendableTable`/`defineTableColumns` wrapper - and extracts the column properties and
+ * imports belonging to the export matching `exportName`. Supports:
  *
  * - `export const users = sqliteTable('users', { ... })` (or `pgTable`/`mysqlTable`, any 2+ arg factory call)
  * - `export const users = { ... }` (a plain columns object)
- * - `export const users = defineExtendedColumns({ ... })` (a single-argument wrapper call)
- * - `export default { ... }` / `export default sqliteTable(...)` / `export default defineExtendedColumns({ ... })`
+ * - `export const users = defineTableColumns({ ... })` (a single-argument wrapper call)
+ * - `export default { ... }` / `export default sqliteTable(...)` / `export default defineTableColumns({ ... })`
  *   when `exportName` is `'default'`
  */
 export const parseRegularTableExport = (filePath: string, exportName: string): ParsedTableExport | undefined => {

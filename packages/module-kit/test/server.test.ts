@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { addTemplate, createResolver } from '@nuxt/kit'
 import type { Nuxt, NuxtTemplate } from '@nuxt/schema'
-import { extendDatabaseTable, registerDatabaseTableExtension } from '../src/runtime/utils/server'
+import { registerDatabaseTable, extendDatabaseTable } from '../src/runtime/utils/server'
 
 vi.mock('@nuxt/kit', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@nuxt/kit')>()
@@ -35,7 +35,7 @@ function setup(override?: string, extensionFile?: (dialect: string) => string, l
     },
   } as unknown as Nuxt
 
-  extendDatabaseTable(nuxt, {
+  registerDatabaseTable(nuxt, {
     name: 'accounts',
     factory: 'defineAccountsTable',
     resolver: createResolver(import.meta.url),
@@ -50,13 +50,13 @@ function setup(override?: string, extensionFile?: (dialect: string) => string, l
   } }
 }
 
-describe('extendDatabaseTable', () => {
+describe('registerDatabaseTable', () => {
   it('generates a schema from the module factory without an extension file', async () => {
     const { run } = setup()
     expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     expect(template.write).toBe(true)
-    expect((template.getContents as () => string)()).toContain('export const accounts = defineAccountsTable({  })')
+    expect((template.getContents as () => string)()).toContain('export const accounts = defineAccountsTable({ name: "accounts", columns: {  } })')
     expect((template.getContents as () => string)()).toContain('fixtures/schema.sqlite')
   })
 
@@ -78,7 +78,7 @@ describe('extendDatabaseTable', () => {
     mkdirSync(join(rootDir, 'server/db'), { recursive: true })
     const extension = join(rootDir, 'server/db/extend.sqlite.ts')
     writeFileSync(extension, 'export const accounts = {}; export const posts = {}')
-    extendDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       name: 'posts',
       factory: 'definePostsTable',
       resolver: createResolver(import.meta.url),
@@ -134,7 +134,7 @@ describe('extendDatabaseTable', () => {
     mkdirSync(join(rootDir, 'server/db'), { recursive: true })
     const extension = join(rootDir, 'server/db/registered.sqlite.ts')
     writeFileSync(extension, 'export default {}')
-    registerDatabaseTableExtension(nuxt, {
+    extendDatabaseTable(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
       file: () => 'server/db/registered.sqlite.ts',
@@ -157,17 +157,17 @@ describe('extendDatabaseTable', () => {
     }
     writeFileSync(join(rootDir, 'server/db/first.sqlite.ts'), 'export const accounts = {}')
     writeFileSync(join(rootDir, 'server/db/second.sqlite.ts'), 'export const accounts = {}')
-    registerDatabaseTableExtension(nuxt, {
+    extendDatabaseTable(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
       file: dialect => `server/db/first.${dialect}.ts`,
     })
-    registerDatabaseTableExtension(nuxt, {
+    extendDatabaseTable(nuxt, {
       name: 'other',
       resolver: createResolver(rootDir),
       file: dialect => `server/db/ignored.${dialect}.ts`,
     })
-    registerDatabaseTableExtension(nuxt, {
+    extendDatabaseTable(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
       file: dialect => `server/db/second.${dialect}.ts`,
@@ -175,7 +175,7 @@ describe('extendDatabaseTable', () => {
     await run()
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
-    expect(content).toContain('export const accounts = defineAccountsTable({ ...(extra0["accounts" as keyof typeof extra0]')
+    expect(content).toContain('export const accounts = defineAccountsTable({ name: "accounts", columns: { ...(extra0["accounts" as keyof typeof extra0]')
     expect(content).toContain('...(extra4["accounts" as keyof typeof extra4]')
     expect(content).not.toContain('ignored.sqlite')
     expect(content.indexOf('first.sqlite')).toBeLessThan(content.indexOf('second.sqlite'))
@@ -186,7 +186,7 @@ describe('extendDatabaseTable', () => {
 
   it('skips registered files that are unavailable for the dialect', async () => {
     const { nuxt, rootDir, run } = setup()
-    registerDatabaseTableExtension(nuxt, {
+    extendDatabaseTable(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
       file: dialect => `server/db/missing.${dialect}.ts`,
@@ -220,7 +220,7 @@ function setupRegular() {
     },
   } as unknown as Nuxt
 
-  extendDatabaseTable(nuxt, {
+  registerDatabaseTable(nuxt, {
     name: 'accounts',
     resolver: createResolver(import.meta.url),
     schema: dialect => `./fixtures/regular/schema.${dialect}`,
@@ -232,7 +232,7 @@ function setupRegular() {
   } }
 }
 
-describe('extendDatabaseTable (without a factory)', () => {
+describe('registerDatabaseTable (without a factory)', () => {
   it('generates a merged table directly from a regular drizzle schema file', async () => {
     const { run } = setupRegular()
     expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
@@ -294,7 +294,7 @@ export const accounts = { locale: text().default('da') }
       },
     } as unknown as Nuxt
 
-    extendDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       name: 'accounts',
       resolver: createResolver(rootDir),
       schema: dialect => `server/db/schema.${dialect}`,

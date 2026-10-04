@@ -14,21 +14,39 @@ declare module '@nuxt/schema' {
   }
 }
 
-export const defineExtendedColumns = <T extends Record<string, ColumnBuilderBase>>(
+/**
+ * A typed identity helper for defining a table's extension columns. It exists purely for type
+ * inference/clarity when authoring `server/db/extend.<dialect>.ts` files — it returns the columns
+ * object unchanged.
+ */
+export const defineTableColumns = <T extends Record<string, ColumnBuilderBase>>(
   columns: T,
 ) => {
   return columns
 }
 
-type TableDefinerFn = (extras: Record<string, ColumnBuilderBase>) => Record<string, ColumnBuilderBase>
+type TableDefinerProps = { name: string, columns: Record<string, ColumnBuilderBase> }
+type TableDefinerFn<T> = (props: TableDefinerProps) => T
 
-export const defineTable = (table: TableDefinerFn) => {
-  return (extras: Record<string, ColumnBuilderBase>) => {
-    return table(extras)
+/**
+ * Wraps a Drizzle table factory so it receives `{ name, columns }`, letting the factory pass
+ * `name` straight through to e.g. `sqliteTable(name, columns)` instead of hard-coding it, so the
+ * table name only has to be maintained once, in the `registerDatabaseTable` call.
+ */
+export const defineExtendableTable = <T>(table: TableDefinerFn<T>) => {
+  return (props: TableDefinerProps): T => {
+    return table(props)
   }
 }
 
-export const extendDatabaseSchema = async (
+/**
+ * Lower-level primitive behind `registerDatabaseTable`. Registers a callback on the
+ * `hub:db:schema:extend` hook, which receives the current `dialect` and the `paths` array of
+ * schema files to include in the generated database schema. Most modules should use
+ * `registerDatabaseTable` instead, unless they need full control over how their schema file is
+ * built.
+ */
+export const onDatabaseSchemaExtend = async (
   nuxt: Nuxt,
   extender: DbExtenderFn,
 ) => {
@@ -39,9 +57,9 @@ type DatabaseTableOptions = {
   name: string
   /**
    * The exported factory function name to call with merged extension columns (e.g. `defineUsersTable`), as produced
-   * by `defineTable`. When omitted, `schema` (and every registered/layer extension file) is treated as a "regular"
-   * drizzle file - e.g. `export const users = sqliteTable('users', { ... })` - and its columns are merged directly,
-   * without requiring any helper wrapper.
+   * by `defineExtendableTable`. When omitted, `schema` (and every registered/layer extension file) is treated as a
+   * "regular" drizzle file - e.g. `export const users = sqliteTable('users', { ... })` - and its columns are merged
+   * directly, without requiring any helper wrapper.
    */
   factory?: string
   resolver: ReturnType<typeof createResolver>
@@ -56,7 +74,12 @@ type TableExtensionOptions = {
   file: (dialect: string) => string
 }
 
-export const registerDatabaseTableExtension = (nuxt: Nuxt, options: TableExtensionOptions) => {
+/**
+ * Registers a column file to be merged into a named table whenever its schema is generated (see
+ * `registerDatabaseTable`). Fires the `module-kit:db:table:extend` hook internally, which
+ * `registerDatabaseTable` listens to.
+ */
+export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) => {
   nuxt.hook('module-kit:db:table:extend', async ({ name, dialect, paths }) => {
     if (name === options.name) {
       const file = await options.resolver.resolvePath(options.file(dialect))
@@ -65,10 +88,16 @@ export const registerDatabaseTableExtension = (nuxt: Nuxt, options: TableExtensi
   })
 }
 
-export const extendDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) => {
+/**
+ * The table-owning module registers its schema with `registerDatabaseTable`. It generates the
+ * table by importing the named `factory` from `schema`, merging in any columns registered
+ * through `extendDatabaseTable` and any Nuxt-layer extension files, then calling the factory with
+ * `{ name, columns }`.
+ */
+export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) => {
   const { name, factory, resolver, schema, override, extensionFile } = options
 
-  return extendDatabaseSchema(nuxt, async ({ dialect, paths }) => {
+  return onDatabaseSchemaExtend(nuxt, async ({ dialect, paths }) => {
     if (override && override !== 'default') {
       paths.push(await resolver.resolvePath(override, { cwd: nuxt.options.rootDir }))
       return
@@ -102,7 +131,7 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) =
       getContents: () => `
 import { ${factory} } from ${JSON.stringify(resolver.resolve(schema(dialect)))}
 ${extensions.map(({ file }, index) => `import * as extra${index} from ${JSON.stringify(file)}`).join('\n')}
-export const ${name} = ${factory}({ ${extensions.map(({ legacy }, index) => legacy ? `...(extra${index}[${JSON.stringify(name)} as keyof typeof extra${index}] ?? Object.entries(extra${index}).find(([key]) => key === 'default')?.[1] ?? {})` : `...(extra${index}[${JSON.stringify(name)} as keyof typeof extra${index}] ?? {})`).join(', ')} })
+export const ${name} = ${factory}({ name: ${JSON.stringify(name)}, columns: { ${extensions.map(({ legacy }, index) => legacy ? `...(extra${index}[${JSON.stringify(name)} as keyof typeof extra${index}] ?? Object.entries(extra${index}).find(([key]) => key === 'default')?.[1] ?? {})` : `...(extra${index}[${JSON.stringify(name)} as keyof typeof extra${index}] ?? {})`).join(', ')} } })
 `,
     })
     paths.push(template.dst)
