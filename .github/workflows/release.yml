@@ -4,7 +4,7 @@
 # what kind of version bump to apply - see /docs/publishing.md for the full
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
-name: release
+name: Release
 
 on:
   workflow_dispatch:
