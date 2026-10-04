@@ -1,6 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  extends: ['@frigear-nu/base'],
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -13,7 +12,6 @@ export default defineNuxtConfig({
     'nuxt-qrcode',
     '@sentry/nuxt/module',
     '@norbiros/nuxt-auto-form',
-    '@frigear-nu/module-kit',
     '@frigear-nu/users',
   ],
 
@@ -25,16 +23,16 @@ export default defineNuxtConfig({
     },
   },
 
-  // $production: {
-  //   hub: {
-  //     db: {
-  //       dialect: 'sqlite',
-  //       driver: 'd1',
-  //       connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
-  //       applyMigrationsDuringBuild: false,
-  //     },
-  //   },
-  // },
+  $production: {
+    hub: {
+      db: {
+        dialect: 'sqlite',
+        driver: 'd1',
+        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+        applyMigrationsDuringBuild: false,
+      },
+    },
+  },
 
   devtools: {
     enabled: true,
@@ -72,6 +70,12 @@ export default defineNuxtConfig({
         braceStyle: '1tbs',
       },
     },
+  },
+  i18n: {
+    locales: [
+      { code: 'da', name: 'Danish' },
+      { code: 'en', name: 'English' },
+    ],
   },
   users: {
     mode: 'server',

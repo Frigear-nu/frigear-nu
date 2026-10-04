@@ -6,6 +6,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 
 ```
 /apps/web         Nuxt 4.5 application (the product)
+/apps/docs        Nuxt 4.5 / docus.dev documentation site (this repo's docs)
 /apps/**          Other Apps - could be any language or deployment target.
 /packages/**      Shared workspace packages (ui, config, types, utils, etc.)
 ```

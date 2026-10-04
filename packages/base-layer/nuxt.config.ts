@@ -23,6 +23,9 @@ export default defineNuxtConfig({
       }
     },
   ],
+  $meta: {
+    name: 'base',
+  },
 
   content: {
     experimental: { sqliteConnector: 'native' },

@@ -1,0 +1,113 @@
+# Publishes one of the public `packages/**` packages to npm using release-it.
+#
+# Triggered manually so a maintainer picks exactly which package to release and
+# what kind of version bump to apply - see /docs/publishing.md for the full
+# walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
+# new package to the `package` choices below).
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to release (folder under packages/)
+        type: choice
+        required: true
+        options:
+          - module-kit
+      increment:
+        description: Version increment (passed to release-it)
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed to push the version bump commit/tag and create the GitHub release.
+      contents: write
+      # Needed to mint the OIDC token npm uses for Trusted Publishing (no npm token required).
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      # release-it pushes the version commit and tag before the npm publish hook.
+      # If that hook fails, resume publishing the tagged version instead of trying
+      # to create the same tag again.
+      - name: Detect incomplete release
+        id: recovery
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          package_json="packages/$PACKAGE/package.json"
+          version="$(node -p "require('./$package_json').version")"
+          name="$(node -p "require('./$package_json').name")"
+          tag="$PACKAGE@$version"
+
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null &&
+             ! npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out tagged release
+        if: steps.recovery.outputs.tag != ''
+        env:
+          RELEASE_TAG: ${{ steps.recovery.outputs.tag }}
+        run: git checkout --detach "$RELEASE_TAG"
+
+      - run: pnpm install --frozen-lockfile
+
+      # Builds every workspace package the selected package depends on (recursively), so that e.g.
+      # `users` sees `module-kit`'s dist output and `base-layer`/`events` see `schema`'s. The
+      # selected package itself is built separately by release-it's `after:bump` hook (see its `.release-it.json`),
+      # right before packing/publishing.
+      - name: Build package dependencies
+        run: pnpm --filter "{packages/${{ inputs.package }}}^..." run --if-present build
+
+      - name: Test package
+        run: pnpm --filter "./packages/${{ inputs.package }}" run --if-present test
+
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Build package for recovery
+        if: steps.recovery.outputs.tag != ''
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: pnpm --filter "./packages/$PACKAGE" run --if-present build
+
+      - name: Resume npm publish
+        if: steps.recovery.outputs.tag != ''
+        working-directory: packages/${{ inputs.package }}
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
+        run: bash ../../scripts/npm-publish.sh
+
+      - name: Release
+        if: steps.recovery.outputs.tag == ''
+        working-directory: packages/${{ inputs.package }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_LOGLEVEL: verbose
+        run: pnpm exec release-it ${{ inputs.increment }} --ci

@@ -110,60 +110,60 @@ jobs:
       - name: Test
         run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run test
 
-  deploy:
-    name: Deploy
-    needs: [lint, test]
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm cloudflare:build
-
-      - name: Deploy
-        run: pnpm cloudflare:web:deploy
-
-  deployPreview:
-    name: Deploy Preview
-    needs: [lint, test]
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm cloudflare:build
-
-      - name: Deploy Preview
-        run: pnpm cloudflare:web:deploy-preview
+#  deploy:
+#    name: Deploy
+#    needs: [lint, test]
+#    if: github.ref == 'refs/heads/main'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Setup pnpm
+#        uses: pnpm/action-setup@v4
+#
+#      - name: Setup Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version-file: .nvmrc
+#          cache: pnpm
+#
+#      - name: Install dependencies
+#        run: pnpm install --frozen-lockfile
+#
+#      - name: Build
+#        run: pnpm cloudflare:build
+#
+#      - name: Deploy
+#        run: pnpm cloudflare:web:deploy
+#
+#  deployPreview:
+#    name: Deploy Preview
+#    needs: [lint, test]
+#    if: github.event_name == 'pull_request'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Setup pnpm
+#        uses: pnpm/action-setup@v4
+#
+#      - name: Setup Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version-file: .nvmrc
+#          cache: pnpm
+#
+#      - name: Install dependencies
+#        run: pnpm install --frozen-lockfile
+#
+#      - name: Build
+#        run: pnpm cloudflare:build
+#
+#      - name: Deploy Preview
+#        run: pnpm cloudflare:web:deploy-preview

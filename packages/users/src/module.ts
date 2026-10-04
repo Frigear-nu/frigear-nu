@@ -9,7 +9,7 @@ import {
   extendPages,
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
-import { extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { AuthMethodObject, AuthManifest } from './types'
 
 // We ship ready-to-use "simple" OAuth routes for these providers only. nuxt-auth-utils itself
@@ -29,7 +29,6 @@ type PublicModuleOptions = {
   oauth: OAuthProvider[]
   pages: { login?: string, register?: string }
 }
-
 export type ModuleOptions = {
   // When the mode is server, it also registers the
   // oauth stuff so the app can be used to log in with as well as to.
@@ -131,7 +130,6 @@ export default defineNuxtModule<ModuleOptions>({
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
       return
     }
-
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
@@ -139,20 +137,16 @@ export default defineNuxtModule<ModuleOptions>({
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
 
-    // if i18n is installed, we push the label keys instead of english:
-
-    await extendDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       name: 'users',
-      factory: 'defineUsersTable',
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
       override: settings.schemas?.users,
     })
 
     if (withWebAuthn) {
-      await extendDatabaseTable(nuxt, {
+      registerDatabaseTable(nuxt, {
         name: 'userCredentials',
-        factory: 'defineUserCredentialsTable',
         resolver,
         schema: dialect => `./runtime/db/credentials.schema.${dialect}`,
       })
