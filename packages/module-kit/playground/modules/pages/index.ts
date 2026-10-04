@@ -19,7 +19,6 @@ export default defineNuxtModule<ModuleOptions>({
   },
   moduleDependencies: {
     '@frigear-nu/module-kit': {},
-    '@nuxthub/core': {},
   },
   defaults: {
     db: true,
@@ -54,11 +53,9 @@ export default defineNuxtModule<ModuleOptions>({
 
     if (_options.db) {
       await registerDatabaseTable(_nuxt, {
-        name: 'users',
-        factory: 'createUsersTable',
+        name: 'pages',
         resolver,
-        schema: dialect => `server/db/users.${dialect}.ts`,
-        extensionFile: dialect => `server/db/users.extend.${dialect}.ts`,
+        schema: dialect => `server/db/schema.${dialect}.ts`,
       })
     }
   },

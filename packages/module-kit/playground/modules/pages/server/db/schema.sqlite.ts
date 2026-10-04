@@ -1,10 +1,9 @@
-import { defineExtendableTable } from '../../../../../src/runtime/utils'
-import { text } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-export const createUsersTable = defineExtendableTable(({ columns }) => {
-  return {
-    id: text().primaryKey().unique().$defaultFn(() => crypto.randomUUID()),
-    name: text().notNull(),
-    ...columns,
-  }
+export const pages = sqliteTable('pages', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 })
