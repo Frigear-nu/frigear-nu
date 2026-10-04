@@ -3,11 +3,67 @@ import ts from 'typescript'
 
 export type ParsedTableExport = {
   /** The callee + sql table name, present only when the export is a table factory call, e.g. `sqliteTable('users', {...})`. */
-  tableCall?: { callee: string, tableName: string }
+  tableCall?: { callee: string, tableName: string, extraArgs?: string[] }
   /** Column (or spread) entries keyed by property name, in source order. Values are the raw `key: value` source text. */
   properties: Map<string, string>
   /** Named imports collected from the file, keyed by module specifier. */
   imports: Map<string, Set<string>>
+}
+
+const parseSource = (filePath: string) => {
+  const text = readFileSync(filePath, 'utf8')
+  return ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+}
+
+const collectImports = (source: ts.SourceFile) => {
+  const imports = new Map<string, Set<string>>()
+  for (const statement of source.statements) {
+    if (
+      ts.isImportDeclaration(statement)
+      && statement.importClause?.namedBindings
+      && ts.isNamedImports(statement.importClause.namedBindings)
+      && ts.isStringLiteralLike(statement.moduleSpecifier)
+    ) {
+      const specifiers = imports.get(statement.moduleSpecifier.text) ?? new Set<string>()
+      for (const element of statement.importClause.namedBindings.elements) specifiers.add(element.getText())
+      imports.set(statement.moduleSpecifier.text, specifiers)
+    }
+  }
+  return imports
+}
+
+const toTableResult = (initializer: ts.Expression, imports: Map<string, Set<string>>): ParsedTableExport | undefined => {
+  let objectLiteral: ts.ObjectLiteralExpression | undefined
+  let tableCall: { callee: string, tableName: string, extraArgs?: string[] } | undefined
+
+  if (ts.isCallExpression(initializer)) {
+    const args = initializer.arguments
+    if (args.length >= 2 && ts.isStringLiteralLike(args[0]!) && ts.isObjectLiteralExpression(args[1]!)) {
+      const extraArgs = args.length > 2 ? args.slice(2).map(arg => arg.getText()) : undefined
+      tableCall = { callee: initializer.expression.getText(), tableName: args[0].text, extraArgs }
+      objectLiteral = args[1]
+    }
+    else if (args.length === 1 && ts.isObjectLiteralExpression(args[0]!)) {
+      objectLiteral = args[0]
+    }
+  }
+  else if (ts.isObjectLiteralExpression(initializer)) {
+    objectLiteral = initializer
+  }
+
+  if (!objectLiteral) return undefined
+
+  const properties = new Map<string, string>()
+  for (const property of objectLiteral.properties) {
+    if (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) {
+      properties.set(property.name.getText(), property.getText())
+    }
+    else if (ts.isSpreadAssignment(property)) {
+      properties.set(`__spread_${properties.size}`, property.getText())
+    }
+  }
+
+  return { tableCall, properties, imports }
 }
 
 /**
@@ -22,70 +78,46 @@ export type ParsedTableExport = {
  *   when `exportName` is `'default'`
  */
 export const parseRegularTableExport = (filePath: string, exportName: string): ParsedTableExport | undefined => {
-  const text = readFileSync(filePath, 'utf8')
-  const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-
-  const imports = new Map<string, Set<string>>()
-  for (const statement of source.statements) {
-    if (
-      ts.isImportDeclaration(statement)
-      && statement.importClause?.namedBindings
-      && ts.isNamedImports(statement.importClause.namedBindings)
-      && ts.isStringLiteralLike(statement.moduleSpecifier)
-    ) {
-      const specifiers = imports.get(statement.moduleSpecifier.text) ?? new Set<string>()
-      for (const element of statement.importClause.namedBindings.elements) specifiers.add(element.getText())
-      imports.set(statement.moduleSpecifier.text, specifiers)
-    }
-  }
-
-  const toResult = (initializer: ts.Expression): ParsedTableExport | undefined => {
-    let objectLiteral: ts.ObjectLiteralExpression | undefined
-    let tableCall: { callee: string, tableName: string } | undefined
-
-    if (ts.isCallExpression(initializer)) {
-      const args = initializer.arguments
-      if (args.length >= 2 && ts.isStringLiteralLike(args[0]!) && ts.isObjectLiteralExpression(args[1]!)) {
-        tableCall = { callee: initializer.expression.getText(), tableName: args[0].text }
-        objectLiteral = args[1]
-      }
-      else if (args.length === 1 && ts.isObjectLiteralExpression(args[0]!)) {
-        objectLiteral = args[0]
-      }
-    }
-    else if (ts.isObjectLiteralExpression(initializer)) {
-      objectLiteral = initializer
-    }
-
-    if (!objectLiteral) return undefined
-
-    const properties = new Map<string, string>()
-    for (const property of objectLiteral.properties) {
-      if (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) {
-        properties.set(property.name.getText(), property.getText())
-      }
-      else if (ts.isSpreadAssignment(property)) {
-        properties.set(`__spread_${properties.size}`, property.getText())
-      }
-    }
-
-    return { tableCall, properties, imports }
-  }
+  const source = parseSource(filePath)
+  const imports = collectImports(source)
 
   for (const statement of source.statements) {
     if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
       for (const declaration of statement.declarationList.declarations) {
         if (ts.isIdentifier(declaration.name) && declaration.name.text === exportName && declaration.initializer) {
-          const result = toResult(declaration.initializer)
+          const result = toTableResult(declaration.initializer, imports)
           if (result) return result
         }
       }
     }
     else if (exportName === 'default' && ts.isExportAssignment(statement) && !statement.isExportEquals) {
-      const result = toResult(statement.expression)
+      const result = toTableResult(statement.expression, imports)
       if (result) return result
     }
   }
 
   return undefined
+}
+
+/**
+ * Lists the names of every named export in a "regular" drizzle schema file that looks like a table (or columns)
+ * export - i.e. every export that `parseRegularTableExport` would be able to parse. Used by `registerDatabaseTable`
+ * to auto-discover table names when none are explicitly provided. Does not include the `default` export, since it
+ * has no name to register a table under.
+ */
+export const listRegularTableExportNames = (filePath: string): string[] => {
+  const source = parseSource(filePath)
+  const imports = collectImports(source)
+
+  const names: string[] = []
+  for (const statement of source.statements) {
+    if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.initializer && toTableResult(declaration.initializer, imports)) {
+          names.push(declaration.name.text)
+        }
+      }
+    }
+  }
+  return names
 }

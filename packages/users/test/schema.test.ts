@@ -1,19 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { getTableColumns } from 'drizzle-orm'
-import { text } from 'drizzle-orm/sqlite-core'
-import { defineUsersTable } from '../src/runtime/db/schema.sqlite'
+import { users } from '../src/runtime/db/schema.sqlite'
 
-describe('defineUsersTable', () => {
-  it('keeps the base columns first and places extended columns last', () => {
-    const table = defineUsersTable({
-      name: 'users',
-      columns: {
-        locale: text().default('da'),
-        stripeCustomerId: text(),
-      },
-    })
-
-    expect(Object.keys(getTableColumns(table))).toEqual([
+describe('users schema', () => {
+  it('exports the base user columns in order', () => {
+    expect(Object.keys(getTableColumns(users))).toEqual([
       'id',
       'name',
       'email',
@@ -21,8 +12,6 @@ describe('defineUsersTable', () => {
       'avatar',
       'createdAt',
       'updatedAt',
-      'locale',
-      'stripeCustomerId',
     ])
   })
 })
