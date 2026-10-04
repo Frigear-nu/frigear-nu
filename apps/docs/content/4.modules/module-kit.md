@@ -14,7 +14,7 @@ table-specific behavior in the modules that own those tables.
 - Share common module-development utilities across Frigear packages.
 - Let one module add columns to a table owned by another module without replacing its schema.
 
-This Nuxt module is consumed by modules such as [`@frigear-nu/users`](/modules/users).
+This [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) is consumed by modules such as [`@frigear-nu/users`](/modules/users).
 
 ## Utils & composables
 
