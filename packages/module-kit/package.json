@@ -1,28 +1,53 @@
 {
   "name": "@frigear-nu/module-kit",
-  "version": "1.0.0",
-  "description": "Frigear Module Kit",
-  "repository": "https://github.com/frigear-nu/frigear-nu/packages/module-kit",
-  "license": "MIT",
+  "version": "0.0.2",
   "type": "module",
+  "private": false,
+  "description": "Frigear Module Kit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/module-kit"
+  },
+  "license": "MIT",
+  "main": "./src/module.ts",
   "exports": {
     ".": {
-      "types": "./dist/types.d.mts",
-      "import": "./dist/module.mjs",
-      "default": "./dist/module.mjs"
+      "types": "./src/module.ts",
+      "import": "./src/module.ts"
     },
     "./utils": {
-      "types": "./dist/runtime/utils/index.d.ts",
-      "import": "./dist/runtime/utils/index.js",
-      "default": "./dist/runtime/utils/index.js"
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts"
     }
   },
-  "main": "./dist/module.mjs",
   "typesVersions": {
     "*": {
       ".": [
-        "./dist/types.d.mts"
+        "./src/module.ts"
       ]
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
     }
   },
   "files": [
