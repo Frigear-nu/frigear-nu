@@ -11,6 +11,7 @@ import {
 import { upperFirst } from 'scule'
 import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { AuthMethodObject, AuthManifest } from './types'
+import { userPasskeys } from '~/src/runtime/db/schema.sqlite.ts'
 
 // We ship ready-to-use "simple" OAuth routes for these providers only. nuxt-auth-utils itself
 // supports many more (https://github.com/atinux/nuxt-auth-utils) - for any other provider, the
@@ -112,7 +113,6 @@ export default defineNuxtModule<ModuleOptions>({
           dialect: 'sqlite',
           driver: 'libsql',
           casing: 'snake_case',
-          connection: { url: 'file:./db.sqlite' },
         },
         kv: true,
       },
@@ -145,10 +145,10 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     if (withWebAuthn) {
-      registerDatabaseTable(nuxt, {
-        name: 'userCredentials',
+      await registerDatabaseTable(nuxt, {
+        name: 'userPasskeys',
         resolver,
-        schema: dialect => `./runtime/db/credentials.schema.${dialect}`,
+        schema: dialect => `./runtime/db/schema.${dialect}`,
       })
     }
 

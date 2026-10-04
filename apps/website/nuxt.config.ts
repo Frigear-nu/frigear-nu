@@ -59,7 +59,6 @@ export default defineNuxtConfig({
       dialect: 'sqlite',
       casing: 'snake_case',
       driver: 'libsql',
-      connection: { url: 'file:./db.sqlite' },
     },
     kv: true,
   },
