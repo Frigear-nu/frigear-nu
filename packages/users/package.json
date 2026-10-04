@@ -1,22 +1,30 @@
 {
   "name": "@frigear-nu/users",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A module for managing the users in the main frigear app.",
   "repository": "your-org/@frigear-nu/users",
   "license": "MIT",
   "type": "module",
+  "main": "./src/module.ts",
   "exports": {
-    ".": {
-      "types": "./dist/types.d.mts",
-      "import": "./dist/module.mjs"
-    }
+    ".": "./src/module.ts",
+    "./composables": "./src/runtime/composables/index.ts",
+    "./composables/*": "./src/runtime/composables/*.ts"
   },
-  "main": "./dist/module.mjs",
-  "typesVersions": {
-    "*": {
-      ".": [
-        "./dist/types.d.mts"
-      ]
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
     }
   },
   "files": [

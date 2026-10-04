@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  extends: ['@frigear-nu/base'],
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -82,6 +83,7 @@ export default defineNuxtConfig({
       pages: { login: true, register: true },
       password: true,
       migrations: true,
+      webAuthn: true,
     },
   },
 })

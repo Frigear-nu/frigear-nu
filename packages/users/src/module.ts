@@ -35,9 +35,6 @@ export type ModuleOptions = {
   mode: 'server'
   settings?: {
     migrations?: boolean
-    schemas?: {
-      users?: 'default' | string // can be any file path to a drizzle schema file, or 'default' to use the default one.
-    }
     // Enables the built-in email/password login & register routes, composables and pages.
     // Set to `false` to fully disable password based authentication.
     password?: boolean
@@ -98,7 +95,6 @@ export default defineNuxtModule<ModuleOptions>({
     mode: 'server',
     settings: {
       migrations: true,
-      schemas: { users: 'default' },
       password: true,
       webAuthn: false,
       pages: {},
@@ -135,21 +131,21 @@ export default defineNuxtModule<ModuleOptions>({
     const withWebAuthn = settings.webAuthn === true
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
+    if (!withWebAuthn) {
+      nuxt.options.auth ||= {}
+      nuxt.options.auth.webAuthn = false
+    }
+
+    const tablesToRegister = ['users']
+    if (withWebAuthn) {
+      tablesToRegister.push('userPasskeys')
+    }
 
     await registerDatabaseTable(nuxt, {
-      name: 'users',
+      name: tablesToRegister,
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
-      override: settings.schemas?.users,
     })
-
-    if (withWebAuthn) {
-      await registerDatabaseTable(nuxt, {
-        name: 'userPasskeys',
-        resolver,
-        schema: dialect => `./runtime/db/schema.${dialect}`,
-      })
-    }
 
     // Session enrichment: generate a virtual module re-exporting the user-provided mapper
     // (or a pass-through default) so the runtime plugin can import it statically.

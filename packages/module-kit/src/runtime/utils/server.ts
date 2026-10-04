@@ -232,7 +232,7 @@ const buildRegularTableTemplate = (options: {
   })
 
   return addTemplate({
-    filename: `${names.join('+')}/schema.${dialect}.ts`,
+    filename: `users/${names.join('_')}.schema.${dialect}.ts`,
     write: true,
     getContents: () => `
 ${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
