@@ -4,19 +4,27 @@ import {
   moduleApiUrl,
   moduleUrl,
   registerModule,
+  extendDatabaseTable,
 } from '../../../src/runtime/utils'
 
 const moduleName = 'module-kit-playground'
-export default defineNuxtModule({
+
+export type ModuleOptions = {
+  db?: boolean
+}
+export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: moduleName,
     configKey: 'moduleKitPlayground',
   },
   moduleDependencies: {
     '@frigear-nu/module-kit': {},
+    '@nuxthub/core': {},
   },
-  defaults: {},
-  setup(_options, _nuxt) {
+  defaults: {
+    db: true,
+  },
+  async setup(_options, _nuxt) {
     const resolver = createResolver(import.meta.url)
     // Module setup logic here
     registerModule(moduleName, _nuxt)
@@ -43,5 +51,15 @@ export default defineNuxtModule({
       method: 'get',
       handler: resolver.resolve('./server/api/hello.ts'),
     })
+
+    if (_options.db) {
+      await extendDatabaseTable(_nuxt, {
+        name: 'users',
+        factory: 'createUsersTable',
+        resolver,
+        schema: dialect => `server/db/users.${dialect}.ts`,
+        extensionFile: dialect => `server/db/users.extend.${dialect}.ts`,
+      })
+    }
   },
 })
