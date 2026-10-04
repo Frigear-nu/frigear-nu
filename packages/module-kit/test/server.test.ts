@@ -205,3 +205,104 @@ describe('registerDatabaseTable', () => {
     expect(addTemplate).not.toHaveBeenCalled()
   })
 })
+
+function setupRegular() {
+  const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+  roots.push(rootDir)
+  const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+  const nuxt = {
+    options: { rootDir, _layers: [{ config: { rootDir } }] },
+    hook: (name: string, callback: (props: never) => Promise<void>) => {
+      hooks.set(name, [...(hooks.get(name) ?? []), callback])
+    },
+    callHook: async (name: string, props: never) => {
+      for (const callback of hooks.get(name) ?? []) await callback(props)
+    },
+  } as unknown as Nuxt
+
+  registerDatabaseTable(nuxt, {
+    name: 'accounts',
+    resolver: createResolver(import.meta.url),
+    schema: dialect => `./fixtures/regular/schema.${dialect}`,
+  })
+  return { nuxt, rootDir, run: async () => {
+    const paths: string[] = []
+    await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
+    return paths
+  } }
+}
+
+describe('registerDatabaseTable (without a factory)', () => {
+  it('generates a merged table directly from a regular drizzle schema file', async () => {
+    const { run } = setupRegular()
+    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"')
+    expect(content).toContain('export const accounts = sqliteTable("accounts", {')
+    expect(content).toContain('id: integer().primaryKey(),')
+    expect(content).toContain('name: text().notNull(),')
+  })
+
+  it('merges a regular full-table extension file, overriding matching columns', async () => {
+    const { rootDir, run } = setupRegular()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    writeFileSync(join(rootDir, 'server/db/extend.sqlite.ts'), `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+export const accounts = sqliteTable('accounts', {
+  name: text(),
+  email: text().notNull().unique(),
+})
+`)
+    await run()
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('id: integer().primaryKey(),')
+    expect(content).toContain('name: text(),')
+    expect(content).not.toContain('name: text().notNull(),')
+    expect(content).toContain('email: text().notNull().unique(),')
+  })
+
+  it('merges a plain columns object extension file without any table wrapper', async () => {
+    const { rootDir, run } = setupRegular()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    writeFileSync(join(rootDir, 'server/db/extend.sqlite.ts'), `
+import { text } from 'drizzle-orm/sqlite-core'
+export const accounts = { locale: text().default('da') }
+`)
+    await run()
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('id: integer().primaryKey(),')
+    expect(content).toContain('name: text().notNull(),')
+    expect(content).toContain('locale: text().default(\'da\'),')
+  })
+
+  it('throws a helpful error when the schema file has no matching table export', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    writeFileSync(join(rootDir, 'server/db/schema.sqlite.ts'), 'export const other = {}')
+    const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+    const nuxt = {
+      options: { rootDir, _layers: [{ config: { rootDir } }] },
+      hook: (name: string, callback: (props: never) => Promise<void>) => {
+        hooks.set(name, [...(hooks.get(name) ?? []), callback])
+      },
+      callHook: async (name: string, props: never) => {
+        for (const callback of hooks.get(name) ?? []) await callback(props)
+      },
+    } as unknown as Nuxt
+
+    registerDatabaseTable(nuxt, {
+      name: 'accounts',
+      resolver: createResolver(rootDir),
+      schema: dialect => `server/db/schema.${dialect}`,
+    })
+
+    await expect(async () => {
+      const paths: string[] = []
+      await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
+    }).rejects.toThrow(/Could not find a table export named "accounts"/)
+  })
+})

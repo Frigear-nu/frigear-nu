@@ -2,6 +2,7 @@ import { addTemplate, createResolver } from '@nuxt/kit'
 import { existsSync } from 'node:fs'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
+import { parseRegularTableExport } from './regular-table'
 
 type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
 type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
@@ -54,7 +55,13 @@ export const onDatabaseSchemaExtend = async (
 
 type DatabaseTableOptions = {
   name: string
-  factory: string
+  /**
+   * The exported factory function name to call with merged extension columns (e.g. `defineUsersTable`), as produced
+   * by `defineExtendableTable`. When omitted, `schema` (and every registered/layer extension file) is treated as a
+   * "regular" drizzle file - e.g. `export const users = sqliteTable('users', { ... })` - and its columns are merged
+   * directly, without requiring any helper wrapper.
+   */
+  factory?: string
   resolver: ReturnType<typeof createResolver>
   schema: (dialect: string) => string
   override?: string
@@ -111,6 +118,13 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
       if (existsSync(extensionPath)) extensions.push({ file: extensionPath, legacy: false })
     }
 
+    if (!factory) {
+      const schemaPath = await resolver.resolvePath(schema(dialect))
+      const template = buildRegularTableTemplate({ name, dialect, schemaPath, extensionFiles: extensions.map(({ file }) => file) })
+      paths.push(template.dst)
+      return
+    }
+
     const template = addTemplate({
       filename: `${name}/schema.${dialect}.ts`,
       write: true,
@@ -121,5 +135,47 @@ export const ${name} = ${factory}({ name: ${JSON.stringify(name)}, columns: { ${
 `,
     })
     paths.push(template.dst)
+  })
+}
+
+const buildRegularTableTemplate = (options: { name: string, dialect: string, schemaPath: string, extensionFiles: string[] }) => {
+  const { name, dialect, schemaPath, extensionFiles } = options
+
+  const base = parseRegularTableExport(schemaPath, name)
+  if (!base?.tableCall) {
+    throw new Error(
+      `[module-kit] Could not find a table export named "${name}" in "${schemaPath}". `
+      + `When "factory" is omitted, "schema" must be a regular drizzle file, e.g. `
+      + `\`export const ${name} = sqliteTable(${JSON.stringify(name)}, { ... })\`.`,
+    )
+  }
+
+  const properties = new Map(base.properties)
+  const importsByModule = new Map([...base.imports].map(([module, specifiers]) => [module, new Set(specifiers)]))
+
+  for (const file of extensionFiles) {
+    const parsed = parseRegularTableExport(file, name)
+    if (!parsed) continue
+
+    for (const [key, value] of parsed.properties) {
+      properties.delete(key)
+      properties.set(key, value)
+    }
+    for (const [module, specifiers] of parsed.imports) {
+      const set = importsByModule.get(module) ?? new Set<string>()
+      for (const specifier of specifiers) set.add(specifier)
+      importsByModule.set(module, set)
+    }
+  }
+
+  return addTemplate({
+    filename: `${name}/schema.${dialect}.ts`,
+    write: true,
+    getContents: () => `
+${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
+export const ${name} = ${base.tableCall!.callee}(${JSON.stringify(base.tableCall!.tableName)}, {
+${[...properties.values()].map(property => `  ${property},`).join('\n')}
+})
+`,
   })
 }
