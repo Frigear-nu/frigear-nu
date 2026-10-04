@@ -11,7 +11,6 @@ import {
 import { upperFirst } from 'scule'
 import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { AuthMethodObject, AuthManifest } from './types'
-import { userPasskeys } from '~/src/runtime/db/schema.sqlite.ts'
 
 // We ship ready-to-use "simple" OAuth routes for these providers only. nuxt-auth-utils itself
 // supports many more (https://github.com/atinux/nuxt-auth-utils) - for any other provider, the
