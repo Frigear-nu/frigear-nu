@@ -4,7 +4,7 @@ import {
   moduleApiUrl,
   moduleUrl,
   registerModule,
-  extendDatabaseTable,
+  registerDatabaseTable,
 } from '../../../src/runtime/utils'
 
 const moduleName = 'module-kit-playground'
@@ -53,7 +53,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     if (_options.db) {
-      await extendDatabaseTable(_nuxt, {
+      await registerDatabaseTable(_nuxt, {
         name: 'users',
         factory: 'createUsersTable',
         resolver,
