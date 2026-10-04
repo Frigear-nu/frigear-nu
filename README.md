@@ -9,6 +9,7 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 ## Apps
 
 - [@frigear-nu/website](./apps/website) - the main website application
+- [@frigear-nu/docs](./apps/docs) - the documentation application
 
 
 ## Packages
