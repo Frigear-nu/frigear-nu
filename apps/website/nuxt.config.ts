@@ -70,5 +70,10 @@ export default defineNuxtConfig({
       },
     },
   },
-
+  i18n: {
+    locales: [
+      { code: 'da', name: 'Danish' },
+      { code: 'en', name: 'English' },
+    ],
+  },
 })
