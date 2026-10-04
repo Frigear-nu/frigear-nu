@@ -137,7 +137,7 @@ export default defineNuxtModule<ModuleOptions>({
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
 
-    registerDatabaseTable(nuxt, {
+    await registerDatabaseTable(nuxt, {
       name: 'users',
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
