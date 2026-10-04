@@ -21,6 +21,22 @@ extendDatabaseTable(nuxt, {
 })
 ```
 
+```ts
+import { ColumnBuilderBase } from "drizzle-orm";
+
+const defineUsersTable = (extras: Record<string, ColumnBuilderBase>) => {
+  return sqliteTable('users', {
+    id: serial('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    password: text('password').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    ...extras || {},
+  })
+}
+```
+
+
 The schema file exports the named factory, which accepts an object of additional columns and returns a table. The factory must spread the received `extra` columns *last* in the object passed to the table builder (after every one of its own fields, including timestamps), so extended columns always end up last in the generated migration, matching the order they were registered in. Other modules can register column files during setup:
 
 ```ts
