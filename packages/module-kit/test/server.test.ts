@@ -305,4 +305,49 @@ export const accounts = { locale: text().default('da') }
       await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
     }).rejects.toThrow(/Could not find a table export named "accounts"/)
   })
+
+  it('registers multiple tables from the same schema file into a single file, resolving cross-table references', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+    const nuxt = {
+      options: { rootDir, _layers: [{ config: { rootDir } }] },
+      hook: (name: string, callback: (props: never) => Promise<void>) => {
+        hooks.set(name, [...(hooks.get(name) ?? []), callback])
+      },
+      callHook: async (name: string, props: never) => {
+        for (const callback of hooks.get(name) ?? []) await callback(props)
+      },
+    } as unknown as Nuxt
+
+    registerDatabaseTable(nuxt, {
+      name: ['users', 'userPasskeys'],
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })
+
+    const paths: string[] = []
+    await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
+    expect(paths).toEqual(['/generated/users+userPasskeys/schema.sqlite.ts'])
+
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('export const users = sqliteTable("users", {')
+    expect(content).toContain('export const userPasskeys = sqliteTable("user_passkeys", {')
+    expect(content).toContain('userId: integer().notNull().references(() => users.id, { onDelete: \'cascade\' }),')
+    expect(content).toContain('index(\'user_passkey_user_idx\').on(t.userId)')
+  })
+
+  it('throws when combining an array of names with a factory', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const nuxt = { options: { rootDir, _layers: [{ config: { rootDir } }] }, hook: vi.fn(), callHook: vi.fn() } as unknown as Nuxt
+
+    expect(() => registerDatabaseTable(nuxt, {
+      name: ['users', 'userPasskeys'],
+      factory: 'defineUsersTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })).toThrow(/does not support an array of "name" together with "factory"/)
+  })
 })

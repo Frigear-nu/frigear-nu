@@ -3,7 +3,7 @@ import ts from 'typescript'
 
 export type ParsedTableExport = {
   /** The callee + sql table name, present only when the export is a table factory call, e.g. `sqliteTable('users', {...})`. */
-  tableCall?: { callee: string, tableName: string }
+  tableCall?: { callee: string, tableName: string, extraArgs?: string[] }
   /** Column (or spread) entries keyed by property name, in source order. Values are the raw `key: value` source text. */
   properties: Map<string, string>
   /** Named imports collected from the file, keyed by module specifier. */
@@ -41,12 +41,13 @@ export const parseRegularTableExport = (filePath: string, exportName: string): P
 
   const toResult = (initializer: ts.Expression): ParsedTableExport | undefined => {
     let objectLiteral: ts.ObjectLiteralExpression | undefined
-    let tableCall: { callee: string, tableName: string } | undefined
+    let tableCall: { callee: string, tableName: string, extraArgs?: string[] } | undefined
 
     if (ts.isCallExpression(initializer)) {
       const args = initializer.arguments
       if (args.length >= 2 && ts.isStringLiteralLike(args[0]!) && ts.isObjectLiteralExpression(args[1]!)) {
-        tableCall = { callee: initializer.expression.getText(), tableName: args[0].text }
+        const extraArgs = args.length > 2 ? args.slice(2).map(arg => arg.getText()) : undefined
+        tableCall = { callee: initializer.expression.getText(), tableName: args[0].text, extraArgs }
         objectLiteral = args[1]
       }
       else if (args.length === 1 && ts.isObjectLiteralExpression(args[0]!)) {

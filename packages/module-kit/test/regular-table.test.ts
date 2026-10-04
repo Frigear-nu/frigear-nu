@@ -18,6 +18,15 @@ describe('parseRegularTableExport', () => {
     expect(parseRegularTableExport(fixture, 'missing')).toBeUndefined()
   })
 
+  it('captures a third table-config argument (e.g. index callbacks) as raw text', () => {
+    const file = fileURLToPath(new URL('./fixtures/regular/multi.sqlite.ts', import.meta.url))
+    const result = parseRegularTableExport(file, 'userPasskeys')
+    expect(result!.tableCall!.callee).toBe('sqliteTable')
+    expect(result!.tableCall!.tableName).toBe('user_passkeys')
+    expect(result!.tableCall!.extraArgs).toHaveLength(1)
+    expect(result!.tableCall!.extraArgs![0]).toContain('index(\'user_passkey_user_idx\').on(t.userId)')
+  })
+
   it('unwraps a plain columns object export', () => {
     const file = fileURLToPath(new URL('./fixtures/regular/plain-object.sqlite.ts', import.meta.url))
     const result = parseRegularTableExport(file, 'accounts')
