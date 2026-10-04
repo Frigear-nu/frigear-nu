@@ -119,7 +119,7 @@ importers:
         version: 4.5.2(003fa0af1e87e7751aed6994fd980846)
     devDependencies:
       wrangler:
-        specifier: ^4.147.0
+        specifier: ^4.146.0
         version: 4.147.0(@cloudflare/workers-types@4.20260702.1)(@types/node@26.6.3)
 
   apps/website:
