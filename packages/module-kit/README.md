@@ -131,6 +131,47 @@ shared export can override them. Pass `extensionFile: dialect => 'path/to/column
 per-layer file location. If `override` is a path instead of `'default'`, the host schema replaces the generated table
 entirely; the path is resolved from the application's root directory.
 
+##### Without a `factory`
+
+`factory` is optional. When it's omitted, `schema` is treated as a *regular* drizzle file — no `defineTable` wrapper
+required:
+
+```ts
+// runtime/db/schema.sqlite.ts
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+})
+```
+
+```ts
+extendDatabaseTable(nuxt, {
+  name: 'users',
+  resolver: createResolver(import.meta.url),
+  schema: dialect => `./runtime/db/schema.${dialect}`,
+})
+```
+
+Extension files registered via `registerDatabaseTableExtension` or found as layer extension files can then be
+*regular* files too — either a full table definition or a plain columns object, both without any helper wrapper:
+
+```ts
+// server/db/extend.sqlite.ts
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  locale: text().default('da'),
+})
+```
+
+Module-kit parses each file's exported table (or plain object) matching `name`, and merges their columns directly —
+later registrations override columns from earlier ones with the same key — before generating a single `sqliteTable(...)`
+call with the merged columns and deduplicated imports. The base `schema` file must export a genuine table call (e.g.
+`sqliteTable('users', { ... })`) matching `name`, since it determines which factory (`sqliteTable`/`pgTable`/etc.) and
+SQL table name to use for the merged result.
+
 #### `registerDatabaseTableExtension`
 
 Registers a column file to be merged into a named table whenever its schema is generated (see above). Fires the
