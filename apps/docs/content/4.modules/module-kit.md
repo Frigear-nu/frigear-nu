@@ -70,13 +70,65 @@ moduleApiUrl('OAuthServer', 'token') // => '/api/o-auth-server/token'
 These helpers let one module own a Drizzle table while letting other modules (and host applications) extend it with
 additional columns, without the owning module needing to know about them.
 
-### `defineExtendableTable`
+### `registerDatabaseTable`
 
-Wraps a Drizzle table factory so it receives a single `{ name, columns }` object instead of a plain columns object.
-Passing `name` through means the table's name only has to be maintained in one place — the `registerDatabaseTable`
-call — instead of being duplicated as a string literal inside the factory itself. The factory must spread `columns`
-*last*, after its own fields (including timestamps), so extended columns always end up last in the generated
-migration, matching the order they were registered in:
+The table-owning module registers its schema with `registerDatabaseTable`. The simplest usage needs no wrapper at
+all — `schema` can be a *regular* drizzle file:
+
+```ts
+// runtime/db/schema.sqlite.ts
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  email: text().notNull().unique(),
+})
+```
+
+```ts
+registerDatabaseTable(nuxt, {
+  name: 'users',
+  resolver: createResolver(import.meta.url),
+  schema: dialect => `./runtime/db/schema.${dialect}`,
+})
+```
+
+### `extendDatabaseTable`
+
+Other modules can register column files during setup. These can be regular files too — either a full table
+definition or a plain columns object, both without any helper wrapper:
+
+```ts
+extendDatabaseTable(nuxt, {
+  name: 'users',
+  resolver: createResolver(import.meta.url),
+  file: dialect => `./runtime/db/extra.${dialect}`,
+})
+```
+
+```ts
+// runtime/db/extra.sqlite.ts
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  locale: text().default('da'),
+})
+```
+
+Module-kit parses each file's exported table (or plain object) matching `name`, and merges their columns directly —
+later registrations override columns from earlier ones with the same key — before generating a single `sqliteTable(...)`
+call with the merged columns and deduplicated imports. The base `schema` file must export a genuine table call (e.g.
+`sqliteTable('users', { ... })`) matching `name`, since it determines which factory (`sqliteTable`/`pgTable`/etc.) and
+SQL table name to use for the merged result.
+
+### Using a `factory`
+
+Pass `factory` to `registerDatabaseTable` when you need shared defaults (e.g. timestamps) applied consistently across
+dialects. Wrap the factory with `defineExtendableTable` so it receives a single `{ name, columns }` object instead of
+a plain columns object — passing `name` through means the table's name only has to be maintained in one place, the
+`registerDatabaseTable` call, instead of being duplicated as a string literal inside the factory itself. The factory
+must spread `columns` *last*, after its own fields (including timestamps), so extended columns always end up last in
+the generated migration, matching the order they were registered in:
 
 ```ts
 import type { ColumnBuilderBase } from 'drizzle-orm'
@@ -94,12 +146,6 @@ const defineUsersTable = defineExtendableTable(({ name, columns }: { name: strin
 })
 ```
 
-### `registerDatabaseTable`
-
-The table-owning module registers its schema with `registerDatabaseTable`. It generates the table by importing the
-named `factory` from `schema`, merging in any columns registered through `extendDatabaseTable` and any Nuxt-layer
-extension files, then calling the factory with `{ name, columns }`:
-
 ```ts
 registerDatabaseTable(nuxt, {
   name: 'users',
@@ -107,18 +153,6 @@ registerDatabaseTable(nuxt, {
   resolver: createResolver(import.meta.url),
   schema: dialect => `./runtime/db/schema.${dialect}`,
   override: options.settings?.schemas?.users,
-})
-```
-
-### `extendDatabaseTable`
-
-Other modules can register column files during setup:
-
-```ts
-extendDatabaseTable(nuxt, {
-  name: 'users',
-  resolver: createResolver(import.meta.url),
-  file: dialect => `./runtime/db/extra.${dialect}`,
 })
 ```
 
@@ -139,51 +173,3 @@ exports still work. Nuxt layer files are merged next, from base layers toward th
 shared export can override them. Pass `extensionFile: dialect => 'path/to/columns.' + dialect + '.ts'` to change the
 per-layer file location. If `override` is a path instead of `'default'`, the host schema replaces the generated table
 entirely; the path is resolved from the application's root directory.
-
-### Without a `factory`
-
-`factory` is optional on `registerDatabaseTable`. When it's omitted, `schema` is treated as a *regular* drizzle file —
-no `defineExtendableTable` wrapper required:
-
-```ts
-// runtime/db/schema.sqlite.ts
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-
-export const users = sqliteTable('users', {
-  id: integer().primaryKey({ autoIncrement: true }),
-  email: text().notNull().unique(),
-})
-```
-
-```ts
-registerDatabaseTable(nuxt, {
-  name: 'users',
-  resolver: createResolver(import.meta.url),
-  schema: dialect => `./runtime/db/schema.${dialect}`,
-})
-```
-
-Extension files registered via `extendDatabaseTable` or found as layer extension files can then be *regular* files
-too — either a full table definition or a plain columns object, both without any helper wrapper:
-
-```ts
-// server/db/extend.sqlite.ts
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
-
-export const users = sqliteTable('users', {
-  locale: text().default('da'),
-})
-```
-
-Module-kit parses each file's exported table (or plain object) matching `name`, and merges their columns directly —
-later registrations override columns from earlier ones with the same key — before generating a single `sqliteTable(...)`
-call with the merged columns and deduplicated imports. The base `schema` file must export a genuine table call (e.g.
-`sqliteTable('users', { ... })`) matching `name`, since it determines which factory (`sqliteTable`/`pgTable`/etc.) and
-SQL table name to use for the merged result.
-
-### `onDatabaseSchemaExtend`
-
-Lower-level primitive behind `registerDatabaseTable`. Registers a callback on the `hub:db:schema:extend` hook, which
-receives the current `dialect` and the `paths` array of schema files to include in the generated database schema.
-Most modules should use `registerDatabaseTable` instead, unless they need full control over how their schema file is
-built.
