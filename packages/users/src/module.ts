@@ -40,9 +40,8 @@ export default defineNuxtModule<ModuleOptions>({
       console.log('Users module is running in client mode - will be built accordingly to support oauth.')
     }
     else if (options.mode === 'server') {
-      registerDatabaseTable(nuxt, {
+      await registerDatabaseTable(nuxt, {
         name: 'users',
-        factory: 'defineUsersTable',
         resolver: createResolver(import.meta.url),
         schema: dialect => `./runtime/db/schema.${dialect}`,
         override: options.settings?.schemas?.users,
