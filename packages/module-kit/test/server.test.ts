@@ -146,6 +146,59 @@ describe('registerDatabaseTable', () => {
     expect(content).toContain('Object.entries(extra0).find(([key]) => key === \'default\')')
   })
 
+  it('registers a single extension file for multiple tables via an array "name"', async () => {
+    const { nuxt, rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const extension = join(rootDir, 'server/db/registered.sqlite.ts')
+    writeFileSync(extension, 'export const accounts = {}; export const posts = {}')
+    registerDatabaseTable(nuxt, {
+      name: 'posts',
+      factory: 'definePostsTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/posts.${dialect}`,
+    })
+    extendDatabaseTable(nuxt, {
+      name: ['accounts', 'posts'],
+      resolver: createResolver(rootDir),
+      file: () => 'server/db/registered.sqlite.ts',
+    })
+    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
+    expect((accountTemplate.getContents as () => string)())
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect((accountTemplate.getContents as () => string)()).toContain('extra0["accounts" as keyof typeof extra0]')
+    expect((postTemplate.getContents as () => string)())
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect((postTemplate.getContents as () => string)()).toContain('extra0["posts" as keyof typeof extra0]')
+  })
+
+  it('registers a single extension file against every table when "name" is omitted', async () => {
+    const { nuxt, rootDir, run } = setup()
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    const extension = join(rootDir, 'server/db/registered.sqlite.ts')
+    writeFileSync(extension, 'export const accounts = {}; export const posts = {}')
+    registerDatabaseTable(nuxt, {
+      name: 'posts',
+      factory: 'definePostsTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/posts.${dialect}`,
+    })
+    extendDatabaseTable(nuxt, {
+      resolver: createResolver(rootDir),
+      file: () => 'server/db/registered.sqlite.ts',
+    })
+    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
+    expect((accountTemplate.getContents as () => string)())
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect((accountTemplate.getContents as () => string)()).toContain('extra0["accounts" as keyof typeof extra0]')
+    expect((postTemplate.getContents as () => string)())
+      .toContain(`import * as extra0 from ${JSON.stringify(extension)}`)
+    expect((postTemplate.getContents as () => string)()).toContain('extra0["posts" as keyof typeof extra0]')
+  })
+
   it('merges registered modules and layers in order, with the host last', async () => {
     const base = mkdtempSync(join(tmpdir(), 'database-layer-'))
     const nested = mkdtempSync(join(tmpdir(), 'database-layer-'))
@@ -304,5 +357,91 @@ export const accounts = { locale: text().default('da') }
       const paths: string[] = []
       await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
     }).rejects.toThrow(/Could not find a table export named "accounts"/)
+  })
+
+  it('registers multiple tables from the same schema file into a single file, resolving cross-table references', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+    const nuxt = {
+      options: { rootDir, _layers: [{ config: { rootDir } }] },
+      hook: (name: string, callback: (props: never) => Promise<void>) => {
+        hooks.set(name, [...(hooks.get(name) ?? []), callback])
+      },
+      callHook: async (name: string, props: never) => {
+        for (const callback of hooks.get(name) ?? []) await callback(props)
+      },
+    } as unknown as Nuxt
+
+    registerDatabaseTable(nuxt, {
+      name: ['users', 'userPasskeys'],
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })
+
+    const paths: string[] = []
+    await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
+    expect(paths).toEqual(['/generated/users+userPasskeys/schema.sqlite.ts'])
+
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('export const users = sqliteTable("users", {')
+    expect(content).toContain('export const userPasskeys = sqliteTable("user_passkeys", {')
+    expect(content).toContain('userId: integer().notNull().references(() => users.id, { onDelete: \'cascade\' }),')
+    expect(content).toContain('index(\'user_passkey_user_idx\').on(t.userId)')
+  })
+
+  it('auto-discovers every table export when "name" is omitted', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+    const nuxt = {
+      options: { rootDir, _layers: [{ config: { rootDir } }] },
+      hook: (name: string, callback: (props: never) => Promise<void>) => {
+        hooks.set(name, [...(hooks.get(name) ?? []), callback])
+      },
+      callHook: async (name: string, props: never) => {
+        for (const callback of hooks.get(name) ?? []) await callback(props)
+      },
+    } as unknown as Nuxt
+
+    registerDatabaseTable(nuxt, {
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })
+
+    const paths: string[] = []
+    await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
+    expect(paths).toEqual(['/generated/users+userPasskeys/schema.sqlite.ts'])
+
+    const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
+    const content = (template.getContents as () => string)()
+    expect(content).toContain('export const users = sqliteTable("users", {')
+    expect(content).toContain('export const userPasskeys = sqliteTable("user_passkeys", {')
+  })
+
+  it('throws when combining an array of names with a factory', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const nuxt = { options: { rootDir, _layers: [{ config: { rootDir } }] }, hook: vi.fn(), callHook: vi.fn() } as unknown as Nuxt
+
+    expect(() => registerDatabaseTable(nuxt, {
+      name: ['users', 'userPasskeys'],
+      factory: 'defineUsersTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })).toThrow(/requires a single "name".*when "factory" is set/)
+  })
+
+  it('throws when omitting "name" together with a factory', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
+    roots.push(rootDir)
+    const nuxt = { options: { rootDir, _layers: [{ config: { rootDir } }] }, hook: vi.fn(), callHook: vi.fn() } as unknown as Nuxt
+
+    expect(() => registerDatabaseTable(nuxt, {
+      factory: 'defineUsersTable',
+      resolver: createResolver(import.meta.url),
+      schema: dialect => `./fixtures/regular/multi.${dialect}`,
+    })).toThrow(/requires a single "name".*when "factory" is set/)
   })
 })
