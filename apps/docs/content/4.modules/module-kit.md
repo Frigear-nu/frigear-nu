@@ -12,7 +12,7 @@ extending database schemas while keeping table-specific behavior in the modules 
 - Share common module-development utilities across Frigear packages.
 - Let one module add columns to a table owned by another module without replacing its schema.
 
-The package is consumed by workspace modules such as [`@frigear-nu/users`](/packages/users).
+This Nuxt module is consumed by modules such as [`@frigear-nu/users`](/modules/users).
 
 ## Extending a database table
 

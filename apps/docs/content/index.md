@@ -70,9 +70,21 @@ Explore the workspace
   to: /modules
   ---
   #title
-  Modules and packages
+  Modules
 
   #description
-  Explore the reusable functionality shared by Frigear applications.
+  Extend Nuxt applications with reusable Frigear functionality.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-package
+  to: /packages
+  ---
+  #title
+  Packages
+
+  #description
+  Browse shared libraries and tools used across the workspace.
   :::
 ::
