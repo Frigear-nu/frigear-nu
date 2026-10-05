@@ -1,6 +1,6 @@
 # @frigear-nu/notify
 
-Email notification driver/dispatch Nuxt module. Lets feature modules (e.g. `@frigear-nu/users`)
+Generic notification driver/dispatch Nuxt module. Lets feature modules (e.g. `@frigear-nu/users`)
 dispatch `EmailNotification`s without ever deciding how they're delivered - that choice (and
 configuration) belongs to the app/consuming layer.
 

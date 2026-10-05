@@ -14,6 +14,7 @@ export default defineNuxtConfig({
     '@sentry/nuxt/module',
     '@norbiros/nuxt-auto-form',
     '@frigear-nu/users',
+    '@frigear-nu/notify',
   ],
 
   $development: {
@@ -77,6 +78,14 @@ export default defineNuxtConfig({
       { code: 'da', name: 'Danish' },
       { code: 'en', name: 'English' },
     ],
+  },
+  notify: {
+    email: {
+      driver: 'log',
+    },
+    ui: {
+      driver: '@nuxt/ui',
+    },
   },
   users: {
     mode: 'server',

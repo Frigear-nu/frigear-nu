@@ -1,6 +1,5 @@
 import emailDriver from '#notify/email-driver'
 import type { EmailNotification } from '../../../types'
-
 /**
  * Dispatches an email notification through the driver configured on the `@frigear-nu/notify`
  * module (`notify.email.driver`, see `#notify/email-driver`). Auto-imported wherever this module

@@ -19,6 +19,7 @@
     "@frigear-nu/base": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/users": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
     "@iconify-json/lucide": "^1.2.131",
     "@iconify-json/simple-icons": "^1.2.95",
     "@libsql/client": "^0.18.0",
