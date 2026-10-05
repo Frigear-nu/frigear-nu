@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <style>
+      .p{stroke:#7c3aed}
+      .f{fill:#7c3aed}
+    </style>
+  </defs>
+  <circle cx="128" cy="128" r="112" class="p" stroke-width="2" opacity="0.32"/>
+  <circle cx="128" cy="128" r="104" class="p" stroke-width="1" opacity="0.14"/>
+
+  <!-- bank -->
+  <g class="p" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+    <path d="M90 114h76"/>
+    <path d="M88 114l40-28 40 28"/>
+    <path d="M96 114v48"/>
+    <path d="M128 114v48"/>
+    <path d="M160 114v48"/>
+    <path d="M84 162h88"/>
+  </g>
+
+  <text x="128" y="198" text-anchor="middle"
+    font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+    font-size="30" font-weight="900" letter-spacing="2" class="f">PSD2</text>
+</svg>

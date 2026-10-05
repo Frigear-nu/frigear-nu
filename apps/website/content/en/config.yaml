@@ -1,0 +1,77 @@
+title: Frigear
+logo:
+  light: /logo.png
+  dark: /logo-dark.png
+  class: h-16 p-1
+navigation:
+  - label: HOME
+    to: /en/
+  - label: MEMBERSHIP
+    to: /en/membership
+  - label: FUNDING
+    to: /en/funding
+  - label: ABOUT
+    to: /en/info
+  - label: EVENTS
+    to: /en/events
+
+footer:
+  copyright: "&copy; 2023 - {fullYear} ★ **[FRIGEAR]{.text-primary}** ★ CVR-nr: 44353261"
+  sections:
+    - label: NAVIGATION
+      children:
+        - label: Home
+          to: /en
+        - label: Membership
+          to: /en/membership
+        - label: Events
+          to: /en/events
+    - label: USEFUL LINKS
+      children:
+        - label: Account
+          to: /en/account
+        - label: About Frigear
+          to: /en/info
+        - label: Support
+          to: /en#contact
+    - label: OTHER
+      children:
+        - label: Funding
+          to: /en/funding
+        - label: Board
+          to: /en/board
+        - label: Branding
+          to: /en/branding
+    - label: LEGAL
+      children:
+        - label: GDPR
+          to: /en/legal/gdpr
+        - label: Terms
+          to: /en/legal/terms
+        - label: Security
+          to: /en/legal/security
+  right:
+    - icon: i-simple-icons-github
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://github.com/frigear-nu/nuxt-frigear-nu
+    - icon: i-simple-icons-instagram
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://www.instagram.com/frigear.nu
+    - icon: i-simple-icons-facebook
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://www.facebook.com/Frigear.nu
+    - icon: i-simple-icons-linkedin
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://www.linkedin.com/company/frigear
+    - icon: i-simple-icons-tiktok
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://www.tiktok.com/@frigear.nu
+    - icon: i-simple-icons-youtube
+      target: _blank
+      rel: "noopener noreferrer"
+      to: https://www.youtube.com/@frigear

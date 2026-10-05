@@ -29,10 +29,8 @@ useSeoMeta({
 
 <template>
   <UApp>
-    <AppHeader v-if="$route.meta.header !== false" />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
-    <AppFooter v-if="$route.meta.footer !== false" />
   </UApp>
 </template>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <style>
+      .p{stroke:#7c3aed}
+      .f{fill:#7c3aed}
+    </style>
+  </defs>
+
+  <circle cx="128" cy="128" r="112" class="p" stroke-width="2" opacity="0.32"/>
+  <circle cx="128" cy="128" r="104" class="p" stroke-width="1" opacity="0.14"/>
+
+  <g class="p" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+    <path d="M92 76h64l20 20v84a14 14 0 0 1-14 14H92a14 14 0 0 1-14-14V90a14 14 0 0 1 14-14z"/>
+    <path d="M156 76v22h20"/>
+    <path d="M104 116h48"/>
+    <path d="M104 132h40"/>
+    <path d="M110 162l14 14 26-28"/>
+  </g>
+
+  <text x="128" y="222" text-anchor="middle"
+    font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+    font-size="28" font-weight="900" letter-spacing="2" class="f">SOC 2</text>
+</svg>

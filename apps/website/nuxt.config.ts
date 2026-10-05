@@ -59,10 +59,7 @@ export default defineNuxtConfig({
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
-      driver: 'libsql',
-      connection: { url: 'file:./.data/db/sqlite.db' },
     },
-    kv: true,
   },
   eslint: {
     config: {
@@ -73,6 +70,7 @@ export default defineNuxtConfig({
     },
   },
   i18n: {
+    defaultLocale: 'da',
     locales: [
       { code: 'da', name: 'Danish' },
       { code: 'en', name: 'English' },

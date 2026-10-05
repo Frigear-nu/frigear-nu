@@ -1,0 +1,28 @@
+<!-- public/images/compliance/badges/iso-27001.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <style>
+      .p{stroke:#7c3aed}
+      .f{fill:#7c3aed}
+    </style>
+  </defs>
+
+  <circle cx="128" cy="128" r="112" class="p" stroke-width="2" opacity="0.32"/>
+  <circle cx="128" cy="128" r="104" class="p" stroke-width="1" opacity="0.14"/>
+
+  <path
+    d="M128 56l60 26v60c0 40-27 69-60 83-33-14-60-43-60-83V82l60-26z"
+    class="p"
+    stroke-width="3"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+
+  <text x="128" y="134" text-anchor="middle"
+    font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+    font-size="22" font-weight="900" letter-spacing="2" class="f">ISO/IEC</text>
+
+  <text x="128" y="160" text-anchor="middle"
+    font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+    font-size="28" font-weight="900" letter-spacing="2" class="f">27001</text>
+</svg>
