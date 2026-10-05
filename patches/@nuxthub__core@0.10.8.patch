@@ -1,0 +1,14 @@
+diff --git a/dist/module.mjs b/dist/module.mjs
+index a1aa9162a974596a5f27207b1c3c2ae1d8caef7e..26f98b48af45bf3c06da91815163627c7a845e68 100644
+--- a/dist/module.mjs
++++ b/dist/module.mjs
+@@ -231,7 +231,8 @@ async function resolveDatabaseConfig(nuxt, hub) {
+         break;
+       }
+       if (userExplicitLibsql) {
+-        config.connection = defu(config.connection, { url: "" });
++        config.connection = defu(config.connection, { url: `file:${join(hub.dir, "db/sqlite.db")}` });
++        await mkdir(join(hub.dir, "db"), { recursive: true });
+         break;
+       }
+       if (hub.hosting.includes("cloudflare") && !nuxt.options.dev && !nuxt.options._prepare) {
