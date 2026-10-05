@@ -80,7 +80,7 @@ export default defineNuxtConfig({
   users: {
     mode: 'server',
     settings: {
-      pages: { login: true, register: true },
+      pages: { login: '/sign-in', register: '/sign-up' },
       password: true,
       migrations: true,
       webAuthn: true,
