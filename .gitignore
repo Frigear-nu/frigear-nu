@@ -5,3 +5,4 @@ node_modules
 packages/users/playground/.data
 *.sqlite
 apps/website/.data
+packages/account/test/fixtures/authenticated/.data

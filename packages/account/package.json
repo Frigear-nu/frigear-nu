@@ -1,0 +1,87 @@
+{
+  "name": "@frigear-nu/account",
+  "version": "0.0.1",
+  "description": "A module for managing the account area (profile, email, password, security) in the main frigear app.",
+  "repository": "your-org/@frigear-nu/account",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/types.ts",
+      "import": "./src/module.ts"
+    },
+    "./composables": "./src/runtime/app/composables/index.ts",
+    "./composables/*": "./src/runtime/app/composables/*.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/navigation": "workspace:*",
+    "@frigear-nu/users": "workspace:*",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/kit": "^4.5.2",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@nuxthub/core": "^0.10.8",
+    "@nuxt/ui": "^4.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^3.4.2",
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.5.2",
+    "@nuxt/test-utils": "^4.3.2",
+    "@nuxthub/core": "^0.10.8",
+    "@types/node": "latest",
+    "changelogen": "^0.6.2",
+    "eslint": "^10.10.0",
+    "nuxt": "^4.5.2",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^3.3.11",
+    "@nuxt/ui": "^4.11.0"
+  }
+}
