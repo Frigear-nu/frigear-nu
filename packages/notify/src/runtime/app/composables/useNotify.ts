@@ -15,13 +15,15 @@ export const useNotify = () => {
   // resolve correctly, rather than failing when a notification is dispatched later/async.
   const dispatch = uiDriver()
 
-  const addNotification = (notification: UINotification) => {
+  const add = (notification: UINotification) => {
     notifications.value.push(notification)
     return dispatch(notification)
   }
 
   return {
     notifications,
-    addNotification,
+    // `addNotification` is an alias for `add` to make the API more explicit and self-documenting
+    addNotification: add,
+    add,
   }
 }

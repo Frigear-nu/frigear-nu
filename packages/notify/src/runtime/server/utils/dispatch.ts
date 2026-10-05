@@ -1,4 +1,3 @@
-import emailDriver from '#notify/email-driver'
 import smsDriver from '#notify/sms-driver'
 import simpleDriver from '#notify/simple-driver'
 import type { EmailNotification, SMSNotification, SimpleNotification } from '../../../types'
@@ -9,7 +8,7 @@ import type { EmailNotification, SMSNotification, SimpleNotification } from '../
  * and call this - driver selection stays entirely with the app/consuming layer.
  */
 export async function dispatchEmailNotification(notification: EmailNotification) {
-  await emailDriver(notification)
+  return import('#notify/email-driver').then(({ default: emailDriver }) => emailDriver(notification))
 }
 
 /**
