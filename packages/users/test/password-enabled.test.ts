@@ -7,6 +7,11 @@ describe('password auth (enabled by default)', async () => {
     rootDir: fileURLToPath(new URL('./fixtures/password-enabled', import.meta.url)),
   })
 
+  it('enables password reset in the public runtime config', async () => {
+    const html = await $fetch('/')
+    expect(html).toContain('passwordReset:true')
+  })
+
   it('registers the login route and validates the request body', async () => {
     await expect($fetch('/api/auth/login', {
       method: 'POST',

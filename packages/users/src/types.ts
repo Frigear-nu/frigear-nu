@@ -20,6 +20,7 @@ export type OAuthProviderDetails = {
 // `runtimeConfig.public.users`.
 export type PublicModuleOptions = {
   password: boolean
+  passwordReset: boolean
   webAuthn: boolean
   oauth: OAuthProvider[]
   pages: { login?: string, register?: string }
@@ -34,6 +35,8 @@ export type ModuleOptions = {
     // Enables the built-in email/password login & register routes, composables and pages.
     // Set to `false` to fully disable password based authentication.
     password?: boolean
+    // Enables password reset routes when password authentication is enabled. Defaults to true.
+    passwordReset?: boolean
     // Enables WebAuthn (passkey) registration/authentication routes, composables and DB table.
     webAuthn?: boolean
     // Registers the built-in login/register pages. Each accepts a custom path (string), `true`

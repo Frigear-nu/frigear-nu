@@ -7,6 +7,11 @@ describe('password auth (disabled)', async () => {
     rootDir: fileURLToPath(new URL('./fixtures/password-disabled', import.meta.url)),
   })
 
+  it('disables password reset in the public runtime config', async () => {
+    const html = await $fetch('/')
+    expect(html).toContain('passwordReset:false')
+  })
+
   it('does not register the login route', async () => {
     const html = await $fetch('/api/auth/login', {
       method: 'POST',
