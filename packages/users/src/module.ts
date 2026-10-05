@@ -25,6 +25,7 @@ type OAuthProvider = typeof OAUTH_PROVIDERS[number]
 // `runtimeConfig.public.users`.
 type PublicModuleOptions = {
   password: boolean
+  passwordReset: boolean
   webAuthn: boolean
   oauth: OAuthProvider[]
   pages: { login?: string, register?: string }
@@ -38,6 +39,9 @@ export type ModuleOptions = {
     // Enables the built-in email/password login & register routes, composables and pages.
     // Set to `false` to fully disable password based authentication.
     password?: boolean
+    // Enables the "forgot password"/"reset password" routes & composable. Requires `password` to
+    // be enabled. Defaults to `true` whenever `password` is enabled.
+    passwordReset?: boolean
     // Enables WebAuthn (passkey) registration/authentication routes, composables and DB table.
     webAuthn?: boolean
     // Registers the built-in login/register pages. Each accepts a custom path (string), `true`
@@ -55,6 +59,12 @@ export type ModuleOptions = {
     // client id/secret are configured the same way nuxt-auth-utils expects them (env vars), so
     // there's nothing else to configure here.
     oauth?: Partial<Record<OAuthProvider, boolean>>
+    email?: {
+      // Path to a function (default export) sending the "reset your password" email, given
+      // `{ to, resetUrl }`. When omitted, the link is logged to the console in dev and the
+      // route throws in production - set this once an email provider is chosen.
+      sendPasswordReset?: string
+    }
   }
 } | {
   // Client means that the application does not have it's own auth,
@@ -127,6 +137,7 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
+    const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
@@ -138,6 +149,9 @@ export default defineNuxtModule<ModuleOptions>({
     const tablesToRegister = ['users']
     if (withWebAuthn) {
       tablesToRegister.push('userPasskeys')
+    }
+    if (withPasswordReset) {
+      tablesToRegister.push('passwordResets')
     }
 
     await registerDatabaseTable(nuxt, {
@@ -157,6 +171,26 @@ export default defineNuxtModule<ModuleOptions>({
       },
     })
 
+    // Same pattern as the session mapper above: lets the consuming app plug in whichever email
+    // provider it wants, without this module depending on one. Falls back to logging the reset
+    // URL in dev, and throwing in production, so the route still behaves predictably unconfigured.
+    addServerTemplate({
+      filename: '#users/password-reset-mailer',
+      getContents: async () => {
+        if (!settings.email?.sendPasswordReset) {
+          return `export default async function sendPasswordResetEmail({ to, resetUrl }) {
+  if (import.meta.dev) {
+    console.log(\`[@frigear-nu/users] Password reset requested for \${to}: \${resetUrl}\`)
+    return
+  }
+  throw createError({ statusCode: 500, statusMessage: 'No password reset email sender configured. Set users.settings.email.sendPasswordReset.' })
+}`
+        }
+        const senderPath = await resolver.resolvePath(settings.email.sendPasswordReset, { cwd: nuxt.options.rootDir })
+        return `export { default } from ${JSON.stringify(senderPath)}`
+      },
+    })
+
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 
     if (withPassword) {
@@ -164,9 +198,14 @@ export default defineNuxtModule<ModuleOptions>({
       addServerHandler({ route: '/api/auth/login', handler: resolver.resolve('./runtime/server/routes/auth/login.post') })
       addServerHandler({ route: '/api/auth/register', handler: resolver.resolve('./runtime/server/routes/auth/register.post') })
     }
+    if (withPasswordReset) {
+      addServerHandler({ route: '/api/auth/forgot-password', handler: resolver.resolve('./runtime/server/routes/auth/forgot-password.post') })
+      addServerHandler({ route: '/api/auth/reset-password', handler: resolver.resolve('./runtime/server/routes/auth/reset-password.post') })
+    }
     addImports([
       { name: 'useUserLogin', from: resolver.resolve('./runtime/app/composables/useUserLogin') },
       { name: 'useUserRegistration', from: resolver.resolve('./runtime/app/composables/useUserRegistration') },
+      { name: 'useUserPasswordReset', from: resolver.resolve('./runtime/app/composables/useUserPasswordReset') },
     ])
 
     if (withWebAuthn) {
@@ -225,6 +264,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     nuxt.options.runtimeConfig.public.users = {
       password: withPassword,
+      passwordReset: withPasswordReset,
       webAuthn: withWebAuthn,
       oauth: enabledOauthProviders,
       pages: { login: loginPath, register: registerPath },

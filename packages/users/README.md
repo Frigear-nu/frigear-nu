@@ -13,9 +13,10 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - 🚠 Can be extended using other modules or fields on metadata
 - 🌲 Simple to use, supports billing & subscriptions.
 - 🔑 Email/password login & registration, with an on/off switch.
+- ✉️ Forgot/reset password flow, with a pluggable email sender so the module stays dependency-free.
 - 🔐 Passkey (WebAuthn) registration, authentication & credential management.
 - 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
-- 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
+- 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasswordReset`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
 - 🧵 Session enrichment: the logged-in user is mapped into the session once, at login/registration time.
 
 ## Quick Setup
@@ -44,6 +45,9 @@ export default defineNuxtConfig({
       // Enable/disable email + password login & register routes, composables and pages.
       // Defaults to `true`.
       password: true,
+      // Enable/disable the "forgot password"/"reset password" routes & composable. Requires
+      // `password` to be enabled. Defaults to `true` whenever `password` is enabled.
+      passwordReset: true,
       // Enable passkey (WebAuthn) registration/authentication routes, composables and DB table.
       // Requires the optional `@simplewebauthn/browser` and `@simplewebauthn/server` peer deps.
       // Defaults to `false`.
@@ -68,6 +72,12 @@ export default defineNuxtConfig({
         github: true,
         google: true,
       },
+      // Sends the "reset your password" email. When omitted, the reset link is logged to the
+      // console in dev and the route throws in production - wire up a real sender once an email
+      // provider is chosen (e.g. Resend, SMTP), so this module never has to depend on one.
+      email: {
+        sendPasswordReset: '~/server/utils/send-password-reset-email',
+      },
     },
   },
 })
@@ -79,6 +89,8 @@ export default defineNuxtConfig({
 | --- | --- | --- |
 | `POST /api/auth/login` | `settings.password` | Email/password login |
 | `POST /api/auth/register` | `settings.password` | Email/password registration |
+| `POST /api/auth/forgot-password` | `settings.passwordReset` | Request a password reset email for an `email` |
+| `POST /api/auth/reset-password` | `settings.passwordReset` | Reset the password given a reset `code`, `password` & `confirmPassword`, and sign in |
 | `POST /api/auth/webauthn/register` | `settings.webAuthn` | Register a new passkey |
 | `POST /api/auth/webauthn/authenticate` | `settings.webAuthn` | Authenticate with a passkey |
 | `GET /api/auth/webauthn/credentials` | `settings.webAuthn` | List the current user's passkeys |
@@ -95,6 +107,7 @@ export default defineNuxtConfig({
 ### Composables
 
 - `useUserLogin()` / `useUserRegistration()` – wrap the password routes above, and expose `isEnabled`/`passwordLoginEnabled`/`passkeyLoginEnabled`/`oauthProviders` computed from the module's public runtime config so the shipped pages (or your own) can render conditionally.
+- `useUserPasswordReset()` – wraps the forgot/reset-password routes above (`requestReset`, `resetPassword`), exposing `isEnabled` based on `settings.passwordReset`.
 - `useUserPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
 
 All composables are registered via Nuxt's import ecosystem, so they can be overridden by re-declaring a composable of
