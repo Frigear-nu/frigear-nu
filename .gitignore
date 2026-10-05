@@ -2,3 +2,6 @@
 node_modules
 .DS_Store
 .idea
+packages/users/playground/.data
+*.sqlite
+apps/website/.data

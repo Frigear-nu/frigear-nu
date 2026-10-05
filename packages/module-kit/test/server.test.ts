@@ -288,7 +288,7 @@ function setupRegular() {
 describe('registerDatabaseTable (without a factory)', () => {
   it('generates a merged table directly from a regular drizzle schema file', async () => {
     const { run } = setupRegular()
-    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/users/accounts.schema.sqlite.ts'])
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
     expect(content).toContain('import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"')
@@ -381,7 +381,7 @@ export const accounts = { locale: text().default('da') }
 
     const paths: string[] = []
     await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
-    expect(paths).toEqual(['/generated/users+userPasskeys/schema.sqlite.ts'])
+    expect(paths).toEqual(['/generated/users/users-userpasskeys.schema.sqlite.ts'])
 
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
@@ -412,7 +412,7 @@ export const accounts = { locale: text().default('da') }
 
     const paths: string[] = []
     await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
-    expect(paths).toEqual(['/generated/users+userPasskeys/schema.sqlite.ts'])
+    expect(paths).toEqual(['/generated/users/users-userpasskeys.schema.sqlite.ts'])
 
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()

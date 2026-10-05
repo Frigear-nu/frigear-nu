@@ -12,6 +12,11 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - ⛰ Manages users & their schema in teh standard frigear way.
 - 🚠 Can be extended using other modules or fields on metadata
 - 🌲 Simple to use, supports billing & subscriptions.
+- 🔑 Email/password login & registration, with an on/off switch.
+- 🔐 Passkey (WebAuthn) registration, authentication & credential management.
+- 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
+- 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
+- 🧵 Session enrichment: the logged-in user is mapped into the session once, at login/registration time.
 
 ## Quick Setup
 
@@ -22,6 +27,78 @@ npx nuxt module add @frigear-nu/users
 ```
 
 That's it! You can now use @frigear-nu/users in your Nuxt app ✨
+
+This module requires [`@nuxthub/core`](https://hub.nuxt.com) to be configured in the host app, since it relies on it for
+the `users` (and, when WebAuthn is enabled, `user_credentials`) database table.
+
+## Configuration
+
+Configure the module via the `users` key in `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@nuxthub/core', '@frigear-nu/users'],
+  users: {
+    mode: 'server',
+    settings: {
+      // Enable/disable email + password login & register routes, composables and pages.
+      // Defaults to `true`.
+      password: true,
+      // Enable passkey (WebAuthn) registration/authentication routes, composables and DB table.
+      // Requires the optional `@simplewebauthn/browser` and `@simplewebauthn/server` peer deps.
+      // Defaults to `false`.
+      webAuthn: false,
+      // Registers the login/register pages, built with `@nuxt/ui` (an optional peer dependency,
+      // required only when a page is enabled). Off by default; set to `true` for the default
+      // path (`/login`, `/register`) or a custom path string to opt in.
+      pages: {
+        login: true,
+        register: '/sign-up',
+      },
+      session: {
+        // Path to a function (default export) mapping the raw DB user to the session user shape.
+        mapper: '~/server/utils/map-session-user',
+      },
+      // Registers the "simple" OAuth routes we ship (`/api/auth/github`, `/api/auth/google`).
+      // Each provider's client id/secret are read by nuxt-auth-utils itself from the standard
+      // `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` / `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` env vars.
+      // Route registration depends only on these flags. Any other provider supported by
+      // nuxt-auth-utils can be added directly in the consuming app.
+      oauth: {
+        github: true,
+        google: true,
+      },
+    },
+  },
+})
+```
+
+### Routes
+
+| Route | Enabled by | Description |
+| --- | --- | --- |
+| `POST /api/auth/login` | `settings.password` | Email/password login |
+| `POST /api/auth/register` | `settings.password` | Email/password registration |
+| `POST /api/auth/webauthn/register` | `settings.webAuthn` | Register a new passkey |
+| `POST /api/auth/webauthn/authenticate` | `settings.webAuthn` | Authenticate with a passkey |
+| `GET /api/auth/webauthn/credentials` | `settings.webAuthn` | List the current user's passkeys |
+| `DELETE /api/auth/webauthn/credentials/:id` | `settings.webAuthn` | Remove one of the current user's passkeys |
+| `GET /api/auth/github`, `/google` | `settings.oauth.<provider>` | "Simple" OAuth login |
+
+### Pages
+
+| Page | Enabled by | Description |
+| --- | --- | --- |
+| Login | `settings.pages.login` | Renders a `UAuthForm` with the password fields and/or OAuth provider buttons that are actually enabled |
+| Register | `settings.pages.register` | Renders a `UAuthForm` for name/email/password registration |
+
+### Composables
+
+- `useUserLogin()` / `useUserRegistration()` – wrap the password routes above, and expose `isEnabled`/`passwordLoginEnabled`/`passkeyLoginEnabled`/`oauthProviders` computed from the module's public runtime config so the shipped pages (or your own) can render conditionally.
+- `useUserPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
+
+All composables are registered via Nuxt's import ecosystem, so they can be overridden by re-declaring a composable of
+the same name in the consuming app.
 
 
 ## Contribution

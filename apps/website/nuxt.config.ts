@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  extends: ['@frigear-nu/base'],
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -59,6 +60,7 @@ export default defineNuxtConfig({
       dialect: 'sqlite',
       casing: 'snake_case',
       driver: 'libsql',
+      connection: { url: 'file:./.data/db/sqlite.db' },
     },
     kv: true,
   },
@@ -75,5 +77,14 @@ export default defineNuxtConfig({
       { code: 'da', name: 'Danish' },
       { code: 'en', name: 'English' },
     ],
+  },
+  users: {
+    mode: 'server',
+    settings: {
+      pages: { login: '/sign-in', register: '/sign-up' },
+      password: true,
+      migrations: true,
+      webAuthn: true,
+    },
   },
 })

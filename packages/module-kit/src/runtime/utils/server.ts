@@ -232,10 +232,9 @@ const buildRegularTableTemplate = (options: {
   })
 
   return addTemplate({
-    filename: `${names.join('+')}/schema.${dialect}.ts`,
+    filename: `users/${tables.map(({ name }) => name)?.join('-')?.toLowerCase() || crypto.randomUUID()}.schema.${dialect}.ts`,
     write: true,
-    getContents: () => `
-${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
+    getContents: () => `${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
 ${tables.map(({ name, tableCall, properties }) => `
 export const ${name} = ${tableCall.callee}(${JSON.stringify(tableCall.tableName)}, {
 ${[...properties.values()].map(property => `  ${property},`).join('\n')}
