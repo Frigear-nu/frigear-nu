@@ -118,6 +118,18 @@ manually — check before assuming plain pnpm scripts are the only path.
   `packages/**` dependency, restart the dev server / rerun `nuxi prepare` so
   `.nuxt/` types regenerate — stale `.nuxt` types are a common false-positive source for typecheck errors.
 
+## `apps/docs` (Docus.dev & Nuxt 4.5)
+
+- This app documents this entire repository - mainly for use as a technical documentation for developers that build on top of the ecosystem within `@frigear`
+  documentation site for the product in `apps/web` — that belongs in `apps/web` itself.
+- Uses the Nuxt 4 directory structure: source lives under `apps/docs/app/`
+  (`app/components`, `app/composables`, `app/pages`, `app/layouts`,
+  `app/middleware`, `app/utils`). Server code (event handlers, server-only utils) lives in `apps/docs/server/`. Don't
+  recreate the old Nuxt 3 top-level `components/`, `pages/`, etc. folders outside `app/`.
+- Is built on [docus.dev](https://docus.dev/) — check its docs for guidance on writing content, configuring the site, and
+  customizing the theme and how to structure content.
+- the `apps/docs/README.md` is the source of truth for how to run and build the docs site.
+
 ## `packages/**` (shared workspace packages)
 
 - Each package is independently publishable/consumable: it must have its own `package.json` with a `name`, `main`/
