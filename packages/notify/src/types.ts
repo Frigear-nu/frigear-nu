@@ -63,15 +63,27 @@ export type ModuleOptions = {
     // send email (e.g. `@frigear-nu/users`) just dispatch notifications; they never decide how.
     driver?: string | 'log'
   }
-  // TODO in the future...
   sms?: {
-    driver?: string | 'twilio'
+    // Selects the driver used to deliver SMS notifications dispatched through this module: either
+    // the name of a built-in driver (`'log'`, the default - logs instead of sending) or a path to
+    // a function (default export) matching the `SMSDriver` signature above, for a real provider
+    // (Twilio, ...).
+    driver?: string | 'log'
+  }
+  simple?: {
+    // Selects the driver used to deliver generic, transport-agnostic `SimpleNotification`s
+    // dispatched through this module: either the name of a built-in driver (`'log'`, the default
+    // - logs instead of sending) or a path to a function (default export) matching the
+    // `SimpleDriver` signature above.
+    driver?: string | 'log'
   }
   // TODO in the future...
   push?: {
     driver?: string
   }
-  // for use in UI framework..
+  // Selects the driver used to push notifications to the UI (e.g. `@nuxt/ui`'s `useToast`).
+  // Unlike the server-side drivers above, this is only ever set up (and its files only ever
+  // written/loaded) when explicitly configured - there's no sensible default UI to push to.
   ui?: {
     driver?: string | '@nuxt/ui'
   }
