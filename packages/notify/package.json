@@ -1,0 +1,12 @@
+{
+  "name": "@frigear-nu/notify",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "description": "Framework-agnostic email notification driver/dispatch Nuxt module, shared across Frigear modules.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/module.ts",
+    "./types": "./src/types.ts"
+  }
+}

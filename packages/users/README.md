@@ -13,7 +13,7 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - 🚠 Can be extended using other modules or fields on metadata
 - 🌲 Simple to use, supports billing & subscriptions.
 - 🔑 Email/password login & registration, with an on/off switch.
-- ✉️ Forgot/reset password flow, with a pluggable email sender so the module stays dependency-free.
+- ✉️ Forgot/reset password flow, dispatched through a pluggable email driver (`@frigear-nu/notify`) so the module stays dependency-free.
 - 🔐 Passkey (WebAuthn) registration, authentication & credential management.
 - 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
 - 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasswordReset`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
@@ -72,15 +72,35 @@ export default defineNuxtConfig({
         github: true,
         google: true,
       },
-      // Sends the "reset your password" email. When omitted, the reset link is logged to the
-      // console in dev and the route throws in production - wire up a real sender once an email
-      // provider is chosen (e.g. Resend, SMTP), so this module never has to depend on one.
-      email: {
-        sendPasswordReset: '~/server/utils/send-password-reset-email',
-      },
     },
   },
 })
+```
+
+The password-reset email is dispatched as an `EmailNotification` through [`@frigear-nu/notify`](../notify), which this module declares as a `moduleDependency` (it's installed automatically - no need to add it to `modules` yourself). Which driver actually delivers it is an app/deployment concern, so it's configured separately, under the `notify` key:
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@nuxthub/core', '@frigear-nu/users'],
+  notify: {
+    email: {
+      // Name of a built-in driver (`'log'`, the default - logs instead of sending) or a path to
+      // a function (default export) matching the `EmailDriver` signature, for a real provider.
+      driver: '~/server/utils/resend-email-driver',
+    },
+  },
+})
+```
+
+```ts
+// server/utils/resend-email-driver.ts
+import type { EmailDriver } from '@frigear-nu/notify/types'
+
+const sendWithResend: EmailDriver = async (notification) => {
+  // ... call your provider's API with notification.to/subject/body/text
+}
+
+export default sendWithResend
 ```
 
 ### Routes

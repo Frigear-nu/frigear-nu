@@ -422,6 +422,8 @@ importers:
         specifier: ^3.3.11
         version: 3.3.11(typescript@6.0.3)
 
+  packages/notify: {}
+
   packages/oauth-server: {}
 
   packages/ui:
@@ -484,6 +486,9 @@ importers:
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
+      '@frigear-nu/notify':
+        specifier: workspace:*
+        version: link:../notify
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0

@@ -59,12 +59,6 @@ export type ModuleOptions = {
     // client id/secret are configured the same way nuxt-auth-utils expects them (env vars), so
     // there's nothing else to configure here.
     oauth?: Partial<Record<OAuthProvider, boolean>>
-    email?: {
-      // Path to a function (default export) sending the "reset your password" email, given
-      // `{ to, resetUrl }`. When omitted, the link is logged to the console in dev and the
-      // route throws in production - set this once an email provider is chosen.
-      sendPasswordReset?: string
-    }
   }
 } | {
   // Client means that the application does not have it's own auth,
@@ -124,6 +118,9 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/notify': {
+      version: '>=0.0.1',
+    },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
       defaults: { webAuthn: true },
@@ -168,26 +165,6 @@ export default defineNuxtModule<ModuleOptions>({
         if (!settings.session?.mapper) return 'export default (user) => user'
         const mapperPath = await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
         return `export { default } from ${JSON.stringify(mapperPath)}`
-      },
-    })
-
-    // Same pattern as the session mapper above: lets the consuming app plug in whichever email
-    // provider it wants, without this module depending on one. Falls back to logging the reset
-    // URL in dev, and throwing in production, so the route still behaves predictably unconfigured.
-    addServerTemplate({
-      filename: '#users/password-reset-mailer',
-      getContents: async () => {
-        if (!settings.email?.sendPasswordReset) {
-          return `export default async function sendPasswordResetEmail({ to, resetUrl }) {
-  if (import.meta.dev) {
-    console.log(\`[@frigear-nu/users] Password reset requested for \${to}: \${resetUrl}\`)
-    return
-  }
-  throw createError({ statusCode: 500, statusMessage: 'No password reset email sender configured. Set users.settings.email.sendPasswordReset.' })
-}`
-        }
-        const senderPath = await resolver.resolvePath(settings.email.sendPasswordReset, { cwd: nuxt.options.rootDir })
-        return `export { default } from ${JSON.stringify(senderPath)}`
       },
     })
 
