@@ -1,41 +1,52 @@
 diff --git a/cli/commands/db/generate.mjs b/cli/commands/db/generate.mjs
-index e408f5fdfd1db3588e3f70d014dc45d4c64364dc..fc01ad1b37a786ae64a5fc598ff467eb0c238cd3 100644
+index e408f5fdfd1db3588e3f70d014dc45d4c64364dc..013b364f0aec0b343688c376a669884ddbaf996b 100644
 --- a/cli/commands/db/generate.mjs
 +++ b/cli/commands/db/generate.mjs
-@@ -43,7 +43,13 @@ export default defineCommand({
-       stdout: 'pipe',
-       stderr: 'pipe',
+@@ -45,8 +45,17 @@ export default defineCommand({
        preferLocal: true,
--      cwd
-+      cwd,
-+      // `nuxt prepare` defaults NODE_ENV to "production" when it isn't already
-+      // set, which wrongly resolves `$production` config overrides (e.g.
-+      // NuxtHub's `hub.db` Cloudflare D1 config) for this local-only command.
-+      // Default to "development" here, without clobbering an explicitly set
-+      // NODE_ENV (e.g. when intentionally generating against a production config).
-+      env: { NODE_ENV: process.env.NODE_ENV || 'development' }
+       cwd
      }
++    // `nuxt prepare` defaults NODE_ENV to "production" when it isn't already
++    // set, which wrongly resolves `$production` config overrides (e.g.
++    // NuxtHub's `hub.db` Cloudflare D1 config) for this local-only command.
++    // Rather than mutating NODE_ENV, use Nuxt's own documented `--envName`
++    // CLI flag (the actual mechanism used to resolve `$production`/
++    // `$development` overrides) to explicitly request the development
++    // environment, without clobbering an explicitly set NODE_ENV (e.g. when
++    // intentionally generating against a production config).
++    const envArgs = process.env.NODE_ENV ? [] : ['--envName', 'development']
      consola.info('Ensuring database schema is generated...')
-     await execa(options)`nuxt prepare`
+-    await execa(options)`nuxt prepare`
++    await execa(options)`nuxt prepare ${envArgs}`
+     const alias = await getTsconfigAliases(cwd)
+     await buildDatabaseSchema(join(options.cwd, '.nuxt'), { relativeDir: cwd, alias })
+     consola.info('Generating database migrations...')
 diff --git a/cli/commands/db/migrate.mjs b/cli/commands/db/migrate.mjs
-index 0e06c0b594b263e437c0ec4415dfbc838f63068c..2ea683be81f2414ecae42bbac19209e842bf8fc8 100644
+index 0e06c0b594b263e437c0ec4415dfbc838f63068c..593ef2ad0a8d6b5211ea13bf3826672c478ed72b 100644
 --- a/cli/commands/db/migrate.mjs
 +++ b/cli/commands/db/migrate.mjs
-@@ -36,7 +36,13 @@ export default defineCommand({
+@@ -33,11 +33,20 @@ export default defineCommand({
+     const cwd = args.cwd || process.cwd()
+     await loadDotenv({ cwd, dotenv: args.dotenv })
+     consola.info('Ensuring database migrations are available...')
++    // `nuxt prepare` defaults NODE_ENV to "production" when it isn't already
++    // set, which wrongly resolves `$production` config overrides (e.g.
++    // NuxtHub's `hub.db` Cloudflare D1 config) for this local-only command.
++    // Rather than mutating NODE_ENV, use Nuxt's own documented `--envName`
++    // CLI flag (the actual mechanism used to resolve `$production`/
++    // `$development` overrides) to explicitly request the development
++    // environment, without clobbering an explicitly set NODE_ENV (e.g. when
++    // intentionally migrating a production database).
++    const envArgs = process.env.NODE_ENV ? [] : ['--envName', 'development']
      await execa({
        stdio: 'pipe',
        preferLocal: true,
--      cwd
-+      cwd,
-+      // `nuxt prepare` defaults NODE_ENV to "production" when it isn't already
-+      // set, which wrongly resolves `$production` config overrides (e.g.
-+      // NuxtHub's `hub.db` Cloudflare D1 config) for this local-only command.
-+      // Default to "development" here, without clobbering an explicitly set
-+      // NODE_ENV (e.g. when intentionally migrating a production database).
-+      env: { NODE_ENV: process.env.NODE_ENV || 'development' }
-     })`nuxt prepare`
+       cwd
+-    })`nuxt prepare`
++    })`nuxt prepare ${envArgs}`
      consola.info('Applying database migrations...')
      const hubConfig = JSON.parse(await readFile(join(cwd, '.nuxt/hub/db/config.json'), 'utf-8'))
+     consola.info(`Database: \`${hubConfig.db.dialect}\` with \`${hubConfig.db.driver}\` driver`)
 diff --git a/dist/module.mjs b/dist/module.mjs
 index a1aa9162a974596a5f27207b1c3c2ae1d8caef7e..26f98b48af45bf3c06da91815163627c7a845e68 100644
 --- a/dist/module.mjs
