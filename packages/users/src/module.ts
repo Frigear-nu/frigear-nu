@@ -1,3 +1,5 @@
+import { mkdir } from 'node:fs/promises'
+import { dirname, resolve as resolvePath } from 'node:path'
 import {
   addImports,
   addServerHandler,
@@ -8,6 +10,7 @@ import {
   defineNuxtModule,
   extendPages,
 } from '@nuxt/kit'
+import type { Nuxt } from '@nuxt/schema'
 import { upperFirst } from 'scule'
 import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { AuthMethodObject, AuthManifest } from './types'
@@ -100,26 +103,41 @@ export default defineNuxtModule<ModuleOptions>({
       pages: {},
     },
   },
-  moduleDependencies: {
-    '@nuxthub/core': {
-      version: '>=0.0.1',
-      defaults: {
-        db: {
-          dialect: 'sqlite',
-          driver: 'libsql',
-          casing: 'snake_case',
-          connection: { url: 'file:./.data/db/sqlite.db' },
+  // A function (rather than a plain object) so we can resolve an absolute sqlite path and
+  // create its parent directory before NuxtHub's own `setup()` runs (module dependencies are
+  // resolved for every module before any module's `setup()` is called). This matters because
+  // NuxtHub only creates the local SQLite file's directory itself when it resolves the
+  // `libsql` driver automatically - since we force `driver: 'libsql'` explicitly (to avoid
+  // NuxtHub silently switching to Cloudflare D1 outside of production), it takes the "user
+  // explicitly configured libsql" path instead (meant for e.g. inline Turso config) and skips
+  // that directory creation + bakes the connection string as-is into the generated Drizzle
+  // client. Without the directory existing upfront, `@libsql/client` fails with
+  // `ConnectionFailed(... : 14)` (SQLITE_CANTOPEN).
+  async moduleDependencies(nuxt: Nuxt) {
+    const sqliteFilePath = resolvePath(nuxt.options.rootDir, '.data/db/sqlite.db')
+    await mkdir(dirname(sqliteFilePath), { recursive: true })
+
+    return {
+      '@nuxthub/core': {
+        version: '>=0.0.1',
+        defaults: {
+          db: {
+            dialect: 'sqlite',
+            driver: 'libsql',
+            casing: 'snake_case',
+            connection: { url: `file:${sqliteFilePath}` },
+          },
+          kv: true,
         },
-        kv: true,
       },
-    },
-    '@frigear-nu/module-kit': {
-      version: '>=0.0.1',
-    },
-    'nuxt-auth-utils': {
-      version: '>=0.0.1',
-      defaults: { webAuthn: true },
-    },
+      '@frigear-nu/module-kit': {
+        version: '>=0.0.1',
+      },
+      'nuxt-auth-utils': {
+        version: '>=0.0.1',
+        defaults: { webAuthn: true },
+      },
+    }
   },
   async setup(options, nuxt) {
     if (options.mode === 'client') {
