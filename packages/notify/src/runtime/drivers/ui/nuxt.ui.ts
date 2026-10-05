@@ -1,4 +1,3 @@
-import { useToast } from '#imports'
 import { defineUIDriver } from '../../server/utils/definers'
 
 const COLOR_BY_TYPE = {
@@ -14,11 +13,13 @@ const COLOR_BY_TYPE = {
 type ToastOptions = Parameters<ReturnType<typeof useToast>['add']>[0]
 
 const nuxtUiDriver = defineUIDriver((notification) => {
-  useToast().add({
-    title: notification.title,
-    description: notification.text,
-    color: COLOR_BY_TYPE[notification?.type ?? 'info'],
-    actions: notification?.actions as ToastOptions['actions'],
+  import('#imports').then(mod => mod.useToast).then((useToast) => {
+    useToast().add({
+      title: notification.title,
+      description: notification.text,
+      color: COLOR_BY_TYPE[notification?.type ?? 'info'],
+      actions: notification?.actions as ToastOptions['actions'],
+    })
   })
 })
 
