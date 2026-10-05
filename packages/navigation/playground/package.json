@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "@frigear-nu/navigation-playground",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "@frigear-nu/navigation": "workspace:*",
+    "nuxt": "^4.5.2"
+  }
+}

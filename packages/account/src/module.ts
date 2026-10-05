@@ -1,0 +1,104 @@
+import {
+  addImports,
+  addServerHandler,
+  createResolver,
+  defineNuxtModule,
+  extendPages,
+  hasNuxtModule,
+} from '@nuxt/kit'
+import type { ModuleOptions, PublicModuleOptions } from './types'
+
+export type { ModuleOptions, PublicModuleOptions } from './types'
+
+declare module '@nuxt/schema' {
+  interface NuxtConfig {
+    account?: ModuleOptions
+  }
+
+  interface PublicRuntimeConfig {
+    account?: PublicModuleOptions
+  }
+}
+
+function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
+  if (typeof setting === 'string') return setting
+  if (setting === true) return defaultPath
+  return undefined
+}
+
+export default defineNuxtModule<ModuleOptions>({
+  meta: { name: '@frigear-nu/account', configKey: 'account' },
+  defaults: {
+    settings: { pages: {} },
+  },
+  moduleDependencies: {
+    '@frigear-nu/users': {
+      version: '>=0.0.1',
+    },
+    '@frigear-nu/navigation': {
+      version: '>=0.0.1',
+      optional: true,
+    },
+  },
+  async setup(options, nuxt) {
+    const resolver = createResolver(import.meta.url)
+    const settings = options.settings ?? {}
+    const withNavigation = hasNuxtModule('@frigear-nu/navigation')
+
+    addServerHandler({
+      route: '/api/account/profile',
+      method: 'post',
+      handler: resolver.resolve('./runtime/server/routes/account/profile.post'),
+    })
+    addServerHandler({
+      route: '/api/account/change-email',
+      method: 'post',
+      handler: resolver.resolve('./runtime/server/routes/account/change-email.post'),
+    })
+    addServerHandler({
+      route: '/api/account/change-password',
+      method: 'post',
+      handler: resolver.resolve('./runtime/server/routes/account/change-password.post'),
+    })
+
+    addImports([{ name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') }])
+
+    // Profile/security pages are opt-in (`settings.pages.profile`/`settings.pages.security`)
+    // rather than enabled by default, since they require `@nuxt/ui` to be installed in the
+    // consuming app. The dashboard/index page additionally requires `@frigear-nu/navigation`,
+    // since it only lists the tiles contributed through that module.
+    const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
+    const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
+    const indexPath = withNavigation ? resolvePagePath(settings.pages?.index, '/account') : undefined
+
+    if (!withNavigation && settings.pages?.index) {
+      console.warn('[@frigear-nu/account] `settings.pages.index` was set, but `@frigear-nu/navigation` is not installed - skipping the dashboard page.')
+    }
+
+    nuxt.options.runtimeConfig.public.account = {
+      pages: { index: indexPath, profile: profilePath, security: securityPath },
+    }
+
+    if (indexPath || profilePath || securityPath) {
+      extendPages((pages) => {
+        const existingPaths = new Set(pages.map(page => page.path))
+
+        if (indexPath && !existingPaths.has(indexPath)) {
+          pages.push({ name: 'account-index', path: indexPath, file: resolver.resolve('./runtime/app/pages/index.vue') })
+        }
+        if (profilePath && !existingPaths.has(profilePath)) {
+          pages.push({ name: 'account-profile', path: profilePath, file: resolver.resolve('./runtime/app/pages/profile.vue') })
+        }
+        if (securityPath && !existingPaths.has(securityPath)) {
+          pages.push({ name: 'account-security', path: securityPath, file: resolver.resolve('./runtime/app/pages/security.vue') })
+        }
+      })
+    }
+
+    if (withNavigation) {
+      const { registerNavigationFile } = await import('@frigear-nu/navigation/utils')
+
+      await registerNavigationFile(nuxt, { resolver, file: './runtime/navigation' })
+    }
+  },
+})

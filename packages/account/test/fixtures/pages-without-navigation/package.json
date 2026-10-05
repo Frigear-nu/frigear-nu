@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "pages-without-navigation",
+  "type": "module",
+  "dependencies": {
+    "@nuxt/ui": "^4.11.0"
+  }
+}
