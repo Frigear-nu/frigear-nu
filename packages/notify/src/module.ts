@@ -29,7 +29,7 @@ declare module '@nuxt/schema' {
 }
 
 const BUILTIN_UI_DRIVERS: Record<string, { path: string, exportName: string }> = {
-  'log': { path: './runtime/drivers/log', exportName: 'logDriver' },
+  'log': { path: './runtime/drivers/log', exportName: 'logUIDriver' },
   '@nuxt/ui': { path: './runtime/drivers/ui/nuxt.ui', exportName: 'default' },
 }
 

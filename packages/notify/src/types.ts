@@ -50,9 +50,17 @@ export interface EmailNotification {
  * trivial to plug in new drivers without this module depending on any of them.
  */
 export type SimpleDriver = (notification: SimpleNotification) => Promise<void> | void
-export type UIDriver = (notification: UINotification) => Promise<void> | void
 export type SMSDriver = (notification: SMSNotification) => Promise<void> | void
 export type EmailDriver = (notification: EmailNotification) => Promise<void> | void
+/**
+ * Unlike the server-side drivers above, a UI driver is a *composable factory*: `useNotify()` calls
+ * it once, synchronously, during its own (setup-time) invocation, and uses the function it returns
+ * to actually dispatch notifications later. This is required because driver implementations that
+ * need Vue's `inject()` (e.g. the built-in `@nuxt/ui` driver's `useToast()`) only work when called
+ * during a component's `setup()` - resolving them lazily, when a notification is dispatched (e.g.
+ * from a `setInterval` callback), runs outside any component and breaks `inject()`.
+ */
+export type UIDriver = () => (notification: UINotification) => Promise<void> | void
 
 export type ModuleOptions = {
   email?: {

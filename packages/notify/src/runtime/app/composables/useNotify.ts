@@ -9,10 +9,15 @@ import uiDriver from '#notify/ui-driver'
  */
 export const useNotify = () => {
   const notifications = useState<UINotification[]>('notify-notifications', () => [])
+  // `uiDriver` is a composable factory - call it once, synchronously, here (guaranteed to run
+  // during the calling component's `setup()`, since `useNotify` is itself a composable) so driver
+  // implementations relying on Vue's `inject()` (e.g. the `@nuxt/ui` driver's `useToast()`) can
+  // resolve correctly, rather than failing when a notification is dispatched later/async.
+  const dispatch = uiDriver()
 
   const addNotification = (notification: UINotification) => {
     notifications.value.push(notification)
-    return uiDriver(notification)
+    return dispatch(notification)
   }
 
   return {

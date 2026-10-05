@@ -35,7 +35,8 @@ export default defineNuxtConfig({
     },
     ui: {
       // Built-in `'@nuxt/ui'` driver (forwards to `@nuxt/ui`'s `useToast`), or a path to a
-      // function (default export) matching the `UIDriver` signature.
+      // function (default export) matching the `UIDriver` signature - a composable factory
+      // invoked once, synchronously, during `useNotify()`'s own setup-time call.
       driver: '@nuxt/ui',
     },
   },
