@@ -7,3 +7,59 @@ export type AuthManifest = {
     register?: string
   }
 }
+
+export const OAUTH_PROVIDERS = ['github', 'google'] as const
+export type OAuthProvider = typeof OAUTH_PROVIDERS[number]
+export type OAuthProviderDetails = {
+  label: string
+  value: OAuthProvider
+  icon?: string
+}
+
+// The subset of settings composables/pages need to read on the client, exposed through
+// `runtimeConfig.public.users`.
+export type PublicModuleOptions = {
+  password: boolean
+  webAuthn: boolean
+  oauth: OAuthProvider[]
+  pages: { login?: string, register?: string }
+}
+
+export type ModuleOptions = {
+  // When the mode is server, it also registers the
+  // oauth stuff so the app can be used to log in with as well as to.
+  mode: 'server'
+  settings?: {
+    migrations?: boolean
+    // Enables the built-in email/password login & register routes, composables and pages.
+    // Set to `false` to fully disable password based authentication.
+    password?: boolean
+    // Enables WebAuthn (passkey) registration/authentication routes, composables and DB table.
+    webAuthn?: boolean
+    // Registers the built-in login/register pages. Each accepts a custom path (string), `true`
+    // for the default path, or `false`/omitted to disable. Enabling a page requires `@nuxt/ui`
+    // to be installed in the consuming app, since the shipped pages are built with it.
+    pages?: {
+      login?: string | boolean
+      register?: string | boolean
+    }
+    session?: {
+      // Path to a function (default export) mapping the raw DB user to the session user shape.
+      mapper?: string
+    }
+    // Registers the "simple" OAuth routes we ship (e.g. `/api/auth/github`). The provider's
+    // client id/secret are configured the same way nuxt-auth-utils expects them (env vars), so
+    // there's nothing else to configure here.
+    oauth?: Partial<Record<OAuthProvider, boolean>>
+  }
+} | {
+  // Client means that the application does not have it's own auth,
+  // but relies on a central auth server to log in and manage users - e.g frigear.nu
+  mode: 'client'
+  settings?: {
+    // the handler, export default that maps a user from oauth format to object.
+    // The default should follow the table structure.
+    mapFromHttp?: string
+    migrations?: false
+  }
+}
