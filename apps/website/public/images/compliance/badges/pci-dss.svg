@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <style>
+      .p{stroke:#7c3aed}
+      .f{fill:#7c3aed}
+    </style>
+  </defs>
+  <circle cx="128" cy="128" r="112" class="p" stroke-width="2" opacity="0.32"/>
+  <circle cx="128" cy="128" r="104" class="p" stroke-width="1" opacity="0.14"/>
+
+  <!-- card -->
+  <g class="p" stroke-width="3" stroke-linejoin="round" opacity="0.95">
+    <rect x="70" y="92" width="116" height="74" rx="14"/>
+    <path d="M70 118h116"/>
+    <rect x="92" y="132" width="46" height="18" rx="7"/>
+  </g>
+
+  <text x="128" y="196" text-anchor="middle"
+    font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+    font-size="26" font-weight="900" letter-spacing="2" class="f">PCI DSS</text>
+</svg>

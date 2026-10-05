@@ -15,5 +15,10 @@ export default withNuxt(
         ],
       },
     },
+    rules: {
+      'better-tailwindcss/no-unknown-classes': ['error', {
+        ignore: ['^hero-carousel-(stage|aura|media)$', '^typewriter-(root|sizer|live)$'],
+      }],
+    },
   },
 )

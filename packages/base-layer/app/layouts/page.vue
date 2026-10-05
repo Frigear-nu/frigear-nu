@@ -1,7 +1,14 @@
+<script setup lang="ts">
+</script>
+
 <template>
-  <UMain>
-    <UContainer>
-      <slot />
-    </UContainer>
-  </UMain>
+  <div>
+    <AppHeader v-if="$route.meta.header !== false" />
+    <UMain>
+      <UContainer>
+        <slot />
+      </UContainer>
+    </UMain>
+    <AppFooter v-if="$route.meta.footer !== false" />
+  </div>
 </template>

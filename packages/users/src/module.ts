@@ -106,9 +106,7 @@ export default defineNuxtModule<ModuleOptions>({
       defaults: {
         db: {
           dialect: 'sqlite',
-          driver: 'libsql',
           casing: 'snake_case',
-          connection: { url: 'file:./.data/db/sqlite.db' },
         },
         kv: true,
       },

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/base": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@iconify-json/lucide": "^1.2.131",
@@ -38,7 +39,8 @@
     "nuxt": "^4.5.2",
     "nuxt-qrcode": "^0.4.10",
     "tailwindcss": "^4.3.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@vueuse/core": "^15.0.0"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
