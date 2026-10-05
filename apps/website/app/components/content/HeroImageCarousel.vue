@@ -252,7 +252,7 @@ const carouselUi = {
 </template>
 
 <style lang="postcss">
-@reference "../../assets/css/main.css";
+/**@reference "../../assets/css/main.css";**/
 
 .hero-carousel-stage {
   --hero-rotate-x: 0deg;
