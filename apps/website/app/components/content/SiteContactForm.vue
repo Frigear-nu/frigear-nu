@@ -136,9 +136,8 @@ watch(() => state.phone, (phone) => {
       if (inferredPlus === p.label) {
         return true
       }
-    }
-    // secondly, attempt to extract with 0012
-    else if (phone.startsWith('00') && phone.length === 12) {
+    } else if (phone.startsWith('00') && phone.length === 12) {
+      // secondly, attempt to extract with 0012
       const plusInsteadOfZero = phone.substring(0, 4).replace('00', '+')
       if (p.label === plusInsteadOfZero) {
         return true
@@ -241,7 +240,7 @@ function onError(event: FormErrorEvent) {
           />
         </UFieldGroup>
         <template #help>
-          <div class="text-xs text-muted-foreground mt-1">
+          <div class="text-xs text-dimmed mt-1">
             {{ t('contact.form.phone.hint') }}
           </div>
         </template>

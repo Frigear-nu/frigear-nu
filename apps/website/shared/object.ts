@@ -16,8 +16,7 @@ export const objectSet = <T extends NestedObject>(obj: T, path: string, value: u
   keys.reduce((o, key, index) => {
     if (index === keys.length - 1) {
       (o as NestedObject)[key] = value
-    }
-    else {
+    } else {
       if (typeof (o as NestedObject)[key] !== 'object' || (o as NestedObject)[key] === null) {
         (o as NestedObject)[key] = {}
       }
@@ -33,8 +32,7 @@ export const objectDot = (obj: NestedObject, prefix = '', separator = '.'): Dott
     const dotKey = prefix ? `${prefix}${separator}${key}` : key
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       Object.assign(acc, objectDot(value as NestedObject, dotKey, separator))
-    }
-    else {
+    } else {
       acc[dotKey] = value
     }
     return acc

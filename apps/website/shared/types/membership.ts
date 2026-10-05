@@ -45,8 +45,7 @@ export const parseDisabledRangesFromJsonString = (rangeText: string): ParsedDisa
   try {
     const parsed = JSON.parse(rangeText) as DisabledRange[]
     return parsed.map(parseDisabledRange)
-  }
-  catch (err) {
+  } catch (err) {
     if (import.meta.dev) {
       console.error('Failed to parse disabled ranges', err, rangeText)
     }

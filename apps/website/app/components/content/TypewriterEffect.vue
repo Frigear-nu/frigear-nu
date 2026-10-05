@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {
-  h, Fragment, onBeforeUnmount, onMounted, ref, computed, useSlots, watch, defineComponent, resolveComponent,
+  createVNode, h, Fragment, onBeforeUnmount, onMounted, ref, computed, useSlots, watch, defineComponent, resolveComponent,
 } from 'vue'
+import type { VNode } from 'vue'
 
-/* eslint-disable no-use-before-define */
 type AnyObj = Record<string, unknown>
 type Props = {
   items?: Array<string | AnyObj>
@@ -36,7 +36,7 @@ const Rendered = defineComponent<{ nodes: unknown[] }>({
   name: 'Rendered',
   props: { nodes: { type: Array, required: true } },
   setup(p) {
-    return () => h(Fragment as never, null, p.nodes)
+    return () => createVNode(Fragment, null, p.nodes)
   },
 })
 
@@ -48,9 +48,9 @@ const seg = typeof Intl !== 'undefined' && 'Segmenter' in Intl
 
 const splitG = (s: string): string[] => seg ? Array.from(seg.segment(s), x => x.segment) : Array.from(s)
 
-const isMdcAst = (x: any) =>
-  x && typeof x === 'object' && (
-    typeof x.type === 'string' // mdast/hast style
+const isMdcAst = (x: unknown): x is AnyObj =>
+  typeof x === 'object' && x !== null && (
+    typeof (x as AnyObj).type === 'string' // mdast/hast style
     || ('children' in x || 'value' in x) // lenient
   )
 
@@ -63,14 +63,9 @@ const slotItems = computed<(string | AnyObj)[]>(() => {
 
   for (const n of v) {
     // <MDC :value="..."/>
-    if (n && typeof n === 'object' && (n.type?.name === 'MDC' || n.type === MDCComp)) {
+    if (n.type === MDCComp) {
       const ast = (n.props && (n.props.value ?? n.props.ast)) ?? null
       if (ast) out.push(ast)
-      continue
-    }
-
-    if (typeof n === 'string') {
-      out.push(...n.split(/\r?\n/).map(s => s.trim()).filter(Boolean))
       continue
     }
 
@@ -81,12 +76,12 @@ const slotItems = computed<(string | AnyObj)[]>(() => {
   return out
 })
 
-function vnodeToText(node: any): string {
+function vnodeToText(node: unknown): string {
   if (!node) return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(vnodeToText).join('')
   if (typeof node === 'object') {
-    const c = node.children
+    const c = (node as AnyObj).children
     if (typeof c === 'string' || typeof c === 'number') return String(c)
     if (Array.isArray(c)) return c.map(vnodeToText).join('')
     return ''
@@ -149,8 +144,7 @@ const tick = (ts: number) => {
       if (next !== undefined) {
         charIdx.value++
         untilNextMs = keystroke(props.speed) + punctPause(next)
-      }
-      else {
+      } else {
         phase.value = 'pause'
         if (endPauseTimer) clearTimeout(endPauseTimer)
         endPauseTimer = window.setTimeout(() => {
@@ -158,14 +152,12 @@ const tick = (ts: number) => {
         }, props.pauseMs) as unknown as number
       }
     }
-  }
-  else if (phase.value === 'deleting') {
+  } else if (phase.value === 'deleting') {
     if (untilNextMs <= 0) {
       if (charIdx.value > 0) {
         charIdx.value--
         untilNextMs = keystroke(props.backSpeed) * 0.9
-      }
-      else {
+      } else {
         nextIndex()
         phase.value = 'typing'
         untilNextMs = keystroke(props.speed)
@@ -197,20 +189,21 @@ watch(currentItem, () => {
 
 /* ---------- MDC slicing ---------- */
 // Extract visible text from MDC AST for timing
-function mdcText(node: any): string {
+function mdcText(node: unknown): string {
   if (!node) return ''
   if (typeof node === 'string') return node
   if (Array.isArray(node)) return node.map(mdcText).join('')
   if (typeof node === 'object') {
-    if (typeof node.value === 'string') return node.value
-    if (Array.isArray(node.children)) return node.children.map(mdcText).join('')
+    const record = node as AnyObj
+    if (typeof record.value === 'string') return record.value
+    if (Array.isArray(record.children)) return record.children.map(mdcText).join('')
     return ''
   }
   return ''
 }
 
 // Deep slice MDC AST by grapheme count
-function sliceMdc(node: any, take: { n: number }): any | null {
+function sliceMdc(node: unknown, take: { n: number }): unknown | null {
   if (take.n <= 0 || node == null) return null
 
   if (typeof node === 'string') {
@@ -223,9 +216,9 @@ function sliceMdc(node: any, take: { n: number }): any | null {
     take.n = 0
     return part
   }
-  
+
   if (Array.isArray(node)) {
-    const out: any[] = []
+    const out: unknown[] = []
     for (const child of node) {
       if (take.n <= 0) break
       const s = sliceMdc(child, take)
@@ -235,31 +228,32 @@ function sliceMdc(node: any, take: { n: number }): any | null {
   }
 
   if (typeof node === 'object') {
+    const record = node as AnyObj
     // text-like node
-    if (typeof node.value === 'string') {
-      const g = splitG(node.value)
+    if (typeof record.value === 'string') {
+      const g = splitG(record.value)
       if (g.length <= take.n) {
         take.n -= g.length
-        return { ...node }
+        return { ...record }
       }
       const part = g.slice(0, take.n).join('')
       take.n = 0
-      return { ...node, value: part }
+      return { ...record, value: part }
     }
 
     // container
-    if (Array.isArray(node.children)) {
-      const kids: any[] = []
-      for (const k of node.children) {
+    if (Array.isArray(record.children)) {
+      const kids: unknown[] = []
+      for (const k of record.children) {
         if (take.n <= 0) break
         const kk = sliceMdc(k, take)
         if (kk != null) kids.push(kk)
       }
-    // keep node shell so formatting remains
-      return { ...node, children: kids }
+      // keep node shell so formatting remains
+      return { ...record, children: kids }
     }
 
-    return { ...node }
+    return { ...record }
   }
 
   return null
@@ -280,18 +274,18 @@ const renderedNodes = computed(() => {
   if (isMdcAst(item)) {
     const taken = { n: count }
     const sliced = sliceMdc(item, taken)
-    return [h(MDCComp as any, { value: sliced })]
+    return [h(MDCComp, { value: sliced })]
   }
-  
+
   // fallback: slot vnode truncation (plain vnode children)
   const slotVNodes = slots.default?.() ?? []
   return truncateVNodes(slotVNodes, count)
 })
 
-function truncateVNodes(nodes: any[], takeChars: number): any[] {
+function truncateVNodes(nodes: unknown[], takeChars: number): unknown[] {
   let remaining = takeChars
 
-  const cloneNode = (node: any): any => {
+  const cloneNode = (node: unknown): unknown => {
     if (remaining <= 0 || node == null) return null
 
     if (typeof node === 'string' || typeof node === 'number') {
@@ -306,7 +300,7 @@ function truncateVNodes(nodes: any[], takeChars: number): any[] {
     }
 
     if (Array.isArray(node)) {
-      const out: any[] = []
+      const out: unknown[] = []
       for (const n of node) {
         if (remaining <= 0) break
         const c = cloneNode(n)
@@ -316,40 +310,41 @@ function truncateVNodes(nodes: any[], takeChars: number): any[] {
     }
 
     if (typeof node === 'object') {
-      const type = (node as any).type
-      const p = (node as any).props || null
-      const c = (node as any).children
+      const vnode = node as VNode
+      const { type } = vnode
+      const p = vnode.props || null
+      const c = vnode.children
 
       if (typeof c === 'string' || typeof c === 'number') {
         const g = splitG(String(c))
         if (g.length <= remaining) {
           remaining -= g.length
-          return h(type, p, c)
+          return createVNode(type, p, c)
         }
         const part = g.slice(0, remaining).join('')
         remaining = 0
-        return h(type, p, part)
+        return createVNode(type, p, part)
       }
 
       if (Array.isArray(c)) {
-        const kids: any[] = []
+        const kids: unknown[] = []
         for (const k of c) {
           if (remaining <= 0) break
           const ck = cloneNode(k)
           if (ck != null) kids.push(ck)
         }
-        return h(type, p, kids.length ? kids : null)
+        return createVNode(type, p, kids.length ? kids : null)
       }
-      
+
       // components with important props but no children (incl. <MDC :value>) should not render fully,
       // so render an empty shell while typing 0 chars
-      return remaining > 0 ? h(type, p, null) : null
+      return remaining > 0 ? createVNode(type, p, null) : null
     }
 
     return null
   }
 
-  const out: any[] = []
+  const out: unknown[] = []
   for (const n of nodes) {
     if (remaining <= 0) break
     const c = cloneNode(n)
@@ -372,7 +367,7 @@ function itemText(item: string | AnyObj | undefined): string {
 const sizingItem = computed(() => {
   if (!normalizedItems.value.length) return ''
   return normalizedItems.value.reduce((longest, item) => {
-    return splitG(itemText(item)).length > splitG(itemText(longest as any)).length ? item : longest
+    return splitG(itemText(item)).length > splitG(itemText(longest)).length ? item : longest
   }, normalizedItems.value[0] as string | AnyObj)
 })
 
@@ -382,7 +377,7 @@ const sizingNodes = computed(() => {
   if (typeof item === 'string') return [item]
 
   if (isMdcAst(item)) {
-    return [h(MDCComp as any, { value: item })]
+    return [h(MDCComp, { value: item })]
   }
 
   return []
@@ -417,8 +412,8 @@ const sizingNodes = computed(() => {
     </span>
   </component>
 </template>
-<style>
 
+<style>
 .typewriter-root {
   position: relative;
   display: block;

@@ -108,8 +108,7 @@ const handleImageError = (src: string) => {
         },
       })
     }
-  }
-  catch (sentryError) {
+  } catch (sentryError) {
     console.warn('Sentry capture failed', sentryError)
   }
 }
