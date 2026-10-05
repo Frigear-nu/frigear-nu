@@ -32,12 +32,13 @@ declare module '@nuxt/schema' {
 }
 
 const BUILTIN_UI_DRIVERS: Record<string, { path: string, exportName: string }> = {
+  'log': { path: './runtime/drivers/log', exportName: 'logDriver' },
   '@nuxt/ui': { path: './runtime/drivers/ui/nuxt.ui', exportName: 'default' },
 }
 
 // Name -> built-in driver implementation (path relative to this file + its export name).
 const BUILTIN_EMAIL_DRIVERS: Record<string, { path: string, exportName: string }> = {
-  log: { path: './runtime/drivers/log', exportName: 'logEmailDriver' },
+  log: { path: './runtime/drivers/log', exportName: 'logDriver' },
 }
 
 export default defineNuxtModule<ModuleOptions>({

@@ -1,14 +1,5 @@
 import emailDriver from '#notify/email-driver'
-import type { SimpleNotification, SMSNotification, EmailNotification } from '../../../types'
-
-/*
- * Simple helpers to define notifications in a typed way.
- */
-// ----------------------------------------------------------------
-export const defineSimpleNotification = <T extends SimpleNotification>(notification: T) => notification
-export const defineEmailNotification = <T extends EmailNotification>(notification: T) => notification
-export const defineSMSNotification = <T extends SMSNotification>(notification: T) => notification
-
+import type { EmailNotification } from '../../../types'
 /**
  * Dispatches an email notification through the driver configured on the `@frigear-nu/notify`
  * module (`notify.email.driver`, see `#notify/email-driver`). Auto-imported wherever this module
