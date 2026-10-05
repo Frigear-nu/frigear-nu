@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.5.2",
     "drizzle-kit": "^0.31.11",

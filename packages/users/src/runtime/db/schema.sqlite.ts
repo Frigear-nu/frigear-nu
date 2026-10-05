@@ -19,3 +19,14 @@ export const userPasskeys = sqliteTable('user_passkeys', {
 }, t => [
   index('user_passkey_user_idx').on(t.userId),
 ])
+
+export const passwordResets = sqliteTable('password_resets', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  userId: integer().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  code: text().notNull().unique(),
+  expiresAt: integer({ mode: 'timestamp' }).notNull(),
+  usedAt: integer({ mode: 'timestamp' }),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  index('password_reset_user_idx').on(t.userId),
+])

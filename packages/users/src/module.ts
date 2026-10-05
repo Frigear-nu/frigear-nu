@@ -76,6 +76,9 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/notify': {
+      version: '>=0.0.1',
+    },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
       defaults: { webAuthn: true },
@@ -89,6 +92,7 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
+    const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
@@ -100,6 +104,9 @@ export default defineNuxtModule<ModuleOptions>({
     const tablesToRegister = ['users']
     if (withWebAuthn) {
       tablesToRegister.push('userPasskeys')
+    }
+    if (withPasswordReset) {
+      tablesToRegister.push('passwordResets')
     }
 
     await registerDatabaseTable(nuxt, {
@@ -136,12 +143,23 @@ export default defineNuxtModule<ModuleOptions>({
         handler: resolver.resolve('./runtime/server/routes/auth/register.post'),
       })
     }
+    if (withPasswordReset) {
+      addServerHandler({
+        route: '/api/auth/forgot-password',
+        handler: resolver.resolve('./runtime/server/routes/auth/forgot-password.post'),
+      })
+      addServerHandler({
+        route: '/api/auth/reset-password',
+        handler: resolver.resolve('./runtime/server/routes/auth/reset-password.post'),
+      })
+    }
     addImports([
       { name: 'useUserLogin', from: resolver.resolve('./runtime/app/composables/useUserLogin') },
       {
         name: 'useUserRegistration',
         from: resolver.resolve('./runtime/app/composables/useUserRegistration'),
       },
+      { name: 'useUserPasswordReset', from: resolver.resolve('./runtime/app/composables/useUserPasswordReset') },
     ])
 
     if (withWebAuthn) {
@@ -234,6 +252,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     nuxt.options.runtimeConfig.public.users = {
       password: withPassword,
+      passwordReset: withPasswordReset,
       webAuthn: withWebAuthn,
       oauth: enabledOauthProviders,
       pages: { login: loginPath, register: registerPath },
