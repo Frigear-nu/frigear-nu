@@ -24,16 +24,16 @@ export default defineNuxtConfig({
     },
   },
 
-  $production: {
-    hub: {
-      db: {
-        dialect: 'sqlite',
-        driver: 'd1',
-        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
-        applyMigrationsDuringBuild: false,
-      },
-    },
-  },
+  // $production: {
+  //   hub: {
+  //     db: {
+  //       dialect: 'sqlite',
+  //       driver: 'd1',
+  //       connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+  //       applyMigrationsDuringBuild: false,
+  //     },
+  //   },
+  // },
 
   devtools: {
     enabled: true,
