@@ -23,6 +23,11 @@ export default defineNuxtConfig({
         sqliteConnector: 'native',
       },
     },
+    nitro: {
+      scheduledTasks: {
+        '*/1 * * * *': ['test'],
+      },
+    },
   },
 
   // $production: {

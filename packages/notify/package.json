@@ -35,7 +35,8 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@nuxt/kit": "^4.5.2"
+    "@nuxt/kit": "^4.5.2",
+    "ufo": "^1.6.4"
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",
