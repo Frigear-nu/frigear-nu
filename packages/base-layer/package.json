@@ -3,6 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./nuxt.config.ts",
+  "files": [
+    "app",
+    "i18n",
+    "content.config.ts",
+    "index.d.ts",
+    "modules",
+    "nuxt.config.ts",
+    "nuxt.schema.ts",
+    "server",
+    "shared",
+    "utils",
+    "README.md"
+  ],
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -41,5 +55,5 @@
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.11"
   },
-  "packageManager": "pnpm@11.24.0"
+  "packageManager": "pnpm@12.4.1"
 }
