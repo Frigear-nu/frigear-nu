@@ -28,3 +28,6 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   '@nuxthub/core@0.10.8': patches/@nuxthub__core@0.10.8.patch
+
+catalog:
+  nuxt: ^4.6.0
