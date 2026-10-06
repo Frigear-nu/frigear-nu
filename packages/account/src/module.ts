@@ -6,7 +6,7 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, data } from '@frigear-nu/module-kit/utils'
+import { registerModule, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
@@ -107,5 +107,10 @@ export default defineNuxtModule<ModuleOptions>({
       const { registerMenuSource } = await import('@frigear-nu/menus/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
     }
+
+    await extendDatabaseTable(nuxt, {
+      resolver,
+      file: dialect => `./runtime/server/db/schema.${dialect}`,
+    })
   },
 })
