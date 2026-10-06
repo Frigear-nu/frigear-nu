@@ -10,7 +10,6 @@ import {
 } from '@nuxt/kit'
 import { registerModule } from '@frigear-nu/module-kit/utils'
 import type { MenuItem, ModuleOptions } from './types'
-import type {} from './schema'
 
 export type {
   MenuItem,
