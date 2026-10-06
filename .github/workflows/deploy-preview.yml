@@ -109,7 +109,7 @@ jobs:
               await postComment('This pull request has been closed. Deploy preview will be removed.')
               action = 'teardown'
             } else if (authorized) {
-              await reactToComment('+1')
+              if (eventName === 'issue_comment') await reactToComment('+1')
               action = 'deploy'
             } else if (eventName === 'pull_request_target') {
               action = 'request-approval'
