@@ -16,10 +16,9 @@ const { data: navigation } = useMenu('main')
     <AppHeaderCenter />
     <template #right>
       <AppHeaderCTA />
-      <div>Current: {{ $i18n.locale }}</div>
       <LanguageSelect v-if="typeof $i18n !== 'undefined' && $i18n.locales && $i18n.locales.value && $i18n.locales.value.length > 1" />
-      <UContentSearchButton class="lg:hidden" />
       <UColorModeButton />
+      <AppHeaderRight />
     </template>
 
     <template #toggle="{ open, toggle }">

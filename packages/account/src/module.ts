@@ -1,4 +1,5 @@
 import {
+  addComponentsDir,
   addImports,
   addServerHandler,
   createResolver,
@@ -108,7 +109,11 @@ export default defineNuxtModule<ModuleOptions>({
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
     }
 
-    await extendDatabaseTable(nuxt, {
+    addComponentsDir({
+      path: resolver.resolve('./runtime/app/components'),
+    })
+
+    extendDatabaseTable(nuxt, {
       resolver,
       file: dialect => `./runtime/server/db/schema.${dialect}`,
     })

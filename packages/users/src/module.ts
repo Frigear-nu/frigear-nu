@@ -6,7 +6,7 @@ import {
   addTemplate,
   createResolver,
   defineNuxtModule,
-  extendPages,
+  extendPages, hasNuxtModule,
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
 import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
@@ -37,7 +37,7 @@ export {
 // `nuxt-auth-utils`. Provider credentials are read by nuxt-auth-utils from runtime environment
 // variables, so route registration only depends on the provider being enabled in module settings.
 
-declare module '@nuxt/schema' {
+declare module 'nuxt/schema' {
   interface NuxtConfig {
     users?: ModuleOptions
   }
@@ -79,6 +79,9 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/menus': {
+      version: '>=0.0.1',
+    },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
       defaults: { webAuthn: true },
@@ -94,6 +97,7 @@ export default defineNuxtModule<ModuleOptions>({
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
+    const withMenus = hasNuxtModule('@frigear-nu/menus')
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
     if (!withWebAuthn) {
@@ -127,6 +131,12 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+
+    addServerHandler({
+      route: '/auth/logout',
+      method: 'get',
+      handler: resolver.resolve('./runtime/server/routes/auth/logout.get'),
+    })
 
     if (withPassword) {
       authMethods.push({
@@ -248,6 +258,11 @@ export default defineNuxtModule<ModuleOptions>({
           })
         }
       })
+    }
+
+    if (withMenus) {
+      const { registerMenuSource } = await import('@frigear-nu/menus/utils')
+      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
     }
 
     nuxt.options.runtimeConfig.public.users = {

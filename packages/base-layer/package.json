@@ -48,7 +48,8 @@
     "tailwindcss": "^4.3.3",
     "ufo": "^1.6.4",
     "zod": "^4.5.4",
-    "@frigear-nu/menus": "workspace:*"
+    "@frigear-nu/menus": "workspace:*",
+    "@vueuse/core": "^15.0.0"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
