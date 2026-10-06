@@ -1,16 +1,15 @@
-import { type MenuItem, parseMenuPath, sortByOrder } from '../utils/menu'
+import { type MenuItem, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder } from '../utils/menu'
 import type { H3Event } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime'
-// import { unref } from 'vue'
 
 export const useMenu = async (event: H3Event, path: string) => {
-  const { menu, group } = parseMenuPath(path)
+  const parsed = parseMenuPath(path)
+  const { menu } = parsed
 
   const config = useRuntimeConfig(event)
   const menus = config.public.menus
-  const registered = menus[menu as keyof typeof menus]?.[group] ?? []
-  // const locale = await getHeaderLocale(event)
-  const content = await loadContentItems(menu, group, '')
+  const registered = collectMenuItems(menus[menu as keyof typeof menus] as Record<string, MenuItem[]> | undefined, parsed)
+  const content = await loadContentItems(menu, parsed, '')
   const result = sortByOrder([...registered, ...content])
   // Fired once a menu's items have been resolved and are about to be handed to a view -
   // useful for analytics/telemetry hooking into when a menu actually becomes visible.
@@ -25,7 +24,7 @@ function localizedCollectionName(name: string, locale?: string) {
 type MenusPublicConfig = {
   content?: Record<string, { collection: string, field: string } | undefined>
 }
-async function loadContentItems(menu: string, group: string, locale: string | undefined): Promise<MenuItem[]> {
+async function loadContentItems(menu: string, parsed: ParsedMenuPath, locale: string | undefined): Promise<MenuItem[]> {
   const config = (useRuntimeConfig().public.menus ?? {}) as MenusPublicConfig
   const source = config.content?.[menu]
   if (!source) return []
@@ -38,5 +37,8 @@ async function loadContentItems(menu: string, group: string, locale: string | un
   const entry = await queryCollection(collection).first()
   const items = ((entry as Record<string, unknown> | null)?.[source.field] as MenuItem[] | undefined) ?? []
 
-  return items.filter(item => (item.group ?? '') === group)
+  return items.filter((item) => {
+    const group = item.group ?? ''
+    return parsed.wildcard ? matchesMenuGroup(group, parsed.group) : group === parsed.group
+  })
 }

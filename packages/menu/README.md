@@ -1,27 +1,26 @@
-# @frigear-nu/menus
+# @frigear-nu/menu
 
 Named, shareable navigation menus. A **menu** (`main`, `dashboard`, `account`, ...) is a named
 collection of items, filled by one or more **sources** - Nuxt Content, other modules (at build
-time, or dynamically at runtime), or both at once (content as the base, modules appending) - and
-rendered by different **views** (`MenuBar`, `MenuCards`, ...). Data never encodes presentation:
-`description`/`icon` are optional fields a view may use or ignore.
+time, or dynamically at runtime), or both at once (content as the base, modules appending). This
+package is presentation-free: it only exposes data (`useMenu`) - `description`/`icon` are optional
+fields a consumer may render however it likes, or ignore.
 
 ## Quick Setup
 
 Install the module to your Nuxt application with one command:
 
 ```bash
-npx nuxt module add @frigear-nu/menus
+npx nuxt module add @frigear-nu/menu
 ```
 
 ## Vocabulary
 
 - **Menu** - a named collection of items (`main`, `dashboard`, `account`, ...).
-- **Source** - anything that fills a menu: Nuxt Content, `extendMenu`, or a module's
-  `runtime/menus.ts` file.
 - **Group** - the part after a menu's first dot. `dashboard.more` addresses group `more` of menu
   `dashboard`.
-- **View** - a presentation component (`MenuBar`, `MenuCards`) rendering a menu's items.
+- **Source** - anything that fills a menu: Nuxt Content, `extendMenu`, or a module's
+  `runtime/menus.ts` file.
 
 ## Contributing items from another module
 
@@ -29,7 +28,7 @@ npx nuxt module add @frigear-nu/menus
 
 ```ts
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
-import { extendMenu } from '@frigear-nu/menus/utils'
+import { extendMenu } from '@frigear-nu/menu/utils'
 
 export default defineNuxtModule({
   meta: { name: '@frigear-nu/example' },
@@ -46,7 +45,7 @@ export default defineNuxtModule({
 
 ```ts
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
-import { registerMenuSource } from '@frigear-nu/menus/utils'
+import { registerMenuSource } from '@frigear-nu/menu/utils'
 
 export default defineNuxtModule({
   meta: { name: '@frigear-nu/example' },
@@ -63,7 +62,7 @@ export default defineNuxtModule({
 
 ```ts
 // runtime/menus.ts
-import { defineMenuSource } from '@frigear-nu/menus/utils'
+import { defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
 
 export default defineMenuSource((items) => {
   const config = useRuntimeConfig().public.example
@@ -72,7 +71,9 @@ export default defineMenuSource((items) => {
   if (config?.enabled) items.push({ label: 'Example', to: '/example' })
 
   // Pushed into a named group (in this or another menu) instead - created automatically if it
-  // doesn't already exist. `extendMenuItem` is auto-imported, no need to import it explicitly.
+  // doesn't already exist. `extendMenuItem` pushes into shared app state, so it only works from
+  // code that actually runs as part of the Nuxt app (like this file) - not from a module's own
+  // build-time `setup()` (use `extendMenu` there instead).
   extendMenuItem('dashboard.more', { label: 'Security', to: '/security' })
 })
 ```
@@ -100,7 +101,10 @@ export default defineNuxtConfig({
 Content items are localized automatically when `@nuxtjs/i18n` is configured with `locales`,
 following the same `config` -> `config_en` collection-suffix convention as `@frigear-nu/base`.
 
-## Reading/rendering a menu
+## Reading a menu
+
+`useMenu` is auto-imported. It returns the same shape as `useAsyncData`
+(`{ data, pending, error, refresh }`) - rendering is entirely up to the consumer:
 
 ```vue
 <script setup lang="ts">
@@ -109,10 +113,34 @@ const { data: more } = useMenu('dashboard.more')
 </script>
 
 <template>
-  <MenuBar menu="main" />
-  <MenuCards menu="account" />
+  <nav>
+    <NuxtLink
+      v-for="item in items"
+      :key="item.id"
+      :to="item.to"
+    >
+      {{ item.label }}
+    </NuxtLink>
+  </nav>
 </template>
 ```
 
 Items are sorted by `order` (ascending; items without an `order` render last, in registration
 order).
+
+### Wildcard reads
+
+A path ending in `.*` reads every matching group, flattened into one list, instead of a single
+exact group - useful for rendering a whole menu "tree" at once:
+
+```ts
+// Every group of the `dashboard` menu (root group included).
+const { data: all } = useMenu('dashboard.*')
+
+// `account` and every group nested under it (e.g. `dashboard.account.sub`), but not sibling
+// groups like `dashboard.more`.
+const { data: accountTree } = useMenu('dashboard.account.*')
+```
+
+Wildcards are only supported when reading a menu - `extendMenu`/`extendMenuItem` reject a
+wildcard path, since items can only ever be registered into one exact group.

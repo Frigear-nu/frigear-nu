@@ -2,7 +2,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@nuxt/ui',
-    '@frigear-nu/menus',
+    '@frigear-nu/menu',
     '@frigear-nu/users',
     '@frigear-nu/account',
   ],

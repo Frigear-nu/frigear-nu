@@ -3,15 +3,64 @@ import type { MenuItem, MenuSource } from '../../types'
 
 export type { MenuItem, MenuSource } from '../../types'
 
+export type ParsedMenuPath = {
+  menu: string
+  group: string
+  /**
+   * Whether `path` ended in a wildcard group (`'dashboard.*'` or `'dashboard.account.*'`) -
+   * matching that group and every group nested under it, rather than a single exact group.
+   */
+  wildcard: boolean
+}
+
 /**
  * Splits a menu path on its *first* dot only, so `'a.b.c'` resolves to menu `'a'`, group `'b.c'`.
  * The group becomes the default group for items registered through that path - an explicit
  * `item.group` always wins.
+ *
+ * A path ending in `.*` is parsed as a wildcard instead: `'dashboard.*'` resolves to menu
+ * `dashboard`, every group (`wildcard: true`, `group: ''`); `'dashboard.account.*'` resolves to
+ * every group that is (or is nested under) `account`. Only `useMenu` understands wildcards -
+ * `extendMenu`/`extendMenuItem` reject them, since items can only ever be registered into one
+ * exact group.
  */
-export function parseMenuPath(path: string): { menu: string, group: string } {
+export function parseMenuPath(path: string): ParsedMenuPath {
   const dotIndex = path.indexOf('.')
-  if (dotIndex === -1) return { menu: path, group: '' }
-  return { menu: path.slice(0, dotIndex), group: path.slice(dotIndex + 1) }
+  if (dotIndex === -1) return { menu: path, group: '', wildcard: false }
+
+  const menu = path.slice(0, dotIndex)
+  const rest = path.slice(dotIndex + 1)
+
+  if (rest === '*') return { menu, group: '', wildcard: true }
+  if (rest.endsWith('.*')) return { menu, group: rest.slice(0, -2), wildcard: true }
+
+  return { menu, group: rest, wildcard: false }
+}
+
+/**
+ * Whether `group` is matched by a wildcard's `prefix` (the `group` resolved by `parseMenuPath`
+ * for a wildcard path) - the prefix itself, or anything nested under it. An empty `prefix`
+ * (`'dashboard.*'`) matches every group.
+ */
+export function matchesMenuGroup(group: string, prefix: string): boolean {
+  if (prefix === '') return true
+  return group === prefix || group.startsWith(`${prefix}.`)
+}
+
+/**
+ * Resolves every item addressed by a parsed menu path out of that menu's groups - a single
+ * group's items for a plain path, or every matching group's items (flattened, unsorted) for a
+ * wildcard path.
+ */
+export function collectMenuItems(groups: Record<string, MenuItem[]> | undefined, parsed: ParsedMenuPath): MenuItem[] {
+  if (!groups) return []
+  if (!parsed.wildcard) return groups[parsed.group] ?? []
+
+  const matched: MenuItem[] = []
+  for (const [group, items] of Object.entries(groups)) {
+    if (matchesMenuGroup(group, parsed.group)) matched.push(...items)
+  }
+  return matched
 }
 
 export function sortByOrder(items: MenuItem[]): MenuItem[] {
@@ -54,7 +103,7 @@ function normalizeItems(group: string, items: MenuItem | MenuItem[]): MenuItem[]
     const id = deriveMenuItemId(normalized)
 
     if (import.meta.dev !== false && seen.has(id)) {
-      console.warn(`[@frigear-nu/menus] Duplicate menu item id "${id}" registered in the same batch.`)
+      console.warn(`[@frigear-nu/menu] Duplicate menu item id "${id}" registered in the same batch.`)
     }
     seen.add(id)
 
@@ -67,7 +116,7 @@ function normalizeItems(group: string, items: MenuItem | MenuItem[]): MenuItem[]
  * wiring anything. Call it once during a module's own `setup()`:
  *
  * ```ts
- * import { extendMenu } from '@frigear-nu/menus/utils'
+ * import { extendMenu } from '@frigear-nu/menu/utils'
  *
  * export default defineNuxtModule({
  *   setup(options, nuxt) {
@@ -81,7 +130,10 @@ function normalizeItems(group: string, items: MenuItem | MenuItem[]): MenuItem[]
  * `'dashboard.more'` is parsed as menu `dashboard`, group `more` (split on the *first* dot only).
  */
 export function extendMenu(nuxt: Nuxt, path: string, items: MenuItem | MenuItem[]): void {
-  const { menu, group } = parseMenuPath(path)
+  const { menu, group, wildcard } = parseMenuPath(path)
+  if (wildcard) {
+    throw new Error(`[@frigear-nu/menu] Cannot register items into wildcard path "${path}" - wildcards are only supported when reading a menu via \`useMenu\`.`)
+  }
   const normalized = normalizeItems(group, items)
 
   nuxt.options.menus ||= {}
@@ -115,7 +167,7 @@ export type RegisterMenuSourceOptions = {
 }
 
 /**
- * Registers a module's menu source so `@frigear-nu/menus` runs it alongside every other
+ * Registers a module's menu source so `@frigear-nu/menu` runs it alongside every other
  * registered source, merging the result into the named menu. Modules call this once during their
  * own `setup()` - registration order doesn't matter, since sources are only resolved once every
  * module has finished setting up. `options.file` must already be a resolved path (for example via

@@ -1,5 +1,5 @@
 import { defineNuxtModule } from '@nuxt/kit'
-import { extendMenu } from '@frigear-nu/menus/utils'
+import { extendMenu } from '@frigear-nu/menu/utils'
 
 export default defineNuxtModule({
   setup(_, nuxt) {

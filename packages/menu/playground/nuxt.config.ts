@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   modules: [
-    '@frigear-nu/menus',
+    '@frigear-nu/menu',
   ],
   devtools: { enabled: true },
   compatibilityDate: 'latest',

@@ -9,6 +9,9 @@ import { pushMenuItems } from './state'
  * directly from a module's `runtime/menus.ts` source (see `defineMenuSource`) or from app code.
  */
 export function extendMenuItem(path: string, item: MenuItem | MenuItem[]): void {
-  const { menu, group } = parseMenuPath(path)
+  const { menu, group, wildcard } = parseMenuPath(path)
+  if (wildcard) {
+    throw new Error(`[@frigear-nu/menu] Cannot register items into wildcard path "${path}" - wildcards are only supported when reading a menu via \`useMenu\`.`)
+  }
   pushMenuItems(menu, group, item)
 }

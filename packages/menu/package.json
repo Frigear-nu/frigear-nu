@@ -1,11 +1,11 @@
 {
-  "name": "@frigear-nu/menus",
+  "name": "@frigear-nu/menu",
   "version": "0.0.1",
-  "description": "Named, shareable navigation menus - modules contribute items (extendMenu / a runtime/menus.ts source) and/or Nuxt Content, views (MenuBar, MenuCards) render them via useMenu.",
+  "description": "Named, shareable navigation menus - modules contribute items (extendMenu / a runtime/menus.ts source) and/or Nuxt Content, consumers read them via useMenu and render them however they like.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",
-    "directory": "packages/menus"
+    "directory": "packages/menu"
   },
   "license": "MIT",
   "type": "module",
