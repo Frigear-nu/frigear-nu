@@ -56,13 +56,16 @@ jobs:
             let isDeployCommand = false
 
             if (eventName === 'issue_comment') {
+              console.log('Checking issue_comment event')
               if (!context.payload.issue.pull_request) {
+                console.log('Not a pull request')
                 core.setOutput('action', 'ignore')
                 return
               }
 
               const body = (context.payload.comment.body || '').trim().toLowerCase()
               if (body !== '/deploy-preview') {
+                console.log('Not a deploy-preview command')
                 core.setOutput('action', 'ignore')
                 return
               }
@@ -80,7 +83,9 @@ jobs:
               closed = context.payload.pull_request.state === 'closed'
             }
             
+            console.log({authorAssociation, prNumber, sha, closed, isDeployCommand})
             const reactToComment = async (body) => {
+              console.log("Reacting to comment:", body);
               await github.rest.reactions.createForIssueComment({
                 ...context.repo,
                 comment_id: context.payload.comment.id,
@@ -89,6 +94,7 @@ jobs:
             }
             
             const postComment = async (body) => {
+              console.log("Posting comment:", body);
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: prNumber,
@@ -112,6 +118,7 @@ jobs:
               await reactToComment('-1')
               action = 'ignore'
             }
+            console.log('Action:', action);
 
             core.setOutput('action', action)
             core.setOutput('pr-number', String(prNumber))
