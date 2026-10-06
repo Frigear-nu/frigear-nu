@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { data: items } = useMenu('main')
-const { data: headerDropdown } = useMenu('header.dropdown')
+const { data: items } = useMenu('account')
+const { data: headerDropdown } = useMenu('account.dropdown')
 </script>
 
 <template>
