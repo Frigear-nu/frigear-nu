@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@frigear-nu/menus-playground",
+  "name": "@frigear-nu/menu-playground",
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
@@ -8,7 +8,7 @@
     "generate": "nuxt generate"
   },
   "dependencies": {
-    "@frigear-nu/menus": "workspace:*",
+    "@frigear-nu/menu": "workspace:*",
     "nuxt": "catalog:"
   },
   "devDependencies": {

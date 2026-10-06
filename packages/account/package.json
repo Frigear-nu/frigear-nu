@@ -57,7 +57,7 @@
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
     "zod": "^4.6.5",
-    "@frigear-nu/menus": "workspace:*",
+    "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@vueuse/core": "^15.0.0"
   },

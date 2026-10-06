@@ -1,5 +1,4 @@
 import {
-  addComponent,
   addImports,
   addPlugin, addServerImports,
   addTemplate,
@@ -24,9 +23,9 @@ const DEFAULT_CONTENT_COLLECTION = 'config'
 const DEFAULT_CONTENT_FIELD = 'navigation'
 
 export default defineNuxtModule<ModuleOptions>({
-  meta: { name: '@frigear-nu/menus', configKey: 'menus' },
+  meta: { name: '@frigear-nu/menu', configKey: 'menus' },
   async setup(options, nuxt) {
-    registerModule('@frigear-nu/menus', nuxt)
+    registerModule('@frigear-nu/menu', nuxt)
 
     const resolver = createResolver(import.meta.url)
 
@@ -35,9 +34,6 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'extendMenuItem', from: resolver.resolve('./runtime/app/utils/extend') },
     ])
 
-    addComponent({ name: 'MenuBar', filePath: resolver.resolve('./runtime/app/components/MenuBar.vue') })
-    addComponent({ name: 'MenuCards', filePath: resolver.resolve('./runtime/app/components/MenuCards.vue') })
-
     // `@nuxt/content` is an optional integration: only resolved/required for menus that
     // explicitly opt into the content-backed source, mirroring `@frigear-nu/notify`'s `@nuxt/ui`
     // driver. Resolve configured sources into the plain `{ collection, field }` shape consumed by
@@ -45,7 +41,7 @@ export default defineNuxtModule<ModuleOptions>({
     // query content for.
     const contentEntries = Object.entries(options.content ?? {})
     if (contentEntries.length > 0 && !hasNuxtModule('@nuxt/content')) {
-      throw new Error('[@frigear-nu/menus] `content` is configured for one or more menus, but `@nuxt/content` module is not installed. Please install @nuxt/content or remove the `content` option.')
+      throw new Error('[@frigear-nu/menu] `content` is configured for one or more menus, but `@nuxt/content` module is not installed. Please install @nuxt/content or remove the `content` option.')
     }
 
     nuxt.options.runtimeConfig.public.menus = {

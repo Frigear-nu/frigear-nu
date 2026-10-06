@@ -20,5 +20,5 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth server for handling authentication and authorization - implementation is left up to the consumer for now
 - [@frigear-nu/users](./packages/users) - Users module for handling user management and authentication in frigear
 - [@frigear-nu/notify](./packages/notify) - Email notification driver/dispatch Nuxt module (app chooses the driver), shared across modules
-- [@frigear-nu/menus](./packages/menus) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`, `MenuBar`/`MenuCards`) contributed to by other frigear modules
+- [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules
 - [@frigear-nu/account](./packages/account) - Account area module (profile, security, change email/password) migrated from nuxt-frigear-nu

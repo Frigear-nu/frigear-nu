@@ -14,7 +14,7 @@ export type ModuleOptions = {
     // to disable it. Enabling a page requires `@nuxt/ui` to be installed in the consuming app,
     // since the shipped pages are built with it.
     pages?: {
-      // The dashboard/tiles overview page. Only registered when `@frigear-nu/menus` is
+      // The dashboard/tiles overview page. Only registered when `@frigear-nu/menu` is
       // also installed, since it lists tiles contributed through that module.
       index?: string | boolean
       profile?: string | boolean

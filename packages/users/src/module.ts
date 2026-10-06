@@ -79,7 +79,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': {
       version: '>=0.0.1',
     },
-    '@frigear-nu/menus': {
+    '@frigear-nu/menu': {
       version: '>=0.0.1',
     },
     'nuxt-auth-utils': {
@@ -97,7 +97,7 @@ export default defineNuxtModule<ModuleOptions>({
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
-    const withMenus = hasNuxtModule('@frigear-nu/menus')
+    const withMenus = hasNuxtModule('@frigear-nu/menu')
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
     if (!withWebAuthn) {
@@ -261,7 +261,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menus/utils')
+      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
     }
 

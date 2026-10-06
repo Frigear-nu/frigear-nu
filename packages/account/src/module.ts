@@ -43,7 +43,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/users': {
       version: '>=0.0.1',
     },
-    '@frigear-nu/menus': {
+    '@frigear-nu/menu': {
       version: '>=0.0.1',
       optional: true,
     },
@@ -52,7 +52,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule('@frigear-nu/account', nuxt)
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
-    const withMenus = hasNuxtModule('@frigear-nu/menus')
+    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     addServerHandler({
       route: '/api/account/profile',
@@ -74,14 +74,14 @@ export default defineNuxtModule<ModuleOptions>({
 
     // Profile/security pages are opt-in (`settings.pages.profile`/`settings.pages.security`)
     // rather than enabled by default, since they require `@nuxt/ui` to be installed in the
-    // consuming app. The dashboard/index page additionally requires `@frigear-nu/menus`,
+    // consuming app. The dashboard/index page additionally requires `@frigear-nu/menu`,
     // since it only lists the tiles contributed through that module.
     const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
 
     if (!withMenus && settings.pages?.index) {
-      console.warn('[@frigear-nu/account] `settings.pages.index` was set, but `@frigear-nu/menus` is not installed - skipping the dashboard page.')
+      console.warn('[@frigear-nu/account] `settings.pages.index` was set, but `@frigear-nu/menu` is not installed - skipping the dashboard page.')
     }
 
     nuxt.options.runtimeConfig.public.account = {
@@ -105,7 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menus/utils')
+      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
     }
 

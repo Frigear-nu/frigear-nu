@@ -17,7 +17,7 @@ export default defineNuxtConfig({
     '@nuxtjs/sitemap',
     '@nuxt/content',
     '@nuxtjs/i18n',
-    '@frigear-nu/menus',
+    '@frigear-nu/menu',
     (_, nuxt) => {
       if (!nuxt.options.css.find(css => css.includes('main.css'))) {
         nuxt.options.css.push(resolver.resolve('./app/assets/css/main.css'))

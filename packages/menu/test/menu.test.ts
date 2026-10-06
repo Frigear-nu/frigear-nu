@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { createResolver } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import {
+  collectMenuItems,
   defineMenuSource,
   deriveMenuItemId,
   extendMenu,
+  matchesMenuGroup,
   parseMenuPath,
   registerMenuSource,
 } from '../src/runtime/utils/menu'
@@ -15,11 +17,62 @@ function createNuxt(): Nuxt {
 
 describe('parseMenuPath', () => {
   it('treats a path without a dot as the root group of that menu', () => {
-    expect(parseMenuPath('dashboard')).toEqual({ menu: 'dashboard', group: '' })
+    expect(parseMenuPath('dashboard')).toEqual({ menu: 'dashboard', group: '', wildcard: false })
   })
 
   it('splits only on the first dot', () => {
-    expect(parseMenuPath('a.b.c')).toEqual({ menu: 'a', group: 'b.c' })
+    expect(parseMenuPath('a.b.c')).toEqual({ menu: 'a', group: 'b.c', wildcard: false })
+  })
+
+  it('parses a trailing `.*` as a root-group wildcard', () => {
+    expect(parseMenuPath('dashboard.*')).toEqual({ menu: 'dashboard', group: '', wildcard: true })
+  })
+
+  it('parses a trailing `.*` after a group as a nested-group wildcard', () => {
+    expect(parseMenuPath('dashboard.account.*')).toEqual({ menu: 'dashboard', group: 'account', wildcard: true })
+  })
+})
+
+describe('matchesMenuGroup', () => {
+  it('matches every group when the prefix is empty', () => {
+    expect(matchesMenuGroup('', '')).toBe(true)
+    expect(matchesMenuGroup('account', '')).toBe(true)
+    expect(matchesMenuGroup('account.sub', '')).toBe(true)
+  })
+
+  it('matches the prefix itself and anything nested under it', () => {
+    expect(matchesMenuGroup('account', 'account')).toBe(true)
+    expect(matchesMenuGroup('account.sub', 'account')).toBe(true)
+    expect(matchesMenuGroup('accounting', 'account')).toBe(false)
+    expect(matchesMenuGroup('other', 'account')).toBe(false)
+  })
+})
+
+describe('collectMenuItems', () => {
+  const groups = {
+    '': [{ label: 'Root' }],
+    'account': [{ label: 'Account' }],
+    'account.sub': [{ label: 'Sub' }],
+    'other': [{ label: 'Other' }],
+  }
+
+  it('returns only the exact group for a plain (non-wildcard) path', () => {
+    expect(collectMenuItems(groups, { menu: 'dashboard', group: 'account', wildcard: false })).toEqual([{ label: 'Account' }])
+  })
+
+  it('returns every group when the wildcard prefix is empty', () => {
+    expect(collectMenuItems(groups, { menu: 'dashboard', group: '', wildcard: true })).toHaveLength(4)
+  })
+
+  it('returns the prefix group and every group nested under it for a wildcard prefix', () => {
+    expect(collectMenuItems(groups, { menu: 'dashboard', group: 'account', wildcard: true })).toEqual([
+      { label: 'Account' },
+      { label: 'Sub' },
+    ])
+  })
+
+  it('returns an empty array when there are no groups for the menu', () => {
+    expect(collectMenuItems(undefined, { menu: 'dashboard', group: '', wildcard: false })).toEqual([])
   })
 })
 
@@ -72,6 +125,12 @@ describe('extendMenu', () => {
     expect(nuxt.callHook).toHaveBeenCalledWith('menus:extend', 'main', [
       { label: 'Home', to: '/', group: '', id: '/' },
     ])
+  })
+
+  it('rejects a wildcard path - items can only ever be registered into one exact group', () => {
+    const nuxt = createNuxt()
+
+    expect(() => extendMenu(nuxt, 'dashboard.*', { label: 'Billing' })).toThrow(/wildcard/)
   })
 })
 

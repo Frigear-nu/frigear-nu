@@ -1,6 +1,6 @@
 import { computed, unref } from 'vue'
 import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
-import { parseMenuPath, sortByOrder } from '../../utils/menu'
+import { type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder } from '../../utils/menu'
 import { menus } from '../utils/state'
 import type { MenuItem } from '../../../types'
 import type { AsyncData, NuxtError } from 'nuxt/app'
@@ -28,7 +28,7 @@ type MenusPublicConfig = {
   content?: Record<string, { collection: string, field: string } | undefined>
 }
 
-async function loadContentItems(menu: string, group: string, locale: string | undefined): Promise<MenuItem[]> {
+async function loadContentItems(menu: string, parsed: ParsedMenuPath, locale: string | undefined): Promise<MenuItem[]> {
   const config = (useRuntimeConfig().public.menus ?? {}) as MenusPublicConfig
   const source = config.content?.[menu]
   if (!source) return []
@@ -41,7 +41,10 @@ async function loadContentItems(menu: string, group: string, locale: string | un
   const entry = await queryCollection(collection).first()
   const items = ((entry as Record<string, unknown> | null)?.[source.field] as MenuItem[] | undefined) ?? []
 
-  return items.filter(item => (item.group ?? '') === group)
+  return items.filter((item) => {
+    const group = item.group ?? ''
+    return parsed.wildcard ? matchesMenuGroup(group, parsed.group) : group === parsed.group
+  })
 }
 
 /**
@@ -51,24 +54,29 @@ async function loadContentItems(menu: string, group: string, locale: string | un
  * last, in registration order).
  *
  * Addressed as `menu` (root group) or `menu.group` (parsed on the first dot only, e.g.
- * `'dashboard.more'` reads group `more` of menu `dashboard`). Re-evaluates when the content
- * locale changes, and returns the same shape as `useAsyncData` (`{ data, pending, error, refresh }`).
+ * `'dashboard.more'` reads group `more` of menu `dashboard`). A path ending in `.*` reads every
+ * matching group instead, flattened into a single list: `'dashboard.*'` reads every group of
+ * `dashboard`, `'dashboard.account.*'` reads `account` and every group nested under it. Re-evaluates
+ * when the content locale changes, and returns the same shape as `useAsyncData` (`{ data, pending,
+ * error, refresh }`).
  *
  * ```ts
  * const { data: items } = useMenu('main')
  * const { data: more } = useMenu('dashboard.more')
+ * const { data: all } = useMenu('dashboard.*')
  * ```
  */
 export const useMenu = (path: string): AsyncData<MenuItem[], NuxtError<unknown> | undefined> => {
-  const { menu, group } = parseMenuPath(path)
+  const parsed = parseMenuPath(path)
+  const { menu } = parsed
   const locale = useMenuLocale()
   const nuxtApp = useNuxtApp()
 
   return useAsyncData(
-    () => `menu:${menu}.${group}:${locale.value ?? ''}`,
+    () => `menu:${path}:${locale.value ?? ''}`,
     async () => {
-      const registered = menus[menu]?.[group] ?? []
-      const content = await loadContentItems(menu, group, unref(locale))
+      const registered = collectMenuItems(menus[menu], parsed)
+      const content = await loadContentItems(menu, parsed, unref(locale))
       const result = sortByOrder([...content, ...registered])
       // Fired once a menu's items have been resolved and are about to be handed to a view -
       // useful for analytics/telemetry hooking into when a menu actually becomes visible.
