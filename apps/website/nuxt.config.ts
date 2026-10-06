@@ -32,12 +32,31 @@ export default defineNuxtConfig({
     },
   },
 
+  $env: {
+    preview: {
+      hub: {
+        db: {
+          dialect: 'sqlite',
+          driver: 'd1',
+          connection: {
+            // Possible to override...
+            databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c6ed9bb3-f5b1-469e-9474-9dbcab90951a',
+          },
+          applyMigrationsDuringBuild: false,
+        },
+      },
+    },
+  },
+
   $production: {
     hub: {
       db: {
         dialect: 'sqlite',
         driver: 'd1',
-        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+        connection: {
+          // Possible to override...
+          databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a',
+        },
         applyMigrationsDuringBuild: false,
       },
     },
@@ -59,6 +78,12 @@ export default defineNuxtConfig({
   nitro: {
     experimental: {
       tasks: true,
+    },
+    cloudflare: {
+      // Sets fields in the generated wrangler.json
+      wrangler: {
+        keep_vars: true,
+      },
     },
   },
 
