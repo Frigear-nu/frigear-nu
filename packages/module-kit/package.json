@@ -14,11 +14,13 @@
   "exports": {
     ".": {
       "types": "./src/module.ts",
-      "import": "./src/module.ts"
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
     },
     "./utils": {
       "types": "./src/runtime/utils/index.ts",
-      "import": "./src/runtime/utils/index.ts"
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
     }
   },
   "typesVersions": {

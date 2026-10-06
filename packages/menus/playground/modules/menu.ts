@@ -1,4 +1,4 @@
-import { createResolver, defineNuxtModule } from '@nuxt/kit'
+import { defineNuxtModule } from '@nuxt/kit'
 import { extendMenu } from '@frigear-nu/menus/utils'
 
 export default defineNuxtModule({
