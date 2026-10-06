@@ -1,6 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
+// workaround for https://github.com/nuxt-hub/core/issues/936
 const isD1Environment = process.env.NITRO_PRESET === 'cloudflare_module'
+
+//
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
   modules: [
