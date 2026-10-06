@@ -1,5 +1,6 @@
 <template>
   <div>
+    Menus:
     <ul>
       <li
         v-for="item in items"
