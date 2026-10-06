@@ -32,15 +32,29 @@ export default defineNuxtConfig({
     },
   },
 
+  $env: {
+    preview: {
+      hub: {
+        db: {
+          dialect: 'sqlite',
+          driver: 'd1',
+          connection: {
+            // Possible to override...
+            databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c6ed9bb3-f5b1-469e-9474-9dbcab90951a',
+          },
+          applyMigrationsDuringBuild: false,
+        },
+      },
+    },
+  },
+
   $production: {
     hub: {
       db: {
         dialect: 'sqlite',
         driver: 'd1',
         connection: {
-          // Overridden per-deployment by the deploy workflows: the production
-          // worker keeps the hardcoded default, while PR previews point at
-          // their own per-PR D1 database (see apps/website/.github/workflows/deploy.yml).
+          // Possible to override...
           databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a',
         },
         applyMigrationsDuringBuild: false,
@@ -65,13 +79,20 @@ export default defineNuxtConfig({
     experimental: {
       tasks: true,
     },
+    cloudflare: {
+      // Sets fields in the generated wrangler.json
+      wrangler: {
+        keep_vars: true,
+        // Lets the deploy workflows pin the worker name (e.g. to keep PR
+        // preview versions on the same worker as production) without
+        // hardcoding it here.
+        name: process.env.CLOUDFLARE_WORKER_NAME || undefined,
+      },
+    },
   },
 
   // .hub @ defaults
   hub: {
-    // Lets the deploy workflows pin the worker name (e.g. to keep PR preview
-    // versions on the same worker as production) without hardcoding it here.
-    name: process.env.CLOUDFLARE_WORKER_NAME || undefined,
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
