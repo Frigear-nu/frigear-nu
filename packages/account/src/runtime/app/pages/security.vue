@@ -27,7 +27,7 @@ async function onSubmitPassword() {
 async function onRegisterPasskey() {
   passkeyPending.value = true
   try {
-    await passkeys?.registerPasskey(user.value?.name ?? '')
+    await passkeys?.registerPasskey(user.value?.email ?? '')
   }
   finally {
     passkeyPending.value = false
