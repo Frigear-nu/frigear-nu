@@ -4,6 +4,12 @@
   "type": "module",
   "private": false,
   "description": "Frigear Module Kit",
+  "url": "https://docs.frigear.nu/modules/module-kit",
+  "author": {
+    "name": "Frigear",
+    "email": "kontakt@frigear.nu",
+    "url": "https://frigear.nu"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",
