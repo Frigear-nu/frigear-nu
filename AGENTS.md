@@ -149,6 +149,23 @@ manually — check before assuming plain pnpm scripts are the only path.
 - New packages: match the existing structure of a sibling package (tsconfig, build tool, test setup) rather than
   introducing a new toolchain.
 
+### Database extensions and authenticated test fixtures
+
+- `extendDatabaseTable` changes the generated Drizzle schema, not the database itself. Whenever a module adds or
+  changes columns, generate and commit migrations for every affected fixture using its complete module configuration,
+  including the extending modules. Commit the SQL, Drizzle snapshot, and migration journal together; these are versioned
+  schema history, not disposable build artifacts.
+- Prepare the fixture before generating migrations so `.nuxt/hub/db/schema.mjs` includes all registered extensions.
+  Do not generate migrations from only the owning module's base schema.
+- Fixtures exercising email/password registration must use `users.mode: 'server'` and `users.settings.password: true`
+  (the default). This enables both login and registration APIs; `settings.pages.register` only enables the UI page.
+- Database-backed auth tests use `dev: true` so NuxtHub applies committed migrations on startup. Reset only the
+  fixture's dedicated `.data` directory before the suite and clean it up afterward to avoid duplicate-user failures
+  on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
+- A missing session cookie can be a database error, not disabled authentication: the account fixture needed an
+  `accepted_terms_at` migration after the account module extended `users`. See
+  `apps/docs/content/4.modules/200.module-kit.md` for the migration workflow.
+
 ---
 
 ## Code style
