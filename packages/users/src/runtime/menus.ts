@@ -1,10 +1,9 @@
-import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/menus/utils'
+import { defineMenuSource, extendMenuItem } from '@frigear-nu/menus/utils'
 
 // Only registered when `@frigear-nu/menus` is installed (see `module.ts`), so the import above
 // is always resolvable when this file actually runs.
 export default defineMenuSource(() => {
-  const config = useRuntimeConfig().public.users
-  const { clear } = useUserSession()
+  // const config = useRuntimeConfig().public.users
 
   extendMenuItem('account.dropdown', {
     id: 'logout',
