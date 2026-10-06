@@ -1,0 +1,21 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy website to production
+    uses: ./apps/website/.github/workflows/deploy.yml
+    with:
+      environment: production
+      ref: ${{ github.sha }}
+    secrets: inherit
