@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
-import { describe, it, expect } from 'vitest'
+import { rm } from 'node:fs/promises'
+import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 
 async function registerAndGetCookie(payload: { name: string, email: string, password: string }) {
@@ -8,12 +9,17 @@ async function registerAndGetCookie(payload: { name: string, email: string, pass
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  expect(response.status, await response.text()).toBe(200)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
   return cookie
 }
 
 describe('account routes (authenticated)', async () => {
+  const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
+  await rm(dataDir, { recursive: true, force: true })
+  afterAll(() => rm(dataDir, { recursive: true, force: true }))
+
   await setup({
     rootDir: fileURLToPath(new URL('./fixtures/authenticated', import.meta.url)),
     // Running in dev mode lets NuxtHub apply the committed sqlite migrations on startup, so the

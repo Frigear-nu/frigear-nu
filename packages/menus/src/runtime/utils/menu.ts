@@ -1,6 +1,5 @@
 import type { Nuxt } from '@nuxt/schema'
 import type { MenuItem, MenuSource } from '../../types'
-import type {} from '../../schema'
 
 export type { MenuItem, MenuSource } from '../../types'
 
@@ -13,6 +12,15 @@ export function parseMenuPath(path: string): { menu: string, group: string } {
   const dotIndex = path.indexOf('.')
   if (dotIndex === -1) return { menu: path, group: '' }
   return { menu: path.slice(0, dotIndex), group: path.slice(dotIndex + 1) }
+}
+
+export function sortByOrder(items: MenuItem[]): MenuItem[] {
+  return [...items].sort((a, b) => {
+    if (a.order === undefined && b.order === undefined) return 0
+    if (a.order === undefined) return 1
+    if (b.order === undefined) return -1
+    return a.order - b.order
+  })
 }
 
 function slugify(value: string): string {

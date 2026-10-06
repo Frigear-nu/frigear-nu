@@ -2,11 +2,12 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@nuxt/ui',
-    '@frigear-nu/users',
     '@frigear-nu/menus',
+    '@frigear-nu/users',
     '@frigear-nu/account',
   ],
   devtools: { enabled: true },
+  css: ['~/assets/css/main.css'],
   compatibilityDate: 'latest',
   hub: {
     db: {

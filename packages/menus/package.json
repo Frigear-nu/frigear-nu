@@ -67,7 +67,8 @@
   },
   "dependencies": {
     "@nuxt/kit": "^4.5.2",
-    "@frigear-nu/module-kit": "workspace:*"
+    "@frigear-nu/module-kit": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",

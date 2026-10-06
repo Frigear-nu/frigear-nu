@@ -19,6 +19,8 @@
     "@frigear-nu/base": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/users": "workspace:*",
+    "@frigear-nu/account": "workspace:*",
+    "@frigear-nu/menus": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
     "@iconify-json/lucide": "^1.2.131",
     "@iconify-json/simple-icons": "^1.2.95",

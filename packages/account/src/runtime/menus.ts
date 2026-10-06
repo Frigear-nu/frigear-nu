@@ -1,12 +1,12 @@
-import { defineMenuSource } from '@frigear-nu/menus/utils'
+import { defineMenuSource, extendMenuItem } from '@frigear-nu/menus/utils'
 
 // Only registered when `@frigear-nu/menus` is installed (see `module.ts`), so the import above
 // is always resolvable when this file actually runs.
-export default defineMenuSource((items) => {
+export default defineMenuSource(() => {
   const config = useRuntimeConfig().public.account
 
   if (config?.pages?.profile) {
-    items.push({
+    extendMenuItem('dashboard', {
       id: 'account.profile',
       label: 'Profile',
       description: 'Manage your profile details and email address.',
@@ -17,7 +17,7 @@ export default defineMenuSource((items) => {
   }
 
   if (config?.pages?.security) {
-    items.push({
+    extendMenuItem('dashboard', {
       id: 'account.security',
       label: 'Security',
       description: 'Change your password and manage passkeys.',

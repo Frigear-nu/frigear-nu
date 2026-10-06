@@ -11,9 +11,10 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@pinia/colada-nuxt',
     'nuxt-qrcode',
-    '@sentry/nuxt/module',
     '@norbiros/nuxt-auto-form',
+    '@frigear-nu/menus',
     '@frigear-nu/users',
+    '@frigear-nu/account',
     '@frigear-nu/notify',
   ],
 
