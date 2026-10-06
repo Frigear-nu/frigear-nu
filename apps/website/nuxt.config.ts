@@ -32,6 +32,19 @@ export default defineNuxtConfig({
     },
   },
 
+  $env: {
+    preview: {
+      hub: {
+        db: {
+          dialect: 'sqlite',
+          driver: 'd1',
+          connection: { databaseId: 'c6ed9bb3-f5b1-469e-9474-9dbcab90951a' },
+          applyMigrationsDuringBuild: false,
+        },
+      },
+    },
+  },
+
   $production: {
     hub: {
       db: {
