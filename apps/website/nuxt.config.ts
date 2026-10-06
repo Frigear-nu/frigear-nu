@@ -37,7 +37,12 @@ export default defineNuxtConfig({
       db: {
         dialect: 'sqlite',
         driver: 'd1',
-        connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+        connection: {
+          // Overridden per-deployment by the deploy workflows: the production
+          // worker keeps the hardcoded default, while PR previews point at
+          // their own per-PR D1 database (see apps/website/.github/workflows/deploy.yml).
+          databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a',
+        },
         applyMigrationsDuringBuild: false,
       },
     },
@@ -64,6 +69,9 @@ export default defineNuxtConfig({
 
   // .hub @ defaults
   hub: {
+    // Lets the deploy workflows pin the worker name (e.g. to keep PR preview
+    // versions on the same worker as production) without hardcoding it here.
+    name: process.env.CLOUDFLARE_WORKER_NAME || undefined,
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
