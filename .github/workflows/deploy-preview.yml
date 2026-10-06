@@ -79,23 +79,37 @@ jobs:
               authorAssociation = context.payload.pull_request.author_association
               closed = context.payload.pull_request.state === 'closed'
             }
+            
+            const reactToComment = async (body) => {
+              await github.rest.reactions.createForIssueComment({
+                ...context.repo,
+                comment_id: context.payload.comment.id,
+                content: body,
+              })
+            }
+            
+            const postComment = async (body) => {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              })
+            }
 
-            const authorized = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(authorAssociation)
+            const authorized = ['OWNER', 'MEMBER', 'COLLABORATOR', 'ADMIN'].includes(authorAssociation)
 
             let action
             if (eventName === 'pull_request_target' && closed) {
+              await postComment('This pull request has been closed. Deploy preview will be removed.')
               action = 'teardown'
             } else if (authorized) {
+              await reactToComment('+1')
               action = 'deploy'
             } else if (eventName === 'pull_request_target') {
               action = 'request-approval'
             } else {
               // Deploy command from a non-collaborator: let them know it was ignored.
-              await github.rest.reactions.createForIssueComment({
-                ...context.repo,
-                comment_id: context.payload.comment.id,
-                content: '-1',
-              })
+              await reactToComment('-1')
               action = 'ignore'
             }
 
@@ -115,7 +129,7 @@ jobs:
           script: |
             const marker = '<!-- deploy-preview:request-approval -->'
             const prNumber = Number('${{ needs.resolve.outputs.pr-number }}')
-
+            
             const comments = await github.paginate(github.rest.issues.listComments, {
               ...context.repo,
               issue_number: prNumber,
