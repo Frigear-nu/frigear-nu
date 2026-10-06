@@ -1,0 +1,8 @@
+[
+  {
+    "command": "/deploy-preview",
+    "permission": "admin",
+    "issue_type": "pull_request",
+    "dispatch_type": "workflow"
+  }
+]

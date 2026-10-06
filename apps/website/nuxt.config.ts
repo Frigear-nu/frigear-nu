@@ -87,6 +87,15 @@ export default defineNuxtConfig({
         // preview versions on the same worker as production) without
         // hardcoding it here.
         name: process.env.CLOUDFLARE_WORKER_NAME || undefined,
+        // Lets the deploy workflows pin the worker routes (e.g. to keep PR
+        // preview versions on the same worker as production) without
+        // hardcoding it here ona custom domain. If no custom domain is set, the default worker subdomain/domain will be used.
+        routes: process.env.DEPLOYMENT_HOST
+          ? [{
+              pattern: process.env.DEPLOYMENT_HOST,
+              custom_domain: !(process.env?.DEPLOYMENT_HOST?.endsWith('.workers.dev')),
+            }]
+          : undefined,
       },
     },
   },
