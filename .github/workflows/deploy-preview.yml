@@ -128,7 +128,7 @@ jobs:
     name: Deploy preview
     needs: resolve
     if: needs.resolve.outputs.action == 'deploy'
-    uses: ./apps/website/.github/workflows/deploy.yml
+    uses: ./.github/workflows/deploy-website.yml
     with:
       environment: preview
       ref: ${{ needs.resolve.outputs.sha }}
