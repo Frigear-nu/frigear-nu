@@ -1,7 +1,7 @@
 import {
   addComponent,
   addImports,
-  addPlugin,
+  addPlugin, addServerImports,
   addTemplate,
   addTypeTemplate,
   createResolver,
@@ -98,5 +98,10 @@ export const sources = [${sources.map((source, index) => `{ menu: ${JSON.stringi
     })
 
     addPlugin(resolver.resolve('./runtime/app/plugins/menus'))
+    addServerImports({
+      name: 'useMenu',
+      from: resolver.resolve('./runtime/server/utils'),
+      as: 'useMenu',
+    })
   },
 })

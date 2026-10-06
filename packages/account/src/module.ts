@@ -6,11 +6,12 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
+import { registerModule, data } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
 
-declare module '@nuxt/schema' {
+declare module 'nuxt/schema' {
   interface NuxtConfig {
     account?: ModuleOptions
   }
@@ -32,6 +33,12 @@ export default defineNuxtModule<ModuleOptions>({
     settings: { pages: {} },
   },
   moduleDependencies: {
+    '@nuxthub/core': {
+      version: '>=0.10',
+    },
+    '@frigear-nu/module-kit': {
+      version: '>=0.0.1',
+    },
     '@frigear-nu/users': {
       version: '>=0.0.1',
     },
@@ -41,6 +48,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
   },
   async setup(options, nuxt) {
+    registerModule('@frigear-nu/account', nuxt)
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menus')
@@ -97,8 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     if (withMenus) {
       const { registerMenuSource } = await import('@frigear-nu/menus/utils')
-
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard' })
+      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
     }
   },
 })

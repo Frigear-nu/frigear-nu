@@ -1,6 +1,6 @@
 import { computed, unref } from 'vue'
 import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
-import { parseMenuPath } from '../../utils/menu'
+import { parseMenuPath, sortByOrder } from '../../utils/menu'
 import { menus } from '../utils/state'
 import type { MenuItem } from '../../../types'
 
@@ -21,15 +21,6 @@ function useMenuLocale() {
 // `content.config.ts` (e.g. `config` -> `config_en` when the app opts into `@nuxtjs/i18n`).
 function localizedCollectionName(name: string, locale?: string) {
   return locale ? `${name}_${locale.replace(/-/g, '_')}` : name
-}
-
-function sortByOrder(items: MenuItem[]): MenuItem[] {
-  return [...items].sort((a, b) => {
-    if (a.order === undefined && b.order === undefined) return 0
-    if (a.order === undefined) return 1
-    if (b.order === undefined) return -1
-    return a.order - b.order
-  })
 }
 
 type MenusPublicConfig = {
