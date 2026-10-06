@@ -72,6 +72,34 @@ export default defineNuxtConfig({
         },
       },
     },
+    plugins: [
+      {
+        // Nuxt 4.6's `installedScanEntries` (in `@nuxt/vite-builder`) feeds every
+        // node_modules-installed component/plugin/layout/middleware file to Vite's
+        // dependency scanner as a scan entry, so it can pre-bundle their deps. Nuxt's
+        // own virtual-module resolvers (`#components`, `#imports`, `#app`, `#build/*`,
+        // ...) skip resolution during that scan, so the request falls through to
+        // Vite/rolldown's default resolver, which tries to resolve the `#`-prefixed
+        // specifier as a Node.js subpath import relative to the *importing package*
+        // (e.g. `@nuxtjs/i18n`) instead of the Nuxt app root - and fails, since that
+        // package never declares the specifier in its own `imports` field. This aborts
+        // the whole scan with "Missing '#x' specifier in '<package>' package" and Vite
+        // falls back to skipping dependency pre-bundling entirely.
+        // Fix pending upstream: https://github.com/nuxt/nuxt/issues/36473
+        name: 'frigear-nu:scan-external-virtual-specifiers',
+        enforce: 'pre',
+        resolveId: {
+          filter: { id: /^#/ },
+          handler(id, _importer, options) {
+            // `scan` is passed at runtime by Vite/rolldown's dependency scanner
+            // but isn't part of the public `resolveId` hook option types.
+            if ((options as { scan?: boolean } | undefined)?.scan) {
+              return { id, external: true }
+            }
+          },
+        },
+      },
+    ],
   },
 
   eslint: {
