@@ -6,7 +6,7 @@ export default defineMenuSource(() => {
   const config = useRuntimeConfig().public.account
 
   if (config?.pages?.profile) {
-    extendMenuItem('dashboard.account', {
+    extendMenuItem('dashboard', {
       id: 'account.profile',
       label: 'Profile',
       description: 'Manage your profile details and email address.',
@@ -17,7 +17,7 @@ export default defineMenuSource(() => {
   }
 
   if (config?.pages?.security) {
-    extendMenuItem('dashboard.account', {
+    extendMenuItem('dashboard', {
       id: 'account.security',
       label: 'Security',
       description: 'Change your password and manage passkeys.',
