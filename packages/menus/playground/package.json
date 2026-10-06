@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@frigear-nu/menus": "workspace:*",
-    "nuxt": "^4.5.2"
+    "nuxt": "catalog:"
   },
   "devDependencies": {
-    "@nuxt/kit": "^4.5.2"
+    "@nuxt/kit": "^4.6.0"
   }
 }

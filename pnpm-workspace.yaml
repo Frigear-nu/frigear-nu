@@ -25,6 +25,22 @@ minimumReleaseAgeExclude:
   - '@sentry/vue@10.75.1'
   - drizzle-kit@0.31.11
   - drizzle-orm@0.45.3
+  - '@nuxt/cli@4.0.0'
+  - '@nuxt/kit@4.6.0'
+  - '@nuxt/nitro-server@4.6.0'
+  - '@nuxt/schema@4.6.0'
+  - '@nuxt/vite-builder@4.6.0'
+  - '@nuxt/vite-server@4.6.0'
+  - nuxt@4.6.0
+  - cssnano-utils@8.2.0
+  - postcss-merge-rules@9.1.2
+
+overrides:
+  # cssnano's `postcss-merge-rules@9.1.0` (pulled in transitively via `nuxt`'s `@nuxt/vite-builder`)
+  # depends on `cssnano-utils@^8.1.0`, but calls `sameContainer`, which was only added in
+  # `cssnano-utils@8.2.0`. Fixed upstream in `postcss-merge-rules@9.1.2`, which bumps its
+  # `cssnano-utils` dependency to `^8.2.0`.
+  postcss-merge-rules: ^9.1.2
 
 patchedDependencies:
   '@nuxthub/core@0.10.8': patches/@nuxthub__core@0.10.8.patch

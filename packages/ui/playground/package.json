@@ -10,6 +10,6 @@
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
     "@frigear-nu/ui": "workspace:*",
-    "nuxt": "^4.5.2"
+    "nuxt": "catalog:"
   }
 }
