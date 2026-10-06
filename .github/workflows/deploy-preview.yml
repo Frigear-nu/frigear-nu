@@ -7,10 +7,20 @@
 #    trigger the deployment by commenting `/deploy-preview`.
 #  - PR closed (merged or not) -> tear down the per-PR D1 preview database
 #    (and, best-effort, the comment trail).
+#
+# `pull_request_target` (not `pull_request`) is used so that the
+# "resolve"/"request-approval"/"teardown" jobs get write permissions and
+# secrets even when the PR comes from a fork - a plain `pull_request` trigger
+# is always downgraded to a read-only token for fork PRs, which otherwise
+# silently breaks posting the approval-request comment for non-collaborator
+# contributors. This is safe here because none of those jobs check out the
+# PR's own code; only the "deploy" job does that, and only after an explicit
+# authorization check (collaborator-authored PR, or an authorized
+# `/deploy-preview` comment).
 name: Deploy Preview
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, closed]
   issue_comment:
     types: [created]
@@ -73,11 +83,11 @@ jobs:
             const authorized = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(authorAssociation)
 
             let action
-            if (eventName === 'pull_request' && closed) {
+            if (eventName === 'pull_request_target' && closed) {
               action = 'teardown'
             } else if (authorized) {
               action = 'deploy'
-            } else if (eventName === 'pull_request') {
+            } else if (eventName === 'pull_request_target') {
               action = 'request-approval'
             } else {
               // Deploy command from a non-collaborator: let them know it was ignored.
