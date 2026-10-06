@@ -1,5 +1,4 @@
 import type { Nuxt } from '@nuxt/schema'
-import type { Resolver } from '@nuxt/kit'
 import type { MenuItem, MenuSource } from '../../types'
 import type {} from '../../schema'
 
@@ -17,11 +16,20 @@ export function parseMenuPath(path: string): { menu: string, group: string } {
 }
 
 function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  let result = ''
+  let lastWasDash = true // collapses/strips any leading separator run
+  for (const char of value.toLowerCase()) {
+    const isAlphanumeric = (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9')
+    if (isAlphanumeric) {
+      result += char
+      lastWasDash = false
+    }
+    else if (!lastWasDash) {
+      result += '-'
+      lastWasDash = true
+    }
+  }
+  return lastWasDash ? result.slice(0, -1) : result
 }
 
 /** Deterministic id for an item missing one: its `to` if present, else a slug of its `label`. */
@@ -92,7 +100,7 @@ export function extendMenu(nuxt: Nuxt, path: string, items: MenuItem | MenuItem[
 export const defineMenuSource = (source: MenuSource): MenuSource => source
 
 export type RegisterMenuSourceOptions = {
-  resolver: Resolver
+  /** Resolved path to the module's `runtime/menus.ts` source file. */
   file: string
   /** Menu this source's root group items are pushed into. */
   menu: string
@@ -102,9 +110,10 @@ export type RegisterMenuSourceOptions = {
  * Registers a module's menu source so `@frigear-nu/menus` runs it alongside every other
  * registered source, merging the result into the named menu. Modules call this once during their
  * own `setup()` - registration order doesn't matter, since sources are only resolved once every
- * module has finished setting up.
+ * module has finished setting up. `options.file` must already be a resolved path (for example via
+ * `createResolver(import.meta.url).resolve(...)`).
  */
-export const registerMenuSource = async (nuxt: Nuxt, options: RegisterMenuSourceOptions): Promise<void> => {
+export const registerMenuSource = (nuxt: Nuxt, options: RegisterMenuSourceOptions): void => {
   nuxt.options.menus ||= {}
 
   const sources: Array<{ menu: string, file: string }> = Array.isArray(nuxt.options.menus._sources)
@@ -112,8 +121,7 @@ export const registerMenuSource = async (nuxt: Nuxt, options: RegisterMenuSource
     : []
   nuxt.options.menus._sources = sources
 
-  const resolved = await options.resolver.resolvePath(options.file)
-  if (!sources.some(source => source.menu === options.menu && source.file === resolved)) {
-    sources.push({ menu: options.menu, file: resolved })
+  if (!sources.some(source => source.menu === options.menu && source.file === options.file)) {
+    sources.push({ menu: options.menu, file: options.file })
   }
 }

@@ -50,12 +50,11 @@ import { registerMenuSource } from '@frigear-nu/menus/utils'
 
 export default defineNuxtModule({
   meta: { name: '@frigear-nu/example' },
-  async setup(options, nuxt) {
+  setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
 
-    await registerMenuSource(nuxt, {
-      resolver,
-      file: './runtime/menus',
+    registerMenuSource(nuxt, {
+      file: resolver.resolve('./runtime/menus'),
       menu: 'dashboard',
     })
   },

@@ -76,23 +76,25 @@ describe('extendMenu', () => {
 })
 
 describe('registerMenuSource', () => {
-  it('resolves and registers a file path + menu on nuxt.options.menus._sources', async () => {
+  it('registers a resolved file path + menu on nuxt.options.menus._sources', () => {
     const nuxt = createNuxt()
     const resolver = createResolver(import.meta.url)
+    const file = resolver.resolve('./fixtures/with-items/modules/runtime/menus')
 
-    await registerMenuSource(nuxt, { resolver, file: './fixtures/with-items/modules/runtime/menus', menu: 'dashboard' })
+    registerMenuSource(nuxt, { file, menu: 'dashboard' })
 
     expect(nuxt.options.menus?._sources).toHaveLength(1)
     expect(nuxt.options.menus!._sources![0].menu).toBe('dashboard')
     expect(nuxt.options.menus!._sources![0].file).toContain('runtime/menus')
   })
 
-  it('de-duplicates the same resolved file + menu across multiple registrations', async () => {
+  it('de-duplicates the same file + menu across multiple registrations', () => {
     const nuxt = createNuxt()
     const resolver = createResolver(import.meta.url)
+    const file = resolver.resolve('./fixtures/with-items/modules/runtime/menus')
 
-    await registerMenuSource(nuxt, { resolver, file: './fixtures/with-items/modules/runtime/menus', menu: 'dashboard' })
-    await registerMenuSource(nuxt, { resolver, file: './fixtures/with-items/modules/runtime/menus', menu: 'dashboard' })
+    registerMenuSource(nuxt, { file, menu: 'dashboard' })
+    registerMenuSource(nuxt, { file, menu: 'dashboard' })
 
     expect(nuxt.options.menus?._sources).toHaveLength(1)
   })

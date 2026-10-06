@@ -98,7 +98,7 @@ export default defineNuxtModule<ModuleOptions>({
     if (withMenus) {
       const { registerMenuSource } = await import('@frigear-nu/menus/utils')
 
-      await registerMenuSource(nuxt, { resolver, file: './runtime/menus', menu: 'dashboard' })
+      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard' })
     }
   },
 })
