@@ -2,7 +2,7 @@
   "name": "@frigear-nu/root",
   "description": "Frigear composable volunteer ecosystem",
   "private": true,
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.10.0",
   "scripts": {
     "cli": "node ./packages/cli/bin/cli.mjs",
     "test": "pnpm -r --parallel test",
@@ -15,7 +15,6 @@
     "cloudflare:web:deploy": "npx wrangler --cwd ./apps/website deploy && npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json",
     "cloudflare:web:deploy-preview": "npx wrangler --cwd ./apps/website d1 migrations apply DB --remote && pnpm exec wrangler --cwd .output versions upload'",
     "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules .data"
-
   },
   "bin": {
     "frigear-nu": "./packages/cli/bin/cli.mjs"
