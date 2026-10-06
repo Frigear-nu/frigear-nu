@@ -1,4 +1,5 @@
 import type { Nuxt } from '@nuxt/schema'
+import type {} from '../../schema'
 
 export const registerModule = (moduleName: string, nuxt: Nuxt) => {
   nuxt.options.moduleKit ||= {}

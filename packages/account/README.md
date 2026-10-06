@@ -10,7 +10,7 @@ A module for the account area (profile, email, password, security) in the main f
 - 🔒 Change your password.
 - 🔑 Manage passkeys (via `@frigear-nu/users`' `useUserPasskeys`, when WebAuthn is enabled there).
 - 🧩 Overridable composable (`useAccount`) and opt-in profile/security pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
-- 🗂️ Contributes "Profile"/"Security" tiles to `@frigear-nu/navigation` (when installed), and an opt-in dashboard page
+- 🗂️ Contributes "Profile"/"Security" tiles to `@frigear-nu/menus` (when installed), and an opt-in dashboard page
   listing them.
 
 This module reuses `@frigear-nu/users`' session/password utilities instead of registering its own `users` database
@@ -36,7 +36,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
-    '@frigear-nu/navigation', // optional - enables the dashboard tiles/page
+    '@frigear-nu/menus', // optional - enables the dashboard tiles/page
     '@frigear-nu/account',
   ],
   account: {
@@ -44,7 +44,7 @@ export default defineNuxtConfig({
       pages: {
         profile: true, // or a custom path, e.g. '/me'
         security: true,
-        // Only registered when `@frigear-nu/navigation` is also installed.
+        // Only registered when `@frigear-nu/menus` is also installed.
         index: true,
       },
     },
