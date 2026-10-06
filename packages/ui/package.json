@@ -33,7 +33,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nuxt/kit": "^4.5.2",
+    "@nuxt/kit": "^4.6.0",
     "@vueuse/core": "^13.5.0",
     "cron-parser": "^5.10.0",
     "defu": "^6.1.4",
@@ -48,7 +48,7 @@
     "@nuxt/ui": "^4.10.0",
     "@frigear-nu/eslint-config": "workspace:*",
     "eslint": "^10.8.1",
-    "nuxt": "^3.17.5",
+    "nuxt": "catalog:",
     "vitest": "^5.0.0",
     "@nuxt/module-builder": "^1.0.3"
   },

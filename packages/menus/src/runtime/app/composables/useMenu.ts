@@ -3,6 +3,7 @@ import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
 import { parseMenuPath, sortByOrder } from '../../utils/menu'
 import { menus } from '../utils/state'
 import type { MenuItem } from '../../../types'
+import type { AsyncData, NuxtError } from 'nuxt/app'
 
 // `@nuxtjs/i18n` is optional, so we avoid a hard dependency on its types/composables and instead
 // duck-type the `$i18n` plugin it injects when the consuming app installs and configures it -
@@ -58,7 +59,7 @@ async function loadContentItems(menu: string, group: string, locale: string | un
  * const { data: more } = useMenu('dashboard.more')
  * ```
  */
-export const useMenu = (path: string) => {
+export const useMenu = (path: string): AsyncData<MenuItem[], NuxtError<unknown> | undefined> => {
   const { menu, group } = parseMenuPath(path)
   const locale = useMenuLocale()
   const nuxtApp = useNuxtApp()
