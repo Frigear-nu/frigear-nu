@@ -37,7 +37,7 @@ find_database_id() {
           const match = databases.find((db) => db.name === process.argv[1])
           if (match) process.stdout.write(match.uuid)
         } catch {
-          // No output: treated as "not found" by the caller.
+          // No output: treated as not found by the caller.
         }
       })
     " "$db_name"

@@ -93,7 +93,7 @@ jobs:
 
       - name: Build for preview
         if: inputs.environment == 'preview'
-        run: pnpm cloudflare:build
+        run: pnpm cloudflare:build:preview
         env:
           NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ inputs.environment == 'preview' && steps.preview-db.outputs.database_id || '' }}
           CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
