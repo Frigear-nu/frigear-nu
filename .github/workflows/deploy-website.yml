@@ -1,6 +1,12 @@
-# Reusable deploy workflow for the website app, called from the root
+# Reusable deploy workflow for the website app, called from
 # .github/workflows/deploy-production.yml and .github/workflows/deploy-preview.yml
-# workflows (see https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
+# (see https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
+#
+# Reusable workflows referenced locally (via `./...`) must live directly in
+# this repository's .github/workflows directory - GitHub does not support
+# local reusable workflow files nested in other directories (e.g.
+# apps/website/.github/workflows/deploy.yml), and treats such references as
+# remote references missing a required `@version`.
 #
 # Builds @frigear-nu/website and ships it to Cloudflare:
 #  - environment: production -> `wrangler deploy` + migrations against the

@@ -14,7 +14,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy website to production
-    uses: ./apps/website/.github/workflows/deploy.yml
+    uses: ./.github/workflows/deploy-website.yml
     with:
       environment: production
       ref: ${{ github.sha }}
