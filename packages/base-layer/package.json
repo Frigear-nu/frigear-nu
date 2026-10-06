@@ -47,7 +47,8 @@
     "scule": "^1.3.0",
     "tailwindcss": "^4.3.3",
     "ufo": "^1.6.4",
-    "zod": "^4.5.4"
+    "zod": "^4.5.4",
+    "@frigear-nu/menus": "workspace:*"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { data: config } = await useConfig()
-const { data: navigation } = await useNavigation()
+const { data: navigation } = useMenu('main')
 </script>
 
 <template>
