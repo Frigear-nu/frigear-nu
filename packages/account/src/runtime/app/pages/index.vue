@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'AccountIndexPage' })
 
-const tiles = useNavigation()
+const { data: tiles } = useMenu('dashboard')
 </script>
 
 <template>
@@ -11,13 +11,12 @@ const tiles = useNavigation()
         <UPageGrid>
           <UPageCard
             v-for="tile in tiles"
-            :key="tile.id ?? tile.title"
-            :title="tile.title"
+            :key="tile.id"
+            :title="tile.label"
             :description="tile.description"
             :icon="tile.icon"
             :to="tile.to"
             orientation="horizontal"
-            @click="tile.onClick?.()"
           />
         </UPageGrid>
       </UPageBody>

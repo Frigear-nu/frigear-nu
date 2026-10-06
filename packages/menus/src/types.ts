@@ -1,0 +1,58 @@
+/**
+ * A single menu entry. Deliberately framework-agnostic (no Vue/Nuxt types) and presentation-free -
+ * `description`/`icon` are optional fields a view may use or ignore, but the data never encodes
+ * how it's rendered (no colors, no markup).
+ */
+export type MenuItem = {
+  /**
+   * Stable identifier, useful for `:key` bindings or for overriding/removing an item later.
+   * When omitted it's derived deterministically from `to` (if present) or a slug of `label`.
+   */
+  id?: string
+  /**
+   * Matches the `label` field of `@frigear-nu/base`'s `config` content collection `navigation`
+   * entries, so content-sourced and module-sourced items share the exact same shape.
+   */
+  label: string
+  description?: string
+  icon?: string
+  to?: string
+  external?: boolean
+  tags?: string[]
+  /** Lower numbers render first. Items without an `order` are rendered last, in registration order. */
+  order?: number
+  /**
+   * The group (the part after the menu's first dot) this item belongs to. Set automatically from
+   * the path passed to `extendMenu`/`extendMenuItem`, but an explicit value here always wins.
+   */
+  group?: string
+  meta?: Record<string, unknown>
+}
+
+/** A named collection of `MenuItem`s, keyed by group (`''` for the root group). */
+export type Menu = Record<string, MenuItem[]>
+
+/**
+ * A module's `runtime/menus.ts` file exports a default function matching this signature, wrapped
+ * in `defineMenuSource` for typing/DX. It receives the registered menu's root group items array
+ * directly, so pushing an item there is as simple as `items.push({ ... })`. Use the auto-imported
+ * `extendMenuItem(path, item)` to push into a named group (in this or another menu) instead.
+ */
+export type MenuSource = (items: MenuItem[]) => void | Promise<void>
+
+export type MenuContentSourceOptions = {
+  /** Content collection to read the menu's base items from. Defaults to `'config'`. */
+  collection?: string
+  /** Field on the collection holding the `MenuItem[]`. Defaults to `'navigation'`. */
+  field?: string
+}
+
+export type ModuleOptions = {
+  /**
+   * Enables the `@nuxt/content`-backed source for one or more menus. Maps a menu name to `true`
+   * (use the default `config` collection's `navigation` field) or a `{ collection, field }` pair
+   * to read from a different collection/field. Requires `@nuxt/content` to be installed - a
+   * clear build-time error is thrown otherwise.
+   */
+  content?: Record<string, boolean | MenuContentSourceOptions>
+}

@@ -5,7 +5,7 @@ export default defineNuxtConfig({
     '@nuxthub/core',
     '@nuxt/ui',
     '@frigear-nu/users',
-    '@frigear-nu/navigation',
+    '@frigear-nu/menus',
     MyModule,
   ],
   runtimeConfig: {
