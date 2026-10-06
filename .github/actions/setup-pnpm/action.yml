@@ -1,0 +1,34 @@
+name: Setup pnpm workspace
+description: >
+  Checks out the repository and sets up pnpm + Node.js with pnpm store
+  caching (keyed off pnpm-lock.yaml), then installs dependencies. Shared
+  across workflows so the cache key/config only needs to be tuned in one
+  place.
+
+inputs:
+  install:
+    description: Whether to run `pnpm install --frozen-lockfile` after setup.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile

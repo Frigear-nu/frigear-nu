@@ -19,10 +19,10 @@ jobs:
     outputs:
       filter: ${{ steps.filter.outputs.filter }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup-pnpm
         with:
-          fetch-depth: 0
+          install: 'false'
 
       - name: Determine pnpm --filter argument
         id: filter
@@ -65,22 +65,8 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: Lint
         run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run lint
@@ -90,22 +76,8 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: Test
         run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run test
