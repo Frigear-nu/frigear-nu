@@ -83,6 +83,14 @@ jobs:
           PR_NUMBER: ${{ inputs.pr-number }}
         run: pnpm cloudflare:d1:preview:create
 
+      - name: Build for production
+        if: inputs.environment == 'production'
+        run: pnpm cloudflare:build
+        env:
+          NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ inputs.environment == 'preview' && steps.preview-db.outputs.database_id || '' }}
+          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+
       - name: Build for preview
         if: inputs.environment == 'preview'
         run: pnpm cloudflare:build
@@ -91,14 +99,6 @@ jobs:
           CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
           PR_NUMBER: ${{ inputs.pr-number }}
           DEPLOYMENT_HOST: pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}
-
-      - name: Build for production
-        if: inputs.environment == 'production'
-        run: pnpm cloudflare:build
-        env:
-          NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ inputs.environment == 'preview' && steps.preview-db.outputs.database_id || '' }}
-          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
-          PR_NUMBER: ${{ inputs.pr-number }}
 
       - name: Deploy to production
         if: inputs.environment == 'production'
@@ -119,4 +119,6 @@ jobs:
       - name: Resolve preview URL
         if: inputs.environment == 'preview'
         id: preview-url
+        env:
+          DEPLOYMENT_HOST: pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}
         run: echo "url=https://${DEPLOYMENT_HOST}" >> "$GITHUB_OUTPUT"
