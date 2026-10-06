@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+const isD1Environment = process.env.NITRO_PRESET === 'cloudflare_module'
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
   modules: [
@@ -31,16 +33,18 @@ export default defineNuxtConfig({
     },
   },
 
-  // $production: {
-  //   hub: {
-  //     db: {
-  //       dialect: 'sqlite',
-  //       driver: 'd1',
-  //       connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
-  //       applyMigrationsDuringBuild: false,
-  //     },
-  //   },
-  // },
+  $production: isD1Environment
+    ? {
+        hub: {
+          db: {
+            dialect: 'sqlite',
+            driver: 'd1',
+            connection: { databaseId: 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a' },
+            applyMigrationsDuringBuild: false,
+          },
+        },
+      }
+    : {},
 
   devtools: {
     enabled: true,
