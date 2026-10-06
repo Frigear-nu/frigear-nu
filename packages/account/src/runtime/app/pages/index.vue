@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'AccountIndexPage' })
 
-const { data: tiles } = useMenu('dashboard')
+const { data: tiles } = useMenu('account')
 </script>
 
 <template>

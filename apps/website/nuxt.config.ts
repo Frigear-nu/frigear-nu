@@ -70,6 +70,11 @@ export default defineNuxtConfig({
       connection: { url: 'file:./.data/db/sqlite.db' },
     },
   },
+  account: {
+    settings: {
+      pages: { index: true, profile: true, security: true },
+    },
+  },
   eslint: {
     config: {
       stylistic: {
