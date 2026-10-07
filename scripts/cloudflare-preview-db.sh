@@ -51,7 +51,7 @@ case "$action" in
       echo "D1 database '$db_name' already exists ($database_id)"
     else
       echo "Creating D1 database '$db_name'"
-      "${wrangler[@]}" d1 create "$db_name"
+      "${wrangler[@]}" d1 create "$db_name" --jurisdiction eu --type preview
       database_id="$(find_database_id)"
     fi
 
