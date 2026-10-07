@@ -32,6 +32,10 @@ export default defineNuxtConfig({
     },
   },
 
+  // `$env.preview` is only applied when Nuxt is built with `--envName preview`
+  // (see apps/website/package.json's `build:preview` script) - `nuxt build`
+  // otherwise always resolves overrides against `envName: 'production'`
+  // regardless of NODE_ENV, so this block is silently skipped without it.
   $env: {
     preview: {
       hub: {
