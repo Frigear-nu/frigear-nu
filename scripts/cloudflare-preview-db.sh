@@ -24,6 +24,7 @@ action="${1:?Usage: $0 <create|delete>}"
 : "${CLOUDFLARE_DB_NAME:?CLOUDFLARE_DB_NAME env var is required}"
 
 db_name="pr-${PR_NUMBER}-${CLOUDFLARE_DB_NAME}-preview"
+jurisdiction="${D1_JURISDICTION:-eu}"
 wrangler=(pnpm --filter @frigear-nu/website exec wrangler)
 
 find_database_id() {
@@ -51,7 +52,7 @@ case "$action" in
       echo "D1 database '$db_name' already exists ($database_id)"
     else
       echo "Creating D1 database '$db_name'"
-      "${wrangler[@]}" d1 create "$db_name"
+      "${wrangler[@]}" d1 create "$db_name" --jurisdiction "$jurisdiction"
       database_id="$(find_database_id)"
     fi
 
