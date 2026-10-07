@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/root",
-  "description": "Frigear composable volunteer ecosystem",
+  "description": "Frigear composable volunteer ecosystem.",
   "private": true,
   "packageManager": "pnpm@12.10.0",
   "scripts": {
