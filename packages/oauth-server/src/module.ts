@@ -1,57 +1,183 @@
-import { createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
-import type { OAuthServerModuleOptions, OAuthServerModulePublicOptions } from './types'
-import { defu } from 'defu'
-import { setup } from './internal/setup'
-import { objectPick } from '@vueuse/core'
+import {
+  addImports,
+  addServerHandler,
+  addServerImportsDir,
+  createResolver,
+  defineNuxtModule,
+  extendPages,
+  hasNuxtModule,
+} from '@nuxt/kit'
+import {
+  defineModulePage,
+  moduleApiUrl,
+  registerDatabaseTable,
+  registerModule,
+} from '@frigear-nu/module-kit/utils'
+import type {
+  ApplicationAccessContext,
+  AuthorizeContext,
+  ClaimsContext,
+  ModuleOptions,
+  OAuthServerRuntimeConfig,
+  PublicModuleOptions,
+  TokenIssuedContext,
+  TokenRevokedContext,
+  UserRolesContext,
+} from './types'
 
-export type { OAuthServerModuleOptions as ModuleOptions } from './types'
+export type * from './types'
 
-const resolver = createResolver(import.meta.url)
+declare module '@nuxt/schema' {
+  interface NuxtConfig {
+    oauthServer?: ModuleOptions
+  }
 
-export default defineNuxtModule<OAuthServerModuleOptions>({
-  meta: {
-    name: 'oauth-server',
-    configKey: 'oAuthServer',
-  },
+  interface RuntimeConfig {
+    oauthServer: OAuthServerRuntimeConfig
+  }
+
+  interface PublicRuntimeConfig {
+    oauthServer: PublicModuleOptions
+  }
+}
+
+declare module 'nitropack' {
+  interface NitroRuntimeHooks {
+    /** Admin gate (manage applications): set `ctx.allowed = true` to let the user in. Denied by default. */
+    'oauth:authorize': (ctx: AuthorizeContext) => void | Promise<void>
+    /** Push the user's roles onto `ctx.roles`. Without a listener nobody has a role. */
+    'oauth:user:roles': (ctx: UserRolesContext) => void | Promise<void>
+    /** Extra veto after the role check: set `ctx.allowed = false` (and `ctx.reason`) to deny. */
+    'oauth:application:access': (ctx: ApplicationAccessContext) => void | Promise<void>
+    /** Enrich ID tokens, access tokens and userinfo: mutate `ctx.claims`. */
+    'oauth:claims': (ctx: ClaimsContext) => void | Promise<void>
+    /** Tokens were issued (code exchange or refresh). Audit logging etc. */
+    'oauth:token:issued': (ctx: TokenIssuedContext) => void | Promise<void>
+    /** A refresh token (family) was revoked. */
+    'oauth:token:revoked': (ctx: TokenRevokedContext) => void | Promise<void>
+  }
+}
+
+const MODULE_NAME = '@frigear-nu/oauth-server'
+const API_NAME = 'oauthServer'
+
+function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
+  if (typeof setting === 'string') return setting
+  if (setting === true) return defaultPath
+  return undefined
+}
+
+export default defineNuxtModule<ModuleOptions>({
+  meta: { name: MODULE_NAME, configKey: 'oauthServer' },
   defaults: {
-    jwtPublicKey: '',
-    jwtPrivateKey: '',
-    uiBase: '/app/admin/oauth',
-    apiBase: '/api/admin/oauth',
+    keyId: 'key-1',
+    accessTokenTtl: 3600,
+    refreshTokenTtl: 60 * 60 * 24 * 30,
+    codeTtl: 600,
+    callbackPath: '/auth/frigear',
+    scopes: [],
+    settings: { pages: {} },
   },
-  async setup(moduleOptions, nuxt) {
-    const { resolve } = resolver
+  moduleDependencies: {
+    '@nuxthub/core': { version: '>=0.10' },
+    '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    '@frigear-nu/users': { version: '>=0.0.1' },
+    '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+  },
+  async setup(options, nuxt) {
+    registerModule(MODULE_NAME, nuxt)
+    const resolver = createResolver(import.meta.url)
+    const settings = options.settings ?? {}
+    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
-    nuxt.options.oAuthServer ||= {} as OAuthServerModuleOptions
-    nuxt.options.runtimeConfig.oAuthServer ||= {} as OAuthServerModuleOptions
+    // The consent screen is part of the flow, so it is on unless explicitly disabled (`false`).
+    const authorizePath = settings.pages?.authorize === false
+      ? '/authorize'
+      : resolvePagePath(settings.pages?.authorize ?? true, '/authorize')!
+    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/oauth')
+    const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
-    nuxt.options.runtimeConfig.oAuthServer = defu(
-      nuxt.options.runtimeConfig.oAuthServer,
-      nuxt.options.oAuthServer,
-      moduleOptions,
-    ) as OAuthServerModuleOptions
+    // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).
+    const existing = nuxt.options.runtimeConfig.oauthServer as Partial<OAuthServerRuntimeConfig> | undefined
+    nuxt.options.runtimeConfig.oauthServer = {
+      privateKey: '',
+      publicKey: '',
+      previousPublicKeys: '',
+      ...existing,
+      issuer: options.issuer,
+      keyId: options.keyId ?? 'key-1',
+      accessTokenTtl: options.accessTokenTtl ?? 3600,
+      refreshTokenTtl: options.refreshTokenTtl ?? 60 * 60 * 24 * 30,
+      codeTtl: options.codeTtl ?? 600,
+      callbackPath: options.callbackPath ?? '/auth/frigear',
+      scopes: options.scopes ?? [],
+      authorizePath,
+      signInPath: settings.signInPath,
+    }
+    nuxt.options.runtimeConfig.public.oauthServer = {
+      pages: {
+        authorize: settings.pages?.authorize === false ? undefined : authorizePath,
+        admin: adminPath,
+        applications: applicationsPath,
+      },
+    }
 
-    nuxt.options.runtimeConfig.public.oAuthServer = objectPick(
-      nuxt.options.runtimeConfig.oAuthServer,
-      ['uiBase', 'apiBase'],
-    ) as OAuthServerModulePublicOptions
-
-    // App
-    extendPages((pages) => {
-      if (pages.some(p => p.path === '/authorize')) {
-        if (nuxt.options.dev) {
-          console.warn('OAuth server: /authorize route already exists. Skipping.')
-        }
-        return
-      }
-
-      pages.push({
-        name: 'oauth-authorize',
-        path: '/authorize',
-        file: resolve('./runtime/app/pages/authorize.vue'),
-      })
+    // --- Database -------------------------------------------------------------------------
+    await registerDatabaseTable(nuxt, {
+      resolver,
+      schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
 
-    await setup(nuxt, resolver)
+    // --- OAuth / OIDC endpoints (standard paths) -------------------------------------------
+    const handler = (file: string) => resolver.resolve(`./runtime/server/routes/${file}`)
+    addServerHandler({ route: '/.well-known/openid-configuration', method: 'get', handler: handler('oidc/openid-configuration.get') })
+    addServerHandler({ route: '/.well-known/jwks.json', method: 'get', handler: handler('oidc/jwks.get') })
+    addServerHandler({ route: '/oauth/authorize', method: 'get', handler: handler('oidc/authorize.get') })
+    addServerHandler({ route: '/oauth/authorize', method: 'post', handler: handler('oidc/authorize.post') })
+    addServerHandler({ route: '/oauth/token', method: 'post', handler: handler('oidc/token.post') })
+    addServerHandler({ route: '/oauth/revoke', method: 'post', handler: handler('oidc/revoke.post') })
+    addServerHandler({ route: '/oauth/userinfo', method: 'get', handler: handler('oidc/userinfo.get') })
+
+    // --- Module API ------------------------------------------------------------------------
+    const api = (method: 'get' | 'post' | 'patch' | 'delete', path: string, file: string) =>
+      addServerHandler({ route: moduleApiUrl(API_NAME, path), method, handler: handler(file) })
+
+    api('get', 'consent', 'api/consent.get')
+    api('get', 'me/applications', 'api/me-applications.get')
+    api('get', 'admin/applications', 'api/admin/applications.get')
+    api('post', 'admin/applications', 'api/admin/applications.post')
+    api('get', 'admin/applications/:id', 'api/admin/application.get')
+    api('patch', 'admin/applications/:id', 'api/admin/application.patch')
+    api('delete', 'admin/applications/:id', 'api/admin/application.delete')
+    api('post', 'admin/applications/:id/secret', 'api/admin/application-secret.post')
+    api('post', 'admin/applications/:id/revoke', 'api/admin/application-revoke.post')
+
+    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+
+    // --- App runtime -----------------------------------------------------------------------
+    addImports([
+      { name: 'useOAuthApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
+      { name: 'useMyApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
+    ])
+
+    if (settings.pages?.authorize !== false || adminPath || applicationsPath) {
+      extendPages((pages) => {
+        const existingPaths = new Set(pages.map(page => page.path))
+        if (settings.pages?.authorize !== false && !existingPaths.has(authorizePath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-authorize', path: authorizePath, file: resolver.resolve('./runtime/app/pages/authorize.vue') }))
+        }
+        if (adminPath && !existingPaths.has(adminPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-admin', path: adminPath, file: resolver.resolve('./runtime/app/pages/admin.vue') }))
+        }
+        if (applicationsPath && !existingPaths.has(applicationsPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-applications', path: applicationsPath, file: resolver.resolve('./runtime/app/pages/applications.vue') }))
+        }
+      })
+    }
+
+    if (withMenus) {
+      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
+      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
+    }
   },
 })

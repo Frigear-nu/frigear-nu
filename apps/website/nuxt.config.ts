@@ -21,6 +21,7 @@ export default defineNuxtConfig({
     '@frigear-nu/subscriptions',
     '@frigear-nu/payments',
     '@frigear-nu/events',
+    '@frigear-nu/oauth-server',
   ],
 
   $development: {
@@ -62,6 +63,10 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    // Comma separated emails allowed to manage OAuth applications (NUXT_OAUTH_ADMIN_EMAILS).
+    oauthAdminEmails: '',
+  },
 
   routeRules: {
     '/': { prerender: true },
@@ -139,6 +144,12 @@ export default defineNuxtConfig({
     },
     ui: {
       driver: '@nuxt/ui',
+    },
+  },
+  // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); admins from NUXT_OAUTH_ADMIN_EMAILS.
+  oauthServer: {
+    settings: {
+      pages: { admin: true, applications: true },
     },
   },
   // Secrets come from NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.

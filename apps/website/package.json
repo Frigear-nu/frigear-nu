@@ -27,6 +27,7 @@
     "@frigear-nu/subscriptions": "workspace:*",
     "@frigear-nu/payments": "workspace:*",
     "@frigear-nu/events": "workspace:*",
+    "@frigear-nu/oauth-server": "workspace:*",
     "@iconify-json/lucide": "^1.2.131",
     "@iconify-json/simple-icons": "^1.2.95",
     "@libsql/client": "^0.18.0",
