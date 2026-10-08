@@ -58,7 +58,7 @@ jobs:
       CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
       CLOUDFLARE_DB_NAME: ${{ vars.CLOUDFLARE_DB_NAME }}
       CLOUDFLARE_DOMAIN_ROOT: ${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
-      NITRO_PRESET: ${{ vars.NITRO_PRESET }}
+      NITRO_PRESET: cloudflare_module
       CLOUDFLARE_ENV: ${{ inputs.environment }}
     steps:
       - name: Checkout
@@ -88,7 +88,6 @@ jobs:
       - name: Build
         run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:build:preview' || 'cloudflare:build' }}
         env:
-          NITRO_PRESET: ${{ vars.NITRO_PRESET }}
           NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ steps.preview-db.outputs.database_id }}
           CLOUDFLARE_ENV: ${{ inputs.environment }}
           PR_NUMBER: ${{ inputs.pr-number }}
