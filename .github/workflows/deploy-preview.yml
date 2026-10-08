@@ -7,8 +7,9 @@
 #    deployment by reacting with a rocket (:rocket:) to that comment.
 #  - A collaborator (write access or higher) reacting with :rocket: on that
 #    comment -> deploy. Removing the reaction and reacting again deploys again.
-#  - PR closed (merged or not) -> tear down the per-PR D1 preview database
-#    (silently, without commenting on the PR).
+#  - PR closed (merged or not) -> tear down the per-PR D1 preview database and
+#    update the preview comment to say the deployment was deleted (the link is
+#    inactive).
 #
 # GitHub does not emit any webhook event for reactions, so reactions cannot
 # trigger a workflow directly. The `schedule` trigger therefore polls the
@@ -234,3 +235,21 @@ jobs:
 
       - name: Delete preview D1 database
         run: pnpm cloudflare:d1:preview:delete
+
+      - name: Mark preview as deleted on PR
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- deploy-preview:result -->'
+            const prNumber = Number(process.env.PR_NUMBER)
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: prNumber,
+            })
+            const existing = comments.find((comment) => comment.body.includes(marker))
+            // Nothing was ever deployed for this PR, so there is no link to invalidate.
+            if (!existing) return
+
+            const body = [marker, '🗑️ Preview deployment deleted. The preview link is no longer active.'].join('\n')
+            await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
