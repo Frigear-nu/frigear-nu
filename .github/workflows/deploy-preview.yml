@@ -205,43 +205,6 @@ jobs:
     secrets: inherit
 
 
-  comment-deployed:
-    name: Comment preview URL
-    needs: [ resolve, deploy ]
-    if: needs.resolve.outputs.action == 'deploy'
-    runs-on: ubuntu-latest
-    environment: preview
-    strategy:
-      fail-fast: false
-      matrix:
-        deployment: ${{ fromJSON(needs.resolve.outputs.deployments) }}
-    steps:
-      - name: Comment on PR
-        uses: actions/github-script@v8
-        env:
-          PR_NUMBER: ${{ matrix.deployment.pr }}
-          PREVIEW_URL: https://pr-${{ matrix.deployment.pr }}.${{ vars.CLOUDFLARE_WORKER_NAME }}.${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
-        with:
-          script: |
-            const marker = '<!-- deploy-preview:result -->'
-            const prNumber = Number(process.env.PR_NUMBER)
-            const body = [
-              marker,
-              `🚀 Preview deployed: ${process.env.PREVIEW_URL}`,
-            ].join('\n')
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              ...context.repo,
-              issue_number: prNumber,
-            })
-            const existing = comments.find((comment) => comment.body.includes(marker))
-
-            if (existing) {
-              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
-            } else {
-              await github.rest.issues.createComment({ ...context.repo, issue_number: prNumber, body })
-            }
-
   teardown:
     name: Tear down preview
     needs: resolve
