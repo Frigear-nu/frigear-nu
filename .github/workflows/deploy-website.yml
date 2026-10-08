@@ -89,7 +89,6 @@ jobs:
         run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:build:preview' || 'cloudflare:build' }}
         env:
           NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ steps.preview-db.outputs.database_id }}
-          CLOUDFLARE_ENV: ${{ inputs.environment }}
           NITRO_PRESET: cloudflare_module
           PR_NUMBER: ${{ inputs.pr-number }}
           DEPLOYMENT_HOST: ${{ inputs.environment == 'preview' && format('pr-{0}.{1}.{2}', inputs.pr-number, vars.CLOUDFLARE_WORKER_NAME, vars.CLOUDFLARE_DOMAIN_ROOT) || '' }}
