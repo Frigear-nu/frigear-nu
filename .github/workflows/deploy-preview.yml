@@ -21,9 +21,9 @@ name: Deploy Preview
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, closed]
+    types: [ opened, synchronize, reopened, closed ]
   issue_comment:
-    types: [created]
+    types: [ created ]
 
 concurrency:
   group: deploy-preview-${{ github.event.pull_request.number || github.event.issue.number }}
@@ -32,6 +32,9 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+
+env:
+  NITRO_PRESET: cloudflare_module
 
 jobs:
   resolve:
@@ -180,7 +183,7 @@ jobs:
 
   comment-deployed:
     name: Comment preview URL
-    needs: [resolve, deploy]
+    needs: [ resolve, deploy ]
     if: needs.resolve.outputs.action == 'deploy'
     runs-on: ubuntu-latest
     steps:

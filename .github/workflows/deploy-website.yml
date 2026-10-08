@@ -45,6 +45,8 @@ on:
 permissions:
   contents: read
 
+env:
+  NITRO_PRESET: cloudflare_module
 jobs:
   deploy:
     name: Deploy (${{ inputs.environment }})
