@@ -1,156 +1,118 @@
 <script setup lang="ts">
-const { user, session } = useUserSession()
-const pending = ref(false)
+import type { ConsentDto } from '../../../types'
 
-const oauthRequest = computed(() => session.value?.oauthRequest)
+defineOptions({ name: 'OAuthAuthorizePage' })
 
-useSeoMeta({
-  title: 'Authorize',
-  description: 'Authorize an application to access your account.',
+const route = useRoute()
+const signInPath = (useRuntimeConfig().public.users as { pages?: { login?: string } } | undefined)?.pages?.login || '/login'
+
+const { data: consent, error } = await useFetch<ConsentDto>('/api/oauth-server/consent', {
+  query: route.query,
+  key: `oauth-server:consent:${route.fullPath}`,
 })
 
-definePageMeta({
-  middleware: 'auth',
-  footer: false,
-})
-
-async function handleAuthorize(approved: boolean) {
-  pending.value = true
-
-  try {
-    const response = await $fetch<{ redirectUrl: string }>('/oauth/authorize', {
-      method: 'POST',
-      body: { approved },
-    })
-
-    // Navigate to the redirect URL (back to the client application)
-    if (response.redirectUrl) {
-      window.location.href = response.redirectUrl
-    }
-  }
-  catch (error) {
-    console.error('Authorization error:', error)
-    pending.value = false
-  }
+// Not signed in (e.g. the session expired on the way here): sign in and come back.
+if (error.value?.statusCode === 401) {
+  await navigateTo(`${signInPath}?redirect=${encodeURIComponent(route.fullPath)}`)
 }
 
-// Redirect if no OAuth request
-if (!oauthRequest.value) {
-  navigateTo('/')
+const scopeLabels: Record<string, string> = {
+  openid: 'Verify your identity',
+  profile: 'Your name and profile picture',
+  email: 'Your email address',
+}
+
+const pending = ref<'approve' | 'deny' | null>(null)
+const failure = ref<string | null>(null)
+
+async function decide(approved: boolean) {
+  pending.value = approved ? 'approve' : 'deny'
+  failure.value = null
+  try {
+    const { redirectUrl } = await $fetch<{ redirectUrl: string }>('/oauth/authorize', {
+      method: 'POST',
+      body: { ...route.query, approved },
+    })
+    await navigateTo(redirectUrl, { external: true })
+  }
+  catch (err) {
+    failure.value = (err as { statusMessage?: string }).statusMessage || 'Something went wrong. Please try again.'
+    pending.value = null
+  }
 }
 </script>
 
 <template>
-  <div class="absolute inset-0 flex items-center justify-center p-4 pt-[var(--ui-header-height)]">
+  <UContainer class="py-10">
     <UCard
-      v-if="oauthRequest"
-      class="shadow-xl max-w-md mt-6 md:mt-0"
+      v-if="consent"
+      class="mx-auto max-w-md"
     >
-      <div class="space-y-6">
-        <!-- App requesting access -->
-        <div class="text-center">
-          <div class="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AppHeaderLogo />
-          </div>
-          <h1 class="text-xl font-bold text-highlighted">
-            {{ oauthRequest.clientName || 'An application' }}
-          </h1>
-          <p class="text-sm text-muted mt-1">
-            wants to access your account
-          </p>
-          <UBadge v-if="oauthRequest.clientHost">
-            {{ oauthRequest.clientHost }}
-          </UBadge>
-        </div>
-
-        <!-- User card -->
-        <div class="flex items-center gap-4 p-4 bg-muted rounded-xl border border-default">
-          <UUser
-            :name="user?.name"
-            :description="user?.email"
-            :avatar="{ src: user?.avatarUrl ?? undefined, alt: user?.name }"
-            size="lg"
-            class="flex-1 min-w-0"
-          />
+      <template #header>
+        <div class="flex items-center gap-3">
           <UIcon
-            name="i-heroicons-check-badge"
-            class="size-6 text-success shrink-0"
+            :name="consent.application.icon || 'i-lucide-globe'"
+            class="size-8"
           />
+          <div>
+            <h1 class="text-lg font-semibold">
+              {{ consent.application.name }}
+            </h1>
+            <p class="text-sm text-muted">
+              {{ consent.application.websiteUrl }}
+            </p>
+          </div>
         </div>
+      </template>
 
-        <!-- Permissions -->
-        <div class="bg-muted rounded-xl p-4 border border-default">
-          <p class="text-sm font-medium text-toned mb-3">
-            This will allow the application to:
-          </p>
-          <ul class="space-y-2">
-            <UPageFeature
-              icon="i-heroicons-finger-print"
-              description="Verify your identity"
-            />
-            <UPageFeature
-              icon="i-heroicons-user"
-              description="Access your profile information"
-            />
-            <UPageFeature
-              icon="i-heroicons-envelope"
-              description="Access your email address"
-            />
-          </ul>
-        </div>
+      <p class="mb-3 text-sm">
+        Signed in as <strong>{{ consent.user.name }}</strong> ({{ consent.user.email }}).
+        <strong>{{ consent.application.name }}</strong> wants to:
+      </p>
+      <ul class="mb-4 list-inside list-disc space-y-1 text-sm">
+        <li
+          v-for="scope in consent.scope"
+          :key="scope"
+        >
+          {{ scopeLabels[scope] ?? scope }}
+        </li>
+      </ul>
+      <UAlert
+        v-if="failure"
+        color="error"
+        variant="subtle"
+        :title="failure"
+      />
 
-        <!-- Actions -->
-        <div class="flex gap-3">
+      <template #footer>
+        <div class="flex justify-end gap-2">
           <UButton
-            block
             color="neutral"
             variant="outline"
-            size="lg"
-            :disabled="pending"
-            @click="handleAuthorize(false)"
+            :loading="pending === 'deny'"
+            :disabled="!!pending"
+            @click="decide(false)"
           >
             Deny
           </UButton>
           <UButton
-            block
-            size="lg"
-            :loading="pending"
-            @click="handleAuthorize(true)"
+            :loading="pending === 'approve'"
+            :disabled="!!pending"
+            @click="decide(true)"
           >
-            Authorize
+            Allow
           </UButton>
         </div>
-      </div>
-
-      <template #footer>
-        <p class="text-xs text-center text-muted">
-          Make sure you trust this application before authorizing access.
-        </p>
       </template>
     </UCard>
 
-    <!-- No request state -->
-    <UCard
+    <UAlert
       v-else
-      class="shadow-xl"
-    >
-      <div class="text-center py-4">
-        <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <UIcon
-            name="i-heroicons-question-mark-circle"
-            class="size-8 text-dimmed"
-          />
-        </div>
-        <h2 class="text-lg font-semibold text-highlighted mb-2">
-          No Authorization Request
-        </h2>
-        <p class="text-muted mb-6">
-          There's no pending authorization request.
-        </p>
-        <UButton to="/">
-          Go to Home
-        </UButton>
-      </div>
-    </UCard>
-  </div>
+      class="mx-auto max-w-md"
+      color="error"
+      variant="subtle"
+      title="This sign-in request cannot be completed"
+      :description="error?.statusMessage || 'The request is invalid.'"
+    />
+  </UContainer>
 </template>

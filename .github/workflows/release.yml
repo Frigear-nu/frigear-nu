@@ -22,6 +22,7 @@ on:
           - menu
           - notify
           - users
+          - oauth-server
       increment:
         description: Version increment (passed to release-it)
         type: choice

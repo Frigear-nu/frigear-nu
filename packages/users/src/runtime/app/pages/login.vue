@@ -5,6 +5,13 @@ const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthP
 const passkeys = passkeyLoginEnabled.value ? useUserPasskeys() : undefined
 const passkeyPending = ref(false)
 
+// Only same-origin absolute paths are followed (`/oauth/authorize?...`), never `//host` or full URLs.
+const redirectTarget = computed(() => {
+  const target = useRoute().query.redirect
+  return typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/'
+})
+const afterLogin = () => navigateTo(redirectTarget.value, { external: redirectTarget.value !== '/' })
+
 const fields = computed(() => passwordLoginEnabled.value
   ? [
       { name: 'email', type: 'text' as const, label: 'Email', required: true },
@@ -14,7 +21,7 @@ const fields = computed(() => passwordLoginEnabled.value
 
 async function onSubmit(payload: { data: { email: string, password: string } }) {
   await login(payload.data)
-  await navigateTo('/')
+  await afterLogin()
 }
 
 async function onPasskeyLogin() {
@@ -23,7 +30,7 @@ async function onPasskeyLogin() {
 
   try {
     await passkeys?.authenticateWithPasskey()
-    await navigateTo('/')
+    await afterLogin()
   }
   catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to log in.'

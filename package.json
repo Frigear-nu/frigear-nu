@@ -9,7 +9,7 @@
     "typecheck": "pnpm -r --parallel typecheck",
     "lint": "pnpm -r --parallel lint",
     "lint:fix": "pnpm -r --parallel lint:fix",
-    "build:packages": "pnpm --parallel --filter './packages/**' --filter '!./packages/base-layer' build",
+    "build:packages": "pnpm --workspace-concurrency=3 --filter './packages/**' --filter '!./packages/base-layer' build",
     "build:website": "pnpm --filter @frigear-nu/website build",
     "build:website:preview": "pnpm --filter @frigear-nu/website build --preset cloudflare_module",
     "cloudflare:build": "pnpm build:packages && pnpm build:website",
