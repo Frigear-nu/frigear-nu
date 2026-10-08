@@ -3,10 +3,20 @@
 # Flow (see issue: deploy main and PRs opened by collaborators):
 #  - PR opened/updated by a collaborator (OWNER/MEMBER/COLLABORATOR) -> deploy
 #    straight to a Cloudflare Worker preview version.
-#  - PR opened/updated by anyone else -> comment asking a collaborator to
-#    trigger the deployment by commenting `/deploy-preview`.
+#  - PR opened by anyone else -> comment asking a collaborator to trigger the
+#    deployment by reacting with a rocket (:rocket:) to that comment.
+#  - A collaborator (write access or higher) reacting with :rocket: on that
+#    comment -> deploy. Removing the reaction and reacting again deploys again.
 #  - PR closed (merged or not) -> tear down the per-PR D1 preview database
 #    (silently, without commenting on the PR).
+#
+# GitHub does not emit any webhook event for reactions, so reactions cannot
+# trigger a workflow directly. The `schedule` trigger therefore polls the
+# approval comment of every open PR. Each rocket reaction has a unique id, so
+# the ids that were already deployed are recorded in a hidden marker inside
+# the approval comment; a new reaction (e.g. after unmarking and re-reacting)
+# has a new id and triggers a new deployment. Scheduled runs are best-effort
+# and can be delayed by several minutes.
 #
 # `pull_request_target` (not `pull_request`) is used so that the
 # "resolve"/"request-approval"/"teardown" jobs get write permissions and
@@ -15,19 +25,21 @@
 # silently breaks posting the approval-request comment for non-collaborator
 # contributors. This is safe here because none of those jobs check out the
 # PR's own code; only the "deploy" job does that, and only after an explicit
-# authorization check (collaborator-authored PR, or an authorized
-# `/deploy-preview` comment).
+# authorization check (collaborator-authored PR, or a rocket reaction from a
+# collaborator).
 name: Deploy Preview
 
 on:
   pull_request_target:
     types: [ opened, synchronize, reopened, closed ]
-  issue_comment:
-    types: [ created ]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 concurrency:
-  group: deploy-preview-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+  group: deploy-preview-${{ github.event.pull_request.number || 'reactions' }}
+  # Never cancel a polling run mid-deploy because the next tick started.
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 permissions:
   contents: read
@@ -47,97 +59,100 @@ jobs:
       CLOUDFLARE_DOMAIN_ROOT: ${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
       NITRO_PRESET: cloudflare_module
       CLOUDFLARE_ENV: ${{ inputs.environment }}
-    # Skip unrelated comments entirely so they do not create workflow runs/notifications.
-    if: >-
-      github.repository.owner == 'Frigear-nu' &&
-      (github.event_name == 'pull_request_target' ||
-      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy-preview')))
+    if: github.repository_owner == 'Frigear-nu'
     runs-on: ubuntu-latest
     outputs:
       action: ${{ steps.resolve.outputs.action }}
       pr-number: ${{ steps.resolve.outputs.pr-number }}
       sha: ${{ steps.resolve.outputs.sha }}
+      # JSON array of { pr, sha } to deploy; used by the deploy matrix.
+      deployments: ${{ steps.resolve.outputs.deployments }}
     steps:
       - name: Resolve PR details
         id: resolve
         uses: actions/github-script@v8
         with:
           script: |
+            const approvalMarker = '<!-- deploy-preview:request-approval -->'
+            const handledPattern = /<!-- deploy-preview:handled=([\d,]*) -->/
+            const isAuthorizedPermission = (permission) => ['admin', 'write'].includes(permission)
+
             const eventName = context.eventName
 
-            let prNumber
-            let sha
-            let authorAssociation
-            let closed = false
-            let isDeployCommand = false
-
-            if (eventName === 'issue_comment') {
-              console.log('Checking issue_comment event')
-              if (!context.payload.issue.pull_request) {
-                console.log('Not a pull request')
-                core.setOutput('action', 'ignore')
-                return
+            if (eventName !== 'pull_request_target') {
+              // Poll the approval comment of every open PR for new rocket reactions.
+              const permissionCache = new Map()
+              const isCollaborator = async (username) => {
+                if (!permissionCache.has(username)) {
+                  const { data } = await github.rest.repos
+                    .getCollaboratorPermissionLevel({ ...context.repo, username })
+                    .catch(() => ({ data: { permission: 'none' } }))
+                  permissionCache.set(username, isAuthorizedPermission(data.permission))
+                }
+                return permissionCache.get(username)
               }
 
-              const body = (context.payload.comment.body || '').trim().toLowerCase()
-              if (body !== '/deploy-preview') {
-                console.log('Not a deploy-preview command')
-                core.setOutput('action', 'ignore')
-                return
+              const deployments = []
+              const pulls = await github.paginate(github.rest.pulls.list, { ...context.repo, state: 'open' })
+
+              for (const pr of pulls) {
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  ...context.repo,
+                  issue_number: pr.number,
+                })
+                const approval = comments.find((comment) => comment.body.includes(approvalMarker))
+                if (!approval) continue
+
+                const handled = new Set(((approval.body.match(handledPattern) || [])[1] || '').split(',').filter(Boolean))
+                const reactions = await github.paginate(github.rest.reactions.listForIssueComment, {
+                  ...context.repo,
+                  comment_id: approval.id,
+                  content: 'rocket',
+                })
+
+                const fresh = []
+                for (const reaction of reactions) {
+                  if (handled.has(String(reaction.id))) continue
+                  if (await isCollaborator(reaction.user.login)) fresh.push(reaction)
+                }
+                if (!fresh.length) continue
+
+                console.log(`PR #${pr.number}: new rocket reaction(s) from`, fresh.map((r) => r.user.login))
+                fresh.forEach((reaction) => handled.add(String(reaction.id)))
+
+                // Record before deploying so a failed deploy does not retrigger every poll.
+                const body = approval.body.replace(handledPattern, `<!-- deploy-preview:handled=${[...handled].join(',')} -->`)
+                await github.rest.issues.updateComment({ ...context.repo, comment_id: approval.id, body })
+
+                deployments.push({ pr: String(pr.number), sha: pr.head.sha })
               }
 
-              isDeployCommand = true
-              authorAssociation = context.payload.comment.author_association
-              prNumber = context.payload.issue.number
+              console.log('Deployments:', deployments)
+              core.setOutput('action', deployments.length ? 'deploy' : 'ignore')
+              core.setOutput('deployments', JSON.stringify(deployments))
+              return
+            }
 
-              const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: prNumber })
-              sha = pr.head.sha
-            } else {
-              prNumber = context.payload.pull_request.number
-              sha = context.payload.pull_request.head.sha
-              authorAssociation = context.payload.pull_request.author_association
-              closed = context.payload.pull_request.state === 'closed'
-            }
-            
-            console.log({authorAssociation, prNumber, sha, closed, isDeployCommand})
-            const reactToComment = async (body) => {
-              console.log("Reacting to comment:", body);
-              await github.rest.reactions.createForIssueComment({
-                ...context.repo,
-                comment_id: context.payload.comment.id,
-                content: body,
-              })
-            }
-            
-            const postComment = async (body) => {
-              console.log("Posting comment:", body);
-              await github.rest.issues.createComment({
-                ...context.repo,
-                issue_number: prNumber,
-                body,
-              })
-            }
+            const pr = context.payload.pull_request
+            const authorAssociation = pr.author_association
+            const closed = pr.state === 'closed'
+            console.log({ authorAssociation, prNumber: pr.number, sha: pr.head.sha, closed })
 
             const authorized = ['OWNER', 'MEMBER', 'COLLABORATOR', 'ADMIN'].includes(authorAssociation)
 
             let action
-            if (eventName === 'pull_request_target' && closed) {
-              action = 'teardown'
-            } else if (authorized) {
-              if (eventName === 'issue_comment') await reactToComment('+1')
-              action = 'deploy'
-            } else if (eventName === 'pull_request_target') {
-              action = 'request-approval'
-            } else {
-              // Deploy command from a non-collaborator: let them know it was ignored.
-              await reactToComment('-1')
-              action = 'ignore'
-            }
-            console.log('Action:', action);
+            if (closed) action = 'teardown'
+            else if (authorized) action = 'deploy'
+            else action = 'request-approval'
+            console.log('Action:', action)
 
             core.setOutput('action', action)
-            core.setOutput('pr-number', String(prNumber))
-            core.setOutput('sha', sha)
+            core.setOutput('pr-number', String(pr.number))
+            core.setOutput('sha', pr.head.sha)
+            core.setOutput(
+              'deployments',
+              JSON.stringify(action === 'deploy' ? [{ pr: String(pr.number), sha: pr.head.sha }] : []),
+            )
 
   request-approval:
     name: Request collaborator approval
@@ -164,9 +179,13 @@ jobs:
               issue_number: prNumber,
               body: [
                 marker,
+                '<!-- deploy-preview:handled= -->',
                 'Thanks for the contribution! This PR was opened by a non-collaborator, so the Cloudflare preview deployment needs to be triggered manually.',
                 '',
-                'A maintainer can comment `/deploy-preview` on this PR to deploy it.',
+                'A maintainer can deploy it by reacting to **this comment** with :rocket: (🚀).',
+                'To deploy again later, remove the 🚀 reaction and add it again. Only reactions from collaborators with write access are honored.',
+                '',
+                '_Reactions are picked up by a scheduled check, so the deployment may start a few minutes after reacting._',
               ].join('\n'),
             })
 
@@ -174,11 +193,15 @@ jobs:
     name: Deploy preview
     needs: resolve
     if: needs.resolve.outputs.action == 'deploy'
+    strategy:
+      fail-fast: false
+      matrix:
+        deployment: ${{ fromJSON(needs.resolve.outputs.deployments) }}
     uses: ./.github/workflows/deploy-website.yml
     with:
       environment: preview
-      ref: ${{ needs.resolve.outputs.sha }}
-      pr-number: ${{ needs.resolve.outputs.pr-number }}
+      ref: ${{ matrix.deployment.sha }}
+      pr-number: ${{ matrix.deployment.pr }}
     secrets: inherit
 
 
@@ -187,17 +210,24 @@ jobs:
     needs: [ resolve, deploy ]
     if: needs.resolve.outputs.action == 'deploy'
     runs-on: ubuntu-latest
+    environment: preview
+    strategy:
+      fail-fast: false
+      matrix:
+        deployment: ${{ fromJSON(needs.resolve.outputs.deployments) }}
     steps:
       - name: Comment on PR
         uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ matrix.deployment.pr }}
+          PREVIEW_URL: https://pr-${{ matrix.deployment.pr }}.${{ vars.CLOUDFLARE_WORKER_NAME }}.${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
         with:
           script: |
             const marker = '<!-- deploy-preview:result -->'
-            const prNumber = Number('${{ needs.resolve.outputs.pr-number }}')
-            const previewUrl = '${{ needs.deploy.outputs.preview-url }}'
+            const prNumber = Number(process.env.PR_NUMBER)
             const body = [
               marker,
-              `🚀 Preview deployed: ${previewUrl}`,
+              `🚀 Preview deployed: ${process.env.PREVIEW_URL}`,
             ].join('\n')
 
             const comments = await github.paginate(github.rest.issues.listComments, {
