@@ -32,26 +32,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // `$env.preview` is only applied when Nuxt is built with `--envName preview`
-  // (see apps/website/package.json's `build:preview` script) - `nuxt build`
-  // otherwise always resolves overrides against `envName: 'production'`
-  // regardless of NODE_ENV, so this block is silently skipped without it.
-  $env: {
-    preview: {
-      hub: {
-        db: {
-          dialect: 'sqlite',
-          driver: 'd1',
-          connection: {
-            // Possible to override...
-            databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c6ed9bb3-f5b1-469e-9474-9dbcab90951a',
-          },
-          applyMigrationsDuringBuild: false,
-        },
-      },
-    },
-  },
-
   $production: {
     hub: {
       db: {
@@ -84,6 +64,8 @@ export default defineNuxtConfig({
       tasks: true,
     },
     cloudflare: {
+      deployConfig: true,
+      nodeCompat: true,
       // Sets fields in the generated wrangler.json
       wrangler: {
         keep_vars: true,
@@ -94,6 +76,7 @@ export default defineNuxtConfig({
         // Lets the deploy workflows pin the worker routes (e.g. to keep PR
         // preview versions on the same worker as production) without
         // hardcoding it here ona custom domain. If no custom domain is set, the default worker subdomain/domain will be used.
+        // If no DEPLOYMENT_HOST is provided, it will be assigned a *.workers.dev subdomain.
         routes: process.env.DEPLOYMENT_HOST
           ? [{
               pattern: process.env.DEPLOYMENT_HOST,

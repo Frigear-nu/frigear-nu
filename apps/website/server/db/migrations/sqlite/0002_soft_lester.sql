@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `accepted_terms_at` integer;
