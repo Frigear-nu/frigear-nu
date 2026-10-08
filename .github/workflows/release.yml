@@ -19,6 +19,9 @@ on:
           - subscriptions
           - payments
           - events
+          - menu
+          - notify
+          - users
       increment:
         description: Version increment (passed to release-it)
         type: choice
