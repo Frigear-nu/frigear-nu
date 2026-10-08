@@ -15,6 +15,10 @@ on:
         required: true
         options:
           - module-kit
+          - stripe
+          - subscriptions
+          - payments
+          - events
       increment:
         description: Version increment (passed to release-it)
         type: choice

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commitMessage": "chore(release): @frigear-nu/stripe@${version}",
+    "tagName": "stripe@${version}",
+    "tagAnnotation": "@frigear-nu/stripe@${version}",
+    "push": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "@frigear-nu/stripe@${version}"
+  },
+  "npm": {
+    "publish": false
+  },
+  "hooks": {
+    "after:bump": "pnpm run build --if-present",
+    "after:release": "bash ../../scripts/npm-publish.sh"
+  }
+}
