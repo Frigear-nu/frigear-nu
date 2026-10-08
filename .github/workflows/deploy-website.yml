@@ -61,7 +61,7 @@ jobs:
       CLOUDFLARE_DB_NAME: ${{ vars.CLOUDFLARE_DB_NAME }}
       CLOUDFLARE_DOMAIN_ROOT: ${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
       NITRO_PRESET: cloudflare_module
-      CLOUDFLARE_ENV: ${{ inputs.environment }}
+      CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -100,7 +100,7 @@ jobs:
         env:
           NITRO_PRESET: cloudflare_module
           CLOUDFLARE_PREVIEW_ALIAS: pr-${{ inputs.pr-number }}-preview
-          CLOUDFLARE_ENV: ${{ inputs.environment }}
+          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' }}
           PR_NUMBER: ${{ inputs.pr-number }}
 
       - name: Resolve preview URL
