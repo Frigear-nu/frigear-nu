@@ -12,7 +12,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "nuxt typecheck",
     "dev:prepare": "nuxt prepare",
-    "db:generate": "NODE_ENV=development nuxt db generate",
+    "db:generate": "nuxt db generate",
     "db:migrate": "NODE_ENV=development nuxt db migrate"
   },
   "dependencies": {

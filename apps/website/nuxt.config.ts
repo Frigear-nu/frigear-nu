@@ -94,6 +94,7 @@ export default defineNuxtConfig({
         // Lets the deploy workflows pin the worker routes (e.g. to keep PR
         // preview versions on the same worker as production) without
         // hardcoding it here ona custom domain. If no custom domain is set, the default worker subdomain/domain will be used.
+        // If no DEPLOYMENT_HOST is provided, it will be assigned a *.workers.dev subdomain.
         routes: process.env.DEPLOYMENT_HOST
           ? [{
               pattern: process.env.DEPLOYMENT_HOST,
