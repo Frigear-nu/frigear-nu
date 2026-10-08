@@ -23,6 +23,8 @@
     "@frigear-nu/account": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
+    "@frigear-nu/stripe": "workspace:*",
+    "@frigear-nu/subscriptions": "workspace:*",
     "@iconify-json/lucide": "^1.2.131",
     "@iconify-json/simple-icons": "^1.2.95",
     "@libsql/client": "^0.18.0",
@@ -43,6 +45,7 @@
     "nuxt": "catalog:",
     "nuxt-qrcode": "^0.4.10",
     "tailwindcss": "^4.3.3",
+    "unstorage": "^1.17.5",
     "zod": "^4.6.5",
     "@vueuse/core": "^15.0.0"
   },
