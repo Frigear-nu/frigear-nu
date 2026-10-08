@@ -2,9 +2,13 @@
   "name": "@frigear-nu/notify",
   "version": "0.0.1",
   "type": "module",
-  "private": true,
   "description": "Framework-agnostic email notification driver/dispatch Nuxt module, shared across Frigear modules.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/notify"
+  },
   "main": "./src/module.ts",
   "exports": {
     ".": "./src/module.ts",
@@ -26,6 +30,9 @@
       }
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "postinstall": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
@@ -33,7 +40,8 @@
     "dev:build": "nuxt build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "prepack": "nuxt-module-build build"
   },
   "dependencies": {
     "@nuxt/kit": "^4.6.0",
