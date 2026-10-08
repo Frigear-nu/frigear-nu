@@ -32,26 +32,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // `$env.preview` is only applied when Nuxt is built with `--envName preview`
-  // (see apps/website/package.json's `build:preview` script) - `nuxt build`
-  // otherwise always resolves overrides against `envName: 'production'`
-  // regardless of NODE_ENV, so this block is silently skipped without it.
-  $env: {
-    preview: {
-      hub: {
-        db: {
-          dialect: 'sqlite',
-          driver: 'd1',
-          connection: {
-            // Possible to override...
-            databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c6ed9bb3-f5b1-469e-9474-9dbcab90951a',
-          },
-          applyMigrationsDuringBuild: false,
-        },
-      },
-    },
-  },
-
   $production: {
     hub: {
       db: {
