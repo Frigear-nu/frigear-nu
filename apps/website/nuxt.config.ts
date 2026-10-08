@@ -64,6 +64,8 @@ export default defineNuxtConfig({
       tasks: true,
     },
     cloudflare: {
+      deployConfig: true,
+      nodeCompat: true,
       // Sets fields in the generated wrangler.json
       wrangler: {
         keep_vars: true,
