@@ -6,7 +6,7 @@
 #  - PR opened/updated by anyone else -> comment asking a collaborator to
 #    trigger the deployment by commenting `/deploy-preview`.
 #  - PR closed (merged or not) -> tear down the per-PR D1 preview database
-#    (and, best-effort, the comment trail).
+#    (silently, without commenting on the PR).
 #
 # `pull_request_target` (not `pull_request`) is used so that the
 # "resolve"/"request-approval"/"teardown" jobs get write permissions and
@@ -36,6 +36,10 @@ permissions:
 jobs:
   resolve:
     name: Resolve PR context
+    # Skip unrelated comments entirely so they do not create workflow runs/notifications.
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy-preview'))
     runs-on: ubuntu-latest
     outputs:
       action: ${{ steps.resolve.outputs.action }}
@@ -44,7 +48,7 @@ jobs:
     steps:
       - name: Resolve PR details
         id: resolve
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const eventName = context.eventName
@@ -106,7 +110,6 @@ jobs:
 
             let action
             if (eventName === 'pull_request_target' && closed) {
-              await postComment('This pull request has been closed. Deploy preview will be removed.')
               action = 'teardown'
             } else if (authorized) {
               if (eventName === 'issue_comment') await reactToComment('+1')
@@ -131,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const marker = '<!-- deploy-preview:request-approval -->'
@@ -173,7 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const marker = '<!-- deploy-preview:result -->'
@@ -209,13 +212,13 @@ jobs:
       PR_NUMBER: ${{ needs.resolve.outputs.pr-number }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -225,13 +228,3 @@ jobs:
 
       - name: Delete preview D1 database
         run: pnpm cloudflare:d1:preview:delete
-
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: Number('${{ needs.resolve.outputs.pr-number }}'),
-              body: '🧹 Preview deployment and database were torn down.',
-            })
