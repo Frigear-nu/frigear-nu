@@ -59,6 +59,7 @@ jobs:
       CLOUDFLARE_DB_NAME: ${{ vars.CLOUDFLARE_DB_NAME }}
       CLOUDFLARE_DOMAIN_ROOT: ${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
       NITRO_PRESET: ${{ vars.NITRO_PRESET }}
+      CLOUDFLARE_ENV: ${{ inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
