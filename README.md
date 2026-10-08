@@ -22,3 +22,4 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/notify](./packages/notify) - Email notification driver/dispatch Nuxt module (app chooses the driver), shared across modules
 - [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules
 - [@frigear-nu/account](./packages/account) - Account area module (profile, security, change email/password) migrated from nuxt-frigear-nu
+- [@frigear-nu/stripe](./packages/stripe) - Core Stripe plumbing: SDK access, customer linking and a verified, idempotent webhook other modules subscribe to

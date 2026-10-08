@@ -2,7 +2,6 @@
 title: Medlemskab
 description: Frigear medlemskab
 links: []
-mode: tabs
 ---
 
 ::u-page-header
@@ -12,10 +11,6 @@ Medlemskab
 
 ::u-container{.mt-8.max-w-md}
   :::membership-pricing
-  ---
-  :mode: meta.mode
-  orientation: horizontal
-  ---
   :::
 ::
 

@@ -3,5 +3,4 @@ import { defineTableColumns } from '@frigear-nu/module-kit/utils'
 
 export const users = defineTableColumns({
   locale: text().default('da'),
-  stripeCustomerId: text(),
 })

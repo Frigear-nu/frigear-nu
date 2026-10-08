@@ -17,6 +17,8 @@ export default defineNuxtConfig({
     '@frigear-nu/users',
     '@frigear-nu/account',
     '@frigear-nu/notify',
+    '@frigear-nu/stripe',
+    '@frigear-nu/subscriptions',
   ],
 
   $development: {
@@ -42,6 +44,13 @@ export default defineNuxtConfig({
           databaseId: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID || 'c0dbc11f-1a2d-4cf8-b520-9a150261a51a',
         },
         applyMigrationsDuringBuild: false,
+      },
+      // KV is used by @frigear-nu/stripe (webhook idempotency) and @frigear-nu/subscriptions (plans cache).
+      // `namespaceId` makes NuxtHub add the `KV` binding to the generated wrangler.json.
+      kv: {
+        driver: 'cloudflare-kv-binding',
+        binding: 'KV',
+        namespaceId: process.env.NUXT_HUB_CLOUDFLARE_KV_NAMESPACE_ID,
       },
     },
   },
@@ -89,6 +98,7 @@ export default defineNuxtConfig({
 
   // .hub @ defaults
   hub: {
+    kv: true,
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
@@ -122,6 +132,25 @@ export default defineNuxtConfig({
     },
     ui: {
       driver: '@nuxt/ui',
+    },
+  },
+  // Secrets come from NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
+  stripe: {},
+  subscriptions: {
+    plans: {
+      member: {
+        label: 'Member',
+        description: 'Frigear membership',
+        rank: 1,
+        // Stripe price lookup keys (set on the prices in the Stripe dashboard). Override with env,
+        // or use `price_...` ids instead.
+        prices: [
+          { lookupKey: process.env.SUBSCRIPTIONS_MEMBER_LOOKUP_KEY || 'frigear_member_yearly' },
+        ],
+      },
+    },
+    settings: {
+      pages: { membership: true, success: true, cancel: true },
     },
   },
   users: {
