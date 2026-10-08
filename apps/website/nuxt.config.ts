@@ -19,6 +19,8 @@ export default defineNuxtConfig({
     '@frigear-nu/notify',
     '@frigear-nu/stripe',
     '@frigear-nu/subscriptions',
+    '@frigear-nu/payments',
+    '@frigear-nu/events',
   ],
 
   $development: {
@@ -117,6 +119,11 @@ export default defineNuxtConfig({
         commaDangle: 'always-multiline',
         braceStyle: '1tbs',
       },
+    },
+  },
+  events: {
+    settings: {
+      pages: { events: true, event: true, tickets: true },
     },
   },
   i18n: {
