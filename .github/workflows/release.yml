@@ -15,6 +15,7 @@ on:
         required: true
         options:
           - module-kit
+          - oauth-server
       increment:
         description: Version increment (passed to release-it)
         type: choice
