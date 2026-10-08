@@ -24,6 +24,7 @@
     "frigear-nu": "./packages/cli/bin/cli.mjs"
   },
   "devDependencies": {
-    "release-it": "^21.1.0"
+    "release-it": "^21.1.0",
+    "wrangler": "^4.148.0"
   }
 }
