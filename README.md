@@ -23,3 +23,6 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules
 - [@frigear-nu/account](./packages/account) - Account area module (profile, security, change email/password) migrated from nuxt-frigear-nu
 - [@frigear-nu/stripe](./packages/stripe) - Core Stripe plumbing: SDK access, customer linking and a verified, idempotent webhook other modules subscribe to
+- [@frigear-nu/subscriptions](./packages/subscriptions) - Recurring Stripe subscriptions: host-defined plans, checkout, entitlements
+- [@frigear-nu/payments](./packages/payments) - One-time Stripe payments (Checkout, refunds) with lifecycle hooks driven by verified Stripe events
+- [@frigear-nu/events](./packages/events) - Events with ticket types, addons, capacity, membership requirements, payments and QR check-in
