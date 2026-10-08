@@ -61,15 +61,15 @@ jobs:
       NITRO_PRESET: ${{ vars.NITRO_PRESET }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -84,42 +84,22 @@ jobs:
           PR_NUMBER: ${{ inputs.pr-number }}
         run: pnpm cloudflare:d1:preview:create
 
-      - name: Build for production
-        if: inputs.environment == 'production'
-        run: pnpm cloudflare:build
+      - name: Build
+        run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:build:preview' || 'cloudflare:build' }}
         env:
-          NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ inputs.environment == 'preview' && steps.preview-db.outputs.database_id || '' }}
-          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
+          NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ steps.preview-db.outputs.database_id }}
+          CLOUDFLARE_ENV: ${{ inputs.environment }}
           PR_NUMBER: ${{ inputs.pr-number }}
+          DEPLOYMENT_HOST: ${{ inputs.environment == 'preview' && format('pr-{0}.{1}.{2}', inputs.pr-number, vars.CLOUDFLARE_WORKER_NAME, vars.CLOUDFLARE_DOMAIN_ROOT) || '' }}
 
-      - name: Build for preview
-        if: inputs.environment == 'preview'
-        run: pnpm cloudflare:build:preview
-        env:
-          NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ inputs.environment == 'preview' && steps.preview-db.outputs.database_id || '' }}
-          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
-          PR_NUMBER: ${{ inputs.pr-number }}
-          DEPLOYMENT_HOST: pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}
-
-      - name: Deploy to production
-        if: inputs.environment == 'production'
-        env:
-          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
-          PR_NUMBER: ${{ inputs.pr-number }}
-        run: pnpm cloudflare:web:deploy
-
-      - name: Deploy preview
-        if: inputs.environment == 'preview'
+      - name: Deploy
+        run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:web:deploy-preview' || 'cloudflare:web:deploy' }}
         env:
           CLOUDFLARE_PREVIEW_ALIAS: pr-${{ inputs.pr-number }}-preview
-          CLOUDFLARE_ENV: ${{ inputs.environment == 'preview' && 'preview' || 'production' }}
+          CLOUDFLARE_ENV: ${{ inputs.environment }}
           PR_NUMBER: ${{ inputs.pr-number }}
-          DEPLOYMENT_HOST: pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}
-        run: pnpm cloudflare:web:deploy-preview
 
       - name: Resolve preview URL
         if: inputs.environment == 'preview'
         id: preview-url
-        env:
-          DEPLOYMENT_HOST: pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}
-        run: echo "url=https://${DEPLOYMENT_HOST}" >> "$GITHUB_OUTPUT"
+        run: echo "url=https://pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}" >> "$GITHUB_OUTPUT"

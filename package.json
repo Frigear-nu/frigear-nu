@@ -15,7 +15,7 @@
     "cloudflare:build": "pnpm build:packages && pnpm build:website",
     "cloudflare:build:preview": "pnpm build:packages && pnpm build:website:preview",
     "cloudflare:web:deploy": "npx wrangler --cwd ./apps/website deploy && npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json",
-    "cloudflare:web:deploy-preview": "npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json && npx wrangler --cwd apps/website versions upload --preview-alias \"${CLOUDFLARE_PREVIEW_ALIAS:?CLOUDFLARE_PREVIEW_ALIAS env var is required}\"",
+    "cloudflare:web:deploy-preview": "npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json && npx wrangler --cwd ./apps/website versions upload --config .output/server/wrangler.json --preview-alias \"${CLOUDFLARE_PREVIEW_ALIAS:?CLOUDFLARE_PREVIEW_ALIAS env var is required}\"",
     "cloudflare:d1:preview:create": "bash scripts/cloudflare-preview-db.sh create",
     "cloudflare:d1:preview:delete": "bash scripts/cloudflare-preview-db.sh delete",
     "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules .data"
