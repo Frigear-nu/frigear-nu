@@ -49,8 +49,9 @@ jobs:
       CLOUDFLARE_ENV: ${{ inputs.environment }}
     # Skip unrelated comments entirely so they do not create workflow runs/notifications.
     if: >-
-      github.event_name == 'pull_request_target' ||
-      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy-preview'))
+      github.repository.owner == 'Frigear-nu' &&
+      (github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy-preview')))
     runs-on: ubuntu-latest
     outputs:
       action: ${{ steps.resolve.outputs.action }}
