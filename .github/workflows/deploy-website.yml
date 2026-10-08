@@ -44,6 +44,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 env:
   NITRO_PRESET: cloudflare_module
@@ -92,7 +93,6 @@ jobs:
           NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ steps.preview-db.outputs.database_id }}
           NITRO_PRESET: cloudflare_module
           PR_NUMBER: ${{ inputs.pr-number }}
-          DEPLOYMENT_HOST: ${{ inputs.environment == 'preview' && format('pr-{0}.{1}.{2}', inputs.pr-number, vars.CLOUDFLARE_WORKER_NAME, vars.CLOUDFLARE_DOMAIN_ROOT) || '' }}
 
       - name: Deploy
         run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:web:deploy-preview' || 'cloudflare:web:deploy' }}
@@ -100,8 +100,43 @@ jobs:
           NITRO_PRESET: cloudflare_module
           CLOUDFLARE_PREVIEW_ALIAS: pr-${{ inputs.pr-number }}-preview
           PR_NUMBER: ${{ inputs.pr-number }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
 
+      # `wrangler versions upload` never attaches routes / custom domains, so a
+      # made-up hostname would not resolve. Use the preview alias URL that
+      # Cloudflare actually reports for the uploaded version.
       - name: Resolve preview URL
         if: inputs.environment == 'preview'
         id: preview-url
-        run: echo "url=https://pr-${{ inputs.pr-number }}.${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_DOMAIN_ROOT}" >> "$GITHUB_OUTPUT"
+        run: |
+          url=$(jq -r 'select(.type == "version-upload") | .preview_alias_url // .preview_url // empty' "$RUNNER_TEMP/wrangler-output.ndjson" | tail -n1)
+          if [ -z "$url" ]; then
+            echo "::error::wrangler did not report a preview URL (is workers.dev / preview URLs enabled for the worker?)"
+            cat "$RUNNER_TEMP/wrangler-output.ndjson"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: inputs.environment == 'preview'
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ inputs.pr-number }}
+          PREVIEW_URL: ${{ steps.preview-url.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- deploy-preview:result -->'
+            const prNumber = Number(process.env.PR_NUMBER)
+            const body = [marker, `🚀 Preview deployed: ${process.env.PREVIEW_URL}`].join('\n')
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: prNumber,
+            })
+            const existing = comments.find((comment) => comment.body.includes(marker))
+
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: prNumber, body })
+            }
