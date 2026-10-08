@@ -1,6 +1,10 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+# Nuxt Content's MDC parser is loaded in the browser in dev; Vite can only pre-bundle its
+# CJS deps (`extend`, `debug`, ...) if `@nuxtjs/mdc` is resolvable from the apps.
+publicHoistPattern:
+  - '@nuxtjs/mdc'
 allowBuilds:
   '@sentry/cli': true
   better-sqlite3: true

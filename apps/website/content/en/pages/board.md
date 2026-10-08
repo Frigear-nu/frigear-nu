@@ -58,8 +58,8 @@ to: /en/forms/board-member-application
 trailingIcon: i-lucide-arrow-right
 variant: subtle
 class: mt-12
+label: Jump to the board application form
 ---
-Jump to the board application form
 ::::
 :::
 ::

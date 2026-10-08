@@ -58,8 +58,8 @@ to: /forms/board-member-application
 trailingIcon: i-lucide-arrow-right
 variant: subtle
 class: mt-12
+label: Hop til ansøgningsformen
 ---
-Hop til ansøgningsformen
 ::::
 :::
 ::
