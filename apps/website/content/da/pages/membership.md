@@ -2,11 +2,14 @@
 title: Medlemskab
 description: Frigear medlemskab
 links: []
-pageHeader:
-  title: Medlemskab
 ---
 
-::u-container{.mt-8.max-w-5xl}
+::u-page-hero
+#title
+{{ $doc.title }}
+::
+
+::u-container{.max-w-5xl}
   :::membership-pricing
   :::
 ::
