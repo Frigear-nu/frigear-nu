@@ -5,7 +5,7 @@
 #   the tagged version is built and published instead of cutting a new release.
 # - Otherwise runs release-it (bump, commit, tag, push, GitHub release, npm publish).
 #
-# Expects the branch to be checked out and `pnpm install` to have run. $RELEASE_BRANCH names the branch to
+# Expects the branch to be checked out, `pnpm install` and `pnpm build:packages` to have run. $RELEASE_BRANCH names the branch to
 # return to after a recovery publish.
 set -euo pipefail
 
@@ -37,6 +37,6 @@ if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null &&
   git checkout "${RELEASE_BRANCH:?}"
   pnpm install --frozen-lockfile
 else
-  pnpm --filter "{$dir}^..." run --if-present build
+  # Dependencies are already built (the workflow runs `pnpm build:packages` once up front).
   (cd "$dir" && pnpm exec release-it "$increment" --ci)
 fi

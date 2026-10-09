@@ -133,6 +133,11 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
+      # Install and build once; the releases below reuse the result (release-it only rebuilds the package
+      # it bumps).
+      - name: Build packages
+        run: pnpm build:packages
+
       - uses: actions/download-artifact@v4
         with:
           pattern: verified-*
