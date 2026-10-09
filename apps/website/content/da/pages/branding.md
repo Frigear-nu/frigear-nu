@@ -20,8 +20,8 @@ Frigear branding kit, PR og SoMe informationer.
   icon: i-lucide-cog
   variant: subtle
   class: min-w-48
+  label: Se vores projekter
   ---
-  Se vores projekter
   :::
   :::u-button
   ---
@@ -31,8 +31,8 @@ Frigear branding kit, PR og SoMe informationer.
   trailingIcon: i-lucide-users
   variant: subtle
   class: min-w-48 
+  label: Mød vores teams
   ---
-  Mød vores teams
   :::
 ::
 
