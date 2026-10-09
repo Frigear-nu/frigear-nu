@@ -1,6 +1,8 @@
 # @frigear-nu/root
 > NOTE: In the future this code will be replacing [frigear-nu/nuxt-frigear-nu](https://github.com/Frigear-nu/nuxt-frigear-nu) as the main frigear nuxt application.
 
+
+[Deployed Main Website](https://)
 A Rewrite of the previous nuxt [simple content site](https://github.com/hareland/simple-content-site) based website of [frigear.nu](https://github.com/Frigear-nu/nuxt-frigear-nu) to a more modular and composable format.
 
 The purpose of this repo is to provide a base for building a modular nuxt application with shared modules and components that can be used across multiple applications within the frigear ecosystem.
