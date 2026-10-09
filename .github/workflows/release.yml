@@ -5,8 +5,8 @@
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
 #
-# Choosing `all` releases every package, one after another (in the order of the
-# choices below), each with the same increment. A failure in one package does not
+# Choosing `all` releases every package, one after another (in dependency order,
+# as listed in the `prepare` job), each with the same increment. A failure in one package does not
 # stop the remaining ones. Keep the `all` list in the `prepare` job in sync with
 # the `package` choices.
 name: Release
@@ -19,19 +19,19 @@ on:
         type: choice
         required: true
         options:
-          - module-kit
-          - stripe
-          - subscriptions
-          - payments
+          - all
+          - account
+          - cookie-consent
           - events
           - forms
-          - cookie-consent
           - menu
+          - module-kit
           - notify
-          - users
           - oauth-server
-          - account
-          - all
+          - payments
+          - stripe
+          - subscriptions
+          - users
       increment:
         description: Version increment (passed to release-it)
         type: choice
