@@ -16,7 +16,7 @@ cards:
           - ✅ Dato for generalforsamlingen offentliggøres senest 3 uger før afholdelse.
           - ✅ Generalforsamling afholdes i 1. kvartal.
           - ✅ Generalforsamlingen henviser relevante projekter til bestyrelsen.
-          - ✅ Endeligt svar gives efter grundig gennemgang fra bestyrelsen af ansøgninger, -på mail senest 1. juni.
+          - ✅ Endeligt svar gives efter grundig gennemgang fra bestyrelsen af ansøgninger, på mail senest 1. juni.
   - title: Hvor kommer pengene fra?
     icon: i-lucide-piggy-bank
     description: Pengene til støttedonationer kommer primært fra overskud ved Frigears frivilligprojekter og events, gennemført af foreningens medlemmer igennem året.
@@ -33,7 +33,7 @@ cards:
           - ✅ Evt. samarbejde med andre foreninger, organisationer eller virksomheder.
           - ✅ Evt. andre indtægtskilder i tråd med Frigears mission, vision og værdier.
   - title: Hvornår er en ansøgning “med” i vurderingen?
-    description: Kort sagt, -hvis ansøgningen er indsendt rettidigt og indeholder de nødvendige oplysninger.
+    description: Kort sagt, hvis ansøgningen er indsendt rettidigt og indeholder de nødvendige oplysninger.
     icon: i-lucide-check-circle
     faqs:
       - title: Mere om kriterier...
@@ -45,7 +45,7 @@ cards:
           - ❌ Useriøse eller ufuldstændige ansøgninger kan blive afvist.
   - title: Hvad kan Frigear egentlig støtte?
     description: |
-      **Frigear støtter**, hvor end det giver mening, ud fra vores kerneværdier, -og **frirummet er stort**. Vi ønsker ikke at sætte begrænsninger på jeres drømme med specifics, —så lad idéerne flyde 🐼
+      **Frigear støtter**, hvor end det giver mening, ud fra vores kerneværdier, og **frirummet er stort**. Vi ønsker ikke at sætte begrænsninger på jeres drømme med specifics, —så lad idéerne flyde 🐼
     icon: i-lucide-sparkles
     faqs:
       - title: Se eksempler...
@@ -61,7 +61,7 @@ cards:
           - ✅ Subkultur og undergrundsinitiativer
   - title: Hvad støtter Frigear fx. ikke?
     description: |
-      **Frigear støtter ikke** nedenstående eksempler. Bemærk, -listen er ikke nødvendigvis udtømmende.
+      **Frigear støtter ikke** nedenstående eksempler. Bemærk, listen er ikke nødvendigvis udtømmende.
     icon: i-lucide-circle-x
     faqs:
       - title: Se eksempler...
@@ -107,7 +107,7 @@ cards:
       - title: Se mere om regnskab...
         icon: i-lucide-check-circle
         lines:
-          - Vi forbeholder os retten til at udbede **kvitteringer eller dokumentation** på brugen af midlerne i **op til 5 år** :br -(*Jf. gældende lovgivning om regnskaber og dokumentation*). :br :br
+          - Vi forbeholder os retten til at udbede **kvitteringer eller dokumentation** på brugen af midlerne i **op til 5 år** :br (*Jf. gældende lovgivning om regnskaber og dokumentation*). :br :br
           - I visse tilfælde kan det være nødvendigt at aflægge regnskab over brugen af midlerne, hvis projektet ændrer karakter, eller hvis Frigear har behov for yderligere dokumentation i forhold til regnskabsføring.
   - title: Må projektet/foreningen være lukket for en mindre gruppe?
     icon: i-lucide-user-lock
@@ -118,12 +118,12 @@ cards:
       - title: Se mere om eksklution...
         icon: i-lucide-x-circle
         lines:
-          - Udover lovmæssige forhold der gør sig gældende omkring nonprofit og almennyttige foreninger, -ønsker Frigear heller ikke at støtte projekter der eksluderer mennesker fra deltagelse, -eller på anden vis går imod vores kerneværdier. :br :br
+          - Udover lovmæssige forhold der gør sig gældende omkring nonprofit og almennyttige foreninger, ønsker Frigear heller ikke at støtte projekter der eksluderer mennesker fra deltagelse, eller på anden vis går imod vores kerneværdier. :br :br
             Vi støtter udelukkende åbne, offentligt tilgængelige, almennyttige og frivilligdrevne foreninger og projekter.
   - title: Er det en fordel at være medlem af Frigear?
     icon: i-lucide-user-check
     description: |
-      - ❌ **Nej**, -alle ansøgninger behandles lige.
+      - ❌ **Nej**, alle ansøgninger behandles lige.
       - ✅ **Ja** — medlemskab giver en stemme på generalforsamlingen.
     links:
       - label: Hop hen og bliv medlem
@@ -135,13 +135,13 @@ cards:
   - title: Krav om offentlig kreditering
     icon: i-lucide-megaphone
     description: |
-      ✅ **Ja**. Vi mener det må være minimum, -som tak for vores støtte.
+      ✅ **Ja**. Vi mener det må være minimum, som tak for vores støtte.
     faqs:
       - title: Se mere om tilkendegivelse...
         icon: i-lucide-check-circle
         lines:
           - Vi er stolte over vores **frivilliges indsats** er med til at støtte jer, og hjælpe med promotion og tilblivelse af jeres projekt(er). Derfor forventes det også, at I på samme vis ønsker at **anerkende Frigears støtte** på offentlige medier, SoMe-kanaler m.m. hvor det gi'r mening, samt evt. til event(s) med Frigears logo og evt. links og '#hashtags m.v. :br :br
-            Se vores **promo side**, -eller kontakt vores **PR Crew** gennem kontakt på forsiden.
+            Se vores **promo side**, eller kontakt vores **PR Crew** gennem kontakt på forsiden.
     links:
       - label: Promo materiale og brandkit
         to: /branding
@@ -158,7 +158,7 @@ cards:
         lines:
           - ✅ Lidt om jer. :br
           - ✅ Projektets/idéens overordnede formål. :br
-          - ✅ Antal event, -eller projektdeltagere. :br
+          - ✅ Antal event, eller projektdeltagere. :br
           - ✅ Hvor og hvornår forventes det afholdt/gennemført? :br
           - ✅ Er projektet støttet af statsmidler, andre fonde, private eller på anden vis — og i så fald hvem? :br
           - ✅ Gerne opdelt, samt samlet budget + hvad støttemidlerne specifikt bidrager til. :br
@@ -201,88 +201,53 @@ bottomCards:
 
 #links
 
- <!-- ToDo -> add internal pitch form -->
-  <!-- :::u-button
-  ---
-  color: primary
-  icon: i-lucide-lightbulb
-  size: xl
-  trailingIcon: i-lucide-square-arrow-out-up-right
-  variant: subtle
-  ---
-  Pitch dit interne Frigear projekt
-  ::: -->
 
   :::u-button
   ---
   color: secondary
   icon: i-lucide-form
-  size: xl
+  size: lg
   to: "#good-to-know"
   trailingIcon: i-lucide-arrow-down-from-line
   variant: subtle
+  label: Ansøg støtte til jeres awesome projekt
   ---
-  Ansøg støtte til jeres awesome projekt
   :::
 
-:nuxt-img{.mt-12.rounded-xl.hidden.md:block :height='500' :width='1200' alt="Frigears frivillige på Roskilde Festival" src="/images/volunteers/fgr/funding-hero-rf-x-50-1200x900.png" preset="cover"}
 
-:nuxt-img{.mt-4.rounded-xl.block.md:hidden :height='500' :width='600' alt="Frigears frivillige på Roskilde Festival" src="/images/volunteers/fgr/funding-hero-mobile-rf-x-50-500x600.png" preset="cover"}
 ::
 
-::card{.shadow-2xl}
-:::u-page-section
+:responsive-image{desktop="/images/volunteers/fgr/funding-hero-rf-x-50-1200x900.png" mobile="/images/volunteers/fgr/funding-hero-mobile-rf-x-50-500x600.png" alt="Frigears frivillige på Roskilde Festival" :desktop-width="1200" :desktop-height="500" :mobile-width="600" :mobile-height="500"}
+
+::u-page-section
 ---
 icon: i-lucide-message-circle-question-mark
 id: good-to-know
 ---
 #title
-Lidt stuff, -inden i ansøger . . .
+Lidt stuff, inden i ansøger . . .
 
 #description
 
 Foreningen Frigear uddeler årligt en pulje fra forudgående regnskabsårs overskud til awesome, frivilligdrevne projekter i Danmark.
 Hvilke projekter der kommer i betragtning, afgøres af foreningens medlemmer på generalforsamlingen (afholdes i 1. kvartal) . . . . 
 
-  ::::u-collapsible
-  ---
-  defaultOpen: false
-  class: flex flex-col gap-2 bg-primary/10 rounded-lg p-1
-  ---
-    :::::u-button
-    ---
-    block: true
-    ui:
-      trailingIcon: group-data-[state=open]:rotate-180 transition-transform duration-200
-    label: Se mere stuff... klik her
-    class: group
-    color: primary
-    trailingIcon: i-lucide-chevron-down
-    variant: subtle
-    icon: i-lucide-info
-    size: lg
-    ---
-    :::::
-
-  #content
-
+  :::content-collapsible{label="Se mere stuff... klik her"}
   **Modtagere** af Frigear **støttemidler** bliver endeligt afgjort og meldt ud inden **1. juni**. Afgørelsen baseres på indsendte ansøgninger, som skal være bestyrelsen i hænde **senest 10 dage før generalforsamlingen**.
   Dato for generalforsamlingen offentliggøres (jf. vedtægter) **senest 3 uger før afholdelse**.
 
   **NB:** Frigear midler går ikke til støtte af enkeltpersoner, institutioner eller foreninger, hvor overskuddet går til enkeltpersoner, offentlige institutioner eller virksomheder (her tales ikke om fx husleje eller leje af udstyr i forbindelse med projektet), projekter med lønnede medarbejdere (her tales ikke om fx aflønning af ekstern lyd-tekniker, fragtmand eller lign.), støtte til underskudsdækning, projekter/vedtægter/idégrundlag der går imod Frigears mission, vision, værdier eller vedtægter, og ej heller projekter med politisk eller religiøs agenda.
 
   **Husk:** Frigear er udelukkende drevet af frivillige, som bruger deres fritid på at læse jeres ansøgninger igennem — så hjælp os med at hjælpe jer 💜
-  ::::
+  :::
 
 #features
 
-  ::::faq-section-list{:items='meta.cards'}
-  ::::
-:::
+  :::faq-section-list{:items='meta.cards'}
+  :::
 ::
 
-::card{.shadow-2xl}
-:::u-page-section
+::u-page-section
 ---
 icon: i-lucide-check-circle
 id: project-application
@@ -292,19 +257,17 @@ id: project-application
 Er du klar til at ansøge?
 
 #links
-::::u-button 
----
-color: primary
-size: xl
-to: /forms/project-application
-trailingIcon: i-lucide-arrow-right
-variant: subtle
-class: mt-12 
----
-Hop til ansøgningsformen
-::::
-:::
+  :::u-button
+  ---
+  color: primary
+  size: lg
+  to: /forms/project-application
+  trailingIcon: i-lucide-arrow-right
+  variant: subtle
+  label: Hop til ansøgningsformen
+  ---
+  :::
 ::
 
-::::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
-::::
+::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+::

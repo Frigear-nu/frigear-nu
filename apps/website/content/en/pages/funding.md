@@ -15,7 +15,7 @@ cards:
           - ✅ The date for the general assembly is published no later than 3 weeks before it takes place.
           - ✅ General assembly is held in Q1.
           - ✅ The general assembly refers relevant projects to the board.
-          - ✅ Final reply is given after thorough review by the board of applications, -by email no later than June 1st.
+          - ✅ Final reply is given after thorough review by the board of applications, by email no later than June 1st.
   - title: Where does the money come from?
     icon: i-lucide-piggy-bank
     description: The money for support donations primarily comes from surplus from Frigear’s volunteer projects and events, carried out by the association’s members throughout the year.
@@ -32,7 +32,7 @@ cards:
           - ✅ Any collaboration with other associations, organizations, or companies.
           - ✅ Any other income sources in line with Frigear’s mission, vision, and values.
   - title: When is an application “included” in the evaluation?
-    description: In short, -if the application is submitted on time and contains the necessary information.
+    description: In short, if the application is submitted on time and contains the necessary information.
     icon: i-lucide-check-circle
     faqs:
       - title: More about the criteria...
@@ -44,7 +44,7 @@ cards:
           - ❌ Unserious or incomplete applications may be rejected.
   - title: What can Frigear actually support?
     description: |
-      **Frigear supports** wherever it makes sense, based on our core values, -and **the freedom is huge**. We don’t want to put limitations on your dreams with specifics, —so let the ideas flow 🐼
+      **Frigear supports** wherever it makes sense, based on our core values, and **the freedom is huge**. We don’t want to put limitations on your dreams with specifics, —so let the ideas flow 🐼
     icon: i-lucide-sparkles
     faqs:
       - title: See examples...
@@ -60,7 +60,7 @@ cards:
           - ✅ Subculture and underground initiatives
   - title: What does Frigear not support, for example?
     description: |
-      **Frigear does not support** the examples below. Note, -the list is not necessarily exhaustive.
+      **Frigear does not support** the examples below. Note, the list is not necessarily exhaustive.
     icon: i-lucide-circle-x
     faqs:
       - title: See examples...
@@ -106,7 +106,7 @@ cards:
       - title: See more about paperwork...
         icon: i-lucide-check-circle
         lines:
-          - We reserve the right to request **receipts or documentation** for the use of the funds for **up to 5 years** :br -(*In accordance with applicable legislation on accounting and documentation*). :br :br
+          - We reserve the right to request **receipts or documentation** for the use of the funds for **up to 5 years** :br (*In accordance with applicable legislation on accounting and documentation*). :br :br
           - In certain cases it may be necessary to submit accounts for the use of the funds, if the project changes character, or if Frigear needs additional documentation in relation to bookkeeping.
   - title: May the project/association be closed to a smaller group?
     icon: i-lucide-user-lock
@@ -117,12 +117,12 @@ cards:
       - title: See more about exclusion...
         icon: i-lucide-x-circle
         lines:
-          - Besides legal conditions that apply regarding nonprofit and public-benefit associations, -Frigear also does not want to support projects that exclude people from participation, -or otherwise go against our core values. :br :br
+          - Besides legal conditions that apply regarding nonprofit and public-benefit associations, Frigear also does not want to support projects that exclude people from participation, or otherwise go against our core values. :br :br
             We support only open, publicly accessible, public-benefit, and volunteer-driven associations and projects.
   - title: Is it an advantage to be a member of Frigear?
     icon: i-lucide-user-check
     description: |
-      - ❌ **No**, -all applications are treated equally.
+      - ❌ **No**, all applications are treated equally.
       - ✅ **Yes** — membership gives a vote at the general assembly.
     links:
       - label: Hop over and become a member
@@ -134,13 +134,13 @@ cards:
   - title: Requirement for public crediting
     icon: i-lucide-megaphone
     description: |
-      ✅ **Yes**. We believe it must be the minimum, -as thanks for our support.
+      ✅ **Yes**. We believe it must be the minimum, as thanks for our support.
     faqs:
       - title: More about crediting...
         icon: i-lucide-check-circle
         lines:
           - We are proud that our **volunteers’ efforts** help support you, and help with promotion and the creation of your project(s). Therefore, it is also expected that you likewise wish to **acknowledge Frigear’s support** on public media, SoMe channels etc. where it makes sense, and possibly at event(s) with Frigear’s logo and maybe links and '#hashtags etc. :br :br
-            See our **promo page**, -or contact our **PR Crew** through the contact on the front page.
+            See our **promo page**, or contact our **PR Crew** through the contact on the front page.
     links:
       - label: Promo material and brandkit
         to: /en/branding
@@ -157,7 +157,7 @@ cards:
         lines:
           - ✅ A bit about you. :br
           - ✅ The project/idea’s overall purpose. :br
-          - ✅ Number of event, -or project participants. :br
+          - ✅ Number of event, or project participants. :br
           - ✅ Where and when is it expected to be held/carried out? :br
           - ✅ Is the project supported by state funds, other funds, private sources or otherwise — and if so by whom? :br
           - ✅ Preferably split up, as well as total budget + what the support funds specifically contribute to. :br
@@ -198,87 +198,53 @@ bottomCards:
 
 #links
 
- <!-- ToDo -> add internal pitch form -->
-  <!-- :::u-button
-  ---
-  color: primary
-  icon: i-lucide-lightbulb
-  size: xl
-  trailingIcon: i-lucide-square-arrow-out-up-right
-  variant: subtle
-  ---
-  Pitch your internal Frigear project
-  ::: -->
 
   :::u-button
   ---
   color: secondary
   icon: i-lucide-form
-  size: xl
+  size: lg
   to: "#good-to-know"
   trailingIcon: i-lucide-arrow-down-from-line
   variant: subtle
+  label: Apply for support for your awesome project
   ---
-  Apply for support for your awesome project
   :::
 
-:nuxt-img{.mt-12.rounded-xl.hidden.md:block :height='500' :width='1200' alt="Frigear volunteers at Roskilde Festival" src="/images/volunteers/fgr/funding-hero-rf-x-50-1200x900.png" preset="cover"}
 
-:nuxt-img{.mt-4.rounded-xl.block.md:hidden :height='500' :width='600' alt="Frigear volunteers at Roskilde Festival" src="/images/volunteers/fgr/funding-hero-mobile-rf-x-50-500x600.png" preset="cover"}
 ::
 
-::card{.shadow-2xl}
-:::u-page-section
+:responsive-image{desktop="/images/volunteers/fgr/funding-hero-rf-x-50-1200x900.png" mobile="/images/volunteers/fgr/funding-hero-mobile-rf-x-50-500x600.png" alt="Frigear volunteers at Roskilde Festival" :desktop-width="1200" :desktop-height="500" :mobile-width="600" :mobile-height="500"}
+
+::u-page-section
 ---
 icon: i-lucide-message-circle-question-mark
 id: good-to-know
 ---
 #title
-Some stuff, -before you apply . . .
+Some stuff, before you apply . . .
 
 #description
 
 The Frigear association annually distributes a pool from the previous financial year’s surplus to awesome, volunteer-driven projects in Denmark.
 Which projects are considered is decided by the association’s members at the general assembly (held in Q1) . . . . 
 
-  ::::u-collapsible
-  ---
-  defaultOpen: false
-  class: flex flex-col gap-2 bg-primary/10 rounded-lg p-1
-  ---
-    :::::u-button
-    ---
-    block: true
-    ui:
-      trailingIcon: group-data-[state=open]:rotate-180 transition-transform duration-200
-    label: See more stuff... click here
-    class: group
-    color: primary
-    trailingIcon: i-lucide-chevron-down
-    variant: subtle
-    icon: i-lucide-info
-    size: lg
-    ---
-    ::::: 
-
-  #content
-
+  :::content-collapsible{label="See more stuff... click here"}
   **Recipients** of Frigear **support funds** are finally decided and announced by **June 1st**. The decision is based on submitted applications, which must be received by the board **no later than 10 days before the general assembly**.
   The date for the general assembly is published (cf. bylaws) **no later than 3 weeks before it takes place**.
 
   **NB:** Frigear funds are not granted to individuals, institutions, or associations where the surplus goes to individuals, public institutions or companies (this does not refer to e.g. rent or equipment rental in connection with the project), projects with paid employees (this does not refer to e.g. payment of an external sound technician, carrier or similar), support for covering deficits, projects/bylaws/ideological basis that go against Frigear’s mission, vision, values or bylaws, nor projects with a political or religious agenda.
 
   **Remember:** Frigear is run solely by volunteers who use their free time to read through your applications — so help us help you 💜
-  ::::
+  :::
 
 #features
 
-  ::::faq-section-list{:items='meta.cards'}
-  ::::
-:::
+  :::faq-section-list{:items='meta.cards'}
+  :::
 ::
-::card{.shadow-2xl}
-:::u-page-section
+
+::u-page-section
 ---
 icon: i-lucide-check-circle
 id: project-application
@@ -288,19 +254,17 @@ id: project-application
 Are you ready to apply?
 
 #links
-::::u-button
----
-color: primary
-size: xl
-to: /en/forms/project-application
-trailingIcon: i-lucide-arrow-right
-variant: subtle
-class: mt-12
----
-Jump to application form
-::::
-:::
+  :::u-button
+  ---
+  color: primary
+  size: lg
+  to: /en/forms/project-application
+  trailingIcon: i-lucide-arrow-right
+  variant: subtle
+  label: Jump to application form
+  ---
+  :::
 ::
 
-::::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
-::::
+::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+::

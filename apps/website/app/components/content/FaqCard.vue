@@ -23,7 +23,7 @@ const contactFormModalProps = computed(() => {
 <template>
   <UPageCard
     v-bind="pageCardProps"
-    :ui="{ footer: 'flex w-full' }"
+    :ui="{ footer: 'mt-0 flex w-full' }"
   >
     <template #title>
       <slot name="title">
@@ -53,6 +53,7 @@ const contactFormModalProps = computed(() => {
             v-for="({ title, lines, details, icon, as }, index) in faqs"
             :key="index"
             :default-open="false"
+            :unmount-on-hide="false"
             class="flex flex-col gap-2 w-full mb-0"
           >
             <UButton

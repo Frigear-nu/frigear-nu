@@ -82,23 +82,21 @@ images:
   ---
   color: primary
   icon: i-carbon-email
-  size: xl
+  size: lg
   to: /en/#contact
   variant: subtle
-  class: flex-1 justify-center
+  label: Get in touch
   ---
-  Get in touch
   :::
 
   :::u-button
   ---
   color: primary
-  size: xl
+  size: lg
   to: /en/membership
   trailing-icon: i-lucide-arrow-right
-  class: flex-1 justify-center
+  label: Membership
   ---
-  Membership
   :::
 ::
 
@@ -113,67 +111,7 @@ images:
 
     :u-separator
 
-      :::::div{.flex .flex-wrap .gap-2}
-        ::::::u-button
-        ---
-        title: Frigear Instagram
-        icon: i-simple-icons-instagram
-        size: xl
-        target: _blank
-        rel: "noopener noreferrer"
-        to: https://www.instagram.com/frigear.nu
-        variant: subtle
-        ---
-        ::::::
-
-        ::::::u-button
-        ---
-        title: Frigear Facebook
-        icon: i-simple-icons-facebook
-        size: xl
-        target: _blank
-        rel: "noopener noreferrer"
-        to: https://www.facebook.com/Frigear.nu
-        variant: subtle
-        ---
-        ::::::
-
-        ::::::u-button
-        ---
-        title: Frigear LinkedIn
-        icon: i-simple-icons-linkedin
-        size: xl
-        target: _blank
-        rel: "noopener noreferrer"
-        to: https://www.linkedin.com/company/frigear
-        variant: subtle
-        ---
-        ::::::
-
-        ::::::u-button
-        ---
-        title: Frigear TikTok
-        icon: i-simple-icons-tiktok
-        size: xl
-        target: _blank
-        rel: "noopener noreferrer"
-        to: https://www.tiktok.com/@frigear.nu
-        variant: subtle
-        ---
-        ::::::
-
-        ::::::u-button
-        ---
-        title: Frigear YouTube
-        icon: i-simple-icons-youtube
-        size: xl
-        target: _blank
-        rel: "noopener noreferrer"
-        to: https://www.youtube.com/@frigear
-        variant: subtle
-        ---
-        ::::::
-      :::::
+    :social-links{.my-4}
     ::::
 
     ::::div{.w-full}
