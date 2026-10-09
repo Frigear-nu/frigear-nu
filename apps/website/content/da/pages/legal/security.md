@@ -1,4 +1,5 @@
 ---
+container: true
 title: Sikkerhed
 description: Hvordan Frigear beskytter data om medlemmer, frivillige og samarbejdspartnere.
 ---

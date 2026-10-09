@@ -1,4 +1,5 @@
 ---
+container: true
 title: Security
 description: How Frigear protects member, volunteer and partner data.
 ---

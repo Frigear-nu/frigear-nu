@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "nuxt typecheck",
+    "test": "vitest run",
     "dev:prepare": "nuxt prepare",
     "db:generate": "nuxt db generate",
     "db:migrate": "NODE_ENV=development nuxt db migrate"
@@ -57,6 +58,7 @@
     "eslint": "^10.10.0",
     "eslint-plugin-better-tailwindcss": "^4.7.0",
     "typescript": "^6.0.3",
+    "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11",
     "wrangler": "^4.147.0"
   },

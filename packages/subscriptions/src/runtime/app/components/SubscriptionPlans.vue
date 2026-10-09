@@ -95,7 +95,7 @@ function choose(plan: SubscriptionPlan) {
       v-if="status === 'pending' && !visible.length"
       name="loading"
     >
-      <p class="text-sm text-muted">
+      <p class="text-center text-sm text-muted">
         {{ t('loading') }}
       </p>
     </slot>
@@ -104,7 +104,7 @@ function choose(plan: SubscriptionPlan) {
       v-else-if="!visible.length"
       name="empty"
     >
-      <p class="text-sm text-muted">
+      <p class="text-center text-sm text-muted">
         {{ t('empty') }}
       </p>
     </slot>

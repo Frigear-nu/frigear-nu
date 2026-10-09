@@ -62,15 +62,19 @@ images:
 #title
 [{{ $doc.title }}]{.fancy-text.text-7xl.md:text-8xl} :br :br
 
-  :::typewriter-effect{.mt-0 .block .leading-tight .min-h-[2.4em] .sm:min-h-[1.1em] .text-wrap .sm:text-nowrap}
-  Nonprofit
-  Volunteer run
-  Project funding
-  Volunteer organization
-  Event production
-  For the common good
-  You wanna join?
-  Become a volunteer!
+  :::typewriter-effect
+  ---
+  class: mt-0 leading-tight
+  items:
+    - "Nonprofit"
+    - "Volunteer run"
+    - "Project funding"
+    - "Volunteer organization"
+    - "Event production"
+    - "For the common good"
+    - "You wanna join?"
+    - "Become a [volunteer]{.text-primary.font-bold}!"
+  ---
   :::
 
 #links
@@ -96,27 +100,22 @@ images:
   :::
 ::
 
-::u-container{#contact .mb-6 .sm:mb-4 .flex .flex-col .lg:flex-row .md:justify-between .gap-2 .sm:gap-4 .px-1 .sm:px-3 .md:px-4 .lg:px-6}
-  :::u-page-feature
-  #title
-  Contact us
+::u-container{#contact .scroll-mt-20 .py-12 .sm:py-16 .px-4 .sm:px-6 .lg:px-8}
+  :::div{.grid .items-start .gap-8 .lg:grid-cols-2 .lg:gap-16}
+    ::::div{.space-y-4}
+    ## Contact us
 
-  #description
-  Send us a message if you have any questions, a Frigear volunteer will get back to you ASAP 💜 :br
-  Check our social media while you are waiting 🐼
+    Send us a message if you have any questions, a Frigear volunteer will get back to you ASAP 💜
 
-  :u-separator
+    Check our social media while you are waiting 🐼
 
-  :social-links{.my-4}
-  :::
+    :u-separator
 
-  :::u-card{.w-full .lg:w-lg}
-  ---
-  variant: subtle
-  ui:
-    body: p-2 sm:p-4
-  ---
-  
-  :site-contact-form
+    :social-links{.my-4}
+    ::::
+
+    ::::div{.w-full}
+    :site-contact-form
+    ::::
   :::
 ::

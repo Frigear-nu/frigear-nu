@@ -57,6 +57,8 @@ The `config` and `pages` collections are validated against `WebsiteConfigSchema`
 `shared/schema/config.ts` and `shared/schema/page.ts`). For the full schema reference and more detail on the
 localized/non-localized setup, see the [Base Layer docs](../../apps/docs/content/3.layers/1.base.md).
 
+Page front matter also accepts `container: true`, which wraps the rendered body in a `UContainer` (use it for plain prose pages such as legal; pages built from `u-page-*` sections manage their own containers).
+
 ## Notes
 
 - This package is a shared workspace dependency and is linked via `workspace:*` from apps.

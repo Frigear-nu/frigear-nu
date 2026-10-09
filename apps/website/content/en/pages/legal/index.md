@@ -1,4 +1,5 @@
 ---
+container: true
 title: Legal
 ---
 
