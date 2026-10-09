@@ -170,5 +170,21 @@
       "url": "URL",
       "uuid": "UUID"
     }
+  },
+  "subscriptions": {
+    "catalog": {
+      "monthly": {
+        "label": "Frigear 🍵 monthly",
+        "description": "🎵 Frigear monthly membership 🎵 for volunteers and comparable cosy critters!"
+      },
+      "quarterly": {
+        "label": "Frigear ☠️ quarterly",
+        "description": "☮ Frigear quarterly membership ☮ for volunteers and other awesome peeps!"
+      },
+      "yearly": {
+        "label": "Frigear 🐼 yearly",
+        "description": "★ Frigear yearly membership ★ for volunteers and other free folk!"
+      }
+    }
   }
 }

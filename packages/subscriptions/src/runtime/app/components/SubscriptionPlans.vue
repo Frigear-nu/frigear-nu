@@ -1,28 +1,9 @@
 <script setup lang="ts">
 import { usePlans } from '../composables/usePlans'
 import type { SubscriptionPlan, SubscriptionPlanPrice } from '../composables/usePlans'
-import { useSubscription, useSubscriptionLabels } from '../composables/useSubscription'
+import { useSubscription } from '../composables/useSubscription'
 
 defineOptions({ name: 'SubscriptionPlans' })
-
-const defaults = {
-  current: 'Current plan',
-  subscribe: 'Subscribe',
-  upgrade: 'Upgrade',
-  downgrade: 'Downgrade',
-  empty: 'No plans are available right now.',
-  loading: 'Loading plans…',
-  trial: '{days}-day free trial',
-  confirmTitle: 'Change plan',
-  confirmBody: 'Switch to {plan}? Your subscription will be updated.',
-  confirm: 'Confirm',
-  cancel: 'Cancel',
-  perDay: 'day',
-  perWeek: 'week',
-  perMonth: 'month',
-  perYear: 'year',
-}
-type Labels = typeof defaults
 
 const props = withDefaults(defineProps<{
   locale?: string
@@ -31,14 +12,15 @@ const props = withDefaults(defineProps<{
   interval?: SubscriptionPlanPrice['interval']
   /** Only show these plan keys. */
   plans?: string[]
-  labels?: Partial<Labels>
   /** Ask for confirmation (modal) before changing an existing subscription. */
   confirmChange?: boolean
 }>(), { confirmChange: false })
 
 const emit = defineEmits<{ select: [plan: SubscriptionPlan, price: SubscriptionPlanPrice] }>()
 
-const t = useSubscriptionLabels(defaults, () => props.labels)
+const t = useModuleT('subscriptions.plans')
+const tp = useModuleT('subscriptions.catalog')
+const ti = useModuleT('subscriptions.interval')
 const { plans: allPlans, status } = usePlans()
 const { plan: currentPlan, isActive, pending, subscribe, error } = useSubscription()
 
@@ -58,9 +40,14 @@ function formatPrice(price: SubscriptionPlanPrice) {
 }
 
 function intervalLabel(price: SubscriptionPlanPrice) {
-  const unit = t(({ day: 'perDay', week: 'perWeek', month: 'perMonth', year: 'perYear' } as const)[price.interval])
-  return price.intervalCount > 1 ? `${price.intervalCount} ${unit}` : unit
+  const singular = { day: 'day', week: 'week', month: 'month', year: 'year' } as const
+  const unit = singular[price.interval]
+  if (price.intervalCount <= 1) return ti(unit, unit)
+  return `${price.intervalCount} ${ti(`${unit}s`, `${unit}s`)}`
 }
+
+const labelOf = (plan: SubscriptionPlan) => tp(`${plan.key}.label`, plan.label)
+const descriptionOf = (plan: SubscriptionPlan) => plan.description ? tp(`${plan.key}.description`, plan.description) : ''
 
 function stateOf(plan: SubscriptionPlan): 'current' | 'upgrade' | 'downgrade' | 'subscribe' {
   if (!isActive.value) return 'subscribe'
@@ -68,6 +55,9 @@ function stateOf(plan: SubscriptionPlan): 'current' | 'upgrade' | 'downgrade' | 
   if (currentRank.value === null) return 'subscribe'
   return plan.rank > currentRank.value ? 'upgrade' : 'downgrade'
 }
+
+const stateLabel = (state: ReturnType<typeof stateOf>) =>
+  t(state, { current: 'Current plan', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[state])
 
 const confirming = ref<{ plan: SubscriptionPlan, price: SubscriptionPlanPrice } | null>(null)
 const confirmOpen = computed({
@@ -96,7 +86,7 @@ function choose(plan: SubscriptionPlan) {
       name="loading"
     >
       <p class="text-center text-sm text-muted">
-        {{ t('loading') }}
+        {{ t('loading', 'Loading plans…') }}
       </p>
     </slot>
 
@@ -105,7 +95,7 @@ function choose(plan: SubscriptionPlan) {
       name="empty"
     >
       <p class="text-center text-sm text-muted">
-        {{ t('empty') }}
+        {{ t('empty', 'No plans are available right now.') }}
       </p>
     </slot>
 
@@ -133,7 +123,7 @@ function choose(plan: SubscriptionPlan) {
           >
             <div class="flex items-center justify-between gap-2">
               <h3 class="font-semibold">
-                {{ plan.label }}
+                {{ labelOf(plan) }}
               </h3>
               <slot
                 name="badge"
@@ -145,15 +135,15 @@ function choose(plan: SubscriptionPlan) {
                   color="primary"
                   variant="subtle"
                 >
-                  {{ t('current') }}
+                  {{ t('current', 'Current plan') }}
                 </UBadge>
               </slot>
             </div>
             <p
-              v-if="plan.description"
+              v-if="descriptionOf(plan)"
               class="mt-1 text-sm text-muted"
             >
-              {{ plan.description }}
+              {{ descriptionOf(plan) }}
             </p>
           </slot>
         </template>
@@ -174,7 +164,7 @@ function choose(plan: SubscriptionPlan) {
               v-if="priceFor(plan)!.trialPeriodDays"
               class="mt-1 text-sm text-muted"
             >
-              {{ t('trial', { days: priceFor(plan)!.trialPeriodDays! }) }}
+              {{ t('trial', '{days}-day free trial', { days: priceFor(plan)!.trialPeriodDays! }) }}
             </p>
           </template>
         </slot>
@@ -197,7 +187,7 @@ function choose(plan: SubscriptionPlan) {
               :loading="pending"
               :disabled="stateOf(plan) === 'current' || !priceFor(plan)"
               :variant="stateOf(plan) === 'current' ? 'outline' : 'solid'"
-              :label="t(stateOf(plan))"
+              :label="stateLabel(stateOf(plan))"
               @click="choose(plan)"
             />
           </slot>
@@ -207,7 +197,7 @@ function choose(plan: SubscriptionPlan) {
 
     <UModal
       v-model:open="confirmOpen"
-      :title="t('confirmTitle')"
+      :title="t('confirmTitle', 'Change plan')"
     >
       <template #body>
         <slot
@@ -215,7 +205,7 @@ function choose(plan: SubscriptionPlan) {
           :plan="confirming?.plan"
           :price="confirming?.price"
         >
-          <p>{{ t('confirmBody', { plan: confirming?.plan.label ?? '' }) }}</p>
+          <p>{{ t('confirmBody', 'Switch to {plan}? Your subscription will be updated.', { plan: confirming ? labelOf(confirming.plan) : '' }) }}</p>
         </slot>
       </template>
       <template #footer>
@@ -227,11 +217,11 @@ function choose(plan: SubscriptionPlan) {
         >
           <UButton
             variant="outline"
-            :label="t('cancel')"
+            :label="t('cancel', 'Cancel')"
             @click="confirming = null"
           />
           <UButton
-            :label="t('confirm')"
+            :label="t('confirm', 'Confirm')"
             :loading="pending"
             @click="confirming && go(confirming.plan, confirming.price)"
           />

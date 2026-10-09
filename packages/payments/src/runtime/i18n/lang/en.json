@@ -1,0 +1,13 @@
+{
+  "payments": {
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "expired": "Expired",
+      "refunded": "Refunded",
+      "partially_refunded": "Partially refunded"
+    },
+    "defaultDescription": "Payment"
+  }
+}

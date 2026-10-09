@@ -178,7 +178,6 @@ export default defineNuxtModule<ModuleOptions>({
     addImports([
       { name: 'usePlans', from: resolver.resolve('./runtime/app/composables/usePlans') },
       { name: 'useSubscription', from: resolver.resolve('./runtime/app/composables/useSubscription') },
-      { name: 'useSubscriptionLabels', from: resolver.resolve('./runtime/app/composables/useSubscription') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
     addRouteMiddleware({

@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import SubscriptionStatus from '../components/SubscriptionStatus.vue'
-import { useSubscription, useSubscriptionLabels } from '../composables/useSubscription'
+import { useSubscription } from '../composables/useSubscription'
 
 defineOptions({ name: 'SubscriptionSuccessPage' })
 
-const t = useSubscriptionLabels({
-  successTitle: 'Thank you!',
-  successBody: 'Your subscription is being activated. This can take a few seconds.',
-  continue: 'Continue',
-})
+const t = useModuleT('subscriptions.success')
 const { refresh, isActive } = useSubscription()
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
 
@@ -26,14 +22,14 @@ onMounted(async () => {
     <UPage>
       <UPageBody class="space-y-6">
         <UPageHeader
-          :title="t('successTitle')"
-          :description="t('successBody')"
+          :title="t('title', 'Thank you!')"
+          :description="t('body', 'Your subscription is being activated. This can take a few seconds.')"
         />
         <SubscriptionStatus />
         <UButton
           v-if="membership"
           :to="membership"
-          :label="t('continue')"
+          :label="t('continue', 'Continue')"
         />
       </UPageBody>
     </UPage>

@@ -8,6 +8,7 @@ import {
 import {
   moduleApiUrl,
   registerDatabaseTable,
+  registerLocales,
   registerModule,
 } from '@frigear-nu/module-kit/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
@@ -76,6 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
+    registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
     nuxt.options.runtimeConfig.payments = {
       checkoutExpiresInMinutes: options.settings?.checkoutExpiresInMinutes ?? 30,

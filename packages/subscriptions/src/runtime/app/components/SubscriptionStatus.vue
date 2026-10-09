@@ -1,44 +1,30 @@
 <script setup lang="ts">
 import { usePlans } from '../composables/usePlans'
-import { useSubscription, useSubscriptionLabels } from '../composables/useSubscription'
+import { useSubscription } from '../composables/useSubscription'
 
 defineOptions({ name: 'SubscriptionStatus' })
 
-const defaults = {
-  title: 'Your subscription',
-  none: 'You do not have an active subscription.',
-  loading: 'Loading subscription…',
-  plan: 'Plan',
-  renews: 'Renews on {date}',
-  cancels: 'Ends on {date}',
-  manage: 'Manage billing',
-  resubscribe: 'Resubscribe',
-  statusActive: 'Active',
-  statusTrialing: 'Trial',
-  statusPastDue: 'Past due',
-  statusCanceled: 'Canceled',
-  statusOther: 'Inactive',
-}
-type Labels = typeof defaults
-
 const props = defineProps<{
   locale?: string
-  labels?: Partial<Labels>
 }>()
 
-const t = useSubscriptionLabels(defaults, () => props.labels)
+const t = useModuleT('subscriptions.status')
+const tp = useModuleT('subscriptions.catalog')
 const { plans } = usePlans()
 const { subscription, plan, status, isActive, cancelsAt, pending, error, subscribe, openPortal } = useSubscription()
 
-const planLabel = computed(() => plans.value.find(p => p.key === plan.value)?.label ?? plan.value)
+const planLabel = computed(() => {
+  const found = plans.value.find(p => p.key === plan.value)
+  return plan.value ? tp(`${plan.value}.label`, found?.label ?? plan.value) : plan.value
+})
 
 const badge = computed(() => {
   const value = subscription.value?.status
-  if (value === 'active') return { label: t('statusActive'), color: 'success' as const }
-  if (value === 'trialing') return { label: t('statusTrialing'), color: 'info' as const }
-  if (value === 'past_due' || value === 'unpaid') return { label: t('statusPastDue'), color: 'warning' as const }
-  if (value === 'canceled') return { label: t('statusCanceled'), color: 'neutral' as const }
-  return { label: t('statusOther'), color: 'neutral' as const }
+  if (value === 'active') return { label: t('active', 'Active'), color: 'success' as const }
+  if (value === 'trialing') return { label: t('trialing', 'Trial'), color: 'info' as const }
+  if (value === 'past_due' || value === 'unpaid') return { label: t('pastDue', 'Past due'), color: 'warning' as const }
+  if (value === 'canceled') return { label: t('canceled', 'Canceled'), color: 'neutral' as const }
+  return { label: t('other', 'Inactive'), color: 'neutral' as const }
 })
 
 function formatDate(value: string | null) {
@@ -46,9 +32,9 @@ function formatDate(value: string | null) {
 }
 
 const dateText = computed(() => {
-  if (cancelsAt.value) return t('cancels', { date: formatDate(cancelsAt.value) })
+  if (cancelsAt.value) return t('cancels', 'Ends on {date}', { date: formatDate(cancelsAt.value) })
   const end = subscription.value?.currentPeriodEnd
-  return end ? t('renews', { date: formatDate(end) }) : ''
+  return end ? t('renews', 'Renews on {date}', { date: formatDate(end) }) : ''
 })
 
 const resubscribe = () => subscription.value?.planKey
@@ -62,7 +48,7 @@ const manage = () => openPortal().catch(() => undefined)
     <template #header>
       <slot name="header">
         <h3 class="font-semibold">
-          {{ t('title') }}
+          {{ t('title', 'Your subscription') }}
         </h3>
       </slot>
     </template>
@@ -72,7 +58,7 @@ const manage = () => openPortal().catch(() => undefined)
       name="loading"
     >
       <p class="text-sm text-muted">
-        {{ t('loading') }}
+        {{ t('loading', 'Loading subscription…') }}
       </p>
     </slot>
 
@@ -119,7 +105,7 @@ const manage = () => openPortal().catch(() => undefined)
       name="empty"
     >
       <p class="text-sm text-muted">
-        {{ t('none') }}
+        {{ t('none', 'You do not have an active subscription.') }}
       </p>
     </slot>
 
@@ -145,14 +131,14 @@ const manage = () => openPortal().catch(() => undefined)
         <div class="flex flex-wrap gap-2">
           <UButton
             :loading="pending"
-            :label="t('manage')"
+            :label="t('manage', 'Manage billing')"
             @click="manage"
           />
           <UButton
             v-if="cancelsAt"
             variant="outline"
             :loading="pending"
-            :label="t('resubscribe')"
+            :label="t('resubscribe', 'Resubscribe')"
             @click="resubscribe"
           />
         </div>

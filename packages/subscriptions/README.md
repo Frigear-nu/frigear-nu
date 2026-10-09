@@ -121,8 +121,8 @@ Redirects to `redirectTo` (else the membership page) with `?redirect=<route>`; a
 
 - `usePlans()` - `{ plans, status, error, refresh }`.
 - `useSubscription()` - `{ subscription, plan, status, isActive, cancelsAt, has(plan), pending, error, refresh, subscribe(planKeyOrPriceId, { successUrl?, cancelUrl? }), openPortal(returnUrl?) }`.
-- `<SubscriptionPlans>` - props `locale`, `currency`, `interval`, `plans`, `labels`, `confirmChange`; slots `loading`,
+- `<SubscriptionPlans>` - props `locale`, `currency`, `interval`, `plans`, `confirmChange`; slots `loading`,
   `empty`, `header`, `badge`, `price`, `features`, `action`, `confirm`, `confirm-actions`.
-- `<SubscriptionStatus>` - props `locale`, `labels`; slots `header`, `loading`, `empty`, `plan`, `badge`, `dates`, `actions`.
+- `<SubscriptionStatus>` - props `locale`; slots `header`, `loading`, `empty`, `plan`, `badge`, `dates`, `actions`.
 
-Text comes from the `labels` prop, then `subscriptions.<key>` in `@nuxtjs/i18n` (when defined), then English defaults.
+Text uses `useModuleT('subscriptions…')`: `subscriptions.<group>.<key>` from `@nuxtjs/i18n` when defined, else English defaults. Plan names come from `subscriptions.catalog.<planKey>.label` / `.description`, falling back to the plan config.

@@ -7,7 +7,7 @@ export type PlanPriceRef = string | { lookupKey: string }
 export type PlanConfig = {
   /** Stripe prices belonging to this plan (e.g. monthly + yearly). */
   prices: PlanPriceRef[]
-  /** Display label. Plain text or an i18n key (the UI translates it when it looks like a key). */
+  /** Display label. Plain text, used as the fallback. The UI prefers `subscriptions.catalog.<planKey>.label` from i18n when defined. */
   label?: string
   description?: string
   /** Drives upgrade vs. downgrade: a higher rank is a higher tier. */
