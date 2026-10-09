@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'UsersLoginPage' })
 
+const t = useModuleT('auth')
 const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthProviders } = useUserLogin()
 const passkeys = passkeyLoginEnabled.value ? useUserPasskeys() : undefined
 const passkeyPending = ref(false)
@@ -14,8 +15,8 @@ const afterLogin = () => navigateTo(redirectTarget.value, { external: redirectTa
 
 const fields = computed(() => passwordLoginEnabled.value
   ? [
-      { name: 'email', type: 'text' as const, label: 'Email', required: true },
-      { name: 'password', type: 'password' as const, label: 'Password', required: true },
+      { name: 'email', type: 'text' as const, label: t('email.label', 'Email'), required: true },
+      { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), required: true },
     ]
   : [])
 
@@ -46,11 +47,11 @@ async function onPasskeyLogin() {
     <UPage>
       <UPageBody>
         <UAuthForm
-          title="Log in"
+          :title="t('signIn', 'Log in')"
           :fields="fields"
           :providers="oauthProviders"
           :loading="pending"
-          :submit="{ label: 'Log in' }"
+          :submit="{ label: t('signIn', 'Log in') }"
           @submit="onSubmit"
         >
           <template
@@ -70,7 +71,7 @@ async function onPasskeyLogin() {
           :disabled="pending"
           @click="onPasskeyLogin"
         >
-          Log in with a passkey
+          {{ t('passkey.login', 'Log in with a passkey') }}
         </UButton>
       </UPageBody>
     </UPage>

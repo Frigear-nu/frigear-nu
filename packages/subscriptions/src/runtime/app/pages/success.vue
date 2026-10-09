@@ -5,8 +5,8 @@ import { useSubscription, useSubscriptionLabels } from '../composables/useSubscr
 defineOptions({ name: 'SubscriptionSuccessPage' })
 
 const t = useSubscriptionLabels({
-  title: 'Thank you!',
-  body: 'Your subscription is being activated. This can take a few seconds.',
+  successTitle: 'Thank you!',
+  successBody: 'Your subscription is being activated. This can take a few seconds.',
   continue: 'Continue',
 })
 const { refresh, isActive } = useSubscription()
@@ -26,8 +26,8 @@ onMounted(async () => {
     <UPage>
       <UPageBody class="space-y-6">
         <UPageHeader
-          :title="t('title')"
-          :description="t('body')"
+          :title="t('successTitle')"
+          :description="t('successBody')"
         />
         <SubscriptionStatus />
         <UButton

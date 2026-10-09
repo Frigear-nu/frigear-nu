@@ -9,7 +9,7 @@ import {
   extendPages, hasNuxtModule,
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
-import { registerDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
 import {
   type AuthMethodObject,
   type AuthManifest,
@@ -93,6 +93,8 @@ export default defineNuxtModule<ModuleOptions>({
       return
     }
     const resolver = createResolver(import.meta.url)
+
+    registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false

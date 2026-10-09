@@ -17,7 +17,6 @@ export default defineNuxtModule({
     'nuxt-monaco-editor': {},
     '@nuxtjs/i18n': {
       optional: true,
-      defaults: defaultI18nConfig(resolver),
     },
   },
   setup(_options, _nuxt) {

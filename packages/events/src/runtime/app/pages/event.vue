@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { translate } from '../../utils'
 
+const t = useModuleT('events')
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 const { loggedIn } = useUserSession()
@@ -9,7 +10,7 @@ const locale = useEventsLocale()
 const toast = useToast()
 
 if (error.value?.statusCode === 404) {
-  throw createError({ statusCode: 404, statusMessage: 'Event not found', fatal: true })
+  throw createError({ statusCode: 404, statusMessage: t('notFound', 'Event not found'), fatal: true })
 }
 
 const buying = ref(false)
@@ -17,10 +18,10 @@ async function onPurchase(ticketTypeId: string, addonIds: string[]) {
   buying.value = true
   try {
     const result = await purchase(ticketTypeId, addonIds)
-    if (!result.url) toast.add({ title: 'Your ticket is ready', color: 'success' })
+    if (!result.url) toast.add({ title: t('ticketReady', 'Your ticket is ready'), color: 'success' })
   }
   catch (e) {
-    toast.add({ title: (e as { statusMessage?: string }).statusMessage ?? 'Could not buy the ticket', color: 'error' })
+    toast.add({ title: (e as { statusMessage?: string }).statusMessage ?? t('purchaseFailed', 'Could not buy the ticket'), color: 'error' })
   }
   finally {
     buying.value = false
@@ -59,14 +60,14 @@ defineOptions({ name: 'EventDetailPage' })
         class="mb-6"
         color="info"
         variant="subtle"
-        title="Confirming your payment…"
+        :title="t('detail.tickets.payment.verifying.description', 'Confirming your payment…')"
       />
       <UAlert
         v-else-if="paidState === 'paid'"
         class="mb-6"
         color="success"
         variant="subtle"
-        title="Payment received - your ticket is ready."
+        :title="t('paymentReceived', 'Payment received - your ticket is ready.')"
       >
         <template
           v-if="ticketsPath"
@@ -76,7 +77,7 @@ defineOptions({ name: 'EventDetailPage' })
             :to="ticketsPath"
             size="xs"
           >
-            View ticket
+            {{ t('detail.tickets.view', 'View ticket') }}
           </UButton>
         </template>
       </UAlert>
@@ -85,14 +86,14 @@ defineOptions({ name: 'EventDetailPage' })
         class="mb-6"
         color="warning"
         variant="subtle"
-        title="We have not received the payment confirmation yet. It will show up under your tickets shortly."
+        :title="t('paymentTimeout', 'We have not received the payment confirmation yet. It will show up under your tickets shortly.')"
       />
       <UAlert
         v-else-if="payment === 'cancel'"
         class="mb-6"
         color="neutral"
         variant="subtle"
-        title="Payment cancelled. Your reservation is held for a short while; you can pay from your tickets."
+        :title="t('paymentCancelled', 'Payment cancelled. Your reservation is held for a short while; you can pay from your tickets.')"
       />
 
       <img
@@ -136,7 +137,7 @@ defineOptions({ name: 'EventDetailPage' })
       v-else-if="status === 'pending'"
       class="text-muted"
     >
-      Loading…
+      {{ t('loading', 'Loading…') }}
     </p>
   </UContainer>
 </template>

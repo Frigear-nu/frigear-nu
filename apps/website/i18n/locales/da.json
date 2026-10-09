@@ -1,0 +1,379 @@
+{
+  "contact": {
+    "title": "Kontakt",
+    "form": {
+      "name": {
+        "label": "Dit mega seje navn",
+        "placeholder": "Hej, hva hedder du? .. put her"
+      },
+      "email": {
+        "label": "Din awesome e-mail",
+        "placeholder": "@:auth.email.placeholder"
+      },
+      "phone": {
+        "label": "Telefon",
+        "placeholder": "12345678",
+        "hint": "Telefon skal være 8 cifre (men er valgfrit)."
+      },
+      "subject": {
+        "label": "Emne",
+        "placeholder": "Vælg emne",
+        "items": {
+          "volunteering": "Frivillig",
+          "partnership": "Samarbejde",
+          "support": "Support",
+          "payment": "Betaling",
+          "governance": "Bestyrelse",
+          "finance": "Økonomi",
+          "complaint": "Klage",
+          "other": "Andet"
+        }
+      },
+      "subjectOther": {
+        "label": "Andet (uddyb)",
+        "placeholder": "Hvad drejer det sig om?"
+      },
+      "message": {
+        "label": "Besked",
+        "placeholder": "Jeg vil snakke om et awesome Frigear projekt...",
+        "placeholders": {
+          "complaint": "Jeg har desværre en klage om ...",
+          "other": "Hvad har du i tankerne?"
+        }
+      },
+      "submit": {
+        "label": "Fyr beskeden afsted"
+      }
+    },
+    "modal": {
+      "title": "Kom i kontakt",
+      "button": "Kontakt os"
+    }
+  },
+  "form": {
+    "schemaNotConfigured": "Formskema er ikke konfigureret.",
+    "help": {
+      "stepInfo": "Klik for lidt info-hjælp om det her shit!"
+    },
+    "notFound": "Form blev sku ik' fundet!",
+    "success": {
+      "title": "Tak sku da! -Den er modtaget.",
+      "done": "Færdig!",
+      "sendAnother": "Send en mere"
+    },
+    "application": {
+      "title": "Projektstøtte ansøgning",
+      "description": "Ansøg om Frigear midler til jeres nice projekter.",
+      "contactInfo": {
+        "label": "Kontakt information",
+        "description": "Om dig, der smækker ansøgningen afsted",
+        "fullName": {
+          "label": "Fuldt navn",
+          "placeholder": "Hej, hva hedder du?",
+          "description": ""
+        },
+        "email": {
+          "label": "E-mail",
+          "placeholder": "megasnazzyme(at)some.lol",
+          "description": ""
+        },
+        "phone": {
+          "label": "Dit eget fonnummer",
+          "placeholder": "66666666",
+          "description": ""
+        }
+      },
+      "organizationInfo": {
+        "title": "Information om jeres organisation",
+        "organizationName": {
+          "label": "Organisationens navn",
+          "placeholder": "Mega lækkert org-navn her...",
+          "description": ""
+        },
+        "organizationNumber": {
+          "label": "CVR. Nr:",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationAddressStreet": {
+          "label": "Adresse",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationAddressCo": {
+          "label": "C/O",
+          "description": "Evt. C/O, eller Att: person.",
+          "placeholder": "Att: Sorte Slyngel..."
+        },
+        "organizationAddressPostcode": {
+          "label": "Postnummer",
+          "placeholder": "6666",
+          "description": ""
+        },
+        "organizationAddressCity": {
+          "label": "By",
+          "placeholder": "Snævren By",
+          "description": ""
+        },
+        "accountableParties": {
+          "label": "Ansvarlige personer",
+          "placeholder": "Søren Banjomus: banjo(at)mus.lol ... \nSorte Slyngel: ... \nAnden: ...",
+          "description": ""
+        },
+        "organizationEmail": {
+          "label": "E-mail",
+          "placeholder": "cool-name(at)hot-org.lol ...",
+          "description": ""
+        },
+        "organizationPhone": {
+          "label": "Fonnummer",
+          "placeholder": "42666642",
+          "description": ""
+        }
+      },
+      "organizationAbout": {
+        "organizationAbout": {
+          "label": "Om jeres organisation",
+          "description": "Skriv lidt om jer og jeres organisations formål m.v.",
+          "placeholder": "Hej, vi er xxx, -og vi laver faldskærme af restplast som ..."
+        },
+        "organizationWebsite": {
+          "label": "Hjemmeside",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationFacebook": {
+          "label": "Facebook",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationInstagram": {
+          "label": "Instagram",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationTikTok": {
+          "label": "TikTok",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationYouTube": {
+          "label": "YouTube",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationLinkedIn": {
+          "label": "LinkedIn",
+          "placeholder": "",
+          "description": ""
+        }
+      },
+      "financialInfo": {
+        "bankName": {
+          "label": "Banknavn",
+          "placeholder": "",
+          "description": ""
+        },
+        "regNr": {
+          "label": "Reg. Nr.",
+          "placeholder": "",
+          "description": ""
+        },
+        "accountNumber": {
+          "label": "Kontonummer",
+          "placeholder": "",
+          "description": ""
+        },
+        "annualBudget": {
+          "label": "Årligt org. budget",
+          "description": "Jeres samlede budget for hele organisationen.",
+          "placeholder": ""
+        },
+        "ownContribution": {
+          "label": "Eget bidrag",
+          "description": "Hvor meget tænker i selv at lægge af midler i projektet?",
+          "placeholder": ""
+        },
+        "paidStaffAmount": {
+          "label": "Lønnede ansatte?",
+          "description": "Har jeres org. faste månedslønnede ansatte?",
+          "placeholder": "0"
+        },
+        "financialPatrons": {
+          "label": "Andre bidragsydere til projektet",
+          "description": "Er projektet yderligere støttet af midler fra andre?",
+          "placeholder": "Ja, da . . . Min moster smider tusind dask . . "
+        }
+      },
+      "branding": {
+        "logo": {
+          "label": "Logo(er)",
+          "description": ""
+        },
+        "relevantImages": {
+          "label": "Relevante billeder",
+          "description": ""
+        },
+        "threeLineOrgPitch": {
+          "label": "Jeres vildt fede projekt-pitch",
+          "placeholder": "",
+          "description": ""
+        },
+        "otherMedia": {
+          "label": "Andet materiale",
+          "description": ""
+        }
+      }
+    },
+    "board-member-application": {
+      "title": "Bli med i bestyrelsen",
+      "description": "",
+      "background": {
+        "label": "Kontakt information",
+        "description": "Om dig, der smækker ansøgningen afsted",
+        "fullName": {
+          "label": "Fuldt navn",
+          "placeholder": "Hej, hva hedder du?",
+          "description": ""
+        },
+        "phone": {
+          "label": "Dit eget fonnummer",
+          "placeholder": "66666666",
+          "description": ""
+        },
+        "background": {
+          "label": "Din bagrund.."
+        },
+        "email": {
+          "label": "E-mail",
+          "placeholder": "megasnazzyme(at)some.lol",
+          "description": ""
+        },
+        "attachments": {
+          "label": "Filer, CV..."
+        }
+      }
+    }
+  },
+  "zodI18n": {
+    "errors": {
+      "custom": "Ugyldig værdi",
+      "invalid_arguments": "Ugyldige funktionsargumenter",
+      "invalid_date": "Ugyldig dato",
+      "invalid_enum_value": "Ugyldig enum-værdi. Forventede {options}, modtog '{received}'",
+      "invalid_intersection_types": "Resultaterne af intersection kunne ikke flettes",
+      "invalid_literal": "Ugyldig literal-værdi, forventede {expected}",
+      "invalid_return_type": "Ugyldig returtype fra funktion",
+      "invalid_string": {
+        "cuid": "Ugyldig {validation}",
+        "datetime": "Ugyldig {validation}",
+        "email": "Ugyldig {validation}",
+        "endsWith": "Ugyldig værdi: skal slutte med \"{endsWith}\"",
+        "regex": "Ugyldig",
+        "startsWith": "Ugyldig værdi: skal starte med \"{startsWith}\"",
+        "url": "Ugyldig {validation}",
+        "uuid": "Ugyldig {validation}"
+      },
+      "invalid_type": "Forventede {expected}, modtog {received}",
+      "invalid_type_received_undefined": "Påkrævet",
+      "invalid_union": "Ugyldig værdi",
+      "invalid_union_discriminator": "Ugyldig discriminator-værdi. Forventede {options}",
+      "not_finite": "Tallet skal være endeligt",
+      "not_multiple_of": "Tallet skal være et multiplum af {multipleOf}",
+      "required": "Påkrævet",
+      "too_big": {
+        "array": {
+          "exact": "Listen skal indeholde præcis {maximum} element(er)",
+          "inclusive": "Listen må højst indeholde {maximum} element(er)",
+          "not_inclusive": "Listen skal indeholde færre end {maximum} element(er)"
+        },
+        "date": {
+          "exact": "Datoen skal være præcis {maximum}",
+          "inclusive": "Datoen skal være mindre end eller lig med {maximum}",
+          "not_inclusive": "Datoen skal være mindre end {maximum}"
+        },
+        "number": {
+          "exact": "Tallet skal være præcis {maximum}",
+          "inclusive": "Tallet skal være mindre end eller lig med {maximum}",
+          "not_inclusive": "Tallet skal være mindre end {maximum}"
+        },
+        "set": {
+          "exact": "Ugyldig værdi",
+          "inclusive": "Ugyldig værdi",
+          "not_inclusive": "Ugyldig værdi"
+        },
+        "string": {
+          "exact": "Teksten skal indeholde præcis {maximum} tegn",
+          "inclusive": "Teksten må højst indeholde {maximum} tegn",
+          "not_inclusive": "Teksten skal indeholde færre end {maximum} tegn"
+        },
+        "phone": {
+          "exact": "Telefon skal være {maximum} cifre.",
+          "inclusive": "Telefon må højst indeholde {maximum} cifre.",
+          "not_inclusive": "Telefon skal indeholde mindre end {maximum} cifre."
+        }
+      },
+      "too_small": {
+        "array": {
+          "exact": "Listen skal indeholde præcis {minimum} element(er)",
+          "inclusive": "Listen skal indeholde mindst {minimum} element(er)",
+          "not_inclusive": "Listen skal indeholde mere end {minimum} element(er)"
+        },
+        "date": {
+          "exact": "Datoen skal være præcis {minimum}",
+          "inclusive": "Datoen skal være større end eller lig med {minimum}",
+          "not_inclusive": "Datoen skal være større end {minimum}"
+        },
+        "number": {
+          "exact": "Tallet skal være præcis {minimum}",
+          "inclusive": "Tallet skal være større end eller lig med {minimum}",
+          "not_inclusive": "Tallet skal være større end {minimum}"
+        },
+        "set": {
+          "exact": "Ugyldig værdi",
+          "inclusive": "Ugyldig værdi",
+          "not_inclusive": "Ugyldig værdi"
+        },
+        "string": {
+          "exact": "Teksten skal indeholde præcis {minimum} tegn",
+          "inclusive": "Teksten skal indeholde mindst {minimum} tegn",
+          "not_inclusive": "Teksten skal indeholde mere end {minimum} tegn"
+        }
+      },
+      "unrecognized_keys": "Ukendt(e) nøgle(r) i objektet: {keys}"
+    },
+    "types": {
+      "array": "liste",
+      "bigint": "bigint",
+      "boolean": "boolean",
+      "date": "dato",
+      "float": "float",
+      "function": "function",
+      "integer": "heltal",
+      "map": "map",
+      "nan": "nan",
+      "never": "never",
+      "null": "null",
+      "number": "tal",
+      "object": "objekt",
+      "promise": "promise",
+      "set": "sæt",
+      "string": "streng",
+      "symbol": "symbol",
+      "undefined": "undefined",
+      "unknown": "ukendt",
+      "void": "void"
+    },
+    "validations": {
+      "cuid": "cuid",
+      "datetime": "ISO dato- og klokkeslæt",
+      "email": "e-mailadresse",
+      "regex": "input",
+      "url": "URL",
+      "uuid": "UUID"
+    },
+    "password": {
+      "mismatch": "Passwords matcher ikke"
+    }
+  }
+}

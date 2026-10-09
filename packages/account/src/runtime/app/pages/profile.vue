@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'AccountProfilePage' })
 
+const t = useModuleT('account.profile')
 const { user } = useUserSession()
 const { updateProfileDetails, changeEmailAddress, pending, error } = useAccount()
 
@@ -28,15 +29,15 @@ async function onSubmitEmail() {
   <UContainer>
     <UPage>
       <UPageBody>
-        <UPageCard title="Profile">
+        <UPageCard :title="t('title', 'Profile')">
           <UFormField
-            label="Name"
+            :label="t('name.label', 'Name')"
             name="name"
           >
             <UInput v-model="name" />
           </UFormField>
           <UFormField
-            label="Avatar URL"
+            :label="t('avatar.url', 'Avatar URL')"
             name="avatar"
           >
             <UInput v-model="avatar" />
@@ -44,16 +45,16 @@ async function onSubmitEmail() {
           <UButton
             class="mt-4"
             :loading="pending"
-            label="Save"
+            :label="t('save', 'Save')"
             @click="onSubmitProfile"
           />
         </UPageCard>
         <UPageCard
           class="mt-4"
-          title="Email address"
+          :title="t('email.label', 'Email address')"
         >
           <UFormField
-            label="Email"
+            :label="t('email.label', 'Email')"
             name="email"
           >
             <UInput
@@ -64,7 +65,7 @@ async function onSubmitEmail() {
           <UButton
             class="mt-4"
             :loading="pending"
-            label="Change email"
+            :label="t('email.change.title', 'Change email')"
             @click="onSubmitEmail"
           />
         </UPageCard>
