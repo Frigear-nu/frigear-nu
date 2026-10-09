@@ -3,6 +3,7 @@ import type { EventSummaryDto } from '../../../types'
 import { translate } from '../../utils'
 
 const props = defineProps<{ event: EventSummaryDto, to: string }>()
+const t = useModuleT('events')
 const locale = useEventsLocale()
 const date = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(props.event.startsAt)))
 </script>
@@ -36,14 +37,14 @@ const date = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: '
         variant="subtle"
         icon="i-lucide-user-star"
       >
-        Members
+        {{ t('members', 'Members') }}
       </UBadge>
       <UButton
         :to="to"
         class="ml-auto"
         trailing-icon="i-lucide-arrow-right"
       >
-        View event
+        {{ t('viewEvent', 'View event') }}
       </UButton>
     </div>
   </UCard>

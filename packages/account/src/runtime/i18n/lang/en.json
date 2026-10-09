@@ -1,0 +1,64 @@
+{
+  "account": {
+    "title": "Account",
+    "menu": {
+      "label": "Dashboard Menu"
+    },
+    "identificationCode": {
+      "title": "Frigear ID",
+      "description": "Press here to show your ID."
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Change your information.",
+      "name": {
+        "label": "Name",
+        "description": "Your full name."
+      },
+      "email": {
+        "label": "E-mail",
+        "description": "Your awesome E-mail.",
+        "change": {
+          "title": "Change e-mail",
+          "label": "New e-mail"
+        }
+      },
+      "avatar": {
+        "label": "Avatar",
+        "description": "JPG, GIF or PNG. 1MB Max.",
+        "url": "Avatar URL"
+      },
+      "save": "Save profile"
+    },
+    "documents": {
+      "title": "Documents",
+      "description": "Your documents.",
+      "download": "Download"
+    },
+    "security": {
+      "title": "Security",
+      "description": "Change password, Social login etc.",
+      "password": {
+        "title": "Password",
+        "description": "Change your password."
+      },
+      "changePassword": {
+        "title": "Change password",
+        "submit": "Change password",
+        "new": {
+          "label": "New password"
+        },
+        "confirm": {
+          "label": "Confirm new password"
+        },
+        "current": {
+          "label": "Current password"
+        }
+      },
+      "passkeys": {
+        "title": "Passkeys",
+        "register": "Register a passkey"
+      }
+    }
+  }
+}

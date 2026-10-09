@@ -5,6 +5,7 @@ import { formatPrice, translate } from '../../utils'
 
 const props = defineProps<{ ticket: TicketDto, to?: string }>()
 const emit = defineEmits<{ pay: [ticketId: string] }>()
+const t = useModuleT('events')
 const locale = useEventsLocale()
 
 const colors: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = { paid: 'success', pending: 'warning', cancelled: 'neutral', expired: 'neutral', refunded: 'error' }
@@ -34,18 +35,18 @@ const showQr = ref(false)
         :color="colors[ticket.status] ?? 'neutral'"
         variant="subtle"
       >
-        {{ ticket.status }}
+        {{ t(`tickets.status.${ticket.status}`, ticket.status) }}
       </UBadge>
     </div>
     <p class="text-sm">
-      {{ ticket.amount === 0 ? 'Free' : formatPrice(ticket.amount, ticket.currency, locale) }}
+      {{ ticket.amount === 0 ? t('detail.tickets.free', 'Free') : formatPrice(ticket.amount, ticket.currency, locale) }}
       <UBadge
         v-if="ticket.checkedInAt"
         color="info"
         variant="subtle"
         class="ml-2"
       >
-        Checked in
+        {{ t('checkedIn', 'Checked in') }}
       </UBadge>
     </p>
     <div class="flex gap-2">
@@ -53,7 +54,7 @@ const showQr = ref(false)
         v-if="ticket.status === 'pending'"
         @click="emit('pay', ticket.id)"
       >
-        Pay now
+        {{ t('tickets.payNow', 'Pay now') }}
       </UButton>
       <UButton
         v-if="qr"
@@ -61,7 +62,7 @@ const showQr = ref(false)
         icon="i-lucide-qr-code"
         @click="showQr = !showQr"
       >
-        {{ showQr ? 'Hide QR code' : 'Show QR code' }}
+        {{ showQr ? t('hideQr', 'Hide QR code') : t('tickets.viewQrCode', 'Show QR code') }}
       </UButton>
       <UButton
         v-if="to"
@@ -69,7 +70,7 @@ const showQr = ref(false)
         variant="ghost"
         class="ml-auto"
       >
-        View event
+        {{ t('viewEvent', 'View event') }}
       </UButton>
     </div>
     <img

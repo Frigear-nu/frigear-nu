@@ -1,0 +1,87 @@
+{
+  "events": {
+    "upcoming": {
+      "title": "Upcoming events",
+      "description": "Follow along here for upcoming events at Frigear and Frigear Kulturværksted ...",
+      "empty": {
+        "title": "There are no upcoming events right now - check back soon ..."
+      }
+    },
+    "ongoing": {
+      "title": "Ongoing events"
+    },
+    "detail": {
+      "when": "When?",
+      "where": "Where?",
+      "tickets": {
+        "title": "Tickets",
+        "free": "Free",
+        "view": "Show tickets",
+        "goToCheckout": "Go to checkout",
+        "signInToPurchase": "Sign in to purchase tickets",
+        "atLeastOneProductRequired": "{addonTitle} is required.",
+        "ticket": {
+          "label": "Ticket"
+        },
+        "products": {
+          "label": "Product",
+          "required": "Required"
+        },
+        "payment": {
+          "view": "View payment",
+          "verifying": {
+            "title": "Verifying...",
+            "description": "Checking your payment..."
+          },
+          "success": {
+            "title": "Payment successful!",
+            "description": "Your payment was successful. You can now purchase tickets."
+          },
+          "cancel": {
+            "title": "Payment canceled!",
+            "description": "Your payment was canceled. You can try again."
+          }
+        }
+      }
+    },
+    "tickets": {
+      "title": "Tickets",
+      "description": "See your event tickets and payments.",
+      "ticket": "Ticket",
+      "payNow": "Pay now",
+      "viewQrCode": "View QR code",
+      "goToEvent": "Go to event",
+      "status": {
+        "paid": "Paid",
+        "cancelled": "Cancelled",
+        "pending": "Pending",
+        "abandoned": "Abandoned"
+      }
+    },
+    "cart": {
+      "title": "Cart",
+      "addedToCart": "{title} was added to your cart.",
+      "removedFromCart": "{title} stuff was removed.",
+      "continueToPayment": "Continue to payment"
+    },
+    "title": "Events",
+    "empty": "There are no events right now.",
+    "loading": "Loading…",
+    "members": "Members",
+    "viewEvent": "View event",
+    "hideQr": "Hide QR code",
+    "checkedIn": "Checked in",
+    "myTickets": "My tickets",
+    "noTickets": "You do not have any tickets yet.",
+    "paymentReceived": "Payment received - your ticket is ready.",
+    "paymentTimeout": "We have not received the payment confirmation yet. It will show up under your tickets shortly.",
+    "paymentCancelled": "Payment cancelled. Your reservation is held for a short while; you can pay from your tickets.",
+    "ticketReady": "Your ticket is ready",
+    "purchaseFailed": "Could not buy the ticket",
+    "notFound": "Event not found",
+    "past": {
+      "title": "Past events",
+      "description": "See past Frigear events you missed ..."
+    }
+  }
+}

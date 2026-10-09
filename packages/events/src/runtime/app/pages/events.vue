@@ -1,11 +1,12 @@
 <script setup lang="ts">
+const t = useModuleT('events')
 const { grouped, status } = useEvents()
 const pages = useRuntimeConfig().public.events?.pages
 const eventTo = (slug: string) => (pages?.event || '/events/:slug').replace(':slug', encodeURIComponent(slug))
 const sections = computed(() => [
-  { title: 'Happening now', events: grouped.value.ongoing },
-  { title: 'Upcoming', events: grouped.value.upcoming },
-  { title: 'Past events', events: grouped.value.past },
+  { title: t('ongoing.title', 'Happening now'), events: grouped.value.ongoing },
+  { title: t('upcoming.title', 'Upcoming'), events: grouped.value.upcoming },
+  { title: t('past.title', 'Past events'), events: grouped.value.past },
 ].filter(section => section.events.length))
 
 defineOptions({ name: 'EventsListPage' })
@@ -14,13 +15,13 @@ defineOptions({ name: 'EventsListPage' })
 <template>
   <UContainer class="py-10">
     <h1 class="mb-6 text-2xl font-semibold">
-      Events
+      {{ t('title', 'Events') }}
     </h1>
     <p
       v-if="status === 'success' && !sections.length"
       class="text-muted"
     >
-      There are no events right now.
+      {{ t('empty', 'There are no events right now.') }}
     </p>
     <section
       v-for="section in sections"

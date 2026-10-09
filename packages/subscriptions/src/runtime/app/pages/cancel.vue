@@ -4,8 +4,8 @@ import { useSubscriptionLabels } from '../composables/useSubscription'
 defineOptions({ name: 'SubscriptionCancelPage' })
 
 const t = useSubscriptionLabels({
-  title: 'Checkout canceled',
-  body: 'No changes were made and you have not been charged.',
+  cancelTitle: 'Checkout canceled',
+  cancelBody: 'No changes were made and you have not been charged.',
   back: 'Back to plans',
 })
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
@@ -16,8 +16,8 @@ const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
     <UPage>
       <UPageBody class="space-y-6">
         <UPageHeader
-          :title="t('title')"
-          :description="t('body')"
+          :title="t('cancelTitle')"
+          :description="t('cancelBody')"
         />
         <UButton
           v-if="membership"
