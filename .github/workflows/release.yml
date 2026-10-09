@@ -20,6 +20,7 @@ on:
           - payments
           - events
           - forms
+          - cookie-consent
           - menu
           - notify
           - users

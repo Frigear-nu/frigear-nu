@@ -22,6 +22,7 @@ export default defineNuxtConfig({
     '@frigear-nu/payments',
     '@frigear-nu/events',
     '@frigear-nu/forms',
+    '@frigear-nu/cookie-consent',
     '@frigear-nu/oauth-server',
   ],
 
@@ -128,6 +129,9 @@ export default defineNuxtConfig({
       pages: { index: true, profile: true, security: true },
     },
   },
+  cookieConsent: {
+    policyUrl: '/legal/gdpr',
+  },
   eslint: {
     config: {
       stylistic: {
@@ -177,14 +181,30 @@ export default defineNuxtConfig({
   stripe: {},
   subscriptions: {
     plans: {
-      member: {
-        label: 'Member',
-        description: 'Frigear membership',
+      monthly: {
+        label: 'Frigear 🍵 månedlig',
+        description: '🎵 Frigear månedligt medlemskab 🎵 for frivillige og sammenlignelige hyggedyr!',
         rank: 1,
         // Stripe price lookup keys (set on the prices in the Stripe dashboard). Override with env,
         // or use `price_...` ids instead.
         prices: [
-          { lookupKey: process.env.SUBSCRIPTIONS_MEMBER_LOOKUP_KEY || 'frigear_member_yearly' },
+          { lookupKey: process.env.SUBSCRIPTIONS_MONTHLY_LOOKUP_KEY || 'membership_month' },
+        ],
+      },
+      quarterly: {
+        label: 'Frigear ☠️ kvartal',
+        description: '☮ Frigear kvartals medlemskab ☮ for frivillige og andre awesome peeps!',
+        rank: 2,
+        prices: [
+          { lookupKey: process.env.SUBSCRIPTIONS_QUARTERLY_LOOKUP_KEY || 'membership_quarter' },
+        ],
+      },
+      yearly: {
+        label: 'Frigear 🐼 årlig',
+        description: '★ Frigear årligt medlemskab ★ for frivillige og andet frit folk!',
+        rank: 3,
+        prices: [
+          { lookupKey: process.env.SUBSCRIPTIONS_YEARLY_LOOKUP_KEY || 'membership_annual' },
         ],
       },
     },

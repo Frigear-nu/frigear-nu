@@ -1,6 +1,8 @@
 # @frigear-nu/root
 > NOTE: In the future this code will be replacing [frigear-nu/nuxt-frigear-nu](https://github.com/Frigear-nu/nuxt-frigear-nu) as the main frigear nuxt application.
 
+
+[Deployed Main Website](https://)
 A Rewrite of the previous nuxt [simple content site](https://github.com/hareland/simple-content-site) based website of [frigear.nu](https://github.com/Frigear-nu/nuxt-frigear-nu) to a more modular and composable format.
 
 The purpose of this repo is to provide a base for building a modular nuxt application with shared modules and components that can be used across multiple applications within the frigear ecosystem.
@@ -27,3 +29,4 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/payments](./packages/payments) - One-time Stripe payments (Checkout, refunds) with lifecycle hooks driven by verified Stripe events
 - [@frigear-nu/events](./packages/events) - Events with ticket types, addons, capacity, membership requirements, payments and QR check-in
 - [@frigear-nu/forms](./packages/forms) - Dynamic, database-stored forms (single page or stepped) with conditional fields, file uploads, submissions and email delivery
+- [@frigear-nu/cookie-consent](./packages/cookie-consent) - GDPR cookie consent banner with categories other modules contribute to, `onCookieConsent` gating and consent stored as proof on the user
