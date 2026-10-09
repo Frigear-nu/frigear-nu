@@ -1,4 +1,4 @@
-CREATE TABLE `form_submission_files` (
+CREATE TABLE IF NOT EXISTS `form_submission_files` (
 	`id` text PRIMARY KEY NOT NULL,
 	`submission_id` text NOT NULL,
 	`field_key` text NOT NULL,
@@ -9,8 +9,8 @@ CREATE TABLE `form_submission_files` (
 	FOREIGN KEY (`submission_id`) REFERENCES `form_submissions`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `form_submission_file_submission_idx` ON `form_submission_files` (`submission_id`);--> statement-breakpoint
-CREATE TABLE `form_submissions` (
+CREATE INDEX IF NOT EXISTS `form_submission_file_submission_idx` ON `form_submission_files` (`submission_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `form_submissions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`form_id` text NOT NULL,
 	`form_slug` text NOT NULL,
@@ -25,8 +25,8 @@ CREATE TABLE `form_submissions` (
 	FOREIGN KEY (`form_id`) REFERENCES `forms`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `form_submission_form_idx` ON `form_submissions` (`form_id`,`created_at`);--> statement-breakpoint
-CREATE TABLE `forms` (
+CREATE INDEX IF NOT EXISTS `form_submission_form_idx` ON `form_submissions` (`form_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `forms` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
 	`name` text NOT NULL,
@@ -37,4 +37,4 @@ CREATE TABLE `forms` (
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `forms_slug_unique` ON `forms` (`slug`);
+CREATE UNIQUE INDEX IF NOT EXISTS `forms_slug_unique` ON `forms` (`slug`);
