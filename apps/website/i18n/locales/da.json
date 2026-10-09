@@ -375,5 +375,21 @@
     "password": {
       "mismatch": "Passwords matcher ikke"
     }
+  },
+  "subscriptions": {
+    "catalog": {
+      "monthly": {
+        "label": "Frigear 🍵 månedlig",
+        "description": "🎵 Frigear månedligt medlemskab 🎵 for frivillige og sammenlignelige hyggedyr!"
+      },
+      "quarterly": {
+        "label": "Frigear ☠️ kvartal",
+        "description": "☮ Frigear kvartals medlemskab ☮ for frivillige og andre awesome peeps!"
+      },
+      "yearly": {
+        "label": "Frigear 🐼 årlig",
+        "description": "★ Frigear årligt medlemskab ★ for frivillige og andet frit folk!"
+      }
+    }
   }
 }

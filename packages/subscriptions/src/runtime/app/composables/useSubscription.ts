@@ -22,6 +22,7 @@ const ACTIVE_STATUSES = ['active', 'trialing']
 
 export const useSubscription = () => {
   const { loggedIn } = useUserSession()
+  const t = useModuleT('subscriptions')
   const pending = ref(false)
   const error = ref<string | null>(null)
 
@@ -89,7 +90,7 @@ export const useSubscription = () => {
         await refresh()
       }
       return result
-    }, 'Failed to start checkout.')
+    }, t('errors.checkout', 'Failed to start checkout.'))
   }
 
   function openPortal(returnUrl?: string) {
@@ -99,26 +100,8 @@ export const useSubscription = () => {
         body: { returnUrl: returnUrl ?? (import.meta.client ? window.location.href : undefined) },
       })
       await navigateTo(url, { external: true })
-    }, 'Failed to open the billing portal.')
+    }, t('errors.portal', 'Failed to open the billing portal.'))
   }
 
   return { subscription, plan, status, isActive, cancelsAt, has, pending, error, refresh, subscribe, openPortal }
-}
-
-/** Optional-i18n label resolver: uses `subscriptions.<key>` from @nuxtjs/i18n when present, else `labels`, else English. */
-export const useSubscriptionLabels = <T extends Record<string, string>>(
-  defaults: T,
-  overrides?: MaybeRefOrGetter<Partial<T> | undefined>,
-) => {
-  const i18n = useNuxtApp().$i18n as { t: (key: string, params?: Record<string, unknown>) => string, te?: (key: string) => boolean } | undefined
-
-  return (key: keyof T & string, params: Record<string, string | number> = {}): string => {
-    const override = toValue(overrides)?.[key]
-    let text: string = override ?? defaults[key]!
-    if (!override && i18n?.te?.(`subscriptions.${key}`)) {
-      return i18n.t(`subscriptions.${key}`, params)
-    }
-    for (const [name, value] of Object.entries(params)) text = text.replaceAll(`{${name}}`, String(value))
-    return text
-  }
 }

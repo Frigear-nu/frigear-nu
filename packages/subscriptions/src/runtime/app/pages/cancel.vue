@@ -1,13 +1,7 @@
 <script setup lang="ts">
-import { useSubscriptionLabels } from '../composables/useSubscription'
-
 defineOptions({ name: 'SubscriptionCancelPage' })
 
-const t = useSubscriptionLabels({
-  cancelTitle: 'Checkout canceled',
-  cancelBody: 'No changes were made and you have not been charged.',
-  back: 'Back to plans',
-})
+const t = useModuleT('subscriptions.cancel')
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
 </script>
 
@@ -16,13 +10,13 @@ const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
     <UPage>
       <UPageBody class="space-y-6">
         <UPageHeader
-          :title="t('cancelTitle')"
-          :description="t('cancelBody')"
+          :title="t('title', 'Checkout canceled')"
+          :description="t('body', 'No changes were made and you have not been charged.')"
         />
         <UButton
           v-if="membership"
           :to="membership"
-          :label="t('back')"
+          :label="t('back', 'Back to plans')"
         />
       </UPageBody>
     </UPage>

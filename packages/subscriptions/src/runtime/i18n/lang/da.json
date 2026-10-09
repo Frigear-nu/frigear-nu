@@ -1,73 +1,55 @@
 {
   "subscriptions": {
-    "title": "Dit medlemskab",
-    "none": "Du har ikke et aktivt medlemskab.",
-    "loading": "Henter medlemskab…",
-    "plan": "Plan",
-    "renews": "Fornyes {date}",
-    "cancels": "Afsluttes {date}",
-    "manage": "Administrér betaling",
-    "resubscribe": "Abonnér igen",
-    "statusActive": "Aktiv",
-    "statusTrialing": "Prøveperiode",
-    "statusPastDue": "Forfalden",
-    "statusCanceled": "Annulleret",
-    "statusOther": "Inaktiv",
-    "current": "Nuværende plan",
-    "subscribe": "Abonnér",
-    "upgrade": "Opgradér",
-    "downgrade": "Nedgradér",
-    "empty": "Der er ingen planer tilgængelige lige nu.",
-    "trial": "{days} dages gratis prøveperiode",
-    "confirmTitle": "Skift plan",
-    "confirmBody": "Skift til {plan}? Dit abonnement bliver opdateret.",
-    "confirm": "Bekræft",
-    "cancel": "Annullér",
-    "perDay": "dag",
-    "perWeek": "uge",
-    "perMonth": "måned",
-    "perYear": "år",
-    "successTitle": "Tak!",
-    "successBody": "Dit abonnement bliver aktiveret. Det kan tage et par sekunder.",
-    "continue": "Fortsæt",
-    "cancelTitle": "Betaling annulleret",
-    "cancelBody": "Der blev ikke foretaget ændringer, og du er ikke blevet opkrævet.",
-    "back": "Tilbage til planer",
-    "interval": {
-      "month": "Månedlig",
-      "quarter": "Kvartals",
-      "year": "Årligt"
+    "plans": {
+      "loading": "Henter planer…",
+      "empty": "Der er ingen planer tilgængelige lige nu.",
+      "current": "Nuværende plan",
+      "subscribe": "Abonnér",
+      "upgrade": "Opgradér",
+      "downgrade": "Nedgradér",
+      "trial": "{days} dages gratis prøveperiode",
+      "confirmTitle": "Skift plan",
+      "confirmBody": "Skift til {plan}? Dit abonnement bliver opdateret.",
+      "confirm": "Bekræft",
+      "cancel": "Annullér"
     },
-    "feeIncluded": "*Betalingsgebyrer er indeholdt i beløb",
-    "membership": {
-      "title": "Medlemskab",
-      "description": "Dit medlemskab.",
-      "active": "AKTIV",
-      "cancelling": "AFSLUTTES...",
-      "currentPlan": "Nuværende plan:",
-      "cancelsAt": "Afsluttes {date}",
-      "renewsAutomaticallyAt": "Fornyes automagisk {date}",
-      "cancel": "Annullér medlemskab",
-      "changePaymentMethod": "Skift betalingsmetode",
-      "subscribeTo": "Du vil nu abonnére på:",
-      "alreadyActiveDescription": "Hvis du nedgraderer, vil dit nuværende abonnement løbe til næste forfaldsdato.\nHvis du opgraderer, vil du straks blive flyttet til den højere plan, og eventuel resterende kredit vil blive fratrukket, og du vil blive opkrævet med det samme.",
-      "sendToStripe": "Du vil nu sendes avsted til Stripe for betaling.",
-      "update": {
-        "title": "Skift medlemskab",
-        "description": "Skift din medlemskabsplan."
-      },
-      "subscribe": {
-        "title": "Bliv medlem",
-        "description": "Bliv medlem for at komme i gang!",
-        "action": "Abonnér"
-      },
-      "noMembership": {
-        "title": "Kom med på holdet i dag",
-        "description": "Bliv medlem for at komme i gang!"
-      },
-      "resubscribe": {
-        "title": "Abonnér igen"
-      }
+    "interval": {
+      "day": "dag",
+      "week": "uge",
+      "month": "måned",
+      "year": "år",
+      "days": "dage",
+      "weeks": "uger",
+      "months": "måneder",
+      "years": "år"
+    },
+    "status": {
+      "loading": "Henter medlemskab…",
+      "title": "Dit medlemskab",
+      "none": "Du har ikke et aktivt medlemskab.",
+      "renews": "Fornyes {date}",
+      "cancels": "Afsluttes {date}",
+      "manage": "Administrér betaling",
+      "resubscribe": "Abonnér igen",
+      "active": "Aktiv",
+      "trialing": "Prøveperiode",
+      "pastDue": "Forfalden",
+      "canceled": "Annulleret",
+      "other": "Inaktiv"
+    },
+    "success": {
+      "title": "Tak!",
+      "body": "Dit abonnement bliver aktiveret. Det kan tage et par sekunder.",
+      "continue": "Fortsæt"
+    },
+    "cancel": {
+      "title": "Betaling annulleret",
+      "body": "Der blev ikke foretaget ændringer, og du er ikke blevet opkrævet.",
+      "back": "Tilbage til planer"
+    },
+    "errors": {
+      "checkout": "Kunne ikke starte betalingen.",
+      "portal": "Kunne ikke åbne betalingsportalen."
     }
   }
 }

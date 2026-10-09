@@ -1,0 +1,13 @@
+{
+  "payments": {
+    "status": {
+      "pending": "Afventer",
+      "paid": "Betalt",
+      "failed": "Fejlet",
+      "expired": "Udløbet",
+      "refunded": "Refunderet",
+      "partially_refunded": "Delvist refunderet"
+    },
+    "defaultDescription": "Betaling"
+  }
+}
