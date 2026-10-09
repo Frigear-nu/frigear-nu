@@ -1,0 +1,379 @@
+{
+  "contact": {
+    "title": "Contact",
+    "form": {
+      "name": {
+        "label": "Name",
+        "placeholder": "Hello, what's your name?"
+      },
+      "email": {
+        "label": "Your awesome E-mail",
+        "placeholder": "@:auth.email.placeholder"
+      },
+      "phone": {
+        "label": "Phone",
+        "placeholder": "12345678",
+        "hint": "Phone be a length of 8 characters (optional)."
+      },
+      "subject": {
+        "label": "Subject",
+        "placeholder": "Choose subject...",
+        "items": {
+          "volunteering": "Volunteering",
+          "partnership": "Collaboration",
+          "support": "Support",
+          "payment": "Payment",
+          "governance": "Board",
+          "finance": "Finance",
+          "complaint": "Complaint",
+          "other": "Other"
+        }
+      },
+      "subjectOther": {
+        "label": "Other (specify)",
+        "placeholder": "What is this about?"
+      },
+      "message": {
+        "label": "Message",
+        "placeholder": "I want to talk about an awesome Frigear project...",
+        "placeholders": {
+          "complaint": "I have a complaint about...",
+          "other": "What's on your mind?"
+        }
+      },
+      "submit": {
+        "label": "Send message"
+      }
+    },
+    "modal": {
+      "title": "Get in touch",
+      "button": "Contact us"
+    }
+  },
+  "form": {
+    "help": {
+      "stepInfo": "Click to see some help(ish) info about this shit!"
+    },
+    "notFound": "Damn! -The form wasn't found!",
+    "success": {
+      "title": "Thanks a lot!",
+      "done": "Done!",
+      "sendAnother": "Send another"
+    },
+    "application": {
+      "title": "Funding Application",
+      "description": "Request funding for your awesome projects.",
+      "contactInfo": {
+        "label": "Contact info",
+        "fullName": {
+          "label": "Full name",
+          "placeholder": "Hei, What's your name?",
+          "description": ""
+        },
+        "email": {
+          "label": "E-mail",
+          "placeholder": "megasnazzyme(at)some.lol",
+          "description": ""
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "66666666",
+          "description": ""
+        },
+        "description": "About you, submitting the application"
+      },
+      "organizationInfo": {
+        "title": "Information about your organization",
+        "organizationName": {
+          "label": "Org. name",
+          "placeholder": "Mega hot org-name",
+          "description": ""
+        },
+        "organizationNumber": {
+          "label": "Organization number",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationAddressStreet": {
+          "label": "Address",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationAddressCo": {
+          "label": "C/O",
+          "description": "Potential C/O address, or Att: person",
+          "placeholder": "Att: Jane Doe..."
+        },
+        "organizationAddressPostcode": {
+          "label": "Zipcode",
+          "placeholder": "6666",
+          "description": ""
+        },
+        "organizationAddressCity": {
+          "label": "City",
+          "placeholder": "Small Town",
+          "description": ""
+        },
+        "accountableParties": {
+          "label": "Accountable persons",
+          "placeholder": "Jane Doe: jane(at)example.com ...\nJohn Doe: ...\nOther: ...",
+          "description": ""
+        },
+        "organizationEmail": {
+          "label": "E-mail",
+          "placeholder": "cool-name(at)hot-org.lol ...",
+          "description": ""
+        },
+        "organizationPhone": {
+          "label": "Phone",
+          "placeholder": "42666642",
+          "description": ""
+        }
+      },
+      "organizationAbout": {
+        "organizationAbout": {
+          "label": "About organization",
+          "description": "Write a little about what the purpose and mission of your organization is",
+          "placeholder": "Hi, we are xxx, and we make parachutes from leftover plastic ..."
+        },
+        "organizationWebsite": {
+          "label": "Website",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationFacebook": {
+          "label": "Facebook",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationInstagram": {
+          "label": "Instagram",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationTikTok": {
+          "label": "TikTok",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationYouTube": {
+          "label": "YouTube",
+          "placeholder": "",
+          "description": ""
+        },
+        "organizationLinkedIn": {
+          "label": "LinkedIn",
+          "placeholder": "",
+          "description": ""
+        }
+      },
+      "financialInfo": {
+        "bankName": {
+          "label": "Bank name",
+          "placeholder": "",
+          "description": ""
+        },
+        "regNr": {
+          "label": "Reg. Nr.",
+          "placeholder": "",
+          "description": ""
+        },
+        "accountNumber": {
+          "label": "Account number",
+          "placeholder": "",
+          "description": ""
+        },
+        "annualBudget": {
+          "label": "Annual budget",
+          "description": "The entire annual budget of your organization",
+          "placeholder": ""
+        },
+        "ownContribution": {
+          "label": "Own contribution",
+          "description": "How much do you intend to bring to the table for the project yourselves?",
+          "placeholder": ""
+        },
+        "paidStaffAmount": {
+          "label": "Paid staff?",
+          "description": "Does your org. have monthly paid, year round staff?",
+          "placeholder": "0"
+        },
+        "financialPatrons": {
+          "label": "Other financial patrons?",
+          "description": "Is parts of the project funded from other parties?",
+          "placeholder": "Yes, since . . . My aunt chips in a thousand . ."
+        }
+      },
+      "branding": {
+        "logo": {
+          "label": "Logo(s)",
+          "description": ""
+        },
+        "relevantImages": {
+          "label": "Relevant images",
+          "description": ""
+        },
+        "threeLineOrgPitch": {
+          "label": "3-line project pitch",
+          "placeholder": "",
+          "description": ""
+        },
+        "otherMedia": {
+          "label": "Other media files",
+          "description": ""
+        }
+      }
+    },
+    "board-member-application": {
+      "title": "Join the board",
+      "description": "",
+      "background": {
+        "label": "Contact info",
+        "description": "About you who is applying",
+        "fullName": {
+          "label": "Full name",
+          "placeholder": "Hey, what's your name?",
+          "description": ""
+        },
+        "background": {
+          "label": "Background"
+        },
+        "email": {
+          "label": "E-mail",
+          "placeholder": "megasnazzyme(at)some.lol",
+          "description": ""
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "66666666",
+          "description": ""
+        },
+        "attachments": {
+          "label": "Files, CV..."
+        }
+      }
+    },
+    "schemaNotConfigured": "Form schema is not configured."
+  },
+  "zodI18n": {
+    "errors": {
+      "custom": "Invalid value",
+      "invalid_arguments": "Invalid function arguments",
+      "invalid_date": "Invalid date",
+      "invalid_enum_value": "Invalid enum value. Expected {options}, received '{received}'",
+      "invalid_intersection_types": "Intersection results could not be merged",
+      "invalid_literal": "Invalid literal value, expected {expected}",
+      "invalid_return_type": "Invalid function return type",
+      "invalid_string": {
+        "cuid": "Invalid {validation}",
+        "datetime": "Invalid {validation}",
+        "email": "Invalid {validation}",
+        "endsWith": "Invalid value: must end with \"{endsWith}\"",
+        "regex": "Invalid",
+        "startsWith": "Invalid value: must start with \"{startsWith}\"",
+        "url": "Invalid {validation}",
+        "uuid": "Invalid {validation}"
+      },
+      "invalid_type": "Expected {expected}, received {received}",
+      "invalid_type_received_undefined": "Required",
+      "invalid_union": "Invalid value",
+      "invalid_union_discriminator": "Invalid discriminator value. Expected {options}",
+      "not_finite": "Number must be finite",
+      "not_multiple_of": "Number must be a multiple of {multipleOf}",
+      "required": "Required",
+      "too_big": {
+        "array": {
+          "exact": "List must contain exactly {maximum} item(s)",
+          "inclusive": "List must contain at most {maximum} item(s)",
+          "not_inclusive": "List must contain fewer than {maximum} item(s)"
+        },
+        "date": {
+          "exact": "Date must be exactly {maximum}",
+          "inclusive": "Date must be {maximum} or earlier",
+          "not_inclusive": "Date must be before {maximum}"
+        },
+        "number": {
+          "exact": "Number must be exactly {maximum}",
+          "inclusive": "Number must be at most {maximum}",
+          "not_inclusive": "Number must be less than {maximum}"
+        },
+        "set": {
+          "exact": "Invalid value",
+          "inclusive": "Invalid value",
+          "not_inclusive": "Invalid value"
+        },
+        "string": {
+          "exact": "Text must be exactly {maximum} characters",
+          "inclusive": "Text must be at most {maximum} characters",
+          "not_inclusive": "Text must be fewer than {maximum} characters"
+        },
+        "phone": {
+          "exact": "Phone must be {maximum} digits.",
+          "inclusive": "Phone must be at most {maximum} digits.",
+          "not_inclusive": "Phone must be fewer than {maximum} digits."
+        }
+      },
+      "too_small": {
+        "array": {
+          "exact": "List must contain exactly {minimum} item(s)",
+          "inclusive": "List must contain at least {minimum} item(s)",
+          "not_inclusive": "List must contain more than {minimum} item(s)"
+        },
+        "date": {
+          "exact": "Date must be exactly {minimum}",
+          "inclusive": "Date must be {minimum} or later",
+          "not_inclusive": "Date must be after {minimum}"
+        },
+        "number": {
+          "exact": "Number must be exactly {minimum}",
+          "inclusive": "Number must be at least {minimum}",
+          "not_inclusive": "Number must be greater than {minimum}"
+        },
+        "set": {
+          "exact": "Invalid value",
+          "inclusive": "Invalid value",
+          "not_inclusive": "Invalid value"
+        },
+        "string": {
+          "exact": "Text must be exactly {minimum} characters",
+          "inclusive": "Text must be at least {minimum} characters",
+          "not_inclusive": "Text must be more than {minimum} characters"
+        }
+      },
+      "unrecognized_keys": "Unrecognized key(s) in object: {keys}"
+    },
+    "password": {
+      "mismatch": "Passwords do not match"
+    },
+    "types": {
+      "array": "list",
+      "bigint": "bigint",
+      "boolean": "boolean",
+      "date": "date",
+      "float": "float",
+      "function": "function",
+      "integer": "integer",
+      "map": "map",
+      "nan": "nan",
+      "never": "never",
+      "null": "null",
+      "number": "number",
+      "object": "object",
+      "promise": "promise",
+      "set": "set",
+      "string": "string",
+      "symbol": "symbol",
+      "undefined": "undefined",
+      "unknown": "unknown",
+      "void": "void"
+    },
+    "validations": {
+      "cuid": "cuid",
+      "datetime": "ISO datetime",
+      "email": "email address",
+      "regex": "input",
+      "url": "URL",
+      "uuid": "UUID"
+    }
+  }
+}

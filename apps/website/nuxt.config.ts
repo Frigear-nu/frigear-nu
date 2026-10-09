@@ -134,8 +134,8 @@ export default defineNuxtConfig({
   i18n: {
     defaultLocale: 'da',
     locales: [
-      { code: 'da', name: 'Danish' },
-      { code: 'en', name: 'English' },
+      { code: 'da', name: 'Dansk', file: 'da.json' },
+      { code: 'en', name: 'English', file: 'en.json' },
     ],
   },
   notify: {

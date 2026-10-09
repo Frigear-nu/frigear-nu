@@ -1,14 +1,16 @@
 import type { Resolver } from '@nuxt/kit'
 
+// Registered through `i18n:registerModule`: `@nuxtjs/i18n` merges every `files` entry per locale,
+// so these shared strings (`common`, `actions`, `locale`, `steppedForm`) join the host's messages.
 export const defaultI18nConfig = (
   resolver: Resolver,
 ) => {
+  const langDir = resolver.resolve('./runtime/i18n/lang')
   return {
-    vueI18n: resolver.resolve('./runtime/i18n/vue-i18n.config.ts'),
-    langDir: resolver.resolve('./runtime/i18n/lang'),
+    langDir,
     locales: [
-      { code: 'en', name: 'English', file: resolver.resolve('./runtime/i18n/lang/en.json') },
-      { code: 'da', name: 'Dansk', file: resolver.resolve('./runtime/i18n/lang/da.json') },
+      { code: 'en', name: 'English', files: [resolver.resolve('./runtime/i18n/lang/en.json')] },
+      { code: 'da', name: 'Dansk', files: [resolver.resolve('./runtime/i18n/lang/da.json')] },
     ],
   }
 }

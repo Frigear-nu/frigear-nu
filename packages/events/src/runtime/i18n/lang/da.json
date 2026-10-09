@@ -1,0 +1,87 @@
+{
+  "events": {
+    "upcoming": {
+      "empty": {
+        "title": "Der er sku ik' lige nogen kommende events pt. -men tjek tilbage soon ..."
+      },
+      "title": "Kommende events",
+      "description": "Følg med her om future events i Frigear og Frigear Kulturværksted ..."
+    },
+    "ongoing": {
+      "title": "Igangværende events"
+    },
+    "past": {
+      "title": "Tidligere arrangementer",
+      "description": "Se tidligere Frigear events du gik glip ..."
+    },
+    "detail": {
+      "when": "Hvornår?",
+      "where": "Hvor?",
+      "tickets": {
+        "title": "Billetter",
+        "view": "Se billetter",
+        "free": "Gratis",
+        "goToCheckout": "Til betaling",
+        "signInToPurchase": "Log ind for at deltage",
+        "atLeastOneProductRequired": "{addonTitle}valg kræves.",
+        "ticket": {
+          "label": "Billet"
+        },
+        "products": {
+          "label": "Produkt",
+          "required": "Påkrævet"
+        },
+        "payment": {
+          "view": "Se betaling",
+          "verifying": {
+            "title": "Verificerer...",
+            "description": "Tjekker din betaling..."
+          },
+          "success": {
+            "title": "Betalingen er godkendt",
+            "description": "Din betaling blev godkendt. Billetterne er klar til brug."
+          },
+          "cancel": {
+            "title": "Betalingen er annulleret",
+            "description": "Betalingen blev annuleret, men prøv lige igen, eller kontakt support."
+          }
+        }
+      }
+    },
+    "tickets": {
+      "title": "Billetter",
+      "description": "Se dine billetter og betalinger.",
+      "ticket": "Billet",
+      "payNow": "Betal nu",
+      "viewQrCode": "Se QR-kode",
+      "goToEvent": "Til event",
+      "status": {
+        "paid": "Betalt",
+        "cancelled": "Annulleret",
+        "pending": "Afventer",
+        "abandoned": "Opgivet"
+      }
+    },
+    "cart": {
+      "title": "Kurv",
+      "addedToCart": "{title} stuff lagt i kurven.",
+      "removedFromCart": "{title} stuff fjernet fra kurven.",
+      "continueToPayment": "Til betaling"
+    },
+    "title": "Events",
+    "empty": "Der er ingen events lige nu.",
+    "loading": "Henter…",
+    "members": "Medlemmer",
+    "viewEvent": "Se event",
+    "hideQr": "Skjul QR-kode",
+    "checkedIn": "Tjekket ind",
+    "myTickets": "Mine billetter",
+    "noTickets": "Du har ingen billetter endnu.",
+    "paymentReceived": "Betaling modtaget - din billet er klar.",
+    "paymentTimeout": "Vi har ikke modtaget betalingsbekræftelsen endnu. Den dukker snart op under dine billetter.",
+    "paymentCancelled": "Betaling annulleret. Din reservation holdes et kort stykke tid; du kan betale fra dine billetter.",
+    "ticketReady": "Din billet er klar",
+    "purchaseFailed": "Kunne ikke købe billetten",
+    "notFound": "Event ikke fundet"
+  }
+}

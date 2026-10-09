@@ -1,0 +1,33 @@
+{
+  "common": {
+    "or": "Eller",
+    "close": "Luk",
+    "information": "Information",
+    "back": "Tilbage",
+    "current": "Nuværende",
+    "visit": "Besøg",
+    "refresh": "Opdater",
+    "expiresIn": "Udløber om {time}s"
+  },
+  "actions": {
+    "selectFiles": "Vælg filer",
+    "removeAllFiles": "Fjern alle filer",
+    "view": "Vis",
+    "backTo": "Tilbage til",
+    "save": "Gem",
+    "select": "Vælg",
+    "change": "Skift",
+    "cancel": "Annullér"
+  },
+  "locale": {
+    "switch": "Vælg sprog (nu: {name})"
+  },
+  "steppedForm": {
+    "previous": "Forrige",
+    "next": "Videre",
+    "submit": "Fyr afsted",
+    "acceptTerms": {
+      "description": "Jeg accepterer Frigear [betingelserne](https://frigear.nu/legal/terms){'{'}target='_BLANK'{'}'} & [privatlivspolitik](https://frigear.nu/legal/gdpr){'{'}target='_BLANK'{'}'}."
+    }
+  }
+}

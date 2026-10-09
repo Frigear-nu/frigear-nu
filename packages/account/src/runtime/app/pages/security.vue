@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'AccountSecurityPage' })
 
+const t = useModuleT('account.security')
 const { user } = useUserSession()
 const { changePassword, pending, error } = useAccount()
 // Guarded like `@frigear-nu/users`' own `login.vue` - `useUserPasskeys()` calls `useWebAuthn()`
@@ -39,9 +40,9 @@ async function onRegisterPasskey() {
   <UContainer>
     <UPage>
       <UPageBody>
-        <UPageCard title="Change password">
+        <UPageCard :title="t('changePassword.title', 'Change password')">
           <UFormField
-            label="Current password"
+            :label="t('changePassword.current.label', 'Current password')"
             name="currentPassword"
           >
             <UInput
@@ -50,7 +51,7 @@ async function onRegisterPasskey() {
             />
           </UFormField>
           <UFormField
-            label="New password"
+            :label="t('changePassword.new.label', 'New password')"
             name="newPassword"
           >
             <UInput
@@ -59,7 +60,7 @@ async function onRegisterPasskey() {
             />
           </UFormField>
           <UFormField
-            label="Confirm new password"
+            :label="t('changePassword.confirm.label', 'Confirm new password')"
             name="confirmNewPassword"
           >
             <UInput
@@ -70,18 +71,18 @@ async function onRegisterPasskey() {
           <UButton
             class="mt-4"
             :loading="pending"
-            label="Change password"
+            :label="t('changePassword.submit', 'Change password')"
             @click="onSubmitPassword"
           />
         </UPageCard>
         <UPageCard
           v-if="passkeys?.isEnabled.value"
           class="mt-4"
-          title="Passkeys"
+          :title="t('passkeys.title', 'Passkeys')"
         >
           <UButton
             :loading="passkeyPending"
-            label="Register a passkey"
+            :label="t('passkeys.register', 'Register a passkey')"
             @click="onRegisterPasskey"
           />
         </UPageCard>

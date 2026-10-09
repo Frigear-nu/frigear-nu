@@ -1,0 +1,73 @@
+{
+  "subscriptions": {
+    "title": "Your subscription",
+    "none": "You do not have an active subscription.",
+    "loading": "Loading subscription…",
+    "plan": "Plan",
+    "renews": "Renews on {date}",
+    "cancels": "Ends on {date}",
+    "manage": "Manage billing",
+    "resubscribe": "Resubscribe",
+    "statusActive": "Active",
+    "statusTrialing": "Trial",
+    "statusPastDue": "Past due",
+    "statusCanceled": "Canceled",
+    "statusOther": "Inactive",
+    "current": "Current plan",
+    "subscribe": "Subscribe",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade",
+    "empty": "No plans are available right now.",
+    "trial": "{days}-day free trial",
+    "confirmTitle": "Change plan",
+    "confirmBody": "Switch to {plan}? Your subscription will be updated.",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "perDay": "day",
+    "perWeek": "week",
+    "perMonth": "month",
+    "perYear": "year",
+    "successTitle": "Thank you!",
+    "successBody": "Your subscription is being activated. This can take a few seconds.",
+    "continue": "Continue",
+    "cancelTitle": "Checkout canceled",
+    "cancelBody": "No changes were made and you have not been charged.",
+    "back": "Back to plans",
+    "interval": {
+      "month": "Monthly",
+      "quarter": "Quarterly",
+      "year": "Yearly"
+    },
+    "feeIncluded": "*Payment fees are included in amount",
+    "membership": {
+      "title": "Membership",
+      "description": "Your membership type.",
+      "active": "ACTIVE",
+      "cancelling": "Subscription is ending",
+      "cancelsAt": "Ending at {date}",
+      "currentPlan": "Current plan",
+      "renewsAutomaticallyAt": "Renews automatically on {date}",
+      "cancel": "Cancel membership",
+      "changePaymentMethod": "Change payment method",
+      "subscribeTo": "You will now subscribe to:",
+      "alreadyActiveDescription": "If you downgrade, the subscription you have will run to the next due date.\n            If you upgrade, you will be moved to the higher plan immediately, and any remaining credit will be discounted and you will be charged immediately.",
+      "sendToStripe": "You will now be taken to stripe to confirm.",
+      "update": {
+        "title": "Update subscription",
+        "description": "Change your subscription plan."
+      },
+      "subscribe": {
+        "title": "Get a membership",
+        "description": "Subscribe to a membership to get started!",
+        "action": "Subscribe"
+      },
+      "noMembership": {
+        "title": "Join the team today",
+        "description": "Set up your membership to get started!"
+      },
+      "resubscribe": {
+        "title": "Resubscribe"
+      }
+    }
+  }
+}

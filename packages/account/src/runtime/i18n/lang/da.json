@@ -1,0 +1,64 @@
+{
+  "account": {
+    "title": "Konto",
+    "menu": {
+      "label": "Konto Menu"
+    },
+    "identificationCode": {
+      "title": "Frigear ID",
+      "description": "Tryk her for at vise dit ID."
+    },
+    "profile": {
+      "title": "Profil",
+      "description": "Skift dine brugeroplysninger.",
+      "name": {
+        "label": "Navn",
+        "description": "Dit fulde navn."
+      },
+      "email": {
+        "label": "E-mail",
+        "description": "Din awesome e-mail.",
+        "change": {
+          "title": "Skift din e-mail",
+          "label": "Ny e-mail"
+        }
+      },
+      "avatar": {
+        "label": "Avatar",
+        "description": "JPG, GIF eller PNG. 1MB Max.",
+        "url": "Avatar URL"
+      },
+      "save": "Gem profil"
+    },
+    "documents": {
+      "title": "Dokumenter",
+      "description": "Dine dokumenter.",
+      "download": "Download"
+    },
+    "security": {
+      "title": "Sikkerhed",
+      "description": "Skift password, Social login etc.",
+      "password": {
+        "title": "Password",
+        "description": "Skift dit password."
+      },
+      "changePassword": {
+        "title": "Skift password",
+        "submit": "Skift password",
+        "new": {
+          "label": "Nyt password"
+        },
+        "confirm": {
+          "label": "Bekræft nyt password"
+        },
+        "current": {
+          "label": "Nuværende password"
+        }
+      },
+      "passkeys": {
+        "title": "Passkeys",
+        "register": "Registrér en passkey"
+      }
+    }
+  }
+}
