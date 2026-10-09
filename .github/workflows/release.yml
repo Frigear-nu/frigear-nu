@@ -5,10 +5,11 @@
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
 #
-# Choosing `all` releases every package, one after another (in dependency order,
-# as listed in the `prepare` job), each with the same increment. A failure in one package does not
-# stop the remaining ones. Keep the `all` list in the `prepare` job in sync with
-# the `package` choices.
+# Choosing `all` releases every package with the same increment. Each package is built and tested
+# in parallel (`verify`), then the packages that passed are released one after another, in dependency
+# order (`release`), because every release pushes a commit and tag to the branch. A failure in one
+# package does not stop the others, but fails the run. Keep the `all` list in the `prepare` job in
+# sync with the `package` choices.
 name: Release
 
 on:
@@ -49,6 +50,11 @@ on:
 permissions:
   contents: read
 
+# Releases push to the branch, so never run two at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -66,17 +72,49 @@ jobs:
           fi
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
-  release:
+  # Builds and tests every package in parallel. Nothing is pushed or published here.
+  verify:
     needs: prepare
-    name: release (${{ matrix.package }})
+    name: verify (${{ matrix.package }})
     runs-on: ubuntu-latest
     strategy:
-      # One at a time: each release pushes a commit and tag to the branch, so the next
-      # one has to check out the updated branch.
-      max-parallel: 1
       fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.prepare.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      # Builds every workspace package the selected package depends on (recursively), so that e.g.
+      # `users` sees `module-kit`'s dist output and `base-layer`/`events` see `schema`'s.
+      - name: Build package dependencies
+        run: pnpm --filter "{packages/${{ matrix.package }}}^..." run --if-present build
+
+      - name: Test package
+        run: pnpm --filter "./packages/${{ matrix.package }}" run --if-present test
+
+      - name: Mark as verified
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          mkdir verified
+          echo "$PACKAGE" > "verified/$PACKAGE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-${{ matrix.package }}
+          path: verified/${{ matrix.package }}
+
+  # Releases the verified packages one at a time. Runs even if some packages failed to verify, so one
+  # broken package does not block the rest.
+  release:
+    needs: [prepare, verify]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: ubuntu-latest
     permissions:
       # Needed to push the version bump commit/tag and create the GitHub release.
       contents: write
@@ -86,72 +124,55 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # Pick up version commits pushed by earlier releases in this run.
+          # Releases push to this branch; start from its latest commit.
           ref: ${{ github.ref_name }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'pnpm'
-
-      # release-it pushes the version commit and tag before the npm publish hook.
-      # If that hook fails, resume publishing the tagged version instead of trying
-      # to create the same tag again.
-      - name: Detect incomplete release
-        id: recovery
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: |
-          package_json="packages/$PACKAGE/package.json"
-          version="$(node -p "require('./$package_json').version")"
-          name="$(node -p "require('./$package_json').name")"
-          tag="$PACKAGE@$version"
-
-          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null &&
-             ! npm view "$name@$version" version >/dev/null 2>&1; then
-            echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check out tagged release
-        if: steps.recovery.outputs.tag != ''
-        env:
-          RELEASE_TAG: ${{ steps.recovery.outputs.tag }}
-        run: git checkout --detach "$RELEASE_TAG"
-
       - run: pnpm install --frozen-lockfile
 
-      # Builds every workspace package the selected package depends on (recursively), so that e.g.
-      # `users` sees `module-kit`'s dist output and `base-layer`/`events` see `schema`'s. The
-      # selected package itself is built separately by release-it's `after:bump` hook (see its `.release-it.json`),
-      # right before packing/publishing.
-      - name: Build package dependencies
-        run: pnpm --filter "{packages/${{ matrix.package }}}^..." run --if-present build
-
-      - name: Test package
-        run: pnpm --filter "./packages/${{ matrix.package }}" run --if-present test
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: verified-*
+          path: verified
+          merge-multiple: true
 
       - name: Configure git identity
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Build package for recovery
-        if: steps.recovery.outputs.tag != ''
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: pnpm --filter "./packages/$PACKAGE" run --if-present build
-
-      - name: Resume npm publish
-        if: steps.recovery.outputs.tag != ''
-        working-directory: packages/${{ matrix.package }}
-        env:
-          NPM_CONFIG_LOGLEVEL: verbose
-        run: bash ../../scripts/npm-publish.sh
-
       - name: Release
-        if: steps.recovery.outputs.tag == ''
-        working-directory: packages/${{ matrix.package }}
         env:
+          PACKAGES: ${{ needs.prepare.outputs.packages }}
+          INCREMENT: ${{ inputs.increment }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_LOGLEVEL: verbose
-        run: pnpm exec release-it ${{ inputs.increment }} --ci
+        run: |
+          failed=()
+          for package in $(jq -r '.[]' <<< "$PACKAGES"); do
+            if [ ! -f "verified/$package" ]; then
+              echo "::error::Skipping $package: build/test did not pass"
+              failed+=("$package")
+              continue
+            fi
+            echo "::group::Release $package"
+            if bash scripts/release-package.sh "$package" "$INCREMENT"; then
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              echo "::error::Release of $package failed"
+              failed+=("$package")
+              # Leave the tree as the next package expects it.
+              git reset --hard --quiet
+              git checkout --quiet "$RELEASE_BRANCH"
+            fi
+          done
+
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Not released: ${failed[*]}"
+            exit 1
+          fi
