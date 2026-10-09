@@ -100,11 +100,11 @@ onMounted(() => {
 
 <style scoped>
 /* Plain CSS on Nuxt UI variables: Tailwind does not scan workspace/node_modules packages, so utility classes here would silently be dropped. */
-.cc-wrap { position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: center; padding: 0 1rem; pointer-events: none; }
+.cc-wrap { position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: center; pointer-events: none; }
 .cc-banner {
-  position: relative; width: min(100%, 64rem); pointer-events: auto;
+  position: relative; width: 92vw; pointer-events: auto;
   background: var(--ui-bg); color: var(--ui-text);
-  border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent); border-bottom: 0;
+  border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent);
   border-radius: 1rem 1rem 0 0; box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
 }
 .cc-badge {
