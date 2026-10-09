@@ -29,14 +29,14 @@ onMounted(() => {
     <Transition name="cookie-fab">
       <button
         v-if="open && collapsed"
-        class="fixed bottom-4 left-4 z-50 flex size-14 items-center justify-center rounded-full border border-default bg-(--ui-bg) shadow-lg ring-0 hover:opacity-90 focus:outline-none"
+        class="cc-fab"
         :aria-label="t('expand')"
         data-testid="cookie-consent-fab"
         @click="isManuallyExpanded = true"
       >
         <UIcon
           name="i-lucide-cookie"
-          class="size-7 text-primary"
+          class="cc-fab-icon"
         />
       </button>
     </Transition>
@@ -44,30 +44,30 @@ onMounted(() => {
     <Transition name="cookie-slide">
       <div
         v-if="open && !collapsed"
-        class="fixed bottom-0 left-0 right-0 z-50 flex justify-center"
+        class="cc-wrap"
         role="dialog"
         :aria-label="t('preferencesTitle')"
         data-testid="cookie-consent-banner"
       >
-        <div class="relative w-[92vw] rounded-t-2xl border border-primary/70 bg-(--ui-bg) shadow-xl">
-          <div class="absolute -top-3.5 left-4 flex items-center justify-center rounded-full border border-primary/70 bg-(--ui-bg) p-1">
+        <div class="cc-banner">
+          <div class="cc-badge">
             <UIcon
               name="i-lucide-cookie"
-              class="size-5 text-primary"
+              class="cc-badge-icon"
             />
           </div>
-          <div class="flex flex-col items-center justify-between gap-4 p-4 pt-5 sm:flex-row">
-            <p class="text-sm text-muted">
+          <div class="cc-content">
+            <p class="cc-text">
               {{ t('description') }}
               <NuxtLink
                 v-if="config.policyUrl"
                 :to="config.policyUrl"
-                class="underline"
+                class="cc-link"
               >
                 {{ t('policy') }}
               </NuxtLink>
             </p>
-            <div class="flex shrink-0 flex-wrap gap-2">
+            <div class="cc-actions">
               <UButton
                 color="neutral"
                 variant="ghost"
@@ -99,6 +99,31 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Plain CSS on Nuxt UI variables: Tailwind does not scan workspace/node_modules packages, so utility classes here would silently be dropped. */
+.cc-wrap { position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: center; padding: 0 1rem; pointer-events: none; }
+.cc-banner {
+  position: relative; width: min(100%, 64rem); pointer-events: auto;
+  background: var(--ui-bg); color: var(--ui-text);
+  border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent); border-bottom: 0;
+  border-radius: 1rem 1rem 0 0; box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
+}
+.cc-badge {
+  position: absolute; top: -0.875rem; left: 1rem; display: flex; align-items: center; justify-content: center; padding: 0.25rem;
+  background: var(--ui-bg); border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent); border-radius: 9999px;
+}
+.cc-badge-icon { width: 1.25rem; height: 1.25rem; color: var(--ui-primary); }
+.cc-content { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1rem 1rem; }
+.cc-text { margin: 0; font-size: 0.875rem; color: var(--ui-text-muted); }
+.cc-link { text-decoration: underline; }
+.cc-actions { display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 0.5rem; }
+@media (min-width: 640px) { .cc-content { flex-direction: row; } }
+.cc-fab {
+  position: fixed; bottom: 1rem; left: 1rem; z-index: 50; display: flex; align-items: center; justify-content: center;
+  width: 3.5rem; height: 3.5rem; cursor: pointer; background: var(--ui-bg); border: 1px solid var(--ui-border); border-radius: 9999px;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.3);
+}
+.cc-fab:hover { opacity: 0.9; }
+.cc-fab-icon { width: 1.75rem; height: 1.75rem; color: var(--ui-primary); }
 .cookie-slide-enter-active, .cookie-slide-leave-active { transition: transform 0.3s ease, opacity 0.3s ease; }
 .cookie-slide-enter-from, .cookie-slide-leave-to { transform: translateY(100%); opacity: 0; }
 .cookie-fab-enter-active, .cookie-fab-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
