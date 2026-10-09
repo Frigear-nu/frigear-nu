@@ -16,7 +16,9 @@ export interface ConsentCategory {
   required?: boolean
   /** Pre-selected state in the preferences dialog. Never applied without the user saving. Default `false`. */
   defaultEnabled?: boolean
+  /** Defaults to the i18n key `cookieConsent.categories.<key>.label`. */
   label?: Localized
+  /** Defaults to the i18n key `cookieConsent.categories.<key>.description`. */
   description?: Localized
   cookies?: ConsentCookie[]
 }
@@ -51,8 +53,6 @@ export interface ModuleOptions {
   collapseOnScroll?: boolean | number
   /** Link to the cookie/privacy policy shown in the banner. */
   policyUrl?: string
-  /** Override/extend built-in texts per locale. Built-in: `da`, `en`. */
-  messages?: Record<string, Partial<ConsentMessages>>
   /**
    * Store the consent on the signed-in user (`@frigear-nu/users` + `@nuxthub/core` required).
    * Default: `true` when `@frigear-nu/users` is installed.
@@ -68,7 +68,6 @@ export interface PublicModuleOptions {
   excludeRoutes: string[]
   collapseThreshold: number | false
   policyUrl?: string
-  messages: Record<string, Partial<ConsentMessages>>
   persistToUser: boolean
 }
 

@@ -7,7 +7,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { registerModule, registerLocales, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
 import { DEFAULT_CATEGORIES, computeVersion, mergeCategories } from './runtime/utils/consent'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -41,6 +41,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule('@frigear-nu/cookie-consent', nuxt)
 
     const resolver = createResolver(import.meta.url)
+    registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const persistToUser = (options.persistToUser ?? true) && hasNuxtModule('@frigear-nu/users')
 
     addImports([
@@ -81,7 +82,6 @@ export default defineNuxtModule<ModuleOptions>({
         excludeRoutes: options.excludeRoutes ?? [],
         collapseThreshold: options.collapseOnScroll === false ? false : typeof options.collapseOnScroll === 'number' ? options.collapseOnScroll : 80,
         policyUrl: options.policyUrl,
-        messages: options.messages ?? {},
         persistToUser,
       } satisfies PublicModuleOptions
     })

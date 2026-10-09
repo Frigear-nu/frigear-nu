@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { categories, consent, isPreferencesOpen, save, acceptAll, rejectAll } = useCookieConsent()
-const { t, localize } = useConsentT()
+const { t, label, description, localize } = useConsentT()
 
 const choices = ref<Record<string, boolean>>({})
 
@@ -33,10 +33,10 @@ watch(isPreferencesOpen, (isOpen) => {
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="font-medium">
-                {{ localize(category.label, category.key) }}
+                {{ label(category) }}
               </p>
               <p class="text-sm text-muted">
-                {{ localize(category.description) }}
+                {{ description(category) }}
               </p>
             </div>
             <span
@@ -46,7 +46,7 @@ watch(isPreferencesOpen, (isOpen) => {
             <USwitch
               v-else
               v-model="choices[category.key]"
-              :aria-label="localize(category.label, category.key)"
+              :aria-label="label(category)"
               :data-testid="`cookie-consent-toggle-${category.key}`"
             />
           </div>

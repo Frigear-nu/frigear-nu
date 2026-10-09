@@ -1,31 +1,10 @@
 import type { ConsentCategory, ConsentState } from '../../types'
 
+// Labels/descriptions come from the module's locale files (`cookieConsent.categories.<key>.*`).
 export const DEFAULT_CATEGORIES: ConsentCategory[] = [
-  {
-    key: 'necessary',
-    required: true,
-    label: { en: 'Necessary', da: 'Nødvendige' },
-    description: {
-      en: 'Required for the site to work, such as keeping you signed in. Cannot be disabled.',
-      da: 'Påkrævet for at siden fungerer, f.eks. at holde dig logget ind. Kan ikke slås fra.',
-    },
-  },
-  {
-    key: 'analytics',
-    label: { en: 'Analytics', da: 'Statistik' },
-    description: {
-      en: 'Helps us understand how the site is used so we can improve it.',
-      da: 'Hjælper os med at forstå, hvordan siden bruges, så vi kan forbedre den.',
-    },
-  },
-  {
-    key: 'marketing',
-    label: { en: 'Marketing', da: 'Markedsføring' },
-    description: {
-      en: 'Used for social media integrations and relevant content.',
-      da: 'Bruges til integration med sociale medier og relevant indhold.',
-    },
-  },
+  { key: 'necessary', required: true },
+  { key: 'analytics' },
+  { key: 'marketing' },
 ]
 
 /** Merges categories by key: earlier labels win, cookies are concatenated, `required` is sticky. */
