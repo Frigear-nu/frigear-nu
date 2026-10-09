@@ -1,0 +1,30 @@
+{
+  "cookieConsent": {
+    "description": "Vi bruger cookies for at forbedre din oplevelse. Vælg hvilke kategorier du tillader.",
+    "accept": "Acceptér alle",
+    "reject": "Afvis alle",
+    "preferences": "Indstillinger",
+    "expand": "Vis cookie-samtykke",
+    "manage": "Administrér cookies",
+    "save": "Gem valg",
+    "preferencesTitle": "Cookie-indstillinger",
+    "preferencesDescription": "Vælg hvilke cookies du tillader. Du kan til enhver tid ændre det.",
+    "required": "Altid aktiv",
+    "policy": "Læs mere",
+    "cookies": "Cookies",
+    "categories": {
+      "necessary": {
+        "label": "Nødvendige",
+        "description": "Påkrævet for at siden fungerer, f.eks. at holde dig logget ind. Kan ikke slås fra."
+      },
+      "analytics": {
+        "label": "Statistik",
+        "description": "Hjælper os med at forstå, hvordan siden bruges, så vi kan forbedre den."
+      },
+      "marketing": {
+        "label": "Markedsføring",
+        "description": "Bruges til integration med sociale medier og relevant indhold."
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "name": "@frigear-nu/cookie-consent-playground",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "@frigear-nu/cookie-consent": "workspace:*",
+    "@nuxt/ui": "^4.11.0",
+    "nuxt": "catalog:",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^4.6.0"
+  }
+}

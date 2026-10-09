@@ -1,0 +1,30 @@
+{
+  "cookieConsent": {
+    "description": "We use cookies to improve your experience. Choose which categories you allow.",
+    "accept": "Accept all",
+    "reject": "Reject all",
+    "preferences": "Preferences",
+    "expand": "Show cookie consent",
+    "manage": "Manage cookies",
+    "save": "Save choices",
+    "preferencesTitle": "Cookie preferences",
+    "preferencesDescription": "Choose which cookies you allow. You can change this at any time.",
+    "required": "Always on",
+    "policy": "Read more",
+    "cookies": "Cookies",
+    "categories": {
+      "necessary": {
+        "label": "Necessary",
+        "description": "Required for the site to work, such as keeping you signed in. Cannot be disabled."
+      },
+      "analytics": {
+        "label": "Analytics",
+        "description": "Helps us understand how the site is used so we can improve it."
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Used for social media integrations and relevant content."
+      }
+    }
+  }
+}
