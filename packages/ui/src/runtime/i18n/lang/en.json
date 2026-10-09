@@ -21,13 +21,5 @@
   },
   "locale": {
     "switch": "Choose language (now: {name})"
-  },
-  "steppedForm": {
-    "previous": "Previous",
-    "next": "Continue",
-    "submit": "Submit",
-    "acceptTerms": {
-      "description": "I accept Frigear [Terms & Conditions](https://frigear.nu/legal/terms){'{'}target='_BLANK'{'}'} & [Privacy Policy](https://frigear.nu/legal/gdpr){'{'}target='_BLANK'{'}'}."
-    }
   }
 }

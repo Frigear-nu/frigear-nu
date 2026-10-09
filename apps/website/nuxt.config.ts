@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
@@ -12,7 +13,6 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@pinia/colada-nuxt',
     'nuxt-qrcode',
-    '@norbiros/nuxt-auto-form',
     '@frigear-nu/menu',
     '@frigear-nu/users',
     '@frigear-nu/account',
@@ -21,6 +21,7 @@ export default defineNuxtConfig({
     '@frigear-nu/subscriptions',
     '@frigear-nu/payments',
     '@frigear-nu/events',
+    '@frigear-nu/forms',
     '@frigear-nu/cookie-consent',
     '@frigear-nu/oauth-server',
   ],
@@ -56,6 +57,12 @@ export default defineNuxtConfig({
         binding: 'KV',
         namespaceId: process.env.NUXT_HUB_CLOUDFLARE_KV_NAMESPACE_ID,
       },
+      // Blob (R2) is used by @frigear-nu/forms for submission file uploads.
+      blob: {
+        driver: 'cloudflare-r2',
+        binding: 'BLOB',
+        bucketName: process.env.NUXT_HUB_CLOUDFLARE_BUCKET_NAME,
+      },
     },
   },
 
@@ -67,6 +74,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Comma separated emails allowed to manage OAuth applications (NUXT_OAUTH_ADMIN_EMAILS).
     oauthAdminEmails: '',
+    // Comma separated emails allowed to manage forms and read submissions (NUXT_FORMS_ADMIN_EMAILS).
+    formsAdminEmails: '',
   },
 
   routeRules: {
@@ -107,6 +116,7 @@ export default defineNuxtConfig({
   // .hub @ defaults
   hub: {
     kv: true,
+    blob: true,
     db: {
       dialect: 'sqlite',
       casing: 'snake_case',
@@ -133,6 +143,17 @@ export default defineNuxtConfig({
   events: {
     settings: {
       pages: { events: true, event: true, tickets: true },
+    },
+  },
+  forms: {
+    settings: {
+      pages: { form: true, admin: true, adminForm: true, adminSubmissions: true, adminSubmission: true },
+    },
+    // Opt-in: set `enabled` (NUXT_FORMS_SEED_ENABLED=true) to insert the definitions below as drafts.
+    // Existing slugs are never overwritten. Definitions can also be imported from the admin page.
+    seed: {
+      enabled: false,
+      forms: [projectApplicationForm, boardMemberApplicationForm],
     },
   },
   i18n: {

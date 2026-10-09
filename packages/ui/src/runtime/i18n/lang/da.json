@@ -21,13 +21,5 @@
   },
   "locale": {
     "switch": "Vælg sprog (nu: {name})"
-  },
-  "steppedForm": {
-    "previous": "Forrige",
-    "next": "Videre",
-    "submit": "Fyr afsted",
-    "acceptTerms": {
-      "description": "Jeg accepterer Frigear [betingelserne](https://frigear.nu/legal/terms){'{'}target='_BLANK'{'}'} & [privatlivspolitik](https://frigear.nu/legal/gdpr){'{'}target='_BLANK'{'}'}."
-    }
   }
 }

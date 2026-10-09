@@ -1,0 +1,84 @@
+{
+  "forms": {
+    "actions": {
+      "next": "Next",
+      "back": "Back",
+      "submit": "Submit",
+      "sendAnother": "Send another"
+    },
+    "step": {
+      "progress": "Step {current} of {total}"
+    },
+    "success": {
+      "title": "Thank you!",
+      "description": "Your answers have been sent."
+    },
+    "error": {
+      "generic": "Something went wrong. Please try again.",
+      "invalid": "Please check the highlighted fields.",
+      "notFound": "This form could not be found."
+    },
+    "preview": {
+      "notSent": "Preview: nothing was sent."
+    },
+    "value": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "delivery": {
+      "none": "Not delivered",
+      "pending": "Pending",
+      "delivered": "Delivered",
+      "failed": "Delivery failed"
+    },
+    "validation": {
+      "required": "This field is required.",
+      "email": "Enter a valid email address.",
+      "tel": "Enter a valid phone number.",
+      "date": "Enter a valid date.",
+      "option": "Choose one of the available options.",
+      "min": "Must be at least {min}.",
+      "max": "Must be at most {max}.",
+      "minLength": "Enter at least {min} characters.",
+      "maxLength": "Enter at most {max} characters.",
+      "pattern": "The value has an invalid format.",
+      "maxFiles": "Upload at most {max} file(s).",
+      "maxSize": "{name} is larger than {max} MB.",
+      "accept": "{name} is not an accepted file type."
+    },
+    "admin": {
+      "title": "Forms",
+      "new": "New form",
+      "import": "Import",
+      "edit": "Edit",
+      "create": "Create",
+      "save": "Save",
+      "saved": "Saved.",
+      "name": "Name",
+      "slug": "Slug",
+      "slugHint": "Used in the public address.",
+      "status": "Status",
+      "empty": "No forms yet.",
+      "stepped": "Stepped",
+      "single": "Single page",
+      "notStored": "Not stored",
+      "submissions": "Submissions ({count})",
+      "submissionsTitle": "Submissions",
+      "noSubmissions": "No submissions yet.",
+      "redeliver": "Deliver again",
+      "forbidden": "You are not allowed to manage forms.",
+      "imported": "Imported {inserted}, skipped {skipped} existing.",
+      "invalidJson": "The JSON is not valid.",
+      "importHint": "Paste one form or a list of forms (each with slug, name and definition). Forms whose slug already exists are skipped.",
+      "definition": "Definition (JSON)",
+      "invalidDefinition": "The definition has problems",
+      "preview": "Preview",
+      "previewUnavailable": "Fix the definition to see a preview."
+    }
+  }
+}
