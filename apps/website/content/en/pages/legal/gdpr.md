@@ -1,4 +1,5 @@
 ---
+container: true
 title: GDPR
 description: Information about GDPR.
 ---

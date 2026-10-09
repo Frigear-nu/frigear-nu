@@ -2,14 +2,11 @@
 title: Membership
 description: Frigear membership
 links: []
+pageHeader:
+  title: Membership
 ---
 
-::u-page-header
-#title
-Membership
-::
-
-::u-container{.mt-8.max-w-md}
+::u-container{.mt-8.max-w-5xl}
   :::membership-pricing
   :::
 ::

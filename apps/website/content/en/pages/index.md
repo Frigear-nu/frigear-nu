@@ -62,15 +62,19 @@ images:
 #title
 [{{ $doc.title }}]{.fancy-text.text-7xl.md:text-8xl} :br :br
 
-  :::typewriter-effect{.mt-0 .block .leading-tight .min-h-[2.4em] .sm:min-h-[1.1em] .text-wrap .sm:text-nowrap}
-  Nonprofit
-  Volunteer run
-  Project funding
-  Volunteer organization
-  Event production
-  For the common good
-  You wanna join?
-  Become a volunteer!
+  :::typewriter-effect
+  ---
+  class: mt-0 leading-tight
+  items:
+    - "Nonprofit"
+    - "Volunteer run"
+    - "Project funding"
+    - "Volunteer organization"
+    - "Event production"
+    - "For the common good"
+    - "You wanna join?"
+    - "Become a [volunteer]{.text-primary.font-bold}!"
+  ---
   :::
 
 #links
@@ -98,87 +102,82 @@ images:
   :::
 ::
 
-::u-container{#contact .mb-6 .sm:mb-4 .flex .flex-col .lg:flex-row .md:justify-between .gap-2 .sm:gap-4 .px-1 .sm:px-3 .md:px-4 .lg:px-6}
-  :::u-page-feature
-  #title
-  Contact us
+::u-container{#contact .scroll-mt-20 .py-12 .sm:py-16 .px-4 .sm:px-6 .lg:px-8}
+  :::div{.grid .items-start .gap-8 .lg:grid-cols-2 .lg:gap-16}
+    ::::div{.space-y-4}
+    ## Contact us
 
-  #description
-  Send us a message if you have any questions, a Frigear volunteer will get back to you ASAP 💜 :br
-  Check our social media while you are waiting 🐼
+    Send us a message if you have any questions, a Frigear volunteer will get back to you ASAP 💜
 
-  :u-separator
+    Check our social media while you are waiting 🐼
 
-    ::::div{.mb-4 .sm:mb-2 .mt-4 .sm:mt-2 .flex .gap-2}
-      :::::u-button
-      ---
-      title: Frigear Instagram
-      icon: i-simple-icons-instagram
-      size: xl
-      target: _blank
-      rel: "noopener noreferrer"
-      to: https://www.instagram.com/frigear.nu
-      variant: subtle
-      ---
-      :::::
+    :u-separator
 
-      :::::u-button
-      ---
-      title: Frigear Facebook
-      icon: i-simple-icons-facebook
-      size: xl
-      target: _blank
-      rel: "noopener noreferrer"
-      to: https://www.facebook.com/Frigear.nu
-      variant: subtle
-      ---
-      :::::
+      :::::div{.flex .flex-wrap .gap-2}
+        ::::::u-button
+        ---
+        title: Frigear Instagram
+        icon: i-simple-icons-instagram
+        size: xl
+        target: _blank
+        rel: "noopener noreferrer"
+        to: https://www.instagram.com/frigear.nu
+        variant: subtle
+        ---
+        ::::::
 
-      :::::u-button
-      ---
-      title: Frigear LinkedIn
-      icon: i-simple-icons-linkedin
-      size: xl
-      target: _blank
-      rel: "noopener noreferrer"
-      to: https://www.linkedin.com/company/frigear
-      variant: subtle
-      ---
-      :::::
-      
-      :::::u-button
-      ---
-      title: Frigear TikTok
-      icon: i-simple-icons-tiktok
-      size: xl
-      target: _blank
-      rel: "noopener noreferrer"
-      to: https://www.tiktok.com/@frigear.nu
-      variant: subtle
-      ---
-      :::::
-      
-      :::::u-button
-      ---
-      title: Frigear YouTube
-      icon: i-simple-icons-youtube
-      size: xl
-      target: _blank
-      rel: "noopener noreferrer"
-      to: https://www.youtube.com/@frigear
-      variant: subtle
-      ---
+        ::::::u-button
+        ---
+        title: Frigear Facebook
+        icon: i-simple-icons-facebook
+        size: xl
+        target: _blank
+        rel: "noopener noreferrer"
+        to: https://www.facebook.com/Frigear.nu
+        variant: subtle
+        ---
+        ::::::
+
+        ::::::u-button
+        ---
+        title: Frigear LinkedIn
+        icon: i-simple-icons-linkedin
+        size: xl
+        target: _blank
+        rel: "noopener noreferrer"
+        to: https://www.linkedin.com/company/frigear
+        variant: subtle
+        ---
+        ::::::
+
+        ::::::u-button
+        ---
+        title: Frigear TikTok
+        icon: i-simple-icons-tiktok
+        size: xl
+        target: _blank
+        rel: "noopener noreferrer"
+        to: https://www.tiktok.com/@frigear.nu
+        variant: subtle
+        ---
+        ::::::
+
+        ::::::u-button
+        ---
+        title: Frigear YouTube
+        icon: i-simple-icons-youtube
+        size: xl
+        target: _blank
+        rel: "noopener noreferrer"
+        to: https://www.youtube.com/@frigear
+        variant: subtle
+        ---
+        ::::::
       :::::
     ::::
-  :::
 
-  :::u-card{.w-full .lg:w-lg}
-  ---
-  variant: subtle
-  ui:
-    body: p-2 sm:p-4
-  ---
-  
-  :site-contact-form
+    ::::div{.w-full}
+    :site-contact-form
+    ::::
   :::
 ::

@@ -1,4 +1,5 @@
 ---
+container: true
 title: Terms & Conditions
 description: Terms & Conditions for Frigear (membership, merchandise, tickets and donations).
 ---

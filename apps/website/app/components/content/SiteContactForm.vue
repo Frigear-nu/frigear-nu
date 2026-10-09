@@ -181,7 +181,7 @@ function onError(event: FormErrorEvent) {
 
 <template>
   <UPageCard
-    class="w-full max-w-lg"
+    class="w-full"
     :variant="mode === 'slim' ? 'naked' : undefined"
   >
     <template

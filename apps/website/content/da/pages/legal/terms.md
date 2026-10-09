@@ -1,4 +1,5 @@
 ---
+container: true
 title: Handelsbetingelser
 description: Handelsbetingelser for Frigear (medlemskab, merchandise, billetter og donationer).
 ---
