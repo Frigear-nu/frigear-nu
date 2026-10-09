@@ -1,0 +1,84 @@
+{
+  "forms": {
+    "actions": {
+      "next": "Næste",
+      "back": "Tilbage",
+      "submit": "Send",
+      "sendAnother": "Send en ny"
+    },
+    "step": {
+      "progress": "Trin {current} af {total}"
+    },
+    "success": {
+      "title": "Tak!",
+      "description": "Dine svar er sendt."
+    },
+    "error": {
+      "generic": "Noget gik galt. Prøv igen.",
+      "invalid": "Tjek de markerede felter.",
+      "notFound": "Formularen blev ikke fundet."
+    },
+    "preview": {
+      "notSent": "Forhåndsvisning: intet blev sendt."
+    },
+    "value": {
+      "yes": "Ja",
+      "no": "Nej"
+    },
+    "status": {
+      "draft": "Kladde",
+      "published": "Udgivet",
+      "archived": "Arkiveret"
+    },
+    "delivery": {
+      "none": "Ikke leveret",
+      "pending": "Afventer",
+      "delivered": "Leveret",
+      "failed": "Levering fejlede"
+    },
+    "validation": {
+      "required": "Feltet er påkrævet.",
+      "email": "Indtast en gyldig e-mailadresse.",
+      "tel": "Indtast et gyldigt telefonnummer.",
+      "date": "Indtast en gyldig dato.",
+      "option": "Vælg en af mulighederne.",
+      "min": "Skal være mindst {min}.",
+      "max": "Må højst være {max}.",
+      "minLength": "Indtast mindst {min} tegn.",
+      "maxLength": "Indtast højst {max} tegn.",
+      "pattern": "Værdien har et ugyldigt format.",
+      "maxFiles": "Upload højst {max} fil(er).",
+      "maxSize": "{name} er større end {max} MB.",
+      "accept": "{name} er ikke en tilladt filtype."
+    },
+    "admin": {
+      "title": "Formularer",
+      "new": "Ny formular",
+      "import": "Importér",
+      "edit": "Rediger",
+      "create": "Opret",
+      "save": "Gem",
+      "saved": "Gemt.",
+      "name": "Navn",
+      "slug": "Slug",
+      "slugHint": "Bruges i den offentlige adresse.",
+      "status": "Status",
+      "empty": "Ingen formularer endnu.",
+      "stepped": "Flere trin",
+      "single": "Én side",
+      "notStored": "Gemmes ikke",
+      "submissions": "Besvarelser ({count})",
+      "submissionsTitle": "Besvarelser",
+      "noSubmissions": "Ingen besvarelser endnu.",
+      "redeliver": "Lever igen",
+      "forbidden": "Du har ikke adgang til at administrere formularer.",
+      "imported": "Importerede {inserted}, sprang {skipped} eksisterende over.",
+      "invalidJson": "JSON er ugyldig.",
+      "importHint": "Indsæt én formular eller en liste af formularer (hver med slug, name og definition). Formularer med et eksisterende slug springes over.",
+      "definition": "Definition (JSON)",
+      "invalidDefinition": "Definitionen har fejl",
+      "preview": "Forhåndsvisning",
+      "previewUnavailable": "Ret definitionen for at se en forhåndsvisning."
+    }
+  }
+}

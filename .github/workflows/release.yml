@@ -19,6 +19,7 @@ on:
           - subscriptions
           - payments
           - events
+          - forms
           - cookie-consent
           - menu
           - notify

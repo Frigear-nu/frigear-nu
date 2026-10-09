@@ -1,0 +1,250 @@
+import { fileURLToPath } from 'node:url'
+import { rm } from 'node:fs/promises'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
+import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { registerUser } from './helpers'
+import type { FormDefinition } from '../src/types'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
+type Json = Record<string, any>
+
+const json = (cookie: string | undefined, method: string, path: string, body?: unknown) => fetch(path, {
+  method,
+  headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+  body: body === undefined ? undefined : JSON.stringify(body),
+})
+const ok = async (response: Response) => {
+  expect(response.status, await response.clone().text()).toBeLessThan(300)
+  return response.json() as Promise<Json>
+}
+
+const stepped: FormDefinition = {
+  mode: 'stepped',
+  storage: 'db',
+  steps: [
+    { id: 'who', fields: [
+      { key: 'name', type: 'text', required: true },
+      { key: 'kind', type: 'radio', required: true, options: [{ value: 'org', label: { en: 'Organisation', da: 'Organisation' } }, { value: 'person', label: 'Person' }] },
+    ] },
+    { id: 'org', showIf: { field: 'kind', op: 'eq', value: 'org' }, fields: [{ key: 'orgName', type: 'text', required: true }] },
+    { id: 'files', fields: [
+      { key: 'logo', type: 'file', multiple: true, validation: { maxSize: 1000, accept: ['image/*', 'text/plain'] } },
+      { key: 'terms', type: 'checkbox', required: true },
+    ] },
+  ],
+}
+
+let counter = 0
+const slug = (prefix: string) => `${prefix.toLowerCase().replaceAll(' ', '-')}-${++counter}`
+
+describe('forms (authenticated, database-backed)', async () => {
+  const rootDir = fileURLToPath(new URL('./fixtures/authenticated', import.meta.url))
+  const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
+  await rm(dataDir, { recursive: true, force: true })
+  afterAll(() => rm(dataDir, { recursive: true, force: true }))
+
+  await setup({ rootDir, dev: true })
+
+  let staff: { cookie: string }
+  let nobody: { cookie: string }
+  beforeAll(async () => {
+    staff = await registerUser('Staff', 'staff@staff.test')
+    nobody = await registerUser('Nobody', 'nobody@example.com')
+  })
+
+  const create = async (name: string, definition: FormDefinition, status = 'published') =>
+    ok(await json(staff.cookie, 'POST', '/api/forms/admin/forms', { slug: slug(name), name, status, definition }))
+  const submit = (formSlug: string, answers: Json, cookie?: string) =>
+    json(cookie, 'POST', `/api/forms/${formSlug}/submit`, { answers, locale: 'en' })
+  const counts = () => $fetch<{ submissions: number, files: number }>('/api/test/counts')
+
+  describe('staff gate', () => {
+    it('denies by default: anonymous 401, non-staff 403', async () => {
+      expect((await json(undefined, 'GET', '/api/forms/admin/forms')).status).toBe(401)
+      expect((await json(nobody.cookie, 'GET', '/api/forms/admin/forms')).status).toBe(403)
+      expect((await json(nobody.cookie, 'POST', '/api/forms/admin/import', { forms: [] })).status).toBe(403)
+    })
+
+    it('rejects invalid definitions and reserved slugs', async () => {
+      const bad = await json(staff.cookie, 'POST', '/api/forms/admin/forms', {
+        slug: 'bad', name: 'Bad', definition: { mode: 'single', storage: 'none', steps: [{ id: 's', fields: [{ key: 'f', type: 'file' }] }] },
+      })
+      expect(bad.status).toBe(400)
+      const reserved = await json(staff.cookie, 'POST', '/api/forms/admin/forms', {
+        slug: 'admin', name: 'Admin', definition: { mode: 'single', steps: [{ id: 's', fields: [] }] },
+      })
+      expect(reserved.status).toBe(400)
+    })
+  })
+
+  describe('public form', () => {
+    it('serves only published forms, without delivery details', async () => {
+      const form = await create('Public', {
+        ...stepped,
+        delivery: { email: { to: ['hidden@example.com'] } },
+      })
+      const publicForm = await ok(await json(undefined, 'GET', `/api/forms/${form.slug}`))
+      expect(publicForm.definition.steps).toHaveLength(3)
+      expect(publicForm.definition).not.toHaveProperty('delivery')
+
+      const draft = await create('Draft', stepped, 'draft')
+      expect((await json(undefined, 'GET', `/api/forms/${draft.slug}`)).status).toBe(404)
+      expect((await json(undefined, 'GET', '/api/forms/nope')).status).toBe(404)
+      expect((await submit(draft.slug, {})).status).toBe(404)
+    })
+  })
+
+  describe('pages', () => {
+    it('server-renders the public form and the admin shells', async () => {
+      const form = await create('Rendered', {
+        mode: 'stepped',
+        storage: 'db',
+        steps: [{ id: 'one', title: { en: 'Step title' }, fields: [{ key: 'name', type: 'text', label: { en: 'Your name' }, required: true }] }, { id: 'two', fields: [] }],
+      })
+      const html = await $fetch<string>(`/forms/${form.slug}`)
+      expect(html).toContain('Rendered')
+      expect(html).toContain('Step 1 of 2')
+      expect(html).toContain('Step title')
+      expect(html).toContain('Your name')
+
+      expect(await $fetch<string>('/forms/does-not-exist')).toContain('This form could not be found.')
+      // Anonymous: the shell renders and shows the "not allowed" state (the API answers 401).
+      const admin = await fetch('/admin/forms')
+      const adminHtml = await admin.text()
+      expect(admin.status, adminHtml.slice(0, 600)).toBe(200)
+      expect(adminHtml).toContain('You are not allowed to manage forms.')
+    })
+  })
+
+  describe('submitting (storage: db)', () => {
+    it('validates the whole form, skipping hidden steps', async () => {
+      const form = await create('Stepped', stepped)
+
+      const empty = await submit(form.slug, {})
+      expect(empty.status).toBe(422)
+      const { data } = await empty.json() as Json
+      expect(data.issues.map((issue: Json) => issue.path[0]).sort()).toEqual(['kind', 'name', 'terms'])
+
+      // `org` step is only required when kind = org.
+      expect((await submit(form.slug, { name: 'Ada', kind: 'org', terms: true })).status).toBe(422)
+      expect((await submit(form.slug, { name: 'Ada', kind: 'person', terms: true, orgName: 'stale' })).status).toBe(200)
+    })
+
+    it('stores answers with the definition snapshot and the signed-in user', async () => {
+      const form = await create('Stored', stepped)
+      const response = await ok(await submit(form.slug, { name: 'Ada', kind: 'org', orgName: 'Acme', terms: true, injected: 1 }, nobody.cookie))
+      expect(response.id).toMatch(/^fsb_/)
+
+      const detail = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${response.id}`))
+      expect(detail.answers).toEqual({ name: 'Ada', kind: 'org', orgName: 'Acme', terms: true, logo: [] })
+      expect(detail.definition.steps).toHaveLength(3)
+      expect(detail.formVersion).toBe(1)
+      expect(detail.userId).toBeTypeOf('number')
+      expect(detail.deliveryStatus).toBe('none')
+
+      const list = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/forms/${form.id}/submissions`))
+      expect(list).toHaveLength(1)
+      expect(list[0].preview[0]).toEqual({ label: 'name', value: 'Ada' })
+    })
+
+    it('keeps the snapshot when the definition is edited later', async () => {
+      const form = await create('Versioned', stepped)
+      const { id } = await ok(await submit(form.slug, { name: 'Ada', kind: 'person', terms: true }))
+
+      const edited = structuredClone(stepped)
+      edited.steps[0]!.fields.push({ key: 'extra', type: 'text', required: true })
+      const patched = await ok(await json(staff.cookie, 'PATCH', `/api/forms/admin/forms/${form.id}`, { definition: edited }))
+      expect(patched.version).toBe(2)
+      // Same definition again does not bump the version.
+      expect((await ok(await json(staff.cookie, 'PATCH', `/api/forms/admin/forms/${form.id}`, { definition: edited }))).version).toBe(2)
+
+      const detail = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${id}`))
+      expect(detail.formVersion).toBe(1)
+      expect(detail.definition.steps[0].fields.map((field: Json) => field.key)).toEqual(['name', 'kind'])
+      expect((await submit(form.slug, { name: 'Ada', kind: 'person', terms: true })).status).toBe(422)
+    })
+
+    it('uploads files, enforces limits and serves them to staff only', async () => {
+      const form = await create('Files', stepped)
+      const send = (files: { name: string, type: string, content: string }[]) => {
+        const body = new FormData()
+        body.append('answers', JSON.stringify({ name: 'Ada', kind: 'person', terms: true }))
+        body.append('locale', 'en')
+        for (const file of files) body.append('file:logo', new File([file.content], file.name, { type: file.type }))
+        return fetch(`/api/forms/${form.slug}/submit`, { method: 'POST', body })
+      }
+
+      expect((await send([{ name: 'big.txt', type: 'text/plain', content: 'x'.repeat(2000) }])).status).toBe(422)
+      expect((await send([{ name: 'a.pdf', type: 'application/pdf', content: 'x' }])).status).toBe(422)
+
+      const { id } = await ok(await send([{ name: 'notes.txt', type: 'text/plain', content: 'hello' }]))
+      const detail = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${id}`))
+      expect(detail.files).toHaveLength(1)
+      expect(detail.answers.logo).toEqual([{ name: 'notes.txt', size: 5, type: 'text/plain' }])
+
+      const url = `/api/forms/admin/submissions/${id}/files/${detail.files[0].id}`
+      expect((await json(undefined, 'GET', url)).status).toBe(401)
+      expect((await json(nobody.cookie, 'GET', url)).status).toBe(403)
+      const download = await json(staff.cookie, 'GET', url)
+      expect(download.status).toBe(200)
+      expect(await download.text()).toBe('hello')
+      expect(download.headers.get('content-disposition')).toContain('notes.txt')
+    })
+  })
+
+  describe('delivery', () => {
+    const single = (storage: 'db' | 'none'): FormDefinition => ({
+      mode: 'single',
+      storage,
+      steps: [{ id: 'main', fields: [{ key: 'message', type: 'textarea', required: true }] }],
+    })
+
+    it('emits forms:submitted and records delivery failures without failing a stored submission', async () => {
+      await $fetch('/api/test/captured?reset=1')
+      const form = await create('Failing', single('db'))
+      const failing = await ok(await json(staff.cookie, 'PATCH', `/api/forms/admin/forms/${form.id}`, { slug: slug('failing') }))
+
+      const { id } = await ok(await submit(failing.slug, { message: 'hi' }))
+      const detail = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${id}`))
+      expect(detail.deliveryStatus).toBe('failed')
+      expect(detail.deliveryError).toBe('listener failed')
+
+      const captured = await $fetch<Json[]>('/api/test/captured')
+      expect(captured).toEqual([expect.objectContaining({ slug: failing.slug, submissionId: id, stored: true })])
+    })
+
+    it('storage: none writes nothing, emits the hook and surfaces delivery errors', async () => {
+      await $fetch('/api/test/captured?reset=1')
+      const before = await counts()
+
+      const form = await create('Mail only', single('none'))
+      const response = await ok(await submit(form.slug, { message: 'hello' }))
+      expect(response.id).toBeNull()
+      expect(await counts()).toEqual(before)
+      expect(await $fetch<Json[]>('/api/test/captured')).toEqual([
+        expect.objectContaining({ slug: form.slug, submissionId: null, stored: false, answers: { message: 'hello' } }),
+      ])
+      expect((await submit(form.slug, {})).status).toBe(422)
+
+      const failing = await ok(await json(staff.cookie, 'POST', '/api/forms/admin/forms', {
+        slug: slug('failing-none'), name: 'Failing none', status: 'published', definition: single('none'),
+      }))
+      expect((await submit(failing.slug, { message: 'hello' })).status).toBe(502)
+      expect(await counts()).toEqual(before)
+    })
+  })
+
+  describe('import', () => {
+    it('inserts new slugs and skips existing ones, never overwriting', async () => {
+      const entry = (name: string) => ({ slug: 'imported-form', name, definition: { mode: 'single', steps: [{ id: 's', fields: [] }] } })
+      const first = await ok(await json(staff.cookie, 'POST', '/api/forms/admin/import', { forms: [entry('First')] }))
+      expect(first).toEqual({ inserted: ['imported-form'], skipped: [] })
+      const second = await ok(await json(staff.cookie, 'POST', '/api/forms/admin/import', { forms: [entry('Second')] }))
+      expect(second).toEqual({ inserted: [], skipped: ['imported-form'] })
+
+      const list = await ok(await json(staff.cookie, 'GET', '/api/forms/admin/forms')) as unknown as Json[]
+      expect(list.find(form => form.slug === 'imported-form')?.name).toBe('First')
+      expect(list.find(form => form.slug === 'imported-form')?.status).toBe('draft')
+    })
+  })
+})
