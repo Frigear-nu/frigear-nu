@@ -10,6 +10,7 @@ const slices = [
   'packages/account/src/runtime/i18n/lang',
   'packages/subscriptions/src/runtime/i18n/lang',
   'packages/events/src/runtime/i18n/lang',
+  'packages/forms/src/runtime/i18n/lang',
 ]
 
 const load = (dir: string, locale: string): Record<string, unknown> =>

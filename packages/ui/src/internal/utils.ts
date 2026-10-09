@@ -1,7 +1,7 @@
 import type { Resolver } from '@nuxt/kit'
 
 // Registered through `i18n:registerModule`: `@nuxtjs/i18n` merges every `files` entry per locale,
-// so these shared strings (`common`, `actions`, `locale`, `steppedForm`) join the host's messages.
+// so these shared strings (`common`, `actions`, `locale`) join the host's messages.
 export const defaultI18nConfig = (
   resolver: Resolver,
 ) => {

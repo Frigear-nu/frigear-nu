@@ -39,7 +39,4 @@ export default defineAppConfig({
       },
     },
   },
-  autoForm: {
-    submit: false,
-  },
 })

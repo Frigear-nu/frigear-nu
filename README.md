@@ -26,3 +26,4 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/subscriptions](./packages/subscriptions) - Recurring Stripe subscriptions: host-defined plans, checkout, entitlements
 - [@frigear-nu/payments](./packages/payments) - One-time Stripe payments (Checkout, refunds) with lifecycle hooks driven by verified Stripe events
 - [@frigear-nu/events](./packages/events) - Events with ticket types, addons, capacity, membership requirements, payments and QR check-in
+- [@frigear-nu/forms](./packages/forms) - Dynamic, database-stored forms (single page or stepped) with conditional fields, file uploads, submissions and email delivery

@@ -19,6 +19,7 @@ on:
           - subscriptions
           - payments
           - events
+          - forms
           - menu
           - notify
           - users
