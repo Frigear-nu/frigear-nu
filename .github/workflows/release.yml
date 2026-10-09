@@ -133,6 +133,11 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
+      # Install and build once; the releases below reuse the result (release-it only rebuilds the package
+      # it bumps).
+      - name: Build packages
+        run: pnpm build:packages
+
       - uses: actions/download-artifact@v4
         with:
           pattern: verified-*
@@ -151,6 +156,9 @@ jobs:
           RELEASE_BRANCH: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_LOGLEVEL: verbose
+          # release-it bumps package.json before its `pnpm run build` hook; without this pnpm notices the
+          # changed manifest and re-runs a full install (all postinstalls) for every package.
+          npm_config_verify_deps_before_run: 'false'
         run: |
           failed=()
           for package in $(jq -r '.[]' <<< "$PACKAGES"); do
