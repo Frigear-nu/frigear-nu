@@ -21,6 +21,7 @@ export default defineNuxtConfig({
     '@frigear-nu/subscriptions',
     '@frigear-nu/payments',
     '@frigear-nu/events',
+    '@frigear-nu/cookie-consent',
     '@frigear-nu/oauth-server',
   ],
 
@@ -117,6 +118,9 @@ export default defineNuxtConfig({
     settings: {
       pages: { index: true, profile: true, security: true },
     },
+  },
+  cookieConsent: {
+    policyUrl: '/legal/gdpr',
   },
   eslint: {
     config: {

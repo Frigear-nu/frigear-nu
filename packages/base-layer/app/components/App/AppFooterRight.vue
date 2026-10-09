@@ -47,5 +47,14 @@ const footerLinks = computed<FooterLink[]>(() => props.links !== undefined ? pro
       v-bind="{ color: 'neutral', variant: 'ghost', ...link }"
     />
   </template>
+  <CookieConsentManage
+    class="inline-flex size-8 items-center justify-center rounded-md text-muted hover:bg-elevated"
+    aria-label="Manage cookies"
+  >
+    <UIcon
+      name="i-lucide-cookie"
+      class="size-5"
+    />
+  </CookieConsentManage>
   <UColorModeButton />
 </template>
