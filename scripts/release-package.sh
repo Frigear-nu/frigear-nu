@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Releases one package: `release-package.sh <package> <increment>`, run from the repo root.
+# Versions one package: `release-package.sh <package> <increment>`, run from the repo root.
 #
 # - If a previous run pushed the version commit + tag but never reached npm (e.g. an auth failure),
-#   the tagged version is built and published instead of cutting a new release.
-# - Otherwise runs release-it (bump, commit, tag, push, GitHub release, npm publish).
+#   nothing is bumped; the package is simply queued for publishing again.
+# - Otherwise runs release-it (bump, commit, tag, push, GitHub release) without its hooks: building and
+#   publishing happen afterwards for all packages at once, see scripts/publish-released.sh.
 #
-# Expects the branch to be checked out, `pnpm install` and `pnpm build:packages` to have run. $RELEASE_BRANCH names the branch to
-# return to after a recovery publish.
+# The package is appended to $RELEASED_FILE, the list of packages publish-released.sh publishes.
+# Expects the branch to be checked out and `pnpm install` to have run.
 set -euo pipefail
 
 package=$1
@@ -28,15 +29,11 @@ tag="$package@$version"
 
 if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null &&
    ! npm view "$name@$version" version >/dev/null 2>&1; then
-  echo "Resuming incomplete release $tag"
-  git checkout --detach "$tag"
-  pnpm install --frozen-lockfile
-  pnpm --filter "{$dir}^..." run --if-present build
-  pnpm --filter "./$dir" run --if-present build
-  (cd "$dir" && bash ../../scripts/npm-publish.sh)
-  git checkout "${RELEASE_BRANCH:?}"
-  pnpm install --frozen-lockfile
+  echo "$tag is tagged but not on npm; it will be published without a new release"
 else
-  # Dependencies are already built (the workflow runs `pnpm build:packages` once up front).
-  (cd "$dir" && pnpm exec release-it "$increment" --ci)
+  # Calls the binary directly: going through `pnpm exec` makes pnpm re-verify (and re-run) the install
+  # because the previous package's version bump changed a manifest.
+  (cd "$dir" && ../../node_modules/.bin/release-it "$increment" --ci --no-hooks)
 fi
+
+echo "$package" >> "${RELEASED_FILE:?}"

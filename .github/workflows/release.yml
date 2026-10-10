@@ -5,11 +5,11 @@
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
 #
-# Choosing `all` releases every package with the same increment. Each package is built and tested
-# in parallel (`verify`), then the packages that passed are released one after another, in dependency
-# order (`release`), because every release pushes a commit and tag to the branch. A failure in one
-# package does not stop the others, but fails the run. Keep the `all` list in the `prepare` job in
-# sync with the `package` choices.
+# Choosing `all` releases every package with the same increment. Everything is installed and built once,
+# the selected packages are tested in parallel, the ones that passed are versioned one after another
+# (each release pushes a commit and tag to the branch), and finally all of them are built and published
+# to npm in parallel. A failure in one package does not stop the others, but fails the run. Keep the
+# `all` list in the `prepare` job in sync with the `package` choices.
 name: Release
 
 on:
@@ -72,48 +72,8 @@ jobs:
           fi
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
-  # Builds and tests every package in parallel. Nothing is pushed or published here.
-  verify:
-    needs: prepare
-    name: verify (${{ matrix.package }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJSON(needs.prepare.outputs.packages) }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-
-      # Builds every workspace package the selected package depends on (recursively), so that e.g.
-      # `users` sees `module-kit`'s dist output and `base-layer`/`events` see `schema`'s.
-      - name: Build package dependencies
-        run: pnpm --filter "{packages/${{ matrix.package }}}^..." run --if-present build
-
-      - name: Test package
-        run: pnpm --filter "./packages/${{ matrix.package }}" run --if-present test
-
-      - name: Mark as verified
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: |
-          mkdir verified
-          echo "$PACKAGE" > "verified/$PACKAGE"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: verified-${{ matrix.package }}
-          path: verified/${{ matrix.package }}
-
-  # Releases the verified packages one at a time. Runs even if some packages failed to verify, so one
-  # broken package does not block the rest.
   release:
-    needs: [prepare, verify]
-    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       # Needed to push the version bump commit/tag and create the GitHub release.
@@ -133,16 +93,18 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      # Install and build once; the releases below reuse the result (release-it only rebuilds the package
-      # it bumps).
       - name: Build packages
         run: pnpm build:packages
 
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: verified-*
-          path: verified
-          merge-multiple: true
+      # Nothing is pushed or published until the tests have run. Passing packages get a marker file in
+      # `verified/`; a failure here only means that package is skipped below.
+      - name: Test packages
+        env:
+          PACKAGES: ${{ needs.prepare.outputs.packages }}
+        run: |
+          mkdir verified
+          jq -r '.[]' <<< "$PACKAGES" | xargs -P 3 -I{} sh -c \
+            'pnpm --filter "./packages/$1" run --if-present test && touch "verified/$1"' _ {} || true
 
       - name: Configure git identity
         run: |
@@ -154,20 +116,18 @@ jobs:
           PACKAGES: ${{ needs.prepare.outputs.packages }}
           INCREMENT: ${{ inputs.increment }}
           RELEASE_BRANCH: ${{ github.ref_name }}
+          RELEASED_FILE: ${{ runner.temp }}/released
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_LOGLEVEL: verbose
-          # release-it bumps package.json before its `pnpm run build` hook; without this pnpm notices the
-          # changed manifest and re-runs a full install (all postinstalls) for every package.
-          npm_config_verify_deps_before_run: 'false'
         run: |
           failed=()
           for package in $(jq -r '.[]' <<< "$PACKAGES"); do
             if [ ! -f "verified/$package" ]; then
-              echo "::error::Skipping $package: build/test did not pass"
+              echo "::error::Skipping $package: tests did not pass"
               failed+=("$package")
               continue
             fi
-            echo "::group::Release $package"
+            echo "::group::Version $package"
             if bash scripts/release-package.sh "$package" "$INCREMENT"; then
               echo "::endgroup::"
             else
@@ -179,6 +139,9 @@ jobs:
               git checkout --quiet "$RELEASE_BRANCH"
             fi
           done
+
+          # Publish what was versioned, even if some packages failed.
+          bash scripts/publish-released.sh "$RELEASED_FILE" || failed+=("(npm publish)")
 
           if [ ${#failed[@]} -gt 0 ]; then
             echo "::error::Not released: ${failed[*]}"
