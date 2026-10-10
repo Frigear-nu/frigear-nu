@@ -23,7 +23,7 @@ export interface Ability<User = any> {
 /** Call-site arguments of an ability, inferred from the policy signature. */
 export type AbilityArgs<A extends Ability> = A extends { original: (user: any, ...args: infer Args) => AuthorizerResponse } ? Args : never
 
-/** Declarative rule used in `routeRules[...].authorization` and `definePageMeta({ authorize })`. */
+/** Declarative rule: the keys of a `routeRules` entry, or the object form of `definePageMeta({ authorize })`. */
 export interface RouteRule {
   /** Allowed roles (matched against `user.role`). */
   roles?: string[]
@@ -33,7 +33,12 @@ export interface RouteRule {
   args?: unknown[]
   /** Let unauthenticated visitors through (the ability/roles checks still apply). */
   guest?: boolean
+  /** `true`: require a logged-in user. `false`: no authorization at all (opens a sub-route of a protected pattern). */
+  authenticated?: boolean
 }
+
+/** The authorization keys that go directly on a `routeRules` entry. */
+export const ROUTE_RULE_KEYS = ['roles', 'ability', 'guest', 'authenticated'] as const
 
 /** What `definePageMeta({ authorize })` accepts. */
 export type AuthorizeMeta = string | Ability | RouteRule

@@ -12,12 +12,12 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    '/admin/**': { authorization: { roles: ['admin'] } },
-    '/api/admin/**': { authorization: { roles: ['admin'] } },
-    // A more specific pattern wins over `/admin/**`, so this page is open again.
-    '/admin/public': { authorization: false },
-    '/ability-rule': { authorization: { ability: 'isAdmin' } },
-    '/api/members': { authorization: true },
+    '/admin/**': { roles: ['admin'] },
+    '/api/admin/**': { roles: ['admin'] },
+    // A more specific pattern overrides `/admin/**`, so this page is open again.
+    '/admin/public': { authenticated: false },
+    '/ability-rule': { ability: 'isAdmin' },
+    '/api/members': { authenticated: true },
   },
   hub: {
     db: {
@@ -25,5 +25,9 @@ export default defineNuxtConfig({
       driver: 'libsql',
       applyMigrationsDuringBuild: false,
     },
+  },
+  users: {
+    mode: 'server',
+    settings: { migrations: true, password: true },
   },
 })

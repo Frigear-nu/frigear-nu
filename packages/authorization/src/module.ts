@@ -14,9 +14,10 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import { extendDatabaseTable, registerModule } from '@frigear-nu/module-kit/utils'
-import type { AuthorizationRouteRule, ModuleOptions, PublicModuleOptions } from './types'
+import { ROUTE_RULE_KEYS } from './runtime/utils/types'
+import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
-export type { AuthorizationRouteRule, ModuleOptions, PublicModuleOptions } from './types'
+export type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 export type { Ability, AbilityArgs, AuthorizeMeta, RouteRule, AuthorizationResponse } from './runtime/utils/types'
 
 declare module 'nuxt/schema' {
@@ -54,15 +55,17 @@ export default defineNuxtModule<ModuleOptions>({
       redirectTo: options.redirectTo,
     }
 
-    // Rules live in the native `routeRules` (`'/admin/**': { authorization: { roles: ['admin'] } }`). Nuxt's
-    // app-side route rules matcher only keeps known keys, so the `authorization` entries are collected here
-    // (once every module has had its say) and shipped through public runtime config.
+    // Rules are keys on the native `routeRules` (`'/admin/**': { roles: ['admin'] }`). Nuxt's app-side route
+    // rules matcher only keeps known keys, so they are collected here (once every module has had its say)
+    // and shipped through public runtime config.
     nuxt.hook('modules:done', () => {
-      const routes: Record<string, AuthorizationRouteRule> = {}
+      const routes: Record<string, AuthorizationRouteRules> = {}
       const sources = [nuxt.options.routeRules, nuxt.options.nitro?.routeRules]
       for (const [pattern, rule] of sources.flatMap(source => Object.entries(source ?? {}))) {
-        const authorization = (rule as { authorization?: AuthorizationRouteRule }).authorization
-        if (authorization !== undefined) routes[pattern] = authorization
+        const picked = Object.fromEntries(ROUTE_RULE_KEYS
+          .filter(key => (rule as Record<string, unknown>)[key] !== undefined)
+          .map(key => [key, (rule as Record<string, unknown>)[key]]))
+        if (Object.keys(picked).length) routes[pattern] = { ...routes[pattern], ...picked }
       }
       nuxt.options.runtimeConfig.public.authorization = { routes, redirectTo: options.redirectTo }
     })

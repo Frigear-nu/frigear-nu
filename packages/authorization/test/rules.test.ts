@@ -53,19 +53,19 @@ describe('route matching', () => {
     expect(matchRoute('/**', '/anything')).toBe(true)
   })
 
-  it('resolves the most specific rule, like Nitro route rules', () => {
+  it('merges matching patterns per key, most specific last, like Nitro route rules', () => {
     const routes = {
       '/**': { guest: true },
       '/admin/**': { roles: ['admin'] },
-      '/admin/public': false,
+      '/admin/public': { authenticated: false },
       '/admin/*/edit': { roles: ['editor'] },
-      '/members': true,
+      '/members': { authenticated: true },
     }
     expect(resolveRule(routes, '/pricing')).toEqual({ guest: true })
-    expect(resolveRule(routes, '/admin/users')).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, '/admin/users')).toEqual({ guest: true, roles: ['admin'] })
     expect(resolveRule(routes, '/admin/public')).toBeUndefined()
-    expect(resolveRule(routes, '/admin/7/edit')).toEqual({ roles: ['editor'] })
-    expect(resolveRule(routes, '/members')).toEqual({})
+    expect(resolveRule(routes, '/admin/7/edit')).toEqual({ guest: true, roles: ['editor'] })
+    expect(resolveRule(routes, '/members')).toEqual({ guest: true, authenticated: true })
     expect(resolveRule(undefined, '/x')).toBeUndefined()
   })
 })

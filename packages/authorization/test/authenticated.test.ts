@@ -100,7 +100,7 @@ describe('authorization (authenticated)', async () => {
       expect(await ok.text()).toContain('admin-area')
     })
 
-    it('lets a more specific `authorization: false` rule open a sub-route', async () => {
+    it('lets a more specific `authenticated: false` rule open a sub-route', async () => {
       const response = await page('/admin/public')
       expect(response.status).toBe(200)
       expect(await response.text()).toContain('admin-public-page')

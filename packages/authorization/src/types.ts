@@ -20,27 +20,25 @@ export interface ModuleOptions {
 }
 
 /**
- * The value of `routeRules[pattern].authorization`: a rule, `true` (any logged-in user) or `false` (open up a
- * sub-route of a protected pattern). Ability names refer to exports of the abilities file and take no arguments.
+ * Authorization keys that go directly on a `routeRules` entry. Ability names refer to exports of the abilities
+ * file and take no arguments.
  */
-export type AuthorizationRouteRule = Omit<RouteRule, 'args' | 'ability'> & { ability?: string } | boolean
+export type AuthorizationRouteRules = Omit<RouteRule, 'args' | 'ability'> & { ability?: string }
 
 export interface PublicModuleOptions {
-  /** Collected from `routeRules[...].authorization` at build time. */
-  routes?: Record<string, AuthorizationRouteRule>
+  /** The authorization keys of `routeRules`, collected at build time. */
+  routes?: Record<string, AuthorizationRouteRules>
   redirectTo?: string
 }
 
 declare module 'nitropack' {
-  interface NitroRouteConfig {
-    authorization?: AuthorizationRouteRule
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- merges the authorization keys into route rules
+  interface NitroRouteConfig extends AuthorizationRouteRules {}
 }
 
 declare module 'nitropack/types' {
-  interface NitroRouteConfig {
-    authorization?: AuthorizationRouteRule
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- merges the authorization keys into route rules
+  interface NitroRouteConfig extends AuthorizationRouteRules {}
 }
 
 declare module '#app' {

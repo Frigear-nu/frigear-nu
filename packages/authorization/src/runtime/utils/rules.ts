@@ -31,17 +31,18 @@ function specificity(pattern: string): number {
 }
 
 /**
- * Resolve the rule for a path from `routeRules`-style entries. Like Nitro's route rules, the most specific
- * matching pattern wins; `false` switches authorization off for that path (e.g. to open up a sub-route).
- * `true` means "any logged-in user".
+ * Resolve the rule for a path from `routeRules`-style entries. Like Nitro's route rules, every matching pattern
+ * contributes and keys of more specific patterns override less specific ones. Returns `undefined` when nothing
+ * applies, including when the merged result says `authenticated: false`.
  */
-export function resolveRule(routes: Record<string, RouteRule | boolean> | undefined, path: string): RouteRule | undefined {
-  const [, match] = Object.entries(routes ?? {})
+export function resolveRule(routes: Record<string, RouteRule> | undefined, path: string): RouteRule | undefined {
+  const matches = Object.entries(routes ?? {})
     .filter(([pattern]) => matchRoute(pattern, path))
-    .map(([pattern, rule]) => [specificity(pattern), rule] as const)
-    .sort(([a], [b]) => b - a)[0] ?? []
-  if (match === undefined || match === false) return undefined
-  return match === true ? {} : match
+    .sort(([a], [b]) => specificity(a) - specificity(b))
+  if (!matches.length) return undefined
+
+  const rule: RouteRule = Object.assign({}, ...matches.map(([, entry]) => entry))
+  return rule.authenticated === false ? undefined : rule
 }
 
 export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule {
@@ -59,6 +60,8 @@ export async function evaluateRule(
   user: { role?: string } | null,
   abilities: AbilityRegistry = {},
 ): Promise<AuthorizationResponse> {
+  if (rule.authenticated === false) return { authorized: true }
+
   if (!user && !rule.guest) {
     return { authorized: false, statusCode: 401, message: 'Authentication required' }
   }
