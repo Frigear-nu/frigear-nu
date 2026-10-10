@@ -22,6 +22,7 @@ on:
         options:
           - all
           - account
+          - authorization
           - cookie-consent
           - events
           - forms
@@ -66,7 +67,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","users","oauth-server","account"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","users","oauth-server","account","authorization"]'
           else
             packages="[\"$PACKAGE\"]"
           fi
