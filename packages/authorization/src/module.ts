@@ -14,9 +14,9 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import { extendDatabaseTable, registerModule } from '@frigear-nu/module-kit/utils'
-import type { ModuleOptions, PublicModuleOptions } from './types'
+import type { AuthorizationRouteRule, ModuleOptions, PublicModuleOptions } from './types'
 
-export type { ModuleOptions, PublicModuleOptions } from './types'
+export type { AuthorizationRouteRule, ModuleOptions, PublicModuleOptions } from './types'
 export type { Ability, AbilityArgs, AuthorizeMeta, RouteRule, AuthorizationResponse } from './runtime/utils/types'
 
 declare module 'nuxt/schema' {
@@ -33,7 +33,6 @@ export default defineNuxtModule<ModuleOptions>({
   meta: { name: '@frigear-nu/authorization', configKey: 'authorization' },
   defaults: {
     resolvers: {},
-    routes: {},
   },
   moduleDependencies: {
     '@nuxthub/core': {
@@ -51,9 +50,22 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
 
     nuxt.options.runtimeConfig.public.authorization = {
-      routes: options.routes ?? {},
+      routes: {},
       redirectTo: options.redirectTo,
     }
+
+    // Rules live in the native `routeRules` (`'/admin/**': { authorization: { roles: ['admin'] } }`). Nuxt's
+    // app-side route rules matcher only keeps known keys, so the `authorization` entries are collected here
+    // (once every module has had its say) and shipped through public runtime config.
+    nuxt.hook('modules:done', () => {
+      const routes: Record<string, AuthorizationRouteRule> = {}
+      const sources = [nuxt.options.routeRules, nuxt.options.nitro?.routeRules]
+      for (const [pattern, rule] of sources.flatMap(source => Object.entries(source ?? {}))) {
+        const authorization = (rule as { authorization?: AuthorizationRouteRule }).authorization
+        if (authorization !== undefined) routes[pattern] = authorization
+      }
+      nuxt.options.runtimeConfig.public.authorization = { routes, redirectTo: options.redirectTo }
+    })
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.
     extendDatabaseTable(nuxt, {
@@ -152,11 +164,10 @@ export {}
       global: true,
     })
 
-    if (Object.keys(options.routes ?? {}).length) {
-      addServerHandler({
-        middleware: true,
-        handler: resolver.resolve('./runtime/server/middleware/authorization'),
-      })
-    }
+    // Cheap when no `routeRules` carry an `authorization` entry: only `/api/**` requests are inspected.
+    addServerHandler({
+      middleware: true,
+      handler: resolver.resolve('./runtime/server/middleware/authorization'),
+    })
   },
 })

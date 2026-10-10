@@ -15,19 +15,32 @@ export interface ModuleOptions {
     /** `() => User | null | Promise<User | null>` - runs in the app (client and SSR). */
     client?: string
   }
-  /**
-   * Declarative route rules, keyed by pattern (`/admin/**`, `/posts/*`, exact path). Page rules apply to
-   * navigation; `/api/**` rules also apply to server requests. All matching rules must pass.
-   * `definePageMeta({ authorize })` replaces the matching rules for that page.
-   */
-  routes?: Record<string, Omit<RouteRule, 'args'> & { ability?: string }>
   /** Where to send unauthenticated visitors on page navigation. Omit to show a 401 error instead. */
   redirectTo?: string
 }
 
+/**
+ * The value of `routeRules[pattern].authorization`: a rule, `true` (any logged-in user) or `false` (open up a
+ * sub-route of a protected pattern). Ability names refer to exports of the abilities file and take no arguments.
+ */
+export type AuthorizationRouteRule = Omit<RouteRule, 'args' | 'ability'> & { ability?: string } | boolean
+
 export interface PublicModuleOptions {
-  routes?: ModuleOptions['routes']
+  /** Collected from `routeRules[...].authorization` at build time. */
+  routes?: Record<string, AuthorizationRouteRule>
   redirectTo?: string
+}
+
+declare module 'nitropack' {
+  interface NitroRouteConfig {
+    authorization?: AuthorizationRouteRule
+  }
+}
+
+declare module 'nitropack/types' {
+  interface NitroRouteConfig {
+    authorization?: AuthorizationRouteRule
+  }
 }
 
 declare module '#app' {

@@ -100,6 +100,12 @@ describe('authorization (authenticated)', async () => {
       expect(await ok.text()).toContain('admin-area')
     })
 
+    it('lets a more specific `authorization: false` rule open a sub-route', async () => {
+      const response = await page('/admin/public')
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('admin-public-page')
+    })
+
     it('resolves abilities by name from the abilities file', async () => {
       expect((await page('/ability-rule', userCookie)).status).toBe(403)
       expect((await page('/ability-rule', adminCookie)).status).toBe(200)

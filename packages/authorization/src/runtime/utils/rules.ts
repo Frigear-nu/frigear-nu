@@ -23,10 +23,25 @@ export function matchRoute(pattern: string, path: string): boolean {
     && patternSegments.every((segment, index) => segment === '*' || segment === pathSegments[index])
 }
 
-export function matchingRules(routes: Record<string, RouteRule> | undefined, path: string): RouteRule[] {
-  return Object.entries(routes ?? {})
+/** How specific a pattern is - more literal segments win, and an exact pattern beats a trailing `/**`. */
+function specificity(pattern: string): number {
+  const segments = pattern.split('/').filter(Boolean)
+  const literals = segments.filter(segment => segment !== '*' && segment !== '**').length
+  return literals * 10 + (pattern.endsWith('/**') ? 0 : 5)
+}
+
+/**
+ * Resolve the rule for a path from `routeRules`-style entries. Like Nitro's route rules, the most specific
+ * matching pattern wins; `false` switches authorization off for that path (e.g. to open up a sub-route).
+ * `true` means "any logged-in user".
+ */
+export function resolveRule(routes: Record<string, RouteRule | boolean> | undefined, path: string): RouteRule | undefined {
+  const [, match] = Object.entries(routes ?? {})
     .filter(([pattern]) => matchRoute(pattern, path))
-    .map(([, rule]) => rule)
+    .map(([pattern, rule]) => [specificity(pattern), rule] as const)
+    .sort(([a], [b]) => b - a)[0] ?? []
+  if (match === undefined || match === false) return undefined
+  return match === true ? {} : match
 }
 
 export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule {
@@ -61,18 +76,5 @@ export async function evaluateRule(
     if (!response.authorized) return { statusCode: 403, message: 'Forbidden', ...response }
   }
 
-  return { authorized: true }
-}
-
-/** Evaluate every rule; the first denial wins. */
-export async function evaluateRules(
-  rules: RouteRule[],
-  user: { role?: string } | null,
-  abilities: AbilityRegistry = {},
-): Promise<AuthorizationResponse> {
-  for (const rule of rules) {
-    const response = await evaluateRule(rule, user, abilities)
-    if (!response.authorized) return response
-  }
   return { authorized: true }
 }

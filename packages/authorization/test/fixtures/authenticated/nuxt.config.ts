@@ -11,23 +11,19 @@ export default defineNuxtConfig({
       password: 'a-test-only-session-password-at-least-32-chars',
     },
   },
+  routeRules: {
+    '/admin/**': { authorization: { roles: ['admin'] } },
+    '/api/admin/**': { authorization: { roles: ['admin'] } },
+    // A more specific pattern wins over `/admin/**`, so this page is open again.
+    '/admin/public': { authorization: false },
+    '/ability-rule': { authorization: { ability: 'isAdmin' } },
+    '/api/members': { authorization: true },
+  },
   hub: {
     db: {
       dialect: 'sqlite',
       driver: 'libsql',
       applyMigrationsDuringBuild: false,
     },
-  },
-  authorization: {
-    routes: {
-      '/admin/**': { roles: ['admin'] },
-      '/api/admin/**': { roles: ['admin'] },
-      '/ability-rule': { ability: 'isAdmin' },
-      '/api/members': {},
-    },
-  },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
   },
 })

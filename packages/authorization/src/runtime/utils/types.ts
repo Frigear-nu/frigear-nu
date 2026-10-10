@@ -23,7 +23,7 @@ export interface Ability<User = any> {
 /** Call-site arguments of an ability, inferred from the policy signature. */
 export type AbilityArgs<A extends Ability> = A extends { original: (user: any, ...args: infer Args) => AuthorizerResponse } ? Args : never
 
-/** Declarative rule used in `authorization.routes` and `definePageMeta({ authorize })`. */
+/** Declarative rule used in `routeRules[...].authorization` and `definePageMeta({ authorize })`. */
 export interface RouteRule {
   /** Allowed roles (matched against `user.role`). */
   roles?: string[]

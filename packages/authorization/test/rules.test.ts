@@ -8,9 +8,8 @@ import {
   deny,
   denies,
   evaluateRule,
-  evaluateRules,
   matchRoute,
-  matchingRules,
+  resolveRule,
   normalizeAuthorizeMeta,
 } from '../src/runtime/utils'
 
@@ -54,9 +53,20 @@ describe('route matching', () => {
     expect(matchRoute('/**', '/anything')).toBe(true)
   })
 
-  it('collects every matching rule', () => {
-    const routes = { '/admin/**': { roles: ['admin'] }, '/**': { guest: true }, '/other': { roles: ['x'] } }
-    expect(matchingRules(routes, '/admin/a')).toHaveLength(2)
+  it('resolves the most specific rule, like Nitro route rules', () => {
+    const routes = {
+      '/**': { guest: true },
+      '/admin/**': { roles: ['admin'] },
+      '/admin/public': false,
+      '/admin/*/edit': { roles: ['editor'] },
+      '/members': true,
+    }
+    expect(resolveRule(routes, '/pricing')).toEqual({ guest: true })
+    expect(resolveRule(routes, '/admin/users')).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, '/admin/public')).toBeUndefined()
+    expect(resolveRule(routes, '/admin/7/edit')).toEqual({ roles: ['editor'] })
+    expect(resolveRule(routes, '/members')).toEqual({})
+    expect(resolveRule(undefined, '/x')).toBeUndefined()
   })
 })
 
@@ -83,11 +93,6 @@ describe('rule evaluation', () => {
 
   it('throws on an unknown ability name', async () => {
     await expect(evaluateRule({ ability: 'nope' }, admin, abilities)).rejects.toThrow('Unknown ability "nope"')
-  })
-
-  it('stops at the first denial', async () => {
-    const response = await evaluateRules([{ roles: ['admin'] }, { ability: 'isAdmin' }], owner, abilities)
-    expect(response).toMatchObject({ authorized: false, statusCode: 403 })
   })
 
   it('normalizes page meta', () => {

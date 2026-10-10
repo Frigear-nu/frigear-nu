@@ -5,6 +5,9 @@ export default defineNuxtConfig({
     '@frigear-nu/authorization',
   ],
   devtools: { enabled: true },
+  routeRules: {
+    '/admin/**': { authorization: { roles: ['admin'] } },
+  },
   compatibilityDate: 'latest',
   hub: {
     db: {
@@ -13,9 +16,6 @@ export default defineNuxtConfig({
     },
   },
   authorization: {
-    routes: {
-      '/admin/**': { roles: ['admin'] },
-    },
     redirectTo: '/login',
   },
   users: {
