@@ -1,4 +1,5 @@
 import {
+  addComponent,
   addImports,
   addServerHandler,
   addServerImportsDir,
@@ -308,6 +309,10 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     if (loginPath || registerPath) {
+      addComponent({
+        name: 'UsersAuthCard',
+        filePath: resolver.resolve('./runtime/app/components/AuthCard.vue'),
+      })
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
@@ -324,6 +329,17 @@ export default defineNuxtModule<ModuleOptions>({
             path: registerPath,
             file: resolver.resolve('./runtime/app/pages/register.vue'),
           })
+        }
+        // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
+        if (loginPath && withPasswordReset) {
+          for (const [name, path] of [['forgot-password', '/forgot-password'], ['reset-password', '/reset-password']]) {
+            if (existingPaths.has(path)) continue
+            pages.push({
+              name: `users-${name}`,
+              path,
+              file: resolver.resolve(`./runtime/app/pages/${name}.vue`),
+            })
+          }
         }
       })
     }

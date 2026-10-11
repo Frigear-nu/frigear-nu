@@ -25,7 +25,8 @@
     },
     "forgotPassword": {
       "title": "Glemt password?",
-      "submit": "Gendan password"
+      "submit": "Send nulstillingslink",
+      "description": "Indtast din e-mail, så sender vi et link til at vælge en ny adgangskode."
     },
     "resetPassword": {
       "title": "Nulstil password",
@@ -37,7 +38,8 @@
       },
       "current": {
         "label": "Nuværende password"
-      }
+      },
+      "invalid": "Linket er ugyldigt eller udløbet."
     },
     "magicLink": {
       "title": "Magic Link",
@@ -90,7 +92,11 @@
         "failed": "Kunne ik' opprette konto, ka' det være en eksisterende konto med denne e-mail?"
       },
       "label": "Fejl"
-    }
+    },
+    "or": "eller",
+    "noAccount": "Har du ikke en konto?",
+    "haveAccount": "Har du allerede en konto?",
+    "backToSignIn": "Tilbage til log ind"
   },
   "users": {
     "menu": {
