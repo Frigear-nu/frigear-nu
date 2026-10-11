@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { FieldType, FormDefinition, FormField, FormStep } from '../../../types'
+import type { FieldOption, FieldType, FormDefinition, FormField, FormStep } from '../../../types'
 import {
   arrayMove, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, moveField, moveStep,
-  readTranslated, removeField, removeStep, translate, updateField, updateStep, writeTranslated,
+  removeField, removeStep, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
 import { useFormsLocale } from '../composables/useForms'
@@ -197,14 +197,6 @@ function patchStep(patch: Partial<FormStep>) {
   definition.value = updateStep(definition.value, selection.value.index, patch)
 }
 
-function setText(key: 'label' | 'description' | 'placeholder' | 'content', value: string) {
-  patchField({ [key]: writeTranslated(selectedField.value?.[key], locale.value, value) })
-}
-
-function setStepText(key: 'title' | 'description', value: string) {
-  patchStep({ [key]: writeTranslated(selectedStep.value?.[key], locale.value, value) })
-}
-
 function moveToStep(step: number) {
   if (selection.value?.kind !== 'field' || step === selection.value.at.step) return
   const target = { step, index: definition.value.steps[step]!.fields.length }
@@ -212,13 +204,9 @@ function moveToStep(step: number) {
   selection.value = { kind: 'field', at: target }
 }
 
-function setOption(index: number, patch: { value?: string, label?: string }) {
+function setOption(index: number, patch: Partial<FieldOption>) {
   const options = [...(selectedField.value?.options ?? [])]
-  const current = options[index]!
-  options[index] = {
-    value: patch.value ?? current.value,
-    label: patch.label === undefined ? current.label : writeTranslated(current.label, locale.value, patch.label) ?? '',
-  }
+  options[index] = { ...options[index]!, ...patch }
   patchField({ options })
 }
 
@@ -517,36 +505,32 @@ const summary = (field: FormField) =>
           v-if="selectedField.type === 'markdown'"
           :label="t('builder.content', 'Text (Markdown)')"
         >
-          <UTextarea
-            :model-value="readTranslated(selectedField.content, locale)"
-            :rows="5"
-            class="w-full"
-            @update:model-value="setText('content', String($event))"
+          <FormBuilderText
+            :model-value="selectedField.content"
+            multiline
+            @update:model-value="patchField({ content: $event })"
           />
         </UFormField>
         <template v-else>
           <UFormField :label="t('builder.label', 'Label')">
-            <UInput
-              :model-value="readTranslated(selectedField.label, locale)"
-              class="w-full"
-              @update:model-value="setText('label', String($event))"
+            <FormBuilderText
+              :model-value="selectedField.label"
+              @update:model-value="patchField({ label: $event })"
             />
           </UFormField>
           <UFormField :label="t('builder.description', 'Help text')">
-            <UInput
-              :model-value="readTranslated(selectedField.description, locale)"
-              class="w-full"
-              @update:model-value="setText('description', String($event))"
+            <FormBuilderText
+              :model-value="selectedField.description"
+              @update:model-value="patchField({ description: $event })"
             />
           </UFormField>
           <UFormField
             v-if="hasPlaceholder"
             :label="t('builder.placeholder', 'Placeholder')"
           >
-            <UInput
-              :model-value="readTranslated(selectedField.placeholder, locale)"
-              class="w-full"
-              @update:model-value="setText('placeholder', String($event))"
+            <FormBuilderText
+              :model-value="selectedField.placeholder"
+              @update:model-value="patchField({ placeholder: $event })"
             />
           </UFormField>
           <USwitch
@@ -585,20 +569,17 @@ const summary = (field: FormField) =>
             :key="optionIndex"
             class="space-y-1 rounded-md border border-default p-2"
           >
-            <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1">
-              <UInput
-                :model-value="readTranslated(option.label, locale)"
-                :placeholder="t('builder.label', 'Label')"
-                class="w-full"
-                @update:model-value="setOption(optionIndex, { label: String($event) })"
-              />
-              <UInput
-                :model-value="option.value"
-                :placeholder="t('builder.value', 'Value')"
-                class="w-full font-mono"
-                @update:model-value="setOption(optionIndex, { value: String($event) })"
-              />
-            </div>
+            <FormBuilderText
+              :model-value="option.label"
+              :placeholder="t('builder.label', 'Label')"
+              @update:model-value="setOption(optionIndex, { label: $event ?? '' })"
+            />
+            <UInput
+              :model-value="option.value"
+              :placeholder="t('builder.value', 'Value')"
+              class="w-full font-mono"
+              @update:model-value="setOption(optionIndex, { value: String($event) })"
+            />
             <div class="flex justify-end">
               <UButton
                 color="neutral"
@@ -702,17 +683,15 @@ const summary = (field: FormField) =>
           {{ t('builder.step', 'Step') }}
         </h3>
         <UFormField :label="t('builder.stepTitle', 'Title')">
-          <UInput
-            :model-value="readTranslated(selectedStep.title, locale)"
-            class="w-full"
-            @update:model-value="setStepText('title', String($event))"
+          <FormBuilderText
+            :model-value="selectedStep.title"
+            @update:model-value="patchStep({ title: $event })"
           />
         </UFormField>
         <UFormField :label="t('builder.description', 'Help text')">
-          <UInput
-            :model-value="readTranslated(selectedStep.description, locale)"
-            class="w-full"
-            @update:model-value="setStepText('description', String($event))"
+          <FormBuilderText
+            :model-value="selectedStep.description"
+            @update:model-value="patchStep({ description: $event })"
           />
         </UFormField>
         <FormBuilderCondition

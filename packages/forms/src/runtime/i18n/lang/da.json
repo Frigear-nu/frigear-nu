@@ -140,7 +140,10 @@
         "checkbox": "Afkrydsningsfelt",
         "file": "Filupload",
         "markdown": "Tekstblok"
-      }
+      },
+      "translate": "Oversæt",
+      "singleLanguage": "Samme tekst på alle sprog",
+      "addLanguage": "Tilføj sprog, f.eks. en"
     }
   }
 }

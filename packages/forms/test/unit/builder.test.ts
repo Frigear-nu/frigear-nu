@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, createField, dropIndex, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, createField, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -89,5 +89,16 @@ describe('writeTranslated', () => {
     expect(writeTranslated('Hi', 'en', 'Hello')).toBe('Hello')
     expect(writeTranslated({ en: 'Hi', da: 'Hej' }, 'da', 'Hejsa')).toEqual({ en: 'Hi', da: 'Hejsa' })
     expect(writeTranslated({ en: 'Hi' }, 'en', '')).toBeUndefined()
+  })
+})
+
+describe('expand/collapse translated', () => {
+  it('turns a plain string into a map for the current locale and back', () => {
+    expect(expandTranslated('Hello', 'en')).toEqual({ en: 'Hello' })
+    expect(expandTranslated('', 'en')).toBeUndefined()
+    expect(expandTranslated({ en: 'Hi' }, 'da')).toEqual({ en: 'Hi' })
+    expect(collapseTranslated({ en: 'Hi', da: 'Hej' }, 'da')).toBe('Hej')
+    expect(collapseTranslated({ da: 'Hej' }, 'en')).toBe('Hej')
+    expect(collapseTranslated('Plain', 'da')).toBe('Plain')
   })
 })

@@ -11,7 +11,7 @@ export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
 export {
   fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, removeField, updateField, updateStep, duplicateField,
-  createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated,
+  createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
 } from './builder'
 export type { FieldPosition } from './builder'
 export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'

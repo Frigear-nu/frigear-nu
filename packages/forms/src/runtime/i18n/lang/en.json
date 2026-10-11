@@ -140,7 +140,10 @@
         "checkbox": "Checkbox",
         "file": "File upload",
         "markdown": "Text block"
-      }
+      },
+      "translate": "Translate",
+      "singleLanguage": "Same text in every language",
+      "addLanguage": "Add language, e.g. da"
     }
   }
 }

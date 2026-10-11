@@ -191,3 +191,15 @@ export function writeTranslated(value: Translated | undefined, locale: string, t
   }
   return text || undefined
 }
+
+/** A plain string becomes a per-locale map holding that text for `locale`. */
+export function expandTranslated(value: Translated | undefined, locale: string): Translated | undefined {
+  if (typeof value !== 'string') return value
+  return value ? { [locale]: value } : undefined
+}
+
+/** A per-locale map becomes one plain string: the text of `locale`, else `en`, else the first one written. */
+export function collapseTranslated(value: Translated | undefined, locale: string): Translated | undefined {
+  if (!value || typeof value === 'string') return value
+  return value[locale] || value.en || Object.values(value).find(Boolean) || undefined
+}
