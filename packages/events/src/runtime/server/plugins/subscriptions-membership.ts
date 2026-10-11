@@ -1,6 +1,8 @@
-// Test wiring of `@frigear-nu/subscriptions` into `@frigear-nu/events`: a subscription plan is a membership, and holding one
-// means having an active subscription to it. Neither module knows about the other; this plugin is the glue, so any
-// other source of memberships could be plugged in the same way.
+import { hasActiveSubscription } from '@frigear-nu/subscriptions/utils'
+
+// The default membership provider: a `@frigear-nu/subscriptions` plan is a membership, and holding it means having an
+// active subscription to it. Only registered when subscriptions is installed (see `module.ts`); any other source of
+// memberships answers the same `events:membership:*` hooks from its own plugin.
 export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('events:membership:check', async (ctx) => {
     if (await hasActiveSubscription(ctx.userId, ctx.requirement === 'any' ? {} : { plans: ctx.requirement })) ctx.satisfied = true

@@ -149,6 +149,14 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/payment-hooks'))
 
+    // Subscription plans are the memberships when `@frigear-nu/subscriptions` is installed. Checked once every module
+    // has registered, since it may come after this one in `modules`. Other providers hook `events:membership:*` themselves.
+    nuxt.hook('modules:done', () => {
+      if (hasNuxtModule('@frigear-nu/subscriptions', nuxt)) {
+        addServerPlugin(resolver.resolve('./runtime/server/plugins/subscriptions-membership'))
+      }
+    })
+
     // --- App runtime ----------------------------------------------------------------------
     addImports([
       { name: 'useEvents', from: resolver.resolve('./runtime/app/composables/useEvents') },
