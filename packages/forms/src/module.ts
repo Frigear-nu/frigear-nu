@@ -139,6 +139,7 @@ export default defineNuxtModule<ModuleOptions>({
     addImports([
       { name: 'useForm', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocale', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'useFormsLocales', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsPaths', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormStepper', from: resolver.resolve('./runtime/app/composables/useFormStepper') },
     ])
