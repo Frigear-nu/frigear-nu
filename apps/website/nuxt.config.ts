@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
+import { contactForm } from './forms/contact'
 
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
@@ -71,6 +72,15 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // Only the production custom domain is indexable: PR previews and *.workers.dev hosts are `noindex`/Disallow: /.
+  site: {
+    name: 'Frigear.nu',
+    ...(process.env.DEPLOYMENT_HOST && { url: `https://${process.env.DEPLOYMENT_HOST}` }),
+    indexable: !!process.env.DEPLOYMENT_HOST
+      && !process.env.DEPLOYMENT_HOST.endsWith('.workers.dev')
+      && !process.env.PR_NUMBER,
+  },
   runtimeConfig: {
     // Comma separated emails allowed to manage OAuth applications (NUXT_OAUTH_ADMIN_EMAILS).
     oauthAdminEmails: '',
@@ -180,7 +190,7 @@ export default defineNuxtConfig({
     // Existing slugs are never overwritten. Definitions can also be imported from the admin page.
     seed: {
       enabled: false,
-      forms: [projectApplicationForm, boardMemberApplicationForm],
+      forms: [projectApplicationForm, boardMemberApplicationForm, contactForm],
     },
   },
   i18n: {

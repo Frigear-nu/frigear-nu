@@ -47,6 +47,8 @@ export interface EmailNotification<M = NotificationMeta> {
   body: string
   /** Optional plain-text body. */
   text?: string
+  /** Address replies should go to (the `Reply-To` header). */
+  replyTo?: string
   meta?: M
 }
 

@@ -71,9 +71,13 @@ export type FormStep = {
 
 export type FormDelivery = {
   email?: {
-    /** Recipient addresses. */
+    /** Recipient addresses; used when no `routes` entry matches. */
     to: string[]
     subject?: Translated
+    /** Sends to different recipients depending on the answer of one field (e.g. a subject select). */
+    routes?: { field: string, to: Record<string, string[]> }
+    /** Key of an email field whose answer becomes the `Reply-To` of the delivered email. */
+    replyToField?: string
   }
 }
 
