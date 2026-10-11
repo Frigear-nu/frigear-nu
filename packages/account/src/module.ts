@@ -110,6 +110,7 @@ export default defineNuxtModule<ModuleOptions>({
     // since it only lists the tiles contributed through that module.
     const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
+    const documentsPath = resolvePagePath(settings.pages?.documents, '/account/documents')
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
 
     if (!withMenus && settings.pages?.index) {
@@ -117,10 +118,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     nuxt.options.runtimeConfig.public.account = {
-      pages: { index: indexPath, profile: profilePath, security: securityPath },
+      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath },
+      documents: settings.documents ?? [],
     }
 
-    if (indexPath || profilePath || securityPath) {
+    if (indexPath || profilePath || securityPath || documentsPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
@@ -129,6 +131,9 @@ export default defineNuxtModule<ModuleOptions>({
         }
         if (profilePath && !existingPaths.has(profilePath)) {
           pages.push({ name: 'account-profile', path: profilePath, file: resolver.resolve('./runtime/app/pages/profile.vue') })
+        }
+        if (documentsPath && !existingPaths.has(documentsPath)) {
+          pages.push({ name: 'account-documents', path: documentsPath, file: resolver.resolve('./runtime/app/pages/documents.vue') })
         }
         if (securityPath && !existingPaths.has(securityPath)) {
           pages.push({ name: 'account-security', path: securityPath, file: resolver.resolve('./runtime/app/pages/security.vue') })

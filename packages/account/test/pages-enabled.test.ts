@@ -22,4 +22,14 @@ describe('account pages (opt-in, with menus installed)', async () => {
     expect(html).toContain('Profile')
     expect(html).toContain('Security')
   })
+
+  it('renders the documents page listing unrestricted documents', async () => {
+    const html = await $fetch('/account/documents')
+    expect(html).toContain('Volunteer Handbook')
+    expect(html).toContain('/assets/handbook.docx')
+  })
+
+  it('shows a Documents tile on the dashboard', async () => {
+    expect(await $fetch('/account')).toContain('Documents')
+  })
 })

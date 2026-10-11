@@ -168,7 +168,15 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true },
+      pages: { index: true, profile: true, security: true, documents: true },
+      // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
+      // assets under public/, so anyone with the URL can fetch them (as before).
+      documents: [
+        { id: 'handbook', label: { da: 'Frivillig Håndbog', en: 'Volunteer Handbook' }, path: '/assets/files/Frivillig håndbog.docx' },
+        { id: 'ba-folder', label: { da: 'BA-mappe', en: 'BA folder' }, path: '/assets/files/BA-mappe.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+        { id: 'shift-overview', label: 'Vagtoversigt', path: '/assets/files/Vagtoversigt.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+        { id: 'ba-coordinator-meeting', label: { da: 'BA Koordinatormøde 25.03.2026', en: 'BA coordinator meeting 25.03.2026' }, path: '/assets/files/BA-Koordinatormøde-2503-2026.docx', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+      ],
       // A new address must be confirmed from its inbox; the old address gets a revert link.
       verifyEmailChange: true,
     },
