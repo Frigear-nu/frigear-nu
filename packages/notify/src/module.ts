@@ -108,51 +108,51 @@ export default defineNuxtModule<ModuleOptions>({
 }
 `,
       })
+    }
 
-      // Email/SMS/Simple Drivers
-      // Resolves each configured driver into its own virtual module any server code - in this
-      // module or any consumer, e.g. `@frigear-nu/users` - can import to actually deliver that kind
-      // of notification. Picking the driver is done here, once, for the whole app, rather than per
-      // notification type: it's a deployment concern for the app/consuming layer, not something
-      // individual feature modules should each have their own setting for. Only the configured
-      // driver's file is ever resolved/loaded - never every built-in driver up front.
-      const registerServerDriver = (name: string, driverType: string, driver: string) => {
-        const filename = `#notify/${name}`
-        const template = addServerTemplate({
-          filename,
-          getContents: async () => {
-            const builtin = BUILTIN_SERVER_DRIVERS[driver]
-            if (builtin) {
-              return `export { ${builtin.exportName} as default } from ${JSON.stringify(await resolver.resolvePath(builtin.path))}`
-            }
-            const driverPath = await resolver.resolvePath(driver, { cwd: nuxt.options.rootDir })
-            return `export { default } from ${JSON.stringify(driverPath)}`
-          },
-        })
-        nuxt.options.nitro.alias ||= {}
-        nuxt.options.nitro.alias[`#notify/${name}`] = joinURL(template.filename, '.ts')
-        // `addServerTemplate` registers the virtual module for Nitro's build, but not its type -
-        // declare it so server code (in this module or consumers) type-checks against it. Needs
-        // both contexts: `nitro:true` so `server/` code resolves it, and `nuxt:true` because the
-        // app-level program also type-checks `nitro-imports.d.ts`'s re-export of this module's
-        // auto-imported server utils (e.g. `dispatchEmailNotification`), which in turn resolves
-        // this file's own imports.
-        addTypeTemplate({
-          filename: `types/notify-${name}.d.ts`,
-          getContents: () => `declare module '#notify/${name}' {
+    // Email/SMS/Simple Drivers
+    // Resolves each configured driver into its own virtual module any server code - in this
+    // module or any consumer, e.g. `@frigear-nu/users` - can import to actually deliver that kind
+    // of notification. Picking the driver is done here, once, for the whole app, rather than per
+    // notification type: it's a deployment concern for the app/consuming layer, not something
+    // individual feature modules should each have their own setting for. Only the configured
+    // driver's file is ever resolved/loaded - never every built-in driver up front.
+    const registerServerDriver = (name: string, driverType: string, driver: string) => {
+      const filename = `#notify/${name}`
+      const template = addServerTemplate({
+        filename,
+        getContents: async () => {
+          const builtin = BUILTIN_SERVER_DRIVERS[driver]
+          if (builtin) {
+            return `export { ${builtin.exportName} as default } from ${JSON.stringify(await resolver.resolvePath(builtin.path))}`
+          }
+          const driverPath = await resolver.resolvePath(driver, { cwd: nuxt.options.rootDir })
+          return `export { default } from ${JSON.stringify(driverPath)}`
+        },
+      })
+      nuxt.options.nitro.alias ||= {}
+      nuxt.options.nitro.alias[`#notify/${name}`] = joinURL(template.filename, '.ts')
+      // `addServerTemplate` registers the virtual module for Nitro's build, but not its type -
+      // declare it so server code (in this module or consumers) type-checks against it. Needs
+      // both contexts: `nitro:true` so `server/` code resolves it, and `nuxt:true` because the
+      // app-level program also type-checks `nitro-imports.d.ts`'s re-export of this module's
+      // auto-imported server utils (e.g. `dispatchEmailNotification`), which in turn resolves
+      // this file's own imports.
+      addTypeTemplate({
+        filename: `types/notify-${name}.d.ts`,
+        getContents: () => `declare module '#notify/${name}' {
   import type { ${driverType} } from ${JSON.stringify(resolver.resolve('./types'))}
   const driver: ${driverType}
   export default driver
 }
 `,
-        }, { nitro: true, nuxt: true })
-      }
-
-      registerServerDriver('email-driver', 'EmailDriver', options.email?.driver ?? 'log')
-      registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
-      registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
-
-      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      }, { nitro: true, nuxt: true })
     }
+
+    registerServerDriver('email-driver', 'EmailDriver', options.email?.driver ?? 'log')
+    registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
+    registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
+
+    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
   },
 })

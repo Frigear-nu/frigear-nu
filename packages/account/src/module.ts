@@ -2,12 +2,13 @@ import {
   addComponentsDir,
   addImports,
   addServerHandler,
+  addServerImportsDir,
   createResolver,
   defineNuxtModule,
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, extendDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
+import { registerModule, extendDatabaseTable, registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
@@ -15,6 +16,10 @@ export type { ModuleOptions, PublicModuleOptions } from './types'
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     account?: ModuleOptions
+  }
+
+  interface RuntimeConfig {
+    account?: { verifyEmailChange: boolean }
   }
 
   interface PublicRuntimeConfig {
@@ -41,6 +46,10 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.1',
     },
     '@frigear-nu/users': {
+      version: '>=0.0.1',
+    },
+    // Password/email change notices are dispatched through it.
+    '@frigear-nu/notify': {
       version: '>=0.0.1',
     },
     '@frigear-nu/menu': {
@@ -71,6 +80,27 @@ export default defineNuxtModule<ModuleOptions>({
       method: 'post',
       handler: resolver.resolve('./runtime/server/routes/account/change-password.post'),
     })
+
+    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    nuxt.options.runtimeConfig.account = { verifyEmailChange: settings.verifyEmailChange === true }
+
+    if (settings.verifyEmailChange) {
+      addServerHandler({
+        route: '/auth/verify-email-change',
+        method: 'get',
+        handler: resolver.resolve('./runtime/server/routes/account/verify-email-change.get'),
+      })
+      addServerHandler({
+        route: '/auth/revert-email-change',
+        method: 'get',
+        handler: resolver.resolve('./runtime/server/routes/account/revert-email-change.get'),
+      })
+      await registerDatabaseTable(nuxt, {
+        name: ['accountEmailChanges'],
+        resolver,
+        schema: dialect => `./runtime/server/db/email-changes.${dialect}`,
+      })
+    }
 
     addImports([{ name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') }])
 

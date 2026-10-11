@@ -20,8 +20,15 @@ async function onSubmitProfile() {
   await updateProfileDetails({ name: name.value, avatar: avatar.value })
 }
 
+// With `verifyEmailChange` the address only changes after the emailed link was followed.
+const emailVerificationSent = ref(false)
+const route = useRoute()
+const emailChanged = computed(() => route.query['email-changed'] === '1')
+const emailChangeFailed = computed(() => route.query.error === 'email-change')
+
 async function onSubmitEmail() {
-  await changeEmailAddress({ email: email.value })
+  const result = await changeEmailAddress({ email: email.value })
+  emailVerificationSent.value = result.verificationRequired
 }
 </script>
 
@@ -69,6 +76,24 @@ async function onSubmitEmail() {
             @click="onSubmitEmail"
           />
         </UPageCard>
+        <UAlert
+          v-if="emailVerificationSent"
+          class="mt-4"
+          :title="t('email.change.sent.title', 'Check your inbox')"
+          :description="t('email.change.sent.description', 'We sent a link to your new address. It takes effect once you confirm it.')"
+        />
+        <UAlert
+          v-if="emailChanged"
+          class="mt-4"
+          color="success"
+          :title="t('email.change.done', 'Your email address was changed.')"
+        />
+        <UAlert
+          v-if="emailChangeFailed"
+          class="mt-4"
+          color="error"
+          :title="t('email.change.failed', 'This confirmation link is invalid or has expired.')"
+        />
         <UAlert
           v-if="error"
           class="mt-4"

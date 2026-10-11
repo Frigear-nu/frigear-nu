@@ -3,21 +3,21 @@ import { db, schema } from '@nuxthub/db'
 import { and, desc, eq, gt, isNull } from 'drizzle-orm'
 
 const MAGIC_LINK_TTL_MINUTES = 120
-// A link requested again within this window is not re-sent, so the endpoint can't be used to flood an inbox.
-const MAGIC_LINK_COOLDOWN_SECONDS = 60
 
 /**
  * Issues a single-use sign-in link for the user. Returns `null` when a link was issued very recently
  * (see cooldown), in which case nothing should be sent.
  */
 export async function createMagicLink(event: H3Event, { userId, redirectUrl }: { userId: number, redirectUrl?: string }) {
+  // A link requested again within the cooldown is not re-sent, so the endpoint can't be used to flood an inbox.
+  const cooldownSeconds = useRuntimeConfig(event).users?.magicLinkCooldown ?? 60
   const [latest] = await db.select({ createdAt: schema.magicLinks.createdAt })
     .from(schema.magicLinks)
     .where(eq(schema.magicLinks.userId, userId))
     .orderBy(desc(schema.magicLinks.createdAt))
     .limit(1)
 
-  if (latest && Date.now() - latest.createdAt.getTime() < MAGIC_LINK_COOLDOWN_SECONDS * 1000) {
+  if (latest && Date.now() - latest.createdAt.getTime() < cooldownSeconds * 1000) {
     return null
   }
 

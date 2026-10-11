@@ -164,6 +164,8 @@ export default defineNuxtConfig({
   account: {
     settings: {
       pages: { index: true, profile: true, security: true },
+      // A new address must be confirmed from its inbox; the old address gets a revert link.
+      verifyEmailChange: true,
     },
   },
   cookieConsent: {

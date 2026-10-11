@@ -51,7 +51,7 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    users?: { magicLinkSignUp: boolean }
+    users?: { magicLinkSignUp: boolean, magicLinkCooldown: number }
   }
 
   interface PublicRuntimeConfig {
@@ -279,7 +279,11 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
-    nuxt.options.runtimeConfig.users = { magicLinkSignUp: typeof settings.magicLink === 'object' && settings.magicLink.signUp === true }
+    const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
+    nuxt.options.runtimeConfig.users = {
+      magicLinkSignUp: magicLinkSettings.signUp === true,
+      magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    }
     nuxt.options.runtimeConfig.public.authMethods = authMethods
 
     const authManifest: AuthManifest = {

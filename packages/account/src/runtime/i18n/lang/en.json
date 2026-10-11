@@ -32,7 +32,13 @@
         "description": "Your awesome E-mail.",
         "change": {
           "title": "Change e-mail",
-          "label": "New e-mail"
+          "label": "New e-mail",
+          "sent": {
+            "title": "Check your inbox",
+            "description": "We sent a link to your new address. It takes effect once you confirm it."
+          },
+          "done": "Your email address was changed.",
+          "failed": "This confirmation link is invalid or has expired."
         }
       },
       "avatar": {

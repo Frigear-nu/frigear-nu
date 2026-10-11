@@ -34,5 +34,9 @@ export default defineEventHandler(async (event) => {
 
   await setUserSession(event, { user: mapUserToSession(updated) })
 
+  // A failing mail must not undo a password change that already happened.
+  await dispatchEmailNotification(buildPasswordChangedNotification({ to: updated.email, name: updated.name }))
+    .catch(error => console.error('[@frigear-nu/account] Could not send the password changed notice.', error))
+
   return { id: updated.id }
 })

@@ -32,7 +32,13 @@
         "description": "Din awesome e-mail.",
         "change": {
           "title": "Skift din e-mail",
-          "label": "Ny e-mail"
+          "label": "Ny e-mail",
+          "sent": {
+            "title": "Tjek din indbakke",
+            "description": "Vi har sendt et link til din nye adresse. Ændringen træder først i kraft når du bekræfter den."
+          },
+          "done": "Din e-mailadresse er ændret.",
+          "failed": "Bekræftelseslinket er ugyldigt eller udløbet."
         }
       },
       "avatar": {

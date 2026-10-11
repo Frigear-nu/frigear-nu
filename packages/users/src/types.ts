@@ -40,8 +40,9 @@ export type ModuleOptions = {
     // Enables password reset routes when password authentication is enabled. Defaults to true.
     passwordReset?: boolean
     // Passwordless sign-in by emailed link (`POST /api/auth/magic-link`, `GET /auth/magic-link`). Following the
-    // link also verifies the email address. `signUp: true` creates an account for unknown addresses.
-    magicLink?: boolean | { signUp?: boolean }
+    // link also verifies the email address. `signUp: true` creates an account for unknown addresses; `cooldown` is the
+    // minimum number of seconds between two links for the same user (default 60).
+    magicLink?: boolean | { signUp?: boolean, cooldown?: number }
     // Requires users who register with email/password to verify their address (through an emailed link) before
     // they can log in. No session is created at registration. Defaults to `false`.
     verifyEmail?: boolean
