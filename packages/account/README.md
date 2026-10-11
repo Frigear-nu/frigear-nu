@@ -69,3 +69,8 @@ await updateProfileDetails({ name: 'Ada Lovelace' })
 await changeEmailAddress({ email: 'ada@example.com' })
 await changePassword({ currentPassword: 'old', newPassword: 'new-password', confirmNewPassword: 'new-password' })
 ```
+
+## Translations
+
+Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
+`i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).

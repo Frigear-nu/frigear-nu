@@ -2,6 +2,7 @@
   "name": "@frigear-nu/forms",
   "version": "0.0.5",
   "description": "Dynamic, database-stored forms (single page or stepped) with submissions, file uploads and email delivery for the frigear ecosystem.",
+  "homepage": "https://docs.frigear.dev/modules/forms",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

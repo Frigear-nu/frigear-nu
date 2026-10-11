@@ -10,6 +10,7 @@
     "email": "kontakt@frigear.nu",
     "url": "https://frigear.nu"
   },
+  "homepage": "https://docs.frigear.dev/modules/module-kit",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",
