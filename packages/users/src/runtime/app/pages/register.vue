@@ -10,8 +10,15 @@ const fields = computed(() => [
   { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), required: true },
 ])
 
+// With `verifyEmail` no session is created: the emailed link verifies the address and signs the user in.
+const verificationSent = ref(false)
+
 async function onSubmit(payload: { data: { name: string, email: string, password: string } }) {
-  await register(payload.data)
+  const result = await register(payload.data)
+  if (result?.verificationRequired) {
+    verificationSent.value = true
+    return
+  }
   await navigateTo('/')
 }
 </script>
@@ -20,7 +27,13 @@ async function onSubmit(payload: { data: { name: string, email: string, password
   <UContainer>
     <UPage>
       <UPageBody>
+        <UAlert
+          v-if="verificationSent"
+          :title="t('verifyEmail.title', 'Verify your e-mail')"
+          :description="t('verifyEmail.description', 'We have sent you an e-mail. Check your inbox or spam.')"
+        />
         <UAuthForm
+          v-else
           :title="t('signUp', 'Register')"
           :fields="fields"
           :loading="pending"

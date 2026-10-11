@@ -15,6 +15,13 @@
       "when": 1791280573560,
       "tag": "0001_add_accepted_terms_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791746381668,
+      "tag": "0002_add_user_verification_columns",
+      "breakpoints": true
     }
   ]
 }

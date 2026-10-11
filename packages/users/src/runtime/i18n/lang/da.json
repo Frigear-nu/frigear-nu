@@ -51,7 +51,8 @@
           "title": "Opret konto med Magic Link",
           "description": "Din konto vil ik' ha' noget password, men du kan trygt logge ind fra din e-mail."
         }
-      }
+      },
+      "invalid": "Det her login-link er ugyldigt eller udløbet."
     },
     "verifyEmail": {
       "title": "Verificer din e-mail",
@@ -72,6 +73,12 @@
     "oauth": {
       "google": {
         "label": "Google"
+      },
+      "facebook": {
+        "label": "Facebook"
+      },
+      "github": {
+        "label": "GitHub"
       }
     },
     "errors": {

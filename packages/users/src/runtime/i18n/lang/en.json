@@ -51,7 +51,8 @@
           "title": "Sign up with Magic Link",
           "description": "Your account will have no password, you can sign in with your e-mail."
         }
-      }
+      },
+      "invalid": "This sign-in link is invalid or has expired."
     },
     "verifyEmail": {
       "title": "Verify your e-mail",
@@ -72,6 +73,12 @@
     "oauth": {
       "google": {
         "label": "Google"
+      },
+      "facebook": {
+        "label": "Facebook"
+      },
+      "github": {
+        "label": "GitHub"
       }
     },
     "errors": {

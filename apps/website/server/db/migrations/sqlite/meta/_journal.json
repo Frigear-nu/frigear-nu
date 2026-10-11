@@ -57,6 +57,13 @@
       "when": 1791548508387,
       "tag": "0007_spotty_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791746406825,
+      "tag": "0008_calm_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

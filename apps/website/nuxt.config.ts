@@ -256,6 +256,12 @@ export default defineNuxtConfig({
       password: true,
       migrations: true,
       webAuthn: true,
+      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
+      // an account (use the register page). Email/password users must verify before logging in.
+      magicLink: true,
+      verifyEmail: true,
+      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
+      oauth: { facebook: true },
     },
   },
 })

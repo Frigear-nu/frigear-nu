@@ -10,6 +10,7 @@ import {
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
 import { registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
+import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import {
   type AuthMethodObject,
   type AuthManifest,
@@ -37,13 +38,20 @@ export {
 // `nuxt-auth-utils`. Provider credentials are read by nuxt-auth-utils from runtime environment
 // variables, so route registration only depends on the provider being enabled in module settings.
 
+declare module 'nitropack' {
+  interface NitroRuntimeHooks {
+    /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
+    'users:email': (ctx: AuthEmailContext) => void | Promise<void>
+  }
+}
+
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     users?: ModuleOptions
   }
 
   interface RuntimeConfig {
-    users?: ModuleOptions
+    users?: { magicLinkSignUp: boolean }
   }
 
   interface PublicRuntimeConfig {
@@ -99,6 +107,8 @@ export default defineNuxtModule<ModuleOptions>({
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
+    const withMagicLink = !!settings.magicLink
+    const withVerifyEmail = withPassword && settings.verifyEmail === true
     const withMenus = hasNuxtModule('@frigear-nu/menu')
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
@@ -113,6 +123,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
     if (withPasswordReset) {
       tablesToRegister.push('passwordResets')
+    }
+
+    // Verification emails are magic links too, so they share the table.
+    if (withMagicLink || withVerifyEmail) {
+      tablesToRegister.push('magicLinks')
     }
 
     await registerDatabaseTable(nuxt, {
@@ -165,7 +180,27 @@ export default defineNuxtModule<ModuleOptions>({
         handler: resolver.resolve('./runtime/server/routes/auth/reset-password.post'),
       })
     }
+    if (withMagicLink || withVerifyEmail) {
+      addServerHandler({
+        route: '/auth/magic-link',
+        method: 'get',
+        handler: resolver.resolve('./runtime/server/routes/auth/magic-link.get'),
+      })
+    }
+    if (withMagicLink) {
+      authMethods.push({
+        label: withI18n ? 'auth.magicLink.title' : 'Magic link',
+        value: 'magicLink',
+        icon: 'i-lucide-wand-sparkles',
+      })
+      addServerHandler({
+        route: '/api/auth/magic-link',
+        method: 'post',
+        handler: resolver.resolve('./runtime/server/routes/auth/magic-link.post'),
+      })
+    }
     addImports([
+      { name: 'useUserMagicLink', from: resolver.resolve('./runtime/app/composables/useUserMagicLink') },
       { name: 'useUserLogin', from: resolver.resolve('./runtime/app/composables/useUserLogin') },
       {
         name: 'useUserRegistration',
@@ -225,6 +260,26 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
     const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
 
+    // Housekeeping for the single-use tokens (`users:clear-expired-tokens`); the cron is opt-out.
+    if (withMagicLink || withVerifyEmail || withPasswordReset) {
+      nuxt.hook('nitro:config', (nitroConfig) => {
+        nitroConfig.experimental ||= {}
+        nitroConfig.experimental.tasks = true
+        nitroConfig.tasks ||= {}
+        nitroConfig.tasks['users:clear-expired-tokens'] = {
+          handler: resolver.resolve('./runtime/server/tasks/clear-expired-tokens'),
+          description: 'Remove expired magic links and password resets.',
+        }
+        if (settings.cleanup !== false) {
+          const cron = settings.cleanup ?? '0 3 * * *'
+          nitroConfig.scheduledTasks ||= {}
+          const existing = nitroConfig.scheduledTasks[cron]
+          nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'users:clear-expired-tokens']
+        }
+      })
+    }
+
+    nuxt.options.runtimeConfig.users = { magicLinkSignUp: typeof settings.magicLink === 'object' && settings.magicLink.signUp === true }
     nuxt.options.runtimeConfig.public.authMethods = authMethods
 
     const authManifest: AuthManifest = {
@@ -271,6 +326,8 @@ export default defineNuxtModule<ModuleOptions>({
       password: withPassword,
       passwordReset: withPasswordReset,
       webAuthn: withWebAuthn,
+      magicLink: withMagicLink,
+      verifyEmail: withVerifyEmail,
       oauth: enabledOauthProviders,
       pages: { login: loginPath, register: registerPath },
     }

@@ -15,7 +15,8 @@ A module for managing the users in the main frigear app. for doing amazing thing
 - 🔑 Email/password login & registration, with an on/off switch.
 - ✉️ Forgot/reset password flow, dispatched through a pluggable email driver (`@frigear-nu/notify`) so the module stays dependency-free.
 - 🔐 Passkey (WebAuthn) registration, authentication & credential management.
-- 🪪 "Simple" OAuth routes for GitHub & Google, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
+- 🪄 Optional magic-link sign-in and email verification (`settings.magicLink`, `settings.verifyEmail`), with a hook to brand the emails.
+- 🪪 "Simple" OAuth routes for GitHub, Google & Facebook, powered by [`nuxt-auth-utils`](https://github.com/atinux/nuxt-auth-utils). Any other provider it supports can be wired up directly in the consuming app.
 - 🧩 Overridable composables (`useUserLogin`, `useUserRegistration`, `useUserPasswordReset`, `useUserPasskeys`) and opt-in login/register pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
 - 🧵 Session enrichment: the logged-in user is mapped into the session once, at login/registration time.
 

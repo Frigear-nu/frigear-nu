@@ -5,6 +5,7 @@
 export const OAUTH_PROVIDER_META = {
   github: { label: 'GitHub', icon: 'i-simple-icons-github', to: '/api/auth/github' },
   google: { label: 'Google', icon: 'i-simple-icons-google', to: '/api/auth/google' },
+  facebook: { label: 'Facebook', icon: 'i-simple-icons-facebook', to: '/api/auth/facebook' },
 } as const
 
 export type OAuthProviderKey = keyof typeof OAUTH_PROVIDER_META
