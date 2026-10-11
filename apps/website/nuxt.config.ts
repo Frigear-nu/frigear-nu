@@ -110,6 +110,9 @@ export default defineNuxtConfig({
       // Sets fields in the generated wrangler.json
       wrangler: {
         keep_vars: true,
+        observability: {
+          enabled: true,
+        },
         // Lets the deploy workflows pin the worker name (e.g. to keep PR
         // preview versions on the same worker as production) without
         // hardcoding it here.
