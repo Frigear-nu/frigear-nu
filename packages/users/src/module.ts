@@ -11,6 +11,7 @@ import {
 import { upperFirst } from 'scule'
 import { registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
+import type { UsersAdminContext } from './runtime/server/utils/admin'
 import {
   type AuthMethodObject,
   type AuthManifest,
@@ -42,6 +43,8 @@ declare module 'nitropack' {
   interface NitroRuntimeHooks {
     /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
     'users:email': (ctx: AuthEmailContext) => void | Promise<void>
+    /** Staff gate of the users admin (`settings.admin`): set `ctx.allowed = true` to allow `ctx.action`. Denied by default. */
+    'users:admin:authorize': (ctx: UsersAdminContext) => void | Promise<void>
   }
 }
 
@@ -89,6 +92,10 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/menu': {
       version: '>=0.0.1',
+    },
+    '@frigear-nu/widget': {
+      version: '>=0.0.0',
+      optional: true,
     },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
@@ -321,9 +328,47 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // --- User administration (staff) ---------------------------------------------------------
+    const withAdmin = !!settings.admin
+    const adminOptions = typeof settings.admin === 'object' ? settings.admin : {}
+    const adminPagePath = withAdmin ? resolvePagePath(adminOptions.page ?? true, '/admin/users') : undefined
+
+    if (withAdmin) {
+      for (const [method, path, file] of [
+        ['get', '/api/users/admin', 'users.get'],
+        ['post', '/api/users/admin', 'users.post'],
+        ['get', '/api/users/admin/new-members', 'new-members.get'],
+        ['patch', '/api/users/admin/:id', 'user.patch'],
+      ] as const) {
+        addServerHandler({ route: path, method, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })
+      }
+
+      if (adminPagePath) {
+        extendPages((pages) => {
+          if (!pages.some(page => page.path === adminPagePath)) {
+            pages.push({ name: 'users-admin', path: adminPagePath, file: resolver.resolve('./runtime/app/pages/admin.vue') })
+          }
+        })
+      }
+
+      // Contributes to the admin dashboard when @frigear-nu/widget is installed.
+      if (hasNuxtModule('@frigear-nu/widget')) {
+        const { extendWidgets } = await import('@frigear-nu/widget/utils')
+        extendWidgets(nuxt, 'admin.dashboard', {
+          id: 'users-new-members',
+          component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
+          order: 20,
+          span: 2,
+        })
+      }
+    }
+
     if (withMenus) {
       const { registerMenuSource } = await import('@frigear-nu/menu/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
+      if (adminPagePath) {
+        registerMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin.nav' })
+      }
     }
 
     nuxt.options.runtimeConfig.public.users = {
@@ -333,7 +378,7 @@ export default defineNuxtModule<ModuleOptions>({
       magicLink: withMagicLink,
       verifyEmail: withVerifyEmail,
       oauth: enabledOauthProviders,
-      pages: { login: loginPath, register: registerPath },
+      pages: { login: loginPath, register: registerPath, admin: adminPagePath },
     }
   },
 })

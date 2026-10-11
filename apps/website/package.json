@@ -52,7 +52,10 @@
     "tailwindcss": "^4.3.3",
     "unstorage": "^1.17.5",
     "zod": "^4.6.5",
-    "@vueuse/core": "^15.0.0"
+    "@vueuse/core": "^15.0.0",
+    "@frigear-nu/authorization": "workspace:*",
+    "@frigear-nu/widget": "workspace:*",
+    "@frigear-nu/admin": "workspace:*"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",

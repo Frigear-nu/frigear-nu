@@ -16,6 +16,9 @@ export default defineNuxtConfig({
     'nuxt-qrcode',
     '@frigear-nu/menu',
     '@frigear-nu/users',
+    '@frigear-nu/authorization',
+    '@frigear-nu/widget',
+    '@frigear-nu/admin',
     '@frigear-nu/account',
     '@frigear-nu/notify',
     '@frigear-nu/stripe',
@@ -86,6 +89,8 @@ export default defineNuxtConfig({
     oauthAdminEmails: '',
     // Comma separated emails allowed to manage forms and read submissions (NUXT_FORMS_ADMIN_EMAILS).
     formsAdminEmails: '',
+    // Comma separated emails that are always admins (NUXT_ACL_ADMINS). Bootstraps the first admin.
+    aclAdmins: '',
   },
 
   routeRules: {
@@ -166,6 +171,12 @@ export default defineNuxtConfig({
       pages: { index: true, profile: true, security: true },
       // A new address must be confirmed from its inbox; the old address gets a revert link.
       verifyEmailChange: true,
+    },
+  },
+  admin: {
+    settings: {
+      // Same roles as the old `canViewAdminArea` ability.
+      roles: ['admin', 'manager', 'coordinator'],
     },
   },
   cookieConsent: {
@@ -262,6 +273,9 @@ export default defineNuxtConfig({
       // an account (use the register page). Email/password users must verify before logging in.
       magicLink: true,
       verifyEmail: true,
+      // Staff user administration; the policy lives in server/plugins/users-policy.ts.
+      admin: true,
+      session: { mapper: '~~/server/utils/map-session-user' },
       // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
       oauth: { facebook: true },
     },

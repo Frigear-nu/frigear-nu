@@ -98,6 +98,31 @@
         "label": "Log ud",
         "description": "Log ud af din konto."
       }
+    },
+    "admin": {
+      "nav": {
+        "label": "Brugere",
+        "description": "Administrér systemets brugere."
+      },
+      "title": "Brugere",
+      "create": "Opret bruger",
+      "edit": "Redigér bruger",
+      "filter": "Filtrér...",
+      "name": "Navn",
+      "email": "E-mail",
+      "role": "Rolle",
+      "verified": "Verificeret",
+      "emailVerified": "Markér e-mailadressen som verificeret",
+      "sendWelcome": "Send et login-link på e-mail",
+      "cancel": "Annullér",
+      "save": "Gem",
+      "error": "Noget gik galt.",
+      "allUsers": "Alle brugere",
+      "newMembers": {
+        "title": "Nye medlemmer",
+        "description": "Tilmeldt inden for de seneste 30 dage.",
+        "empty": "Ingen nye endnu."
+      }
     }
   }
 }

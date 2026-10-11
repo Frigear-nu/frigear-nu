@@ -25,7 +25,7 @@ export type PublicModuleOptions = {
   magicLink: boolean
   verifyEmail: boolean
   oauth: OAuthProvider[]
-  pages: { login?: string, register?: string }
+  pages: { login?: string, register?: string, admin?: string }
 }
 
 export type ModuleOptions = {
@@ -46,6 +46,10 @@ export type ModuleOptions = {
     // Requires users who register with email/password to verify their address (through an emailed link) before
     // they can log in. No session is created at registration. Defaults to `false`.
     verifyEmail?: boolean
+    // User administration for staff: list/create/edit users (`/api/users/admin`), a "new members" widget and an
+    // admin page. Who may do what is decided by the host in the `users:admin:authorize` Nitro hook (denied by
+    // default). `page` is the admin page path (`true` = `/admin/users`, `false` = no page).
+    admin?: boolean | { page?: string | boolean }
     // Cron expression for the task removing expired magic links and password resets, or `false` to schedule
     // nothing (the task `users:clear-expired-tokens` is still registered). Defaults to daily at 03:00.
     cleanup?: string | false

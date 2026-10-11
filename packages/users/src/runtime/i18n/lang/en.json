@@ -98,6 +98,31 @@
         "label": "Logout",
         "description": "Sign out of your account."
       }
+    },
+    "admin": {
+      "nav": {
+        "label": "Users",
+        "description": "Manage the users of the system."
+      },
+      "title": "Users",
+      "create": "Create user",
+      "edit": "Edit user",
+      "filter": "Filter...",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "verified": "Verified",
+      "emailVerified": "Mark the email address as verified",
+      "sendWelcome": "Email a sign-in link",
+      "cancel": "Cancel",
+      "save": "Save",
+      "error": "Something went wrong.",
+      "allUsers": "All users",
+      "newMembers": {
+        "title": "New members",
+        "description": "Signed up in the last 30 days.",
+        "empty": "Nobody new yet."
+      }
     }
   }
 }
