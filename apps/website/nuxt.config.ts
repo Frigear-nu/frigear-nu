@@ -112,6 +112,9 @@ export default defineNuxtConfig({
         keep_vars: true,
         observability: {
           enabled: true,
+          logs: {
+            enabled: true,
+          },
         },
         // Lets the deploy workflows pin the worker name (e.g. to keep PR
         // preview versions on the same worker as production) without
