@@ -15,7 +15,7 @@ const { data: items } = await useMenu('admin.nav')
       <template #empty>
         <div
           v-if="items?.length"
-          class="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          class="admin-cards"
         >
           <UPageCard
             v-for="item in items"
@@ -36,3 +36,11 @@ const { data: items } = await useMenu('admin.nav')
     </WidgetArea>
   </div>
 </template>
+
+<style scoped>
+.admin-cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+</style>

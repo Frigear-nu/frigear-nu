@@ -5,19 +5,12 @@ import { getWidgetComponent } from '../utils/components'
 const props = defineProps<{ name: string }>()
 
 const { data: widgets } = await useWidgets(props.name)
-
-const spans = {
-  1: '',
-  2: 'md:col-span-2',
-  3: 'lg:col-span-3',
-  4: 'lg:col-span-4',
-} as const
 </script>
 
 <template>
   <div
     v-if="widgets?.length"
-    class="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+    class="widget-area"
   >
     <template
       v-for="widget in widgets"
@@ -28,7 +21,7 @@ const spans = {
         :widget="widget"
         :component="getWidgetComponent(name, widget.id)"
       >
-        <div :class="spans[widget.span ?? 1]">
+        <div :style="{ '--widget-span': widget.span ?? 1 }">
           <component
             :is="getWidgetComponent(name, widget.id)"
             v-bind="widget.props"
@@ -42,3 +35,22 @@ const spans = {
     name="empty"
   />
 </template>
+
+<style scoped>
+/* Plain CSS rather than utility classes: Tailwind does not scan workspace packages. */
+.widget-area {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+@media (min-width: 48rem) {
+  .widget-area {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .widget-area > * {
+    grid-column: span var(--widget-span, 1);
+  }
+}
+</style>

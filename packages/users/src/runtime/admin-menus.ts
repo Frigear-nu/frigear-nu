@@ -1,10 +1,11 @@
-import { defineMenuSource } from '@frigear-nu/menu/utils'
+import { defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
 
 // The `admin.nav` entry of the users admin page (see `module.ts`; only registered with `settings.admin`).
-export default defineMenuSource((items) => {
+// `extendMenuItem` parses the `menu.group` path, which a source's own `menu` option does not.
+export default defineMenuSource(() => {
   const adminPage = useRuntimeConfig().public.users?.pages?.admin
   if (adminPage) {
-    items.push({
+    extendMenuItem('admin.nav', {
       id: 'users-admin',
       label: 'Users',
       labelKey: 'users.admin.nav.label',

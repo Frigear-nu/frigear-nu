@@ -11,7 +11,6 @@ const { data: members } = await useFetch<{ id: number, name: string, email: stri
     variant="subtle"
     :title="t('admin.newMembers.title', 'New members')"
     :description="t('admin.newMembers.description', 'Signed up in the last 30 days.')"
-    class="md:col-span-2"
   >
     <ul
       v-if="members?.length"

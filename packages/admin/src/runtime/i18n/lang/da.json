@@ -1,11 +1,14 @@
 {
   "admin": {
     "title": "Administration",
-    "nav": { "label": "Admin-navigation" },
+    "nav": {
+      "label": "Admin-navigation"
+    },
     "dashboard": {
       "title": "Oversigt",
       "description": "Overblik og genveje til administratorer.",
       "empty": "Her er endnu intet. Moduler tilføjer deres admin-sider og widgets automatisk."
-    }
+    },
+    "backToSite": "Tilbage til siden"
   }
 }

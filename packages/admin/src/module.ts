@@ -30,6 +30,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
   moduleDependencies: {
     '@frigear-nu/module-kit': { version: '>=0.0.0' },
+    // The signed-in user is shown in the header (`useUserSession`).
+    'nuxt-auth-utils': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.0' },
     '@frigear-nu/widget': { version: '>=0.0.0' },
     '@frigear-nu/authorization': { version: '>=0.0.0', optional: true },
@@ -63,19 +65,19 @@ export default defineNuxtModule<ModuleOptions>({
       }
     }
 
+    // Every page under the base (including other modules', whenever they register) gets the shell unless it
+    // chose a layout itself. A route rule rather than page meta, so registration order doesn't matter.
+    if (settings.layout !== false) {
+      const rules = nuxt.options.routeRules ||= {}
+      const pattern = `${base}/**`
+      rules[pattern] = { appLayout: 'admin', ...rules[pattern] } as (typeof rules)[string]
+      // The dashboard itself lives at `base`, which `<base>/**` does not match.
+      rules[base] = { appLayout: 'admin', ...rules[base] } as (typeof rules)[string]
+    }
+
     extendPages((pages) => {
       if (dashboardPath && !pages.some(page => page.path === dashboardPath)) {
         pages.push({ name: 'admin-dashboard', path: dashboardPath, file: resolver.resolve('./runtime/app/pages/dashboard.vue') })
-      }
-
-      // Every page under the base (including other modules') gets the shell unless it chose a layout.
-      if (settings.layout !== false) {
-        for (const page of pages) {
-          if (page.path === base || page.path.startsWith(`${base}/`)) {
-            page.meta ||= {}
-            page.meta.layout ??= 'admin'
-          }
-        }
       }
     })
   },

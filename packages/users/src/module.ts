@@ -367,7 +367,7 @@ export default defineNuxtModule<ModuleOptions>({
       const { registerMenuSource } = await import('@frigear-nu/menu/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
       if (adminPagePath) {
-        registerMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin.nav' })
+        registerMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
       }
     }
 
