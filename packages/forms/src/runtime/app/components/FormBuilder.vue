@@ -249,6 +249,9 @@ const summary = (field: FormField) =>
   <div class="builder">
     <!-- Palette -->
     <aside class="builder-palette space-y-4">
+      <h2 class="builder-title">
+        {{ t('builder.paletteTitle', 'Add fields') }}
+      </h2>
       <div class="space-y-1">
         <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
           {{ t('builder.layout', 'Layout') }}
@@ -303,6 +306,9 @@ const summary = (field: FormField) =>
 
     <!-- Fields being edited: the list, then the settings of the selected one -->
     <div class="builder-editor">
+      <h2 class="builder-title">
+        {{ t('builder.fieldsTitle', 'Form fields') }}
+      </h2>
       <!-- Canvas -->
       <div
         class="space-y-3"
@@ -498,6 +504,9 @@ const summary = (field: FormField) =>
       </div>
 
       <!-- Inspector -->
+      <h2 class="builder-title">
+        {{ t('builder.settingsTitle', 'Settings') }}
+      </h2>
       <aside class="builder-inspector space-y-4 rounded-lg border border-default p-4">
         <template v-if="selectedField && selection?.kind === 'field'">
           <h3 class="font-semibold">
@@ -715,7 +724,12 @@ const summary = (field: FormField) =>
 
     <!-- Live preview -->
     <div class="builder-preview">
-      <slot name="preview" />
+      <h2 class="builder-title">
+        {{ t('admin.preview', 'Preview') }}
+      </h2>
+      <div class="builder-preview-card">
+        <slot name="preview" />
+      </div>
     </div>
   </div>
 </template>
@@ -739,8 +753,22 @@ const summary = (field: FormField) =>
   gap: 0.25rem;
 }
 
+.builder-title {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Inside the grid the editor column's gap already spaces its parts. */
+.builder-editor > .builder-title {
+  margin-bottom: -0.5rem;
+}
+
 .builder-preview {
   min-width: 0;
+}
+
+.builder-preview-card {
   border: 1px solid var(--ui-border);
   border-radius: 0.5rem;
   padding: 1.5rem;

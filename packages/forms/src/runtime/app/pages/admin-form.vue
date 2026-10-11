@@ -145,9 +145,6 @@ async function save() {
         v-model="definition"
       >
         <template #preview>
-          <h2 class="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-            {{ t('admin.preview', 'Preview') }}
-          </h2>
           <FormRenderer
             v-if="checked.definition"
             :key="previewKey + JSON.stringify(checked.definition).length"
