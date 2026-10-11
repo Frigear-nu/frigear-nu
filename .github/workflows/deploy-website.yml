@@ -111,7 +111,10 @@ jobs:
         id: preview-url
         run: |
           cat "$RUNNER_TEMP/preview-output.json"
-          url=$(jq -er '.preview.urls[0]' "$RUNNER_TEMP/preview-output.json" || true)
+          # wrangler prints progress (asset upload etc.) to stdout next to the JSON, so the file is not pure JSON:
+          # keep everything from the line that opens the top-level object.
+          sed -n '/^{/,$p' "$RUNNER_TEMP/preview-output.json" > "$RUNNER_TEMP/preview-result.json"
+          url=$(jq -er '.preview.urls[0]' "$RUNNER_TEMP/preview-result.json" || true)
           if [ -z "$url" ]; then
             echo "::error::wrangler did not report a preview URL (enable workers.dev or previews_enabled on the custom domain)"
             exit 1
