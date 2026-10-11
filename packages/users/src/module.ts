@@ -335,10 +335,10 @@ export default defineNuxtModule<ModuleOptions>({
 
     if (withAdmin) {
       for (const [method, path, file] of [
-        ['get', '/api/users/admin', 'users.get'],
-        ['post', '/api/users/admin', 'users.post'],
-        ['get', '/api/users/admin/new-members', 'new-members.get'],
-        ['patch', '/api/users/admin/:id', 'user.patch'],
+        ['get', '/api/admin/users', 'users.get'],
+        ['post', '/api/admin/users', 'users.post'],
+        ['get', '/api/admin/users/new-members', 'new-members.get'],
+        ['patch', '/api/admin/users/:id', 'user.patch'],
       ] as const) {
         addServerHandler({ route: path, method, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })
       }

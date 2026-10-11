@@ -34,7 +34,7 @@ const query = computed(() => ({
   order: sorting.value[0] ? (sorting.value[0].desc ? 'desc' : 'asc') : undefined,
 }))
 
-const { data, status, refresh } = await useFetch<AdminUsersPage>('/api/users/admin', {
+const { data, status, refresh } = await useFetch<AdminUsersPage>('/api/admin/users', {
   query,
   default: () => ({ items: [], total: 0, page: 1, pageSize: 20, hasRoles: false }),
 })
@@ -116,13 +116,13 @@ async function save() {
   saving.value = true
   try {
     if (editing.value) {
-      await $fetch(`/api/users/admin/${editing.value.id}`, {
+      await $fetch(`/api/admin/users/${editing.value.id}`, {
         method: 'PATCH',
         body: { name: form.name, email: form.email, ...(hasRoles.value && form.role ? { role: form.role } : {}) },
       })
     }
     else {
-      await $fetch('/api/users/admin', {
+      await $fetch('/api/admin/users', {
         method: 'POST',
         body: { ...form, role: hasRoles.value && form.role ? form.role : undefined },
       })

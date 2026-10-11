@@ -40,14 +40,14 @@ describe('users admin', async () => {
     staff = await register('Staff', 'staff@example.com')
     member = await register('Member', 'member@example.com')
 
-    expect((await call('GET', '/api/users/admin')).status).toBe(401)
-    expect((await call('GET', '/api/users/admin', undefined, member)).status).toBe(403)
-    expect((await call('POST', '/api/users/admin', { name: 'X', email: 'x@example.com' }, member)).status).toBe(403)
-    expect((await call('PATCH', '/api/users/admin/1', { name: 'X' }, member)).status).toBe(403)
+    expect((await call('GET', '/api/admin/users')).status).toBe(401)
+    expect((await call('GET', '/api/admin/users', undefined, member)).status).toBe(403)
+    expect((await call('POST', '/api/admin/users', { name: 'X', email: 'x@example.com' }, member)).status).toBe(403)
+    expect((await call('PATCH', '/api/admin/users/1', { name: 'X' }, member)).status).toBe(403)
   })
 
   it('lets allowed staff create, list and edit users without exposing passwords', async () => {
-    const created = await call('POST', '/api/users/admin', { name: 'New Person', email: 'New@Example.com' }, staff)
+    const created = await call('POST', '/api/admin/users', { name: 'New Person', email: 'New@Example.com' }, staff)
     expect(created.status, await created.clone().text()).toBe(200)
     const user = await created.json()
     expect(user).toMatchObject({ name: 'New Person', email: 'new@example.com', emailVerifiedAt: null })
@@ -56,33 +56,33 @@ describe('users admin', async () => {
     // A sign-in link was emailed to the new user.
     expect((await sentMails()).some(mail => mail.to === 'new@example.com')).toBe(true)
 
-    const { items: list } = await (await call('GET', '/api/users/admin', undefined, staff)).json()
+    const { items: list } = await (await call('GET', '/api/admin/users', undefined, staff)).json()
     expect(list.map((u: { email: string }) => u.email)).toContain('new@example.com')
     expect(list.every((u: object) => !('password' in u))).toBe(true)
 
-    const edited = await call('PATCH', `/api/users/admin/${user.id}`, { name: 'Renamed' }, staff)
+    const edited = await call('PATCH', `/api/admin/users/${user.id}`, { name: 'Renamed' }, staff)
     expect(edited.status, await edited.clone().text()).toBe(200)
     expect(await edited.json()).toMatchObject({ name: 'Renamed' })
 
-    const members = await (await call('GET', '/api/users/admin/new-members', undefined, staff)).json()
+    const members = await (await call('GET', '/api/admin/users/new-members', undefined, staff)).json()
     expect(members.length).toBeGreaterThan(0)
   })
 
   it('rejects duplicate emails and unknown users', async () => {
-    expect((await call('POST', '/api/users/admin', { name: 'Dup', email: 'member@example.com' }, staff)).status).toBe(409)
-    expect((await call('PATCH', '/api/users/admin/99999', { name: 'Ghost' }, staff)).status).toBe(404)
-    expect((await call('PATCH', '/api/users/admin/abc', { name: 'Ghost' }, staff)).status).toBe(400)
+    expect((await call('POST', '/api/admin/users', { name: 'Dup', email: 'member@example.com' }, staff)).status).toBe(409)
+    expect((await call('PATCH', '/api/admin/users/99999', { name: 'Ghost' }, staff)).status).toBe(404)
+    expect((await call('PATCH', '/api/admin/users/abc', { name: 'Ghost' }, staff)).status).toBe(400)
   })
 
   it('marks a staff-changed email as unverified', async () => {
-    const { items: list } = await (await call('GET', '/api/users/admin', undefined, staff)).json()
+    const { items: list } = await (await call('GET', '/api/admin/users', undefined, staff)).json()
     const target = list.find((u: { email: string }) => u.email === 'member@example.com')
-    const edited = await call('PATCH', `/api/users/admin/${target.id}`, { email: 'member2@example.com' }, staff)
+    const edited = await call('PATCH', `/api/admin/users/${target.id}`, { email: 'member2@example.com' }, staff)
     expect(await edited.json()).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
   })
 
   it('paginates, searches, filters and sorts through the API', async () => {
-    const fetchPage = async (query: string) => (await call('GET', `/api/users/admin?${query}`, undefined, staff)).json()
+    const fetchPage = async (query: string) => (await call('GET', `/api/admin/users?${query}`, undefined, staff)).json()
 
     const first = await fetchPage('pageSize=1&sort=id&order=asc')
     expect(first.items).toHaveLength(1)
@@ -106,6 +106,6 @@ describe('users admin', async () => {
     const emails = sorted.items.map((u: { email: string }) => u.email)
     expect(emails).toEqual([...emails].sort())
 
-    expect((await call('GET', '/api/users/admin?pageSize=1000', undefined, staff)).status).toBe(400)
+    expect((await call('GET', '/api/admin/users?pageSize=1000', undefined, staff)).status).toBe(400)
   })
 })
