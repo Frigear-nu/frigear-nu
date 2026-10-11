@@ -22,6 +22,7 @@ on:
         options:
           - all
           - account
+          - admin
           - authorization
           - cookie-consent
           - events
@@ -35,6 +36,7 @@ on:
           - subscriptions
           - ui
           - users
+          - widget
       increment:
         description: Version increment (passed to release-it)
         type: choice
@@ -68,7 +70,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin"]'
           else
             packages="[\"$PACKAGE\"]"
           fi
