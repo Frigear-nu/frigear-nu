@@ -53,13 +53,20 @@ export default defineNuxtModule<ModuleOptions>({
     addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
     addComponent({ name: 'AdminPageHeader', filePath: resolver.resolve('./runtime/app/components/AdminPageHeader.vue') })
 
+    // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
+    const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])
+      .map(locale => typeof locale === 'string' ? locale : locale.code)
+      .map(code => `/${code}`)]
+    const bases = prefixes.map(prefix => `${prefix}${base}`)
+
     // The admin area is only reachable by the configured roles. Route rules are enforced by
     // @frigear-nu/authorization (also on the server); without it nothing guards the pages.
     if (settings.roles !== false) {
       if (hasNuxtModule('@frigear-nu/authorization')) {
-        const pattern = `${base}/**`
         const rules = nuxt.options.routeRules ||= {}
-        rules[pattern] = { roles: settings.roles ?? ['admin'], ...rules[pattern] } as (typeof rules)[string]
+        for (const pattern of bases.map(prefixed => `${prefixed}/**`)) {
+          rules[pattern] = { roles: settings.roles ?? ['admin'], ...rules[pattern] } as (typeof rules)[string]
+        }
       }
       else {
         console.warn('[@frigear-nu/admin] @frigear-nu/authorization is not installed: the admin pages are not guarded on the client. Install it or set `admin.settings.roles: false` and guard the area yourself.')
@@ -70,10 +77,12 @@ export default defineNuxtModule<ModuleOptions>({
     // chose a layout itself. A route rule rather than page meta, so registration order doesn't matter.
     if (settings.layout !== false) {
       const rules = nuxt.options.routeRules ||= {}
-      const pattern = `${base}/**`
-      rules[pattern] = { appLayout: 'admin', ...rules[pattern] } as (typeof rules)[string]
-      // The dashboard itself lives at `base`, which `<base>/**` does not match.
-      rules[base] = { appLayout: 'admin', ...rules[base] } as (typeof rules)[string]
+      for (const prefixed of bases) {
+        // `<base>/**` does not match the dashboard at `base` itself.
+        for (const pattern of [prefixed, `${prefixed}/**`]) {
+          rules[pattern] = { appLayout: 'admin', ...rules[pattern] } as (typeof rules)[string]
+        }
+      }
     }
 
     // An "Admin" entry in the account dropdown, shown by the dropdown only to users holding one of the roles.

@@ -4,7 +4,13 @@ defineOptions({ name: 'AdminLayout' })
 const t = useModuleT('admin')
 const route = useRoute()
 const config = useRuntimeConfig().public.admin
-const { user } = useUserSession()
+// The same header controls as the site, resolved by name so a host's own overrides win and nothing is required:
+// `LanguageSelect` (base layer), `AccountMenu` (@frigear-nu/account). A name that doesn't resolve stays a string.
+const LanguageSelect = resolveComponent('LanguageSelect')
+const AccountMenu = resolveComponent('AccountMenu')
+const optional = (component: unknown) => typeof component === 'string' ? undefined : component
+const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: unknown[] } } }
+const multiLocale = (nuxtApp.$i18n?.locales?.value?.length ?? 0) > 1
 const { data: items } = await useMenu('admin.nav')
 
 const home = config?.dashboard ?? config?.base ?? '/admin'
@@ -75,12 +81,15 @@ watch(() => route.path, () => {
               <UDashboardSidebarCollapse />
             </template>
             <template #right>
-              <span
-                v-if="user"
-                class="admin-user"
-              >
-                {{ user.email }}
-              </span>
+              <component
+                :is="optional(LanguageSelect)"
+                v-if="optional(LanguageSelect) && multiLocale"
+              />
+              <UColorModeButton />
+              <component
+                :is="optional(AccountMenu)"
+                v-if="optional(AccountMenu)"
+              />
             </template>
           </UDashboardNavbar>
         </template>
@@ -107,10 +116,9 @@ watch(() => route.path, () => {
 /* A boxed shell: header on top of the content, sidebar on the left, all inside one bordered frame. */
 .admin-frame {
   max-width: 80rem;
-  height: calc(100dvh - 2rem);
-  margin: 1rem auto;
-  border: 1px solid var(--ui-border);
-  border-radius: 0.75rem;
+  height: 100dvh;
+  margin: 0 auto;
+  border-inline: 1px solid var(--ui-border);
   overflow: hidden;
   background: var(--ui-bg);
 }
@@ -122,17 +130,9 @@ watch(() => route.path, () => {
   font-weight: 600;
 }
 
-.admin-user {
-  font-size: 0.875rem;
-  color: var(--ui-text-muted);
-}
-
 @media (max-width: 64rem) {
   .admin-frame {
-    margin: 0;
-    height: 100dvh;
-    border: 0;
-    border-radius: 0;
+    border-inline: 0;
   }
 }
 </style>
