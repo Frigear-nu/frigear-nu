@@ -84,5 +84,13 @@
       },
       "label": "Fejl"
     }
+  },
+  "users": {
+    "menu": {
+      "logout": {
+        "label": "Log ud",
+        "description": "Log ud af din konto."
+      }
+    }
   }
 }

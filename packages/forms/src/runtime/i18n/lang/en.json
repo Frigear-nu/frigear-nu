@@ -79,6 +79,12 @@
       "invalidDefinition": "The definition has problems",
       "preview": "Preview",
       "previewUnavailable": "Fix the definition to see a preview."
+    },
+    "menu": {
+      "admin": {
+        "label": "Forms",
+        "description": "Manage forms and their submissions."
+      }
     }
   }
 }

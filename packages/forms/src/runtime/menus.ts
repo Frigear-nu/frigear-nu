@@ -8,7 +8,9 @@ export default defineMenuSource(() => {
     extendMenuItem('dashboard.account', defineMenuItem({
       id: 'forms-admin',
       label: 'Forms',
+      labelKey: 'forms.menu.admin.label',
       description: 'Manage forms and their submissions.',
+      descriptionKey: 'forms.menu.admin.description',
       icon: 'i-lucide-clipboard-list',
       to: config.pages.admin,
       tags: ['admin'],

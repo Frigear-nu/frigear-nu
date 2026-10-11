@@ -8,7 +8,9 @@ export default defineMenuSource(() => {
     const item = defineMenuItem({
       id: 'subscription',
       label: 'Subscription',
+      labelKey: 'subscriptions.menu.subscription.label',
       description: 'Manage your plan and billing.',
+      descriptionKey: 'subscriptions.menu.subscription.description',
       icon: 'i-lucide-credit-card',
       to: config.pages.membership,
       order: 30,

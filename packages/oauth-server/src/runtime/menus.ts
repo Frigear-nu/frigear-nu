@@ -8,7 +8,9 @@ export default defineMenuSource(() => {
     const item = defineMenuItem({
       id: 'oauth-applications',
       label: 'Applications',
+      labelKey: 'oauthServer.menu.applications.label',
       description: 'Applications you can sign in to.',
+      descriptionKey: 'oauthServer.menu.applications.description',
       icon: 'i-lucide-layout-grid',
       to: config.pages.applications,
       order: 50,
@@ -25,7 +27,9 @@ export default defineMenuSource(() => {
     extendMenuItem('dashboard.account', defineMenuItem({
       id: 'oauth-admin',
       label: 'OAuth applications',
+      labelKey: 'oauthServer.menu.admin.label',
       description: 'Manage the applications users can sign in to.',
+      descriptionKey: 'oauthServer.menu.admin.description',
       icon: 'i-lucide-key-round',
       to: config.pages.admin,
       order: 90,

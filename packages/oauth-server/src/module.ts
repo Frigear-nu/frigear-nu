@@ -11,6 +11,7 @@ import {
   defineModulePage,
   moduleApiUrl,
   registerDatabaseTable,
+  registerLocales,
   registerModule,
 } from '@frigear-nu/module-kit/utils'
 import type {
@@ -89,6 +90,8 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
+
+    registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
     // The consent screen is part of the flow, so it is on unless explicitly disabled (`false`).
     const authorizePath = settings.pages?.authorize === false

@@ -14,7 +14,15 @@ export type MenuItem = {
    * entries, so content-sourced and module-sourced items share the exact same shape.
    */
   label: string
+  /**
+   * Optional i18n key (e.g. `users.menu.logout.label`). When `@nuxtjs/i18n` is installed and the
+   * key exists for the active locale, `useMenu` returns its translation as `label`; otherwise the
+   * plain `label` above is the fallback. Ids are always derived from the untranslated `label`.
+   */
+  labelKey?: string
   description?: string
+  /** Optional i18n key for `description`, resolved the same way as `labelKey`. */
+  descriptionKey?: string
   icon?: string
   to?: string
   external?: boolean

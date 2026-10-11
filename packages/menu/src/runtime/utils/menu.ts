@@ -94,6 +94,27 @@ export function deriveMenuItemId(item: MenuItem): string {
   return item.id ?? item.to ?? slugify(item.label)
 }
 
+/** The slice of `@nuxtjs/i18n`'s `$i18n` that `translateMenuItem` needs. */
+export type MenuTranslator = {
+  t: (key: string) => string
+  te: (key: string) => boolean
+}
+
+/**
+ * Resolves an item's `labelKey`/`descriptionKey` against the active locale, falling back to the
+ * plain `label`/`description` when no translator is available or the key has no message. The
+ * `id` is derived first, so it stays identical across locales.
+ */
+export function translateMenuItem(item: MenuItem, i18n?: MenuTranslator): MenuItem {
+  if (!i18n || (!item.labelKey && !item.descriptionKey)) return item
+
+  const id = deriveMenuItemId(item)
+  const translated: MenuItem = { ...item, id }
+  if (item.labelKey && i18n.te(item.labelKey)) translated.label = i18n.t(item.labelKey)
+  if (item.descriptionKey && i18n.te(item.descriptionKey)) translated.description = i18n.t(item.descriptionKey)
+  return translated
+}
+
 function normalizeItems(group: string, items: MenuItem | MenuItem[]): MenuItem[] {
   const list = Array.isArray(items) ? items : [items]
   const seen = new Set<string>()

@@ -1,0 +1,14 @@
+{
+  "oauthServer": {
+    "menu": {
+      "applications": {
+        "label": "Applications",
+        "description": "Applications you can sign in to."
+      },
+      "admin": {
+        "label": "OAuth applications",
+        "description": "Manage the applications users can sign in to."
+      }
+    }
+  }
+}

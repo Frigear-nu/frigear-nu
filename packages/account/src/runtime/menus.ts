@@ -9,7 +9,9 @@ export default defineMenuSource(() => {
     extendMenuItem('account.dropdown', {
       id: 'account',
       label: 'Account',
+      labelKey: 'account.menu.account.label',
       description: 'Your account.',
+      descriptionKey: 'account.menu.account.description',
       icon: 'i-lucide-layout-dashboard',
       to: config.pages.index,
       order: -99,
@@ -20,7 +22,9 @@ export default defineMenuSource(() => {
     const profileItem = defineMenuItem({
       id: 'profile',
       label: 'Profile',
+      labelKey: 'account.menu.profile.label',
       description: 'Manage your profile details and email address.',
+      descriptionKey: 'account.menu.profile.description',
       icon: 'i-lucide-user-round-pen',
       to: config.pages.profile,
       order: 10,
@@ -34,7 +38,9 @@ export default defineMenuSource(() => {
     extendMenuItem('account', {
       id: 'security',
       label: 'Security',
+      labelKey: 'account.menu.security.label',
       description: 'Change your password and manage passkeys.',
+      descriptionKey: 'account.menu.security.description',
       icon: 'i-lucide-shield-user',
       to: config.pages.security,
       order: 20,
