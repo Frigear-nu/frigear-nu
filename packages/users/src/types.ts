@@ -46,7 +46,7 @@ export type ModuleOptions = {
     // Requires users who register with email/password to verify their address (through an emailed link) before
     // they can log in. No session is created at registration. Defaults to `false`.
     verifyEmail?: boolean
-    // User administration for staff: list/create/edit users (`/api/users/admin`), a "new members" widget and an
+    // User administration for staff: list/create/edit users (`/api/admin/users`), a "new members" widget and an
     // admin page. Who may do what is decided by the host in the `users:admin:authorize` Nitro hook (denied by
     // default). `page` is the admin page path (`true` = `/admin/users`, `false` = no page).
     admin?: boolean | { page?: string | boolean }

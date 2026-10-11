@@ -3,7 +3,7 @@ defineOptions({ name: 'UsersNewMembersWidget' })
 
 const t = useModuleT('users')
 const adminPage = useRuntimeConfig().public.users?.pages?.admin
-const { data: members } = await useFetch<{ id: number, name: string, email: string, createdAt: string }[]>('/api/users/admin/new-members', { default: () => [] })
+const { data: members } = await useFetch<{ id: number, name: string, email: string, createdAt: string }[]>('/api/admin/users/new-members', { default: () => [] })
 </script>
 
 <template>

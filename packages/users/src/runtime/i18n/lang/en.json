@@ -128,6 +128,18 @@
         "title": "New members",
         "description": "Signed up in the last 30 days.",
         "empty": "Nobody new yet."
+      },
+      "search": "Search name, email or role...",
+      "empty": "No users match.",
+      "total": "{count} users",
+      "lastLogin": "Last sign-in",
+      "created": "Created",
+      "filters": {
+        "all": "All",
+        "verified": "Verified",
+        "unverified": "Unverified",
+        "role": "Exact role",
+        "clear": "Clear filters"
       }
     }
   }
