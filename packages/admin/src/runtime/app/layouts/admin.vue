@@ -113,12 +113,10 @@ watch(() => route.path, () => {
   padding: 0;
 }
 
-/* A boxed shell: header on top of the content, sidebar on the left, all inside one bordered frame. */
+/* A full-width shell: header on top of the content, sidebar on the left, filling the whole view. */
 .admin-frame {
-  max-width: 80rem;
+  width: 100%;
   height: 100dvh;
-  margin: 0 auto;
-  border-inline: 1px solid var(--ui-border);
   overflow: hidden;
   background: var(--ui-bg);
 }
@@ -128,11 +126,5 @@ watch(() => route.path, () => {
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
-}
-
-@media (max-width: 64rem) {
-  .admin-frame {
-    border-inline: 0;
-  }
 }
 </style>
