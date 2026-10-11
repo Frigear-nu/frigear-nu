@@ -107,8 +107,31 @@ export default defineNuxtConfig({
           ? [{
               pattern: process.env.DEPLOYMENT_HOST,
               custom_domain: !(process.env?.DEPLOYMENT_HOST?.endsWith('.workers.dev')),
+              // Also serve Worker Previews (`wrangler preview --name pr-<n>`) on pr-<n>.<DEPLOYMENT_HOST>.
+              // Only applied by a production `wrangler deploy`; ignored for workers.dev hosts.
+              ...(process.env.DEPLOYMENT_HOST.endsWith('.workers.dev') ? {} : { previews_enabled: true }),
             }]
           : undefined,
+        // Worker Previews (https://developers.cloudflare.com/workers/previews/) do NOT inherit production
+        // bindings, and the block is required for `wrangler preview` to work. A PR build sets
+        // NUXT_HUB_CLOUDFLARE_DATABASE_ID to the per-PR D1 database, so Previews are isolated from production.
+        // KV/R2 point at the configured resources; use dedicated preview ones via the same env vars if needed.
+        // Secrets/vars: `wrangler preview base-config secret put <NAME>` (set once, copied to each new Preview).
+        previews: {
+          ...(process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID && {
+            d1_databases: [{
+              binding: 'DB',
+              database_name: `pr-${process.env.PR_NUMBER}-${process.env.CLOUDFLARE_DB_NAME}-preview`,
+              database_id: process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID,
+            }],
+          }),
+          ...(process.env.NUXT_HUB_CLOUDFLARE_KV_NAMESPACE_ID && {
+            kv_namespaces: [{ binding: 'KV', id: process.env.NUXT_HUB_CLOUDFLARE_KV_NAMESPACE_ID }],
+          }),
+          ...(process.env.NUXT_HUB_CLOUDFLARE_BUCKET_NAME && {
+            r2_buckets: [{ binding: 'BLOB', bucket_name: process.env.NUXT_HUB_CLOUDFLARE_BUCKET_NAME }],
+          }),
+        },
       },
     },
   },

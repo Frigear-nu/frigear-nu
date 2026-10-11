@@ -12,8 +12,9 @@
 #  - environment: production -> `wrangler deploy` + migrations against the
 #    worker's existing D1 database.
 #  - environment: preview    -> creates (or reuses) a per-PR D1 database,
-#    builds against it, then uploads a named preview Worker version via
-#    `wrangler versions upload --preview-alias`.
+#    builds against it, then creates/updates a Worker Preview (`pr-<n>`) under
+#    the production Worker via `wrangler preview` (shows up in the dashboard's
+#    Preview dropdown). https://developers.cloudflare.com/workers/previews/
 name: Website / Deploy
 
 on:
@@ -55,7 +56,6 @@ jobs:
     environment: ${{ inputs.environment }}
     outputs:
       preview-url: ${{ steps.preview-url.outputs.url }}
-      preview-version-id: ${{ steps.preview-url.outputs.version_id }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -99,26 +99,24 @@ jobs:
         run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:web:deploy-preview' || 'cloudflare:web:deploy' }}
         env:
           NITRO_PRESET: cloudflare_module
-          CLOUDFLARE_PREVIEW_ALIAS: pr-${{ inputs.pr-number }}-preview
+          CLOUDFLARE_PREVIEW_NAME: pr-${{ inputs.pr-number }}
+          PREVIEW_OUTPUT_FILE: ${{ runner.temp }}/preview-output.json
           PR_NUMBER: ${{ inputs.pr-number }}
-          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
 
-      # `wrangler versions upload` never attaches routes / custom domains, so a
-      # made-up hostname would not resolve. Use the preview alias URL that
-      # Cloudflare actually reports for the uploaded version.
+      # The Preview URL is reported by `wrangler preview --json`. With a custom
+      # domain (DEPLOYMENT_HOST, `previews_enabled`) it is pr-<n>.<host>,
+      # otherwise <name>-<worker>.<subdomain>.workers.dev.
       - name: Resolve preview URL
         if: inputs.environment == 'preview'
         id: preview-url
         run: |
-          url=$(jq -r 'select(.type == "version-upload") | .preview_alias_url // .preview_url // empty' "$RUNNER_TEMP/wrangler-output.ndjson" | tail -n1)
+          cat "$RUNNER_TEMP/preview-output.json"
+          url=$(jq -er '.preview.urls[0]' "$RUNNER_TEMP/preview-output.json" || true)
           if [ -z "$url" ]; then
-            echo "::error::wrangler did not report a preview URL (is workers.dev / preview URLs enabled for the worker?)"
-            cat "$RUNNER_TEMP/wrangler-output.ndjson"
+            echo "::error::wrangler did not report a preview URL (enable workers.dev or previews_enabled on the custom domain)"
             exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          version_id=$(jq -r 'select(.type == "version-upload") | .version_id // empty' "$RUNNER_TEMP/wrangler-output.ndjson" | tail -n1)
-          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
         if: inputs.environment == 'preview'
@@ -126,12 +124,10 @@ jobs:
         env:
           PR_NUMBER: ${{ inputs.pr-number }}
           PREVIEW_URL: ${{ steps.preview-url.outputs.url }}
-          PREVIEW_VERSION_ID: ${{ steps.preview-url.outputs.version_id }}
         with:
           script: |
             const marker = '<!-- deploy-preview:result -->'
             const prNumber = Number(process.env.PR_NUMBER)
-            const versionsPattern = /<!-- deploy-preview:versions=([\w,-]*) -->/
 
             const comments = await github.paginate(github.rest.issues.listComments, {
               ...context.repo,
@@ -139,14 +135,8 @@ jobs:
             })
             const existing = comments.find((comment) => comment.body.includes(marker))
 
-            // Every push uploads a new Worker version; remember them all so the
-            // teardown job can delete them when the PR is closed.
-            const versions = new Set(((existing?.body.match(versionsPattern) || [])[1] || '').split(',').filter(Boolean))
-            if (process.env.PREVIEW_VERSION_ID) versions.add(process.env.PREVIEW_VERSION_ID)
-
             const body = [
               marker,
-              `<!-- deploy-preview:versions=${[...versions].join(',')} -->`,
               `🚀 Preview deployed: ${process.env.PREVIEW_URL}`,
             ].join('\n')
 
