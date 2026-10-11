@@ -103,6 +103,10 @@ export default defineNuxtConfig({
         // preview versions on the same worker as production) without
         // hardcoding it here ona custom domain. If no custom domain is set, the default worker subdomain/domain will be used.
         // If no DEPLOYMENT_HOST is provided, it will be assigned a *.workers.dev subdomain.
+        // Without a custom domain, serve the Worker (and its Previews) on *.workers.dev.
+        // `wrangler preview` only reports a URL when workers.dev or `previews_enabled` is on.
+        workers_dev: !process.env.DEPLOYMENT_HOST || process.env.DEPLOYMENT_HOST.endsWith('.workers.dev'),
+        preview_urls: true,
         routes: process.env.DEPLOYMENT_HOST
           ? [{
               pattern: process.env.DEPLOYMENT_HOST,
