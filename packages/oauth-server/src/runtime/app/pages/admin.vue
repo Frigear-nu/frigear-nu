@@ -128,7 +128,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
 </script>
 
 <template>
-  <UContainer class="py-10">
+  <UContainer class="max-w-none py-10">
     <div class="mb-6 flex items-center justify-between gap-4">
       <h1 class="text-2xl font-semibold">
         OAuth applications

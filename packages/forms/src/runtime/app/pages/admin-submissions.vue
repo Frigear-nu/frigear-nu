@@ -12,7 +12,7 @@ const format = (iso: string) => new Date(iso).toLocaleString()
 </script>
 
 <template>
-  <UContainer class="space-y-6 py-10">
+  <UContainer class="max-w-none space-y-6 py-10">
     <div>
       <NuxtLink
         :to="paths('adminForm', { id })"

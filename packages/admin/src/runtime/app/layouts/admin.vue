@@ -105,14 +105,6 @@ watch(() => route.path, () => {
 </template>
 
 <style scoped>
-/* Other modules' admin pages are often wrapped in a `UContainer` (centered, max width, padded). Inside the panel
-   they should fill it like the users page does, so neutralize every container directly in the content. */
-.admin-content :deep([class*='--ui-container']) {
-  max-width: none;
-  margin-inline: 0;
-  padding: 0;
-}
-
 /* A full-width shell: header on top of the content, sidebar on the left, filling the whole view. */
 .admin-frame {
   width: 100%;

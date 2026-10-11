@@ -26,7 +26,7 @@ async function redeliver() {
 </script>
 
 <template>
-  <UContainer class="max-w-3xl space-y-6 py-10">
+  <UContainer class="max-w-none space-y-6 py-10">
     <UAlert
       v-if="error || !submission"
       color="error"
