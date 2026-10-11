@@ -92,13 +92,15 @@ export default defineNuxtModule<ModuleOptions>({
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
     const ticketsPath = resolvePagePath(settings.pages?.tickets, '/account/tickets')
+    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/events')
+    const adminEventPath = resolvePagePath(settings.pages?.adminEvent, '/admin/events/:id')
 
     nuxt.options.runtimeConfig.events = {
       reservationMinutes: settings.reservationMinutes ?? 30,
       membershipEnabled: withMembership,
     }
     nuxt.options.runtimeConfig.public.events = {
-      pages: { events: eventsPath, event: eventPath, tickets: ticketsPath },
+      pages: { events: eventsPath, event: eventPath, tickets: ticketsPath, admin: adminPath, adminEvent: adminEventPath },
     }
 
     // --- Database -------------------------------------------------------------------------
@@ -138,6 +140,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/:slug/purchase', 'public/purchase.post')
 
     route('get', '/admin/events', 'admin/events.get')
+    route('get', '/admin/events/:id', 'admin/event.get')
     route('post', '/admin/events', 'admin/events.post')
     route('patch', '/admin/events/:id', 'admin/event.patch')
     route('delete', '/admin/events/:id', 'admin/event.delete')
@@ -167,7 +170,7 @@ export default defineNuxtModule<ModuleOptions>({
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
-    if (eventsPath || eventPath || ticketsPath) {
+    if (eventsPath || eventPath || ticketsPath || adminPath || adminEventPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
         if (eventsPath && !existingPaths.has(eventsPath)) {
@@ -175,6 +178,12 @@ export default defineNuxtModule<ModuleOptions>({
         }
         if (eventPath && !existingPaths.has(eventPath)) {
           pages.push(defineModulePage(MODULE_NAME, { name: 'events-detail', path: eventPath, file: resolver.resolve('./runtime/app/pages/event.vue') }))
+        }
+        if (adminPath && !existingPaths.has(adminPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin', path: adminPath, file: resolver.resolve('./runtime/app/pages/admin.vue') }))
+        }
+        if (adminEventPath && !existingPaths.has(adminEventPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin-event', path: adminEventPath, file: resolver.resolve('./runtime/app/pages/admin-event.vue') }))
         }
         if (ticketsPath && !existingPaths.has(ticketsPath)) {
           pages.push(defineModulePage(MODULE_NAME, { name: 'events-tickets', path: ticketsPath, file: resolver.resolve('./runtime/app/pages/tickets.vue') }))

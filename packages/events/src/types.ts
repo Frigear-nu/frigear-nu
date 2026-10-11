@@ -18,6 +18,10 @@ export type ModuleOptions = {
       event?: string | boolean
       /** The signed-in user's tickets. `true` = `/account/tickets`. */
       tickets?: string | boolean
+      /** Staff event list (needs the `events:authorize` hook to allow staff). `true` = `/admin/events`. Off by default. */
+      admin?: string | boolean
+      /** Staff event page (details, ticket types, attendees); must contain an `:id` param. `true` = `/admin/events/:id`. Off by default. */
+      adminEvent?: string | boolean
     }
     /** Minutes an unpaid ticket keeps its seat (the Stripe session expires then). Defaults to `30`. */
     reservationMinutes?: number
@@ -31,7 +35,7 @@ export type EventsRuntimeConfig = {
 }
 
 export type PublicModuleOptions = {
-  pages: { events?: string, event?: string, tickets?: string }
+  pages: { events?: string, event?: string, tickets?: string, admin?: string, adminEvent?: string }
 }
 
 export type AddonDto = {

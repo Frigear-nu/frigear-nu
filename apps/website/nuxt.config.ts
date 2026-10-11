@@ -200,7 +200,7 @@ export default defineNuxtConfig({
   },
   events: {
     settings: {
-      pages: { events: true, event: true, tickets: true },
+      pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true },
     },
   },
   forms: {

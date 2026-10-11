@@ -87,6 +87,10 @@
       "tickets": {
         "label": "Tickets",
         "description": "Your event tickets."
+      },
+      "admin": {
+        "label": "Events",
+        "description": "Manage events, ticket types and attendees."
       }
     }
   }
