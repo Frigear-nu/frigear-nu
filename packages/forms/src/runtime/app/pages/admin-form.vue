@@ -47,7 +47,6 @@ const checked = computed(() => {
 
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
-  { value: 'preview', label: t('admin.preview', 'Preview'), icon: 'i-lucide-eye' },
   { value: 'json', label: t('admin.json', 'JSON'), icon: 'i-lucide-braces' },
 ])
 
@@ -112,7 +111,7 @@ async function save() {
         </div>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-3">
+      <div class="form-meta">
         <UFormField :label="t('admin.name', 'Name')">
           <UInput
             v-model="draft.name"
@@ -144,7 +143,25 @@ async function save() {
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
-      />
+      >
+        <template #preview>
+          <h2 class="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+            {{ t('admin.preview', 'Preview') }}
+          </h2>
+          <FormRenderer
+            v-if="checked.definition"
+            :key="previewKey + JSON.stringify(checked.definition).length"
+            :form="{ slug: draft.slug, definition: checked.definition }"
+            preview
+          />
+          <p
+            v-else
+            class="text-muted"
+          >
+            {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
+          </p>
+        </template>
+      </FormBuilder>
 
       <div
         v-else-if="tab === 'json'"
@@ -159,24 +176,6 @@ async function save() {
           class="w-full font-mono text-xs"
           @update:model-value="onJson(String($event))"
         />
-      </div>
-
-      <div
-        v-else
-        class="mx-auto max-w-2xl rounded-lg border border-default p-6"
-      >
-        <FormRenderer
-          v-if="checked.definition"
-          :key="previewKey + JSON.stringify(checked.definition).length"
-          :form="{ slug: draft.slug, definition: checked.definition }"
-          preview
-        />
-        <p
-          v-else
-          class="text-muted"
-        >
-          {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
-        </p>
       </div>
 
       <UAlert
@@ -199,3 +198,17 @@ async function save() {
     </template>
   </UContainer>
 </template>
+
+<style scoped>
+/* Plain scoped CSS rather than utility classes: Tailwind does not scan workspace packages. */
+.form-meta {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .form-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+</style>
