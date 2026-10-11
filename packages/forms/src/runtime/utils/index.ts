@@ -9,6 +9,11 @@ export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField } fr
 export type { Answers, VisibleStep } from './conditions'
 export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
+export {
+  fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, removeField, updateField, updateStep, duplicateField,
+  createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
+} from './builder'
+export type { FieldPosition } from './builder'
 export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'
 export type { FormDefinitionInput } from './definition'
 

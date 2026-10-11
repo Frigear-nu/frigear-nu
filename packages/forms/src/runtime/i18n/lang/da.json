@@ -78,13 +78,72 @@
       "definition": "Definition (JSON)",
       "invalidDefinition": "Definitionen har fejl",
       "preview": "Forhåndsvisning",
-      "previewUnavailable": "Ret definitionen for at se en forhåndsvisning."
+      "previewUnavailable": "Ret definitionen for at se en forhåndsvisning.",
+      "builder": "Opbygning",
+      "json": "JSON"
     },
     "menu": {
       "admin": {
         "label": "Formularer",
         "description": "Administrer formularer og deres indsendelser."
       }
+    },
+    "builder": {
+      "layout": "Layout",
+      "fields": "Felter",
+      "paletteHint": "Træk et felt ind i formularen, eller klik for at tilføje det.",
+      "dragStep": "Træk for at ændre rækkefølgen af trin",
+      "moveUp": "Flyt op",
+      "moveDown": "Flyt ned",
+      "duplicate": "Dupliker",
+      "delete": "Slet",
+      "deleteStep": "Slet trin",
+      "addStep": "Tilføj trin",
+      "emptyStep": "Slip felter her",
+      "conditionalBadge": "Betinget",
+      "selectHint": "Vælg et felt eller trin for at redigere dets indstillinger.",
+      "content": "Tekst (Markdown)",
+      "label": "Etiket",
+      "description": "Hjælpetekst",
+      "placeholder": "Pladsholder",
+      "required": "Påkrævet",
+      "multiple": "Tillad flere filer",
+      "key": "Nøgle",
+      "keyHint": "Identificerer svaret. Bogstaver, tal og understregninger.",
+      "options": "Valgmuligheder",
+      "addOption": "Tilføj valgmulighed",
+      "value": "Værdi",
+      "min": "Minimum",
+      "max": "Maksimum",
+      "minLength": "Min. længde",
+      "maxLength": "Maks. længde",
+      "step": "Trin",
+      "stepTitle": "Titel",
+      "conditional": "Vis kun hvis…",
+      "noEarlierFields": "Tilføj et felt før dette for at bruge det som betingelse.",
+      "valuesHint": "a, b, c",
+      "ops": {
+        "eq": "er lig med",
+        "neq": "er ikke lig med",
+        "in": "er en af",
+        "truthy": "har et svar"
+      },
+      "types": {
+        "text": "Kort tekst",
+        "textarea": "Lang tekst",
+        "email": "E-mail",
+        "tel": "Telefon",
+        "number": "Tal",
+        "date": "Dato",
+        "select": "Rullemenu",
+        "radio": "Enkeltvalg",
+        "checkbox": "Afkrydsningsfelt",
+        "file": "Filupload",
+        "markdown": "Tekstblok"
+      },
+      "translate": "Oversæt",
+      "singleLanguage": "Samme tekst på alle sprog",
+      "addLanguage": "Tilføj sprog, f.eks. en"
     }
   }
 }

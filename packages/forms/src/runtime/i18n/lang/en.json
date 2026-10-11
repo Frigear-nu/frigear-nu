@@ -78,13 +78,72 @@
       "definition": "Definition (JSON)",
       "invalidDefinition": "The definition has problems",
       "preview": "Preview",
-      "previewUnavailable": "Fix the definition to see a preview."
+      "previewUnavailable": "Fix the definition to see a preview.",
+      "builder": "Builder",
+      "json": "JSON"
     },
     "menu": {
       "admin": {
         "label": "Forms",
         "description": "Manage forms and their submissions."
       }
+    },
+    "builder": {
+      "layout": "Layout",
+      "fields": "Fields",
+      "paletteHint": "Drag a field onto the form, or click to add it.",
+      "dragStep": "Drag to reorder steps",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "deleteStep": "Delete step",
+      "addStep": "Add step",
+      "emptyStep": "Drop fields here",
+      "conditionalBadge": "Conditional",
+      "selectHint": "Select a field or step to edit its settings.",
+      "content": "Text (Markdown)",
+      "label": "Label",
+      "description": "Help text",
+      "placeholder": "Placeholder",
+      "required": "Required",
+      "multiple": "Allow several files",
+      "key": "Key",
+      "keyHint": "Identifies the answer. Letters, digits and underscores.",
+      "options": "Options",
+      "addOption": "Add option",
+      "value": "Value",
+      "min": "Minimum",
+      "max": "Maximum",
+      "minLength": "Min length",
+      "maxLength": "Max length",
+      "step": "Step",
+      "stepTitle": "Title",
+      "conditional": "Show only if…",
+      "noEarlierFields": "Add a field before this one to use as a condition.",
+      "valuesHint": "a, b, c",
+      "ops": {
+        "eq": "is equal to",
+        "neq": "is not equal to",
+        "in": "is one of",
+        "truthy": "has an answer"
+      },
+      "types": {
+        "text": "Short text",
+        "textarea": "Long text",
+        "email": "Email",
+        "tel": "Phone",
+        "number": "Number",
+        "date": "Date",
+        "select": "Dropdown",
+        "radio": "Single choice",
+        "checkbox": "Checkbox",
+        "file": "File upload",
+        "markdown": "Text block"
+      },
+      "translate": "Translate",
+      "singleLanguage": "Same text in every language",
+      "addLanguage": "Add language, e.g. da"
     }
   }
 }

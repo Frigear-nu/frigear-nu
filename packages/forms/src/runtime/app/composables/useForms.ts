@@ -7,6 +7,15 @@ export function useFormsLocale() {
   return computed(() => nuxtApp.$i18n?.locale?.value ?? 'en')
 }
 
+/** Locales content can be translated into: `@nuxtjs/i18n`'s configured locales when installed, otherwise just `en`. */
+export function useFormsLocales() {
+  const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: (string | { code: string })[] } } }
+  return computed(() => {
+    const codes = (nuxtApp.$i18n?.locales?.value ?? []).map(locale => typeof locale === 'string' ? locale : locale.code)
+    return codes.length ? codes : ['en']
+  })
+}
+
 /** Loads a published form definition by slug. */
 export function useForm(slug: MaybeRefOrGetter<string>) {
   return useFetch<PublicFormDto>(() => `/api/forms/${toValue(slug)}`, { key: `forms:${toValue(slug)}` })
