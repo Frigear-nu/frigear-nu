@@ -8,6 +8,7 @@
     "email": "kontakt@frigear.nu",
     "url": "https://frigear.nu"
   },
+  "homepage": "https://docs.frigear.dev/modules/oauth-server",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

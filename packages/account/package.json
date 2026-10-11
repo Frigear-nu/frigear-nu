@@ -2,7 +2,12 @@
   "name": "@frigear-nu/account",
   "version": "0.0.5",
   "description": "A module for managing the account area (profile, email, password, security) in the main frigear app.",
-  "repository": "your-org/@frigear-nu/account",
+  "homepage": "https://docs.frigear.dev/modules/account",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/account"
+  },
   "license": "MIT",
   "type": "module",
   "main": "./src/module.ts",

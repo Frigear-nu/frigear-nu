@@ -2,7 +2,12 @@
   "name": "@frigear-nu/users",
   "version": "1.0.6",
   "description": "A module for managing the users in the main frigear app.",
-  "repository": "your-org/@frigear-nu/users",
+  "homepage": "https://docs.frigear.dev/modules/users",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/users"
+  },
   "license": "MIT",
   "type": "module",
   "main": "./src/module.ts",

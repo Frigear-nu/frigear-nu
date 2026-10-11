@@ -15,5 +15,6 @@
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0"
-  }
+  },
+  "homepage": "https://docs.frigear.dev/"
 }

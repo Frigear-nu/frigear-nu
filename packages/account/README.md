@@ -72,15 +72,5 @@ await changePassword({ currentPassword: 'old', newPassword: 'new-password', conf
 
 ## Translations
 
-The module registers `da` and `en` locale files with `@nuxtjs/i18n` under the `account.*` namespace (without
-`@nuxtjs/i18n` the English defaults are used). Override any string in your app's `i18n/locales/<code>.json`; your
-project's files are merged last, so only list the keys you change:
-
-```json
-{ "account": { "profile": { "title": "My details" } } }
-```
-
-Key groups: `title`, `menu.*`, `identificationCode.*`, `profile.*`, `documents.*` and `security.*`. The full list is
-`src/runtime/i18n/lang/en.json`. See the
-[module-kit docs](https://github.com/Frigear-nu/frigear-nu/blob/main/apps/docs/content/4.modules/200.module-kit.md)
-for the mechanism.
+Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
+`i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).

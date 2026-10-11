@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Framework-agnostic email notification driver/dispatch Nuxt module, shared across Frigear modules.",
   "license": "MIT",
+  "homepage": "https://docs.frigear.dev/modules/notify",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",
