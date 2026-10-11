@@ -1,0 +1,14 @@
+{
+  "oauthServer": {
+    "menu": {
+      "applications": {
+        "label": "Applikationer",
+        "description": "Applikationer du kan logge ind på."
+      },
+      "admin": {
+        "label": "OAuth-applikationer",
+        "description": "Administrer de applikationer, brugere kan logge ind på."
+      }
+    }
+  }
+}

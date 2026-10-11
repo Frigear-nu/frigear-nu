@@ -50,6 +50,12 @@
     "errors": {
       "checkout": "Failed to start checkout.",
       "portal": "Failed to open the billing portal."
+    },
+    "menu": {
+      "subscription": {
+        "label": "Subscription",
+        "description": "Manage your plan and billing."
+      }
     }
   }
 }

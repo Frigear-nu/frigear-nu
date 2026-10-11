@@ -50,6 +50,12 @@
     "errors": {
       "checkout": "Kunne ikke starte betalingen.",
       "portal": "Kunne ikke åbne betalingsportalen."
+    },
+    "menu": {
+      "subscription": {
+        "label": "Abonnement",
+        "description": "Administrer dit abonnement og din betaling."
+      }
     }
   }
 }

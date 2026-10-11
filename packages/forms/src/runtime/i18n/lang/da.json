@@ -79,6 +79,12 @@
       "invalidDefinition": "Definitionen har fejl",
       "preview": "Forhåndsvisning",
       "previewUnavailable": "Ret definitionen for at se en forhåndsvisning."
+    },
+    "menu": {
+      "admin": {
+        "label": "Formularer",
+        "description": "Administrer formularer og deres indsendelser."
+      }
     }
   }
 }

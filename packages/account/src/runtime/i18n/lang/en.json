@@ -2,7 +2,19 @@
   "account": {
     "title": "Account",
     "menu": {
-      "label": "Dashboard Menu"
+      "label": "Dashboard Menu",
+      "account": {
+        "label": "Account",
+        "description": "Your account."
+      },
+      "profile": {
+        "label": "Profile",
+        "description": "Manage your profile details and email address."
+      },
+      "security": {
+        "label": "Security",
+        "description": "Change your password and manage passkeys."
+      }
     },
     "identificationCode": {
       "title": "Frigear ID",

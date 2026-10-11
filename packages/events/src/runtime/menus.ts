@@ -8,7 +8,9 @@ export default defineMenuSource(() => {
     extendMenuItem('dashboard.account', defineMenuItem({
       id: 'event-tickets',
       label: 'Tickets',
+      labelKey: 'events.menu.tickets.label',
       description: 'Your event tickets.',
+      descriptionKey: 'events.menu.tickets.description',
       icon: 'i-lucide-ticket',
       to: config.pages.tickets,
       order: 40,

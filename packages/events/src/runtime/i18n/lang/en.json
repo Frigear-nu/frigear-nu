@@ -82,6 +82,12 @@
     "past": {
       "title": "Past events",
       "description": "See past Frigear events you missed ..."
+    },
+    "menu": {
+      "tickets": {
+        "label": "Tickets",
+        "description": "Your event tickets."
+      }
     }
   }
 }

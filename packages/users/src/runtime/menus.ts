@@ -8,7 +8,9 @@ export default defineMenuSource(() => {
   extendMenuItem('account.dropdown', {
     id: 'logout',
     label: 'Logout',
+    labelKey: 'users.menu.logout.label',
     description: 'Sign out of your account.',
+    descriptionKey: 'users.menu.logout.description',
     icon: 'i-lucide-log-out',
     to: '/auth/logout',
     external: true,

@@ -9,6 +9,7 @@ import {
   matchesMenuGroup,
   parseMenuPath,
   registerMenuSource,
+  translateMenuItem,
 } from '../src/runtime/utils/menu'
 
 function createNuxt(): Nuxt {
@@ -156,5 +157,31 @@ describe('registerMenuSource', () => {
     registerMenuSource(nuxt, { file, menu: 'dashboard' })
 
     expect(nuxt.options.menus?._sources).toHaveLength(1)
+  })
+})
+
+describe('translateMenuItem', () => {
+  const messages: Record<string, string> = { 'x.label': 'Udlogning', 'x.description': 'Log ud.' }
+  const i18n = { t: (key: string) => messages[key]!, te: (key: string) => key in messages }
+
+  it('returns the item untouched without a translator', () => {
+    const item = { label: 'Logout', labelKey: 'x.label' }
+    expect(translateMenuItem(item)).toBe(item)
+  })
+
+  it('translates label and description from their keys', () => {
+    const result = translateMenuItem({ label: 'Logout', labelKey: 'x.label', description: 'Sign out.', descriptionKey: 'x.description' }, i18n)
+    expect(result.label).toBe('Udlogning')
+    expect(result.description).toBe('Log ud.')
+  })
+
+  it('falls back to the plain text when a key has no message', () => {
+    const result = translateMenuItem({ label: 'Logout', labelKey: 'missing.label', description: 'Sign out.', descriptionKey: 'x.description' }, i18n)
+    expect(result.label).toBe('Logout')
+    expect(result.description).toBe('Log ud.')
+  })
+
+  it('keeps the id derived from the untranslated label', () => {
+    expect(translateMenuItem({ label: 'Log out', labelKey: 'x.label' }, i18n).id).toBe('log-out')
   })
 })

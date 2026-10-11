@@ -1,6 +1,6 @@
 import { computed, unref } from 'vue'
 import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
-import { type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder } from '../../utils/menu'
+import { type MenuTranslator, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder, translateMenuItem } from '../../utils/menu'
 import { menus } from '../utils/state'
 import type { MenuItem } from '../../../types'
 import type { AsyncData, NuxtError } from 'nuxt/app'
@@ -10,7 +10,7 @@ import type { AsyncData, NuxtError } from 'nuxt/app'
 // mirroring the convention used by `@frigear-nu/base`'s `useContentLocale` (without depending on
 // that layer, since the dependency direction is layer -> menus, never the other way around).
 type LocaleAwareNuxtApp = ReturnType<typeof useNuxtApp> & {
-  $i18n?: { locale: { value: string } }
+  $i18n?: { locale: { value: string } } & Partial<MenuTranslator>
 }
 
 function useMenuLocale() {
@@ -70,12 +70,13 @@ export const useMenu = (path: string): AsyncData<MenuItem[], NuxtError<unknown> 
   const parsed = parseMenuPath(path)
   const { menu } = parsed
   const locale = useMenuLocale()
-  const nuxtApp = useNuxtApp()
+  const nuxtApp = useNuxtApp() as LocaleAwareNuxtApp
 
   return useAsyncData(
     () => `menu:${path}:${locale.value ?? ''}`,
     async () => {
-      const registered = collectMenuItems(menus[menu], parsed)
+      const i18n = nuxtApp.$i18n?.t && nuxtApp.$i18n.te ? (nuxtApp.$i18n as MenuTranslator) : undefined
+      const registered = collectMenuItems(menus[menu], parsed).map(item => translateMenuItem(item, i18n))
       const content = await loadContentItems(menu, parsed, unref(locale))
       const result = sortByOrder([...content, ...registered])
       // Fired once a menu's items have been resolved and are about to be handed to a view -

@@ -84,5 +84,13 @@
       },
       "label": "Error"
     }
+  },
+  "users": {
+    "menu": {
+      "logout": {
+        "label": "Logout",
+        "description": "Sign out of your account."
+      }
+    }
   }
 }

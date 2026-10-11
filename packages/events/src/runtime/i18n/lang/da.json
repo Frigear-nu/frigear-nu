@@ -82,6 +82,12 @@
     "paymentCancelled": "Betaling annulleret. Din reservation holdes et kort stykke tid; du kan betale fra dine billetter.",
     "ticketReady": "Din billet er klar",
     "purchaseFailed": "Kunne ikke købe billetten",
-    "notFound": "Event ikke fundet"
+    "notFound": "Event ikke fundet",
+    "menu": {
+      "tickets": {
+        "label": "Billetter",
+        "description": "Dine billetter til arrangementer."
+      }
+    }
   }
 }

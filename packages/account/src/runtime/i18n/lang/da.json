@@ -2,7 +2,19 @@
   "account": {
     "title": "Konto",
     "menu": {
-      "label": "Konto Menu"
+      "label": "Konto Menu",
+      "account": {
+        "label": "Konto",
+        "description": "Din konto."
+      },
+      "profile": {
+        "label": "Profil",
+        "description": "Administrer dine profiloplysninger og e-mailadresse."
+      },
+      "security": {
+        "label": "Sikkerhed",
+        "description": "Skift din adgangskode og administrer adgangsnøgler."
+      }
     },
     "identificationCode": {
       "title": "Frigear ID",
