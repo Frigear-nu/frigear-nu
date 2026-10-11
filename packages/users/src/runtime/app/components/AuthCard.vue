@@ -11,7 +11,7 @@ const logo = useAppConfig().users?.authLogo as string | { light: string, dark: s
 </script>
 
 <template>
-  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] flex-col items-center justify-center gap-4 py-10">
+  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] flex-col items-center justify-center gap-6 py-12 sm:py-16">
     <template v-if="logo">
       <img
         v-if="typeof logo === 'string'"
