@@ -1,25 +1,46 @@
 {
   "name": "@frigear-nu/ui",
   "version": "0.0.2",
+  "description": "Shared UI components and composables for Frigear Nuxt applications, built on Nuxt UI.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/ui"
+  },
   "type": "module",
-  "private": true,
+  "private": false,
   "exports": {
     ".": {
-      "types": "./dist/types.d.mts",
-      "import": "./dist/module.mjs"
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
     },
     "./components/*": "./src/runtime/components/global/*.vue",
     "./composables": "./src/runtime/composables/index.ts",
     "./composables/*": "./src/runtime/composables/*.ts"
   },
-  "main": "./dist/module.mjs",
-  "typesVersions": {
-    "*": {
-      ".": [
-        "./dist/types.d.mts"
-      ]
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./components/*": "./dist/runtime/components/global/*.vue",
+      "./composables": "./dist/runtime/composables/index.js",
+      "./composables/*": "./dist/runtime/composables/*.js"
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
     }
   },
+  "main": "./src/module.ts",
   "workspaces": [
     "playground"
   ],
@@ -27,12 +48,15 @@
     "dist"
   ],
   "scripts": {
-    "dev:prepare": "nuxt-module-builder prepare",
+    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
     "dev:playground": "nuxt dev playground",
     "build:playground": "nuxt build playground",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground"
   },
   "dependencies": {
     "@nuxt/kit": "^4.6.0",
@@ -52,7 +76,10 @@
     "eslint": "^10.8.1",
     "nuxt": "catalog:",
     "vitest": "^5.0.0",
-    "@nuxt/module-builder": "^1.0.3"
+    "@nuxt/module-builder": "^1.0.3",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.11",
+    "@nuxt/schema": "^4.6.0"
   },
   "peerDependencies": {
     "@nuxt/ui": "^4.10.0",

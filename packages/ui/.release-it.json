@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commitMessage": "chore(release): @frigear-nu/ui@${version}",
+    "tagName": "ui@${version}",
+    "tagAnnotation": "@frigear-nu/ui@${version}",
+    "push": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "@frigear-nu/ui@${version}"
+  },
+  "npm": {
+    "publish": false
+  },
+  "hooks": {
+    "after:bump": "pnpm run build --if-present",
+    "after:release": "bash ../../scripts/npm-publish.sh"
+  }
+}

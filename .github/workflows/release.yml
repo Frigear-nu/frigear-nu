@@ -31,6 +31,7 @@ on:
           - payments
           - stripe
           - subscriptions
+          - ui
           - users
       increment:
         description: Version increment (passed to release-it)
@@ -60,7 +61,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","users","oauth-server","account"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account"]'
           else
             packages="[\"$PACKAGE\"]"
           fi
