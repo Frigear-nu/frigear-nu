@@ -4,8 +4,8 @@
 #  - PR opened/updated by a collaborator (OWNER/MEMBER/COLLABORATOR) -> deploy
 #    straight to a Cloudflare Worker preview version.
 #  - PR opened by anyone else -> no preview is deployed.
-#  - PR closed (merged or not) -> tear down the per-PR D1 preview database and the
-#    uploaded preview Worker versions, then update the preview comment to say the deployment was deleted (the link is
+#  - PR closed (merged or not) -> delete the Worker Preview and the per-PR D1
+#    preview database, then update the preview comment to say the deployment was deleted (the link is
 #    inactive).
 #
 # `pull_request_target` (not `pull_request`) is used so that the
@@ -123,39 +123,14 @@ jobs:
       - name: Delete preview D1 database
         run: pnpm cloudflare:d1:preview:delete
 
-      - name: Find preview Worker versions
-        id: versions
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const marker = '<!-- deploy-preview:result -->'
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              ...context.repo,
-              issue_number: Number(process.env.PR_NUMBER),
-            })
-            const existing = comments.find((comment) => comment.body.includes(marker))
-            const versions = ((existing?.body.match(/<!-- deploy-preview:versions=([\w,-]*) -->/) || [])[1] || '')
-            core.setOutput('ids', versions)
-
-      # Best-effort: a missing version or an API hiccup must not stop the
+      # Best-effort: a missing Preview or an API hiccup must not stop the
       # comment below from being updated.
-      - name: Delete preview Worker versions
-        if: steps.versions.outputs.ids != ''
-        env:
-          VERSION_IDS: ${{ steps.versions.outputs.ids }}
+      - name: Delete Worker Preview
         run: |
           : "${CLOUDFLARE_WORKER_NAME:?CLOUDFLARE_WORKER_NAME var is required}"
-          for id in ${VERSION_IDS//,/ }; do
-            status=$(curl -sS -o "$RUNNER_TEMP/version-delete.json" -w '%{http_code}' -X DELETE \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/workers/$CLOUDFLARE_WORKER_NAME/versions/$id" || true)
-            if [ "$status" = "200" ] || [ "$status" = "404" ]; then
-              echo "Deleted preview version $id (HTTP $status)"
-            else
-              echo "::warning::Could not delete preview version $id (HTTP $status)"
-              cat "$RUNNER_TEMP/version-delete.json" || true
-            fi
-          done
+          pnpm --filter @frigear-nu/website exec wrangler preview delete \
+            --name "pr-$PR_NUMBER" --worker-name "$CLOUDFLARE_WORKER_NAME" --skip-confirmation \
+            || echo "::warning::Could not delete Worker Preview pr-$PR_NUMBER"
 
       - name: Mark preview as deleted on PR
         uses: actions/github-script@v8
