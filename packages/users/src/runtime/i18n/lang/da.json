@@ -122,6 +122,18 @@
         "title": "Nye medlemmer",
         "description": "Tilmeldt inden for de seneste 30 dage.",
         "empty": "Ingen nye endnu."
+      },
+      "search": "Søg på navn, e-mail eller rolle...",
+      "empty": "Ingen brugere matcher.",
+      "total": "{count} brugere",
+      "lastLogin": "Seneste login",
+      "created": "Oprettet",
+      "filters": {
+        "all": "Alle",
+        "verified": "Verificerede",
+        "unverified": "Ikke verificerede",
+        "role": "Præcis rolle",
+        "clear": "Ryd filtre"
       }
     }
   }

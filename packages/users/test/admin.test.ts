@@ -56,7 +56,7 @@ describe('users admin', async () => {
     // A sign-in link was emailed to the new user.
     expect((await sentMails()).some(mail => mail.to === 'new@example.com')).toBe(true)
 
-    const list = await (await call('GET', '/api/users/admin', undefined, staff)).json()
+    const { items: list } = await (await call('GET', '/api/users/admin', undefined, staff)).json()
     expect(list.map((u: { email: string }) => u.email)).toContain('new@example.com')
     expect(list.every((u: object) => !('password' in u))).toBe(true)
 
@@ -75,9 +75,37 @@ describe('users admin', async () => {
   })
 
   it('marks a staff-changed email as unverified', async () => {
-    const list = await (await call('GET', '/api/users/admin', undefined, staff)).json()
+    const { items: list } = await (await call('GET', '/api/users/admin', undefined, staff)).json()
     const target = list.find((u: { email: string }) => u.email === 'member@example.com')
     const edited = await call('PATCH', `/api/users/admin/${target.id}`, { email: 'member2@example.com' }, staff)
     expect(await edited.json()).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
+  })
+
+  it('paginates, searches, filters and sorts through the API', async () => {
+    const fetchPage = async (query: string) => (await call('GET', `/api/users/admin?${query}`, undefined, staff)).json()
+
+    const first = await fetchPage('pageSize=1&sort=id&order=asc')
+    expect(first.items).toHaveLength(1)
+    expect(first.total).toBeGreaterThanOrEqual(3)
+    expect(first.pageSize).toBe(1)
+
+    const second = await fetchPage('pageSize=1&page=2&sort=id&order=asc')
+    expect(second.items[0].id).toBeGreaterThan(first.items[0].id)
+
+    const search = await fetchPage('q=renamed')
+    expect(search.total).toBe(1)
+    expect(search.items[0].name).toBe('Renamed')
+
+    // LIKE wildcards are matched literally.
+    expect((await fetchPage('q=%25')).total).toBe(0)
+
+    const unverified = await fetchPage('verified=false&pageSize=100')
+    expect(unverified.items.every((u: { emailVerifiedAt: unknown }) => u.emailVerifiedAt === null)).toBe(true)
+
+    const sorted = await fetchPage('sort=email&order=asc&pageSize=100')
+    const emails = sorted.items.map((u: { email: string }) => u.email)
+    expect(emails).toEqual([...emails].sort())
+
+    expect((await call('GET', '/api/users/admin?pageSize=1000', undefined, staff)).status).toBe(400)
   })
 })
