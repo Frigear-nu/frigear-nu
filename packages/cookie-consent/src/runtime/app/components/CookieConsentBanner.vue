@@ -35,7 +35,7 @@ onMounted(() => {
         @click="isManuallyExpanded = true"
       >
         <UIcon
-          name="i-lucide-cookie"
+          :name="config.icon"
           class="cc-fab-icon"
         />
       </button>
@@ -52,7 +52,7 @@ onMounted(() => {
         <div class="cc-banner">
           <div class="cc-badge">
             <UIcon
-              name="i-lucide-cookie"
+              :name="config.icon"
               class="cc-badge-icon"
             />
           </div>

@@ -25,6 +25,7 @@ export type {
 export type * from './schema'
 
 const DEFAULT_MAX_AGE = 60 * 60 * 24 * 180
+const DEFAULT_ICON = 'lucide:cookie'
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: '@frigear-nu/cookie-consent', configKey: 'cookieConsent' },
@@ -33,6 +34,7 @@ export default defineNuxtModule<ModuleOptions>({
     maxAge: DEFAULT_MAX_AGE,
     excludeRoutes: ['/authorize'],
     collapseOnScroll: true,
+    icon: DEFAULT_ICON,
   },
   moduleDependencies: {
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
@@ -65,6 +67,13 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // Nuxt Icon only bundles icons it finds by scanning the app's own code and skips node_modules, so the
+    // component's icon would render empty in a consuming app. Push it into the client bundle explicitly.
+    const icon = options.icon || DEFAULT_ICON
+    nuxt.hook('icon:clientBundleIcons' as never, ((icons: Set<string>) => {
+      icons.add(icon.replace(/^i[-:]/, ''))
+    }) as never)
+
     // Other modules register categories through `extendCookieConsent` during their own `setup()`;
     // everything is merged once all modules are done, so registration order doesn't matter.
     nuxt.hook('modules:done', async () => {
@@ -83,6 +92,7 @@ export default defineNuxtModule<ModuleOptions>({
         collapseThreshold: options.collapseOnScroll === false ? false : typeof options.collapseOnScroll === 'number' ? options.collapseOnScroll : 80,
         policyUrl: options.policyUrl,
         persistToUser,
+        icon,
       } satisfies PublicModuleOptions
     })
   },

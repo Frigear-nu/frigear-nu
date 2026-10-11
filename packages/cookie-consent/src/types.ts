@@ -58,6 +58,11 @@ export interface ModuleOptions {
    * Default: `true` when `@frigear-nu/users` is installed.
    */
   persistToUser?: boolean
+  /**
+   * Iconify name (`collection:name`) of the icon on the banner badge and the collapsed button. Default `lucide:cookie`.
+   * The module adds it to Nuxt Icon's client bundle, because Nuxt Icon does not scan `node_modules` for icons.
+   */
+  icon?: string
 }
 
 export interface PublicModuleOptions {
@@ -69,6 +74,7 @@ export interface PublicModuleOptions {
   collapseThreshold: number | false
   policyUrl?: string
   persistToUser: boolean
+  icon: string
 }
 
 /** What is stored in the consent cookie and (for signed-in users) in the database. */
