@@ -4,8 +4,6 @@ import {
   addServerHandler,
   addServerImportsDir,
   addServerPlugin,
-  addServerTemplate,
-  addTypeTemplate,
   createResolver,
   defineNuxtModule,
   extendPages,
@@ -20,6 +18,8 @@ import {
 import type {
   AuthorizeContext,
   EventsRuntimeConfig,
+  MembershipCheckContext,
+  MembershipOptionsContext,
   ModuleOptions,
   PublicModuleOptions,
   PurchaseBeforeContext,
@@ -46,6 +46,13 @@ declare module 'nitropack' {
   interface NitroRuntimeHooks {
     /** Staff gate (event management, check-in): set `ctx.allowed = true` to let the user in. Denied by default. */
     'events:authorize': (ctx: AuthorizeContext) => void | Promise<void>
+    /**
+     * Membership provider (e.g. `@frigear-nu/subscriptions`): set `ctx.satisfied = true` when the user holds a
+     * membership matching `ctx.requirement`. With no provider a requirement can never be met, so it fails closed.
+     */
+    'events:membership:check': (ctx: MembershipCheckContext) => void | Promise<void>
+    /** Membership provider: set `ctx.available = true` and add the selectable memberships to `ctx.options`. */
+    'events:membership:options': (ctx: MembershipOptionsContext) => void | Promise<void>
     /** Policy hook: throw to deny a purchase. */
     'events:purchase:before': (ctx: PurchaseBeforeContext) => void | Promise<void>
     /** A ticket became `paid` (free tickets immediately, paid ones after the Stripe event). Send confirmations here. */
@@ -87,41 +94,24 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
-    const withMembership = hasNuxtModule('@frigear-nu/subscriptions')
 
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
     const ticketsPath = resolvePagePath(settings.pages?.tickets, '/account/tickets')
+    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/events')
+    const adminEventPath = resolvePagePath(settings.pages?.adminEvent, '/admin/events/:id')
 
     nuxt.options.runtimeConfig.events = {
       reservationMinutes: settings.reservationMinutes ?? 30,
-      membershipEnabled: withMembership,
     }
     nuxt.options.runtimeConfig.public.events = {
-      pages: { events: eventsPath, event: eventPath, tickets: ticketsPath },
+      pages: { events: eventsPath, event: eventPath, tickets: ticketsPath, admin: adminPath, adminEvent: adminEventPath },
     }
 
     // --- Database -------------------------------------------------------------------------
     await registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
-    })
-
-    // --- Membership requirements ----------------------------------------------------------
-    // @frigear-nu/subscriptions is optional. A virtual module either re-exports its entitlement
-    // check or a stub that denies, so a requirement can never be silently ignored.
-    addServerTemplate({
-      filename: '#events/membership',
-      getContents: () => withMembership
-        ? `export { hasActiveSubscription } from '@frigear-nu/subscriptions/utils'`
-        : `export const hasActiveSubscription = async () => false`,
-    })
-    addTypeTemplate({
-      filename: 'types/events-membership.d.ts',
-      getContents: () => `declare module '#events/membership' {
-  export function hasActiveSubscription(userId: number, options?: { plans?: string[], statuses?: string[] }): Promise<boolean>
-}
-`,
     })
 
     // --- API routes -----------------------------------------------------------------------
@@ -137,7 +127,9 @@ export default defineNuxtModule<ModuleOptions>({
     route('get', '/:slug', 'public/event.get')
     route('post', '/:slug/purchase', 'public/purchase.post')
 
+    route('get', '/admin/membership-options', 'admin/membership-options.get')
     route('get', '/admin/events', 'admin/events.get')
+    route('get', '/admin/events/:id', 'admin/event.get')
     route('post', '/admin/events', 'admin/events.post')
     route('patch', '/admin/events/:id', 'admin/event.patch')
     route('delete', '/admin/events/:id', 'admin/event.delete')
@@ -157,6 +149,14 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/payment-hooks'))
 
+    // Subscription plans are the memberships when `@frigear-nu/subscriptions` is installed. Checked once every module
+    // has registered, since it may come after this one in `modules`. Other providers hook `events:membership:*` themselves.
+    nuxt.hook('modules:done', () => {
+      if (hasNuxtModule('@frigear-nu/subscriptions', nuxt)) {
+        addServerPlugin(resolver.resolve('./runtime/server/plugins/subscriptions-membership'))
+      }
+    })
+
     // --- App runtime ----------------------------------------------------------------------
     addImports([
       { name: 'useEvents', from: resolver.resolve('./runtime/app/composables/useEvents') },
@@ -167,7 +167,7 @@ export default defineNuxtModule<ModuleOptions>({
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
-    if (eventsPath || eventPath || ticketsPath) {
+    if (eventsPath || eventPath || ticketsPath || adminPath || adminEventPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
         if (eventsPath && !existingPaths.has(eventsPath)) {
@@ -175,6 +175,12 @@ export default defineNuxtModule<ModuleOptions>({
         }
         if (eventPath && !existingPaths.has(eventPath)) {
           pages.push(defineModulePage(MODULE_NAME, { name: 'events-detail', path: eventPath, file: resolver.resolve('./runtime/app/pages/event.vue') }))
+        }
+        if (adminPath && !existingPaths.has(adminPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin', path: adminPath, file: resolver.resolve('./runtime/app/pages/admin.vue') }))
+        }
+        if (adminEventPath && !existingPaths.has(adminEventPath)) {
+          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin-event', path: adminEventPath, file: resolver.resolve('./runtime/app/pages/admin-event.vue') }))
         }
         if (ticketsPath && !existingPaths.has(ticketsPath)) {
           pages.push(defineModulePage(MODULE_NAME, { name: 'events-tickets', path: ticketsPath, file: resolver.resolve('./runtime/app/pages/tickets.vue') }))

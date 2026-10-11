@@ -10,6 +10,8 @@ import {
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
 import { registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
+import type { AuthEmailContext } from './runtime/server/utils/auth-email'
+import type { UsersAdminContext } from './runtime/server/utils/admin'
 import {
   type AuthMethodObject,
   type AuthManifest,
@@ -37,13 +39,22 @@ export {
 // `nuxt-auth-utils`. Provider credentials are read by nuxt-auth-utils from runtime environment
 // variables, so route registration only depends on the provider being enabled in module settings.
 
+declare module 'nitropack' {
+  interface NitroRuntimeHooks {
+    /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
+    'users:email': (ctx: AuthEmailContext) => void | Promise<void>
+    /** Staff gate of the users admin (`settings.admin`): set `ctx.allowed = true` to allow `ctx.action`. Denied by default. */
+    'users:admin:authorize': (ctx: UsersAdminContext) => void | Promise<void>
+  }
+}
+
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     users?: ModuleOptions
   }
 
   interface RuntimeConfig {
-    users?: ModuleOptions
+    users?: { magicLinkSignUp: boolean, magicLinkCooldown: number }
   }
 
   interface PublicRuntimeConfig {
@@ -82,6 +93,10 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/menu': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/widget': {
+      version: '>=0.0.0',
+      optional: true,
+    },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
       defaults: { webAuthn: true },
@@ -99,6 +114,8 @@ export default defineNuxtModule<ModuleOptions>({
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
+    const withMagicLink = !!settings.magicLink
+    const withVerifyEmail = withPassword && settings.verifyEmail === true
     const withMenus = hasNuxtModule('@frigear-nu/menu')
     const withI18n = nuxt.options.modules?.some(mod => mod === '@nuxtjs/i18n' || (Array.isArray(mod) && mod[0] === '@nuxtjs/i18n'))
     const authMethods: AuthMethodObject[] = []
@@ -113,6 +130,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
     if (withPasswordReset) {
       tablesToRegister.push('passwordResets')
+    }
+
+    // Verification emails are magic links too, so they share the table.
+    if (withMagicLink || withVerifyEmail) {
+      tablesToRegister.push('magicLinks')
     }
 
     await registerDatabaseTable(nuxt, {
@@ -165,7 +187,27 @@ export default defineNuxtModule<ModuleOptions>({
         handler: resolver.resolve('./runtime/server/routes/auth/reset-password.post'),
       })
     }
+    if (withMagicLink || withVerifyEmail) {
+      addServerHandler({
+        route: '/auth/magic-link',
+        method: 'get',
+        handler: resolver.resolve('./runtime/server/routes/auth/magic-link.get'),
+      })
+    }
+    if (withMagicLink) {
+      authMethods.push({
+        label: withI18n ? 'auth.magicLink.title' : 'Magic link',
+        value: 'magicLink',
+        icon: 'i-lucide-wand-sparkles',
+      })
+      addServerHandler({
+        route: '/api/auth/magic-link',
+        method: 'post',
+        handler: resolver.resolve('./runtime/server/routes/auth/magic-link.post'),
+      })
+    }
     addImports([
+      { name: 'useUserMagicLink', from: resolver.resolve('./runtime/app/composables/useUserMagicLink') },
       { name: 'useUserLogin', from: resolver.resolve('./runtime/app/composables/useUserLogin') },
       {
         name: 'useUserRegistration',
@@ -225,6 +267,30 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
     const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
 
+    // Housekeeping for the single-use tokens (`users:clear-expired-tokens`); the cron is opt-out.
+    if (withMagicLink || withVerifyEmail || withPasswordReset) {
+      nuxt.hook('nitro:config', (nitroConfig) => {
+        nitroConfig.experimental ||= {}
+        nitroConfig.experimental.tasks = true
+        nitroConfig.tasks ||= {}
+        nitroConfig.tasks['users:clear-expired-tokens'] = {
+          handler: resolver.resolve('./runtime/server/tasks/clear-expired-tokens'),
+          description: 'Remove expired magic links and password resets.',
+        }
+        if (settings.cleanup !== false) {
+          const cron = settings.cleanup ?? '0 3 * * *'
+          nitroConfig.scheduledTasks ||= {}
+          const existing = nitroConfig.scheduledTasks[cron]
+          nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'users:clear-expired-tokens']
+        }
+      })
+    }
+
+    const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
+    nuxt.options.runtimeConfig.users = {
+      magicLinkSignUp: magicLinkSettings.signUp === true,
+      magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    }
     nuxt.options.runtimeConfig.public.authMethods = authMethods
 
     const authManifest: AuthManifest = {
@@ -262,17 +328,57 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // --- User administration (staff) ---------------------------------------------------------
+    const withAdmin = !!settings.admin
+    const adminOptions = typeof settings.admin === 'object' ? settings.admin : {}
+    const adminPagePath = withAdmin ? resolvePagePath(adminOptions.page ?? true, '/admin/users') : undefined
+
+    if (withAdmin) {
+      for (const [method, path, file] of [
+        ['get', '/api/users/admin', 'users.get'],
+        ['post', '/api/users/admin', 'users.post'],
+        ['get', '/api/users/admin/new-members', 'new-members.get'],
+        ['patch', '/api/users/admin/:id', 'user.patch'],
+      ] as const) {
+        addServerHandler({ route: path, method, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })
+      }
+
+      if (adminPagePath) {
+        extendPages((pages) => {
+          if (!pages.some(page => page.path === adminPagePath)) {
+            pages.push({ name: 'users-admin', path: adminPagePath, file: resolver.resolve('./runtime/app/pages/admin.vue') })
+          }
+        })
+      }
+
+      // Contributes to the admin dashboard when @frigear-nu/widget is installed.
+      if (hasNuxtModule('@frigear-nu/widget')) {
+        const { extendWidgets } = await import('@frigear-nu/widget/utils')
+        extendWidgets(nuxt, 'admin.dashboard', {
+          id: 'users-new-members',
+          component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
+          order: 20,
+          span: 2,
+        })
+      }
+    }
+
     if (withMenus) {
       const { registerMenuSource } = await import('@frigear-nu/menu/utils')
       registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
+      if (adminPagePath) {
+        registerMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
+      }
     }
 
     nuxt.options.runtimeConfig.public.users = {
       password: withPassword,
       passwordReset: withPasswordReset,
       webAuthn: withWebAuthn,
+      magicLink: withMagicLink,
+      verifyEmail: withVerifyEmail,
       oauth: enabledOauthProviders,
-      pages: { login: loginPath, register: registerPath },
+      pages: { login: loginPath, register: registerPath, admin: adminPagePath },
     }
   },
 })

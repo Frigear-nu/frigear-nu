@@ -20,7 +20,16 @@ export default defineEventHandler(async (event) => {
   const hashed = await hashPassword(password)
   const [user] = await db.insert(schema.users).values({ name, email, password: hashed }).returning()
 
+  if (useRuntimeConfig(event).public.users?.verifyEmail) {
+    // No session until the address is verified; following the emailed link signs the user in.
+    const link = await createMagicLink(event, { userId: user.id })
+    if (link) {
+      await dispatchAuthEmail('verify-email', user.email, { name: user.name, url: link.url })
+    }
+    return { id: user.id, verificationRequired: true }
+  }
+
   await setUserSession(event, { user: mapUserToSession(user) })
 
-  return { id: user.id }
+  return { id: user.id, verificationRequired: false }
 })

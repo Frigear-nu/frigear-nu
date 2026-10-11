@@ -14,6 +14,10 @@
       "security": {
         "label": "Security",
         "description": "Change your password and manage passkeys."
+      },
+      "documents": {
+        "label": "Documents",
+        "description": "Handbooks and other files for you."
       }
     },
     "identificationCode": {
@@ -32,7 +36,13 @@
         "description": "Your awesome E-mail.",
         "change": {
           "title": "Change e-mail",
-          "label": "New e-mail"
+          "label": "New e-mail",
+          "sent": {
+            "title": "Check your inbox",
+            "description": "We sent a link to your new address. It takes effect once you confirm it."
+          },
+          "done": "Your email address was changed.",
+          "failed": "This confirmation link is invalid or has expired."
         }
       },
       "avatar": {
@@ -45,7 +55,8 @@
     "documents": {
       "title": "Documents",
       "description": "Your documents.",
-      "download": "Download"
+      "download": "Download",
+      "empty": "No documents for you yet."
     },
     "security": {
       "title": "Security",

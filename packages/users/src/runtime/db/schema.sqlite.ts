@@ -6,6 +6,8 @@ export const users = sqliteTable('users', {
   email: text().notNull().unique(),
   password: text(),
   avatar: text(),
+  emailVerifiedAt: integer({ mode: 'timestamp' }),
+  lastLoginAt: integer({ mode: 'timestamp' }),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$onUpdateFn(() => new Date()),
 })
@@ -29,4 +31,16 @@ export const passwordResets = sqliteTable('password_resets', {
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('password_reset_user_idx').on(t.userId),
+])
+
+export const magicLinks = sqliteTable('magic_links', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  userId: integer().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  code: text().notNull().unique(),
+  redirectUrl: text(),
+  expiresAt: integer({ mode: 'timestamp' }).notNull(),
+  usedAt: integer({ mode: 'timestamp' }),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  index('magic_link_user_idx').on(t.userId),
 ])

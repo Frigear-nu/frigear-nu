@@ -11,8 +11,9 @@ export const useUserRegistration = () => {
     error.value = null
 
     try {
-      await $fetch('/api/auth/register', { method: 'POST', body: payload })
+      const result = await $fetch<{ id: number, verificationRequired: boolean }>('/api/auth/register', { method: 'POST', body: payload })
       await useUserSession().fetch()
+      return result
     }
     catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to register.'

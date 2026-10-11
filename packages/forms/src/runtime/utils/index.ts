@@ -9,7 +9,7 @@ export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField } fr
 export type { Answers, VisibleStep } from './conditions'
 export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
-export { formDefinitionSchema, parseFormDefinition } from './definition'
+export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'
 export type { FormDefinitionInput } from './definition'
 
 /** Typed identity helper for authoring definitions (seed files, tests). */

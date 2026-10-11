@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFormSchema, formDefinitionSchema, isFieldVisible, renderMarkdown, resolveVisibility } from '../../src/runtime/utils'
+import { buildFormSchema, formDefinitionSchema, isFieldVisible, renderMarkdown, resolveEmailDelivery, resolveVisibility } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
 const contact = {
@@ -138,6 +138,33 @@ describe('formDefinitionSchema', () => {
   })
 })
 
+describe('formDefinitionSchema email delivery routing', () => {
+  const issues = (input: unknown) => {
+    const result = formDefinitionSchema.safeParse(input)
+    return result.success ? [] : result.error.issues.map(issue => issue.message)
+  }
+  const fields = [
+    { key: 'email', type: 'email' },
+    { key: 'subject', type: 'select', options: [{ value: 'a', label: 'A' }] },
+    { key: 'note', type: 'text' },
+  ]
+  const form = (email: Record<string, unknown>) => ({
+    mode: 'single',
+    steps: [{ id: 's', fields }],
+    delivery: { email: { to: ['fallback@b.dk'], ...email } },
+  })
+
+  it('accepts routes on a known field and a reply-to email field', () => {
+    expect(issues(form({ routes: { field: 'subject', to: { a: ['x@b.dk'] } }, replyToField: 'email' }))).toEqual([])
+  })
+
+  it('rejects unknown route fields, non-email reply-to fields and placeholder recipients', () => {
+    expect(issues(form({ routes: { field: 'nope', to: { a: ['x@b.dk'] } } }))).toContain('Unknown field "nope".')
+    expect(issues(form({ replyToField: 'note' }))).toContain('Reply-to must be an email field.')
+    expect(issues(form({ routes: { field: 'subject', to: { a: ['${x}'] } } }))).toContain('Recipients must be plain email addresses.')
+  })
+})
+
 describe('renderMarkdown', () => {
   it('escapes html and only links safe urls', () => {
     const html = renderMarkdown('<script>x</script> **bold**\n\n[ok](https://a.dk) [bad](javascript:alert(1))')
@@ -145,5 +172,14 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<strong>bold</strong>')
     expect(html).toContain('href="https://a.dk"')
     expect(html).not.toContain('href="javascript:')
+  })
+})
+
+describe('resolveEmailDelivery', () => {
+  const email = { to: ['fallback@b.dk'], routes: { field: 'subject', to: { a: ['a@b.dk'] } }, replyToField: 'email' }
+
+  it('uses the routed recipients, the fallback otherwise, and the reply-to answer', () => {
+    expect(resolveEmailDelivery(email, { subject: 'a', email: ' me@b.dk ' })).toEqual({ to: ['a@b.dk'], replyTo: 'me@b.dk' })
+    expect(resolveEmailDelivery(email, { subject: 'zzz' })).toEqual({ to: ['fallback@b.dk'], replyTo: undefined })
   })
 })

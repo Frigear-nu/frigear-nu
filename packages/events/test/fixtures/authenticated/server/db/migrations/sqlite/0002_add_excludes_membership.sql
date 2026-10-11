@@ -1,0 +1,1 @@
+ALTER TABLE `event_ticket_types` ADD `excludesMembership` text;

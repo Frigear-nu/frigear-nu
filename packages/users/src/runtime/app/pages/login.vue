@@ -3,6 +3,11 @@ defineOptions({ name: 'UsersLoginPage' })
 
 const t = useModuleT('auth')
 const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthProviders } = useUserLogin()
+const magicLink = useUserMagicLink()
+const magicLinkEmail = ref('')
+const magicLinkSent = ref(false)
+// The emailed link redirects back here with `?error=magic-link` when it is invalid, used or expired.
+const linkFailed = computed(() => useRoute().query.error === 'magic-link')
 const passkeys = passkeyLoginEnabled.value ? useUserPasskeys() : undefined
 const passkeyPending = ref(false)
 
@@ -23,6 +28,11 @@ const fields = computed(() => passwordLoginEnabled.value
 async function onSubmit(payload: { data: { email: string, password: string } }) {
   await login(payload.data)
   await afterLogin()
+}
+
+async function onMagicLink() {
+  await magicLink.sendMagicLink({ email: magicLinkEmail.value, redirect: redirectTarget.value })
+  magicLinkSent.value = true
 }
 
 async function onPasskeyLogin() {
@@ -46,6 +56,12 @@ async function onPasskeyLogin() {
   <UContainer>
     <UPage>
       <UPageBody>
+        <UAlert
+          v-if="linkFailed"
+          class="mb-4"
+          color="error"
+          :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
+        />
         <UAuthForm
           :title="t('signIn', 'Log in')"
           :fields="fields"
@@ -64,6 +80,36 @@ async function onPasskeyLogin() {
             />
           </template>
         </UAuthForm>
+        <div
+          v-if="magicLink.isEnabled.value"
+          class="mt-4"
+        >
+          <UAlert
+            v-if="magicLinkSent"
+            :title="t('email.sent.title', 'E-mail sent!')"
+            :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
+          />
+          <form
+            v-else
+            class="flex gap-2"
+            @submit.prevent="onMagicLink"
+          >
+            <UInput
+              v-model="magicLinkEmail"
+              type="email"
+              required
+              class="flex-1"
+              :placeholder="t('email.label', 'Email')"
+            />
+            <UButton
+              type="submit"
+              variant="outline"
+              :loading="magicLink.pending.value"
+            >
+              {{ t('magicLink.submit', 'Send link') }}
+            </UButton>
+          </form>
+        </div>
         <UButton
           v-if="passkeyLoginEnabled"
           class="mt-4 w-full"

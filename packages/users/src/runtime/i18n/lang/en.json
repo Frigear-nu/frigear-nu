@@ -51,7 +51,8 @@
           "title": "Sign up with Magic Link",
           "description": "Your account will have no password, you can sign in with your e-mail."
         }
-      }
+      },
+      "invalid": "This sign-in link is invalid or has expired."
     },
     "verifyEmail": {
       "title": "Verify your e-mail",
@@ -72,6 +73,12 @@
     "oauth": {
       "google": {
         "label": "Google"
+      },
+      "facebook": {
+        "label": "Facebook"
+      },
+      "github": {
+        "label": "GitHub"
       }
     },
     "errors": {
@@ -90,6 +97,31 @@
       "logout": {
         "label": "Logout",
         "description": "Sign out of your account."
+      }
+    },
+    "admin": {
+      "nav": {
+        "label": "Users",
+        "description": "Manage the users of the system."
+      },
+      "title": "Users",
+      "create": "Create user",
+      "edit": "Edit user",
+      "filter": "Filter...",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "verified": "Verified",
+      "emailVerified": "Mark the email address as verified",
+      "sendWelcome": "Email a sign-in link",
+      "cancel": "Cancel",
+      "save": "Save",
+      "error": "Something went wrong.",
+      "allUsers": "All users",
+      "newMembers": {
+        "title": "New members",
+        "description": "Signed up in the last 30 days.",
+        "empty": "Nobody new yet."
       }
     }
   }

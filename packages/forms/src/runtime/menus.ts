@@ -16,5 +16,17 @@ export default defineMenuSource(() => {
       tags: ['admin'],
       order: 90,
     }))
+
+    // The `@frigear-nu/admin` sidebar (a plain menu, so this works whether or not that module is installed).
+    extendMenuItem('admin.nav', defineMenuItem({
+      id: 'forms-admin',
+      label: 'Forms',
+      labelKey: 'forms.menu.admin.label',
+      description: 'Manage forms and their submissions.',
+      descriptionKey: 'forms.menu.admin.description',
+      icon: 'i-lucide-clipboard-list',
+      to: config.pages.admin,
+      order: 30,
+    }))
   }
 })

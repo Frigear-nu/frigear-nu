@@ -8,6 +8,13 @@
       "when": 1791478867677,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791746376376,
+      "tag": "0001_add_user_verification_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -23,6 +23,8 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/users](./packages/users) - Users module for handling user management and authentication in frigear
 - [@frigear-nu/notify](./packages/notify) - Email notification driver/dispatch Nuxt module (app chooses the driver), shared across modules
 - [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules
+- [@frigear-nu/widget](./packages/widget) - Named widget areas that modules contribute components to and hosts render (`extendWidgets`, `<WidgetArea>`, `widgets:filter`)
+- [@frigear-nu/admin](./packages/admin) - Generic admin area: guarded shell, dashboard and navigation that other modules register into
 - [@frigear-nu/authorization](./packages/authorization) - Policy-based authorization: `defineAbility` policies, client/server resolvers, route rules, `<Can>` and a `role` column on `users`
 - [@frigear-nu/account](./packages/account) - Account area module (profile, security, change email/password) migrated from nuxt-frigear-nu
 - [@frigear-nu/stripe](./packages/stripe) - Core Stripe plumbing: SDK access, customer linking and a verified, idempotent webhook other modules subscribe to

@@ -24,7 +24,7 @@ const isSubmitting = ref(false)
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 type PhonePrefixItem = { label: string, value: string }
 const phonePrefixes = ref<PhonePrefixItem[]>([
@@ -76,7 +76,19 @@ watch(() => props.initial, (initial) => {
 async function onSubmit(event: FormSubmitEvent<ContactFormSchema>) {
   isSubmitting.value = true
   try {
-    await $fetch('/api/contact', { method: 'POST', body: event.data })
+    // Delivered by the `contact` form of @frigear-nu/forms (seeded in forms/contact.ts).
+    const { phone, phonePrefix, subjectOther, ...rest } = event.data
+    await $fetch('/api/forms/contact/submit', {
+      method: 'POST',
+      body: {
+        locale: locale.value,
+        answers: {
+          ...rest,
+          phone: phone ? `${phonePrefix ?? '+45'} ${phone}` : undefined,
+          subjectOther: rest.subject === 'other' ? subjectOther : undefined,
+        },
+      },
+    })
 
     toast.add({
       icon: 'lucide-check-circle',

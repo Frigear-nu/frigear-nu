@@ -8,7 +8,7 @@ export type AuthManifest = {
   }
 }
 
-export const OAUTH_PROVIDERS = ['github', 'google'] as const
+export const OAUTH_PROVIDERS = ['github', 'google', 'facebook'] as const
 export type OAuthProvider = typeof OAUTH_PROVIDERS[number]
 export type OAuthProviderDetails = {
   label: string
@@ -22,8 +22,10 @@ export type PublicModuleOptions = {
   password: boolean
   passwordReset: boolean
   webAuthn: boolean
+  magicLink: boolean
+  verifyEmail: boolean
   oauth: OAuthProvider[]
-  pages: { login?: string, register?: string }
+  pages: { login?: string, register?: string, admin?: string }
 }
 
 export type ModuleOptions = {
@@ -37,6 +39,20 @@ export type ModuleOptions = {
     password?: boolean
     // Enables password reset routes when password authentication is enabled. Defaults to true.
     passwordReset?: boolean
+    // Passwordless sign-in by emailed link (`POST /api/auth/magic-link`, `GET /auth/magic-link`). Following the
+    // link also verifies the email address. `signUp: true` creates an account for unknown addresses; `cooldown` is the
+    // minimum number of seconds between two links for the same user (default 60).
+    magicLink?: boolean | { signUp?: boolean, cooldown?: number }
+    // Requires users who register with email/password to verify their address (through an emailed link) before
+    // they can log in. No session is created at registration. Defaults to `false`.
+    verifyEmail?: boolean
+    // User administration for staff: list/create/edit users (`/api/users/admin`), a "new members" widget and an
+    // admin page. Who may do what is decided by the host in the `users:admin:authorize` Nitro hook (denied by
+    // default). `page` is the admin page path (`true` = `/admin/users`, `false` = no page).
+    admin?: boolean | { page?: string | boolean }
+    // Cron expression for the task removing expired magic links and password resets, or `false` to schedule
+    // nothing (the task `users:clear-expired-tokens` is still registered). Defaults to daily at 03:00.
+    cleanup?: string | false
     // Enables WebAuthn (passkey) registration/authentication routes, composables and DB table.
     webAuthn?: boolean
     // Registers the built-in login/register pages. Each accepts a custom path (string), `true`

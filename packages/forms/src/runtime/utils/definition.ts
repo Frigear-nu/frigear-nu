@@ -60,7 +60,12 @@ export const formDefinitionSchema = z.object({
     allowResubmit: z.object({ keep: z.array(z.string()) }).optional(),
   }).optional(),
   delivery: z.object({
-    email: z.object({ to: z.array(emailAddress).min(1), subject: translated.optional() }).optional(),
+    email: z.object({
+      to: z.array(emailAddress).min(1),
+      subject: translated.optional(),
+      routes: z.object({ field: z.string(), to: z.record(z.string(), z.array(emailAddress).min(1)) }).optional(),
+      replyToField: z.string().optional(),
+    }).optional(),
   }).optional(),
 }).superRefine((definition, ctx) => {
   const fail = (message: string, path: (string | number)[]) => ctx.addIssue({ code: 'custom', message, path })
@@ -112,6 +117,14 @@ export const formDefinitionSchema = z.object({
     })
   })
 
+  const emailDelivery = definition.delivery?.email
+  if (emailDelivery?.routes && !seen.has(emailDelivery.routes.field)) {
+    fail(`Unknown field "${emailDelivery.routes.field}".`, ['delivery', 'email', 'routes', 'field'])
+  }
+  if (emailDelivery?.replyToField && keys.get(emailDelivery.replyToField) !== 'email') {
+    fail('Reply-to must be an email field.', ['delivery', 'email', 'replyToField'])
+  }
+
   definition.submit?.allowResubmit?.keep.forEach((key, index) => {
     if (!keys.has(key)) fail(`Unknown field "${key}".`, ['submit', 'allowResubmit', 'keep', index])
   })
@@ -121,4 +134,11 @@ export type FormDefinitionInput = z.input<typeof formDefinitionSchema>
 
 export function parseFormDefinition(input: unknown): FormDefinition {
   return formDefinitionSchema.parse(input) as FormDefinition
+}
+
+/** Recipients and reply-to of an email delivery for the given answers (a matching route wins over `to`). */
+export function resolveEmailDelivery(email: NonNullable<NonNullable<FormDefinition['delivery']>['email']>, answers: Record<string, unknown>) {
+  const routed = email.routes?.to[String(answers[email.routes.field] ?? '')]
+  const replyTo = email.replyToField ? String(answers[email.replyToField] ?? '').trim() : ''
+  return { to: routed?.length ? routed : email.to, replyTo: replyTo || undefined }
 }

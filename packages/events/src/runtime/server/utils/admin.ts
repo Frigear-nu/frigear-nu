@@ -25,7 +25,18 @@ export async function insertTicketType(eventId: string, input: TicketTypeInput) 
     saleStartsAt: type.saleStartsAt ?? null,
     saleEndsAt: type.saleEndsAt ?? null,
     requiresMembership: type.requiresMembership ?? null,
+    excludesMembership: type.excludesMembership ?? null,
   }).returning()
   for (const group of addonGroups ?? []) await insertAddonGroup(row!.id, group)
   return row!
+}
+
+/**
+ * Membership rules only make sense with a membership provider (`@frigear-nu/subscriptions`): without one a
+ * requirement could never be met (and would silently lock the ticket), so staff can't set one.
+ */
+export async function assertMembershipAvailable(...inputs: Array<{ requiresMembership?: unknown, excludesMembership?: unknown } | undefined>) {
+  if (!inputs.some(input => input?.requiresMembership || input?.excludesMembership)) return
+  if ((await getMembershipOptions()).available) return
+  throw createError({ statusCode: 400, statusMessage: 'Membership rules need a membership provider such as @frigear-nu/subscriptions.' })
 }

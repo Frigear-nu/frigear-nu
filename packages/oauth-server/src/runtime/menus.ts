@@ -35,5 +35,17 @@ export default defineMenuSource(() => {
       order: 90,
       tags: ['admin'],
     }))
+
+    // The `@frigear-nu/admin` sidebar (a plain menu, so this works whether or not that module is installed).
+    extendMenuItem('admin.nav', defineMenuItem({
+      id: 'oauth-admin',
+      label: 'OAuth applications',
+      labelKey: 'oauthServer.menu.admin.label',
+      description: 'Manage the applications users can sign in to.',
+      descriptionKey: 'oauthServer.menu.admin.description',
+      icon: 'i-lucide-key-round',
+      to: config.pages.admin,
+      order: 40,
+    }))
   }
 })

@@ -7,6 +7,6 @@ export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('oauth:authorize', async (ctx) => {
     const admins = useRuntimeConfig().oauthAdminEmails.split(',').map(email => email.trim().toLowerCase()).filter(Boolean)
     const user = await getOAuthUser(ctx.userId)
-    ctx.allowed = !!user && admins.includes(user.email.toLowerCase())
+    ctx.allowed = !!user && (admins.includes(user.email.toLowerCase()) || effectiveRole(user) === 'admin')
   })
 })

@@ -33,6 +33,7 @@ const reason = (type: TicketTypeDto) => {
   if (type.saleState === 'not_started') return 'Sales not started'
   if (type.saleState === 'ended') return 'Sales ended'
   if (type.blocked === 'membership_required') return 'Members only'
+  if (type.blocked === 'membership_excluded') return 'Not for members'
   if (type.blocked === 'limit_reached') return 'Already booked'
   return null
 }

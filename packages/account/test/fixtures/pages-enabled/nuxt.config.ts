@@ -22,7 +22,8 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true },
+      pages: { index: true, profile: true, security: true, documents: true },
+      documents: [{ id: 'handbook', label: { en: 'Volunteer Handbook' }, path: '/assets/handbook.docx' }],
     },
   },
   users: {

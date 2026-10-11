@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
+import { contactForm } from './forms/contact'
 
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
@@ -15,6 +16,9 @@ export default defineNuxtConfig({
     'nuxt-qrcode',
     '@frigear-nu/menu',
     '@frigear-nu/users',
+    '@frigear-nu/authorization',
+    '@frigear-nu/widget',
+    '@frigear-nu/admin',
     '@frigear-nu/account',
     '@frigear-nu/notify',
     '@frigear-nu/stripe',
@@ -71,11 +75,22 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // Only the production custom domain is indexable: PR previews and *.workers.dev hosts are `noindex`/Disallow: /.
+  site: {
+    name: 'Frigear.nu',
+    ...(process.env.DEPLOYMENT_HOST && { url: `https://${process.env.DEPLOYMENT_HOST}` }),
+    indexable: !!process.env.DEPLOYMENT_HOST
+      && !process.env.DEPLOYMENT_HOST.endsWith('.workers.dev')
+      && !process.env.PR_NUMBER,
+  },
   runtimeConfig: {
     // Comma separated emails allowed to manage OAuth applications (NUXT_OAUTH_ADMIN_EMAILS).
     oauthAdminEmails: '',
     // Comma separated emails allowed to manage forms and read submissions (NUXT_FORMS_ADMIN_EMAILS).
     formsAdminEmails: '',
+    // Comma separated emails that are always admins (NUXT_ACL_ADMINS). Bootstraps the first admin.
+    aclAdmins: '',
   },
 
   routeRules: {
@@ -153,7 +168,23 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true },
+      pages: { index: true, profile: true, security: true, documents: true },
+      // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
+      // assets under public/, so anyone with the URL can fetch them (as before).
+      documents: [
+        { id: 'handbook', label: { da: 'Frivillig Håndbog', en: 'Volunteer Handbook' }, path: '/assets/files/Frivillig håndbog.docx' },
+        { id: 'ba-folder', label: { da: 'BA-mappe', en: 'BA folder' }, path: '/assets/files/BA-mappe.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+        { id: 'shift-overview', label: 'Vagtoversigt', path: '/assets/files/Vagtoversigt.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+        { id: 'ba-coordinator-meeting', label: { da: 'BA Koordinatormøde 25.03.2026', en: 'BA coordinator meeting 25.03.2026' }, path: '/assets/files/BA-Koordinatormøde-2503-2026.docx', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+      ],
+      // A new address must be confirmed from its inbox; the old address gets a revert link.
+      verifyEmailChange: true,
+    },
+  },
+  admin: {
+    settings: {
+      // Same roles as the old `canViewAdminArea` ability.
+      roles: ['admin', 'manager', 'coordinator'],
     },
   },
   cookieConsent: {
@@ -169,7 +200,7 @@ export default defineNuxtConfig({
   },
   events: {
     settings: {
-      pages: { events: true, event: true, tickets: true },
+      pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true },
     },
   },
   forms: {
@@ -180,7 +211,7 @@ export default defineNuxtConfig({
     // Existing slugs are never overwritten. Definitions can also be imported from the admin page.
     seed: {
       enabled: false,
-      forms: [projectApplicationForm, boardMemberApplicationForm],
+      forms: [projectApplicationForm, boardMemberApplicationForm, contactForm],
     },
   },
   i18n: {
@@ -246,6 +277,15 @@ export default defineNuxtConfig({
       password: true,
       migrations: true,
       webAuthn: true,
+      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
+      // an account (use the register page). Email/password users must verify before logging in.
+      magicLink: true,
+      verifyEmail: true,
+      // Staff user administration; the policy lives in server/plugins/users-policy.ts.
+      admin: true,
+      session: { mapper: '~~/server/utils/map-session-user' },
+      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
+      oauth: { facebook: true },
     },
   },
 })

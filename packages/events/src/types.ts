@@ -18,6 +18,10 @@ export type ModuleOptions = {
       event?: string | boolean
       /** The signed-in user's tickets. `true` = `/account/tickets`. */
       tickets?: string | boolean
+      /** Staff event list (needs the `events:authorize` hook to allow staff). `true` = `/admin/events`. Off by default. */
+      admin?: string | boolean
+      /** Staff event page (details, ticket types, attendees); must contain an `:id` param. `true` = `/admin/events/:id`. Off by default. */
+      adminEvent?: string | boolean
     }
     /** Minutes an unpaid ticket keeps its seat (the Stripe session expires then). Defaults to `30`. */
     reservationMinutes?: number
@@ -26,12 +30,10 @@ export type ModuleOptions = {
 
 export type EventsRuntimeConfig = {
   reservationMinutes: number
-  /** Whether `@frigear-nu/subscriptions` is installed (membership requirements can be evaluated). */
-  membershipEnabled: boolean
 }
 
 export type PublicModuleOptions = {
-  pages: { events?: string, event?: string, tickets?: string }
+  pages: { events?: string, event?: string, tickets?: string, admin?: string, adminEvent?: string }
 }
 
 export type AddonDto = {
@@ -60,6 +62,8 @@ export type TicketTypeDto = {
   hidePrice: boolean
   isDefault: boolean
   requiresMembership: MembershipRequirement
+  /** Holders of these plans cannot buy this ticket (`'any'` = any active subscription). */
+  excludesMembership: MembershipRequirement
   /** Seats left, or null when unlimited. */
   remaining: number | null
   saleStartsAt: string | null
@@ -67,7 +71,7 @@ export type TicketTypeDto = {
   /** `open | not_started | ended | sold_out`. */
   saleState: 'open' | 'not_started' | 'ended' | 'sold_out'
   /** Only set for signed-in users: `null` when allowed, otherwise why not. */
-  blocked: 'membership_required' | 'limit_reached' | null
+  blocked: 'membership_required' | 'membership_excluded' | 'limit_reached' | null
   addonGroups: AddonGroupDto[]
 }
 
@@ -141,6 +145,26 @@ export type AuthorizeContext = {
   userId: number
   /** Set `ctx.allowed = true` to let the user manage events / check tickets in. Denied by default. */
   allowed: boolean
+}
+
+/** A selectable membership (plan) offered by a membership provider. */
+export type MembershipOption = { value: string, label: string }
+
+/** Context of the `events:membership:check` hook. */
+export type MembershipCheckContext = {
+  userId: number
+  /** `'any'` = any active membership, or the plan keys of which the user must hold one. */
+  requirement: 'any' | string[]
+  /** A provider sets this to `true` when the user holds a matching membership. Defaults to `false`. */
+  satisfied: boolean
+}
+
+/** Context of the `events:membership:options` hook. */
+export type MembershipOptionsContext = {
+  /** A provider sets this to `true`: membership rules can then be used on events and tickets. */
+  available: boolean
+  /** The memberships staff can pick from. */
+  options: MembershipOption[]
 }
 
 export type TicketHookContext = {

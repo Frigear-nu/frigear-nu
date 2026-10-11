@@ -46,6 +46,11 @@ export const eventTicketTypes = sqliteTable('event_ticket_types', {
   maxPerUser: integer().notNull().default(1),
   /** `null` = open to everyone, `'any'` = any active subscription, or a list of plan keys. */
   requiresMembership: text({ mode: 'json' }).$type<'any' | string[]>(),
+  /**
+   * The opposite: holders of these plans can NOT buy this ticket (`'any'` = any active subscription), so a
+   * member price and a non-member price can be separate ticket types. `null` = nobody is excluded.
+   */
+  excludesMembership: text({ mode: 'json' }).$type<'any' | string[]>(),
   isDefault: integer({ mode: 'boolean' }).notNull().default(false),
   sortOrder: integer().notNull().default(0),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),

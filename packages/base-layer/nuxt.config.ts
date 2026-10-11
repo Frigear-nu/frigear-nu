@@ -15,6 +15,8 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/ui',
     '@nuxtjs/sitemap',
+    '@nuxtjs/robots',
+    'nuxt-og-image',
     '@nuxt/content',
     '@nuxtjs/i18n',
     '@frigear-nu/menu',
@@ -119,5 +121,11 @@ export default defineNuxtConfig({
     content: {
       main: true,
     },
+  },
+
+  // Keep app/API/auth routes out of search results; `site.indexable` (set by the host app) decides whether
+  // the site as a whole may be indexed at all.
+  robots: {
+    disallow: ['/admin', '/api', '/auth', '/account'],
   },
 })

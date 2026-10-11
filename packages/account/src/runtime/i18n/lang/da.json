@@ -14,6 +14,10 @@
       "security": {
         "label": "Sikkerhed",
         "description": "Skift din adgangskode og administrer adgangsnøgler."
+      },
+      "documents": {
+        "label": "Dokumenter",
+        "description": "Håndbøger og andre filer til dig."
       }
     },
     "identificationCode": {
@@ -32,7 +36,13 @@
         "description": "Din awesome e-mail.",
         "change": {
           "title": "Skift din e-mail",
-          "label": "Ny e-mail"
+          "label": "Ny e-mail",
+          "sent": {
+            "title": "Tjek din indbakke",
+            "description": "Vi har sendt et link til din nye adresse. Ændringen træder først i kraft når du bekræfter den."
+          },
+          "done": "Din e-mailadresse er ændret.",
+          "failed": "Bekræftelseslinket er ugyldigt eller udløbet."
         }
       },
       "avatar": {
@@ -45,7 +55,8 @@
     "documents": {
       "title": "Dokumenter",
       "description": "Dine dokumenter.",
-      "download": "Download"
+      "download": "Download",
+      "empty": "Ingen dokumenter til dig endnu."
     },
     "security": {
       "title": "Sikkerhed",

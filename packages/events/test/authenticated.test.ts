@@ -247,6 +247,43 @@ describe('events (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('membership exclusions', () => {
+    it('keeps holders of the excluded plans from buying, so members and non-members get separate ticket types', async () => {
+      const event = await createEvent({}, [
+        { key: 'members', name: 'Member price', price: 0, requiresMembership: 'any' },
+        { key: 'guests', name: 'Guest price', price: 0, excludesMembership: 'any' },
+        { key: 'not-patrons', name: 'Not for patrons', price: 0, excludesMembership: ['patron'] },
+      ])
+      const guest = await user('Guest')
+      const member = await user('Member')
+
+      const subscription = {
+        object: 'subscription', id: 'sub_excl', customer: member.customerId, status: 'active', cancel_at_period_end: false, ended_at: null, canceled_at: null,
+        items: { object: 'list', data: [{ id: 'si_excl', quantity: 1, current_period_start: 1700000000, current_period_end: 1999999999, price: { id: 'price_member_m', lookup_key: null } }] },
+      }
+      expect((await postWebhook(makeEvent(eventId('excl_sub'), 'customer.subscription.created', subscription))).status).toBe(200)
+
+      const byKey = async (cookie: string) => Object.fromEntries((await detail(event.slug, cookie)).ticketTypes.map((type: { key: string }) => [type.key, type]))
+      const asGuest = await byKey(guest.cookie)
+      const asMember = await byKey(member.cookie)
+
+      // A guest may buy the guest price but not the member price.
+      expect(asGuest.guests.blocked).toBeNull()
+      expect(asGuest.guests.excludesMembership).toBe('any')
+      expect(asGuest.members.blocked).toBe('membership_required')
+      expect((await buy(guest.cookie, event.slug, asGuest.guests.id)).status).toBe(200)
+
+      // A member is excluded from the guest price, and may buy the member price.
+      expect(asMember.guests.blocked).toBe('membership_excluded')
+      expect((await buy(member.cookie, event.slug, asMember.guests.id)).status).toBe(403)
+      expect(asMember.members.blocked).toBeNull()
+      await ok(await buy(member.cookie, event.slug, asMember.members.id))
+
+      // Excluding a plan the member does not hold does not affect them.
+      expect(asMember['not-patrons'].blocked).toBeNull()
+    })
+  })
+
   describe('payment lifecycle', () => {
     it('marks the ticket refunded from charge.refunded and frees it for entry checks', async () => {
       const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 9000 }])

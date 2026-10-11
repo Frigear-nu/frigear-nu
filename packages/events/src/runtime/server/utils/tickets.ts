@@ -4,7 +4,7 @@ import type { H3Event } from 'h3'
 import type { PurchaseBody, PurchaseResponse, TicketDto } from '../../../types'
 import { newId, newTicketCode, normalizeMembership, resolveSameOriginUrl, translate } from '../../utils'
 import { countAddonSeats, countSeats, getPublishedEventRow, holdsSeat, loadCatalog, toTicketDtos } from './catalog'
-import { meetsMembership } from './membership'
+import { meetsMembership, passesExclusion } from './membership'
 
 const fail = (statusCode: number, statusMessage: string) => createError({ statusCode, statusMessage })
 
@@ -54,6 +54,7 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
   for (const requirement of requirements) {
     if (!(await meetsMembership(userId, requirement))) throw fail(403, 'An active membership is required for this ticket.')
   }
+  if (!(await passesExclusion(userId, normalizeMembership(type.excludesMembership)))) throw fail(403, 'This ticket is not available for your membership.')
 
   // --- Addons --------------------------------------------------------------------------------
   const typeGroups = groups.filter(group => group.ticketTypeId === type.id)

@@ -87,6 +87,10 @@
       "tickets": {
         "label": "Billetter",
         "description": "Dine billetter til arrangementer."
+      },
+      "admin": {
+        "label": "Arrangementer",
+        "description": "Administrér arrangementer, billettyper og deltagere."
       }
     }
   }
