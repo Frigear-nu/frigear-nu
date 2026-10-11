@@ -4,8 +4,6 @@ import {
   addServerHandler,
   addServerImportsDir,
   addServerPlugin,
-  addServerTemplate,
-  addTypeTemplate,
   createResolver,
   defineNuxtModule,
   extendPages,
@@ -20,6 +18,8 @@ import {
 import type {
   AuthorizeContext,
   EventsRuntimeConfig,
+  MembershipCheckContext,
+  MembershipOptionsContext,
   ModuleOptions,
   PublicModuleOptions,
   PurchaseBeforeContext,
@@ -46,6 +46,13 @@ declare module 'nitropack' {
   interface NitroRuntimeHooks {
     /** Staff gate (event management, check-in): set `ctx.allowed = true` to let the user in. Denied by default. */
     'events:authorize': (ctx: AuthorizeContext) => void | Promise<void>
+    /**
+     * Membership provider (e.g. `@frigear-nu/subscriptions`): set `ctx.satisfied = true` when the user holds a
+     * membership matching `ctx.requirement`. With no provider a requirement can never be met, so it fails closed.
+     */
+    'events:membership:check': (ctx: MembershipCheckContext) => void | Promise<void>
+    /** Membership provider: set `ctx.available = true` and add the selectable memberships to `ctx.options`. */
+    'events:membership:options': (ctx: MembershipOptionsContext) => void | Promise<void>
     /** Policy hook: throw to deny a purchase. */
     'events:purchase:before': (ctx: PurchaseBeforeContext) => void | Promise<void>
     /** A ticket became `paid` (free tickets immediately, paid ones after the Stripe event). Send confirmations here. */
@@ -87,7 +94,6 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
-    const withMembership = hasNuxtModule('@frigear-nu/subscriptions')
 
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
@@ -97,7 +103,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     nuxt.options.runtimeConfig.events = {
       reservationMinutes: settings.reservationMinutes ?? 30,
-      membershipEnabled: withMembership,
     }
     nuxt.options.runtimeConfig.public.events = {
       pages: { events: eventsPath, event: eventPath, tickets: ticketsPath, admin: adminPath, adminEvent: adminEventPath },
@@ -107,23 +112,6 @@ export default defineNuxtModule<ModuleOptions>({
     await registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
-    })
-
-    // --- Membership requirements ----------------------------------------------------------
-    // @frigear-nu/subscriptions is optional. A virtual module either re-exports its entitlement
-    // check or a stub that denies, so a requirement can never be silently ignored.
-    addServerTemplate({
-      filename: '#events/membership',
-      getContents: () => withMembership
-        ? `export { hasActiveSubscription } from '@frigear-nu/subscriptions/utils'`
-        : `export const hasActiveSubscription = async () => false`,
-    })
-    addTypeTemplate({
-      filename: 'types/events-membership.d.ts',
-      getContents: () => `declare module '#events/membership' {
-  export function hasActiveSubscription(userId: number, options?: { plans?: string[], statuses?: string[] }): Promise<boolean>
-}
-`,
     })
 
     // --- API routes -----------------------------------------------------------------------
@@ -139,6 +127,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('get', '/:slug', 'public/event.get')
     route('post', '/:slug/purchase', 'public/purchase.post')
 
+    route('get', '/admin/membership-options', 'admin/membership-options.get')
     route('get', '/admin/events', 'admin/events.get')
     route('get', '/admin/events/:id', 'admin/event.get')
     route('post', '/admin/events', 'admin/events.post')

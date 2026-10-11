@@ -32,6 +32,7 @@ export const ticketTypeInput = z.object({
   saleEndsAt: date.nullish(),
   maxPerUser: z.number().int().min(1).optional(),
   requiresMembership: membership.optional(),
+  excludesMembership: membership.optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   addonGroups: z.array(addonGroupInput).optional(),

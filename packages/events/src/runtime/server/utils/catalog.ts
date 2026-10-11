@@ -10,7 +10,7 @@ import type {
   TicketTypeDto,
 } from '../../../types'
 import { normalizeMembership } from '../../utils'
-import { meetsMembership } from './membership'
+import { meetsMembership, passesExclusion } from './membership'
 
 type EventRow = typeof schema.events.$inferSelect
 type TicketRow = typeof schema.eventTickets.$inferSelect
@@ -103,9 +103,11 @@ export async function getEventDetail(row: EventRow, userId?: number): Promise<Ev
         : remaining === 0 ? 'sold_out' : 'open'
 
     const typeRequirement = normalizeMembership(type.requiresMembership)
+    const typeExclusion = normalizeMembership(type.excludesMembership)
     let blocked: TicketTypeDto['blocked'] = null
     if (userId !== undefined) {
       if (!(await meetsMembership(userId, eventRequirement)) || !(await meetsMembership(userId, typeRequirement))) blocked = 'membership_required'
+      else if (!(await passesExclusion(userId, typeExclusion))) blocked = 'membership_excluded'
       else {
         const [owned] = await db.select({ count: sql<number>`count(*)` }).from(schema.eventTickets)
           .where(and(
@@ -141,6 +143,7 @@ export async function getEventDetail(row: EventRow, userId?: number): Promise<Ev
       hidePrice: type.hidePrice,
       isDefault: type.isDefault,
       requiresMembership: typeRequirement as MembershipRequirement,
+      excludesMembership: typeExclusion as MembershipRequirement,
       remaining,
       saleStartsAt: type.saleStartsAt?.toISOString() ?? null,
       saleEndsAt: type.saleEndsAt?.toISOString() ?? null,

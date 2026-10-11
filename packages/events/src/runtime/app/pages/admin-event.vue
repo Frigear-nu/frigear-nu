@@ -13,6 +13,8 @@ type AdminTicketType = {
   capacity: number | null
   saleStartsAt: string | null
   saleEndsAt: string | null
+  requiresMembership: 'any' | string[] | null
+  excludesMembership: 'any' | string[] | null
 }
 
 type AdminEvent = {
@@ -107,18 +109,57 @@ const save = () => run(async () => {
 const statuses = ['draft', 'published', 'archived']
 
 // --- ticket types -----------------------------------------------------------------------------
-const addingType = ref(false)
-const type = reactive({ key: '', name: '', price: 0, capacity: '' as string | number })
-const addType = () => run(async () => {
-  await $fetch(`/api/events/admin/events/${id.value}/ticket-types`, {
-    method: 'POST',
-    // Prices are stored in minor units (øre/cents).
-    body: { key: type.key, name: type.name, price: Math.round(Number(type.price) * 100), capacity: type.capacity === '' ? null : Number(type.capacity) },
+// Membership rules are only offered when @frigear-nu/subscriptions is installed; the plans come from it.
+type Membership = 'any' | string[] | null
+type Rule = { mode: 'none' | 'any' | 'plans', plans: string[] }
+
+const { data: membershipOptions } = await useFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', { default: () => ({ available: false, options: [] }) })
+const membershipEnabled = computed(() => membershipOptions.value.available)
+const plans = computed(() => membershipOptions.value.options.map(option => ({ label: option.label, value: option.value })))
+const modes = computed(() => [
+  { label: t('admin.ruleNone', 'Nobody'), value: 'none' },
+  { label: t('admin.ruleAny', 'Any membership'), value: 'any' },
+  { label: t('admin.rulePlans', 'Specific memberships'), value: 'plans' },
+])
+const toRule = (value: Membership | undefined): Rule => value === 'any' ? { mode: 'any', plans: [] } : Array.isArray(value) && value.length ? { mode: 'plans', plans: [...value] } : { mode: 'none', plans: [] }
+const fromRule = (rule: Rule): Membership => rule.mode === 'any' ? 'any' : rule.mode === 'plans' && rule.plans.length ? [...rule.plans] : null
+const planLabel = (key: string) => plans.value.find(plan => plan.value === key)?.label ?? key
+const describeRule = (value: Membership | undefined) => value === 'any' ? t('admin.ruleAny', 'Any membership') : Array.isArray(value) ? value.map(planLabel).join(', ') : ''
+
+const typeDialog = ref(false)
+const editingType = ref<AdminTicketType | null>(null)
+const type = reactive({ key: '', name: '', price: 0, capacity: '' as string | number, requires: toRule(null), excludes: toRule(null) })
+
+function openType(ticketType?: AdminTicketType) {
+  editingType.value = ticketType ?? null
+  Object.assign(type, {
+    key: ticketType?.key ?? '',
+    name: ticketType ? translate(ticketType.name, locale.value) : '',
+    price: ticketType ? ticketType.price / 100 : 0,
+    capacity: ticketType?.capacity ?? '',
+    requires: toRule(ticketType?.requiresMembership),
+    excludes: toRule(ticketType?.excludesMembership),
   })
-  addingType.value = false
-  Object.assign(type, { key: '', name: '', price: 0, capacity: '' })
+  typeDialog.value = true
+}
+
+const saveType = () => run(async () => {
+  const body = {
+    name: merge(editingType.value?.name, type.name),
+    // Prices are stored in minor units (øre/cents).
+    price: Math.round(Number(type.price) * 100),
+    capacity: type.capacity === '' ? null : Number(type.capacity),
+    ...(membershipEnabled.value ? { requiresMembership: fromRule(type.requires), excludesMembership: fromRule(type.excludes) } : {}),
+  }
+  if (editingType.value) {
+    await $fetch(`/api/events/admin/ticket-types/${editingType.value.id}`, { method: 'PATCH', body })
+  }
+  else {
+    await $fetch(`/api/events/admin/events/${id.value}/ticket-types`, { method: 'POST', body: { key: type.key, ...body } })
+  }
+  typeDialog.value = false
   await refresh()
-}, t('admin.typeAdded', 'Ticket type added.'))
+}, t('admin.typeSaved', 'Ticket type saved.'))
 
 const removeType = (ticketType: AdminTicketType) => {
   if (!confirm(t('admin.confirmRemoveType', 'Delete this ticket type?'))) return
@@ -256,18 +297,48 @@ const attendeeColumns = [
           :key="ticketType.id"
           class="flex items-center justify-between gap-4 py-2 text-sm"
         >
-          <span>
+          <span class="min-w-0">
             <span class="font-medium">{{ translate(ticketType.name, locale) }}</span>
             <span class="text-muted"> · {{ formatPrice(ticketType.price, ticketType.currency, locale) }}<template v-if="ticketType.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ ticketType.capacity }}</template></span>
+            <span
+              v-if="ticketType.requiresMembership"
+              class="mt-1 flex flex-wrap gap-1"
+            >
+              <UBadge
+                variant="subtle"
+                color="success"
+                :label="`${t('admin.requires', 'Requires')}: ${describeRule(ticketType.requiresMembership)}`"
+              />
+            </span>
+            <span
+              v-if="ticketType.excludesMembership"
+              class="mt-1 flex flex-wrap gap-1"
+            >
+              <UBadge
+                variant="subtle"
+                color="warning"
+                :label="`${t('admin.notFor', 'Not for')}: ${describeRule(ticketType.excludesMembership)}`"
+              />
+            </span>
           </span>
-          <UButton
-            icon="i-lucide-trash"
-            color="error"
-            variant="ghost"
-            size="xs"
-            :aria-label="t('admin.remove', 'Delete')"
-            @click="removeType(ticketType)"
-          />
+          <span class="flex shrink-0 gap-1">
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="t('admin.edit', 'Edit')"
+              @click="openType(ticketType)"
+            />
+            <UButton
+              icon="i-lucide-trash"
+              color="error"
+              variant="ghost"
+              size="xs"
+              :aria-label="t('admin.remove', 'Delete')"
+              @click="removeType(ticketType)"
+            />
+          </span>
         </li>
       </ul>
       <p
@@ -283,7 +354,7 @@ const attendeeColumns = [
           color="neutral"
           size="xs"
           :label="t('admin.addType', 'Add ticket type')"
-          @click="addingType = true"
+          @click="openType()"
         />
       </template>
     </UPageCard>
@@ -344,13 +415,13 @@ const attendeeColumns = [
     </UPageCard>
 
     <UModal
-      v-model:open="addingType"
-      :title="t('admin.addType', 'Add ticket type')"
+      v-model:open="typeDialog"
+      :title="editingType ? t('admin.editType', 'Edit ticket type') : t('admin.addType', 'Add ticket type')"
     >
       <template #body>
         <form
           class="flex flex-col gap-4"
-          @submit.prevent="addType"
+          @submit.prevent="saveType"
         >
           <UFormField :label="t('admin.name', 'Name')">
             <UInput
@@ -360,6 +431,7 @@ const attendeeColumns = [
             />
           </UFormField>
           <UFormField
+            v-if="!editingType"
             :label="t('admin.key', 'Key')"
             :help="t('admin.keyHelp', 'A short unique id, e.g. member.')"
           >
@@ -389,11 +461,51 @@ const attendeeColumns = [
               class="w-full"
             />
           </UFormField>
+
+          <template v-if="membershipEnabled">
+            <UFormField
+              :label="t('admin.requiresMembership', 'Only for members of')"
+              :help="t('admin.requiresHelp', 'Visitors without a matching active membership cannot buy this ticket.')"
+            >
+              <USelect
+                v-model="type.requires.mode"
+                :items="modes"
+                class="w-full"
+              />
+              <USelectMenu
+                v-if="type.requires.mode === 'plans'"
+                v-model="type.requires.plans"
+                :items="plans"
+                value-key="value"
+                multiple
+                class="mt-2 w-full"
+              />
+            </UFormField>
+            <UFormField
+              :label="t('admin.excludesMembership', 'Not for members of')"
+              :help="t('admin.excludesHelp', 'Holders of these memberships cannot buy this ticket, so members and non-members can have separate prices.')"
+            >
+              <USelect
+                v-model="type.excludes.mode"
+                :items="modes"
+                class="w-full"
+              />
+              <USelectMenu
+                v-if="type.excludes.mode === 'plans'"
+                v-model="type.excludes.plans"
+                :items="plans"
+                value-key="value"
+                multiple
+                class="mt-2 w-full"
+              />
+            </UFormField>
+          </template>
+
           <div class="flex justify-end gap-2">
             <UButton
               variant="subtle"
               :label="t('admin.cancel', 'Cancel')"
-              @click="addingType = false"
+              @click="typeDialog = false"
             />
             <UButton
               type="submit"
