@@ -9,6 +9,10 @@
       "description": "Overblik og genveje til administratorer.",
       "empty": "Her er endnu intet. Moduler tilføjer deres admin-sider og widgets automatisk."
     },
-    "backToSite": "Tilbage til siden"
+    "backToSite": "Tilbage til siden",
+    "menu": {
+      "label": "Admin",
+      "description": "Administration"
+    }
   }
 }

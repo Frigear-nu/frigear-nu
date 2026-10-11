@@ -25,13 +25,20 @@ const items = computedAsync<DropdownMenuItem[][]>(async (): Promise<DropdownMenu
     ])
   }
 
-  items.push(dropdownItems.value?.map(item => ({
+  // Items carrying `meta.roles` (e.g. the admin entry) are only for users holding one of those roles.
+  const role = (user.value as { role?: string } | null)?.role
+  const visible = (dropdownItems.value ?? []).filter((item) => {
+    const roles = item.meta?.roles as string[] | undefined
+    return !roles?.length || (!!role && roles.includes(role))
+  })
+
+  items.push(visible.map(item => ({
     label: item.label,
     to: item.to,
     icon: item.icon,
     external: item.external,
     replace: item.external,
-  }) as DropdownMenuItem) || [])
+  }) as DropdownMenuItem))
 
   return items
 })

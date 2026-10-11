@@ -86,7 +86,9 @@ watch(() => route.path, () => {
         </template>
 
         <template #body>
-          <slot />
+          <div class="admin-content">
+            <slot />
+          </div>
         </template>
       </UDashboardPanel>
     </UDashboardGroup>
@@ -94,6 +96,14 @@ watch(() => route.path, () => {
 </template>
 
 <style scoped>
+/* Other modules' admin pages are often wrapped in a `UContainer` (centered, max width, padded). Inside the panel
+   they should fill it like the users page does, so neutralize every container directly in the content. */
+.admin-content :deep([class*='--ui-container']) {
+  max-width: none;
+  margin-inline: 0;
+  padding: 0;
+}
+
 /* A boxed shell: header on top of the content, sidebar on the left, all inside one bordered frame. */
 .admin-frame {
   max-width: 80rem;

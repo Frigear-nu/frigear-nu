@@ -7,6 +7,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { registerLocales, registerModule } from '@frigear-nu/module-kit/utils'
+import { extendMenu } from '@frigear-nu/menu/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
@@ -73,6 +74,21 @@ export default defineNuxtModule<ModuleOptions>({
       rules[pattern] = { appLayout: 'admin', ...rules[pattern] } as (typeof rules)[string]
       // The dashboard itself lives at `base`, which `<base>/**` does not match.
       rules[base] = { appLayout: 'admin', ...rules[base] } as (typeof rules)[string]
+    }
+
+    // An "Admin" entry in the account dropdown, shown by the dropdown only to users holding one of the roles.
+    if (dashboardPath && settings.roles !== false) {
+      extendMenu(nuxt, 'account.dropdown', {
+        id: 'admin',
+        label: 'Admin',
+        labelKey: 'admin.menu.label',
+        description: 'Administration',
+        descriptionKey: 'admin.menu.description',
+        icon: 'i-lucide-shield-check',
+        to: dashboardPath,
+        order: 90,
+        meta: { roles: settings.roles ?? ['admin'] },
+      })
     }
 
     extendPages((pages) => {

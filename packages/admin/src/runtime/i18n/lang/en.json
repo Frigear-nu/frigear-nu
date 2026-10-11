@@ -9,6 +9,10 @@
       "description": "Overview and shortcuts for administrators.",
       "empty": "Nothing here yet. Modules add their admin pages and widgets automatically."
     },
-    "backToSite": "Back to the site"
+    "backToSite": "Back to the site",
+    "menu": {
+      "label": "Admin",
+      "description": "Administration"
+    }
   }
 }
