@@ -21,5 +21,6 @@ set -euo pipefail
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 
-pnpm pack --pack-destination "$tmp_dir"
+# $NPM_PUBLISH_SKIP_BUILD: the caller already built the package, so skip the `prepack` build.
+pnpm pack ${NPM_PUBLISH_SKIP_BUILD:+--ignore-scripts} --pack-destination "$tmp_dir"
 npm publish "$tmp_dir"/*.tgz --access public

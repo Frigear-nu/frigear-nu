@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/users",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "A module for managing the users in the main frigear app.",
   "repository": "your-org/@frigear-nu/users",
   "license": "MIT",

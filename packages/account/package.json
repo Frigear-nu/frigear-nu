@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/account",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "A module for managing the account area (profile, email, password, security) in the main frigear app.",
   "repository": "your-org/@frigear-nu/account",
   "license": "MIT",
