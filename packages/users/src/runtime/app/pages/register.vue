@@ -1,8 +1,20 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+
 defineOptions({ name: 'UsersRegisterPage' })
 
 const t = useModuleT('auth')
 const { register, pending, error } = useUserRegistration()
+const loginPath = useRuntimeConfig().public.users?.pages?.login || '/login'
+
+// Only same-origin absolute paths are followed, never `//host` or full URLs.
+const redirectTarget = computed(() => {
+  const target = useRoute().query.redirect
+  return typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/'
+})
+const loginLink = computed(() => redirectTarget.value === '/'
+  ? loginPath
+  : `${loginPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
 
 const fields = computed(() => [
   { name: 'name', type: 'text' as const, label: t('name.label', 'Name'), required: true },
@@ -19,38 +31,43 @@ async function onSubmit(payload: { data: { name: string, email: string, password
     verificationSent.value = true
     return
   }
-  await navigateTo('/')
+  await navigateTo(redirectTarget.value, { external: redirectTarget.value !== '/' })
 }
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageBody>
+  <UsersAuthCard
+    :title="verificationSent ? t('verifyEmail.title', 'Verify your e-mail') : t('signUp', 'Sign up')"
+    :icon="verificationSent ? 'i-lucide-mail-check' : 'i-lucide-user-plus'"
+    :description="verificationSent ? t('verifyEmail.description', 'We have sent you an e-mail. Check your inbox or spam.') : undefined"
+  >
+    <UAuthForm
+      v-if="!verificationSent"
+      :fields="fields"
+      :loading="pending"
+      :submit="{ label: t('signUp', 'Sign up'), block: true }"
+      @submit="onSubmit"
+    >
+      <template
+        v-if="error"
+        #validation
+      >
         <UAlert
-          v-if="verificationSent"
-          :title="t('verifyEmail.title', 'Verify your e-mail')"
-          :description="t('verifyEmail.description', 'We have sent you an e-mail. Check your inbox or spam.')"
+          color="error"
+          variant="subtle"
+          :title="error"
         />
-        <UAuthForm
-          v-else
-          :title="t('signUp', 'Register')"
-          :fields="fields"
-          :loading="pending"
-          :submit="{ label: t('signUp', 'Register') }"
-          @submit="onSubmit"
-        >
-          <template
-            v-if="error"
-            #validation
-          >
-            <UAlert
-              color="error"
-              :title="error"
-            />
-          </template>
-        </UAuthForm>
-      </UPageBody>
-    </UPage>
-  </UContainer>
+      </template>
+    </UAuthForm>
+
+    <template #footer>
+      {{ t('haveAccount', 'Already have an account?') }}
+      <ULink
+        :to="loginLink"
+        class="font-medium text-primary"
+      >
+        {{ t('signIn', 'Log in') }}
+      </ULink>
+    </template>
+  </UsersAuthCard>
 </template>

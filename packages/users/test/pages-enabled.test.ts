@@ -14,6 +14,6 @@ describe('login/register pages (opt-in)', async () => {
 
   it('renders the register page at the default path', async () => {
     const html = await $fetch('/register')
-    expect(html).toContain('Register')
+    expect(html).toContain('Sign up')
   })
 })

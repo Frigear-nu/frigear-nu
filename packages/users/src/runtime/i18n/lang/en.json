@@ -25,7 +25,8 @@
     },
     "forgotPassword": {
       "title": "Forgot password?",
-      "submit": "Set password"
+      "submit": "Send reset link",
+      "description": "Enter your e-mail and we will send you a link to set a new password."
     },
     "resetPassword": {
       "title": "Reset password",
@@ -37,7 +38,8 @@
       },
       "current": {
         "label": "Current password"
-      }
+      },
+      "invalid": "This reset link is invalid or has expired."
     },
     "magicLink": {
       "title": "Magic Link",
@@ -90,7 +92,11 @@
         "failed": "Sign up failed, are you sure you don't have an account with this e-mail?"
       },
       "label": "Error"
-    }
+    },
+    "or": "or",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "backToSignIn": "Back to log in"
   },
   "users": {
     "menu": {

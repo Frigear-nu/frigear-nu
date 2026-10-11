@@ -25,6 +25,12 @@ const fields = computed(() => passwordLoginEnabled.value
     ]
   : [])
 
+const registerPath = useRuntimeConfig().public.users?.pages?.register
+const registerLink = computed(() => registerPath
+  ? (redirectTarget.value === '/' ? registerPath : `${registerPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
+  : undefined)
+const forgotPasswordEnabled = useRuntimeConfig().public.users?.passwordReset === true
+
 async function onSubmit(payload: { data: { email: string, password: string } }) {
   await login(payload.data)
   await afterLogin()
@@ -53,73 +59,100 @@ async function onPasskeyLogin() {
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageBody>
+  <UsersAuthCard
+    :title="t('signIn', 'Log in')"
+    icon="i-lucide-log-in"
+  >
+    <UAlert
+      v-if="linkFailed"
+      color="error"
+      variant="subtle"
+      :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
+    />
+
+    <UAuthForm
+      :fields="fields"
+      :providers="oauthProviders"
+      :loading="pending"
+      :submit="{ label: t('signIn', 'Log in'), block: true }"
+      @submit="onSubmit"
+    >
+      <template
+        v-if="forgotPasswordEnabled && passwordLoginEnabled"
+        #password-hint
+      >
+        <ULink
+          to="/forgot-password"
+          class="text-sm font-medium text-primary"
+          tabindex="-1"
+        >
+          {{ t('forgotPassword.title', 'Forgot password?') }}
+        </ULink>
+      </template>
+      <template
+        v-if="error"
+        #validation
+      >
         <UAlert
-          v-if="linkFailed"
-          class="mb-4"
           color="error"
-          :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
+          variant="subtle"
+          :title="error"
         />
-        <UAuthForm
-          :title="t('signIn', 'Log in')"
-          :fields="fields"
-          :providers="oauthProviders"
-          :loading="pending"
-          :submit="{ label: t('signIn', 'Log in') }"
-          @submit="onSubmit"
-        >
-          <template
-            v-if="error"
-            #validation
-          >
-            <UAlert
-              color="error"
-              :title="error"
-            />
-          </template>
-        </UAuthForm>
-        <div
-          v-if="magicLink.isEnabled.value"
-          class="mt-4"
-        >
-          <UAlert
-            v-if="magicLinkSent"
-            :title="t('email.sent.title', 'E-mail sent!')"
-            :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
-          />
-          <form
-            v-else
-            class="flex gap-2"
-            @submit.prevent="onMagicLink"
-          >
-            <UInput
-              v-model="magicLinkEmail"
-              type="email"
-              required
-              class="flex-1"
-              :placeholder="t('email.label', 'Email')"
-            />
-            <UButton
-              type="submit"
-              variant="outline"
-              :loading="magicLink.pending.value"
-            >
-              {{ t('magicLink.submit', 'Send link') }}
-            </UButton>
-          </form>
-        </div>
+      </template>
+    </UAuthForm>
+
+    <template v-if="magicLink.isEnabled.value">
+      <USeparator :label="t('or', 'or')" />
+      <UAlert
+        v-if="magicLinkSent"
+        :title="t('email.sent.title', 'E-mail sent!')"
+        :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
+      />
+      <form
+        v-else
+        class="flex gap-2"
+        @submit.prevent="onMagicLink"
+      >
+        <UInput
+          v-model="magicLinkEmail"
+          type="email"
+          required
+          class="flex-1"
+          :placeholder="t('email.label', 'Email')"
+        />
         <UButton
-          v-if="passkeyLoginEnabled"
-          class="mt-4 w-full"
-          :loading="passkeyPending"
-          :disabled="pending"
-          @click="onPasskeyLogin"
+          type="submit"
+          variant="outline"
+          :loading="magicLink.pending.value"
         >
-          {{ t('passkey.login', 'Log in with a passkey') }}
+          {{ t('magicLink.submit', 'Send link') }}
         </UButton>
-      </UPageBody>
-    </UPage>
-  </UContainer>
+      </form>
+    </template>
+
+    <UButton
+      v-if="passkeyLoginEnabled"
+      block
+      variant="outline"
+      icon="i-lucide-key-round"
+      :loading="passkeyPending"
+      :disabled="pending"
+      @click="onPasskeyLogin"
+    >
+      {{ t('passkey.login', 'Log in with a passkey') }}
+    </UButton>
+
+    <template
+      v-if="registerLink"
+      #footer
+    >
+      {{ t('noAccount', 'Don\'t have an account?') }}
+      <ULink
+        :to="registerLink"
+        class="font-medium text-primary"
+      >
+        {{ t('signUp', 'Sign up') }}
+      </ULink>
+    </template>
+  </UsersAuthCard>
 </template>
