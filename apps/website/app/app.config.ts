@@ -2,6 +2,12 @@ export default defineAppConfig({
   site: {
     name: 'Frigear.nu',
   },
+  users: {
+    authLogo: {
+      light: '/images/branding/logos/full/frigear-logo-purple-512-275.png',
+      dark: '/images/branding/logos/full/frigear-logo-white-2834-1479.png',
+    },
+  },
   socials: {
     instagram: 'https://instagram.com/frigear.nu',
     facebook: 'https://facebook.com/frigear.nu',

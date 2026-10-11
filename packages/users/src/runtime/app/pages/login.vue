@@ -18,6 +18,17 @@ const redirectTarget = computed(() => {
 })
 const afterLogin = () => navigateTo(redirectTarget.value, { external: redirectTarget.value !== '/' })
 
+const magicLinkOpen = ref(false)
+const providers = computed(() => [
+  ...oauthProviders.value,
+  ...(magicLink.isEnabled.value
+    ? [{ label: t('magicLink.title', 'Magic Link'), icon: 'i-lucide-at-sign', onClick: () => { magicLinkOpen.value = !magicLinkOpen.value } }]
+    : []),
+  ...(passkeyLoginEnabled.value
+    ? [{ label: t('passkey.login', 'Log in with a passkey'), icon: 'i-lucide-key-round', onClick: onPasskeyLogin }]
+    : []),
+])
+
 const fields = computed(() => passwordLoginEnabled.value
   ? [
       { name: 'email', type: 'text' as const, label: t('email.label', 'Email'), required: true },
@@ -59,10 +70,20 @@ async function onPasskeyLogin() {
 </script>
 
 <template>
-  <UsersAuthCard
-    :title="t('signIn', 'Log in')"
-    icon="i-lucide-log-in"
-  >
+  <UsersAuthCard :title="t('signIn', 'Log in')">
+    <template
+      v-if="registerLink"
+      #description
+    >
+      {{ t('dontHaveAnAccount', 'Don\'t have an account yet? ➜') }}
+      <ULink
+        :to="registerLink"
+        class="font-medium text-primary"
+      >
+        {{ t('signUp', 'Sign up') }}
+      </ULink>.
+    </template>
+
     <UAlert
       v-if="linkFailed"
       color="error"
@@ -70,9 +91,38 @@ async function onPasskeyLogin() {
       :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
     />
 
+    <template v-if="magicLinkOpen">
+      <UAlert
+        v-if="magicLinkSent"
+        :title="t('email.sent.title', 'E-mail sent!')"
+        :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
+      />
+      <form
+        v-else
+        class="flex gap-2"
+        @submit.prevent="onMagicLink"
+      >
+        <UInput
+          v-model="magicLinkEmail"
+          type="email"
+          required
+          autofocus
+          class="flex-1"
+          :placeholder="t('email.label', 'Email')"
+        />
+        <UButton
+          type="submit"
+          :loading="magicLink.pending.value"
+        >
+          {{ t('magicLink.submit', 'Send link') }}
+        </UButton>
+      </form>
+    </template>
+
     <UAuthForm
       :fields="fields"
-      :providers="oauthProviders"
+      :providers="providers"
+      :separator="t('or', 'or')"
       :loading="pending"
       :submit="{ label: t('signIn', 'Log in'), block: true }"
       @submit="onSubmit"
@@ -100,59 +150,5 @@ async function onPasskeyLogin() {
         />
       </template>
     </UAuthForm>
-
-    <template v-if="magicLink.isEnabled.value">
-      <USeparator :label="t('or', 'or')" />
-      <UAlert
-        v-if="magicLinkSent"
-        :title="t('email.sent.title', 'E-mail sent!')"
-        :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
-      />
-      <form
-        v-else
-        class="flex gap-2"
-        @submit.prevent="onMagicLink"
-      >
-        <UInput
-          v-model="magicLinkEmail"
-          type="email"
-          required
-          class="flex-1"
-          :placeholder="t('email.label', 'Email')"
-        />
-        <UButton
-          type="submit"
-          variant="outline"
-          :loading="magicLink.pending.value"
-        >
-          {{ t('magicLink.submit', 'Send link') }}
-        </UButton>
-      </form>
-    </template>
-
-    <UButton
-      v-if="passkeyLoginEnabled"
-      block
-      variant="outline"
-      icon="i-lucide-key-round"
-      :loading="passkeyPending"
-      :disabled="pending"
-      @click="onPasskeyLogin"
-    >
-      {{ t('passkey.login', 'Log in with a passkey') }}
-    </UButton>
-
-    <template
-      v-if="registerLink"
-      #footer
-    >
-      {{ t('noAccount', 'Don\'t have an account?') }}
-      <ULink
-        :to="registerLink"
-        class="font-medium text-primary"
-      >
-        {{ t('signUp', 'Sign up') }}
-      </ULink>
-    </template>
   </UsersAuthCard>
 </template>

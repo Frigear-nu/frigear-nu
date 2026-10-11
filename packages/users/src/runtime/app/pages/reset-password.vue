@@ -23,7 +23,6 @@ async function onSubmit(payload: { data: { password: string, confirmPassword: st
 <template>
   <UsersAuthCard
     :title="t('resetPassword.title', 'Reset password')"
-    icon="i-lucide-lock-keyhole"
   >
     <UAlert
       v-if="!code"

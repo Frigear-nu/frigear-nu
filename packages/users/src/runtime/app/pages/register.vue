@@ -38,7 +38,6 @@ async function onSubmit(payload: { data: { name: string, email: string, password
 <template>
   <UsersAuthCard
     :title="verificationSent ? t('verifyEmail.title', 'Verify your e-mail') : t('signUp', 'Sign up')"
-    :icon="verificationSent ? 'i-lucide-mail-check' : 'i-lucide-user-plus'"
     :description="verificationSent ? t('verifyEmail.description', 'We have sent you an e-mail. Check your inbox or spam.') : undefined"
   >
     <UAuthForm
@@ -60,14 +59,17 @@ async function onSubmit(payload: { data: { name: string, email: string, password
       </template>
     </UAuthForm>
 
-    <template #footer>
-      {{ t('haveAccount', 'Already have an account?') }}
+    <template
+      v-if="!verificationSent"
+      #description
+    >
+      {{ t('alreadyHaveAnAccount', 'Already have an account? ➜') }}
       <ULink
         :to="loginLink"
         class="font-medium text-primary"
       >
         {{ t('signIn', 'Log in') }}
-      </ULink>
+      </ULink>.
     </template>
   </UsersAuthCard>
 </template>

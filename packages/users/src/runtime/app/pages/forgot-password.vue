@@ -19,7 +19,6 @@ async function onSubmit(payload: { data: { email: string } }) {
 <template>
   <UsersAuthCard
     :title="t('forgotPassword.title', 'Forgot password?')"
-    :icon="sent ? 'i-lucide-mail-check' : 'i-lucide-key-round'"
     :description="sent
       ? t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')
       : t('forgotPassword.description', 'Enter your e-mail and we will send you a link to set a new password.')"

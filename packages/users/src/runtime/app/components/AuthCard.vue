@@ -4,32 +4,52 @@ defineOptions({ name: 'UsersAuthCard' })
 defineProps<{
   title: string
   description?: string
-  icon?: string
 }>()
+
+// Apps brand the pages through `app.config.ts`: `users: { authLogo: '/logo.png' }` or `{ light, dark }` image paths.
+const logo = useAppConfig().users?.authLogo as string | { light: string, dark: string } | undefined
 </script>
 
 <template>
-  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] items-center justify-center py-12">
+  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] flex-col items-center justify-center gap-4 py-10">
+    <template v-if="logo">
+      <img
+        v-if="typeof logo === 'string'"
+        :src="logo"
+        alt=""
+        class="h-16 w-auto"
+      >
+      <template v-else>
+        <img
+          :src="logo.light"
+          alt=""
+          class="h-16 w-auto dark:hidden"
+        >
+        <img
+          :src="logo.dark"
+          alt=""
+          class="hidden h-16 w-auto dark:block"
+        >
+      </template>
+    </template>
+
     <UPageCard
       class="w-full max-w-md"
-      variant="subtle"
+      variant="outline"
     >
-      <div class="flex flex-col gap-6">
-        <div class="flex flex-col items-center gap-2 text-center">
-          <UIcon
-            v-if="icon"
-            :name="icon"
-            class="size-8 text-primary"
-          />
+      <div class="flex flex-col gap-5">
+        <div class="flex flex-col items-center gap-1.5 text-center">
           <h1 class="text-xl font-semibold text-highlighted">
             {{ title }}
           </h1>
-          <p
-            v-if="description"
+          <div
+            v-if="description || $slots.description"
             class="text-sm text-muted"
           >
-            {{ description }}
-          </p>
+            <slot name="description">
+              {{ description }}
+            </slot>
+          </div>
         </div>
 
         <slot />
