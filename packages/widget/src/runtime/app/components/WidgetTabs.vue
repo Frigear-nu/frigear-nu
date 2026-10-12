@@ -39,7 +39,7 @@ function onKeydown(event: KeyboardEvent, index: number) {
   >
     <div
       role="tablist"
-      class="flex gap-1 overflow-x-auto border-b border-default"
+      class="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-default"
     >
       <button
         v-for="(tab, index) in tabs"
@@ -50,7 +50,7 @@ function onKeydown(event: KeyboardEvent, index: number) {
         :aria-selected="tab.id === active?.id"
         :aria-controls="`tabpanel-${name}`"
         :tabindex="tab.id === active?.id ? 0 : -1"
-        class="-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors"
+        class="inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors"
         :class="tab.id === active?.id ? 'border-primary text-highlighted' : 'border-transparent text-muted hover:text-default'"
         @click="select(tab.id)"
         @keydown="onKeydown($event, index)"
