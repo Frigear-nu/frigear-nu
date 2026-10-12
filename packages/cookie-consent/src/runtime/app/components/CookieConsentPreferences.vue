@@ -22,26 +22,26 @@ watch(isPreferencesOpen, (isOpen) => {
   >
     <template #body>
       <div
-        class="cc-list"
+        class="flex flex-col gap-4"
         data-testid="cookie-consent-preferences-dialog"
       >
         <div
           v-for="category in categories"
           :key="category.key"
-          class="cc-item"
+          class="rounded-lg border border-default p-3"
         >
-          <div class="cc-row">
+          <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="cc-label">
+              <p class="font-medium">
                 {{ label(category) }}
               </p>
-              <p class="cc-desc">
+              <p class="text-sm text-muted">
                 {{ description(category) }}
               </p>
             </div>
             <span
               v-if="category.required"
-              class="cc-required"
+              class="shrink-0 text-xs text-muted"
             >{{ t('required') }}</span>
             <USwitch
               v-else
@@ -52,12 +52,12 @@ watch(isPreferencesOpen, (isOpen) => {
           </div>
           <details
             v-if="category.cookies?.length"
-            class="cc-details"
+            class="mt-2 text-sm"
           >
-            <summary class="cc-summary">
+            <summary class="cursor-pointer text-muted">
               {{ t('cookies') }} ({{ category.cookies.length }})
             </summary>
-            <ul class="cc-cookies">
+            <ul class="mt-1 flex list-none flex-col gap-1 p-0">
               <li
                 v-for="cookie in category.cookies"
                 :key="cookie.name"
@@ -67,7 +67,7 @@ watch(isPreferencesOpen, (isOpen) => {
                 <span v-if="cookie.duration"> · {{ cookie.duration }}</span>
                 <span
                   v-if="cookie.purpose"
-                  class="cc-purpose"
+                  class="block text-muted"
                 >{{ localize(cookie.purpose) }}</span>
               </li>
             </ul>
@@ -76,7 +76,7 @@ watch(isPreferencesOpen, (isOpen) => {
       </div>
     </template>
     <template #footer>
-      <div class="cc-footer">
+      <div class="flex w-full flex-wrap justify-end gap-2">
         <UButton
           color="neutral"
           variant="outline"
@@ -99,18 +99,3 @@ watch(isPreferencesOpen, (isOpen) => {
     </template>
   </UModal>
 </template>
-
-<style scoped>
-/* Plain CSS on Nuxt UI variables - Tailwind does not scan packages outside the app. */
-.cc-list { display: flex; flex-direction: column; gap: 1rem; }
-.cc-item { border: 1px solid var(--ui-border); border-radius: 0.5rem; padding: 0.75rem; }
-.cc-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.cc-label { margin: 0; font-weight: 500; }
-.cc-desc { margin: 0; font-size: 0.875rem; color: var(--ui-text-muted); }
-.cc-required { flex-shrink: 0; font-size: 0.75rem; color: var(--ui-text-muted); }
-.cc-details { margin-top: 0.5rem; font-size: 0.875rem; }
-.cc-summary { cursor: pointer; color: var(--ui-text-muted); }
-.cc-cookies { margin: 0.25rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
-.cc-purpose { display: block; color: var(--ui-text-muted); }
-.cc-footer { display: flex; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
-</style>

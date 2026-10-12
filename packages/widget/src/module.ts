@@ -6,7 +6,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
-import { registerModule } from '@frigear-nu/module-kit/utils'
+import { registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, RegisteredWidget } from './types'
 import { sortWidgets } from './runtime/utils/sort'
 
@@ -18,6 +18,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule('@frigear-nu/widget', nuxt)
 
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
     addImports([
       { name: 'useWidgets', from: resolver.resolve('./runtime/app/composables/useWidgets') },

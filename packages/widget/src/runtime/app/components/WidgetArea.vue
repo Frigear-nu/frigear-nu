@@ -10,7 +10,7 @@ const { data: widgets } = await useWidgets(props.name)
 <template>
   <div
     v-if="widgets?.length"
-    class="widget-area"
+    class="grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-4 md:grid-cols-4 md:[&>*]:[grid-column:span_var(--widget-span,1)]"
   >
     <template
       v-for="widget in widgets"
@@ -35,22 +35,3 @@ const { data: widgets } = await useWidgets(props.name)
     name="empty"
   />
 </template>
-
-<style scoped>
-/* Plain CSS rather than utility classes: Tailwind does not scan workspace packages. */
-.widget-area {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-}
-
-@media (min-width: 48rem) {
-  .widget-area {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .widget-area > * {
-    grid-column: span var(--widget-span, 1);
-  }
-}
-</style>

@@ -33,8 +33,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <!-- The structure is plain scoped CSS rather than utility classes: Tailwind does not scan workspace packages. -->
-  <div class="admin-frame">
+  <div class="h-dvh w-full overflow-hidden bg-default">
     <UDashboardGroup
       unit="rem"
       :ui="{ base: 'admin-group relative flex h-full w-full overflow-hidden' }"
@@ -49,7 +48,7 @@ watch(() => route.path, () => {
         <template #header>
           <NuxtLink
             :to="home"
-            class="admin-brand"
+            class="flex items-center gap-2 font-semibold"
           >
             <UIcon name="i-lucide-layout-dashboard" />
             <span>{{ t('title', 'Administration') }}</span>
@@ -103,20 +102,3 @@ watch(() => route.path, () => {
     </UDashboardGroup>
   </div>
 </template>
-
-<style scoped>
-/* A full-width shell: header on top of the content, sidebar on the left, filling the whole view. */
-.admin-frame {
-  width: 100%;
-  height: 100dvh;
-  overflow: hidden;
-  background: var(--ui-bg);
-}
-
-.admin-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-}
-</style>

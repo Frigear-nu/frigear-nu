@@ -245,11 +245,10 @@ const summary = (field: FormField) =>
 </script>
 
 <template>
-  <!-- The three-column layout is plain scoped CSS rather than utility classes: Tailwind does not scan workspace packages. -->
-  <div class="builder">
+  <div class="grid items-start gap-4 lg:grid-cols-[14rem_minmax(20rem,26rem)_minmax(0,1fr)]">
     <!-- Palette -->
-    <aside class="builder-palette space-y-4">
-      <h2 class="builder-title">
+    <aside class="space-y-4 lg:sticky lg:top-4">
+      <h2 class="text-sm font-semibold">
         {{ t('builder.paletteTitle', 'Add fields') }}
       </h2>
       <div class="space-y-1">
@@ -283,7 +282,7 @@ const summary = (field: FormField) =>
         <p class="text-xs text-muted">
           {{ t('builder.paletteHint', 'Drag a field onto the form, or click to add it.') }}
         </p>
-        <div class="builder-types">
+        <div class="grid grid-cols-2 gap-1 lg:grid-cols-1">
           <button
             v-for="type in fieldTypes"
             :key="type"
@@ -305,8 +304,8 @@ const summary = (field: FormField) =>
     </aside>
 
     <!-- Fields being edited: the list, then the settings of the selected one -->
-    <div class="builder-editor">
-      <h2 class="builder-title">
+    <div class="grid min-w-0 gap-4">
+      <h2 class="text-sm font-semibold">
         {{ t('builder.fieldsTitle', 'Form fields') }}
       </h2>
       <!-- Canvas -->
@@ -504,10 +503,10 @@ const summary = (field: FormField) =>
       </div>
 
       <!-- Inspector -->
-      <h2 class="builder-title">
+      <h2 class="text-sm font-semibold">
         {{ t('builder.settingsTitle', 'Settings') }}
       </h2>
-      <aside class="builder-inspector space-y-4 rounded-lg border border-default p-4">
+      <aside class="space-y-4 rounded-lg border border-default p-4">
         <template v-if="selectedField && selection?.kind === 'field'">
           <h3 class="font-semibold">
             {{ typeLabel(selectedField.type) }}
@@ -723,71 +722,13 @@ const summary = (field: FormField) =>
     </div>
 
     <!-- Live preview -->
-    <div class="builder-preview">
-      <h2 class="builder-title">
+    <div class="min-w-0 space-y-2 lg:sticky lg:top-4">
+      <h2 class="text-sm font-semibold">
         {{ t('admin.preview', 'Preview') }}
       </h2>
-      <div class="builder-preview-card">
+      <div class="rounded-lg border border-default p-6">
         <slot name="preview" />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.builder {
-  display: grid;
-  gap: 1rem;
-  align-items: start;
-}
-
-.builder-editor {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.builder-types {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.25rem;
-}
-
-.builder-title {
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-/* Inside the grid the editor column's gap already spaces its parts. */
-.builder-editor > .builder-title {
-  margin-bottom: -0.5rem;
-}
-
-.builder-preview {
-  min-width: 0;
-}
-
-.builder-preview-card {
-  border: 1px solid var(--ui-border);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-}
-
-@media (min-width: 64rem) {
-  /* Pick fields | the fields being edited | live preview: the picker sits next to the list it drops onto. */
-  .builder {
-    grid-template-columns: 14rem minmax(20rem, 26rem) minmax(0, 1fr);
-  }
-
-  .builder-types {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .builder-palette,
-  .builder-preview {
-    position: sticky;
-    top: 1rem;
-  }
-}
-</style>

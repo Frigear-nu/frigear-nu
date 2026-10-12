@@ -26,48 +26,58 @@ onMounted(() => {
 
 <template>
   <ClientOnly>
-    <Transition name="cookie-fab">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      leave-active-class="transition duration-200 ease-out"
+      enter-from-class="scale-50 opacity-0"
+      leave-to-class="scale-50 opacity-0"
+    >
       <button
         v-if="open && collapsed"
-        class="cc-fab"
+        class="fixed bottom-4 left-4 z-50 flex size-14 cursor-pointer items-center justify-center rounded-full border border-default bg-default shadow-[0_10px_25px_rgb(0_0_0/0.3)] hover:opacity-90"
         :aria-label="t('expand')"
         data-testid="cookie-consent-fab"
         @click="isManuallyExpanded = true"
       >
         <UIcon
           :name="config.icon"
-          class="cc-fab-icon"
+          class="size-7 text-primary"
         />
       </button>
     </Transition>
 
-    <Transition name="cookie-slide">
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      leave-active-class="transition duration-300 ease-out"
+      enter-from-class="translate-y-full opacity-0"
+      leave-to-class="translate-y-full opacity-0"
+    >
       <div
         v-if="open && !collapsed"
-        class="cc-wrap"
+        class="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center"
         role="dialog"
         :aria-label="t('preferencesTitle')"
         data-testid="cookie-consent-banner"
       >
-        <div class="cc-banner">
-          <div class="cc-badge">
+        <div class="pointer-events-auto relative w-[92vw] rounded-t-2xl border border-primary/70 bg-default text-default shadow-[0_-8px_30px_rgb(0_0_0/0.25)]">
+          <div class="absolute -top-3.5 left-4 flex items-center justify-center rounded-full border border-primary/70 bg-default p-1">
             <UIcon
               :name="config.icon"
-              class="cc-badge-icon"
+              class="size-5 text-primary"
             />
           </div>
-          <div class="cc-content">
-            <p class="cc-text">
+          <div class="flex flex-col items-center justify-between gap-4 px-4 pb-4 pt-5 sm:flex-row">
+            <p class="text-sm text-muted">
               {{ t('description') }}
               <NuxtLink
                 v-if="config.policyUrl"
                 :to="config.policyUrl"
-                class="cc-link"
+                class="underline"
               >
                 {{ t('policy') }}
               </NuxtLink>
             </p>
-            <div class="cc-actions">
+            <div class="flex shrink-0 flex-wrap gap-2">
               <UButton
                 color="neutral"
                 variant="ghost"
@@ -97,35 +107,3 @@ onMounted(() => {
     <CookieConsentPreferences />
   </ClientOnly>
 </template>
-
-<style scoped>
-/* Plain CSS on Nuxt UI variables: Tailwind does not scan workspace/node_modules packages, so utility classes here would silently be dropped. */
-.cc-wrap { position: fixed; inset: auto 0 0 0; z-index: 50; display: flex; justify-content: center; pointer-events: none; }
-.cc-banner {
-  position: relative; width: 92vw; pointer-events: auto;
-  background: var(--ui-bg); color: var(--ui-text);
-  border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent);
-  border-radius: 1rem 1rem 0 0; box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
-}
-.cc-badge {
-  position: absolute; top: -0.875rem; left: 1rem; display: flex; align-items: center; justify-content: center; padding: 0.25rem;
-  background: var(--ui-bg); border: 1px solid color-mix(in oklab, var(--ui-primary) 70%, transparent); border-radius: 9999px;
-}
-.cc-badge-icon { width: 1.25rem; height: 1.25rem; color: var(--ui-primary); }
-.cc-content { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1rem 1rem; }
-.cc-text { margin: 0; font-size: 0.875rem; color: var(--ui-text-muted); }
-.cc-link { text-decoration: underline; }
-.cc-actions { display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 0.5rem; }
-@media (min-width: 640px) { .cc-content { flex-direction: row; } }
-.cc-fab {
-  position: fixed; bottom: 1rem; left: 1rem; z-index: 50; display: flex; align-items: center; justify-content: center;
-  width: 3.5rem; height: 3.5rem; cursor: pointer; background: var(--ui-bg); border: 1px solid var(--ui-border); border-radius: 9999px;
-  box-shadow: 0 10px 25px rgb(0 0 0 / 0.3);
-}
-.cc-fab:hover { opacity: 0.9; }
-.cc-fab-icon { width: 1.75rem; height: 1.75rem; color: var(--ui-primary); }
-.cookie-slide-enter-active, .cookie-slide-leave-active { transition: transform 0.3s ease, opacity 0.3s ease; }
-.cookie-slide-enter-from, .cookie-slide-leave-to { transform: translateY(100%); opacity: 0; }
-.cookie-fab-enter-active, .cookie-fab-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.cookie-fab-enter-from, .cookie-fab-leave-to { opacity: 0; transform: scale(0.5); }
-</style>

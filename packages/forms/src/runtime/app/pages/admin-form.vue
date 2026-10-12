@@ -111,7 +111,7 @@ async function save() {
         </div>
       </div>
 
-      <div class="form-meta">
+      <div class="grid gap-4 sm:grid-cols-3">
         <UFormField :label="t('admin.name', 'Name')">
           <UInput
             v-model="draft.name"
@@ -195,17 +195,3 @@ async function save() {
     </template>
   </UContainer>
 </template>
-
-<style scoped>
-/* Plain scoped CSS rather than utility classes: Tailwind does not scan workspace packages. */
-.form-meta {
-  display: grid;
-  gap: 1rem;
-}
-
-@media (min-width: 40rem) {
-  .form-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-</style>

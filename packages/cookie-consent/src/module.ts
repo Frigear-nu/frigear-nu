@@ -7,7 +7,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, registerLocales, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { registerModule, registerLocales, extendDatabaseTable, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { DEFAULT_CATEGORIES, computeVersion, mergeCategories } from './runtime/utils/consent'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -43,6 +43,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule('@frigear-nu/cookie-consent', nuxt)
 
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const persistToUser = (options.persistToUser ?? true) && hasNuxtModule('@frigear-nu/users')
 

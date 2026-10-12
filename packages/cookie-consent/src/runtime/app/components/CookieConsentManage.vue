@@ -7,15 +7,10 @@ const { t } = useConsentT()
 <template>
   <button
     type="button"
-    :class="['cc-manage', { 'cc-manage-text': !$slots.default }]"
+    :class="['cursor-pointer', { underline: !$slots.default }]"
     data-testid="cookie-consent-manage"
     @click="openPreferences"
   >
     <slot>{{ t('manage') }}</slot>
   </button>
 </template>
-
-<style scoped>
-.cc-manage { cursor: pointer; background: none; border: 0; padding: 0; color: inherit; }
-.cc-manage-text { text-decoration: underline; }
-</style>
