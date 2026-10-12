@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, pruneReferences, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -13,6 +13,21 @@ const base = (): FormDefinition => ({
   ],
 })
 const keys = (definition: FormDefinition) => definition.steps.map(step => step.fields.map(field => field.key))
+
+describe('captcha field in the builder', () => {
+  it('is created with the turnstile provider, no label and not as a condition source', () => {
+    const field = createField(base(), 'captcha')
+    expect(field).toEqual({ key: 'captcha', type: 'captcha', captcha: { provider: 'turnstile' } })
+  })
+
+  it('pruneReferences drops conditions pointing at a captcha field', () => {
+    const definition: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 'a', fields: [
+      { key: 'human', type: 'captcha' },
+      { key: 'x', type: 'text', showIf: { field: 'human', op: 'notEmpty' } },
+    ] }] }
+    expect(pruneReferences(definition).steps[0]!.fields[1]!.showIf).toBeUndefined()
+  })
+})
 
 describe('moveField', () => {
   it('reorders inside a step, honouring the drop slot adjustment', () => {

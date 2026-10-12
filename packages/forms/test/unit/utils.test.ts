@@ -200,6 +200,37 @@ describe('renderMarkdown', () => {
   })
 })
 
+describe('captcha field', () => {
+  const definition: FormDefinition = {
+    mode: 'single',
+    storage: 'db',
+    steps: [{ id: 'main', fields: [
+      { key: 'kind', type: 'radio', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] },
+      { key: 'human', type: 'captcha', showIf: { field: 'kind', op: 'eq', value: 'b' } },
+    ] }],
+  }
+
+  it('is always required while visible, whatever `required` says', () => {
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b' }).success).toBe(false)
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b', human: '  ' }).success).toBe(false)
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b', human: 'token' }).success).toBe(true)
+  })
+
+  it('is skipped while hidden or with skipCaptcha', () => {
+    expect(buildFormSchema(definition, { kind: 'a' }).safeParse({ kind: 'a' }).success).toBe(true)
+    expect(buildFormSchema(definition, { kind: 'b' }, { skipCaptcha: true }).safeParse({ kind: 'b' }).success).toBe(true)
+  })
+
+  it('accepts provider settings and refuses unknown providers and conditions on it', () => {
+    const field = { key: 'human', type: 'captcha', captcha: { provider: 'hcaptcha', siteKey: 'abc-123', theme: 'dark', size: 'compact' } }
+    const parse = (fields: unknown[]) => formDefinitionSchema.safeParse({ mode: 'single', storage: 'db', steps: [{ id: 'main', fields }] })
+    expect(parse([field]).success).toBe(true)
+    expect(parse([{ ...field, captcha: { provider: 'nope' } }]).success).toBe(false)
+    expect(parse([{ ...field, captcha: { siteKey: 'not a key!' } }]).success).toBe(false)
+    expect(parse([field, { key: 'x', type: 'text', showIf: { field: 'human', op: 'notEmpty' } }]).success).toBe(false)
+  })
+})
+
 describe('resolveEmailDelivery', () => {
   const email = { to: ['fallback@b.dk'], routes: { field: 'subject', to: { a: ['a@b.dk'] } }, replyToField: 'email' }
 

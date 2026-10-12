@@ -1,5 +1,6 @@
 import type { FormDefinition } from '../../types'
 import { validatedFields } from './schema'
+import { isAnswerField } from './conditions'
 import type { Answers } from './conditions'
 
 export type PreviewDevice = 'mobile' | 'desktop'
@@ -16,12 +17,12 @@ export function previewScale(available: number, width: number): number {
 const isFile = (value: unknown): value is File => typeof File !== 'undefined' && value instanceof File
 
 /**
- * The answers a real submit would send: only visible input fields, with files described by
+ * The answers a real submit would send: only visible input fields (never the captcha token), with files described by
  * name/size/type so the result can be shown as JSON.
  */
 export function previewPayload(definition: FormDefinition, answers: Answers): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
-  for (const field of validatedFields(definition, answers)) {
+  for (const field of validatedFields(definition, answers).filter(isAnswerField)) {
     const value = answers[field.key]
     if (value === undefined) continue
     payload[field.key] = Array.isArray(value)

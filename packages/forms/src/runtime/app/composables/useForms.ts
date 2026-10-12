@@ -39,7 +39,7 @@ export function emptyAnswers(definition: Pick<FormDefinition, 'steps'>): Record<
     for (const field of step.fields) {
       if (field.type === 'file') state[field.key] = []
       else if (field.type === 'checkbox') state[field.key] = false
-      else if (field.type !== 'markdown') state[field.key] = undefined
+      else if (field.type !== 'markdown') state[field.key] = undefined // captcha: the token, set by the widget
     }
   }
   return state

@@ -103,7 +103,7 @@ const origin = useRequestURL().origin
 const submitUrl = computed(() => `${origin}/api/forms/${props.slug}/submit`)
 const snippet = computed(() => {
   const headers = {
-    token: '  -H \'Authorization: Bearer <token>\' \\\n',
+    token: '  -H \'Authorization: Bearer TOKEN\' \\\n',
     password: '  -H \'x-form-password: <password>\' \\\n',
     user: '  -H \'Cookie: <session cookie of a signed-in user>\' \\\n',
     none: '',
@@ -154,7 +154,7 @@ const snippet = computed(() => {
         {{ t('access.tokensTitle', 'API tokens') }}
       </h2>
       <p class="text-sm text-muted">
-        {{ t('access.tokensHint', 'Send a token as Authorization: Bearer <token> or in the x-form-token header. It is shown only once.') }}
+        {{ t('access.tokensHint', 'Send a token as Authorization: Bearer TOKEN or in the x-form-token header. It is shown only once.') }}
       </p>
       <UAlert
         v-if="access.auth !== 'token'"
@@ -302,7 +302,7 @@ const snippet = computed(() => {
         {{ t('access.apiTitle', 'API') }}
       </h2>
       <p class="text-sm text-muted">
-        {{ t('access.apiHint', 'Submit with POST (JSON, or multipart with file:<key> parts). The definition is available with GET on /api/forms/{slug}.', { slug: props.slug }) }}
+        {{ t('access.apiHint', 'Submit with POST (JSON, or multipart with file:KEY parts). The definition is available with GET on /api/forms/{slug}.', { slug: props.slug }) }}
       </p>
       <div class="flex items-start gap-2">
         <pre class="flex-1 overflow-x-auto rounded-md bg-elevated p-3 text-xs">{{ snippet }}</pre>

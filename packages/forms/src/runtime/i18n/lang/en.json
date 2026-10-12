@@ -60,7 +60,8 @@
       "pattern": "The value has an invalid format.",
       "maxFiles": "Upload at most {max} file(s).",
       "maxSize": "{name} is larger than {max} MB.",
-      "accept": "{name} is not an accepted file type."
+      "accept": "{name} is not an accepted file type.",
+      "captcha": "Please complete the captcha."
     },
     "admin": {
       "title": "Forms",
@@ -112,7 +113,7 @@
       "authTokenHint": "Token forms are API only: a token cannot be typed into a page.",
       "saveHint": "Availability and authentication are saved with the form. Tokens and the password take effect immediately.",
       "tokensTitle": "API tokens",
-      "tokensHint": "Send a token as Authorization: Bearer <token> or in the x-form-token header. It is shown only once.",
+      "tokensHint": "Send a token as Authorization: Bearer TOKEN or in the x-form-token header. It is shown only once.",
       "tokensInactive": "Tokens are only checked when authentication is set to API token.",
       "tokenName": "Token name, e.g. Mobile app",
       "createToken": "Create token",
@@ -134,7 +135,7 @@
       "clearPassword": "Clear",
       "passwordSaved": "Password saved.",
       "apiTitle": "API",
-      "apiHint": "Submit with POST (JSON, or multipart with file:<key> parts). The definition is available with GET on /api/forms/{slug}.",
+      "apiHint": "Submit with POST (JSON, or multipart with file:KEY parts). The definition is available with GET on /api/forms/{slug}.",
       "passwordLabel": "Password",
       "passwordHint": "This form is protected. Enter the password you were given.",
       "passwordWrong": "Wrong password.",
@@ -165,6 +166,32 @@
       "routingHint": "Send to other recipients depending on the answer. Others get the default recipients.",
       "routeTo": "Recipients for \"{value}\"",
       "needRecipients": "Add recipients first to set the subject, reply-to and routing."
+    },
+    "captcha": {
+      "providers": {
+        "turnstile": "Cloudflare Turnstile",
+        "recaptcha": "Google reCAPTCHA",
+        "hcaptcha": "hCaptcha"
+      },
+      "preview": "Captcha: {provider} — shown to visitors",
+      "missingKey": "The {provider} captcha has no site key configured.",
+      "missingKeyHint": "Set the site key below or the NUXT_PUBLIC_FORMS_CAPTCHA_PROVIDER_SITE_KEY environment variable. Submissions also need the matching secret key on the server.",
+      "loadFailed": "The captcha could not be loaded. Reload the page to try again.",
+      "provider": "Provider",
+      "siteKey": "Site key",
+      "siteKeyHint": "Public key of this site. Leave empty to use the one configured for the provider.",
+      "theme": "Theme",
+      "size": "Size",
+      "themes": {
+        "auto": "Automatic",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "sizes": {
+        "normal": "Normal",
+        "compact": "Compact"
+      },
+      "hint": "Always required while visible. The token is checked on the server and never stored. Submissions with an API token skip it."
     },
     "builder": {
       "layout": "Layout",
@@ -222,7 +249,8 @@
         "radio": "Single choice",
         "checkbox": "Checkbox",
         "file": "File upload",
-        "markdown": "Text block"
+        "markdown": "Text block",
+        "captcha": "Captcha"
       },
       "translate": "Translate",
       "singleLanguage": "Same text in every language",

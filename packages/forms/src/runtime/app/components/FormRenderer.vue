@@ -36,6 +36,7 @@ watch(() => form.value?.definition, (next) => {
 const stepper = useFormStepper(definition, state, { t: () => t, locale })
 const formRef = useTemplateRef<{ setErrors: (errors: { name: string, message: string }[]) => void }>('formRef')
 const submitting = ref(false)
+const captchaResetKey = ref(0)
 const done = ref(false)
 
 const submitSettings = computed(() => definition.value?.submit)
@@ -67,6 +68,8 @@ async function onSubmit() {
     }
   }
   finally {
+    // A captcha token is single use: every attempt needs a fresh one.
+    captchaResetKey.value++
     submitting.value = false
   }
 }
@@ -143,6 +146,8 @@ function sendAnother() {
         v-model="state[field.key]"
         :field="field"
         :locale="locale"
+        :preview="preview"
+        :captcha-reset-key="captchaResetKey"
       />
     </template>
 

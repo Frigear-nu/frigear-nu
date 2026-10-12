@@ -4,7 +4,7 @@ import type { FieldType, FormAccess, FormDefinition, FormDelivery, FormStorage, 
 export type FieldPosition = { step: number, index: number }
 
 /** Field types in the order the builder palette lists them. */
-export const fieldTypes: FieldType[] = ['text', 'textarea', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'file', 'markdown']
+export const fieldTypes: FieldType[] = ['text', 'textarea', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'file', 'markdown', 'captcha']
 
 const clamp = (value: number, max: number) => Math.max(0, Math.min(value, max))
 
@@ -98,11 +98,12 @@ export function uniqueStepId(definition: FormDefinition, base = 'step'): string 
 export function createField(definition: FormDefinition, type: FieldType): FormField {
   const field: FormField = { key: uniqueFieldKey(definition, type), type }
   if (type === 'markdown') field.content = 'Text'
-  else field.label = 'Untitled'
+  else if (type !== 'captcha') field.label = 'Untitled'
   if (type === 'select' || type === 'radio') {
     field.options = [{ value: 'option_1', label: 'Option 1' }, { value: 'option_2', label: 'Option 2' }]
   }
   if (type === 'email') field.autocomplete = 'email'
+  if (type === 'captcha') field.captcha = { provider: 'turnstile' }
   return field
 }
 
@@ -137,7 +138,7 @@ export function pruneReferences(definition: FormDefinition): FormDefinition {
     const stepOk = ok(step.showIf)
     const fields = step.fields.map((field) => {
       const keep = ok(field.showIf)
-      if (field.type !== 'markdown') seen.add(field.key)
+      if (field.type !== 'markdown' && field.type !== 'captcha') seen.add(field.key)
       if (keep) return field
       const { showIf: _dropped, ...rest } = field
       return rest

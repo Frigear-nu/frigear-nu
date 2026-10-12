@@ -13,6 +13,7 @@ const definition = {
       { key: 'other', type: 'text', showIf: { field: 'kind', op: 'eq', value: 'other' } },
       { key: 'docs', type: 'file' },
       { key: 'intro', type: 'markdown' },
+      { key: 'human', type: 'captcha' },
     ],
   }],
 } as unknown as FormDefinition
@@ -21,6 +22,9 @@ describe('previewPayload', () => {
   it('keeps visible answers only and drops unset ones', () => {
     expect(previewPayload(definition, { name: 'Ada', kind: 'a', other: 'hidden', docs: [] })).toEqual({ name: 'Ada', kind: 'a', docs: [] })
     expect(previewPayload(definition, { name: 'Ada', kind: 'other', other: 'shown' })).toEqual({ name: 'Ada', kind: 'other', other: 'shown' })
+  })
+  it('never includes the captcha token', () => {
+    expect(previewPayload(definition, { name: 'Ada', human: 'preview' })).toEqual({ name: 'Ada' })
   })
   it('describes files', () => {
     const file = new File(['abc'], 'a.txt', { type: 'text/plain' })

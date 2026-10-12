@@ -10,6 +10,8 @@ export type SchemaOptions = {
   t?: MessageTranslator
   /** Locale used for `validation.message` overrides from the definition. */
   locale?: string
+  /** Leaves `captcha` fields out (submissions authenticated by an API token skip the captcha). */
+  skipCaptcha?: boolean
 }
 
 const EMAIL = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
@@ -34,6 +36,12 @@ export function buildFieldSchema(field: FormField, options: SchemaOptions = {}):
   const message = (key: string, fallback: string, params?: Record<string, string | number>) =>
     override ?? t(`validation.${key}`, fallback, params)
   const requiredMessage = () => message('required', 'This field is required.')
+
+  if (field.type === 'captcha') {
+    // Always required: the token is what the server verifies.
+    const captchaMessage = override ?? t('validation.captcha', 'Please complete the captcha.')
+    return z.string({ error: captchaMessage }).trim().min(1, { error: captchaMessage })
+  }
 
   if (field.type === 'checkbox') {
     const boolean = z.boolean({ error: requiredMessage })
@@ -123,6 +131,7 @@ export function validatedFields(definition: FormDefinition, answers: Answers, st
 export function buildFormSchema(definition: FormDefinition, answers: Answers, options: SchemaOptions & { stepIndex?: number } = {}) {
   const shape: Record<string, z.ZodType> = {}
   for (const field of validatedFields(definition, answers, options.stepIndex)) {
+    if (field.type === 'captcha' && options.skipCaptcha) continue
     shape[field.key] = buildFieldSchema(field, options)
   }
   return z.object(shape)

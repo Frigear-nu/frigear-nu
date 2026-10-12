@@ -18,6 +18,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import type {
   AuthorizeContext,
+  CaptchaVerifyContext,
   DeliveredContext,
   FormsRuntimeConfig,
   ModuleOptions,
@@ -50,6 +51,11 @@ declare module 'nitropack' {
      * here (webhooks, CRM, ...); set `ctx.delivered = true` once done. Throwing marks delivery failed.
      */
     'forms:submitted': (ctx: SubmittedContext) => void | Promise<void>
+    /**
+     * A captcha token must be verified. Set `ctx.valid` to decide; when left `undefined` the provider's
+     * siteverify endpoint is called with the configured secret key. Lets hosts and tests replace the network call.
+     */
+    'forms:captcha:verify': (ctx: CaptchaVerifyContext) => void | Promise<void>
     /** Delivery of a submission finished (successfully or not). */
     'forms:delivered': (ctx: DeliveredContext) => void | Promise<void>
   }
@@ -98,6 +104,11 @@ export default defineNuxtModule<ModuleOptions>({
       rateLimit: settings.rateLimit ?? 10,
       rateLimitWindowSeconds: settings.rateLimitWindowSeconds ?? 600,
       seed: { enabled: options.seed?.enabled ?? false, forms: options.seed?.forms ?? [] },
+      captcha: {
+        turnstile: { secretKey: options.captcha?.turnstile?.secretKey ?? '' },
+        recaptcha: { secretKey: options.captcha?.recaptcha?.secretKey ?? '' },
+        hcaptcha: { secretKey: options.captcha?.hcaptcha?.secretKey ?? '' },
+      },
     }
     nuxt.options.runtimeConfig.public.forms = {
       pages: {
@@ -106,6 +117,11 @@ export default defineNuxtModule<ModuleOptions>({
         adminForm: adminFormPath,
         adminSubmissions: adminSubmissionsPath,
         adminSubmission: adminSubmissionPath,
+      },
+      captcha: {
+        turnstile: { siteKey: options.captcha?.turnstile?.siteKey ?? '' },
+        recaptcha: { siteKey: options.captcha?.recaptcha?.siteKey ?? '' },
+        hcaptcha: { siteKey: options.captcha?.hcaptcha?.siteKey ?? '' },
       },
     }
 

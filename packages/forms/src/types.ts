@@ -9,7 +9,9 @@ export type FormStorage = 'db' | 'none'
 export type DeliveryStatus = 'none' | 'pending' | 'delivered' | 'failed'
 
 export type FieldType
-  = 'text' | 'email' | 'tel' | 'number' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'date' | 'file' | 'markdown'
+  = 'text' | 'email' | 'tel' | 'number' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'date' | 'file' | 'markdown' | 'captcha'
+
+export type CaptchaProvider = 'turnstile' | 'recaptcha' | 'hcaptcha'
 
 export type ConditionOp = 'eq' | 'neq' | 'in' | 'empty' | 'notEmpty' | 'truthy'
 
@@ -41,6 +43,16 @@ export type FieldValidation = {
   message?: Translated
 }
 
+/** Settings of a `captcha` field. The visitor's response token lives in the form state only and is never stored. */
+export type CaptchaConfig = {
+  /** Defaults to `turnstile`. */
+  provider?: CaptchaProvider
+  /** Public site key; overrides `runtimeConfig.public.forms.captcha.<provider>.siteKey` for this field. */
+  siteKey?: string
+  theme?: 'auto' | 'light' | 'dark'
+  size?: 'normal' | 'compact'
+}
+
 export type FormField = {
   /** Unique across the whole form; the key of the answer. */
   key: string
@@ -57,6 +69,8 @@ export type FormField = {
   /** Browser `autocomplete` token, e.g. `email`. */
   autocomplete?: string
   validation?: FieldValidation
+  /** `captcha` fields only. */
+  captcha?: CaptchaConfig
   showIf?: Condition
 }
 
@@ -139,6 +153,11 @@ export type ModuleOptions = {
     enabled?: boolean
     forms?: SeedForm[]
   }
+  /**
+   * Keys for `captcha` fields. Site keys are public, secret keys stay on the server. Both can be set per
+   * provider here or through `NUXT_PUBLIC_FORMS_CAPTCHA_<PROVIDER>_SITE_KEY` / `NUXT_FORMS_CAPTCHA_<PROVIDER>_SECRET_KEY`.
+   */
+  captcha?: Partial<Record<CaptchaProvider, { siteKey?: string, secretKey?: string }>>
 }
 
 export type SeedForm = {
@@ -152,6 +171,7 @@ export type FormsRuntimeConfig = {
   rateLimit: number
   rateLimitWindowSeconds: number
   seed: { enabled: boolean, forms: SeedForm[] }
+  captcha: Record<CaptchaProvider, { secretKey: string }>
 }
 
 export type PublicModuleOptions = {
@@ -162,6 +182,7 @@ export type PublicModuleOptions = {
     adminSubmissions?: string
     adminSubmission?: string
   }
+  captcha: Record<CaptchaProvider, { siteKey: string }>
 }
 
 export type AuthorizeContext = { event: H3Event, userId: number, allowed: boolean }
@@ -188,6 +209,15 @@ export type SubmittedContext = {
   stored: boolean
   /** Set by a handler to report that it delivered the submission (email delivery does). */
   delivered: boolean
+}
+
+export type CaptchaVerifyContext = {
+  event: H3Event
+  provider: CaptchaProvider
+  token: string
+  ip: string | undefined
+  /** Set by a handler to decide the outcome; left `undefined` the provider's siteverify endpoint is asked. */
+  valid: boolean | undefined
 }
 
 export type DeliveredContext = {

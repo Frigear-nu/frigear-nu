@@ -5,7 +5,7 @@ export type * from '../../types'
 
 export { translate, interpolate, defaultMessages, newId } from './text'
 export type { MessageTranslator, TranslateParams } from './text'
-export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField } from './conditions'
+export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField, isAnswerField } from './conditions'
 export type { Answers, VisibleStep } from './conditions'
 export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
@@ -24,5 +24,6 @@ export function defineForm<const T extends FormDefinition>(definition: T): T {
 }
 
 export { renderMarkdown } from './markdown'
+export { captchaProviders, resolveCaptcha } from './captcha'
 export { previewPayload, previewScale, PREVIEW_WIDTHS } from './preview'
 export type { PreviewDevice } from './preview'

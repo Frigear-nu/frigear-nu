@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { FieldOption, FieldType, FormDefinition, FormField, FormStep } from '../../../types'
 import {
-  arrayMove, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
-  removeField, removeStep, translate, updateField, updateStep,
+  arrayMove, captchaProviders, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
+  removeField, removeStep, resolveCaptcha, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
+import { captchaSiteKey } from '../composables/useCaptcha'
 import { useFormsLocale } from '../composables/useForms'
 
 const definition = defineModel<FormDefinition>({ required: true })
@@ -24,6 +25,7 @@ const typeIcons: Record<FieldType, string> = {
   checkbox: 'i-lucide-square-check',
   file: 'i-lucide-paperclip',
   markdown: 'i-lucide-type',
+  captcha: 'i-lucide-shield-check',
 }
 const typeNames: Record<FieldType, string> = {
   text: 'Short text',
@@ -37,6 +39,7 @@ const typeNames: Record<FieldType, string> = {
   checkbox: 'Checkbox',
   file: 'File upload',
   markdown: 'Text block',
+  captcha: 'Captcha',
 }
 const typeLabel = (type: FieldType) => t(`builder.types.${type}`, typeNames[type])
 
@@ -240,16 +243,35 @@ function setValidation(key: 'minLength' | 'maxLength' | 'min' | 'max', value: nu
 /** Fields a condition at the given position may look at: input fields before it, in definition order. */
 function conditionFields(step: number, index: number) {
   return definition.value.steps.flatMap((s, si) =>
-    si > step ? [] : s.fields.slice(0, si === step ? index : undefined).filter(f => f.type !== 'markdown').map(f => f.key))
+    si > step ? [] : s.fields.slice(0, si === step ? index : undefined).filter(f => f.type !== 'markdown' && f.type !== 'captcha').map(f => f.key))
 }
 
 const hasOptions = computed(() => selectedField.value?.type === 'select' || selectedField.value?.type === 'radio')
 const hasPlaceholder = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'number', 'textarea', 'select'].includes(selectedField.value.type))
 const hasLength = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'textarea'].includes(selectedField.value.type))
 
+const captchaProviderItems = computed(() => captchaProviders.map(value => ({ value, label: t(`captcha.providers.${value}`, value) })))
+const captchaThemeItems = computed(() => [
+  { value: 'auto', label: t('captcha.themes.auto', 'Automatic') },
+  { value: 'light', label: t('captcha.themes.light', 'Light') },
+  { value: 'dark', label: t('captcha.themes.dark', 'Dark') },
+])
+const captchaSizeItems = computed(() => [
+  { value: 'normal', label: t('captcha.sizes.normal', 'Normal') },
+  { value: 'compact', label: t('captcha.sizes.compact', 'Compact') },
+])
+const selectedCaptcha = computed(() => selectedField.value?.type === 'captcha' ? resolveCaptcha(selectedField.value) : undefined)
+const captchaKeyMissing = computed(() => selectedField.value?.type === 'captcha' && !captchaSiteKey(selectedField.value))
+
+function patchCaptcha(patch: Partial<NonNullable<FormField['captcha']>>) {
+  const next = Object.fromEntries(Object.entries({ ...selectedField.value?.captcha, ...patch }).filter(([, value]) => value !== undefined && value !== ''))
+  patchField({ captcha: next })
+}
+
 // One short line for the canvas: markdown blocks can be paragraphs long.
 const summary = (field: FormField) => {
-  const text = translate(field.type === 'markdown' ? field.content : field.label, locale.value) || field.key
+  const text = translate(field.type === 'markdown' ? field.content : field.label, locale.value)
+    || (field.type === 'captcha' ? typeLabel('captcha') : field.key)
   const line = text.replace(/[*_`#>~[]|\]\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
   return line.length > 80 ? `${line.slice(0, 80).trimEnd()}…` : line
 }
@@ -514,6 +536,56 @@ const summary = (field: FormField) => {
                         @update:model-value="patchField({ content: $event })"
                       />
                     </UFormField>
+                    <template v-else-if="selectedField.type === 'captcha' && selectedCaptcha">
+                      <UFormField :label="t('captcha.provider', 'Provider')">
+                        <USelect
+                          :model-value="selectedCaptcha.provider"
+                          :items="captchaProviderItems"
+                          class="w-full"
+                          @update:model-value="patchCaptcha({ provider: $event })"
+                        />
+                      </UFormField>
+                      <UAlert
+                        v-if="captchaKeyMissing"
+                        color="warning"
+                        variant="subtle"
+                        icon="i-lucide-triangle-alert"
+                        :title="t('captcha.missingKey', 'The {provider} captcha has no site key configured.', { provider: t(`captcha.providers.${selectedCaptcha.provider}`, selectedCaptcha.provider) })"
+                        :ui="{ description: 'break-words' }"
+                        :description="t('captcha.missingKeyHint', 'Set the site key below or the NUXT_PUBLIC_FORMS_CAPTCHA_PROVIDER_SITE_KEY environment variable. Submissions also need the matching secret key on the server.')"
+                      />
+                      <UFormField
+                        :label="t('captcha.siteKey', 'Site key')"
+                        :description="t('captcha.siteKeyHint', 'Public key of this site. Leave empty to use the one configured for the provider.')"
+                      >
+                        <UInput
+                          :model-value="selectedCaptcha.siteKey"
+                          class="w-full font-mono"
+                          @update:model-value="patchCaptcha({ siteKey: String($event).trim() })"
+                        />
+                      </UFormField>
+                      <div class="grid grid-cols-2 gap-2">
+                        <UFormField :label="t('captcha.theme', 'Theme')">
+                          <USelect
+                            :model-value="selectedCaptcha.theme ?? 'auto'"
+                            :items="captchaThemeItems"
+                            class="w-full"
+                            @update:model-value="patchCaptcha({ theme: $event === 'auto' ? undefined : $event })"
+                          />
+                        </UFormField>
+                        <UFormField :label="t('captcha.size', 'Size')">
+                          <USelect
+                            :model-value="selectedCaptcha.size ?? 'normal'"
+                            :items="captchaSizeItems"
+                            class="w-full"
+                            @update:model-value="patchCaptcha({ size: $event === 'normal' ? undefined : $event })"
+                          />
+                        </UFormField>
+                      </div>
+                      <p class="text-sm text-muted">
+                        {{ t('captcha.hint', 'Always required while visible. The token is checked on the server and never stored. Submissions with an API token skip it.') }}
+                      </p>
+                    </template>
                     <template v-else>
                       <UFormField :label="t('builder.label', 'Label')">
                         <FormBuilderText

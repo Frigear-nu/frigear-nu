@@ -14,7 +14,7 @@ const condition = z.object({
 
 const field = z.object({
   key: z.string().regex(KEY, 'Field keys must start with a letter and contain only letters, digits and underscores.'),
-  type: z.enum(['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'date', 'file', 'markdown']),
+  type: z.enum(['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'date', 'file', 'markdown', 'captcha']),
   content: translated.optional(),
   label: translated.optional(),
   description: translated.optional(),
@@ -33,6 +33,12 @@ const field = z.object({
     maxSize: z.number().int().min(1).optional(),
     accept: z.array(z.string()).optional(),
     message: translated.optional(),
+  }).optional(),
+  captcha: z.object({
+    provider: z.enum(['turnstile', 'recaptcha', 'hcaptcha']).optional(),
+    siteKey: z.string().max(200).regex(/^[\w-]*$/, 'Site keys contain only letters, digits, dashes and underscores.').optional(),
+    theme: z.enum(['auto', 'light', 'dark']).optional(),
+    size: z.enum(['normal', 'compact']).optional(),
   }).optional(),
   showIf: condition.optional(),
 })
@@ -124,7 +130,7 @@ export const formDefinitionSchema = z.object({
     check(s.showIf, ['steps', stepIndex, 'showIf', 'field'])
     s.fields.forEach((f, fieldIndex) => {
       check(f.showIf, ['steps', stepIndex, 'fields', fieldIndex, 'showIf', 'field'])
-      if (f.type !== 'markdown') seen.add(f.key)
+      if (f.type !== 'markdown' && f.type !== 'captcha') seen.add(f.key)
     })
   })
 

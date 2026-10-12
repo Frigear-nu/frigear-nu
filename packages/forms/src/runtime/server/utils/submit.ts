@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { blob } from '@nuxthub/blob'
 import type { DeliveredContext, FileDescriptor, FormDefinition, SubmittedContext, SubmittedFile } from '../../../types'
-import { buildFormSchema, newId, validatedFields } from '../../utils'
+import { buildFormSchema, newId, resolveAccess, resolveCaptcha, validatedFields } from '../../utils'
 
 type Upload = { filename: string, type: string, data: Uint8Array }
 type FormRow = typeof schema.forms.$inferSelect
@@ -60,7 +60,9 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
     answers[field.key] = files.map((file): FileDescriptor => ({ name: file.filename, size: file.data.byteLength, type: file.type }))
   }
 
-  const parsed = buildFormSchema(definition, answers, { locale }).safeParse(answers)
+  // Submissions with a valid API token are automated by design and skip the captcha (access.auth is already enforced).
+  const skipCaptcha = resolveAccess(definition).auth === 'token'
+  const parsed = buildFormSchema(definition, answers, { locale, skipCaptcha }).safeParse(answers)
   if (!parsed.success) {
     throw createError({
       statusCode: 422,
@@ -69,6 +71,21 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
     })
   }
   const validated = parsed.data as Record<string, unknown>
+
+  // Verify before anything is stored or delivered; the token itself is never kept.
+  for (const field of validatedFields(definition, raw).filter(f => f.type === 'captcha')) {
+    const token = validated[field.key]
+    Reflect.deleteProperty(validated, field.key)
+    Reflect.deleteProperty(answers, field.key)
+    if (skipCaptcha) continue
+    if (!await verifyCaptcha(event, resolveCaptcha(field).provider, String(token))) {
+      throw createError({
+        statusCode: 422,
+        statusMessage: 'Invalid submission.',
+        data: { issues: [{ path: [field.key], message: 'Captcha verification failed. Please try again.' }] },
+      })
+    }
+  }
 
   const stored = definition.storage !== 'none'
   const submissionId = stored ? newId('fsb') : null

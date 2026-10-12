@@ -4,6 +4,9 @@ Dynamic, database-stored forms for the frigear ecosystem. A form is a JSON defin
 with conditional fields), submissions are stored with a snapshot of the definition they were answered against, and
 delivery (email, webhooks, ...) hangs off the `forms:submitted` Nitro hook.
 
+Captcha fields (Cloudflare Turnstile, reCAPTCHA, hCaptcha) need a site key (`NUXT_PUBLIC_FORMS_CAPTCHA_<PROVIDER>_SITE_KEY`)
+and a secret key (`NUXT_FORMS_CAPTCHA_<PROVIDER>_SECRET_KEY`); without a secret key submissions fail closed.
+
 Full documentation: `apps/docs/content/4.modules/26.forms.md`.
 
 ```ts

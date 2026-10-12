@@ -60,7 +60,8 @@
       "pattern": "Værdien har et ugyldigt format.",
       "maxFiles": "Upload højst {max} fil(er).",
       "maxSize": "{name} er større end {max} MB.",
-      "accept": "{name} er ikke en tilladt filtype."
+      "accept": "{name} er ikke en tilladt filtype.",
+      "captcha": "Udfyld captchaen."
     },
     "admin": {
       "title": "Formularer",
@@ -112,7 +113,7 @@
       "authTokenHint": "Token-formularer er kun til API: en token kan ikke indtastes på en side.",
       "saveHint": "Tilgængelighed og godkendelse gemmes sammen med formularen. Tokens og adgangskode træder i kraft med det samme.",
       "tokensTitle": "API-tokens",
-      "tokensHint": "Send en token som Authorization: Bearer <token> eller i headeren x-form-token. Den vises kun én gang.",
+      "tokensHint": "Send en token som Authorization: Bearer TOKEN eller i headeren x-form-token. Den vises kun én gang.",
       "tokensInactive": "Tokens kontrolleres kun, når godkendelse er sat til API-token.",
       "tokenName": "Navn på token, fx Mobilapp",
       "createToken": "Opret token",
@@ -134,7 +135,7 @@
       "clearPassword": "Ryd",
       "passwordSaved": "Adgangskode gemt.",
       "apiTitle": "API",
-      "apiHint": "Indsend med POST (JSON, eller multipart med file:<key>-dele). Definitionen hentes med GET på /api/forms/{slug}.",
+      "apiHint": "Indsend med POST (JSON, eller multipart med file:KEY-dele). Definitionen hentes med GET på /api/forms/{slug}.",
       "passwordLabel": "Adgangskode",
       "passwordHint": "Denne formular er beskyttet. Indtast den adgangskode, du har fået.",
       "passwordWrong": "Forkert adgangskode.",
@@ -165,6 +166,32 @@
       "routingHint": "Send til andre modtagere afhængigt af svaret. Øvrige får standardmodtagerne.",
       "routeTo": "Modtagere for \"{value}\"",
       "needRecipients": "Tilføj modtagere først for at angive emne, svar-til og fordeling."
+    },
+    "captcha": {
+      "providers": {
+        "turnstile": "Cloudflare Turnstile",
+        "recaptcha": "Google reCAPTCHA",
+        "hcaptcha": "hCaptcha"
+      },
+      "preview": "Captcha: {provider} — vises for besøgende",
+      "missingKey": "{provider}-captchaen har ingen site key konfigureret.",
+      "missingKeyHint": "Angiv site key herunder eller miljøvariablen NUXT_PUBLIC_FORMS_CAPTCHA_PROVIDER_SITE_KEY. Indsendelser kræver også den tilhørende secret key på serveren.",
+      "loadFailed": "Captchaen kunne ikke indlæses. Genindlæs siden og prøv igen.",
+      "provider": "Udbyder",
+      "siteKey": "Site key",
+      "siteKeyHint": "Offentlig nøgle til dette site. Lad feltet stå tomt for at bruge den, der er sat op for udbyderen.",
+      "theme": "Tema",
+      "size": "Størrelse",
+      "themes": {
+        "auto": "Automatisk",
+        "light": "Lys",
+        "dark": "Mørk"
+      },
+      "sizes": {
+        "normal": "Normal",
+        "compact": "Kompakt"
+      },
+      "hint": "Altid påkrævet, når feltet vises. Tokenet kontrolleres på serveren og gemmes aldrig. Indsendelser med API-token springer det over."
     },
     "builder": {
       "layout": "Layout",
@@ -222,7 +249,8 @@
         "radio": "Enkeltvalg",
         "checkbox": "Afkrydsningsfelt",
         "file": "Filupload",
-        "markdown": "Tekstblok"
+        "markdown": "Tekstblok",
+        "captcha": "Captcha"
       },
       "translate": "Oversæt",
       "singleLanguage": "Samme tekst på alle sprog",

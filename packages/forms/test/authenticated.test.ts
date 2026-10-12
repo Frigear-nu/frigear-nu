@@ -317,6 +317,95 @@ describe('forms (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('captcha', () => {
+    const captchaForm = (provider: 'turnstile' | 'recaptcha' | 'hcaptcha' = 'turnstile', access?: FormDefinition['access']): FormDefinition => ({
+      mode: 'single',
+      storage: 'db',
+      ...(access ? { access } : {}),
+      steps: [{ id: 'main', fields: [
+        { key: 'message', type: 'text', required: true },
+        { key: 'human', type: 'captcha', captcha: { provider } },
+      ] }],
+    })
+    const send = (formSlug: string, answers: Json, extra: Record<string, string> = {}) =>
+      fetch(`/api/forms/${formSlug}/submit`, { method: 'POST', headers: { 'content-type': 'application/json', ...extra }, body: JSON.stringify({ answers, locale: 'en' }) })
+
+    it('accepts a valid token without storing or delivering it', async () => {
+      await $fetch('/api/test/captured?reset=1')
+      const form = await create('Captcha ok', captchaForm())
+      const response = await send(form.slug, { message: 'hi', human: 'good-token' })
+      const result = await ok(response)
+      expect(JSON.stringify(result)).not.toContain('good-token')
+
+      const stored = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${result.id}`))
+      expect(stored.answers).toEqual({ message: 'hi' })
+      expect(JSON.stringify(stored)).not.toContain('good-token')
+      const captured = await $fetch<Json[]>('/api/test/captured')
+      expect(captured.find(entry => entry.slug === form.slug)?.answers).toEqual({ message: 'hi' })
+    })
+
+    it('rejects an invalid token with an issue on the captcha field and stores nothing', async () => {
+      const form = await create('Captcha bad', captchaForm('recaptcha'))
+      const before = (await counts()).submissions
+      const response = await send(form.slug, { message: 'hi', human: 'bad-token' })
+      expect(response.status).toBe(422)
+      const { data } = await response.json() as Json
+      expect(data.issues).toEqual([{ path: ['human'], message: expect.any(String) }])
+      expect((await counts()).submissions).toBe(before)
+    })
+
+    it('requires a token', async () => {
+      const form = await create('Captcha missing', captchaForm())
+      const response = await send(form.slug, { message: 'hi' })
+      expect(response.status).toBe(422)
+      expect(((await response.json()) as Json).data.issues.map((issue: Json) => issue.path[0])).toEqual(['human'])
+      expect((await send(form.slug, { message: 'hi', human: '' })).status).toBe(422)
+    })
+
+    it('passes the provider to the verification hook', async () => {
+      const form = await create('Captcha provider', captchaForm('hcaptcha'))
+      expect((await send(form.slug, { message: 'hi', human: 'good-token' })).status).toBe(422)
+      expect((await send(form.slug, { message: 'hi', human: 'good-hcaptcha' })).status).toBe(200)
+    })
+
+    it('fails closed when the provider has no secret key', async () => {
+      const form = await create('Captcha unconfigured', captchaForm())
+      const before = (await counts()).submissions
+      const response = await send(form.slug, { message: 'hi', human: 'real-looking-token' })
+      expect(response.status).toBe(500)
+      expect(await response.text()).toContain('not configured')
+      expect((await counts()).submissions).toBe(before)
+    })
+
+    it('is skipped for submissions with a valid API token', async () => {
+      const form = await create('Captcha token', captchaForm('turnstile', { availability: 'api', auth: 'token' }))
+      const { token } = await ok(await json(staff.cookie, 'POST', `/api/forms/admin/forms/${form.id}/tokens`, { name: 'bot' }))
+      expect((await send(form.slug, { message: 'hi' })).status).toBe(401)
+      const response = await send(form.slug, { message: 'hi', human: 'bad-token' }, { authorization: `Bearer ${token}` })
+      expect(response.status, await response.clone().text()).toBe(200)
+      const stored = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/submissions/${(await response.json() as Json).id}`))
+      expect(stored.answers).toEqual({ message: 'hi' })
+    })
+
+    it('does not require a captcha hidden by a condition', async () => {
+      const form = await create('Captcha hidden', { mode: 'single', storage: 'db', steps: [{ id: 'main', fields: [
+        { key: 'kind', type: 'radio', options: [{ value: 'bot', label: 'Bot' }, { value: 'human', label: 'Human' }] },
+        { key: 'human', type: 'captcha', showIf: { field: 'kind', op: 'eq', value: 'human' } },
+      ] }] })
+      expect((await send(form.slug, { kind: 'bot' })).status).toBe(200)
+      expect((await send(form.slug, { kind: 'human' })).status).toBe(422)
+      expect((await send(form.slug, { kind: 'human', human: 'good-token' })).status).toBe(200)
+    })
+
+    it('rejects a condition on a captcha field in the definition', async () => {
+      const bad = await json(staff.cookie, 'POST', '/api/forms/admin/forms', { slug: slug('captcha-cond'), name: 'Bad', definition: { mode: 'single', storage: 'db', steps: [{ id: 'main', fields: [
+        { key: 'human', type: 'captcha' },
+        { key: 'after', type: 'text', showIf: { field: 'human', op: 'notEmpty' } },
+      ] }] } })
+      expect(bad.status).toBe(400)
+    })
+  })
+
   describe('delivery', () => {
     const single = (storage: 'db' | 'none'): FormDefinition => ({
       mode: 'single',

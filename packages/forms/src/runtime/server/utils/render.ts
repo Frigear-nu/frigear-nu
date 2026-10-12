@@ -1,5 +1,5 @@
 import type { FormDefinition, FormField, Translated } from '../../../types'
-import { isInputField, resolveVisibility, translate } from '../../utils'
+import { isAnswerField, resolveVisibility, translate } from '../../utils'
 
 export type RenderedAnswer = { key: string, label: string, value: string }
 
@@ -18,7 +18,7 @@ function formatValue(field: FormField, value: unknown, locale: string): string {
 export function renderAnswers(definition: FormDefinition, answers: Record<string, unknown>, locale: string): RenderedAnswer[] {
   return resolveVisibility(definition, answers)
     .flatMap(({ fields }) => fields)
-    .filter(isInputField)
+    .filter(isAnswerField)
     .map(field => ({
       key: field.key,
       label: translate(field.label as Translated | undefined, locale) || field.key,
