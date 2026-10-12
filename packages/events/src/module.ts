@@ -92,6 +92,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/payments': { version: '>=0.0.1' },
     '@frigear-nu/subscriptions': { version: '>=0.0.1', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
@@ -206,6 +207,17 @@ export default defineNuxtModule<ModuleOptions>({
           pages.push(defineModulePage(MODULE_NAME, { name: 'events-tickets', path: ticketsPath, file: resolver.resolve('./runtime/app/pages/tickets.vue') }))
         }
       })
+    }
+
+    // Owns the `admin.events` tab area of the admin event page (modules add tabs with
+    // `extendTabs(nuxt, 'admin.events', ...)`) when @frigear-nu/widget is installed.
+    if (adminEventPath && hasNuxtModule('@frigear-nu/widget')) {
+      const { extendTabs } = await import('@frigear-nu/widget/utils')
+      extendTabs(nuxt, 'admin.events', [
+        { id: 'details', component: resolver.resolve('./runtime/app/tabs/Details.vue'), order: 0, label: 'Details', labelKey: 'events.admin.tabs.details', icon: 'i-lucide-file-text' },
+        { id: 'tickets', component: resolver.resolve('./runtime/app/tabs/Tickets.vue'), order: 10, label: 'Tickets', labelKey: 'events.admin.tabs.tickets', icon: 'i-lucide-ticket' },
+        { id: 'attendees', component: resolver.resolve('./runtime/app/tabs/Attendees.vue'), order: 20, label: 'Attendees', labelKey: 'events.admin.tabs.attendees', icon: 'i-lucide-users' },
+      ])
     }
 
     if (withMenus) {
