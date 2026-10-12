@@ -31,9 +31,5 @@ export default defineEventHandler(async (event) => {
     nonce: request.nonce,
   })
   redirect.searchParams.set('code', code)
-  // Lets the application theme the callback before the token exchange completes.
-  if (scope.includes('profile') && typeof user.colorMode === 'string') {
-    redirect.searchParams.set('color_mode', user.colorMode)
-  }
   return { redirectUrl: redirect.toString() }
 })

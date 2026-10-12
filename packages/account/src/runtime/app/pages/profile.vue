@@ -8,7 +8,7 @@ const t = useModuleT('account.profile')
 const toast = useToast()
 const route = useRoute()
 const { user } = useUserSession()
-const { updateProfileDetails, updateColorMode, changeEmailAddress, error } = useAccount()
+const { updateProfileDetails, changeEmailAddress, error } = useAccount()
 
 const schema = z.object({
   name: z.string().trim().min(1, t('name.required', 'Please enter your name.')),
@@ -48,37 +48,6 @@ async function onSubmitProfile(event: FormSubmitEvent<Schema>) {
     saving.value = false
   }
 }
-
-// The stored preference is forwarded to OAuth applications; locally it drives the Nuxt UI color mode.
-type ColorModePreference = 'light' | 'dark' | 'system'
-const colorMode = useColorMode()
-const colorModeItems = computed(() => [
-  { value: 'light', label: t('colorMode.light', 'Light'), icon: 'i-lucide-sun' },
-  { value: 'dark', label: t('colorMode.dark', 'Dark'), icon: 'i-lucide-moon' },
-  { value: 'system', label: t('colorMode.system', 'System'), icon: 'i-lucide-monitor' },
-])
-const savedColorMode = computed(() => (user.value as { colorMode?: string | null } | null)?.colorMode ?? null)
-const colorModePending = ref(false)
-
-async function onChangeColorMode(next: ColorModePreference) {
-  const previous = colorMode.preference
-  colorMode.preference = next
-  colorModePending.value = true
-  try {
-    await updateColorMode({ colorMode: next })
-  }
-  catch (e) {
-    colorMode.preference = previous
-    toast.add({ title: (e as { statusMessage?: string }).statusMessage ?? t('colorMode.failed', 'Could not update your color mode.'), color: 'error' })
-  }
-  finally {
-    colorModePending.value = false
-  }
-}
-
-onMounted(() => {
-  if (savedColorMode.value) colorMode.preference = savedColorMode.value
-})
 
 // With `verifyEmailChange` the address only changes after the emailed link was followed.
 const emailModalOpen = ref(false)
@@ -207,21 +176,6 @@ async function onSubmitEmail() {
               @click="emailModalOpen = true"
             />
           </div>
-        </UPageCard>
-
-        <UPageCard
-          variant="subtle"
-          :title="t('colorMode.title', 'Appearance')"
-          :description="t('colorMode.description', 'Your preferred color mode. It is also shared with the apps you sign in to.')"
-        >
-          <USelect
-            :model-value="savedColorMode ?? colorMode.preference"
-            :items="colorModeItems"
-            :loading="colorModePending"
-            class="w-full sm:max-w-xs"
-            :aria-label="t('colorMode.title', 'Appearance')"
-            @update:model-value="onChangeColorMode($event as ColorModePreference)"
-          />
         </UPageCard>
 
         <UAlert

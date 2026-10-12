@@ -35,14 +35,6 @@
     "profile": {
       "title": "Profil",
       "description": "Skift dine brugeroplysninger.",
-      "colorMode": {
-        "title": "Udseende",
-        "description": "Din foretrukne farvetilstand. Den deles også med de apps, du logger ind på.",
-        "light": "Lys",
-        "dark": "Mørk",
-        "system": "System",
-        "failed": "Kunne ikke opdatere din farvetilstand."
-      },
       "name": {
         "label": "Navn",
         "description": "Dit fulde navn.",

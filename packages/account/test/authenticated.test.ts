@@ -60,38 +60,6 @@ describe('account routes (authenticated)', async () => {
     expect(result).toHaveProperty('id')
   })
 
-  it('stores the color mode in the session user', async () => {
-    const cookie = await registerAndGetCookie({ name: 'Mary Jackson', email: 'mary-jackson@example.com', password: 'supersecret123' })
-
-    const response = await fetch('/api/account/color-mode', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', cookie },
-      body: JSON.stringify({ colorMode: 'dark' }),
-    })
-    expect(response.status, await response.clone().text()).toBe(200)
-    expect(await response.json()).toEqual({ colorMode: 'dark' })
-
-    // The route reissues the session cookie with the updated user.
-    const refreshed = response.headers.get('set-cookie')
-    if (!refreshed) throw new Error('Expected a refreshed session cookie.')
-    const session = await $fetch<{ user: { colorMode?: string } }>('/api/_auth/session', { headers: { cookie: refreshed } })
-    expect(session.user.colorMode).toBe('dark')
-  })
-
-  it('validates the color mode request', async () => {
-    const cookie = await registerAndGetCookie({ name: 'Annie Jump', email: 'annie-jump@example.com', password: 'supersecret123' })
-
-    await expect($fetch('/api/account/color-mode', {
-      method: 'POST',
-      headers: { cookie },
-      body: { colorMode: 'neon' },
-    })).rejects.toMatchObject({ statusCode: 400 })
-    await expect($fetch('/api/account/color-mode', {
-      method: 'POST',
-      body: { colorMode: 'dark' },
-    })).rejects.toMatchObject({ statusCode: 401 })
-  })
-
   it('issues a 60s signed Frigear ID code for the logged-in user', async () => {
     const cookie = await registerAndGetCookie({ name: 'Hedy Lamarr', email: 'hedy@example.com', password: 'supersecret123' })
 

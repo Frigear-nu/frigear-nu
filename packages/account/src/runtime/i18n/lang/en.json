@@ -35,14 +35,6 @@
     "profile": {
       "title": "Profile",
       "description": "Change your information.",
-      "colorMode": {
-        "title": "Appearance",
-        "description": "Your preferred color mode. It is also shared with the apps you sign in to.",
-        "light": "Light",
-        "dark": "Dark",
-        "system": "System",
-        "failed": "Could not update your color mode."
-      },
       "name": {
         "label": "Name",
         "description": "Your full name.",

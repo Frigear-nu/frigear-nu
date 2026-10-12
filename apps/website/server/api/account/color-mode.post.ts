@@ -6,6 +6,8 @@ const bodySchema = z.object({
   colorMode: z.enum(['light', 'dark', 'system']),
 })
 
+// The user's preferred color mode. Stored on the user so it follows them to the apps they sign in to
+// (see `plugins/oauth-claims.ts`).
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event, { sessionOnly: true })
   const { colorMode } = await readValidatedBody(event, bodySchema.parse)
