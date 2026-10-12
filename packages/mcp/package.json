@@ -69,6 +69,7 @@
     "@frigear-nu/module-kit": "workspace:*",
     "@nuxt/kit": "^4.6.0",
     "@nuxtjs/mcp-toolkit": "^0.24.1",
+    "agents": "^0.28.0",
     "h3": "^1.15.11",
     "zod": "^4.6.5"
   },
