@@ -1,4 +1,4 @@
-import type { FieldType, FormDefinition, FormField, FormStep, Translated } from '../../types'
+import type { FieldType, FormDefinition, FormDelivery, FormStorage, FormField, FormStep, Translated } from '../../types'
 
 /** Where a field sits in a definition. */
 export type FieldPosition = { step: number, index: number }
@@ -202,4 +202,75 @@ export function expandTranslated(value: Translated | undefined, locale: string):
 export function collapseTranslated(value: Translated | undefined, locale: string): Translated | undefined {
   if (!value || typeof value === 'string') return value
   return value[locale] || value.en || Object.values(value).find(Boolean) || undefined
+}
+
+type EmailDelivery = NonNullable<FormDelivery['email']>
+
+const cleanAddresses = (to: readonly string[]) => [...new Set(to.map(address => address.trim()).filter(Boolean))]
+
+/** Replaces `delivery.email`; `undefined` removes it (and an emptied `delivery`). */
+function withEmail(definition: FormDefinition, email: EmailDelivery | undefined): FormDefinition {
+  const { delivery: _dropped, ...rest } = definition
+  const delivery = { ...definition.delivery }
+  if (email) delivery.email = email
+  else delete delivery.email
+  return Object.keys(delivery).length ? { ...rest, delivery } : rest
+}
+
+/** Sets the default recipients. An empty list switches email delivery off and drops its subject, reply-to and routes. */
+export function setEmailRecipients(definition: FormDefinition, to: readonly string[]): FormDefinition {
+  const addresses = cleanAddresses(to)
+  if (!addresses.length) return withEmail(definition, undefined)
+  return withEmail(definition, { ...definition.delivery?.email, to: addresses })
+}
+
+/** Patches subject / reply-to of an existing email delivery (no-op without recipients); `undefined` values are removed. */
+export function patchEmailDelivery(definition: FormDefinition, patch: Partial<Pick<EmailDelivery, 'subject' | 'replyToField'>>): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email) return definition
+  const merged = { ...email, ...patch }
+  const { subject, replyToField, ...rest } = merged
+  return withEmail(definition, { ...rest, ...(subject ? { subject } : {}), ...(replyToField ? { replyToField } : {}) })
+}
+
+/** Chooses the field whose answer routes the email; `undefined` removes all routes. Switching the field starts with no routes. */
+export function setRouteField(definition: FormDefinition, field: string | undefined): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email) return definition
+  const { routes, ...rest } = email
+  if (!field) return withEmail(definition, rest)
+  return withEmail(definition, { ...rest, routes: routes?.field === field ? routes : { field, to: {} } })
+}
+
+/** Sets the recipients for one answer value of the route field; an empty list removes that route. */
+export function setRoute(definition: FormDefinition, value: string, to: readonly string[]): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email?.routes) return definition
+  const addresses = cleanAddresses(to)
+  const routed = Object.fromEntries(Object.entries(email.routes.to).filter(([key]) => key !== value))
+  if (addresses.length) routed[value] = addresses
+  return withEmail(definition, { ...email, routes: { field: email.routes.field, to: routed } })
+}
+
+export function setStorage(definition: FormDefinition, storage: FormStorage): FormDefinition {
+  return definition.storage === storage ? definition : { ...definition, storage }
+}
+
+/** Problems of a storage choice: file fields cannot work without storage, and a form that neither stores nor emails loses its answers. */
+export function storageWarnings(definition: FormDefinition): { files: boolean, lost: boolean } {
+  if (definition.storage !== 'none') return { files: false, lost: false }
+  return {
+    files: definition.steps.some(step => step.fields.some(field => field.type === 'file')),
+    lost: !definition.delivery?.email,
+  }
+}
+
+/** Email-type fields that can serve as the reply-to address. */
+export function emailFieldKeys(definition: FormDefinition): string[] {
+  return definition.steps.flatMap(step => step.fields.filter(field => field.type === 'email').map(field => field.key))
+}
+
+/** Select / radio fields whose answer can route the email. */
+export function routableFields(definition: FormDefinition): FormField[] {
+  return definition.steps.flatMap(step => step.fields.filter(field => (field.type === 'select' || field.type === 'radio') && field.options?.length))
 }

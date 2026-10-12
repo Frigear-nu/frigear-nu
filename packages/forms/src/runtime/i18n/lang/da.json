@@ -59,6 +59,7 @@
       "create": "Opret",
       "copyLink": "Kopiér link",
       "linkCopied": "Link kopieret.",
+      "settings": "Levering og lagring",
       "save": "Gem",
       "saved": "Gemt.",
       "name": "Navn",
@@ -89,6 +90,26 @@
         "label": "Formularer",
         "description": "Administrer formularer og deres indsendelser."
       }
+    },
+    "delivery": {
+      "title": "Levering og lagring",
+      "storeTitle": "Gem besvarelser",
+      "storeHint": "Gem besvarelser i databasen, så de kan ses under Besvarelser.",
+      "filesWarning": "Formularen har filupload-felter, som kræver gemte besvarelser. Fjern dem, eller fortsæt med at gemme.",
+      "lostWarning": "Besvarelser hverken gemmes eller sendes på mail. Tilføj modtagere eller fortsæt med at gemme, ellers går svarene tabt, medmindre noget håndterer forms:submitted.",
+      "emailTitle": "E-mailnotifikation",
+      "recipients": "Modtagere",
+      "recipientsHint": "Tryk Enter efter hver adresse. Lad feltet stå tomt for at slå e-mail fra.",
+      "subject": "Emne",
+      "replyTo": "Svar til",
+      "replyToNone": "Ingen",
+      "replyToHint": "Svaret i dette e-mailfelt bliver Reply-To.",
+      "routing": "Fordel efter svar",
+      "routingField": "Felt at fordele efter",
+      "routingNone": "Ingen fordeling",
+      "routingHint": "Send til andre modtagere afhængigt af svaret. Øvrige får standardmodtagerne.",
+      "routeTo": "Modtagere for \"{value}\"",
+      "needRecipients": "Tilføj modtagere først for at angive emne, svar-til og fordeling."
     },
     "builder": {
       "layout": "Layout",

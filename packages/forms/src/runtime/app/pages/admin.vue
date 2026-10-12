@@ -126,7 +126,7 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
             :label="t(`status.${form.status}`, form.status)"
           />
           <UButton
-            v-if="form.storage === 'db'"
+            v-if="form.storage === 'db' || form.submissionCount > 0"
             color="neutral"
             variant="outline"
             size="sm"

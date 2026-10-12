@@ -48,6 +48,7 @@ const checked = computed(() => {
 
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
+  { value: 'settings', label: t('admin.settings', 'Delivery & storage'), icon: 'i-lucide-settings' },
   { value: 'json', label: t('admin.json', 'JSON'), icon: 'i-lucide-braces' },
 ])
 
@@ -105,7 +106,7 @@ async function save() {
             @click="link.copy(form.slug)"
           />
           <UButton
-            v-if="form.definition.storage === 'db'"
+            v-if="form.definition.storage === 'db' || (form.submissionCount ?? 0) > 0"
             color="neutral"
             variant="outline"
             :to="paths('adminSubmissions', { id: form.id })"
@@ -168,6 +169,11 @@ async function save() {
           </p>
         </template>
       </FormBuilder>
+
+      <FormBuilderSettings
+        v-else-if="tab === 'settings'"
+        v-model="definition"
+      />
 
       <div
         v-else-if="tab === 'json'"

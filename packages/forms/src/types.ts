@@ -214,6 +214,8 @@ export type FormAdminDto = {
   status: FormStatus
   version: number
   definition: FormDefinition
+  /** Stored submissions; only set when the form is fetched on its own. Can be above 0 even when storage is now `none`. */
+  submissionCount?: number
   createdAt: string
   updatedAt: string
 }

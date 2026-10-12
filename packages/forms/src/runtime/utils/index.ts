@@ -12,6 +12,7 @@ export type { SchemaOptions } from './schema'
 export {
   fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, removeField, updateField, updateStep, duplicateField,
   createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
+  setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, storageWarnings, emailFieldKeys, routableFields,
 } from './builder'
 export type { FieldPosition } from './builder'
 export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, createField, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -100,5 +100,54 @@ describe('expand/collapse translated', () => {
     expect(collapseTranslated({ en: 'Hi', da: 'Hej' }, 'da')).toBe('Hej')
     expect(collapseTranslated({ da: 'Hej' }, 'en')).toBe('Hej')
     expect(collapseTranslated('Plain', 'da')).toBe('Plain')
+  })
+})
+
+describe('delivery settings', () => {
+  const withEmail = () => setEmailRecipients(base(), [' a@x.test ', 'a@x.test', 'b@x.test', ''])
+
+  it('sets de-duplicated recipients and removes delivery when emptied', () => {
+    expect(withEmail().delivery?.email?.to).toEqual(['a@x.test', 'b@x.test'])
+    expect(setEmailRecipients(withEmail(), []).delivery).toBeUndefined()
+  })
+
+  it('keeps subject and reply-to when recipients change, drops them with the delivery', () => {
+    const def = patchEmailDelivery({ ...withEmail(), steps: [{ id: 'a', fields: [{ key: 'mail', type: 'email' }] }] }, { subject: 'Hi', replyToField: 'mail' })
+    expect(setEmailRecipients(def, ['c@x.test']).delivery?.email).toEqual({ to: ['c@x.test'], subject: 'Hi', replyToField: 'mail' })
+    expect(setEmailRecipients(def, []).delivery).toBeUndefined()
+    expect(patchEmailDelivery(def, { subject: undefined }).delivery?.email?.subject).toBeUndefined()
+  })
+
+  it('ignores patches without recipients', () => {
+    expect(patchEmailDelivery(base(), { subject: 'Hi' })).toEqual(base())
+  })
+
+  it('manages routes and validates against the schema', () => {
+    const def: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [
+      { key: 'mail', type: 'email' },
+      { key: 'topic', type: 'select', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] },
+    ] }] }
+    expect(emailFieldKeys(def)).toEqual(['mail'])
+    expect(routableFields(def).map(field => field.key)).toEqual(['topic'])
+
+    let next = setRouteField(setEmailRecipients(def, ['x@x.test']), 'topic')
+    next = setRoute(next, 'a', ['a@x.test'])
+    next = setRoute(next, 'b', ['b@x.test'])
+    expect(next.delivery?.email?.routes).toEqual({ field: 'topic', to: { a: ['a@x.test'], b: ['b@x.test'] } })
+    expect(formDefinitionSchema.safeParse(next).success).toBe(true)
+    expect(setRoute(next, 'b', []).delivery?.email?.routes?.to).toEqual({ a: ['a@x.test'] })
+    expect(setRouteField(next, 'topic').delivery?.email?.routes?.to.a).toEqual(['a@x.test'])
+    expect(setRouteField(next, undefined).delivery?.email?.routes).toBeUndefined()
+  })
+})
+
+describe('storage settings', () => {
+  it('switches storage and warns about files and lost answers', () => {
+    const files: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [{ key: 'f', type: 'file' }] }] }
+    expect(storageWarnings(files)).toEqual({ files: false, lost: false })
+    const none = setStorage(files, 'none')
+    expect(storageWarnings(none)).toEqual({ files: true, lost: true })
+    expect(storageWarnings(setEmailRecipients(none, ['a@x.test']))).toEqual({ files: true, lost: false })
+    expect(setStorage(files, 'db')).toBe(files)
   })
 })

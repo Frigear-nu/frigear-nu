@@ -59,6 +59,7 @@
       "create": "Create",
       "copyLink": "Copy link",
       "linkCopied": "Link copied.",
+      "settings": "Delivery & storage",
       "save": "Save",
       "saved": "Saved.",
       "name": "Name",
@@ -89,6 +90,26 @@
         "label": "Forms",
         "description": "Manage forms and their submissions."
       }
+    },
+    "delivery": {
+      "title": "Delivery & storage",
+      "storeTitle": "Store submissions",
+      "storeHint": "Keep submissions in the database so they can be reviewed under Submissions.",
+      "filesWarning": "This form has file upload fields, which need stored submissions. Remove them or keep storing.",
+      "lostWarning": "Submissions are neither stored nor emailed. Add recipients or keep storing, or answers are lost unless something handles forms:submitted.",
+      "emailTitle": "Email notification",
+      "recipients": "Recipients",
+      "recipientsHint": "Press Enter after each address. Leave empty to turn email off.",
+      "subject": "Subject",
+      "replyTo": "Reply to",
+      "replyToNone": "None",
+      "replyToHint": "The answer of this email field becomes the Reply-To.",
+      "routing": "Route by answer",
+      "routingField": "Field to route by",
+      "routingNone": "No routing",
+      "routingHint": "Send to other recipients depending on the answer. Others get the default recipients.",
+      "routeTo": "Recipients for \"{value}\"",
+      "needRecipients": "Add recipients first to set the subject, reply-to and routing."
     },
     "builder": {
       "layout": "Layout",
