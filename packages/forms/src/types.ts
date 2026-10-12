@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { Schedule as FormSchedule } from '@frigear-nu/module-kit/schedule'
 
 /** A text that is either one string or a map of locale -> string. */
 export type Translated = string | Record<string, string>
@@ -115,25 +116,7 @@ export type FormAvailability = 'web' | 'api'
 /** How a submitter proves access: nothing, a signed-in user, a bearer token or a shared password. */
 export type FormAuthMode = 'none' | 'user' | 'token' | 'password'
 
-/** A recurring yearly moment in wall-clock time of the schedule's timezone. */
-export type FormScheduleMoment = {
-  /** 1-12 */
-  month: number
-  /** 1-31 */
-  day: number
-  /** `HH:mm` */
-  time: string
-}
-
-/**
- * When the form accepts answers: `always` (default), one fixed `range` of ISO date-times, or a `yearly`
- * season that repeats every year (`from` after `to` wraps over new year, e.g. 1 Nov - 1 Feb). `from` is
- * inclusive and `to` exclusive.
- */
-export type FormSchedule
-  = | { type: 'always' }
-    | { type: 'range', from?: string, to?: string }
-    | { type: 'yearly', from: FormScheduleMoment, to: FormScheduleMoment, timezone: string }
+export type { Schedule as FormSchedule, ScheduleMoment as FormScheduleMoment } from '@frigear-nu/module-kit/schedule'
 
 /** Who may read and submit the form, and when. Secrets (tokens, password hash) are never part of the definition. */
 export type FormAccess = {

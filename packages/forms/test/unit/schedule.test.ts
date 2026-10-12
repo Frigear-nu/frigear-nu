@@ -50,6 +50,11 @@ describe('nextFormOpening', () => {
     expect(nextFormOpening(january, new Date('2026-10-12T12:00:00Z'))?.toISOString()).toBe('2027-01-01T22:00:00.000Z')
   })
 
+  it('finds an opening earlier in the day than the current time of day', () => {
+    const midnight: FormSchedule = { type: 'yearly', timezone: 'UTC', from: { month: 4, day: 10, time: '00:00' }, to: { month: 4, day: 11, time: '00:00' } }
+    expect(nextFormOpening(midnight, new Date('2026-10-12T18:30:00Z'))?.toISOString()).toBe('2027-04-10T00:00:00.000Z')
+  })
+
   it('finds a fixed range start, and null once it is over', () => {
     const range: FormSchedule = { type: 'range', from: '2026-03-01T10:00:00Z', to: '2026-03-02T10:00:00Z' }
     expect(nextFormOpening(range, new Date('2026-02-01T00:00:00Z'))?.toISOString()).toBe('2026-03-01T10:00:00.000Z')

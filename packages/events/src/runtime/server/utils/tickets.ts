@@ -45,9 +45,9 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
   if (!type) throw fail(404, 'Ticket type not found.')
 
   // --- Sale window ---------------------------------------------------------------------------
-  const now = Date.now()
-  if (type.saleStartsAt && type.saleStartsAt.getTime() > now) throw fail(409, 'Ticket sales have not started yet.')
-  if (type.saleEndsAt && type.saleEndsAt.getTime() < now) throw fail(409, 'Ticket sales have ended.')
+  const window = saleWindow(type)
+  if (window.state === 'not_started') throw fail(409, 'Ticket sales have not started yet.')
+  if (window.state === 'ended') throw fail(409, 'Ticket sales have ended.')
 
   // --- Membership (event level AND ticket level; fails closed if subscriptions is missing) ----
   const requirements = [normalizeMembership(eventRow.requiresMembership), normalizeMembership(type.requiresMembership)]

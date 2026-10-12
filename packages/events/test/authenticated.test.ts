@@ -101,6 +101,34 @@ describe('events (authenticated, database-backed)', async () => {
       expect((await json(undefined, 'POST', `/api/events/admin/events/${original.id}/clone`)).status).toBe(401)
     })
 
+    it('applies a recurring sale season on top of the sale window', async () => {
+      const season = (from: [number, number], to: [number, number]) => ({
+        type: 'yearly', timezone: 'UTC', from: { month: from[0], day: from[1], time: '00:00' }, to: { month: to[0], day: to[1], time: '00:00' },
+      })
+      const today = new Date()
+      const month = today.getUTCMonth() + 1
+      // A season that surely covers now (the whole year but its last day) and one that surely does not (one day, 6 months away).
+      const open = season([1, 1], [12, 31])
+      const farMonth = ((month + 5) % 12) + 1
+      const closed = season([farMonth, 10], [farMonth, 11])
+
+      const event = await createEvent({}, [
+        { key: 'in-season', name: 'In season', saleSchedule: open, isDefault: true },
+        { key: 'off-season', name: 'Off season', saleSchedule: closed },
+      ])
+      const shown = await detail(event.slug)
+      const byKey = Object.fromEntries(shown.ticketTypes.map((type: Json) => [type.key, type]))
+      expect(byKey['off-season']).toMatchObject({ saleState: 'not_started' })
+      expect(byKey['off-season'].saleStartsAt).toBeTruthy()
+      if (!(month === 12 && today.getUTCDate() === 31)) expect(byKey['in-season'].saleState).toBe('open')
+
+      const buyer = await user('Seasonal')
+      expect((await buy(buyer.cookie, event.slug, byKey['off-season'].id)).status).toBe(409)
+
+      const bad = await json(staff.cookie, 'POST', `/api/events/admin/events/${event.id}/ticket-types`, { key: 'bad', name: 'Bad', saleSchedule: { type: 'yearly', timezone: 'Nope/Land', from: { month: 1, day: 1, time: '00:00' }, to: { month: 2, day: 1, time: '00:00' } } })
+      expect(bad.status).toBe(400)
+    })
+
     it('rejects duplicate slugs', async () => {
       const first = await createEvent()
       const again = await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: first.slug, name: 'x', startsAt: future(1) })

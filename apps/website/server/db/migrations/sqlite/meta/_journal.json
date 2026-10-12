@@ -92,6 +92,13 @@
       "when": 1791772243993,
       "tag": "0012_closed_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791777966560,
+      "tag": "0013_add_sale_schedule",
+      "breakpoints": true
     }
   ]
 }

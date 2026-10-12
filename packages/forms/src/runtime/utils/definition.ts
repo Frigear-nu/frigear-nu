@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { scheduleSchema } from '@frigear-nu/module-kit/schedule'
 import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
@@ -60,40 +61,6 @@ const step = z.object({
 const sameOriginPath = (value: string) => value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')
 // Recipients are literal addresses: an unresolved `${...}` placeholder must never become one.
 const emailAddress = z.string().regex(/^[^\s@${}]+@[^\s$@{}][^\s$.@{}]*\.[^\s$@{}]+$/, 'Recipients must be plain email addresses.')
-
-const scheduleMoment = z.object({
-  month: z.number().int().min(1).max(12),
-  day: z.number().int().min(1).max(31),
-  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:mm.'),
-}).refine(m => m.day <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m.month - 1]!, 'That day does not exist in the month.')
-
-const isoDateTime = z.string().refine(v => !Number.isNaN(Date.parse(v)), 'Must be a date-time.')
-
-export const scheduleSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('always') }),
-  z.object({ type: z.literal('range'), from: isoDateTime.optional(), to: isoDateTime.optional() }),
-  z.object({
-    type: z.literal('yearly'),
-    from: scheduleMoment,
-    to: scheduleMoment,
-    timezone: z.string().refine((tz) => {
-      try {
-        new Intl.DateTimeFormat('en', { timeZone: tz })
-        return true
-      }
-      catch {
-        return false
-      }
-    }, 'Unknown timezone.'),
-  }),
-]).superRefine((schedule, ctx) => {
-  if (schedule.type === 'range' && schedule.from && schedule.to && Date.parse(schedule.from) >= Date.parse(schedule.to)) {
-    ctx.addIssue({ code: 'custom', message: 'The range must end after it starts.', path: ['to'] })
-  }
-  if (schedule.type === 'yearly' && JSON.stringify(schedule.from) === JSON.stringify(schedule.to)) {
-    ctx.addIssue({ code: 'custom', message: 'The season must end after it starts.', path: ['to'] })
-  }
-})
 
 export const accessSchema = z.object({
   availability: z.enum(['web', 'api']).default('web'),

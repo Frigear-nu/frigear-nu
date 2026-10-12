@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { scheduleSchema } from '@frigear-nu/module-kit/schedule'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
 export const translated = z.union([
@@ -36,6 +37,7 @@ export const ticketTypeInput = z.object({
   capacity: z.number().int().min(0).nullish(),
   saleStartsAt: date.nullish(),
   saleEndsAt: date.nullish(),
+  saleSchedule: scheduleSchema.nullish(),
   maxPerUser: z.number().int().min(1).optional(),
   requiresMembership: membership.optional(),
   excludesMembership: membership.optional(),
