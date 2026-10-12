@@ -33,6 +33,12 @@ const roleItems = computed(() => {
   if (props.user.role) roles.add(props.user.role)
   return [...roles].map(value => ({ label: roleLabel(value), value }))
 })
+const accountFacts = computed(() => [
+  { key: 'created', label: t('admin.created', 'Created'), value: dateFormat(props.user.createdAt) },
+  { key: 'lastLogin', label: t('admin.lastLogin', 'Last sign-in'), value: dateFormat(props.user.lastLoginAt) },
+  { key: 'password', label: t('admin.detail.password', 'Password'), value: props.user.hasPassword ? t('admin.detail.set', 'Set') : t('admin.detail.notSet', 'Not set') },
+  { key: 'passkeys', label: t('admin.detail.passkeys', 'Passkeys'), value: props.user.passkeys },
+])
 const dateFormat = (value?: string | null) => value ? new Date(value).toLocaleString() : '–'
 const dirty = computed(() => (
   form.name !== props.user.name
@@ -173,24 +179,7 @@ async function remove() {
 
       <div class="flex flex-col gap-6">
         <AdminSection :title="t('admin.detail.account', 'Account')">
-          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <dt class="text-muted">
-              {{ t('admin.created', 'Created') }}
-            </dt>
-            <dd>{{ dateFormat(user.createdAt) }}</dd>
-            <dt class="text-muted">
-              {{ t('admin.lastLogin', 'Last sign-in') }}
-            </dt>
-            <dd>{{ dateFormat(user.lastLoginAt) }}</dd>
-            <dt class="text-muted">
-              {{ t('admin.detail.password', 'Password') }}
-            </dt>
-            <dd>{{ user.hasPassword ? t('admin.detail.set', 'Set') : t('admin.detail.notSet', 'Not set') }}</dd>
-            <dt class="text-muted">
-              {{ t('admin.detail.passkeys', 'Passkeys') }}
-            </dt>
-            <dd>{{ user.passkeys }}</dd>
-          </dl>
+          <AdminKeyValue :items="accountFacts" />
           <UButton
             v-if="user.can.update"
             variant="outline"

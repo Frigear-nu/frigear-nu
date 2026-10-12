@@ -10,7 +10,8 @@ const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('subscriptions.admin')
 
-const { data: history, refresh: refreshHistory } = await useFetch<MeResponse>(
+// Lazy: both requests of this tab (this one and the membership panel's) start immediately and in parallel.
+const { data: history, refresh: refreshHistory, status } = useLazyFetch<MeResponse>(
   () => `/api/admin/users/${props.user.id}/subscriptions`,
   { key: () => `admin-subscriptions-${props.user.id}` },
 )
@@ -33,31 +34,28 @@ async function changed() {
 
 <template>
   <div class="flex flex-col gap-6">
-    <section class="flex flex-col gap-3">
-      <h2 class="text-highlighted text-sm font-semibold">
-        {{ t('membership', 'Membership') }}
-      </h2>
+    <AdminSection :title="t('membership', 'Membership')">
       <UsersAdminMembership
         :user="user"
         @refresh="changed"
       />
-    </section>
+    </AdminSection>
 
-    <section class="flex flex-col gap-3">
-      <h2 class="text-highlighted text-sm font-semibold">
-        {{ t('history.title', 'Subscription history') }}
-      </h2>
-      <UTable
-        v-if="history?.subscriptions.length"
-        :data="history.subscriptions"
-        :columns="columns"
-      />
-      <p
-        v-else
-        class="text-muted text-sm"
-      >
-        {{ t('history.empty', 'No subscriptions yet.') }}
-      </p>
-    </section>
+    <AdminSection :title="t('history.title', 'Subscription history')">
+      <template #flush>
+        <UTable
+          :data="history?.subscriptions ?? []"
+          :columns="columns"
+          :loading="status === 'pending'"
+        >
+          <template #empty>
+            <AdminEmpty
+              icon="i-lucide-badge-check"
+              :title="t('history.empty', 'No subscriptions yet.')"
+            />
+          </template>
+        </UTable>
+      </template>
+    </AdminSection>
   </div>
 </template>

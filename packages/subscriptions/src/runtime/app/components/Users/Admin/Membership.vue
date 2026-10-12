@@ -11,7 +11,9 @@ const t = useModuleT('subscriptions.admin')
 const toast = useToast()
 const base = computed(() => `/api/admin/users/${props.user.id}/subscription`)
 
-const { data, refresh } = await useFetch<AdminMembershipResponse>(() => base.value, { key: () => `admin-membership-${props.user.id}` })
+// Lazy so the tab renders (with skeletons) immediately and this request runs in parallel with the history request.
+const { data, refresh, status } = useLazyFetch<AdminMembershipResponse>(() => base.value, { key: () => `admin-membership-${props.user.id}` })
+const loading = computed(() => status.value === 'pending' && !data.value)
 
 const planKey = ref<string | undefined>(undefined)
 const endsAt = ref('')
@@ -89,7 +91,17 @@ async function copy() {
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap items-center gap-2 text-sm">
+    <div
+      v-if="loading"
+      class="space-y-2"
+    >
+      <USkeleton class="h-6 w-1/2" />
+      <USkeleton class="h-9 w-2/3" />
+    </div>
+    <div
+      v-else
+      class="flex flex-wrap items-center gap-2 text-sm"
+    >
       <template v-if="current">
         <UBadge
           variant="subtle"
@@ -121,13 +133,13 @@ async function copy() {
     </div>
 
     <p
-      v-if="current && current.source !== 'manual'"
+      v-if="!loading && current && current.source !== 'manual'"
       class="text-muted text-sm"
     >
       {{ t('paidHint', 'Paid subscriptions are managed in Stripe.') }}
     </p>
     <div
-      v-else-if="planItems.length"
+      v-else-if="!loading && planItems.length"
       class="space-y-3"
     >
       <div class="flex flex-wrap items-end gap-3">

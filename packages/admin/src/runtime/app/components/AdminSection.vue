@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ title?: string, description?: string }>()
+defineProps<{ title?: string, description?: string, loading?: boolean }>()
 </script>
 
 <template>
@@ -28,9 +28,18 @@ defineProps<{ title?: string, description?: string }>()
         <slot name="actions" />
       </div>
     </div>
-    <div :class="$slots.flush ? '' : 'p-4'">
-      <slot name="flush" />
-      <slot />
+    <div :class="$slots.flush || loading ? '' : 'p-4'">
+      <div
+        v-if="loading"
+        class="space-y-2 p-4"
+      >
+        <USkeleton class="h-5 w-1/2" />
+        <USkeleton class="h-5 w-1/3" />
+      </div>
+      <template v-else>
+        <slot name="flush" />
+        <slot />
+      </template>
     </div>
     <div
       v-if="$slots.footer"

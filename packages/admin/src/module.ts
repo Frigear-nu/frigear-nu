@@ -52,7 +52,7 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
 
     addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
-    for (const name of ['AdminPage', 'AdminPageHeader', 'AdminSection', 'AdminToolbar', 'AdminEmpty', 'AdminTable']) {
+    for (const name of ['AdminPage', 'AdminPageHeader', 'AdminSection', 'AdminToolbar', 'AdminEmpty', 'AdminTable', 'AdminStatCard', 'AdminKeyValue']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
     }
 

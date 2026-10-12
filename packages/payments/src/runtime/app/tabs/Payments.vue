@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { PaymentDto } from '../../../types'
 import { formatMinorAmount } from '../utils/format'
 
@@ -10,7 +11,7 @@ const props = defineProps<{ user: { id: number } }>()
 const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
 
-const { data: payments } = await useFetch<PaymentDto[]>(
+const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
   () => `/api/admin/users/${props.user.id}/payments`,
   { key: () => `admin-payments-${props.user.id}` },
 )
@@ -24,77 +25,56 @@ const statusColors: Record<string, 'success' | 'warning' | 'error' | 'neutral'> 
   partially_refunded: 'warning',
 }
 const statusLabel = (value: string) => status(value, value)
+const columns = computed<TableColumn<PaymentDto>[]>(() => [
+  { accessorKey: 'createdAt', header: t('date', 'Date') },
+  { accessorKey: 'description', header: t('description', 'Description') },
+  { accessorKey: 'amount', header: t('amount', 'Amount') },
+  { accessorKey: 'status', header: t('statusColumn', 'Status') },
+  { accessorKey: 'refundedAmount', header: t('refunded', 'Refunded') },
+  { accessorKey: 'referenceType', header: t('reference', 'Reference') },
+])
 const date = (value: string | null) => value ? new Date(value).toLocaleString() : '–'
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <h2 class="text-highlighted text-sm font-semibold">
-      {{ t('title', 'Payments') }}
-    </h2>
-    <div
-      v-if="payments?.length"
-      class="border-default overflow-x-auto rounded-lg border"
-    >
-      <table class="w-full text-left text-sm">
-        <thead class="text-muted bg-elevated/50 text-xs uppercase">
-          <tr>
-            <th class="px-3 py-2 font-medium">
-              {{ t('date', 'Date') }}
-            </th>
-            <th class="px-3 py-2 font-medium">
-              {{ t('description', 'Description') }}
-            </th>
-            <th class="px-3 py-2 font-medium">
-              {{ t('amount', 'Amount') }}
-            </th>
-            <th class="px-3 py-2 font-medium">
-              {{ t('statusColumn', 'Status') }}
-            </th>
-            <th class="px-3 py-2 font-medium">
-              {{ t('refunded', 'Refunded') }}
-            </th>
-            <th class="px-3 py-2 font-medium">
-              {{ t('reference', 'Reference') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-default divide-y">
-          <tr
-            v-for="payment in payments"
-            :key="payment.id"
-          >
-            <td class="px-3 py-2 whitespace-nowrap">
-              {{ date(payment.paidAt ?? payment.createdAt) }}
-            </td>
-            <td class="px-3 py-2">
-              {{ payment.description ?? t('defaultDescription', 'Payment') }}
-            </td>
-            <td class="px-3 py-2 whitespace-nowrap">
-              {{ formatMinorAmount(payment.amount, payment.currency) }}
-            </td>
-            <td class="px-3 py-2">
-              <UBadge
-                variant="subtle"
-                :color="statusColors[payment.status] ?? 'neutral'"
-                :label="statusLabel(payment.status)"
-              />
-            </td>
-            <td class="px-3 py-2 whitespace-nowrap">
-              {{ payment.refundedAmount ? formatMinorAmount(payment.refundedAmount, payment.currency) : '–' }}
-            </td>
-            <td class="text-muted px-3 py-2">
-              {{ payment.referenceType ? `${payment.referenceType} ${payment.referenceId ?? ''}`.trim() : '–' }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p
-      v-else
-      class="text-muted text-sm"
-    >
-      {{ t('empty', 'No payments yet.') }}
-    </p>
-  </div>
+  <AdminSection
+    :title="t('title', 'Payments')"
+  >
+    <template #flush>
+      <UTable
+        :data="payments ?? []"
+        :columns="columns"
+        :loading="fetchStatus === 'pending'"
+      >
+        <template #createdAt-cell="{ row }">
+          <span class="whitespace-nowrap">{{ date(row.original.paidAt ?? row.original.createdAt) }}</span>
+        </template>
+        <template #description-cell="{ row }">
+          {{ row.original.description ?? t('defaultDescription', 'Payment') }}
+        </template>
+        <template #amount-cell="{ row }">
+          <span class="whitespace-nowrap">{{ formatMinorAmount(row.original.amount, row.original.currency) }}</span>
+        </template>
+        <template #status-cell="{ row }">
+          <UBadge
+            variant="subtle"
+            :color="statusColors[row.original.status] ?? 'neutral'"
+            :label="statusLabel(row.original.status)"
+          />
+        </template>
+        <template #refundedAmount-cell="{ row }">
+          <span class="whitespace-nowrap">{{ row.original.refundedAmount ? formatMinorAmount(row.original.refundedAmount, row.original.currency) : '–' }}</span>
+        </template>
+        <template #referenceType-cell="{ row }">
+          <span class="text-muted">{{ row.original.referenceType ? `${row.original.referenceType} ${row.original.referenceId ?? ''}`.trim() : '–' }}</span>
+        </template>
+        <template #empty>
+          <AdminEmpty
+            icon="i-lucide-credit-card"
+            :title="t('empty', 'No payments yet.')"
+          />
+        </template>
+      </UTable>
+    </template>
+  </AdminSection>
 </template>
