@@ -731,6 +731,8 @@ describe('forms (authenticated, database-backed)', async () => {
       const guestAll = await mcpToken(guest.cookie, ['forms:submit'])
       expect(await mcpNames(guestAll)).toEqual(['get-form', 'list-forms', 'submit-form'])
 
+      expect(await mcpNames(await mcpToken(staff.cookie, ['*']))).toContain('list-all-forms')
+
       const staffManage = await mcpToken(staff.cookie, ['forms:manage'])
       expect(await mcpNames(staffManage)).toEqual(['create-form', 'get-form-definition', 'get-submission', 'list-all-forms', 'list-submissions', 'update-form'])
 

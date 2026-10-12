@@ -541,6 +541,9 @@ describe('events (authenticated, database-backed)', async () => {
       const staffRead = await mcpToken(staff.cookie, ['tickets:read'])
       expect(await mcpNames(staffRead)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
+      const staffFull = await mcpToken(staff.cookie, ['*'])
+      expect(await mcpNames(staffFull)).toContain('list-all-events')
+
       const staffManage = await mcpToken(staff.cookie, ['events:manage'])
       expect(await mcpNames(staffManage)).toEqual(['create-event', 'get-event-definition', 'list-all-events', 'list-attendees', 'update-event', 'update-ticket-type'])
 
