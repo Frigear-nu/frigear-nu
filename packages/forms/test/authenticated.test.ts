@@ -517,6 +517,37 @@ describe('forms (authenticated, database-backed)', async () => {
       expect(captured).toEqual([expect.objectContaining({ slug: failing.slug, submissionId: id, stored: true })])
     })
 
+    it('emails a custom body with variables replaced and every value escaped', async () => {
+      await $fetch('/api/test/mails?reset=1')
+      const form = await create('Custom body', {
+        mode: 'single',
+        storage: 'db',
+        steps: [{ id: 'main', fields: [
+          { key: 'name', type: 'text', required: true, label: 'Name' },
+          { key: 'kind', type: 'select', options: [{ value: 'a', label: { en: 'Alpha', da: 'Alfa' } }] },
+          { key: 'message', type: 'textarea' },
+        ] }],
+        delivery: { email: {
+          to: ['owner@example.com'],
+          subject: 'Hello {{ answer.name }} via {{form.name}}',
+          body: { en: 'Form {{ form.name }} ({{form.slug}} v{{form.version}})\nId: {{submission.id}}\nKind: {{answer.kind}}\nMsg: {{answer.message}}\nNope: [{{nope}}]\n{{answers}}' },
+        } },
+      })
+
+      const evil = '<script>alert(1)</script> {{form.name}}'
+      const { id } = await ok(await submit(form.slug, { name: 'Eve\nBcc: x@example.com', kind: 'a', message: evil }))
+
+      const mails = await $fetch<Json[]>('/api/test/mails')
+      expect(mails).toHaveLength(1)
+      const [mail] = mails as [Json]
+      expect(mail.subject).toBe('Hello Eve Bcc: x@example.com via Custom body')
+      expect(mail.text).toContain(`Form Custom body (${form.slug} v1)\nId: ${id}\nKind: Alpha\nMsg: ${evil}\nNope: []\n`)
+      expect(mail.text).toContain(`Name: Eve\nBcc: x@example.com`)
+      expect(mail.body).not.toContain('<script>')
+      expect(mail.body).toContain('&lt;script&gt;alert(1)&lt;/script&gt; {{form.name}}')
+      expect(mail.body).toContain('<br>')
+    })
+
     it('storage: none writes nothing, emits the hook and surfaces delivery errors', async () => {
       await $fetch('/api/test/captured?reset=1')
       const before = await counts()

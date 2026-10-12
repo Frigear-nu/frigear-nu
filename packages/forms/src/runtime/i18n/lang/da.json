@@ -165,6 +165,13 @@
       "routingNone": "Ingen fordeling",
       "routingHint": "Send til andre modtagere afhængigt af svaret. Øvrige får standardmodtagerne.",
       "routeTo": "Modtagere for \"{value}\"",
+      "subjectHint": "Variablerne herunder kan også bruges her.",
+      "body": "Mailtekst",
+      "bodyHint": "Valgfri. Lad feltet stå tomt for at sende listen med alle svar. Variabler erstattes med de indsendte værdier.",
+      "bodyVariables": "Klik på en variabel for at indsætte den ved markøren. Den fulde liste af svar er",
+      "bodyUnknown": "Ukendte variabler efterlades tomme: {names}",
+      "bodyPreview": "Forhåndsvisning med eksempelsvar",
+      "bodyReset": "Nulstil til standardteksten",
       "needRecipients": "Tilføj modtagere først for at angive emne, svar-til og fordeling."
     },
     "captcha": {
@@ -209,6 +216,9 @@
       "secretImmediate": "Gemmes med det samme, uafhængigt af formularens Gem."
     },
     "builder": {
+      "singleConfirmTitle": "Skift til én side?",
+      "singleConfirmDescription": "Alle trin samles på én side. Trinnenes titler, beskrivelser og betingelser går tabt, og hvis du skifter tilbage til trin, bliver de ikke gendannet.",
+      "singleConfirmButton": "Skift til én side",
       "layout": "Layout",
       "fields": "Felter",
       "insertField": "Indsæt felt her",

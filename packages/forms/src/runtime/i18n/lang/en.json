@@ -165,6 +165,13 @@
       "routingNone": "No routing",
       "routingHint": "Send to other recipients depending on the answer. Others get the default recipients.",
       "routeTo": "Recipients for \"{value}\"",
+      "subjectHint": "Variables from the list below work here too.",
+      "body": "Email body",
+      "bodyHint": "Optional. Leave empty to email the list of all answers. Variables are replaced with the submitted values.",
+      "bodyVariables": "Click a variable to insert it at the cursor. The full list of answers is",
+      "bodyUnknown": "Unknown variables are left empty: {names}",
+      "bodyPreview": "Preview with sample answers",
+      "bodyReset": "Reset to the default body",
       "needRecipients": "Add recipients first to set the subject, reply-to and routing."
     },
     "captcha": {
@@ -209,6 +216,9 @@
       "secretImmediate": "Saved immediately, independent of the form Save."
     },
     "builder": {
+      "singleConfirmTitle": "Switch to a single page?",
+      "singleConfirmDescription": "All steps are merged into one page. Step titles, descriptions and step conditions are lost, and switching back to steps will not restore them.",
+      "singleConfirmButton": "Switch to single page",
       "layout": "Layout",
       "fields": "Fields",
       "insertField": "Insert field here",

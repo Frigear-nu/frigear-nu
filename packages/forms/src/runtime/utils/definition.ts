@@ -3,6 +3,12 @@ import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
 
+const MAX_BODY = 10_000
+const bodyText = z.union([
+  z.string().max(MAX_BODY),
+  z.record(z.string(), z.string().max(MAX_BODY)),
+])
+
 const KEY = /^[a-z]\w*$/i
 const ID = /^[a-z0-9][\w-]*$/i
 
@@ -75,6 +81,7 @@ export const formDefinitionSchema = z.object({
     email: z.object({
       to: z.array(emailAddress).min(1),
       subject: translated.optional(),
+      body: bodyText.optional(),
       routes: z.object({ field: z.string(), to: z.record(z.string(), z.array(emailAddress).min(1)) }).optional(),
       replyToField: z.string().optional(),
     }).optional(),

@@ -27,3 +27,8 @@ export { renderMarkdown } from './markdown'
 export { captchaProviders, normalizeCaptchaProvider, resolveCaptcha } from './captcha'
 export { previewPayload, previewScale, PREVIEW_WIDTHS } from './preview'
 export type { PreviewDevice } from './preview'
+export {
+  renderAnswers, formatValue, escapeHtml, answersToText, answersToHtml, composeEmail, renderTemplateText, renderTemplateHtml, renderTemplateLine,
+  templateVariables, availableVariables, unknownBodyVariables, sampleAnswers, staticVariables,
+} from './template'
+export type { RenderedAnswer, EmailContext } from './template'

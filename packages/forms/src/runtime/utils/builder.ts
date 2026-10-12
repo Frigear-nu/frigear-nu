@@ -262,7 +262,7 @@ function withEmail(definition: FormDefinition, email: EmailDelivery | undefined)
   return Object.keys(delivery).length ? { ...rest, delivery } : rest
 }
 
-/** Sets the default recipients. An empty list switches email delivery off and drops its subject, reply-to and routes. */
+/** Sets the default recipients. An empty list switches email delivery off and drops its subject, body, reply-to and routes. */
 export function setEmailRecipients(definition: FormDefinition, to: readonly string[]): FormDefinition {
   const addresses = cleanAddresses(to)
   if (!addresses.length) return withEmail(definition, undefined)
@@ -270,12 +270,12 @@ export function setEmailRecipients(definition: FormDefinition, to: readonly stri
 }
 
 /** Patches subject / reply-to of an existing email delivery (no-op without recipients); `undefined` values are removed. */
-export function patchEmailDelivery(definition: FormDefinition, patch: Partial<Pick<EmailDelivery, 'subject' | 'replyToField'>>): FormDefinition {
+export function patchEmailDelivery(definition: FormDefinition, patch: Partial<Pick<EmailDelivery, 'subject' | 'body' | 'replyToField'>>): FormDefinition {
   const email = definition.delivery?.email
   if (!email) return definition
   const merged = { ...email, ...patch }
-  const { subject, replyToField, ...rest } = merged
-  return withEmail(definition, { ...rest, ...(subject ? { subject } : {}), ...(replyToField ? { replyToField } : {}) })
+  const { subject, body, replyToField, ...rest } = merged
+  return withEmail(definition, { ...rest, ...(subject ? { subject } : {}), ...(body ? { body } : {}), ...(replyToField ? { replyToField } : {}) })
 }
 
 /** Chooses the field whose answer routes the email; `undefined` removes all routes. Switching the field starts with no routes. */

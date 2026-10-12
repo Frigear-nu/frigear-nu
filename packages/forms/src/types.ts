@@ -87,7 +87,13 @@ export type FormDelivery = {
   email?: {
     /** Recipient addresses; used when no `routes` entry matches. */
     to: string[]
+    /** May use `{{variables}}` (see the forms docs). */
     subject?: Translated
+    /**
+     * Custom plain-text body with `{{variables}}` (`{{answers}}`, `{{answer.<key>}}`, `{{form.name}}`, ...).
+     * Without it the email lists the answers.
+     */
+    body?: Translated
     /** Sends to different recipients depending on the answer of one field (e.g. a subject select). */
     routes?: { field: string, to: Record<string, string[]> }
     /** Key of an email field whose answer becomes the `Reply-To` of the delivered email. */
