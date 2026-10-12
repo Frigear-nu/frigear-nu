@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getTableColumns } from 'drizzle-orm'
-import { users, passwordResets, magicLinks } from '../src/runtime/db/schema.sqlite'
+import { users, userCredentials, passwordResets, magicLinks } from '../src/runtime/db/schema.sqlite'
 
 describe('users schema', () => {
   it('exports the base user columns in order', () => {
@@ -36,6 +36,19 @@ describe('users schema', () => {
       'redirectUrl',
       'expiresAt',
       'usedAt',
+      'createdAt',
+    ])
+  })
+
+  it('exports the passkey credential columns in order', () => {
+    expect(Object.keys(getTableColumns(userCredentials))).toEqual([
+      'id',
+      'userId',
+      'publicKey',
+      'counter',
+      'backedUp',
+      'transports',
+      'name',
       'createdAt',
     ])
   })

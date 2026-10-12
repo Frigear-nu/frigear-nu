@@ -128,7 +128,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     const tablesToRegister = ['users']
     if (withWebAuthn) {
-      tablesToRegister.push('userPasskeys')
+      tablesToRegister.push('userCredentials')
     }
     if (withPasswordReset) {
       tablesToRegister.push('passwordResets')

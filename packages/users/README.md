@@ -31,7 +31,7 @@ npx nuxt module add @frigear-nu/users
 That's it! You can now use @frigear-nu/users in your Nuxt app ✨
 
 This module requires [`@nuxthub/core`](https://hub.nuxt.com) to be configured in the host app, since it relies on it for
-the `users` (and, when WebAuthn is enabled, `user_credentials`) database table.
+the `users` (and, when WebAuthn is enabled, `user_credentials`) database table. Passkeys are stored one row per credential in `user_credentials` (credential id, public key, counter, transports and an optional name). If you enable `webAuthn` on an existing app, generate and commit a migration for the new table. Registering a passkey for an unknown email creates the user and the credential together; if storing the credential fails the new user is removed again.
 
 ## Configuration
 
@@ -129,7 +129,7 @@ export default sendWithResend
 
 - `useUserLogin()` / `useUserRegistration()` – wrap the password routes above, and expose `isEnabled`/`passwordLoginEnabled`/`passkeyLoginEnabled`/`oauthProviders` computed from the module's public runtime config so the shipped pages (or your own) can render conditionally.
 - `useUserPasswordReset()` – wraps the forgot/reset-password routes above (`requestReset`, `resetPassword`), exposing `isEnabled` based on `settings.passwordReset`.
-- `useUserPasskeys()` – wraps `useWebAuthn` for registering/authenticating/listing passkeys.
+- `useUserPasskeys()` – wraps `useWebAuthn` for registering (`registerPasskey(userName, name?)`, the optional name labels the passkey), authenticating, listing (`listPasskeys()`, never includes the public key) and removing (`removePasskey(id)`) passkeys.
 
 All composables are registered via Nuxt's import ecosystem, so they can be overridden by re-declaring a composable of
 the same name in the consuming app.
