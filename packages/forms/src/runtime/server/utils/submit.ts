@@ -7,6 +7,8 @@ import { buildFormSchema, newId, resolveAccess, resolveCaptcha, validatedFields 
 
 type Upload = { filename: string, type: string, data: Uint8Array }
 type FormRow = typeof schema.forms.$inferSelect
+/** A submission body that is already parsed (MCP tools pass answers as arguments instead of a request body). */
+export type SubmissionBody = { answers: Record<string, unknown>, locale: string, uploads: Map<string, Upload[]> }
 
 const safeFilename = (name: string) => name.replace(/[^\w.-]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'file'
 
@@ -48,9 +50,9 @@ async function readSubmission(event: H3Event): Promise<{ answers: Record<string,
 }
 
 /** Validates and processes one submission for a published form. */
-export async function processSubmission(event: H3Event, form: FormRow, userId: number | null) {
+export async function processSubmission(event: H3Event, form: FormRow, userId: number | null, body?: SubmissionBody) {
   const definition: FormDefinition = form.definition
-  const { answers: raw, locale, uploads } = await readSubmission(event)
+  const { answers: raw, locale, uploads } = body ?? await readSubmission(event)
 
   // File answers are descriptors of what was actually uploaded, never what the client claims.
   const answers: Record<string, unknown> = { ...raw }

@@ -18,6 +18,7 @@ import {
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   AuthorizeContext,
   CaptchaVerifyContext,
@@ -84,6 +85,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
+    '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
@@ -96,6 +98,7 @@ export default defineNuxtModule<ModuleOptions>({
     addAuthScope(nuxt,
       { name: 'forms:manage', description: 'Manage forms and submissions (staff)' },
       { name: 'forms:submit', description: 'Submit forms as you' },
+      { name: 'forms:pii', description: 'See submission answers and file names through MCP tools (also needs forms:manage)' },
     )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -173,6 +176,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/:slug/submit', 'public/submit.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))

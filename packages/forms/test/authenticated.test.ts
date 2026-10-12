@@ -37,6 +37,33 @@ const stepped: FormDefinition = {
 let counter = 0
 const slug = (prefix: string) => `${prefix.toLowerCase().replaceAll(' ', '-')}-${++counter}`
 
+async function mcpRpc(bearer: string, method: string, params: Json = {}) {
+  const response = await fetch('/mcp', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'accept': 'application/json, text/event-stream', 'authorization': `Bearer ${bearer}` },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const text = await response.text()
+  const payload = text.trimStart().startsWith('{') ? text : text.split('\n').find(line => line.startsWith('data:'))?.slice(5) ?? '{}'
+  return JSON.parse(payload) as { result?: Json, error?: Json }
+}
+
+const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list')).result?.tools ?? []).map((tool: { name: string }) => tool.name).sort() as string[]
+const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
+const mcpText = (response: { result?: Json, error?: Json }) => JSON.stringify(response)
+
+async function mcpToken(cookie: string, scopes: string[]) {
+  const response = await fetch('/api/auth/tokens', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ name: 'MCP', scopes }),
+  })
+  expect(response.status, await response.clone().text()).toBe(200)
+  return (await response.json() as { token: string }).token
+}
+
+const definition = { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [{ key: 'secret', type: 'text', required: true }] }] }
+
 describe('forms (authenticated, database-backed)', async () => {
   const rootDir = fileURLToPath(new URL('./fixtures/authenticated', import.meta.url))
   const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
@@ -673,6 +700,48 @@ describe('forms (authenticated, database-backed)', async () => {
     it('does not mistake per-form tokens for credentials', async () => {
       // `ffk_` tokens are claimed by nobody here, so a signed-in session keeps working next to one.
       expect((await fetch('/api/forms/admin/forms', { headers: { cookie: staff.cookie, authorization: 'Bearer ffk_form-token' } })).status).toBe(200)
+    })
+  })
+
+  describe('MCP tools', () => {
+    it('scopes, gates and redacts', async () => {
+      const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
+      const guest = await registerUser('Guest', 'mcp-guest@example.com')
+
+      const guestAll = await mcpToken(guest.cookie, ['forms:submit', 'forms:manage', 'forms:pii'])
+      expect(await mcpNames(guestAll)).toEqual(['get-form', 'list-forms', 'submit-form'])
+
+      const staffManage = await mcpToken(staff.cookie, ['forms:manage'])
+      expect(await mcpNames(staffManage)).toEqual(['create-form', 'get-form-definition', 'get-submission', 'list-all-forms', 'list-submissions', 'update-form'])
+
+      // Delivery settings cannot be set (or read) through MCP.
+      const refused = await mcpCall(staffManage, 'create-form', { slug: 'sneaky', name: 'Sneaky', definition: { ...definition, delivery: { email: { to: 'attacker@example.com' } } } })
+      expect(refused.result?.isError).toBe(true)
+
+      const created = await mcpCall(staffManage, 'create-form', { slug: 'survey', name: 'Survey', status: 'published', definition })
+      expect(created.result?.isError, mcpText(created)).toBeFalsy()
+      const formId = created.result!.structuredContent?.id ?? JSON.parse(created.result!.content[0].text).id
+
+      // Submit as the caller, who is the submitter of record.
+      const guestSubmit = await mcpToken(guest.cookie, ['forms:submit'])
+      const submitted = await mcpCall(guestSubmit, 'submit-form', { slug: 'survey', answers: { secret: 'my private answer' } })
+      expect(submitted.result?.isError, mcpText(submitted)).toBeFalsy()
+
+      // Without forms:pii a manager sees metadata only.
+      const redactedList = await mcpCall(staffManage, 'list-submissions', { formId })
+      expect(mcpText(redactedList)).not.toContain('my private answer')
+      const submissionId = JSON.parse(redactedList.result!.content[0].text).submissions[0].id
+      const redacted = await mcpCall(staffManage, 'get-submission', { id: submissionId })
+      expect(redacted.result?.isError, mcpText(redacted)).toBeFalsy()
+      expect(mcpText(redacted)).not.toContain('my private answer')
+      expect(mcpText(redacted)).toContain('forms:pii')
+      expect(mcpText(refused)).toContain('exfiltrate')
+
+      const staffPii = await mcpToken(staff.cookie, ['forms:manage', 'forms:pii'])
+      expect(mcpText(await mcpCall(staffPii, 'get-submission', { id: submissionId }))).toContain('my private answer')
+
+      // A non-staff caller cannot reach the manager tools even with the scopes.
+      expect((await mcpCall(guestAll, 'list-all-forms')).result?.isError).toBe(true)
     })
   })
 })

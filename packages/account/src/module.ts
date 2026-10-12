@@ -9,6 +9,8 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { registerModule, extendDatabaseTable, registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type { NuxtPage } from '@nuxt/schema'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -47,6 +49,7 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.1',
     },
     '@frigear-nu/auth': { version: '>=0.0.1' },
+    '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': {
       version: '>=0.0.1',
     },
@@ -61,6 +64,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/account', nuxt)
+    addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name and email (MCP)' })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
@@ -91,6 +95,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     // The Frigear ID QR is signed with `runtimeConfig.account.idCode.privateKey` (NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY) or,
     // when unset, the RS256 key of `@frigear-nu/oauth-server` (`runtimeConfig.oauthServer`), which publishes the JWKS.
     const existingAccount = nuxt.options.runtimeConfig.account as { idCode?: object } | undefined
