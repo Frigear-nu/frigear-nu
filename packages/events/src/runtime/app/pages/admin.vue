@@ -53,16 +53,19 @@ async function create() {
 
 <template>
   <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        {{ t('admin.title', 'Events') }}
-      </h1>
-      <UButton
-        icon="i-lucide-plus"
-        :label="t('admin.create', 'New event')"
-        @click="creating = true"
-      />
-    </div>
+    <UPageHeader
+      :title="t('admin.title', 'Events')"
+      :ui="{ title: 'text-3xl sm:text-4xl' }"
+      class="mb-6"
+    >
+      <template #links>
+        <UButton
+          icon="i-lucide-plus"
+          :label="t('admin.create', 'New event')"
+          @click="creating = true"
+        />
+      </template>
+    </UPageHeader>
 
     <UTable
       v-if="events.length"

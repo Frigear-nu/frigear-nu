@@ -8,9 +8,11 @@ defineOptions({ name: 'EventTicketsPage' })
 
 <template>
   <UContainer class="py-10">
-    <h1 class="mb-6 text-2xl font-semibold">
-      {{ t('myTickets', 'My tickets') }}
-    </h1>
+    <UPageHeader
+      :title="t('myTickets', 'My tickets')"
+      :ui="{ title: 'text-3xl sm:text-4xl' }"
+      class="mb-8"
+    />
     <p
       v-if="!tickets.length"
       class="text-muted"

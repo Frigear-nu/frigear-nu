@@ -29,7 +29,8 @@
       "description": "Skift dine brugeroplysninger.",
       "name": {
         "label": "Navn",
-        "description": "Dit fulde navn."
+        "description": "Dit fulde navn.",
+        "required": "Indtast dit navn."
       },
       "email": {
         "label": "E-mail",
@@ -42,15 +43,21 @@
             "description": "Vi har sendt et link til din nye adresse. Ændringen træder først i kraft når du bekræfter den."
           },
           "done": "Din e-mailadresse er ændret.",
-          "failed": "Bekræftelseslinket er ugyldigt eller udløbet."
-        }
+          "failed": "Bekræftelseslinket er ugyldigt eller udløbet.",
+          "error": "Kunne ikke ændre din e-mailadresse."
+        },
+        "invalid": "Indtast en gyldig e-mailadresse."
       },
       "avatar": {
         "label": "Avatar",
-        "description": "JPG, GIF eller PNG. 1MB Max.",
-        "url": "Avatar URL"
+        "description": "Link til et kvadratisk billede.",
+        "url": "Avatar URL",
+        "invalid": "Indtast en gyldig URL."
       },
-      "save": "Gem profil"
+      "save": "Gem profil",
+      "saved": "Profil opdateret",
+      "saveFailed": "Kunne ikke opdatere din profil.",
+      "cancel": "Annuller"
     },
     "documents": {
       "title": "Dokumenter",
@@ -69,18 +76,37 @@
         "title": "Skift password",
         "submit": "Skift password",
         "new": {
-          "label": "Nyt password"
+          "label": "Nyt password",
+          "min": "Brug mindst 8 tegn."
         },
         "confirm": {
-          "label": "Bekræft nyt password"
+          "label": "Bekræft nyt password",
+          "mismatch": "Passwords er ikke ens."
         },
         "current": {
-          "label": "Nuværende password"
-        }
+          "label": "Nuværende password",
+          "required": "Indtast dit nuværende password."
+        },
+        "success": "Dit password er skiftet.",
+        "error": "Kunne ikke skifte dit password."
       },
       "passkeys": {
         "title": "Passkeys",
-        "register": "Registrér en passkey"
+        "register": "Registrér en passkey",
+        "description": "Log ind med fingeraftryk, ansigt eller enhedens pinkode i stedet for et password.",
+        "unnamed": "Passkey",
+        "created": "Tilføjet {date}",
+        "remove": "Fjern passkey",
+        "empty": "Du har ikke tilføjet nogen passkeys endnu.",
+        "name": {
+          "label": "Navn på passkey",
+          "placeholder": "Navn, fx MacBook"
+        },
+        "registered": "Passkey tilføjet.",
+        "registerError": "Kunne ikke registrere passkey.",
+        "removed": "Passkey fjernet.",
+        "removeError": "Kunne ikke fjerne passkey.",
+        "loadError": "Kunne ikke hente dine passkeys."
       }
     }
   }

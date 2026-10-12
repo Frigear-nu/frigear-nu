@@ -192,29 +192,30 @@ const attendeeColumns = [
 
 <template>
   <div v-if="event">
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div>
+    <UButton
+      :to="pages?.admin || '/admin/events'"
+      variant="link"
+      color="neutral"
+      icon="i-lucide-arrow-left"
+      :label="t('admin.title', 'Events')"
+      class="-ml-2 mb-2"
+    />
+    <UPageHeader
+      :title="translate(event.name, locale)"
+      :ui="{ title: 'text-3xl sm:text-4xl' }"
+      class="mb-6"
+    >
+      <template #links>
         <UButton
-          :to="pages?.admin || '/admin/events'"
-          variant="link"
+          v-if="event.status === 'published' && pages?.event"
+          :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
+          variant="outline"
           color="neutral"
-          icon="i-lucide-arrow-left"
-          :label="t('admin.title', 'Events')"
-          class="-ml-2"
+          icon="i-lucide-external-link"
+          :label="t('admin.viewPublic', 'View public page')"
         />
-        <h1 class="text-2xl font-semibold">
-          {{ translate(event.name, locale) }}
-        </h1>
-      </div>
-      <UButton
-        v-if="event.status === 'published' && pages?.event"
-        :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
-        variant="outline"
-        color="neutral"
-        icon="i-lucide-external-link"
-        :label="t('admin.viewPublic', 'View public page')"
-      />
-    </div>
+      </template>
+    </UPageHeader>
 
     <UPageCard
       :title="t('admin.details', 'Details')"

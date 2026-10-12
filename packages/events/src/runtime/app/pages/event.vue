@@ -102,35 +102,102 @@ defineOptions({ name: 'EventDetailPage' })
         :alt="translate(event.name, locale)"
         class="mb-6 aspect-[3/1] w-full rounded-lg object-cover"
       >
-      <h1 class="text-3xl font-semibold">
-        {{ translate(event.name, locale) }}
-      </h1>
-      <p class="mt-2 text-muted">
-        {{ new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(event.startsAt)) }}
-        <template v-if="event.location">
-          · <a
-            v-if="event.locationUrl"
-            :href="event.locationUrl"
-            target="_blank"
-            rel="noopener"
-            class="underline"
-          >{{ event.location }}</a><template v-else>
-            {{ event.location }}
-          </template>
-        </template>
-      </p>
-
-      <div class="mt-8 grid gap-8 md:grid-cols-[1fr_24rem]">
-        <!-- Plain text body: markdown rendering is left to the host (e.g. via a typography module). -->
-        <div class="whitespace-pre-line">
-          {{ translate(event.body ?? event.description, locale) }}
+      <UPageHeader
+        :title="translate(event.name, locale)"
+        :description="translate(event.description, locale)"
+        :ui="{ title: 'text-3xl sm:text-4xl' }"
+      >
+        <div class="mt-2 flex flex-col gap-2">
+          <UFieldGroup>
+            <UBadge
+              variant="soft"
+              class="text-sm font-semibold"
+              :label="t('detail.when', 'When?')"
+            />
+            <UBadge
+              variant="soft"
+              size="sm"
+              class="text-sm"
+            >
+              <NuxtTime
+                :datetime="event.startsAt"
+                :locale="locale"
+                date-style="full"
+                time-style="short"
+              />
+              <template v-if="event.endsAt">
+                -
+                <NuxtTime
+                  :datetime="event.endsAt"
+                  :locale="locale"
+                  date-style="full"
+                  time-style="short"
+                />
+              </template>
+            </UBadge>
+          </UFieldGroup>
+          <component
+            :is="event.locationUrl ? 'a' : 'div'"
+            v-if="event.location"
+            :href="event.locationUrl || undefined"
+            :target="event.locationUrl ? '_blank' : undefined"
+            :rel="event.locationUrl ? 'noopener' : undefined"
+          >
+            <UFieldGroup>
+              <UBadge
+                variant="soft"
+                class="text-sm font-semibold"
+                :label="t('detail.where', 'Where?')"
+              />
+              <UBadge
+                variant="soft"
+                size="sm"
+                class="text-sm"
+                :trailing-icon="event.locationUrl ? 'i-lucide-external-link' : undefined"
+                :label="event.location"
+              />
+            </UFieldGroup>
+          </component>
+          <div
+            v-if="event.ticketTypes.length"
+            class="mt-2 md:hidden"
+          >
+            <UButton
+              href="#tickets"
+              size="lg"
+              color="neutral"
+              trailing-icon="i-lucide-ticket"
+              :label="t('detail.tickets.view', 'Show tickets')"
+            />
+          </div>
         </div>
-        <EventTicketPicker
-          :ticket-types="event.ticketTypes"
-          :logged-in="loggedIn"
-          :loading="buying"
-          @purchase="onPurchase"
-        />
+      </UPageHeader>
+
+      <div class="mt-8 grid gap-8 lg:grid-cols-[2fr_1fr]">
+        <!-- Plain text body: markdown rendering is left to the host via the `body` slot. -->
+        <div>
+          <slot
+            name="body"
+            :event="event"
+            :body="translate(event.body ?? event.description, locale)"
+          >
+            <div class="whitespace-pre-line text-muted">
+              {{ translate(event.body ?? event.description, locale) }}
+            </div>
+          </slot>
+        </div>
+        <UPageCard
+          id="tickets"
+          variant="soft"
+          class="self-start scroll-mt-20"
+        >
+          <EventTicketPicker
+            :ticket-types="event.ticketTypes"
+            :logged-in="loggedIn"
+            :loading="buying"
+            @purchase="onPurchase"
+          />
+        </UPageCard>
       </div>
     </template>
     <p
