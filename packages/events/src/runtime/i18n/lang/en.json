@@ -92,6 +92,13 @@
         "label": "Events",
         "description": "Manage events, ticket types and attendees."
       }
+    },
+    "admin": {
+      "tabs": {
+        "details": "Details",
+        "tickets": "Tickets",
+        "attendees": "Attendees"
+      }
     }
   }
 }

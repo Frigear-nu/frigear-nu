@@ -872,6 +872,9 @@ importers:
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users
+      '@frigear-nu/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
