@@ -5,6 +5,8 @@ import { setup, $fetch } from '@nuxt/test-utils/e2e'
 describe('account pages (without @frigear-nu/menu installed)', async () => {
   await setup({
     rootDir: fileURLToPath(new URL('./fixtures/pages-without-menus', import.meta.url)),
+    // Cold builds on shared CI runners can take longer than vitest's 120s default.
+    setupTimeout: 240_000,
   })
 
   it('still renders the profile and security pages', async () => {
