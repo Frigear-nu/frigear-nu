@@ -9,6 +9,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import type { ModuleOptions, NotifyRuntimeConfig } from './types'
+import { defu } from 'defu'
 import { joinURL } from 'ufo'
 
 export type {
@@ -162,18 +163,16 @@ export default defineNuxtModule<ModuleOptions>({
     const emailDriver = options.email?.driver || 'log'
     const emailBuiltin = BUILTIN_EMAIL_DRIVERS.includes(emailDriver)
     const runtimeConfig = nuxt.options.runtimeConfig as { notify?: Partial<NotifyRuntimeConfig> }
-    const existing = runtimeConfig.notify?.email
-    runtimeConfig.notify = {
-      ...runtimeConfig.notify,
+    // `defu` deep-merges, so a partially configured `runtimeConfig.notify` keeps the other defaults.
+    runtimeConfig.notify = defu(runtimeConfig.notify, {
       email: {
         driver: emailBuiltin ? emailDriver : '',
         from: '',
         resend: { apiToken: '' },
         ses: { region: '', accessKeyId: '', secretAccessKey: '', sessionToken: '' },
         cloudflare: { accountId: '', apiToken: '' },
-        ...existing,
       },
-    }
+    })
     registerServerDriver('email-driver', 'EmailDriver', emailBuiltin ? 'auto' : emailDriver, { auto: AUTO_EMAIL_DRIVER })
     registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
     registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
