@@ -71,8 +71,6 @@ const saveType = () => run(async () => {
   await refresh()
 }, t('admin.typeSaved', 'Ticket type saved.'))
 
-const confirmAction = useConfirmDialog()
-
 const removeType = async (ticketType: AdminTicketType) => {
   if (!await confirmAction({ title: t('admin.confirmRemoveType', 'Delete this ticket type?'), confirmText: t('admin.remove', 'Delete'), cancelText: t('admin.cancel', 'Cancel'), destructive: true })) return
   return run(async () => {
