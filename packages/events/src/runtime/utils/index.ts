@@ -66,3 +66,24 @@ export function newId(prefix: string): string {
 export function newTicketCode(): string {
   return `${crypto.randomUUID().replaceAll('-', '')}${crypto.randomUUID().replaceAll('-', '')}`
 }
+
+/**
+ * Variables a ticket type's description can use in MDC (`{{ticket}}`, `{{price}}`, ...).
+ * `ticket` is the ticket's name; the rest describe the same ticket.
+ */
+export function ticketMdcData(
+  type: { name: unknown, price: number, currency: string, hidePrice?: boolean, remaining?: number | null, key?: string },
+  name: string,
+  locale = 'en',
+): Record<string, unknown> {
+  return {
+    ticket: name,
+    name,
+    key: type.key,
+    price: type.price === 0 ? 'Free' : formatPrice(type.price, type.currency, locale),
+    amount: type.price,
+    currency: type.currency,
+    hidePrice: !!type.hidePrice,
+    remaining: type.remaining ?? null,
+  }
+}

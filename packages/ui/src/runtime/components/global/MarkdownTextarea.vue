@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { renderMarkdown } from '../../markdown'
+import { renderMarkdown, withMdcData } from '../../markdown'
 
 const props = defineProps<{
   placeholder?: string
@@ -10,6 +10,8 @@ const props = defineProps<{
   preview?: boolean
   /** Render with MDC (Nuxt Content components like `::callout`) when the host app provides it. */
   mdc?: boolean
+  /** Variables for `{{ name }}` in MDC previews. */
+  mdcData?: Record<string, unknown>
 }>()
 const model = defineModel<string>()
 
@@ -56,7 +58,7 @@ const html = computed(() => renderMarkdown(model.value ?? ''))
       <component
         :is="MdcComponent"
         v-else-if="useMdc"
-        :value="model"
+        :value="withMdcData(model, mdcData)"
       />
       <div
         v-else

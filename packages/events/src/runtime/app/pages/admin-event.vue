@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Translated } from '../../../types'
-import { formatPrice } from '../../utils'
+import { formatPrice, ticketMdcData } from '../../utils'
 
 defineOptions({ name: 'EventsAdminEventPage' })
 
@@ -448,6 +448,8 @@ const attendeeColumns = [
             <TranslatedInput
               v-model="type.description"
               multiline
+              mdc
+              :mdc-data="ticketMdcData({ ...type, price: Math.round(Number(type.price) * 100), currency: 'DKK' }, tr(type.name), locale)"
               :rows="2"
             />
           </UFormField>
