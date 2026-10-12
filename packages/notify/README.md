@@ -104,3 +104,32 @@ function onSuccess() {
 }
 </script>
 ```
+
+## Built-in email drivers: `resend`, `ses`, `cloudflare`
+
+Zero dependencies and zero config beyond environment variables - each driver talks to its provider with plain `fetch`
+(SES requests are signed with AWS SigV4 via Web Crypto). The driver and its credentials are read at **runtime**, so
+you can switch providers per environment without rebuilding:
+
+```bash
+NUXT_NOTIFY_EMAIL_DRIVER=resend   # log (default) | resend | ses | cloudflare
+NUXT_NOTIFY_EMAIL_FROM="Frigear <no-reply@frigear.nu>"
+
+# resend
+NUXT_NOTIFY_EMAIL_RESEND_API_TOKEN=...
+
+# ses (v2 API)
+NUXT_NOTIFY_EMAIL_SES_REGION=eu-west-1
+NUXT_NOTIFY_EMAIL_SES_ACCESS_KEY_ID=...
+NUXT_NOTIFY_EMAIL_SES_SECRET_ACCESS_KEY=...
+NUXT_NOTIFY_EMAIL_SES_SESSION_TOKEN=...   # optional, for temporary credentials
+
+# cloudflare (Email Service)
+NUXT_NOTIFY_EMAIL_CLOUDFLARE_ACCOUNT_ID=...
+NUXT_NOTIFY_EMAIL_CLOUDFLARE_API_TOKEN=...
+```
+
+Setting `notify.email.driver` in `nuxt.config.ts` to one of these names only changes the default; the env var still
+wins. A missing credential fails the send with an error naming the variable to set. Any other `driver` value is still
+treated as a path to a custom `EmailDriver`.
+

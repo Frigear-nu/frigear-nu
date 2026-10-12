@@ -8,7 +8,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import type { ModuleOptions } from './types'
+import type { ModuleOptions, NotifyRuntimeConfig } from './types'
 import { joinURL } from 'ufo'
 
 export type {
@@ -27,6 +27,9 @@ declare module '@nuxt/schema' {
   interface NuxtConfig {
     notify?: ModuleOptions
   }
+  interface RuntimeConfig {
+    notify: NotifyRuntimeConfig
+  }
 }
 
 const BUILTIN_UI_DRIVERS: Record<string, { path: string, exportName: string }> = {
@@ -40,6 +43,11 @@ const BUILTIN_UI_DRIVERS: Record<string, { path: string, exportName: string }> =
 const BUILTIN_SERVER_DRIVERS: Record<string, { path: string, exportName: string }> = {
   log: { path: './runtime/drivers/log', exportName: 'logDriver' },
 }
+
+// Built-in email drivers are all served by one runtime-selecting driver (see
+// `runtime/drivers/email/index.ts`): the env vars that pick and configure them only exist at runtime.
+const BUILTIN_EMAIL_DRIVERS = ['log', 'resend', 'ses', 'cloudflare']
+const AUTO_EMAIL_DRIVER = { path: './runtime/drivers/email/index', exportName: 'default' }
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: '@frigear-nu/notify', configKey: 'notify' },
@@ -117,12 +125,12 @@ export default defineNuxtModule<ModuleOptions>({
     // notification type: it's a deployment concern for the app/consuming layer, not something
     // individual feature modules should each have their own setting for. Only the configured
     // driver's file is ever resolved/loaded - never every built-in driver up front.
-    const registerServerDriver = (name: string, driverType: string, driver: string) => {
+    const registerServerDriver = (name: string, driverType: string, driver: string, builtins = BUILTIN_SERVER_DRIVERS) => {
       const filename = `#notify/${name}`
       const template = addServerTemplate({
         filename,
         getContents: async () => {
-          const builtin = BUILTIN_SERVER_DRIVERS[driver]
+          const builtin = builtins[driver]
           if (builtin) {
             return `export { ${builtin.exportName} as default } from ${JSON.stringify(await resolver.resolvePath(builtin.path))}`
           }
@@ -149,7 +157,24 @@ export default defineNuxtModule<ModuleOptions>({
       }, { nitro: true, nuxt: true })
     }
 
-    registerServerDriver('email-driver', 'EmailDriver', options.email?.driver ?? 'log')
+    // Email: a built-in name only seeds the runtime default (overridable via NUXT_NOTIFY_EMAIL_DRIVER);
+    // anything else is a path to a custom driver, fixed at build time as before.
+    const emailDriver = options.email?.driver || 'log'
+    const emailBuiltin = BUILTIN_EMAIL_DRIVERS.includes(emailDriver)
+    const runtimeConfig = nuxt.options.runtimeConfig as { notify?: Partial<NotifyRuntimeConfig> }
+    const existing = runtimeConfig.notify?.email
+    runtimeConfig.notify = {
+      ...runtimeConfig.notify,
+      email: {
+        driver: emailBuiltin ? emailDriver : '',
+        from: '',
+        resend: { apiToken: '' },
+        ses: { region: '', accessKeyId: '', secretAccessKey: '', sessionToken: '' },
+        cloudflare: { accountId: '', apiToken: '' },
+        ...existing,
+      },
+    }
+    registerServerDriver('email-driver', 'EmailDriver', emailBuiltin ? 'auto' : emailDriver, { auto: AUTO_EMAIL_DRIVER })
     registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
     registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
 
