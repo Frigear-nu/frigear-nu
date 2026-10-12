@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-export const translated = z.union([z.string().min(1), z.record(z.string(), z.string())])
+// One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
+export const translated = z.union([
+  z.string().min(1),
+  z.record(z.string(), z.string())
+    .transform(value => Object.fromEntries(Object.entries(value).filter(([, text]) => text.trim())))
+    .refine(value => Object.keys(value).length > 0, 'Add a text in at least one language.'),
+])
 export const membership = z.union([z.literal('any'), z.array(z.string().min(1))]).nullable()
 const date = z.coerce.date()
 
@@ -44,7 +50,7 @@ export const eventInput = z.object({
   description: translated.nullish(),
   body: translated.nullish(),
   image: z.string().nullish(),
-  location: z.string().nullish(),
+  location: translated.nullish(),
   locationUrl: z.string().nullish(),
   startsAt: date,
   endsAt: date.nullish(),

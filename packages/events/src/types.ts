@@ -81,7 +81,7 @@ export type EventSummaryDto = {
   name: Translated
   description: Translated | null
   image: string | null
-  location: string | null
+  location: Translated | null
   startsAt: string
   endsAt: string | null
   requiresMembership: MembershipRequirement
@@ -98,6 +98,8 @@ export type PurchaseBody = {
   addonIds?: string[]
   successUrl?: string
   cancelUrl?: string
+  /** The buyer's site language (e.g. `da`), kept on the ticket so later mails and Stripe texts use it. */
+  locale?: string
 }
 
 export type PurchaseResponse = {
@@ -123,6 +125,8 @@ export type TicketDto = {
   code: string | null
   checkedInAt: string | null
   createdAt: string
+  /** Language the buyer was browsing in when buying, for localised mails; `null` for tickets bought before it was kept. */
+  locale: string | null
 }
 
 export type CheckInResponse = {

@@ -98,6 +98,24 @@ describe('events (authenticated, database-backed)', async () => {
       expect((await getStripeCalls()).some(call => call.path === '/v1/checkout/sessions')).toBe(false)
     })
 
+    it('keeps translated texts (location included) and the buyer language', async () => {
+      const event = await createEvent(
+        { location: { da: 'Haven', en: 'The garden', de: '' }, body: { en: 'Details' } },
+        [{ key: 'free', name: { en: 'Free entry', da: 'Gratis' } }],
+      )
+      const shown = await detail(event.slug)
+      // Empty languages are dropped; a plain location string (older rows) still reads as a string.
+      expect(shown.location).toEqual({ da: 'Haven', en: 'The garden' })
+      const plain = await createEvent({ location: 'Plain street 1' })
+      expect((await detail(plain.slug)).location).toBe('Plain street 1')
+      expect((await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: 'blank-name', name: { en: ' ' }, startsAt: future(48) })).status).toBe(400)
+
+      const buyer = await user('Lang')
+      const result = await ok(await json(buyer.cookie, 'POST', `/api/events/${event.slug}/purchase`, { ticketTypeId: shown.ticketTypes[0].id, locale: 'da' }))
+      expect(result.ticket.locale).toBe('da')
+      expect((await json(buyer.cookie, 'POST', `/api/events/${event.slug}/purchase`, { ticketTypeId: shown.ticketTypes[0].id, locale: '<script>' })).status).toBe(400)
+    })
+
     it('charges ticket + addon through payments, and only turns paid on the Stripe event', async () => {
       const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, addonGroups: [food] }])
       const type = (await detail(event.slug)).ticketTypes[0]

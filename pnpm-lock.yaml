@@ -772,6 +772,9 @@ importers:
       '@frigear-nu/subscriptions':
         specifier: workspace:*
         version: link:../subscriptions
+      '@frigear-nu/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users

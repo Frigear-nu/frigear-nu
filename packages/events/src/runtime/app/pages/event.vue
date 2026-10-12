@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { translate } from '../../utils'
-
 const t = useModuleT('events')
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 const { loggedIn } = useUserSession()
 const { event, status, error, purchase, refresh } = useEvent(slug)
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 const toast = useToast()
 
 if (error.value?.statusCode === 404) {
@@ -48,7 +47,7 @@ onMounted(async () => {
 })
 
 const ticketsPath = useRuntimeConfig().public.events?.pages?.tickets
-useSeoMeta({ title: () => (event.value ? translate(event.value.name, locale.value) : 'Event') })
+useSeoMeta({ title: () => (event.value ? tr(event.value.name) : 'Event') })
 defineOptions({ name: 'EventDetailPage' })
 </script>
 
@@ -99,12 +98,12 @@ defineOptions({ name: 'EventDetailPage' })
       <img
         v-if="event.image"
         :src="event.image"
-        :alt="translate(event.name, locale)"
+        :alt="tr(event.name)"
         class="mb-6 aspect-[3/1] w-full rounded-lg object-cover"
       >
       <UPageHeader
-        :title="translate(event.name, locale)"
-        :description="translate(event.description, locale)"
+        :title="tr(event.name)"
+        :description="tr(event.description)"
         :ui="{ title: 'text-3xl sm:text-4xl' }"
       >
         <div class="mt-2 flex flex-col gap-2">
@@ -154,7 +153,7 @@ defineOptions({ name: 'EventDetailPage' })
                 size="sm"
                 class="text-sm"
                 :trailing-icon="event.locationUrl ? 'i-lucide-external-link' : undefined"
-                :label="event.location"
+                :label="tr(event.location)"
               />
             </UFieldGroup>
           </component>
@@ -179,10 +178,10 @@ defineOptions({ name: 'EventDetailPage' })
           <slot
             name="body"
             :event="event"
-            :body="translate(event.body ?? event.description, locale)"
+            :body="tr(event.body ?? event.description)"
           >
             <div class="whitespace-pre-line text-muted">
-              {{ translate(event.body ?? event.description, locale) }}
+              {{ tr(event.body ?? event.description) }}
             </div>
           </slot>
         </div>

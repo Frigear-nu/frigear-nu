@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Translated } from '../../../types'
-import { translate } from '../../utils'
 
 defineOptions({ name: 'EventsAdminPage' })
 
-type AdminEvent = { id: string, slug: string, name: Translated, status: 'draft' | 'published' | 'archived', startsAt: string, location: string | null }
+type AdminEvent = { id: string, slug: string, name: Translated, status: 'draft' | 'published' | 'archived', startsAt: string, location: Translated | null }
 
 const t = useModuleT('events')
 const toast = useToast()
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 const pages = useRuntimeConfig().public.events?.pages
 const { data: events, refresh } = await useFetch<AdminEvent[]>('/api/events/admin/events', { default: () => [] })
 
@@ -17,18 +17,20 @@ const when = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyl
 const statusColor = { draft: 'neutral', published: 'success', archived: 'warning' } as const
 
 const columns = [
-  { accessorKey: 'name', header: t('admin.name', 'Name'), cell: ({ row }: { row: { original: AdminEvent } }) => translate(row.original.name, locale.value) },
+  { accessorKey: 'name', header: t('admin.name', 'Name'), cell: ({ row }: { row: { original: AdminEvent } }) => tr(row.original.name) },
   { accessorKey: 'status', header: t('admin.status', 'Status') },
   { accessorKey: 'startsAt', header: t('admin.starts', 'Starts'), cell: ({ row }: { row: { original: AdminEvent } }) => when(row.original.startsAt) },
-  { accessorKey: 'location', header: t('admin.location', 'Location') },
+  { accessorKey: 'location', header: t('admin.location', 'Location'), cell: ({ row }: { row: { original: AdminEvent } }) => tr(row.original.location) },
 ]
 
 const creating = ref(false)
 const saving = ref(false)
-const draft = reactive({ name: '', slug: '', startsAt: '', location: '' })
+const draft = reactive({ name: undefined as Translated | undefined, slug: '', startsAt: '', location: undefined as Translated | undefined })
 
 const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-watch(() => draft.name, (name, previous) => {
+// The URL name follows the name (in the current locale) until it is edited by hand.
+const draftName = computed(() => tr(draft.name))
+watch(draftName, (name, previous) => {
   if (draft.slug === slugify(previous)) draft.slug = slugify(name)
 })
 
@@ -93,9 +95,8 @@ async function create() {
           @submit.prevent="create"
         >
           <UFormField :label="t('admin.name', 'Name')">
-            <UInput
+            <TranslatedInput
               v-model="draft.name"
-              class="w-full"
               required
             />
           </UFormField>
@@ -119,10 +120,7 @@ async function create() {
             />
           </UFormField>
           <UFormField :label="t('admin.location', 'Location')">
-            <UInput
-              v-model="draft.location"
-              class="w-full"
-            />
+            <TranslatedInput v-model="draft.location" />
           </UFormField>
           <div class="flex justify-end gap-2">
             <UButton
@@ -133,6 +131,7 @@ async function create() {
             <UButton
               type="submit"
               :loading="saving"
+              :disabled="!draftName"
               :label="t('admin.createAction', 'Create draft')"
             />
           </div>
