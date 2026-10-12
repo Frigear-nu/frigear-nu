@@ -2,14 +2,16 @@
 import { collapseTranslated, expandTranslated, filledLocales, isLocaleCode, readTranslated, translate, writeTranslated } from '../../translated'
 import type { Translated } from '../../translated'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   placeholder?: string
   /** Edit as a textarea (descriptions, markdown bodies). */
   multiline?: boolean
   rows?: number
+  /** Write / Preview toggle for multiline text (markdown). Defaults on. */
+  preview?: boolean
   required?: boolean
   disabled?: boolean
-}>()
+}>(), { preview: true })
 
 /** Either one string for every language, or a map of locale -> text. `undefined` / `null` = empty. */
 const model = defineModel<Translated | null | undefined>()
@@ -56,13 +58,14 @@ function setLocale(locale: string, text: string) {
       v-if="!translated"
       class="flex items-start gap-1"
     >
-      <UTextarea
+      <MarkdownTextarea
         v-if="props.multiline"
         :model-value="readTranslated(model, current)"
         :placeholder="placeholder"
         :rows="rows ?? 4"
         :required="required"
         :disabled="disabled"
+        :preview="preview"
         class="min-w-0 flex-1"
         @update:model-value="setPlain(String($event))"
       />
@@ -104,12 +107,13 @@ function setLocale(locale: string, text: string) {
           :title="filled.has(locale) ? t('filled', 'Translated') : t('missing', 'Missing, shows the fallback language')"
           :label="locale"
         />
-        <UTextarea
+        <MarkdownTextarea
           v-if="props.multiline"
           :model-value="readTranslated(model, locale)"
           :placeholder="fallbackText(locale) || placeholder"
           :rows="rows ?? 3"
           :disabled="disabled"
+          :preview="preview"
           class="min-w-0 flex-1"
           @update:model-value="setLocale(locale, String($event))"
         />

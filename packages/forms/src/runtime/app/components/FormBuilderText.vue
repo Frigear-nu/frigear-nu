@@ -3,10 +3,12 @@ import type { Translated } from '../../../types'
 import { collapseTranslated, expandTranslated, readTranslated } from '../../utils'
 import { useFormsLocale, useFormsLocales } from '../composables/useForms'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   placeholder?: string
   multiline?: boolean
-}>()
+  /** Write / Preview toggle for multiline text (markdown). */
+  preview?: boolean
+}>(), { preview: true })
 /** Either one string for every language, or a map of locale → text. */
 const model = defineModel<Translated | undefined>()
 
@@ -48,11 +50,12 @@ function setLocale(locale: string, text: string) {
       v-if="!translated"
       class="flex items-start gap-1"
     >
-      <UTextarea
+      <MarkdownTextarea
         v-if="multiline"
         :model-value="readTranslated(model, current)"
         :placeholder="placeholder"
         :rows="4"
+        :preview="props.preview"
         class="min-w-0 flex-1"
         @update:model-value="setPlain(String($event))"
       />
@@ -89,11 +92,12 @@ function setLocale(locale: string, text: string) {
           class="mt-1.5 w-8 justify-center uppercase"
           :label="locale"
         />
-        <UTextarea
+        <MarkdownTextarea
           v-if="multiline"
           :model-value="readTranslated(model, locale)"
           :placeholder="placeholder"
           :rows="3"
+          :preview="props.preview"
           class="min-w-0 flex-1"
           @update:model-value="setLocale(locale, String($event))"
         />
