@@ -58,6 +58,24 @@ async function runImport() {
 }
 
 const statusColor = { draft: 'neutral', published: 'success', archived: 'warning' } as const
+
+const statuses = ['published', 'draft', 'archived'] as const
+const tab = ref<typeof statuses[number]>('published')
+const search = ref('')
+
+const tabs = computed(() => statuses.map(status => ({
+  value: status,
+  label: t(`status.${status}`, status),
+  badge: (forms.value ?? []).filter(form => form.status === status).length,
+})))
+
+const visibleForms = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return (forms.value ?? []).filter(form =>
+    form.status === tab.value
+    && (!query || form.name.toLowerCase().includes(query) || form.slug.toLowerCase().includes(query)),
+  )
+})
 </script>
 
 <template>
@@ -92,12 +110,35 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
       :title="t('admin.empty', 'No forms yet.')"
     />
 
-    <div
-      v-else
-      class="divide-y divide-default rounded-lg border border-default"
-    >
+    <template v-else>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <UTabs
+          v-model="tab"
+          :items="tabs"
+          :content="false"
+          class="w-auto"
+        />
+        <UInput
+          v-model="search"
+          class="w-full sm:w-72"
+          icon="i-lucide-search"
+          :placeholder="t('admin.search', 'Search forms')"
+          :aria-label="t('admin.search', 'Search forms')"
+        />
+      </div>
+
+      <UEmpty
+        v-if="!visibleForms.length"
+        icon="i-lucide-search-x"
+        :title="t('admin.noMatches', 'No forms match.')"
+      />
+
       <div
-        v-for="form in forms"
+        v-else
+        class="divide-y divide-default rounded-lg border border-default"
+      >
+      <div
+        v-for="form in visibleForms"
         :key="form.id"
         class="flex flex-wrap items-center justify-between gap-3 p-4"
       >
@@ -149,7 +190,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
           />
         </div>
       </div>
-    </div>
+      </div>
+    </template>
 
     <UModal
       v-model:open="creating"
