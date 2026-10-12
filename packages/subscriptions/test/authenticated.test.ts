@@ -43,7 +43,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true })
+  await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   describe('webhook handlers', () => {
     it('inserts a subscription for a known user, resolving the plan by lookup key', async () => {

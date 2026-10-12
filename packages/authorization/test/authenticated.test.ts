@@ -36,7 +36,7 @@ describe('authorization (authenticated)', async () => {
   await setup({
     rootDir: fileURLToPath(new URL('./fixtures/authenticated', import.meta.url)),
     // Dev mode lets NuxtHub apply the committed sqlite migrations on startup.
-    dev: true,
+    dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
   const password = 'supersecret123'

@@ -128,5 +128,5 @@ jobs:
       - name: Test
         env:
           TURBO_TELEMETRY_DISABLED: 1
-        run: pnpm exec turbo run test ${{ needs.changes.outputs.filter }} --concurrency=2 --cache-dir=.turbo
+        run: pnpm exec turbo run test ${{ needs.changes.outputs.filter }} --concurrency=4 --cache-dir=.turbo
 

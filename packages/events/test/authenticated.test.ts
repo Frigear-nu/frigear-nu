@@ -27,7 +27,7 @@ describe('events (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true })
+  await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   let staff: Session
   const user = async (name: string) => registerUser(name, `${name.toLowerCase()}${++counter}@example.com`)

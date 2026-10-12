@@ -26,7 +26,7 @@ describe('cookie-consent persisted on the user', async () => {
   await setup({
     rootDir: fileURLToPath(new URL('./fixtures/authenticated', import.meta.url)),
     // dev mode lets NuxtHub apply the committed sqlite migrations (incl. the consent columns).
-    dev: true,
+    dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
   it('requires a session', async () => {

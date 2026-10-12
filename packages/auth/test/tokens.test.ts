@@ -34,7 +34,7 @@ describe('auth tokens', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir: fixture, dev: true })
+  await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   let ada: string
   let bo: string

@@ -32,7 +32,7 @@ describe('magic links & email verification (database)', async () => {
   process.env.TEST_MAIL_FILE = mailFile
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir: fixture, dev: true })
+  await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   const credentials = { name: 'Ada', email: 'ada@example.com', password: 'supersecret123' }
 

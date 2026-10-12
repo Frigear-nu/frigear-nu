@@ -24,7 +24,7 @@ describe('account routes (authenticated)', async () => {
     rootDir: fileURLToPath(new URL('./fixtures/authenticated', import.meta.url)),
     // Running in dev mode lets NuxtHub apply the committed sqlite migrations on startup, so the
     // registered session/db flow can be exercised end-to-end against a real (local) database.
-    dev: true,
+    dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
   it('updates the profile for the logged-in user', async () => {
