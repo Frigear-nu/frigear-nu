@@ -1,6 +1,7 @@
 import type Stripe from 'stripe'
 import type { H3Event } from 'h3'
 import { kv } from '@nuxthub/kv'
+import { isWithinDisabledRanges } from '../../utils/plans'
 import type { PlanPrice, PlanPriceRef, PlansFilterContext, ResolvedPlan } from '../../../types'
 
 const CACHE_TTL_SECONDS = 60 * 5
@@ -69,6 +70,7 @@ export async function getResolvedPlans(): Promise<ResolvedPlan[]> {
         key,
         label: plan.label ?? key,
         ...(plan.description ? { description: plan.description } : {}),
+        ...(plan.features?.length ? { features: plan.features } : {}),
         rank: plan.rank,
         prices: resolved,
       }
@@ -81,7 +83,27 @@ export async function getResolvedPlans(): Promise<ResolvedPlan[]> {
 
 /** Resolved plans passed through the `subscriptions:plans:filter` policy hook. */
 export async function getAvailablePlans(event?: H3Event): Promise<ResolvedPlan[]> {
-  const ctx: PlansFilterContext = { event, plans: structuredClone(await getResolvedPlans()) }
+  const config = useRuntimeConfig().subscriptions?.plans ?? {}
+  let plans = structuredClone(await getResolvedPlans())
+
+  // Seasonal plans: hidden for new subscribers inside a disabled range; subscribers keep seeing everything.
+  if (Object.values(config).some(plan => plan.availability?.disabledRanges?.length)) {
+    const subscriber = await isSubscriber(event)
+    if (!subscriber) {
+      const now = new Date()
+      plans = plans.filter(plan => !isWithinDisabledRanges(config[plan.key]?.availability?.disabledRanges, now))
+    }
+  }
+
+  const ctx: PlansFilterContext = { event, plans }
   await useNitroApp().hooks.callHook('subscriptions:plans:filter', ctx)
   return ctx.plans
+}
+
+async function isSubscriber(event?: H3Event) {
+  if (!event) return false
+  const session = await getUserSession(event).catch(() => null)
+  const userId = session?.user?.id
+  if (userId === undefined || userId === null) return false
+  return !!(await getUserSubscription(Number(userId)))
 }

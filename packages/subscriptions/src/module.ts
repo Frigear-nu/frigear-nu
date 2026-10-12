@@ -34,7 +34,9 @@ export type {
   CheckoutResponse,
   MeResponse,
   ModuleOptions,
+  PlanAvailability,
   PlanConfig,
+  PlanDisabledRange,
   PlanPrice,
   PlanPriceRef,
   PlansFilterContext,
@@ -125,12 +127,14 @@ export default defineNuxtModule<ModuleOptions>({
         label: plan.label,
         description: plan.description,
         rank: plan.rank,
+        features: plan.features,
+        availability: plan.availability,
       }])),
     }
     nuxt.options.runtimeConfig.public.subscriptions = {
       pages: { membership: membershipPath, success: successPath, cancel: cancelPath },
       plans: planEntries
-        .map(([key, plan]) => ({ key, label: plan.label ?? key, description: plan.description, rank: plan.rank }))
+        .map(([key, plan]) => ({ key, label: plan.label ?? key, description: plan.description, rank: plan.rank, features: plan.features }))
         .sort((a, b) => a.rank - b.rank),
       allowChangeInPortal: settings.allowChangeInPortal === true,
     }

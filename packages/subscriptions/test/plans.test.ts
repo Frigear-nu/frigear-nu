@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideChangeKind, isEntitledRow, resolvePlanKey, resolveSameOriginUrl } from '../src/runtime/utils/plans'
+import { decideChangeKind, isEntitledRow, isWithinDisabledRanges, resolvePlanKey, resolveSameOriginUrl } from '../src/runtime/utils/plans'
 
 describe('decideChangeKind', () => {
   it('upgrades when the target rank is higher', () => {
@@ -62,5 +62,20 @@ describe('isEntitledRow', () => {
     expect(isEntitledRow({ ...base, source: 'manual', currentPeriodEnd: future }, undefined, now)).toBe(true)
     expect(isEntitledRow({ ...base, source: 'manual' }, undefined, now)).toBe(true)
     expect(isEntitledRow({ ...base, source: 'stripe', currentPeriodEnd: past }, undefined, now)).toBe(true)
+  })
+})
+
+describe('isWithinDisabledRanges', () => {
+  const now = new Date('2026-07-15T12:00:00Z')
+  it('is true inside a range (inclusive) and false outside', () => {
+    expect(isWithinDisabledRanges([{ from: '2026-07-01', to: '2026-08-31' }], now)).toBe(true)
+    expect(isWithinDisabledRanges([{ from: '2026-08-01', to: '2026-08-31' }], now)).toBe(false)
+  })
+  it('replaces {fullYear} with the current year', () => {
+    expect(isWithinDisabledRanges([{ from: '{fullYear}-07-01', to: '{fullYear}-07-31' }], now)).toBe(true)
+  })
+  it('ignores unparseable ranges and empty input', () => {
+    expect(isWithinDisabledRanges([{ from: 'nope', to: 'nah' }], now)).toBe(false)
+    expect(isWithinDisabledRanges(undefined, now)).toBe(false)
   })
 })
