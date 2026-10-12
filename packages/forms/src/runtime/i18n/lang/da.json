@@ -57,6 +57,8 @@
       "import": "Importér",
       "edit": "Rediger",
       "create": "Opret",
+      "copyLink": "Kopiér link",
+      "linkCopied": "Link kopieret.",
       "save": "Gem",
       "saved": "Gemt.",
       "name": "Navn",

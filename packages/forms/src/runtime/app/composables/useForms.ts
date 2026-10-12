@@ -74,5 +74,28 @@ export function useFormsPaths() {
     Object.entries(params).reduce((path, [key, value]) => path.replace(`:${key}`, encodeURIComponent(value)), pages[name] ?? DEFAULT_PATHS[name])
 }
 
+/** Absolute public address of a form and a clipboard copier; `enabled` is false when the form page route is off. */
+export function useFormLink() {
+  const paths = useFormsPaths()
+  const origin = useRequestURL().origin
+  const toast = useToast()
+  const t = useModuleT('forms')
+  const pages = (useRuntimeConfig().public.forms as { pages?: { form?: string } } | undefined)?.pages
+  const enabled = computed(() => !!pages?.form)
+  const url = (slug: string) => `${origin}${paths('form', { slug })}`
+
+  async function copy(slug: string) {
+    try {
+      await navigator.clipboard.writeText(url(slug))
+      toast.add({ title: t('admin.linkCopied', 'Link copied.'), color: 'success' })
+    }
+    catch {
+      toast.add({ title: t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
+    }
+  }
+
+  return { enabled, url, copy }
+}
+
 /** Label of a field in the given locale, falling back to its key. */
 export const fieldLabel = (field: FormField, locale: string) => translate(field.label, locale) || field.key

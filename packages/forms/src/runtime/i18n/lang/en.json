@@ -57,6 +57,8 @@
       "import": "Import",
       "edit": "Edit",
       "create": "Create",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied.",
       "save": "Save",
       "saved": "Saved.",
       "name": "Name",

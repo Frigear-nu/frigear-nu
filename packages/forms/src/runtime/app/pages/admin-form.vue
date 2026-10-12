@@ -6,6 +6,7 @@ const t = useModuleT('forms')
 const route = useRoute()
 const paths = useFormsPaths()
 const toast = useToast()
+const link = useFormLink()
 const id = computed(() => String(route.params.id))
 const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`)
 
@@ -95,6 +96,14 @@ async function save() {
           </h1>
         </div>
         <div class="flex gap-2">
+          <UButton
+            v-if="form.status === 'published' && link.enabled.value"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-link"
+            :label="t('admin.copyLink', 'Copy link')"
+            @click="link.copy(form.slug)"
+          />
           <UButton
             v-if="form.definition.storage === 'db'"
             color="neutral"
