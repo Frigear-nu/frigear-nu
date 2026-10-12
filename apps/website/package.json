@@ -19,6 +19,7 @@
   "dependencies": {
     "@frigear-nu/account": "workspace:*",
     "@frigear-nu/admin": "workspace:*",
+    "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/authorization": "workspace:*",
     "@frigear-nu/base": "workspace:*",
     "@frigear-nu/cookie-consent": "workspace:*",

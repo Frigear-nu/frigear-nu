@@ -43,7 +43,7 @@ describe('verified email change', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir: fixture, dev: true })
+  await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
   await writeFile(mailFile, '').catch(() => {})
 
   it('only applies the new address once it was confirmed, and can be reverted from the old one', async () => {

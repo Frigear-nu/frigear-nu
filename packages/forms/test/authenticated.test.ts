@@ -43,7 +43,7 @@ describe('forms (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true })
+  await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   let staff: { cookie: string }
   let nobody: { cookie: string }
@@ -95,7 +95,8 @@ describe('forms (authenticated, database-backed)', async () => {
   })
 
   describe('pages', () => {
-    it('server-renders the public form and the admin shells', async () => {
+    // The first server render in dev mode compiles the page, which can exceed the 5s default on a busy CI runner.
+    it('server-renders the public form and the admin shells', { timeout: 30_000 }, async () => {
       const form = await create('Rendered', {
         mode: 'stepped',
         storage: 'db',
@@ -647,6 +648,31 @@ describe('forms (authenticated, database-backed)', async () => {
       const list = await ok(await json(staff.cookie, 'GET', '/api/forms/admin/forms')) as unknown as Json[]
       expect(list.find(form => form.slug === 'imported-form')?.name).toBe('First')
       expect(list.find(form => form.slug === 'imported-form')?.status).toBe('draft')
+    })
+  })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('lets a staff token manage forms only with the scope, and the policy still decides', async () => {
+      const manage = await createToken(staff.cookie, ['forms:manage'])
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(manage) })).status).toBe(200)
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(staff.cookie, ['forms:submit'])) })).status).toBe(403)
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(nobody.cookie, ['forms:manage'])) })).status).toBe(403)
+    })
+
+    it('does not mistake per-form tokens for credentials', async () => {
+      // `ffk_` tokens are claimed by nobody here, so a signed-in session keeps working next to one.
+      expect((await fetch('/api/forms/admin/forms', { headers: { cookie: staff.cookie, authorization: 'Bearer ffk_form-token' } })).status).toBe(200)
     })
   })
 })

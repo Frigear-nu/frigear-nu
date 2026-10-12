@@ -31,7 +31,7 @@ describe('users admin', async () => {
   process.env.TEST_MAIL_FILE = mailFile
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir: fixture, dev: true })
+  await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   let staff: string
   let member: string

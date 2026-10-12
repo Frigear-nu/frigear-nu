@@ -29,6 +29,13 @@ describe('account pages (opt-in, with menus installed)', async () => {
     expect(html).toContain('/assets/handbook.docx')
   })
 
+  it('renders the API tokens page and lists it on the dashboard', async () => {
+    const html = await $fetch('/account/api-tokens')
+    expect(html).toContain('Create an API token')
+    expect(html).toContain('Your tokens')
+    expect(await $fetch('/account')).toContain('API tokens')
+  })
+
   it('shows a Documents tile on the dashboard', async () => {
     expect(await $fetch('/account')).toContain('Documents')
   })

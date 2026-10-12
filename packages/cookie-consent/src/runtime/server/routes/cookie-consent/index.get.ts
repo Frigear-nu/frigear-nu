@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const [row] = await db.select({
     acceptedAt: schema.users.cookieConsentAcceptedAt,
     version: schema.users.cookieConsentVersion,

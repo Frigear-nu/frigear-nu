@@ -47,6 +47,19 @@ export default defineMenuSource(() => {
     })
   }
 
+  if (config?.pages?.apiTokens) {
+    extendMenuItem('account', {
+      id: 'api-tokens',
+      label: 'API tokens',
+      labelKey: 'account.menu.apiTokens.label',
+      description: 'Create tokens for scripts and tools.',
+      descriptionKey: 'account.menu.apiTokens.description',
+      icon: 'i-lucide-key-round',
+      to: config.pages.apiTokens,
+      order: 25,
+    })
+  }
+
   if (config?.pages?.documents) {
     extendMenuItem('account', {
       id: 'documents',

@@ -42,6 +42,9 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/auth': {
+      version: '>=0.0.1',
+    },
     '@frigear-nu/users': {
       version: '>=0.0.1',
     },

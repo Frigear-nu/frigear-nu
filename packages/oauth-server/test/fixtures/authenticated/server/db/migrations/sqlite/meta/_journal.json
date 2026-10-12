@@ -15,6 +15,13 @@
       "when": 1791746365533,
       "tag": "0001_add_user_verification_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791812840638,
+      "tag": "0002_auth_user_tokens",
+      "breakpoints": true
     }
   ]
 }

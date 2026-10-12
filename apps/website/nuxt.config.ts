@@ -16,6 +16,7 @@ export default defineNuxtConfig({
     'nuxt-qrcode',
     '@frigear-nu/ui',
     '@frigear-nu/menu',
+    '@frigear-nu/auth',
     '@frigear-nu/users',
     '@frigear-nu/authorization',
     '@frigear-nu/widget',
@@ -186,7 +187,7 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true, documents: true },
+      pages: { index: true, profile: true, security: true, documents: true, apiTokens: true },
       // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
       // assets under public/, so anyone with the URL can fetch them (as before).
       documents: [

@@ -5,13 +5,13 @@ Guidance for AI coding agents (and humans) working in this repository.
 ## Repo layout
 
 ```
-/apps/web         Nuxt 4.5 application (the product)
+/apps/website     Nuxt 4.5 application (the product)
 /apps/docs        Nuxt 4.5 / docus.dev documentation site (this repo's docs)
 /apps/**          Other Apps - could be any language or deployment target.
 /packages/**      Shared workspace packages (ui, config, types, utils, etc.)
 ```
 
-This is a pnpm workspace monorepo. Packages under `packages/**` are consumed by `apps/web` (and each other) via
+This is a pnpm workspace monorepo. Packages under `packages/**` are consumed by `apps/website` (and each other) via
 workspace protocol dependencies (`"@scope/name": "workspace:*"`). Assume pnpm unless a package's own README says
 otherwise — adjust commands accordingly if this repo actually uses npm/yarn.
 
@@ -79,10 +79,10 @@ up any workspace-shared packages (`packages/**`) it needs as `workspace:*` depen
 ## Common commands
 
 ```bash
-pnpm dev                        # start apps/web dev server
-pnpm --filter ./apps/web dev          # same, explicit filter
+pnpm dev                        # start apps/website dev server
+pnpm --filter ./apps/website dev          # same, explicit filter
 pnpm build                      # build all workspaces
-pnpm --filter ./apps/web build        # build only the web app
+pnpm --filter ./apps/website build        # build only the web app
 pnpm --filter '<pkg-name>' build      # build a single package (name = "name" field in its package.json)
 pnpm typecheck                  # nuxi typecheck / tsc across workspaces
 pnpm lint                       # eslint across workspaces
@@ -100,11 +100,11 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 ---
 
-## `apps/web` (Nuxt 4.5)
+## `apps/website` (Nuxt 4.5)
 
-- Uses the Nuxt 4 directory structure: source lives under `apps/web/app/`
+- Uses the Nuxt 4 directory structure: source lives under `apps/website/app/`
   (`app/components`, `app/composables`, `app/pages`, `app/layouts`,
-  `app/middleware`, `app/utils`). Server code (event handlers, server-only utils) lives in `apps/web/server/`. Don't
+  `app/middleware`, `app/utils`). Server code (event handlers, server-only utils) lives in `apps/website/server/`. Don't
   recreate the old Nuxt 3 top-level `components/`, `pages/`, etc. folders outside `app/`.
 - `nuxt.config.ts` is the source of truth for modules, runtime config, and aliases — check it before assuming a module
   or alias exists.
@@ -121,7 +121,7 @@ manually — check before assuming plain pnpm scripts are the only path.
 ## `apps/docs` (Docus.dev & Nuxt 4.5)
 
 - This app documents this entire repository - mainly for use as a technical documentation for developers that build on top of the ecosystem within `@frigear`
-  documentation site for the product in `apps/web` — that belongs in `apps/web` itself.
+  documentation site for the product in `apps/website` — that belongs in `apps/website` itself.
 - Uses the Nuxt 4 directory structure: source lives under `apps/docs/app/`
   (`app/components`, `app/composables`, `app/pages`, `app/layouts`,
   `app/middleware`, `app/utils`). Server code (event handlers, server-only utils) lives in `apps/docs/server/`. Don't
@@ -134,20 +134,32 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 - Each package is independently publishable/consumable: it must have its own `package.json` with a `name`, `main`/
   `exports`, and `types` field. Don't add code to a package without checking its `exports` map — unexported files aren't
-  reachable from `apps/web`.
+  reachable from `apps/website`.
 - Keep packages framework-agnostic where possible. Nuxt-specific glue (Vue composables that need Nuxt context, Nuxt
-  modules) belongs in a clearly named package (e.g. `packages/nuxt-*`) or directly in `apps/web`, not mixed into generic
+  modules) belongs in a clearly named package (e.g. `packages/nuxt-*`) or directly in `apps/website`, not mixed into generic
   utility packages.
 - When you change a package's public API, check for consumers with:
   ```bash
   pnpm -r exec grep -l "@scope/<pkg-name>" package.json
   ```
-  and update `apps/web` (and any other consuming package) in the same change.
-- Build packages before relying on their compiled output in `apps/web` if the workspace resolves compiled (not source)
+  and update `apps/website` (and any other consuming package) in the same change.
+- Build packages before relying on their compiled output in `apps/website` if the workspace resolves compiled (not source)
   output — check whether
-  `apps/web`'s Vite/Nuxt config aliases packages to `src` or to `dist`.
+  `apps/website`'s Vite/Nuxt config aliases packages to `src` or to `dist`.
 - New packages: match the existing structure of a sibling package (tsconfig, build tool, test setup) rather than
   introducing a new toolchain.
+
+### Authentication in server routes
+
+- Authenticate server routes with `requireUser(event, { scopes?, sessionOnly? })` from `@frigear-nu/auth`, not with
+  nuxt-auth-utils' `requireUserSession`. It resolves cookie sessions, user API tokens and OAuth access tokens into one
+  user. `getUserSession` is only for flows that are session by nature (login, logout, OAuth consent).
+- Anything that changes who the user is or how they sign in (password, email, passkeys, API tokens, billing portal,
+  admin) must pass `sessionOnly: true`. Register the scopes a module understands with `addAuthScope`.
+- Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
+  the session is empty for bearer requests.
+- A module that adds routes using `requireUser` needs `@frigear-nu/auth` in its `moduleDependencies` and in
+  `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
 
 ### Database extensions and authenticated test fixtures
 
@@ -187,15 +199,15 @@ manually — check before assuming plain pnpm scripts are the only path.
    errors
 
 Don't skip the workspace-wide typecheck/build even for small changes — a package's type or export change can silently
-break `apps/web`.
+break `apps/website`.
 
 **Never commit generated or dependency files.** The following are always excluded via `.gitignore` and must never be
 staged or committed e.g:
 
 - `node_modules/` (root and any sub-package)
-- `apps/web/.nuxt/` — Nuxt generated types and build cache
-- `apps/web/.output/` — production build output
-- `apps/web/.data/` — local NuxtHub/D1 database files
+- `apps/website/.nuxt/` — Nuxt generated types and build cache
+- `apps/website/.output/` — production build output
+- `apps/website/.data/` — local NuxtHub/D1 database files
 - `dist/` — compiled package output
 
 If you run `pnpm install` or `nuxi prepare` as part of your work, make sure none of the above appear in `git status`

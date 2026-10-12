@@ -29,6 +29,13 @@
       "when": 1791746623262,
       "tag": "0003_add_account_email_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791812837563,
+      "tag": "0004_auth_user_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
   registerLocales,
   registerModule,
 } from '@frigear-nu/module-kit/utils'
+import { addAuthScope } from '@frigear-nu/auth/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
   CheckoutBeforeContext,
@@ -71,11 +72,16 @@ export default defineNuxtModule<ModuleOptions>({
       defaults: { kv: true },
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    addAuthScope(nuxt,
+      { name: 'payments:read', description: 'Read your payments' },
+      { name: 'payments:write', description: 'Resume your payments' },
+    )
     const resolver = createResolver(import.meta.url)
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 

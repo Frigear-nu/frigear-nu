@@ -4,7 +4,7 @@ import type { MeResponse } from '../../../../types'
 import { isEntitledRow } from '../../../utils/plans'
 
 export default defineEventHandler(async (event): Promise<MeResponse> => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { scopes: ['subscriptions:read'] })
 
   const rows = await db.select().from(schema.subscriptions)
     .where(eq(schema.subscriptions.userId, user.id))

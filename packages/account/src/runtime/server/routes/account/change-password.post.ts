@@ -12,7 +12,7 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const { currentPassword, newPassword } = await readValidatedBody(event, bodySchema.parse)
 
   const dbUser = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, user.id) })

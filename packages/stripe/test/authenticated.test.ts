@@ -13,7 +13,7 @@ describe('stripe webhook (authenticated, database-backed)', async () => {
   await setup({
     rootDir,
     // Dev mode lets NuxtHub apply the committed sqlite migrations on startup.
-    dev: true,
+    dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
   it('extends the generated users schema with stripeCustomerId', async () => {

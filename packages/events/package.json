@@ -75,6 +75,7 @@
     "@frigear-nu/stripe": "workspace:*",
     "@frigear-nu/subscriptions": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
+    "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.6.0",

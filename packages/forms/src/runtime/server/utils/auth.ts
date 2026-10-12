@@ -9,7 +9,7 @@ import type { AuthorizeContext } from '../../../types'
  *     nitroApp.hooks.hook('forms:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
  */
 export async function requireFormsManager(event: H3Event): Promise<{ userId: number }> {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { scopes: ['forms:manage'] })
   const ctx: AuthorizeContext = { event, userId: user.id, allowed: false }
   await useNitroApp().hooks.callHook('forms:authorize', ctx)
   if (!ctx.allowed) throw createError({ statusCode: 403, statusMessage: 'You are not allowed to manage forms.' })

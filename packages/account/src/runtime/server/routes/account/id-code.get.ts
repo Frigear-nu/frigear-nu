@@ -11,7 +11,7 @@ function normalizePem(raw: string) {
 // Signs with the RS256 key of `@frigear-nu/oauth-server` (so the code can be verified against its published JWKS),
 // unless `runtimeConfig.account.idCode` overrides it. No hard dependency: the key is just read from runtime config.
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const config = useRuntimeConfig(event) as {
     account?: { idCode?: IdCodeConfig }
     oauthServer?: IdCodeConfig

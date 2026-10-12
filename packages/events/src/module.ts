@@ -16,6 +16,7 @@ import {
   registerLocales,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { addAuthScope } from '@frigear-nu/auth/utils'
 import type {
   AuthorizeContext,
   EventsRuntimeConfig,
@@ -82,6 +83,7 @@ export default defineNuxtModule<ModuleOptions>({
       defaults: { kv: true },
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
@@ -93,6 +95,11 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    addAuthScope(nuxt,
+      { name: 'events:manage', description: 'Manage events, tickets and check-in (staff)' },
+      { name: 'tickets:read', description: 'Read your tickets and event details' },
+      { name: 'tickets:write', description: 'Buy tickets and pay for them' },
+    )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

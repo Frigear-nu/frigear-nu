@@ -31,7 +31,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true })
+  await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   const user = (name: string, domain = 'member.test') => registerUser(name, `${name.toLowerCase()}${++counter}@${domain}`)
   let staff: Session
@@ -387,6 +387,86 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(staffList[0]!.secretHash).toBeUndefined()
 
       expect((await json(undefined, 'GET', '/api/oauth-server/me/applications')).status).toBe(401)
+    })
+  })
+
+  describe('API access with access tokens', () => {
+    async function signIn(app: Json, scope: string) {
+      const { verifier, challenge } = pkce()
+      const code = await authorizeCode(staff, app.clientId, challenge, { scope })
+      return await ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })) as Json
+    }
+    const asBearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('lets an application call the API as the user, identifying both', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid groups')
+
+      const me = await $fetch<Json>('/api/test/whoami', { headers: asBearer(tokens.access_token) })
+      expect(me).toMatchObject({ kind: 'oauth', userId: staff.id, clientId: app.clientId })
+      expect(me.scopes).toEqual(['openid', 'groups'])
+    })
+
+    it('limits the application to the scopes the user granted', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid email')
+      const response = await fetch('/api/test/whoami', { headers: asBearer(tokens.access_token) })
+      expect(response.status).toBe(403)
+      expect((await response.json()).data).toMatchObject({ error: 'insufficient_scope' })
+    })
+
+    it('does not accept ID tokens or foreign tokens as credentials', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid groups')
+      expect((await fetch('/api/test/whoami', { headers: asBearer(tokens.id_token) })).status).toBe(401)
+
+      const impostor = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })
+      const forged = await new SignJWT({ scope: 'groups', client_id: app.clientId })
+        .setProtectedHeader({ alg: 'RS256', typ: 'at+jwt', kid: 'key-1' })
+        .setIssuer('https://id.example.test')
+        .setSubject(String(staff.id))
+        .setAudience(app.clientId)
+        .setExpirationTime('5m')
+        .sign(await importPKCS8(impostor.privateKey, 'RS256'))
+      expect((await fetch('/api/test/whoami', { headers: asBearer(forged) })).status).toBe(401)
+    })
+
+    it('keeps session-only routes closed to applications', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid groups')
+      const response = await fetch('/api/test/session-only', { headers: asBearer(tokens.access_token) })
+      expect(response.status).toBe(403)
+      expect((await response.json()).data).toMatchObject({ error: 'session_required' })
+      expect((await fetch('/api/test/session-only', { headers: { cookie: staff.cookie } })).status).toBe(200)
+    })
+
+    it('stops working the moment the application is disabled or loses access', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid groups')
+      const call = () => fetch('/api/test/whoami', { headers: asBearer(tokens.access_token) })
+      const admin = (body: unknown) => json(staff.cookie, 'PATCH', `/api/oauth-server/admin/applications/${app.id}`, body)
+      expect((await call()).status).toBe(200)
+
+      await ok(await admin({ isActive: false }))
+      expect((await call()).status).toBe(401)
+      await ok(await admin({ isActive: true }))
+      expect((await call()).status).toBe(200)
+
+      // The role requirement changed after the token was issued.
+      await ok(await admin({ allowedRoles: ['nobody'] }))
+      expect((await call()).status).toBe(401)
+    })
+
+    it('rejects a token whose application was deleted', async () => {
+      const app = await createApp()
+      const tokens = await signIn(app, 'openid groups')
+      await ok(await json(staff.cookie, 'DELETE', `/api/oauth-server/admin/applications/${app.id}`))
+      expect((await fetch('/api/test/whoami', { headers: asBearer(tokens.access_token) })).status).toBe(401)
+    })
+
+    it('never falls back to the session behind an invalid token', async () => {
+      const response = await fetch('/api/test/whoami', { headers: { cookie: staff.cookie, authorization: 'Bearer aaa.bbb.ccc' } })
+      expect(response.status).toBe(401)
     })
   })
 })

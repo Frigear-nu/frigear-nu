@@ -22,6 +22,7 @@ export type PublicModuleOptions = {
     security?: string
     documents?: string
     idCode?: string
+    apiTokens?: string
   }
   documents: AccountDocument[]
 }
@@ -44,6 +45,8 @@ export type ModuleOptions = {
       documents?: string | boolean
       // The Frigear ID page (rotating signed QR code). Needs a signing key, see the module README.
       idCode?: string | boolean
+      // Create and revoke personal API tokens (`@frigear-nu/auth`). Defaults to off.
+      apiTokens?: string | boolean
     }
     documents?: AccountDocument[]
   }

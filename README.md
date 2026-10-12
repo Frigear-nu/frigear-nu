@@ -20,6 +20,7 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/eslint-config](./packages/eslint-config)
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens
+- [@frigear-nu/auth](./packages/auth) - Credential resolution: one `requireUser` for cookie sessions, user API tokens and OAuth access tokens, with scopes
 - [@frigear-nu/users](./packages/users) - Users module for handling user management and authentication in frigear
 - [@frigear-nu/notify](./packages/notify) - Email notification driver/dispatch Nuxt module (app chooses the driver), shared across modules
 - [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules

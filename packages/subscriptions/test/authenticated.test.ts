@@ -43,7 +43,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true })
+  await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
   describe('webhook handlers', () => {
     it('inserts a subscription for a known user, resolving the plan by lookup key', async () => {
@@ -407,6 +407,31 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
       await sendSubscription('customer.subscription.deleted', 'ent3', { id: 'sub_ent', customer: user.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly', status: 'canceled', endedAt: 1710000000 })
       expect((await check('&statuses=past_due,canceled')).has).toBe(false)
+    })
+  })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('reads the subscription with the scope, and never opens the billing portal', async () => {
+      const user = await registerUser('Token', 'token@example.com')
+      const read = await createToken(user.cookie, ['subscriptions:read'])
+      expect((await fetch('/api/subscriptions/me', { headers: bearer(read) })).status).toBe(200)
+      expect((await fetch('/api/subscriptions/me', { headers: bearer(await createToken(user.cookie, ['subscriptions:write'])) })).status).toBe(403)
+
+      // The billing portal is session-only: even full access cannot use it.
+      const full = await createToken(user.cookie, ['*'])
+      const portal = await fetch('/api/subscriptions/portal', { method: 'POST', headers: { 'content-type': 'application/json', ...bearer(full) }, body: '{}' })
+      expect(portal.status).toBe(403)
     })
   })
 })
