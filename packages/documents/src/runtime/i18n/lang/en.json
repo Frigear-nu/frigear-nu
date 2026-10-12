@@ -1,0 +1,46 @@
+{
+  "documents": {
+    "title": "Documents",
+    "description": "Your documents.",
+    "download": "Download",
+    "empty": "No documents for you yet.",
+    "notFound": "This folder could not be found.",
+    "error": {
+      "generic": "Something went wrong. Please try again."
+    },
+    "menu": {
+      "documents": {
+        "label": "Documents",
+        "description": "Handbooks and other files for you."
+      },
+      "admin": {
+        "label": "Documents",
+        "description": "Upload documents and share them with groups."
+      }
+    },
+    "admin": {
+      "title": "Documents",
+      "name": "Name",
+      "newFolder": "New folder",
+      "upload": "Upload",
+      "edit": "Edit",
+      "file": "File",
+      "titleField": "Title",
+      "description": "Description",
+      "icon": "Icon",
+      "sharedWith": "Shared with",
+      "groups": "Selected groups",
+      "pickGroups": "Pick groups…",
+      "everyone": "Everyone",
+      "noone": "Nobody yet",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteTitle": "Delete \"{title}\"?",
+      "deleteFolderDescription": "Everything inside this folder is deleted too.",
+      "deleteFileDescription": "The file is deleted permanently.",
+      "empty": "Nothing here yet.",
+      "forbidden": "You are not allowed to manage documents."
+    }
+  }
+}

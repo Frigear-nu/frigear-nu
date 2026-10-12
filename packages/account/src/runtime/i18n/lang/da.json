@@ -14,10 +14,6 @@
       "security": {
         "label": "Sikkerhed",
         "description": "Skift din adgangskode og administrer adgangsnøgler."
-      },
-      "documents": {
-        "label": "Dokumenter",
-        "description": "Håndbøger og andre filer til dig."
       }
     },
     "identificationCode": {
@@ -62,12 +58,6 @@
       "saved": "Profil opdateret",
       "saveFailed": "Kunne ikke opdatere din profil.",
       "cancel": "Annuller"
-    },
-    "documents": {
-      "title": "Dokumenter",
-      "description": "Dine dokumenter.",
-      "download": "Download",
-      "empty": "Ingen dokumenter til dig endnu."
     },
     "security": {
       "title": "Sikkerhed",

@@ -1,0 +1,40 @@
+{
+  "groups": {
+    "menu": {
+      "admin": {
+        "label": "Groups",
+        "description": "Manage user groups and their members."
+      }
+    },
+    "error": {
+      "generic": "Something went wrong. Please try again."
+    },
+    "admin": {
+      "title": "Groups",
+      "new": "New group",
+      "edit": "Edit group",
+      "name": "Name",
+      "description": "Description",
+      "slug": "Slug",
+      "slugHint": "A short, stable identifier.",
+      "icon": "Icon",
+      "email": "Email",
+      "members": "Members",
+      "details": "Details",
+      "create": "Create",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saved": "Saved.",
+      "delete": "Delete",
+      "deleteTitle": "Delete this group?",
+      "deleteDescription": "Members lose access to everything shared with this group. The users themselves are kept.",
+      "add": "Add",
+      "remove": "Remove",
+      "searchUsers": "Search users by name or email to add…",
+      "noMembers": "No members yet.",
+      "empty": "No groups yet.",
+      "notFound": "This group could not be found.",
+      "forbidden": "You are not allowed to manage groups."
+    }
+  }
+}

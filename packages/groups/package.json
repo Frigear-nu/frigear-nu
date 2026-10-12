@@ -1,0 +1,106 @@
+{
+  "name": "@frigear-nu/groups",
+  "version": "0.0.0",
+  "description": "User groups (members managed in admin) other modules can share content with.",
+  "homepage": "https://docs.frigear.dev/modules/groups",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/groups"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/admin": "workspace:*",
+    "@frigear-nu/menu": "workspace:*",
+    "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/ui": "workspace:*",
+    "@frigear-nu/users": "workspace:*",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/kit": "^4.6.0",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "h3": "^1.15.11",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@nuxt/ui": "^4.10.0",
+    "@nuxthub/core": "^0.10.8"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^3.4.2",
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.6.0",
+    "@nuxt/test-utils": "^4.3.2",
+    "@nuxt/ui": "^4.11.0",
+    "@nuxthub/core": "^0.10.8",
+    "@types/node": "latest",
+    "changelogen": "^0.6.2",
+    "eslint": "^10.10.0",
+    "nuxt": "catalog:",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

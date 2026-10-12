@@ -14,10 +14,6 @@
       "security": {
         "label": "Security",
         "description": "Change your password and manage passkeys."
-      },
-      "documents": {
-        "label": "Documents",
-        "description": "Handbooks and other files for you."
       }
     },
     "identificationCode": {
@@ -62,12 +58,6 @@
       "saved": "Profile updated",
       "saveFailed": "Could not update your profile.",
       "cancel": "Cancel"
-    },
-    "documents": {
-      "title": "Documents",
-      "description": "Your documents.",
-      "download": "Download",
-      "empty": "No documents for you yet."
     },
     "security": {
       "title": "Security",
