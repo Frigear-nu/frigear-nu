@@ -27,7 +27,7 @@ const t = useModuleT('subscriptions.plans')
 const tp = useModuleT('subscriptions.catalog')
 const ti = useModuleT('subscriptions.interval')
 const { plans: allPlans, status } = usePlans()
-const { plan: currentPlan, isActive, pending, subscribe, error, status: subscriptionStatus } = useSubscription()
+const { plan: currentPlan, isActive, cancelsAt, pending, subscribe, error, status: subscriptionStatus } = useSubscription()
 const { loggedIn } = useUserSession()
 const route = useRoute()
 const [DefineCard, ReuseCard] = createReusableTemplate<{ plan: SubscriptionPlan, preview?: boolean }>()
@@ -58,15 +58,15 @@ function intervalLabel(price: SubscriptionPlanPrice) {
 const labelOf = (plan: SubscriptionPlan) => tp(`${plan.key}.label`, plan.label)
 const descriptionOf = (plan: SubscriptionPlan) => plan.description ? tp(`${plan.key}.description`, plan.description) : ''
 
-function stateOf(plan: SubscriptionPlan): 'current' | 'upgrade' | 'downgrade' | 'subscribe' {
+function stateOf(plan: SubscriptionPlan): 'current' | 'resume' | 'upgrade' | 'downgrade' | 'subscribe' {
   if (!isActive.value) return 'subscribe'
-  if (plan.key === currentPlan.value) return 'current'
+  if (plan.key === currentPlan.value) return cancelsAt.value ? 'resume' : 'current'
   if (currentRank.value === null) return 'subscribe'
   return plan.rank > currentRank.value ? 'upgrade' : 'downgrade'
 }
 
 const stateLabel = (state: ReturnType<typeof stateOf>) =>
-  t(state, { current: 'Current plan', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[state])
+  t(state, { current: 'Current plan', resume: 'Resubscribe', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[state])
 
 const isWide = useMediaQuery('(min-width: 640px)', { ssrWidth: 1024 })
 const useTabs = computed(() => props.mode === 'tabs' || (props.mode === 'auto' && !isWide.value))
@@ -125,6 +125,7 @@ const confirmKind = computed(() => confirming.value ? stateOf(confirming.value.p
 const confirmText = computed(() => ({
   upgrade: t('confirmUpgrade', 'Upgrading moves you to the higher plan immediately and charges the difference.'),
   downgrade: t('confirmDowngrade', 'Downgrading keeps your current plan until the next due date.'),
+  resume: t('confirmResume', 'Your membership will keep renewing as before.'),
   subscribe: t('confirmCheckout', 'You will now be taken to Stripe to confirm.'),
   current: '',
 }[confirmKind.value]))
