@@ -110,7 +110,7 @@ export type CheckoutBody = {
   cancelUrl?: string
 }
 
-export type CheckoutResponse = { url: string } | { updated: true, kind: 'upgrade' | 'downgrade' }
+export type CheckoutResponse = { url: string } | { updated: true, kind: 'upgrade' | 'downgrade' | 'resume' }
 
 export type PortalBody = { returnUrl?: string }
 

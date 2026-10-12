@@ -40,6 +40,12 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
     .orderBy(desc(schema.subscriptions.createdAt))
   const existing = rows.find(row => row.source !== 'manual' && LIVE_STATUSES.includes(row.status) && !row.endedAt)
 
+  // A subscription that is set to end can be resumed by picking its own price again.
+  if (existing?.priceId === priceId && existing.cancelAtPeriodEnd) {
+    await resumeSubscription(stripe, existing.id)
+    return { updated: true, kind: 'resume' }
+  }
+
   if (existing?.priceId === priceId) {
     throw createError({ statusCode: 409, statusMessage: 'You are already subscribed to this price.' })
   }
@@ -67,7 +73,8 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
 
   if (existing) {
     const change = hookContext.kind as 'upgrade' | 'downgrade'
-    if (change === 'upgrade') {
+    // A subscription that is set to end is switched immediately, which also keeps it from ending.
+    if (change === 'upgrade' || existing.cancelAtPeriodEnd) {
       await upgradeSubscription(stripe, existing.id, priceId)
     }
     else {
@@ -83,6 +90,14 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
 })
 
 type StripeClient = ReturnType<typeof useStripe>
+
+/** Undoes a pending cancellation (and a pending downgrade schedule) so the subscription keeps renewing. */
+async function resumeSubscription(stripe: StripeClient, subscriptionId: string) {
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  const scheduleId = typeof subscription.schedule === 'string' ? subscription.schedule : subscription.schedule?.id
+  if (scheduleId) await stripe.subscriptionSchedules.release(scheduleId)
+  await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false })
+}
 
 /** Immediate switch, invoicing the prorated difference right away; clears a pending downgrade schedule first. */
 async function upgradeSubscription(stripe: StripeClient, subscriptionId: string, priceId: string) {

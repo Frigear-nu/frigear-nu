@@ -17,7 +17,7 @@ interface MeResponse {
   activePlan: string | null
 }
 
-type CheckoutResponse = { url: string } | { updated: true, kind: 'upgrade' | 'downgrade' }
+type CheckoutResponse = { url: string } | { updated: true, kind: 'upgrade' | 'downgrade' | 'resume' }
 
 const ACTIVE_STATUSES = ['active', 'trialing']
 
