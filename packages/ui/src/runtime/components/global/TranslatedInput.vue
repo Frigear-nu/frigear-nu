@@ -9,6 +9,10 @@ const props = withDefaults(defineProps<{
   rows?: number
   /** Write / Preview toggle for multiline text (markdown). Defaults on. */
   preview?: boolean
+  /** Preview with MDC (components such as `::callout`) instead of plain markdown. */
+  mdc?: boolean
+  /** Variables for `{{ name }}` in the MDC preview. */
+  mdcData?: Record<string, unknown>
   required?: boolean
   disabled?: boolean
 }>(), { preview: true })
@@ -66,6 +70,8 @@ function setLocale(locale: string, text: string) {
         :required="required"
         :disabled="disabled"
         :preview="preview"
+        :mdc="mdc"
+        :mdc-data="mdcData"
         class="min-w-0 flex-1"
         @update:model-value="setPlain(String($event))"
       />
@@ -114,6 +120,8 @@ function setLocale(locale: string, text: string) {
           :rows="rows ?? 3"
           :disabled="disabled"
           :preview="preview"
+          :mdc="mdc"
+          :mdc-data="mdcData"
           class="min-w-0 flex-1"
           @update:model-value="setLocale(locale, String($event))"
         />

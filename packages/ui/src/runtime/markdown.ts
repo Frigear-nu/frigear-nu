@@ -20,3 +20,13 @@ export function renderMarkdown(source: string): string {
     .map(paragraph => `<p>${paragraph}</p>`)
     .join('')
 }
+
+/**
+ * Prepends `data` as frontmatter so MDC (`<MDC :value>`) can resolve `{{ name }}` in the text.
+ * JSON values are valid YAML, which keeps quoting safe for arbitrary strings.
+ */
+export function withMdcData(source: string, data?: Record<string, unknown>): string {
+  const entries = Object.entries(data ?? {}).filter(([, value]) => value !== undefined)
+  if (!entries.length) return source
+  return `---\n${entries.map(([key, value]) => `${JSON.stringify(key)}: ${JSON.stringify(value)}`).join('\n')}\n---\n${source}`
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { renderMarkdown } from '../../markdown'
+import { renderMarkdown, withMdcData } from '../../markdown'
 
 const props = defineProps<{
   placeholder?: string
@@ -8,11 +8,18 @@ const props = defineProps<{
   disabled?: boolean
   /** Show the Write / Preview toggle. */
   preview?: boolean
+  /** Render with MDC (Nuxt Content components like `::callout`) when the host app provides it. */
+  mdc?: boolean
+  /** Variables for `{{ name }}` in MDC previews. */
+  mdcData?: Record<string, unknown>
 }>()
 const model = defineModel<string>()
 
 const t = useUiT('markdown')
 const previewing = ref(false)
+// `resolveComponent` returns the bare name when the host has no MDC; fall back to the safe renderer.
+const MdcComponent = resolveComponent('MDC')
+const useMdc = computed(() => props.mdc && typeof MdcComponent !== 'string')
 const html = computed(() => renderMarkdown(model.value ?? ''))
 </script>
 
@@ -45,9 +52,14 @@ const html = computed(() => renderMarkdown(model.value ?? ''))
       :style="{ minHeight: `${(props.rows ?? 4) * 1.5}rem` }"
     >
       <span
-        v-if="!html"
+        v-if="!model?.trim()"
         class="italic"
       >{{ t('empty', 'Nothing to preview') }}</span>
+      <component
+        :is="MdcComponent"
+        v-else-if="useMdc"
+        :value="withMdcData(model, mdcData)"
+      />
       <div
         v-else
         v-html="html"
