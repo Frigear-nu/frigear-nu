@@ -2,7 +2,7 @@
 import type { FieldOption, FieldType, FormDefinition, FormField, FormSecretsDto, FormStep } from '../../../types'
 import {
   arrayMove, captchaProviders, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
-  removeField, removeStep, resolveCaptcha, translate, updateField, updateStep,
+  removeField, removeStep, renameFieldKey, resolveCaptcha, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
 import { captchaDefaultProvider, captchaSiteKey } from '../composables/useCaptcha'
@@ -146,9 +146,11 @@ const showStepLine = (index: number) => slot.value?.kind === 'step' && slot.valu
 
 /** Inserts a new field of `type` at exactly `at` and selects it. */
 function addField(type: FieldType, at: FieldPosition) {
-  definition.value = insertField(definition.value, at, createField(definition.value, type))
-  const step = definition.value.steps[at.step]
-  selection.value = { kind: 'field', at: { step: at.step, index: Math.min(at.index, (step?.fields.length ?? 1) - 1) } }
+  const field = createField(definition.value, type)
+  definition.value = insertField(definition.value, at, field)
+  // Select the field that was just added, found by its (unique) key rather than by index arithmetic.
+  const index = definition.value.steps[at.step]?.fields.findIndex(candidate => candidate.key === field.key) ?? -1
+  if (index >= 0) selection.value = { kind: 'field', at: { step: at.step, index } }
 }
 
 /** Inserts a new, empty step before `index` (or at the end) and selects it. */
@@ -202,6 +204,12 @@ function deleteStep(index: number) {
 function patchField(patch: Partial<FormField>) {
   if (selection.value?.kind !== 'field') return
   definition.value = updateField(definition.value, selection.value.at, patch)
+}
+
+// Renaming a key also rewrites conditions, routing, reply-to and resubmit entries that point at it.
+function renameKey(key: string) {
+  if (selection.value?.kind !== 'field') return
+  definition.value = renameFieldKey(definition.value, selection.value.at, key)
 }
 
 function patchStep(patch: Partial<FormStep>) {
@@ -488,7 +496,7 @@ const summary = (field: FormField) => {
                       :content="{ align: 'center' }"
                     >
                       <UButton
-                        class="insert-button"
+                        class="insert-button insert-dot"
                         color="neutral"
                         variant="soft"
                         size="xs"
@@ -734,7 +742,7 @@ const summary = (field: FormField) => {
                       <UInput
                         :model-value="selectedField.key"
                         class="w-full font-mono"
-                        @update:model-value="patchField({ key: String($event) })"
+                        @update:model-value="renameKey(String($event))"
                       />
                     </UFormField>
 
@@ -866,7 +874,7 @@ const summary = (field: FormField) => {
                   >
                     <UButton
                       class="insert-button"
-                      :class="step.fields.length ? '' : 'insert-button-visible'"
+                      :class="step.fields.length ? 'insert-dot' : 'insert-button-visible'"
                       color="neutral"
                       variant="soft"
                       size="xs"
@@ -927,6 +935,7 @@ const summary = (field: FormField) => {
 .insert-row {
   position: relative;
   display: flex;
+  width: 100%;
   height: 1rem;
   align-items: center;
   justify-content: center;
@@ -944,6 +953,39 @@ const summary = (field: FormField) => {
   position: relative;
   opacity: 0.35;
   transition: opacity 0.15s;
+}
+/* Small round dot that grows a little when pointed at. */
+.insert-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  min-width: 0;
+  padding: 0;
+  gap: 0;
+  line-height: 0;
+  border-radius: 9999px;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.insert-dot :deep(.iconify) {
+  display: block;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: 0;
+}
+/* Touch / small screens: a bigger target that is always clearly visible. */
+@media (hover: none), (pointer: coarse), (max-width: 640px) {
+  .insert-row { height: 2rem; }
+  .insert-dot { width: 1.75rem; height: 1.75rem; opacity: 1; }
+  .insert-dot :deep(.iconify) { width: 1rem; height: 1rem; }
+  .insert-dot:hover, .insert-dot:focus-visible { transform: scale(1.15); }
+}
+.insert-dot:hover,
+.insert-dot:focus-visible {
+  transform: scale(1.6);
 }
 .insert-row:hover::before,
 .insert-row:focus-within::before {

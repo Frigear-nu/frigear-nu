@@ -56,7 +56,7 @@ export function removeField(definition: FormDefinition, at: FieldPosition): Form
   if (!definition.steps[at.step]?.fields[at.index]) return definition
   const steps = definition.steps.map(step => ({ ...step, fields: [...step.fields] }))
   steps[at.step]!.fields.splice(at.index, 1)
-  return { ...definition, steps }
+  return pruneReferences({ ...definition, steps })
 }
 
 export function updateField(definition: FormDefinition, at: FieldPosition, patch: Partial<FormField>): FormDefinition {
@@ -126,6 +126,43 @@ export function duplicateField(definition: FormDefinition, at: FieldPosition): F
   copy.key = uniqueFieldKey(definition, field.key)
   delete copy.showIf
   return insertField(definition, { step: at.step, index: at.index + 1 }, copy)
+}
+
+/**
+ * Changes the key of a field and rewrites everything that points at the old key (`showIf` of fields and steps,
+ * the email route field, the reply-to field and `allowResubmit.keep`), so renaming never leaves a dangling reference.
+ */
+export function renameFieldKey(definition: FormDefinition, at: FieldPosition, key: string): FormDefinition {
+  const current = definition.steps[at.step]?.fields[at.index]
+  if (!current || current.key === key) return definition
+  const from = current.key
+  const retarget = <T extends { showIf?: { field: string } }>(item: T): T =>
+    item.showIf?.field === from ? { ...item, showIf: { ...item.showIf, field: key } } : item
+
+  const steps = definition.steps.map((step, stepIndex) => ({
+    ...retarget(step),
+    fields: step.fields.map((field, index) => stepIndex === at.step && index === at.index
+      ? { ...retarget(field), key }
+      : retarget(field)),
+  }))
+  const next: FormDefinition = { ...definition, steps }
+
+  const email = definition.delivery?.email
+  if (email) {
+    next.delivery = {
+      ...definition.delivery,
+      email: {
+        ...email,
+        ...(email.routes?.field === from ? { routes: { ...email.routes, field: key } } : {}),
+        ...(email.replyToField === from ? { replyToField: key } : {}),
+      },
+    }
+  }
+  const resubmit = definition.submit?.allowResubmit
+  if (resubmit?.keep.includes(from)) {
+    next.submit = { ...definition.submit, allowResubmit: { keep: resubmit.keep.map(entry => entry === from ? key : entry) } }
+  }
+  return next
 }
 
 /** Removes `showIf`s, routes, reply-to and `keep` entries that point at a field that no longer exists. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, pruneReferences, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, pruneReferences, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeField, removeStep, renameFieldKey, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -200,5 +200,41 @@ describe('form access', () => {
     expect(bad.success).toBe(false)
     expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'token' } }).success).toBe(true)
     expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'nope' } }).success).toBe(false)
+  })
+})
+
+describe('renaming and deleting fields keeps references valid', () => {
+  const routed = (): FormDefinition => ({
+    mode: 'single',
+    storage: 'db',
+    delivery: { email: { to: ['a@example.com'], replyToField: 'mail', routes: { field: 'select', to: { x: ['b@example.com'] } } } },
+    submit: { allowResubmit: { keep: ['select'] } },
+    steps: [{
+      id: 'main',
+      fields: [
+        { key: 'select', type: 'select', options: [{ value: 'x', label: 'X' }] },
+        { key: 'mail', type: 'email' },
+        { key: 'other', type: 'text', showIf: { field: 'select', op: 'eq', value: 'x' } },
+      ],
+    }],
+  }) as FormDefinition
+
+  it('rewrites routes, reply-to, resubmit and showIf when a key is renamed', () => {
+    const renamed = renameFieldKey(renameFieldKey(routed(), { step: 0, index: 0 }, 'department'), { step: 0, index: 1 }, 'email')
+    expect(renamed.steps[0]!.fields.map(f => f.key)).toEqual(['department', 'email', 'other'])
+    expect(renamed.delivery?.email?.routes?.field).toBe('department')
+    expect(renamed.delivery?.email?.replyToField).toBe('email')
+    expect(renamed.submit?.allowResubmit?.keep).toEqual(['department'])
+    expect(renamed.steps[0]!.fields[2]!.showIf?.field).toBe('department')
+    expect(formDefinitionSchema.safeParse(renamed).success).toBe(true)
+  })
+
+  it('drops routes, reply-to, resubmit and showIf that pointed at a deleted field', () => {
+    const removed = removeField(removeField(routed(), { step: 0, index: 1 }), { step: 0, index: 0 })
+    expect(removed.delivery?.email?.routes).toBeUndefined()
+    expect(removed.delivery?.email?.replyToField).toBeUndefined()
+    expect(removed.submit?.allowResubmit?.keep).toEqual([])
+    expect(removed.steps[0]!.fields[0]!.showIf).toBeUndefined()
+    expect(formDefinitionSchema.safeParse(removed).success).toBe(true)
   })
 })
