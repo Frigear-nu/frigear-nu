@@ -114,10 +114,10 @@
     "builder": {
       "layout": "Layout",
       "fields": "Fields",
-      "paletteTitle": "Add fields",
+      "insertField": "Insert field here",
+      "addField": "Add field",
       "fieldsTitle": "Form fields",
       "settingsTitle": "Settings",
-      "paletteHint": "Drag a field onto the form, or click to add it.",
       "dragStep": "Drag to reorder steps",
       "moveUp": "Move up",
       "moveDown": "Move down",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -149,5 +149,24 @@ describe('storage settings', () => {
     expect(storageWarnings(none)).toEqual({ files: true, lost: true })
     expect(storageWarnings(setEmailRecipients(none, ['a@x.test']))).toEqual({ files: true, lost: false })
     expect(setStorage(files, 'db')).toBe(files)
+  })
+})
+
+describe('insertField / insertStep', () => {
+  it('inserts a field at the exact index, top, middle and bottom', () => {
+    const d = base()
+    const f = (key: string) => ({ key, type: 'text' as const })
+    expect(keys(insertField(d, { step: 0, index: 0 }, f('x')))[0]).toEqual(['x', 'one', 'two', 'three'])
+    expect(keys(insertField(d, { step: 0, index: 2 }, f('x')))[0]).toEqual(['one', 'two', 'x', 'three'])
+    expect(keys(insertField(d, { step: 1, index: 99 }, f('x')))[1]).toEqual(['four', 'x'])
+    expect(insertField(d, { step: 5, index: 0 }, f('x'))).toBe(d)
+  })
+
+  it('inserts a step before an index without touching the others', () => {
+    const d = base()
+    const next = insertStep(d, 1, createStep(d))
+    expect(next.steps.map(s => s.id)).toEqual(['a', 'step_3', 'b'].map((id, i) => i === 1 ? next.steps[1]!.id : id))
+    expect(next.steps[1]!.fields).toEqual([])
+    expect(insertStep(d, 99, createStep(d)).steps).toHaveLength(3)
   })
 })

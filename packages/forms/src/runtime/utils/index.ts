@@ -10,7 +10,7 @@ export type { Answers, VisibleStep } from './conditions'
 export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
 export {
-  fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, removeField, updateField, updateStep, duplicateField,
+  fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, insertStep, removeField, updateField, updateStep, duplicateField,
   createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
   setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, storageWarnings, emailFieldKeys, routableFields,
 } from './builder'

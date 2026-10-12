@@ -111,6 +111,13 @@ export function createStep(definition: FormDefinition): FormStep {
   return { id, title: `Step ${definition.steps.length + 1}`, fields: [] }
 }
 
+/** Inserts a step before `index` (the end when out of range). */
+export function insertStep(definition: FormDefinition, index: number, step: FormStep): FormDefinition {
+  const steps = [...definition.steps]
+  steps.splice(clamp(index, steps.length), 0, step)
+  return { ...definition, steps }
+}
+
 export function duplicateField(definition: FormDefinition, at: FieldPosition): FormDefinition {
   const field = definition.steps[at.step]?.fields[at.index]
   if (!field) return definition

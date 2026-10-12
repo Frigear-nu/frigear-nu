@@ -114,10 +114,10 @@
     "builder": {
       "layout": "Layout",
       "fields": "Felter",
-      "paletteTitle": "Tilføj felter",
+      "insertField": "Indsæt felt her",
+      "addField": "Tilføj felt",
       "fieldsTitle": "Formularens felter",
       "settingsTitle": "Indstillinger",
-      "paletteHint": "Træk et felt ind i formularen, eller klik for at tilføje det.",
       "dragStep": "Træk for at ændre rækkefølgen af trin",
       "moveUp": "Flyt op",
       "moveDown": "Flyt ned",
