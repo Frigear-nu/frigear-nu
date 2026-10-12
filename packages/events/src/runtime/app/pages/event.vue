@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
+const hasMdc = typeof resolveComponent('MDC') !== 'string'
 const t = useModuleT('events')
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -173,14 +175,22 @@ defineOptions({ name: 'EventDetailPage' })
       </UPageHeader>
 
       <div class="mt-8 grid gap-8 lg:grid-cols-[2fr_1fr]">
-        <!-- Plain text body: markdown rendering is left to the host via the `body` slot. -->
+        <!-- Body renders as MDC when the host has it (Nuxt Content), else plain text; override via the `body` slot. -->
         <div>
           <slot
             name="body"
             :event="event"
             :body="tr(event.body ?? event.description)"
           >
-            <div class="whitespace-pre-line text-muted">
+            <MDC
+              v-if="hasMdc"
+              :value="tr(event.body ?? event.description)"
+              class="prose max-w-none text-muted"
+            />
+            <div
+              v-else
+              class="whitespace-pre-line text-muted"
+            >
               {{ tr(event.body ?? event.description) }}
             </div>
           </slot>
