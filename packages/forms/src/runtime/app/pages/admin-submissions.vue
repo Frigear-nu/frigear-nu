@@ -13,17 +13,10 @@ const format = (iso: string) => new Date(iso).toLocaleString()
 
 <template>
   <div class="space-y-6">
-    <div>
-      <NuxtLink
-        :to="paths('adminForm', { id })"
-        class="text-sm text-muted hover:underline"
-      >
-        ← {{ t('admin.edit', 'Edit') }}
-      </NuxtLink>
-      <h1 class="text-3xl font-bold">
-        {{ t('admin.submissionsTitle', 'Submissions') }}
-      </h1>
-    </div>
+    <AdminPageHeader
+      :title="t('admin.submissionsTitle', 'Submissions')"
+      :back="{ label: t('admin.edit', 'Edit'), to: paths('adminForm', { id }) }"
+    />
 
     <UAlert
       v-if="error"

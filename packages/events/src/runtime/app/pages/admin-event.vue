@@ -192,18 +192,9 @@ const attendeeColumns = [
 
 <template>
   <div v-if="event">
-    <UButton
-      :to="pages?.admin || '/admin/events'"
-      variant="link"
-      color="neutral"
-      icon="i-lucide-arrow-left"
-      :label="t('admin.title', 'Events')"
-      class="-ml-2 mb-2"
-    />
-    <UPageHeader
+    <AdminPageHeader
       :title="translate(event.name, locale)"
-      :ui="{ title: 'text-3xl sm:text-4xl' }"
-      class="mb-6"
+      :back="{ label: t('admin.title', 'Events'), to: pages?.admin || '/admin/events' }"
     >
       <template #links>
         <UButton
@@ -215,7 +206,7 @@ const attendeeColumns = [
           :label="t('admin.viewPublic', 'View public page')"
         />
       </template>
-    </UPageHeader>
+    </AdminPageHeader>
 
     <UPageCard
       :title="t('admin.details', 'Details')"

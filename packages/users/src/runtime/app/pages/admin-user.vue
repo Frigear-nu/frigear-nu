@@ -140,21 +140,19 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
       :title="t('admin.detail.notFound', 'User not found.')"
     />
     <template v-else>
-      <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold">
-            {{ user.name }}
-          </h1>
-          <p class="text-muted mt-1">
-            {{ user.email }}
-          </p>
-        </div>
-        <UBadge
-          :color="user.emailVerifiedAt ? 'success' : 'warning'"
-          variant="subtle"
-          :label="user.emailVerifiedAt ? t('admin.filters.verified', 'Verified') : t('admin.filters.unverified', 'Unverified')"
-        />
-      </div>
+      <AdminPageHeader
+        :title="user.name"
+        :description="user.email"
+        :back="{ label: t('admin.title', 'Users'), to: listPath }"
+      >
+        <template #links>
+          <UBadge
+            :color="user.emailVerifiedAt ? 'success' : 'warning'"
+            variant="subtle"
+            :label="user.emailVerifiedAt ? t('admin.filters.verified', 'Verified') : t('admin.filters.unverified', 'Unverified')"
+          />
+        </template>
+      </AdminPageHeader>
 
       <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <UPageCard

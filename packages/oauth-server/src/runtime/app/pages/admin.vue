@@ -129,18 +129,17 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
 
 <template>
   <div>
-    <div class="mb-6 flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        OAuth applications
-      </h1>
-      <UButton
-        v-if="!forbidden"
-        icon="i-lucide-plus"
-        @click="openCreate"
-      >
-        New application
-      </UButton>
-    </div>
+    <AdminPageHeader title="OAuth applications">
+      <template #links>
+        <UButton
+          v-if="!forbidden"
+          icon="i-lucide-plus"
+          @click="openCreate"
+        >
+          New application
+        </UButton>
+      </template>
+    </AdminPageHeader>
 
     <UAlert
       v-if="forbidden"

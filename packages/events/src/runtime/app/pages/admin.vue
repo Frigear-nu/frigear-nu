@@ -53,11 +53,7 @@ async function create() {
 
 <template>
   <div>
-    <UPageHeader
-      :title="t('admin.title', 'Events')"
-      :ui="{ title: 'text-3xl sm:text-4xl' }"
-      class="mb-6"
-    >
+    <AdminPageHeader :title="t('admin.title', 'Events')">
       <template #links>
         <UButton
           icon="i-lucide-plus"
@@ -65,7 +61,7 @@ async function create() {
           @click="creating = true"
         />
       </template>
-    </UPageHeader>
+    </AdminPageHeader>
 
     <UTable
       v-if="events.length"

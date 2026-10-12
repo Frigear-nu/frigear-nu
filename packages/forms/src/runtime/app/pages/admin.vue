@@ -62,11 +62,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between gap-2">
-      <h1 class="text-3xl font-bold">
-        {{ t('admin.title', 'Forms') }}
-      </h1>
-      <div class="flex gap-2">
+    <AdminPageHeader :title="t('admin.title', 'Forms')">
+      <template #links>
         <UButton
           color="neutral"
           variant="outline"
@@ -79,8 +76,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
           :label="t('admin.new', 'New form')"
           @click="creating = true"
         />
-      </div>
-    </div>
+      </template>
+    </AdminPageHeader>
 
     <UAlert
       v-if="error"

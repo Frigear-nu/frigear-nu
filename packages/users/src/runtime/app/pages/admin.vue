@@ -147,16 +147,15 @@ async function save() {
 
 <template>
   <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        {{ t('admin.title', 'Users') }}
-      </h1>
-      <UButton
-        icon="i-lucide-user-plus"
-        :label="t('admin.create', 'Create user')"
-        @click="startCreate"
-      />
-    </div>
+    <AdminPageHeader :title="t('admin.title', 'Users')">
+      <template #links>
+        <UButton
+          icon="i-lucide-user-plus"
+          :label="t('admin.create', 'Create user')"
+          @click="startCreate"
+        />
+      </template>
+    </AdminPageHeader>
     <div class="mb-4 flex flex-wrap items-center gap-3">
       <UInput
         v-model="search"
