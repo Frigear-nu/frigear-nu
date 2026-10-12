@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { scheduleSchema } from '@frigear-nu/module-kit/schedule'
+import { isPhoneCountry } from './phone'
 import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
@@ -40,6 +41,11 @@ const field = z.object({
     maxSize: z.number().int().min(1).optional(),
     accept: z.array(z.string()).optional(),
     message: translated.optional(),
+  }).optional(),
+  phone: z.object({
+    mode: z.enum(['simple', 'country']).optional(),
+    countries: z.array(z.string().toUpperCase().refine(isPhoneCountry, 'Unknown country code.')).max(300).optional(),
+    defaultCountry: z.string().toUpperCase().refine(isPhoneCountry, 'Unknown country code.').optional(),
   }).optional(),
   captcha: z.object({
     provider: z.enum(['turnstile', 'recaptcha', 'hcaptcha']).optional(),

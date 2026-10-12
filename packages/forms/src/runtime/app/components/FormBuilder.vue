@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { FieldOption, FieldType, FormDefinition, FormField, FormSecretsDto, FormStep } from '../../../types'
 import {
-  arrayMove, captchaProviders, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
-  removeField, removeStep, renameFieldKey, resolveCaptcha, translate, updateField, updateStep,
+  allPhoneCountries, arrayMove, captchaProviders, changeMode, createField, countryName, createStep, defaultPhoneCountry, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
+  phoneCountries, removeField, removeStep, renameFieldKey, resolveCaptcha, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
 import { useConfirmDialog } from '@frigear-nu/ui/composables'
@@ -276,6 +276,28 @@ function conditionFields(step: number, index: number) {
 const hasOptions = computed(() => selectedField.value?.type === 'select' || selectedField.value?.type === 'radio')
 const hasPlaceholder = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'number', 'textarea', 'select'].includes(selectedField.value.type))
 const hasLength = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'textarea'].includes(selectedField.value.type))
+
+const phoneModeItems = computed(() => [
+  { value: 'simple', label: t('builder.phoneSimple', 'Single input') },
+  { value: 'country', label: t('builder.phoneCountry', 'Country code + number') },
+])
+const phoneCountryItems = computed(() => allPhoneCountries.map(({ code, dial, flag }) => ({
+  value: code,
+  label: `${flag} ${countryName(code, locale.value)} (+${dial})`,
+})))
+const offeredCountries = computed(() => new Set(phoneCountries(selectedField.value?.phone).map(country => country.code)))
+
+function patchPhone(patch: Partial<NonNullable<FormField['phone']>>) {
+  const next = Object.fromEntries(Object.entries({ ...selectedField.value?.phone, ...patch }).filter(([, value]) => value !== undefined))
+  // Drop a default country that the narrowed allow-list no longer offers.
+  const countries = next.countries as string[] | undefined
+  if (countries && next.defaultCountry && !countries.includes(next.defaultCountry as string)) delete next.defaultCountry
+  patchField({ phone: Object.keys(next).length ? next : undefined })
+}
+
+function setPhoneMode(mode: 'simple' | 'country') {
+  patchField({ phone: mode === 'country' ? { ...selectedField.value?.phone, mode } : undefined })
+}
 
 const captchaProviderItems = computed(() => captchaProviders.map(value => ({ value, label: t(`captcha.providers.${value}`, value) })))
 const captchaThemeItems = computed(() => [
@@ -744,6 +766,40 @@ const summary = (field: FormField) => {
                         :label="t('builder.required', 'Required')"
                         @update:model-value="patchField({ required: $event === true || undefined })"
                       />
+                      <template v-if="selectedField.type === 'tel'">
+                        <UFormField :label="t('builder.phoneMode', 'Phone input')">
+                          <USelect
+                            :model-value="selectedField.phone?.mode ?? 'simple'"
+                            :items="phoneModeItems"
+                            class="w-full"
+                            @update:model-value="setPhoneMode($event as 'simple' | 'country')"
+                          />
+                        </UFormField>
+                        <template v-if="selectedField.phone?.mode === 'country'">
+                          <UFormField
+                            :label="t('builder.phoneCountries', 'Allowed countries')"
+                            :description="t('builder.phoneCountriesHint', 'Leave empty to allow all countries.')"
+                          >
+                            <USelectMenu
+                              :model-value="selectedField.phone?.countries ?? []"
+                              :items="phoneCountryItems"
+                              value-key="value"
+                              multiple
+                              class="w-full"
+                              @update:model-value="patchPhone({ countries: ($event as string[]).length ? $event as string[] : undefined })"
+                            />
+                          </UFormField>
+                          <UFormField :label="t('builder.phoneDefaultCountry', 'Default country')">
+                            <USelectMenu
+                              :model-value="defaultPhoneCountry(selectedField.phone)"
+                              :items="phoneCountryItems.filter(item => offeredCountries.has(item.value))"
+                              value-key="value"
+                              class="w-full"
+                              @update:model-value="patchPhone({ defaultCountry: $event as string })"
+                            />
+                          </UFormField>
+                        </template>
+                      </template>
                       <USwitch
                         v-if="selectedField.type === 'file'"
                         :model-value="!!selectedField.multiple"

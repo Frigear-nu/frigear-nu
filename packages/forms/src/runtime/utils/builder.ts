@@ -103,6 +103,7 @@ export function createField(definition: FormDefinition, type: FieldType): FormFi
     field.options = [{ value: 'option_1', label: 'Option 1' }, { value: 'option_2', label: 'Option 2' }]
   }
   if (type === 'email') field.autocomplete = 'email'
+  if (type === 'tel') field.autocomplete = 'tel'
   if (type === 'captcha') field.captcha = { provider: 'turnstile' }
   return field
 }
