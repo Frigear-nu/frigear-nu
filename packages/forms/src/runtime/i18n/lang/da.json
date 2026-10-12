@@ -19,7 +19,18 @@
       "notFound": "Formularen blev ikke fundet."
     },
     "preview": {
-      "notSent": "Forhåndsvisning: intet blev sendt."
+      "notSent": "Forhåndsvisning: intet blev sendt.",
+      "mobile": "Mobil",
+      "desktop": "Desktop",
+      "reset": "Nulstil",
+      "tryIt": "Prøv den",
+      "result": "Resultat",
+      "resultHint": "Dette ville blive sendt. Intet er indsendt.",
+      "copy": "Kopiér",
+      "copied": "Kopieret til udklipsholderen.",
+      "close": "Luk",
+      "tryAgain": "Prøv igen",
+      "device": "Enhed"
     },
     "value": {
       "yes": "Ja",

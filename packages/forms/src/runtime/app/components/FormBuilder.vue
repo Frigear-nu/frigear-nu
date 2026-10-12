@@ -740,9 +740,7 @@ const summary = (field: FormField) => {
       <h2 class="text-sm font-semibold">
         {{ t('admin.preview', 'Preview') }}
       </h2>
-      <div class="max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-default p-6">
-        <slot name="preview" />
-      </div>
+      <slot name="preview" />
     </div>
   </div>
 </template>

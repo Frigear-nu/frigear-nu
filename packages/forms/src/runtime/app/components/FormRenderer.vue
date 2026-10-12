@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormDefinition, PublicFormDto } from '../../../types'
-import { translate } from '../../utils'
+import { previewPayload, translate } from '../../utils'
 import { emptyAnswers, submitAnswers, useFormsLocale } from '../composables/useForms'
 import { useFormStepper } from '../composables/useFormStepper'
 
@@ -14,7 +14,8 @@ const props = defineProps<{
   /** Validates and steps like normal, but never posts. */
   preview?: boolean
 }>()
-const emit = defineEmits<{ submitted: [id: string | null] }>()
+const emit = defineEmits<{ submitted: [id: string | null], previewed: [answers: Record<string, unknown>] }>()
+const listening = !!getCurrentInstance()?.vnode.props?.onPreviewed
 
 const t = useModuleT('forms')
 const locale = useFormsLocale()
@@ -41,7 +42,8 @@ const title = (value: Parameters<typeof translate>[0]) => translate(value, local
 async function onSubmit() {
   if (!stepper.isLast.value) return stepper.next()
   if (props.preview) {
-    toast.add({ title: t('preview.notSent', 'Preview: nothing was sent.'), color: 'info' })
+    if (listening) emit('previewed', previewPayload(definition.value, state))
+    else toast.add({ title: t('preview.notSent', 'Preview: nothing was sent.'), color: 'info' })
     return
   }
   submitting.value = true

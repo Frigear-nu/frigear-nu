@@ -147,18 +147,12 @@ async function save() {
         v-model="definition"
       >
         <template #preview>
-          <FormRenderer
-            v-if="checked.definition"
-            :key="previewKey + JSON.stringify(checked.definition).length"
-            :form="{ slug: draft.slug, definition: checked.definition }"
-            preview
+          <FormPreview
+            :slug="draft.slug"
+            :name="draft.name"
+            :definition="checked.definition"
+            :content-key="previewKey"
           />
-          <p
-            v-else
-            class="text-muted"
-          >
-            {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
-          </p>
         </template>
       </FormBuilder>
 

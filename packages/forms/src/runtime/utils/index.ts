@@ -24,3 +24,5 @@ export function defineForm<const T extends FormDefinition>(definition: T): T {
 }
 
 export { renderMarkdown } from './markdown'
+export { previewPayload, previewScale, PREVIEW_WIDTHS } from './preview'
+export type { PreviewDevice } from './preview'

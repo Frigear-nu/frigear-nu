@@ -19,7 +19,18 @@
       "notFound": "This form could not be found."
     },
     "preview": {
-      "notSent": "Preview: nothing was sent."
+      "notSent": "Preview: nothing was sent.",
+      "mobile": "Mobile",
+      "desktop": "Desktop",
+      "reset": "Reset",
+      "tryIt": "Try it",
+      "result": "Result",
+      "resultHint": "This is what would be sent. Nothing was submitted.",
+      "copy": "Copy",
+      "copied": "Copied to clipboard.",
+      "close": "Close",
+      "tryAgain": "Try again",
+      "device": "Device"
     },
     "value": {
       "yes": "Yes",
