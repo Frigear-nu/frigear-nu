@@ -22,7 +22,11 @@
     },
     "identificationCode": {
       "title": "Frigear ID",
-      "description": "Press here to show your ID."
+      "description": "Press here to show your ID.",
+      "expiresIn": "Refreshes in {time}s",
+      "refresh": "Refresh",
+      "role": "Role",
+      "error": "Could not create your Frigear ID."
     },
     "profile": {
       "title": "Profile",
@@ -108,6 +112,8 @@
         "removeError": "Could not remove the passkey.",
         "loadError": "Could not load your passkeys."
       }
-    }
+    },
+    "backTo": "Back to account",
+    "signedInAs": "Signed in as"
   }
 }

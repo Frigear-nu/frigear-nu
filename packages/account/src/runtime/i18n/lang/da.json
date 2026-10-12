@@ -22,7 +22,11 @@
     },
     "identificationCode": {
       "title": "Frigear ID",
-      "description": "Tryk her for at vise dit ID."
+      "description": "Tryk her for at vise dit ID.",
+      "expiresIn": "Fornyes om {time}s",
+      "refresh": "Opdater",
+      "role": "Rolle",
+      "error": "Kunne ikke oprette dit Frigear ID."
     },
     "profile": {
       "title": "Profil",
@@ -108,6 +112,8 @@
         "removeError": "Kunne ikke fjerne passkey.",
         "loadError": "Kunne ikke hente dine passkeys."
       }
-    }
+    },
+    "backTo": "Tilbage til konto",
+    "signedInAs": "Logget ind som"
   }
 }

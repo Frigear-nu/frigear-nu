@@ -39,6 +39,22 @@ describe('account routes (authenticated)', async () => {
     expect(result).toHaveProperty('id')
   })
 
+  it('issues a 60s signed Frigear ID code for the logged-in user', async () => {
+    const cookie = await registerAndGetCookie({ name: 'Hedy Lamarr', email: 'hedy@example.com', password: 'supersecret123' })
+
+    const result = await $fetch<{ idCode: string, payload: string, expiresIn: number }>('/api/account/id-code', { headers: { cookie } })
+
+    expect(result.expiresIn).toBe(60)
+    expect(result.payload).toBe(`urn:frigear:id:${result.idCode}`)
+    const claims = JSON.parse(Buffer.from(result.idCode.split('.')[1]!, 'base64url').toString())
+    expect(claims.exp - claims.iat).toBe(60)
+    expect(claims.sub).toBeTruthy()
+  })
+
+  it('requires a session for the Frigear ID code', async () => {
+    await expect($fetch('/api/account/id-code')).rejects.toMatchObject({ statusCode: 401 })
+  })
+
   it('validates the profile request body', async () => {
     const cookie = await registerAndGetCookie({ name: 'Grace Hopper', email: 'grace@example.com', password: 'supersecret123' })
 

@@ -16,10 +16,6 @@ const documents = computed(() =>
   <UContainer>
     <UPage>
       <UPageBody>
-        <UPageHeader
-          :title="t('title', 'Documents')"
-          :description="t('description', 'Your documents.')"
-        />
         <UPageGrid v-if="documents.length">
           <UPageCard
             v-for="document in documents"
