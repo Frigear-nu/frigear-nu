@@ -24,6 +24,7 @@ export default defineNuxtConfig({
   },
   forms: {
     settings: {
+      mcp: true,
       pages: { form: true, admin: true, adminForm: true, adminSubmissions: true, adminSubmission: true },
       rateLimit: 0,
     },

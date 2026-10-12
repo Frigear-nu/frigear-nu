@@ -151,6 +151,8 @@ export type FormDefinition = {
 
 export type ModuleOptions = {
   settings?: {
+    // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
     pages?: {
       /** Public form page; must contain a `:slug` param. `true` = `/forms/:slug`. */
       form?: string | boolean

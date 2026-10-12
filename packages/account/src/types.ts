@@ -25,10 +25,13 @@ export type PublicModuleOptions = {
     apiTokens?: string
   }
   documents: AccountDocument[]
+  mcp: boolean
 }
 
 export type ModuleOptions = {
   settings?: {
+    // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
     // A new email address only takes effect once its owner confirms it through an emailed link; the old
     // address then gets a notice with a link to revert the change. Defaults to `false` (applied immediately).
     verifyEmailChange?: boolean

@@ -204,7 +204,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
+    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     // --- App runtime (owned by the UI side of the package) ---------------------------------
     addImports([

@@ -31,7 +31,7 @@ export default defineNuxtConfig({
     kv: true,
   },
   events: {
-    settings: { pages: {} },
+    settings: { pages: {}, mcp: true },
   },
   subscriptions: {
     plans: {

@@ -30,6 +30,8 @@ export type ModuleOptions = {
   /** Plans keyed by plan key. Leave empty to use the module as "any active subscription". */
   plans?: Record<string, PlanConfig>
   settings?: {
+    // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
     // Each page accepts a custom path (string), `true` for the default path, or `false`/omitted to
     // disable it. Enabling a page requires `@nuxt/ui` in the consuming app.
     pages?: {

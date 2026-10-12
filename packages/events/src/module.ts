@@ -163,7 +163,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/admin/tickets/:id/refund', 'admin/ticket-refund.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
+    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/payment-hooks'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))
 

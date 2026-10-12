@@ -187,6 +187,7 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
+      mcp: true,
       pages: { index: true, profile: true, security: true, documents: true, apiTokens: true },
       // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
       // assets under public/, so anyone with the URL can fetch them (as before).
@@ -219,11 +220,13 @@ export default defineNuxtConfig({
   },
   events: {
     settings: {
+      mcp: true,
       pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true },
     },
   },
   forms: {
     settings: {
+      mcp: true,
       pages: { form: true, admin: true, adminForm: true, adminSubmissions: true, adminSubmission: true },
     },
     // Opt-in: set `enabled` (NUXT_FORMS_SEED_ENABLED=true) to insert the definitions below as drafts.
@@ -251,6 +254,7 @@ export default defineNuxtConfig({
   // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); admins from NUXT_OAUTH_ADMIN_EMAILS.
   oauthServer: {
     settings: {
+      mcp: true,
       pages: { admin: true, applications: true },
     },
   },
@@ -286,6 +290,7 @@ export default defineNuxtConfig({
       },
     },
     settings: {
+      mcp: true,
       pages: { membership: true, success: true, cancel: true },
     },
   },
