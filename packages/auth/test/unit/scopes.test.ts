@@ -12,6 +12,14 @@ describe('hasScope', () => {
     expect(hasScope(['*'], 'anything:at-all')).toBe(true)
   })
 
+  it('never covers personal-data (:pii) scopes with a wildcard', () => {
+    expect(hasScope(['*'], 'events:pii')).toBe(false)
+    expect(hasScope(['events:*'], 'events:pii')).toBe(false)
+    expect(hasScope(['events:read', 'events:pii'], 'events:pii')).toBe(true)
+    expect(hasScopes(['*'], ['events:manage', 'events:pii'])).toBe(false)
+    expect(hasScope(['*'], 'events:manage')).toBe(true)
+  })
+
   it('supports resource wildcards without leaking across resources', () => {
     expect(hasScope(['events:*'], 'events:read')).toBe(true)
     expect(hasScope(['events:*'], 'forms:read')).toBe(false)
