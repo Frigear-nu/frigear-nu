@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormField } from '../../../types'
 import { resolveCaptcha } from '../../utils'
-import { captchaSiteKey, loadCaptchaScript } from '../composables/useCaptcha'
+import { captchaDefaultProvider, captchaSiteKey, loadCaptchaScript } from '../composables/useCaptcha'
 import type { CaptchaApi } from '../composables/useCaptcha'
 
 const props = defineProps<{
@@ -15,7 +15,7 @@ const props = defineProps<{
 const model = defineModel<string | undefined>()
 
 const t = useModuleT('forms')
-const config = computed(() => resolveCaptcha(props.field))
+const config = computed(() => resolveCaptcha(props.field, captchaDefaultProvider()))
 const siteKey = computed(() => captchaSiteKey(props.field))
 const providerName = computed(() => t(`captcha.providers.${config.value.provider}`, config.value.provider))
 

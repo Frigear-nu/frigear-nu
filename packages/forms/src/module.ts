@@ -109,6 +109,7 @@ export default defineNuxtModule<ModuleOptions>({
         recaptcha: { secretKey: options.captcha?.recaptcha?.secretKey ?? '' },
         hcaptcha: { secretKey: options.captcha?.hcaptcha?.secretKey ?? '' },
       },
+      encryptionKey: options.encryptionKey ?? '',
     }
     nuxt.options.runtimeConfig.public.forms = {
       pages: {
@@ -122,6 +123,7 @@ export default defineNuxtModule<ModuleOptions>({
         turnstile: { siteKey: options.captcha?.turnstile?.siteKey ?? '' },
         recaptcha: { siteKey: options.captcha?.recaptcha?.siteKey ?? '' },
         hcaptcha: { siteKey: options.captcha?.hcaptcha?.siteKey ?? '' },
+        defaultProvider: options.captcha?.defaultProvider ?? 'turnstile',
       },
     }
 
@@ -148,6 +150,9 @@ export default defineNuxtModule<ModuleOptions>({
     route('get', '/admin/forms/:id/password', 'admin/form-password.get')
     route('put', '/admin/forms/:id/password', 'admin/form-password.put')
     route('delete', '/admin/forms/:id/password', 'admin/form-password.delete')
+    route('get', '/admin/forms/:id/secrets', 'admin/form-secrets.get')
+    route('put', '/admin/forms/:id/secrets', 'admin/form-secrets.put')
+    route('delete', '/admin/forms/:id/secrets/:key', 'admin/form-secret.delete')
     route('post', '/admin/import', 'admin/import.post')
     route('get', '/admin/submissions/:id', 'admin/submission.get')
     route('get', '/admin/submissions/:id/files/:fileId', 'admin/submission-file.get')
@@ -157,6 +162,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/:slug/submit', 'public/submit.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 

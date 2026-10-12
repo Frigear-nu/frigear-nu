@@ -22,6 +22,13 @@
       "when": 1791850000000,
       "tag": "0002_form_access",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791860000000,
+      "tag": "0003_form_secrets",
+      "breakpoints": true
     }
   ]
 }

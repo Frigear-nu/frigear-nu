@@ -157,7 +157,15 @@ export type ModuleOptions = {
    * Keys for `captcha` fields. Site keys are public, secret keys stay on the server. Both can be set per
    * provider here or through `NUXT_PUBLIC_FORMS_CAPTCHA_<PROVIDER>_SITE_KEY` / `NUXT_FORMS_CAPTCHA_<PROVIDER>_SECRET_KEY`.
    */
-  captcha?: Partial<Record<CaptchaProvider, { siteKey?: string, secretKey?: string }>>
+  captcha?: Partial<Record<CaptchaProvider, { siteKey?: string, secretKey?: string }>> & {
+    /** Provider of a captcha field that does not name one. Defaults to `turnstile`; env `NUXT_PUBLIC_FORMS_CAPTCHA_DEFAULT_PROVIDER`. */
+    defaultProvider?: CaptchaProvider
+  }
+  /**
+   * Key that encrypts per-form secrets in the database (env `NUXT_FORMS_ENCRYPTION_KEY`). Falls back to
+   * `NUXT_ENCRYPTION_KEY`, then to the session password. Changing it makes stored secrets unreadable.
+   */
+  encryptionKey?: string
 }
 
 export type SeedForm = {
@@ -172,6 +180,7 @@ export type FormsRuntimeConfig = {
   rateLimitWindowSeconds: number
   seed: { enabled: boolean, forms: SeedForm[] }
   captcha: Record<CaptchaProvider, { secretKey: string }>
+  encryptionKey: string
 }
 
 export type PublicModuleOptions = {
@@ -182,7 +191,7 @@ export type PublicModuleOptions = {
     adminSubmissions?: string
     adminSubmission?: string
   }
-  captcha: Record<CaptchaProvider, { siteKey: string }>
+  captcha: Record<CaptchaProvider, { siteKey: string }> & { defaultProvider: CaptchaProvider }
 }
 
 export type AuthorizeContext = { event: H3Event, userId: number, allowed: boolean }
@@ -216,6 +225,14 @@ export type CaptchaVerifyContext = {
   provider: CaptchaProvider
   token: string
   ip: string | undefined
+  /** The form being submitted, when known. */
+  formId?: string
+  /**
+   * The secret key the siteverify call would use: the form's own encrypted secret, else the environment/config
+   * one, else `undefined` (which fails closed). Server-side only, never sent anywhere but the provider.
+   */
+  secretKey?: string
+  secretSource?: SecretSource
   /** Set by a handler to decide the outcome; left `undefined` the provider's siteverify endpoint is asked. */
   valid: boolean | undefined
 }
@@ -251,6 +268,19 @@ export type FormAccessTokenDto = {
 export type CreatedFormAccessTokenDto = FormAccessTokenDto & { token: string }
 
 export type FormPasswordStatusDto = { set: boolean }
+
+/** Where a captcha secret key comes from: the form's encrypted secret, the environment/config, or nowhere. */
+export type SecretSource = 'form' | 'env' | 'unset'
+
+/** Which per-form secrets are set. Names only: values are write-only and never leave the server. */
+export type FormSecretsDto = {
+  /** Names of the secrets stored for this form. */
+  keys: string[]
+  /** Per captcha provider, which secret key a submission would use. */
+  captcha: Record<CaptchaProvider, { source: SecretSource }>
+  /** The stored secrets cannot be decrypted (the encryption key changed); set them again. */
+  unreadable: boolean
+}
 
 /** What the public page needs to decide between the form, a gate and "not found". Never contains secrets. */
 export type FormAccessInfoDto = {

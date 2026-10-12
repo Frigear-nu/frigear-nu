@@ -1,5 +1,5 @@
 import type { CaptchaProvider, FormField } from '../../../types'
-import { resolveCaptcha } from '../../utils'
+import { normalizeCaptchaProvider, resolveCaptcha } from '../../utils'
 
 type WidgetOptions = {
   'sitekey': string
@@ -51,10 +51,17 @@ export function loadCaptchaScript(provider: CaptchaProvider): Promise<CaptchaApi
   return promise
 }
 
+type PublicCaptchaConfig = { captcha?: Partial<Record<CaptchaProvider, { siteKey?: string }>> & { defaultProvider?: string } }
+
+/** Provider of a captcha field with none set: `runtimeConfig.public.forms.captcha.defaultProvider` (env `NUXT_PUBLIC_FORMS_CAPTCHA_DEFAULT_PROVIDER`). */
+export function captchaDefaultProvider(): CaptchaProvider {
+  return normalizeCaptchaProvider((useRuntimeConfig().public.forms as PublicCaptchaConfig | undefined)?.captcha?.defaultProvider)
+}
+
 /** Public site key for a captcha field: its own override, else the module's `public.forms.captcha.<provider>.siteKey`. */
 export function captchaSiteKey(field: Pick<FormField, 'captcha'>): string {
-  const { provider, siteKey } = resolveCaptcha(field)
+  const { provider, siteKey } = resolveCaptcha(field, captchaDefaultProvider())
   if (siteKey) return siteKey
-  const config = useRuntimeConfig().public.forms as { captcha?: Partial<Record<CaptchaProvider, { siteKey?: string }>> } | undefined
+  const config = useRuntimeConfig().public.forms as PublicCaptchaConfig | undefined
   return config?.captcha?.[provider]?.siteKey ?? ''
 }

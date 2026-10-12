@@ -191,7 +191,22 @@
         "normal": "Normal",
         "compact": "Kompakt"
       },
-      "hint": "Altid påkrævet, når feltet vises. Tokenet kontrolleres på serveren og gemmes aldrig. Indsendelser med API-token springer det over."
+      "hint": "Altid påkrævet, når feltet vises. Tokenet kontrolleres på serveren og gemmes aldrig. Indsendelser med API-token springer det over.",
+      "secretLabel": "Hemmelig nøgle",
+      "secretHint": "Nøgle på serveren, der bruges til at verificere denne formular. Gemmes krypteret og vises aldrig igen. Uden en bruges miljøvariablen.",
+      "secretStatus": "Hemmelig nøgle",
+      "secretForm": "Sat via formularen",
+      "secretEnv": "Sat via miljøet",
+      "secretUnset": "Ikke sat",
+      "secretUnreadable": "Formularens gemte hemmeligheder kan ikke dekrypteres, fordi krypteringsnøglen er ændret. Indtast dem igen.",
+      "secretPlaceholderSet": "Indtast en ny hemmelig nøgle for at erstatte den",
+      "secretPlaceholder": "Indsæt den hemmelige nøgle",
+      "secretSave": "Gem nøgle",
+      "secretSaved": "Hemmelig nøgle gemt.",
+      "secretRemove": "Fjern",
+      "secretRemoved": "Hemmelig nøgle fjernet.",
+      "secretFailed": "Den hemmelige nøgle kunne ikke gemmes.",
+      "secretImmediate": "Gemmes med det samme, uafhængigt af formularens Gem."
     },
     "builder": {
       "layout": "Layout",

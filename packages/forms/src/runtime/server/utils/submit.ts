@@ -78,7 +78,7 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
     Reflect.deleteProperty(validated, field.key)
     Reflect.deleteProperty(answers, field.key)
     if (skipCaptcha) continue
-    if (!await verifyCaptcha(event, resolveCaptcha(field).provider, String(token))) {
+    if (!await verifyCaptcha(event, resolveCaptcha(field, useRuntimeConfig(event).public.forms?.captcha?.defaultProvider).provider, String(token), form.id)) {
       throw createError({
         statusCode: 422,
         statusMessage: 'Invalid submission.',

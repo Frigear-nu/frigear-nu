@@ -191,7 +191,22 @@
         "normal": "Normal",
         "compact": "Compact"
       },
-      "hint": "Always required while visible. The token is checked on the server and never stored. Submissions with an API token skip it."
+      "hint": "Always required while visible. The token is checked on the server and never stored. Submissions with an API token skip it.",
+      "secretLabel": "Secret key",
+      "secretHint": "Server-side key used to verify this form. Stored encrypted and never shown again. Without one, the environment variable is used.",
+      "secretStatus": "Secret key",
+      "secretForm": "Configured via form",
+      "secretEnv": "Configured via environment",
+      "secretUnset": "Not set",
+      "secretUnreadable": "The stored secrets of this form cannot be decrypted because the encryption key changed. Enter them again.",
+      "secretPlaceholderSet": "Enter a new secret key to replace it",
+      "secretPlaceholder": "Paste the secret key",
+      "secretSave": "Save secret",
+      "secretSaved": "Secret key saved.",
+      "secretRemove": "Remove",
+      "secretRemoved": "Secret key removed.",
+      "secretFailed": "The secret key could not be saved.",
+      "secretImmediate": "Saved immediately, independent of the form Save."
     },
     "builder": {
       "layout": "Layout",

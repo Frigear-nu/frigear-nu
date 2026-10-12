@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { FieldOption, FieldType, FormDefinition, FormField, FormStep } from '../../../types'
+import type { FieldOption, FieldType, FormDefinition, FormField, FormSecretsDto, FormStep } from '../../../types'
 import {
   arrayMove, captchaProviders, changeMode, createField, createStep, dropIndex, duplicateField, fieldTypes, insertField, insertStep, moveField, moveStep,
   removeField, removeStep, resolveCaptcha, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
-import { captchaSiteKey } from '../composables/useCaptcha'
+import { captchaDefaultProvider, captchaSiteKey } from '../composables/useCaptcha'
 import { useFormsLocale } from '../composables/useForms'
 
 const definition = defineModel<FormDefinition>({ required: true })
+/** The saved form; enables per-form secrets (captcha secret key), which are stored right away, not with the definition. */
+const props = defineProps<{ formId?: string }>()
 
 const t = useModuleT('forms')
 const locale = useFormsLocale()
@@ -260,8 +262,62 @@ const captchaSizeItems = computed(() => [
   { value: 'normal', label: t('captcha.sizes.normal', 'Normal') },
   { value: 'compact', label: t('captcha.sizes.compact', 'Compact') },
 ])
-const selectedCaptcha = computed(() => selectedField.value?.type === 'captcha' ? resolveCaptcha(selectedField.value) : undefined)
+const selectedCaptcha = computed(() => selectedField.value?.type === 'captcha' ? resolveCaptcha(selectedField.value, captchaDefaultProvider()) : undefined)
 const captchaKeyMissing = computed(() => selectedField.value?.type === 'captcha' && !captchaSiteKey(selectedField.value))
+
+// --- Captcha secret key (write-only, saved immediately through the admin secrets API) -------------
+const toast = useToast()
+const secrets = ref<FormSecretsDto>()
+const secretsUrl = computed(() => props.formId ? `/api/forms/admin/forms/${props.formId}/secrets` : undefined)
+const secretValue = ref('')
+const savingSecret = ref(false)
+const secretSource = computed(() => selectedCaptcha.value ? secrets.value?.captcha[selectedCaptcha.value.provider]?.source : undefined)
+const secretStatusLabel = computed(() => ({
+  form: t('captcha.secretForm', 'Configured via form'),
+  env: t('captcha.secretEnv', 'Configured via environment'),
+  unset: t('captcha.secretUnset', 'Not set'),
+})[secretSource.value ?? 'unset'])
+
+async function loadSecrets() {
+  if (!secretsUrl.value) return
+  try {
+    secrets.value = await $fetch<FormSecretsDto>(secretsUrl.value)
+  }
+  catch {
+    secrets.value = undefined
+  }
+}
+onMounted(loadSecrets)
+watch(() => selectedCaptcha.value?.provider, () => {
+  secretValue.value = ''
+})
+
+async function saveSecret() {
+  if (!secretsUrl.value || !selectedCaptcha.value || !secretValue.value.trim()) return
+  savingSecret.value = true
+  try {
+    secrets.value = await $fetch<FormSecretsDto>(secretsUrl.value, { method: 'PUT', body: { key: `captcha.${selectedCaptcha.value.provider}.secretKey`, value: secretValue.value.trim() } })
+    secretValue.value = ''
+    toast.add({ title: t('captcha.secretSaved', 'Secret key saved.'), color: 'success' })
+  }
+  catch {
+    toast.add({ title: t('captcha.secretFailed', 'The secret key could not be saved.'), color: 'error' })
+  }
+  finally {
+    savingSecret.value = false
+  }
+}
+
+async function removeSecret() {
+  if (!secretsUrl.value || !selectedCaptcha.value) return
+  try {
+    secrets.value = await $fetch<FormSecretsDto>(`${secretsUrl.value}/captcha.${selectedCaptcha.value.provider}.secretKey`, { method: 'DELETE' })
+    toast.add({ title: t('captcha.secretRemoved', 'Secret key removed.'), color: 'success' })
+  }
+  catch {
+    toast.add({ title: t('captcha.secretFailed', 'The secret key could not be saved.'), color: 'error' })
+  }
+}
 
 function patchCaptcha(patch: Partial<NonNullable<FormField['captcha']>>) {
   const next = Object.fromEntries(Object.entries({ ...selectedField.value?.captcha, ...patch }).filter(([, value]) => value !== undefined && value !== ''))
@@ -563,6 +619,56 @@ const summary = (field: FormField) => {
                           class="w-full font-mono"
                           @update:model-value="patchCaptcha({ siteKey: String($event).trim() })"
                         />
+                      </UFormField>
+                      <UFormField
+                        v-if="formId"
+                        :label="t('captcha.secretLabel', 'Secret key')"
+                        :description="t('captcha.secretHint', 'Server-side key used to verify this form. Stored encrypted and never shown again. Without one, the environment variable is used.')"
+                      >
+                        <p
+                          class="mb-2 flex gap-1 text-sm"
+                          data-testid="captcha-secret-status"
+                        >
+                          <span class="text-muted">{{ t('captcha.secretStatus', 'Secret key') }}:</span>
+                          <span :class="secretSource === 'unset' ? 'text-warning' : 'text-success'">{{ secretStatusLabel }}</span>
+                        </p>
+                        <UAlert
+                          v-if="secrets?.unreadable"
+                          color="warning"
+                          variant="subtle"
+                          icon="i-lucide-triangle-alert"
+                          class="mb-2"
+                          :title="t('captcha.secretUnreadable', 'The stored secrets of this form cannot be decrypted because the encryption key changed. Enter them again.')"
+                        />
+                        <form
+                          class="flex gap-2"
+                          @submit.prevent="saveSecret"
+                        >
+                          <UInput
+                            v-model="secretValue"
+                            type="password"
+                            autocomplete="new-password"
+                            class="min-w-0 flex-1 font-mono"
+                            :placeholder="secretSource === 'form' ? t('captcha.secretPlaceholderSet', 'Enter a new secret key to replace it') : t('captcha.secretPlaceholder', 'Paste the secret key')"
+                          />
+                          <UButton
+                            type="submit"
+                            :loading="savingSecret"
+                            :disabled="!secretValue.trim()"
+                            :label="t('captcha.secretSave', 'Save secret')"
+                          />
+                          <UButton
+                            v-if="secretSource === 'form'"
+                            type="button"
+                            color="error"
+                            variant="outline"
+                            :label="t('captcha.secretRemove', 'Remove')"
+                            @click="removeSecret"
+                          />
+                        </form>
+                        <p class="mt-1 text-xs text-muted">
+                          {{ t('captcha.secretImmediate', 'Saved immediately, independent of the form Save.') }}
+                        </p>
                       </UFormField>
                       <div class="grid grid-cols-2 gap-2">
                         <UFormField :label="t('captcha.theme', 'Theme')">

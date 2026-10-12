@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
+import { customType, sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import type { DeliveryStatus, FormDefinition, FormStatus } from '../../../types'
 
 export const forms = sqliteTable('forms', {
@@ -70,5 +70,22 @@ export const formAccess = sqliteTable('form_access', {
   formId: text().primaryKey().references(() => forms.id, { onDelete: 'cascade' }),
   /** Scrypt hash (nuxt-auth-utils `hashPassword`). */
   passwordHash: text().notNull(),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
+
+/**
+ * Per-form secrets, encrypted at rest. Keys are namespaced strings (`captcha.turnstile.secretKey`, ...) from an
+ * allowlist in `utils/secrets.ts`; future integrations (webhook signing secrets, ...) add their keys there.
+ * Kept out of the (versioned) definition, submission snapshots, deliveries and exports.
+ */
+export const formSecrets = sqliteTable('form_secrets', {
+  formId: text().primaryKey().references(() => forms.id, { onDelete: 'cascade' }),
+  // Inline on purpose: the module kit copies this property (and only the imports above) into a generated schema
+  // template, so it cannot call a local helper. `utils/crypto.ts` registers the cipher on `globalThis`.
+  secrets: customType<{ data: Record<string, string>, driverData: string }>({
+    dataType: () => 'text',
+    toDriver: value => globalThis.__frigearFormsCrypto!.encrypt(value),
+    fromDriver: value => globalThis.__frigearFormsCrypto!.decrypt(value) as Record<string, string>,
+  })('secrets').notNull(),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })

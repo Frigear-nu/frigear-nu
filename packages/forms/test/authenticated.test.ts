@@ -397,6 +397,96 @@ describe('forms (authenticated, database-backed)', async () => {
       expect((await send(form.slug, { kind: 'human', human: 'good-token' })).status).toBe(200)
     })
 
+    describe('secrets', () => {
+      const secretsUrl = (id: string) => `/api/forms/admin/forms/${id}/secrets`
+      const put = (id: string, key: string, value: string) => json(staff.cookie, 'PUT', secretsUrl(id), { key, value })
+      const stored = () => $fetch<{ formId: string, secrets: string }[]>('/api/test/secrets')
+
+      it('is staff only', async () => {
+        const form = await create('Secrets gate', captchaForm())
+        expect((await json(undefined, 'GET', secretsUrl(form.id))).status).toBe(401)
+        expect((await json(nobody.cookie, 'GET', secretsUrl(form.id))).status).toBe(403)
+        expect((await json(nobody.cookie, 'PUT', secretsUrl(form.id), { key: 'captcha.turnstile.secretKey', value: 'x' })).status).toBe(403)
+        expect((await json(nobody.cookie, 'DELETE', `${secretsUrl(form.id)}/captcha.turnstile.secretKey`)).status).toBe(403)
+      })
+
+      it('stores a secret write-only: names and sources come back, never values', async () => {
+        const form = await create('Secrets roundtrip', captchaForm('turnstile'))
+        expect(await ok(await json(staff.cookie, 'GET', secretsUrl(form.id)))).toEqual({
+          keys: [],
+          captcha: { turnstile: { source: 'unset' }, recaptcha: { source: 'env' }, hcaptcha: { source: 'unset' } },
+          unreadable: false,
+        })
+
+        const saved = await put(form.id, 'captcha.turnstile.secretKey', 'plain-turnstile-secret')
+        const body = await saved.text()
+        expect(saved.status, body).toBe(200)
+        expect(body).not.toContain('plain-turnstile-secret')
+        expect(JSON.parse(body)).toMatchObject({ keys: ['captcha.turnstile.secretKey'], captcha: { turnstile: { source: 'form' } } })
+
+        const listed = await (await json(staff.cookie, 'GET', secretsUrl(form.id))).text()
+        expect(listed).not.toContain('plain-turnstile-secret')
+        const admin = await (await json(staff.cookie, 'GET', `/api/forms/admin/forms/${form.id}`)).text()
+        expect(admin).not.toContain('plain-turnstile-secret')
+        expect(await (await fetch(`/api/forms/${form.slug}`)).text()).not.toContain('plain-turnstile-secret')
+
+        const removed = await ok(await json(staff.cookie, 'DELETE', `${secretsUrl(form.id)}/captcha.turnstile.secretKey`))
+        expect(removed).toMatchObject({ keys: [], captcha: { turnstile: { source: 'unset' } } })
+        expect((await stored()).find(row => row.formId === form.id)).toBeUndefined()
+      })
+
+      it('rejects keys outside the allowlist and empty values', async () => {
+        const form = await create('Secrets allowlist', captchaForm())
+        expect((await put(form.id, 'something.else', 'x')).status).toBe(400)
+        expect((await put(form.id, 'captcha.turnstile.secretKey', '   ')).status).toBe(400)
+        expect((await json(staff.cookie, 'DELETE', `${secretsUrl(form.id)}/something.else`)).status).toBe(400)
+        expect((await put('frm_missing', 'captcha.turnstile.secretKey', 'x')).status).toBe(404)
+      })
+
+      it('encrypts the stored value', async () => {
+        const form = await create('Secrets cipher', captchaForm('hcaptcha'))
+        expect((await put(form.id, 'captcha.hcaptcha.secretKey', 'plaintext-hcaptcha-secret')).status).toBe(200)
+        const rows = await stored()
+        const row = rows.find(entry => entry.formId === form.id)
+        expect(row, JSON.stringify(rows)).toBeDefined()
+        expect(row!.secrets).not.toContain('plaintext-hcaptcha-secret')
+        expect(row!.secrets).not.toContain('captcha.hcaptcha')
+        expect(Object.keys(JSON.parse(row!.secrets)).sort()).toEqual(['ct', 'iv', 'tag'])
+        // Replacing the secret re-encrypts with a new IV.
+        expect((await put(form.id, 'captcha.hcaptcha.secretKey', 'plaintext-hcaptcha-secret')).status).toBe(200)
+        const again = (await stored()).find(entry => entry.formId === form.id)!
+        expect(JSON.parse(again.secrets).iv).not.toBe(JSON.parse(row!.secrets).iv)
+      })
+
+      it('verifies with the form secret over the environment one', async () => {
+        const form = await create('Secrets precedence', captchaForm('recaptcha'))
+        const send = (token: string) => submit(form.slug, { message: 'hi', human: token })
+        // No form secret: the environment key is used.
+        expect((await send('secret:env-recaptcha-secret')).status).toBe(200)
+        expect((await send('secret:form-recaptcha-secret')).status).toBe(422)
+
+        expect((await put(form.id, 'captcha.recaptcha.secretKey', 'form-recaptcha-secret')).status).toBe(200)
+        expect((await send('secret:form-recaptcha-secret')).status).toBe(200)
+        expect((await send('secret:env-recaptcha-secret')).status).toBe(422)
+        expect(await ok(await json(staff.cookie, 'GET', secretsUrl(form.id)))).toMatchObject({ captcha: { recaptcha: { source: 'form' } } })
+
+        // Another form keeps using the environment key.
+        const other = await create('Secrets other', captchaForm('recaptcha'))
+        expect((await submit(other.slug, { message: 'hi', human: 'secret:env-recaptcha-secret' })).status).toBe(200)
+
+        await ok(await json(staff.cookie, 'DELETE', `${secretsUrl(form.id)}/captcha.recaptcha.secretKey`))
+        expect((await send('secret:env-recaptcha-secret')).status).toBe(200)
+      })
+
+      it('fails closed with a form secret for another provider only', async () => {
+        const form = await create('Secrets provider', captchaForm('turnstile'))
+        expect((await put(form.id, 'captcha.hcaptcha.secretKey', 'hc-secret')).status).toBe(200)
+        // The hook sees no secret for turnstile; a token it leaves alone falls through to the built-in check, which fails closed.
+        expect((await submit(form.slug, { message: 'hi', human: 'secret:hc-secret' })).status).toBe(422)
+        expect((await submit(form.slug, { message: 'hi', human: 'real-looking-token' })).status).toBe(500)
+      })
+    })
+
     it('rejects a condition on a captcha field in the definition', async () => {
       const bad = await json(staff.cookie, 'POST', '/api/forms/admin/forms', { slug: slug('captcha-cond'), name: 'Bad', definition: { mode: 'single', storage: 'db', steps: [{ id: 'main', fields: [
         { key: 'human', type: 'captcha' },

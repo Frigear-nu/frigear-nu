@@ -146,6 +146,7 @@ async function save() {
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
+        :form-id="form.id"
       >
         <template #preview>
           <FormPreview

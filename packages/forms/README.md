@@ -5,7 +5,11 @@ with conditional fields), submissions are stored with a snapshot of the definiti
 delivery (email, webhooks, ...) hangs off the `forms:submitted` Nitro hook.
 
 Captcha fields (Cloudflare Turnstile, reCAPTCHA, hCaptcha) need a site key (`NUXT_PUBLIC_FORMS_CAPTCHA_<PROVIDER>_SITE_KEY`)
-and a secret key (`NUXT_FORMS_CAPTCHA_<PROVIDER>_SECRET_KEY`); without a secret key submissions fail closed.
+and a secret key (`NUXT_FORMS_CAPTCHA_<PROVIDER>_SECRET_KEY`) with `<PROVIDER>` one of `TURNSTILE`, `RECAPTCHA`, `HCAPTCHA`;
+`NUXT_PUBLIC_FORMS_CAPTCHA_DEFAULT_PROVIDER` picks the provider of a field that names none. A secret key can also be set
+per form in the admin builder: it is stored encrypted (AES-256-GCM, key from `NUXT_FORMS_ENCRYPTION_KEY`, else
+`NUXT_ENCRYPTION_KEY`, else the session password; changing the key makes stored secrets unreadable) and takes precedence
+over the environment one. Without any secret key submissions fail closed.
 
 Full documentation: `apps/docs/content/4.modules/26.forms.md`.
 
