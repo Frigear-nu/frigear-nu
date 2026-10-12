@@ -1,4 +1,5 @@
 import {
+  addComponent,
   addComponentsDir,
   addImports,
   addServerHandler,
@@ -18,6 +19,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import type {
   AuthorizeContext,
+  CaptchaVerifyContext,
   DeliveredContext,
   FormsRuntimeConfig,
   ModuleOptions,
@@ -50,6 +52,11 @@ declare module 'nitropack' {
      * here (webhooks, CRM, ...); set `ctx.delivered = true` once done. Throwing marks delivery failed.
      */
     'forms:submitted': (ctx: SubmittedContext) => void | Promise<void>
+    /**
+     * A captcha token must be verified. Set `ctx.valid` to decide; when left `undefined` the provider's
+     * siteverify endpoint is called with the configured secret key. Lets hosts and tests replace the network call.
+     */
+    'forms:captcha:verify': (ctx: CaptchaVerifyContext) => void | Promise<void>
     /** Delivery of a submission finished (successfully or not). */
     'forms:delivered': (ctx: DeliveredContext) => void | Promise<void>
   }
@@ -77,6 +84,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
+    '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
   },
   async setup(options, nuxt) {
@@ -98,6 +106,12 @@ export default defineNuxtModule<ModuleOptions>({
       rateLimit: settings.rateLimit ?? 10,
       rateLimitWindowSeconds: settings.rateLimitWindowSeconds ?? 600,
       seed: { enabled: options.seed?.enabled ?? false, forms: options.seed?.forms ?? [] },
+      captcha: {
+        turnstile: { secretKey: options.captcha?.turnstile?.secretKey ?? '' },
+        recaptcha: { secretKey: options.captcha?.recaptcha?.secretKey ?? '' },
+        hcaptcha: { secretKey: options.captcha?.hcaptcha?.secretKey ?? '' },
+      },
+      encryptionKey: options.encryptionKey ?? '',
     }
     nuxt.options.runtimeConfig.public.forms = {
       pages: {
@@ -106,6 +120,12 @@ export default defineNuxtModule<ModuleOptions>({
         adminForm: adminFormPath,
         adminSubmissions: adminSubmissionsPath,
         adminSubmission: adminSubmissionPath,
+      },
+      captcha: {
+        turnstile: { siteKey: options.captcha?.turnstile?.siteKey ?? '' },
+        recaptcha: { siteKey: options.captcha?.recaptcha?.siteKey ?? '' },
+        hcaptcha: { siteKey: options.captcha?.hcaptcha?.siteKey ?? '' },
+        defaultProvider: options.captcha?.defaultProvider ?? 'turnstile',
       },
     }
 
@@ -116,7 +136,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- API routes -----------------------------------------------------------------------
-    const route = (method: 'get' | 'post' | 'patch' | 'delete', path: string, file: string) =>
+    const route = (method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string, file: string) =>
       addServerHandler({ route: `/api/forms${path}`, method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
 
     // Static `admin/*` segments win over `:slug` in the router.
@@ -126,26 +146,42 @@ export default defineNuxtModule<ModuleOptions>({
     route('patch', '/admin/forms/:id', 'admin/form.patch')
     route('delete', '/admin/forms/:id', 'admin/form.delete')
     route('get', '/admin/forms/:id/submissions', 'admin/submissions.get')
+    route('get', '/admin/forms/:id/tokens', 'admin/form-tokens.get')
+    route('post', '/admin/forms/:id/tokens', 'admin/form-tokens.post')
+    route('delete', '/admin/forms/:id/tokens/:tokenId', 'admin/form-token.delete')
+    route('get', '/admin/forms/:id/password', 'admin/form-password.get')
+    route('put', '/admin/forms/:id/password', 'admin/form-password.put')
+    route('delete', '/admin/forms/:id/password', 'admin/form-password.delete')
+    route('get', '/admin/forms/:id/secrets', 'admin/form-secrets.get')
+    route('put', '/admin/forms/:id/secrets', 'admin/form-secrets.put')
+    route('delete', '/admin/forms/:id/secrets/:key', 'admin/form-secret.delete')
     route('post', '/admin/import', 'admin/import.post')
     route('get', '/admin/submissions/:id', 'admin/submission.get')
     route('get', '/admin/submissions/:id/files/:fileId', 'admin/submission-file.get')
     route('post', '/admin/submissions/:id/redeliver', 'admin/submission-redeliver.post')
     route('get', '/:slug', 'public/form.get')
+    route('get', '/:slug/access', 'public/access.get')
     route('post', '/:slug/submit', 'public/submit.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([
       { name: 'useForm', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'useFormAccess', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'FORM_PASSWORD_HEADER', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocale', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocales', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsPaths', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'useFormLink', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormStepper', from: resolver.resolve('./runtime/app/composables/useFormStepper') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
+    // Global so MDC (Nuxt Content) resolves `::form-embed{slug="..."}` in any collection without a local wrapper.
+    addComponent({ name: 'FormEmbed', filePath: resolver.resolve('./runtime/app/components/FormEmbed.vue'), global: true })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
     const pages = [

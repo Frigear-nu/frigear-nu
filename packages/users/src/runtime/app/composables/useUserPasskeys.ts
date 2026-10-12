@@ -1,3 +1,13 @@
+export interface UserPasskey {
+  id: string
+  userId: number
+  counter: number
+  backedUp: boolean
+  transports: string[] | null
+  name: string | null
+  createdAt: string | Date
+}
+
 export const useUserPasskeys = () => {
   const config = useRuntimeConfig().public.users
 
@@ -9,8 +19,8 @@ export const useUserPasskeys = () => {
   })
   const { fetch: fetchUserSession } = useUserSession()
 
-  async function registerPasskey(userName: string) {
-    await register({ userName }).then(fetchUserSession)
+  async function registerPasskey(userName: string, name?: string) {
+    await register({ userName, displayName: name?.trim() || undefined }).then(fetchUserSession)
   }
 
   async function authenticateWithPasskey(userName?: string) {
@@ -18,7 +28,7 @@ export const useUserPasskeys = () => {
   }
 
   function listPasskeys() {
-    return $fetch('/api/auth/webauthn/credentials')
+    return $fetch<UserPasskey[]>('/api/auth/webauthn/credentials')
   }
 
   function removePasskey(id: string) {

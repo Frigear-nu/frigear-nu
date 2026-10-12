@@ -8,8 +8,11 @@ const props = defineProps<{
 const model = defineModel<Condition | undefined>()
 
 const t = useModuleT('forms')
-const ops: ConditionOp[] = ['eq', 'neq', 'in', 'truthy']
-const opNames: Record<ConditionOp, string> = { eq: 'is equal to', neq: 'is not equal to', in: 'is one of', truthy: 'has an answer' }
+const ops: ConditionOp[] = ['eq', 'neq', 'in', 'empty', 'notEmpty']
+const opNames: Record<ConditionOp, string> = { eq: 'is equal to', neq: 'is not equal to', in: 'is one of', empty: 'is empty', notEmpty: 'has an answer', truthy: 'has an answer' }
+
+/** Operators that compare nothing, so no value is asked for. */
+const withoutValue = (op: ConditionOp) => op === 'empty' || op === 'notEmpty' || op === 'truthy'
 
 const text = computed(() => {
   const value = model.value?.value
@@ -51,13 +54,13 @@ function setValue(raw: string) {
         @update:model-value="patch({ field: String($event) })"
       />
       <USelect
-        :model-value="model.op"
+        :model-value="model.op === 'truthy' ? 'notEmpty' : model.op"
         :items="ops.map(value => ({ value, label: t(`builder.ops.${value}`, opNames[value]) }))"
         class="w-full"
         @update:model-value="patch({ op: $event as ConditionOp, value: undefined })"
       />
       <UInput
-        v-if="model.op !== 'truthy'"
+        v-if="!withoutValue(model.op)"
         :model-value="text"
         :placeholder="model.op === 'in' ? t('builder.valuesHint', 'a, b, c') : t('builder.value', 'Value')"
         class="w-full"

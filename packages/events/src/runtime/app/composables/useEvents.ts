@@ -1,4 +1,5 @@
-import type { EventDetailDto, EventSummaryDto, TicketDto } from '../../../types'
+import type { EventDetailDto, EventSummaryDto, TicketDto, Translated } from '../../../types'
+import { translate } from '../../utils'
 
 export function useEvents() {
   const { data, status, refresh } = useFetch<EventSummaryDto[]>('/api/events', { key: 'events:list', default: () => [] })
@@ -26,10 +27,12 @@ export function useEvent(slug: MaybeRefOrGetter<string>) {
     watch: [loggedIn],
   })
 
+  const locale = useEventsLocale()
+
   async function purchase(ticketTypeId: string, addonIds: string[] = []) {
     const result = await $fetch<{ ticket: TicketDto, url?: string }>(`/api/events/${toValue(slug)}/purchase`, {
       method: 'POST',
-      body: { ticketTypeId, addonIds },
+      body: { ticketTypeId, addonIds, locale: locale.value },
     })
     if (result.url) await navigateTo(result.url, { external: true })
     else await refresh()
@@ -60,4 +63,17 @@ export function useMyTickets() {
 export function useEventsLocale() {
   const nuxtApp = useNuxtApp() as { $i18n?: { locale?: { value?: string } } }
   return computed(() => nuxtApp.$i18n?.locale?.value ?? 'en')
+}
+
+/** The site's default locale: shown for texts that have no translation in the current locale. */
+export function useEventsFallbackLocale() {
+  const nuxtApp = useNuxtApp() as { $i18n?: { defaultLocale?: string } }
+  return computed(() => nuxtApp.$i18n?.defaultLocale ?? 'en')
+}
+
+/** `tr(value)`: a translated text in the current locale, falling back to the default locale, then `en`, then any. */
+export function useEventsTranslate() {
+  const locale = useEventsLocale()
+  const fallback = useEventsFallbackLocale()
+  return (value: Translated | null | undefined) => translate(value, locale.value, fallback.value)
 }

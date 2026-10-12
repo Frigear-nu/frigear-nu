@@ -1,43 +1,61 @@
 <script setup lang="ts">
+// The one heading every `/admin/*` page uses: a Nuxt UI `UPageHeader` with a consistent size and spacing.
+// `back` renders a small link above the title (for detail pages); actions go in the `links` slot
+// (`actions` is accepted as an alias), extra content (badges, metadata) in the default slot.
 defineProps<{
-  title: string
+  title?: string
   description?: string
-  /** Renders a "back" link above the title. */
-  backTo?: string
-  backLabel?: string
+  back?: { label: string, to: string }
 }>()
 </script>
 
 <template>
-  <header class="flex flex-wrap items-start justify-between gap-4">
-    <div class="min-w-0">
-      <UButton
-        v-if="backTo"
-        :to="backTo"
-        :label="backLabel"
-        icon="i-lucide-arrow-left"
-        variant="link"
-        color="neutral"
-        size="sm"
-        class="-ml-2 mb-1"
-      />
-      <h1 class="text-2xl font-semibold">
-        <slot name="title">
-          {{ title }}
-        </slot>
-      </h1>
-      <p
-        v-if="description"
-        class="text-muted mt-1 text-sm"
-      >
-        {{ description }}
-      </p>
-    </div>
-    <div
-      v-if="$slots.actions"
-      class="flex flex-wrap items-center gap-2"
+  <UPageHeader
+    :title="title"
+    :description="description"
+    :ui="{ root: 'pt-0 pb-6 mb-6', title: 'text-2xl sm:text-3xl' }"
+  >
+    <template
+      v-if="back || $slots.headline"
+      #headline
     >
-      <slot name="actions" />
-    </div>
-  </header>
+      <slot name="headline">
+        <UButton
+          v-if="back"
+          class="p-0"
+          color="neutral"
+          variant="link"
+          size="sm"
+          icon="i-lucide-arrow-left"
+          :to="back.to"
+          :label="back.label"
+        />
+      </slot>
+    </template>
+
+    <template
+      v-if="$slots.title"
+      #title
+    >
+      <slot name="title" />
+    </template>
+
+    <template
+      v-if="$slots.description"
+      #description
+    >
+      <slot name="description" />
+    </template>
+
+    <template
+      v-if="$slots.links || $slots.actions"
+      #links
+    >
+      <slot name="links">
+        <slot name="actions" />
+      </slot>
+    </template>
+
+    <slot />
+  </UPageHeader>
 </template>

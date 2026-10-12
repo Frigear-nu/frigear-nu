@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TicketTypeDto } from '../../../types'
-import { formatPrice, translate } from '../../utils'
+import { formatPrice } from '../../utils'
 
 const props = defineProps<{
   ticketTypes: TicketTypeDto[]
@@ -10,6 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{ purchase: [ticketTypeId: string, addonIds: string[]] }>()
 
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 const selectedId = ref<string>()
 // Group id -> chosen addon ids.
 const chosen = ref<Record<string, string[]>>({})
@@ -65,7 +66,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       @click="selectedId = type.id"
     >
       <div class="flex items-center gap-2">
-        <span class="font-medium">{{ translate(type.name, locale) }}</span>
+        <span class="font-medium">{{ tr(type.name) }}</span>
         <UBadge
           v-if="reason(type)"
           color="neutral"
@@ -89,7 +90,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
         v-if="type.description"
         class="mt-1 text-sm text-muted"
       >
-        {{ translate(type.description, locale) }}
+        {{ tr(type.description) }}
       </p>
     </button>
 
@@ -99,7 +100,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       class="flex flex-col gap-2"
     >
       <legend class="mb-1 font-medium">
-        {{ translate(group.title, locale) }}<span
+        {{ tr(group.title) }}<span
           v-if="group.required"
           class="text-error"
         > *</span>
@@ -113,7 +114,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
         :disabled="addon.soldOut"
         @click="toggle(group.id, addon.id, group.multiple)"
       >
-        <span>{{ translate(addon.label, locale) }}</span>
+        <span>{{ tr(addon.label) }}</span>
         <UBadge
           v-if="addon.soldOut"
           color="neutral"

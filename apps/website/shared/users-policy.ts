@@ -1,17 +1,23 @@
 import { canManageRole } from '@frigear-nu/authorization/utils'
 import { adminAreaRoles, userManagerRoles, userRoles } from './roles'
 
-type Action = 'view' | 'create' | 'update'
+type Action = 'view' | 'create' | 'update' | 'delete'
 
 /**
  * Who may administer users (ported from the old `canViewUsers`/`canManageUsers` abilities, plus the role ceiling of
  * #648). Pure so it can be tested: `role`/`target.role` are *effective* roles.
  *
  * - staff roles (`admin`, `manager`, `coordinator`) may list users;
- * - `admin` and `manager` may create and edit them;
+ * - `admin` and `manager` may create, edit and delete them;
  * - nobody may hand out, or change a user holding, a role above their own - only strictly lower roles, except that an
  *   admin may manage other admins.
  */
+/** The roles `role` may hand out: strictly lower ones, plus their own for admins. */
+export function assignableUserRoles(role: string): string[] {
+  if (!(userManagerRoles as readonly string[]).includes(role)) return []
+  return userRoles.filter(target => canManageRole(userRoles, role, target, { equalAllowedFor: ['admin'] }))
+}
+
 export function canAdministerUsers(
   role: string,
   action: Action,

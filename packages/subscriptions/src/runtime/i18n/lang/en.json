@@ -56,6 +56,30 @@
         "label": "Subscription",
         "description": "Manage your plan and billing."
       }
+    },
+    "admin": {
+      "title": "Membership",
+      "none": "No active membership.",
+      "free": "Free of charge",
+      "paid": "Paid (Stripe)",
+      "until": "until {date}",
+      "openEnded": "No end date",
+      "plan": "Plan",
+      "planPlaceholder": "Choose a plan",
+      "endsAt": "Ends on (optional)",
+      "grant": "Grant free",
+      "granted": "Membership granted.",
+      "revoke": "Revoke free membership",
+      "revoked": "Membership revoked.",
+      "sendLink": "Send payment link",
+      "emailUser": "Email the link to the user",
+      "linkCreated": "Payment link created.",
+      "linkEmailed": "Payment link created and emailed.",
+      "copy": "Copy link",
+      "copied": "Link copied.",
+      "linkHint": "The link is valid for 24 hours.",
+      "paidHint": "Paid subscriptions are managed in Stripe.",
+      "error": "Something went wrong."
     }
   }
 }

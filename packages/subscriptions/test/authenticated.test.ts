@@ -14,6 +14,7 @@ type Row = {
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   endedAt: string | null
+  source: string
 }
 
 async function registerUser(name: string, email: string, customerId?: string) {
@@ -157,6 +158,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
         currentPeriodStart: iso(1700000000),
         currentPeriodEnd: iso(1702592000),
         endedAt: null,
+        source: 'stripe',
       }])
     })
   })
@@ -294,6 +296,94 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const user = await registerUser('Portal2', 'portal2@example.com')
       await expect($fetch('/api/subscriptions/portal', { method: 'POST', headers: { cookie: user.cookie }, body: { returnUrl: 'https://evil.example' } }))
         .rejects.toMatchObject({ statusCode: 400 })
+    })
+  })
+
+  describe('admin membership (staff)', () => {
+    const staffHeaders = (cookie: string) => ({ 'cookie': cookie, 'x-staff': '1' })
+    const entitled = async (userId: number) =>
+      (await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${userId}`)).has
+
+    it('requires a signed-in staff member', async () => {
+      const target = await registerUser('Target Auth', 'target-auth@example.com')
+      const member = await registerUser('Plain', 'plain@example.com')
+      const url = `/api/admin/users/${target.id}/subscription`
+
+      await expect($fetch(url)).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(url, { method: 'POST', headers: { cookie: member.cookie }, body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch(`${url}/payment-link`, { method: 'POST', headers: { cookie: member.cookie }, body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 403 })
+      expect(await entitled(target.id)).toBe(false)
+    })
+
+    it('grants a free membership that counts as active, then revokes it', async () => {
+      const staff = await registerUser('Staff', 'staff@example.com')
+      const target = await registerUser('Free Member', 'free@example.com')
+      const url = `/api/admin/users/${target.id}/subscription`
+      const headers = staffHeaders(staff.cookie)
+
+      const before = await $fetch<{ plans: Array<{ key: string }>, current: unknown }>(url, { headers })
+      expect(before.current).toBeNull()
+      expect(before.plans.map(plan => plan.key)).toEqual(['member', 'patron', 'secret'])
+
+      await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'nope' } })).rejects.toMatchObject({ statusCode: 400 })
+      await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'member', endsAt: '2000-01-01' } })).rejects.toMatchObject({ statusCode: 400 })
+
+      const granted = await $fetch<{ id: string }>(url, { method: 'POST', headers, body: { planKey: 'member' } })
+      expect(granted.id).toMatch(/^manual_/)
+      expect(await row(granted.id)).toMatchObject({ userId: target.id, planKey: 'member', status: 'active', source: 'manual', priceId: '', endedAt: null })
+      expect(await entitled(target.id)).toBe(true)
+
+      const me = await $fetch<{ activePlan: string | null, subscriptions: Array<{ source: string }> }>('/api/subscriptions/me', { headers: { cookie: target.cookie } })
+      expect(me).toMatchObject({ activePlan: 'member', subscriptions: [{ source: 'manual' }] })
+      expect(await $fetch(url, { headers })).toMatchObject({ current: { planKey: 'member', source: 'manual', currentPeriodEnd: null } })
+
+      // Granting again replaces the previous grant rather than stacking.
+      const replaced = await $fetch<{ id: string }>(url, { method: 'POST', headers, body: { planKey: 'patron', endsAt: new Date(Date.now() + 86400_000).toISOString() } })
+      expect((await row(granted.id))?.endedAt).not.toBeNull()
+      expect(await row(replaced.id)).toMatchObject({ planKey: 'patron', status: 'active' })
+
+      await expect($fetch(url, { method: 'DELETE', headers: { cookie: target.cookie } })).rejects.toMatchObject({ statusCode: 403 })
+      await $fetch(url, { method: 'DELETE', headers })
+      expect(await entitled(target.id)).toBe(false)
+      expect(await row(replaced.id)).toMatchObject({ status: 'canceled' })
+      await expect($fetch(url, { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
+    })
+
+    it('does not grant or link over a paid subscription', async () => {
+      const staff = await registerUser('Staff Two', 'staff2@example.com')
+      const target = await registerUser('Paying', 'paying@example.com')
+      await sendSubscription('customer.subscription.created', 'adm-paid', { id: 'sub_adm_paid', customer: target.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly' })
+      const headers = staffHeaders(staff.cookie)
+
+      await expect($fetch(`/api/admin/users/${target.id}/subscription`, { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
+      await expect($fetch(`/api/admin/users/${target.id}/subscription/payment-link`, { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
+      await expect($fetch(`/api/admin/users/${target.id}/subscription`, { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
+    })
+
+    it('creates a Stripe Checkout link for the user, optionally emailing it', async () => {
+      const staff = await registerUser('Staff Three', 'staff3@example.com')
+      const target = await registerUser('Linked', 'linked@example.com')
+      const url = `/api/admin/users/${target.id}/subscription/payment-link`
+      const headers = staffHeaders(staff.cookie)
+
+      await getStripeCalls(true)
+      const result = await $fetch<{ url: string, emailed: boolean }>(url, { method: 'POST', headers, body: { planKey: 'patron' } })
+      expect(result).toEqual({ url: 'https://checkout.stripe.test/c/cs_test_1', emailed: false })
+
+      const session = (await getStripeCalls()).find(call => call.path === '/v1/checkout/sessions')
+      expect(session?.params).toMatchObject({
+        'mode': 'subscription',
+        'customer': target.customerId,
+        'line_items[0][price]': 'price_patron_y',
+        'client_reference_id': String(target.id),
+        'subscription_data[metadata][userId]': String(target.id),
+        'subscription_data[metadata][planKey]': 'patron',
+      })
+
+      // Staff can offer plans that the public plan filter hides; unknown ones are rejected.
+      expect(await $fetch(url, { method: 'POST', headers, body: { planKey: 'secret', email: true } })).toMatchObject({ emailed: true })
+      await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'nope' } })).rejects.toMatchObject({ statusCode: 400 })
+      await expect($fetch(url, { method: 'POST', headers, body: {} })).rejects.toMatchObject({ statusCode: 400 })
     })
   })
 

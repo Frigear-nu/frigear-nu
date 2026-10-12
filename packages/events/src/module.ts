@@ -83,6 +83,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
+    '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     '@frigear-nu/payments': { version: '>=0.0.1' },
     '@frigear-nu/subscriptions': { version: '>=0.0.1', optional: true },
@@ -165,6 +166,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useEvent', from: resolver.resolve('./runtime/app/composables/useEvents') },
       { name: 'useMyTickets', from: resolver.resolve('./runtime/app/composables/useEvents') },
       { name: 'useEventsLocale', from: resolver.resolve('./runtime/app/composables/useEvents') },
+      { name: 'useEventsFallbackLocale', from: resolver.resolve('./runtime/app/composables/useEvents') },
+      { name: 'useEventsTranslate', from: resolver.resolve('./runtime/app/composables/useEvents') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 

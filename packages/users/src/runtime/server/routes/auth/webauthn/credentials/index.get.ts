@@ -6,5 +6,6 @@ export default defineEventHandler(async (event) => {
   return db.query.userCredentials.findMany({
     where: (t, { eq }) => eq(t.userId, user.id),
     columns: { publicKey: false },
+    orderBy: (t, { asc }) => asc(t.createdAt),
   })
 })

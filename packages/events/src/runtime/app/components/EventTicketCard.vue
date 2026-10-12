@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { renderSVG } from 'uqr'
 import type { TicketDto } from '../../../types'
-import { formatPrice, translate } from '../../utils'
+import { formatPrice } from '../../utils'
 
 const props = defineProps<{ ticket: TicketDto, to?: string }>()
 const emit = defineEmits<{ pay: [ticketId: string] }>()
 const t = useModuleT('events')
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 
 const colors: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = { paid: 'success', pending: 'warning', cancelled: 'neutral', expired: 'neutral', refunded: 'error' }
 // An <img> data URI (not v-html): the SVG is generated locally from the code and never parsed as markup.
@@ -19,14 +20,14 @@ const showQr = ref(false)
     <div class="flex items-start gap-2">
       <div>
         <h3 class="font-semibold">
-          {{ translate(ticket.eventName, locale) }}
+          {{ tr(ticket.eventName) }}
         </h3>
         <p class="text-sm text-muted">
-          {{ translate(ticket.ticketTypeName, locale) }}<template
+          {{ tr(ticket.ticketTypeName) }}<template
             v-for="addon in ticket.addons"
             :key="addon.id"
           >
-            · {{ translate(addon.label, locale) }}
+            · {{ tr(addon.label) }}
           </template>
         </p>
       </div>

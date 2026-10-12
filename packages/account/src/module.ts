@@ -9,6 +9,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { registerModule, extendDatabaseTable, registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import type { NuxtPage } from '@nuxt/schema'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
@@ -19,7 +20,7 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    account?: { verifyEmailChange: boolean }
+    account?: { verifyEmailChange: boolean, idCode?: { privateKey?: string, keyId?: string, issuer?: string } }
   }
 
   interface PublicRuntimeConfig {
@@ -82,8 +83,20 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/account/change-password.post'),
     })
 
+    addServerHandler({
+      route: '/api/account/id-code',
+      method: 'get',
+      handler: resolver.resolve('./runtime/server/routes/account/id-code.get'),
+    })
+
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    nuxt.options.runtimeConfig.account = { verifyEmailChange: settings.verifyEmailChange === true }
+    // The Frigear ID QR is signed with `runtimeConfig.account.idCode.privateKey` (NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY) or,
+    // when unset, the RS256 key of `@frigear-nu/oauth-server` (`runtimeConfig.oauthServer`), which publishes the JWKS.
+    const existingAccount = nuxt.options.runtimeConfig.account as { idCode?: object } | undefined
+    nuxt.options.runtimeConfig.account = {
+      idCode: { privateKey: '', keyId: '', issuer: '', ...existingAccount?.idCode },
+      verifyEmailChange: settings.verifyEmailChange === true,
+    }
 
     if (settings.verifyEmailChange) {
       addServerHandler({
@@ -112,6 +125,7 @@ export default defineNuxtModule<ModuleOptions>({
     const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
     const documentsPath = resolvePagePath(settings.pages?.documents, '/account/documents')
+    const idCodePath = resolvePagePath(settings.pages?.idCode, '/account/id')
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
 
     if (!withMenus && settings.pages?.index) {
@@ -119,25 +133,27 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     nuxt.options.runtimeConfig.public.account = {
-      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath },
+      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath },
       documents: settings.documents ?? [],
     }
 
-    if (indexPath || profilePath || securityPath || documentsPath) {
+    if (indexPath || profilePath || securityPath || documentsPath || idCodePath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
-        if (indexPath && !existingPaths.has(indexPath)) {
-          pages.push({ name: 'account-index', path: indexPath, file: resolver.resolve('./runtime/app/pages/index.vue') })
+        const children: NuxtPage[] = []
+        const add = (path: string | undefined, name: string, file: string) => {
+          if (path && !existingPaths.has(path)) children.push({ name, path, file: resolver.resolve(file) })
         }
-        if (profilePath && !existingPaths.has(profilePath)) {
-          pages.push({ name: 'account-profile', path: profilePath, file: resolver.resolve('./runtime/app/pages/profile.vue') })
-        }
-        if (documentsPath && !existingPaths.has(documentsPath)) {
-          pages.push({ name: 'account-documents', path: documentsPath, file: resolver.resolve('./runtime/app/pages/documents.vue') })
-        }
-        if (securityPath && !existingPaths.has(securityPath)) {
-          pages.push({ name: 'account-security', path: securityPath, file: resolver.resolve('./runtime/app/pages/security.vue') })
+        add(indexPath, 'account-index', './runtime/app/pages/index.vue')
+        add(profilePath, 'account-profile', './runtime/app/pages/profile.vue')
+        add(documentsPath, 'account-documents', './runtime/app/pages/documents.vue')
+        add(securityPath, 'account-security', './runtime/app/pages/security.vue')
+        add(idCodePath, 'account-id-code', './runtime/app/pages/id-code.vue')
+
+        // All account pages share one parent route that renders the account header above them.
+        if (children.length) {
+          pages.push({ name: 'account-layout', path: '/__account', file: resolver.resolve('./runtime/app/pages/layout.vue'), children })
         }
       })
     }

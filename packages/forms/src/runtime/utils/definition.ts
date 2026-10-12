@@ -1,20 +1,26 @@
 import { z } from 'zod'
-import type { FormDefinition } from '../../types'
+import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
+
+const MAX_BODY = 10_000
+const bodyText = z.union([
+  z.string().max(MAX_BODY),
+  z.record(z.string(), z.string().max(MAX_BODY)),
+])
 
 const KEY = /^[a-z]\w*$/i
 const ID = /^[a-z0-9][\w-]*$/i
 
 const condition = z.object({
   field: z.string().regex(KEY),
-  op: z.enum(['eq', 'neq', 'in', 'truthy']),
+  op: z.enum(['eq', 'neq', 'in', 'empty', 'notEmpty', 'truthy']),
   value: z.unknown().optional(),
 })
 
 const field = z.object({
   key: z.string().regex(KEY, 'Field keys must start with a letter and contain only letters, digits and underscores.'),
-  type: z.enum(['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'date', 'file', 'markdown']),
+  type: z.enum(['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'date', 'file', 'markdown', 'captcha']),
   content: translated.optional(),
   label: translated.optional(),
   description: translated.optional(),
@@ -34,6 +40,12 @@ const field = z.object({
     accept: z.array(z.string()).optional(),
     message: translated.optional(),
   }).optional(),
+  captcha: z.object({
+    provider: z.enum(['turnstile', 'recaptcha', 'hcaptcha']).optional(),
+    siteKey: z.string().max(200).regex(/^[\w-]*$/, 'Site keys contain only letters, digits, dashes and underscores.').optional(),
+    theme: z.enum(['auto', 'light', 'dark']).optional(),
+    size: z.enum(['normal', 'compact']).optional(),
+  }).optional(),
   showIf: condition.optional(),
 })
 
@@ -49,6 +61,11 @@ const sameOriginPath = (value: string) => value.startsWith('/') && !value.starts
 // Recipients are literal addresses: an unresolved `${...}` placeholder must never become one.
 const emailAddress = z.string().regex(/^[^\s@${}]+@[^\s$@{}][^\s$.@{}]*\.[^\s$@{}]+$/, 'Recipients must be plain email addresses.')
 
+export const accessSchema = z.object({
+  availability: z.enum(['web', 'api']).default('web'),
+  auth: z.enum(['none', 'user', 'token', 'password']).default('none'),
+})
+
 export const formDefinitionSchema = z.object({
   mode: z.enum(['single', 'stepped']),
   storage: z.enum(['db', 'none']).default('db'),
@@ -59,10 +76,12 @@ export const formDefinitionSchema = z.object({
     redirect: z.string().refine(sameOriginPath, 'Redirect must be a path on this site.').optional(),
     allowResubmit: z.object({ keep: z.array(z.string()) }).optional(),
   }).optional(),
+  access: accessSchema.optional(),
   delivery: z.object({
     email: z.object({
       to: z.array(emailAddress).min(1),
       subject: translated.optional(),
+      body: bodyText.optional(),
       routes: z.object({ field: z.string(), to: z.record(z.string(), z.array(emailAddress).min(1)) }).optional(),
       replyToField: z.string().optional(),
     }).optional(),
@@ -72,6 +91,11 @@ export const formDefinitionSchema = z.object({
 
   if (definition.mode === 'single' && definition.steps.length !== 1) {
     fail('A single page form has exactly one step.', ['steps'])
+  }
+
+  // A bearer token cannot be typed into a web page, so token forms are API-only.
+  if (definition.access?.auth === 'token' && definition.access.availability !== 'api') {
+    fail('Token access needs the form to be API only.', ['access', 'availability'])
   }
 
   const stepIds = new Set<string>()
@@ -113,7 +137,7 @@ export const formDefinitionSchema = z.object({
     check(s.showIf, ['steps', stepIndex, 'showIf', 'field'])
     s.fields.forEach((f, fieldIndex) => {
       check(f.showIf, ['steps', stepIndex, 'fields', fieldIndex, 'showIf', 'field'])
-      if (f.type !== 'markdown') seen.add(f.key)
+      if (f.type !== 'markdown' && f.type !== 'captcha') seen.add(f.key)
     })
   })
 
@@ -141,4 +165,11 @@ export function resolveEmailDelivery(email: NonNullable<NonNullable<FormDefiniti
   const routed = email.routes?.to[String(answers[email.routes.field] ?? '')]
   const replyTo = email.replyToField ? String(answers[email.replyToField] ?? '').trim() : ''
   return { to: routed?.length ? routed : email.to, replyTo: replyTo || undefined }
+}
+
+export const defaultAccess: FormAccess = { availability: 'web', auth: 'none' }
+
+/** The effective access of a definition (older definitions have none and stay open). */
+export function resolveAccess(definition: { access?: Partial<FormAccess> }): FormAccess {
+  return { ...defaultAccess, ...definition.access }
 }

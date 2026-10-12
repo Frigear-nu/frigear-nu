@@ -20,8 +20,7 @@ const format = (iso: string) => new Date(iso).toLocaleString()
   <AdminPage>
     <AdminPageHeader
       :title="t('admin.submissionsTitle', 'Submissions')"
-      :back-to="paths('adminForm', { id })"
-      :back-label="t('admin.edit', 'Edit')"
+      :back="{ label: t('admin.edit', 'Edit'), to: paths('adminForm', { id }) }"
     />
 
     <UAlert

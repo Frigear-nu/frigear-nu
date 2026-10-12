@@ -14,9 +14,11 @@ defineOptions({ name: 'EventsListPage' })
 
 <template>
   <UContainer class="py-10">
-    <h1 class="mb-6 text-2xl font-semibold">
-      {{ t('title', 'Events') }}
-    </h1>
+    <UPageHeader
+      :title="t('title', 'Events')"
+      :ui="{ title: 'text-3xl sm:text-4xl' }"
+      class="mb-8"
+    />
     <p
       v-if="status === 'success' && !sections.length"
       class="text-muted"

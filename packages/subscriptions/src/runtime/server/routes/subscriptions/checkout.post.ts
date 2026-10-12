@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { CheckoutBeforeContext, CheckoutBody, CheckoutResponse } from '../../../../types'
-import { LIVE_STATUSES, decideChangeKind, findPrice, resolveSameOriginUrl } from '../../../utils/plans'
+import { LIVE_STATUSES, decideChangeKind, resolveSameOriginUrl } from '../../../utils/plans'
 
 const bodySchema = z.object({
   planKey: z.string().min(1).optional(),
@@ -32,43 +32,13 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
   const cancelUrl = safeUrl(body.cancelUrl, pages.cancel, 'cancelUrl')
 
   // --- Resolve the target price / plan --------------------------------------------------
-  let priceId: string
-  let planKey: string | null
-  if (Object.keys(configuredPlans).length === 0) {
-    // "Any subscription" mode: no plans configured, so any recurring price may be used.
-    if (!body.priceId) throw createError({ statusCode: 400, statusMessage: '`priceId` is required when no plans are configured.' })
-    const price = await stripe.prices.retrieve(body.priceId).catch(() => null)
-    if (!price?.recurring || !price.active) throw createError({ statusCode: 400, statusMessage: 'Unknown or non-recurring price.' })
-    priceId = price.id
-    planKey = null
-  }
-  else {
-    const plans = await getAvailablePlans(event)
-    if (body.planKey) {
-      const plan = plans.find(item => item.key === body.planKey)
-      if (!plan) throw createError({ statusCode: 400, statusMessage: 'Unknown or unavailable plan.' })
-      const price = body.priceId
-        ? plan.prices.find(item => item.id === body.priceId)
-        : plan.prices.length === 1 ? plan.prices[0] : undefined
-      if (!price) {
-        throw createError({ statusCode: 400, statusMessage: body.priceId ? 'That price does not belong to the plan.' : 'This plan has several prices; provide `priceId`.' })
-      }
-      priceId = price.id
-      planKey = plan.key
-    }
-    else {
-      const found = findPrice(plans, body.priceId!)
-      if (!found) throw createError({ statusCode: 400, statusMessage: 'Unknown or unavailable price.' })
-      priceId = found.price.id
-      planKey = found.plan.key
-    }
-  }
+  const { priceId, planKey } = await resolveCheckoutTarget(stripe, await getAvailablePlans(event), body)
 
   // --- New checkout or change of an existing subscription ---------------------------------
   const rows = await db.select().from(schema.subscriptions)
     .where(eq(schema.subscriptions.userId, user.id))
     .orderBy(desc(schema.subscriptions.createdAt))
-  const existing = rows.find(row => LIVE_STATUSES.includes(row.status) && !row.endedAt)
+  const existing = rows.find(row => row.source !== 'manual' && LIVE_STATUSES.includes(row.status) && !row.endedAt)
 
   if (existing?.priceId === priceId) {
     throw createError({ statusCode: 409, statusMessage: 'You are already subscribed to this price.' })

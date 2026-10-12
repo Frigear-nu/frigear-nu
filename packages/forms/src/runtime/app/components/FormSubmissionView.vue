@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SubmissionDto } from '../../../types'
-import { isInputField, resolveVisibility, translate } from '../../utils'
+import { isAnswerField, resolveVisibility, translate } from '../../utils'
 
 const props = defineProps<{ submission: SubmissionDto }>()
 
@@ -11,7 +11,7 @@ const locale = useFormsLocale()
 const sections = computed(() => resolveVisibility(props.submission.definition, props.submission.answers).map(({ step, fields }) => ({
   id: step.id,
   title: translate(step.title, locale.value),
-  rows: fields.filter(isInputField).map((field) => {
+  rows: fields.filter(isAnswerField).map((field) => {
     const value = props.submission.answers[field.key]
     const option = (v: string) => translate(field.options?.find(o => o.value === v)?.label, locale.value) || v
     return {

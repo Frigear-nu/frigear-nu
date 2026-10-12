@@ -27,6 +27,8 @@ import type {
 } from './types'
 
 export type {
+  AdminMembershipResponse,
+  AdminPaymentLinkResponse,
   CheckoutBeforeContext,
   CheckoutBody,
   CheckoutResponse,
@@ -173,6 +175,21 @@ export default defineNuxtModule<ModuleOptions>({
       method: 'post',
       handler: resolver.resolve('./runtime/server/routes/subscriptions/portal.post'),
     })
+
+    // Staff membership management (grant free / payment link / revoke), authorized through the users admin
+    // policy (`users:admin:authorize`, action `update`). Used by the `UsersAdminMembership` component.
+    for (const [method, path, file] of [
+      ['get', 'subscription', 'subscription.get'],
+      ['post', 'subscription', 'subscription.post'],
+      ['delete', 'subscription', 'subscription.delete'],
+      ['post', 'subscription/payment-link', 'payment-link.post'],
+    ] as const) {
+      addServerHandler({
+        route: `/api/admin/users/:id/${path}`,
+        method,
+        handler: resolver.resolve(`./runtime/server/routes/admin/${file}`),
+      })
+    }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 

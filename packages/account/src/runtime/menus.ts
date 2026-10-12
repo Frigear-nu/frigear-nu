@@ -59,4 +59,17 @@ export default defineMenuSource(() => {
       order: 30,
     })
   }
+
+  if (config?.pages?.idCode) {
+    extendMenuItem('account', {
+      id: 'id-code',
+      label: 'Frigear ID',
+      labelKey: 'account.identificationCode.title',
+      description: 'Press here to show your ID.',
+      descriptionKey: 'account.identificationCode.description',
+      icon: 'i-lucide-qr-code',
+      to: config.pages.idCode,
+      order: 5,
+    })
+  }
 })

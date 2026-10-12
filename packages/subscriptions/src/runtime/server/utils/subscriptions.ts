@@ -1,6 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { desc, eq } from 'drizzle-orm'
-import { DEFAULT_ENTITLED_STATUSES } from '../../utils/plans'
+import { DEFAULT_ENTITLED_STATUSES, isEntitledRow } from '../../utils/plans'
 
 export type HasActiveSubscriptionOptions = {
   /** Only count subscriptions on one of these plan keys. Omit for "any plan". */
@@ -20,7 +20,7 @@ export async function getUserSubscription(userId: number, options: Pick<HasActiv
     .orderBy(desc(schema.subscriptions.createdAt))
 
   const entitled = rows
-    .filter(row => statuses.includes(row.status) && !row.endedAt)
+    .filter(row => isEntitledRow(row, statuses))
     .sort((a, b) => (b.currentPeriodEnd?.getTime() ?? 0) - (a.currentPeriodEnd?.getTime() ?? 0))
   return entitled[0] ?? null
 }
@@ -30,8 +30,7 @@ export async function hasActiveSubscription(userId: number, options: HasActiveSu
   const statuses = options.statuses ?? DEFAULT_ENTITLED_STATUSES
   const rows = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.userId, userId))
   return rows.some(row =>
-    statuses.includes(row.status)
-    && !row.endedAt
+    isEntitledRow(row, statuses)
     && (!options.plans?.length || (row.planKey !== null && options.plans.includes(row.planKey))),
   )
 }

@@ -2,7 +2,14 @@
 import type { FormField } from '../../../types'
 import { renderMarkdown, translate } from '../../utils'
 
-const props = defineProps<{ field: FormField, locale: string }>()
+const props = defineProps<{
+  field: FormField
+  locale: string
+  /** Admin preview: captcha fields render a stub instead of the provider widget. */
+  preview?: boolean
+  /** Bumped by the form after a failed submit so captcha widgets reset. */
+  captchaResetKey?: number
+}>()
 const model = defineModel<unknown>()
 
 const text = (value: FormField['label']) => translate(value, props.locale) || undefined
@@ -24,6 +31,25 @@ const isCheckbox = computed(() => props.field.type === 'checkbox')
     v-html="html"
   />
   <!-- eslint-enable vue/no-v-html -->
+
+  <UFormField
+    v-else-if="field.type === 'captcha'"
+    :name="field.key"
+    :label="text(field.label)"
+    :description="text(field.description)"
+  >
+    <ClientOnly>
+      <FormCaptcha
+        v-model="model as string | undefined"
+        :field="field"
+        :preview="preview"
+        :reset-key="captchaResetKey"
+      />
+      <template #fallback>
+        <div class="h-[65px] rounded-md bg-elevated/50" />
+      </template>
+    </ClientOnly>
+  </UFormField>
 
   <UFormField
     v-else

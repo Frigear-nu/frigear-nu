@@ -139,7 +139,33 @@
         "verified": "Verificerede",
         "unverified": "Ikke verificerede",
         "role": "Præcis rolle",
-        "clear": "Ryd filtre"
+        "clear": "Ryd filtre",
+        "allRoles": "Alle roller"
+      },
+      "subscription": "Abonnement",
+      "rolePlaceholder": "Vælg en rolle",
+      "created_ok": "Brugeren er oprettet.",
+      "detail": {
+        "profile": "Profil",
+        "account": "Konto",
+        "membership": "Medlemskab",
+        "noMembership": "Intet medlemskab.",
+        "password": "Adgangskode",
+        "passkeys": "Adgangsnøgler",
+        "set": "Angivet",
+        "notSet": "Ikke angivet",
+        "emailHelp": "Ændres adressen, markeres den som ikke bekræftet, og der sendes et bekræftelseslink til den nye.",
+        "saved": "Gemt.",
+        "savedEmail": "Gemt. En bekræftelsesmail er sendt til den nye adresse.",
+        "resent": "Login-link sendt.",
+        "sendLink": "Send et login-link",
+        "sendVerification": "Send bekræftelsesmail igen",
+        "danger": "Farezone",
+        "delete": "Slet bruger",
+        "deleteTitle": "Slet denne bruger?",
+        "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
+        "deleted": "Brugeren er slettet.",
+        "notFound": "Brugeren blev ikke fundet."
       }
     }
   }

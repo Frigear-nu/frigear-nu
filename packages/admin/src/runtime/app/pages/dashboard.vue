@@ -2,7 +2,9 @@
 defineOptions({ name: 'AdminDashboardPage' })
 
 const t = useModuleT('admin')
-const { data: items } = await useMenu('admin.nav')
+const { data: menu } = await useMenu('admin.nav')
+// The dashboard entry would just link to this page.
+const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admin-dashboard'))
 </script>
 
 <template>
@@ -14,7 +16,7 @@ const { data: items } = await useMenu('admin.nav')
     <WidgetArea name="admin.dashboard">
       <template #empty>
         <div
-          v-if="items?.length"
+          v-if="items.length"
           class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4"
         >
           <UPageCard

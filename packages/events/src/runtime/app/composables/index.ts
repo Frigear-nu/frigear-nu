@@ -1,1 +1,1 @@
-export { useEvents, useEvent, useMyTickets, useEventsLocale } from './useEvents'
+export { useEvents, useEvent, useMyTickets, useEventsLocale, useEventsFallbackLocale, useEventsTranslate } from './useEvents'

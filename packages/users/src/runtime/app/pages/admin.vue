@@ -1,11 +1,14 @@
 <script setup lang="ts">
 defineOptions({ name: 'UsersAdminPage' })
 
-type AdminUser = { id: number, name: string, email: string, role?: string, emailVerifiedAt: string | null, lastLoginAt?: string | null, createdAt: string }
-type AdminUsersPage = { items: AdminUser[], total: number, page: number, pageSize: number, hasRoles: boolean }
+type AdminUser = { id: number, name: string, email: string, role?: string, emailVerifiedAt: string | null, lastLoginAt?: string | null, createdAt: string, subscription?: { planKey: string | null, status: string } | null }
+type AdminUsersPage = { items: AdminUser[], total: number, page: number, pageSize: number, hasRoles: boolean, hasSubscriptions: boolean, roles: string[] }
 
 const t = useModuleT('users')
 const toast = useToast()
+const route = useRoute()
+// Detail pages live under the current path, which keeps any locale prefix.
+const userPath = (id: number) => `${route.path.replace(/\/+$/, '')}/${id}`
 
 const search = ref('')
 // Debounced so the API is not hit on every keystroke.
@@ -19,7 +22,8 @@ watch(search, (value) => {
 })
 onBeforeUnmount(() => clearTimeout(searchTimer))
 const verified = ref<'all' | 'true' | 'false'>('all')
-const role = ref('')
+// `all` stands for no role filter (a select cannot hold an empty value).
+const role = ref('all')
 const page = ref(1)
 const pageSize = ref(20)
 const sorting = ref<{ id: string, desc: boolean }[]>([{ id: 'createdAt', desc: true }])
@@ -29,16 +33,20 @@ const query = computed(() => ({
   pageSize: pageSize.value,
   q: q.value || undefined,
   verified: verified.value === 'all' ? undefined : verified.value,
-  role: role.value.trim() || undefined,
+  role: role.value === 'all' ? undefined : role.value,
   sort: sorting.value[0]?.id,
   order: sorting.value[0] ? (sorting.value[0].desc ? 'desc' : 'asc') : undefined,
 }))
 
-const { data, status, refresh } = await useFetch<AdminUsersPage>('/api/admin/users', {
+const { data, status } = await useFetch<AdminUsersPage>('/api/admin/users', {
   query,
-  default: () => ({ items: [], total: 0, page: 1, pageSize: 20, hasRoles: false }),
+  default: () => ({ items: [], total: 0, page: 1, pageSize: 20, hasRoles: false, hasSubscriptions: false, roles: [] }),
 })
 const hasRoles = computed(() => data.value.hasRoles)
+const hasSubscriptions = computed(() => data.value.hasSubscriptions)
+const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
+const roleItems = computed(() => data.value.roles.map(value => ({ label: roleLabel(value), value })))
+const roleFilterItems = computed(() => [{ label: t('admin.filters.allRoles', 'All roles'), value: 'all' }, ...roleItems.value])
 const loading = computed(() => status.value === 'pending')
 
 // Any change to the filters or sorting starts over on page 1.
@@ -68,7 +76,23 @@ const columns = computed(() => [
   sortable('id', 'ID'),
   sortable('name', t('admin.name', 'Name')),
   sortable('email', t('admin.email', 'Email')),
-  ...(hasRoles.value ? [sortable('role', t('admin.role', 'Role'))] : []),
+  ...(hasRoles.value ? [{ ...sortable('role', t('admin.role', 'Role')), cell: ({ row }: { row: { original: AdminUser } }) => row.original.role ? roleLabel(row.original.role) : '–' }] : []),
+  ...(hasSubscriptions.value
+    ? [{
+        id: 'subscription',
+        header: t('admin.subscription', 'Subscription'),
+        cell: ({ row }: { row: { original: AdminUser } }) => {
+          const subscription = row.original.subscription
+          return subscription
+            ? h(resolveComponent('UBadge'), {
+                variant: 'subtle',
+                color: ['active', 'trialing'].includes(subscription.status) ? 'success' : 'neutral',
+                label: subscription.planKey ?? subscription.status,
+              })
+            : '–'
+        },
+      }]
+    : []),
   { id: 'verified', header: t('admin.verified', 'Verified'), cell: ({ row }: { row: { original: AdminUser } }) => row.original.emailVerifiedAt ? '✓' : '–' },
   { ...sortable('lastLoginAt', t('admin.lastLogin', 'Last sign-in')), cell: ({ row }: { row: { original: AdminUser } }) => dateFormat(row.original.lastLoginAt) },
   { ...sortable('createdAt', t('admin.created', 'Created')), cell: ({ row }: { row: { original: AdminUser } }) => dateFormat(row.original.createdAt) },
@@ -80,55 +104,37 @@ const verifiedOptions = computed(() => [
   { label: t('admin.filters.unverified', 'Unverified'), value: 'false' },
 ])
 const pageSizes = [10, 20, 50, 100]
-const filtersActive = computed(() => !!(search.value || role.value || verified.value !== 'all'))
+const filtersActive = computed(() => !!(search.value || role.value !== 'all' || verified.value !== 'all'))
 function resetFilters() {
   search.value = ''
-  role.value = ''
+  role.value = 'all'
   verified.value = 'all'
 }
 
-// One modal for both creating and editing.
-const editing = ref<AdminUser | null>(null)
-const creating = ref(false)
-const open = computed({
-  get: () => creating.value || !!editing.value,
-  set: (value) => {
-    if (!value) {
-      creating.value = false
-      editing.value = null
-    }
-  },
-})
+// The modal creates users; existing ones are edited on their own page.
+const open = ref(false)
 const form = reactive({ name: '', email: '', role: '', emailVerified: false, sendWelcomeEmail: true })
 const saving = ref(false)
 
 function startCreate() {
   Object.assign(form, { name: '', email: '', role: '', emailVerified: false, sendWelcomeEmail: true })
-  creating.value = true
+  open.value = true
 }
 
-function startEdit(_event: Event, row: { original: AdminUser }) {
-  Object.assign(form, { name: row.original.name, email: row.original.email, role: row.original.role ?? '' })
-  editing.value = row.original
+function openUser(_event: Event, row: { original: AdminUser }) {
+  return navigateTo(userPath(row.original.id))
 }
 
 async function save() {
   saving.value = true
   try {
-    if (editing.value) {
-      await $fetch(`/api/admin/users/${editing.value.id}`, {
-        method: 'PATCH',
-        body: { name: form.name, email: form.email, ...(hasRoles.value && form.role ? { role: form.role } : {}) },
-      })
-    }
-    else {
-      await $fetch('/api/admin/users', {
-        method: 'POST',
-        body: { ...form, role: hasRoles.value && form.role ? form.role : undefined },
-      })
-    }
+    const created = await $fetch<{ id: number }>('/api/admin/users', {
+      method: 'POST',
+      body: { ...form, role: hasRoles.value && form.role ? form.role : undefined },
+    })
     open.value = false
-    await refresh()
+    toast.add({ title: t('admin.created_ok', 'User created.'), color: 'success' })
+    await navigateTo(userPath(created.id))
   }
   catch (cause) {
     toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('admin.error', 'Something went wrong.'), color: 'error' })
@@ -142,7 +148,7 @@ async function save() {
 <template>
   <AdminPage>
     <AdminPageHeader :title="t('admin.title', 'Users')">
-      <template #actions>
+      <template #links>
         <UButton
           icon="i-lucide-user-plus"
           :label="t('admin.create', 'Create user')"
@@ -163,12 +169,12 @@ async function save() {
         :items="verifiedOptions"
         class="w-40"
       />
-      <UInput
+      <USelect
         v-if="hasRoles"
         v-model="role"
-        class="w-40"
+        :items="roleFilterItems"
+        class="w-48"
         icon="i-lucide-shield"
-        :placeholder="t('admin.filters.role', 'Exact role')"
       />
       <UButton
         v-if="filtersActive"
@@ -183,7 +189,7 @@ async function save() {
       :data="data.items"
       :columns="columns"
       :loading="loading"
-      @select="startEdit"
+      @select="openUser"
     >
       <template #empty>
         <AdminEmpty
@@ -209,7 +215,7 @@ async function save() {
     </div>
     <UModal
       v-model:open="open"
-      :title="editing ? t('admin.edit', 'Edit user') : t('admin.create', 'Create user')"
+      :title="t('admin.create', 'Create user')"
     >
       <template #body>
         <form
@@ -236,22 +242,21 @@ async function save() {
             v-if="hasRoles"
             :label="t('admin.role', 'Role')"
           >
-            <UInput
+            <USelect
               v-model="form.role"
+              :items="roleItems"
               class="w-full"
-              placeholder="user"
+              :placeholder="t('admin.rolePlaceholder', 'Select a role')"
             />
           </UFormField>
-          <template v-if="creating">
-            <UCheckbox
-              v-model="form.emailVerified"
-              :label="t('admin.emailVerified', 'Mark the email address as verified')"
-            />
-            <UCheckbox
-              v-model="form.sendWelcomeEmail"
-              :label="t('admin.sendWelcome', 'Email a sign-in link')"
-            />
-          </template>
+          <UCheckbox
+            v-model="form.emailVerified"
+            :label="t('admin.emailVerified', 'Mark the email address as verified')"
+          />
+          <UCheckbox
+            v-model="form.sendWelcomeEmail"
+            :label="t('admin.sendWelcome', 'Email a sign-in link')"
+          />
         </form>
       </template>
       <template #footer>

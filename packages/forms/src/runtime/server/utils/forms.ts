@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
-import type { FormAdminDto, PublicFormDto } from '../../../types'
+import type { FormAccessTokenDto, FormAdminDto, PublicFormDto } from '../../../types'
 
 type FormRow = typeof schema.forms.$inferSelect
 
@@ -8,6 +8,15 @@ export const toPublicForm = (row: FormRow): PublicFormDto => {
   const { delivery: _delivery, ...definition } = row.definition
   return { id: row.id, slug: row.slug, name: row.name, version: row.version, definition }
 }
+
+export const toTokenDto = (row: typeof schema.formAccessTokens.$inferSelect): FormAccessTokenDto => ({
+  id: row.id,
+  name: row.name,
+  prefix: row.prefix,
+  createdAt: row.createdAt.toISOString(),
+  lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+  revokedAt: row.revokedAt?.toISOString() ?? null,
+})
 
 export const toAdminForm = (row: FormRow): FormAdminDto => ({
   id: row.id,

@@ -32,11 +32,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // The user has no password: the emailed single-use link (which also verifies the address) signs them in.
-  if (input.sendWelcomeEmail && schema.magicLinks) {
-    const link = await createMagicLink(event, { userId: created.id, redirectUrl: '/' })
-    if (link) {
-      await dispatchAuthEmail('verify-email', created.email, { name: created.name, url: link.url })
-    }
+  if (input.sendWelcomeEmail) {
+    await sendVerificationLink(event, created)
   }
 
   const { password: _password, ...safe } = created

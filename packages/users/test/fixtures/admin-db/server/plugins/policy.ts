@@ -6,4 +6,8 @@ export default defineNitroPlugin((nitro) => {
     const actor = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, ctx.userId) })
     ctx.allowed = actor?.email === 'staff@example.com'
   })
+
+  nitro.hooks.hook('users:admin:roles', (ctx) => {
+    ctx.roles = ['manager', 'user']
+  })
 })

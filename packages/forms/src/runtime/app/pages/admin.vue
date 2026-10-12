@@ -5,6 +5,7 @@ import { defineForm } from '../../utils'
 const t = useModuleT('forms')
 const paths = useFormsPaths()
 const toast = useToast()
+const link = useFormLink()
 const { data: forms, error, refresh } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms')
 
 const starter = defineForm({
@@ -122,13 +123,22 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
       <template #actions-cell="{ row }">
         <div class="flex items-center justify-end gap-2">
           <UButton
-            v-if="row.original.storage === 'db'"
+            v-if="row.original.storage === 'db' || row.original.submissionCount > 0"
             color="neutral"
             variant="outline"
             size="sm"
             :to="paths('adminSubmissions', { id: row.original.id })"
             :label="t('admin.submissions', 'Submissions ({count})', { count: row.original.submissionCount })"
             @click.stop
+          />
+          <UButton
+            v-if="row.original.status === 'published' && link.enabled.value"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-link"
+            :aria-label="t('admin.copyLink', 'Copy link')"
+            @click.stop="link.copy(row.original.slug)"
           />
           <UButton
             color="neutral"

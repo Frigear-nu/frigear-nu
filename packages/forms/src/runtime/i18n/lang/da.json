@@ -18,8 +18,23 @@
       "invalid": "Tjek de markerede felter.",
       "notFound": "Formularen blev ikke fundet."
     },
+    "embed": {
+      "signInTitle": "Log ind for at bruge denne formular",
+      "signIn": "Log ind"
+    },
     "preview": {
-      "notSent": "Forhåndsvisning: intet blev sendt."
+      "notSent": "Forhåndsvisning: intet blev sendt.",
+      "mobile": "Mobil",
+      "desktop": "Desktop",
+      "reset": "Nulstil",
+      "tryIt": "Prøv den",
+      "result": "Resultat",
+      "resultHint": "Dette ville blive sendt. Intet er indsendt.",
+      "copy": "Kopiér",
+      "copied": "Kopieret til udklipsholderen.",
+      "close": "Luk",
+      "tryAgain": "Prøv igen",
+      "device": "Enhed"
     },
     "value": {
       "yes": "Ja",
@@ -49,7 +64,8 @@
       "pattern": "Værdien har et ugyldigt format.",
       "maxFiles": "Upload højst {max} fil(er).",
       "maxSize": "{name} er større end {max} MB.",
-      "accept": "{name} er ikke en tilladt filtype."
+      "accept": "{name} er ikke en tilladt filtype.",
+      "captcha": "Udfyld captchaen."
     },
     "admin": {
       "title": "Formularer",
@@ -57,6 +73,9 @@
       "import": "Importér",
       "edit": "Rediger",
       "create": "Opret",
+      "copyLink": "Kopiér link",
+      "linkCopied": "Link kopieret.",
+      "settings": "Levering og lagring",
       "save": "Gem",
       "saved": "Gemt.",
       "name": "Navn",
@@ -84,7 +103,51 @@
       "preview": "Forhåndsvisning",
       "previewUnavailable": "Ret definitionen for at se en forhåndsvisning.",
       "builder": "Opbygning",
-      "json": "JSON"
+      "json": "JSON",
+      "access": "Adgang"
+    },
+    "access": {
+      "title": "Hvem kan bruge formularen",
+      "availability": "Tilgængelighed",
+      "availabilityWeb": "Webside og API",
+      "availabilityApi": "Kun API",
+      "availabilityWebHint": "Den offentlige side og API'et er begge tilgængelige.",
+      "availabilityApiHint": "Ingen offentlig side: formularen kan kun læses og indsendes via API'et.",
+      "auth": "Godkendelse",
+      "authNone": "Åben for alle",
+      "authUser": "Indloggede brugere",
+      "authToken": "API-token",
+      "authPassword": "Fælles adgangskode",
+      "authTokenHint": "Token-formularer er kun til API: en token kan ikke indtastes på en side.",
+      "saveHint": "Tilgængelighed og godkendelse gemmes sammen med formularen. Tokens og adgangskode træder i kraft med det samme.",
+      "tokensTitle": "API-tokens",
+      "tokensHint": "Send en token som Authorization: Bearer TOKEN eller i headeren x-form-token. Den vises kun én gang.",
+      "tokensInactive": "Tokens kontrolleres kun, når godkendelse er sat til API-token.",
+      "tokenName": "Navn på token, fx Mobilapp",
+      "createToken": "Opret token",
+      "tokenCreated": "Kopiér denne token nu. Du kan ikke se den igen.",
+      "revoked": "Tilbagekaldt",
+      "revoke": "Tilbagekald",
+      "lastUsed": "Sidst brugt {date}",
+      "neverUsed": "Aldrig brugt",
+      "noTokens": "Ingen tokens endnu.",
+      "passwordTitle": "Fælles adgangskode",
+      "passwordMissing": "Der er ikke sat nogen adgangskode, så ingen kan åbne formularen endnu.",
+      "passwordIsSet": "Der er sat en adgangskode.",
+      "passwordIsNotSet": "Der er ikke sat nogen adgangskode.",
+      "passwordInactive": "Den kontrolleres kun, når godkendelse er sat til Fælles adgangskode.",
+      "newPassword": "Ny adgangskode",
+      "setPassword": "Adgangskode (min. 6 tegn)",
+      "changePassword": "Skift",
+      "savePassword": "Sæt adgangskode",
+      "clearPassword": "Ryd",
+      "passwordSaved": "Adgangskode gemt.",
+      "apiTitle": "API",
+      "apiHint": "Indsend med POST (JSON, eller multipart med file:KEY-dele). Definitionen hentes med GET på /api/forms/{slug}.",
+      "passwordLabel": "Adgangskode",
+      "passwordHint": "Denne formular er beskyttet. Indtast den adgangskode, du har fået.",
+      "passwordWrong": "Forkert adgangskode.",
+      "unlock": "Fortsæt"
     },
     "menu": {
       "admin": {
@@ -92,13 +155,84 @@
         "description": "Administrer formularer og deres indsendelser."
       }
     },
+    "delivery": {
+      "title": "Levering og lagring",
+      "storeTitle": "Gem besvarelser",
+      "storeHint": "Gem besvarelser i databasen, så de kan ses under Besvarelser.",
+      "filesWarning": "Formularen har filupload-felter, som kræver gemte besvarelser. Fjern dem, eller fortsæt med at gemme.",
+      "lostWarning": "Besvarelser hverken gemmes eller sendes på mail. Tilføj modtagere eller fortsæt med at gemme, ellers går svarene tabt, medmindre noget håndterer forms:submitted.",
+      "emailTitle": "E-mailnotifikation",
+      "recipients": "Modtagere",
+      "recipientsHint": "Tryk Enter efter hver adresse. Lad feltet stå tomt for at slå e-mail fra.",
+      "subject": "Emne",
+      "replyTo": "Svar til",
+      "replyToNone": "Ingen",
+      "replyToHint": "Svaret i dette e-mailfelt bliver Reply-To.",
+      "routing": "Fordel efter svar",
+      "routingField": "Felt at fordele efter",
+      "routingNone": "Ingen fordeling",
+      "routingHint": "Send til andre modtagere afhængigt af svaret. Øvrige får standardmodtagerne.",
+      "routeTo": "Modtagere for \"{value}\"",
+      "subjectHint": "Variablerne herunder kan også bruges her.",
+      "body": "Mailtekst",
+      "bodyHint": "Valgfri. Lad feltet stå tomt for at sende listen med alle svar. Variabler erstattes med de indsendte værdier.",
+      "bodyVariables": "Klik på en variabel for at indsætte den ved markøren. Den fulde liste af svar er",
+      "bodyUnknown": "Ukendte variabler efterlades tomme: {names}",
+      "bodyPreview": "Forhåndsvisning med eksempelsvar",
+      "bodyReset": "Nulstil til standardteksten",
+      "needRecipients": "Tilføj modtagere først for at angive emne, svar-til og fordeling."
+    },
+    "captcha": {
+      "providers": {
+        "turnstile": "Cloudflare Turnstile",
+        "recaptcha": "Google reCAPTCHA",
+        "hcaptcha": "hCaptcha"
+      },
+      "preview": "Captcha: {provider} — vises for besøgende",
+      "missingKey": "{provider}-captchaen har ingen site key konfigureret.",
+      "missingKeyHint": "Angiv site key herunder eller miljøvariablen NUXT_PUBLIC_FORMS_CAPTCHA_PROVIDER_SITE_KEY. Indsendelser kræver også den tilhørende secret key på serveren.",
+      "loadFailed": "Captchaen kunne ikke indlæses. Genindlæs siden og prøv igen.",
+      "provider": "Udbyder",
+      "siteKey": "Site key",
+      "siteKeyHint": "Offentlig nøgle til dette site. Lad feltet stå tomt for at bruge den, der er sat op for udbyderen.",
+      "theme": "Tema",
+      "size": "Størrelse",
+      "themes": {
+        "auto": "Automatisk",
+        "light": "Lys",
+        "dark": "Mørk"
+      },
+      "sizes": {
+        "normal": "Normal",
+        "compact": "Kompakt"
+      },
+      "hint": "Altid påkrævet, når feltet vises. Tokenet kontrolleres på serveren og gemmes aldrig. Indsendelser med API-token springer det over.",
+      "secretLabel": "Hemmelig nøgle",
+      "secretHint": "Nøgle på serveren, der bruges til at verificere denne formular. Gemmes krypteret og vises aldrig igen. Uden en bruges miljøvariablen.",
+      "secretStatus": "Hemmelig nøgle",
+      "secretForm": "Sat via formularen",
+      "secretEnv": "Sat via miljøet",
+      "secretUnset": "Ikke sat",
+      "secretUnreadable": "Formularens gemte hemmeligheder kan ikke dekrypteres, fordi krypteringsnøglen er ændret. Indtast dem igen.",
+      "secretPlaceholderSet": "Indtast en ny hemmelig nøgle for at erstatte den",
+      "secretPlaceholder": "Indsæt den hemmelige nøgle",
+      "secretSave": "Gem nøgle",
+      "secretSaved": "Hemmelig nøgle gemt.",
+      "secretRemove": "Fjern",
+      "secretRemoved": "Hemmelig nøgle fjernet.",
+      "secretFailed": "Den hemmelige nøgle kunne ikke gemmes.",
+      "secretImmediate": "Gemmes med det samme, uafhængigt af formularens Gem."
+    },
     "builder": {
+      "singleConfirmTitle": "Skift til én side?",
+      "singleConfirmDescription": "Alle trin samles på én side. Trinnenes titler, beskrivelser og betingelser går tabt, og hvis du skifter tilbage til trin, bliver de ikke gendannet.",
+      "singleConfirmButton": "Skift til én side",
       "layout": "Layout",
       "fields": "Felter",
-      "paletteTitle": "Tilføj felter",
+      "insertField": "Indsæt felt her",
+      "addField": "Tilføj felt",
       "fieldsTitle": "Formularens felter",
       "settingsTitle": "Indstillinger",
-      "paletteHint": "Træk et felt ind i formularen, eller klik for at tilføje det.",
       "dragStep": "Træk for at ændre rækkefølgen af trin",
       "moveUp": "Flyt op",
       "moveDown": "Flyt ned",
@@ -133,6 +267,8 @@
         "eq": "er lig med",
         "neq": "er ikke lig med",
         "in": "er en af",
+        "empty": "er tomt",
+        "notEmpty": "har et svar",
         "truthy": "har et svar"
       },
       "types": {
@@ -146,7 +282,8 @@
         "radio": "Enkeltvalg",
         "checkbox": "Afkrydsningsfelt",
         "file": "Filupload",
-        "markdown": "Tekstblok"
+        "markdown": "Tekstblok",
+        "captcha": "Captcha"
       },
       "translate": "Oversæt",
       "singleLanguage": "Samme tekst på alle sprog",

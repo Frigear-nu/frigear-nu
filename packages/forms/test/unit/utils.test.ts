@@ -106,6 +106,31 @@ describe('visibility', () => {
   })
 })
 
+describe('empty / notEmpty conditions', () => {
+  const when = (op: 'empty' | 'notEmpty' | 'truthy'): FormDefinition => ({ mode: 'single', storage: 'db', steps: [{ id: 's', fields: [
+    { key: 'a', type: 'text' },
+    { key: 'b', type: 'text', showIf: { field: 'a', op } },
+  ] }] })
+
+  it('empty shows only without an answer', () => {
+    for (const answer of [undefined, null, '', false, []]) expect(isFieldVisible(when('empty'), 'b', { a: answer })).toBe(true)
+    expect(isFieldVisible(when('empty'), 'b', { a: 'x' })).toBe(false)
+  })
+
+  it('notEmpty (and its alias truthy) shows only with an answer', () => {
+    for (const op of ['notEmpty', 'truthy'] as const) {
+      expect(isFieldVisible(when(op), 'b', { a: 'x' })).toBe(true)
+      expect(isFieldVisible(when(op), 'b', { a: '' })).toBe(false)
+      expect(isFieldVisible(when(op), 'b', {})).toBe(false)
+    }
+  })
+
+  it('is accepted by the definition schema', () => {
+    expect(formDefinitionSchema.safeParse(when('empty')).success).toBe(true)
+    expect(formDefinitionSchema.safeParse(when('notEmpty')).success).toBe(true)
+  })
+})
+
 describe('formDefinitionSchema', () => {
   it('accepts the examples and defaults storage to db', () => {
     expect(formDefinitionSchema.safeParse(contact).success).toBe(true)
@@ -172,6 +197,37 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<strong>bold</strong>')
     expect(html).toContain('href="https://a.dk"')
     expect(html).not.toContain('href="javascript:')
+  })
+})
+
+describe('captcha field', () => {
+  const definition: FormDefinition = {
+    mode: 'single',
+    storage: 'db',
+    steps: [{ id: 'main', fields: [
+      { key: 'kind', type: 'radio', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] },
+      { key: 'human', type: 'captcha', showIf: { field: 'kind', op: 'eq', value: 'b' } },
+    ] }],
+  }
+
+  it('is always required while visible, whatever `required` says', () => {
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b' }).success).toBe(false)
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b', human: '  ' }).success).toBe(false)
+    expect(buildFormSchema(definition, { kind: 'b' }).safeParse({ kind: 'b', human: 'token' }).success).toBe(true)
+  })
+
+  it('is skipped while hidden or with skipCaptcha', () => {
+    expect(buildFormSchema(definition, { kind: 'a' }).safeParse({ kind: 'a' }).success).toBe(true)
+    expect(buildFormSchema(definition, { kind: 'b' }, { skipCaptcha: true }).safeParse({ kind: 'b' }).success).toBe(true)
+  })
+
+  it('accepts provider settings and refuses unknown providers and conditions on it', () => {
+    const field = { key: 'human', type: 'captcha', captcha: { provider: 'hcaptcha', siteKey: 'abc-123', theme: 'dark', size: 'compact' } }
+    const parse = (fields: unknown[]) => formDefinitionSchema.safeParse({ mode: 'single', storage: 'db', steps: [{ id: 'main', fields }] })
+    expect(parse([field]).success).toBe(true)
+    expect(parse([{ ...field, captcha: { provider: 'nope' } }]).success).toBe(false)
+    expect(parse([{ ...field, captcha: { siteKey: 'not a key!' } }]).success).toBe(false)
+    expect(parse([field, { key: 'x', type: 'text', showIf: { field: 'human', op: 'notEmpty' } }]).success).toBe(false)
   })
 })
 

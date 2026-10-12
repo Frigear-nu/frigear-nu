@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import { fromCents, toCents } from '#shared/utils/money.ts'
-import { useCurrencies } from '~/store/queries/system.ts'
-
-type Currency = {
-  name?: string
-  code: string
-  symbol: string
-}
+import { currencyOptions, fromCents, toCents } from '../../shared/money'
+import type { Currency } from '../../shared/money'
 
 type MoneyValue = {
   currency: Currency['code']
@@ -18,8 +12,8 @@ const model = defineModel<MoneyValue>({
 })
 
 const amount = defineModel<number | null | undefined>('amount', {
-  get: () => fromCents(model.value?.amount),
-  set: newValue => model.value = { ...model.value, amount: toCents(newValue) },
+  get: () => fromCents(model.value?.amount, model.value?.currency || 'EUR'),
+  set: newValue => model.value = { ...model.value, amount: toCents(newValue, model.value?.currency || 'EUR') },
 })
 
 const currencyCode = defineModel<string>('currency', {
@@ -27,7 +21,11 @@ const currencyCode = defineModel<string>('currency', {
   set: newValue => model.value = { ...model.value, currency: newValue },
 })
 
-const { data: currencies, status } = useCurrencies()
+// Defaults to every ISO currency the runtime knows; pass `currencies` to offer a shorter list.
+const props = defineProps<{ currencies?: Currency[] }>()
+const nuxtApp = useNuxtApp() as { $i18n?: { locale?: { value?: string } } }
+const options = computed(() => props.currencies ?? currencyOptions(nuxtApp.$i18n?.locale?.value))
+const status = 'success'
 
 const code = computed(() => currencyCode.value || 'USD')
 </script>
@@ -36,7 +34,7 @@ const code = computed(() => currencyCode.value || 'USD')
   <UFieldGroup class="w-full">
     <USelectMenu
       v-model="currencyCode"
-      :items="currencies"
+      :items="options"
       value-key="code"
       :search-input="{
         placeholder: 'Search currency...',

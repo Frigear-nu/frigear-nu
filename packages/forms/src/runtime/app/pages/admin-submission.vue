@@ -38,8 +38,7 @@ async function redeliver() {
       <AdminPageHeader
         :title="new Date(submission.createdAt).toLocaleString()"
         :description="`${submission.formSlug} · v${submission.formVersion} · ${submission.locale}`"
-        :back-to="paths('adminSubmissions', { id })"
-        :back-label="t('admin.submissionsTitle', 'Submissions')"
+        :back="{ label: t('admin.submissionsTitle', 'Submissions'), to: paths('adminSubmissions', { id }) }"
       />
 
       <UAlert
