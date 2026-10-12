@@ -143,6 +143,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useFormsLocale', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocales', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsPaths', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'useFormLink', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormStepper', from: resolver.resolve('./runtime/app/composables/useFormStepper') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
