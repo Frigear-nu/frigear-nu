@@ -99,7 +99,20 @@
       "copied": "Link copied.",
       "linkHint": "The link is valid for 24 hours.",
       "paidHint": "Paid subscriptions are managed in Stripe.",
-      "error": "Something went wrong."
+      "error": "Something went wrong.",
+      "tab": "Subscription",
+      "membership": "Membership",
+      "currentSubscription": "Current subscription",
+      "history": {
+        "title": "Subscription history",
+        "empty": "No subscriptions yet.",
+        "plan": "Plan",
+        "status": "Status",
+        "source": "Source",
+        "started": "Started",
+        "periodEnd": "Period end",
+        "ended": "Ended"
+      }
     }
   }
 }

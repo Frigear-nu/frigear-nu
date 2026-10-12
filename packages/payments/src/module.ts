@@ -4,12 +4,14 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
+  hasNuxtModule,
 } from '@nuxt/kit'
 import {
   moduleApiUrl,
   registerDatabaseTable,
   registerLocales,
   registerModule,
+  registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
@@ -75,6 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
+    '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -83,6 +86,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'payments:write', description: 'Resume your payments' },
     )
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
     nuxt.options.runtimeConfig.payments = {
@@ -120,6 +124,33 @@ export default defineNuxtModule<ModuleOptions>({
       method: 'post',
       handler: resolver.resolve('./runtime/server/routes/payments/resume.post'),
     })
+
+    // Staff view of a user's payments, authorized through the users admin policy (`users:admin:authorize`, `view`).
+    addServerHandler({
+      route: '/api/admin/users/:id/payments',
+      method: 'get',
+      handler: resolver.resolve('./runtime/server/routes/admin/user-payments.get'),
+    })
+
+    // Adds a "Payments" tab and a "Last payment" card to the admin user page of `@frigear-nu/users` (tab area
+    // `admin.users`, widget area `admin.users.overview`) when @frigear-nu/widget is installed.
+    if (hasNuxtModule('@frigear-nu/widget')) {
+      const { extendTabs, extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendTabs(nuxt, 'admin.users', {
+        id: 'payments',
+        component: resolver.resolve('./runtime/app/tabs/Payments.vue'),
+        order: 20,
+        label: 'Payments',
+        labelKey: 'payments.admin.tab',
+        icon: 'i-lucide-credit-card',
+      })
+      extendWidgets(nuxt, 'admin.users.overview', {
+        id: 'payments-last',
+        component: resolver.resolve('./runtime/app/widgets/AdminLastPayment.vue'),
+        order: 20,
+        span: 2,
+      })
+    }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 

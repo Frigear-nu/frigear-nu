@@ -99,7 +99,20 @@
       "copied": "Link kopieret.",
       "linkHint": "Linket er gyldigt i 24 timer.",
       "paidHint": "Betalte abonnementer administreres i Stripe.",
-      "error": "Noget gik galt."
+      "error": "Noget gik galt.",
+      "tab": "Abonnement",
+      "membership": "Medlemskab",
+      "currentSubscription": "Nuværende abonnement",
+      "history": {
+        "title": "Abonnementshistorik",
+        "empty": "Ingen abonnementer endnu.",
+        "plan": "Plan",
+        "status": "Status",
+        "source": "Kilde",
+        "started": "Startet",
+        "periodEnd": "Periodeslut",
+        "ended": "Afsluttet"
+      }
     }
   }
 }

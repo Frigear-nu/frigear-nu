@@ -33,6 +33,10 @@ const ticketItems = [
   { name: 'Food', amount: 5000, currency: 'DKK', quantity: 2 },
 ]
 
+let staffCookie: string | undefined
+// The test policy (server/plugins/policy.ts) lets only staff@example.com administer users; register it once.
+const registerStaff = async () => (staffCookie ??= (await registerUser('Staff', 'staff@example.com')).cookie)
+
 describe('payments (authenticated, database-backed)', async () => {
   const rootDir = fileURLToPath(new URL('./fixtures/authenticated', import.meta.url))
   const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
@@ -204,6 +208,39 @@ describe('payments (authenticated, database-backed)', async () => {
       expect((await fetch('/api/payments', { headers: bearer(read) })).status).toBe(200)
       expect((await fetch('/api/payments', { headers: bearer(await createToken(user.cookie, ['payments:write'])) })).status).toBe(403)
       expect((await fetch('/api/payments', { headers: bearer('fnu_invalid') })).status).toBe(401)
+    })
+  })
+
+  describe('admin: a user\'s payments', () => {
+    it('is closed to guests and users the host policy does not allow, and 404s unknown users', async () => {
+      const staffCookie = await registerStaff()
+      const member = await registerUser('Member', 'member@example.com')
+
+      expect((await fetch(`/api/admin/users/${member.id}/payments`)).status).toBe(401)
+      expect((await fetch(`/api/admin/users/${member.id}/payments`, { headers: { cookie: member.cookie } })).status).toBe(403)
+      expect((await fetch('/api/admin/users/nope/payments', { headers: { cookie: staffCookie } })).status).toBe(400)
+      expect((await fetch('/api/admin/users/99999/payments', { headers: { cookie: staffCookie } })).status).toBe(404)
+    })
+
+    it('lists the user\'s payments for allowed staff, honouring limit', async () => {
+      const staff = await registerUser('Staff Two', 'staff-two@example.com')
+      const user = await registerUser('Paying', 'paying@example.com')
+      const first = await pay(user.cookie, { items: ticketItems, reference: { type: 'event_ticket', id: 'admin_1' } })
+      const second = await pay(user.cookie, { items: [{ name: 'Ticket', amount: 1000, currency: 'DKK' }] })
+
+      // Only the configured staff account passes the test policy.
+      expect((await fetch(`/api/admin/users/${user.id}/payments`, { headers: { cookie: staff.cookie } })).status).toBe(403)
+
+      const admin = await registerStaff()
+      const response = await fetch(`/api/admin/users/${user.id}/payments`, { headers: { cookie: admin } })
+      expect(response.status, await response.clone().text()).toBe(200)
+      const list = await response.json() as { id: string, userId: number }[]
+      // Newest first by `createdAt` (second resolution), so two payments in the same second may swap.
+      expect(list.map(payment => payment.id).sort()).toEqual([first.payment.id, second.payment.id].sort())
+      expect(list.every(payment => payment.userId === user.id)).toBe(true)
+
+      const limited = await (await fetch(`/api/admin/users/${user.id}/payments?limit=1`, { headers: { cookie: admin } })).json() as unknown[]
+      expect(limited).toHaveLength(1)
     })
   })
 })

@@ -15,4 +15,26 @@ describe('ssr (registered widgets)', async () => {
   it('lets a widgets:filter listener hide widgets', async () => {
     expect(await $fetch<string>('/')).not.toContain('widget-secret')
   })
+  it('renders a tab list in order, with plain labels as the fallback for a missing labelKey', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('role="tablist"')
+    expect(html.indexOf('First tab')).toBeLessThan(html.indexOf('Second tab'))
+    expect(html.indexOf('Second tab')).toBeLessThan(html.indexOf('TabThird'))
+  })
+
+  it('renders the first tab and hands it the host context', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('tab-first:ctx')
+    expect(html).not.toContain('tab-second')
+  })
+
+  it('renders the tab named in ?tab=', async () => {
+    expect(await $fetch<string>('/?tab=TabSecond')).toContain('tab-second')
+  })
+
+  it('lets a tabs:filter listener hide tabs, and keeps tabs apart from widgets', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).not.toContain('Secret tab')
+    expect(html).toContain('widget-first')
+  })
 })

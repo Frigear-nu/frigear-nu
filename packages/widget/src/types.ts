@@ -30,3 +30,34 @@ export type RegisteredWidget = WidgetDefinition & { id: string, area: string }
 export type WidgetMeta = Omit<RegisteredWidget, 'component'>
 
 export type ModuleOptions = Record<string, never>
+
+/**
+ * A tab: a Vue component a module contributes to a named area (e.g. `admin.users`) that the host renders with
+ * `<WidgetTabs>`. Tabs live in their own registry, separate from widgets, with the same ordering and gating.
+ */
+export type TabDefinition = {
+  /** Stable identifier within an area; derived from the component file name when omitted. Used as the `?tab=` value. */
+  id?: string
+  /** Resolved path of the tab's Vue component. */
+  component: string
+  /** Lower numbers render first. Tabs without an `order` render last, in registration order. */
+  order?: number
+  /** Serializable props passed to the component, next to the host's runtime `context`. */
+  props?: Record<string, unknown>
+  /** Plain label, used when `labelKey` is missing or can't be translated. Defaults to the id. */
+  label?: string
+  /** i18n key for the label, translated at render time when `@nuxtjs/i18n` is installed. */
+  labelKey?: string
+  /** Icon name shown next to the label (e.g. `i-lucide-credit-card`). */
+  icon?: string
+  /** A free-form requirement that a `tabs:filter` listener can act on; the widget module never interprets it. */
+  requires?: string
+  tags?: string[]
+  meta?: Record<string, unknown>
+}
+
+/** A registered tab with its area and a guaranteed `id`. */
+export type RegisteredTab = TabDefinition & { id: string, area: string }
+
+/** What `useTabs` returns: everything but the component, with the label already translated. */
+export type TabMeta = Omit<RegisteredTab, 'component' | 'labelKey' | 'label'> & { label: string, labelKey?: string }

@@ -347,6 +347,13 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(await entitled(target.id)).toBe(false)
       expect(await row(replaced.id)).toMatchObject({ status: 'canceled' })
       await expect($fetch(url, { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
+
+      // The history lists every row, including the replaced and the revoked grants.
+      const history = await $fetch<{ subscriptions: Array<{ id: string, planKey: string | null, source: string, endedAt: string | null }> }>(`/api/admin/users/${target.id}/subscriptions`, { headers })
+      expect(history.subscriptions.map(item => item.id).sort()).toEqual([granted.id, replaced.id].sort())
+      expect(history.subscriptions.every(item => item.source === 'manual' && item.endedAt !== null)).toBe(true)
+      await expect($fetch(`/api/admin/users/${target.id}/subscriptions`)).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(`/api/admin/users/${target.id}/subscriptions`, { headers: { cookie: target.cookie } })).rejects.toMatchObject({ statusCode: 403 })
     })
 
     it('does not grant or link over a paid subscription', async () => {

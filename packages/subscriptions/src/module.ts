@@ -105,6 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -192,6 +193,7 @@ export default defineNuxtModule<ModuleOptions>({
     // policy (`users:admin:authorize`, action `update`). Used by the `UsersAdminMembership` component.
     for (const [method, path, file] of [
       ['get', 'subscription', 'subscription.get'],
+      ['get', 'subscriptions', 'subscriptions.get'],
       ['post', 'subscription', 'subscription.post'],
       ['delete', 'subscription', 'subscription.delete'],
       ['post', 'subscription/payment-link', 'payment-link.post'],
@@ -200,6 +202,26 @@ export default defineNuxtModule<ModuleOptions>({
         route: `/api/admin/users/:id/${path}`,
         method,
         handler: resolver.resolve(`./runtime/server/routes/admin/${file}`),
+      })
+    }
+
+    // Adds a "Subscription" tab and a summary card to the admin user page of `@frigear-nu/users` (tab area
+    // `admin.users`, widget area `admin.users.overview`) when @frigear-nu/widget is installed.
+    if (hasNuxtModule('@frigear-nu/widget')) {
+      const { extendTabs, extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendTabs(nuxt, 'admin.users', {
+        id: 'subscription',
+        component: resolver.resolve('./runtime/app/tabs/Membership.vue'),
+        order: 10,
+        label: 'Subscription',
+        labelKey: 'subscriptions.admin.tab',
+        icon: 'i-lucide-badge-check',
+      })
+      extendWidgets(nuxt, 'admin.users.overview', {
+        id: 'subscriptions-current',
+        component: resolver.resolve('./runtime/app/widgets/AdminCurrentSubscription.vue'),
+        order: 10,
+        span: 2,
       })
     }
 

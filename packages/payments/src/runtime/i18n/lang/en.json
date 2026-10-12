@@ -8,6 +8,19 @@
       "refunded": "Refunded",
       "partially_refunded": "Partially refunded"
     },
-    "defaultDescription": "Payment"
+    "defaultDescription": "Payment",
+    "admin": {
+      "tab": "Payments",
+      "title": "Payments",
+      "lastPayment": "Last payment",
+      "empty": "No payments yet.",
+      "date": "Date",
+      "description": "Description",
+      "amount": "Amount",
+      "statusColumn": "Status",
+      "refunded": "Refunded",
+      "reference": "Reference",
+      "defaultDescription": "Payment"
+    }
   }
 }

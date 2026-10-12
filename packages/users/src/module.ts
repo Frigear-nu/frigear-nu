@@ -390,9 +390,18 @@ export default defineNuxtModule<ModuleOptions>({
         })
       }
 
-      // Contributes to the admin dashboard when @frigear-nu/widget is installed.
+      // Contributes to the admin dashboard and owns the `admin.users` tab area of the user page (modules add tabs
+      // with `extendTabs(nuxt, 'admin.users', ...)`) when @frigear-nu/widget is installed.
       if (hasNuxtModule('@frigear-nu/widget')) {
-        const { extendWidgets } = await import('@frigear-nu/widget/utils')
+        const { extendWidgets, extendTabs } = await import('@frigear-nu/widget/utils')
+        extendTabs(nuxt, 'admin.users', {
+          id: 'overview',
+          component: resolver.resolve('./runtime/app/tabs/Overview.vue'),
+          order: 0,
+          label: 'Overview',
+          labelKey: 'users.admin.tabs.overview',
+          icon: 'i-lucide-user',
+        })
         extendWidgets(nuxt, 'admin.dashboard', {
           id: 'users-new-members',
           component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
