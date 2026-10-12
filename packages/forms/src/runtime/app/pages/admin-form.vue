@@ -73,7 +73,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <AdminPage>
     <UAlert
       v-if="error || !form"
       color="error"
@@ -82,19 +82,15 @@ async function save() {
     />
 
     <template v-else>
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <NuxtLink
-            :to="paths('admin')"
-            class="text-sm text-muted hover:underline"
-          >
-            ← {{ t('admin.title', 'Forms') }}
-          </NuxtLink>
-          <h1 class="text-3xl font-bold">
-            {{ form.name }} <span class="text-base font-normal text-muted">v{{ form.version }}</span>
-          </h1>
-        </div>
-        <div class="flex gap-2">
+      <AdminPageHeader
+        :title="form.name"
+        :back-to="paths('admin')"
+        :back-label="t('admin.title', 'Forms')"
+      >
+        <template #title>
+          {{ form.name }} <span class="text-base font-normal text-muted">v{{ form.version }}</span>
+        </template>
+        <template #actions>
           <UButton
             v-if="form.definition.storage === 'db'"
             color="neutral"
@@ -108,8 +104,8 @@ async function save() {
             :label="t('admin.save', 'Save')"
             @click="save"
           />
-        </div>
-      </div>
+        </template>
+      </AdminPageHeader>
 
       <div class="grid gap-4 sm:grid-cols-3">
         <UFormField :label="t('admin.name', 'Name')">
@@ -193,5 +189,5 @@ async function save() {
         </template>
       </UAlert>
     </template>
-  </div>
+  </AdminPage>
 </template>

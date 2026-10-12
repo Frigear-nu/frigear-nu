@@ -52,20 +52,18 @@ async function create() {
 </script>
 
 <template>
-  <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        {{ t('admin.title', 'Events') }}
-      </h1>
-      <UButton
-        icon="i-lucide-plus"
-        :label="t('admin.create', 'New event')"
-        @click="creating = true"
-      />
-    </div>
+  <AdminPage>
+    <AdminPageHeader :title="t('admin.title', 'Events')">
+      <template #actions>
+        <UButton
+          icon="i-lucide-plus"
+          :label="t('admin.create', 'New event')"
+          @click="creating = true"
+        />
+      </template>
+    </AdminPageHeader>
 
-    <UTable
-      v-if="events.length"
+    <AdminTable
       :data="events"
       :columns="columns"
       @select="(_: Event, row: { original: AdminEvent }) => navigateTo(eventTo(row.original.id))"
@@ -77,12 +75,14 @@ async function create() {
           :label="row.original.status"
         />
       </template>
-    </UTable>
-    <UEmpty
-      v-else
-      :title="t('admin.empty', 'No events yet')"
-      :description="t('admin.emptyDescription', 'Create the first event to start selling tickets.')"
-    />
+      <template #empty>
+        <AdminEmpty
+          icon="i-lucide-calendar"
+          :title="t('admin.empty', 'No events yet')"
+          :description="t('admin.emptyDescription', 'Create the first event to start selling tickets.')"
+        />
+      </template>
+    </AdminTable>
 
     <UModal
       v-model:open="creating"
@@ -90,6 +90,7 @@ async function create() {
     >
       <template #body>
         <form
+          id="admin-event-form"
           class="flex flex-col gap-4"
           @submit.prevent="create"
         >
@@ -102,7 +103,7 @@ async function create() {
           </UFormField>
           <UFormField
             :label="t('admin.slug', 'URL name')"
-            :help="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
+            :description="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
           >
             <UInput
               v-model="draft.slug"
@@ -125,20 +126,24 @@ async function create() {
               class="w-full"
             />
           </UFormField>
-          <div class="flex justify-end gap-2">
-            <UButton
-              variant="subtle"
-              :label="t('admin.cancel', 'Cancel')"
-              @click="creating = false"
-            />
-            <UButton
-              type="submit"
-              :loading="saving"
-              :label="t('admin.createAction', 'Create draft')"
-            />
-          </div>
         </form>
       </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="creating = false"
+          />
+          <UButton
+            type="submit"
+            form="admin-event-form"
+            :loading="saving"
+            :label="t('admin.createAction', 'Create draft')"
+          />
+        </div>
+      </template>
     </UModal>
-  </div>
+  </AdminPage>
 </template>

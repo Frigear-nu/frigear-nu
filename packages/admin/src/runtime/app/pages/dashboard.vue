@@ -6,7 +6,7 @@ const { data: items } = await useMenu('admin.nav')
 </script>
 
 <template>
-  <div>
+  <AdminPage>
     <AdminPageHeader
       :title="t('dashboard.title', 'Dashboard')"
       :description="t('dashboard.description', 'Overview and shortcuts for administrators.')"
@@ -34,5 +34,5 @@ const { data: items } = await useMenu('admin.nav')
         </p>
       </template>
     </WidgetArea>
-  </div>
+  </AdminPage>
 </template>

@@ -3,6 +3,8 @@ import type { AdminApplicationDto } from '../../../types'
 
 defineOptions({ name: 'OAuthAdminPage' })
 
+const t = useModuleT('oauthServer')
+const confirmAction = useConfirmDialog()
 const { applications, status, error, create, update, remove, rotateSecret, revokeGrants } = useOAuthApplications()
 
 type FormState = {
@@ -107,7 +109,12 @@ function submit() {
 }
 
 const rotate = (application: AdminApplicationDto) => run(async () => {
-  if (!confirm(`Replace the client secret of ${application.name}? The old secret stops working and users are signed out.`)) return
+  if (!await confirmAction({
+    title: t('admin.rotateTitle', 'Replace the client secret of {name}?', { name: application.name }),
+    description: t('admin.rotateDescription', 'The old secret stops working and users are signed out.'),
+    confirmText: t('admin.newSecret', 'New secret'),
+    destructive: true,
+  })) return
   const clientSecret = await rotateSecret(application.id)
   secret.value = { name: application.name, clientId: application.id, clientSecret }
 })
@@ -117,148 +124,139 @@ const toggle = (application: AdminApplicationDto) => run(async () => {
 })
 
 const signOutEveryone = (application: AdminApplicationDto) => run(async () => {
-  if (confirm(`Sign everyone out of ${application.name}?`)) await revokeGrants(application.id)
+  if (await confirmAction({
+    title: t('admin.signOutTitle', 'Sign everyone out of {name}?', { name: application.name }),
+    confirmText: t('admin.signOutEveryone', 'Sign everyone out'),
+    destructive: true,
+  })) await revokeGrants(application.id)
 })
 
 const destroy = (application: AdminApplicationDto) => run(async () => {
-  if (confirm(`Delete ${application.name}? This cannot be undone.`)) await remove(application.id)
+  if (await confirmAction({
+    title: t('admin.deleteTitle', 'Delete {name}?', { name: application.name }),
+    description: t('admin.deleteDescription', 'This cannot be undone.'),
+    confirmText: t('admin.delete', 'Delete'),
+    destructive: true,
+  })) await remove(application.id)
 })
+
+const columns = [
+  { accessorKey: 'name', header: t('admin.application', 'Application') },
+  { id: 'access', header: t('admin.access', 'Access') },
+  { id: 'grants', header: t('admin.signedIn', 'Signed in') },
+  { id: 'actions', header: '' },
+]
+
+const rowActions = (application: AdminApplicationDto) => [[
+  { label: t('admin.edit', 'Edit'), icon: 'i-lucide-pencil', onSelect: () => openEdit(application) },
+  { label: application.isActive ? t('admin.disable', 'Disable') : t('admin.enable', 'Enable'), icon: application.isActive ? 'i-lucide-pause' : 'i-lucide-play', onSelect: () => toggle(application) },
+  { label: t('admin.newSecret', 'New secret'), icon: 'i-lucide-key-round', onSelect: () => rotate(application) },
+  { label: t('admin.signOutEveryone', 'Sign everyone out'), icon: 'i-lucide-log-out', onSelect: () => signOutEveryone(application) },
+], [
+  { label: t('admin.delete', 'Delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => destroy(application) },
+]]
 
 const copy = (value: string) => navigator.clipboard?.writeText(value)
 </script>
 
 <template>
-  <div>
-    <div class="mb-6 flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        OAuth applications
-      </h1>
-      <UButton
-        v-if="!forbidden"
-        icon="i-lucide-plus"
-        @click="openCreate"
-      >
-        New application
-      </UButton>
-    </div>
+  <AdminPage>
+    <AdminPageHeader :title="t('admin.title', 'OAuth applications')">
+      <template #actions>
+        <UButton
+          v-if="!forbidden"
+          icon="i-lucide-plus"
+          :label="t('admin.new', 'New application')"
+          @click="openCreate"
+        />
+      </template>
+    </AdminPageHeader>
 
     <UAlert
       v-if="forbidden"
       color="error"
       variant="subtle"
-      title="You are not allowed to manage OAuth applications."
+      :title="t('admin.forbidden', 'You are not allowed to manage OAuth applications.')"
     />
-    <UAlert
-      v-else-if="failure && !formOpen"
-      class="mb-4"
-      color="error"
-      variant="subtle"
-      :title="failure"
-    />
+    <template v-else>
+      <UAlert
+        v-if="failure && !formOpen"
+        color="error"
+        variant="subtle"
+        :title="failure"
+      />
 
-    <p
-      v-if="!forbidden && status !== 'pending' && !applications.length"
-      class="text-muted"
-    >
-      No applications yet.
-    </p>
-
-    <div class="grid gap-4">
-      <UCard
-        v-for="application in applications"
-        :key="application.id"
+      <AdminTable
+        :data="applications"
+        :columns="columns"
+        :loading="status === 'pending'"
       >
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <template #name-cell="{ row }">
           <div class="flex min-w-0 items-start gap-3">
             <UIcon
-              :name="application.icon || 'i-lucide-globe'"
-              class="mt-1 size-6 shrink-0"
+              :name="row.original.icon || 'i-lucide-globe'"
+              class="mt-0.5 size-5 shrink-0"
             />
             <div class="min-w-0">
-              <h2 class="flex items-center gap-2 font-medium">
-                {{ application.name }}
+              <p class="flex items-center gap-2 font-medium">
+                {{ row.original.name }}
                 <UBadge
-                  v-if="!application.isActive"
+                  v-if="!row.original.isActive"
                   color="neutral"
                   variant="subtle"
-                >
-                  Disabled
-                </UBadge>
-              </h2>
+                  :label="t('admin.disabled', 'Disabled')"
+                />
+              </p>
               <p class="truncate text-sm text-muted">
-                {{ application.websiteUrl }} · {{ application.activeGrants ?? 0 }} signed in
+                {{ row.original.websiteUrl }}
               </p>
               <p class="truncate text-xs text-muted">
-                Callback: {{ application.callbackUrl }}
+                {{ t('admin.callback', 'Callback') }}: {{ row.original.callbackUrl }}
               </p>
-              <div class="mt-2 flex flex-wrap gap-1">
-                <UBadge
-                  v-for="role in application.allowedRoles"
-                  :key="role"
-                  variant="subtle"
-                >
-                  {{ role }}
-                </UBadge>
-                <UBadge
-                  v-if="!application.allowedRoles.length"
-                  color="neutral"
-                  variant="subtle"
-                >
-                  Every signed-in user
-                </UBadge>
-              </div>
             </div>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <UButton
-              size="sm"
+        </template>
+        <template #access-cell="{ row }">
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="role in row.original.allowedRoles"
+              :key="role"
+              variant="subtle"
+              :label="role"
+            />
+            <UBadge
+              v-if="!row.original.allowedRoles.length"
               color="neutral"
-              variant="outline"
-              :disabled="busy"
-              @click="openEdit(application)"
-            >
-              Edit
-            </UButton>
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="outline"
-              :disabled="busy"
-              @click="toggle(application)"
-            >
-              {{ application.isActive ? 'Disable' : 'Enable' }}
-            </UButton>
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="outline"
-              :disabled="busy"
-              @click="rotate(application)"
-            >
-              New secret
-            </UButton>
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="outline"
-              :disabled="busy"
-              @click="signOutEveryone(application)"
-            >
-              Sign everyone out
-            </UButton>
-            <UButton
-              size="sm"
-              color="error"
-              variant="outline"
-              :disabled="busy"
-              @click="destroy(application)"
-            >
-              Delete
-            </UButton>
+              variant="subtle"
+              :label="t('admin.everyone', 'Every signed-in user')"
+            />
           </div>
-        </div>
-      </UCard>
-    </div>
+        </template>
+        <template #grants-cell="{ row }">
+          {{ row.original.activeGrants ?? 0 }}
+        </template>
+        <template #actions-cell="{ row }">
+          <div class="flex justify-end">
+            <UDropdownMenu :items="rowActions(row.original)">
+              <UButton
+                icon="i-lucide-ellipsis"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :disabled="busy"
+                :aria-label="t('admin.actions', 'Actions')"
+              />
+            </UDropdownMenu>
+          </div>
+        </template>
+        <template #empty>
+          <AdminEmpty
+            icon="i-lucide-app-window"
+            :title="t('admin.empty', 'No applications yet.')"
+          />
+        </template>
+      </AdminTable>
+    </template>
 
     <UModal
       v-model:open="formOpen"
@@ -282,7 +280,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
           </UFormField>
           <UFormField
             label="Website URL"
-            help="The origin of the application, without a path. The callback is the website URL plus the configured callback path."
+            description="The origin of the application, without a path. The callback is the website URL plus the configured callback path."
             required
           >
             <UInput
@@ -294,7 +292,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
           </UFormField>
           <UFormField
             label="Login URL"
-            help="Where the Open button goes. Defaults to the website URL."
+            description="Where the Open button goes. Defaults to the website URL."
           >
             <UInput
               v-model="form.loginUrl"
@@ -303,7 +301,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
           </UFormField>
           <UFormField
             label="Preview URL pattern"
-            help="Optional, e.g. https://*.vercel.app, for preview deployments."
+            description="Optional, e.g. https://*.vercel.app, for preview deployments."
           >
             <UInput
               v-model="form.previewUrlPattern"
@@ -312,7 +310,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
           </UFormField>
           <UFormField
             label="Allowed roles"
-            help="Leave empty to allow every signed-in user."
+            description="Leave empty to allow every signed-in user."
           >
             <UInputTags
               v-model="form.allowedRoles"
@@ -414,5 +412,5 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
         </div>
       </template>
     </UModal>
-  </div>
+  </AdminPage>
 </template>

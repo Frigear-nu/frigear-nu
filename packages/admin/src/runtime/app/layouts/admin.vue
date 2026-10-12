@@ -94,7 +94,7 @@ watch(() => route.path, () => {
         </template>
 
         <template #body>
-          <div class="admin-content">
+          <div class="admin-content mx-auto w-full max-w-7xl">
             <slot />
           </div>
         </template>

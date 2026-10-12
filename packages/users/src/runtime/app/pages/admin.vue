@@ -140,18 +140,17 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold">
-        {{ t('admin.title', 'Users') }}
-      </h1>
-      <UButton
-        icon="i-lucide-user-plus"
-        :label="t('admin.create', 'Create user')"
-        @click="startCreate"
-      />
-    </div>
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+  <AdminPage>
+    <AdminPageHeader :title="t('admin.title', 'Users')">
+      <template #actions>
+        <UButton
+          icon="i-lucide-user-plus"
+          :label="t('admin.create', 'Create user')"
+          @click="startCreate"
+        />
+      </template>
+    </AdminPageHeader>
+    <AdminToolbar>
       <UInput
         v-model="search"
         class="w-full max-w-sm"
@@ -179,19 +178,21 @@ async function save() {
         :label="t('admin.filters.clear', 'Clear filters')"
         @click="resetFilters"
       />
-    </div>
-    <UTable
+    </AdminToolbar>
+    <AdminTable
       :data="data.items"
       :columns="columns"
       :loading="loading"
-      class="rounded-lg border border-default"
       @select="startEdit"
     >
       <template #empty>
-        {{ t('admin.empty', 'No users match.') }}
+        <AdminEmpty
+          icon="i-lucide-users"
+          :title="t('admin.empty', 'No users match.')"
+        />
       </template>
-    </UTable>
-    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+    </AdminTable>
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3 text-sm text-muted">
         <span>{{ t('admin.total', '{count} users', { count: data.total }) }}</span>
         <USelect
@@ -212,6 +213,7 @@ async function save() {
     >
       <template #body>
         <form
+          id="admin-user-form"
           class="flex flex-col gap-4"
           @submit.prevent="save"
         >
@@ -250,20 +252,24 @@ async function save() {
               :label="t('admin.sendWelcome', 'Email a sign-in link')"
             />
           </template>
-          <div class="flex justify-end gap-2">
-            <UButton
-              variant="subtle"
-              :label="t('admin.cancel', 'Cancel')"
-              @click="open = false"
-            />
-            <UButton
-              type="submit"
-              :loading="saving"
-              :label="t('admin.save', 'Save')"
-            />
-          </div>
         </form>
       </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="open = false"
+          />
+          <UButton
+            type="submit"
+            form="admin-user-form"
+            :loading="saving"
+            :label="t('admin.save', 'Save')"
+          />
+        </div>
+      </template>
     </UModal>
-  </div>
+  </AdminPage>
 </template>

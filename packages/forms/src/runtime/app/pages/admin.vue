@@ -56,16 +56,20 @@ async function runImport() {
   }
 }
 
+type Row = { original: FormSummaryDto }
+const columns = [
+  { accessorKey: 'name', header: t('admin.name', 'Name') },
+  { accessorKey: 'status', header: t('admin.status', 'Status') },
+  { id: 'actions', header: '' },
+]
+
 const statusColor = { draft: 'neutral', published: 'success', archived: 'warning' } as const
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex items-center justify-between gap-2">
-      <h1 class="text-3xl font-bold">
-        {{ t('admin.title', 'Forms') }}
-      </h1>
-      <div class="flex gap-2">
+  <AdminPage>
+    <AdminPageHeader :title="t('admin.title', 'Forms')">
+      <template #actions>
         <UButton
           color="neutral"
           variant="outline"
@@ -78,8 +82,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
           :label="t('admin.new', 'New form')"
           @click="creating = true"
         />
-      </div>
-    </div>
+      </template>
+    </AdminPageHeader>
 
     <UAlert
       v-if="error"
@@ -88,61 +92,62 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
       :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
     />
 
-    <UEmpty
-      v-else-if="!forms?.length"
-      icon="i-lucide-clipboard-list"
-      :title="t('admin.empty', 'No forms yet.')"
-    />
-
-    <div
+    <AdminTable
       v-else
-      class="divide-y divide-default rounded-lg border border-default"
+      :data="forms ?? []"
+      :columns="columns"
+      @select="(_: Event, row: Row) => navigateTo(paths('adminForm', { id: row.original.id }))"
     >
-      <div
-        v-for="form in forms"
-        :key="form.id"
-        class="flex flex-wrap items-center justify-between gap-3 p-4"
-      >
-        <div class="space-y-1">
-          <NuxtLink
-            :to="paths('adminForm', { id: form.id })"
-            class="font-medium hover:underline"
-          >
-            {{ form.name }}
-          </NuxtLink>
+      <template #name-cell="{ row }">
+        <div class="space-y-0.5">
+          <p class="font-medium">
+            {{ row.original.name }}
+          </p>
           <p class="text-sm text-muted">
-            /{{ form.slug }} · {{ form.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page') }}
-            · v{{ form.version }}
-            <template v-if="form.storage === 'none'">
+            /{{ row.original.slug }} · {{ row.original.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page') }}
+            · v{{ row.original.version }}
+            <template v-if="row.original.storage === 'none'">
               · {{ t('admin.notStored', 'Not stored') }}
             </template>
           </p>
         </div>
-        <div class="flex items-center gap-3">
-          <UBadge
-            :color="statusColor[form.status]"
-            variant="subtle"
-            :label="t(`status.${form.status}`, form.status)"
-          />
+      </template>
+      <template #status-cell="{ row }">
+        <UBadge
+          :color="statusColor[row.original.status]"
+          variant="subtle"
+          :label="t(`status.${row.original.status}`, row.original.status)"
+        />
+      </template>
+      <template #actions-cell="{ row }">
+        <div class="flex items-center justify-end gap-2">
           <UButton
-            v-if="form.storage === 'db'"
+            v-if="row.original.storage === 'db'"
             color="neutral"
             variant="outline"
             size="sm"
-            :to="paths('adminSubmissions', { id: form.id })"
-            :label="t('admin.submissions', 'Submissions ({count})', { count: form.submissionCount })"
+            :to="paths('adminSubmissions', { id: row.original.id })"
+            :label="t('admin.submissions', 'Submissions ({count})', { count: row.original.submissionCount })"
+            @click.stop
           />
           <UButton
             color="neutral"
             variant="ghost"
             size="sm"
             icon="i-lucide-pencil"
-            :to="paths('adminForm', { id: form.id })"
+            :to="paths('adminForm', { id: row.original.id })"
             :aria-label="t('admin.edit', 'Edit')"
+            @click.stop
           />
         </div>
-      </div>
-    </div>
+      </template>
+      <template #empty>
+        <AdminEmpty
+          icon="i-lucide-clipboard-list"
+          :title="t('admin.empty', 'No forms yet.')"
+        />
+      </template>
+    </AdminTable>
 
     <UModal
       v-model:open="creating"
@@ -150,6 +155,7 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
     >
       <template #body>
         <form
+          id="admin-form-create"
           class="space-y-4"
           @submit.prevent="create"
         >
@@ -169,12 +175,23 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
               class="w-full"
             />
           </UFormField>
+        </form>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="creating = false"
+          />
           <UButton
             type="submit"
+            form="admin-form-create"
             :label="t('admin.create', 'Create')"
             :disabled="!draft.name || !draft.slug"
           />
-        </form>
+        </div>
       </template>
     </UModal>
 
@@ -192,6 +209,16 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
             :rows="12"
             class="w-full font-mono text-xs"
           />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="importing = false"
+          />
           <UButton
             :label="t('admin.import', 'Import')"
             :disabled="!importJson.trim()"
@@ -200,5 +227,5 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
         </div>
       </template>
     </UModal>
-  </div>
+  </AdminPage>
 </template>

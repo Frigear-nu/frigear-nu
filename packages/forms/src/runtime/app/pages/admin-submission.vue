@@ -26,7 +26,7 @@ async function redeliver() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <AdminPage>
     <UAlert
       v-if="error || !submission"
       color="error"
@@ -35,20 +35,12 @@ async function redeliver() {
     />
 
     <template v-else>
-      <div>
-        <NuxtLink
-          :to="paths('adminSubmissions', { id })"
-          class="text-sm text-muted hover:underline"
-        >
-          ← {{ t('admin.submissionsTitle', 'Submissions') }}
-        </NuxtLink>
-        <h1 class="text-3xl font-bold">
-          {{ new Date(submission.createdAt).toLocaleString() }}
-        </h1>
-        <p class="text-sm text-muted">
-          {{ submission.formSlug }} · v{{ submission.formVersion }} · {{ submission.locale }}
-        </p>
-      </div>
+      <AdminPageHeader
+        :title="new Date(submission.createdAt).toLocaleString()"
+        :description="`${submission.formSlug} · v${submission.formVersion} · ${submission.locale}`"
+        :back-to="paths('adminSubmissions', { id })"
+        :back-label="t('admin.submissionsTitle', 'Submissions')"
+      />
 
       <UAlert
         :color="submission.deliveryStatus === 'failed' ? 'error' : 'neutral'"
@@ -60,5 +52,5 @@ async function redeliver() {
 
       <FormSubmissionView :submission="submission" />
     </template>
-  </div>
+  </AdminPage>
 </template>
