@@ -1,6 +1,8 @@
 import { db, schema } from '@nuxthub/db'
 import type { z } from 'zod'
 import { newId } from '../../utils'
+import { eq } from 'drizzle-orm'
+import { eventInput } from './admin-schemas'
 import type { addonGroupInput, ticketTypeInput } from './admin-schemas'
 
 type TicketTypeInput = z.output<typeof ticketTypeInput>
@@ -40,4 +42,32 @@ export async function assertMembershipAvailable(...inputs: Array<{ requiresMembe
   if (!inputs.some(input => input?.requiresMembership || input?.excludesMembership)) return
   if ((await getMembershipOptions()).available) return
   throw createError({ statusCode: 400, statusMessage: 'Membership rules need a membership provider such as @frigear-nu/subscriptions.' })
+}
+
+type EventInput = z.output<typeof eventInput>
+
+/** Creates an event, optionally with its whole catalogue (ticket types -> addon groups -> addons). */
+export async function createEventWithCatalog(raw: EventInput) {
+  const { ticketTypes, ...input } = raw
+  await assertMembershipAvailable(input, ...(ticketTypes ?? []))
+
+  const [taken] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, input.slug)).limit(1)
+  if (taken) throw createError({ statusCode: 409, statusMessage: 'An event with this slug already exists.' })
+
+  const [row] = await db.insert(schema.events).values({
+    id: newId('evn'),
+    ...input,
+    requiresMembership: input.requiresMembership ?? null,
+  }).returning()
+  for (const type of ticketTypes ?? []) await insertTicketType(row!.id, type)
+  return row!
+}
+
+export const eventPatchSchema = eventInput.omit({ ticketTypes: true }).partial()
+
+export async function patchEventRow(id: string, patch: z.output<typeof eventPatchSchema>) {
+  await assertMembershipAvailable(patch)
+  const [row] = await db.update(schema.events).set(patch).where(eq(schema.events.id, id)).returning()
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
+  return row
 }

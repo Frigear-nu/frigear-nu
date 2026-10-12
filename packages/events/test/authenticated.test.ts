@@ -21,6 +21,30 @@ const ok = async (response: Response) => {
 const future = (hours: number) => new Date(Date.now() + hours * 3600_000).toISOString()
 let counter = 0
 
+async function mcpRpc(bearer: string, method: string, params: Json = {}) {
+  const response = await fetch('/mcp', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'accept': 'application/json, text/event-stream', 'authorization': `Bearer ${bearer}` },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const text = await response.text()
+  const payload = text.trimStart().startsWith('{') ? text : text.split('\n').find(line => line.startsWith('data:'))?.slice(5) ?? '{}'
+  return JSON.parse(payload) as { result?: Json, error?: Json }
+}
+
+const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list')).result?.tools ?? []).map((tool: { name: string }) => tool.name).sort() as string[]
+const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
+
+async function mcpToken(cookie: string, scopes: string[]) {
+  const response = await fetch('/api/auth/tokens', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ name: 'MCP', scopes }),
+  })
+  expect(response.status, await response.clone().text()).toBe(200)
+  return (await response.json() as { token: string }).token
+}
+
 describe('events (authenticated, database-backed)', async () => {
   const rootDir = fileURLToPath(new URL('./fixtures/authenticated', import.meta.url))
   const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
@@ -482,6 +506,36 @@ describe('events (authenticated, database-backed)', async () => {
       expect((await fetch('/api/events/admin/events', { headers: bearer(staffToken) })).status).toBe(200)
       expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
       expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(nobody.cookie, ['events:manage'])) })).status).toBe(403)
+    })
+  })
+
+  describe('MCP tools', () => {
+    it('shows staff tools only to staff with the scope, and PII only with events:pii', async () => {
+      const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
+      const guest = await registerUser('Guest', 'mcp-guest@example.com')
+
+      const guestAll = await mcpToken(guest.cookie, ['tickets:read', 'events:manage', 'events:pii'])
+      expect(await mcpNames(guestAll)).toEqual(['get-event', 'list-events', 'my-tickets'])
+
+      const staffRead = await mcpToken(staff.cookie, ['tickets:read'])
+      expect(await mcpNames(staffRead)).toEqual(['get-event', 'list-events', 'my-tickets'])
+
+      const staffManage = await mcpToken(staff.cookie, ['events:manage'])
+      expect(await mcpNames(staffManage)).toEqual(['create-event', 'list-all-events', 'list-attendees', 'update-event'])
+
+      const created = await mcpCall(staffManage, 'create-event', { slug: 'mcp-party', name: 'MCP party', startsAt: future(48), status: 'published' })
+      expect(created.result?.isError, JSON.stringify(created)).toBeFalsy()
+
+      // Direct calls to hidden tools are refused rather than trusting the listing.
+      const denied = await mcpCall(guestAll, 'list-all-events')
+      expect(denied.result?.isError ?? denied.error).toBeTruthy()
+
+      const eventsAsGuest = await mcpCall(guestAll, 'list-events')
+      expect(JSON.stringify(eventsAsGuest)).toContain('mcp-party')
+
+      const attendees = await mcpCall(staffManage, 'list-attendees', { eventId: 'does-not-matter' })
+      expect(attendees.result?.isError).toBeFalsy()
+      expect(JSON.stringify(attendees)).not.toMatch(/"code"|userEmail/)
     })
   })
 })

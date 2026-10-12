@@ -15,7 +15,8 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
-import { addAuthResolver } from '@frigear-nu/auth/utils'
+import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
+import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   ApplicationAccessContext,
   AuthorizeContext,
@@ -85,6 +86,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@nuxthub/core': { version: '>=0.10' },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
+    '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     // Provides the shared page components of the admin page (`AdminPage`, `AdminTable`, ...).
@@ -93,6 +95,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    addAuthScope(nuxt, { name: 'oauth:read', description: 'See which applications you can sign in to (MCP)' })
     const resolver = createResolver(import.meta.url)
 
     // Access tokens of signed-in applications authenticate API calls as the user (see the resolver).
@@ -171,6 +174,7 @@ export default defineNuxtModule<ModuleOptions>({
     api('post', 'admin/applications/:id/revoke', 'api/admin/application-revoke.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     // --- App runtime -----------------------------------------------------------------------
     addImports([

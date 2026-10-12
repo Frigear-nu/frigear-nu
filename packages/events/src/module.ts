@@ -17,6 +17,7 @@ import {
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   AuthorizeContext,
   EventsRuntimeConfig,
@@ -84,6 +85,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
+    '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
@@ -99,6 +101,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'events:manage', description: 'Manage events, tickets and check-in (staff)' },
       { name: 'tickets:read', description: 'Read your tickets and event details' },
       { name: 'tickets:write', description: 'Buy tickets and pay for them' },
+      { name: 'events:pii', description: 'See attendee names and emails through MCP tools (also needs events:manage)' },
     )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -160,6 +163,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/admin/tickets/:id/refund', 'admin/ticket-refund.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/payment-hooks'))
 
     // Subscription plans are the memberships when `@frigear-nu/subscriptions` is installed. Checked once every module

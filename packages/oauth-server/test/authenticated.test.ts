@@ -25,6 +25,17 @@ process.env.NUXT_OAUTH_SERVER_PREVIOUS_PUBLIC_KEYS = JSON.stringify({ 'key-0': r
 
 let counter = 0
 
+async function mcpRpc(cookie: string | undefined, method: string, params: Json = {}) {
+  const response = await fetch('/mcp', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'accept': 'application/json, text/event-stream', ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const text = await response.text()
+  const payload = text.trimStart().startsWith('{') ? text : text.split('\n').find(line => line.startsWith('data:'))?.slice(5) ?? '{}'
+  return JSON.parse(payload) as { result?: Json, error?: Json }
+}
+
 describe('oauth-server (authenticated, database-backed)', async () => {
   const rootDir = fileURLToPath(new URL('./fixtures/authenticated', import.meta.url))
   const dataDir = fileURLToPath(new URL('./fixtures/authenticated/.data', import.meta.url))
@@ -67,7 +78,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const config = await $fetch<Json>('/.well-known/openid-configuration')
       expect(config.issuer).toBe('https://id.example.test')
       expect(config.token_endpoint).toBe('https://id.example.test/oauth/token')
-      expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups'])
+      expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups', 'oauth:read'])
       expect(config.code_challenge_methods_supported).toEqual(['S256'])
 
       const jwks = await $fetch<Json>('/.well-known/jwks.json')
@@ -467,6 +478,20 @@ describe('oauth-server (authenticated, database-backed)', async () => {
     it('never falls back to the session behind an invalid token', async () => {
       const response = await fetch('/api/test/whoami', { headers: { cookie: staff.cookie, authorization: 'Bearer aaa.bbb.ccc' } })
       expect(response.status).toBe(401)
+    })
+  })
+
+  describe('MCP tools', () => {
+    it('only exposes my-oauth-applications to signed-in users, and never client secrets', async () => {
+      expect((await mcpRpc(undefined, 'tools/list')).result?.tools ?? []).toEqual([])
+
+      const user = await registerUser('Ada', 'mcp-ada@example.com')
+      const mcpNames = (await mcpRpc(user.cookie, 'tools/list')).result?.tools.map((tool: { name: string }) => tool.name)
+      expect(mcpNames).toEqual(['my-oauth-applications'])
+
+      const result = await mcpRpc(user.cookie, 'tools/call', { name: 'my-oauth-applications', arguments: {} })
+      expect(result.result?.isError, JSON.stringify(result)).toBeFalsy()
+      expect(JSON.stringify(result)).not.toMatch(/secret|redirectUris/i)
     })
   })
 })
