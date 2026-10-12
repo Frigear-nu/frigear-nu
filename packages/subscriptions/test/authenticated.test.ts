@@ -434,4 +434,32 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(portal.status).toBe(403)
     })
   })
+  describe('MCP tools', () => {
+    async function mcpRpc(cookie: string | undefined, method: string, params: Record<string, unknown> = {}) {
+      const response = await fetch('/mcp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json, text/event-stream', ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      })
+      const text = await response.text()
+      const payload = text.trimStart().startsWith('{') ? text : text.split('\n').find(line => line.startsWith('data:'))?.slice(5) ?? '{}'
+      return JSON.parse(payload) as { result?: { tools?: Array<{ name: string }> }, error?: unknown }
+    }
+
+    it('lists only the caller\'s own subscriptions, without Stripe price ids', async () => {
+      expect((await mcpRpc(undefined, 'tools/list')).result?.tools ?? []).toEqual([])
+
+      const ada = await registerUser('McpAda', 'mcp-sub-ada@example.com')
+      const bo = await registerUser('McpBo', 'mcp-sub-bo@example.com')
+      await sendSubscription('customer.subscription.created', 'mcp1', { id: 'sub_mcp_ada', customer: ada.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly' })
+      await sendSubscription('customer.subscription.created', 'mcp2', { id: 'sub_mcp_bo', customer: bo.customerId, priceId: 'price_patron_y' })
+
+      expect((await mcpRpc(ada.cookie, 'tools/list')).result?.tools?.map(tool => tool.name)).toContain('my-subscriptions')
+      const body = JSON.stringify(await mcpRpc(ada.cookie, 'tools/call', { name: 'my-subscriptions', arguments: {} }))
+      expect(body).toContain('sub_mcp_ada')
+      expect(body).toContain('member')
+      expect(body).not.toContain('sub_mcp_bo')
+      expect(body).not.toContain('price_member_m')
+    })
+  })
 })

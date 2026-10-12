@@ -1,8 +1,8 @@
 import { db, schema } from '@nuxthub/db'
 import type { z } from 'zod'
 import { newId } from '../../utils'
-import { eq } from 'drizzle-orm'
-import { eventInput } from './admin-schemas'
+import { asc, eq } from 'drizzle-orm'
+import { eventInput, ticketTypeInput } from './admin-schemas'
 import type { addonGroupInput, ticketTypeInput } from './admin-schemas'
 
 type TicketTypeInput = z.output<typeof ticketTypeInput>
@@ -70,4 +70,24 @@ export async function patchEventRow(id: string, patch: z.output<typeof eventPatc
   const [row] = await db.update(schema.events).set(patch).where(eq(schema.events.id, id)).returning()
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
   return row
+}
+
+// Addon groups have their own endpoints; a ticket type patch only changes the type's own fields.
+export const ticketTypePatchSchema = ticketTypeInput.omit({ addonGroups: true }).partial()
+
+export async function patchTicketTypeRow(id: string, patch: z.output<typeof ticketTypePatchSchema>) {
+  await assertMembershipAvailable(patch)
+  const [row] = await db.update(schema.eventTicketTypes).set(patch).where(eq(schema.eventTicketTypes.id, id)).returning()
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Ticket type not found.' })
+  return row
+}
+
+/** One event with all of its ticket types (capacity and sale window included), whatever its status. */
+export async function getEventWithTicketTypes(id: string) {
+  const [row] = await db.select().from(schema.events).where(eq(schema.events.id, id)).limit(1)
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
+  const ticketTypes = await db.select().from(schema.eventTicketTypes)
+    .where(eq(schema.eventTicketTypes.eventId, id))
+    .orderBy(asc(schema.eventTicketTypes.sortOrder))
+  return { ...row, ticketTypes }
 }

@@ -178,6 +178,7 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 

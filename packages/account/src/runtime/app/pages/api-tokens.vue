@@ -73,16 +73,17 @@ async function onCreate(event: FormSubmitEvent<Schema>) {
   }
 }
 
-async function copyToken() {
-  if (!revealed.value) return
+async function copyText(text: string, success: string) {
   try {
-    await navigator.clipboard.writeText(revealed.value.token)
-    toast.add({ title: t('copied', 'Token copied.'), color: 'success' })
+    await navigator.clipboard.writeText(text)
+    toast.add({ title: success, color: 'success' })
   }
   catch {
     toast.add({ title: t('copyError', 'Could not copy. Select the token and copy it manually.'), color: 'warning' })
   }
 }
+
+const copyToken = () => revealed.value && copyText(revealed.value.token, t('copied', 'Token copied.'))
 
 async function onRevoke(token: ApiToken) {
   revokingId.value = token.id
@@ -98,6 +99,28 @@ async function onRevoke(token: ApiToken) {
     revokingId.value = null
   }
 }
+
+// The token is only ever inlined into a snippet while it is revealed; afterwards the snippets show a placeholder.
+const activeConnect = ref('claude')
+const mcpUrl = `${useRequestURL().origin}/mcp`
+const tokenPlaceholder = '<your-api-token>'
+const shownToken = computed(() => revealed.value?.token ?? tokenPlaceholder)
+const connectTabs = computed(() => [
+  {
+    label: 'Claude',
+    value: 'claude',
+    steps: t('connect.claude.steps', 'Claude.ai and Claude Desktop: open Settings → Connectors → Add custom connector, paste the URL below and sign in when asked. No token needed.'),
+    code: mcpUrl,
+    extraSteps: t('connect.claude.cli', 'Claude Code (uses an API token):'),
+    extraCode: `claude mcp add --transport http frigear ${mcpUrl} --header "Authorization: Bearer ${shownToken.value}"`,
+  },
+  {
+    label: 'ChatGPT',
+    value: 'chatgpt',
+    steps: t('connect.chatgpt.steps', 'ChatGPT: open Settings → Connectors → Advanced, turn on Developer mode, then create a connector with the URL below. Choose OAuth and sign in when asked. No token needed.'),
+    code: mcpUrl,
+  },
+])
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 function formatDate(value: string | null) {
@@ -199,6 +222,61 @@ function statusColor(status: ApiToken['status']) {
               :label="t('create.submit', 'Create token')"
             />
           </UForm>
+        </UPageCard>
+
+        <UPageCard
+          :title="t('connect.title', 'Connect to MCP')"
+          :description="t('connect.description', 'Use your account from an AI assistant. Your API token is only filled into the commands right after you create it.')"
+          variant="subtle"
+        >
+          <UTabs
+            v-model="activeConnect"
+            :items="connectTabs"
+            :content="false"
+            class="w-full"
+          />
+          <template
+            v-for="tab in connectTabs"
+            :key="tab.value"
+          >
+            <div
+              v-if="tab.value === activeConnect"
+              class="min-w-0 max-w-full space-y-3"
+            >
+              <p class="text-sm text-muted">
+                {{ tab.steps }}
+              </p>
+              <div class="relative min-w-0">
+                <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.code }}</code></pre>
+                <UButton
+                  class="absolute right-2 top-2"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="i-lucide-copy"
+                  :aria-label="t('copy', 'Copy')"
+                  @click="copyText(tab.code, t('copiedSnippet', 'Copied.'))"
+                />
+              </div>
+              <template v-if="tab.extraCode">
+                <p class="text-sm text-muted">
+                  {{ tab.extraSteps }}
+                </p>
+                <div class="relative min-w-0">
+                  <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.extraCode }}</code></pre>
+                  <UButton
+                    class="absolute right-2 top-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-copy"
+                    :aria-label="t('copy', 'Copy')"
+                    @click="copyText(tab.extraCode ?? '', t('copiedSnippet', 'Copied.'))"
+                  />
+                </div>
+              </template>
+            </div>
+          </template>
         </UPageCard>
 
         <UPageCard

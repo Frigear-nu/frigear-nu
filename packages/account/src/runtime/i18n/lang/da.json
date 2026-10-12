@@ -125,6 +125,7 @@
       "allScopes": "Fuld adgang",
       "copy": "Kopiér",
       "copied": "Nøglen er kopieret.",
+      "copiedSnippet": "Kopieret.",
       "copyError": "Kunne ikke kopiere. Markér nøglen og kopiér den manuelt.",
       "create": {
         "title": "Opret en API-nøgle",
@@ -154,6 +155,17 @@
         "description": "Det er eneste gang, den vises. Mister du den, skal du oprette en ny.",
         "label": "Ny nøgle",
         "done": "Færdig"
+      },
+      "connect": {
+        "title": "Forbind til MCP",
+        "description": "Brug din konto fra en AI-assistent. Din API-nøgle indsættes kun i kommandoerne lige efter, du har oprettet den.",
+        "claude": {
+          "steps": "Claude.ai og Claude Desktop: åbn Indstillinger → Connectors → Tilføj brugerdefineret connector, indsæt URL'en nedenfor og log ind, når du bliver bedt om det. Ingen nøgle nødvendig.",
+          "cli": "Claude Code (bruger en API-nøgle):"
+        },
+        "chatgpt": {
+          "steps": "ChatGPT: åbn Indstillinger → Connectors → Avanceret, slå udviklertilstand til, og opret en connector med URL'en nedenfor. Vælg OAuth og log ind, når du bliver bedt om det. Ingen nøgle nødvendig."
+        }
       },
       "list": {
         "title": "Dine nøgler",

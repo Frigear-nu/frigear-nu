@@ -125,6 +125,7 @@
       "allScopes": "Full access",
       "copy": "Copy",
       "copied": "Token copied.",
+      "copiedSnippet": "Copied.",
       "copyError": "Could not copy. Select the token and copy it manually.",
       "create": {
         "title": "Create an API token",
@@ -154,6 +155,17 @@
         "description": "This is the only time it is shown. If you lose it, create a new one.",
         "label": "New token",
         "done": "Done"
+      },
+      "connect": {
+        "title": "Connect to MCP",
+        "description": "Use your account from an AI assistant. Your API token is only filled into the commands right after you create it.",
+        "claude": {
+          "steps": "Claude.ai and Claude Desktop: open Settings → Connectors → Add custom connector, paste the URL below and sign in when asked. No token needed.",
+          "cli": "Claude Code (uses an API token):"
+        },
+        "chatgpt": {
+          "steps": "ChatGPT: open Settings → Connectors → Advanced, turn on Developer mode, then create a connector with the URL below. Choose OAuth and sign in when asked. No token needed."
+        }
       },
       "list": {
         "title": "Your tokens",

@@ -22,6 +22,7 @@ export default defineNuxtConfig({
     scopes: [
       { name: 'events:read', description: 'Read events' },
       { name: 'events:write', description: 'Change events' },
+      { name: 'events:admin', description: 'Administer events', roles: ['admin'] },
     ],
   },
 })

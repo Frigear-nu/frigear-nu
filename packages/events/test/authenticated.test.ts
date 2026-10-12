@@ -35,6 +35,21 @@ async function mcpRpc(bearer: string, method: string, params: Json = {}) {
 const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list')).result?.tools ?? []).map((tool: { name: string }) => tool.name).sort() as string[]
 const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
 
+async function scopesFor(cookie: string) {
+  const response = await fetch('/api/auth/scopes', { headers: { cookie } })
+  expect(response.status).toBe(200)
+  return (await response.json() as Array<{ name: string }>).map(scope => scope.name)
+}
+
+async function tokenStatus(cookie: string, scopes: string[]) {
+  const response = await fetch('/api/auth/tokens', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ name: 'probe', scopes }),
+  })
+  return response.status
+}
+
 async function mcpToken(cookie: string, scopes: string[]) {
   const response = await fetch('/api/auth/tokens', {
     method: 'POST',
@@ -505,7 +520,11 @@ describe('events (authenticated, database-backed)', async () => {
       const staffToken = await createToken(staff.cookie, ['events:manage'])
       expect((await fetch('/api/events/admin/events', { headers: bearer(staffToken) })).status).toBe(200)
       expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
-      expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(nobody.cookie, ['events:manage'])) })).status).toBe(403)
+      // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
+      expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
+      expect(await scopesFor(nobody.cookie)).toContain('tickets:read')
+      expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['events:manage', 'events:pii']))
+      expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(400)
     })
   })
 
@@ -514,17 +533,40 @@ describe('events (authenticated, database-backed)', async () => {
       const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
       const guest = await registerUser('Guest', 'mcp-guest@example.com')
 
-      const guestAll = await mcpToken(guest.cookie, ['tickets:read', 'events:manage', 'events:pii'])
+      expect(await tokenStatus(guest.cookie, ['events:manage'])).toBe(400)
+      expect(await tokenStatus(guest.cookie, ['events:pii'])).toBe(400)
+      const guestAll = await mcpToken(guest.cookie, ['tickets:read'])
       expect(await mcpNames(guestAll)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
       const staffRead = await mcpToken(staff.cookie, ['tickets:read'])
       expect(await mcpNames(staffRead)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
+      const staffFull = await mcpToken(staff.cookie, ['*'])
+      expect(await mcpNames(staffFull)).toContain('list-all-events')
+
       const staffManage = await mcpToken(staff.cookie, ['events:manage'])
-      expect(await mcpNames(staffManage)).toEqual(['create-event', 'list-all-events', 'list-attendees', 'update-event'])
+      expect(await mcpNames(staffManage)).toEqual(['create-event', 'get-event-definition', 'list-all-events', 'list-attendees', 'update-event', 'update-ticket-type'])
 
       const created = await mcpCall(staffManage, 'create-event', { slug: 'mcp-party', name: 'MCP party', startsAt: future(48), status: 'published' })
       expect(created.result?.isError, JSON.stringify(created)).toBeFalsy()
+
+      const createdEvent = JSON.parse(created.result!.content[0].text) as { id: string }
+      const withTypes = await mcpCall(staffManage, 'create-event', {
+        slug: 'mcp-tickets', name: 'MCP tickets', startsAt: future(48), status: 'draft',
+        ticketTypes: [{ key: 'general', name: 'General', price: 10000, capacity: 50 }],
+      })
+      expect(withTypes.result?.isError, JSON.stringify(withTypes)).toBeFalsy()
+      const withTypesId = (JSON.parse(withTypes.result!.content[0].text) as { id: string }).id
+      expect(createdEvent.id).toBeTruthy()
+
+      const definition = await mcpCall(staffManage, 'get-event-definition', { id: withTypesId })
+      const [ticketType] = (JSON.parse(definition.result!.content[0].text) as { ticketTypes: Array<{ id: string, price: number }> }).ticketTypes
+      expect(ticketType?.price).toBe(10000)
+      const updatedType = await mcpCall(staffManage, 'update-ticket-type', { id: ticketType!.id, patch: { price: 15000, capacity: 20, saleEndsAt: future(24) } })
+      expect(updatedType.result?.isError, JSON.stringify(updatedType)).toBeFalsy()
+      expect(JSON.parse(updatedType.result!.content[0].text)).toMatchObject({ id: ticketType!.id, price: 15000, capacity: 20 })
+      expect((await mcpCall(staffManage, 'update-ticket-type', { id: 'nope', patch: { price: 1 } })).result?.isError).toBe(true)
+      expect((await mcpCall(guestAll, 'update-ticket-type', { id: ticketType!.id, patch: { price: 1 } })).result?.isError ?? true).toBeTruthy()
 
       // Direct calls to hidden tools are refused rather than trusting the listing.
       const denied = await mcpCall(guestAll, 'list-all-events')

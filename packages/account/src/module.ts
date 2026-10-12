@@ -64,7 +64,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/account', nuxt)
-    addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name and email (MCP)' })
+    addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name, email and role (MCP)' })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

@@ -122,6 +122,17 @@ describe('auth tokens', async () => {
     expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write'])
   })
 
+  it('only offers and accepts role-restricted scopes to users with that role', async () => {
+    expect((await call('POST', '/api/auth/tokens', { cookie: ada, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(400)
+
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
+    const admin = await login(2)
+    const scopes = await (await call('GET', '/api/auth/scopes', { cookie: admin })).json() as Array<{ name: string }>
+    expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write', 'events:admin'])
+    expect((await call('POST', '/api/auth/tokens', { cookie: admin, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(200)
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'user' } } })
+  })
+
   it('revokes tokens and keeps the audit row', async () => {
     const { id, token } = await createToken(ada)
     expect((await call('GET', '/api/test/me', { bearer: token })).status).toBe(200)
