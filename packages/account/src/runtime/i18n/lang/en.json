@@ -125,6 +125,7 @@
       "allScopes": "Full access",
       "copy": "Copy",
       "copied": "Token copied.",
+      "copiedSnippet": "Copied.",
       "copyError": "Could not copy. Select the token and copy it manually.",
       "create": {
         "title": "Create an API token",

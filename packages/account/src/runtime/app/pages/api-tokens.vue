@@ -73,16 +73,17 @@ async function onCreate(event: FormSubmitEvent<Schema>) {
   }
 }
 
-async function copyToken() {
-  if (!revealed.value) return
+async function copyText(text: string, success: string) {
   try {
-    await navigator.clipboard.writeText(revealed.value.token)
-    toast.add({ title: t('copied', 'Token copied.'), color: 'success' })
+    await navigator.clipboard.writeText(text)
+    toast.add({ title: success, color: 'success' })
   }
   catch {
     toast.add({ title: t('copyError', 'Could not copy. Select the token and copy it manually.'), color: 'warning' })
   }
 }
+
+const copyToken = () => revealed.value && copyText(revealed.value.token, t('copied', 'Token copied.'))
 
 async function onRevoke(token: ApiToken) {
   revokingId.value = token.id
@@ -240,17 +241,39 @@ function statusColor(status: ApiToken['status']) {
           >
             <div
               v-if="tab.value === activeConnect"
-              class="space-y-3"
+              class="min-w-0 max-w-full space-y-3"
             >
               <p class="text-sm text-muted">
                 {{ tab.steps }}
               </p>
-              <pre class="overflow-x-auto rounded-md bg-elevated p-3 text-sm"><code>{{ tab.code }}</code></pre>
+              <div class="relative min-w-0">
+                <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.code }}</code></pre>
+                <UButton
+                  class="absolute right-2 top-2"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="i-lucide-copy"
+                  :aria-label="t('copy', 'Copy')"
+                  @click="copyText(tab.code, t('copiedSnippet', 'Copied.'))"
+                />
+              </div>
               <template v-if="tab.extraCode">
                 <p class="text-sm text-muted">
                   {{ tab.extraSteps }}
                 </p>
-                <pre class="overflow-x-auto rounded-md bg-elevated p-3 text-sm"><code>{{ tab.extraCode }}</code></pre>
+                <div class="relative min-w-0">
+                  <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.extraCode }}</code></pre>
+                  <UButton
+                    class="absolute right-2 top-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-copy"
+                    :aria-label="t('copy', 'Copy')"
+                    @click="copyText(tab.extraCode ?? '', t('copiedSnippet', 'Copied.'))"
+                  />
+                </div>
               </template>
             </div>
           </template>

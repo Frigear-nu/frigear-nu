@@ -125,6 +125,7 @@
       "allScopes": "Fuld adgang",
       "copy": "Kopiér",
       "copied": "Nøglen er kopieret.",
+      "copiedSnippet": "Kopieret.",
       "copyError": "Kunne ikke kopiere. Markér nøglen og kopiér den manuelt.",
       "create": {
         "title": "Opret en API-nøgle",
