@@ -15,13 +15,17 @@ const { loggedIn } = useUserSession()
     <UPage>
       <UPageBody class="space-y-8">
         <SubscriptionStatus v-if="isActive" />
-        <UPageHero
+        <div
           v-else-if="loggedIn"
-          :title="t('status.heroTitle', 'Join the team today')"
-          :description="t('status.heroDescription', 'Set up your membership to get started!')"
-          :ui="{ title: 'text-3xl sm:text-4xl' }"
-          class="py-0 sm:py-0"
-        />
+          class="space-y-2 text-center"
+        >
+          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">
+            {{ t('status.heroTitle', 'Join the team today') }}
+          </h1>
+          <p class="text-muted">
+            {{ t('status.heroDescription', 'Set up your membership to get started!') }}
+          </p>
+        </div>
         <UPageHeader
           v-if="cancelsAt"
           :title="t('plans.resubscribe', 'Resubscribe')"

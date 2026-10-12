@@ -48,12 +48,13 @@ const manage = () => openPortal().catch(() => undefined)
 </script>
 
 <template>
-  <UPageCard :title="t('title', 'Your subscription')">
-    <template
-      v-if="$slots.header"
-      #header
-    >
-      <slot name="header" />
+  <UCard :ui="{ root: 'rounded-xl' }">
+    <template #header>
+      <slot name="header">
+        <h3 class="font-semibold">
+          {{ t('title', 'Your subscription') }}
+        </h3>
+      </slot>
     </template>
 
     <slot
@@ -165,5 +166,5 @@ const manage = () => openPortal().catch(() => undefined)
         </div>
       </slot>
     </template>
-  </UPageCard>
+  </UCard>
 </template>
