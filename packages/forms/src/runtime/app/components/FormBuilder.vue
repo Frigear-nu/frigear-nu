@@ -147,16 +147,19 @@ const showStepLine = (index: number) => slot.value?.kind === 'step' && slot.valu
 /** Inserts a new field of `type` at exactly `at` and selects it. */
 function addField(type: FieldType, at: FieldPosition) {
   const field = createField(definition.value, type)
-  definition.value = insertField(definition.value, at, field)
-  // Select the field that was just added, found by its (unique) key rather than by index arithmetic.
-  const index = definition.value.steps[at.step]?.fields.findIndex(candidate => candidate.key === field.key) ?? -1
+  const next = insertField(definition.value, at, field)
+  definition.value = next
+  // `definition` is a v-model: reading it straight after assigning still gives the old value, so look the
+  // new field up in `next` (by its unique key) to select exactly the one that was just added.
+  const index = next.steps[at.step]?.fields.findIndex(candidate => candidate.key === field.key) ?? -1
   if (index >= 0) selection.value = { kind: 'field', at: { step: at.step, index } }
 }
 
 /** Inserts a new, empty step before `index` (or at the end) and selects it. */
 function addStep(index = definition.value.steps.length) {
-  definition.value = insertStep(definition.value, index, createStep(definition.value))
-  selection.value = { kind: 'step', index: Math.min(index, definition.value.steps.length - 1) }
+  const next = insertStep(definition.value, index, createStep(definition.value))
+  definition.value = next
+  selection.value = { kind: 'step', index: Math.min(index, next.steps.length - 1) }
 }
 
 /** Menu items for the "+" insertion rows: one entry per field type. */
