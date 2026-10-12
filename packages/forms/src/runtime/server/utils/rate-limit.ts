@@ -19,3 +19,26 @@ export async function enforceRateLimit(event: H3Event, slug: string) {
   }
   await kv.set(key, used + 1, { ttl: rateLimitWindowSeconds })
 }
+
+const attemptKey = (event: H3Event, slug: string) => {
+  const { rateLimitWindowSeconds } = useRuntimeConfig().forms
+  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
+  return `forms:password:${slug}:${ip}:${Math.floor(Date.now() / (rateLimitWindowSeconds * 1000))}`
+}
+
+/** Refuses further password guesses once `rateLimit` wrong ones were made in the window. `rateLimit: 0` disables. */
+export async function assertPasswordAttemptsLeft(event: H3Event, slug: string) {
+  const { rateLimit, rateLimitWindowSeconds } = useRuntimeConfig().forms
+  if (!rateLimit) return
+  if (Number(await kv.get<number>(attemptKey(event, slug)) ?? 0) >= rateLimit) {
+    setResponseHeader(event, 'retry-after', rateLimitWindowSeconds)
+    throw createError({ statusCode: 429, statusMessage: 'Too many attempts, try again later.' })
+  }
+}
+
+export async function recordPasswordFailure(event: H3Event, slug: string) {
+  const { rateLimit, rateLimitWindowSeconds } = useRuntimeConfig().forms
+  if (!rateLimit) return
+  const key = attemptKey(event, slug)
+  await kv.set(key, Number(await kv.get<number>(key) ?? 0) + 1, { ttl: rateLimitWindowSeconds })
+}

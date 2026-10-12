@@ -11,6 +11,8 @@ const props = defineProps<{
   slug?: string
   /** A definition to render directly (admin preview, tests). */
   form?: FormShape
+  /** Shared password of a password-protected form (sent as `x-form-password`). */
+  password?: string
   /** Validates and steps like normal, but never posts. */
   preview?: boolean
 }>()
@@ -21,7 +23,7 @@ const t = useModuleT('forms')
 const locale = useFormsLocale()
 const toast = useToast()
 
-const loaded = props.slug ? await useForm(props.slug) : undefined
+const loaded = props.slug ? await useForm(props.slug, () => props.password) : undefined
 const form = computed<FormShape | undefined>(() => props.form ?? loaded?.data.value ?? undefined)
 const definition = computed(() => form.value?.definition as FormDefinition)
 
@@ -48,7 +50,7 @@ async function onSubmit() {
   }
   submitting.value = true
   try {
-    const result = await submitAnswers(form.value!.slug, definition.value, state, locale.value)
+    const result = await submitAnswers(form.value!.slug, definition.value, state, locale.value, props.password)
     done.value = true
     emit('submitted', result.id)
     const redirect = submitSettings.value?.redirect

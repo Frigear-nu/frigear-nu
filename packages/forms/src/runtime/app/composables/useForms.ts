@@ -1,4 +1,4 @@
-import type { FormDefinition, FormField, PublicFormDto } from '../../../types'
+import type { FormAccessInfoDto, FormDefinition, FormField, PublicFormDto } from '../../../types'
 import { resolveVisibility, translate } from '../../utils'
 
 /** Locale for translated form content: `@nuxtjs/i18n`'s when installed, otherwise `en`. */
@@ -16,9 +16,20 @@ export function useFormsLocales() {
   })
 }
 
-/** Loads a published form definition by slug. */
-export function useForm(slug: MaybeRefOrGetter<string>) {
-  return useFetch<PublicFormDto>(() => `/api/forms/${toValue(slug)}`, { key: `forms:${toValue(slug)}` })
+/** Header carrying the shared password of a password-protected form. */
+export const FORM_PASSWORD_HEADER = 'x-form-password'
+
+/** Loads a published form definition by slug; `password` unlocks a password-protected form. */
+export function useForm(slug: MaybeRefOrGetter<string>, password?: MaybeRefOrGetter<string | undefined>) {
+  return useFetch<PublicFormDto>(() => `/api/forms/${toValue(slug)}`, {
+    key: `forms:${toValue(slug)}${toValue(password) ? ':pw' : ''}`,
+    headers: computed(() => toValue(password) ? { [FORM_PASSWORD_HEADER]: toValue(password)! } : undefined),
+  })
+}
+
+/** Loads what the public page needs to choose between the form, a password/sign-in gate and "not found". */
+export function useFormAccess(slug: MaybeRefOrGetter<string>) {
+  return useFetch<FormAccessInfoDto>(() => `/api/forms/${toValue(slug)}/access`, { key: `forms:access:${toValue(slug)}` })
 }
 
 /** Initial answers: empty arrays for files, `false` for checkboxes, everything else unset. */
@@ -35,7 +46,8 @@ export function emptyAnswers(definition: Pick<FormDefinition, 'steps'>): Record<
 }
 
 /** Posts the answers: JSON for forms without files, multipart (answers + `file:<key>` parts) otherwise. */
-export async function submitAnswers(slug: string, definition: Pick<FormDefinition, 'steps'>, answers: Record<string, unknown>, locale: string) {
+export async function submitAnswers(slug: string, definition: Pick<FormDefinition, 'steps'>, answers: Record<string, unknown>, locale: string, password?: string) {
+  const headers = password ? { [FORM_PASSWORD_HEADER]: password } : undefined
   const files: { key: string, file: File }[] = []
   const plain: Record<string, unknown> = {}
   const visible = new Set(resolveVisibility(definition as FormDefinition, answers).flatMap(step => step.fields.map(field => field.key)))
@@ -50,13 +62,13 @@ export async function submitAnswers(slug: string, definition: Pick<FormDefinitio
   }
 
   if (!files.length) {
-    return $fetch<{ ok: true, id: string | null }>(`/api/forms/${slug}/submit`, { method: 'POST', body: { answers: plain, locale } })
+    return $fetch<{ ok: true, id: string | null }>(`/api/forms/${slug}/submit`, { method: 'POST', body: { answers: plain, locale }, headers })
   }
   const body = new FormData()
   body.append('answers', JSON.stringify(plain))
   body.append('locale', locale)
   for (const { key, file } of files) body.append(`file:${key}`, file, file.name)
-  return $fetch<{ ok: true, id: string | null }>(`/api/forms/${slug}/submit`, { method: 'POST', body })
+  return $fetch<{ ok: true, id: string | null }>(`/api/forms/${slug}/submit`, { method: 'POST', body, headers })
 }
 
 const DEFAULT_PATHS = {

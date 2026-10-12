@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -168,5 +168,22 @@ describe('insertField / insertStep', () => {
     expect(next.steps.map(s => s.id)).toEqual(['a', 'step_3', 'b'].map((id, i) => i === 1 ? next.steps[1]!.id : id))
     expect(next.steps[1]!.fields).toEqual([])
     expect(insertStep(d, 99, createStep(d)).steps).toHaveLength(3)
+  })
+})
+
+describe('form access', () => {
+  it('defaults to open web access and keeps older definitions valid', () => {
+    expect(resolveAccess(base())).toEqual({ availability: 'web', auth: 'none' })
+    expect(formDefinitionSchema.parse(base()).access).toBeUndefined()
+    expect(formDefinitionSchema.parse({ ...base(), access: { auth: 'password' } }).access).toEqual({ availability: 'web', auth: 'password' })
+  })
+
+  it('setAccess forces API only for token auth and rejects other token combinations', () => {
+    expect(setAccess(base(), { auth: 'token' }).access).toEqual({ availability: 'api', auth: 'token' })
+    expect(setAccess(base(), { auth: 'user' }).access).toEqual({ availability: 'web', auth: 'user' })
+    const bad = formDefinitionSchema.safeParse({ ...base(), access: { availability: 'web', auth: 'token' } })
+    expect(bad.success).toBe(false)
+    expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'token' } }).success).toBe(true)
+    expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'nope' } }).success).toBe(false)
   })
 })

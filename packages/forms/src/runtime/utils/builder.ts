@@ -1,4 +1,4 @@
-import type { FieldType, FormDefinition, FormDelivery, FormStorage, FormField, FormStep, Translated } from '../../types'
+import type { FieldType, FormAccess, FormDefinition, FormDelivery, FormStorage, FormField, FormStep, Translated } from '../../types'
 
 /** Where a field sits in a definition. */
 export type FieldPosition = { step: number, index: number }
@@ -261,6 +261,13 @@ export function setRoute(definition: FormDefinition, value: string, to: readonly
 
 export function setStorage(definition: FormDefinition, storage: FormStorage): FormDefinition {
   return definition.storage === storage ? definition : { ...definition, storage }
+}
+
+/** Sets who may use the form. Token access forces API-only (a token cannot be typed into a page). */
+export function setAccess(definition: FormDefinition, patch: Partial<FormAccess>): FormDefinition {
+  const next = { availability: 'web', auth: 'none', ...definition.access, ...patch } as FormAccess
+  if (next.auth === 'token') next.availability = 'api'
+  return { ...definition, access: next }
 }
 
 /** Problems of a storage choice: file fields cannot work without storage, and a form that neither stores nor emails loses its answers. */

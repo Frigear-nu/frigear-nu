@@ -12,10 +12,10 @@ export type { SchemaOptions } from './schema'
 export {
   fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, insertStep, removeField, updateField, updateStep, duplicateField,
   createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
-  setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, storageWarnings, emailFieldKeys, routableFields,
+  setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, setAccess, storageWarnings, emailFieldKeys, routableFields,
 } from './builder'
 export type { FieldPosition } from './builder'
-export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'
+export { formDefinitionSchema, accessSchema, defaultAccess, resolveAccess, parseFormDefinition, resolveEmailDelivery } from './definition'
 export type { FormDefinitionInput } from './definition'
 
 /** Typed identity helper for authoring definitions (seed files, tests). */

@@ -48,3 +48,27 @@ export const formSubmissionFiles = sqliteTable('form_submission_files', {
 }, t => [
   index('form_submission_file_submission_idx').on(t.submissionId),
 ])
+
+export const formAccessTokens = sqliteTable('form_access_tokens', {
+  /** `fat_` + random id. */
+  id: text().primaryKey(),
+  formId: text().notNull().references(() => forms.id, { onDelete: 'cascade' }),
+  name: text().notNull(),
+  /** SHA-256 (hex) of the token; the token itself is shown once on creation and never stored. */
+  tokenHash: text().notNull().unique(),
+  /** First characters of the token, for display. */
+  prefix: text().notNull(),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  lastUsedAt: integer({ mode: 'timestamp' }),
+  revokedAt: integer({ mode: 'timestamp' }),
+}, t => [
+  index('form_access_token_form_idx').on(t.formId),
+])
+
+/** Shared password of a form with `access.auth = 'password'`. Kept out of the (versioned) definition. */
+export const formAccess = sqliteTable('form_access', {
+  formId: text().primaryKey().references(() => forms.id, { onDelete: 'cascade' }),
+  /** Scrypt hash (nuxt-auth-utils `hashPassword`). */
+  passwordHash: text().notNull(),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})

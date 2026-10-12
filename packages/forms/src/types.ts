@@ -90,6 +90,17 @@ export type FormSubmitSettings = {
   allowResubmit?: { keep: string[] }
 }
 
+/** `web`: public page and API. `api`: API only, the public page does not exist. */
+export type FormAvailability = 'web' | 'api'
+/** How a submitter proves access: nothing, a signed-in user, a bearer token or a shared password. */
+export type FormAuthMode = 'none' | 'user' | 'token' | 'password'
+
+/** Who may read and submit the form. Secrets (tokens, password hash) are never part of the definition. */
+export type FormAccess = {
+  availability: FormAvailability
+  auth: FormAuthMode
+}
+
 export type FormDefinition = {
   mode: FormMode
   /** `none` never stores answers (or files): they are only emitted through `forms:submitted` and emailed. */
@@ -97,6 +108,8 @@ export type FormDefinition = {
   steps: FormStep[]
   submit?: FormSubmitSettings
   delivery?: FormDelivery
+  /** Defaults to `{ availability: 'web', auth: 'none' }` (open to everyone, as forms always were). */
+  access?: FormAccess
 }
 
 export type ModuleOptions = {
@@ -193,6 +206,28 @@ export type PublicFormDto = {
   version: number
   /** The definition without `delivery` (recipients are never public). */
   definition: Omit<FormDefinition, 'delivery'>
+}
+
+export type FormAccessTokenDto = {
+  id: string
+  name: string
+  /** First characters of the token, to recognise it; the token itself is shown once on creation. */
+  prefix: string
+  createdAt: string
+  lastUsedAt: string | null
+  revokedAt: string | null
+}
+
+export type CreatedFormAccessTokenDto = FormAccessTokenDto & { token: string }
+
+export type FormPasswordStatusDto = { set: boolean }
+
+/** What the public page needs to decide between the form, a gate and "not found". Never contains secrets. */
+export type FormAccessInfoDto = {
+  slug: string
+  name: string
+  access: FormAccess
+  signedIn: boolean
 }
 
 export type FormSummaryDto = {

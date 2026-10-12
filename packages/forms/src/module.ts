@@ -116,7 +116,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- API routes -----------------------------------------------------------------------
-    const route = (method: 'get' | 'post' | 'patch' | 'delete', path: string, file: string) =>
+    const route = (method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string, file: string) =>
       addServerHandler({ route: `/api/forms${path}`, method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
 
     // Static `admin/*` segments win over `:slug` in the router.
@@ -126,11 +126,18 @@ export default defineNuxtModule<ModuleOptions>({
     route('patch', '/admin/forms/:id', 'admin/form.patch')
     route('delete', '/admin/forms/:id', 'admin/form.delete')
     route('get', '/admin/forms/:id/submissions', 'admin/submissions.get')
+    route('get', '/admin/forms/:id/tokens', 'admin/form-tokens.get')
+    route('post', '/admin/forms/:id/tokens', 'admin/form-tokens.post')
+    route('delete', '/admin/forms/:id/tokens/:tokenId', 'admin/form-token.delete')
+    route('get', '/admin/forms/:id/password', 'admin/form-password.get')
+    route('put', '/admin/forms/:id/password', 'admin/form-password.put')
+    route('delete', '/admin/forms/:id/password', 'admin/form-password.delete')
     route('post', '/admin/import', 'admin/import.post')
     route('get', '/admin/submissions/:id', 'admin/submission.get')
     route('get', '/admin/submissions/:id/files/:fileId', 'admin/submission-file.get')
     route('post', '/admin/submissions/:id/redeliver', 'admin/submission-redeliver.post')
     route('get', '/:slug', 'public/form.get')
+    route('get', '/:slug/access', 'public/access.get')
     route('post', '/:slug/submit', 'public/submit.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
@@ -140,6 +147,8 @@ export default defineNuxtModule<ModuleOptions>({
     // --- App runtime ----------------------------------------------------------------------
     addImports([
       { name: 'useForm', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'useFormAccess', from: resolver.resolve('./runtime/app/composables/useForms') },
+      { name: 'FORM_PASSWORD_HEADER', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocale', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsLocales', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormsPaths', from: resolver.resolve('./runtime/app/composables/useForms') },

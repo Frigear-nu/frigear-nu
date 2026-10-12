@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { FormDefinition } from '../../types'
+import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
 
@@ -49,6 +49,11 @@ const sameOriginPath = (value: string) => value.startsWith('/') && !value.starts
 // Recipients are literal addresses: an unresolved `${...}` placeholder must never become one.
 const emailAddress = z.string().regex(/^[^\s@${}]+@[^\s$@{}][^\s$.@{}]*\.[^\s$@{}]+$/, 'Recipients must be plain email addresses.')
 
+export const accessSchema = z.object({
+  availability: z.enum(['web', 'api']).default('web'),
+  auth: z.enum(['none', 'user', 'token', 'password']).default('none'),
+})
+
 export const formDefinitionSchema = z.object({
   mode: z.enum(['single', 'stepped']),
   storage: z.enum(['db', 'none']).default('db'),
@@ -59,6 +64,7 @@ export const formDefinitionSchema = z.object({
     redirect: z.string().refine(sameOriginPath, 'Redirect must be a path on this site.').optional(),
     allowResubmit: z.object({ keep: z.array(z.string()) }).optional(),
   }).optional(),
+  access: accessSchema.optional(),
   delivery: z.object({
     email: z.object({
       to: z.array(emailAddress).min(1),
@@ -72,6 +78,11 @@ export const formDefinitionSchema = z.object({
 
   if (definition.mode === 'single' && definition.steps.length !== 1) {
     fail('A single page form has exactly one step.', ['steps'])
+  }
+
+  // A bearer token cannot be typed into a web page, so token forms are API-only.
+  if (definition.access?.auth === 'token' && definition.access.availability !== 'api') {
+    fail('Token access needs the form to be API only.', ['access', 'availability'])
   }
 
   const stepIds = new Set<string>()
@@ -141,4 +152,11 @@ export function resolveEmailDelivery(email: NonNullable<NonNullable<FormDefiniti
   const routed = email.routes?.to[String(answers[email.routes.field] ?? '')]
   const replyTo = email.replyToField ? String(answers[email.replyToField] ?? '').trim() : ''
   return { to: routed?.length ? routed : email.to, replyTo: replyTo || undefined }
+}
+
+export const defaultAccess: FormAccess = { availability: 'web', auth: 'none' }
+
+/** The effective access of a definition (older definitions have none and stay open). */
+export function resolveAccess(definition: { access?: Partial<FormAccess> }): FormAccess {
+  return { ...defaultAccess, ...definition.access }
 }

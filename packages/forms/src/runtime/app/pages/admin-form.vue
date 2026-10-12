@@ -49,6 +49,7 @@ const checked = computed(() => {
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
   { value: 'settings', label: t('admin.settings', 'Delivery & storage'), icon: 'i-lucide-settings' },
+  { value: 'access', label: t('admin.access', 'Access'), icon: 'i-lucide-lock' },
   { value: 'json', label: t('admin.json', 'JSON'), icon: 'i-lucide-braces' },
 ])
 
@@ -159,6 +160,13 @@ async function save() {
       <FormBuilderSettings
         v-else-if="tab === 'settings'"
         v-model="definition"
+      />
+
+      <FormBuilderAccess
+        v-else-if="tab === 'access'"
+        v-model="definition"
+        :form-id="form.id"
+        :slug="form.slug"
       />
 
       <div

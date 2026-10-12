@@ -208,6 +208,115 @@ describe('forms (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('access control', () => {
+    const open: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 'main', fields: [{ key: 'message', type: 'text', required: true }] }] }
+    const withAccess = (access: FormDefinition['access']): FormDefinition => ({ ...open, access })
+    const answers = { message: 'hi' }
+    const headers = (extra: Record<string, string>) => ({ 'content-type': 'application/json', ...extra })
+    const post = (formSlug: string, extra: Record<string, string> = {}) =>
+      fetch(`/api/forms/${formSlug}/submit`, { method: 'POST', headers: headers(extra), body: JSON.stringify({ answers, locale: 'en' }) })
+    const get = (formSlug: string, extra: Record<string, string> = {}) => fetch(`/api/forms/${formSlug}`, { headers: extra })
+
+    it('keeps definitions without access open (default)', async () => {
+      const form = await create('No access', open)
+      expect((await post(form.slug)).status).toBe(200)
+      expect((await ok(await get(form.slug))).definition.access).toBeUndefined()
+      const info = await ok(await fetch(`/api/forms/${form.slug}/access`))
+      expect(info.access).toEqual({ availability: 'web', auth: 'none' })
+      expect(await $fetch<string>(`/forms/${form.slug}`)).toContain('No access')
+    })
+
+    it('rejects token access on a form that is not API only', async () => {
+      const bad = await json(staff.cookie, 'POST', '/api/forms/admin/forms', { slug: slug('bad-token'), name: 'Bad', definition: withAccess({ availability: 'web', auth: 'token' }) })
+      expect(bad.status).toBe(400)
+    })
+
+    it('api-only forms have no public page but the API still works', async () => {
+      const form = await create('Api only', withAccess({ availability: 'api', auth: 'none' }))
+      expect((await fetch(`/forms/${form.slug}`)).status).toBe(404)
+      expect((await get(form.slug)).status).toBe(200)
+      expect((await post(form.slug)).status).toBe(200)
+    })
+
+    it('user: needs a session', async () => {
+      const form = await create('Users only', withAccess({ availability: 'web', auth: 'user' }))
+      expect((await post(form.slug)).status).toBe(401)
+      expect((await get(form.slug)).status).toBe(401)
+      expect((await post(form.slug, { cookie: nobody.cookie })).status).toBe(200)
+      expect((await get(form.slug, { cookie: nobody.cookie })).status).toBe(200)
+      expect((await ok(await fetch(`/api/forms/${form.slug}/access`, { headers: { cookie: nobody.cookie } }))).signedIn).toBe(true)
+    })
+
+    it('token: wrong 401, right 200 (bearer or header), revoked 401, secrets never leak', async () => {
+      const form = await create('Token form', withAccess({ availability: 'api', auth: 'token' }))
+      expect((await post(form.slug)).status).toBe(401)
+      expect((await post(form.slug, { authorization: 'Bearer ffk_wrong' })).status).toBe(401)
+
+      expect((await json(nobody.cookie, 'POST', `/api/forms/admin/forms/${form.id}/tokens`, { name: 'x' })).status).toBe(403)
+      const created = await ok(await json(staff.cookie, 'POST', `/api/forms/admin/forms/${form.id}/tokens`, { name: 'Mobile' }))
+      expect(created.token).toMatch(/^ffk_/)
+      expect(created.prefix).toBe(created.token.slice(0, 8))
+
+      expect((await post(form.slug, { authorization: `Bearer ${created.token}` })).status).toBe(200)
+      expect((await post(form.slug, { 'x-form-token': created.token })).status).toBe(200)
+      expect((await get(form.slug, { authorization: `Bearer ${created.token}` })).status).toBe(200)
+
+      const listed = await ok(await json(staff.cookie, 'GET', `/api/forms/admin/forms/${form.id}/tokens`)) as unknown as Json[]
+      expect(listed).toHaveLength(1)
+      expect(listed[0]).not.toHaveProperty('token')
+      expect(listed[0]).not.toHaveProperty('tokenHash')
+      expect(listed[0]!.lastUsedAt).toBeTypeOf('string')
+      expect(JSON.stringify(listed)).not.toContain(created.token)
+
+      for (const url of [`/api/forms/${form.slug}`, `/api/forms/${form.slug}/access`]) {
+        const body = await (await fetch(url, { headers: { authorization: `Bearer ${created.token}` } })).text()
+        expect(body).not.toContain(created.token)
+        expect(body).not.toContain('tokenHash')
+      }
+
+      const revoked = await ok(await json(staff.cookie, 'DELETE', `/api/forms/admin/forms/${form.id}/tokens/${created.id}`))
+      expect(revoked.revokedAt).toBeTypeOf('string')
+      expect((await post(form.slug, { authorization: `Bearer ${created.token}` })).status).toBe(401)
+      expect((await json(staff.cookie, 'DELETE', `/api/forms/admin/forms/${form.id}/tokens/nope`)).status).toBe(404)
+    })
+
+    it('token of another form is not accepted', async () => {
+      const first = await create('Token A', withAccess({ availability: 'api', auth: 'token' }))
+      const second = await create('Token B', withAccess({ availability: 'api', auth: 'token' }))
+      const { token } = await ok(await json(staff.cookie, 'POST', `/api/forms/admin/forms/${first.id}/tokens`, { name: 'A' }))
+      expect((await post(first.slug, { authorization: `Bearer ${token}` })).status).toBe(200)
+      expect((await post(second.slug, { authorization: `Bearer ${token}` })).status).toBe(401)
+    })
+
+    it('password: closed until set, wrong 401, right 200, hash never returned, clearing closes again', async () => {
+      const form = await create('Password form', withAccess({ availability: 'web', auth: 'password' }))
+      const passwordUrl = `/api/forms/admin/forms/${form.id}/password`
+      expect((await post(form.slug, { 'x-form-password': 'anything' })).status).toBe(401)
+      expect(await ok(await json(staff.cookie, 'GET', passwordUrl))).toEqual({ set: false })
+      expect((await json(staff.cookie, 'PUT', passwordUrl, { password: 'abc' })).status).toBe(400)
+
+      const saved = await ok(await json(staff.cookie, 'PUT', passwordUrl, { password: 'open-sesame' }))
+      expect(saved).toEqual({ set: true })
+      expect(await ok(await json(staff.cookie, 'GET', passwordUrl))).toEqual({ set: true })
+      const adminForm = JSON.stringify(await ok(await json(staff.cookie, 'GET', `/api/forms/admin/forms/${form.id}`)))
+      expect(adminForm).not.toContain('open-sesame')
+      expect(adminForm).not.toContain('passwordHash')
+
+      expect((await post(form.slug)).status).toBe(401)
+      expect((await post(form.slug, { 'x-form-password': 'wrong' })).status).toBe(401)
+      expect((await get(form.slug, { 'x-form-password': 'wrong' })).status).toBe(401)
+      expect((await post(form.slug, { 'x-form-password': 'open-sesame' })).status).toBe(200)
+      const definition = await ok(await get(form.slug, { 'x-form-password': 'open-sesame' }))
+      expect(JSON.stringify(definition)).not.toContain('open-sesame')
+
+      const html = await $fetch<string>(`/forms/${form.slug}`)
+      expect(html).toContain('This form is protected')
+
+      expect(await ok(await json(staff.cookie, 'DELETE', passwordUrl))).toEqual({ set: false })
+      expect((await post(form.slug, { 'x-form-password': 'open-sesame' })).status).toBe(401)
+    })
+  })
+
   describe('delivery', () => {
     const single = (storage: 'db' | 'none'): FormDefinition => ({
       mode: 'single',
