@@ -173,6 +173,17 @@ export default defineNuxtConfig({
       connection: { url: 'file:./.data/db/sqlite.db' },
     },
   },
+
+  hooks: {
+    // nitropack 2 bundles `scheduledTasks` into the worker's `scheduled` handler but never writes the cron
+    // expressions to wrangler.json, so Cloudflare has nothing to trigger. Mirror them into `triggers.crons`.
+    'nitro:init': (nitro) => {
+      const crons = Object.keys(nitro.options.scheduledTasks || {})
+      if (!crons.length || !nitro.options.preset.startsWith('cloudflare')) return
+      const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
+      wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
+    },
+  },
   account: {
     settings: {
       pages: { index: true, profile: true, security: true, documents: true },
