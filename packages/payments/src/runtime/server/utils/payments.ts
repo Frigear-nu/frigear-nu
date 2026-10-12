@@ -120,10 +120,12 @@ export async function getPaymentByReference(type: string, id: string): Promise<P
   return row ? toPaymentDto(row) : null
 }
 
-export async function listUserPayments(userId: number): Promise<PaymentDto[]> {
-  const rows = await db.select().from(schema.payments)
+/** A user's payments, newest first; `limit` caps how many are returned. */
+export async function listUserPayments(userId: number, options: { limit?: number } = {}): Promise<PaymentDto[]> {
+  const query = db.select().from(schema.payments)
     .where(eq(schema.payments.userId, userId))
     .orderBy(desc(schema.payments.createdAt))
+  const rows = await (options.limit ? query.limit(options.limit) : query)
   return rows.map(toPaymentDto)
 }
 

@@ -166,6 +166,9 @@
         "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
         "deleted": "Brugeren er slettet.",
         "notFound": "Brugeren blev ikke fundet."
+      },
+      "tabs": {
+        "overview": "Oversigt"
       }
     }
   }

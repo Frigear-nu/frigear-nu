@@ -1,3 +1,5 @@
 // Framework-agnostic utils, safe to import from a Nuxt module's own `setup()`, tests, ...
 export { extendWidgets, deriveWidgetId, sortWidgets } from './widget'
 export type { WidgetDefinition, RegisteredWidget } from './widget'
+export { extendTabs, deriveTabId } from './tab'
+export type { TabDefinition, RegisteredTab } from './tab'

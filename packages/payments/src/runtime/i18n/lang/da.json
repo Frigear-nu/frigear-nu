@@ -8,6 +8,19 @@
       "refunded": "Refunderet",
       "partially_refunded": "Delvist refunderet"
     },
-    "defaultDescription": "Betaling"
+    "defaultDescription": "Betaling",
+    "admin": {
+      "tab": "Betalinger",
+      "title": "Betalinger",
+      "lastPayment": "Seneste betaling",
+      "empty": "Ingen betalinger endnu.",
+      "date": "Dato",
+      "description": "Beskrivelse",
+      "amount": "Beløb",
+      "statusColumn": "Status",
+      "refunded": "Refunderet",
+      "reference": "Reference",
+      "defaultDescription": "Betaling"
+    }
   }
 }

@@ -166,6 +166,9 @@
         "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
         "deleted": "User deleted.",
         "notFound": "User not found."
+      },
+      "tabs": {
+        "overview": "Overview"
       }
     }
   }

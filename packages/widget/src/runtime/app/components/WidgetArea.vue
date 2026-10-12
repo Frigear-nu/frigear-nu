@@ -2,9 +2,10 @@
 import { getWidgetComponent } from '../utils/components'
 
 // Renders every widget registered for `name` in a responsive grid. Replace the layout by using the `item` slot.
-const props = defineProps<{ name: string }>()
+// Each widget receives its static `props`, then every entry of `context` as a prop (e.g. `{ user }`).
+const props = defineProps<{ name: string, context?: Record<string, unknown> }>()
 
-const { data: widgets } = await useWidgets(props.name)
+const { data: widgets } = await useWidgets(props.name, () => props.context)
 </script>
 
 <template>
@@ -20,11 +21,12 @@ const { data: widgets } = await useWidgets(props.name)
         name="item"
         :widget="widget"
         :component="getWidgetComponent(name, widget.id)"
+        :context="context"
       >
         <div :style="{ '--widget-span': widget.span ?? 1 }">
           <component
             :is="getWidgetComponent(name, widget.id)"
-            v-bind="widget.props"
+            v-bind="{ ...widget.props, ...context }"
           />
         </div>
       </slot>
