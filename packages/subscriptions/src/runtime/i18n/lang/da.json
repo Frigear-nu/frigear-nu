@@ -11,7 +11,16 @@
       "confirmTitle": "Skift plan",
       "confirmBody": "Skift til {plan}? Dit abonnement bliver opdateret.",
       "confirm": "Bekræft",
-      "cancel": "Annullér"
+      "cancel": "Annullér",
+      "feeIncluded": "*Betalingsgebyrer er inkluderet i beløbet",
+      "select": "Vælg",
+      "resubscribe": "Abonnér igen",
+      "confirmCheckout": "Du sendes nu videre til Stripe for at bekræfte.",
+      "confirmUpgrade": "Hvis du opgraderer, flyttes du straks til den højere plan. Resterende kredit fratrækkes, og du opkræves differencen med det samme.",
+      "confirmDowngrade": "Hvis du nedgraderer, kører dit nuværende abonnement til næste forfaldsdato, hvorefter det skifter.",
+      "subscribeTo": "Du abonnerer nu på:",
+      "changeTitle": "Opdatér abonnement",
+      "checkoutTitle": "Bliv medlem"
     },
     "interval": {
       "day": "dag",
@@ -21,7 +30,8 @@
       "days": "dage",
       "weeks": "uger",
       "months": "måneder",
-      "years": "år"
+      "years": "år",
+      "quarter": "kvartal"
     },
     "status": {
       "loading": "Henter medlemskab…",
@@ -35,7 +45,17 @@
       "trialing": "Prøveperiode",
       "pastDue": "Forfalden",
       "canceled": "Annulleret",
-      "other": "Inaktiv"
+      "other": "Inaktiv",
+      "currentPlan": "Nuværende plan",
+      "cancelling": "Abonnementet udløber",
+      "cancelsAt": "Slutter {date}",
+      "renewsAutomaticallyAt": "Fornyes automatisk {date}",
+      "cancel": "Opsig medlemskab",
+      "changePaymentMethod": "Skift betalingsmetode",
+      "free": "Gratis medlemskab",
+      "freeUntil": "Gratis medlemskab til {date}",
+      "heroTitle": "Bliv en del af holdet i dag",
+      "heroDescription": "Opret dit medlemskab for at komme i gang!"
     },
     "success": {
       "title": "Tak!",

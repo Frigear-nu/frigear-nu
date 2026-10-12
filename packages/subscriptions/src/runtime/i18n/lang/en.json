@@ -11,7 +11,16 @@
       "confirmTitle": "Change plan",
       "confirmBody": "Switch to {plan}? Your subscription will be updated.",
       "confirm": "Confirm",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "feeIncluded": "*Payment fees are included in the amount",
+      "select": "Select",
+      "resubscribe": "Resubscribe",
+      "confirmCheckout": "You will now be taken to Stripe to confirm.",
+      "confirmUpgrade": "If you upgrade, you are moved to the higher plan immediately. Any remaining credit is deducted and you are charged the difference right away.",
+      "confirmDowngrade": "If you downgrade, your current subscription runs until the next due date, then switches.",
+      "subscribeTo": "You will now subscribe to:",
+      "changeTitle": "Update subscription",
+      "checkoutTitle": "Get a membership"
     },
     "interval": {
       "day": "day",
@@ -21,7 +30,8 @@
       "days": "days",
       "weeks": "weeks",
       "months": "months",
-      "years": "years"
+      "years": "years",
+      "quarter": "quarter"
     },
     "status": {
       "loading": "Loading subscription…",
@@ -35,7 +45,17 @@
       "trialing": "Trial",
       "pastDue": "Past due",
       "canceled": "Canceled",
-      "other": "Inactive"
+      "other": "Inactive",
+      "currentPlan": "Current plan",
+      "cancelling": "Subscription is ending",
+      "cancelsAt": "Ending at {date}",
+      "renewsAutomaticallyAt": "Renews automatically on {date}",
+      "cancel": "Cancel membership",
+      "changePaymentMethod": "Change payment method",
+      "free": "Free membership",
+      "freeUntil": "Free membership until {date}",
+      "heroTitle": "Join the team today",
+      "heroDescription": "Set up your membership to get started!"
     },
     "success": {
       "title": "Thank you!",

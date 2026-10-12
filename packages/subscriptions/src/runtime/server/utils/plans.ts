@@ -2,6 +2,7 @@ import type Stripe from 'stripe'
 import type { H3Event } from 'h3'
 import { kv } from '@nuxthub/kv'
 import { isWithinDisabledRanges } from '../../utils/plans'
+import { getUserSubscription } from './subscriptions'
 import type { PlanPrice, PlanPriceRef, PlansFilterContext, ResolvedPlan } from '../../../types'
 
 const CACHE_TTL_SECONDS = 60 * 5
