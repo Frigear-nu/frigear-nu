@@ -1,0 +1,40 @@
+{
+  "groups": {
+    "menu": {
+      "admin": {
+        "label": "Grupper",
+        "description": "Administrer brugergrupper og deres medlemmer."
+      }
+    },
+    "error": {
+      "generic": "Noget gik galt. Prøv igen."
+    },
+    "admin": {
+      "title": "Grupper",
+      "new": "Ny gruppe",
+      "edit": "Rediger gruppe",
+      "name": "Navn",
+      "description": "Beskrivelse",
+      "slug": "Slug",
+      "slugHint": "En kort, fast identifikator.",
+      "icon": "Ikon",
+      "email": "E-mail",
+      "members": "Medlemmer",
+      "details": "Detaljer",
+      "create": "Opret",
+      "cancel": "Annuller",
+      "save": "Gem",
+      "saved": "Gemt.",
+      "delete": "Slet",
+      "deleteTitle": "Slet denne gruppe?",
+      "deleteDescription": "Medlemmer mister adgang til alt, der er delt med gruppen. Selve brugerne beholdes.",
+      "add": "Tilføj",
+      "remove": "Fjern",
+      "searchUsers": "Søg efter brugere på navn eller e-mail for at tilføje…",
+      "noMembers": "Ingen medlemmer endnu.",
+      "empty": "Ingen grupper endnu.",
+      "notFound": "Gruppen blev ikke fundet.",
+      "forbidden": "Du har ikke adgang til at administrere grupper."
+    }
+  }
+}

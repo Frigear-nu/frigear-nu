@@ -47,19 +47,6 @@ export default defineMenuSource(() => {
     })
   }
 
-  if (config?.pages?.documents) {
-    extendMenuItem('account', {
-      id: 'documents',
-      label: 'Documents',
-      labelKey: 'account.menu.documents.label',
-      description: 'Handbooks and other files for you.',
-      descriptionKey: 'account.menu.documents.description',
-      icon: 'i-lucide-files',
-      to: config.pages.documents,
-      order: 30,
-    })
-  }
-
   if (config?.pages?.idCode) {
     extendMenuItem('account', {
       id: 'id-code',

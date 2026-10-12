@@ -1,0 +1,46 @@
+{
+  "documents": {
+    "title": "Dokumenter",
+    "description": "Dine dokumenter.",
+    "download": "Download",
+    "empty": "Ingen dokumenter til dig endnu.",
+    "notFound": "Mappen blev ikke fundet.",
+    "error": {
+      "generic": "Noget gik galt. Prøv igen."
+    },
+    "menu": {
+      "documents": {
+        "label": "Dokumenter",
+        "description": "Håndbøger og andre filer til dig."
+      },
+      "admin": {
+        "label": "Dokumenter",
+        "description": "Upload dokumenter og del dem med grupper."
+      }
+    },
+    "admin": {
+      "title": "Dokumenter",
+      "name": "Navn",
+      "newFolder": "Ny mappe",
+      "upload": "Upload",
+      "edit": "Rediger",
+      "file": "Fil",
+      "titleField": "Titel",
+      "description": "Beskrivelse",
+      "icon": "Ikon",
+      "sharedWith": "Delt med",
+      "groups": "Udvalgte grupper",
+      "pickGroups": "Vælg grupper…",
+      "everyone": "Alle",
+      "noone": "Ingen endnu",
+      "save": "Gem",
+      "cancel": "Annuller",
+      "delete": "Slet",
+      "deleteTitle": "Slet \"{title}\"?",
+      "deleteFolderDescription": "Alt i mappen slettes også.",
+      "deleteFileDescription": "Filen slettes permanent.",
+      "empty": "Her er intet endnu.",
+      "forbidden": "Du har ikke adgang til at administrere dokumenter."
+    }
+  }
+}
