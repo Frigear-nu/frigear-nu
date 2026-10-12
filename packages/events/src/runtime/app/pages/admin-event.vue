@@ -251,6 +251,7 @@ const attendeeColumns = [
           <TranslatedInput
             v-model="form.description"
             multiline
+            mdc
           />
         </UFormField>
         <UFormField
@@ -260,6 +261,7 @@ const attendeeColumns = [
           <TranslatedInput
             v-model="form.body"
             multiline
+            mdc
             :rows="6"
           />
         </UFormField>
