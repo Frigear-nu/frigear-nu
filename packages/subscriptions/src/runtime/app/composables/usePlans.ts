@@ -14,6 +14,7 @@ export interface SubscriptionPlan {
   label: string
   description?: string
   rank: number
+  features?: string[]
   prices: SubscriptionPlanPrice[]
 }
 
