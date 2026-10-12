@@ -8,17 +8,26 @@ const props = defineProps<{ name: string, context?: Record<string, unknown> }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const route = useRoute()
-const router = useRouter()
 
 const { data: tabs } = await useTabs(props.name, () => props.context)
 
-const active = computed(() => {
-  const requested = route.query.tab
-  return tabs.value?.find(tab => tab.id === requested) ?? tabs.value?.[0]
+// The selection lives in local state, seeded from `?tab=`. Changing it must not be a router navigation: that
+// re-runs the page and scrolls it to the top. The URL is updated in place with `history.replaceState` instead.
+const selected = ref(typeof route.query.tab === 'string' ? route.query.tab : undefined)
+
+// Follow real navigations (back/forward, links carrying `?tab=`).
+watch(() => route.query.tab, (tab) => {
+  if (typeof tab === 'string') selected.value = tab
 })
 
+const active = computed(() => tabs.value?.find(tab => tab.id === selected.value) ?? tabs.value?.[0])
+
 function select(id: string) {
-  router.replace({ query: { ...route.query, tab: id } })
+  selected.value = id
+  if (!import.meta.client) return
+  const url = new URL(window.location.href)
+  url.searchParams.set('tab', id)
+  window.history.replaceState(window.history.state, '', url)
 }
 
 function onKeydown(event: KeyboardEvent, index: number) {
