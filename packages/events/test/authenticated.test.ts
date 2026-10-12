@@ -117,6 +117,17 @@ describe('events (authenticated, database-backed)', async () => {
       expect(shown.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
     })
 
+    it('lists addon groups and their addons on the admin event, so staff can manage them', async () => {
+      const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 0, addonGroups: [food] }])
+      const full = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${event.id}`))
+      const [group] = full.ticketTypes[0].addonGroups
+      expect(group.addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
+
+      const created = await ok(await json(staff.cookie, 'POST', `/api/events/admin/addon-groups/${group.id}/addons`, { label: 'Kids', price: 2500 }))
+      const again = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${event.id}`))
+      expect(again.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.id)).toContain(created.id)
+    })
+
     it('clones an event with its catalogue as a draft', async () => {
       const original = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, isDefault: true, addonGroups: [food] }])
       const copy = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))

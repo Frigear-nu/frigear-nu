@@ -2,6 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import type { z } from 'zod'
 import { newId } from '../../utils'
 import { asc, eq } from 'drizzle-orm'
+import { loadCatalog } from './catalog'
 import { eventInput, ticketTypeInput } from './admin-schemas'
 import type { addonGroupInput, ticketTypeInput } from './admin-schemas'
 
@@ -89,5 +90,14 @@ export async function getEventWithTicketTypes(id: string) {
   const ticketTypes = await db.select().from(schema.eventTicketTypes)
     .where(eq(schema.eventTicketTypes.eventId, id))
     .orderBy(asc(schema.eventTicketTypes.sortOrder))
-  return { ...row, ticketTypes }
+  const { groups, addons } = await loadCatalog(id)
+  return {
+    ...row,
+    ticketTypes: ticketTypes.map(type => ({
+      ...type,
+      addonGroups: groups
+        .filter(group => group.ticketTypeId === type.id)
+        .map(group => ({ ...group, addons: addons.filter(addon => addon.groupId === group.id) })),
+    })),
+  }
 }
