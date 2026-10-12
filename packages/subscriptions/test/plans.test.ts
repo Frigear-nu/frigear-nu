@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideChangeKind, resolvePlanKey, resolveSameOriginUrl } from '../src/runtime/utils/plans'
+import { decideChangeKind, isEntitledRow, resolvePlanKey, resolveSameOriginUrl } from '../src/runtime/utils/plans'
 
 describe('decideChangeKind', () => {
   it('upgrades when the target rank is higher', () => {
@@ -44,5 +44,23 @@ describe('resolveSameOriginUrl', () => {
     expect(resolveSameOriginUrl('/\\evil.com', origin)).toBeNull()
     expect(resolveSameOriginUrl('javascript:alert(1)', origin)).toBeNull()
     expect(resolveSameOriginUrl('relative/path', origin)).toBeNull()
+  })
+})
+
+describe('isEntitledRow', () => {
+  const base = { status: 'active', endedAt: null, currentPeriodEnd: null }
+  const now = Date.parse('2026-01-01T00:00:00Z')
+  it('requires an entitled status and no end', () => {
+    expect(isEntitledRow(base)).toBe(true)
+    expect(isEntitledRow({ ...base, status: 'past_due' })).toBe(false)
+    expect(isEntitledRow({ ...base, endedAt: new Date() })).toBe(false)
+  })
+  it('expires manual grants at their end date but leaves Stripe rows to the webhook', () => {
+    const past = new Date(now - 1000)
+    const future = new Date(now + 1000)
+    expect(isEntitledRow({ ...base, source: 'manual', currentPeriodEnd: past }, undefined, now)).toBe(false)
+    expect(isEntitledRow({ ...base, source: 'manual', currentPeriodEnd: future }, undefined, now)).toBe(true)
+    expect(isEntitledRow({ ...base, source: 'manual' }, undefined, now)).toBe(true)
+    expect(isEntitledRow({ ...base, source: 'stripe', currentPeriodEnd: past }, undefined, now)).toBe(true)
   })
 })

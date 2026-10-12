@@ -56,6 +56,30 @@
         "label": "Abonnement",
         "description": "Administrer dit abonnement og din betaling."
       }
+    },
+    "admin": {
+      "title": "Medlemskab",
+      "none": "Intet aktivt medlemskab.",
+      "free": "Gratis",
+      "paid": "Betalt (Stripe)",
+      "until": "til {date}",
+      "openEnded": "Ingen slutdato",
+      "plan": "Plan",
+      "planPlaceholder": "Vælg en plan",
+      "endsAt": "Slutter den (valgfri)",
+      "grant": "Giv gratis",
+      "granted": "Medlemskab givet.",
+      "revoke": "Fjern gratis medlemskab",
+      "revoked": "Medlemskab fjernet.",
+      "sendLink": "Send betalingslink",
+      "emailUser": "Send linket til brugeren på e-mail",
+      "linkCreated": "Betalingslink oprettet.",
+      "linkEmailed": "Betalingslink oprettet og sendt på e-mail.",
+      "copy": "Kopiér link",
+      "copied": "Link kopieret.",
+      "linkHint": "Linket er gyldigt i 24 timer.",
+      "paidHint": "Betalte abonnementer administreres i Stripe.",
+      "error": "Noget gik galt."
     }
   }
 }

@@ -1,5 +1,10 @@
 // Test-only policy hooks driven by request headers / query.
 export default defineNitroPlugin((nitro) => {
+  // Staff gate of the users admin (also guards the membership routes): driven by a request header.
+  nitro.hooks.hook('users:admin:authorize', (ctx) => {
+    ctx.allowed = !!getHeader(ctx.event, 'x-staff')
+  })
+
   nitro.hooks.hook('subscriptions:plans:filter', (ctx) => {
     const hide = ctx.event ? getQuery(ctx.event).hide : undefined
     if (hide) ctx.plans = ctx.plans.filter(plan => plan.key !== hide)
