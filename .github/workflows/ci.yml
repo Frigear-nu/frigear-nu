@@ -31,7 +31,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           BEFORE_SHA: ${{ github.event.before }}
         run: |
-          # Only scope the run to changed apps/** & packages/** projects (and
+          # Turbo filter syntax. Only scope the run to changed apps/** & packages/** projects (and
           # anything that depends on them) for pull requests and ordinary
           # pushes with known history. Fall back to running against the
           # whole workspace whenever we can't safely compute a diff (e.g.
@@ -50,11 +50,11 @@ jobs:
 
           if [ -n "$ref" ]; then
             echo "Scoping run to projects changed since $ref"
-            # Exclude the workspace root ("!.") so root-level file changes
+            # Exclude the workspace root ("!//") so root-level file changes
             # (lockfile, workspace config, this workflow, ...) don't trigger
             # the root package's own aggregate scripts on top of the
             # per-project ones selected below.
-            echo "filter=--filter=...[$ref] --filter=!." >> "$GITHUB_OUTPUT"
+            echo "filter=--filter=...[$ref] --filter=!//" >> "$GITHUB_OUTPUT"
           else
             echo "Running against the whole workspace"
             echo "filter=" >> "$GITHUB_OUTPUT"
@@ -82,8 +82,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-${{ runner.os }}-
+
       - name: Lint
-        run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run lint
+        env:
+          TURBO_TELEMETRY_DISABLED: 1
+        run: pnpm exec turbo run lint ${{ needs.changes.outputs.filter }} --cache-dir=.turbo
 
   test:
     name: Test
@@ -107,6 +117,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-test-${{ runner.os }}-
+
       - name: Test
-        run: pnpm -r ${{ needs.changes.outputs.filter }} --if-present run test
+        env:
+          TURBO_TELEMETRY_DISABLED: 1
+        run: pnpm exec turbo run test ${{ needs.changes.outputs.filter }} --cache-dir=.turbo
 
