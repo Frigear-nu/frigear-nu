@@ -128,7 +128,7 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
 </script>
 
 <template>
-  <UContainer class="max-w-none py-10">
+  <div>
     <div class="mb-6 flex items-center justify-between gap-4">
       <h1 class="text-2xl font-semibold">
         OAuth applications
@@ -414,5 +414,5 @@ const copy = (value: string) => navigator.clipboard?.writeText(value)
         </div>
       </template>
     </UModal>
-  </UContainer>
+  </div>
 </template>
