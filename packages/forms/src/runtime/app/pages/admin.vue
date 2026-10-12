@@ -65,6 +65,24 @@ const columns = [
 ]
 
 const statusColor = { draft: 'neutral', published: 'success', archived: 'warning' } as const
+
+const statuses = ['published', 'draft', 'archived'] as const
+const tab = ref<typeof statuses[number]>('published')
+const search = ref('')
+
+const tabs = computed(() => statuses.map(status => ({
+  value: status,
+  label: t(`status.${status}`, status),
+  badge: (forms.value ?? []).filter(form => form.status === status).length,
+})))
+
+const visibleForms = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return (forms.value ?? []).filter(form =>
+    form.status === tab.value
+    && (!query || form.name.toLowerCase().includes(query) || form.slug.toLowerCase().includes(query)),
+  )
+})
 </script>
 
 <template>
@@ -93,9 +111,28 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
       :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
     />
 
-    <AdminTable
+    <div
       v-else
-      :data="forms ?? []"
+      class="flex flex-wrap items-center justify-between gap-3"
+    >
+      <UTabs
+        v-model="tab"
+        :items="tabs"
+        :content="false"
+        class="w-auto"
+      />
+      <UInput
+        v-model="search"
+        class="w-full sm:w-72"
+        icon="i-lucide-search"
+        :placeholder="t('admin.search', 'Search forms')"
+        :aria-label="t('admin.search', 'Search forms')"
+      />
+    </div>
+
+    <AdminTable
+      v-if="!error"
+      :data="visibleForms"
       :columns="columns"
       @select="(_: Event, row: Row) => navigateTo(paths('adminForm', { id: row.original.id }))"
     >
@@ -154,7 +191,7 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
       <template #empty>
         <AdminEmpty
           icon="i-lucide-clipboard-list"
-          :title="t('admin.empty', 'No forms yet.')"
+          :title="forms?.length ? t('admin.noMatches', 'No forms match.') : t('admin.empty', 'No forms yet.')"
         />
       </template>
     </AdminTable>
