@@ -116,6 +116,36 @@ describe('forms (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('FormEmbed', () => {
+    const embed = (formSlug: string, title = false) => $fetch<string>(`/embed?slug=${formSlug}${title ? '&title=1' : ''}`)
+
+    it('renders a published form inline, optionally with its name', async () => {
+      const form = await create('Embedded', { mode: 'single', storage: 'db', steps: [{ id: 'one', fields: [{ key: 'name', type: 'text', label: { en: 'Your name' } }] }] })
+      const html = await embed(form.slug)
+      expect(html).toContain('data-form-embed')
+      expect(html).toContain('not-prose')
+      expect(html).toContain('Your name')
+      expect(html).not.toContain('<h2 class="mb-4')
+      expect(await embed(form.slug, true)).toContain('Embedded')
+    })
+
+    it('fails gracefully for unknown and unpublished slugs', async () => {
+      const draft = await create('Embedded draft', stepped, 'draft')
+      for (const missing of ['does-not-exist', draft.slug]) {
+        const html = await embed(missing)
+        expect(html).toContain('This form could not be found.')
+        expect(html).toContain('after')
+      }
+    })
+
+    it('renders nothing for API-only forms and a sign-in prompt for user forms', async () => {
+      const api = await create('Embedded api', { ...stepped, access: { availability: 'api', auth: 'none' } })
+      expect(await embed(api.slug)).not.toContain('data-form-embed')
+      const user = await create('Embedded user', { ...stepped, access: { availability: 'web', auth: 'user' } })
+      expect(await embed(user.slug)).toContain('Sign in to use this form')
+    })
+  })
+
   describe('submitting (storage: db)', () => {
     it('validates the whole form, skipping hidden steps', async () => {
       const form = await create('Stepped', stepped)

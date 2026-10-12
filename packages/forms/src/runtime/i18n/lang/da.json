@@ -18,6 +18,10 @@
       "invalid": "Tjek de markerede felter.",
       "notFound": "Formularen blev ikke fundet."
     },
+    "embed": {
+      "signInTitle": "Log ind for at bruge denne formular",
+      "signIn": "Log ind"
+    },
     "preview": {
       "notSent": "Forhåndsvisning: intet blev sendt.",
       "mobile": "Mobil",

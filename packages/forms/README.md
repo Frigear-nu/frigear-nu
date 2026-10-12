@@ -11,6 +11,14 @@ per form in the admin builder: it is stored encrypted (AES-256-GCM, key from `NU
 `NUXT_ENCRYPTION_KEY`, else the session password; changing the key makes stored secrets unreadable) and takes precedence
 over the environment one. Without any secret key submissions fail closed.
 
+Embed a published form in Markdown (Nuxt Content / MDC) with the globally registered `FormEmbed` component
+(`slug`, `title`, `locale`, `class`; honors the form's access settings):
+
+```md
+::form-embed{slug="contact"}
+::
+```
+
 Full documentation: `apps/docs/content/4.modules/26.forms.md`.
 
 ```ts

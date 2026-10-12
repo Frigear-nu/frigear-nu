@@ -18,6 +18,10 @@
       "invalid": "Please check the highlighted fields.",
       "notFound": "This form could not be found."
     },
+    "embed": {
+      "signInTitle": "Sign in to use this form",
+      "signIn": "Sign in"
+    },
     "preview": {
       "notSent": "Preview: nothing was sent.",
       "mobile": "Mobile",

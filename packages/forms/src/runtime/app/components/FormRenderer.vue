@@ -15,12 +15,15 @@ const props = defineProps<{
   password?: string
   /** Validates and steps like normal, but never posts. */
   preview?: boolean
+  /** Overrides the locale of translated form content (defaults to the app's locale). */
+  locale?: string
 }>()
 const emit = defineEmits<{ submitted: [id: string | null], previewed: [answers: Record<string, unknown>] }>()
 const listening = !!getCurrentInstance()?.vnode.props?.onPreviewed
 
 const t = useModuleT('forms')
-const locale = useFormsLocale()
+const appLocale = useFormsLocale()
+const locale = computed(() => props.locale || appLocale.value)
 const toast = useToast()
 
 const loaded = props.slug ? await useForm(props.slug, () => props.password) : undefined

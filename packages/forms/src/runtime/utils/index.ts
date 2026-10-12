@@ -32,3 +32,5 @@ export {
   templateVariables, availableVariables, unknownBodyVariables, sampleAnswers, staticVariables,
 } from './template'
 export type { RenderedAnswer, EmailContext } from './template'
+export { embedMode } from './embed'
+export type { EmbedMode } from './embed'
