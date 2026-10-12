@@ -5,6 +5,7 @@ defineProps<{
   data: T[]
   columns: TableColumn<T>[]
   loading?: boolean
+  empty?: string
 }>()
 const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
 </script>
@@ -24,6 +25,15 @@ const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
         <slot
           :name="name"
           v-bind="slotProps ?? {}"
+        />
+      </template>
+      <template
+        v-if="empty && !$slots.empty"
+        #empty
+      >
+        <AdminEmpty
+          icon="i-lucide-inbox"
+          :title="empty"
         />
       </template>
     </UTable>

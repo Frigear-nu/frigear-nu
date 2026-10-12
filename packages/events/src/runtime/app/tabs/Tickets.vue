@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { Translated } from '../../../types'
 import { formatPrice, ticketMdcData } from '../../utils'
 import { type AdminAddon, type AdminAddonGroup, type AdminEvent, type AdminTicketType, useAdminAction } from '../utils/admin-event'
@@ -16,12 +17,22 @@ const confirmAction = useConfirmDialog()
 const { busy, run } = useAdminAction()
 const refresh = () => emit('refresh')
 
+const typeColumns = computed<TableColumn<AdminTicketType>[]>(() => [
+  { id: 'expand' },
+  { accessorKey: 'name', header: t('admin.name', 'Name') },
+  { accessorKey: 'price', header: t('admin.price', 'Price') },
+  { accessorKey: 'capacity', header: t('admin.capacity', 'Capacity') },
+  { id: 'access', header: t('admin.access', 'Access') },
+  { id: 'addons', header: t('admin.addonGroups', 'Add-ons') },
+  { id: 'actions' },
+])
+
 // --- ticket types -----------------------------------------------------------------------------
 // Membership rules are only offered when @frigear-nu/subscriptions is installed; the plans come from it.
 type Membership = 'any' | string[] | null
 type Rule = { mode: 'none' | 'any' | 'plans', plans: string[] }
 
-const { data: membershipOptions } = await useFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', { default: () => ({ available: false, options: [] }) })
+const { data: membershipOptions } = useLazyFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', { default: () => ({ available: false, options: [] }) })
 const membershipEnabled = computed(() => membershipOptions.value.available)
 const plans = computed(() => membershipOptions.value.options.map(option => ({ label: option.label, value: option.value })))
 const modes = computed(() => [
@@ -170,146 +181,182 @@ const removeAddon = async (existing: AdminAddon) => {
           @click="openType()"
         />
       </template>
-      <ul
-        v-if="event.ticketTypes.length"
-        class="divide-default divide-y"
-      >
-        <li
-          v-for="ticketType in event.ticketTypes"
-          :key="ticketType.id"
-          class="flex items-center justify-between gap-4 py-2 text-sm"
+      <template #flush>
+        <UTable
+          :data="event.ticketTypes"
+          :columns="typeColumns"
+          :ui="{ tr: 'data-[expanded=true]:bg-elevated/30' }"
         >
-          <span class="min-w-0">
-            <span class="font-medium">{{ tr(ticketType.name) }}</span>
-            <span class="text-muted"> · {{ formatPrice(ticketType.price, ticketType.currency, locale) }}<template v-if="ticketType.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ ticketType.capacity }}</template></span>
-            <span
-              v-if="ticketType.requiresMembership"
-              class="mt-1 flex flex-wrap gap-1"
-            >
+          <template #expand-cell="{ row }">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :icon="row.getIsExpanded() ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              :aria-label="t('admin.addonGroups', 'Add-ons')"
+              @click="row.toggleExpanded()"
+            />
+          </template>
+          <template #name-cell="{ row }">
+            <span class="text-highlighted font-medium">{{ tr(row.original.name) }}</span>
+          </template>
+          <template #price-cell="{ row }">
+            <span class="whitespace-nowrap">{{ formatPrice(row.original.price, row.original.currency, locale) }}</span>
+          </template>
+          <template #capacity-cell="{ row }">
+            {{ row.original.capacity ?? '–' }}
+          </template>
+          <template #access-cell="{ row }">
+            <div class="flex flex-wrap gap-1">
               <UBadge
+                v-if="row.original.requiresMembership"
                 variant="subtle"
                 color="success"
-                :label="`${t('admin.requires', 'Requires')}: ${describeRule(ticketType.requiresMembership)}`"
+                :label="`${t('admin.requires', 'Requires')}: ${describeRule(row.original.requiresMembership)}`"
               />
-            </span>
-            <span
-              v-if="ticketType.excludesMembership"
-              class="mt-1 flex flex-wrap gap-1"
-            >
               <UBadge
+                v-if="row.original.excludesMembership"
                 variant="subtle"
                 color="warning"
-                :label="`${t('admin.notFor', 'Not for')}: ${describeRule(ticketType.excludesMembership)}`"
+                :label="`${t('admin.notFor', 'Not for')}: ${describeRule(row.original.excludesMembership)}`"
               />
-            </span>
-            <span
-              v-for="addonGroup in ticketType.addonGroups"
-              :key="addonGroup.id"
-              class="border-default mt-2 flex flex-col gap-1 rounded-md border p-2"
-            >
-              <span class="flex items-center justify-between gap-2">
-                <span class="font-medium">
-                  {{ tr(addonGroup.title) }}
-                  <span class="text-muted text-xs font-normal">
-                    {{ addonGroup.required ? t('admin.groupRequired', 'required') : t('admin.groupOptional', 'optional') }}
-                    · {{ addonGroup.multiple ? t('admin.groupMultiple', 'several choices') : t('admin.groupSingle', 'one choice') }}
-                  </span>
-                </span>
-                <span class="flex shrink-0 gap-1">
-                  <UButton
-                    icon="i-lucide-plus"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    :aria-label="t('admin.addAddon', 'Add choice')"
-                    @click="openAddon(addonGroup)"
-                  />
-                  <UButton
-                    icon="i-lucide-pencil"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    :aria-label="t('admin.edit', 'Edit')"
-                    @click="openGroup(ticketType, addonGroup)"
-                  />
-                  <UButton
-                    icon="i-lucide-trash"
-                    color="error"
-                    variant="ghost"
-                    size="xs"
-                    :aria-label="t('admin.remove', 'Delete')"
-                    @click="removeGroup(addonGroup)"
-                  />
-                </span>
-              </span>
               <span
-                v-for="item in addonGroup.addons"
-                :key="item.id"
-                class="flex items-center justify-between gap-2"
+                v-if="!row.original.requiresMembership && !row.original.excludesMembership"
+                class="text-muted"
+              >–</span>
+            </div>
+          </template>
+          <template #addons-cell="{ row }">
+            {{ row.original.addonGroups.length }}
+          </template>
+          <template #actions-cell="{ row }">
+            <div class="flex justify-end gap-1">
+              <UButton
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="t('admin.edit', 'Edit')"
+                @click="openType(row.original)"
+              />
+              <UButton
+                icon="i-lucide-trash"
+                color="error"
+                variant="ghost"
+                size="xs"
+                :aria-label="t('admin.remove', 'Delete')"
+                @click="removeType(row.original)"
+              />
+            </div>
+          </template>
+          <template #expanded="{ row }">
+            <div class="flex flex-col gap-3 p-2">
+              <div
+                v-for="addonGroup in row.original.addonGroups"
+                :key="addonGroup.id"
+                class="border-default overflow-hidden rounded-lg border bg-default"
               >
-                <span>
-                  {{ tr(item.label) }}
-                  <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${formatPrice(item.price, ticketType.currency, locale)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ item.capacity }}</template></span>
-                </span>
-                <span class="flex shrink-0 gap-1">
-                  <UButton
-                    icon="i-lucide-pencil"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    :aria-label="t('admin.edit', 'Edit')"
-                    @click="openAddon(addonGroup, item)"
-                  />
-                  <UButton
-                    icon="i-lucide-trash"
-                    color="error"
-                    variant="ghost"
-                    size="xs"
-                    :aria-label="t('admin.remove', 'Delete')"
-                    @click="removeAddon(item)"
-                  />
-                </span>
-              </span>
-              <span
-                v-if="!addonGroup.addons.length"
-                class="text-muted text-xs"
-              >{{ t('admin.noAddons', 'No choices yet: buyers will see nothing to pick.') }}</span>
-            </span>
-            <UButton
-              class="mt-2"
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :label="t('admin.addGroup', 'Add add-on group')"
-              @click="openGroup(ticketType)"
-            />
-          </span>
-          <span class="flex shrink-0 gap-1">
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('admin.edit', 'Edit')"
-              @click="openType(ticketType)"
-            />
-            <UButton
-              icon="i-lucide-trash"
-              color="error"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('admin.remove', 'Delete')"
-              @click="removeType(ticketType)"
-            />
-          </span>
-        </li>
-      </ul>
-      <AdminEmpty
-        v-else
-        icon="i-lucide-ticket"
-        :title="t('admin.noTypes', 'No ticket types yet: nobody can buy a ticket.')"
-      />
+                <div class="border-default flex items-center justify-between gap-2 border-b px-3 py-2">
+                  <div class="min-w-0 text-sm">
+                    <span class="font-medium">{{ tr(addonGroup.title) }}</span>
+                    <span class="text-muted ms-2 text-xs">
+                      {{ addonGroup.required ? t('admin.groupRequired', 'required') : t('admin.groupOptional', 'optional') }}
+                      · {{ addonGroup.multiple ? t('admin.groupMultiple', 'several choices') : t('admin.groupSingle', 'one choice') }}
+                    </span>
+                  </div>
+                  <div class="flex shrink-0 gap-1">
+                    <UButton
+                      icon="i-lucide-plus"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :aria-label="t('admin.addAddon', 'Add choice')"
+                      @click="openAddon(addonGroup)"
+                    />
+                    <UButton
+                      icon="i-lucide-pencil"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :aria-label="t('admin.edit', 'Edit')"
+                      @click="openGroup(row.original, addonGroup)"
+                    />
+                    <UButton
+                      icon="i-lucide-trash"
+                      color="error"
+                      variant="ghost"
+                      size="xs"
+                      :aria-label="t('admin.remove', 'Delete')"
+                      @click="removeGroup(addonGroup)"
+                    />
+                  </div>
+                </div>
+                <ul
+                  v-if="addonGroup.addons.length"
+                  class="divide-default divide-y"
+                >
+                  <li
+                    v-for="item in addonGroup.addons"
+                    :key="item.id"
+                    class="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      {{ tr(item.label) }}
+                      <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${formatPrice(item.price, row.original.currency, locale)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ item.capacity }}</template></span>
+                    </div>
+                    <div class="flex shrink-0 gap-1">
+                      <UButton
+                        icon="i-lucide-pencil"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        :aria-label="t('admin.edit', 'Edit')"
+                        @click="openAddon(addonGroup, item)"
+                      />
+                      <UButton
+                        icon="i-lucide-trash"
+                        color="error"
+                        variant="ghost"
+                        size="xs"
+                        :aria-label="t('admin.remove', 'Delete')"
+                        @click="removeAddon(item)"
+                      />
+                    </div>
+                  </li>
+                </ul>
+                <p
+                  v-else
+                  class="text-muted px-3 py-2 text-xs"
+                >
+                  {{ t('admin.noAddons', 'No choices yet: buyers will see nothing to pick.') }}
+                </p>
+              </div>
+              <div>
+                <UButton
+                  icon="i-lucide-plus"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  :label="t('admin.addGroup', 'Add add-on group')"
+                  @click="openGroup(row.original)"
+                />
+              </div>
+            </div>
+          </template>
+          <template #empty>
+            <AdminEmpty
+              icon="i-lucide-ticket"
+              :title="t('admin.noTypes', 'No ticket types yet: nobody can buy a ticket.')"
+            >
+              <UButton
+                icon="i-lucide-plus"
+                :label="t('admin.addType', 'Add ticket type')"
+                @click="openType()"
+              />
+            </AdminEmpty>
+          </template>
+        </UTable>
+      </template>
     </AdminSection>
 
     <UModal

@@ -10,7 +10,8 @@ const props = defineProps<{ user: { id: number } }>()
 const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
 
-const { data: payments } = await useFetch<PaymentDto[]>(
+// Lazy: the card shows a skeleton instead of holding up the rest of the page.
+const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
   () => `/api/admin/users/${props.user.id}/payments`,
   { key: () => `admin-last-payment-${props.user.id}`, query: { limit: 1 } },
 )
@@ -19,14 +20,12 @@ const date = (value: string | null) => value ? new Date(value).toLocaleDateStrin
 </script>
 
 <template>
-  <div class="border-default flex flex-col gap-2 rounded-lg border p-4">
-    <p class="text-muted text-xs font-medium uppercase">
-      {{ t('lastPayment', 'Last payment') }}
-    </p>
-    <div
-      v-if="last"
-      class="flex flex-wrap items-center gap-2 text-sm"
-    >
+  <AdminStatCard
+    :label="t('lastPayment', 'Last payment')"
+    :empty="t('empty', 'No payments yet.')"
+    :loading="fetchStatus === 'pending' && !payments"
+  >
+    <template v-if="last">
       <span class="text-highlighted font-medium">{{ formatMinorAmount(last.amount, last.currency) }}</span>
       <UBadge
         variant="subtle"
@@ -34,12 +33,6 @@ const date = (value: string | null) => value ? new Date(value).toLocaleDateStrin
         :label="status(last.status, last.status)"
       />
       <span class="text-muted">{{ date(last.paidAt ?? last.createdAt) }}</span>
-    </div>
-    <p
-      v-else
-      class="text-muted text-sm"
-    >
-      {{ t('empty', 'No payments yet.') }}
-    </p>
-  </div>
+    </template>
+  </AdminStatCard>
 </template>
