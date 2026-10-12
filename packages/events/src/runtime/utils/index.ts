@@ -21,11 +21,14 @@ export type {
   Translated,
 } from '../types'
 
-/** Picks the text for a locale, falling back to `en`, then to the first available entry. */
-export function translate(value: Translated | null | undefined, locale = 'en'): string {
+/**
+ * Picks the text for a locale, falling back to `fallback` (the site's default locale), then `en`, then the first
+ * entry that has text. Empty entries never win.
+ */
+export function translate(value: Translated | null | undefined, locale = 'en', fallback?: string): string {
   if (!value) return ''
   if (typeof value === 'string') return value
-  return value[locale] ?? value.en ?? Object.values(value)[0] ?? ''
+  return value[locale] || (fallback ? value[fallback] : '') || value.en || Object.values(value).find(Boolean) || ''
 }
 
 /** Formats minor units, e.g. `formatPrice(15000, 'DKK', 'da')` -> `150,00 kr.`. */

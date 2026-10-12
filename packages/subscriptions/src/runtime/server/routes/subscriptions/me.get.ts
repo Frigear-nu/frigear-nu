@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { desc, eq } from 'drizzle-orm'
 import type { MeResponse } from '../../../../types'
-import { DEFAULT_ENTITLED_STATUSES } from '../../../utils/plans'
+import { isEntitledRow } from '../../../utils/plans'
 
 export default defineEventHandler(async (event): Promise<MeResponse> => {
   const { user } = await requireUserSession(event)
@@ -12,7 +12,7 @@ export default defineEventHandler(async (event): Promise<MeResponse> => {
 
   const iso = (date: Date | null) => (date ? date.toISOString() : null)
   const active = rows
-    .filter(row => DEFAULT_ENTITLED_STATUSES.includes(row.status) && !row.endedAt)
+    .filter(row => isEntitledRow(row))
     .sort((a, b) => (b.currentPeriodEnd?.getTime() ?? 0) - (a.currentPeriodEnd?.getTime() ?? 0))[0]
 
   return {
@@ -25,6 +25,7 @@ export default defineEventHandler(async (event): Promise<MeResponse> => {
       currentPeriodStart: iso(row.currentPeriodStart),
       currentPeriodEnd: iso(row.currentPeriodEnd),
       endedAt: iso(row.endedAt),
+      source: row.source === 'manual' ? 'manual' as const : 'stripe' as const,
     })),
     activePlan: active?.planKey ?? null,
   }

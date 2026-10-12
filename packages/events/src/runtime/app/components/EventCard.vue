@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { EventSummaryDto } from '../../../types'
-import { translate } from '../../utils'
 
 const props = defineProps<{ event: EventSummaryDto, to: string }>()
 const t = useModuleT('events')
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 const date = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(props.event.startsAt)))
 </script>
 
@@ -13,22 +13,22 @@ const date = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: '
     <img
       v-if="event.image"
       :src="event.image"
-      :alt="translate(event.name, locale)"
+      :alt="tr(event.name)"
       class="aspect-[3/1] w-full rounded-md object-cover"
     >
     <h3 class="text-lg font-semibold">
-      {{ translate(event.name, locale) }}
+      {{ tr(event.name) }}
     </h3>
     <p class="text-sm text-muted">
       {{ date }}<template v-if="event.location">
-        · {{ event.location }}
+        · {{ tr(event.location) }}
       </template>
     </p>
     <p
       v-if="event.description"
       class="text-sm"
     >
-      {{ translate(event.description, locale) }}
+      {{ tr(event.description) }}
     </p>
     <div class="flex items-center gap-2">
       <UBadge

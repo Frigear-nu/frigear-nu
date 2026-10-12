@@ -5,6 +5,7 @@ import { defineForm } from '../../utils'
 const t = useModuleT('forms')
 const paths = useFormsPaths()
 const toast = useToast()
+const link = useFormLink()
 const { data: forms, error, refresh } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms')
 
 const starter = defineForm({
@@ -61,11 +62,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between gap-2">
-      <h1 class="text-3xl font-bold">
-        {{ t('admin.title', 'Forms') }}
-      </h1>
-      <div class="flex gap-2">
+    <AdminPageHeader :title="t('admin.title', 'Forms')">
+      <template #links>
         <UButton
           color="neutral"
           variant="outline"
@@ -78,8 +76,8 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
           :label="t('admin.new', 'New form')"
           @click="creating = true"
         />
-      </div>
-    </div>
+      </template>
+    </AdminPageHeader>
 
     <UAlert
       v-if="error"
@@ -125,12 +123,21 @@ const statusColor = { draft: 'neutral', published: 'success', archived: 'warning
             :label="t(`status.${form.status}`, form.status)"
           />
           <UButton
-            v-if="form.storage === 'db'"
+            v-if="form.storage === 'db' || form.submissionCount > 0"
             color="neutral"
             variant="outline"
             size="sm"
             :to="paths('adminSubmissions', { id: form.id })"
             :label="t('admin.submissions', 'Submissions ({count})', { count: form.submissionCount })"
+          />
+          <UButton
+            v-if="form.status === 'published' && link.enabled.value"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-link"
+            :aria-label="t('admin.copyLink', 'Copy link')"
+            @click="link.copy(form.slug)"
           />
           <UButton
             color="neutral"

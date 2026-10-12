@@ -19,7 +19,8 @@
     },
     "./components/*": "./src/runtime/components/global/*.vue",
     "./composables": "./src/runtime/composables/index.ts",
-    "./composables/*": "./src/runtime/composables/*.ts"
+    "./composables/*": "./src/runtime/composables/*.ts",
+    "./translated": "./src/runtime/translated.ts"
   },
   "publishConfig": {
     "exports": {
@@ -30,7 +31,8 @@
       },
       "./components/*": "./dist/runtime/components/global/*.vue",
       "./composables": "./dist/runtime/composables/index.js",
-      "./composables/*": "./dist/runtime/composables/*.js"
+      "./composables/*": "./dist/runtime/composables/*.js",
+      "./translated": "./dist/runtime/translated.js"
     },
     "main": "./dist/module.mjs",
     "typesVersions": {

@@ -10,6 +10,9 @@ export function evaluateCondition(condition: Condition | undefined, answers: Ans
   if (!condition) return true
   const answer = answers[condition.field]
   switch (condition.op) {
+    case 'empty':
+      return isEmpty(answer)
+    case 'notEmpty':
     case 'truthy':
       return !isEmpty(answer)
     case 'eq':
@@ -53,5 +56,8 @@ export function isFieldVisible(definition: FormDefinition, key: string, answers:
   return resolveVisibility(definition, answers).some(({ fields }) => fields.some(field => field.key === key))
 }
 
-/** Fields that collect an answer (everything except static `markdown`). */
+/** Fields that take part in validation (everything except static `markdown`; includes `captcha`). */
 export const isInputField = (field: FormField) => field.type !== 'markdown'
+
+/** Fields whose answer is stored, shown and delivered: input fields except `captcha` (its token is never kept). */
+export const isAnswerField = (field: FormField) => field.type !== 'markdown' && field.type !== 'captcha'

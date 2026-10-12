@@ -19,7 +19,7 @@ const like = (column: AnyColumn, pattern: string) => sql`${column} like ${patter
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, char => `\\${char}`)
 
 export default defineEventHandler(async (event) => {
-  await authorizeUsersAdmin(event, 'view')
+  const actor = await authorizeUsersAdmin(event, 'view')
 
   const query = await getValidatedQuery(event, querySchema.parse)
   const withRole = usersHaveRoles()
@@ -51,9 +51,13 @@ export default defineEventHandler(async (event) => {
     db.select({ total: count() }).from(schema.users).where(where),
   ])
 
+  const subscriptions = await latestSubscriptions(rows.map(user => user.id))
+  const roles = withRole ? await assignableRoles(event, actor.id as number) : []
+
   // Never expose the password hash.
   return {
     items: rows.map(user => ({
+      subscription: subscriptions.get(user.id) ?? null,
       id: user.id,
       name: user.name,
       email: user.email,
@@ -66,5 +70,7 @@ export default defineEventHandler(async (event) => {
     page: query.page,
     pageSize: query.pageSize,
     hasRoles: withRole,
+    hasSubscriptions: !!(schema as unknown as Record<string, unknown>).subscriptions,
+    roles,
   }
 })

@@ -1,5 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 export default defineWebAuthnRegisterEventHandler({
@@ -22,10 +23,11 @@ export default defineWebAuthnRegisterEventHandler({
       throw createError({ statusCode: 400, statusMessage: 'Email does not match the current session.' })
     }
 
-    return z.object({ userName: z.string().email() }).parse(userBody)
+    return z.object({ userName: z.string().email(), displayName: z.string().trim().max(100).optional() }).parse(userBody)
   },
   async onSuccess(event, { credential, user }) {
     let dbUser = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, user.userName) })
+    let createdUserId: number | null = null
 
     if (dbUser) {
       const session = await getUserSession(event)
@@ -36,17 +38,26 @@ export default defineWebAuthnRegisterEventHandler({
     else {
       const [created] = await db.insert(schema.users).values({ name: user.userName, email: user.userName }).returning()
       dbUser = created
+      createdUserId = created!.id
     }
 
-    await db.insert(schema.userCredentials).values({
-      id: credential.id,
-      userId: dbUser.id,
-      publicKey: credential.publicKey,
-      counter: credential.counter,
-      backedUp: credential.backedUp,
-      transports: credential.transports,
-    })
+    try {
+      await db.insert(schema.userCredentials).values({
+        id: credential.id,
+        userId: dbUser!.id,
+        publicKey: credential.publicKey,
+        counter: credential.counter,
+        backedUp: credential.backedUp,
+        transports: credential.transports,
+        name: user.displayName || null,
+      })
+    }
+    catch (error) {
+      // Do not leave an account without any way to sign in behind when storing the passkey failed.
+      if (createdUserId !== null) await db.delete(schema.users).where(eq(schema.users.id, createdUserId))
+      throw error
+    }
 
-    await setUserSession(event, { user: mapUserToSession(dbUser) })
+    await setUserSession(event, { user: mapUserToSession(dbUser!) })
   },
 })

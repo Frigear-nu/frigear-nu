@@ -21,5 +21,12 @@
   },
   "locale": {
     "switch": "Choose language (now: {name})"
+  },
+  "translated": {
+    "translate": "Translate",
+    "filled": "Translated",
+    "missing": "Missing, shows the fallback language",
+    "addLanguage": "Add language, e.g. de",
+    "singleLanguage": "Same text in every language"
   }
 }

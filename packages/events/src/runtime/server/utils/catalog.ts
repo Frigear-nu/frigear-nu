@@ -182,6 +182,7 @@ export async function toTicketDtos(rows: TicketRow[]): Promise<TicketDto[]> {
       code: row.status === 'paid' ? row.code : null,
       checkedInAt: row.checkedInAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
+      locale: row.locale ?? null,
     }
   })
 }

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
+import { customType, sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import type { DeliveryStatus, FormDefinition, FormStatus } from '../../../types'
 
 export const forms = sqliteTable('forms', {
@@ -48,3 +48,44 @@ export const formSubmissionFiles = sqliteTable('form_submission_files', {
 }, t => [
   index('form_submission_file_submission_idx').on(t.submissionId),
 ])
+
+export const formAccessTokens = sqliteTable('form_access_tokens', {
+  /** `fat_` + random id. */
+  id: text().primaryKey(),
+  formId: text().notNull().references(() => forms.id, { onDelete: 'cascade' }),
+  name: text().notNull(),
+  /** SHA-256 (hex) of the token; the token itself is shown once on creation and never stored. */
+  tokenHash: text().notNull().unique(),
+  /** First characters of the token, for display. */
+  prefix: text().notNull(),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  lastUsedAt: integer({ mode: 'timestamp' }),
+  revokedAt: integer({ mode: 'timestamp' }),
+}, t => [
+  index('form_access_token_form_idx').on(t.formId),
+])
+
+/** Shared password of a form with `access.auth = 'password'`. Kept out of the (versioned) definition. */
+export const formAccess = sqliteTable('form_access', {
+  formId: text().primaryKey().references(() => forms.id, { onDelete: 'cascade' }),
+  /** Scrypt hash (nuxt-auth-utils `hashPassword`). */
+  passwordHash: text().notNull(),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})
+
+/**
+ * Per-form secrets, encrypted at rest. Keys are namespaced strings (`captcha.turnstile.secretKey`, ...) from an
+ * allowlist in `utils/secrets.ts`; future integrations (webhook signing secrets, ...) add their keys there.
+ * Kept out of the (versioned) definition, submission snapshots, deliveries and exports.
+ */
+export const formSecrets = sqliteTable('form_secrets', {
+  formId: text().primaryKey().references(() => forms.id, { onDelete: 'cascade' }),
+  // Inline on purpose: the module kit copies this property (and only the imports above) into a generated schema
+  // template, so it cannot call a local helper. `utils/crypto.ts` registers the cipher on `globalThis`.
+  secrets: customType<{ data: Record<string, string>, driverData: string }>({
+    dataType: () => 'text',
+    toDriver: value => globalThis.__frigearFormsCrypto!.encrypt(value),
+    fromDriver: value => globalThis.__frigearFormsCrypto!.decrypt(value) as Record<string, string>,
+  })('secrets').notNull(),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+})

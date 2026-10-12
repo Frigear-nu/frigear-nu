@@ -6,6 +6,7 @@ const bodySchema = z.object({
   addonIds: z.array(z.string().min(1)).max(50).optional(),
   successUrl: z.string().optional(),
   cancelUrl: z.string().optional(),
+  locale: z.string().regex(/^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i).max(16).optional(),
 }) satisfies z.ZodType<PurchaseBody>
 
 export default defineEventHandler(async (event): Promise<PurchaseResponse> => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canAdministerUsers } from '../shared/users-policy'
+import { assignableUserRoles, canAdministerUsers } from '../shared/users-policy'
 
 describe('canAdministerUsers', () => {
   it('lets staff roles list users but not create or edit them unless admin/manager', () => {
@@ -29,5 +29,19 @@ describe('canAdministerUsers', () => {
   it('ignores unknown roles', () => {
     expect(canAdministerUsers('admin', 'create', { input: { role: 'root' } })).toBe(false)
     expect(canAdministerUsers('root', 'view')).toBe(false)
+  })
+  it('lets managers and admins delete users below their rank only', () => {
+    expect(canAdministerUsers('manager', 'delete', { target: { role: 'member' } })).toBe(true)
+    expect(canAdministerUsers('manager', 'delete', { target: { role: 'admin' } })).toBe(false)
+    expect(canAdministerUsers('coordinator', 'delete', { target: { role: 'user' } })).toBe(false)
+  })
+})
+
+describe('assignableUserRoles', () => {
+  it('offers strictly lower roles, plus their own for admins', () => {
+    expect(assignableUserRoles('admin')).toContain('admin')
+    expect(assignableUserRoles('manager')).not.toContain('manager')
+    expect(assignableUserRoles('manager')).toContain('coordinator')
+    expect(assignableUserRoles('coordinator')).toEqual([])
   })
 })

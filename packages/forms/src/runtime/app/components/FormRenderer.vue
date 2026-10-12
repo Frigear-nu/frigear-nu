@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormDefinition, PublicFormDto } from '../../../types'
-import { translate } from '../../utils'
+import { previewPayload, translate } from '../../utils'
 import { emptyAnswers, submitAnswers, useFormsLocale } from '../composables/useForms'
 import { useFormStepper } from '../composables/useFormStepper'
 
@@ -11,16 +11,22 @@ const props = defineProps<{
   slug?: string
   /** A definition to render directly (admin preview, tests). */
   form?: FormShape
+  /** Shared password of a password-protected form (sent as `x-form-password`). */
+  password?: string
   /** Validates and steps like normal, but never posts. */
   preview?: boolean
+  /** Overrides the locale of translated form content (defaults to the app's locale). */
+  locale?: string
 }>()
-const emit = defineEmits<{ submitted: [id: string | null] }>()
+const emit = defineEmits<{ submitted: [id: string | null], previewed: [answers: Record<string, unknown>] }>()
+const listening = !!getCurrentInstance()?.vnode.props?.onPreviewed
 
 const t = useModuleT('forms')
-const locale = useFormsLocale()
+const appLocale = useFormsLocale()
+const locale = computed(() => props.locale || appLocale.value)
 const toast = useToast()
 
-const loaded = props.slug ? await useForm(props.slug) : undefined
+const loaded = props.slug ? await useForm(props.slug, () => props.password) : undefined
 const form = computed<FormShape | undefined>(() => props.form ?? loaded?.data.value ?? undefined)
 const definition = computed(() => form.value?.definition as FormDefinition)
 
@@ -33,6 +39,7 @@ watch(() => form.value?.definition, (next) => {
 const stepper = useFormStepper(definition, state, { t: () => t, locale })
 const formRef = useTemplateRef<{ setErrors: (errors: { name: string, message: string }[]) => void }>('formRef')
 const submitting = ref(false)
+const captchaResetKey = ref(0)
 const done = ref(false)
 
 const submitSettings = computed(() => definition.value?.submit)
@@ -41,12 +48,13 @@ const title = (value: Parameters<typeof translate>[0]) => translate(value, local
 async function onSubmit() {
   if (!stepper.isLast.value) return stepper.next()
   if (props.preview) {
-    toast.add({ title: t('preview.notSent', 'Preview: nothing was sent.'), color: 'info' })
+    if (listening) emit('previewed', previewPayload(definition.value, state))
+    else toast.add({ title: t('preview.notSent', 'Preview: nothing was sent.'), color: 'info' })
     return
   }
   submitting.value = true
   try {
-    const result = await submitAnswers(form.value!.slug, definition.value, state, locale.value)
+    const result = await submitAnswers(form.value!.slug, definition.value, state, locale.value, props.password)
     done.value = true
     emit('submitted', result.id)
     const redirect = submitSettings.value?.redirect
@@ -63,6 +71,8 @@ async function onSubmit() {
     }
   }
   finally {
+    // A captcha token is single use: every attempt needs a fresh one.
+    captchaResetKey.value++
     submitting.value = false
   }
 }
@@ -139,6 +149,8 @@ function sendAnother() {
         v-model="state[field.key]"
         :field="field"
         :locale="locale"
+        :preview="preview"
+        :captcha-reset-key="captchaResetKey"
       />
     </template>
 

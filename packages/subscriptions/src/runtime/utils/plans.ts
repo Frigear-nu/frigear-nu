@@ -3,6 +3,20 @@ import type { PlanPriceRef, ResolvedPlan } from '../../types'
 
 export const DEFAULT_ENTITLED_STATUSES = ['active', 'trialing']
 /** Statuses that count as "holds a live subscription" when deciding between a new checkout and a plan change. */
+/**
+ * Whether a stored row currently entitles its user: an entitled status, not ended, and (for manual grants,
+ * which have no Stripe lifecycle to end them) not past its optional end date.
+ */
+export function isEntitledRow(
+  row: { status: string, endedAt: Date | null, source?: string | null, currentPeriodEnd: Date | null },
+  statuses: string[] = DEFAULT_ENTITLED_STATUSES,
+  now = Date.now(),
+) {
+  if (!statuses.includes(row.status) || row.endedAt) return false
+  if (row.source === 'manual' && row.currentPeriodEnd && row.currentPeriodEnd.getTime() <= now) return false
+  return true
+}
+
 export const LIVE_STATUSES = ['active', 'trialing', 'past_due']
 
 type PlanConfigLike = Record<string, { prices: PlanPriceRef[], rank: number }>

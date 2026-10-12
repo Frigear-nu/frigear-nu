@@ -21,5 +21,12 @@
   },
   "locale": {
     "switch": "Vælg sprog (nu: {name})"
+  },
+  "translated": {
+    "translate": "Oversæt",
+    "filled": "Oversat",
+    "missing": "Mangler, viser reserve-sproget",
+    "addLanguage": "Tilføj sprog, f.eks. de",
+    "singleLanguage": "Samme tekst på alle sprog"
   }
 }

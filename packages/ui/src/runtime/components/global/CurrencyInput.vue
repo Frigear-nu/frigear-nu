@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { useCurrencies } from '~/store/queries/system'
+import { currencyOptions } from '../../shared/money'
+import type { Currency } from '../../shared/money'
 
 const currencyCode = defineModel<string>({ default: 'EUR' })
+// Defaults to every ISO currency the runtime knows; pass `currencies` to offer a shorter list.
+const props = defineProps<{ currencies?: Currency[] }>()
 
-const { data: currencies, status } = useCurrencies()
-const currency = computed(() => currencies.value?.find(c => c.code === currencyCode.value))
+const nuxtApp = useNuxtApp() as { $i18n?: { locale?: { value?: string } } }
+const options = computed(() => props.currencies ?? currencyOptions(nuxtApp.$i18n?.locale?.value))
+const status = 'success'
+const currency = computed(() => options.value.find(c => c.code === currencyCode.value))
 
 function onOpen() {
   // ...
@@ -14,7 +19,7 @@ function onOpen() {
 <template>
   <USelectMenu
     v-model="currencyCode"
-    :items="currencies"
+    :items="options"
     value-key="code"
     :search-input="{
       placeholder: 'Search currency...',

@@ -26,6 +26,11 @@ export default defineNuxtConfig({
       pages: { form: true, admin: true, adminForm: true, adminSubmissions: true, adminSubmission: true },
       rateLimit: 0,
     },
+    // Only recaptcha has an environment secret, so tests can tell it apart from a per-form one.
+    captcha: { recaptcha: { secretKey: 'env-recaptcha-secret' } },
+  },
+  notify: {
+    email: { driver: './server/utils/mail-driver' },
   },
   users: {
     mode: 'server',

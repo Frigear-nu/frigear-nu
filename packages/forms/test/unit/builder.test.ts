@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  changeMode, collapseTranslated, createField, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, moveField, moveStep, removeStep, uniqueFieldKey, writeTranslated,
+  changeMode, collapseTranslated, emailFieldKeys, patchEmailDelivery, routableFields, setEmailRecipients, setRoute, setRouteField, setStorage, storageWarnings, createField, pruneReferences, createStep, insertField, insertStep, dropIndex, expandTranslated, duplicateField, formDefinitionSchema, resolveAccess, setAccess, moveField, moveStep, removeField, removeStep, renameFieldKey, uniqueFieldKey, writeTranslated,
 } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
@@ -13,6 +13,21 @@ const base = (): FormDefinition => ({
   ],
 })
 const keys = (definition: FormDefinition) => definition.steps.map(step => step.fields.map(field => field.key))
+
+describe('captcha field in the builder', () => {
+  it('is created with the turnstile provider, no label and not as a condition source', () => {
+    const field = createField(base(), 'captcha')
+    expect(field).toEqual({ key: 'captcha', type: 'captcha', captcha: { provider: 'turnstile' } })
+  })
+
+  it('pruneReferences drops conditions pointing at a captcha field', () => {
+    const definition: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 'a', fields: [
+      { key: 'human', type: 'captcha' },
+      { key: 'x', type: 'text', showIf: { field: 'human', op: 'notEmpty' } },
+    ] }] }
+    expect(pruneReferences(definition).steps[0]!.fields[1]!.showIf).toBeUndefined()
+  })
+})
 
 describe('moveField', () => {
   it('reorders inside a step, honouring the drop slot adjustment', () => {
@@ -100,5 +115,126 @@ describe('expand/collapse translated', () => {
     expect(collapseTranslated({ en: 'Hi', da: 'Hej' }, 'da')).toBe('Hej')
     expect(collapseTranslated({ da: 'Hej' }, 'en')).toBe('Hej')
     expect(collapseTranslated('Plain', 'da')).toBe('Plain')
+  })
+})
+
+describe('delivery settings', () => {
+  const withEmail = () => setEmailRecipients(base(), [' a@x.test ', 'a@x.test', 'b@x.test', ''])
+
+  it('sets de-duplicated recipients and removes delivery when emptied', () => {
+    expect(withEmail().delivery?.email?.to).toEqual(['a@x.test', 'b@x.test'])
+    expect(setEmailRecipients(withEmail(), []).delivery).toBeUndefined()
+  })
+
+  it('keeps subject and reply-to when recipients change, drops them with the delivery', () => {
+    const def = patchEmailDelivery({ ...withEmail(), steps: [{ id: 'a', fields: [{ key: 'mail', type: 'email' }] }] }, { subject: 'Hi', replyToField: 'mail' })
+    expect(setEmailRecipients(def, ['c@x.test']).delivery?.email).toEqual({ to: ['c@x.test'], subject: 'Hi', replyToField: 'mail' })
+    expect(setEmailRecipients(def, []).delivery).toBeUndefined()
+    expect(patchEmailDelivery(def, { subject: undefined }).delivery?.email?.subject).toBeUndefined()
+  })
+
+  it('ignores patches without recipients', () => {
+    expect(patchEmailDelivery(base(), { subject: 'Hi' })).toEqual(base())
+  })
+
+  it('manages routes and validates against the schema', () => {
+    const def: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [
+      { key: 'mail', type: 'email' },
+      { key: 'topic', type: 'select', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] },
+    ] }] }
+    expect(emailFieldKeys(def)).toEqual(['mail'])
+    expect(routableFields(def).map(field => field.key)).toEqual(['topic'])
+
+    let next = setRouteField(setEmailRecipients(def, ['x@x.test']), 'topic')
+    next = setRoute(next, 'a', ['a@x.test'])
+    next = setRoute(next, 'b', ['b@x.test'])
+    expect(next.delivery?.email?.routes).toEqual({ field: 'topic', to: { a: ['a@x.test'], b: ['b@x.test'] } })
+    expect(formDefinitionSchema.safeParse(next).success).toBe(true)
+    expect(setRoute(next, 'b', []).delivery?.email?.routes?.to).toEqual({ a: ['a@x.test'] })
+    expect(setRouteField(next, 'topic').delivery?.email?.routes?.to.a).toEqual(['a@x.test'])
+    expect(setRouteField(next, undefined).delivery?.email?.routes).toBeUndefined()
+  })
+})
+
+describe('storage settings', () => {
+  it('switches storage and warns about files and lost answers', () => {
+    const files: FormDefinition = { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [{ key: 'f', type: 'file' }] }] }
+    expect(storageWarnings(files)).toEqual({ files: false, lost: false })
+    const none = setStorage(files, 'none')
+    expect(storageWarnings(none)).toEqual({ files: true, lost: true })
+    expect(storageWarnings(setEmailRecipients(none, ['a@x.test']))).toEqual({ files: true, lost: false })
+    expect(setStorage(files, 'db')).toBe(files)
+  })
+})
+
+describe('insertField / insertStep', () => {
+  it('inserts a field at the exact index, top, middle and bottom', () => {
+    const d = base()
+    const f = (key: string) => ({ key, type: 'text' as const })
+    expect(keys(insertField(d, { step: 0, index: 0 }, f('x')))[0]).toEqual(['x', 'one', 'two', 'three'])
+    expect(keys(insertField(d, { step: 0, index: 2 }, f('x')))[0]).toEqual(['one', 'two', 'x', 'three'])
+    expect(keys(insertField(d, { step: 1, index: 99 }, f('x')))[1]).toEqual(['four', 'x'])
+    expect(insertField(d, { step: 5, index: 0 }, f('x'))).toBe(d)
+  })
+
+  it('inserts a step before an index without touching the others', () => {
+    const d = base()
+    const next = insertStep(d, 1, createStep(d))
+    expect(next.steps.map(s => s.id)).toEqual(['a', 'step_3', 'b'].map((id, i) => i === 1 ? next.steps[1]!.id : id))
+    expect(next.steps[1]!.fields).toEqual([])
+    expect(insertStep(d, 99, createStep(d)).steps).toHaveLength(3)
+  })
+})
+
+describe('form access', () => {
+  it('defaults to open web access and keeps older definitions valid', () => {
+    expect(resolveAccess(base())).toEqual({ availability: 'web', auth: 'none' })
+    expect(formDefinitionSchema.parse(base()).access).toBeUndefined()
+    expect(formDefinitionSchema.parse({ ...base(), access: { auth: 'password' } }).access).toEqual({ availability: 'web', auth: 'password' })
+  })
+
+  it('setAccess forces API only for token auth and rejects other token combinations', () => {
+    expect(setAccess(base(), { auth: 'token' }).access).toEqual({ availability: 'api', auth: 'token' })
+    expect(setAccess(base(), { auth: 'user' }).access).toEqual({ availability: 'web', auth: 'user' })
+    const bad = formDefinitionSchema.safeParse({ ...base(), access: { availability: 'web', auth: 'token' } })
+    expect(bad.success).toBe(false)
+    expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'token' } }).success).toBe(true)
+    expect(formDefinitionSchema.safeParse({ ...base(), access: { availability: 'api', auth: 'nope' } }).success).toBe(false)
+  })
+})
+
+describe('renaming and deleting fields keeps references valid', () => {
+  const routed = (): FormDefinition => ({
+    mode: 'single',
+    storage: 'db',
+    delivery: { email: { to: ['a@example.com'], replyToField: 'mail', routes: { field: 'select', to: { x: ['b@example.com'] } } } },
+    submit: { allowResubmit: { keep: ['select'] } },
+    steps: [{
+      id: 'main',
+      fields: [
+        { key: 'select', type: 'select', options: [{ value: 'x', label: 'X' }] },
+        { key: 'mail', type: 'email' },
+        { key: 'other', type: 'text', showIf: { field: 'select', op: 'eq', value: 'x' } },
+      ],
+    }],
+  }) as FormDefinition
+
+  it('rewrites routes, reply-to, resubmit and showIf when a key is renamed', () => {
+    const renamed = renameFieldKey(renameFieldKey(routed(), { step: 0, index: 0 }, 'department'), { step: 0, index: 1 }, 'email')
+    expect(renamed.steps[0]!.fields.map(f => f.key)).toEqual(['department', 'email', 'other'])
+    expect(renamed.delivery?.email?.routes?.field).toBe('department')
+    expect(renamed.delivery?.email?.replyToField).toBe('email')
+    expect(renamed.submit?.allowResubmit?.keep).toEqual(['department'])
+    expect(renamed.steps[0]!.fields[2]!.showIf?.field).toBe('department')
+    expect(formDefinitionSchema.safeParse(renamed).success).toBe(true)
+  })
+
+  it('drops routes, reply-to, resubmit and showIf that pointed at a deleted field', () => {
+    const removed = removeField(removeField(routed(), { step: 0, index: 1 }), { step: 0, index: 0 })
+    expect(removed.delivery?.email?.routes).toBeUndefined()
+    expect(removed.delivery?.email?.replyToField).toBeUndefined()
+    expect(removed.submit?.allowResubmit?.keep).toEqual([])
+    expect(removed.steps[0]!.fields[0]!.showIf).toBeUndefined()
+    expect(formDefinitionSchema.safeParse(removed).success).toBe(true)
   })
 })

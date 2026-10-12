@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Translated } from '../../../types'
-import { formatPrice, translate } from '../../utils'
+import { formatPrice } from '../../utils'
 
 defineOptions({ name: 'EventsAdminEventPage' })
 
@@ -8,6 +8,7 @@ type AdminTicketType = {
   id: string
   key: string
   name: Translated
+  description: Translated | null
   price: number
   currency: string
   capacity: number | null
@@ -22,10 +23,11 @@ type AdminEvent = {
   slug: string
   name: Translated
   description: Translated | null
+  body: Translated | null
   status: 'draft' | 'published' | 'archived'
   startsAt: string
   endsAt: string | null
-  location: string | null
+  location: Translated | null
   ticketTypes: AdminTicketType[]
 }
 
@@ -45,15 +47,12 @@ const t = useModuleT('events')
 const toast = useToast()
 const route = useRoute()
 const locale = useEventsLocale()
+const tr = useEventsTranslate()
 const pages = useRuntimeConfig().public.events?.pages
 const id = computed(() => String(route.params.id))
 
 const { data: event, refresh } = await useFetch<AdminEvent>(() => `/api/events/admin/events/${id.value}`)
 const { data: attendees, refresh: refreshAttendees } = await useFetch<Attendee[]>(() => `/api/events/admin/events/${id.value}/tickets`, { default: () => [] })
-
-// A translated text is edited in the current locale; the other locales are kept as they are.
-const merge = (original: Translated | null | undefined, value: string): Translated =>
-  original && typeof original === 'object' ? { ...original, [locale.value]: value } : value
 
 const toLocalInput = (value: string | null) => {
   if (!value) return ''
@@ -61,17 +60,28 @@ const toLocalInput = (value: string | null) => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 
-const form = reactive({ name: '', slug: '', description: '', status: 'draft', startsAt: '', endsAt: '', location: '' })
+// Texts are edited per language with `TranslatedInput`; an empty one is `undefined` and saved as `null`.
+const form = reactive({
+  name: undefined as Translated | undefined,
+  slug: '',
+  description: undefined as Translated | undefined,
+  body: undefined as Translated | undefined,
+  status: 'draft',
+  startsAt: '',
+  endsAt: '',
+  location: undefined as Translated | undefined,
+})
 watch(event, (value) => {
   if (!value) return
   Object.assign(form, {
-    name: translate(value.name, locale.value),
+    name: value.name,
     slug: value.slug,
-    description: translate(value.description, locale.value),
+    description: value.description ?? undefined,
+    body: value.body ?? undefined,
     status: value.status,
     startsAt: toLocalInput(value.startsAt),
     endsAt: toLocalInput(value.endsAt),
-    location: value.location ?? '',
+    location: value.location ?? undefined,
   })
 }, { immediate: true })
 
@@ -94,13 +104,14 @@ const save = () => run(async () => {
   await $fetch(`/api/events/admin/events/${id.value}`, {
     method: 'PATCH',
     body: {
-      name: merge(event.value?.name, form.name),
+      name: form.name,
       slug: form.slug,
-      description: form.description ? merge(event.value?.description, form.description) : null,
+      description: form.description ?? null,
+      body: form.body ?? null,
       status: form.status,
       startsAt: form.startsAt,
       endsAt: form.endsAt || null,
-      location: form.location || null,
+      location: form.location ?? null,
     },
   })
   await refresh()
@@ -128,13 +139,14 @@ const describeRule = (value: Membership | undefined) => value === 'any' ? t('adm
 
 const typeDialog = ref(false)
 const editingType = ref<AdminTicketType | null>(null)
-const type = reactive({ key: '', name: '', price: 0, capacity: '' as string | number, requires: toRule(null), excludes: toRule(null) })
+const type = reactive({ key: '', name: undefined as Translated | undefined, description: undefined as Translated | undefined, price: 0, capacity: '' as string | number, requires: toRule(null), excludes: toRule(null) })
 
 function openType(ticketType?: AdminTicketType) {
   editingType.value = ticketType ?? null
   Object.assign(type, {
     key: ticketType?.key ?? '',
-    name: ticketType ? translate(ticketType.name, locale.value) : '',
+    name: ticketType?.name,
+    description: ticketType?.description ?? undefined,
     price: ticketType ? ticketType.price / 100 : 0,
     capacity: ticketType?.capacity ?? '',
     requires: toRule(ticketType?.requiresMembership),
@@ -145,7 +157,8 @@ function openType(ticketType?: AdminTicketType) {
 
 const saveType = () => run(async () => {
   const body = {
-    name: merge(editingType.value?.name, type.name),
+    name: type.name,
+    description: type.description ?? null,
     // Prices are stored in minor units (øre/cents).
     price: Math.round(Number(type.price) * 100),
     capacity: type.capacity === '' ? null : Number(type.capacity),
@@ -170,7 +183,7 @@ const removeType = (ticketType: AdminTicketType) => {
 }
 
 // --- attendees --------------------------------------------------------------------------------
-const typeName = (ticketTypeId: string) => translate(event.value?.ticketTypes.find(item => item.id === ticketTypeId)?.name, locale.value)
+const typeName = (ticketTypeId: string) => tr(event.value?.ticketTypes.find(item => item.id === ticketTypeId)?.name)
 const statusColor: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = { paid: 'success', pending: 'warning', cancelled: 'neutral', refunded: 'neutral', expired: 'neutral' }
 
 const ticketAction = (ticket: Attendee, action: 'cancel' | 'refund') => {
@@ -192,29 +205,21 @@ const attendeeColumns = [
 
 <template>
   <div v-if="event">
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div>
+    <AdminPageHeader
+      :title="tr(event.name)"
+      :back="{ label: t('admin.title', 'Events'), to: pages?.admin || '/admin/events' }"
+    >
+      <template #links>
         <UButton
-          :to="pages?.admin || '/admin/events'"
-          variant="link"
+          v-if="event.status === 'published' && pages?.event"
+          :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
+          variant="outline"
           color="neutral"
-          icon="i-lucide-arrow-left"
-          :label="t('admin.title', 'Events')"
-          class="-ml-2"
+          icon="i-lucide-external-link"
+          :label="t('admin.viewPublic', 'View public page')"
         />
-        <h1 class="text-2xl font-semibold">
-          {{ translate(event.name, locale) }}
-        </h1>
-      </div>
-      <UButton
-        v-if="event.status === 'published' && pages?.event"
-        :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
-        variant="outline"
-        color="neutral"
-        icon="i-lucide-external-link"
-        :label="t('admin.viewPublic', 'View public page')"
-      />
-    </div>
+      </template>
+    </AdminPageHeader>
 
     <UPageCard
       :title="t('admin.details', 'Details')"
@@ -226,9 +231,8 @@ const attendeeColumns = [
         @submit.prevent="save"
       >
         <UFormField :label="t('admin.name', 'Name')">
-          <UInput
+          <TranslatedInput
             v-model="form.name"
-            class="w-full"
             required
           />
         </UFormField>
@@ -240,9 +244,19 @@ const attendeeColumns = [
           />
         </UFormField>
         <UFormField :label="t('admin.description', 'Description')">
-          <UTextarea
+          <TranslatedInput
             v-model="form.description"
-            class="w-full"
+            multiline
+          />
+        </UFormField>
+        <UFormField
+          :label="t('admin.body', 'Details')"
+          :help="t('admin.bodyHelp', 'Shown on the event page. Markdown is supported.')"
+        >
+          <TranslatedInput
+            v-model="form.body"
+            multiline
+            :rows="6"
           />
         </UFormField>
         <UFormField :label="t('admin.status', 'Status')">
@@ -268,15 +282,13 @@ const attendeeColumns = [
           />
         </UFormField>
         <UFormField :label="t('admin.location', 'Location')">
-          <UInput
-            v-model="form.location"
-            class="w-full"
-          />
+          <TranslatedInput v-model="form.location" />
         </UFormField>
         <div>
           <UButton
             type="submit"
             :loading="busy"
+            :disabled="!tr(form.name)"
             :label="t('admin.save', 'Save')"
           />
         </div>
@@ -298,7 +310,7 @@ const attendeeColumns = [
           class="flex items-center justify-between gap-4 py-2 text-sm"
         >
           <span class="min-w-0">
-            <span class="font-medium">{{ translate(ticketType.name, locale) }}</span>
+            <span class="font-medium">{{ tr(ticketType.name) }}</span>
             <span class="text-muted"> · {{ formatPrice(ticketType.price, ticketType.currency, locale) }}<template v-if="ticketType.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ ticketType.capacity }}</template></span>
             <span
               v-if="ticketType.requiresMembership"
@@ -424,10 +436,16 @@ const attendeeColumns = [
           @submit.prevent="saveType"
         >
           <UFormField :label="t('admin.name', 'Name')">
-            <UInput
+            <TranslatedInput
               v-model="type.name"
-              class="w-full"
               required
+            />
+          </UFormField>
+          <UFormField :label="t('admin.description', 'Description')">
+            <TranslatedInput
+              v-model="type.description"
+              multiline
+              :rows="2"
             />
           </UFormField>
           <UFormField
@@ -510,6 +528,7 @@ const attendeeColumns = [
             <UButton
               type="submit"
               :loading="busy"
+              :disabled="!tr(type.name)"
               :label="t('admin.save', 'Save')"
             />
           </div>

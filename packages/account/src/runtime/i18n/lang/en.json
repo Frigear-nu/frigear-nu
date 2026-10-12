@@ -22,14 +22,19 @@
     },
     "identificationCode": {
       "title": "Frigear ID",
-      "description": "Press here to show your ID."
+      "description": "Press here to show your ID.",
+      "expiresIn": "Refreshes in {time}s",
+      "refresh": "Refresh",
+      "role": "Role",
+      "error": "Could not create your Frigear ID."
     },
     "profile": {
       "title": "Profile",
       "description": "Change your information.",
       "name": {
         "label": "Name",
-        "description": "Your full name."
+        "description": "Your full name.",
+        "required": "Please enter your name."
       },
       "email": {
         "label": "E-mail",
@@ -42,15 +47,21 @@
             "description": "We sent a link to your new address. It takes effect once you confirm it."
           },
           "done": "Your email address was changed.",
-          "failed": "This confirmation link is invalid or has expired."
-        }
+          "failed": "This confirmation link is invalid or has expired.",
+          "error": "Could not change your email address."
+        },
+        "invalid": "Enter a valid email address."
       },
       "avatar": {
         "label": "Avatar",
-        "description": "JPG, GIF or PNG. 1MB Max.",
-        "url": "Avatar URL"
+        "description": "Link to a square image.",
+        "url": "Avatar URL",
+        "invalid": "Enter a valid URL."
       },
-      "save": "Save profile"
+      "save": "Save profile",
+      "saved": "Profile updated",
+      "saveFailed": "Could not update your profile.",
+      "cancel": "Cancel"
     },
     "documents": {
       "title": "Documents",
@@ -69,19 +80,40 @@
         "title": "Change password",
         "submit": "Change password",
         "new": {
-          "label": "New password"
+          "label": "New password",
+          "min": "Use at least 8 characters."
         },
         "confirm": {
-          "label": "Confirm new password"
+          "label": "Confirm new password",
+          "mismatch": "The passwords do not match."
         },
         "current": {
-          "label": "Current password"
-        }
+          "label": "Current password",
+          "required": "Enter your current password."
+        },
+        "success": "Your password was changed.",
+        "error": "Could not change your password."
       },
       "passkeys": {
         "title": "Passkeys",
-        "register": "Register a passkey"
+        "register": "Register a passkey",
+        "description": "Sign in with your fingerprint, face or device PIN instead of a password.",
+        "unnamed": "Passkey",
+        "created": "Added {date}",
+        "remove": "Remove passkey",
+        "empty": "You have not added any passkeys yet.",
+        "name": {
+          "label": "Passkey name",
+          "placeholder": "Name, e.g. MacBook"
+        },
+        "registered": "Passkey added.",
+        "registerError": "Could not register the passkey.",
+        "removed": "Passkey removed.",
+        "removeError": "Could not remove the passkey.",
+        "loadError": "Could not load your passkeys."
       }
-    }
+    },
+    "backTo": "Back to account",
+    "signedInAs": "Signed in as"
   }
 }

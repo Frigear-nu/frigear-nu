@@ -101,6 +101,18 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // "Dashboard" first in the sidebar, above the modules' own entries.
+    if (dashboardPath) {
+      extendMenu(nuxt, 'admin.nav', {
+        id: 'admin-dashboard',
+        label: 'Dashboard',
+        labelKey: 'admin.dashboard.title',
+        icon: 'i-lucide-layout-dashboard',
+        to: dashboardPath,
+        order: 0,
+      })
+    }
+
     extendPages((pages) => {
       if (dashboardPath && !pages.some(page => page.path === dashboardPath)) {
         pages.push({ name: 'admin-dashboard', path: dashboardPath, file: resolver.resolve('./runtime/app/pages/dashboard.vue') })

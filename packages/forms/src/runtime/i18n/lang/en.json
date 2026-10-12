@@ -18,8 +18,23 @@
       "invalid": "Please check the highlighted fields.",
       "notFound": "This form could not be found."
     },
+    "embed": {
+      "signInTitle": "Sign in to use this form",
+      "signIn": "Sign in"
+    },
     "preview": {
-      "notSent": "Preview: nothing was sent."
+      "notSent": "Preview: nothing was sent.",
+      "mobile": "Mobile",
+      "desktop": "Desktop",
+      "reset": "Reset",
+      "tryIt": "Try it",
+      "result": "Result",
+      "resultHint": "This is what would be sent. Nothing was submitted.",
+      "copy": "Copy",
+      "copied": "Copied to clipboard.",
+      "close": "Close",
+      "tryAgain": "Try again",
+      "device": "Device"
     },
     "value": {
       "yes": "Yes",
@@ -49,7 +64,8 @@
       "pattern": "The value has an invalid format.",
       "maxFiles": "Upload at most {max} file(s).",
       "maxSize": "{name} is larger than {max} MB.",
-      "accept": "{name} is not an accepted file type."
+      "accept": "{name} is not an accepted file type.",
+      "captcha": "Please complete the captcha."
     },
     "admin": {
       "title": "Forms",
@@ -57,6 +73,9 @@
       "import": "Import",
       "edit": "Edit",
       "create": "Create",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied.",
+      "settings": "Delivery & storage",
       "save": "Save",
       "saved": "Saved.",
       "name": "Name",
@@ -80,7 +99,51 @@
       "preview": "Preview",
       "previewUnavailable": "Fix the definition to see a preview.",
       "builder": "Builder",
-      "json": "JSON"
+      "json": "JSON",
+      "access": "Access"
+    },
+    "access": {
+      "title": "Who can use this form",
+      "availability": "Availability",
+      "availabilityWeb": "Web page and API",
+      "availabilityApi": "API only",
+      "availabilityWebHint": "The public page and the API are both available.",
+      "availabilityApiHint": "No public page: the form can only be read and submitted through the API.",
+      "auth": "Authentication",
+      "authNone": "Open to everyone",
+      "authUser": "Signed-in users",
+      "authToken": "API token",
+      "authPassword": "Shared password",
+      "authTokenHint": "Token forms are API only: a token cannot be typed into a page.",
+      "saveHint": "Availability and authentication are saved with the form. Tokens and the password take effect immediately.",
+      "tokensTitle": "API tokens",
+      "tokensHint": "Send a token as Authorization: Bearer TOKEN or in the x-form-token header. It is shown only once.",
+      "tokensInactive": "Tokens are only checked when authentication is set to API token.",
+      "tokenName": "Token name, e.g. Mobile app",
+      "createToken": "Create token",
+      "tokenCreated": "Copy this token now. You will not see it again.",
+      "revoked": "Revoked",
+      "revoke": "Revoke",
+      "lastUsed": "Last used {date}",
+      "neverUsed": "Never used",
+      "noTokens": "No tokens yet.",
+      "passwordTitle": "Shared password",
+      "passwordMissing": "No password is set, so nobody can open this form yet.",
+      "passwordIsSet": "A password is set.",
+      "passwordIsNotSet": "No password is set.",
+      "passwordInactive": "It is only checked when authentication is set to Shared password.",
+      "newPassword": "New password",
+      "setPassword": "Password (min. 6 characters)",
+      "changePassword": "Change",
+      "savePassword": "Set password",
+      "clearPassword": "Clear",
+      "passwordSaved": "Password saved.",
+      "apiTitle": "API",
+      "apiHint": "Submit with POST (JSON, or multipart with file:KEY parts). The definition is available with GET on /api/forms/{slug}.",
+      "passwordLabel": "Password",
+      "passwordHint": "This form is protected. Enter the password you were given.",
+      "passwordWrong": "Wrong password.",
+      "unlock": "Continue"
     },
     "menu": {
       "admin": {
@@ -88,13 +151,84 @@
         "description": "Manage forms and their submissions."
       }
     },
+    "delivery": {
+      "title": "Delivery & storage",
+      "storeTitle": "Store submissions",
+      "storeHint": "Keep submissions in the database so they can be reviewed under Submissions.",
+      "filesWarning": "This form has file upload fields, which need stored submissions. Remove them or keep storing.",
+      "lostWarning": "Submissions are neither stored nor emailed. Add recipients or keep storing, or answers are lost unless something handles forms:submitted.",
+      "emailTitle": "Email notification",
+      "recipients": "Recipients",
+      "recipientsHint": "Press Enter after each address. Leave empty to turn email off.",
+      "subject": "Subject",
+      "replyTo": "Reply to",
+      "replyToNone": "None",
+      "replyToHint": "The answer of this email field becomes the Reply-To.",
+      "routing": "Route by answer",
+      "routingField": "Field to route by",
+      "routingNone": "No routing",
+      "routingHint": "Send to other recipients depending on the answer. Others get the default recipients.",
+      "routeTo": "Recipients for \"{value}\"",
+      "subjectHint": "Variables from the list below work here too.",
+      "body": "Email body",
+      "bodyHint": "Optional. Leave empty to email the list of all answers. Variables are replaced with the submitted values.",
+      "bodyVariables": "Click a variable to insert it at the cursor. The full list of answers is",
+      "bodyUnknown": "Unknown variables are left empty: {names}",
+      "bodyPreview": "Preview with sample answers",
+      "bodyReset": "Reset to the default body",
+      "needRecipients": "Add recipients first to set the subject, reply-to and routing."
+    },
+    "captcha": {
+      "providers": {
+        "turnstile": "Cloudflare Turnstile",
+        "recaptcha": "Google reCAPTCHA",
+        "hcaptcha": "hCaptcha"
+      },
+      "preview": "Captcha: {provider} — shown to visitors",
+      "missingKey": "The {provider} captcha has no site key configured.",
+      "missingKeyHint": "Set the site key below or the NUXT_PUBLIC_FORMS_CAPTCHA_PROVIDER_SITE_KEY environment variable. Submissions also need the matching secret key on the server.",
+      "loadFailed": "The captcha could not be loaded. Reload the page to try again.",
+      "provider": "Provider",
+      "siteKey": "Site key",
+      "siteKeyHint": "Public key of this site. Leave empty to use the one configured for the provider.",
+      "theme": "Theme",
+      "size": "Size",
+      "themes": {
+        "auto": "Automatic",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "sizes": {
+        "normal": "Normal",
+        "compact": "Compact"
+      },
+      "hint": "Always required while visible. The token is checked on the server and never stored. Submissions with an API token skip it.",
+      "secretLabel": "Secret key",
+      "secretHint": "Server-side key used to verify this form. Stored encrypted and never shown again. Without one, the environment variable is used.",
+      "secretStatus": "Secret key",
+      "secretForm": "Configured via form",
+      "secretEnv": "Configured via environment",
+      "secretUnset": "Not set",
+      "secretUnreadable": "The stored secrets of this form cannot be decrypted because the encryption key changed. Enter them again.",
+      "secretPlaceholderSet": "Enter a new secret key to replace it",
+      "secretPlaceholder": "Paste the secret key",
+      "secretSave": "Save secret",
+      "secretSaved": "Secret key saved.",
+      "secretRemove": "Remove",
+      "secretRemoved": "Secret key removed.",
+      "secretFailed": "The secret key could not be saved.",
+      "secretImmediate": "Saved immediately, independent of the form Save."
+    },
     "builder": {
+      "singleConfirmTitle": "Switch to a single page?",
+      "singleConfirmDescription": "All steps are merged into one page. Step titles, descriptions and step conditions are lost, and switching back to steps will not restore them.",
+      "singleConfirmButton": "Switch to single page",
       "layout": "Layout",
       "fields": "Fields",
-      "paletteTitle": "Add fields",
+      "insertField": "Insert field here",
+      "addField": "Add field",
       "fieldsTitle": "Form fields",
       "settingsTitle": "Settings",
-      "paletteHint": "Drag a field onto the form, or click to add it.",
       "dragStep": "Drag to reorder steps",
       "moveUp": "Move up",
       "moveDown": "Move down",
@@ -129,6 +263,8 @@
         "eq": "is equal to",
         "neq": "is not equal to",
         "in": "is one of",
+        "empty": "is empty",
+        "notEmpty": "has an answer",
         "truthy": "has an answer"
       },
       "types": {
@@ -142,7 +278,8 @@
         "radio": "Single choice",
         "checkbox": "Checkbox",
         "file": "File upload",
-        "markdown": "Text block"
+        "markdown": "Text block",
+        "captcha": "Captcha"
       },
       "translate": "Translate",
       "singleLanguage": "Same text in every language",

@@ -79,6 +79,8 @@ export type SubscriptionDto = {
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   endedAt: string | null
+  /** `manual` for free grants made by staff. */
+  source?: 'stripe' | 'manual'
 }
 
 export type MeResponse = {
@@ -119,3 +121,19 @@ export type PlansFilterContext = {
   /** The plans about to be returned. Mutate or reassign `plans` to hide / reorder them. */
   plans: ResolvedPlan[]
 }
+
+/** `GET /api/admin/users/:id/subscription` (staff). */
+export type AdminMembershipResponse = {
+  plans: Array<{ key: string, label: string, rank: number }>
+  current: {
+    id: string
+    planKey: string | null
+    status: string
+    source: 'stripe' | 'manual'
+    currentPeriodEnd: string | null
+    cancelAtPeriodEnd: boolean
+  } | null
+}
+
+/** `POST /api/admin/users/:id/subscription/payment-link` (staff). */
+export type AdminPaymentLinkResponse = { url: string, emailed: boolean }

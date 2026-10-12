@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index, uniqueIndex, customType } from 'drizzle-orm/sqlite-core'
 
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
@@ -13,7 +13,23 @@ export const events = sqliteTable('events', {
   /** Markdown body (per locale). */
   body: text({ mode: 'json' }).$type<Translated>(),
   image: text(),
-  location: text(),
+  // A plain `text` column that also holds a `Translated`: strings are stored as they are (so rows written before
+  // locations could be translated keep working), per-locale maps as json. No schema change, hence no migration.
+  // Kept inline: module-kit lifts each table's columns into the host schema, so helpers declared above would be lost.
+  location: customType<{ data: Translated, driverData: string }>({
+    dataType: () => 'text',
+    toDriver: value => (typeof value === 'string' ? value : JSON.stringify(value)),
+    fromDriver: (value) => {
+      if (value.startsWith('{')) {
+        try {
+          const parsed: unknown = JSON.parse(value)
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, string>
+        }
+        catch { /* a plain text that happens to start with a brace */ }
+      }
+      return value
+    },
+  })(),
   locationUrl: text(),
   startsAt: integer({ mode: 'timestamp' }).notNull(),
   endsAt: integer({ mode: 'timestamp' }),
@@ -106,6 +122,8 @@ export const eventTickets = sqliteTable('event_tickets', {
   currency: text().notNull(),
   /** Unguessable value shown as a QR code and scanned at check-in. */
   code: text().notNull().unique(),
+  /** Language the buyer was browsing in; used for mails and payment texts after the purchase. */
+  locale: text(),
   checkedInAt: integer({ mode: 'timestamp' }),
   checkedInBy: integer(),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),

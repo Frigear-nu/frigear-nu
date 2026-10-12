@@ -6,6 +6,7 @@ const t = useModuleT('forms')
 const route = useRoute()
 const paths = useFormsPaths()
 const toast = useToast()
+const link = useFormLink()
 const id = computed(() => String(route.params.id))
 const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`)
 
@@ -47,6 +48,8 @@ const checked = computed(() => {
 
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
+  { value: 'settings', label: t('admin.settings', 'Delivery & storage'), icon: 'i-lucide-settings' },
+  { value: 'access', label: t('admin.access', 'Access'), icon: 'i-lucide-lock' },
   { value: 'json', label: t('admin.json', 'JSON'), icon: 'i-lucide-braces' },
 ])
 
@@ -82,21 +85,21 @@ async function save() {
     />
 
     <template v-else>
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <NuxtLink
-            :to="paths('admin')"
-            class="text-sm text-muted hover:underline"
-          >
-            ← {{ t('admin.title', 'Forms') }}
-          </NuxtLink>
-          <h1 class="text-3xl font-bold">
-            {{ form.name }} <span class="text-base font-normal text-muted">v{{ form.version }}</span>
-          </h1>
-        </div>
-        <div class="flex gap-2">
+      <AdminPageHeader
+        :title="`${form.name} (v${form.version})`"
+        :back="{ label: t('admin.title', 'Forms'), to: paths('admin') }"
+      >
+        <template #links>
           <UButton
-            v-if="form.definition.storage === 'db'"
+            v-if="form.status === 'published' && link.enabled.value"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-link"
+            :label="t('admin.copyLink', 'Copy link')"
+            @click="link.copy(form.slug)"
+          />
+          <UButton
+            v-if="form.definition.storage === 'db' || (form.submissionCount ?? 0) > 0"
             color="neutral"
             variant="outline"
             :to="paths('adminSubmissions', { id: form.id })"
@@ -108,8 +111,8 @@ async function save() {
             :label="t('admin.save', 'Save')"
             @click="save"
           />
-        </div>
-      </div>
+        </template>
+      </AdminPageHeader>
 
       <div class="grid gap-4 sm:grid-cols-3">
         <UFormField :label="t('admin.name', 'Name')">
@@ -143,22 +146,29 @@ async function save() {
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
+        :form-id="form.id"
       >
         <template #preview>
-          <FormRenderer
-            v-if="checked.definition"
-            :key="previewKey + JSON.stringify(checked.definition).length"
-            :form="{ slug: draft.slug, definition: checked.definition }"
-            preview
+          <FormPreview
+            :slug="draft.slug"
+            :name="draft.name"
+            :definition="checked.definition"
+            :content-key="previewKey"
           />
-          <p
-            v-else
-            class="text-muted"
-          >
-            {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
-          </p>
         </template>
       </FormBuilder>
+
+      <FormBuilderSettings
+        v-else-if="tab === 'settings'"
+        v-model="definition"
+      />
+
+      <FormBuilderAccess
+        v-else-if="tab === 'access'"
+        v-model="definition"
+        :form-id="form.id"
+        :slug="form.slug"
+      />
 
       <div
         v-else-if="tab === 'json'"

@@ -21,6 +21,7 @@ export type PublicModuleOptions = {
     profile?: string
     security?: string
     documents?: string
+    idCode?: string
   }
   documents: AccountDocument[]
 }
@@ -41,6 +42,8 @@ export type ModuleOptions = {
       security?: string | boolean
       // Lists `settings.documents` for download. Defaults to off.
       documents?: string | boolean
+      // The Frigear ID page (rotating signed QR code). Needs a signing key, see the module README.
+      idCode?: string | boolean
     }
     documents?: AccountDocument[]
   }

@@ -5,16 +5,17 @@ export type * from '../../types'
 
 export { translate, interpolate, defaultMessages, newId } from './text'
 export type { MessageTranslator, TranslateParams } from './text'
-export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField } from './conditions'
+export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField, isAnswerField } from './conditions'
 export type { Answers, VisibleStep } from './conditions'
 export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
 export {
-  fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, removeField, updateField, updateStep, duplicateField,
-  createField, createStep, removeStep, changeMode, pruneReferences, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
+  fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, insertStep, removeField, updateField, updateStep, duplicateField,
+  createField, createStep, removeStep, changeMode, pruneReferences, renameFieldKey, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
+  setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, setAccess, storageWarnings, emailFieldKeys, routableFields,
 } from './builder'
 export type { FieldPosition } from './builder'
-export { formDefinitionSchema, parseFormDefinition, resolveEmailDelivery } from './definition'
+export { formDefinitionSchema, accessSchema, defaultAccess, resolveAccess, parseFormDefinition, resolveEmailDelivery } from './definition'
 export type { FormDefinitionInput } from './definition'
 
 /** Typed identity helper for authoring definitions (seed files, tests). */
@@ -23,3 +24,13 @@ export function defineForm<const T extends FormDefinition>(definition: T): T {
 }
 
 export { renderMarkdown } from './markdown'
+export { captchaProviders, normalizeCaptchaProvider, resolveCaptcha } from './captcha'
+export { previewPayload, previewScale, PREVIEW_WIDTHS } from './preview'
+export type { PreviewDevice } from './preview'
+export {
+  renderAnswers, formatValue, escapeHtml, answersToText, answersToHtml, composeEmail, renderTemplateText, renderTemplateHtml, renderTemplateLine,
+  templateVariables, availableVariables, unknownBodyVariables, sampleAnswers, staticVariables,
+} from './template'
+export type { RenderedAnswer, EmailContext } from './template'
+export { embedMode } from './embed'
+export type { EmbedMode } from './embed'

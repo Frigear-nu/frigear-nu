@@ -186,5 +186,21 @@
         "description": "★ Frigear yearly membership ★ for volunteers and other free folk!"
       }
     }
+  },
+  "users": {
+    "admin": {
+      "roleNames": {
+        "admin": "Admin",
+        "manager": "Manager",
+        "coordinator": "Coordinator",
+        "eventmanager": "Event manager",
+        "barmanager": "Bar manager",
+        "crew": "Crew",
+        "member": "Member",
+        "supplier": "Supplier",
+        "partner": "Partner",
+        "user": "User"
+      }
+    }
   }
 }

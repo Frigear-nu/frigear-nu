@@ -1,10 +1,10 @@
-import type { FieldType, FormDefinition, FormField, FormStep, Translated } from '../../types'
+import type { FieldType, FormAccess, FormDefinition, FormDelivery, FormStorage, FormField, FormStep, Translated } from '../../types'
 
 /** Where a field sits in a definition. */
 export type FieldPosition = { step: number, index: number }
 
 /** Field types in the order the builder palette lists them. */
-export const fieldTypes: FieldType[] = ['text', 'textarea', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'file', 'markdown']
+export const fieldTypes: FieldType[] = ['text', 'textarea', 'email', 'tel', 'number', 'date', 'select', 'radio', 'checkbox', 'file', 'markdown', 'captcha']
 
 const clamp = (value: number, max: number) => Math.max(0, Math.min(value, max))
 
@@ -56,7 +56,7 @@ export function removeField(definition: FormDefinition, at: FieldPosition): Form
   if (!definition.steps[at.step]?.fields[at.index]) return definition
   const steps = definition.steps.map(step => ({ ...step, fields: [...step.fields] }))
   steps[at.step]!.fields.splice(at.index, 1)
-  return { ...definition, steps }
+  return pruneReferences({ ...definition, steps })
 }
 
 export function updateField(definition: FormDefinition, at: FieldPosition, patch: Partial<FormField>): FormDefinition {
@@ -98,17 +98,25 @@ export function uniqueStepId(definition: FormDefinition, base = 'step'): string 
 export function createField(definition: FormDefinition, type: FieldType): FormField {
   const field: FormField = { key: uniqueFieldKey(definition, type), type }
   if (type === 'markdown') field.content = 'Text'
-  else field.label = 'Untitled'
+  else if (type !== 'captcha') field.label = 'Untitled'
   if (type === 'select' || type === 'radio') {
     field.options = [{ value: 'option_1', label: 'Option 1' }, { value: 'option_2', label: 'Option 2' }]
   }
   if (type === 'email') field.autocomplete = 'email'
+  if (type === 'captcha') field.captcha = { provider: 'turnstile' }
   return field
 }
 
 export function createStep(definition: FormDefinition): FormStep {
   const id = uniqueStepId(definition)
   return { id, title: `Step ${definition.steps.length + 1}`, fields: [] }
+}
+
+/** Inserts a step before `index` (the end when out of range). */
+export function insertStep(definition: FormDefinition, index: number, step: FormStep): FormDefinition {
+  const steps = [...definition.steps]
+  steps.splice(clamp(index, steps.length), 0, step)
+  return { ...definition, steps }
 }
 
 export function duplicateField(definition: FormDefinition, at: FieldPosition): FormDefinition {
@@ -118,6 +126,43 @@ export function duplicateField(definition: FormDefinition, at: FieldPosition): F
   copy.key = uniqueFieldKey(definition, field.key)
   delete copy.showIf
   return insertField(definition, { step: at.step, index: at.index + 1 }, copy)
+}
+
+/**
+ * Changes the key of a field and rewrites everything that points at the old key (`showIf` of fields and steps,
+ * the email route field, the reply-to field and `allowResubmit.keep`), so renaming never leaves a dangling reference.
+ */
+export function renameFieldKey(definition: FormDefinition, at: FieldPosition, key: string): FormDefinition {
+  const current = definition.steps[at.step]?.fields[at.index]
+  if (!current || current.key === key) return definition
+  const from = current.key
+  const retarget = <T extends { showIf?: { field: string } }>(item: T): T =>
+    item.showIf?.field === from ? { ...item, showIf: { ...item.showIf, field: key } } : item
+
+  const steps = definition.steps.map((step, stepIndex) => ({
+    ...retarget(step),
+    fields: step.fields.map((field, index) => stepIndex === at.step && index === at.index
+      ? { ...retarget(field), key }
+      : retarget(field)),
+  }))
+  const next: FormDefinition = { ...definition, steps }
+
+  const email = definition.delivery?.email
+  if (email) {
+    next.delivery = {
+      ...definition.delivery,
+      email: {
+        ...email,
+        ...(email.routes?.field === from ? { routes: { ...email.routes, field: key } } : {}),
+        ...(email.replyToField === from ? { replyToField: key } : {}),
+      },
+    }
+  }
+  const resubmit = definition.submit?.allowResubmit
+  if (resubmit?.keep.includes(from)) {
+    next.submit = { ...definition.submit, allowResubmit: { keep: resubmit.keep.map(entry => entry === from ? key : entry) } }
+  }
+  return next
 }
 
 /** Removes `showIf`s, routes, reply-to and `keep` entries that point at a field that no longer exists. */
@@ -130,7 +175,7 @@ export function pruneReferences(definition: FormDefinition): FormDefinition {
     const stepOk = ok(step.showIf)
     const fields = step.fields.map((field) => {
       const keep = ok(field.showIf)
-      if (field.type !== 'markdown') seen.add(field.key)
+      if (field.type !== 'markdown' && field.type !== 'captcha') seen.add(field.key)
       if (keep) return field
       const { showIf: _dropped, ...rest } = field
       return rest
@@ -202,4 +247,82 @@ export function expandTranslated(value: Translated | undefined, locale: string):
 export function collapseTranslated(value: Translated | undefined, locale: string): Translated | undefined {
   if (!value || typeof value === 'string') return value
   return value[locale] || value.en || Object.values(value).find(Boolean) || undefined
+}
+
+type EmailDelivery = NonNullable<FormDelivery['email']>
+
+const cleanAddresses = (to: readonly string[]) => [...new Set(to.map(address => address.trim()).filter(Boolean))]
+
+/** Replaces `delivery.email`; `undefined` removes it (and an emptied `delivery`). */
+function withEmail(definition: FormDefinition, email: EmailDelivery | undefined): FormDefinition {
+  const { delivery: _dropped, ...rest } = definition
+  const delivery = { ...definition.delivery }
+  if (email) delivery.email = email
+  else delete delivery.email
+  return Object.keys(delivery).length ? { ...rest, delivery } : rest
+}
+
+/** Sets the default recipients. An empty list switches email delivery off and drops its subject, body, reply-to and routes. */
+export function setEmailRecipients(definition: FormDefinition, to: readonly string[]): FormDefinition {
+  const addresses = cleanAddresses(to)
+  if (!addresses.length) return withEmail(definition, undefined)
+  return withEmail(definition, { ...definition.delivery?.email, to: addresses })
+}
+
+/** Patches subject / reply-to of an existing email delivery (no-op without recipients); `undefined` values are removed. */
+export function patchEmailDelivery(definition: FormDefinition, patch: Partial<Pick<EmailDelivery, 'subject' | 'body' | 'replyToField'>>): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email) return definition
+  const merged = { ...email, ...patch }
+  const { subject, body, replyToField, ...rest } = merged
+  return withEmail(definition, { ...rest, ...(subject ? { subject } : {}), ...(body ? { body } : {}), ...(replyToField ? { replyToField } : {}) })
+}
+
+/** Chooses the field whose answer routes the email; `undefined` removes all routes. Switching the field starts with no routes. */
+export function setRouteField(definition: FormDefinition, field: string | undefined): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email) return definition
+  const { routes, ...rest } = email
+  if (!field) return withEmail(definition, rest)
+  return withEmail(definition, { ...rest, routes: routes?.field === field ? routes : { field, to: {} } })
+}
+
+/** Sets the recipients for one answer value of the route field; an empty list removes that route. */
+export function setRoute(definition: FormDefinition, value: string, to: readonly string[]): FormDefinition {
+  const email = definition.delivery?.email
+  if (!email?.routes) return definition
+  const addresses = cleanAddresses(to)
+  const routed = Object.fromEntries(Object.entries(email.routes.to).filter(([key]) => key !== value))
+  if (addresses.length) routed[value] = addresses
+  return withEmail(definition, { ...email, routes: { field: email.routes.field, to: routed } })
+}
+
+export function setStorage(definition: FormDefinition, storage: FormStorage): FormDefinition {
+  return definition.storage === storage ? definition : { ...definition, storage }
+}
+
+/** Sets who may use the form. Token access forces API-only (a token cannot be typed into a page). */
+export function setAccess(definition: FormDefinition, patch: Partial<FormAccess>): FormDefinition {
+  const next = { availability: 'web', auth: 'none', ...definition.access, ...patch } as FormAccess
+  if (next.auth === 'token') next.availability = 'api'
+  return { ...definition, access: next }
+}
+
+/** Problems of a storage choice: file fields cannot work without storage, and a form that neither stores nor emails loses its answers. */
+export function storageWarnings(definition: FormDefinition): { files: boolean, lost: boolean } {
+  if (definition.storage !== 'none') return { files: false, lost: false }
+  return {
+    files: definition.steps.some(step => step.fields.some(field => field.type === 'file')),
+    lost: !definition.delivery?.email,
+  }
+}
+
+/** Email-type fields that can serve as the reply-to address. */
+export function emailFieldKeys(definition: FormDefinition): string[] {
+  return definition.steps.flatMap(step => step.fields.filter(field => field.type === 'email').map(field => field.key))
+}
+
+/** Select / radio fields whose answer can route the email. */
+export function routableFields(definition: FormDefinition): FormField[] {
+  return definition.steps.flatMap(step => step.fields.filter(field => (field.type === 'select' || field.type === 'radio') && field.options?.length))
 }

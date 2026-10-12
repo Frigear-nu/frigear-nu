@@ -12,14 +12,18 @@ export const users = sqliteTable('users', {
   updatedAt: integer({ mode: 'timestamp' }).notNull().$onUpdateFn(() => new Date()),
 })
 
-export const userPasskeys = sqliteTable('user_passkeys', {
-  id: integer().primaryKey({ autoIncrement: true }),
+// WebAuthn credentials (passkeys). `id` is the base64url credential id issued by the authenticator.
+export const userCredentials = sqliteTable('user_credentials', {
+  id: text().primaryKey(),
   userId: integer().notNull().references(() => users.id, { onDelete: 'cascade' }),
-  credential: text({ mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  publicKey: text().notNull(),
+  counter: integer().notNull().default(0),
+  backedUp: integer({ mode: 'boolean' }).notNull().default(false),
+  transports: text({ mode: 'json' }).$type<string[]>(),
+  name: text(),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer({ mode: 'timestamp' }).notNull().$onUpdateFn(() => new Date()),
 }, t => [
-  index('user_passkey_user_idx').on(t.userId),
+  index('user_credential_user_idx').on(t.userId),
 ])
 
 export const passwordResets = sqliteTable('password_resets', {

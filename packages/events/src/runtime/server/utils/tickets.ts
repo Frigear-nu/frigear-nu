@@ -67,11 +67,11 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
   })
   for (const group of typeGroups) {
     const inGroup = chosen.filter(addon => addon.groupId === group.id)
-    if (group.required && inGroup.length === 0) throw fail(400, `Choose an option for "${translate(group.title)}".`)
-    if (!group.multiple && inGroup.length > 1) throw fail(400, `Only one option can be chosen for "${translate(group.title)}".`)
+    if (group.required && inGroup.length === 0) throw fail(400, `Choose an option for "${translate(group.title, body.locale)}".`)
+    if (!group.multiple && inGroup.length > 1) throw fail(400, `Only one option can be chosen for "${translate(group.title, body.locale)}".`)
   }
   for (const addon of chosen) {
-    if (addon.capacity !== null && (await countAddonSeats(addon.id)) >= addon.capacity) throw fail(409, `"${translate(addon.label)}" is sold out.`)
+    if (addon.capacity !== null && (await countAddonSeats(addon.id)) >= addon.capacity) throw fail(409, `"${translate(addon.label, body.locale)}" is sold out.`)
   }
 
   if (type.capacity !== null && (await countSeats(type.id)) >= type.capacity) throw fail(409, 'This ticket type is sold out.')
@@ -92,6 +92,7 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
     eventId: eventRow.id,
     ticketTypeId: type.id,
     userId,
+    locale: body.locale ?? null,
     status: amount === 0 ? 'paid' : 'pending',
     addons: chosen.map(addon => ({ id: addon.id, label: addon.label, price: addon.price })),
     amount,
@@ -119,7 +120,7 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
       .limit(addon.capacity!)
     if (!winners.some(winner => winner.id === id)) {
       await release(id)
-      throw fail(409, `"${translate(addon.label)}" is sold out.`)
+      throw fail(409, `"${translate(addon.label, body.locale)}" is sold out.`)
     }
   }
 
@@ -135,10 +136,10 @@ export async function purchaseTicket(event: H3Event, userId: number, slug: strin
     const urls = returnUrls(event, eventRow.slug, id, body)
     const { payment, url } = await createPayment({
       userId,
-      description: `${translate(eventRow.name)} - ${translate(type.name)}`,
+      description: `${translate(eventRow.name, body.locale)} - ${translate(type.name, body.locale)}`,
       items: [
-        ...(type.price > 0 ? [{ name: `${translate(eventRow.name)} - ${translate(type.name)}`, amount: type.price, currency: type.currency }] : []),
-        ...chosen.filter(addon => addon.price > 0).map(addon => ({ name: translate(addon.label), amount: addon.price, currency: type.currency })),
+        ...(type.price > 0 ? [{ name: `${translate(eventRow.name, body.locale)} - ${translate(type.name, body.locale)}`, amount: type.price, currency: type.currency }] : []),
+        ...chosen.filter(addon => addon.price > 0).map(addon => ({ name: translate(addon.label, body.locale), amount: addon.price, currency: type.currency })),
       ],
       reference: { type: 'event_ticket', id },
       expiresInMinutes: useRuntimeConfig().events.reservationMinutes,

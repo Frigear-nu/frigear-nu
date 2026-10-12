@@ -22,6 +22,20 @@
       "when": 1791751432760,
       "tag": "0002_add_excludes_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791767992345,
+      "tag": "0003_add_subscription_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791870000000,
+      "tag": "0004_add_ticket_locale",
+      "breakpoints": true
     }
   ]
 }

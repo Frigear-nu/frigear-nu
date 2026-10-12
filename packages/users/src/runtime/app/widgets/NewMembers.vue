@@ -3,7 +3,7 @@ defineOptions({ name: 'UsersNewMembersWidget' })
 
 const t = useModuleT('users')
 const adminPage = useRuntimeConfig().public.users?.pages?.admin
-const { data: members } = await useFetch<{ id: number, name: string, email: string, createdAt: string }[]>('/api/admin/users/new-members', { default: () => [] })
+const { data: members } = await useFetch<{ id: number, name: string, email: string, createdAt: string, subscription?: { planKey: string | null, status: string } | null }[]>('/api/admin/users/new-members', { default: () => [] })
 </script>
 
 <template>
@@ -22,8 +22,24 @@ const { data: members } = await useFetch<{ id: number, name: string, email: stri
         class="flex items-center justify-between gap-4 py-2 text-sm"
       >
         <span class="min-w-0 truncate">
-          <span class="font-medium">{{ member.name }}</span>
+          <NuxtLink
+            v-if="adminPage"
+            :to="`${adminPage.replace(/\/+$/, '')}/${member.id}`"
+            class="font-medium hover:underline"
+          >{{ member.name }}</NuxtLink>
+          <span
+            v-else
+            class="font-medium"
+          >{{ member.name }}</span>
           <span class="text-muted"> · {{ member.email }}</span>
+          <UBadge
+            v-if="member.subscription"
+            class="ml-2"
+            size="sm"
+            variant="subtle"
+            :color="['active', 'trialing'].includes(member.subscription.status) ? 'success' : 'neutral'"
+            :label="member.subscription.planKey ?? member.subscription.status"
+          />
         </span>
         <time class="text-muted shrink-0">{{ new Date(member.createdAt).toLocaleDateString() }}</time>
       </li>

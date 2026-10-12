@@ -8,8 +8,12 @@ export default defineEventHandler(async (event) => {
 
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing credential id.' })
 
-  await db.delete(schema.userCredentials)
+  // Scoped to the session user so one account can never remove another's passkey.
+  const removed = await db.delete(schema.userCredentials)
     .where(and(eq(schema.userCredentials.id, id), eq(schema.userCredentials.userId, user.id)))
+    .returning({ id: schema.userCredentials.id })
+
+  if (!removed.length) throw createError({ statusCode: 404, statusMessage: 'Passkey not found.' })
 
   return { success: true }
 })
