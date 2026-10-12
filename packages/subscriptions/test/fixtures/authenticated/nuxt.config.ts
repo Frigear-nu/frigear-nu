@@ -34,6 +34,7 @@ export default defineNuxtConfig({
       secret: { rank: 3, prices: ['price_secret_m'] },
     },
     settings: {
+      mcp: true,
       pages: { membership: '/account/membership', success: true, cancel: true },
     },
   },

@@ -19,6 +19,8 @@ export type ModuleOptions = {
   /** Extra scopes advertised and accepted next to `openid profile email`. Enrich their claims with `oauth:claims`. */
   scopes?: string[]
   settings?: {
+    // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
     pages?: {
       /** Consent screen. On by default (`/authorize`); pass `false` to provide your own page at that path. */
       authorize?: string | boolean

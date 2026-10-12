@@ -11,6 +11,8 @@ export type TicketStatus = 'pending' | 'paid' | 'cancelled' | 'refunded' | 'expi
 
 export type ModuleOptions = {
   settings?: {
+    // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
     pages?: {
       /** Event list. `true` = `/events`. */
       events?: string | boolean

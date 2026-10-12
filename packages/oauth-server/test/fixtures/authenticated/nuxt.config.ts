@@ -24,7 +24,7 @@ export default defineNuxtConfig({
   oauthServer: {
     issuer: 'https://id.example.test',
     scopes: ['groups'],
-    settings: { pages: { authorize: false } },
+    settings: { pages: { authorize: false }, mcp: true },
   },
   users: {
     mode: 'server',

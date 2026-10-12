@@ -95,7 +95,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
+    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     // The Frigear ID QR is signed with `runtimeConfig.account.idCode.privateKey` (NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY) or,
     // when unset, the RS256 key of `@frigear-nu/oauth-server` (`runtimeConfig.oauthServer`), which publishes the JWKS.
     const existingAccount = nuxt.options.runtimeConfig.account as { idCode?: object } | undefined
@@ -142,6 +142,7 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.account = {
       pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath, apiTokens: apiTokensPath },
       documents: settings.documents ?? [],
+      mcp: settings.mcp === true,
     }
 
     if (indexPath || profilePath || securityPath || documentsPath || idCodePath || apiTokensPath) {

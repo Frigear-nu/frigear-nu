@@ -101,6 +101,7 @@ async function onRevoke(token: ApiToken) {
 }
 
 // The token is only ever inlined into a snippet while it is revealed; afterwards the snippets show a placeholder.
+const mcpEnabled = useRuntimeConfig().public.account?.mcp === true
 const activeConnect = ref('claude')
 const mcpUrl = `${useRequestURL().origin}/mcp`
 const tokenPlaceholder = '<your-api-token>'
@@ -225,6 +226,7 @@ function statusColor(status: ApiToken['status']) {
         </UPageCard>
 
         <UPageCard
+          v-if="mcpEnabled"
           :title="t('connect.title', 'Connect to MCP')"
           :description="t('connect.description', 'Use your account from an AI assistant. Your API token is only filled into the commands right after you create it.')"
           variant="subtle"

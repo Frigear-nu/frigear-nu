@@ -174,7 +174,7 @@ export default defineNuxtModule<ModuleOptions>({
     api('post', 'admin/applications/:id/revoke', 'api/admin/application-revoke.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
+    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     // --- App runtime -----------------------------------------------------------------------
     addImports([

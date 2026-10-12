@@ -20,6 +20,9 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
+  account: {
+    settings: { mcp: true },
+  },
   users: {
     mode: 'server',
     settings: { migrations: true, password: true },
