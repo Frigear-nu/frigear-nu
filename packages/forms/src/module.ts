@@ -83,6 +83,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
+    '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
   },
   async setup(options, nuxt) {

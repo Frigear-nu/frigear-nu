@@ -860,6 +860,9 @@ importers:
       '@frigear-nu/notify':
         specifier: workspace:*
         version: link:../notify
+      '@frigear-nu/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users

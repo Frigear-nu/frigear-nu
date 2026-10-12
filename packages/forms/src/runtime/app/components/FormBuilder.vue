@@ -5,6 +5,7 @@ import {
   removeField, removeStep, renameFieldKey, resolveCaptcha, translate, updateField, updateStep,
 } from '../../utils'
 import type { FieldPosition } from '../../utils'
+import { useConfirmDialog } from '@frigear-nu/ui/composables'
 import { captchaDefaultProvider, captchaSiteKey } from '../composables/useCaptcha'
 import { useFormsLocale } from '../composables/useForms'
 
@@ -242,7 +243,20 @@ function moveOption(index: number, delta: -1 | 1) {
   patchField({ options: arrayMove(selectedField.value?.options ?? [], index, index + delta) })
 }
 
-function setMode(mode: FormDefinition['mode']) {
+const confirm = useConfirmDialog()
+
+// Going from steps to a single page merges every step into one and drops step titles and conditions, and
+// switching back does not restore them, so ask first when there is more than one step to lose.
+async function setMode(mode: FormDefinition['mode']) {
+  if (mode === definition.value.mode) return
+  if (mode === 'single' && definition.value.steps.length > 1) {
+    const ok = await confirm({
+      title: t('builder.singleConfirmTitle', 'Switch to a single page?'),
+      description: t('builder.singleConfirmDescription', 'All steps are merged into one page. Step titles, descriptions and step conditions are lost, and switching back to steps will not restore them.'),
+      confirmText: t('builder.singleConfirmButton', 'Switch to single page'),
+    })
+    if (!ok) return
+  }
   definition.value = changeMode(definition.value, mode)
   selection.value = undefined
 }
