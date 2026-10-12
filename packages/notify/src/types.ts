@@ -96,7 +96,12 @@ export type ModuleOptions = {
     // path to a function (default export) matching the `EmailDriver` signature above, for a real
     // provider (Resend, SMTP, ...). This is an app/consuming-layer concern - modules that need to
     // send email (e.g. `@frigear-nu/users`) just dispatch notifications; they never decide how.
-    driver?: string | 'log'
+    //
+    // Built-in names are `'resend'`, `'ses'` and `'cloudflare'` (zero-dependency, `fetch` only).
+    // These only set the default: the driver and its credentials are read at runtime from
+    // `NUXT_NOTIFY_EMAIL_DRIVER`, `NUXT_NOTIFY_EMAIL_FROM`, `NUXT_NOTIFY_EMAIL_RESEND_API_TOKEN`,
+    // `NUXT_NOTIFY_EMAIL_SES_*` and `NUXT_NOTIFY_EMAIL_CLOUDFLARE_*` (see `NotifyRuntimeConfig`).
+    driver?: 'log' | 'resend' | 'ses' | 'cloudflare' | (string & {})
   }
   sms?: {
     // Selects the driver used to deliver SMS notifications dispatched through this module: either
@@ -121,6 +126,22 @@ export type ModuleOptions = {
   // written/loaded) when explicitly configured - there's no sensible default UI to push to.
   ui?: {
     driver?: string | '@nuxt/ui'
+  }
+}
+
+/** Private runtime config (`runtimeConfig.notify`), overridable through `NUXT_NOTIFY_*` env vars. */
+export type NotifyRuntimeConfig = {
+  email: {
+    /** `NUXT_NOTIFY_EMAIL_DRIVER`: `log` (default), `resend`, `ses` or `cloudflare`. */
+    driver: string
+    /** `NUXT_NOTIFY_EMAIL_FROM`: sender address, e.g. `Frigear <no-reply@frigear.nu>`. */
+    from: string
+    /** `NUXT_NOTIFY_EMAIL_RESEND_API_TOKEN` */
+    resend: { apiToken: string }
+    /** `NUXT_NOTIFY_EMAIL_SES_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`, `_SESSION_TOKEN` (optional) */
+    ses: { region: string, accessKeyId: string, secretAccessKey: string, sessionToken: string }
+    /** `NUXT_NOTIFY_EMAIL_CLOUDFLARE_ACCOUNT_ID`, `_API_TOKEN` */
+    cloudflare: { accountId: string, apiToken: string }
   }
 }
 
