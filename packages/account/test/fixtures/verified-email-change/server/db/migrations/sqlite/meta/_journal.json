@@ -36,6 +36,13 @@
       "when": 1791812837563,
       "tag": "0004_auth_user_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791840701110,
+      "tag": "0005_add_color_mode",
+      "breakpoints": true
     }
   ]
 }

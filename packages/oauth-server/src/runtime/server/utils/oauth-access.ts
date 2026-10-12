@@ -79,6 +79,8 @@ export async function buildClaims(input: {
     if (input.scope.includes('profile')) {
       claims.name = input.user.name
       if (input.user.avatar) claims.picture = input.user.avatar
+      // Added to `users` by the account module; absent when unset so apps keep their own default.
+      if (typeof input.user.colorMode === 'string') claims.color_mode = input.user.colorMode
     }
     if (input.scope.includes('email')) claims.email = input.user.email
   }

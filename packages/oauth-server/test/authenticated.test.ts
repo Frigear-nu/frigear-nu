@@ -269,6 +269,39 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await fetch('/oauth/userinfo', { headers: { authorization: 'Bearer garbage' } })).status).toBe(401)
     })
 
+    it('forwards the stored color mode with the profile scope only', async () => {
+      const app = await createApp()
+      const member = await user('Themed', 'staff.test')
+      const exchange = async (scope: string) => {
+        const { verifier, challenge } = pkce()
+        const code = await authorizeCode(member, app.clientId, challenge, { scope })
+        return await (await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })).json() as Json
+      }
+      const userinfoOf = (tokens: Json) => $fetch<Json>('/oauth/userinfo', { headers: { authorization: `Bearer ${tokens.access_token}` } })
+
+      // Nothing stored yet: the claim is omitted so the application keeps its own default.
+      const before = await exchange('openid profile')
+      expect(decodeJwt(before.id_token).color_mode).toBeUndefined()
+
+      await ok(await json(member.cookie, 'POST', '/api/test/color-mode', { colorMode: 'dark' }))
+
+      const withProfile = await exchange('openid profile')
+      expect(decodeJwt(withProfile.id_token).color_mode).toBe('dark')
+      expect((await userinfoOf(withProfile)).color_mode).toBe('dark')
+      expect(decodeJwt(withProfile.access_token).color_mode).toBeUndefined()
+
+      const withoutProfile = await exchange('openid email')
+      expect(decodeJwt(withoutProfile.id_token).color_mode).toBeUndefined()
+      expect((await userinfoOf(withoutProfile)).color_mode).toBeUndefined()
+
+      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: 'openid profile' })
+      const decision = await ok(await json(member.cookie, 'POST', '/oauth/authorize', { ...Object.fromEntries(query), approved: true }))
+      expect(new URL(decision.redirectUrl).searchParams.get('color_mode')).toBe('dark')
+
+      const config = await $fetch<Json>('/.well-known/openid-configuration')
+      expect(config.claims_supported).toContain('color_mode')
+    })
+
     it('accepts client credentials in the body too', async () => {
       const app = await createApp()
       const { verifier, challenge } = pkce()

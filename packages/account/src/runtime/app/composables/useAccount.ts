@@ -27,6 +27,13 @@ export const useAccount = () => {
     )
   }
 
+  function updateColorMode(payload: { colorMode: 'light' | 'dark' | 'system' }) {
+    return withRequest(
+      () => $fetch('/api/account/color-mode', { method: 'POST', body: payload }),
+      'Failed to update your color mode.',
+    )
+  }
+
   function changeEmailAddress(payload: { email: string }) {
     return withRequest(
       () => $fetch('/api/account/change-email', { method: 'POST', body: payload }),
@@ -41,5 +48,5 @@ export const useAccount = () => {
     )
   }
 
-  return { updateProfileDetails, changeEmailAddress, changePassword, pending, error }
+  return { updateProfileDetails, updateColorMode, changeEmailAddress, changePassword, pending, error }
 }

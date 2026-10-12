@@ -78,6 +78,11 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/account/profile.post'),
     })
     addServerHandler({
+      route: '/api/account/color-mode',
+      method: 'post',
+      handler: resolver.resolve('./runtime/server/routes/account/color-mode.post'),
+    })
+    addServerHandler({
       route: '/api/account/change-email',
       method: 'post',
       handler: resolver.resolve('./runtime/server/routes/account/change-email.post'),
