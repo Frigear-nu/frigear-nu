@@ -32,22 +32,6 @@ const { loggedIn } = useUserSession()
 const route = useRoute()
 const [DefineCard, ReuseCard] = createReusableTemplate<{ plan: SubscriptionPlan, preview?: boolean }>()
 
-const isWide = useMediaQuery('(min-width: 640px)')
-const useTabs = computed(() => props.mode === 'tabs' || (props.mode === 'auto' && !isWide.value))
-const activeTab = ref<string>()
-const tabItems = computed(() => visible.value.map(plan => ({
-  value: plan.key,
-  label: priceFor(plan) ? `/ ${intervalLabel(priceFor(plan)!)}` : labelOf(plan),
-  plan,
-})))
-watchEffect(() => {
-  if (!activeTab.value || !visible.value.some(p => p.key === activeTab.value)) {
-    activeTab.value = (visible.value.find(p => p.key === currentPlan.value) ?? visible.value[visible.value.length - 1])?.key
-  }
-})
-
-const highlighted = (plan: SubscriptionPlan) => props.highlight ? props.highlight === plan.key : stateOf(plan) === 'current'
-
 const visible = computed(() => allPlans.value.filter(p => !props.plans || props.plans.includes(p.key)))
 const currentRank = computed(() => allPlans.value.find(p => p.key === currentPlan.value)?.rank ?? null)
 
@@ -83,6 +67,22 @@ function stateOf(plan: SubscriptionPlan): 'current' | 'upgrade' | 'downgrade' | 
 
 const stateLabel = (state: ReturnType<typeof stateOf>) =>
   t(state, { current: 'Current plan', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[state])
+
+const isWide = useMediaQuery('(min-width: 640px)', { ssrWidth: 1024 })
+const useTabs = computed(() => props.mode === 'tabs' || (props.mode === 'auto' && !isWide.value))
+const activeTab = ref<string>()
+const tabItems = computed(() => visible.value.map(plan => ({
+  value: plan.key,
+  label: priceFor(plan) ? `/ ${intervalLabel(priceFor(plan)!)}` : labelOf(plan),
+  plan,
+})))
+watchEffect(() => {
+  if (!activeTab.value || !visible.value.some(p => p.key === activeTab.value)) {
+    activeTab.value = (visible.value.find(p => p.key === currentPlan.value) ?? visible.value[visible.value.length - 1])?.key
+  }
+})
+
+const highlighted = (plan: SubscriptionPlan) => props.highlight ? props.highlight === plan.key : stateOf(plan) === 'current'
 
 function featuresOf(plan: SubscriptionPlan) {
   return plan.features?.length ? plan.features : undefined
@@ -154,11 +154,16 @@ watch([visible, subscriptionStatus, loggedIn], () => {
         :features="featuresOf(plan)"
         :terms="t('feeIncluded', '*Payment fees are included in the amount')"
         :highlight="!preview && highlighted(plan)"
-        :scale="!preview && highlighted(plan)"
         :badge="!preview && stateOf(plan) === 'current' ? t('current', 'Current plan') : undefined"
         :tagline="priceFor(plan)?.trialPeriodDays ? t('trial', '{days}-day free trial', { days: priceFor(plan)!.trialPeriodDays! }) : undefined"
-        variant="outline"
-        :ui="{ billingCycle: 'uppercase ml-1' }"
+        variant="subtle"
+        :ui="{
+          root: 'rounded-xl transition-shadow hover:shadow-lg',
+          title: 'text-lg font-semibold',
+          price: 'text-4xl font-extrabold text-primary',
+          billingCycle: 'uppercase ml-1 text-muted',
+          terms: 'text-xs text-muted',
+        }"
       >
         <template
           v-if="$slots.header"
@@ -269,16 +274,17 @@ watch([visible, subscriptionStatus, loggedIn], () => {
           :plan="visible.find(p => p.key === activeTab)!"
         />
       </div>
-      <UPricingPlans
+      <div
         v-else
-        :ui="{ root: visible.length === 2 ? 'lg:grid-cols-2' : undefined }"
+        class="grid items-stretch gap-6 sm:grid-cols-2"
+        :class="visible.length >= 3 ? 'lg:grid-cols-3' : ''"
       >
         <ReuseCard
           v-for="plan in visible"
           :key="plan.key"
           :plan="plan"
         />
-      </UPricingPlans>
+      </div>
     </template>
 
     <UModal
