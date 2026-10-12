@@ -26,7 +26,7 @@ async function redeliver() {
 </script>
 
 <template>
-  <UContainer class="max-w-none space-y-6 py-10">
+  <div class="space-y-6">
     <UAlert
       v-if="error || !submission"
       color="error"
@@ -60,5 +60,5 @@ async function redeliver() {
 
       <FormSubmissionView :submission="submission" />
     </template>
-  </UContainer>
+  </div>
 </template>
