@@ -1,6 +1,8 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
+import type { H3Event } from 'h3'
+import type { AuthScopeAvailabilityContext } from '../../../types'
 import { scopes as registeredScopes } from '#auth/scopes'
 import { tokenStatus } from '../../utils/tokens'
 
@@ -23,7 +25,27 @@ export function toPublicToken(row: TokenRow) {
 
 export const newTokenId = () => `aut_${crypto.randomUUID().replaceAll('-', '')}`
 
-export const registeredScopeNames = () => registeredScopes.map(scope => scope.name)
+/**
+ * The registered scopes this user may pick for a token: those restricted by `roles` for other roles
+ * and those a `auth:scope-available` hook hides are left out. A failing hook hides the scope.
+ */
+export async function availableScopes(event: H3Event, user: { id: number, role?: string }) {
+  const hooks = useNitroApp().hooks
+  const result: typeof registeredScopes = []
+  for (const scope of registeredScopes) {
+    if (scope.roles?.length && !(user.role && scope.roles.includes(user.role))) continue
+    const ctx: AuthScopeAvailabilityContext = { event, user, scope, available: true }
+    try {
+      await hooks.callHook('auth:scope-available', ctx)
+    }
+    catch (error) {
+      console.error('[auth] scope availability hook failed, hiding scope', scope.name, error)
+      ctx.available = false
+    }
+    if (ctx.available) result.push(scope)
+  }
+  return result
+}
 
 export const createTokenSchema = z.object({
   name: z.string().trim().min(1).max(80),

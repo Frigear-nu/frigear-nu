@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const user = await requireUser(event, { sessionOnly: true })
   const body = await readValidatedBody(event, createTokenSchema.parse)
 
-  const registered = registeredScopeNames()
+  const registered = (await availableScopes(event, user as { id: number, role?: string })).map(scope => scope.name)
   const unknown = body.scopes.filter(scope => !isGrantableScope(scope, registered))
   if (unknown.length) {
     throw createError({ statusCode: 400, statusMessage: `Unknown scopes: ${unknown.join(', ')}` })

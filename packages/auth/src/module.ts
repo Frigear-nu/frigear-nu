@@ -7,10 +7,10 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import { moduleApiUrl, registerDatabaseTable } from '@frigear-nu/module-kit/utils'
-import type { AuthResolverDefinition, AuthScopeDefinition, ModuleOptions } from './types'
+import type { AuthResolverDefinition, AuthScopeAvailabilityContext, AuthScopeDefinition, ModuleOptions } from './types'
 import type { AuthUserLoaderRegistration } from './runtime/utils/build'
 
-export type { AuthResolverDefinition, AuthScopeDefinition, ModuleOptions } from './types'
+export type { AuthResolverDefinition, AuthScopeAvailabilityContext, AuthScopeDefinition, ModuleOptions } from './types'
 
 declare module 'nuxt/schema' {
   interface NuxtConfig {
@@ -19,6 +19,13 @@ declare module 'nuxt/schema' {
 
   interface RuntimeConfig {
     authentication?: { tokenTtlDays: number | null }
+  }
+}
+
+declare module 'nitropack' {
+  interface NitroRuntimeHooks {
+    /** Decides per user whether a registered scope may be picked for a token: set `ctx.available = false` to hide it. */
+    'auth:scope-available': (ctx: AuthScopeAvailabilityContext) => void | Promise<void>
   }
 }
 
@@ -105,7 +112,7 @@ export default defineNuxtModule<ModuleOptions>({
   }>
 }
 declare module '#auth/scopes' {
-  export const scopes: Array<{ name: string, description?: string }>
+  export const scopes: Array<{ name: string, description?: string, roles?: string[] }>
 }
 declare module '#auth/user-loader' {
   const loadUser: (id: string) => Promise<import('#auth-utils').User | null>

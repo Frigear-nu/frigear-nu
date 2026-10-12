@@ -13,6 +13,19 @@ export interface AuthResolverDefinition {
 export interface AuthScopeDefinition {
   name: string
   description?: string
+  /**
+   * Only users whose `role` is one of these may pick (or be granted) the scope. Omit for every user.
+   * Policy that is not role based (a host `*:authorize` hook) uses the `auth:scope-available` Nitro hook instead.
+   */
+  roles?: string[]
+}
+
+export interface AuthScopeAvailabilityContext {
+  event: import('h3').H3Event
+  user: { id: number, role?: string }
+  scope: AuthScopeDefinition
+  /** Starts `true`; set it to `false` to hide the scope from this user and refuse it on new tokens. */
+  available: boolean
 }
 
 export interface ModuleOptions {

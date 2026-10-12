@@ -52,6 +52,21 @@ const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list'))
 const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
 const mcpText = (response: { result?: Json, error?: Json }) => JSON.stringify(response)
 
+async function scopesFor(cookie: string) {
+  const response = await fetch('/api/auth/scopes', { headers: { cookie } })
+  expect(response.status).toBe(200)
+  return (await response.json() as Array<{ name: string }>).map(scope => scope.name)
+}
+
+async function tokenStatus(cookie: string, scopes: string[]) {
+  const response = await fetch('/api/auth/tokens', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ name: 'probe', scopes }),
+  })
+  return response.status
+}
+
 async function mcpToken(cookie: string, scopes: string[]) {
   const response = await fetch('/api/auth/tokens', {
     method: 'POST',
@@ -694,7 +709,11 @@ describe('forms (authenticated, database-backed)', async () => {
       const manage = await createToken(staff.cookie, ['forms:manage'])
       expect((await fetch('/api/forms/admin/forms', { headers: bearer(manage) })).status).toBe(200)
       expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(staff.cookie, ['forms:submit'])) })).status).toBe(403)
-      expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(nobody.cookie, ['forms:manage'])) })).status).toBe(403)
+      // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
+      expect(await scopesFor(nobody.cookie)).not.toContain('forms:manage')
+      expect(await scopesFor(nobody.cookie)).toContain('forms:submit')
+      expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['forms:manage', 'forms:pii']))
+      expect(await tokenStatus(nobody.cookie, ['forms:manage'])).toBe(400)
     })
 
     it('does not mistake per-form tokens for credentials', async () => {
@@ -708,7 +727,8 @@ describe('forms (authenticated, database-backed)', async () => {
       const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
       const guest = await registerUser('Guest', 'mcp-guest@example.com')
 
-      const guestAll = await mcpToken(guest.cookie, ['forms:submit', 'forms:manage', 'forms:pii'])
+      expect(await tokenStatus(guest.cookie, ['forms:manage'])).toBe(400)
+      const guestAll = await mcpToken(guest.cookie, ['forms:submit'])
       expect(await mcpNames(guestAll)).toEqual(['get-form', 'list-forms', 'submit-form'])
 
       const staffManage = await mcpToken(staff.cookie, ['forms:manage'])

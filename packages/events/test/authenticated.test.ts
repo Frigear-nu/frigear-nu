@@ -35,6 +35,21 @@ async function mcpRpc(bearer: string, method: string, params: Json = {}) {
 const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list')).result?.tools ?? []).map((tool: { name: string }) => tool.name).sort() as string[]
 const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
 
+async function scopesFor(cookie: string) {
+  const response = await fetch('/api/auth/scopes', { headers: { cookie } })
+  expect(response.status).toBe(200)
+  return (await response.json() as Array<{ name: string }>).map(scope => scope.name)
+}
+
+async function tokenStatus(cookie: string, scopes: string[]) {
+  const response = await fetch('/api/auth/tokens', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ name: 'probe', scopes }),
+  })
+  return response.status
+}
+
 async function mcpToken(cookie: string, scopes: string[]) {
   const response = await fetch('/api/auth/tokens', {
     method: 'POST',
@@ -505,7 +520,11 @@ describe('events (authenticated, database-backed)', async () => {
       const staffToken = await createToken(staff.cookie, ['events:manage'])
       expect((await fetch('/api/events/admin/events', { headers: bearer(staffToken) })).status).toBe(200)
       expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
-      expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(nobody.cookie, ['events:manage'])) })).status).toBe(403)
+      // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
+      expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
+      expect(await scopesFor(nobody.cookie)).toContain('tickets:read')
+      expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['events:manage', 'events:pii']))
+      expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(400)
     })
   })
 
@@ -514,7 +533,9 @@ describe('events (authenticated, database-backed)', async () => {
       const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
       const guest = await registerUser('Guest', 'mcp-guest@example.com')
 
-      const guestAll = await mcpToken(guest.cookie, ['tickets:read', 'events:manage', 'events:pii'])
+      expect(await tokenStatus(guest.cookie, ['events:manage'])).toBe(400)
+      expect(await tokenStatus(guest.cookie, ['events:pii'])).toBe(400)
+      const guestAll = await mcpToken(guest.cookie, ['tickets:read'])
       expect(await mcpNames(guestAll)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
       const staffRead = await mcpToken(staff.cookie, ['tickets:read'])
