@@ -104,7 +104,8 @@
       "previewUnavailable": "Ret definitionen for at se en forhåndsvisning.",
       "builder": "Opbygning",
       "json": "JSON",
-      "access": "Adgang"
+      "access": "Adgang",
+      "clone": "Duplikér"
     },
     "schedule": {
       "closed": "Formularen er lukket.",
