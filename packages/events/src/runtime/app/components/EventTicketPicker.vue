@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TicketTypeDto } from '../../../types'
-import { formatPrice } from '../../utils'
+import { withMdcData } from '@frigear-nu/ui/markdown'
+import { formatPrice, ticketMdcData } from '../../utils'
 
 const props = defineProps<{
   ticketTypes: TicketTypeDto[]
@@ -10,6 +11,8 @@ const props = defineProps<{
 const emit = defineEmits<{ purchase: [ticketTypeId: string, addonIds: string[]] }>()
 
 const locale = useEventsLocale()
+// MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
+const hasMdc = typeof resolveComponent('MDC') !== 'string'
 const tr = useEventsTranslate()
 const selectedId = ref<string>()
 // Group id -> chosen addon ids.
@@ -86,12 +89,19 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
           class="ml-auto"
         >{{ type.price === 0 ? 'Free' : formatPrice(type.price, type.currency, locale) }}</span>
       </div>
-      <p
+      <div
         v-if="type.description"
         class="mt-1 text-sm text-muted"
       >
-        {{ tr(type.description) }}
-      </p>
+        <MDC
+          v-if="hasMdc"
+          :value="withMdcData(tr(type.description), ticketMdcData(type, tr(type.name), locale))"
+          class="prose prose-sm max-w-none text-muted"
+        />
+        <template v-else>
+          {{ tr(type.description) }}
+        </template>
+      </div>
     </button>
 
     <fieldset
