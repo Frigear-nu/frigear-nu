@@ -9,6 +9,7 @@ export interface UserSubscription {
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   endedAt: string | null
+  source?: 'stripe' | 'manual'
 }
 
 interface MeResponse {

@@ -20,7 +20,8 @@ const planLabel = computed(() => {
 
 const badge = computed(() => {
   const value = subscription.value?.status
-  if (value === 'active') return { label: t('active', 'Active'), color: 'success' as const }
+  if (cancelsAt.value) return { label: t('cancelling', 'Subscription is ending'), color: 'warning' as const, icon: 'i-lucide-battery-warning' }
+  if (value === 'active') return { label: t('active', 'Active'), color: 'success' as const, icon: 'i-lucide-shield-check' }
   if (value === 'trialing') return { label: t('trialing', 'Trial'), color: 'info' as const }
   if (value === 'past_due' || value === 'unpaid') return { label: t('pastDue', 'Past due'), color: 'warning' as const }
   if (value === 'canceled') return { label: t('canceled', 'Canceled'), color: 'neutral' as const }
@@ -31,10 +32,13 @@ function formatDate(value: string | null) {
   return value ? new Intl.DateTimeFormat(props.locale, { dateStyle: 'long' }).format(new Date(value)) : ''
 }
 
+const isManual = computed(() => subscription.value?.source === 'manual')
+
 const dateText = computed(() => {
-  if (cancelsAt.value) return t('cancels', 'Ends on {date}', { date: formatDate(cancelsAt.value) })
   const end = subscription.value?.currentPeriodEnd
-  return end ? t('renews', 'Renews on {date}', { date: formatDate(end) }) : ''
+  if (isManual.value) return end ? t('freeUntil', 'Free membership until {date}', { date: formatDate(end) }) : t('free', 'Free membership')
+  if (cancelsAt.value) return t('cancelsAt', 'Ending at {date}', { date: formatDate(cancelsAt.value) })
+  return end ? t('renewsAutomaticallyAt', 'Renews automatically on {date}', { date: formatDate(end) }) : ''
 })
 
 const resubscribe = () => subscription.value?.planKey
@@ -44,13 +48,12 @@ const manage = () => openPortal().catch(() => undefined)
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <slot name="header">
-        <h3 class="font-semibold">
-          {{ t('title', 'Your subscription') }}
-        </h3>
-      </slot>
+  <UPageCard :title="t('title', 'Your subscription')">
+    <template
+      v-if="$slots.header"
+      #header
+    >
+      <slot name="header" />
     </template>
 
     <slot
@@ -62,16 +65,22 @@ const manage = () => openPortal().catch(() => undefined)
       </p>
     </slot>
 
-    <template v-else-if="isActive && subscription">
-      <div class="flex flex-wrap items-center gap-2">
-        <slot
-          name="plan"
-          :plan="plan"
-          :label="planLabel"
-          :subscription="subscription"
-        >
-          <span class="font-medium">{{ planLabel }}</span>
-        </slot>
+    <div
+      v-else-if="isActive && subscription"
+      class="flex flex-col gap-4"
+    >
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex flex-col">
+          <span class="text-sm text-muted">{{ t('currentPlan', 'Current plan') }}</span>
+          <slot
+            name="plan"
+            :plan="plan"
+            :label="planLabel"
+            :subscription="subscription"
+          >
+            <span class="text-lg font-semibold">{{ planLabel }}</span>
+          </slot>
+        </div>
         <slot
           name="badge"
           :subscription="subscription"
@@ -79,7 +88,8 @@ const manage = () => openPortal().catch(() => undefined)
         >
           <UBadge
             :color="badge.color"
-            variant="subtle"
+            :icon="badge.icon"
+            variant="soft"
           >
             {{ badge.label }}
           </UBadge>
@@ -91,14 +101,14 @@ const manage = () => openPortal().catch(() => undefined)
         :cancels-at="cancelsAt"
         :date-text="dateText"
       >
-        <p
+        <div
           v-if="dateText"
-          class="mt-2 text-sm text-muted"
+          class="rounded-md bg-muted/50 px-4 py-3 text-sm"
         >
           {{ dateText }}
-        </p>
+        </div>
       </slot>
-    </template>
+    </div>
 
     <slot
       v-else
@@ -118,7 +128,7 @@ const manage = () => openPortal().catch(() => undefined)
     />
 
     <template
-      v-if="isActive"
+      v-if="isActive && !isManual"
       #footer
     >
       <slot
@@ -128,21 +138,32 @@ const manage = () => openPortal().catch(() => undefined)
         :cancelling="!!cancelsAt"
         :pending="pending"
       >
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-3">
           <UButton
+            v-if="!cancelsAt"
+            color="error"
+            variant="soft"
+            icon="i-lucide-x"
             :loading="pending"
-            :label="t('manage', 'Manage billing')"
+            :label="t('cancel', 'Cancel membership')"
             @click="manage"
           />
           <UButton
-            v-if="cancelsAt"
-            variant="outline"
+            v-else
+            icon="i-lucide-rotate-ccw"
             :loading="pending"
             :label="t('resubscribe', 'Resubscribe')"
             @click="resubscribe"
           />
+          <UButton
+            variant="outline"
+            icon="i-lucide-credit-card"
+            :loading="pending"
+            :label="t('changePaymentMethod', 'Change payment method')"
+            @click="manage"
+          />
         </div>
       </slot>
     </template>
-  </UCard>
+  </UPageCard>
 </template>

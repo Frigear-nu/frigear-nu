@@ -12,6 +12,18 @@ export type PlanConfig = {
   description?: string
   /** Drives upgrade vs. downgrade: a higher rank is a higher tier. */
   rank: number
+  /** Bullet points shown on the plan card. The UI prefers `subscriptions.catalog.<planKey>.features` (array) from i18n. */
+  features?: string[]
+  /** Hide the plan during date windows (existing subscribers still see it). */
+  availability?: PlanAvailability
+}
+
+/** Dates are anything `new Date()` parses; `{fullYear}` is replaced with the current year (e.g. `{fullYear}-06-01`). */
+export type PlanDisabledRange = { from: string, to: string }
+
+export type PlanAvailability = {
+  /** The plan is hidden for new subscribers while today falls within any of these ranges (inclusive). */
+  disabledRanges?: PlanDisabledRange[]
 }
 
 export type ModuleOptions = {
@@ -38,6 +50,7 @@ export type PublicPlan = {
   label: string
   description?: string
   rank: number
+  features?: string[]
 }
 
 /** Exposed as `useRuntimeConfig().public.subscriptions`. */
@@ -53,7 +66,7 @@ export type PublicModuleOptions = {
 
 /** Private server runtime config (`useRuntimeConfig().subscriptions`). */
 export type SubscriptionsRuntimeConfig = {
-  plans: Record<string, { prices: PlanPriceRef[], label?: string, description?: string, rank: number }>
+  plans: Record<string, { prices: PlanPriceRef[], label?: string, description?: string, rank: number, features?: string[], availability?: PlanAvailability }>
 }
 
 export type PlanPrice = {

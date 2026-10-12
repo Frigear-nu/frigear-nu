@@ -1,5 +1,5 @@
 // Pure helpers (no Nuxt / Nitro / DB access) so they are trivially unit-testable.
-import type { PlanPriceRef, ResolvedPlan } from '../../types'
+import type { PlanDisabledRange, PlanPriceRef, ResolvedPlan } from '../../types'
 
 export const DEFAULT_ENTITLED_STATUSES = ['active', 'trialing']
 /** Statuses that count as "holds a live subscription" when deciding between a new checkout and a plan change. */
@@ -70,4 +70,19 @@ export function findPrice(plans: ResolvedPlan[], priceId: string) {
     if (price) return { plan, price }
   }
   return null
+}
+
+/** Parses a range date; `{fullYear}` becomes the current year. Invalid dates yield `null`. */
+export function parseRangeDate(text: string, now = new Date()): Date | null {
+  const date = new Date(text.replaceAll('{fullYear}', String(now.getFullYear())))
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+/** Whether `now` falls (inclusively) within any of the ranges. Unparseable ranges are ignored. */
+export function isWithinDisabledRanges(ranges: PlanDisabledRange[] | undefined, now = new Date()): boolean {
+  return (ranges ?? []).some((range) => {
+    const from = parseRangeDate(range.from, now)
+    const to = parseRangeDate(range.to, now)
+    return !!from && !!to && now >= from && now <= to
+  })
 }
