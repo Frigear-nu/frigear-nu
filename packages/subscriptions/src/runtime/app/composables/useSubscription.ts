@@ -21,6 +21,12 @@ type CheckoutResponse = { url: string } | { updated: true, kind: 'upgrade' | 'do
 
 const ACTIVE_STATUSES = ['active', 'trialing']
 
+/** Mirrors the server's `isEntitledRow`: ended rows and manual (free) grants past their end date do not count. */
+function isEntitled(item: UserSubscription) {
+  if (!ACTIVE_STATUSES.includes(item.status) || item.endedAt) return false
+  return !(item.source === 'manual' && item.currentPeriodEnd && new Date(item.currentPeriodEnd).getTime() <= Date.now())
+}
+
 export const useSubscription = () => {
   const { loggedIn } = useUserSession()
   const t = useModuleT('subscriptions')
@@ -41,7 +47,7 @@ export const useSubscription = () => {
 
   const subscription = computed<UserSubscription | null>(() => {
     const list = data.value?.subscriptions ?? []
-    return list.find(item => ACTIVE_STATUSES.includes(item.status)) ?? null
+    return list.find(isEntitled) ?? null
   })
   const plan = computed(() => data.value?.activePlan ?? subscription.value?.planKey ?? null)
   const isActive = computed(() => subscription.value !== null)
