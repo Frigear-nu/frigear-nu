@@ -55,4 +55,19 @@ describe('cookie-consent persisted on the user', async () => {
 
     expect(await $fetch('/api/cookie-consent', { headers: { cookie } })).toEqual({ consent: saved })
   })
+
+  it('keeps consent session-only: a token, even with full access, cannot read or write it', async () => {
+    const cookie = await registerAndGetCookie('tokens@example.com')
+    const created = await fetch('/api/auth/tokens', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ name: 'test', scopes: ['*'] }),
+    })
+    expect(created.status, await created.clone().text()).toBe(200)
+    const { token } = await created.json() as { token: string }
+
+    const headers = { authorization: `Bearer ${token}` }
+    expect((await fetch('/api/cookie-consent', { headers })).status).toBe(403)
+    expect((await fetch('/api/cookie-consent', { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ categories: {}, version }) })).status).toBe(403)
+  })
 })

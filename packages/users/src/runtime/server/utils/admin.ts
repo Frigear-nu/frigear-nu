@@ -31,7 +31,8 @@ export const usersHaveRoles = () => 'role' in getTableColumns(schema.users)
 
 /** Whether the host policy allows the signed-in user to do `action` (never throws on denial). */
 export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}) {
-  const { user } = await requireUserSession(event)
+  // Staff actions are never available to API tokens or OAuth access tokens.
+  const user = await requireUser(event, { sessionOnly: true })
   const context: UsersAdminContext = { event, userId: user.id as number, action, ...details, allowed: false }
   await useNitroApp().hooks.callHook('users:admin:authorize', context)
   return { allowed: context.allowed, user }

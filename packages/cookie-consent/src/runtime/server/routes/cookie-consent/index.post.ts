@@ -10,7 +10,7 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const config = getCookieConsentConfig(event)!
   const body = await readValidatedBody(event, bodySchema.parse)
 

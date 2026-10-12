@@ -21,6 +21,12 @@ vi.stubGlobal('requireUserSession', async () => {
   if (!session.user) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 })
   return session
 })
+// `requireUser` comes from @frigear-nu/auth; passkey management must never be reachable with a bearer token.
+const requireUser = vi.fn(async (_event: unknown, _options?: { sessionOnly?: boolean }) => {
+  if (!session.user) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 })
+  return session.user
+})
+vi.stubGlobal('requireUser', requireUser)
 vi.stubGlobal('setUserSession', setUserSession)
 vi.stubGlobal('mapUserToSession', (user: { id: number, email: string }) => ({ id: user.id, email: user.email }))
 vi.stubGlobal('getRouterParam', (event: { params: Record<string, string> }, name: string) => event.params[name])
@@ -109,5 +115,13 @@ describe('webauthn credential routes', () => {
   it('requires a session to list or remove passkeys', async () => {
     await expect(list({})).rejects.toMatchObject({ statusCode: 401 })
     await expect(remove({ params: { id: 'x' } })).rejects.toMatchObject({ statusCode: 401 })
+  })
+
+  it('asks for a session-only credential, so bearer tokens cannot manage passkeys', async () => {
+    requireUser.mockClear()
+    await expect(list({})).rejects.toBeDefined()
+    await expect(remove({ params: { id: 'x' } })).rejects.toBeDefined()
+    expect(requireUser).toHaveBeenCalledTimes(2)
+    for (const [, options] of requireUser.mock.calls) expect(options).toEqual({ sessionOnly: true })
   })
 })

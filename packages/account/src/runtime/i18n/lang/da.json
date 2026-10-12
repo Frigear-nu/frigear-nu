@@ -18,6 +18,10 @@
       "documents": {
         "label": "Dokumenter",
         "description": "Håndbøger og andre filer til dig."
+      },
+      "apiTokens": {
+        "label": "API-nøgler",
+        "description": "Opret nøgler til scripts og værktøjer."
       }
     },
     "identificationCode": {
@@ -114,6 +118,59 @@
       }
     },
     "backTo": "Tilbage til konto",
-    "signedInAs": "Logget ind som"
+    "signedInAs": "Logget ind som",
+    "apiTokens": {
+      "title": "API-nøgler",
+      "description": "Opret nøgler til scripts og værktøjer.",
+      "allScopes": "Fuld adgang",
+      "copy": "Kopiér",
+      "copied": "Nøglen er kopieret.",
+      "copyError": "Kunne ikke kopiere. Markér nøglen og kopiér den manuelt.",
+      "create": {
+        "title": "Opret en API-nøgle",
+        "description": "Nøgler lader scripts og værktøjer som MCP-klienter handle på dine vegne. Giv hver nøgle kun de rettigheder, den har brug for.",
+        "submit": "Opret nøgle"
+      },
+      "createError": "Kunne ikke oprette nøglen.",
+      "name": {
+        "label": "Navn",
+        "placeholder": "fx Min MCP-klient",
+        "required": "Giv nøglen et navn."
+      },
+      "scopes": {
+        "label": "Rettigheder",
+        "placeholder": "Vælg hvad nøglen må",
+        "required": "Vælg mindst én rettighed."
+      },
+      "expiry": {
+        "label": "Udløber",
+        "30": "30 dage",
+        "90": "90 dage",
+        "365": "1 år",
+        "never": "Udløber aldrig"
+      },
+      "reveal": {
+        "title": "Kopiér din nye nøgle nu",
+        "description": "Det er eneste gang, den vises. Mister du den, skal du oprette en ny.",
+        "label": "Ny nøgle",
+        "done": "Færdig"
+      },
+      "list": {
+        "title": "Dine nøgler",
+        "description": "Træk en nøgle tilbage for at stoppe den med det samme.",
+        "empty": "Du har ikke oprettet nogen nøgler endnu.",
+        "created": "Oprettet {date}",
+        "lastUsed": "Sidst brugt {date}",
+        "expires": "Udløber {date}"
+      },
+      "status": {
+        "ok": "Aktiv",
+        "revoked": "Trukket tilbage",
+        "expired": "Udløbet"
+      },
+      "revoke": "Træk nøgle tilbage",
+      "revoked": "Nøglen er trukket tilbage.",
+      "revokeError": "Kunne ikke trække nøglen tilbage."
+    }
   }
 }

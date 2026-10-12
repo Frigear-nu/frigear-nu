@@ -409,4 +409,29 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect((await check('&statuses=past_due,canceled')).has).toBe(false)
     })
   })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('reads the subscription with the scope, and never opens the billing portal', async () => {
+      const user = await registerUser('Token', 'token@example.com')
+      const read = await createToken(user.cookie, ['subscriptions:read'])
+      expect((await fetch('/api/subscriptions/me', { headers: bearer(read) })).status).toBe(200)
+      expect((await fetch('/api/subscriptions/me', { headers: bearer(await createToken(user.cookie, ['subscriptions:write'])) })).status).toBe(403)
+
+      // The billing portal is session-only: even full access cannot use it.
+      const full = await createToken(user.cookie, ['*'])
+      const portal = await fetch('/api/subscriptions/portal', { method: 'POST', headers: { 'content-type': 'application/json', ...bearer(full) }, body: '{}' })
+      expect(portal.status).toBe(403)
+    })
+  })
 })

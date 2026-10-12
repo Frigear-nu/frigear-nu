@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { scopes as apiScopes } from '#auth/scopes'
 
 export function useOAuthConfig() {
   return useRuntimeConfig().oauthServer
@@ -11,14 +12,17 @@ export function getOAuthIssuer(event: H3Event): string {
   return issuer.replace(/\/+$/, '')
 }
 
-/** Scopes this server accepts: the defaults plus whatever the host configured. */
+/**
+ * Scopes this server accepts: the OIDC defaults, whatever the host configured, and the API scopes
+ * modules register with `@frigear-nu/auth` (what an access token may do against the API).
+ */
 export function getSupportedScopes(): string[] {
-  return [...new Set(['openid', 'profile', 'email', ...useOAuthConfig().scopes])]
+  return [...new Set(['openid', 'profile', 'email', ...useOAuthConfig().scopes, ...apiScopes.map(scope => scope.name)])]
 }
 
 /** The signed-in user's numeric id (the `users` table uses integer ids). Responds 401 when nobody is signed in. */
 export async function requireSessionUserId(event: H3Event): Promise<number> {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   return Number((user as { id: number | string }).id)
 }
 

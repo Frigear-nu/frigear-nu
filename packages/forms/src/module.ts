@@ -17,6 +17,7 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { addAuthScope } from '@frigear-nu/auth/utils'
 import type {
   AuthorizeContext,
   CaptchaVerifyContext,
@@ -82,6 +83,7 @@ export default defineNuxtModule<ModuleOptions>({
       defaults: { kv: true, blob: true },
     },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
@@ -91,6 +93,10 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    addAuthScope(nuxt,
+      { name: 'forms:manage', description: 'Manage forms and submissions (staff)' },
+      { name: 'forms:submit', description: 'Submit forms as you' },
+    )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

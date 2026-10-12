@@ -12,7 +12,7 @@ const bodySchema = z.object({
 }).refine(body => body.planKey || body.priceId, { message: 'Provide `planKey` or `priceId`.' }) satisfies z.ZodType<CheckoutBody>
 
 export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { scopes: ['subscriptions:write'] })
   const body = await readValidatedBody(event, bodySchema.parse)
   const origin = getRequestURL(event).origin
   const config = useRuntimeConfig()

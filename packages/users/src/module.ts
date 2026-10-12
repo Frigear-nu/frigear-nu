@@ -11,6 +11,7 @@ import {
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
 import { registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { setAuthUserLoader } from '@frigear-nu/auth/utils'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
 import {
@@ -90,6 +91,9 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/auth': {
+      version: '>=0.0.1',
+    },
     '@frigear-nu/notify': {
       version: '>=0.0.1',
     },
@@ -162,6 +166,9 @@ export default defineNuxtModule<ModuleOptions>({
         return `export { default } from ${JSON.stringify(mapperPath)}`
       },
     })
+
+    // Lets `@frigear-nu/auth` load the user a bearer token belongs to, mapped like a session user.
+    setAuthUserLoader(nuxt, resolver.resolve('./runtime/server/user-loader'))
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 

@@ -451,4 +451,37 @@ describe('events (authenticated, database-backed)', async () => {
       expect((await json(me.cookie, 'GET', `/api/events/tickets/${(await ok(await json(other.cookie, 'GET', '/api/events/tickets/me')) as unknown as Json[])[0]!.id}`)).status).toBe(404)
     })
   })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('lets a token read tickets with the scope, and refuses without it', async () => {
+      const me = await user('Tokenuser')
+      const read = await createToken(me.cookie, ['tickets:read'])
+      expect((await fetch('/api/events/tickets/me', { headers: bearer(read) })).status).toBe(200)
+
+      const other = await createToken(me.cookie, ['tickets:write'])
+      expect((await fetch('/api/events/tickets/me', { headers: bearer(other) })).status).toBe(403)
+      expect((await fetch('/api/events/tickets/me', { headers: bearer('fnu_invalid') })).status).toBe(401)
+    })
+
+    it('keeps the staff policy in charge: the scope is necessary, not sufficient', async () => {
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const nobody = await user('Nobody')
+
+      const staffToken = await createToken(staff.cookie, ['events:manage'])
+      expect((await fetch('/api/events/admin/events', { headers: bearer(staffToken) })).status).toBe(200)
+      expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
+      expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(nobody.cookie, ['events:manage'])) })).status).toBe(403)
+    })
+  })
 })

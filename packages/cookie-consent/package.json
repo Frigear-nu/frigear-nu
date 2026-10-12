@@ -75,6 +75,7 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/auth": ">=0.0.1",
     "@frigear-nu/users": ">=0.0.1",
     "@nuxthub/core": "^0.10.8",
     "@nuxt/ui": "^4.10.0"
@@ -86,11 +87,15 @@
     "@frigear-nu/users": {
       "optional": true
     },
+    "@frigear-nu/auth": {
+      "optional": true
+    },
     "@nuxthub/core": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@nuxt/devtools": "^3.4.2",
     "@nuxt/eslint-config": "^1.17.0",

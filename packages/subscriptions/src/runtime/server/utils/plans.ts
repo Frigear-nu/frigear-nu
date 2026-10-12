@@ -103,8 +103,8 @@ export async function getAvailablePlans(event?: H3Event): Promise<ResolvedPlan[]
 
 async function isSubscriber(event?: H3Event) {
   if (!event) return false
-  const session = await getUserSession(event).catch(() => null)
-  const userId = session?.user?.id
+  const user = await getAuthUser(event, { scopes: ['subscriptions:read'] }).catch(() => null)
+  const userId = user?.id
   if (userId === undefined || userId === null) return false
   return !!(await getUserSubscription(Number(userId)))
 }

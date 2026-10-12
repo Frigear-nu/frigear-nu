@@ -46,6 +46,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
+    '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': {
       version: '>=0.0.1',
     },
@@ -126,6 +127,7 @@ export default defineNuxtModule<ModuleOptions>({
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
     const documentsPath = resolvePagePath(settings.pages?.documents, '/account/documents')
     const idCodePath = resolvePagePath(settings.pages?.idCode, '/account/id')
+    const apiTokensPath = resolvePagePath(settings.pages?.apiTokens, '/account/api-tokens')
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
 
     if (!withMenus && settings.pages?.index) {
@@ -133,11 +135,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     nuxt.options.runtimeConfig.public.account = {
-      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath },
+      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath, apiTokens: apiTokensPath },
       documents: settings.documents ?? [],
     }
 
-    if (indexPath || profilePath || securityPath || documentsPath || idCodePath) {
+    if (indexPath || profilePath || securityPath || documentsPath || idCodePath || apiTokensPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
@@ -150,6 +152,7 @@ export default defineNuxtModule<ModuleOptions>({
         add(documentsPath, 'account-documents', './runtime/app/pages/documents.vue')
         add(securityPath, 'account-security', './runtime/app/pages/security.vue')
         add(idCodePath, 'account-id-code', './runtime/app/pages/id-code.vue')
+        add(apiTokensPath, 'account-api-tokens', './runtime/app/pages/api-tokens.vue')
 
         // All account pages share one parent route that renders the account header above them.
         if (children.length) {

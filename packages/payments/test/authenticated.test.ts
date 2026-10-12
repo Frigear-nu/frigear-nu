@@ -185,4 +185,25 @@ describe('payments (authenticated, database-backed)', async () => {
       expect((await resume(user.cookie, payment.id)).status).toBe(409)
     })
   })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('lists payments for a token with the scope only', async () => {
+      const user = await registerUser('Token', 'token@example.com')
+      const read = await createToken(user.cookie, ['payments:read'])
+      expect((await fetch('/api/payments', { headers: bearer(read) })).status).toBe(200)
+      expect((await fetch('/api/payments', { headers: bearer(await createToken(user.cookie, ['payments:write'])) })).status).toBe(403)
+      expect((await fetch('/api/payments', { headers: bearer('fnu_invalid') })).status).toBe(401)
+    })
+  })
 })

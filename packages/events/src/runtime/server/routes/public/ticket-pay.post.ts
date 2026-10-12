@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event): Promise<{ url: string }> => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { scopes: ['tickets:write'] })
   const [ticket] = await db.select().from(schema.eventTickets)
     .where(and(eq(schema.eventTickets.id, getRouterParam(event, 'id')!), eq(schema.eventTickets.userId, user.id)))
     .limit(1)

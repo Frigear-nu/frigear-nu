@@ -649,4 +649,29 @@ describe('forms (authenticated, database-backed)', async () => {
       expect(list.find(form => form.slug === 'imported-form')?.status).toBe('draft')
     })
   })
+
+  describe('API tokens', () => {
+    const createToken = async (cookie: string, scopes: string[]) => {
+      const response = await fetch('/api/auth/tokens', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ name: 'test', scopes }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+      return (await response.json() as { token: string }).token
+    }
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
+
+    it('lets a staff token manage forms only with the scope, and the policy still decides', async () => {
+      const manage = await createToken(staff.cookie, ['forms:manage'])
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(manage) })).status).toBe(200)
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(staff.cookie, ['forms:submit'])) })).status).toBe(403)
+      expect((await fetch('/api/forms/admin/forms', { headers: bearer(await createToken(nobody.cookie, ['forms:manage'])) })).status).toBe(403)
+    })
+
+    it('does not mistake per-form tokens for credentials', async () => {
+      // `ffk_` tokens are claimed by nobody here, so a signed-in session keeps working next to one.
+      expect((await fetch('/api/forms/admin/forms', { headers: { cookie: staff.cookie, authorization: 'Bearer ffk_form-token' } })).status).toBe(200)
+    })
+  })
 })

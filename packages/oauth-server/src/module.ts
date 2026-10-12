@@ -15,6 +15,7 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { addAuthResolver } from '@frigear-nu/auth/utils'
 import type {
   ApplicationAccessContext,
   AuthorizeContext,
@@ -83,6 +84,7 @@ export default defineNuxtModule<ModuleOptions>({
   moduleDependencies: {
     '@nuxthub/core': { version: '>=0.10' },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     // Provides the shared page components of the admin page (`AdminPage`, `AdminTable`, ...).
@@ -92,6 +94,14 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
+
+    // Access tokens of signed-in applications authenticate API calls as the user (see the resolver).
+    addAuthResolver(nuxt, {
+      name: 'oauth-access-token',
+      jwt: true,
+      order: 60,
+      resolver: resolver.resolve('./runtime/server/resolvers/access-token'),
+    })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')

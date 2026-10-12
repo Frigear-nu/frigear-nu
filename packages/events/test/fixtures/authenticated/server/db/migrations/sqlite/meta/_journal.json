@@ -43,6 +43,13 @@
       "when": 1791777897913,
       "tag": "0005_add_sale_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791812846618,
+      "tag": "0006_auth_user_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -59,6 +59,7 @@
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
+    "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.6.0",

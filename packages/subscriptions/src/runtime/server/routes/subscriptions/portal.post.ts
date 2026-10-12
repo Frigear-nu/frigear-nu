@@ -5,7 +5,7 @@ import type { PortalBody } from '../../../../types'
 const bodySchema = z.object({ returnUrl: z.string().optional() }) satisfies z.ZodType<PortalBody>
 
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const { returnUrl } = await readValidatedBody(event, bodySchema.parse)
   const origin = getRequestURL(event).origin
 

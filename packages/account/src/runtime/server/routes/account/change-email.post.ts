@@ -9,7 +9,7 @@ const bodySchema = z.object({
 const VERIFY_TTL_HOURS = 24
 
 export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event)
+  const user = await requireUser(event, { sessionOnly: true })
   const { email } = await readValidatedBody(event, bodySchema.parse)
 
   const existing = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, email) })
