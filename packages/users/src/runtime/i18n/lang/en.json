@@ -139,7 +139,33 @@
         "verified": "Verified",
         "unverified": "Unverified",
         "role": "Exact role",
-        "clear": "Clear filters"
+        "clear": "Clear filters",
+        "allRoles": "All roles"
+      },
+      "subscription": "Subscription",
+      "rolePlaceholder": "Select a role",
+      "created_ok": "User created.",
+      "detail": {
+        "profile": "Profile",
+        "account": "Account",
+        "membership": "Membership",
+        "noMembership": "No membership.",
+        "password": "Password",
+        "passkeys": "Passkeys",
+        "set": "Set",
+        "notSet": "Not set",
+        "emailHelp": "Changing the address marks it unverified and emails a verification link to the new one.",
+        "saved": "Saved.",
+        "savedEmail": "Saved. A verification email was sent to the new address.",
+        "resent": "Sign-in link sent.",
+        "sendLink": "Email a sign-in link",
+        "sendVerification": "Resend verification email",
+        "danger": "Danger zone",
+        "delete": "Delete user",
+        "deleteTitle": "Delete this user?",
+        "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
+        "deleted": "User deleted.",
+        "notFound": "User not found."
       }
     }
   }

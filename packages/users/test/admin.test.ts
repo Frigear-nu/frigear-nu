@@ -108,4 +108,55 @@ describe('users admin', async () => {
 
     expect((await call('GET', '/api/admin/users?pageSize=1000', undefined, staff)).status).toBe(400)
   })
+
+  it('offers the roles the host policy allows to the acting user', async () => {
+    expect((await call('GET', '/api/admin/users/roles')).status).toBe(401)
+    expect((await call('GET', '/api/admin/users/roles', undefined, member)).status).toBe(403)
+    expect(await (await call('GET', '/api/admin/users/roles', undefined, staff)).json()).toEqual({ roles: ['manager', 'user'] })
+  })
+
+  it('shows a user with passkeys count and permissions, and resends the sign-in link', async () => {
+    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
+    expect(items[0]).toHaveProperty('subscription', null)
+
+    const detail = await (await call('GET', `/api/admin/users/${items[0].id}`, undefined, staff)).json()
+    expect(detail).toMatchObject({ email: 'staff@example.com', passkeys: 0, hasPassword: true, subscription: null })
+    expect(detail).not.toHaveProperty('password')
+    // Deleting yourself is never offered.
+    expect(detail.can).toEqual({ update: true, delete: false })
+
+    expect((await call('GET', `/api/admin/users/${items[0].id}`, undefined, member)).status).toBe(403)
+    expect((await call('GET', '/api/admin/users/99999', undefined, staff)).status).toBe(404)
+
+    const before = (await sentMails()).length
+    expect((await call('POST', `/api/admin/users/${items[0].id}/resend`, undefined, staff)).status).toBe(200)
+    expect((await sentMails()).length).toBe(before + 1)
+  })
+
+  it('emails a verification link after an admin changes the address and can verify directly', async () => {
+    const created = await (await call('POST', '/api/admin/users', { name: 'Mover', email: 'mover@example.com', sendWelcomeEmail: false }, staff)).json()
+    const before = (await sentMails()).length
+
+    const moved = await call('PATCH', `/api/admin/users/${created.id}`, { email: 'moved@example.com' }, staff)
+    expect(await moved.json()).toMatchObject({ email: 'moved@example.com', emailVerifiedAt: null })
+    const mails = await sentMails()
+    expect(mails.length).toBe(before + 1)
+    expect(mails.at(-1)!.to).toBe('moved@example.com')
+
+    const verified = await call('PATCH', `/api/admin/users/${created.id}`, { emailVerified: true }, staff)
+    expect((await verified.json()).emailVerifiedAt).not.toBeNull()
+    const unverified = await call('PATCH', `/api/admin/users/${created.id}`, { emailVerified: false }, staff)
+    expect((await unverified.json()).emailVerifiedAt).toBeNull()
+  })
+
+  it('deletes users through the policy but never the acting user', async () => {
+    const created = await (await call('POST', '/api/admin/users', { name: 'Gone', email: 'gone@example.com', sendWelcomeEmail: false }, staff)).json()
+    expect((await call('DELETE', `/api/admin/users/${created.id}`, undefined, member)).status).toBe(403)
+    expect((await call('DELETE', `/api/admin/users/${created.id}`, undefined, staff)).status).toBe(200)
+    expect((await call('GET', `/api/admin/users/${created.id}`, undefined, staff)).status).toBe(404)
+    expect((await call('DELETE', '/api/admin/users/99999', undefined, staff)).status).toBe(404)
+
+    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
+    expect((await call('DELETE', `/api/admin/users/${items[0].id}`, undefined, staff)).status).toBe(400)
+  })
 })

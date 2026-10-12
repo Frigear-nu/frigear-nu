@@ -15,12 +15,22 @@ const { data: items } = await useMenu('admin.nav')
 
 const home = config?.dashboard ?? config?.base ?? '/admin'
 
+const stripLocale = (path: string) => {
+  const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path
+  const first = trimmed.split('/')[1]
+  const codes = (nuxtApp.$i18n?.locales?.value ?? []).map(l => typeof l === 'string' ? l : (l as { code: string }).code)
+  return first && codes.includes(first) ? (trimmed.slice(first.length + 1) || '/') : trimmed
+}
+
 const links = computed(() => (items.value ?? []).map(item => ({
   label: item.label,
   icon: item.icon,
   to: item.to,
   external: item.external,
-  active: !!item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`)),
+  // The dashboard lives at the base itself, so it only matches exactly (ignoring a locale prefix).
+  active: !!item.to && (item.to === home
+    ? stripLocale(route.path) === home
+    : route.path === item.to || route.path.startsWith(`${item.to}/`)),
 })))
 
 // The header names the section being viewed: the nav entry the route belongs to, else the area itself.

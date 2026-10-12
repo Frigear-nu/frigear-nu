@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   await authorizeUsersAdmin(event, 'view')
 
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000)
-  return db.select({
+  const rows = await db.select({
     id: schema.users.id,
     name: schema.users.name,
     email: schema.users.email,
@@ -18,4 +18,6 @@ export default defineEventHandler(async (event) => {
     .where(gte(schema.users.createdAt, since))
     .orderBy(desc(schema.users.createdAt))
     .limit(20)
+  const subscriptions = await latestSubscriptions(rows.map(row => row.id))
+  return rows.map(row => ({ ...row, subscription: subscriptions.get(row.id) ?? null }))
 })

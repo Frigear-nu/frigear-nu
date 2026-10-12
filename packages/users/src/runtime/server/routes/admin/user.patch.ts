@@ -6,6 +6,7 @@ const bodySchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   email: z.string().email().toLowerCase().optional(),
   role: z.string().min(1).optional(),
+  emailVerified: z.boolean().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -33,15 +34,25 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const emailChanged = !!input.email && input.email !== target.email
   const [updated] = await db.update(schema.users)
     .set({
       ...(input.name ? { name: input.name } : {}),
-      // A changed address was typed in by staff, so it is unverified until its owner confirms it.
-      ...(input.email && input.email !== target.email ? { email: input.email, emailVerifiedAt: null } : {}),
+      // A changed address was typed in by staff, so it is unverified until its owner confirms it (unless staff
+      // explicitly marks it verified in the same request).
+      ...(emailChanged ? { email: input.email, emailVerifiedAt: input.emailVerified ? new Date() : null } : {}),
+      ...(!emailChanged && input.emailVerified !== undefined
+        ? { emailVerifiedAt: input.emailVerified ? (target.emailVerifiedAt ?? new Date()) : null }
+        : {}),
       ...(withRole && input.role ? { role: input.role } : {}),
     } as Partial<typeof schema.users.$inferInsert>)
     .where(eq(schema.users.id, id))
     .returning()
+
+  // Ask the new address's owner to confirm it.
+  if (emailChanged && !input.emailVerified) {
+    await sendVerificationLink(event, updated!)
+  }
 
   const { password: _password, ...safe } = updated!
   return safe

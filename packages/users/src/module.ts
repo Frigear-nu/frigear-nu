@@ -12,7 +12,7 @@ import {
 import { upperFirst } from 'scule'
 import { registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
-import type { UsersAdminContext } from './runtime/server/utils/admin'
+import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
 import {
   type AuthMethodObject,
   type AuthManifest,
@@ -46,6 +46,8 @@ declare module 'nitropack' {
     'users:email': (ctx: AuthEmailContext) => void | Promise<void>
     /** Staff gate of the users admin (`settings.admin`): set `ctx.allowed = true` to allow `ctx.action`. Denied by default. */
     'users:admin:authorize': (ctx: UsersAdminContext) => void | Promise<void>
+    /** Roles the signed-in user may assign in the users admin: set `ctx.roles`. Defaults to the roles in use. */
+    'users:admin:roles': (ctx: UsersAdminRolesContext) => void | Promise<void>
   }
 }
 
@@ -355,7 +357,11 @@ export default defineNuxtModule<ModuleOptions>({
         ['get', '/api/admin/users', 'users.get'],
         ['post', '/api/admin/users', 'users.post'],
         ['get', '/api/admin/users/new-members', 'new-members.get'],
+        ['get', '/api/admin/users/roles', 'roles.get'],
+        ['get', '/api/admin/users/:id', 'user.get'],
         ['patch', '/api/admin/users/:id', 'user.patch'],
+        ['delete', '/api/admin/users/:id', 'user.delete'],
+        ['post', '/api/admin/users/:id/resend', 'user-resend.post'],
       ] as const) {
         addServerHandler({ route: path, method, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })
       }
@@ -364,6 +370,10 @@ export default defineNuxtModule<ModuleOptions>({
         extendPages((pages) => {
           if (!pages.some(page => page.path === adminPagePath)) {
             pages.push({ name: 'users-admin', path: adminPagePath, file: resolver.resolve('./runtime/app/pages/admin.vue') })
+          }
+          const detailPath = `${adminPagePath.replace(/\/+$/, '')}/:id(\\d+)`
+          if (!pages.some(page => page.path === detailPath)) {
+            pages.push({ name: 'users-admin-user', path: detailPath, file: resolver.resolve('./runtime/app/pages/admin-user.vue') })
           }
         })
       }

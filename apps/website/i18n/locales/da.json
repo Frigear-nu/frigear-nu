@@ -186,5 +186,21 @@
         "description": "★ Frigear årligt medlemskab ★ for frivillige og andet frit folk!"
       }
     }
+  },
+  "users": {
+    "admin": {
+      "roleNames": {
+        "admin": "Administrator",
+        "manager": "Manager",
+        "coordinator": "Koordinator",
+        "eventmanager": "Eventansvarlig",
+        "barmanager": "Baransvarlig",
+        "crew": "Crew",
+        "member": "Medlem",
+        "supplier": "Leverandør",
+        "partner": "Partner",
+        "user": "Bruger"
+      }
+    }
   }
 }
