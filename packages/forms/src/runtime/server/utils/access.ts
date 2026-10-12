@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import type { FormAccessInfoDto } from '../../../types'
-import { newId, resolveAccess } from '../../utils'
+import { isFormOpen, newId, nextFormOpening, resolveAccess } from '../../utils'
 
 type FormRow = typeof schema.forms.$inferSelect
 
@@ -65,7 +65,11 @@ async function verifyFormPassword(event: H3Event, form: FormRow) {
  * still served here: `availability` only removes the public page.
  */
 export async function authorizeFormAccess(event: H3Event, form: FormRow): Promise<{ userId: number | null }> {
-  const { auth } = resolveAccess(form.definition)
+  const { auth, schedule } = resolveAccess(form.definition)
+  if (!isFormOpen(schedule)) {
+    const opensAt = nextFormOpening(schedule)
+    throw createError({ statusCode: 403, statusMessage: 'This form is closed.', data: { closed: true, opensAt: opensAt?.toISOString() ?? null } })
+  }
   const { user } = await getUserSession(event)
 
   if (auth === 'user' && !user) throw unauthorized(event, 'Sign in to use this form.')
@@ -77,5 +81,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
 /** Public facts the page needs to pick between the form, a gate and "not found". */
 export async function describeFormAccess(event: H3Event, form: FormRow): Promise<FormAccessInfoDto> {
   const { user } = await getUserSession(event)
-  return { slug: form.slug, name: form.name, access: resolveAccess(form.definition), signedIn: !!user }
+  const access = resolveAccess(form.definition)
+  const open = isFormOpen(access.schedule)
+  return { slug: form.slug, name: form.name, access, signedIn: !!user, open, opensAt: open ? null : nextFormOpening(access.schedule)?.toISOString() ?? null }
 }

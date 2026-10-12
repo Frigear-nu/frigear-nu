@@ -28,6 +28,11 @@
       "types": "./src/runtime/utils/index.ts",
       "import": "./src/runtime/utils/index.ts",
       "default": "./src/runtime/utils/index.ts"
+    },
+    "./schedule": {
+      "types": "./src/runtime/utils/schedule.ts",
+      "import": "./src/runtime/utils/schedule.ts",
+      "default": "./src/runtime/utils/schedule.ts"
     }
   },
   "typesVersions": {
@@ -48,6 +53,11 @@
         "types": "./dist/runtime/utils/index.d.ts",
         "import": "./dist/runtime/utils/index.js",
         "default": "./dist/runtime/utils/index.js"
+      },
+      "./schedule": {
+        "types": "./dist/runtime/utils/schedule.d.ts",
+        "import": "./dist/runtime/utils/schedule.js",
+        "default": "./dist/runtime/utils/schedule.js"
       }
     },
     "main": "./dist/module.mjs",

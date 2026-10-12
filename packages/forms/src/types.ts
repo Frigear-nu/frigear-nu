@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { Schedule as FormSchedule } from '@frigear-nu/module-kit/schedule'
 
 /** A text that is either one string or a map of locale -> string. */
 export type Translated = string | Record<string, string>
@@ -115,10 +116,14 @@ export type FormAvailability = 'web' | 'api'
 /** How a submitter proves access: nothing, a signed-in user, a bearer token or a shared password. */
 export type FormAuthMode = 'none' | 'user' | 'token' | 'password'
 
-/** Who may read and submit the form. Secrets (tokens, password hash) are never part of the definition. */
+export type { Schedule as FormSchedule, ScheduleMoment as FormScheduleMoment } from '@frigear-nu/module-kit/schedule'
+
+/** Who may read and submit the form, and when. Secrets (tokens, password hash) are never part of the definition. */
 export type FormAccess = {
   availability: FormAvailability
   auth: FormAuthMode
+  /** Defaults to `{ type: 'always' }`. */
+  schedule?: FormSchedule
 }
 
 export type FormDefinition = {
@@ -294,6 +299,10 @@ export type FormAccessInfoDto = {
   name: string
   access: FormAccess
   signedIn: boolean
+  /** False outside the schedule: the page shows a "closed" notice instead of the form. */
+  open: boolean
+  /** Next moment the form opens (ISO), when it is closed and will open again. */
+  opensAt?: string | null
 }
 
 export type FormSummaryDto = {

@@ -24,6 +24,7 @@ export async function insertTicketType(eventId: string, input: TicketTypeInput) 
     capacity: type.capacity ?? null,
     saleStartsAt: type.saleStartsAt ?? null,
     saleEndsAt: type.saleEndsAt ?? null,
+    saleSchedule: type.saleSchedule ?? null,
     requiresMembership: type.requiresMembership ?? null,
     excludesMembership: type.excludesMembership ?? null,
   }).returning()

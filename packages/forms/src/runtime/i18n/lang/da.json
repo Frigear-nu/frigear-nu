@@ -104,7 +104,22 @@
       "previewUnavailable": "Ret definitionen for at se en forhåndsvisning.",
       "builder": "Opbygning",
       "json": "JSON",
-      "access": "Adgang"
+      "access": "Adgang",
+      "clone": "Duplikér"
+    },
+    "schedule": {
+      "closed": "Formularen er lukket.",
+      "opensAt": "Den åbner igen {date}.",
+      "always": "Altid åben",
+      "yearly": "Hvert år (en sæson)",
+      "range": "Én fast periode",
+      "title": "Åbningsperiode",
+      "hint": "Uden for perioden vises en lukket-besked, og indsendelser afvises. En sæson, der slutter før den starter, løber over nytår.",
+      "opens": "Åbner",
+      "closes": "Lukker",
+      "day": "Dag",
+      "time": "Tid",
+      "timezone": "Tidszone"
     },
     "access": {
       "title": "Hvem kan bruge formularen",

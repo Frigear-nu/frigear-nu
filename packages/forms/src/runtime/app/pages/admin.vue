@@ -40,6 +40,16 @@ async function create() {
   }
 }
 
+async function clone(form: FormSummaryDto) {
+  try {
+    const copy = await $fetch<{ id: string }>(`/api/forms/admin/forms/${form.id}/clone`, { method: 'POST' })
+    await navigateTo(paths('adminForm', { id: copy.id }))
+  }
+  catch (cause) {
+    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
+  }
+}
+
 async function runImport() {
   try {
     const parsed = JSON.parse(importJson.value)
@@ -176,6 +186,14 @@ const visibleForms = computed(() => {
             icon="i-lucide-link"
             :aria-label="t('admin.copyLink', 'Copy link')"
             @click.stop="link.copy(row.original.slug)"
+          />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-copy"
+            :aria-label="t('admin.clone', 'Duplicate')"
+            @click="clone(form)"
           />
           <UButton
             color="neutral"

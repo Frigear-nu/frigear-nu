@@ -9,6 +9,8 @@ import type {
   TicketStatus,
   TicketTypeDto,
 } from '../../../types'
+import { isScheduleOpen, nextScheduleOpening } from '@frigear-nu/module-kit/schedule'
+import type { Schedule } from '@frigear-nu/module-kit/schedule'
 import { normalizeMembership } from '../../utils'
 import { meetsMembership, passesExclusion } from './membership'
 
@@ -84,6 +86,26 @@ export async function loadCatalog(eventId: string) {
   return { types, groups, addons }
 }
 
+type SaleWindowType = { saleStartsAt: Date | null, saleEndsAt: Date | null, saleSchedule: Schedule | null }
+
+/**
+ * Whether a ticket type can be bought at `now`: its fixed window (`saleStartsAt`/`saleEndsAt`) and its optional
+ * recurring `saleSchedule` must both be open. `opensAt` is when sales (re)open, if they will.
+ */
+export function saleWindow(type: SaleWindowType, now: Date = new Date()): { state: 'open' | 'not_started' | 'ended', opensAt: Date | null } {
+  const time = now.getTime()
+  if (type.saleStartsAt && type.saleStartsAt.getTime() > time) return { state: 'not_started', opensAt: type.saleStartsAt }
+  if (type.saleEndsAt && type.saleEndsAt.getTime() < time) return { state: 'ended', opensAt: null }
+  if (!isScheduleOpen(type.saleSchedule ?? undefined, now)) {
+    const opensAt = nextScheduleOpening(type.saleSchedule ?? undefined, now)
+    // Never reopens before the fixed window ends: then it is over.
+    return opensAt && (!type.saleEndsAt || opensAt < type.saleEndsAt)
+      ? { state: 'not_started', opensAt }
+      : { state: 'ended', opensAt: null }
+  }
+  return { state: 'open', opensAt: null }
+}
+
 /**
  * The public event detail. For a signed-in user (`userId`) each ticket type also says whether they
  * may buy it (`blocked`), so the UI can disable it with the right badge.
@@ -96,11 +118,8 @@ export async function getEventDetail(row: EventRow, userId?: number): Promise<Ev
   const ticketTypes: TicketTypeDto[] = await Promise.all(types.map(async (type) => {
     const seats = type.capacity === null ? null : await countSeats(type.id)
     const remaining = type.capacity === null ? null : Math.max(type.capacity - (seats ?? 0), 0)
-    const saleState: TicketTypeDto['saleState'] = type.saleStartsAt && type.saleStartsAt.getTime() > now
-      ? 'not_started'
-      : type.saleEndsAt && type.saleEndsAt.getTime() < now
-        ? 'ended'
-        : remaining === 0 ? 'sold_out' : 'open'
+    const window = saleWindow(type, new Date(now))
+    const saleState: TicketTypeDto['saleState'] = window.state === 'open' && remaining === 0 ? 'sold_out' : window.state
 
     const typeRequirement = normalizeMembership(type.requiresMembership)
     const typeExclusion = normalizeMembership(type.excludesMembership)
@@ -145,7 +164,7 @@ export async function getEventDetail(row: EventRow, userId?: number): Promise<Ev
       requiresMembership: typeRequirement as MembershipRequirement,
       excludesMembership: typeExclusion as MembershipRequirement,
       remaining,
-      saleStartsAt: type.saleStartsAt?.toISOString() ?? null,
+      saleStartsAt: (window.state === 'not_started' ? window.opensAt : type.saleStartsAt)?.toISOString() ?? null,
       saleEndsAt: type.saleEndsAt?.toISOString() ?? null,
       saleState,
       blocked,

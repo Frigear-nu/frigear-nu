@@ -3,6 +3,8 @@ import { sqliteTable, text, integer, index, uniqueIndex, customType } from 'driz
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 type Translated = string | Record<string, string>
+// A recurring sale season or fixed range, see `@frigear-nu/module-kit/schedule`.
+type Schedule = import('@frigear-nu/module-kit/schedule').Schedule
 
 export const events = sqliteTable('events', {
   /** `evn_` + random id. */
@@ -59,6 +61,8 @@ export const eventTicketTypes = sqliteTable('event_ticket_types', {
   capacity: integer(),
   saleStartsAt: integer({ mode: 'timestamp' }),
   saleEndsAt: integer({ mode: 'timestamp' }),
+  /** Optional recurring sale season (`yearly`) or fixed `range`, checked on top of `saleStartsAt`/`saleEndsAt`; null = always. */
+  saleSchedule: text({ mode: 'json' }).$type<Schedule>(),
   maxPerUser: integer().notNull().default(1),
   /** `null` = open to everyone, `'any'` = any active subscription, or a list of plan keys. */
   requiresMembership: text({ mode: 'json' }).$type<'any' | string[]>(),

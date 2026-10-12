@@ -49,7 +49,18 @@ useHead({ title: computed(() => access.value?.name ?? '') })
       {{ access.name }}
     </h1>
 
-    <UCard v-if="gated && !unlocked">
+    <UAlert
+      v-if="access && !access.open"
+      icon="i-lucide-calendar-x"
+      color="neutral"
+      variant="subtle"
+      :title="t('schedule.closed', 'This form is closed.')"
+      :description="access.opensAt
+        ? t('schedule.opensAt', 'It opens again {date}.', { date: new Date(access.opensAt).toLocaleString() })
+        : undefined"
+    />
+
+    <UCard v-else-if="gated && !unlocked">
       <form
         class="space-y-4"
         @submit.prevent="unlock"
