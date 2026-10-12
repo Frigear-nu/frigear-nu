@@ -13,7 +13,7 @@ defineProps<{
   <UPageHeader
     :title="title"
     :description="description"
-    :ui="{ root: 'mb-6', title: 'text-2xl sm:text-3xl' }"
+    :ui="{ root: 'pt-0 pb-6 mb-6', title: 'text-2xl sm:text-3xl' }"
   >
     <template
       v-if="back || $slots.headline"

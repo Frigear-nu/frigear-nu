@@ -240,12 +240,16 @@ const hasOptions = computed(() => selectedField.value?.type === 'select' || sele
 const hasPlaceholder = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'number', 'textarea', 'select'].includes(selectedField.value.type))
 const hasLength = computed(() => !!selectedField.value && ['text', 'email', 'tel', 'textarea'].includes(selectedField.value.type))
 
-const summary = (field: FormField) =>
-  translate(field.type === 'markdown' ? field.content : field.label, locale.value) || field.key
+// One short line for the canvas: markdown blocks can be paragraphs long.
+const summary = (field: FormField) => {
+  const text = translate(field.type === 'markdown' ? field.content : field.label, locale.value) || field.key
+  const line = text.replace(/[*_`#>~[]|\]\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  return line.length > 80 ? `${line.slice(0, 80).trimEnd()}…` : line
+}
 </script>
 
 <template>
-  <div class="grid items-start gap-4 lg:grid-cols-[14rem_minmax(20rem,26rem)_minmax(0,1fr)]">
+  <div class="grid items-start gap-4 lg:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(20rem,26rem)_minmax(0,1fr)]">
     <!-- Palette -->
     <aside class="space-y-4 lg:sticky lg:top-4">
       <h2 class="text-sm font-semibold">
@@ -282,13 +286,13 @@ const summary = (field: FormField) =>
         <p class="text-xs text-muted">
           {{ t('builder.paletteHint', 'Drag a field onto the form, or click to add it.') }}
         </p>
-        <div class="grid grid-cols-2 gap-1 lg:grid-cols-1">
+        <div class="grid grid-cols-2 gap-1">
           <button
             v-for="type in fieldTypes"
             :key="type"
             type="button"
             draggable="true"
-            class="flex cursor-grab items-center gap-2 rounded-md border border-default bg-default px-2.5 py-1.5 text-left text-sm hover:border-primary hover:bg-elevated active:cursor-grabbing"
+            class="flex min-w-0 cursor-grab items-center gap-2 rounded-md border border-default bg-default px-2.5 py-1.5 text-left text-sm hover:border-primary hover:bg-elevated active:cursor-grabbing"
             @dragstart="startDrag($event, { kind: 'new', type })"
             @dragend="endDrag"
             @click="addField(type)"
@@ -297,14 +301,14 @@ const summary = (field: FormField) =>
               :name="typeIcons[type]"
               class="size-4 shrink-0 text-muted"
             />
-            {{ typeLabel(type) }}
+            <span class="truncate">{{ typeLabel(type) }}</span>
           </button>
         </div>
       </div>
     </aside>
 
     <!-- Fields being edited: the list, then the settings of the selected one -->
-    <div class="grid min-w-0 gap-4">
+    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
       <h2 class="text-sm font-semibold">
         {{ t('builder.fieldsTitle', 'Form fields') }}
       </h2>
@@ -317,6 +321,7 @@ const summary = (field: FormField) =>
         <div
           v-for="(step, stepIndex) in definition.steps"
           :key="step.id"
+          class="min-w-0"
         >
           <div
             v-if="stepped && showStepLine(stepIndex)"
@@ -722,7 +727,7 @@ const summary = (field: FormField) =>
     </div>
 
     <!-- Live preview -->
-    <div class="min-w-0 space-y-2 lg:sticky lg:top-4">
+    <div class="min-w-0 space-y-2 lg:col-span-2 2xl:sticky 2xl:top-4 2xl:col-span-1">
       <h2 class="text-sm font-semibold">
         {{ t('admin.preview', 'Preview') }}
       </h2>

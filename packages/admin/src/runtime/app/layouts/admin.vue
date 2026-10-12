@@ -83,7 +83,7 @@ watch(() => route.path, () => {
         </template>
       </UDashboardSidebar>
 
-      <UDashboardPanel>
+      <UDashboardPanel :ui="{ body: 'p-0 sm:p-0 gap-0' }">
         <template #header>
           <UDashboardNavbar :title="title">
             <template #leading>
@@ -104,9 +104,11 @@ watch(() => route.path, () => {
         </template>
 
         <template #body>
-          <div class="admin-content">
-            <slot />
-          </div>
+          <UPage :ui="{ root: 'block', center: 'admin-content px-4 sm:px-6' }">
+            <UPageBody class="mt-0 pt-6 pb-12 space-y-0">
+              <slot />
+            </UPageBody>
+          </UPage>
         </template>
       </UDashboardPanel>
     </UDashboardGroup>
