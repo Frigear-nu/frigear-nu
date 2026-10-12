@@ -542,10 +542,28 @@ describe('events (authenticated, database-backed)', async () => {
       expect(await mcpNames(staffRead)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
       const staffManage = await mcpToken(staff.cookie, ['events:manage'])
-      expect(await mcpNames(staffManage)).toEqual(['create-event', 'list-all-events', 'list-attendees', 'update-event'])
+      expect(await mcpNames(staffManage)).toEqual(['create-event', 'get-event-definition', 'list-all-events', 'list-attendees', 'update-event', 'update-ticket-type'])
 
       const created = await mcpCall(staffManage, 'create-event', { slug: 'mcp-party', name: 'MCP party', startsAt: future(48), status: 'published' })
       expect(created.result?.isError, JSON.stringify(created)).toBeFalsy()
+
+      const createdEvent = JSON.parse(created.result!.content[0].text) as { id: string }
+      const withTypes = await mcpCall(staffManage, 'create-event', {
+        slug: 'mcp-tickets', name: 'MCP tickets', startsAt: future(48), status: 'draft',
+        ticketTypes: [{ key: 'general', name: 'General', price: 10000, capacity: 50 }],
+      })
+      expect(withTypes.result?.isError, JSON.stringify(withTypes)).toBeFalsy()
+      const withTypesId = (JSON.parse(withTypes.result!.content[0].text) as { id: string }).id
+      expect(createdEvent.id).toBeTruthy()
+
+      const definition = await mcpCall(staffManage, 'get-event-definition', { id: withTypesId })
+      const [ticketType] = (JSON.parse(definition.result!.content[0].text) as { ticketTypes: Array<{ id: string, price: number }> }).ticketTypes
+      expect(ticketType?.price).toBe(10000)
+      const updatedType = await mcpCall(staffManage, 'update-ticket-type', { id: ticketType!.id, patch: { price: 15000, capacity: 20, saleEndsAt: future(24) } })
+      expect(updatedType.result?.isError, JSON.stringify(updatedType)).toBeFalsy()
+      expect(JSON.parse(updatedType.result!.content[0].text)).toMatchObject({ id: ticketType!.id, price: 15000, capacity: 20 })
+      expect((await mcpCall(staffManage, 'update-ticket-type', { id: 'nope', patch: { price: 1 } })).result?.isError).toBe(true)
+      expect((await mcpCall(guestAll, 'update-ticket-type', { id: ticketType!.id, patch: { price: 1 } })).result?.isError ?? true).toBeTruthy()
 
       // Direct calls to hidden tools are refused rather than trusting the listing.
       const denied = await mcpCall(guestAll, 'list-all-events')

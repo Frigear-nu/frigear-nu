@@ -44,6 +44,8 @@ const ticketType = z.object({
   addonGroups: z.array(addonGroup).optional(),
 })
 
+export const ticketTypeFields = ticketType.omit({ addonGroups: true })
+
 export const eventFields = {
   slug: z.string().min(1).max(128).describe('Lowercase letters, numbers and dashes.'),
   name: text,
@@ -63,4 +65,9 @@ export const createEventShape = { ...eventFields, ticketTypes: z.array(ticketTyp
 export const updateEventShape = {
   id: z.string().describe('The event id.'),
   patch: z.object(eventFields).partial().describe('Only the fields to change.'),
+}
+
+export const updateTicketTypeShape = {
+  id: z.string().describe('The ticket type id (see get-event or list-all-events).'),
+  patch: ticketTypeFields.partial().describe('Only the fields to change. Addon groups are not changed here.'),
 }
