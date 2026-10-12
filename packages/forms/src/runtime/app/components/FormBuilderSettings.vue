@@ -137,6 +137,7 @@ const routeFieldItems = computed(() => [
             <FormBuilderText
               :model-value="email.body"
               multiline
+              :preview="false"
               @update:model-value="definition = patchEmailDelivery(definition, { body: $event })"
             />
             <div class="space-y-1">

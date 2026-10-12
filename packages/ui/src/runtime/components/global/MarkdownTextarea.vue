@@ -1,0 +1,67 @@
+<script setup lang="ts">
+import { renderMarkdown } from '../../markdown'
+
+const props = defineProps<{
+  placeholder?: string
+  rows?: number
+  required?: boolean
+  disabled?: boolean
+  /** Show the Write / Preview toggle. */
+  preview?: boolean
+}>()
+const model = defineModel<string>()
+
+const t = useUiT('markdown')
+const previewing = ref(false)
+const html = computed(() => renderMarkdown(model.value ?? ''))
+</script>
+
+<template>
+  <div class="min-w-0 space-y-1">
+    <div
+      v-if="props.preview"
+      class="flex justify-end gap-1"
+    >
+      <UButton
+        size="xs"
+        color="neutral"
+        :variant="previewing ? 'ghost' : 'subtle'"
+        :label="t('write', 'Write')"
+        @click="previewing = false"
+      />
+      <UButton
+        size="xs"
+        color="neutral"
+        :variant="previewing ? 'subtle' : 'ghost'"
+        icon="i-lucide-eye"
+        :label="t('preview', 'Preview')"
+        @click="previewing = true"
+      />
+    </div>
+    <!-- eslint-disable vue/no-v-html -- renderMarkdown escapes all input -->
+    <div
+      v-if="props.preview && previewing"
+      class="prose prose-sm min-h-16 max-w-none rounded-md border border-default p-2 text-muted"
+      :style="{ minHeight: `${(props.rows ?? 4) * 1.5}rem` }"
+    >
+      <span
+        v-if="!html"
+        class="italic"
+      >{{ t('empty', 'Nothing to preview') }}</span>
+      <div
+        v-else
+        v-html="html"
+      />
+    </div>
+    <!-- eslint-enable vue/no-v-html -->
+    <UTextarea
+      v-else
+      v-model="model"
+      :placeholder="placeholder"
+      :rows="rows"
+      :required="required"
+      :disabled="disabled"
+      class="w-full"
+    />
+  </div>
+</template>

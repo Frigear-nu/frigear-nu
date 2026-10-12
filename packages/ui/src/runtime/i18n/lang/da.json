@@ -28,5 +28,10 @@
     "missing": "Mangler, viser reserve-sproget",
     "addLanguage": "Tilføj sprog, f.eks. de",
     "singleLanguage": "Samme tekst på alle sprog"
+  },
+  "markdown": {
+    "write": "Skriv",
+    "preview": "Vis",
+    "empty": "Intet at vise"
   }
 }
