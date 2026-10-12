@@ -52,7 +52,9 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
 
     addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
-    addComponent({ name: 'AdminPageHeader', filePath: resolver.resolve('./runtime/app/components/AdminPageHeader.vue') })
+    for (const name of ['AdminPage', 'AdminPageHeader', 'AdminSection', 'AdminToolbar', 'AdminEmpty', 'AdminTable']) {
+      addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
+    }
 
     // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
     const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])

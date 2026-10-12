@@ -757,6 +757,9 @@ importers:
 
   packages/events:
     dependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@frigear-nu/menu':
         specifier: workspace:*
         version: link:../menu
@@ -854,6 +857,9 @@ importers:
 
   packages/forms:
     dependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@frigear-nu/menu':
         specifier: workspace:*
         version: link:../menu
@@ -1096,12 +1102,18 @@ importers:
 
   packages/oauth-server:
     dependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@frigear-nu/menu':
         specifier: workspace:*
         version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users

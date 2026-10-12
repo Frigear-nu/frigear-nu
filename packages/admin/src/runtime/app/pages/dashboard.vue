@@ -8,7 +8,7 @@ const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admi
 </script>
 
 <template>
-  <div>
+  <AdminPage>
     <AdminPageHeader
       :title="t('dashboard.title', 'Dashboard')"
       :description="t('dashboard.description', 'Overview and shortcuts for administrators.')"
@@ -36,5 +36,5 @@ const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admi
         </p>
       </template>
     </WidgetArea>
-  </div>
+  </AdminPage>
 </template>

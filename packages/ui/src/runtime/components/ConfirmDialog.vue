@@ -4,6 +4,8 @@ interface ConfirmDialogProps {
   description?: string
   dismissible?: boolean
   confirmText?: string
+  cancelText?: string
+  destructive?: boolean
 }
 
 withDefaults(defineProps<ConfirmDialogProps>(), {
@@ -24,14 +26,14 @@ const emits = defineEmits<{
   >
     <template #footer>
       <UButton
-        label="Cancel"
+        :label="cancelText || 'Cancel'"
         color="neutral"
         variant="outline"
         @click="emits('close', false)"
       />
       <UButton
         :label="confirmText || 'Confirm'"
-        color="neutral"
+        :color="destructive ? 'error' : 'neutral'"
         @click="emits('close', true)"
       />
     </template>
