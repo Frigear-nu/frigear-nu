@@ -174,8 +174,10 @@ const saveType = () => run(async () => {
   await refresh()
 }, t('admin.typeSaved', 'Ticket type saved.'))
 
-const removeType = (ticketType: AdminTicketType) => {
-  if (!confirm(t('admin.confirmRemoveType', 'Delete this ticket type?'))) return
+const confirmAction = useConfirmDialog()
+
+const removeType = async (ticketType: AdminTicketType) => {
+  if (!await confirmAction({ title: t('admin.confirmRemoveType', 'Delete this ticket type?'), confirmText: t('admin.remove', 'Delete'), cancelText: t('admin.cancel', 'Cancel'), destructive: true })) return
   return run(async () => {
     await $fetch(`/api/events/admin/ticket-types/${ticketType.id}`, { method: 'DELETE' })
     await refresh()
@@ -186,8 +188,13 @@ const removeType = (ticketType: AdminTicketType) => {
 const typeName = (ticketTypeId: string) => tr(event.value?.ticketTypes.find(item => item.id === ticketTypeId)?.name)
 const statusColor: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = { paid: 'success', pending: 'warning', cancelled: 'neutral', refunded: 'neutral', expired: 'neutral' }
 
-const ticketAction = (ticket: Attendee, action: 'cancel' | 'refund') => {
-  if (!confirm(action === 'refund' ? t('admin.confirmRefund', 'Refund this ticket?') : t('admin.confirmCancel', 'Cancel this ticket?'))) return
+const ticketAction = async (ticket: Attendee, action: 'cancel' | 'refund') => {
+  const confirmed = await confirmAction({
+    title: action === 'refund' ? t('admin.confirmRefund', 'Refund this ticket?') : t('admin.confirmCancel', 'Cancel this ticket?'),
+    confirmText: action === 'refund' ? t('admin.refund', 'Refund') : t('admin.cancel', 'Cancel'),
+    destructive: true,
+  })
+  if (!confirmed) return
   return run(async () => {
     await $fetch(`/api/events/admin/tickets/${ticket.id}/${action}`, { method: 'POST' })
     await refreshAttendees()
@@ -204,12 +211,12 @@ const attendeeColumns = [
 </script>
 
 <template>
-  <div v-if="event">
+  <AdminPage v-if="event">
     <AdminPageHeader
       :title="tr(event.name)"
       :back="{ label: t('admin.title', 'Events'), to: pages?.admin || '/admin/events' }"
     >
-      <template #links>
+      <template #actions>
         <UButton
           v-if="event.status === 'published' && pages?.event"
           :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
@@ -221,12 +228,9 @@ const attendeeColumns = [
       </template>
     </AdminPageHeader>
 
-    <UPageCard
-      :title="t('admin.details', 'Details')"
-      variant="subtle"
-      class="mb-6"
-    >
+    <AdminSection :title="t('admin.details', 'Details')">
       <form
+        id="admin-event-details"
         class="flex flex-col gap-4"
         @submit.prevent="save"
       >
@@ -251,7 +255,7 @@ const attendeeColumns = [
         </UFormField>
         <UFormField
           :label="t('admin.body', 'Details')"
-          :help="t('admin.bodyHelp', 'Shown on the event page. Markdown is supported.')"
+          :description="t('admin.bodyHelp', 'Shown on the event page. Markdown is supported.')"
         >
           <TranslatedInput
             v-model="form.body"
@@ -284,22 +288,31 @@ const attendeeColumns = [
         <UFormField :label="t('admin.location', 'Location')">
           <TranslatedInput v-model="form.location" />
         </UFormField>
-        <div>
+      </form>
+      <template #footer>
+        <div class="flex justify-end">
           <UButton
             type="submit"
+            form="admin-event-details"
             :loading="busy"
             :disabled="!tr(form.name)"
             :label="t('admin.save', 'Save')"
           />
         </div>
-      </form>
-    </UPageCard>
+      </template>
+    </AdminSection>
 
-    <UPageCard
-      :title="t('admin.ticketTypes', 'Ticket types')"
-      variant="subtle"
-      class="mb-6"
-    >
+    <AdminSection :title="t('admin.ticketTypes', 'Ticket types')">
+      <template #actions>
+        <UButton
+          icon="i-lucide-plus"
+          variant="outline"
+          color="neutral"
+          size="xs"
+          :label="t('admin.addType', 'Add ticket type')"
+          @click="openType()"
+        />
+      </template>
       <ul
         v-if="event.ticketTypes.length"
         class="divide-default divide-y"
@@ -353,78 +366,65 @@ const attendeeColumns = [
           </span>
         </li>
       </ul>
-      <p
+      <AdminEmpty
         v-else
-        class="text-muted text-sm"
-      >
-        {{ t('admin.noTypes', 'No ticket types yet: nobody can buy a ticket.') }}
-      </p>
-      <template #footer>
-        <UButton
-          icon="i-lucide-plus"
-          variant="outline"
-          color="neutral"
-          size="xs"
-          :label="t('admin.addType', 'Add ticket type')"
-          @click="openType()"
-        />
-      </template>
-    </UPageCard>
+        icon="i-lucide-ticket"
+        :title="t('admin.noTypes', 'No ticket types yet: nobody can buy a ticket.')"
+      />
+    </AdminSection>
 
-    <UPageCard
-      :title="t('admin.attendees', 'Attendees')"
-      variant="subtle"
-    >
-      <UTable
-        v-if="attendees.length"
-        :data="attendees"
-        :columns="attendeeColumns"
-      >
-        <template #userName-cell="{ row }">
-          <span class="font-medium">{{ row.original.userName }}</span>
-          <span class="text-muted"> · {{ row.original.userEmail }}</span>
-        </template>
-        <template #ticketTypeId-cell="{ row }">
-          {{ typeName(row.original.ticketTypeId) }}
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge
-            variant="subtle"
-            :color="statusColor[row.original.status] ?? 'neutral'"
-            :label="row.original.status"
-          />
-        </template>
-        <template #checkedInAt-cell="{ row }">
-          {{ row.original.checkedInAt ? '✓' : '–' }}
-        </template>
-        <template #actions-cell="{ row }">
-          <div class="flex justify-end gap-1">
-            <UButton
-              v-if="row.original.status === 'paid' && row.original.paymentId"
-              size="xs"
-              variant="outline"
-              color="neutral"
-              :label="t('admin.refund', 'Refund')"
-              @click="ticketAction(row.original, 'refund')"
+    <AdminSection :title="t('admin.attendees', 'Attendees')">
+      <template #flush>
+        <UTable
+          v-if="attendees.length"
+          :data="attendees"
+          :columns="attendeeColumns"
+        >
+          <template #userName-cell="{ row }">
+            <span class="font-medium">{{ row.original.userName }}</span>
+            <span class="text-muted"> · {{ row.original.userEmail }}</span>
+          </template>
+          <template #ticketTypeId-cell="{ row }">
+            {{ typeName(row.original.ticketTypeId) }}
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge
+              variant="subtle"
+              :color="statusColor[row.original.status] ?? 'neutral'"
+              :label="row.original.status"
             />
-            <UButton
-              v-if="row.original.status === 'paid' || row.original.status === 'pending'"
-              size="xs"
-              variant="ghost"
-              color="error"
-              :label="t('admin.cancel', 'Cancel')"
-              @click="ticketAction(row.original, 'cancel')"
-            />
-          </div>
-        </template>
-      </UTable>
-      <p
-        v-else
-        class="text-muted text-sm"
-      >
-        {{ t('admin.noAttendees', 'No tickets yet.') }}
-      </p>
-    </UPageCard>
+          </template>
+          <template #checkedInAt-cell="{ row }">
+            {{ row.original.checkedInAt ? '✓' : '–' }}
+          </template>
+          <template #actions-cell="{ row }">
+            <div class="flex justify-end gap-1">
+              <UButton
+                v-if="row.original.status === 'paid' && row.original.paymentId"
+                size="xs"
+                variant="outline"
+                color="neutral"
+                :label="t('admin.refund', 'Refund')"
+                @click="ticketAction(row.original, 'refund')"
+              />
+              <UButton
+                v-if="row.original.status === 'paid' || row.original.status === 'pending'"
+                size="xs"
+                variant="ghost"
+                color="error"
+                :label="t('admin.cancel', 'Cancel')"
+                @click="ticketAction(row.original, 'cancel')"
+              />
+            </div>
+          </template>
+        </UTable>
+      </template>
+      <AdminEmpty
+        v-if="!attendees.length"
+        icon="i-lucide-users"
+        :title="t('admin.noAttendees', 'No tickets yet.')"
+      />
+    </AdminSection>
 
     <UModal
       v-model:open="typeDialog"
@@ -432,6 +432,7 @@ const attendeeColumns = [
     >
       <template #body>
         <form
+          id="admin-ticket-type-form"
           class="flex flex-col gap-4"
           @submit.prevent="saveType"
         >
@@ -451,7 +452,7 @@ const attendeeColumns = [
           <UFormField
             v-if="!editingType"
             :label="t('admin.key', 'Key')"
-            :help="t('admin.keyHelp', 'A short unique id, e.g. member.')"
+            :description="t('admin.keyHelp', 'A short unique id, e.g. member.')"
           >
             <UInput
               v-model="type.key"
@@ -470,7 +471,7 @@ const attendeeColumns = [
           </UFormField>
           <UFormField
             :label="t('admin.capacity', 'Capacity')"
-            :help="t('admin.capacityHelp', 'Leave empty for unlimited.')"
+            :description="t('admin.capacityHelp', 'Leave empty for unlimited.')"
           >
             <UInput
               v-model="type.capacity"
@@ -483,7 +484,7 @@ const attendeeColumns = [
           <template v-if="membershipEnabled">
             <UFormField
               :label="t('admin.requiresMembership', 'Only for members of')"
-              :help="t('admin.requiresHelp', 'Visitors without a matching active membership cannot buy this ticket.')"
+              :description="t('admin.requiresHelp', 'Visitors without a matching active membership cannot buy this ticket.')"
             >
               <USelect
                 v-model="type.requires.mode"
@@ -501,7 +502,7 @@ const attendeeColumns = [
             </UFormField>
             <UFormField
               :label="t('admin.excludesMembership', 'Not for members of')"
-              :help="t('admin.excludesHelp', 'Holders of these memberships cannot buy this ticket, so members and non-members can have separate prices.')"
+              :description="t('admin.excludesHelp', 'Holders of these memberships cannot buy this ticket, so members and non-members can have separate prices.')"
             >
               <USelect
                 v-model="type.excludes.mode"
@@ -518,26 +519,30 @@ const attendeeColumns = [
               />
             </UFormField>
           </template>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              variant="subtle"
-              :label="t('admin.cancel', 'Cancel')"
-              @click="typeDialog = false"
-            />
-            <UButton
-              type="submit"
-              :loading="busy"
-              :disabled="!tr(type.name)"
-              :label="t('admin.save', 'Save')"
-            />
-          </div>
         </form>
       </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="typeDialog = false"
+          />
+          <UButton
+            type="submit"
+            form="admin-ticket-type-form"
+            :loading="busy"
+            :disabled="!tr(type.name)"
+            :label="t('admin.save', 'Save')"
+          />
+        </div>
+      </template>
     </UModal>
-  </div>
-  <UEmpty
+  </AdminPage>
+  <AdminEmpty
     v-else
+    icon="i-lucide-calendar-x"
     :title="t('notFound', 'Event not found')"
   />
 </template>

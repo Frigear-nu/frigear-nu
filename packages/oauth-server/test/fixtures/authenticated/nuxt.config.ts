@@ -6,6 +6,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
+    '@frigear-nu/admin',
     OAuthServerModule,
   ],
   runtimeConfig: {

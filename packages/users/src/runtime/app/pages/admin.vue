@@ -146,7 +146,7 @@ async function save() {
 </script>
 
 <template>
-  <div>
+  <AdminPage>
     <AdminPageHeader :title="t('admin.title', 'Users')">
       <template #links>
         <UButton
@@ -156,7 +156,7 @@ async function save() {
         />
       </template>
     </AdminPageHeader>
-    <div class="mb-4 flex flex-wrap items-center gap-3">
+    <AdminToolbar>
       <UInput
         v-model="search"
         class="w-full max-w-sm"
@@ -184,19 +184,21 @@ async function save() {
         :label="t('admin.filters.clear', 'Clear filters')"
         @click="resetFilters"
       />
-    </div>
-    <UTable
+    </AdminToolbar>
+    <AdminTable
       :data="data.items"
       :columns="columns"
       :loading="loading"
-      class="rounded-lg border border-default"
       @select="openUser"
     >
       <template #empty>
-        {{ t('admin.empty', 'No users match.') }}
+        <AdminEmpty
+          icon="i-lucide-users"
+          :title="t('admin.empty', 'No users match.')"
+        />
       </template>
-    </UTable>
-    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+    </AdminTable>
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3 text-sm text-muted">
         <span>{{ t('admin.total', '{count} users', { count: data.total }) }}</span>
         <USelect
@@ -217,6 +219,7 @@ async function save() {
     >
       <template #body>
         <form
+          id="admin-user-form"
           class="flex flex-col gap-4"
           @submit.prevent="save"
         >
@@ -254,20 +257,24 @@ async function save() {
             v-model="form.sendWelcomeEmail"
             :label="t('admin.sendWelcome', 'Email a sign-in link')"
           />
-          <div class="flex justify-end gap-2">
-            <UButton
-              variant="subtle"
-              :label="t('admin.cancel', 'Cancel')"
-              @click="open = false"
-            />
-            <UButton
-              type="submit"
-              :loading="saving"
-              :label="t('admin.save', 'Save')"
-            />
-          </div>
         </form>
       </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="subtle"
+            color="neutral"
+            :label="t('admin.cancel', 'Cancel')"
+            @click="open = false"
+          />
+          <UButton
+            type="submit"
+            form="admin-user-form"
+            :loading="saving"
+            :label="t('admin.save', 'Save')"
+          />
+        </div>
+      </template>
     </UModal>
-  </div>
+  </AdminPage>
 </template>

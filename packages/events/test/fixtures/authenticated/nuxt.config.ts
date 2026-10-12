@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
+    '@frigear-nu/admin',
     '@frigear-nu/stripe',
     '@frigear-nu/payments',
     '@frigear-nu/subscriptions',

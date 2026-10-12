@@ -124,21 +124,15 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
 </script>
 
 <template>
-  <div>
-    <UButton
-      :to="listPath"
-      color="neutral"
-      variant="link"
-      icon="i-lucide-arrow-left"
-      class="-ml-2.5 mb-2"
-      :label="t('admin.title', 'Users')"
-    />
-    <UAlert
-      v-if="error || !user"
-      color="error"
-      variant="subtle"
-      :title="t('admin.detail.notFound', 'User not found.')"
-    />
+  <AdminPage>
+    <template v-if="error || !user">
+      <AdminPageHeader :back="{ label: t('admin.title', 'Users'), to: listPath }" />
+      <UAlert
+        color="error"
+        variant="subtle"
+        :title="t('admin.detail.notFound', 'User not found.')"
+      />
+    </template>
     <template v-else>
       <AdminPageHeader
         :title="user.name"
@@ -155,10 +149,7 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
       </AdminPageHeader>
 
       <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <UPageCard
-          variant="subtle"
-          :title="t('admin.detail.profile', 'Profile')"
-        >
+        <AdminSection :title="t('admin.detail.profile', 'Profile')">
           <form
             class="flex flex-col gap-4"
             @submit.prevent="save"
@@ -173,7 +164,7 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
             </UFormField>
             <UFormField
               :label="t('admin.email', 'Email')"
-              :help="t('admin.detail.emailHelp', 'Changing the address marks it unverified and emails a verification link to the new one.')"
+              :description="t('admin.detail.emailHelp', 'Changing the address marks it unverified and emails a verification link to the new one.')"
             >
               <UInput
                 v-model="form.email"
@@ -209,13 +200,10 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
               />
             </div>
           </form>
-        </UPageCard>
+        </AdminSection>
 
         <div class="flex flex-col gap-6">
-          <UPageCard
-            variant="subtle"
-            :title="t('admin.detail.account', 'Account')"
-          >
+          <AdminSection :title="t('admin.detail.account', 'Account')">
             <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <dt class="text-muted">
                 {{ t('admin.created', 'Created') }}
@@ -243,12 +231,11 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
               :label="user.emailVerifiedAt ? t('admin.detail.sendLink', 'Email a sign-in link') : t('admin.detail.sendVerification', 'Resend verification email')"
               @click="resend"
             />
-          </UPageCard>
+          </AdminSection>
 
           <!-- Membership panel: a hook for @frigear-nu/subscriptions (see `UsersAdminMembership` above). -->
-          <UPageCard
+          <AdminSection
             id="membership"
-            variant="subtle"
             :title="t('admin.detail.membership', 'Membership')"
           >
             <component
@@ -276,11 +263,10 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
                 {{ t('admin.detail.noMembership', 'No membership.') }}
               </p>
             </template>
-          </UPageCard>
+          </AdminSection>
 
-          <UPageCard
+          <AdminSection
             v-if="user.can.delete"
-            variant="subtle"
             :title="t('admin.detail.danger', 'Danger zone')"
           >
             <UButton
@@ -290,7 +276,7 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
               :label="t('admin.detail.delete', 'Delete user')"
               @click="confirmDelete = true"
             />
-          </UPageCard>
+          </AdminSection>
         </div>
       </div>
 
@@ -316,5 +302,5 @@ const membershipPanel = typeof MembershipPanel === 'string' ? undefined : Member
         </template>
       </UModal>
     </template>
-  </div>
+  </AdminPage>
 </template>

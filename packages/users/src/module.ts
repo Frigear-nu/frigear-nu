@@ -100,6 +100,11 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.0',
       optional: true,
     },
+    // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
+    '@frigear-nu/admin': {
+      version: '>=0.0.0',
+      optional: true,
+    },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
       defaults: { webAuthn: true },
