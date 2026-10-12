@@ -36,6 +36,9 @@
       "tryAgain": "Prøv igen",
       "device": "Enhed"
     },
+    "field": {
+      "phoneCountry": "Land"
+    },
     "value": {
       "yes": "Ja",
       "no": "Nej"
@@ -55,6 +58,7 @@
       "required": "Feltet er påkrævet.",
       "email": "Indtast en gyldig e-mailadresse.",
       "tel": "Indtast et gyldigt telefonnummer.",
+      "telCountry": "Telefonnumre fra dette land accepteres ikke.",
       "date": "Indtast en gyldig dato.",
       "option": "Vælg en af mulighederne.",
       "min": "Skal være mindst {min}.",
@@ -264,6 +268,12 @@
       "placeholder": "Pladsholder",
       "required": "Påkrævet",
       "multiple": "Tillad flere filer",
+      "phoneMode": "Telefonindtastning",
+      "phoneSimple": "Ét felt",
+      "phoneCountry": "Landekode + nummer",
+      "phoneCountries": "Tilladte lande",
+      "phoneCountriesHint": "Lad feltet stå tomt for at tillade alle lande.",
+      "phoneDefaultCountry": "Standardland",
       "key": "Nøgle",
       "keyHint": "Identificerer svaret. Bogstaver, tal og understregninger.",
       "options": "Valgmuligheder",

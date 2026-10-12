@@ -32,6 +32,10 @@ export {
   templateVariables, availableVariables, unknownBodyVariables, sampleAnswers, staticVariables,
 } from './template'
 export type { RenderedAnswer, EmailContext } from './template'
+export {
+  allPhoneCountries, phoneCountries, defaultPhoneCountry, countryName, composePhone, parsePhone, phoneIssue, isPhoneCountry, isCountryPhone,
+} from './phone'
+export type { PhoneCountry } from './phone'
 export { embedMode } from './embed'
 export type { EmbedMode } from './embed'
 export { isFormOpen, nextFormOpening } from './schedule'

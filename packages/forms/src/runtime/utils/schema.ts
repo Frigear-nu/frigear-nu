@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { FormDefinition, FormField } from '../../types'
 import { isInputField, resolveVisibility } from './conditions'
 import type { Answers } from './conditions'
+import { phoneIssue } from './phone'
 import { defaultMessages, translate } from './text'
 import type { MessageTranslator } from './text'
 
@@ -15,7 +16,6 @@ export type SchemaOptions = {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
-const PHONE = /^[+()\d\s-]{5,}$/
 const DATE = /^\d{4}-\d{2}-\d{2}/
 
 /** Applied when a file field sets no `maxSize` / `maxFiles`, so uploads are always bounded. */
@@ -93,8 +93,10 @@ export function buildFieldSchema(field: FormField, options: SchemaOptions = {}):
     if (field.type === 'email' && !EMAIL.test(value)) {
       ctx.addIssue({ code: 'custom', message: message('email', 'Enter a valid email address.') })
     }
-    if (field.type === 'tel' && !PHONE.test(value)) {
-      ctx.addIssue({ code: 'custom', message: message('tel', 'Enter a valid phone number.') })
+    if (field.type === 'tel') {
+      const issue = phoneIssue(field, value)
+      if (issue === 'country') ctx.addIssue({ code: 'custom', message: message('telCountry', 'Phone numbers from this country are not accepted.') })
+      else if (issue) ctx.addIssue({ code: 'custom', message: message('tel', 'Enter a valid phone number.') })
     }
     if (field.type === 'date' && !DATE.test(value)) {
       ctx.addIssue({ code: 'custom', message: message('date', 'Enter a valid date.') })

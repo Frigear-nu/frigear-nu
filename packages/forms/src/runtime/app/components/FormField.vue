@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormField } from '../../../types'
-import { renderMarkdown, translate } from '../../utils'
+import { isCountryPhone, renderMarkdown, translate } from '../../utils'
 
 const props = defineProps<{
   field: FormField
@@ -11,6 +11,11 @@ const props = defineProps<{
   captchaResetKey?: number
 }>()
 const model = defineModel<unknown>()
+
+const t = useModuleT('forms')
+
+/** Browser autofill hints for types that have an obvious one; an explicit `field.autocomplete` wins. */
+const defaultAutocomplete: Partial<Record<FormField['type'], string>> = { email: 'email', tel: 'tel' }
 
 const text = (value: FormField['label']) => translate(value, props.locale) || undefined
 const items = computed(() => (props.field.options ?? []).map(option => ({
@@ -96,11 +101,20 @@ const isCheckbox = computed(() => props.field.type === 'checkbox')
       :accept="field.validation?.accept?.join(',')"
       class="w-full"
     />
+    <FormPhoneInput
+      v-else-if="isCountryPhone(field)"
+      v-model="model as string | undefined"
+      :config="field.phone"
+      :locale="locale"
+      :placeholder="text(field.placeholder)"
+      :country-label="t('field.phoneCountry', 'Country')"
+    />
     <UInput
       v-else
       v-model="model as string"
       :type="field.type === 'date' ? 'date' : field.type === 'tel' ? 'tel' : field.type === 'email' ? 'email' : 'text'"
-      :autocomplete="field.autocomplete"
+      :inputmode="field.type === 'tel' ? 'tel' : undefined"
+      :autocomplete="field.autocomplete ?? defaultAutocomplete[field.type]"
       :placeholder="text(field.placeholder)"
       class="w-full"
     />

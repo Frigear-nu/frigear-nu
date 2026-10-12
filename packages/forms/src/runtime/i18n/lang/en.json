@@ -36,6 +36,9 @@
       "tryAgain": "Try again",
       "device": "Device"
     },
+    "field": {
+      "phoneCountry": "Country"
+    },
     "value": {
       "yes": "Yes",
       "no": "No"
@@ -55,6 +58,7 @@
       "required": "This field is required.",
       "email": "Enter a valid email address.",
       "tel": "Enter a valid phone number.",
+      "telCountry": "Phone numbers from this country are not accepted.",
       "date": "Enter a valid date.",
       "option": "Choose one of the available options.",
       "min": "Must be at least {min}.",
@@ -264,6 +268,12 @@
       "placeholder": "Placeholder",
       "required": "Required",
       "multiple": "Allow several files",
+      "phoneMode": "Phone input",
+      "phoneSimple": "Single input",
+      "phoneCountry": "Country code + number",
+      "phoneCountries": "Allowed countries",
+      "phoneCountriesHint": "Leave empty to allow all countries.",
+      "phoneDefaultCountry": "Default country",
       "key": "Key",
       "keyHint": "Identifies the answer. Letters, digits and underscores.",
       "options": "Options",

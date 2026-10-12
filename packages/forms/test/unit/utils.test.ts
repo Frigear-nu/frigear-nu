@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFormSchema, formDefinitionSchema, isFieldVisible, renderMarkdown, resolveEmailDelivery, resolveVisibility } from '../../src/runtime/utils'
+import { buildFormSchema, composePhone, defaultPhoneCountry, formDefinitionSchema, isFieldVisible, parsePhone, renderMarkdown, resolveEmailDelivery, resolveVisibility } from '../../src/runtime/utils'
 import type { FormDefinition } from '../../src/types'
 
 const contact = {
@@ -237,5 +237,56 @@ describe('resolveEmailDelivery', () => {
   it('uses the routed recipients, the fallback otherwise, and the reply-to answer', () => {
     expect(resolveEmailDelivery(email, { subject: 'a', email: ' me@b.dk ' })).toEqual({ to: ['a@b.dk'], replyTo: 'me@b.dk' })
     expect(resolveEmailDelivery(email, { subject: 'zzz' })).toEqual({ to: ['fallback@b.dk'], replyTo: undefined })
+  })
+})
+
+describe('phone fields', () => {
+  const phone = (config?: FormDefinition['steps'][number]['fields'][number]['phone']) => ({
+    mode: 'single', storage: 'none', steps: [{ id: 's', fields: [{ key: 'tel', type: 'tel', required: true, phone: config }] }],
+  }) satisfies FormDefinition
+  const check = (config: Parameters<typeof phone>[0], value: string) => {
+    const answers = { tel: value }
+    return buildFormSchema(phone(config), answers).safeParse(answers).success
+  }
+
+  it('accepts free-form numbers in simple mode', () => {
+    expect(check(undefined, '12 34 56 78')).toBe(true)
+    expect(check(undefined, 'abc')).toBe(false)
+  })
+
+  it('requires an international number in country mode', () => {
+    expect(check({ mode: 'country' }, '+4512345678')).toBe(true)
+    expect(check({ mode: 'country' }, '12345678')).toBe(false)
+    expect(check({ mode: 'country' }, '+45123')).toBe(false)
+    expect(check({ mode: 'country' }, '+4512345678901234')).toBe(false)
+  })
+
+  it('limits the accepted countries', () => {
+    const config = { mode: 'country', countries: ['DK', 'SE'] } as const
+    expect(check(config, '+4512345678')).toBe(true)
+    expect(check(config, '+46701234567')).toBe(true)
+    expect(check(config, '+4791234567')).toBe(false)
+  })
+
+  it('merges and splits country and number', () => {
+    expect(composePhone('DK', '12 34 56 78')).toBe('+4512345678')
+    expect(composePhone('GB', '07911 123456')).toBe('+447911123456')
+    expect(composePhone('IT', '06 1234567')).toBe('+39061234567')
+    expect(composePhone('DK', '')).toBe('')
+    expect(parsePhone('+4512345678')).toEqual({ country: 'DK', national: '12345678' })
+    expect(parsePhone('+12025550123', undefined, 'CA')).toEqual({ country: 'CA', national: '2025550123' })
+    expect(parsePhone('+4512345678', { countries: ['SE'] })).toEqual({ country: 'SE', national: '4512345678' })
+  })
+
+  it('picks a default country that is offered', () => {
+    expect(defaultPhoneCountry()).toBe('DK')
+    expect(defaultPhoneCountry({ countries: ['SE', 'NO'] })).toBe('SE')
+    expect(defaultPhoneCountry({ countries: ['SE', 'NO'], defaultCountry: 'no' })).toBe('NO')
+  })
+
+  it('validates country codes in the definition', () => {
+    const bad = phone({ mode: 'country', countries: ['XX'] })
+    expect(formDefinitionSchema.safeParse(bad).success).toBe(false)
+    expect(formDefinitionSchema.safeParse(phone({ mode: 'country', countries: ['dk'] })).success).toBe(true)
   })
 })

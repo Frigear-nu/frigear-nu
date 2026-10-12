@@ -54,6 +54,16 @@ export type CaptchaConfig = {
   size?: 'normal' | 'compact'
 }
 
+/** Settings of a `tel` field. The answer is always one string; with a country selector it is `+<dial code><number>`, e.g. `+4512345678`. */
+export type PhoneConfig = {
+  /** `simple`: one free-form input (default). `country`: a country selector next to the national number, merged into one value. */
+  mode?: 'simple' | 'country'
+  /** ISO 3166-1 alpha-2 codes the visitor may choose from (`country` mode). Default: all countries. */
+  countries?: string[]
+  /** Preselected country (`country` mode). Defaults to `DK` when offered, else the first offered country. */
+  defaultCountry?: string
+}
+
 export type FormField = {
   /** Unique across the whole form; the key of the answer. */
   key: string
@@ -67,9 +77,11 @@ export type FormField = {
   options?: FieldOption[]
   /** `file` fields only: allow more than one file. */
   multiple?: boolean
-  /** Browser `autocomplete` token, e.g. `email`. */
+  /** Browser `autocomplete` token, e.g. `email`. Defaults by type: `email` for email, `tel` for phone (`tel-national` next to a country selector). */
   autocomplete?: string
   validation?: FieldValidation
+  /** `tel` fields only. */
+  phone?: PhoneConfig
   /** `captcha` fields only. */
   captcha?: CaptchaConfig
   showIf?: Condition
