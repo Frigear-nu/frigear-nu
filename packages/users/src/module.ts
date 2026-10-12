@@ -10,7 +10,7 @@ import {
   extendPages, hasNuxtModule,
 } from '@nuxt/kit'
 import { upperFirst } from 'scule'
-import { registerDatabaseTable, registerLocales } from '@frigear-nu/module-kit/utils'
+import { registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { UsersAdminContext } from './runtime/server/utils/admin'
 import {
@@ -109,6 +109,7 @@ export default defineNuxtModule<ModuleOptions>({
       return
     }
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}

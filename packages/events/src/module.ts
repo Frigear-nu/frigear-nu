@@ -14,6 +14,7 @@ import {
   registerDatabaseTable,
   registerModule,
   registerLocales,
+  registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import type {
   AuthorizeContext,
@@ -90,6 +91,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}

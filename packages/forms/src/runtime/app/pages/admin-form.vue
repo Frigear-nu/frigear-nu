@@ -47,7 +47,6 @@ const checked = computed(() => {
 
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
-  { value: 'preview', label: t('admin.preview', 'Preview'), icon: 'i-lucide-eye' },
   { value: 'json', label: t('admin.json', 'JSON'), icon: 'i-lucide-braces' },
 ])
 
@@ -74,7 +73,7 @@ async function save() {
 </script>
 
 <template>
-  <UContainer class="space-y-6 py-10">
+  <UContainer class="max-w-none space-y-6 py-10">
     <UAlert
       v-if="error || !form"
       color="error"
@@ -144,7 +143,22 @@ async function save() {
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
-      />
+      >
+        <template #preview>
+          <FormRenderer
+            v-if="checked.definition"
+            :key="previewKey + JSON.stringify(checked.definition).length"
+            :form="{ slug: draft.slug, definition: checked.definition }"
+            preview
+          />
+          <p
+            v-else
+            class="text-muted"
+          >
+            {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
+          </p>
+        </template>
+      </FormBuilder>
 
       <div
         v-else-if="tab === 'json'"
@@ -159,24 +173,6 @@ async function save() {
           class="w-full font-mono text-xs"
           @update:model-value="onJson(String($event))"
         />
-      </div>
-
-      <div
-        v-else
-        class="mx-auto max-w-2xl rounded-lg border border-default p-6"
-      >
-        <FormRenderer
-          v-if="checked.definition"
-          :key="previewKey + JSON.stringify(checked.definition).length"
-          :form="{ slug: draft.slug, definition: checked.definition }"
-          preview
-        />
-        <p
-          v-else
-          class="text-muted"
-        >
-          {{ t('admin.previewUnavailable', 'Fix the definition to see a preview.') }}
-        </p>
       </div>
 
       <UAlert

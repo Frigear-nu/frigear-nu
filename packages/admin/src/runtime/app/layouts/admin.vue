@@ -33,8 +33,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <!-- The structure is plain scoped CSS rather than utility classes: Tailwind does not scan workspace packages. -->
-  <div class="admin-frame">
+  <div class="h-dvh w-full overflow-hidden bg-default">
     <UDashboardGroup
       unit="rem"
       :ui="{ base: 'admin-group relative flex h-full w-full overflow-hidden' }"
@@ -49,7 +48,7 @@ watch(() => route.path, () => {
         <template #header>
           <NuxtLink
             :to="home"
-            class="admin-brand"
+            class="flex items-center gap-2 font-semibold"
           >
             <UIcon name="i-lucide-layout-dashboard" />
             <span>{{ t('title', 'Administration') }}</span>
@@ -103,36 +102,3 @@ watch(() => route.path, () => {
     </UDashboardGroup>
   </div>
 </template>
-
-<style scoped>
-/* Other modules' admin pages are often wrapped in a `UContainer` (centered, max width, padded). Inside the panel
-   they should fill it like the users page does, so neutralize every container directly in the content. */
-.admin-content :deep([class*='--ui-container']) {
-  max-width: none;
-  margin-inline: 0;
-  padding: 0;
-}
-
-/* A boxed shell: header on top of the content, sidebar on the left, all inside one bordered frame. */
-.admin-frame {
-  max-width: 80rem;
-  height: 100dvh;
-  margin: 0 auto;
-  border-inline: 1px solid var(--ui-border);
-  overflow: hidden;
-  background: var(--ui-bg);
-}
-
-.admin-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-}
-
-@media (max-width: 64rem) {
-  .admin-frame {
-    border-inline: 0;
-  }
-}
-</style>

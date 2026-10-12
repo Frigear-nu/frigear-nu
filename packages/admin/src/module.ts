@@ -6,7 +6,7 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerLocales, registerModule } from '@frigear-nu/module-kit/utils'
+import { registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -40,6 +40,7 @@ export default defineNuxtModule<ModuleOptions>({
   setup(options, nuxt) {
     registerModule('@frigear-nu/admin', nuxt)
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
     const settings = options.settings ?? {}

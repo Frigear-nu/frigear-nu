@@ -13,6 +13,7 @@ import {
   registerDatabaseTable,
   registerLocales,
   registerModule,
+  registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import type {
   ApplicationAccessContext,
@@ -88,6 +89,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
+    registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
 
