@@ -145,6 +145,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('get', '/admin/forms/:id', 'admin/form.get')
     route('patch', '/admin/forms/:id', 'admin/form.patch')
     route('delete', '/admin/forms/:id', 'admin/form.delete')
+    route('post', '/admin/forms/:id/clone', 'admin/form-clone.post')
     route('get', '/admin/forms/:id/submissions', 'admin/submissions.get')
     route('get', '/admin/forms/:id/tokens', 'admin/form-tokens.get')
     route('post', '/admin/forms/:id/tokens', 'admin/form-tokens.post')

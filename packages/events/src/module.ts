@@ -136,6 +136,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/admin/events', 'admin/events.post')
     route('patch', '/admin/events/:id', 'admin/event.patch')
     route('delete', '/admin/events/:id', 'admin/event.delete')
+    route('post', '/admin/events/:id/clone', 'admin/event-clone.post')
     route('get', '/admin/events/:id/tickets', 'admin/attendees.get')
     route('post', '/admin/events/:id/ticket-types', 'admin/ticket-types.post')
     route('patch', '/admin/ticket-types/:id', 'admin/ticket-type.patch')

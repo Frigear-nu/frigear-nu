@@ -115,10 +115,32 @@ export type FormAvailability = 'web' | 'api'
 /** How a submitter proves access: nothing, a signed-in user, a bearer token or a shared password. */
 export type FormAuthMode = 'none' | 'user' | 'token' | 'password'
 
-/** Who may read and submit the form. Secrets (tokens, password hash) are never part of the definition. */
+/** A recurring yearly moment in wall-clock time of the schedule's timezone. */
+export type FormScheduleMoment = {
+  /** 1-12 */
+  month: number
+  /** 1-31 */
+  day: number
+  /** `HH:mm` */
+  time: string
+}
+
+/**
+ * When the form accepts answers: `always` (default), one fixed `range` of ISO date-times, or a `yearly`
+ * season that repeats every year (`from` after `to` wraps over new year, e.g. 1 Nov - 1 Feb). `from` is
+ * inclusive and `to` exclusive.
+ */
+export type FormSchedule
+  = | { type: 'always' }
+    | { type: 'range', from?: string, to?: string }
+    | { type: 'yearly', from: FormScheduleMoment, to: FormScheduleMoment, timezone: string }
+
+/** Who may read and submit the form, and when. Secrets (tokens, password hash) are never part of the definition. */
 export type FormAccess = {
   availability: FormAvailability
   auth: FormAuthMode
+  /** Defaults to `{ type: 'always' }`. */
+  schedule?: FormSchedule
 }
 
 export type FormDefinition = {
@@ -294,6 +316,10 @@ export type FormAccessInfoDto = {
   name: string
   access: FormAccess
   signedIn: boolean
+  /** False outside the schedule: the page shows a "closed" notice instead of the form. */
+  open: boolean
+  /** Next moment the form opens (ISO), when it is closed and will open again. */
+  opensAt?: string | null
 }
 
 export type FormSummaryDto = {

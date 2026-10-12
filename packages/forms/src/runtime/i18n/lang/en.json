@@ -100,7 +100,22 @@
       "previewUnavailable": "Fix the definition to see a preview.",
       "builder": "Builder",
       "json": "JSON",
-      "access": "Access"
+      "access": "Access",
+      "clone": "Duplicate"
+    },
+    "schedule": {
+      "closed": "This form is closed.",
+      "opensAt": "It opens again {date}.",
+      "always": "Always open",
+      "yearly": "Every year (a season)",
+      "range": "One fixed period",
+      "title": "Open period",
+      "hint": "Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.",
+      "opens": "Opens",
+      "closes": "Closes",
+      "day": "Day",
+      "time": "Time",
+      "timezone": "Timezone"
     },
     "access": {
       "title": "Who can use this form",

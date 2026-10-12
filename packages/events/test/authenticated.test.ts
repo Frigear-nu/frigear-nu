@@ -78,6 +78,29 @@ describe('events (authenticated, database-backed)', async () => {
       expect(shown.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
     })
 
+    it('clones an event with its catalogue as a draft', async () => {
+      const original = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, isDefault: true, addonGroups: [food] }])
+      const copy = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      expect(copy.id).not.toBe(original.id)
+      expect(copy.slug).toBe(`${original.slug}-copy`)
+      expect(copy.status).toBe('draft')
+
+      const full = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${copy.id}`))
+      expect(full.ticketTypes).toHaveLength(1)
+      expect(full.ticketTypes[0]).toMatchObject({ key: 'default', price: 15000 })
+      const source = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${original.id}`))
+      expect(full.ticketTypes[0].id).not.toBe(source.ticketTypes[0].id)
+      const shown = await ok(await json(staff.cookie, 'PATCH', `/api/events/admin/events/${copy.id}`, { status: 'published' }))
+      expect(shown.status).toBe('published')
+      const pub = await detail(copy.slug)
+      expect(pub.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
+
+      const again = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      expect(again.slug).toBe(`${original.slug}-copy-2`)
+      expect((await json(staff.cookie, 'POST', '/api/events/admin/events/nope/clone')).status).toBe(404)
+      expect((await json(undefined, 'POST', `/api/events/admin/events/${original.id}/clone`)).status).toBe(401)
+    })
+
     it('rejects duplicate slugs', async () => {
       const first = await createEvent()
       const again = await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: first.slug, name: 'x', startsAt: future(1) })
