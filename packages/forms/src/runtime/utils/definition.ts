@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { scheduleSchema } from '@frigear-nu/module-kit/schedule'
 import type { FormAccess, FormDefinition } from '../../types'
 
 const translated = z.union([z.string(), z.record(z.string(), z.string())])
@@ -64,6 +65,7 @@ const emailAddress = z.string().regex(/^[^\s@${}]+@[^\s$@{}][^\s$.@{}]*\.[^\s$@{
 export const accessSchema = z.object({
   availability: z.enum(['web', 'api']).default('web'),
   auth: z.enum(['none', 'user', 'token', 'password']).default('none'),
+  schedule: scheduleSchema.optional(),
 })
 
 export const formDefinitionSchema = z.object({

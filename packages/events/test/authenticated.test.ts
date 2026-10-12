@@ -78,6 +78,57 @@ describe('events (authenticated, database-backed)', async () => {
       expect(shown.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
     })
 
+    it('clones an event with its catalogue as a draft', async () => {
+      const original = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, isDefault: true, addonGroups: [food] }])
+      const copy = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      expect(copy.id).not.toBe(original.id)
+      expect(copy.slug).toBe(`${original.slug}-copy`)
+      expect(copy.status).toBe('draft')
+
+      const full = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${copy.id}`))
+      expect(full.ticketTypes).toHaveLength(1)
+      expect(full.ticketTypes[0]).toMatchObject({ key: 'default', price: 15000 })
+      const source = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${original.id}`))
+      expect(full.ticketTypes[0].id).not.toBe(source.ticketTypes[0].id)
+      const shown = await ok(await json(staff.cookie, 'PATCH', `/api/events/admin/events/${copy.id}`, { status: 'published' }))
+      expect(shown.status).toBe('published')
+      const pub = await detail(copy.slug)
+      expect(pub.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
+
+      const again = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      expect(again.slug).toBe(`${original.slug}-copy-2`)
+      expect((await json(staff.cookie, 'POST', '/api/events/admin/events/nope/clone')).status).toBe(404)
+      expect((await json(undefined, 'POST', `/api/events/admin/events/${original.id}/clone`)).status).toBe(401)
+    })
+
+    it('applies a recurring sale season on top of the sale window', async () => {
+      const season = (from: [number, number], to: [number, number]) => ({
+        type: 'yearly', timezone: 'UTC', from: { month: from[0], day: from[1], time: '00:00' }, to: { month: to[0], day: to[1], time: '00:00' },
+      })
+      const today = new Date()
+      const month = today.getUTCMonth() + 1
+      // A season that surely covers now (the whole year but its last day) and one that surely does not (one day, 6 months away).
+      const open = season([1, 1], [12, 31])
+      const farMonth = ((month + 5) % 12) + 1
+      const closed = season([farMonth, 10], [farMonth, 11])
+
+      const event = await createEvent({}, [
+        { key: 'in-season', name: 'In season', saleSchedule: open, isDefault: true },
+        { key: 'off-season', name: 'Off season', saleSchedule: closed },
+      ])
+      const shown = await detail(event.slug)
+      const byKey = Object.fromEntries(shown.ticketTypes.map((type: Json) => [type.key, type]))
+      expect(byKey['off-season']).toMatchObject({ saleState: 'not_started' })
+      expect(byKey['off-season'].saleStartsAt).toBeTruthy()
+      if (!(month === 12 && today.getUTCDate() === 31)) expect(byKey['in-season'].saleState).toBe('open')
+
+      const buyer = await user('Seasonal')
+      expect((await buy(buyer.cookie, event.slug, byKey['off-season'].id)).status).toBe(409)
+
+      const bad = await json(staff.cookie, 'POST', `/api/events/admin/events/${event.id}/ticket-types`, { key: 'bad', name: 'Bad', saleSchedule: { type: 'yearly', timezone: 'Nope/Land', from: { month: 1, day: 1, time: '00:00' }, to: { month: 2, day: 1, time: '00:00' } } })
+      expect(bad.status).toBe(400)
+    })
+
     it('rejects duplicate slugs', async () => {
       const first = await createEvent()
       const again = await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: first.slug, name: 'x', startsAt: future(1) })

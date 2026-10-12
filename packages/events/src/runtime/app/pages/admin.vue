@@ -21,7 +21,18 @@ const columns = [
   { accessorKey: 'status', header: t('admin.status', 'Status') },
   { accessorKey: 'startsAt', header: t('admin.starts', 'Starts'), cell: ({ row }: { row: { original: AdminEvent } }) => when(row.original.startsAt) },
   { accessorKey: 'location', header: t('admin.location', 'Location'), cell: ({ row }: { row: { original: AdminEvent } }) => tr(row.original.location) },
+  { id: 'actions', header: '' },
 ]
+
+async function clone(id: string) {
+  try {
+    const copy = await $fetch<{ id: string }>(`/api/events/admin/events/${id}/clone`, { method: 'POST' })
+    await navigateTo(eventTo(copy.id))
+  }
+  catch (cause) {
+    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('admin.error', 'Something went wrong.'), color: 'error' })
+  }
+}
 
 const creating = ref(false)
 const saving = ref(false)
@@ -75,6 +86,16 @@ async function create() {
           variant="subtle"
           :color="statusColor[row.original.status]"
           :label="row.original.status"
+        />
+      </template>
+      <template #actions-cell="{ row }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-copy"
+          :aria-label="t('admin.clone', 'Duplicate')"
+          @click.stop="clone(row.original.id)"
         />
       </template>
       <template #empty>

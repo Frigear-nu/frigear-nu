@@ -256,6 +256,43 @@ describe('forms (authenticated, database-backed)', async () => {
       expect(await $fetch<string>(`/forms/${form.slug}`)).toContain('No access')
     })
 
+    it('closes a form outside its schedule and reopens it inside', async () => {
+      const day = 86400000
+      const range = (from: number, to: number) => ({ type: 'range' as const, from: new Date(Date.now() + from).toISOString(), to: new Date(Date.now() + to).toISOString() })
+
+      const early = await create('Not yet open', withAccess({ availability: 'web', auth: 'none', schedule: range(day, 2 * day) }))
+      const closed = await get(early.slug)
+      expect(closed.status).toBe(403)
+      expect((await post(early.slug)).status).toBe(403)
+      const info = await ok(await fetch(`/api/forms/${early.slug}/access`))
+      expect(info.open).toBe(false)
+      expect(info.opensAt).toBeTruthy()
+
+      const current = await create('Open now', withAccess({ availability: 'web', auth: 'none', schedule: range(-day, day) }))
+      expect((await post(current.slug)).status).toBe(200)
+      expect((await ok(await fetch(`/api/forms/${current.slug}/access`))).open).toBe(true)
+
+      const yearly = await create('Every year', withAccess({
+        availability: 'web',
+        auth: 'none',
+        schedule: { type: 'yearly', timezone: 'UTC', from: { month: 1, day: 1, time: '00:00' }, to: { month: 12, day: 31, time: '23:59' } },
+      }))
+      expect((await post(yearly.slug)).status).toBe(200)
+    })
+
+    it('clones a form as a draft with a fresh slug', async () => {
+      const original = await create('Cloneable', open)
+      const copy = await ok(await json(staff.cookie, 'POST', `/api/forms/admin/forms/${original.id}/clone`))
+      expect(copy.id).not.toBe(original.id)
+      expect(copy.slug).toBe(`${original.slug}-copy`)
+      expect(copy.status).toBe('draft')
+      expect(copy.definition).toEqual(original.definition)
+      const again = await ok(await json(staff.cookie, 'POST', `/api/forms/admin/forms/${original.id}/clone`))
+      expect(again.slug).toBe(`${original.slug}-copy-2`)
+      expect((await json(nobody.cookie, 'POST', `/api/forms/admin/forms/${original.id}/clone`)).status).toBe(403)
+      expect((await json(staff.cookie, 'POST', '/api/forms/admin/forms/nope/clone')).status).toBe(404)
+    })
+
     it('rejects token access on a form that is not API only', async () => {
       const bad = await json(staff.cookie, 'POST', '/api/forms/admin/forms', { slug: slug('bad-token'), name: 'Bad', definition: withAccess({ availability: 'web', auth: 'token' }) })
       expect(bad.status).toBe(400)

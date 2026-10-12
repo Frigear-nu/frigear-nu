@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreatedFormAccessTokenDto, FormAccessTokenDto, FormAuthMode, FormAvailability, FormDefinition, FormPasswordStatusDto } from '../../../types'
+import type { CreatedFormAccessTokenDto, FormAccessTokenDto, FormAuthMode, FormAvailability, FormDefinition, FormPasswordStatusDto, FormSchedule, FormScheduleMoment } from '../../../types'
 import { resolveAccess, setAccess } from '../../utils'
 
 const definition = defineModel<FormDefinition>({ required: true })
@@ -20,6 +20,35 @@ const authModes = computed(() => [
   { value: 'token', label: t('access.authToken', 'API token') },
   { value: 'password', label: t('access.authPassword', 'Shared password') },
 ])
+
+// --- Schedule -------------------------------------------------------------------------------
+const schedule = computed<FormSchedule>(() => access.value.schedule ?? { type: 'always' })
+const scheduleTypes = computed(() => [
+  { value: 'always', label: t('schedule.always', 'Always open') },
+  { value: 'yearly', label: t('schedule.yearly', 'Every year (a season)') },
+  { value: 'range', label: t('schedule.range', 'One fixed period') },
+])
+const months = computed(() => Array.from({ length: 12 }, (_, i) => ({
+  value: i + 1,
+  label: new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(2000, i, 1)),
+})))
+const setSchedule = (next: FormSchedule) => {
+  definition.value = setAccess(definition.value, { schedule: next.type === 'always' ? undefined : next })
+}
+function changeScheduleType(type: FormSchedule['type']) {
+  if (type === 'yearly') setSchedule({ type, from: { month: 1, day: 1, time: '00:00' }, to: { month: 2, day: 1, time: '00:00' }, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+  else if (type === 'range') setSchedule({ type })
+  else setSchedule({ type: 'always' })
+}
+const toLocalInput = (iso?: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+const fromLocalInput = (value: string) => (value ? new Date(value).toISOString() : undefined)
+function patchMoment(side: 'from' | 'to', patch: Partial<FormScheduleMoment>) {
+  if (schedule.value.type === 'yearly') setSchedule({ ...schedule.value, [side]: { ...schedule.value[side], ...patch } })
+}
 
 const fail = (cause: unknown) => toast.add({
   title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'),
@@ -144,6 +173,85 @@ const snippet = computed(() => {
           @update:model-value="definition = setAccess(definition, { auth: $event as FormAuthMode })"
         />
       </UFormField>
+      <UFormField
+        :label="t('schedule.title', 'Open period')"
+        :description="t('schedule.hint', 'Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.')"
+      >
+        <USelect
+          :model-value="schedule.type"
+          :items="scheduleTypes"
+          class="w-full"
+          @update:model-value="changeScheduleType($event as FormSchedule['type'])"
+        />
+      </UFormField>
+
+      <div
+        v-if="schedule.type === 'range'"
+        class="grid gap-4 sm:grid-cols-2"
+      >
+        <UFormField :label="t('schedule.opens', 'Opens')">
+          <UInput
+            type="datetime-local"
+            class="w-full"
+            :model-value="toLocalInput(schedule.from)"
+            @update:model-value="setSchedule({ ...schedule, from: fromLocalInput($event as string) })"
+          />
+        </UFormField>
+        <UFormField :label="t('schedule.closes', 'Closes')">
+          <UInput
+            type="datetime-local"
+            class="w-full"
+            :model-value="toLocalInput(schedule.to)"
+            @update:model-value="setSchedule({ ...schedule, to: fromLocalInput($event as string) })"
+          />
+        </UFormField>
+      </div>
+
+      <div
+        v-else-if="schedule.type === 'yearly'"
+        class="space-y-4"
+      >
+        <div
+          v-for="side in (['from', 'to'] as const)"
+          :key="side"
+          class="grid gap-4 sm:grid-cols-3"
+        >
+          <UFormField :label="side === 'from' ? t('schedule.opens', 'Opens') : t('schedule.closes', 'Closes')">
+            <USelect
+              :model-value="schedule[side].month"
+              :items="months"
+              class="w-full"
+              @update:model-value="patchMoment(side, { month: Number($event) })"
+            />
+          </UFormField>
+          <UFormField :label="t('schedule.day', 'Day')">
+            <UInput
+              type="number"
+              min="1"
+              max="31"
+              class="w-full"
+              :model-value="schedule[side].day"
+              @update:model-value="patchMoment(side, { day: Number($event) })"
+            />
+          </UFormField>
+          <UFormField :label="t('schedule.time', 'Time')">
+            <UInput
+              type="time"
+              class="w-full"
+              :model-value="schedule[side].time"
+              @update:model-value="patchMoment(side, { time: String($event) })"
+            />
+          </UFormField>
+        </div>
+        <UFormField :label="t('schedule.timezone', 'Timezone')">
+          <UInput
+            class="w-full"
+            :model-value="schedule.timezone"
+            @update:model-value="setSchedule({ ...schedule, timezone: String($event) })"
+          />
+        </UFormField>
+      </div>
+
       <p class="text-sm text-muted">
         {{ t('access.saveHint', 'Availability and authentication are saved with the form. Tokens and the password take effect immediately.') }}
       </p>
