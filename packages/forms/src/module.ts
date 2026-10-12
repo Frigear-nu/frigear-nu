@@ -86,6 +86,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
+    '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
