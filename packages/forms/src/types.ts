@@ -11,14 +11,14 @@ export type DeliveryStatus = 'none' | 'pending' | 'delivered' | 'failed'
 export type FieldType
   = 'text' | 'email' | 'tel' | 'number' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'date' | 'file' | 'markdown'
 
-export type ConditionOp = 'eq' | 'neq' | 'in' | 'truthy'
+export type ConditionOp = 'eq' | 'neq' | 'in' | 'empty' | 'notEmpty' | 'truthy'
 
 /** Shows a field (or step) only while the condition on another field's answer holds. */
 export type Condition = {
   /** Key of the field whose answer is inspected. */
   field: string
   op: ConditionOp
-  /** Compared value for `eq`/`neq`; a list of accepted values for `in`. Unused for `truthy`. */
+  /** Compared value for `eq`/`neq`; a list of accepted values for `in`. Unused for `empty`, `notEmpty` and `truthy` (an alias of `notEmpty`). */
   value?: unknown
 }
 

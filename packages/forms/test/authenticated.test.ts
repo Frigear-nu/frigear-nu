@@ -130,6 +130,22 @@ describe('forms (authenticated, database-backed)', async () => {
       expect((await submit(form.slug, { name: 'Ada', kind: 'person', terms: true, orgName: 'stale' })).status).toBe(200)
     })
 
+    it('requires a field shown by notEmpty / empty conditions only when visible', async () => {
+      const form = await create('Empty ops', { mode: 'single', storage: 'db', steps: [{ id: 's', fields: [
+        { key: 'phone', type: 'text' },
+        { key: 'why', type: 'text', required: true, showIf: { field: 'phone', op: 'empty' } },
+        { key: 'when', type: 'text', required: true, showIf: { field: 'phone', op: 'notEmpty' } },
+      ] }] })
+      const missing = async (answers: Json) => {
+        const response = await submit(form.slug, answers)
+        if (response.status === 200) return []
+        return ((await response.json() as Json).data.issues as Json[]).map(issue => issue.path[0])
+      }
+      expect(await missing({})).toEqual(['why'])
+      expect(await missing({ phone: '123' })).toEqual(['when'])
+      expect(await missing({ phone: '123', when: 'now' })).toEqual([])
+    })
+
     it('stores answers with the definition snapshot and the signed-in user', async () => {
       const form = await create('Stored', stepped)
       const response = await ok(await submit(form.slug, { name: 'Ada', kind: 'org', orgName: 'Acme', terms: true, injected: 1 }, nobody.cookie))

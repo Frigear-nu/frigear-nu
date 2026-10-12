@@ -131,6 +131,8 @@
         "eq": "is equal to",
         "neq": "is not equal to",
         "in": "is one of",
+        "empty": "is empty",
+        "notEmpty": "has an answer",
         "truthy": "has an answer"
       },
       "types": {

@@ -8,7 +8,7 @@ const ID = /^[a-z0-9][\w-]*$/i
 
 const condition = z.object({
   field: z.string().regex(KEY),
-  op: z.enum(['eq', 'neq', 'in', 'truthy']),
+  op: z.enum(['eq', 'neq', 'in', 'empty', 'notEmpty', 'truthy']),
   value: z.unknown().optional(),
 })
 

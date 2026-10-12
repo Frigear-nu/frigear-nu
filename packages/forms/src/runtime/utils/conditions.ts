@@ -10,6 +10,9 @@ export function evaluateCondition(condition: Condition | undefined, answers: Ans
   if (!condition) return true
   const answer = answers[condition.field]
   switch (condition.op) {
+    case 'empty':
+      return isEmpty(answer)
+    case 'notEmpty':
     case 'truthy':
       return !isEmpty(answer)
     case 'eq':

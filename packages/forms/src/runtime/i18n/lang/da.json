@@ -131,6 +131,8 @@
         "eq": "er lig med",
         "neq": "er ikke lig med",
         "in": "er en af",
+        "empty": "er tomt",
+        "notEmpty": "har et svar",
         "truthy": "har et svar"
       },
       "types": {

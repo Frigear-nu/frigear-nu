@@ -106,6 +106,31 @@ describe('visibility', () => {
   })
 })
 
+describe('empty / notEmpty conditions', () => {
+  const when = (op: 'empty' | 'notEmpty' | 'truthy'): FormDefinition => ({ mode: 'single', storage: 'db', steps: [{ id: 's', fields: [
+    { key: 'a', type: 'text' },
+    { key: 'b', type: 'text', showIf: { field: 'a', op } },
+  ] }] })
+
+  it('empty shows only without an answer', () => {
+    for (const answer of [undefined, null, '', false, []]) expect(isFieldVisible(when('empty'), 'b', { a: answer })).toBe(true)
+    expect(isFieldVisible(when('empty'), 'b', { a: 'x' })).toBe(false)
+  })
+
+  it('notEmpty (and its alias truthy) shows only with an answer', () => {
+    for (const op of ['notEmpty', 'truthy'] as const) {
+      expect(isFieldVisible(when(op), 'b', { a: 'x' })).toBe(true)
+      expect(isFieldVisible(when(op), 'b', { a: '' })).toBe(false)
+      expect(isFieldVisible(when(op), 'b', {})).toBe(false)
+    }
+  })
+
+  it('is accepted by the definition schema', () => {
+    expect(formDefinitionSchema.safeParse(when('empty')).success).toBe(true)
+    expect(formDefinitionSchema.safeParse(when('notEmpty')).success).toBe(true)
+  })
+})
+
 describe('formDefinitionSchema', () => {
   it('accepts the examples and defaults storage to db', () => {
     expect(formDefinitionSchema.safeParse(contact).success).toBe(true)
