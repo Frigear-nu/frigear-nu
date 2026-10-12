@@ -5,9 +5,9 @@
   "packageManager": "pnpm@12.10.0",
   "scripts": {
     "cli": "node ./packages/cli/bin/cli.mjs",
-    "test": "turbo run test --concurrency=2",
-    "typecheck": "turbo run typecheck --concurrency=2",
-    "lint": "turbo run lint --concurrency=2",
+    "test": "turbo run test --concurrency=4",
+    "typecheck": "turbo run typecheck --concurrency=4",
+    "lint": "turbo run lint --concurrency=4",
     "lint:fix": "pnpm -r --parallel lint:fix",
     "build:packages": "pnpm --workspace-concurrency=3 --filter './packages/**' --filter '!./packages/base-layer' build",
     "build:website": "pnpm --filter @frigear-nu/website build",
