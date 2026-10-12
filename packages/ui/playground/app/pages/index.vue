@@ -49,15 +49,5 @@ const interval = ref(3600)
         :return-button="false"
       />
     </div>
-
-    <div class="flex flex-col gap-2">
-      <h2 class="text-lg font-semibold">
-        AdminPageHeader
-      </h2>
-      <AdminPageHeader
-        title="Admin Page Title"
-        :return-button="false"
-      />
-    </div>
   </UContainer>
 </template>

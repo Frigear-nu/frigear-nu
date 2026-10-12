@@ -26,7 +26,7 @@ async function redeliver() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <AdminPage>
     <UAlert
       v-if="error || !submission"
       color="error"
@@ -51,5 +51,5 @@ async function redeliver() {
 
       <FormSubmissionView :submission="submission" />
     </template>
-  </div>
+  </AdminPage>
 </template>

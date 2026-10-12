@@ -5,6 +5,7 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@nuxthub/core',
     '@frigear-nu/users',
+    '@frigear-nu/admin',
     FormsModule,
   ],
   runtimeConfig: {

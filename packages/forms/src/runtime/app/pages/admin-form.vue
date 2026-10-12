@@ -76,7 +76,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <AdminPage>
     <UAlert
       v-if="error || !form"
       color="error"
@@ -86,10 +86,13 @@ async function save() {
 
     <template v-else>
       <AdminPageHeader
-        :title="`${form.name} (v${form.version})`"
+        :title="form.name"
         :back="{ label: t('admin.title', 'Forms'), to: paths('admin') }"
       >
-        <template #links>
+        <template #title>
+          {{ form.name }} <span class="text-base font-normal text-muted">v{{ form.version }}</span>
+        </template>
+        <template #actions>
           <UButton
             v-if="form.status === 'published' && link.enabled.value"
             color="neutral"
@@ -203,5 +206,5 @@ async function save() {
         </template>
       </UAlert>
     </template>
-  </div>
+  </AdminPage>
 </template>

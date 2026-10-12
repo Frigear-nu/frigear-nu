@@ -4,6 +4,9 @@ export interface ConfirmDialogOptions {
   title: string
   description?: string
   confirmText?: string
+  cancelText?: string
+  /** Style the confirm button as destructive. */
+  destructive?: boolean
 }
 
 export const useConfirmDialog = () => {

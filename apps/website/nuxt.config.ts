@@ -14,6 +14,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@pinia/colada-nuxt',
     'nuxt-qrcode',
+    '@frigear-nu/ui',
     '@frigear-nu/menu',
     '@frigear-nu/users',
     '@frigear-nu/authorization',
