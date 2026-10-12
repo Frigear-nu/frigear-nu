@@ -95,7 +95,8 @@ describe('forms (authenticated, database-backed)', async () => {
   })
 
   describe('pages', () => {
-    it('server-renders the public form and the admin shells', async () => {
+    // The first server render in dev mode compiles the page, which can exceed the 5s default on a busy CI runner.
+    it('server-renders the public form and the admin shells', { timeout: 30_000 }, async () => {
       const form = await create('Rendered', {
         mode: 'stepped',
         storage: 'db',
