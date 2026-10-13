@@ -18,8 +18,4 @@ export default defineNuxtConfig({
   authorization: {
     redirectTo: '/login',
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })

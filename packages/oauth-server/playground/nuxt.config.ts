@@ -21,11 +21,7 @@ export default defineNuxtConfig({
       pages: { admin: true, applications: true },
     },
   },
-  users: {
-    mode: 'server',
-    settings: {
-      migrations: true,
-      pages: { login: '/sign-in', register: '/sign-up' },
-    },
+  authentication: {
+    settings: { pages: { login: '/sign-in', register: '/sign-up' } },
   },
 })

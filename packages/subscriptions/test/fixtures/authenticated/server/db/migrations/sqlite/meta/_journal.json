@@ -29,6 +29,13 @@
       "when": 1791812843269,
       "tag": "0003_auth_user_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791859667275,
+      "tag": "0004_split_auth_from_users",
+      "breakpoints": true
     }
   ]
 }

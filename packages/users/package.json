@@ -68,14 +68,19 @@
   },
   "peerDependencies": {
     "@nuxt/ui": "^4.10.0",
-    "@nuxthub/core": "^0.10.8"
+    "@nuxthub/core": "^0.10.8",
+    "@frigear-nu/mcp": ">=0.0.1"
   },
   "peerDependenciesMeta": {
     "@nuxt/ui": {
       "optional": true
+    },
+    "@frigear-nu/mcp": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@frigear-nu/mcp": "workspace:*",
     "@nuxt/devtools": "^3.4.2",
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",

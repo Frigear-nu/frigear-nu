@@ -28,8 +28,4 @@ export default defineNuxtConfig({
       pages: { membership: true, success: true, cancel: true },
     },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })

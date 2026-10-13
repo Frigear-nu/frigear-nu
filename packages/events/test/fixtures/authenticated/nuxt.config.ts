@@ -40,8 +40,4 @@ export default defineNuxtConfig({
     },
     settings: { pages: {} },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

@@ -34,8 +34,4 @@ export default defineNuxtConfig({
   notify: {
     email: { driver: './server/utils/mail-driver' },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

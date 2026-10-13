@@ -26,8 +26,4 @@ export default defineNuxtConfig({
     scopes: ['groups'],
     settings: { pages: { authorize: false }, mcp: true },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

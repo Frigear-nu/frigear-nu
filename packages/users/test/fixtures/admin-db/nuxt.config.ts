@@ -20,8 +20,10 @@ export default defineNuxtConfig({
   notify: {
     email: { driver: './server/utils/mail-driver' },
   },
+  authentication: {
+    settings: { magicLink: true },
+  },
   users: {
-    mode: 'server',
-    settings: { magicLink: true, admin: { page: false } },
+    settings: { admin: { page: false } },
   },
 })

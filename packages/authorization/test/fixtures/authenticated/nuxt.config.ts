@@ -26,8 +26,4 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

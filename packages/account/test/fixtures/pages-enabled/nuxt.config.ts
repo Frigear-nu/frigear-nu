@@ -26,8 +26,4 @@ export default defineNuxtConfig({
       documents: [{ id: 'handbook', label: { en: 'Volunteer Handbook' }, path: '/assets/handbook.docx' }],
     },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })
