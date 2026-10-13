@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": [],
+      "env": [
+        "NITRO_PRESET",
+        "NUXT_*",
+        "PR_NUMBER",
+        "CLOUDFLARE_WORKER_NAME",
+        "CLOUDFLARE_DB_NAME",
+        "CLOUDFLARE_DOMAIN_ROOT"
+      ],
+      "passThroughEnv": ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+      "outputs": [".output/**"]
+    }
+  }
+}

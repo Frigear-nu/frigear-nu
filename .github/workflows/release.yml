@@ -94,10 +94,20 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-release-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-release-${{ runner.os }}-
+
       # Builds every workspace package the selected package depends on (recursively), so that e.g.
-      # `users` sees `module-kit`'s dist output.
+      # `users` sees `module-kit`'s dist output. Turbo orders them and reuses cached builds.
       - name: Build package dependencies
-        run: pnpm --filter "{packages/${{ matrix.package }}}^..." run --if-present build
+        env:
+          TURBO_TELEMETRY_DISABLED: 1
+        run: pnpm exec turbo run build --filter="{./packages/${{ matrix.package }}}^..." --cache-dir=.turbo
 
       - name: Test package
         run: pnpm --filter "./packages/${{ matrix.package }}" run --if-present test
