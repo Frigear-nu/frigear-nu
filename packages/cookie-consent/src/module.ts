@@ -38,6 +38,10 @@ export default defineNuxtModule<ModuleOptions>({
   },
   moduleDependencies: {
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
+    // Declared (optional) so they are set up first and `hasNuxtModule` below does not depend on the module order:
+    // with `users` the consent is also stored on the signed-in user.
+    '@frigear-nu/auth': { version: '>=0.0.1', optional: true },
+    '@frigear-nu/users': { version: '>=0.0.1', optional: true },
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/cookie-consent', nuxt)

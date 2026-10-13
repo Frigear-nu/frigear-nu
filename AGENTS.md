@@ -151,15 +151,20 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 ### Authentication in server routes
 
-- Authenticate server routes with `requireUser(event, { scopes?, sessionOnly? })` from `@frigear-nu/auth`, not with
-  nuxt-auth-utils' `requireUserSession`. It resolves cookie sessions, user API tokens and OAuth access tokens into one
-  user. `getUserSession` is only for flows that are session by nature (login, logout, OAuth consent).
+- Authenticate server routes with `requireAuth(event, { scopes?, sessionOnly? })` from `@frigear-nu/auth` (the
+  principal: `user`, `kind`, `scopes`) or `requireUser(event, options)` from `@frigear-nu/users` (just the user), not
+  with nuxt-auth-utils' `requireUserSession`. Both resolve cookie sessions, user API tokens and OAuth access tokens.
+  `getUserSession` is only for flows that are session by nature (login, logout, OAuth consent).
+- Sign-in belongs to `@frigear-nu/auth` (settings under `authentication.settings`); `@frigear-nu/users` owns the user
+  entity, the admin and self-service changes. Auth reaches users only through the `AuthUserStore` that users registers.
+- Define staff gates with `definePolicyGate('<module>:authorize')` and offer staff scopes with `defineStaffScopes`
+  (both from `@frigear-nu/auth`), not with a hook of your own.
 - Anything that changes who the user is or how they sign in (password, email, passkeys, API tokens, billing portal,
   admin) must pass `sessionOnly: true`. Register the scopes a module understands with `addAuthScope`.
 - Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
   the session is empty for bearer requests.
-- A module that adds routes using `requireUser` needs `@frigear-nu/auth` in its `moduleDependencies` and in
-  `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
+- A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
+  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
 
 ### Database extensions and authenticated test fixtures
 
@@ -169,8 +174,8 @@ manually — check before assuming plain pnpm scripts are the only path.
   schema history, not disposable build artifacts.
 - Prepare the fixture before generating migrations so `.nuxt/hub/db/schema.mjs` includes all registered extensions.
   Do not generate migrations from only the owning module's base schema.
-- Fixtures exercising email/password registration must use `users.mode: 'server'` and `users.settings.password: true`
-  (the default). This enables both login and registration APIs; `settings.pages.register` only enables the UI page.
+- Fixtures exercising email/password registration need `authentication.settings.password` (on by default). This enables
+  both login and registration APIs; `settings.pages.register` only enables the UI page.
 - Database-backed auth tests use `dev: true` so NuxtHub applies committed migrations on startup. Reset only the
   fixture's dedicated `.data` directory before the suite and clean it up afterward to avoid duplicate-user failures
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
