@@ -2,7 +2,7 @@
 import { useWindowScroll } from '@vueuse/core'
 
 const { config, hasResponded, acceptAll, rejectAll, openPreferences, hydrateFromUser } = useCookieConsent()
-const { t } = useConsentT()
+const { t, policyUrl } = useConsentT()
 
 const route = useRoute()
 const excluded = computed(() => config.excludeRoutes.includes(route.path))
@@ -70,8 +70,8 @@ onMounted(() => {
             <p class="text-sm text-muted">
               {{ t('description') }}
               <NuxtLink
-                v-if="config.policyUrl"
-                :to="config.policyUrl"
+                v-if="policyUrl"
+                :to="policyUrl"
                 class="underline"
               >
                 {{ t('policy') }}

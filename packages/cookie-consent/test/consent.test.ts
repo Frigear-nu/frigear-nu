@@ -3,6 +3,7 @@ import {
   DEFAULT_CATEGORIES,
   buildConsent,
   computeVersion,
+  localize,
   mergeCategories,
   normalizeConsent,
   rejectAllChoices,
@@ -54,5 +55,23 @@ describe('consent utils', () => {
     const extended = mergeCategories(DEFAULT_CATEGORIES, [{ key: 'payments' }])
     expect(computeVersion('1', extended)).not.toBe(version)
     expect(computeVersion('1', DEFAULT_CATEGORIES)).toBe(version)
+  })
+})
+
+describe('localize', () => {
+  it('returns plain strings as they are', () => {
+    expect(localize('/legal', 'da')).toBe('/legal')
+  })
+
+  it('picks the locale, then its base language, then en, then the first entry', () => {
+    const urls = { da: '/da/gdpr', en: '/gdpr' }
+    expect(localize(urls, 'da')).toBe('/da/gdpr')
+    expect(localize(urls, 'da-DK')).toBe('/da/gdpr')
+    expect(localize(urls, 'sv')).toBe('/gdpr')
+    expect(localize({ da: '/da/gdpr' }, 'sv')).toBe('/da/gdpr')
+  })
+
+  it('falls back when nothing is set', () => {
+    expect(localize(undefined, 'en', 'x')).toBe('x')
   })
 })
