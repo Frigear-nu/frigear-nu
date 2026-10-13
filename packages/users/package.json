@@ -66,10 +66,8 @@
   "dependencies": {
     "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/mcp": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
-    "@frigear-nu/widget": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.6.0",
     "drizzle-kit": "^0.31.11",
@@ -78,20 +76,30 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/admin": ">=0.0.0",
+    "@frigear-nu/menu": "workspace:*",
+    "@frigear-nu/widget": "workspace:*",
     "@nuxt/ui": "^4.10.0",
-    "@nuxthub/core": "^0.10.8",
-    "@frigear-nu/admin": ">=0.0.0"
+    "@nuxthub/core": "^0.10.8"
   },
   "peerDependenciesMeta": {
-    "@nuxt/ui": {
+    "@frigear-nu/admin": {
       "optional": true
     },
-    "@frigear-nu/admin": {
+    "@frigear-nu/menu": {
+      "optional": true
+    },
+    "@frigear-nu/widget": {
+      "optional": true
+    },
+    "@nuxt/ui": {
       "optional": true
     }
   },
   "devDependencies": {
     "@frigear-nu/admin": "workspace:*",
+    "@frigear-nu/menu": "workspace:*",
+    "@frigear-nu/widget": "workspace:*",
     "@nuxt/devtools": "^3.4.2",
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",

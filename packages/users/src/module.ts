@@ -5,7 +5,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addMenuSource, addModulePages } from '@frigear-nu/module-kit/utils'
+import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages } from '@frigear-nu/module-kit/utils'
 import { addAuthScope, setAuthUserStore } from '@frigear-nu/auth/utils'
 import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -58,6 +58,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/menu': {
       version: '>=0.0.1',
+      optional: true,
     },
     '@frigear-nu/widget': {
       version: '>=0.0.0',
@@ -174,7 +175,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (adminPagePath) {
-      addMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
+      addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
     }
 
     nuxt.options.runtimeConfig.public.users = {

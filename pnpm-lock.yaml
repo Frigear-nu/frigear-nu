@@ -357,9 +357,6 @@ importers:
       '@frigear-nu/auth':
         specifier: workspace:*
         version: link:../auth
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -391,6 +388,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -494,9 +494,6 @@ importers:
 
   packages/auth:
     dependencies:
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -537,6 +534,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.1)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -854,9 +854,6 @@ importers:
       '@frigear-nu/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -875,9 +872,6 @@ importers:
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users
-      '@frigear-nu/widget':
-        specifier: workspace:*
-        version: link:../widget
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -909,6 +903,12 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
+      '@frigear-nu/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -963,9 +963,6 @@ importers:
       '@frigear-nu/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -1000,6 +997,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -1283,9 +1283,6 @@ importers:
       '@frigear-nu/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -1317,6 +1314,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -1377,9 +1377,6 @@ importers:
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users
-      '@frigear-nu/widget':
-        specifier: workspace:*
-        version: link:../widget
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -1405,6 +1402,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -1599,9 +1599,6 @@ importers:
       '@frigear-nu/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
@@ -1614,9 +1611,6 @@ importers:
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users
-      '@frigear-nu/widget':
-        specifier: workspace:*
-        version: link:../widget
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -1645,6 +1639,12 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
+      '@frigear-nu/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -1748,18 +1748,12 @@ importers:
       '@frigear-nu/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@frigear-nu/menu':
-        specifier: workspace:*
-        version: link:../menu
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit
       '@frigear-nu/notify':
         specifier: workspace:*
         version: link:../notify
-      '@frigear-nu/widget':
-        specifier: workspace:*
-        version: link:../widget
       '@libsql/client':
         specifier: ^0.18.0
         version: 0.18.0
@@ -1782,6 +1776,12 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:*
         version: link:../admin
+      '@frigear-nu/menu':
+        specifier: workspace:*
+        version: link:../menu
+      '@frigear-nu/widget':
+        specifier: workspace:*
+        version: link:../widget
       '@nuxt/devtools':
         specifier: ^3.4.2
         version: 3.4.2(@nuxt/schema@4.6.0)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.2)(mlly@1.8.2)(oxc-parser@0.151.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))

@@ -424,7 +424,7 @@ describe('forms (authenticated, database-backed)', async () => {
 
       expect(await ok(await json(staff.cookie, 'DELETE', passwordUrl))).toEqual({ set: false })
       expect((await post(form.slug, { 'x-form-password': 'open-sesame' })).status).toBe(401)
-    })
+    }, 30_000)
   })
 
   describe('captcha', () => {

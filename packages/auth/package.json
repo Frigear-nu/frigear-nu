@@ -65,7 +65,6 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
     "@libsql/client": "^0.18.0",
@@ -79,12 +78,14 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/menu": "workspace:*",
     "@nuxt/ui": "^4.10.0",
     "@nuxthub/core": "^0.10.8",
     "@simplewebauthn/browser": "^11.0.0",
     "@simplewebauthn/server": "^11.0.0"
   },
   "devDependencies": {
+    "@frigear-nu/menu": "workspace:*",
     "@nuxt/devtools": "^3.4.2",
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",
@@ -100,13 +101,16 @@
     "vue-tsc": "^3.3.11"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/menu": {
+      "optional": true
+    },
+    "@nuxt/ui": {
+      "optional": true
+    },
     "@simplewebauthn/browser": {
       "optional": true
     },
     "@simplewebauthn/server": {
-      "optional": true
-    },
-    "@nuxt/ui": {
       "optional": true
     }
   }
