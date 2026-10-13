@@ -1,12 +1,9 @@
 import {
-  addImports,
   addServerImportsDir,
   addServerTemplate,
-  addTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
-  hasNuxtModule,
 } from '@nuxt/kit'
 import type { ModuleOptions, NotifyRuntimeConfig } from './types'
 import { defu } from 'defu'
@@ -15,11 +12,9 @@ import { joinURL } from 'ufo'
 export type {
   ModuleOptions,
   SimpleNotification,
-  UINotification,
   SMSNotification,
   EmailNotification,
   SimpleDriver,
-  UIDriver,
   SMSDriver,
   EmailDriver,
 } from './types'
@@ -31,11 +26,6 @@ declare module '@nuxt/schema' {
   interface RuntimeConfig {
     notify: NotifyRuntimeConfig
   }
-}
-
-const BUILTIN_UI_DRIVERS: Record<string, { path: string, exportName: string }> = {
-  'log': { path: './runtime/drivers/log', exportName: 'logUIDriver' },
-  '@nuxt/ui': { path: './runtime/drivers/ui/nuxt.ui', exportName: 'default' },
 }
 
 // Name -> built-in driver implementation (path relative to this file + its export name). Shared
@@ -57,67 +47,8 @@ export default defineNuxtModule<ModuleOptions>({
     sms: { driver: 'log' },
     simple: { driver: 'log' },
   },
-  moduleDependencies: {
-    '@nuxt/ui': {
-      optional: true,
-      version: '>=4.10',
-    },
-  },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
-
-    // UI Driver
-    // Only ever set up (and its files only ever written/loaded) when explicitly configured -
-    // unlike email/sms/simple, there's no sensible default UI to push notifications to.
-    if (options.ui?.driver) {
-      if (options.ui.driver === '@nuxt/ui' && !hasNuxtModule('@nuxt/ui')) {
-        throw new Error(`@nuxt/ui driver is configured but @nuxt/ui module is not installed. Please install @nuxt/ui or configure a different UI driver.`)
-      }
-      addImports({
-        name: 'useNotify',
-        as: 'useNotify',
-        from: resolver.resolve('./runtime/app/composables/useNotify'),
-      })
-      // `defineUINotification` is a plain, framework-agnostic typing helper (no server-only code),
-      // so it's also made available client-side for building the `UINotification`s passed to
-      // `useNotify().addNotification`.
-      addImports({
-        name: 'defineUINotification',
-        as: 'defineUINotification',
-        from: resolver.resolve('./runtime/server/utils/definers'),
-      })
-      const uiDriverTemplate = addTemplate({
-        filename: '#notify/ui-driver.ts',
-        write: true,
-        getContents: async () => {
-          const builtin = BUILTIN_UI_DRIVERS[options.ui?.driver as keyof typeof BUILTIN_UI_DRIVERS]
-          if (builtin) {
-            return `export { ${builtin.exportName} as default } from ${JSON.stringify(await resolver.resolvePath(builtin.path))}`
-          }
-
-          if (!options.ui?.driver) {
-            throw new Error(`Invalid UI driver: ${options.ui?.driver || 'undefined'}`)
-          }
-
-          const driverPath = await resolver.resolvePath(options.ui.driver, { cwd: nuxt.options.rootDir })
-          return `export { default } from ${JSON.stringify(driverPath)}`
-        },
-      })
-      // `addTemplate` alone only writes the file into the build dir - app code needs an explicit
-      // alias so bundlers (Vite/webpack) can resolve the `#notify/ui-driver` specifier used in
-      // `useNotify` to the generated file.
-      nuxt.options.alias['#notify/ui-driver'] = uiDriverTemplate.dst
-      // ...and an ambient module declaration so consuming app code type-checks against it too.
-      addTypeTemplate({
-        filename: 'types/notify-ui-driver.d.ts',
-        getContents: () => `declare module '#notify/ui-driver' {
-  import type { UIDriver } from ${JSON.stringify(resolver.resolve('./types'))}
-  const driver: UIDriver
-  export default driver
-}
-`,
-      })
-    }
 
     // Email/SMS/Simple Drivers
     // Resolves each configured driver into its own virtual module any server code - in this

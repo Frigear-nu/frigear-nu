@@ -15,16 +15,6 @@ export interface SimpleNotification<M = Record<string, unknown>> {
 }
 
 /**
- * A notification that is intended to be displayed in the UI, e.g. via a toast or snackbar.
- * The `type` field can be used to determine the styling of the notification.
- */
-export interface UINotification<A = unknown, M = NotificationMeta> extends SimpleNotification<M> {
-  type?: 'success' | 'error' | 'info' | 'warning'
-  actions?: A[]
-  meta?: M
-}
-
-/**
  * Generic, transport-agnostic SMS notification. Concrete notifications (e.g. a password reset)
  * build one of these and hand it to `dispatchSMSNotification`, similar in spirit to how Laravel
  * notifications render themselves to a `toMail()` payload before a channel sends it.
@@ -60,22 +50,12 @@ export interface EmailNotification<M = NotificationMeta> {
 export type SimpleDriver = (notification: SimpleNotification) => Promise<void> | void
 export type SMSDriver = (notification: SMSNotification) => Promise<void> | void
 export type EmailDriver = (notification: EmailNotification) => Promise<void> | void
-/**
- * Unlike the server-side drivers above, a UI driver is a *composable factory*: `useNotify()` calls
- * it once, synchronously, during its own (setup-time) invocation, and uses the function it returns
- * to actually dispatch notifications later. This is required because driver implementations that
- * need Vue's `inject()` (e.g. the built-in `@nuxt/ui` driver's `useToast()`) only work when called
- * during a component's `setup()` - resolving them lazily, when a notification is dispatched (e.g.
- * from a `setInterval` callback), runs outside any component and breaks `inject()`.
- */
-export type UIDriver = () => (notification: UINotification) => Promise<void> | void
-
 export type NotificationChannelDriver = SimpleDriver | SMSDriver | EmailDriver
 
 export type StoredNotification = {
   id: string
   type: 'email' | 'sms' | 'simple' | string
-  data: EmailNotification | SMSNotification | SimpleNotification | UINotification
+  data: EmailNotification | SMSNotification | SimpleNotification
   error?: string
   sentAt?: Date
   createdAt: Date
@@ -121,12 +101,6 @@ export type ModuleOptions = {
   push?: {
     driver?: string
   }
-  // Selects the driver used to push notifications to the UI (e.g. `@nuxt/ui`'s `useToast`).
-  // Unlike the server-side drivers above, this is only ever set up (and its files only ever
-  // written/loaded) when explicitly configured - there's no sensible default UI to push to.
-  ui?: {
-    driver?: string | '@nuxt/ui'
-  }
 }
 
 /** Private runtime config (`runtimeConfig.notify`), overridable through `NUXT_NOTIFY_*` env vars. */
@@ -142,12 +116,5 @@ export type NotifyRuntimeConfig = {
     ses: { region: string, accessKeyId: string, secretAccessKey: string, sessionToken: string }
     /** `NUXT_NOTIFY_EMAIL_CLOUDFLARE_ACCOUNT_ID`, `_API_TOKEN` */
     cloudflare: { accountId: string, apiToken: string }
-  }
-}
-
-export type ModulePublicRuntimeConfig = {
-  // For UI usage...
-  ui?: {
-    driver?: string | '@nuxt/ui'
   }
 }
