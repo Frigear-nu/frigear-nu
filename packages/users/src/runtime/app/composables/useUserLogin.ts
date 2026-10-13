@@ -5,9 +5,11 @@ export const useUserLogin = () => {
 
   const passwordLoginEnabled = computed(() => config?.password === true)
   const passkeyLoginEnabled = computed(() => config?.webAuthn === true)
-  const oauthProviders = computed(() => (config?.oauth ?? []).map((provider) => {
-    return typeof provider === 'object' ? provider : OAUTH_PROVIDER_META[provider as keyof typeof OAUTH_PROVIDER_META]
-  }))
+  const oauthProviders = computed(() => (config?.oauth ?? [])
+    .filter(provider => provider !== 'frigear' || config?.frigearSso === true)
+    .map((provider) => {
+      return typeof provider === 'object' ? provider : OAUTH_PROVIDER_META[provider as keyof typeof OAUTH_PROVIDER_META]
+    }))
   const isEnabled = computed(() => passwordLoginEnabled.value || passkeyLoginEnabled.value || oauthProviders.value.length > 0)
 
   const pending = ref(false)

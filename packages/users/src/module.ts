@@ -1,6 +1,7 @@
 import {
   addComponent,
   addImports,
+  addPlugin,
   addServerHandler,
   addServerImportsDir,
   addServerTemplate,
@@ -59,6 +60,14 @@ declare module 'nuxt/schema' {
 
   interface RuntimeConfig {
     users?: { magicLinkSignUp: boolean, magicLinkCooldown: number }
+    // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
+    previewDeployment?: boolean
+    frigear?: {
+      // frigear.nu is used as the identity provider when `url`, `clientId` and `clientSecret` are set.
+      sso?: { url?: string, clientId?: string, clientSecret?: string }
+      // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
+      forceId?: boolean
+    }
   }
 
   interface PublicRuntimeConfig {
@@ -66,6 +75,8 @@ declare module 'nuxt/schema' {
     users?: PublicModuleOptions
   }
 }
+
+const isExternalUrl = (value: string | undefined) => !!value && /^https?:\/\//.test(value)
 
 function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
   if (typeof setting === 'string') return setting
@@ -282,6 +293,8 @@ export default defineNuxtModule<ModuleOptions>({
       ? resolvePagePath(settings.pages?.login, '/login')
       : undefined
     const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
+    // An absolute register URL only feeds the login page link; there is no local page to register.
+    const localRegisterPath = isExternalUrl(registerPath) ? undefined : registerPath
 
     // Housekeeping for the single-use tokens (`users:clear-expired-tokens`); the cron is opt-out.
     if (withMagicLink || withVerifyEmail || withPasswordReset) {
@@ -300,6 +313,22 @@ export default defineNuxtModule<ModuleOptions>({
           nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'users:clear-expired-tokens']
         }
       })
+    }
+
+    // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
+    // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
+    // `NUXT_PUBLIC_USERS_FRIGEAR_SSO`.
+    const runtimeConfig = nuxt.options.runtimeConfig
+    runtimeConfig.frigear = {
+      forceId: false,
+      ...runtimeConfig.frigear,
+      sso: { url: '', clientId: '', clientSecret: '', ...runtimeConfig.frigear?.sso },
+    }
+    const frigearSso = runtimeConfig.frigear.sso!
+    const frigearSsoEnabled = enabledOauthProviders.includes('frigear')
+      && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
+    if (enabledOauthProviders.includes('frigear')) {
+      addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
     }
 
     const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
@@ -323,7 +352,7 @@ export default defineNuxtModule<ModuleOptions>({
       getContents: () => JSON.stringify(authManifest, null, 2),
     })
 
-    if (loginPath || registerPath) {
+    if (loginPath || localRegisterPath) {
       addComponent({
         name: 'UsersAuthCard',
         filePath: resolver.resolve('./runtime/app/components/AuthCard.vue'),
@@ -338,10 +367,10 @@ export default defineNuxtModule<ModuleOptions>({
             file: resolver.resolve('./runtime/app/pages/login.vue'),
           })
         }
-        if (registerPath && !existingPaths.has(registerPath)) {
+        if (localRegisterPath && !existingPaths.has(localRegisterPath)) {
           pages.push({
             name: 'users-register',
-            path: registerPath,
+            path: localRegisterPath,
             file: resolver.resolve('./runtime/app/pages/register.vue'),
           })
         }
@@ -426,6 +455,7 @@ export default defineNuxtModule<ModuleOptions>({
       magicLink: withMagicLink,
       verifyEmail: withVerifyEmail,
       oauth: enabledOauthProviders,
+      frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath, admin: adminPagePath },
     }
   },

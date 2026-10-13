@@ -6,6 +6,8 @@ export const OAUTH_PROVIDER_META = {
   github: { label: 'GitHub', icon: 'i-simple-icons-github', to: '/api/auth/github' },
   google: { label: 'Google', icon: 'i-simple-icons-google', to: '/api/auth/google' },
   facebook: { label: 'Facebook', icon: 'i-simple-icons-facebook', to: '/api/auth/facebook' },
+  // Full page navigation (not the router): the route redirects to frigear.nu.
+  frigear: { label: 'frigear.nu', icon: 'i-lucide-log-in', to: '/api/auth/frigear', external: true },
 } as const
 
 export type OAuthProviderKey = keyof typeof OAUTH_PROVIDER_META
