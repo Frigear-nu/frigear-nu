@@ -36,6 +36,13 @@
       "when": 1791891240860,
       "tag": "0004_payments_items",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791901575287,
+      "tag": "0005_payments_invoice_id",
+      "breakpoints": true
     }
   ]
 }

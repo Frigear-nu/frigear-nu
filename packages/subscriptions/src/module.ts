@@ -6,6 +6,7 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
+  hasNuxtModule,
 } from '@nuxt/kit'
 import {
   moduleApiUrl,
@@ -23,6 +24,7 @@ import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
   CheckoutBeforeContext,
+  InvoicePaymentEvent,
   ModuleOptions,
   PlansFilterContext,
   PublicModuleOptions,
@@ -35,6 +37,7 @@ export type {
   CheckoutBeforeContext,
   CheckoutBody,
   CheckoutResponse,
+  InvoicePaymentEvent,
   MeResponse,
   ModuleOptions,
   PlanAvailability,
@@ -78,6 +81,8 @@ declare module 'nitropack' {
     'subscriptions:checkout:before': (ctx: CheckoutBeforeContext) => void | Promise<void>
     /** Policy hook: hide or reorder plans by changing `ctx.plans` in place. */
     'subscriptions:plans:filter': (ctx: PlansFilterContext) => void | Promise<void>
+    /** A membership invoice was paid, failed or voided. Only fired when `@frigear-nu/payments` is installed, which stores it. */
+    'subscriptions:invoice': (ctx: { invoice: InvoicePaymentEvent }) => void | Promise<void>
   }
 }
 
@@ -100,6 +105,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    // Membership invoices are only announced (and stored as payments) when it is installed.
+    '@frigear-nu/payments': { version: '>=0.0.0', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // The admin user tab and card are built from its components, so they are only added with it.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
@@ -162,6 +169,14 @@ export default defineNuxtModule<ModuleOptions>({
       ],
       handler: resolver.resolve('./runtime/server/stripe/subscription-events'),
     })
+
+    // Membership charges show up as payments only when `@frigear-nu/payments` is installed; otherwise nothing changes.
+    if (hasNuxtModule('@frigear-nu/payments', nuxt)) {
+      registerStripeEventHandler(nuxt, {
+        events: ['invoice.paid', 'invoice.payment_failed', 'invoice.voided', 'invoice.marked_uncollectible'],
+        handler: resolver.resolve('./runtime/server/stripe/invoice-events'),
+      })
+    }
 
     // --- API routes -----------------------------------------------------------------------
     addServerHandler({

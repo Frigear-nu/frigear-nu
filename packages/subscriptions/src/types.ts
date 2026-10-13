@@ -152,3 +152,23 @@ export type AdminMembershipResponse = {
 
 /** `POST /api/admin/users/:id/subscription/payment-link` (staff). */
 export type AdminPaymentLinkResponse = { url: string, emailed: boolean }
+
+/**
+ * A membership invoice announced through the `subscriptions:invoice` hook (only when `@frigear-nu/payments` is
+ * installed, which stores it as a payment with `referenceType` `subscription`).
+ */
+export type InvoicePaymentEvent = {
+  userId: number
+  invoiceId: string
+  status: 'paid' | 'failed' | 'expired'
+  /** Total in the currency's minor unit. */
+  amount: number
+  currency: string
+  description: string | null
+  referenceType: 'subscription'
+  /** The Stripe subscription id. */
+  referenceId: string
+  paymentIntentId: string | null
+  paidAt: Date | null
+  createdAt: Date
+}

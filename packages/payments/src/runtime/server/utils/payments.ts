@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import type { H3Event } from 'h3'
-import type { CheckoutBeforeContext, CreatePaymentInput, CreatePaymentResult, PaymentDto, PaymentItem, PaymentReference, PaymentStatus } from '../../../types'
+import type { CheckoutBeforeContext, CreatePaymentInput, InvoicePaymentInput, CreatePaymentResult, PaymentDto, PaymentItem, PaymentReference, PaymentStatus } from '../../../types'
 import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
 import { sumItems } from '../../utils'
 
@@ -166,7 +166,7 @@ export async function getPaymentByReference(type: string, id: string): Promise<P
 export async function listUserPayments(userId: number, options: { limit?: number } = {}): Promise<PaymentDto[]> {
   const query = db.select().from(schema.payments)
     .where(eq(schema.payments.userId, userId))
-    .orderBy(desc(schema.payments.createdAt))
+    .orderBy(desc(sql`coalesce(${schema.payments.paidAt}, ${schema.payments.createdAt})`))
   const rows = await (options.limit ? query.limit(options.limit) : query)
   return rows.map(toPaymentDto)
 }
@@ -187,6 +187,7 @@ export async function resumePayment(paymentId: string, userId: number, event?: H
   }
 
   const stripe = useStripe()
+  if (!row.checkoutSessionId) throw createError({ statusCode: 409, statusMessage: 'This payment cannot be resumed.' })
   const session = await stripe.checkout.sessions.retrieve(row.checkoutSessionId)
   if (session.status === 'open' && session.url) return { url: session.url }
   if (session.status === 'complete') throw createError({ statusCode: 409, statusMessage: 'This payment is already paid.' })
@@ -241,4 +242,52 @@ export async function refundPayment(paymentId: string, options: { amount?: numbe
     payment_intent: row.paymentIntentId,
     ...(options.amount !== undefined ? { amount: options.amount } : {}),
   })
+}
+
+const hookForInvoice = { paid: 'payments:paid', failed: 'payments:failed', expired: 'payments:expired' } as const
+
+/**
+ * Stores (or updates) the payment for a Stripe invoice, keyed by the invoice id, so recurring charges such as
+ * membership renewals show up next to one-time payments. Idempotent: a redelivered event changes nothing and a
+ * late `failed`/`expired` never overwrites a payment that is already paid or refunded. Fires the matching
+ * `payments:*` hook only when the status actually changed. Refunds arrive through the `charge.refunded` handler,
+ * which finds the row by `paymentIntentId`.
+ */
+export async function recordInvoicePayment(input: InvoicePaymentInput): Promise<PaymentDto> {
+  const nitro = useNitroApp()
+  const [existing] = await db.select().from(schema.payments).where(eq(schema.payments.invoiceId, input.invoiceId)).limit(1)
+
+  if (existing) {
+    const settled = ['paid', 'refunded', 'partially_refunded'].includes(existing.status)
+    if (settled || existing.status === input.status) return toPaymentDto(existing)
+  }
+
+  const values = {
+    userId: input.userId,
+    status: input.status,
+    amount: input.amount,
+    currency: input.currency,
+    description: input.description,
+    referenceType: input.referenceType ?? 'subscription',
+    referenceId: input.referenceId,
+    invoiceId: input.invoiceId,
+    paymentIntentId: input.paymentIntentId,
+    paidAt: input.status === 'paid' ? input.paidAt ?? new Date() : null,
+  }
+  const [row] = existing
+    ? await db.update(schema.payments).set(values).where(eq(schema.payments.id, existing.id)).returning()
+    : await db.insert(schema.payments)
+        .values({ id: newPaymentId(), ...values, ...(input.createdAt ? { createdAt: input.createdAt } : {}) })
+        .onConflictDoNothing({ target: schema.payments.invoiceId })
+        .returning()
+  // Lost a race with a concurrent delivery of the same invoice: that one fires the hook.
+  if (!row) {
+    const [current] = await db.select().from(schema.payments).where(eq(schema.payments.invoiceId, input.invoiceId)).limit(1)
+    if (!current) throw createError({ statusCode: 500, statusMessage: 'Could not record the invoice payment.' })
+    return toPaymentDto(current)
+  }
+
+  const dto = toPaymentDto(row)
+  if (input.status in hookForInvoice) await nitro.hooks.callHook(hookForInvoice[input.status as keyof typeof hookForInvoice], { payment: dto })
+  return dto
 }
