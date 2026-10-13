@@ -18,7 +18,7 @@ export type {
   ConsentCookie,
   ConsentMessages,
   ConsentState,
-  Localized,
+  Translated,
 } from './types'
 
 // Pulls the Nuxt / Nitro type augmentations (config, hooks, public runtime config) into the module graph.

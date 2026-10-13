@@ -2,7 +2,9 @@ import type { H3Event } from 'h3'
 import type { Schedule as FormSchedule } from '@frigear-nu/module-kit/schedule'
 
 /** A text that is either one string or a map of locale -> string. */
-export type Translated = string | Record<string, string>
+import type { Translated } from '@frigear-nu/ui/translated'
+
+export type { Translated }
 
 export type FormStatus = 'draft' | 'published' | 'archived'
 export type FormMode = 'single' | 'stepped'

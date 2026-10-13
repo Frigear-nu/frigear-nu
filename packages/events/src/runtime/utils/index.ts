@@ -1,5 +1,8 @@
 // Pure helpers, safe to import from the Vue app as well as Nitro code.
-import type { MembershipRequirement, Translated } from '../types'
+import { translate } from '@frigear-nu/ui/translated'
+import type { MembershipRequirement } from '../types'
+
+export { translate }
 
 export type {
   AddonDto,
@@ -20,16 +23,6 @@ export type {
   TicketTypeDto,
   Translated,
 } from '../types'
-
-/**
- * Picks the text for a locale, falling back to `fallback` (the site's default locale), then `en`, then the first
- * entry that has text. Empty entries never win.
- */
-export function translate(value: Translated | null | undefined, locale = 'en', fallback?: string): string {
-  if (!value) return ''
-  if (typeof value === 'string') return value
-  return value[locale] || (fallback ? value[fallback] : '') || value.en || Object.values(value).find(Boolean) || ''
-}
 
 /** The currency tickets and add-ons are sold in unless they say otherwise (the column default). */
 export const DEFAULT_CURRENCY = 'DKK'

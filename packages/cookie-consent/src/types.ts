@@ -1,11 +1,12 @@
-/** A string, or a map of locale code -> string (`{ da: '...', en: '...' }`). */
-export type Localized = string | Record<string, string>
+import type { Translated } from '@frigear-nu/ui/translated'
+
+export type { Translated }
 
 /** A cookie (or similar storage entry) set under a category - listed in the preferences dialog for GDPR transparency. */
 export interface ConsentCookie {
   name: string
   provider?: string
-  purpose?: Localized
+  purpose?: Translated
   /** Human readable, e.g. `'1 year'` or `'Session'`. */
   duration?: string
 }
@@ -17,9 +18,9 @@ export interface ConsentCategory {
   /** Pre-selected state in the preferences dialog. Never applied without the user saving. Default `false`. */
   defaultEnabled?: boolean
   /** Defaults to the i18n key `cookieConsent.categories.<key>.label`. */
-  label?: Localized
+  label?: Translated
   /** Defaults to the i18n key `cookieConsent.categories.<key>.description`. */
-  description?: Localized
+  description?: Translated
   cookies?: ConsentCookie[]
 }
 
@@ -52,12 +53,12 @@ export interface ModuleOptions {
   /** Collapse the banner into a round button once scrolled this many px (`true` = 80, `false` = never). Default `true`. */
   collapseOnScroll?: boolean | number
   /** Link to the cookie/privacy policy shown in the banner. A string, or a map of locale code -> URL (`{ da: '/da/gdpr', en: '/gdpr' }`). */
-  policyUrl?: Localized
+  policyUrl?: Translated
   /**
    * Text of the policy link in the banner (the "Read more" link). A string or a `{ da, en }` map.
    * Defaults to the i18n key `cookieConsent.policy`.
    */
-  policyLabel?: Localized
+  policyLabel?: Translated
   /**
    * Store the consent on the signed-in user (`@frigear-nu/users` + `@nuxthub/core` required).
    * Default: `true` when `@frigear-nu/users` is installed.
@@ -77,8 +78,8 @@ export interface PublicModuleOptions {
   categories: ConsentCategory[]
   excludeRoutes: string[]
   collapseThreshold: number | false
-  policyUrl?: Localized
-  policyLabel?: Localized
+  policyUrl?: Translated
+  policyLabel?: Translated
   persistToUser: boolean
   icon: string
 }

@@ -3,7 +3,8 @@ import type { FormDefinition } from '../../types'
 
 export type * from '../../types'
 
-export { translate, interpolate, defaultMessages, newId } from './text'
+export { interpolate, defaultMessages, newId } from './text'
+export { translate, readTranslated, writeTranslated, expandTranslated, collapseTranslated } from '@frigear-nu/ui/translated'
 export type { MessageTranslator, TranslateParams } from './text'
 export { evaluateCondition, resolveVisibility, isFieldVisible, isInputField, isAnswerField } from './conditions'
 export type { Answers, VisibleStep } from './conditions'
@@ -11,7 +12,7 @@ export { buildFormSchema, buildFieldSchema, validatedFields } from './schema'
 export type { SchemaOptions } from './schema'
 export {
   fieldTypes, arrayMove, moveField, moveStep, dropIndex, insertField, insertStep, removeField, updateField, updateStep, duplicateField,
-  createField, createStep, removeStep, changeMode, pruneReferences, renameFieldKey, allFieldKeys, uniqueFieldKey, uniqueStepId, readTranslated, writeTranslated, expandTranslated, collapseTranslated,
+  createField, createStep, removeStep, changeMode, pruneReferences, renameFieldKey, allFieldKeys, uniqueFieldKey, uniqueStepId,
   setEmailRecipients, patchEmailDelivery, setRouteField, setRoute, setStorage, setAccess, storageWarnings, emailFieldKeys, routableFields,
 } from './builder'
 export type { FieldPosition } from './builder'

@@ -2,6 +2,7 @@ import { sqliteTable, text, integer, index, uniqueIndex, customType } from 'driz
 
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
+// (declared here, not imported: this file is merged into the generated schema as plain text)
 type Translated = string | Record<string, string>
 // A recurring sale season or fixed range, see `@frigear-nu/module-kit/schedule`.
 type Schedule = import('@frigear-nu/module-kit/schedule').Schedule
