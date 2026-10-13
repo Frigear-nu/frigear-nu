@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useWindowScroll } from '@vueuse/core'
 
-const { config, hasResponded, acceptAll, rejectAll, openPreferences, hydrateFromUser } = useCookieConsent()
-const { t } = useConsentT()
+const { config, hasResponded, hydrateFromUser } = useCookieConsent()
+const { t, policyUrl } = useConsentT()
 
 const route = useRoute()
 const excluded = computed(() => config.excludeRoutes.includes(route.path))
@@ -70,35 +70,14 @@ onMounted(() => {
             <p class="text-sm text-muted">
               {{ t('description') }}
               <NuxtLink
-                v-if="config.policyUrl"
-                :to="config.policyUrl"
+                v-if="policyUrl"
+                :to="policyUrl"
                 class="underline"
               >
                 {{ t('policy') }}
               </NuxtLink>
             </p>
-            <div class="flex shrink-0 flex-wrap gap-2">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                :label="t('preferences')"
-                data-testid="cookie-consent-preferences"
-                @click="openPreferences"
-              />
-              <UButton
-                color="neutral"
-                variant="outline"
-                :label="t('reject')"
-                data-testid="cookie-consent-reject"
-                @click="rejectAll"
-              />
-              <UButton
-                color="primary"
-                :label="t('accept')"
-                data-testid="cookie-consent-accept"
-                @click="acceptAll"
-              />
-            </div>
+            <CookieConsentBannerActions />
           </div>
         </div>
       </div>

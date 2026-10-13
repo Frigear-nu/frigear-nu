@@ -51,8 +51,13 @@ export interface ModuleOptions {
   excludeRoutes?: string[]
   /** Collapse the banner into a round button once scrolled this many px (`true` = 80, `false` = never). Default `true`. */
   collapseOnScroll?: boolean | number
-  /** Link to the cookie/privacy policy shown in the banner. */
-  policyUrl?: string
+  /** Link to the cookie/privacy policy shown in the banner. A string, or a map of locale code -> URL (`{ da: '/da/gdpr', en: '/gdpr' }`). */
+  policyUrl?: Localized
+  /**
+   * Text of the policy link in the banner (the "Read more" link). A string or a `{ da, en }` map.
+   * Defaults to the i18n key `cookieConsent.policy`.
+   */
+  policyLabel?: Localized
   /**
    * Store the consent on the signed-in user (`@frigear-nu/users` + `@nuxthub/core` required).
    * Default: `true` when `@frigear-nu/users` is installed.
@@ -72,7 +77,8 @@ export interface PublicModuleOptions {
   categories: ConsentCategory[]
   excludeRoutes: string[]
   collapseThreshold: number | false
-  policyUrl?: string
+  policyUrl?: Localized
+  policyLabel?: Localized
   persistToUser: boolean
   icon: string
 }
