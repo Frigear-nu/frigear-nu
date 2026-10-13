@@ -85,10 +85,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: turbo-build-${{ runner.os }}-${{ inputs.environment }}-${{ github.sha }}
+          key: turbo-build-v2-${{ runner.os }}-${{ inputs.environment }}-${{ github.sha }}
           restore-keys: |
-            turbo-build-${{ runner.os }}-${{ inputs.environment }}-
-            turbo-build-${{ runner.os }}-
+            turbo-build-v2-${{ runner.os }}-${{ inputs.environment }}-
+            turbo-build-v2-${{ runner.os }}-
 
       - name: Create preview D1 database
         if: inputs.environment == 'preview'
