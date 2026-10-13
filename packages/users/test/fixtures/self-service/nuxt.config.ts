@@ -3,7 +3,6 @@ import MyModule from '../../../src/module'
 export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
-    '@frigear-nu/mcp',
     MyModule,
   ],
   runtimeConfig: {
