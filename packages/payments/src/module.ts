@@ -4,7 +4,6 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
-  hasNuxtModule,
 } from '@nuxt/kit'
 import {
   moduleApiUrl,
@@ -14,6 +13,7 @@ import {
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
+import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
   CheckoutBeforeContext,
@@ -125,32 +125,25 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/payments/resume.post'),
     })
 
-    // Staff view of a user's payments, authorized through the users admin policy (`users:admin:authorize`, `view`).
-    addServerHandler({
-      route: '/api/admin/users/:id/payments',
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/admin/user-payments.get'),
-    })
-
-    // Adds a "Payments" tab and a "Last payment" card to the admin user page of `@frigear-nu/users` (tab area
-    // `admin.users`, widget area `admin.users.overview`) when @frigear-nu/widget is installed.
-    if (hasNuxtModule('@frigear-nu/widget')) {
-      const { extendTabs, extendWidgets } = await import('@frigear-nu/widget/utils')
-      extendTabs(nuxt, 'admin.users', {
+    // Staff view of a user's payments plus a "Payments" tab and a "Last payment" card on the admin user page of
+    // `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`, `view`).
+    await extendUsersAdmin(nuxt, {
+      routes: [{ method: 'get', path: 'payments', handler: resolver.resolve('./runtime/server/routes/admin/user-payments.get') }],
+      tab: {
         id: 'payments',
         component: resolver.resolve('./runtime/app/tabs/Payments.vue'),
         order: 20,
         label: 'Payments',
         labelKey: 'payments.admin.tab',
         icon: 'i-lucide-credit-card',
-      })
-      extendWidgets(nuxt, 'admin.users.overview', {
+      },
+      widget: {
         id: 'payments-last',
         component: resolver.resolve('./runtime/app/widgets/AdminLastPayment.vue'),
         order: 20,
         span: 2,
-      })
-    }
+      },
+    })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 

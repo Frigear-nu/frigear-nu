@@ -17,10 +17,10 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  users: {
-    settings: { verifyEmailChange: true },
-  },
   notify: {
     email: { driver: './server/utils/mail-driver' },
+  },
+  users: {
+    settings: { verifyEmailChange: true },
   },
 })

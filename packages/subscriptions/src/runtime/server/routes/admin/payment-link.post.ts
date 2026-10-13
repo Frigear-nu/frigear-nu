@@ -14,7 +14,7 @@ const escapeHtml = (value: string) =>
 // Staff creates a Stripe Checkout session for the user (same shape as the self-service checkout) and gets the
 // URL back, optionally emailed to the user through @frigear-nu/notify. Checkout sessions expire after 24 hours.
 export default defineEventHandler(async (event): Promise<AdminPaymentLinkResponse> => {
-  const { target } = await loadAdminMembershipTarget(event, 'update')
+  const { target } = await loadUsersAdminTarget(event, 'update')
   const body = await readValidatedBody(event, bodySchema.parse)
   const origin = getRequestURL(event).origin
   const pages = useRuntimeConfig().public.subscriptions?.pages ?? {}

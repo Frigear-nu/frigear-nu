@@ -86,3 +86,21 @@ export async function latestSubscriptions(userIds: number[]) {
   }
   return result
 }
+
+/**
+ * Loads the user a staff member is acting on (`/api/admin/users/:id/...`) and runs the users admin policy against
+ * them (`view` for reads, `update` for changes). Throws 400/401/403/404. For routes added with `extendUsersAdmin`.
+ */
+export async function loadUsersAdminTarget(event: H3Event, action: Exclude<UsersAdminAction, 'create'>) {
+  const id = Number(getRouterParam(event, 'id'))
+  if (!Number.isInteger(id)) throw createError({ statusCode: 400, statusMessage: 'Invalid user id.' })
+
+  const target = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })
+  const actor = await authorizeUsersAdmin(
+    event,
+    action,
+    target ? { target: { id: target.id, email: target.email, role: (target as { role?: string }).role }, input: {} } : {},
+  )
+  if (!target) throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+  return { actor, target }
+}

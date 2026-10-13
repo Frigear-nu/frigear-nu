@@ -17,10 +17,10 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  notify: {
-    email: { driver: './server/utils/mail-driver' },
-  },
   authentication: {
     settings: { magicLink: { cooldown: 2 }, verifyEmail: true },
+  },
+  notify: {
+    email: { driver: './server/utils/mail-driver' },
   },
 })

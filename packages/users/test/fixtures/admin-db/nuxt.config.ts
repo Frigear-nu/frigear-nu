@@ -17,11 +17,11 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  notify: {
-    email: { driver: './server/utils/mail-driver' },
-  },
   authentication: {
     settings: { magicLink: true },
+  },
+  notify: {
+    email: { driver: './server/utils/mail-driver' },
   },
   users: {
     settings: { admin: { page: false } },

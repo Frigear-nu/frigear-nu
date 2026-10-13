@@ -18,6 +18,7 @@ import {
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
+import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
@@ -189,41 +190,32 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/subscriptions/portal.post'),
     })
 
-    // Staff membership management (grant free / payment link / revoke), authorized through the users admin
-    // policy (`users:admin:authorize`, action `update`). Used by the `UsersAdminMembership` component.
-    for (const [method, path, file] of [
-      ['get', 'subscription', 'subscription.get'],
-      ['get', 'subscriptions', 'subscriptions.get'],
-      ['post', 'subscription', 'subscription.post'],
-      ['delete', 'subscription', 'subscription.delete'],
-      ['post', 'subscription/payment-link', 'payment-link.post'],
-    ] as const) {
-      addServerHandler({
-        route: `/api/admin/users/:id/${path}`,
-        method,
-        handler: resolver.resolve(`./runtime/server/routes/admin/${file}`),
-      })
-    }
-
-    // Adds a "Subscription" tab and a summary card to the admin user page of `@frigear-nu/users` (tab area
-    // `admin.users`, widget area `admin.users.overview`) when @frigear-nu/widget is installed.
-    if (hasNuxtModule('@frigear-nu/widget')) {
-      const { extendTabs, extendWidgets } = await import('@frigear-nu/widget/utils')
-      extendTabs(nuxt, 'admin.users', {
+    // Staff membership management (grant free / payment link / revoke) plus a "Subscription" tab and a summary card on
+    // the admin user page of `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`,
+    // `view` for reads, `update` for changes). Used by the `UsersAdminMembership` component.
+    await extendUsersAdmin(nuxt, {
+      routes: ([
+        ['get', 'subscription', 'subscription.get'],
+        ['get', 'subscriptions', 'subscriptions.get'],
+        ['post', 'subscription', 'subscription.post'],
+        ['delete', 'subscription', 'subscription.delete'],
+        ['post', 'subscription/payment-link', 'payment-link.post'],
+      ] as const).map(([method, path, file]) => ({ method, path, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })),
+      tab: {
         id: 'subscription',
         component: resolver.resolve('./runtime/app/tabs/Membership.vue'),
         order: 10,
         label: 'Subscription',
         labelKey: 'subscriptions.admin.tab',
         icon: 'i-lucide-badge-check',
-      })
-      extendWidgets(nuxt, 'admin.users.overview', {
+      },
+      widget: {
         id: 'subscriptions-current',
         component: resolver.resolve('./runtime/app/widgets/AdminCurrentSubscription.vue'),
         order: 10,
         span: 2,
-      })
-    }
+      },
+    })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))

@@ -15,6 +15,11 @@
     ".": {
       "types": "./src/types.ts",
       "import": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
     }
   },
   "publishConfig": {
@@ -22,6 +27,11 @@
       ".": {
         "types": "./dist/types.d.mts",
         "import": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
       }
     },
     "main": "./dist/module.mjs",
