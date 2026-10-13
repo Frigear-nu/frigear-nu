@@ -29,6 +29,8 @@ export function useConsentT() {
   const tm = useModuleT('cookieConsent')
   const nuxtApp = useNuxtApp()
 
+  const { policyLabel, policyUrl } = useRuntimeConfig().public.cookieConsent ?? {}
+
   const locale = computed(() => (nuxtApp.$i18n as { locale?: { value?: string } } | undefined)?.locale?.value ?? 'en')
 
   /** Explicit option text (string or `{ da, en }` map) wins; otherwise `cookieConsent.categories.<key>.<field>`. */
@@ -40,7 +42,10 @@ export function useConsentT() {
 
   return {
     locale,
-    t: (key: keyof ConsentMessages) => tm(key, EN[key]),
+    /** The policy link target for the current locale, if `policyUrl` is set. */
+    policyUrl: computed(() => localize(policyUrl, locale.value) || undefined),
+    /** The `policyLabel` option wins over the translated `policy` text. */
+    t: (key: keyof ConsentMessages) => (key === 'policy' && policyLabel ? localize(policyLabel, locale.value) : tm(key, EN[key])),
     label: (category: ConsentCategory) => categoryText(category, 'label'),
     description: (category: ConsentCategory) => categoryText(category, 'description'),
     localize: (value: Localized | undefined, fallback = '') => localize(value, locale.value, fallback),

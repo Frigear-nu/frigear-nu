@@ -56,7 +56,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'getCookieConsent', from: resolver.resolve('./runtime/server/utils/consent') },
       { name: 'hasCookieConsent', from: resolver.resolve('./runtime/server/utils/consent') },
     ])
-    addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
+    // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults.
+    addComponentsDir({ path: resolver.resolve('./runtime/app/components'), priority: -1 })
 
     if (persistToUser) {
       addServerHandler({ route: '/api/cookie-consent', method: 'get', handler: resolver.resolve('./runtime/server/routes/cookie-consent/index.get') })
@@ -92,6 +93,7 @@ export default defineNuxtModule<ModuleOptions>({
         excludeRoutes: options.excludeRoutes ?? [],
         collapseThreshold: options.collapseOnScroll === false ? false : typeof options.collapseOnScroll === 'number' ? options.collapseOnScroll : 80,
         policyUrl: options.policyUrl,
+        policyLabel: options.policyLabel,
         persistToUser,
         icon,
       } satisfies PublicModuleOptions
