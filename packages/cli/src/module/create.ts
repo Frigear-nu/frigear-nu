@@ -36,7 +36,7 @@ export default defineCommand({
     }
 
     // attempt to clone the template into the path
-    const dir = await downloadTemplateToDir({
+    const { dir } = await downloadTemplateToDir({
       template,
       path: modulePath,
       cwd,
