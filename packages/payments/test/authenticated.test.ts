@@ -16,6 +16,7 @@ type Row = {
   paymentIntentId: string | null
   refundedAmount: number
   paidAt: string | null
+  items: Array<{ name: string, amount: number, currency: string, quantity?: number }> | null
 }
 
 const rows = () => $fetch<Row[]>('/api/test/payments')
@@ -79,6 +80,21 @@ describe('payments (authenticated, database-backed)', async () => {
       expect((await attempt({ items: [{ name: 'A', amount: 100, currency: 'DKK' }, { name: 'B', amount: 100, currency: 'EUR' }] })).status).toBe(400)
       expect((await attempt({ items: [{ name: 'Free', amount: 0, currency: 'DKK' }] })).status).toBe(400)
       expect((await attempt({ items: ticketItems, successUrl: 'https://evil.example/steal' })).status).toBe(400)
+    })
+
+    it('persists the items, and without a request only accepts absolute http(s) return URLs', async () => {
+      const user = await registerUser('Kit', 'kit@example.com')
+      const { payment } = await pay(user.cookie, { items: ticketItems })
+      expect((await rows()).find(row => row.id === payment.id)!.items).toEqual(ticketItems)
+
+      const attempt = (successUrl: string) => fetch('/api/test/pay', {
+        method: 'POST',
+        headers: { 'cookie': user.cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ items: ticketItems, noEvent: true, successUrl, cancelUrl: 'https://example.test/cancel' }),
+      })
+      expect((await attempt('/relative')).status).toBe(400)
+      expect((await attempt('javascript:alert(1)')).status).toBe(400)
+      expect((await attempt('https://example.test/done')).status).toBe(200)
     })
   })
 
@@ -187,6 +203,65 @@ describe('payments (authenticated, database-backed)', async () => {
 
       await sendEvent('resume_paid', 'checkout.session.completed', { id: newSession, payment_status: 'paid', payment_intent: 'pi_ivy' })
       expect((await resume(user.cookie, payment.id)).status).toBe(409)
+    })
+  })
+
+  describe('resumePayment after the session expired', () => {
+    const resume = async (cookie: string, id: string) => {
+      const response = await fetch('/api/payments/resume', {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ paymentId: id }),
+      })
+      expect(response.status, await response.clone().text()).toBe(200)
+    }
+    const lastSession = async () => (await getStripeCalls()).filter(call => call.method === 'POST' && call.path === '/v1/checkout/sessions').at(-1)!
+    const expire = async (id: string) => {
+      const session = (await rows()).find(row => row.id === id)!.checkoutSessionId
+      await $fetch('/api/test/expire-session', { method: 'POST', body: { id: session } })
+    }
+
+    it('rebuilds the session from the original items and runs payments:checkout:before', async () => {
+      const user = await registerUser('Lea', 'lea@example.com')
+      const { payment } = await pay(user.cookie, {
+        items: [...ticketItems, { name: 'Wine', description: 'Red', amount: 7500, currency: 'DKK', quantity: 3 }],
+        reference: { type: 'event_ticket', id: 'resume_1' },
+      })
+      await expire(payment.id)
+      await getStripeCalls(true)
+      await resume(user.cookie, payment.id)
+
+      expect((await lastSession()).params).toMatchObject({
+        'line_items[0][price_data][product_data][name]': 'Ticket',
+        'line_items[0][price_data][unit_amount]': '15000',
+        'line_items[1][price_data][product_data][name]': 'Food',
+        'line_items[1][quantity]': '2',
+        'line_items[2][price_data][product_data][name]': 'Wine',
+        'line_items[2][price_data][product_data][description]': 'Red',
+        'line_items[2][price_data][unit_amount]': '7500',
+        'line_items[2][quantity]': '3',
+        'metadata[paymentId]': payment.id,
+        'metadata[hooked]': 'resume_1',
+        'success_url': expect.stringContaining('/done'),
+      })
+    })
+
+    it('falls back to a single line for rows without stored items, still running the hook', async () => {
+      const user = await registerUser('Max', 'max@example.com')
+      const { payment } = await pay(user.cookie, { items: ticketItems })
+      await $fetch('/api/test/clear-items', { method: 'POST', body: { id: payment.id } })
+      await expire(payment.id)
+      await getStripeCalls(true)
+      await resume(user.cookie, payment.id)
+
+      const { params } = await lastSession()
+      expect(params).toMatchObject({
+        'line_items[0][quantity]': '1',
+        'line_items[0][price_data][product_data][name]': 'Payment',
+        'line_items[0][price_data][unit_amount]': '25000',
+        'metadata[hooked]': 'none',
+      })
+      expect(params['line_items[1][quantity]']).toBeUndefined()
     })
   })
 

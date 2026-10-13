@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, desc, eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
-import type { CreatePaymentInput, CreatePaymentResult, PaymentDto, PaymentStatus } from '../../../types'
+import type { CheckoutBeforeContext, CreatePaymentInput, CreatePaymentResult, PaymentDto, PaymentItem, PaymentReference, PaymentStatus } from '../../../types'
 import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
 import { sumItems } from '../../utils'
 
@@ -26,10 +26,63 @@ export function toPaymentDto(row: PaymentRow): PaymentDto {
 const newPaymentId = () => `pay_${crypto.randomUUID().replaceAll('-', '')}`
 
 function safeReturnUrl(input: string, event: H3Event | undefined, name: string): string {
-  if (!event) return input
+  if (!event) {
+    // Without a request there is no origin to compare with; still only allow absolute http(s) URLs.
+    const absolute = URL.canParse(input) && ['http:', 'https:'].includes(new URL(input).protocol)
+    if (!absolute) throw createError({ statusCode: 400, statusMessage: `${name} must be an absolute http(s) URL.` })
+    return input
+  }
   const resolved = resolveSameOriginUrl(input, getRequestURL(event).origin)
   if (!resolved) throw createError({ statusCode: 400, statusMessage: `${name} must be a relative path or an URL on the same origin.` })
   return resolved
+}
+
+function toLineItems(items: PaymentItem[], currency: string) {
+  return items.map(item => ({
+    quantity: item.quantity ?? 1,
+    price_data: {
+      currency,
+      unit_amount: item.amount,
+      product_data: { name: item.name, ...(item.description ? { description: item.description } : {}) },
+    },
+  }))
+}
+
+type CheckoutSource = {
+  paymentId: string
+  userId: number
+  customer: string
+  currency: string
+  items: PaymentItem[]
+  reference?: PaymentReference
+  successUrl: string
+  cancelUrl: string
+  expiresInMinutes: number
+  metadata?: Record<string, string> | null
+  event?: H3Event
+}
+
+/** Builds the Checkout session params and lets `payments:checkout:before` adjust them. Shared by create and resume. */
+async function buildCheckoutParams(source: CheckoutSource): Promise<CheckoutBeforeContext['params']> {
+  const metadata = { ...source.metadata, paymentId: source.paymentId, userId: String(source.userId) }
+  const context = {
+    event: source.event,
+    userId: source.userId,
+    reference: source.reference,
+    params: {
+      mode: 'payment',
+      customer: source.customer,
+      client_reference_id: String(source.userId),
+      line_items: toLineItems(source.items, source.currency),
+      success_url: safeReturnUrl(source.successUrl, source.event, 'successUrl'),
+      cancel_url: safeReturnUrl(source.cancelUrl, source.event, 'cancelUrl'),
+      expires_at: expiresAt(source.expiresInMinutes),
+      metadata,
+      payment_intent_data: { metadata },
+    },
+  } satisfies CheckoutBeforeContext
+  await useNitroApp().hooks.callHook('payments:checkout:before', context)
+  return context.params
 }
 
 function expiresAt(minutes: number): number {
@@ -57,34 +110,21 @@ export async function createPayment(input: CreatePaymentInput, event?: H3Event):
   const stripe = useStripe()
   const customer = await ensureStripeCustomer(input.userId)
   const id = newPaymentId()
-  const metadata = { ...input.metadata, paymentId: id, userId: String(input.userId) }
-
-  const context = {
-    event,
+  const params = await buildCheckoutParams({
+    paymentId: id,
     userId: input.userId,
+    customer,
+    currency,
+    items: input.items,
     reference: input.reference,
-    params: {
-      mode: 'payment',
-      customer,
-      client_reference_id: String(input.userId),
-      line_items: input.items.map(item => ({
-        quantity: item.quantity ?? 1,
-        price_data: {
-          currency,
-          unit_amount: item.amount,
-          product_data: { name: item.name, ...(item.description ? { description: item.description } : {}) },
-        },
-      })),
-      success_url: safeReturnUrl(input.successUrl, event, 'successUrl'),
-      cancel_url: safeReturnUrl(input.cancelUrl, event, 'cancelUrl'),
-      expires_at: expiresAt(input.expiresInMinutes ?? config.checkoutExpiresInMinutes),
-      metadata,
-      payment_intent_data: { metadata },
-    },
-  } satisfies import('../../../types').CheckoutBeforeContext
-  await useNitroApp().hooks.callHook('payments:checkout:before', context)
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
+    expiresInMinutes: input.expiresInMinutes ?? config.checkoutExpiresInMinutes,
+    metadata: input.metadata,
+    event,
+  })
 
-  const session = await stripe.checkout.sessions.create(context.params)
+  const session = await stripe.checkout.sessions.create(params)
   if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
 
   try {
@@ -98,6 +138,7 @@ export async function createPayment(input: CreatePaymentInput, event?: H3Event):
       referenceId: input.reference?.id ?? null,
       checkoutSessionId: session.id,
       metadata: input.metadata ?? null,
+      items: input.items,
     }).returning()
     return { payment: toPaymentDto(row!), url: session.url }
   }
@@ -132,7 +173,8 @@ export async function listUserPayments(userId: number, options: { limit?: number
 
 /**
  * Returns a checkout URL for a still-unpaid payment: the original session when it is open, otherwise
- * a fresh session for the same amount (the payment row follows the new session). Throws for payments
+ * a fresh session built from the stored items (the payment row follows the new session). The
+ * `payments:checkout:before` hook and return URL validation run again, as in `createPayment`. Throws for payments
  * that are already paid/refunded.
  */
 export async function resumePayment(paymentId: string, userId: number, event?: H3Event): Promise<{ url: string }> {
@@ -149,31 +191,30 @@ export async function resumePayment(paymentId: string, userId: number, event?: H
   if (session.status === 'open' && session.url) return { url: session.url }
   if (session.status === 'complete') throw createError({ statusCode: 409, statusMessage: 'This payment is already paid.' })
 
-  const customer = await ensureStripeCustomer(userId)
-  const metadata = { ...row.metadata, paymentId: row.id, userId: String(userId) }
   const origin = event ? getRequestURL(event).origin : undefined
   const successUrl = session.success_url ?? origin
   const cancelUrl = session.cancel_url ?? origin
   if (!successUrl || !cancelUrl) throw createError({ statusCode: 409, statusMessage: 'Cannot resume this payment.' })
 
-  const next = await stripe.checkout.sessions.create({
-    mode: 'payment',
+  // Rows created before `items` was stored only have the total: fall back to one generic line.
+  const items: PaymentItem[] = row.items?.length
+    ? row.items
+    : [{ name: row.description ?? 'Payment', amount: row.amount, currency: row.currency }]
+  const customer = await ensureStripeCustomer(userId)
+  const params = await buildCheckoutParams({
+    paymentId: row.id,
+    userId,
     customer,
-    client_reference_id: String(userId),
-    line_items: [{
-      quantity: 1,
-      price_data: {
-        currency: row.currency,
-        unit_amount: row.amount,
-        product_data: { name: row.description ?? 'Payment' },
-      },
-    }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    expires_at: expiresAt(useRuntimeConfig().payments.checkoutExpiresInMinutes),
-    metadata,
-    payment_intent_data: { metadata },
+    currency: row.currency,
+    items,
+    reference: row.referenceType && row.referenceId ? { type: row.referenceType, id: row.referenceId } : undefined,
+    successUrl,
+    cancelUrl,
+    expiresInMinutes: useRuntimeConfig().payments.checkoutExpiresInMinutes,
+    metadata: row.metadata,
+    event,
   })
+  const next = await stripe.checkout.sessions.create(params)
   if (!next.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
 
   await db.update(schema.payments)

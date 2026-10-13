@@ -1,3 +1,4 @@
+import type { PaymentItem } from '../../../types'
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 
 // One row per Checkout session created for a one-time payment. State only changes in response to
@@ -20,6 +21,8 @@ export const payments = sqliteTable('payments', {
   paymentIntentId: text(),
   refundedAmount: integer().notNull().default(0),
   metadata: text({ mode: 'json' }).$type<Record<string, string>>(),
+  /** The line items the session was created from, so an expired session can be rebuilt. `null` for rows created before this column existed. */
+  items: text({ mode: 'json' }).$type<PaymentItem[]>(),
   paidAt: integer({ mode: 'timestamp' }),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
