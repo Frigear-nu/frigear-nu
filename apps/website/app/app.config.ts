@@ -1,7 +1,4 @@
 export default defineAppConfig({
-  site: {
-    name: 'Frigear.nu',
-  },
   users: {
     authLogo: {
       light: '/images/branding/logos/full/frigear-logo-purple-512-275.png',

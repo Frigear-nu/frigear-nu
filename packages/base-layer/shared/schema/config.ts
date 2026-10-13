@@ -8,6 +8,15 @@ export const WebsiteConfigSchema = z.object({
       short: z.string().optional(),
     }),
   ]).optional(),
+  /**
+   * Site-wide SEO defaults. The layer ships none: every value comes from here.
+   * `titleTemplate` supports `%s` (page title) and `%siteName`, e.g. `%s | %siteName`.
+   */
+  seo: z.object({
+    titleTemplate: z.string().optional(),
+    description: z.string().optional(),
+    image: z.string().optional(),
+  }).optional(),
   logo: z.union([
     z.string(),
     z.object({

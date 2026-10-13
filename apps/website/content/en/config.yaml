@@ -1,4 +1,7 @@
 title: Frigear
+seo:
+  titleTemplate: '%s | %siteName'
+  description: Frigear is a nonprofit organization, solely run by volunteers.
 logo:
   light: /logo.png
   dark: /logo-dark.png

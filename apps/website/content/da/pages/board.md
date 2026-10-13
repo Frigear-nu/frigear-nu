@@ -1,5 +1,6 @@
 ---
 title: Bestyrelse
+description: Mød Frigears frivillige bestyrelse, og læs hvordan du kan bidrage.
 
 cards:
   - title: Hvem er i bestyrelsen?

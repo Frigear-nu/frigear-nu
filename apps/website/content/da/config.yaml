@@ -1,4 +1,7 @@
 title: Frigear
+seo:
+  titleTemplate: '%s | %siteName'
+  description: Frigear er en non-profit organisation, udelukkende drevet af frivillige.
 logo:
   light: /logo.png
   dark: /logo-dark.png
