@@ -29,6 +29,7 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/admin](./packages/admin) - Generic admin area: guarded shell, dashboard and navigation that other modules register into
 - [@frigear-nu/authorization](./packages/authorization) - Policy-based authorization: `defineAbility` policies, client/server resolvers, route rules, `<Can>` and a `role` column on `users`
 - [@frigear-nu/account](./packages/account) - Account area module (profile, security, change email/password) migrated from nuxt-frigear-nu
+- [@frigear-nu/preferences](./packages/preferences) - Typed per-user preferences that modules and the host register (`definePreferences`), stored in one JSON column on `users` and optionally forwarded to OAuth apps as claims
 - [@frigear-nu/stripe](./packages/stripe) - Core Stripe plumbing: SDK access, customer linking and a verified, idempotent webhook other modules subscribe to
 - [@frigear-nu/subscriptions](./packages/subscriptions) - Recurring Stripe subscriptions: host-defined plans, checkout, entitlements
 - [@frigear-nu/payments](./packages/payments) - One-time Stripe payments (Checkout, refunds) with lifecycle hooks driven by verified Stripe events
