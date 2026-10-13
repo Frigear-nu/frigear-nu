@@ -42,6 +42,11 @@ export {
   type PublicModuleOptions,
 } from './types'
 
+// Build-time twin of the server's `isInternalPath`: only same-site absolute paths are followed after sign in.
+function resolveAfterLogin(path: string | undefined) {
+  return path && path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\') ? path : '/'
+}
+
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     authentication?: ModuleOptions
@@ -349,7 +354,7 @@ export {}
       oauth: oauthProviders,
       frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath },
-      afterLogin: isInternalPath(settings.afterLogin) ? settings.afterLogin : '/',
+      afterLogin: resolveAfterLogin(settings.afterLogin),
     }
   },
 })
