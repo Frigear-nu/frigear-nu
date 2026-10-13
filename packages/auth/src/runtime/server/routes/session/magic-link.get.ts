@@ -21,5 +21,5 @@ export default defineEventHandler(async (event) => {
 
   await setUserSession(event, { user: mapUserToSession(user) })
 
-  return sendRedirect(event, isInternalPath(link.redirectUrl) ? link.redirectUrl : '/')
+  return sendRedirect(event, isInternalPath(link.redirectUrl) ? link.redirectUrl : getAfterLoginPath(event))
 })

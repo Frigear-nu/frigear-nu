@@ -42,6 +42,8 @@ export type PublicModuleOptions = {
   /** Show the "Log in with frigear.nu" button (the route itself re-checks at request time). */
   frigearSso?: boolean
   pages: { login?: string, register?: string }
+  /** Where users land after signing in when no `redirect` was requested. */
+  afterLogin: string
 }
 
 /** Interactive sign-in flows. Everything here is opt-in except password sign-in. */
@@ -77,6 +79,11 @@ export interface AuthSettings {
     login?: string | boolean
     register?: string | boolean
   }
+  /**
+   * Where users go after signing in (password, passkey, magic link, OAuth/SSO) when no `redirect` was requested.
+   * Must be an absolute path on this site. Defaults to `/`.
+   */
+  afterLogin?: string
   session?: {
     /** Path to a function (default export) mapping the stored user to the session user shape. */
     mapper?: string

@@ -42,6 +42,11 @@ export {
   type PublicModuleOptions,
 } from './types'
 
+// Build-time twin of the server's `isInternalPath`: only same-site absolute paths are followed after sign in.
+function resolveAfterLogin(path: string | undefined) {
+  return path && path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\') ? path : '/'
+}
+
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     authentication?: ModuleOptions
@@ -281,6 +286,7 @@ export {}
       'usePasswordReset',
       'useRegistration',
       'useAuthPages',
+      'useAfterLogin',
     ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
 
     // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
@@ -350,6 +356,7 @@ export {}
       oauth: oauthProviders,
       frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath },
+      afterLogin: resolveAfterLogin(settings.afterLogin),
     }
   },
 })

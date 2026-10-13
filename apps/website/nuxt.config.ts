@@ -219,6 +219,7 @@ export default defineNuxtConfig({
   },
   authentication: {
     settings: {
+      afterLogin: '/account',
       // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
       pages: {
         login: '/sign-in',

@@ -7,14 +7,10 @@ const t = useModuleT('auth')
 const { register, pending, error } = useRegistration()
 const loginPath = useAuthPages().login
 
-// Only same-origin absolute paths are followed, never `//host` or full URLs.
-const redirectTarget = computed(() => {
-  const target = useRoute().query.redirect
-  return typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/'
-})
-const loginLink = computed(() => redirectTarget.value === '/'
-  ? loginPath
-  : `${loginPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
+const { requested: requestedRedirect, go: afterLogin } = useAfterLogin()
+const loginLink = computed(() => requestedRedirect.value
+  ? `${loginPath}?redirect=${encodeURIComponent(requestedRedirect.value)}`
+  : loginPath)
 
 const fields = computed(() => [
   { name: 'name', type: 'text' as const, label: t('name.label', 'Name'), required: true },
@@ -31,7 +27,7 @@ async function onSubmit(payload: { data: { name: string, email: string, password
     verificationSent.value = true
     return
   }
-  await navigateTo(redirectTarget.value, { external: redirectTarget.value !== '/' })
+  await afterLogin()
 }
 </script>
 
