@@ -17,7 +17,7 @@ import {
   registerTailwindSource,
   resolvePagePath,
   addModulePages,
-  addMenuSource,
+  addOptionalMenuSource,
 } from '@frigear-nu/module-kit/utils'
 import {
   OAUTH_PROVIDERS,
@@ -100,6 +100,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
     '@frigear-nu/menu': {
       version: '>=0.0.1',
+      optional: true,
     },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
@@ -337,7 +338,7 @@ export {}
       })
     }
 
-    addMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
 
     nuxt.options.runtimeConfig.public.authentication = {
       password: withPassword,

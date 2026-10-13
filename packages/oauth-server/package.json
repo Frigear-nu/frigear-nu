@@ -76,7 +76,6 @@
   },
   "dependencies": {
     "@frigear-nu/admin": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/auth": "workspace:*",
@@ -91,15 +90,20 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/menu": "workspace:*",
     "@nuxt/ui": "^4.10.0",
     "@nuxthub/core": "^0.10.8"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/menu": {
+      "optional": true
+    },
     "@nuxt/ui": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@frigear-nu/menu": "workspace:*",
     "@nuxt/devtools": "^3.4.2",
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",
