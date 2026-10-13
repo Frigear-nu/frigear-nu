@@ -16,23 +16,16 @@ export type FrigearSsoConfig = {
 
 /**
  * Resolves how "Log in with frigear.nu" is configured *at request time*. It is active when
- * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` has credentials. The credentials come
- * from `frigear.sso`, falling back to nuxt-auth-utils' own `oauth.oidc` config (`NUXT_OAUTH_OIDC_*`), but only when that
- * config points at frigear.nu: it may just as well be another OIDC provider.
+ * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` has a client id and secret
+ * (`NUXT_FRIGEAR_SSO_CLIENT_ID` / `NUXT_FRIGEAR_SSO_CLIENT_SECRET`, optionally `NUXT_FRIGEAR_SSO_URL`).
+ * It is independent of nuxt-auth-utils' `oauth.oidc`, which may belong to another OIDC provider.
  */
 export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
   const config = useRuntimeConfig(event)
   const sso = config.frigear?.sso
-  const oidc = (config.oauth as { oidc?: { clientId?: string, clientSecret?: string, openidConfig?: string | object } } | undefined)?.oidc
-
-  const configuredUrl = (sso?.url || DEFAULT_SSO_URL).replace(/\/+$/, '')
-  // `oauth.oidc` may belong to another OIDC provider, so it only counts as frigear.nu's when its discovery URL
-  // is on the frigear.nu host. Without `openidConfig` it is ambiguous and ignored.
-  const oidcConfig = typeof oidc?.openidConfig === 'string' ? oidc.openidConfig : ''
-  const oidcIsFrigear = URL.canParse(oidcConfig) && new URL(oidcConfig).origin === new URL(configuredUrl).origin
-  const url = configuredUrl
-  const clientId = sso?.clientId || (oidcIsFrigear ? oidc?.clientId : '') || ''
-  const clientSecret = sso?.clientSecret || (oidcIsFrigear ? oidc?.clientSecret : '') || ''
+  const url = (sso?.url || DEFAULT_SSO_URL).replace(/\/+$/, '')
+  const clientId = sso?.clientId || ''
+  const clientSecret = sso?.clientSecret || ''
 
   return {
     enabled: config.previewDeployment === true || !!(clientId && clientSecret),
@@ -41,7 +34,7 @@ export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
     url,
     clientId,
     clientSecret,
-    openidConfig: oidcIsFrigear && !sso?.url ? oidcConfig : `${url}/.well-known/openid-configuration`,
+    openidConfig: `${url}/.well-known/openid-configuration`,
   }
 }
 
