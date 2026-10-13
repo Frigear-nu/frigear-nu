@@ -1,3 +1,6 @@
+// NOTE: the claims read here follow what the current frigear.nu identity provider (the original `nuxt-frigear-nu`
+// app) publishes. This will change when this app takes over as the new frigear.nu: it will then be the provider
+// itself, and the claim names and the role sync should be revisited.
 /** The namespaced role claim the original frigear.nu identity provider also publishes. */
 const NAMESPACED_ROLE_CLAIM = 'https://frigear.nu/claims/role'
 
