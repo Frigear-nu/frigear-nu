@@ -68,11 +68,12 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
+    "@frigear-nu/auth": "workspace:*",
+    "@frigear-nu/mcp": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/stripe": "workspace:*",
-    "@frigear-nu/auth": "workspace:*",
-    "@frigear-nu/mcp": "workspace:*",
+    "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@libsql/client": "^0.18.0",

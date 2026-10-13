@@ -31,30 +31,14 @@ export function translate(value: Translated | null | undefined, locale = 'en', f
   return value[locale] || (fallback ? value[fallback] : '') || value.en || Object.values(value).find(Boolean) || ''
 }
 
-/** Formats minor units, e.g. `formatPrice(15000, 'DKK', 'da')` -> `150,00 kr.`. */
-export function formatPrice(amount: number, currency: string, locale = 'en'): string {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount / 100)
-}
+/** The currency tickets and add-ons are sold in unless they say otherwise (the column default). */
+export const DEFAULT_CURRENCY = 'DKK'
 
 /** Normalises a stored requirement: empty plan lists mean "any active subscription". */
 export function normalizeMembership(value: MembershipRequirement | undefined): MembershipRequirement {
   if (value === 'any') return 'any'
   if (Array.isArray(value)) return value.length ? value : 'any'
   return null
-}
-
-/** Resolves a relative path against `origin`, and only accepts absolute URLs on the same origin. */
-export function resolveSameOriginUrl(input: string, origin: string): string | null {
-  if (input.startsWith('/')) {
-    if (input.startsWith('//') || input.startsWith('/\\')) return null
-    return `${origin}${input}`
-  }
-  try {
-    return new URL(input).origin === new URL(origin).origin ? input : null
-  }
-  catch {
-    return null
-  }
 }
 
 /** Random, prefixed id (`tkt_...`), Web Crypto only so it works on Workers. */

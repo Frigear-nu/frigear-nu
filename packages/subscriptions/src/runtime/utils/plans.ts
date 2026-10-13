@@ -45,24 +45,6 @@ export function decideChangeKind(currentRank: number | null | undefined, targetR
   return targetRank > currentRank ? 'upgrade' : 'downgrade'
 }
 
-/**
- * Validates a redirect URL supplied by a client: it must be a relative path (`/x`) or an absolute URL on
- * `origin`. Returns an absolute URL on that origin, or `null` when it is unsafe.
- */
-export function resolveSameOriginUrl(input: string, origin: string): string | null {
-  if (input.startsWith('/')) {
-    // `//host` and `/\host` are protocol-relative / browser-normalised to another host.
-    if (input.startsWith('//') || input.startsWith('/\\')) return null
-    return `${origin}${input}`
-  }
-  try {
-    return new URL(input).origin === new URL(origin).origin ? input : null
-  }
-  catch {
-    return null
-  }
-}
-
 /** Finds a price (and its plan) in already resolved plans by price id. */
 export function findPrice(plans: ResolvedPlan[], priceId: string) {
   for (const plan of plans) {

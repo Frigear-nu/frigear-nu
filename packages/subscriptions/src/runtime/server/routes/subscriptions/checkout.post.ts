@@ -2,7 +2,8 @@ import { db, schema } from '@nuxthub/db'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { CheckoutBeforeContext, CheckoutBody, CheckoutResponse } from '../../../../types'
-import { LIVE_STATUSES, decideChangeKind, resolveSameOriginUrl } from '../../../utils/plans'
+import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
+import { LIVE_STATUSES, decideChangeKind } from '../../../utils/plans'
 
 const bodySchema = z.object({
   planKey: z.string().min(1).optional(),

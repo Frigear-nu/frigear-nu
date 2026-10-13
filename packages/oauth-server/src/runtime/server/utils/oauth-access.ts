@@ -1,5 +1,3 @@
-import { eq } from 'drizzle-orm'
-import { db, schema } from '@nuxthub/db'
 import type { H3Event } from 'h3'
 import type {
   ApplicationAccessContext,
@@ -13,8 +11,7 @@ import type {
 import { matchesAllowedRoles } from '../../utils'
 
 /**
- * Gate for the admin routes. This repo has no shared permission system, so the host decides through
- * the `oauth:authorize` Nitro hook. Denied by default:
+ * Gate for the admin routes. The host decides through the `oauth:authorize` Nitro hook. Denied by default:
  *
  *     nitroApp.hooks.hook('oauth:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
  */
@@ -33,11 +30,11 @@ export async function resolveUserRoles(userId: number, event?: H3Event): Promise
   return [...new Set(ctx.roles)]
 }
 
-/** The user row without the password hash; includes columns the host added to `users`. */
+/** The stored user without the password hash; includes columns the host added to `users`. */
 export async function getOAuthUser(userId: number): Promise<OAuthUser | null> {
-  const [row] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1)
+  const row = await useAuthUserStore().findById(userId)
   if (!row) return null
-  const { password: _password, ...user } = row as typeof row & { password?: string | null }
+  const { password: _password, ...user } = row
   return user as OAuthUser
 }
 

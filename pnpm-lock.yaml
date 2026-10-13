@@ -1387,6 +1387,9 @@ importers:
       '@frigear-nu/stripe':
         specifier: workspace:*
         version: link:../stripe
+      '@frigear-nu/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users
@@ -1621,6 +1624,9 @@ importers:
       '@frigear-nu/stripe':
         specifier: workspace:*
         version: link:../stripe
+      '@frigear-nu/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@frigear-nu/users':
         specifier: workspace:*
         version: link:../users

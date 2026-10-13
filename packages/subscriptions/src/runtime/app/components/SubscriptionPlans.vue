@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { createReusableTemplate, useMediaQuery } from '@vueuse/core'
+import { formatMoney } from '@frigear-nu/ui/money'
 import { usePlans } from '../composables/usePlans'
 import type { SubscriptionPlan, SubscriptionPlanPrice } from '../composables/usePlans'
 import { useSubscription } from '../composables/useSubscription'
@@ -41,10 +42,7 @@ function priceFor(plan: SubscriptionPlan): SubscriptionPlanPrice | undefined {
 
 function formatPrice(price: SubscriptionPlanPrice) {
   if (price.amount === null) return ''
-  return new Intl.NumberFormat(props.locale, {
-    style: 'currency',
-    currency: (props.currency ?? price.currency).toUpperCase(),
-  }).format(price.amount / 100)
+  return formatMoney(price.amount, props.currency ?? price.currency, props.locale)
 }
 
 function intervalLabel(price: SubscriptionPlanPrice) {

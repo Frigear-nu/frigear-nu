@@ -21,7 +21,8 @@
     "./composables": "./src/runtime/composables/index.ts",
     "./composables/*": "./src/runtime/composables/*.ts",
     "./translated": "./src/runtime/translated.ts",
-    "./markdown": "./src/runtime/markdown.ts"
+    "./markdown": "./src/runtime/markdown.ts",
+    "./money": "./src/runtime/shared/money.ts"
   },
   "publishConfig": {
     "exports": {
@@ -34,7 +35,8 @@
       "./composables": "./dist/runtime/composables/index.js",
       "./composables/*": "./dist/runtime/composables/*.js",
       "./translated": "./dist/runtime/translated.js",
-      "./markdown": "./dist/runtime/markdown.js"
+      "./markdown": "./dist/runtime/markdown.js",
+      "./money": "./dist/runtime/shared/money.js"
     },
     "main": "./dist/module.mjs",
     "typesVersions": {

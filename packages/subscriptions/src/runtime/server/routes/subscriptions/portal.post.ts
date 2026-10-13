@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { resolveSameOriginUrl } from '../../../utils/plans'
+import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
 import type { PortalBody } from '../../../../types'
 
 const bodySchema = z.object({ returnUrl: z.string().optional() }) satisfies z.ZodType<PortalBody>

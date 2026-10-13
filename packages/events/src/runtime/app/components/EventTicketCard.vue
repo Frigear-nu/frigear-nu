@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { renderSVG } from 'uqr'
 import type { TicketDto } from '../../../types'
-import { formatPrice } from '../../utils'
+import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
 
 const props = defineProps<{ ticket: TicketDto, to?: string }>()
 const emit = defineEmits<{ pay: [ticketId: string] }>()

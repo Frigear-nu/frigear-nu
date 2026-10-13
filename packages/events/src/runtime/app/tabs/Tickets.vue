@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Translated } from '../../../types'
-import { formatPrice, ticketMdcData } from '../../utils'
+import { formatMoney as formatPrice, fromCents, toCents } from '@frigear-nu/ui/money'
+import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
 import { type AdminAddon, type AdminAddonGroup, type AdminEvent, type AdminTicketType, useAdminAction } from '../utils/admin-event'
 
 defineOptions({ name: 'EventsAdminTicketsTab' })
@@ -55,7 +56,7 @@ function openType(ticketType?: AdminTicketType) {
     key: ticketType?.key ?? '',
     name: ticketType?.name,
     description: ticketType?.description ?? undefined,
-    price: ticketType ? ticketType.price / 100 : 0,
+    price: ticketType ? fromCents(ticketType.price, ticketType.currency) : 0,
     capacity: ticketType?.capacity ?? '',
     requires: toRule(ticketType?.requiresMembership),
     excludes: toRule(ticketType?.excludesMembership),
@@ -68,7 +69,7 @@ const saveType = () => run(async () => {
     name: type.name,
     description: type.description ?? null,
     // Prices are stored in minor units (øre/cents).
-    price: Math.round(Number(type.price) * 100),
+    price: toCents(Number(type.price), editingType.value?.currency ?? DEFAULT_CURRENCY),
     capacity: type.capacity === '' ? null : Number(type.capacity),
     ...(membershipEnabled.value ? { requiresMembership: fromRule(type.requires), excludesMembership: fromRule(type.excludes) } : {}),
   }
@@ -129,13 +130,17 @@ const addonGroupId = ref('')
 const editingAddon = ref<AdminAddon | null>(null)
 const addon = reactive({ label: undefined as Translated | undefined, description: undefined as Translated | undefined, price: 0, capacity: '' as string | number })
 
-function openAddon(addonGroup: AdminAddonGroup, existing?: AdminAddon) {
+// Add-ons are priced in the currency of the ticket type they belong to.
+const addonCurrency = ref(DEFAULT_CURRENCY)
+
+function openAddon(addonGroup: AdminAddonGroup, currency: string, existing?: AdminAddon) {
   addonGroupId.value = addonGroup.id
+  addonCurrency.value = currency
   editingAddon.value = existing ?? null
   Object.assign(addon, {
     label: existing?.label,
     description: existing?.description ?? undefined,
-    price: existing ? existing.price / 100 : 0,
+    price: existing ? fromCents(existing.price, currency) : 0,
     capacity: existing?.capacity ?? '',
   })
   addonDialog.value = true
@@ -146,7 +151,7 @@ const saveAddon = () => run(async () => {
     label: addon.label,
     description: addon.description ?? null,
     // Prices are stored in minor units (øre/cents).
-    price: Math.round(Number(addon.price) * 100),
+    price: toCents(Number(addon.price), addonCurrency.value),
     capacity: addon.capacity === '' ? null : Number(addon.capacity),
   }
   if (editingAddon.value) {
@@ -271,7 +276,7 @@ const removeAddon = async (existing: AdminAddon) => {
                       variant="ghost"
                       size="xs"
                       :aria-label="t('admin.addAddon', 'Add choice')"
-                      @click="openAddon(addonGroup)"
+                      @click="openAddon(addonGroup, row.original.currency)"
                     />
                     <UButton
                       icon="i-lucide-pencil"
@@ -311,7 +316,7 @@ const removeAddon = async (existing: AdminAddon) => {
                         variant="ghost"
                         size="xs"
                         :aria-label="t('admin.edit', 'Edit')"
-                        @click="openAddon(addonGroup, item)"
+                        @click="openAddon(addonGroup, row.original.currency, item)"
                       />
                       <UButton
                         icon="i-lucide-trash"
@@ -380,7 +385,7 @@ const removeAddon = async (existing: AdminAddon) => {
               v-model="type.description"
               multiline
               mdc
-              :mdc-data="ticketMdcData({ ...type, price: Math.round(Number(type.price) * 100), currency: 'DKK' }, tr(type.name), locale)"
+              :mdc-data="ticketMdcData({ ...type, price: toCents(Number(type.price), editingType?.currency ?? DEFAULT_CURRENCY), currency: editingType?.currency ?? DEFAULT_CURRENCY }, tr(type.name), locale)"
               :rows="2"
             />
           </UFormField>
