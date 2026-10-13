@@ -217,6 +217,10 @@ export default defineNuxtConfig({
       roles: ['admin', 'manager', 'coordinator'],
     },
   },
+  authorization: {
+    // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
+    redirectTo: '/sign-in',
+  },
   authentication: {
     settings: {
       afterLogin: '/account',
