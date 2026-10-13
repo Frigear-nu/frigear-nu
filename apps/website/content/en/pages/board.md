@@ -1,5 +1,6 @@
 ---
 title: Board
+description: Meet Frigear's volunteer board and read how you can contribute.
 
 cards:
   - title: Who is on the board?

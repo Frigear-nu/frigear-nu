@@ -1,7 +1,7 @@
 ---
 title: Project Application
 seo:
-  title: Project application - frigear.nu
+  title: Project application
   description: Information about application criteria for the Frigear fund.
 cards:
   - title: What is the timeline and the processes?

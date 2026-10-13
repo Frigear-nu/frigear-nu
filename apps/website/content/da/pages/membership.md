@@ -1,6 +1,6 @@
 ---
 title: Medlemskab
-description: Frigear medlemskab
+description: Bliv medlem af Frigear og støt vores frivillige projekter.
 links: []
 ---
 

@@ -39,6 +39,11 @@ minimumReleaseAgeExclude:
   - nuxt@4.6.1
   - cssnano-utils@8.2.0
   - postcss-merge-rules@9.1.2
+  - '@nuxtjs/robots@7.0.2'
+  - '@nuxtjs/sitemap@9.0.1'
+  - nuxt-og-image@7.0.2
+  - nuxt-seo-utils@9.0.1
+  - sitemapd@0.2.3
 
 overrides:
   # cssnano's `postcss-merge-rules@9.1.0` (pulled in transitively via `nuxt`'s `@nuxt/vite-builder`)

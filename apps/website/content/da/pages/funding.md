@@ -1,7 +1,7 @@
 ---
 title: Projektansøgning
 seo:
-  title: Projektansøgning - frigear.nu
+  title: Projektansøgning
   description: Information om ansøgningskriterier til Frigear fonden.
 
 cards:

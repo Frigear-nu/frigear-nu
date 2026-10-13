@@ -17,6 +17,7 @@ export default defineNuxtConfig({
     '@nuxtjs/sitemap',
     '@nuxtjs/robots',
     'nuxt-og-image',
+    'nuxt-seo-utils',
     '@nuxt/content',
     '@nuxtjs/i18n',
     '@frigear-nu/menu',

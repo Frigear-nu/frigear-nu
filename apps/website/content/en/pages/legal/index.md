@@ -1,6 +1,7 @@
 ---
 container: true
 title: Legal
+description: Legal information and terms for Frigear.
 ---
 
 ::u-page-header

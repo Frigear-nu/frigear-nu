@@ -1,6 +1,6 @@
 ---
 title: Membership
-description: Frigear membership
+description: Become a member of Frigear and support our volunteer projects.
 links: []
 ---
 
