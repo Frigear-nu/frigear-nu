@@ -1,0 +1,102 @@
+{
+  "name": "@frigear-nu/preferences",
+  "version": "0.0.1",
+  "description": "Typed per-user preferences that modules and the host app register, stored on the user and optionally forwarded to OAuth applications as claims.",
+  "homepage": "https://docs.frigear.dev/modules/preferences",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/preferences"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/types.ts",
+      "import": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/build.ts",
+      "import": "./src/runtime/utils/build.ts"
+    },
+    "./define": {
+      "types": "./src/runtime/define.ts",
+      "import": "./src/runtime/define.ts"
+    },
+    "./composables": "./src/runtime/app/composables/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/build.d.ts",
+        "import": "./dist/runtime/utils/build.js"
+      },
+      "./define": {
+        "types": "./dist/runtime/define.d.ts",
+        "import": "./dist/runtime/define.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd test/fixtures/basic && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/auth": "workspace:*",
+    "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/users": "workspace:*",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/kit": "^4.6.0",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@frigear-nu/oauth-server": ">=0.0.1",
+    "@nuxthub/core": "^0.10.8"
+  },
+  "peerDependenciesMeta": {
+    "@frigear-nu/oauth-server": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@frigear-nu/oauth-server": "workspace:*",
+    "@nuxt/devtools": "^3.4.2",
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.6.0",
+    "@nuxt/test-utils": "^4.3.2",
+    "@nuxthub/core": "^0.10.8",
+    "@types/node": "latest",
+    "changelogen": "^0.6.2",
+    "eslint": "^10.10.0",
+    "nuxt": "catalog:",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

@@ -30,6 +30,7 @@
     "@frigear-nu/notify": "workspace:*",
     "@frigear-nu/oauth-server": "workspace:*",
     "@frigear-nu/payments": "workspace:*",
+    "@frigear-nu/preferences": "workspace:*",
     "@frigear-nu/stripe": "workspace:*",
     "@frigear-nu/subscriptions": "workspace:*",
     "@frigear-nu/ui": "workspace:*",

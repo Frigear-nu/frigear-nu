@@ -1,0 +1,8 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@frigear-nu/preferences": ["../../../src/types.ts"]
+    }
+  }
+}
