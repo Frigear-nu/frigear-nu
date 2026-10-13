@@ -1,33 +1,34 @@
 import type { EventDetailDto, EventSummaryDto, TicketDto, Translated } from '../../../types'
 import { translate } from '../../utils'
 
-export function useEvents() {
-  const { data, status, refresh } = useFetch<EventSummaryDto[]>('/api/events', { key: 'events:list', default: () => [] })
+export async function useEvents() {
+  // `now` is captured once and shared with the client payload, so the grouping hydrates identically.
+  const now = useState('events:now', () => Date.now())
+  const { data, status, refresh } = await useFetch<EventSummaryDto[]>('/api/events', { key: 'events:list', default: () => [] })
 
-  // Ongoing / upcoming / past split, computed on the client's clock like the old app did.
   const grouped = computed(() => {
-    const now = Date.now()
     const start = (e: EventSummaryDto) => new Date(e.startsAt).getTime()
     const end = (e: EventSummaryDto) => (e.endsAt ? new Date(e.endsAt).getTime() : start(e) + 24 * 3600_000)
     return {
-      ongoing: data.value.filter(e => start(e) <= now && now < end(e)),
-      upcoming: data.value.filter(e => start(e) > now),
-      past: data.value.filter(e => end(e) <= now).reverse(),
+      ongoing: data.value.filter(e => start(e) <= now.value && now.value < end(e)),
+      upcoming: data.value.filter(e => start(e) > now.value),
+      past: data.value.filter(e => end(e) <= now.value).reverse(),
     }
   })
 
   return { events: data, grouped, status, refresh }
 }
 
-export function useEvent(slug: MaybeRefOrGetter<string>) {
+/** Awaitable: resolves once the event is fetched, so SSR renders the page with data. */
+export async function useEvent(slug: MaybeRefOrGetter<string>) {
   const { loggedIn } = useUserSession()
-  const { data, status, error, refresh } = useFetch<EventDetailDto>(() => `/api/events/${toValue(slug)}`, {
+  // Resolved before the await: composables need the Nuxt context.
+  const locale = useEventsLocale()
+  const { data, status, error, refresh } = await useFetch<EventDetailDto>(() => `/api/events/${toValue(slug)}`, {
     key: `events:detail:${toValue(slug)}`,
-    // Eligibility (membership, limits) depends on the session.
+    // Eligibility (membership, limits) depends on the session; refetch quietly, keeping the data on screen.
     watch: [loggedIn],
   })
-
-  const locale = useEventsLocale()
 
   async function purchase(ticketTypeId: string, addonIds: string[] = []) {
     const result = await $fetch<{ ticket: TicketDto, url?: string }>(`/api/events/${toValue(slug)}/purchase`, {

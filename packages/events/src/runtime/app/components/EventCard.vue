@@ -1,51 +1,63 @@
 <script setup lang="ts">
 import type { EventSummaryDto } from '../../../types'
 
-const props = defineProps<{ event: EventSummaryDto, to: string }>()
+defineProps<{ event: EventSummaryDto, to: string }>()
 const t = useModuleT('events')
 const locale = useEventsLocale()
 const tr = useEventsTranslate()
-const date = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(props.event.startsAt)))
 </script>
 
 <template>
-  <UCard :ui="{ body: 'flex flex-col gap-2' }">
+  <NuxtLink
+    :to="to"
+    class="group flex flex-col overflow-hidden rounded-xl bg-default ring ring-default transition hover:shadow-lg"
+  >
     <img
       v-if="event.image"
       :src="event.image"
       :alt="tr(event.name)"
-      class="aspect-[3/1] w-full rounded-md object-cover"
+      class="aspect-[2/1] w-full object-cover"
     >
-    <h3 class="text-lg font-semibold">
-      {{ tr(event.name) }}
-    </h3>
-    <p class="text-sm text-muted">
-      {{ date }}<template v-if="event.location">
-        · {{ tr(event.location) }}
-      </template>
-    </p>
-    <p
-      v-if="event.description"
-      class="text-sm"
-    >
-      {{ tr(event.description) }}
-    </p>
-    <div class="flex items-center gap-2">
+    <div
+      v-else
+      class="gradient-linear-br-teal-purple aspect-[2/1] w-full"
+    />
+    <div class="flex flex-1 flex-col gap-2 p-5">
       <UBadge
         v-if="event.requiresMembership"
         color="warning"
         variant="subtle"
         icon="i-lucide-user-star"
+        class="self-start"
       >
         {{ t('members', 'Members') }}
       </UBadge>
-      <UButton
-        :to="to"
-        class="ml-auto"
-        trailing-icon="i-lucide-arrow-right"
+      <h3 class="text-lg font-semibold text-highlighted">
+        {{ tr(event.name) }}
+      </h3>
+      <p class="text-sm text-muted">
+        <NuxtTime
+          :datetime="event.startsAt"
+          :locale="locale"
+          date-style="full"
+          time-style="short"
+        /><template v-if="event.location">
+          · {{ tr(event.location) }}
+        </template>
+      </p>
+      <p
+        v-if="event.description"
+        class="line-clamp-3 text-sm text-muted"
       >
+        {{ tr(event.description) }}
+      </p>
+      <span class="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium text-primary">
         {{ t('viewEvent', 'View event') }}
-      </UButton>
+        <UIcon
+          name="i-lucide-arrow-right"
+          class="transition group-hover:translate-x-0.5"
+        />
+      </span>
     </div>
-  </UCard>
+  </NuxtLink>
 </template>

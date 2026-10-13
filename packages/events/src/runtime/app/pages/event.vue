@@ -5,14 +5,15 @@ const t = useModuleT('events')
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
 const { loggedIn } = useUserSession()
-const { event, status, error, purchase, refresh } = useEvent(slug)
+const { event, error, purchase, refresh } = await useEvent(slug)
 const locale = useEventsLocale()
 const tr = useEventsTranslate()
 const toast = useToast()
 
-if (error.value?.statusCode === 404) {
-  throw createError({ statusCode: 404, statusMessage: t('notFound', 'Event not found'), fatal: true })
+if (!event.value) {
+  throw createError({ statusCode: error.value?.statusCode ?? 404, statusMessage: t('notFound', 'Event not found'), fatal: true })
 }
+const eventsPath = useRuntimeConfig().public.events?.pages?.events || '/events'
 
 const buying = ref(false)
 async function onPurchase(ticketTypeId: string, addonIds: string[]) {
@@ -54,7 +55,7 @@ defineOptions({ name: 'EventDetailPage' })
 </script>
 
 <template>
-  <UContainer class="py-10">
+  <UContainer class="py-8 sm:py-12">
     <template v-if="event">
       <UAlert
         v-if="paidState === 'waiting'"
@@ -97,84 +98,124 @@ defineOptions({ name: 'EventDetailPage' })
         :title="t('paymentCancelled', 'Payment cancelled. Your reservation is held for a short while; you can pay from your tickets.')"
       />
 
-      <img
-        v-if="event.image"
-        :src="event.image"
-        :alt="tr(event.name)"
-        class="mb-6 aspect-[3/1] w-full rounded-lg object-cover"
-      >
-      <UPageHeader
-        :title="tr(event.name)"
-        :description="tr(event.description)"
-        :ui="{ title: 'text-3xl sm:text-4xl' }"
-      >
-        <div class="mt-2 flex flex-col gap-2">
-          <UFieldGroup>
-            <UBadge
-              variant="soft"
-              class="text-sm font-semibold"
-              :label="t('detail.when', 'When?')"
+      <UButton
+        :to="eventsPath"
+        color="neutral"
+        variant="link"
+        size="sm"
+        class="mb-4 -ml-2.5"
+        leading-icon="i-lucide-arrow-left"
+        :label="t('backToEvents', 'All events')"
+      />
+
+      <!-- Hero -->
+      <div class="relative overflow-hidden rounded-xl ring ring-default">
+        <img
+          v-if="event.image"
+          :src="event.image"
+          :alt="tr(event.name)"
+          class="aspect-[2/1] w-full object-cover sm:aspect-[3/1]"
+        >
+        <div
+          v-else
+          class="gradient-linear-br-teal-purple aspect-[3/1] w-full sm:aspect-[4/1]"
+        />
+      </div>
+
+      <header class="mt-8 space-y-4">
+        <div
+          v-if="event.requiresMembership"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <UBadge
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-user-star"
+            :label="t('members', 'Members')"
+          />
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight text-highlighted sm:text-5xl">
+          {{ tr(event.name) }}
+        </h1>
+        <p
+          v-if="event.description"
+          class="max-w-3xl text-lg text-muted"
+        >
+          {{ tr(event.description) }}
+        </p>
+
+        <div class="grid gap-3 pt-2 sm:grid-cols-2">
+          <div class="flex items-start gap-3 rounded-xl bg-elevated/50 p-4 ring ring-default">
+            <UIcon
+              name="i-lucide-calendar"
+              class="mt-0.5 size-5 shrink-0 text-primary"
             />
-            <UBadge
-              variant="soft"
-              size="sm"
-              class="text-sm"
-            >
-              <NuxtTime
-                :datetime="event.startsAt"
-                :locale="locale"
-                date-style="full"
-                time-style="short"
-              />
-              <template v-if="event.endsAt">
-                -
+            <div class="min-w-0">
+              <div class="text-xs font-semibold uppercase tracking-wide text-muted">
+                {{ t('detail.when', 'When?') }}
+              </div>
+              <div class="font-medium text-highlighted">
                 <NuxtTime
-                  :datetime="event.endsAt"
+                  :datetime="event.startsAt"
                   :locale="locale"
                   date-style="full"
                   time-style="short"
                 />
-              </template>
-            </UBadge>
-          </UFieldGroup>
+                <template v-if="event.endsAt">
+                  –
+                  <NuxtTime
+                    :datetime="event.endsAt"
+                    :locale="locale"
+                    time-style="short"
+                  />
+                </template>
+              </div>
+            </div>
+          </div>
           <component
             :is="event.locationUrl ? 'a' : 'div'"
             v-if="event.location"
             :href="event.locationUrl || undefined"
             :target="event.locationUrl ? '_blank' : undefined"
             :rel="event.locationUrl ? 'noopener' : undefined"
+            class="flex items-start gap-3 rounded-xl bg-elevated/50 p-4 ring ring-default"
+            :class="event.locationUrl ? 'transition hover:bg-elevated' : ''"
           >
-            <UFieldGroup>
-              <UBadge
-                variant="soft"
-                class="text-sm font-semibold"
-                :label="t('detail.where', 'Where?')"
-              />
-              <UBadge
-                variant="soft"
-                size="sm"
-                class="text-sm"
-                :trailing-icon="event.locationUrl ? 'i-lucide-external-link' : undefined"
-                :label="tr(event.location)"
-              />
-            </UFieldGroup>
-          </component>
-          <div
-            v-if="event.ticketTypes.length"
-            class="mt-2 md:hidden"
-          >
-            <UButton
-              href="#tickets"
-              size="lg"
-              color="neutral"
-              trailing-icon="i-lucide-ticket"
-              :label="t('detail.tickets.view', 'Show tickets')"
+            <UIcon
+              name="i-lucide-map-pin"
+              class="mt-0.5 size-5 shrink-0 text-primary"
             />
-          </div>
+            <div class="min-w-0">
+              <div class="text-xs font-semibold uppercase tracking-wide text-muted">
+                {{ t('detail.where', 'Where?') }}
+              </div>
+              <div class="flex items-center gap-1.5 font-medium text-highlighted">
+                {{ tr(event.location) }}
+                <UIcon
+                  v-if="event.locationUrl"
+                  name="i-lucide-external-link"
+                  class="size-4 text-muted"
+                />
+              </div>
+            </div>
+          </component>
         </div>
-      </UPageHeader>
 
-      <div class="mt-8 grid gap-8 lg:grid-cols-[2fr_1fr]">
+        <div
+          v-if="event.ticketTypes.length"
+          class="md:hidden"
+        >
+          <UButton
+            href="#tickets"
+            size="lg"
+            block
+            trailing-icon="i-lucide-ticket"
+            :label="t('detail.tickets.view', 'Show tickets')"
+          />
+        </div>
+      </header>
+
+      <div class="mt-10 grid gap-10 lg:grid-cols-[2fr_1fr] lg:items-start">
         <!-- Body renders as MDC when the host has it (Nuxt Content), else plain text; override via the `body` slot. -->
         <div>
           <slot
@@ -195,25 +236,23 @@ defineOptions({ name: 'EventDetailPage' })
             </div>
           </slot>
         </div>
-        <UPageCard
+        <UCard
           id="tickets"
-          variant="soft"
-          class="self-start scroll-mt-20"
+          :ui="{ root: 'rounded-xl shadow-sm scroll-mt-24 lg:sticky lg:top-24' }"
         >
+          <template #header>
+            <h2 class="text-lg font-semibold">
+              {{ t('detail.tickets.title', 'Tickets') }}
+            </h2>
+          </template>
           <EventTicketPicker
             :ticket-types="event.ticketTypes"
             :logged-in="loggedIn"
             :loading="buying"
             @purchase="onPurchase"
           />
-        </UPageCard>
+        </UCard>
       </div>
     </template>
-    <p
-      v-else-if="status === 'pending'"
-      class="text-muted"
-    >
-      {{ t('loading', 'Loading…') }}
-    </p>
   </UContainer>
 </template>
