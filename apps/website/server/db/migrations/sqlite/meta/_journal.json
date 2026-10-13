@@ -111,7 +111,7 @@
       "idx": 15,
       "version": "6",
       "when": 1791840757413,
-      "tag": "0015_add_color_mode",
+      "tag": "0015_add_user_preferences",
       "breakpoints": true
     }
   ]

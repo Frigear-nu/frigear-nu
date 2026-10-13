@@ -30,6 +30,7 @@ export default defineNuxtConfig({
     '@frigear-nu/forms',
     '@frigear-nu/cookie-consent',
     '@frigear-nu/oauth-server',
+    '@frigear-nu/preferences',
   ],
 
   $development: {

@@ -1,19 +1,16 @@
-// Keeps the color mode chosen with the header `UColorModeButton` in sync with the signed-in user, so the
-// preference follows them across devices and is forwarded to the apps they sign in to (the `color_mode`
-// claim, see `server/plugins/oauth-claims.ts`).
-const MODES = ['light', 'dark', 'system']
-
+// Keeps the color mode chosen with the header `UColorModeButton` in sync with the signed-in user's `colorMode`
+// preference (see `shared/preferences.ts`), so it follows them across devices and is forwarded to the apps they
+// sign in to as the `color_mode` claim.
 export default defineNuxtPlugin(() => {
   const colorMode = useColorMode()
-  const { user, loggedIn, fetch: refreshSession } = useUserSession()
-
-  const stored = () => (user.value as { colorMode?: string | null } | null)?.colorMode ?? null
+  const { loggedIn } = useUserSession()
+  const { preferences, set } = useUserPreferences()
 
   async function persist(mode: string) {
-    if (!loggedIn.value || mode === stored() || !MODES.includes(mode)) return
+    if (!loggedIn.value || mode === preferences.value.colorMode) return
+    if (mode !== 'light' && mode !== 'dark' && mode !== 'system') return
     try {
-      await $fetch('/api/account/color-mode', { method: 'POST', body: { colorMode: mode } })
-      await refreshSession()
+      await set('colorMode', mode)
     } catch {
       // The local preference still applies; it is saved on the next change.
     }
@@ -21,7 +18,7 @@ export default defineNuxtPlugin(() => {
 
   // A stored preference wins over the one in this browser. Without one, the browser's choice is saved so
   // apps get a value from the first sign-in.
-  watch(() => [loggedIn.value, stored()] as const, ([isLoggedIn, saved]) => {
+  watch(() => [loggedIn.value, preferences.value.colorMode] as const, ([isLoggedIn, saved]) => {
     if (!isLoggedIn) return
     if (saved && saved !== colorMode.preference) colorMode.preference = saved
     else if (!saved) persist(colorMode.preference)

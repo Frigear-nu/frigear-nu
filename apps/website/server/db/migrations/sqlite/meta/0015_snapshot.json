@@ -2258,8 +2258,8 @@
           "autoincrement": false,
           "default": "'da'"
         },
-        "color_mode": {
-          "name": "color_mode",
+        "preferences": {
+          "name": "preferences",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
