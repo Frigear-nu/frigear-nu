@@ -16,7 +16,7 @@ export type FrigearSsoConfig = {
 
 /**
  * Resolves how "Log in with frigear.nu" is configured *at request time*. It is active when
- * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` has credentials. The credentials come
+ * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` or `oauth.oidc` has credentials. The credentials come
  * from `frigear.sso`, falling back to nuxt-auth-utils' own `oauth.oidc` config (`NUXT_OAUTH_OIDC_*`).
  */
 export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
@@ -30,7 +30,7 @@ export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
   const clientSecret = sso?.clientSecret || oidc?.clientSecret || ''
 
   return {
-    enabled: config.previewDeployment === true || !!(sso?.clientId && sso?.clientSecret),
+    enabled: config.previewDeployment === true || !!(clientId && clientSecret),
     forceId: config.frigear?.forceId === true,
     syncRole: config.frigear?.syncRole !== false,
     url,
