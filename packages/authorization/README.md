@@ -8,4 +8,4 @@ current user is injected by a client/server resolver, and check with `authorize`
 - Route rules as keys on Nuxt's native `routeRules` (`roles`, `ability`, `guest`, `authenticated`) and per page (`definePageMeta({ authorize })`).
 - Overridable user resolvers (`authorization.resolvers.server` / `.client`).
 
-See the [documentation](../../apps/docs/content/4.modules/11.authorization.md) for usage.
+See the [documentation](../../apps/docs/content/4.modules/04.authorization.md) for usage.
