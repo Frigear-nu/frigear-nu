@@ -15,7 +15,12 @@ export default defineNuxtPlugin({
       async onResponseError({ response }) {
         if (response.status === 401) {
           await nuxtApp.runWithContext(() => clear())
-          await nuxtApp.runWithContext(() => navigateTo('/sign-in'))
+          await nuxtApp.runWithContext(() => {
+            const { login } = useAuthPages()
+            const { fullPath, path } = useRoute()
+            // Come back to where the user was after signing in; no loop when already on the login page.
+            return navigateTo(path === login ? login : { path: login, query: { redirect: fullPath } })
+          })
         }
       },
     })
