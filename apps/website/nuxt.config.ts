@@ -217,6 +217,26 @@ export default defineNuxtConfig({
       roles: ['admin', 'manager', 'coordinator'],
     },
   },
+  authentication: {
+    settings: {
+      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
+      pages: {
+        login: '/sign-in',
+        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
+      },
+      password: true,
+      webAuthn: true,
+      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
+      // an account (use the register page). Email/password users must verify before logging in.
+      magicLink: true,
+      verifyEmail: true,
+      session: { mapper: '~~/server/utils/map-session-user' },
+      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
+      // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
+      // Facebook is only offered when its client id is configured (at build time as well as runtime).
+      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
+    },
+  },
   cookieConsent: {
     policyUrl: '/legal/gdpr',
   },
@@ -302,26 +322,6 @@ export default defineNuxtConfig({
     settings: {
       mcp: true,
       pages: { membership: true, success: true, cancel: true },
-    },
-  },
-  authentication: {
-    settings: {
-      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
-      pages: {
-        login: '/sign-in',
-        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
-      },
-      password: true,
-      webAuthn: true,
-      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
-      // an account (use the register page). Email/password users must verify before logging in.
-      magicLink: true,
-      verifyEmail: true,
-      session: { mapper: '~~/server/utils/map-session-user' },
-      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
-      // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
-      // Facebook is only offered when its client id is configured (at build time as well as runtime).
-      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
     },
   },
   users: {
