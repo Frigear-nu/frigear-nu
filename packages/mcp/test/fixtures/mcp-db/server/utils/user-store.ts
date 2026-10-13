@@ -11,4 +11,5 @@ export default {
   create: unsupported,
   update: unsupported,
   remove: unsupported,
+  changeId: unsupported,
 }

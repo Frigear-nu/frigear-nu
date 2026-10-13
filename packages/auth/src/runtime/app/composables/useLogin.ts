@@ -5,7 +5,9 @@ export const useLogin = () => {
 
   const passwordLoginEnabled = computed(() => config?.password === true)
   const passkeyLoginEnabled = computed(() => config?.webAuthn === true)
-  const oauthProviders = computed(() => (config?.oauth ?? []).map(provider => OAUTH_PROVIDER_META[provider]))
+  const oauthProviders = computed(() => (config?.oauth ?? [])
+    .filter(provider => provider !== 'frigear' || config?.frigearSso === true)
+    .map(provider => OAUTH_PROVIDER_META[provider]))
   const isEnabled = computed(() => passwordLoginEnabled.value || passkeyLoginEnabled.value || oauthProviders.value.length > 0)
 
   const pending = ref(false)

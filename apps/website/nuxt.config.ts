@@ -94,6 +94,18 @@ export default defineNuxtConfig({
     formsAdminEmails: '',
     // Comma separated emails that are always admins (NUXT_ACL_ADMINS). Bootstraps the first admin.
     aclAdmins: '',
+    // PR previews (NUXT_PREVIEW_DEPLOYMENT overrides). Enables "Log in with frigear.nu" without credentials in config.
+    previewDeployment: !!process.env.PR_NUMBER,
+    frigear: {
+      // Log in with frigear.nu (OIDC): FRIGEAR_SSO_URL / FRIGEAR_SSO_CLIENT_ID / FRIGEAR_SSO_CLIENT_SECRET.
+      sso: {
+        url: process.env.FRIGEAR_SSO_URL || '',
+        clientId: process.env.FRIGEAR_SSO_CLIENT_ID || '',
+        clientSecret: process.env.FRIGEAR_SSO_CLIENT_SECRET || '',
+      },
+      // Use the frigear.nu user id as the local user id (NUXT_FRIGEAR_FORCE_ID).
+      forceId: false,
+    },
   },
 
   routeRules: {
@@ -294,7 +306,11 @@ export default defineNuxtConfig({
   },
   authentication: {
     settings: {
-      pages: { login: '/sign-in', register: '/sign-up' },
+      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
+      pages: {
+        login: '/sign-in',
+        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
+      },
       password: true,
       webAuthn: true,
       // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
@@ -303,7 +319,9 @@ export default defineNuxtConfig({
       verifyEmail: true,
       session: { mapper: '~~/server/utils/map-session-user' },
       // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
-      oauth: { facebook: true },
+      // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
+      // Facebook is only offered when its client id is configured (at build time as well as runtime).
+      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
     },
   },
   users: {

@@ -44,6 +44,8 @@ export interface AuthStoredUser {
 }
 
 export interface AuthUserCreate {
+  /** Only for identity providers that dictate the local id (`frigear.forceId`). */
+  id?: number
   name: string
   email: string
   avatar?: string
@@ -64,4 +66,9 @@ export interface AuthUserStore {
   create: (values: AuthUserCreate) => Promise<AuthStoredUser>
   update: (id: number, values: AuthUserUpdate) => Promise<AuthStoredUser | null>
   remove: (id: number) => Promise<void>
+  /**
+   * Gives the user a new id, taking everything that references it along. A different user holding `to` is moved to the
+   * next free id first. Used by identity providers that dictate the local id (`frigear.forceId`).
+   */
+  changeId: (from: number, to: number) => Promise<void>
 }

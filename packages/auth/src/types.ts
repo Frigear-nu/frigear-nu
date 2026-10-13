@@ -28,7 +28,7 @@ export interface AuthScopeAvailabilityContext {
   available: boolean
 }
 
-export const OAUTH_PROVIDERS = ['github', 'google', 'facebook'] as const
+export const OAUTH_PROVIDERS = ['github', 'google', 'facebook', 'frigear'] as const
 export type OAuthProvider = typeof OAUTH_PROVIDERS[number]
 
 /** The subset of `settings` the client reads, exposed through `runtimeConfig.public.authentication`. */
@@ -39,6 +39,8 @@ export type PublicModuleOptions = {
   magicLink: boolean
   verifyEmail: boolean
   oauth: OAuthProvider[]
+  /** Show the "Log in with frigear.nu" button (the route itself re-checks at request time). */
+  frigearSso?: boolean
   pages: { login?: string, register?: string }
 }
 
@@ -68,7 +70,8 @@ export interface AuthSettings {
   cleanup?: string | false
   /**
    * Built-in login/register pages. Each accepts a custom path (string), `true` for the default path, or `false`/omitted
-   * to disable. They are built with `@nuxt/ui`, which the host must install.
+   * to disable. They are built with `@nuxt/ui`, which the host must install. `register` may be an absolute URL (e.g.
+   * `https://frigear.nu/sign-up`): the login page links to it and no local register page is registered.
    */
   pages?: {
     login?: string | boolean
@@ -80,7 +83,8 @@ export interface AuthSettings {
   }
   /**
    * The "simple" OAuth routes we ship (e.g. `/api/auth/github`). Client id/secret are configured the way
-   * nuxt-auth-utils expects (env vars).
+   * nuxt-auth-utils expects (env vars). `frigear` signs in with frigear.nu (OIDC) and is only active when
+   * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` is configured.
    */
   oauth?: Partial<Record<OAuthProvider, boolean>>
 }

@@ -1,6 +1,7 @@
 import {
   addComponent,
   addImports,
+  addPlugin,
   addServerHandler,
   addServerImportsDir,
   addServerTemplate,
@@ -46,6 +47,14 @@ declare module 'nuxt/schema' {
 
   interface RuntimeConfig {
     authentication?: { tokenTtlDays: number | null, magicLinkSignUp: boolean, magicLinkCooldown: number }
+    // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
+    previewDeployment?: boolean
+    frigear?: {
+      // frigear.nu is used as the identity provider when `url`, `clientId` and `clientSecret` are set.
+      sso?: { url?: string, clientId?: string, clientSecret?: string }
+      // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
+      forceId?: boolean
+    }
   }
 
   interface PublicRuntimeConfig {
@@ -61,6 +70,8 @@ declare module 'nitropack' {
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
   }
 }
+
+const isExternalUrl = (value: string | undefined) => !!value && /^https?:\/\//.test(value)
 
 function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
   if (typeof setting === 'string') return setting
@@ -180,7 +191,7 @@ export default defineNuxtModule<ModuleOptions>({
           : registration.path
         if (path) return `export { default } from ${JSON.stringify(path)}`
         const missing = `() => { throw new Error('[auth] No user store: install @frigear-nu/users or set authentication.userStore.') }`
-        return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing} }`
+        return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing}, changeId: ${missing} }`
       },
     })
 
@@ -277,8 +288,10 @@ export {}
       ? resolvePagePath(settings.pages?.login, '/login')
       : undefined
     const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
+    // An absolute register URL only feeds the login page link; there is no local page to register.
+    const localRegisterPath = isExternalUrl(registerPath) ? undefined : registerPath
 
-    if (loginPath || registerPath) {
+    if (loginPath || localRegisterPath) {
       addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
@@ -286,13 +299,29 @@ export {}
           if (path && !existingPaths.has(path)) pages.push({ name: `auth-${name}`, path, file: resolver.resolve(`./runtime/app/pages/${file}.vue`) })
         }
         add('login', loginPath, 'login')
-        add('register', registerPath, 'register')
+        add('register', localRegisterPath, 'register')
         // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
         if (loginPath && withPasswordReset) {
           add('forgot-password', '/forgot-password', 'forgot-password')
           add('reset-password', '/reset-password', 'reset-password')
         }
       })
+    }
+
+    // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
+    // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
+    // `NUXT_PUBLIC_AUTHENTICATION_FRIGEAR_SSO`.
+    const runtimeConfig = nuxt.options.runtimeConfig
+    runtimeConfig.frigear = {
+      forceId: false,
+      ...runtimeConfig.frigear,
+      sso: { url: '', clientId: '', clientSecret: '', ...runtimeConfig.frigear?.sso },
+    }
+    const frigearSso = runtimeConfig.frigear.sso!
+    const frigearSsoEnabled = oauthProviders.includes('frigear')
+      && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
+    if (oauthProviders.includes('frigear')) {
+      addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
     }
 
     // Housekeeping for the single-use tokens (`auth:clear-expired-tokens`); the cron is opt-out.
@@ -324,6 +353,7 @@ export {}
       magicLink: withMagicLink,
       verifyEmail: withVerifyEmail,
       oauth: oauthProviders,
+      frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath },
     }
   },

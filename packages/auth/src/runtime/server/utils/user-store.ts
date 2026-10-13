@@ -14,6 +14,19 @@ export async function loadAuthUser(id: string | number): Promise<AuthUser | null
   return user ? mapUserToSession(user) as AuthUser : null
 }
 
+/**
+ * Statements (for a batch) that point everything this module keeps for a user at a new id. These tables have no
+ * foreign key, so a store that re-keys users (`AuthUserStore.changeId`) has to include them.
+ */
+export function rekeyUserAuthData(from: number, to: number) {
+  return [
+    db.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from))),
+    ...(schema.userCredentials ? [db.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
+    ...(schema.passwordResets ? [db.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
+    ...(schema.magicLinks ? [db.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
+  ]
+}
+
 /** Removes everything this module keeps for a user. Call it when the user is deleted: these tables have no foreign key. */
 export async function deleteUserAuthData(userId: number) {
   await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))

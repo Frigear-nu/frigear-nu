@@ -37,8 +37,10 @@ const fields = computed(() => passwordLoginEnabled.value
   : [])
 
 const registerPath = useAuthPages().register
+// An absolute register URL (e.g. the central frigear.nu sign-up) leaves the app and gets no `?redirect=`.
+const registerExternal = !!registerPath && /^https?:\/\//.test(registerPath)
 const registerLink = computed(() => registerPath
-  ? (redirectTarget.value === '/' ? registerPath : `${registerPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
+  ? (registerExternal || redirectTarget.value === '/' ? registerPath : `${registerPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
   : undefined)
 const forgotPasswordEnabled = useRuntimeConfig().public.authentication?.passwordReset === true
 
@@ -78,6 +80,7 @@ async function onPasskeyLogin() {
       {{ t('dontHaveAnAccount', 'Don\'t have an account yet? ➜') }}
       <ULink
         :to="registerLink"
+        :external="registerExternal"
         class="font-medium text-primary"
       >
         {{ t('signUp', 'Sign up') }}
