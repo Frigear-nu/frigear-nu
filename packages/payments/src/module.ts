@@ -2,6 +2,7 @@ import {
   addImports,
   addServerHandler,
   addServerImportsDir,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
@@ -14,6 +15,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
+import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
   CheckoutBeforeContext,
@@ -26,6 +28,7 @@ export type {
   CheckoutBeforeContext,
   CreatePaymentInput,
   CreatePaymentResult,
+  InvoicePaymentInput,
   ModuleOptions,
   PaymentDto,
   PaymentHookContext,
@@ -66,7 +69,7 @@ const MODULE_NAME = '@frigear-nu/payments'
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'payments' },
   defaults: {
-    settings: { checkoutExpiresInMinutes: 30 },
+    settings: { checkoutExpiresInMinutes: 30, mcp: false },
   },
   moduleDependencies: {
     '@nuxthub/core': {
@@ -77,6 +80,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
+    '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // The admin user tab and card are built from its components, so they are only added with it.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
@@ -148,6 +152,9 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    // Stores membership (invoice) payments announced by `@frigear-nu/subscriptions` when that module is installed.
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
+    if (options.settings?.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     addImports([
       { name: 'usePayments', from: resolver.resolve('./runtime/app/composables/usePayments') },

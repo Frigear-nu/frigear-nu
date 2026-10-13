@@ -127,6 +127,13 @@
       "when": 1791891315442,
       "tag": "0017_greedy_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1791901598527,
+      "tag": "0018_chilly_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }

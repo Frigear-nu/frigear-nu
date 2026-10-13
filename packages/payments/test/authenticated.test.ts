@@ -12,7 +12,8 @@ type Row = {
   currency: string
   referenceType: string | null
   referenceId: string | null
-  checkoutSessionId: string
+  checkoutSessionId: string | null
+  invoiceId: string | null
   paymentIntentId: string | null
   refundedAmount: number
   paidAt: string | null
@@ -45,6 +46,51 @@ describe('payments (authenticated, database-backed)', async () => {
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
   await setup({ rootDir, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
+
+  describe('membership invoices (recordInvoicePayment)', () => {
+    const invoice = (userId: number, overrides: Record<string, unknown> = {}) => ({
+      userId,
+      invoiceId: 'in_member_1',
+      status: 'paid',
+      amount: 49900,
+      currency: 'dkk',
+      description: 'Membership',
+      referenceType: 'subscription',
+      referenceId: 'sub_1',
+      paymentIntentId: 'pi_member_1',
+      paidAt: new Date().toISOString(),
+      ...overrides,
+    })
+    const announce = (body: Record<string, unknown>) => $fetch('/api/test/invoice', { method: 'POST', body })
+
+    it('stores a paid invoice as a payment once, fires payments:paid once and ignores late failures', async () => {
+      const user = await registerUser('Mia', 'mia@example.com')
+      await getHookCalls(true)
+      await announce(invoice(user.id))
+      await announce(invoice(user.id))
+      await announce(invoice(user.id, { status: 'failed', paymentIntentId: null, paidAt: null }))
+
+      const stored = (await rows()).filter(row => row.invoiceId === 'in_member_1')
+      expect(stored).toHaveLength(1)
+      expect(stored[0]).toMatchObject({ userId: user.id, status: 'paid', amount: 49900, referenceType: 'subscription', referenceId: 'sub_1', checkoutSessionId: null, paymentIntentId: 'pi_member_1' })
+      expect(stored[0]!.paidAt).not.toBeNull()
+      expect((await getHookCalls()).filter(call => call.paymentId === stored[0]!.id)).toEqual([
+        { hook: 'payments:paid', paymentId: stored[0]!.id, status: 'paid', refundedAmount: 0 },
+      ])
+    })
+
+    it('records a failed invoice, later paid, and applies a refund by payment intent', async () => {
+      const user = await registerUser('Nils', 'nils@example.com')
+      await announce(invoice(user.id, { invoiceId: 'in_member_2', status: 'failed', paymentIntentId: null, paidAt: null, referenceId: 'sub_2' }))
+      expect((await rows()).find(row => row.invoiceId === 'in_member_2')).toMatchObject({ status: 'failed', paidAt: null })
+
+      await announce(invoice(user.id, { invoiceId: 'in_member_2', paymentIntentId: 'pi_member_2', referenceId: 'sub_2' }))
+      expect((await rows()).find(row => row.invoiceId === 'in_member_2')).toMatchObject({ status: 'paid' })
+
+      await sendEvent('member_refund', 'charge.refunded', { payment_intent: 'pi_member_2', amount: 49900, amount_refunded: 49900 })
+      expect((await rows()).find(row => row.invoiceId === 'in_member_2')).toMatchObject({ status: 'refunded', refundedAmount: 49900 })
+    })
+  })
 
   describe('createPayment', () => {
     it('creates a Checkout session with inline price_data and a pending row', async () => {

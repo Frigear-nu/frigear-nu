@@ -1371,6 +1371,9 @@ importers:
       '@frigear-nu/auth':
         specifier: workspace:*
         version: link:../auth
+      '@frigear-nu/mcp':
+        specifier: workspace:*
+        version: link:../mcp
       '@frigear-nu/module-kit':
         specifier: workspace:*
         version: link:../module-kit

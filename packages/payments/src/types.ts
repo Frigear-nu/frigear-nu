@@ -5,6 +5,8 @@ export type ModuleOptions = {
   settings?: {
     /** Minutes a Checkout session stays open before it expires (Stripe allows 30 - 1440). Defaults to `30`. */
     checkoutExpiresInMinutes?: number
+    // Expose this module's MCP tools on the MCP endpoint. Defaults to `false`.
+    mcp?: boolean
   }
 }
 
@@ -59,6 +61,24 @@ export type CreatePaymentInput = {
 export type CreatePaymentResult = {
   payment: PaymentDto
   url: string
+}
+
+/** An invoice to store as a payment, see `recordInvoicePayment`. */
+export type InvoicePaymentInput = {
+  userId: number
+  invoiceId: string
+  status: 'paid' | 'failed' | 'expired'
+  /** Total in the currency's minor unit. */
+  amount: number
+  currency: string
+  description: string | null
+  /** Defaults to `subscription`. */
+  referenceType?: string
+  /** What the invoice is for, e.g. the Stripe subscription id. */
+  referenceId: string | null
+  paymentIntentId: string | null
+  paidAt: Date | null
+  createdAt?: Date
 }
 
 export type PaymentHookContext = {
