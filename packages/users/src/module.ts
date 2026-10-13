@@ -5,7 +5,6 @@ import {
   defineNuxtModule,
   extendPages,
   hasNuxtModule,
-  installModule,
 } from '@nuxt/kit'
 import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { addAuthScope, setAuthUserStore } from '@frigear-nu/auth/utils'
@@ -48,7 +47,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: {},
   },
-  moduleDependencies: {
+  // `@frigear-nu/mcp` is only installed when `settings.mcp` is on.
+  moduleDependencies: nuxt => ({
     '@nuxthub/core': {
       version: '>=0.0.1',
     },
@@ -75,7 +75,8 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.0',
       optional: true,
     },
-  },
+    ...(nuxt.options.users?.settings?.mcp === true ? { '@frigear-nu/mcp': { version: '>=0.0.1' } } : {}),
+  }),
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -118,7 +119,6 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (settings.mcp === true) {
-      await installModule('@frigear-nu/mcp')
       const { addMcpDefinitions } = await import('@frigear-nu/mcp/utils')
       addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name, email and role (MCP)' })
       addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
