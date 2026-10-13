@@ -6,7 +6,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "!**/.nuxt/**", "!**/.output/**", "!**/.data/**", "!**/dist/**", "!**/*.md"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".output/**", ".wrangler/deploy/**"]
     },
     "test": {
       "inputs": ["$TURBO_DEFAULT$", "!**/.nuxt/**", "!**/.output/**", "!**/.data/**"],
