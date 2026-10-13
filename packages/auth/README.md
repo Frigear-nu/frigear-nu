@@ -22,7 +22,7 @@ const owner = await requireAuth(event, { sessionOnly: true })
 - Sign-in is configured under `authentication.settings` (`password`, `magicLink`, `webAuthn`, `oauth`, `pages`, ...).
 - The config key is `authentication` (`auth` belongs to nuxt-auth-utils).
 
-See the [documentation](../../apps/docs/content/4.modules/9.auth.md) for the full model, security properties and the token API.
+See the [documentation](../../apps/docs/content/4.modules/03.auth.md) for the full model, security properties and the token API.
 
 ## Development
 
