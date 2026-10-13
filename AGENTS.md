@@ -181,7 +181,7 @@ manually — check before assuming plain pnpm scripts are the only path.
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
 - A missing session cookie can be a database error, not disabled authentication: the account fixture needed an
   `accepted_terms_at` migration after the account module extended `users`. See
-  `apps/docs/content/4.modules/200.module-kit.md` for the migration workflow.
+  `apps/docs/content/4.modules/10.module-kit.md` for the migration workflow.
 
 ---
 

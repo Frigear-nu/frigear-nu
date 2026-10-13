@@ -19,7 +19,7 @@ Embed a published form in Markdown (Nuxt Content / MDC) with the globally regist
 ::
 ```
 
-Full documentation: `apps/docs/content/4.modules/26.forms.md`.
+Full documentation: `apps/docs/content/4.modules/07.forms.md`.
 
 ```ts
 export default defineNuxtConfig({

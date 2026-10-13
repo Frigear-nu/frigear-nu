@@ -48,3 +48,17 @@ used in the app so pages appear in the intended navigation order.
    ```
 
 For a new section, add a `.navigation.yml` file in its folder to set the section title or icon.
+
+## Documentation conventions
+
+- **Ordering.** Docus sorts navigation by file name as a string, so use unique two-digit prefixes (`01.`, `02.`, ...).
+  Module pages in `content/4.modules/` are numbered alphabetically by title; insert a new module by renumbering.
+- **Titles.** Use the plain name (`Auth`, `Cookie Consent`), never a `Module` suffix.
+- **Module page layout**, in this order, skipping sections that do not apply: intro (no H1, no package-name heading),
+  requirements note (hard and optional dependencies from `moduleDependencies`), `## Quick setup`, `## Options` (table:
+  option, type, default, purpose), then `## Server`, `## App`, `## Hooks`, `## Routes`, `## Database`,
+  `## Translations`.
+- **Code and reference.** Signatures, types and payloads go in fenced `ts` blocks. Hooks, routes, options and environment
+  variables go in tables. Do not describe them in running prose.
+- **Accuracy.** Check defaults, routes and hooks against the source before documenting them.
+- **Links.** Link to pages by slug (`/modules/auth`), never by numbered file name.
