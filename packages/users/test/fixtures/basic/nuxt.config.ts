@@ -5,6 +5,11 @@ export default defineNuxtConfig({
     '@nuxthub/core',
     MyModule,
   ],
+  runtimeConfig: {
+    session: {
+      password: 'a-test-only-session-password-at-least-32-chars',
+    },
+  },
   hub: {
     db: {
       dialect: 'sqlite',

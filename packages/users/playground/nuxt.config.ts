@@ -11,8 +11,4 @@ export default defineNuxtConfig({
       driver: 'libsql',
     },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })

@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3'
 import type { AuthPrincipal } from '@frigear-nu/auth/utils'
 import { parseScopeString } from '@frigear-nu/auth/utils'
-import loadUser from '#auth/user-loader'
 
 /**
  * Lets an application call the API as the user who signed in to it: resolves an OAuth access
@@ -23,7 +22,7 @@ export default async function resolveAccessToken(event: H3Event, token: string):
   if (!application || !oauthUser) return null
   if (!(await checkApplicationAccess(oauthUser, application, event)).allowed) return null
 
-  const user = await loadUser(String(oauthUser.id))
+  const user = await loadAuthUser(oauthUser.id)
   if (!user) return null
 
   return { kind: 'oauth', user, scopes: parseScopeString(payload.scope), client: { id: application.id } }

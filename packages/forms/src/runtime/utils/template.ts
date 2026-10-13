@@ -1,6 +1,6 @@
 import type { FormDefinition, FormField, Translated } from '../../types'
 import { isAnswerField, resolveVisibility } from './conditions'
-import { translate } from './text'
+import { translate } from '@frigear-nu/ui/translated'
 
 // Pure email rendering (no Nitro / Vue), shared by the delivery plugin and the admin preview.
 

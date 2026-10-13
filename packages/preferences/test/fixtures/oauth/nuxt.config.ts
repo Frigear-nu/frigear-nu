@@ -26,8 +26,4 @@ export default defineNuxtConfig({
     issuer: 'https://id.example.test',
     settings: { pages: { authorize: false } },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { TicketTypeDto } from '../../../types'
 import { withMdcData } from '@frigear-nu/ui/markdown'
-import { formatPrice, ticketMdcData } from '../../utils'
+import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
+import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
 
 const props = defineProps<{
   ticketTypes: TicketTypeDto[]
@@ -144,7 +145,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       :disabled="!selected || !isAvailable(selected) || missingRequired"
       @click="emit('purchase', selected!.id, addonIds)"
     >
-      {{ total === 0 ? 'Get free ticket' : `Buy ticket · ${formatPrice(total, selected?.currency ?? 'DKK', locale)}` }}
+      {{ total === 0 ? 'Get free ticket' : `Buy ticket · ${formatPrice(total, selected?.currency ?? DEFAULT_CURRENCY, locale)}` }}
     </UButton>
     <UAlert
       v-else

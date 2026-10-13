@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { createReusableTemplate, useMediaQuery } from '@vueuse/core'
+import { formatMoney } from '@frigear-nu/ui/money'
 import { usePlans } from '../composables/usePlans'
 import type { SubscriptionPlan, SubscriptionPlanPrice } from '../composables/usePlans'
 import { useSubscription } from '../composables/useSubscription'
@@ -41,10 +42,7 @@ function priceFor(plan: SubscriptionPlan): SubscriptionPlanPrice | undefined {
 
 function formatPrice(price: SubscriptionPlanPrice) {
   if (price.amount === null) return ''
-  return new Intl.NumberFormat(props.locale, {
-    style: 'currency',
-    currency: (props.currency ?? price.currency).toUpperCase(),
-  }).format(price.amount / 100)
+  return formatMoney(price.amount, props.currency ?? price.currency, props.locale)
 }
 
 function intervalLabel(price: SubscriptionPlanPrice) {
@@ -102,8 +100,9 @@ async function go(plan: SubscriptionPlan, price: SubscriptionPlanPrice) {
 
 /** Where to send visitors that are not signed in: register, then straight back here with the plan selected. */
 function signUpTarget(plan: SubscriptionPlan) {
-  const pages = useRuntimeConfig().public as { users?: { pages?: { register?: string, login?: string } }, subscriptions?: { pages?: { membership?: string } } }
-  const entry = pages.users?.pages?.register ?? pages.users?.pages?.login
+  const authPages = useAuthPages()
+  const pages = useRuntimeConfig().public as { subscriptions?: { pages?: { membership?: string } } }
+  const entry = authPages.register ?? authPages.login
   const back = `${pages.subscriptions?.pages?.membership ?? route.path}?plan=${encodeURIComponent(plan.key)}`
   return entry ? `${entry}?redirect=${encodeURIComponent(back)}` : null
 }

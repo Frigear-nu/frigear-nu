@@ -55,7 +55,7 @@ export default defineCommand({
     }
     await writePackageJson(packageJsonPath, {
       ...packageJson || {},
-      name,
+      name: `@frigear-nu/${kebabCase(name)}`,
     })
     logger.log(`Created module ${name} at ${dir}`)
   },

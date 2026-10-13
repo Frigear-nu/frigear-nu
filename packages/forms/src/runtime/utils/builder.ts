@@ -1,4 +1,4 @@
-import type { FieldType, FormAccess, FormDefinition, FormDelivery, FormStorage, FormField, FormStep, Translated } from '../../types'
+import type { FieldType, FormAccess, FormDefinition, FormDelivery, FormStorage, FormField, FormStep } from '../../types'
 
 /** Where a field sits in a definition. */
 export type FieldPosition = { step: number, index: number }
@@ -220,34 +220,6 @@ export function removeStep(definition: FormDefinition, index: number, { keepFiel
   const steps = definition.steps.filter((_, i) => i !== index).map(step => ({ ...step, fields: [...step.fields] }))
   if (keepFields) steps[Math.max(0, index - 1)]!.fields.push(...removed.fields)
   return pruneReferences({ ...definition, steps })
-}
-
-/** Reads the text for one locale out of a translatable value. */
-export function readTranslated(value: Translated | undefined, locale: string): string {
-  if (!value) return ''
-  if (typeof value === 'string') return value
-  return value[locale] ?? ''
-}
-
-/** Writes the text for one locale; plain strings stay plain, per-locale maps keep their other locales. */
-export function writeTranslated(value: Translated | undefined, locale: string, text: string): Translated | undefined {
-  if (value && typeof value === 'object') {
-    const next = Object.fromEntries(Object.entries({ ...value, [locale]: text }).filter(([, entry]) => entry))
-    return Object.keys(next).length ? next : undefined
-  }
-  return text || undefined
-}
-
-/** A plain string becomes a per-locale map holding that text for `locale`. */
-export function expandTranslated(value: Translated | undefined, locale: string): Translated | undefined {
-  if (typeof value !== 'string') return value
-  return value ? { [locale]: value } : undefined
-}
-
-/** A per-locale map becomes one plain string: the text of `locale`, else `en`, else the first one written. */
-export function collapseTranslated(value: Translated | undefined, locale: string): Translated | undefined {
-  if (!value || typeof value === 'string') return value
-  return value[locale] || value.en || Object.values(value).find(Boolean) || undefined
 }
 
 type EmailDelivery = NonNullable<FormDelivery['email']>

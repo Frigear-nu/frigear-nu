@@ -17,6 +17,17 @@ export function currencyDigits(code: string): number {
   }
 }
 
+/** Formats an amount in a currency's minor unit (cents, øre) for display, e.g. `formatMoney(15000, 'DKK', 'da')` -> `150,00 kr.`. */
+export function formatMoney(amount: number, currency: string, locale?: string): string {
+  const code = currency.toUpperCase()
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(amount / 10 ** currencyDigits(code))
+  }
+  catch {
+    return `${(amount / 100).toFixed(2)} ${code}`
+  }
+}
+
 /** Minor units (cents) to the major-unit number shown in an input. */
 export function fromCents(amount: number | null | undefined, code = 'EUR'): number | null | undefined {
   if (amount === null || amount === undefined) return amount

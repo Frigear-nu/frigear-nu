@@ -7,16 +7,18 @@ import {
   addServerPlugin,
   createResolver,
   defineNuxtModule,
-  extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  defineModulePage,
   registerDatabaseTable,
   registerLocales,
   registerModule,
   registerTailwindSource,
+  resolvePagePath,
+  addModulePages,
+  addOptionalMenuSource,
 } from '@frigear-nu/module-kit/utils'
+import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
@@ -66,12 +68,6 @@ declare module 'nitropack' {
 
 const MODULE_NAME = '@frigear-nu/forms'
 
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
-}
-
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'forms' },
   defaults: {
@@ -105,13 +101,16 @@ export default defineNuxtModule<ModuleOptions>({
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
-    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     const formPath = resolvePagePath(settings.pages?.form, '/forms/:slug')
-    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/forms')
-    const adminFormPath = resolvePagePath(settings.pages?.adminForm, '/admin/forms/:id')
-    const adminSubmissionsPath = resolvePagePath(settings.pages?.adminSubmissions, '/admin/forms/:id/submissions')
-    const adminSubmissionPath = resolvePagePath(settings.pages?.adminSubmission, '/admin/forms/:id/submissions/:submissionId')
+    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    const withAdmin = hasNuxtModule('@frigear-nu/admin')
+    const adminPage = (setting: string | boolean | undefined, ...segments: string[]) =>
+      withAdmin ? resolvePagePath(setting, adminRoute(nuxt, 'forms', ...segments)) : undefined
+    const adminPath = adminPage(settings.pages?.admin)
+    const adminFormPath = adminPage(settings.pages?.adminForm, ':id')
+    const adminSubmissionsPath = adminPage(settings.pages?.adminSubmissions, ':id', 'submissions')
+    const adminSubmissionPath = adminPage(settings.pages?.adminSubmission, ':id', 'submissions', ':submissionId')
 
     nuxt.options.runtimeConfig.forms = {
       rateLimit: settings.rateLimit ?? 10,
@@ -198,27 +197,14 @@ export default defineNuxtModule<ModuleOptions>({
     addComponent({ name: 'FormEmbed', filePath: resolver.resolve('./runtime/app/components/FormEmbed.vue'), global: true })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
-    const pages = [
-      { name: 'forms-form', path: formPath, file: 'form.vue' },
-      { name: 'forms-admin', path: adminPath, file: 'admin.vue' },
-      { name: 'forms-admin-form', path: adminFormPath, file: 'admin-form.vue' },
-      { name: 'forms-admin-submissions', path: adminSubmissionsPath, file: 'admin-submissions.vue' },
-      { name: 'forms-admin-submission', path: adminSubmissionPath, file: 'admin-submission.vue' },
-    ]
-    if (pages.some(page => page.path)) {
-      extendPages((existing) => {
-        const taken = new Set(existing.map(page => page.path))
-        for (const page of pages) {
-          if (page.path && !taken.has(page.path)) {
-            existing.push(defineModulePage(MODULE_NAME, { name: page.name, path: page.path, file: resolver.resolve(`./runtime/app/pages/${page.file}`) }))
-          }
-        }
-      })
-    }
+    addModulePages(MODULE_NAME, resolver, [
+      { name: 'forms-form', path: formPath, file: './runtime/app/pages/form.vue' },
+      { name: 'forms-admin', path: adminPath, file: './runtime/app/pages/admin.vue' },
+      { name: 'forms-admin-form', path: adminFormPath, file: './runtime/app/pages/admin-form.vue' },
+      { name: 'forms-admin-submissions', path: adminSubmissionsPath, file: './runtime/app/pages/admin-submissions.vue' },
+      { name: 'forms-admin-submission', path: adminSubmissionPath, file: './runtime/app/pages/admin-submission.vue' },
+    ])
 
-    if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
-    }
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
   },
 })

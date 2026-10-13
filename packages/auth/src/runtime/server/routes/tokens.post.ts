@@ -3,7 +3,7 @@ import { isGrantableScope } from '../../utils/scopes'
 import { generateUserToken } from '../../utils/tokens'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { sessionOnly: true })
+  const { user } = await requireAuth(event, { sessionOnly: true })
   const body = await readValidatedBody(event, createTokenSchema.parse)
 
   const registered = (await availableScopes(event, user as { id: number, role?: string })).map(scope => scope.name)

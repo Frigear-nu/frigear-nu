@@ -101,7 +101,7 @@ async function onRevoke(token: ApiToken) {
 }
 
 // The token is only ever inlined into a snippet while it is revealed; afterwards the snippets show a placeholder.
-const mcpEnabled = useRuntimeConfig().public.account?.mcp === true
+const mcpEnabled = useRuntimeConfig().public.users?.mcp === true
 const activeConnect = ref('claude')
 const mcpUrl = `${useRequestURL().origin}/mcp`
 const tokenPlaceholder = '<your-api-token>'

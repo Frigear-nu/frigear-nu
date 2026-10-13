@@ -6,18 +6,19 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
-  extendPages,
-  hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  defineModulePage,
   moduleApiUrl,
   registerDatabaseTable,
   registerModule,
   registerLocales,
   registerTailwindSource,
+  resolvePagePath,
+  addModulePages,
+  addOptionalMenuSource,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
+import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
@@ -82,12 +83,6 @@ declare module 'nitropack' {
 
 const MODULE_NAME = '@frigear-nu/subscriptions'
 
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
-}
-
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'subscriptions' },
   defaults: {
@@ -106,6 +101,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // The admin user tab and card are built from its components, so they are only added with it.
+    '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -119,7 +116,6 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const plans = options.plans ?? {}
-    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     if (!nuxt.options.hub?.kv) {
       throw new Error('[@frigear-nu/subscriptions] NuxtHub KV is required (plans cache). Set `hub: { kv: true }` in your Nuxt config.')
@@ -189,41 +185,32 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/subscriptions/portal.post'),
     })
 
-    // Staff membership management (grant free / payment link / revoke), authorized through the users admin
-    // policy (`users:admin:authorize`, action `update`). Used by the `UsersAdminMembership` component.
-    for (const [method, path, file] of [
-      ['get', 'subscription', 'subscription.get'],
-      ['get', 'subscriptions', 'subscriptions.get'],
-      ['post', 'subscription', 'subscription.post'],
-      ['delete', 'subscription', 'subscription.delete'],
-      ['post', 'subscription/payment-link', 'payment-link.post'],
-    ] as const) {
-      addServerHandler({
-        route: `/api/admin/users/:id/${path}`,
-        method,
-        handler: resolver.resolve(`./runtime/server/routes/admin/${file}`),
-      })
-    }
-
-    // Adds a "Subscription" tab and a summary card to the admin user page of `@frigear-nu/users` (tab area
-    // `admin.users`, widget area `admin.users.overview`) when @frigear-nu/widget is installed.
-    if (hasNuxtModule('@frigear-nu/widget')) {
-      const { extendTabs, extendWidgets } = await import('@frigear-nu/widget/utils')
-      extendTabs(nuxt, 'admin.users', {
+    // Staff membership management (grant free / payment link / revoke) plus a "Subscription" tab and a summary card on
+    // the admin user page of `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`,
+    // `view` for reads, `update` for changes). Used by the `UsersAdminMembership` component.
+    await extendUsersAdmin(nuxt, {
+      routes: ([
+        ['get', 'subscription', 'subscription.get'],
+        ['get', 'subscriptions', 'subscriptions.get'],
+        ['post', 'subscription', 'subscription.post'],
+        ['delete', 'subscription', 'subscription.delete'],
+        ['post', 'subscription/payment-link', 'payment-link.post'],
+      ] as const).map(([method, path, file]) => ({ method, path, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })),
+      tab: {
         id: 'subscription',
         component: resolver.resolve('./runtime/app/tabs/Membership.vue'),
         order: 10,
         label: 'Subscription',
         labelKey: 'subscriptions.admin.tab',
         icon: 'i-lucide-badge-check',
-      })
-      extendWidgets(nuxt, 'admin.users.overview', {
+      },
+      widget: {
         id: 'subscriptions-current',
         component: resolver.resolve('./runtime/app/widgets/AdminCurrentSubscription.vue'),
         order: 10,
         span: 2,
-      })
-    }
+      },
+    })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
@@ -240,25 +227,12 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
-    if (membershipPath || successPath || cancelPath) {
-      extendPages((pages) => {
-        const existingPaths = new Set(pages.map(page => page.path))
+    addModulePages(MODULE_NAME, resolver, [
+      { name: 'subscriptions-membership', path: membershipPath, file: './runtime/app/pages/membership.vue' },
+      { name: 'subscriptions-success', path: successPath, file: './runtime/app/pages/success.vue' },
+      { name: 'subscriptions-cancel', path: cancelPath, file: './runtime/app/pages/cancel.vue' },
+    ])
 
-        if (membershipPath && !existingPaths.has(membershipPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'subscriptions-membership', path: membershipPath, file: resolver.resolve('./runtime/app/pages/membership.vue') }))
-        }
-        if (successPath && !existingPaths.has(successPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'subscriptions-success', path: successPath, file: resolver.resolve('./runtime/app/pages/success.vue') }))
-        }
-        if (cancelPath && !existingPaths.has(cancelPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'subscriptions-cancel', path: cancelPath, file: resolver.resolve('./runtime/app/pages/cancel.vue') }))
-        }
-      })
-    }
-
-    if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
-    }
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
   },
 })

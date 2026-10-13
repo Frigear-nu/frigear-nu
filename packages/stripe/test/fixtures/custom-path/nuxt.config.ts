@@ -29,8 +29,4 @@ export default defineNuxtConfig({
   stripe: {
     settings: { webhookPath: '/hooks/stripe' },
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })

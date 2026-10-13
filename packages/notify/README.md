@@ -1,7 +1,7 @@
 # @frigear-nu/notify
 
 Generic notification driver/dispatch Nuxt module. Lets feature modules (e.g. `@frigear-nu/users`)
-dispatch email/SMS/simple notifications, and push UI toasts, without ever deciding how they're
+dispatch email/SMS/simple notifications without ever deciding how they're
 delivered - that choice (and configuration) belongs to the app/consuming layer.
 
 ## Quick Setup
@@ -13,8 +13,7 @@ want to configure it.
 ## Configuration
 
 Configure the module via the `notify` key in `nuxt.config.ts`. Every notification type (`email`,
-`sms`, `simple`) defaults to the built-in `log` driver (logs instead of sending) - only the
-`ui` driver has no default, since there's no sensible UI to push to unless you configure one:
+`sms`, `simple`) defaults to the built-in `log` driver (logs instead of sending):
 
 ```ts
 export default defineNuxtConfig({
@@ -33,19 +32,13 @@ export default defineNuxtConfig({
       // Same idea, matching the `SimpleDriver` signature, for generic push notifications.
       driver: 'log',
     },
-    ui: {
-      // Built-in `'@nuxt/ui'` driver (forwards to `@nuxt/ui`'s `useToast`), or a path to a
-      // function (default export) matching the `UIDriver` signature - a composable factory
-      // invoked once, synchronously, during `useNotify()`'s own setup-time call.
-      driver: '@nuxt/ui',
-    },
   },
 })
 ```
 
-Only the configured driver for each notification type is ever resolved/loaded - unconfigured
-drivers (e.g. the `ui` driver when `notify.ui` isn't set) are never bundled, to keep the client
-bundle small.
+Only the configured driver for each notification type is ever resolved/loaded.
+
+In-app toasts are not part of this module: call `useToast()` from Nuxt UI directly.
 
 #### Example Custom Driver
 
@@ -84,25 +77,6 @@ await dispatchSimpleNotification({
   title: 'New signup',
   text: `${user.email} just signed up.`,
 })
-```
-
-### UI notifications
-
-When `notify.ui.driver` is configured, `useNotify` is auto-imported client-side to push
-`UINotification`s through the configured driver (e.g. `@nuxt/ui`'s `useToast`):
-
-```vue
-<script setup lang="ts">
-const notify = useNotify()
-
-function onSuccess() {
-  notify.addNotification(defineUINotification({
-    title: 'Saved',
-    text: 'Your changes have been saved.',
-    type: 'success',
-  }))
-}
-</script>
 ```
 
 ## Built-in email drivers: `resend`, `ses`, `cloudflare`

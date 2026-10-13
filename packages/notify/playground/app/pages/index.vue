@@ -1,3 +1,3 @@
 <template>
-  HOME <NuxtLink to="/test">Test</NuxtLink>
+  <div>notify playground</div>
 </template>

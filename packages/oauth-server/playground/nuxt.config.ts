@@ -16,16 +16,12 @@ export default defineNuxtConfig({
       driver: 'libsql',
     },
   },
+  authentication: {
+    settings: { pages: { login: '/sign-in', register: '/sign-up' } },
+  },
   oauthServer: {
     settings: {
       pages: { admin: true, applications: true },
-    },
-  },
-  users: {
-    mode: 'server',
-    settings: {
-      migrations: true,
-      pages: { login: '/sign-in', register: '/sign-up' },
     },
   },
 })

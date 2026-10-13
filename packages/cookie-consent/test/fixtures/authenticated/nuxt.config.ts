@@ -21,8 +21,4 @@ export default defineNuxtConfig({
   cookieConsent: {
     version: 'test',
   },
-  users: {
-    mode: 'server',
-    settings: { migrations: true, password: true },
-  },
 })

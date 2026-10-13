@@ -1,4 +1,4 @@
-import type { ConsentCategory, ConsentMessages, Localized } from '../../../types'
+import type { ConsentCategory, ConsentMessages, Translated } from '../../../types'
 import { localize } from '../../utils/consent'
 
 // English fallbacks, used when `@nuxtjs/i18n` isn't installed or a key is missing. The translated
@@ -35,7 +35,7 @@ export function useConsentT() {
 
   /** Explicit option text (string or `{ da, en }` map) wins; otherwise `cookieConsent.categories.<key>.<field>`. */
   function categoryText(category: ConsentCategory, field: 'label' | 'description'): string {
-    const explicit: Localized | undefined = category[field]
+    const explicit: Translated | undefined = category[field]
     if (explicit) return localize(explicit, locale.value)
     return tm(`categories.${category.key}.${field}`, EN_CATEGORIES[category.key]?.[field] ?? (field === 'label' ? category.key : ''))
   }
@@ -48,6 +48,6 @@ export function useConsentT() {
     t: (key: keyof ConsentMessages) => (key === 'policy' && policyLabel ? localize(policyLabel, locale.value) : tm(key, EN[key])),
     label: (category: ConsentCategory) => categoryText(category, 'label'),
     description: (category: ConsentCategory) => categoryText(category, 'description'),
-    localize: (value: Localized | undefined, fallback = '') => localize(value, locale.value, fallback),
+    localize: (value: Translated | undefined, fallback = '') => localize(value, locale.value, fallback),
   }
 }

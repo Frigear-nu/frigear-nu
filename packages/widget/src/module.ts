@@ -1,12 +1,11 @@
 import {
   addComponent,
   addImports,
-  addTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { defineVirtualRegistry, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, RegisteredTab, RegisteredWidget } from './types'
 import { sortWidgets } from './runtime/utils/sort'
 
@@ -44,44 +43,27 @@ declare module '#widgets/tabs' {
 
     // Widgets are only read once every module has finished setting up, so registration order doesn't matter.
     // Components are imported lazily, so an area only ships the widgets it renders.
-    nuxt.hook('modules:done', () => {
-      const areas: Record<string, RegisteredWidget[]> = nuxt.options.widgets?._extensions ?? {}
+    const lazyEntries = (areas: Record<string, Array<RegisteredWidget | RegisteredTab>>) => Object.entries(areas).map(([area, entries]) => {
+      const items = sortWidgets(entries).map(({ component, ...meta }) =>
+        `{ ...${JSON.stringify(meta)}, component: () => import(${JSON.stringify(component)}) }`)
+      return `${JSON.stringify(area)}: [${items.join(', ')}]`
+    }).join(', ')
 
-      const registry = addTemplate({
-        filename: '#widgets/registry.mjs',
-        write: true,
-        getContents: () => {
-          const entries = Object.entries(areas).map(([area, widgets]) => {
-            const items = sortWidgets(widgets).map(({ component, ...meta }) =>
-              `{ ...${JSON.stringify(meta)}, component: () => import(${JSON.stringify(component)}) }`)
-            return `${JSON.stringify(area)}: [${items.join(', ')}]`
-          })
-          return `export const widgets = { ${entries.join(', ')} }\n`
-        },
-      })
+    defineVirtualRegistry(nuxt, {
+      filename: '#widgets/registry.mjs',
+      alias: '#widgets/registry',
+      collect: (): Record<string, RegisteredWidget[]> => nuxt.options.widgets?._extensions ?? {},
+      contents: areas => `export const widgets = { ${lazyEntries(areas)} }\n`,
+      resolved: areas => nuxt.callHook('widgets:resolved', areas),
+    })
 
-      nuxt.options.alias['#widgets/registry'] = registry.dst
-
-      nuxt.callHook('widgets:resolved', areas)
-
-      // Tabs are a separate list from widgets, with their own virtual module.
-      const tabAreas: Record<string, RegisteredTab[]> = nuxt.options.widgets?._tabs ?? {}
-      const tabRegistry = addTemplate({
-        filename: '#widgets/tabs.mjs',
-        write: true,
-        getContents: () => {
-          const entries = Object.entries(tabAreas).map(([area, tabs]) => {
-            const items = sortWidgets(tabs).map(({ component, ...meta }) =>
-              `{ ...${JSON.stringify(meta)}, component: () => import(${JSON.stringify(component)}) }`)
-            return `${JSON.stringify(area)}: [${items.join(', ')}]`
-          })
-          return `export const tabs = { ${entries.join(', ')} }\n`
-        },
-      })
-
-      nuxt.options.alias['#widgets/tabs'] = tabRegistry.dst
-
-      nuxt.callHook('tabs:resolved', tabAreas)
+    // Tabs are a separate list from widgets, with their own virtual module.
+    defineVirtualRegistry(nuxt, {
+      filename: '#widgets/tabs.mjs',
+      alias: '#widgets/tabs',
+      collect: (): Record<string, RegisteredTab[]> => nuxt.options.widgets?._tabs ?? {},
+      contents: areas => `export const tabs = { ${lazyEntries(areas)} }\n`,
+      resolved: areas => nuxt.callHook('tabs:resolved', areas),
     })
   },
 })

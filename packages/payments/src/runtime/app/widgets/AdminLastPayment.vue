@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PaymentDto } from '../../../types'
-import { formatMinorAmount } from '../utils/format'
+import { formatMoney as formatMinorAmount } from '@frigear-nu/ui/money'
 
 defineOptions({ name: 'UsersAdminLastPayment' })
 

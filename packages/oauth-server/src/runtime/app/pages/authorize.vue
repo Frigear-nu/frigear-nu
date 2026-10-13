@@ -4,7 +4,7 @@ import type { ConsentDto } from '../../../types'
 defineOptions({ name: 'OAuthAuthorizePage' })
 
 const route = useRoute()
-const signInPath = (useRuntimeConfig().public.users as { pages?: { login?: string } } | undefined)?.pages?.login || '/login'
+const signInPath = useAuthPages().login
 
 const { data: consent, error } = await useFetch<ConsentDto>('/api/oauth-server/consent', {
   query: route.query,

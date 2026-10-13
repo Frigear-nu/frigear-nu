@@ -200,7 +200,6 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      mcp: true,
       pages: { index: true, profile: true, security: true, documents: true, apiTokens: true },
       // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
       // assets under public/, so anyone with the URL can fetch them (as before).
@@ -210,14 +209,32 @@ export default defineNuxtConfig({
         { id: 'shift-overview', label: 'Vagtoversigt', path: '/assets/files/Vagtoversigt.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
         { id: 'ba-coordinator-meeting', label: { da: 'BA Koordinatormøde 25.03.2026', en: 'BA coordinator meeting 25.03.2026' }, path: '/assets/files/BA-Koordinatormøde-2503-2026.docx', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
       ],
-      // A new address must be confirmed from its inbox; the old address gets a revert link.
-      verifyEmailChange: true,
     },
   },
   admin: {
     settings: {
       // Same roles as the old `canViewAdminArea` ability.
       roles: ['admin', 'manager', 'coordinator'],
+    },
+  },
+  authentication: {
+    settings: {
+      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
+      pages: {
+        login: '/sign-in',
+        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
+      },
+      password: true,
+      webAuthn: true,
+      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
+      // an account (use the register page). Email/password users must verify before logging in.
+      magicLink: true,
+      verifyEmail: true,
+      session: { mapper: '~~/server/utils/map-session-user' },
+      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
+      // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
+      // Facebook is only offered when its client id is configured (at build time as well as runtime).
+      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
     },
   },
   cookieConsent: {
@@ -308,27 +325,13 @@ export default defineNuxtConfig({
     },
   },
   users: {
-    mode: 'server',
     settings: {
-      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
-      pages: {
-        login: '/sign-in',
-        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
-      },
-      password: true,
-      migrations: true,
-      webAuthn: true,
-      // Passwordless sign-in links; following one also verifies the address. Unknown addresses do not get
-      // an account (use the register page). Email/password users must verify before logging in.
-      magicLink: true,
-      verifyEmail: true,
       // Staff user administration; the policy lives in server/plugins/users-policy.ts.
       admin: true,
-      session: { mapper: '~~/server/utils/map-session-user' },
-      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
-      // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
-      // Facebook is only offered when its client id is configured (at build time as well as runtime).
-      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
+      mcp: true,
+      // A new address must be confirmed from its inbox; the old address gets a revert link.
+      verifyEmailChange: true,
+      profilePath: '/account/profile',
     },
   },
 })

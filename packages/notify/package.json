@@ -2,7 +2,7 @@
   "name": "@frigear-nu/notify",
   "version": "0.0.8",
   "type": "module",
-  "description": "Framework-agnostic email notification driver/dispatch Nuxt module, shared across Frigear modules.",
+  "description": "Email, SMS and generic notification dispatch (pluggable drivers) Nuxt module, shared across Frigear modules.",
   "license": "MIT",
   "homepage": "https://docs.frigear.dev/modules/notify",
   "repository": {
@@ -61,8 +61,5 @@
     "nuxt": "catalog:",
     "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"
-  },
-  "optionalDependencies": {
-    "@nuxt/ui": ">=4.10.0"
   }
 }

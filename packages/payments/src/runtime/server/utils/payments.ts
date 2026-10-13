@@ -2,7 +2,8 @@ import { db, schema } from '@nuxthub/db'
 import { and, desc, eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import type { CreatePaymentInput, CreatePaymentResult, PaymentDto, PaymentStatus } from '../../../types'
-import { resolveSameOriginUrl, sumItems } from '../../utils'
+import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
+import { sumItems } from '../../utils'
 
 type PaymentRow = typeof schema.payments.$inferSelect
 

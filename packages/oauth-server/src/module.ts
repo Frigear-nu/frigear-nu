@@ -4,17 +4,19 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
-  extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  defineModulePage,
   moduleApiUrl,
   registerDatabaseTable,
   registerLocales,
   registerModule,
   registerTailwindSource,
+  resolvePagePath,
+  addModulePages,
+  addOptionalMenuSource,
 } from '@frigear-nu/module-kit/utils'
+import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
@@ -65,12 +67,6 @@ declare module 'nitropack' {
 const MODULE_NAME = '@frigear-nu/oauth-server'
 const API_NAME = 'oauthServer'
 
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
-}
-
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'oauthServer' },
   defaults: {
@@ -107,7 +103,6 @@ export default defineNuxtModule<ModuleOptions>({
     })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     const settings = options.settings ?? {}
-    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
@@ -115,7 +110,8 @@ export default defineNuxtModule<ModuleOptions>({
     const authorizePath = settings.pages?.authorize === false
       ? '/authorize'
       : resolvePagePath(settings.pages?.authorize ?? true, '/authorize')!
-    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/oauth')
+    // The admin page is built from the components of `@frigear-nu/admin`, so it only exists with it.
+    const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).
@@ -182,24 +178,12 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useMyApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
     ])
 
-    if (settings.pages?.authorize !== false || adminPath || applicationsPath) {
-      extendPages((pages) => {
-        const existingPaths = new Set(pages.map(page => page.path))
-        if (settings.pages?.authorize !== false && !existingPaths.has(authorizePath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-authorize', path: authorizePath, file: resolver.resolve('./runtime/app/pages/authorize.vue') }))
-        }
-        if (adminPath && !existingPaths.has(adminPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-admin', path: adminPath, file: resolver.resolve('./runtime/app/pages/admin.vue') }))
-        }
-        if (applicationsPath && !existingPaths.has(applicationsPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'oauth-applications', path: applicationsPath, file: resolver.resolve('./runtime/app/pages/applications.vue') }))
-        }
-      })
-    }
+    addModulePages(MODULE_NAME, resolver, [
+      { name: 'oauth-authorize', path: settings.pages?.authorize !== false ? authorizePath : undefined, file: './runtime/app/pages/authorize.vue' },
+      { name: 'oauth-admin', path: adminPath, file: './runtime/app/pages/admin.vue' },
+      { name: 'oauth-applications', path: applicationsPath, file: './runtime/app/pages/applications.vue' },
+    ])
 
-    if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
-    }
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
   },
 })

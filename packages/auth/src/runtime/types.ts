@@ -31,4 +31,46 @@ export interface RequireUserOptions {
 /** Turns a bearer token into a principal, or `null` when the token is not valid. */
 export type AuthResolverFn = (event: H3Event, token: string) => Promise<AuthPrincipal | null>
 
-export type AuthUserLoader = (id: string) => Promise<AuthUser | null>
+/** A user as the store keeps it, credentials included. Never put one in a session or a response as is: use `mapUserToSession`. */
+export interface AuthStoredUser {
+  id: number
+  name: string
+  email: string
+  avatar?: string | null
+  password?: string | null
+  emailVerifiedAt?: Date | null
+  lastLoginAt?: Date | null
+  [key: string]: unknown
+}
+
+export interface AuthUserCreate {
+  /** Only for identity providers that dictate the local id (`frigear.forceId`). */
+  id?: number
+  name: string
+  email: string
+  avatar?: string
+  password?: string
+  emailVerifiedAt?: Date
+  /** Only with a roles column on `users` (`@frigear-nu/authorization`); set by identity providers that dictate it. */
+  role?: string
+}
+
+export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'avatar' | 'password' | 'emailVerifiedAt' | 'lastLoginAt'>> & { role?: string }
+
+/**
+ * Where the sign-in flows read and write users. `@frigear-nu/users` provides it (`setAuthUserStore`); a host without
+ * that module can supply its own with `authentication.userStore`.
+ */
+export interface AuthUserStore {
+  /** Accepts the text ids of tokens; resolves `null` for ids that are not a user. */
+  findById: (id: string | number) => Promise<AuthStoredUser | null>
+  findByEmail: (email: string) => Promise<AuthStoredUser | null>
+  create: (values: AuthUserCreate) => Promise<AuthStoredUser>
+  update: (id: number, values: AuthUserUpdate) => Promise<AuthStoredUser | null>
+  remove: (id: number) => Promise<void>
+  /**
+   * Gives the user a new id, taking everything that references it along. A different user holding `to` is moved to the
+   * next free id first. Used by identity providers that dictate the local id (`frigear.forceId`).
+   */
+  changeId: (from: number, to: number) => Promise<void>
+}

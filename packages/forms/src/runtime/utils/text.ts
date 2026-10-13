@@ -1,12 +1,3 @@
-import type { Translated } from '../../types'
-
-/** Picks the text for a locale, falling back to `en`, then to the first available entry. */
-export function translate(value: Translated | null | undefined, locale = 'en'): string {
-  if (!value) return ''
-  if (typeof value === 'string') return value
-  return value[locale] ?? value.en ?? Object.values(value)[0] ?? ''
-}
-
 export type TranslateParams = Record<string, string | number>
 
 /** `(key, englishFallback, params) => text`, the shape of `useModuleT('forms')`. */

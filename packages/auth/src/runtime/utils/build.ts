@@ -5,8 +5,8 @@ import type { AuthResolverDefinition, AuthScopeDefinition } from '../../types'
 // hooks and read lazily when the server templates are generated, so the order in which modules
 // are installed does not matter.
 
-export interface AuthUserLoaderRegistration {
-  /** Absolute path to a module whose default export loads a user by id. */
+export interface AuthUserStoreRegistration {
+  /** Absolute path to a module whose default export is an `AuthUserStore`. */
   path?: string
 }
 
@@ -14,7 +14,7 @@ declare module '@nuxt/schema' {
   interface NuxtHooks {
     'auth:resolvers': (resolvers: AuthResolverDefinition[]) => void | Promise<void>
     'auth:scopes': (scopes: AuthScopeDefinition[]) => void | Promise<void>
-    'auth:user-loader': (registration: AuthUserLoaderRegistration) => void | Promise<void>
+    'auth:user-store': (registration: AuthUserStoreRegistration) => void | Promise<void>
   }
 }
 
@@ -35,9 +35,9 @@ export function addAuthScope(nuxt: Nuxt, ...scopes: AuthScopeDefinition[]) {
   })
 }
 
-/** Provide how a user is loaded by id when a bearer credential names one. First registration wins. */
-export function setAuthUserLoader(nuxt: Nuxt, path: string) {
-  nuxt.hook('auth:user-loader', (registration) => {
+/** Provide where users are read and written by the sign-in flows and bearer credentials. First registration wins. */
+export function setAuthUserStore(nuxt: Nuxt, path: string) {
+  nuxt.hook('auth:user-store', (registration) => {
     registration.path ||= path
   })
 }

@@ -4,6 +4,15 @@ import type { MenuItem } from '@frigear-nu/menu/utils'
 import { extendWidgets } from '@frigear-nu/widget/utils'
 import type { WidgetDefinition } from '@frigear-nu/widget/utils'
 
+/**
+ * The path of an admin page below the configured admin base (`admin.settings.base`, `/admin` by default):
+ * `adminRoute(nuxt, 'events', ':id')` is `/admin/events/:id`. Module defaults use it so they follow the host's base.
+ */
+export const adminRoute = (nuxt: Nuxt, ...segments: string[]) => {
+  const base = (nuxt.options as { admin?: { settings?: { base?: string } } }).admin?.settings?.base ?? '/admin'
+  return [base.replace(/\/+$/, ''), ...segments].join('/')
+}
+
 export const ADMIN_NAV_MENU = 'admin.nav'
 export const ADMIN_DASHBOARD_AREA = 'admin.dashboard'
 

@@ -11,7 +11,7 @@ if (access.value && (access.value.access.availability === 'api' || access.value.
 
 const needsSignIn = computed(() => access.value?.access.auth === 'user' && !access.value.signedIn)
 if (needsSignIn.value) {
-  const loginPath = (useRuntimeConfig().public.users as { pages?: { login?: string } } | undefined)?.pages?.login || '/login'
+  const loginPath = useAuthPages().login
   await navigateTo({ path: loginPath, query: { redirect: route.path } })
 }
 

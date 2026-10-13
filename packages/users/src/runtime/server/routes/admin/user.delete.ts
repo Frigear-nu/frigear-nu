@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'You cannot delete your own account here.' })
   }
 
+  await deleteUserAuthData(id)
   await db.delete(schema.users).where(eq(schema.users.id, id))
   return { ok: true }
 })

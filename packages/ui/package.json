@@ -21,7 +21,8 @@
     "./composables": "./src/runtime/composables/index.ts",
     "./composables/*": "./src/runtime/composables/*.ts",
     "./translated": "./src/runtime/translated.ts",
-    "./markdown": "./src/runtime/markdown.ts"
+    "./markdown": "./src/runtime/markdown.ts",
+    "./money": "./src/runtime/shared/money.ts"
   },
   "publishConfig": {
     "exports": {
@@ -34,7 +35,8 @@
       "./composables": "./dist/runtime/composables/index.js",
       "./composables/*": "./dist/runtime/composables/*.js",
       "./translated": "./dist/runtime/translated.js",
-      "./markdown": "./dist/runtime/markdown.js"
+      "./markdown": "./dist/runtime/markdown.js",
+      "./money": "./dist/runtime/shared/money.js"
     },
     "main": "./dist/module.mjs",
     "typesVersions": {
@@ -66,25 +68,21 @@
   "dependencies": {
     "@nuxt/kit": "^4.6.0",
     "@vueuse/core": "^13.5.0",
-    "cron-parser": "^5.10.0",
     "defu": "^6.1.4",
-    "yaml": "^2.7.1",
     "nuxt-monaco-editor": "^1.4.1",
-    "monaco-editor": "^0.56.0",
-    "@tanstack/vue-table": "^8.21.3",
-    "scule": "^1.3.0",
-    "tailwindcss": "^4.3.3"
+    "monaco-editor": "^0.56.0"
   },
   "devDependencies": {
-    "@nuxt/ui": "^4.10.0",
     "@frigear-nu/eslint-config": "workspace:*",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.6.0",
+    "@nuxt/ui": "^4.10.0",
     "eslint": "^10.8.1",
     "nuxt": "catalog:",
-    "vitest": "^5.0.0",
-    "@nuxt/module-builder": "^1.0.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.11",
-    "@nuxt/schema": "^4.6.0"
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
     "@nuxt/ui": "^4.10.0",

@@ -10,4 +10,4 @@ export {
   rejectAllChoices,
   localize,
 } from './consent'
-export type { ConsentCategory, ConsentCookie, ConsentState, Localized } from '../../types'
+export type { ConsentCategory, ConsentCookie, ConsentState, Translated } from '../../types'

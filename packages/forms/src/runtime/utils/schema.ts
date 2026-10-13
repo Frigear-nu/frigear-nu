@@ -3,7 +3,8 @@ import type { FormDefinition, FormField } from '../../types'
 import { isInputField, resolveVisibility } from './conditions'
 import type { Answers } from './conditions'
 import { phoneIssue } from './phone'
-import { defaultMessages, translate } from './text'
+import { translate } from '@frigear-nu/ui/translated'
+import { defaultMessages } from './text'
 import type { MessageTranslator } from './text'
 
 export type SchemaOptions = {

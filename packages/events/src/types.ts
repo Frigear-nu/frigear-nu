@@ -1,7 +1,8 @@
 import type { H3Event } from 'h3'
 
-/** A text that is either one string or a map of locale -> string. */
-export type Translated = string | Record<string, string>
+import type { Translated } from '@frigear-nu/ui/translated'
+
+export type { Translated }
 
 /** `null` = open to everyone, `'any'` = any active subscription, or a list of plan keys. */
 export type MembershipRequirement = 'any' | string[] | null

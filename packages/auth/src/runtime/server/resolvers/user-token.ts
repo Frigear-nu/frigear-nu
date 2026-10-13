@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
-import loadUser from '#auth/user-loader'
 import type { AuthPrincipal } from '../../types'
 import { hashToken, shouldTouchLastUsed, tokenStatus } from '../../utils/tokens'
 
@@ -10,7 +9,7 @@ export default async function resolveUserToken(_event: H3Event, token: string): 
   const [row] = await db.select().from(schema.authUserTokens).where(eq(schema.authUserTokens.tokenHash, await hashToken(token))).limit(1)
   if (!row || tokenStatus(row) !== 'ok') return null
 
-  const user = await loadUser(row.userId)
+  const user = await loadAuthUser(row.userId)
   if (!user) return null
 
   if (shouldTouchLastUsed(row.lastUsedAt)) {

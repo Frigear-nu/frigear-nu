@@ -1,4 +1,4 @@
-import type { ConsentCategory, ConsentState } from '../../types'
+import type { ConsentCategory, ConsentState, Translated } from '../../types'
 
 // Labels/descriptions come from the module's locale files (`cookieConsent.categories.<key>.*`).
 export const DEFAULT_CATEGORIES: ConsentCategory[] = [
@@ -78,7 +78,7 @@ export function normalizeConsent(raw: unknown, categories: ConsentCategory[], ve
   return buildConsent(categories, version, state.categories, state.ts)
 }
 
-export function localize(value: string | Record<string, string> | undefined, locale: string, fallback = ''): string {
+export function localize(value: Translated | undefined, locale: string, fallback = ''): string {
   if (!value) return fallback
   if (typeof value === 'string') return value
   return value[locale] ?? value[locale.split('-')[0]!] ?? value.en ?? Object.values(value)[0] ?? fallback

@@ -18,7 +18,8 @@ export default defineNuxtConfig({
     },
   },
   authentication: {
-    userLoader: './server/utils/user-loader',
+    userStore: './server/utils/user-store',
+    settings: { password: false },
     scopes: [
       { name: 'events:read', description: 'Read events' },
       { name: 'events:write', description: 'Change events' },

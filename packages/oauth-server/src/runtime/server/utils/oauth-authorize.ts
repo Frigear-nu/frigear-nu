@@ -45,8 +45,8 @@ export async function assertApplicationAccess(event: H3Event, user: OAuthUser, a
   if (!access.allowed) throw fail(403, access.reason ?? 'You do not have access to this application.')
 }
 
-/** Where to send people who are not signed in: the configured path or the `@frigear-nu/users` login page. */
+/** Where to send people who are not signed in: the configured path or the `@frigear-nu/auth` login page. */
 export function getSignInPath(): string {
   const config = useRuntimeConfig()
-  return config.oauthServer.signInPath || config.public.users?.pages?.login || '/login'
+  return config.oauthServer.signInPath || getLoginPath()
 }

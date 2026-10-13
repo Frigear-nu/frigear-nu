@@ -6,6 +6,6 @@ export default defineEventHandler(async (event): Promise<EventDetailDto> => {
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
 
   // Personalised (membership / limits) only when somebody is signed in.
-  const user = await getAuthUser(event, { scopes: ['tickets:read'] })
+  const user = await getUser(event, { scopes: ['tickets:read'] })
   return getEventDetail(row, user?.id)
 })

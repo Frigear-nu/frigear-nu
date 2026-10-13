@@ -8,7 +8,6 @@
     "generate": "nuxt generate"
   },
   "dependencies": {
-    "@nuxt/ui": "^4.11.3",
     "nuxt": "catalog:",
     "@nuxt/kit": "^4.6.0",
     "@frigear-nu/notify": "workspace:*"

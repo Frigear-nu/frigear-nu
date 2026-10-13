@@ -1,4 +1,4 @@
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { sessionOnly: true })
+  const { user } = await requireAuth(event, { sessionOnly: true })
   return { userId: user.id }
 })

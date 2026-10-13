@@ -17,8 +17,4 @@ export default defineNuxtConfig({
   },
   // Provide real values through NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and
   // NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
-  users: {
-    mode: 'server',
-    settings: { migrations: true },
-  },
 })

@@ -3,7 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 
 // Revokes the user's manual (free) grant. Paid Stripe subscriptions are managed in Stripe / the billing portal.
 export default defineEventHandler(async (event) => {
-  const { target } = await loadAdminMembershipTarget(event, 'update')
+  const { target } = await loadUsersAdminTarget(event, 'update')
   const revoked = await db.update(schema.subscriptions)
     .set({ status: 'canceled', endedAt: new Date() })
     .where(and(
