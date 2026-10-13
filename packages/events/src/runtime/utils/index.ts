@@ -1,5 +1,6 @@
 // Pure helpers, safe to import from the Vue app as well as Nitro code.
 import { translate } from '@frigear-nu/ui/translated'
+import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
 import type { MembershipRequirement } from '../types'
 
 export { translate }

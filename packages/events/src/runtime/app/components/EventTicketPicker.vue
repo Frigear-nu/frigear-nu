@@ -11,6 +11,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ purchase: [ticketTypeId: string, addonIds: string[]] }>()
 
+const t = useModuleT('events')
 const locale = useEventsLocale()
 // MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
 const hasMdc = typeof resolveComponent('MDC') !== 'string'
@@ -34,12 +35,12 @@ function isAvailable(type: TicketTypeDto) {
 }
 
 const reason = (type: TicketTypeDto) => {
-  if (type.saleState === 'sold_out') return 'Sold out'
-  if (type.saleState === 'not_started') return 'Sales not started'
-  if (type.saleState === 'ended') return 'Sales ended'
-  if (type.blocked === 'membership_required') return 'Members only'
-  if (type.blocked === 'membership_excluded') return 'Not for members'
-  if (type.blocked === 'limit_reached') return 'Already booked'
+  if (type.saleState === 'sold_out') return t('picker.soldOut', 'Sold out')
+  if (type.saleState === 'not_started') return t('picker.notStarted', 'Sales not started')
+  if (type.saleState === 'ended') return t('picker.ended', 'Sales ended')
+  if (type.blocked === 'membership_required') return t('picker.membersOnly', 'Members only')
+  if (type.blocked === 'membership_excluded') return t('picker.notForMembers', 'Not for members')
+  if (type.blocked === 'limit_reached') return t('picker.booked', 'Already booked')
   return null
 }
 
@@ -60,11 +61,17 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
 
 <template>
   <div class="flex flex-col gap-4">
+    <p
+      v-if="!ticketTypes.length"
+      class="text-sm text-muted"
+    >
+      {{ t('picker.noTickets', 'No tickets are available for this event.') }}
+    </p>
     <button
       v-for="type in ticketTypes"
       :key="type.id"
       type="button"
-      class="rounded-lg border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+      class="rounded-xl border p-4 text-left transition hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
       :class="selectedId === type.id ? 'border-primary ring-1 ring-primary' : 'border-default'"
       :disabled="!isAvailable(type)"
       @click="selectedId = type.id"
@@ -83,12 +90,12 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
           color="warning"
           variant="subtle"
         >
-          {{ type.remaining }} left
+          {{ type.remaining }} {{ t('picker.left', 'left') }}
         </UBadge>
         <span
           v-if="!type.hidePrice"
-          class="ml-auto"
-        >{{ type.price === 0 ? 'Free' : formatPrice(type.price, type.currency, locale) }}</span>
+          class="ml-auto font-bold text-primary"
+        >{{ type.price === 0 ? t('picker.free', 'Free') : formatPrice(type.price, type.currency, locale) }}</span>
       </div>
       <div
         v-if="type.description"
@@ -120,7 +127,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
         v-for="addon in group.addons"
         :key="addon.id"
         type="button"
-        class="flex items-center gap-2 rounded-md border p-3 text-left disabled:opacity-60"
+        class="flex items-center gap-2 rounded-lg border p-3 text-left disabled:opacity-60"
         :class="chosen[group.id]?.includes(addon.id) ? 'border-primary ring-1 ring-primary' : 'border-default'"
         :disabled="addon.soldOut"
         @click="toggle(group.id, addon.id, group.multiple)"
@@ -131,9 +138,9 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
           color="neutral"
           variant="subtle"
         >
-          Sold out
+          {{ t('picker.soldOut', 'Sold out') }}
         </UBadge>
-        <span class="ml-auto text-sm">{{ addon.price === 0 ? 'Included' : `+ ${formatPrice(addon.price, selected!.currency, locale)}` }}</span>
+        <span class="ml-auto text-sm">{{ addon.price === 0 ? t('picker.included', 'Included') : `+ ${formatPrice(addon.price, selected!.currency, locale)}` }}</span>
       </button>
     </fieldset>
 
@@ -145,13 +152,13 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       :disabled="!selected || !isAvailable(selected) || missingRequired"
       @click="emit('purchase', selected!.id, addonIds)"
     >
-      {{ total === 0 ? 'Get free ticket' : `Buy ticket · ${formatPrice(total, selected?.currency ?? DEFAULT_CURRENCY, locale)}` }}
+      {{ total === 0 ? t('picker.getFree', 'Get free ticket') : `${t('picker.buy', 'Buy ticket')} · ${formatPrice(total, selected?.currency ?? DEFAULT_CURRENCY, locale)}` }}
     </UButton>
     <UAlert
       v-else
       color="neutral"
       variant="subtle"
-      title="Sign in to get a ticket."
+      :title="t('picker.signIn', 'Sign in to get a ticket.')"
     />
   </div>
 </template>
