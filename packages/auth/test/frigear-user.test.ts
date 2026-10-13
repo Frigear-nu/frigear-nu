@@ -33,6 +33,7 @@ describe('parseRoleClaim', () => {
     expect(parseRoleClaim({ role: ' admin ' })).toBe('admin')
     expect(parseRoleClaim({ roles: ['', 'manager', 'admin'] })).toBe('manager')
     expect(parseRoleClaim({ role: 1, roles: 'admin' })).toBeUndefined()
+    expect(parseRoleClaim({ 'https://frigear.nu/claims/role': 'admin' })).toBe('admin')
     expect(parseRoleClaim({})).toBeUndefined()
   })
 })
