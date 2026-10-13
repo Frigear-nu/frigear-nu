@@ -271,6 +271,7 @@ export {}
     }
     // The IdP redirects the browser back to `/auth/frigear` (a navigation, like `/auth/logout`), so it is not under `/api`.
     for (const provider of oauthProviders) route(provider === 'frigear' ? '/auth/frigear' : provider, `oauth/${provider}.get`, 'get')
+    if (oauthProviders.includes('frigear')) route('frigear-status', 'oauth/frigear-status.get', 'get')
 
     addImports([
       'useLogin',

@@ -5,8 +5,13 @@ export const useLogin = () => {
 
   const passwordLoginEnabled = computed(() => config?.password === true)
   const passkeyLoginEnabled = computed(() => config?.webAuthn === true)
+  // The build time flag cannot see runtime secrets (production), so the server is asked when it says no.
+  const { data: frigearStatus } = config?.oauth?.includes('frigear') && config.frigearSso !== true
+    ? useFetch<{ enabled: boolean }>('/api/auth/frigear-status', { key: 'auth-frigear-status', default: () => ({ enabled: false }) })
+    : { data: ref<{ enabled: boolean } | null>(null) }
+  const frigearEnabled = computed(() => config?.frigearSso === true || frigearStatus.value?.enabled === true)
   const oauthProviders = computed(() => (config?.oauth ?? [])
-    .filter(provider => provider !== 'frigear' || config?.frigearSso === true)
+    .filter(provider => provider !== 'frigear' || frigearEnabled.value)
     .map(provider => OAUTH_PROVIDER_META[provider]))
   const isEnabled = computed(() => passwordLoginEnabled.value || passkeyLoginEnabled.value || oauthProviders.value.length > 0)
 
