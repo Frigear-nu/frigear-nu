@@ -349,6 +349,7 @@ export {}
       oauth: oauthProviders,
       frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath },
+      afterLogin: isInternalPath(settings.afterLogin) ? settings.afterLogin : '/',
     }
   },
 })

@@ -34,5 +34,5 @@ export async function handleOAuthUser(event: H3Event, provider: string, profile:
 
   await setUserSession(event, { user: mapUserToSession(updated ?? user) })
 
-  return sendRedirect(event, '/')
+  return sendRedirect(event, consumeLoginRedirect(event))
 }

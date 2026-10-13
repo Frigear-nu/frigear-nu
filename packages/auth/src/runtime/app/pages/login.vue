@@ -11,16 +11,15 @@ const linkFailed = computed(() => useRoute().query.error === 'magic-link')
 const passkeys = passkeyLoginEnabled.value ? usePasskeys() : undefined
 const passkeyPending = ref(false)
 
-// Only same-origin absolute paths are followed (`/oauth/authorize?...`), never `//host` or full URLs.
-const redirectTarget = computed(() => {
-  const target = useRoute().query.redirect
-  return typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/'
-})
-const afterLogin = () => navigateTo(redirectTarget.value, { external: redirectTarget.value !== '/' })
+const { requested: requestedRedirect, go: afterLogin } = useAfterLogin()
 
 const magicLinkOpen = ref(false)
 const providers = computed(() => [
-  ...oauthProviders.value,
+  ...oauthProviders.value.map(provider => ({
+    ...provider,
+    // OAuth round trips lose the page query, so the server remembers the target.
+    to: requestedRedirect.value ? `${provider.to}?redirect=${encodeURIComponent(requestedRedirect.value)}` : provider.to,
+  })),
   ...(magicLink.isEnabled.value
     ? [{ label: t('magicLink.title', 'Magic Link'), icon: 'i-lucide-at-sign', onClick: () => { magicLinkOpen.value = !magicLinkOpen.value } }]
     : []),
@@ -40,7 +39,7 @@ const registerPath = useAuthPages().register
 // An absolute register URL (e.g. the central frigear.nu sign-up) leaves the app and gets no `?redirect=`.
 const registerExternal = !!registerPath && /^https?:\/\//.test(registerPath)
 const registerLink = computed(() => registerPath
-  ? (registerExternal || redirectTarget.value === '/' ? registerPath : `${registerPath}?redirect=${encodeURIComponent(redirectTarget.value)}`)
+  ? (registerExternal || !requestedRedirect.value ? registerPath : `${registerPath}?redirect=${encodeURIComponent(requestedRedirect.value)}`)
   : undefined)
 const forgotPasswordEnabled = useRuntimeConfig().public.authentication?.passwordReset === true
 
@@ -50,7 +49,7 @@ async function onSubmit(payload: { data: { email: string, password: string } }) 
 }
 
 async function onMagicLink() {
-  await magicLink.sendMagicLink({ email: magicLinkEmail.value, redirect: redirectTarget.value })
+  await magicLink.sendMagicLink({ email: magicLinkEmail.value, redirect: requestedRedirect.value })
   magicLinkSent.value = true
 }
 

@@ -16,7 +16,7 @@ const fields = computed(() => [
 
 async function onSubmit(payload: { data: { password: string, confirmPassword: string } }) {
   await resetPassword({ code: code.value, ...payload.data })
-  await navigateTo('/')
+  await navigateTo(useRuntimeConfig().public.authentication?.afterLogin || '/')
 }
 </script>
 

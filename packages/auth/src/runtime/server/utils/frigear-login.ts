@@ -33,5 +33,5 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
     },
   })
 
-  return sendRedirect(event, '/')
+  return sendRedirect(event, consumeLoginRedirect(event))
 }

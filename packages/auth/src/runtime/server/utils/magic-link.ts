@@ -48,7 +48,7 @@ export async function consumeMagicLink(code: string) {
 
 /** Emails a single-use sign-in link that also verifies the address. Resolves `false` when nothing was sent (cooldown). */
 export async function sendVerificationLink(event: H3Event, user: Pick<AuthStoredUser, 'id' | 'name' | 'email'>) {
-  const link = await createMagicLink(event, { userId: user.id, redirectUrl: '/' })
+  const link = await createMagicLink(event, { userId: user.id, redirectUrl: getAfterLoginPath(event) })
   if (!link) return false
   await dispatchAuthEmail('verify-email', user.email, { name: user.name, url: link.url })
   return true
