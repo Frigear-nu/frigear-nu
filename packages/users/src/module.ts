@@ -3,10 +3,9 @@ import {
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
-  extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addMenuSource, addModulePages } from '@frigear-nu/module-kit/utils'
 import { addAuthScope, setAuthUserStore } from '@frigear-nu/auth/utils'
 import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -34,12 +33,6 @@ declare module 'nuxt/schema' {
   interface PublicRuntimeConfig {
     users?: PublicModuleOptions
   }
-}
-
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -153,15 +146,10 @@ export default defineNuxtModule<ModuleOptions>({
       }
 
       if (adminPagePath) {
-        extendPages((pages) => {
-          if (!pages.some(page => page.path === adminPagePath)) {
-            pages.push({ name: 'users-admin', path: adminPagePath, file: resolver.resolve('./runtime/app/pages/admin.vue') })
-          }
-          const detailPath = `${adminPagePath.replace(/\/+$/, '')}/:id(\\d+)`
-          if (!pages.some(page => page.path === detailPath)) {
-            pages.push({ name: 'users-admin-user', path: detailPath, file: resolver.resolve('./runtime/app/pages/admin-user.vue') })
-          }
-        })
+        addModulePages('@frigear-nu/users', resolver, [
+          { name: 'users-admin', path: adminPagePath, file: './runtime/app/pages/admin.vue' },
+          { name: 'users-admin-user', path: `${adminPagePath.replace(/\/+$/, '')}/:id(\\d+)`, file: './runtime/app/pages/admin-user.vue' },
+        ])
       }
 
       // Contributes to the admin dashboard and owns the `admin.users` tab area of the user page (modules add tabs
@@ -185,9 +173,8 @@ export default defineNuxtModule<ModuleOptions>({
       }
     }
 
-    const { registerMenuSource } = await import('@frigear-nu/menu/utils')
     if (adminPagePath) {
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
+      addMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
     }
 
     nuxt.options.runtimeConfig.public.users = {

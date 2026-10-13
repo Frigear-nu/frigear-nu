@@ -7,7 +7,7 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { registerModule, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource } from '@frigear-nu/module-kit/utils'
 import type { NuxtPage } from '@nuxt/schema'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -25,12 +25,6 @@ declare module 'nuxt/schema' {
   interface PublicRuntimeConfig {
     account?: PublicModuleOptions
   }
-}
-
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -121,10 +115,7 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
-    if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
-    }
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
 
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),

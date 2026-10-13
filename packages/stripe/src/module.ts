@@ -2,13 +2,12 @@ import {
   addServerHandler,
   addServerImports,
   addServerImportsDir,
-  addServerTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
 import type Stripe from 'stripe'
-import { registerModule, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { defineVirtualRegistry, registerModule, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, RegisteredStripeEventHandler, StripeEventHandlerContext, StripePublicRuntimeConfig, StripeRuntimeConfig } from './types'
 
 export type {
@@ -119,18 +118,16 @@ export default defineNuxtModule<ModuleOptions>({
     // Modules (and host apps) subscribe through `registerStripeEventHandler` during their own
     // `setup()`, in any order. Once every module is done, bundle all registered handler files into
     // one virtual module that the webhook route imports - no runtime scanning, Workers friendly.
-    nuxt.hook('modules:done', () => {
-      const registered = Array.isArray(nuxt.options.stripe?._handlers) ? nuxt.options.stripe._handlers : []
-
-      addServerTemplate({
-        filename: '#stripe/handlers',
-        getContents: () => `
+    defineVirtualRegistry(nuxt, {
+      filename: '#stripe/handlers',
+      target: 'server',
+      collect: () => (Array.isArray(nuxt.options.stripe?._handlers) ? nuxt.options.stripe._handlers : []),
+      contents: registered => `
 ${registered.map((entry, index) => `import handler${index} from ${JSON.stringify(entry.handler)}`).join('\n')}
 export const handlers = [${registered.map((entry, index) =>
   `{ events: ${JSON.stringify(entry.events)}, order: ${entry.order ?? DEFAULT_HANDLER_ORDER}, handler: handler${index} }`,
 ).join(', ')}]
 `,
-      })
     })
 
     extendDatabaseTable(nuxt, {

@@ -1,4 +1,4 @@
-import { readFile, writeFile, existsSync } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 
 export const readPackageJson = async (path: string) => {
   const packageJsonPath = path.endsWith('package.json') ? path : `${path}/package.json`
@@ -19,9 +19,4 @@ export const writePackageJson = async (path: string, data: Record<string, unknow
   catch (error) {
     throw new Error(`Failed to write package.json at ${packageJsonPath}`, { cause: error })
   }
-}
-
-export const packageJsonExists = (path: string) => {
-  const packageJsonPath = path.endsWith('package.json') ? path : `${path}/package.json`
-  return existsSync(packageJsonPath)
 }

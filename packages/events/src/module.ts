@@ -6,15 +6,16 @@ import {
   addServerPlugin,
   createResolver,
   defineNuxtModule,
-  extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  defineModulePage,
   registerDatabaseTable,
   registerModule,
   registerLocales,
   registerTailwindSource,
+  resolvePagePath,
+  addModulePages,
+  addOptionalMenuSource,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
@@ -68,12 +69,6 @@ declare module 'nitropack' {
 
 const MODULE_NAME = '@frigear-nu/events'
 
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
-}
-
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'events' },
   defaults: {
@@ -110,7 +105,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
-    const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
@@ -191,26 +185,13 @@ export default defineNuxtModule<ModuleOptions>({
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
-    if (eventsPath || eventPath || ticketsPath || adminPath || adminEventPath) {
-      extendPages((pages) => {
-        const existingPaths = new Set(pages.map(page => page.path))
-        if (eventsPath && !existingPaths.has(eventsPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'events-list', path: eventsPath, file: resolver.resolve('./runtime/app/pages/events.vue') }))
-        }
-        if (eventPath && !existingPaths.has(eventPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'events-detail', path: eventPath, file: resolver.resolve('./runtime/app/pages/event.vue') }))
-        }
-        if (adminPath && !existingPaths.has(adminPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin', path: adminPath, file: resolver.resolve('./runtime/app/pages/admin.vue') }))
-        }
-        if (adminEventPath && !existingPaths.has(adminEventPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'events-admin-event', path: adminEventPath, file: resolver.resolve('./runtime/app/pages/admin-event.vue') }))
-        }
-        if (ticketsPath && !existingPaths.has(ticketsPath)) {
-          pages.push(defineModulePage(MODULE_NAME, { name: 'events-tickets', path: ticketsPath, file: resolver.resolve('./runtime/app/pages/tickets.vue') }))
-        }
-      })
-    }
+    addModulePages(MODULE_NAME, resolver, [
+      { name: 'events-list', path: eventsPath, file: './runtime/app/pages/events.vue' },
+      { name: 'events-detail', path: eventPath, file: './runtime/app/pages/event.vue' },
+      { name: 'events-admin', path: adminPath, file: './runtime/app/pages/admin.vue' },
+      { name: 'events-admin-event', path: adminEventPath, file: './runtime/app/pages/admin-event.vue' },
+      { name: 'events-tickets', path: ticketsPath, file: './runtime/app/pages/tickets.vue' },
+    ])
 
     // Owns the `admin.events` tab area of the admin event page (modules add tabs with
     // `extendTabs(nuxt, 'admin.events', ...)`) when @frigear-nu/widget is installed.
@@ -223,9 +204,6 @@ export default defineNuxtModule<ModuleOptions>({
       ])
     }
 
-    if (withMenus) {
-      const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-      registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
-    }
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
   },
 })

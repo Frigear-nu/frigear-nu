@@ -78,6 +78,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // The admin user tab and card are built from its components, so they are only added with it.
+    '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)

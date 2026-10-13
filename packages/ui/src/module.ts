@@ -36,7 +36,6 @@ export default defineNuxtModule({
 
     // Auto-import composables
     addImportsDir(resolver.resolve('./runtime/composables'))
-    addImportsDir(resolver.resolve('./runtime/utils'))
   },
   hooks: {
     'i18n:registerModule': (register) => {

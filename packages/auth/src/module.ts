@@ -8,7 +8,6 @@ import {
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
-  extendPages,
 } from '@nuxt/kit'
 import {
   extendDatabaseTable,
@@ -16,6 +15,9 @@ import {
   registerDatabaseTable,
   registerLocales,
   registerTailwindSource,
+  resolvePagePath,
+  addModulePages,
+  addMenuSource,
 } from '@frigear-nu/module-kit/utils'
 import {
   OAUTH_PROVIDERS,
@@ -72,12 +74,6 @@ declare module 'nitropack' {
 }
 
 const isExternalUrl = (value: string | undefined) => !!value && /^https?:\/\//.test(value)
-
-function resolvePagePath(setting: string | boolean | undefined, defaultPath: string) {
-  if (typeof setting === 'string') return setting
-  if (setting === true) return defaultPath
-  return undefined
-}
 
 export default defineNuxtModule<ModuleOptions>({
   // Not `auth`: that key belongs to nuxt-auth-utils.
@@ -293,20 +289,15 @@ export {}
 
     if (loginPath || localRegisterPath) {
       addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
-      extendPages((pages) => {
-        const existingPaths = new Set(pages.map(page => page.path))
-        const add = (name: string, path: string | undefined, file: string) => {
-          if (path && !existingPaths.has(path)) pages.push({ name: `auth-${name}`, path, file: resolver.resolve(`./runtime/app/pages/${file}.vue`) })
-        }
-        add('login', loginPath, 'login')
-        add('register', localRegisterPath, 'register')
-        // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
-        if (loginPath && withPasswordReset) {
-          add('forgot-password', '/forgot-password', 'forgot-password')
-          add('reset-password', '/reset-password', 'reset-password')
-        }
-      })
     }
+
+    addModulePages('@frigear-nu/auth', resolver, [
+      { name: 'auth-login', path: loginPath, file: './runtime/app/pages/login.vue' },
+      { name: 'auth-register', path: localRegisterPath, file: './runtime/app/pages/register.vue' },
+      // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
+      { name: 'auth-forgot-password', path: loginPath && withPasswordReset ? '/forgot-password' : undefined, file: './runtime/app/pages/forgot-password.vue' },
+      { name: 'auth-reset-password', path: loginPath && withPasswordReset ? '/reset-password' : undefined, file: './runtime/app/pages/reset-password.vue' },
+    ])
 
     // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
     // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
@@ -343,8 +334,7 @@ export {}
       })
     }
 
-    const { registerMenuSource } = await import('@frigear-nu/menu/utils')
-    registerMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
+    addMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
 
     nuxt.options.runtimeConfig.public.authentication = {
       password: withPassword,

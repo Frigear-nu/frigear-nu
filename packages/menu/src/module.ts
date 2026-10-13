@@ -1,13 +1,12 @@
 import {
   addImports,
   addPlugin, addServerImports,
-  addTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule } from '@frigear-nu/module-kit/utils'
+import { defineVirtualRegistry, registerModule } from '@frigear-nu/module-kit/utils'
 import type { MenuItem, ModuleOptions } from './types'
 
 export type {
@@ -74,23 +73,19 @@ export default defineNuxtModule<ModuleOptions>({
     // registers a `runtime/menus.ts` source file via `registerMenuSource` (dynamic items, needing
     // runtime context like `useRuntimeConfig`). Registration order between modules doesn't
     // matter, since both are only read once every module has finished setting up.
-    nuxt.hook('modules:done', () => {
-      const staticItems = nuxt.options.menus?._extensions ?? {}
-      const sources = Array.isArray(nuxt.options.menus?._sources) ? nuxt.options.menus._sources : []
-
-      const sourcesTemplate = addTemplate({
-        filename: '#menus/sources.mjs',
-        write: true,
-        getContents: () => `
+    defineVirtualRegistry(nuxt, {
+      filename: '#menus/sources.mjs',
+      alias: '#menus/sources',
+      collect: () => ({
+        staticItems: nuxt.options.menus?._extensions ?? {},
+        sources: Array.isArray(nuxt.options.menus?._sources) ? nuxt.options.menus._sources : [],
+      }),
+      contents: ({ staticItems, sources }) => `
 export const staticItems = ${JSON.stringify(staticItems)}
 ${sources.map((source, index) => `import source${index} from ${JSON.stringify(source.file)}`).join('\n')}
 export const sources = [${sources.map((source, index) => `{ menu: ${JSON.stringify(source.menu)}, source: source${index} }`).join(', ')}]
 `,
-      })
-
-      nuxt.options.alias['#menus/sources'] = sourcesTemplate.dst
-
-      nuxt.callHook('menus:resolved', staticItems as Record<string, Record<string, MenuItem[]>>)
+      resolved: ({ staticItems }) => nuxt.callHook('menus:resolved', staticItems as Record<string, Record<string, MenuItem[]>>),
     })
 
     addPlugin(resolver.resolve('./runtime/app/plugins/menus'))
