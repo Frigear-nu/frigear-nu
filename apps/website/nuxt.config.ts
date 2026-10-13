@@ -217,10 +217,6 @@ export default defineNuxtConfig({
       roles: ['admin', 'manager', 'coordinator'],
     },
   },
-  authorization: {
-    // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
-    redirectTo: '/sign-in',
-  },
   authentication: {
     settings: {
       afterLogin: '/account',
@@ -241,6 +237,10 @@ export default defineNuxtConfig({
       // Facebook is only offered when its client id is configured (at build time as well as runtime).
       oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
     },
+  },
+  authorization: {
+    // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
+    redirectTo: '/sign-in',
   },
   cookieConsent: {
     policyUrl: '/legal/gdpr',
