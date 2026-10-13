@@ -22,21 +22,21 @@ export const useAccount = () => {
 
   function updateProfileDetails(payload: { name: string, avatar?: string }) {
     return withRequest(
-      () => $fetch('/api/account/profile', { method: 'POST', body: payload }),
+      () => $fetch('/api/users/me/profile', { method: 'POST', body: payload }),
       'Failed to update your profile.',
     )
   }
 
   function changeEmailAddress(payload: { email: string }) {
     return withRequest(
-      () => $fetch('/api/account/change-email', { method: 'POST', body: payload }),
+      () => $fetch('/api/users/me/change-email', { method: 'POST', body: payload }),
       'Failed to change your email address.',
     )
   }
 
   function changePassword(payload: { currentPassword: string, newPassword: string, confirmNewPassword: string }) {
     return withRequest(
-      () => $fetch('/api/account/change-password', { method: 'POST', body: payload }),
+      () => $fetch('/api/users/me/change-password', { method: 'POST', body: payload }),
       'Failed to change your password.',
     )
   }

@@ -2,15 +2,12 @@ import {
   addComponentsDir,
   addImports,
   addServerHandler,
-  addServerImportsDir,
   createResolver,
   defineNuxtModule,
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, extendDatabaseTable, registerDatabaseTable, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
-import { addAuthScope } from '@frigear-nu/auth/utils'
-import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
+import { registerModule, registerLocales, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import type { NuxtPage } from '@nuxt/schema'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -22,7 +19,7 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    account?: { verifyEmailChange: boolean, idCode?: { privateKey?: string, keyId?: string, issuer?: string } }
+    account?: { idCode?: { privateKey?: string, keyId?: string, issuer?: string } }
   }
 
   interface PublicRuntimeConfig {
@@ -49,12 +46,8 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.1',
     },
     '@frigear-nu/auth': { version: '>=0.0.1' },
-    '@frigear-nu/mcp': { version: '>=0.0.1' },
+    // The profile, email and password forms call its self-service routes.
     '@frigear-nu/users': {
-      version: '>=0.0.1',
-    },
-    // Password/email change notices are dispatched through it.
-    '@frigear-nu/notify': {
       version: '>=0.0.1',
     },
     '@frigear-nu/menu': {
@@ -64,7 +57,6 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/account', nuxt)
-    addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name, email and role (MCP)' })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
@@ -73,53 +65,16 @@ export default defineNuxtModule<ModuleOptions>({
     const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     addServerHandler({
-      route: '/api/account/profile',
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/account/profile.post'),
-    })
-    addServerHandler({
-      route: '/api/account/change-email',
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/account/change-email.post'),
-    })
-    addServerHandler({
-      route: '/api/account/change-password',
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/account/change-password.post'),
-    })
-
-    addServerHandler({
       route: '/api/account/id-code',
       method: 'get',
       handler: resolver.resolve('./runtime/server/routes/account/id-code.get'),
     })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     // The Frigear ID QR is signed with `runtimeConfig.account.idCode.privateKey` (NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY) or,
     // when unset, the RS256 key of `@frigear-nu/oauth-server` (`runtimeConfig.oauthServer`), which publishes the JWKS.
     const existingAccount = nuxt.options.runtimeConfig.account as { idCode?: object } | undefined
     nuxt.options.runtimeConfig.account = {
       idCode: { privateKey: '', keyId: '', issuer: '', ...existingAccount?.idCode },
-      verifyEmailChange: settings.verifyEmailChange === true,
-    }
-
-    if (settings.verifyEmailChange) {
-      addServerHandler({
-        route: '/auth/verify-email-change',
-        method: 'get',
-        handler: resolver.resolve('./runtime/server/routes/account/verify-email-change.get'),
-      })
-      addServerHandler({
-        route: '/auth/revert-email-change',
-        method: 'get',
-        handler: resolver.resolve('./runtime/server/routes/account/revert-email-change.get'),
-      })
-      await registerDatabaseTable(nuxt, {
-        name: ['accountEmailChanges'],
-        resolver,
-        schema: dialect => `./runtime/server/db/email-changes.${dialect}`,
-      })
     }
 
     addImports([{ name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') }])
@@ -142,7 +97,6 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.account = {
       pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath, apiTokens: apiTokensPath },
       documents: settings.documents ?? [],
-      mcp: settings.mcp === true,
     }
 
     if (indexPath || profilePath || securityPath || documentsPath || idCodePath || apiTokensPath) {
@@ -174,11 +128,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),
-    })
-
-    extendDatabaseTable(nuxt, {
-      resolver,
-      file: dialect => `./runtime/server/db/schema.${dialect}`,
     })
   },
 })

@@ -8,10 +8,10 @@ const t = useModuleT('account.security')
 const toast = useToast()
 const { user } = useUserSession()
 const { changePassword, pending } = useAccount()
-// Guarded like `@frigear-nu/users`' own `login.vue` - `useUserPasskeys()` calls `useWebAuthn()`
+// Guarded like `@frigear-nu/auth`'s own `login.vue` - `usePasskeys()` calls `useWebAuthn()`
 // internally, which isn't available when WebAuthn is disabled (the default).
-const webAuthnEnabled = useRuntimeConfig().public.users?.webAuthn === true
-const passkeys = webAuthnEnabled ? useUserPasskeys() : undefined
+const webAuthnEnabled = useRuntimeConfig().public.authentication?.webAuthn === true
+const passkeys = webAuthnEnabled ? usePasskeys() : undefined
 
 function errorMessage(e: unknown, fallback: string) {
   const err = e as { data?: { statusMessage?: string }, statusMessage?: string, message?: string }

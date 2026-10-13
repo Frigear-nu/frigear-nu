@@ -2,7 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { sessionOnly: true })
+  const { user } = await requireAuth(event, { sessionOnly: true })
   const id = getRouterParam(event, 'id')
   const existing = id ? await findUserToken(String(user.id), id) : undefined
   if (!existing) throw createError({ statusCode: 404, statusMessage: 'Token not found' })

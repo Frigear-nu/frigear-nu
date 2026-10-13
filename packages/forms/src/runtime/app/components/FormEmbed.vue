@@ -29,7 +29,7 @@ if (import.meta.dev) {
   }, { immediate: true })
 }
 
-const loginPath = computed(() => (useRuntimeConfig().public.users as { pages?: { login?: string } } | undefined)?.pages?.login || '/login')
+const loginPath = computed(() => useAuthPages().login)
 
 // Password forms: the password is checked by loading the definition with it.
 const password = ref('')

@@ -102,8 +102,9 @@ async function go(plan: SubscriptionPlan, price: SubscriptionPlanPrice) {
 
 /** Where to send visitors that are not signed in: register, then straight back here with the plan selected. */
 function signUpTarget(plan: SubscriptionPlan) {
-  const pages = useRuntimeConfig().public as { users?: { pages?: { register?: string, login?: string } }, subscriptions?: { pages?: { membership?: string } } }
-  const entry = pages.users?.pages?.register ?? pages.users?.pages?.login
+  const authPages = useAuthPages()
+  const pages = useRuntimeConfig().public as { subscriptions?: { pages?: { membership?: string } } }
+  const entry = authPages.register ?? authPages.login
   const back = `${pages.subscriptions?.pages?.membership ?? route.path}?plan=${encodeURIComponent(plan.key)}`
   return entry ? `${entry}?redirect=${encodeURIComponent(back)}` : null
 }

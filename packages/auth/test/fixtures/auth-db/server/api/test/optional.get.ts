@@ -1,4 +1,5 @@
+// Open to everyone; a bearer credential without the scope counts as anonymous.
 export default defineEventHandler(async (event) => {
-  const user = await getAuthUser(event, { scopes: ['events:read'] })
-  return { userId: user?.id ?? null }
+  const principal = await getAuth(event)
+  return { userId: principal && hasScopes(principal.scopes, ['events:read']) ? principal.user.id : null }
 })

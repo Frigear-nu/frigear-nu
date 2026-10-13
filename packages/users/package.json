@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/users",
   "version": "1.0.8",
-  "description": "A module for managing the users in the main frigear app.",
+  "description": "The user entity for the main frigear app: the users table, admin user management and self-service profile, email and password changes. Sign-in lives in @frigear-nu/auth.",
   "homepage": "https://docs.frigear.dev/modules/users",
   "repository": {
     "type": "git",
@@ -15,9 +15,7 @@
     ".": {
       "types": "./src/types.ts",
       "import": "./src/module.ts"
-    },
-    "./composables": "./src/runtime/composables/index.ts",
-    "./composables/*": "./src/runtime/composables/*.ts"
+    }
   },
   "publishConfig": {
     "exports": {
@@ -65,23 +63,14 @@
     "@nuxt/kit": "^4.6.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
-    "nuxt-auth-utils": "^0.5.30",
     "scule": "^1.3.0",
     "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@nuxt/ui": "^4.10.0",
-    "@nuxthub/core": "^0.10.8",
-    "@simplewebauthn/browser": "^11.0.0",
-    "@simplewebauthn/server": "^11.0.0"
+    "@nuxthub/core": "^0.10.8"
   },
   "peerDependenciesMeta": {
-    "@simplewebauthn/browser": {
-      "optional": true
-    },
-    "@simplewebauthn/server": {
-      "optional": true
-    },
     "@nuxt/ui": {
       "optional": true
     }

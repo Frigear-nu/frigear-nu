@@ -86,12 +86,3 @@ export async function latestSubscriptions(userIds: number[]) {
   }
   return result
 }
-
-/** Emails a single-use sign-in link that also verifies the address. No-op without the magic links table. */
-export async function sendVerificationLink(event: H3Event, user: { id: number, name: string, email: string }) {
-  if (!schema.magicLinks) return false
-  const link = await createMagicLink(event, { userId: user.id, redirectUrl: '/' })
-  if (!link) return false
-  await dispatchAuthEmail('verify-email', user.email, { name: user.name, url: link.url })
-  return true
-}

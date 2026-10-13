@@ -70,7 +70,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
     const opensAt = nextFormOpening(schedule)
     throw createError({ statusCode: 403, statusMessage: 'This form is closed.', data: { closed: true, opensAt: opensAt?.toISOString() ?? null } })
   }
-  const user = await getAuthUser(event, { scopes: ['forms:submit'] })
+  const user = await getUser(event, { scopes: ['forms:submit'] })
 
   if (auth === 'user' && !user) throw unauthorized(event, 'Sign in to use this form.')
   if (auth === 'token') await verifyToken(event, form)
@@ -80,7 +80,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
 
 /** Public facts the page needs to pick between the form, a gate and "not found". */
 export async function describeFormAccess(event: H3Event, form: FormRow): Promise<FormAccessInfoDto> {
-  const user = await getAuthUser(event, { scopes: ['forms:submit'] })
+  const user = await getUser(event, { scopes: ['forms:submit'] })
   const access = resolveAccess(form.definition)
   const open = isFormOpen(access.schedule)
   return { slug: form.slug, name: form.name, access, signedIn: !!user, open, opensAt: open ? null : nextFormOpening(access.schedule)?.toISOString() ?? null }

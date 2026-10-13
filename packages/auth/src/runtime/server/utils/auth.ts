@@ -72,19 +72,3 @@ export async function requireAuth(event: H3Event, options: RequireUserOptions = 
   }
   return principal
 }
-
-/**
- * The caller's user when there is one, otherwise `null` (never throws). For routes that are open
- * to everyone but personalise for a signed-in user. A bearer credential missing the required
- * `scopes` counts as anonymous.
- */
-export async function getAuthUser(event: H3Event, options: Pick<RequireUserOptions, 'scopes'> = {}) {
-  const principal = await getAuth(event)
-  if (!principal) return null
-  return !options.scopes?.length || hasScopes(principal.scopes, options.scopes) ? principal.user : null
-}
-
-/** Like `requireAuth`, returning just the user. */
-export async function requireUser(event: H3Event, options: RequireUserOptions = {}) {
-  return (await requireAuth(event, options)).user
-}

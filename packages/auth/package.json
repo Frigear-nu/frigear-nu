@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/auth",
   "version": "0.0.1",
-  "description": "Credential resolution for the frigear ecosystem: a shared requireUser for sessions, user API tokens and OAuth access tokens, with scopes.",
+  "description": "Authentication for the frigear ecosystem: sign-in flows (password, magic link, OAuth, passkeys), user API tokens, and a shared requireAuth for sessions, tokens and OAuth access tokens, with scopes.",
   "homepage": "https://docs.frigear.dev/modules/auth",
   "repository": {
     "type": "git",
@@ -65,7 +65,9 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
+    "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.6.0",
     "drizzle-kit": "^0.31.11",
@@ -76,7 +78,10 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
-    "@nuxthub/core": "^0.10.8"
+    "@nuxt/ui": "^4.10.0",
+    "@nuxthub/core": "^0.10.8",
+    "@simplewebauthn/browser": "^11.0.0",
+    "@simplewebauthn/server": "^11.0.0"
   },
   "devDependencies": {
     "@nuxt/devtools": "^3.4.2",
@@ -84,6 +89,7 @@
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.6.0",
     "@nuxt/test-utils": "^4.3.2",
+    "@nuxt/ui": "^4.11.0",
     "@nuxthub/core": "^0.10.8",
     "@types/node": "latest",
     "eslint": "^10.10.0",
@@ -91,5 +97,16 @@
     "typescript": "^6.0.3",
     "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"
+  },
+  "peerDependenciesMeta": {
+    "@simplewebauthn/browser": {
+      "optional": true
+    },
+    "@simplewebauthn/server": {
+      "optional": true
+    },
+    "@nuxt/ui": {
+      "optional": true
+    }
   }
 }

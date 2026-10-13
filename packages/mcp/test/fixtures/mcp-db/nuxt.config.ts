@@ -18,7 +18,8 @@ export default defineNuxtConfig({
     },
   },
   authentication: {
-    userLoader: './server/utils/user-loader',
+    userStore: './server/utils/user-store',
+    settings: { password: false },
     scopes: [
       { name: 'notes:read', description: 'Read notes' },
       { name: 'notes:manage', description: 'Manage notes' },
