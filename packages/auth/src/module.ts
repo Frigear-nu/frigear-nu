@@ -267,7 +267,8 @@ export {}
       route('webauthn/credentials', 'webauthn/credentials/index.get')
       route('webauthn/credentials/:id', 'webauthn/credentials/[id].delete', 'delete')
     }
-    for (const provider of oauthProviders) route(provider, `oauth/${provider}.get`)
+    // The IdP redirects the browser back to `/auth/frigear` (a navigation, like `/auth/logout`), so it is not under `/api`.
+    for (const provider of oauthProviders) route(provider === 'frigear' ? '/auth/frigear' : provider, `oauth/${provider}.get`, 'get')
 
     addImports([
       'useLogin',

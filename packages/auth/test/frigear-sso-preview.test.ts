@@ -13,7 +13,7 @@ describe('frigear.nu sso (preview deployment)', async () => {
 
   it('registers the route (no 404) on a preview deployment', async () => {
     // Without credentials nuxt-auth-utils answers with its configuration error instead of a 404.
-    const response = await fetch('/api/auth/frigear', { redirect: 'manual' })
+    const response = await fetch('/auth/frigear', { redirect: 'manual' })
     expect(response.status).not.toBe(404)
   })
 })

@@ -12,7 +12,7 @@ describe('frigear.nu sso (not a preview, no credentials)', async () => {
   })
 
   it('answers 404 from the route', async () => {
-    const response = await fetch('/api/auth/frigear', { redirect: 'manual' })
+    const response = await fetch('/auth/frigear', { redirect: 'manual' })
     expect(response.status).toBe(404)
   })
 })
