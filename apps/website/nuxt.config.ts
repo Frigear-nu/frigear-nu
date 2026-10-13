@@ -238,6 +238,10 @@ export default defineNuxtConfig({
       oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
     },
   },
+  authorization: {
+    // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
+    redirectTo: '/sign-in',
+  },
   cookieConsent: {
     policyUrl: '/legal/gdpr',
   },

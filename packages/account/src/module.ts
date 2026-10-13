@@ -115,6 +115,26 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // Everything under /account is for signed-in users only, including the pages other modules add there
+    // (membership, tickets, applications). Route rules are enforced by @frigear-nu/authorization (also on the
+    // server); with @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
+    if (hasNuxtModule('@frigear-nu/authorization')) {
+      const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])
+        .map(locale => typeof locale === 'string' ? locale : locale.code)
+        .map(code => `/${code}`)]
+      const rules = nuxt.options.routeRules ||= {}
+      const guarded = [indexPath, profilePath, securityPath, documentsPath, idCodePath, apiTokensPath]
+        .filter((path): path is string => !!path && !path.startsWith('/account'))
+      for (const prefix of prefixes) {
+        for (const pattern of [`${prefix}/account`, `${prefix}/account/**`, ...guarded.map(path => `${prefix}${path}`)]) {
+          rules[pattern] = { authenticated: true, ...rules[pattern] } as (typeof rules)[string]
+        }
+      }
+    }
+    else {
+      console.warn('[@frigear-nu/account] @frigear-nu/authorization is not installed: the account pages are not guarded. Install it and guard `/account/**` yourself.')
+    }
+
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
 
     addComponentsDir({
