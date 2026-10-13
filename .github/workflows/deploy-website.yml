@@ -81,6 +81,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ runner.os }}-${{ inputs.environment }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-${{ runner.os }}-${{ inputs.environment }}-
+            turbo-build-${{ runner.os }}-
+
       - name: Create preview D1 database
         if: inputs.environment == 'preview'
         id: preview-db
@@ -91,6 +100,8 @@ jobs:
       - name: Build
         run: pnpm ${{ inputs.environment == 'preview' && 'cloudflare:build:preview' || 'cloudflare:build' }}
         env:
+          TURBO_TELEMETRY_DISABLED: 1
+          TURBO_CACHE_DIR: .turbo
           NUXT_HUB_CLOUDFLARE_DATABASE_ID: ${{ steps.preview-db.outputs.database_id }}
           NUXT_HUB_CLOUDFLARE_KV_NAMESPACE_ID: ${{ vars.CLOUDFLARE_KV_NAMESPACE_ID }}
           NUXT_HUB_CLOUDFLARE_BUCKET_NAME: ${{ vars.CLOUDFLARE_BUCKET_NAME }}
