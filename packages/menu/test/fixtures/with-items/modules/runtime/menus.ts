@@ -1,4 +1,4 @@
-import { defineMenuSource } from '../../../../../src/runtime/utils/menu'
+import { defineMenuSource, extendMenuItem } from '../../../../../src/runtime/utils'
 
 export default defineMenuSource((items) => {
   items.push({ label: 'Profile', to: '/profile', order: 2 })

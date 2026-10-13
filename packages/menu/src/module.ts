@@ -88,6 +88,21 @@ export const sources = [${sources.map((source, index) => `{ menu: ${JSON.stringi
       resolved: ({ staticItems }) => nuxt.callHook('menus:resolved', staticItems as Record<string, Record<string, MenuItem[]>>),
     })
 
+    // The same registry for Nitro, so the server `useMenu` sees what the client does.
+    defineVirtualRegistry(nuxt, {
+      filename: '#menus/server-sources',
+      target: 'server',
+      collect: () => ({
+        staticItems: nuxt.options.menus?._extensions ?? {},
+        sources: Array.isArray(nuxt.options.menus?._sources) ? nuxt.options.menus._sources : [],
+      }),
+      contents: ({ staticItems, sources }) => `
+export const staticItems = ${JSON.stringify(staticItems)}
+${sources.map((source, index) => `import source${index} from ${JSON.stringify(source.file)}`).join('\n')}
+export const sources = [${sources.map((source, index) => `{ menu: ${JSON.stringify(source.menu)}, source: source${index} }`).join(', ')}]
+`,
+    })
+
     addPlugin(resolver.resolve('./runtime/app/plugins/menus'))
     addServerImports({
       name: 'useMenu',
