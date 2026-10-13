@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3'
 import type {
   ApplicationAccessContext,
-  AuthorizeContext,
   ClaimsContext,
   OAuthApplication,
   OAuthUser,
@@ -15,11 +14,11 @@ import { matchesAllowedRoles } from '../../utils'
  *
  *     nitroApp.hooks.hook('oauth:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
  */
+const adminGate = definePolicyGate('oauth:authorize')
+
 export async function requireOAuthAdmin(event: H3Event): Promise<{ userId: number }> {
   const userId = await requireSessionUserId(event)
-  const ctx: AuthorizeContext = { event, userId, allowed: false }
-  await useNitroApp().hooks.callHook('oauth:authorize', ctx)
-  if (!ctx.allowed) throw createError({ statusCode: 403, statusMessage: 'You are not allowed to manage OAuth applications.' })
+  await adminGate.assert(event, userId, 'You are not allowed to manage OAuth applications.')
   return { userId }
 }
 

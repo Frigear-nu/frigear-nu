@@ -15,6 +15,7 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
@@ -115,7 +116,8 @@ export default defineNuxtModule<ModuleOptions>({
     const authorizePath = settings.pages?.authorize === false
       ? '/authorize'
       : resolvePagePath(settings.pages?.authorize ?? true, '/authorize')!
-    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/oauth')
+    // The admin page is built from the components of `@frigear-nu/admin`, so it only exists with it.
+    const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).

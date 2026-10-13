@@ -16,6 +16,7 @@ import {
   registerLocales,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
@@ -114,8 +115,10 @@ export default defineNuxtModule<ModuleOptions>({
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
     const ticketsPath = resolvePagePath(settings.pages?.tickets, '/account/tickets')
-    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/events')
-    const adminEventPath = resolvePagePath(settings.pages?.adminEvent, '/admin/events/:id')
+    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    const withAdmin = hasNuxtModule('@frigear-nu/admin')
+    const adminPath = withAdmin ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'events')) : undefined
+    const adminEventPath = withAdmin ? resolvePagePath(settings.pages?.adminEvent, adminRoute(nuxt, 'events', ':id')) : undefined
 
     nuxt.options.runtimeConfig.events = {
       reservationMinutes: settings.reservationMinutes ?? 30,

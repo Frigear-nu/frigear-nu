@@ -17,6 +17,7 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
+import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
@@ -108,10 +109,14 @@ export default defineNuxtModule<ModuleOptions>({
     const withMenus = hasNuxtModule('@frigear-nu/menu')
 
     const formPath = resolvePagePath(settings.pages?.form, '/forms/:slug')
-    const adminPath = resolvePagePath(settings.pages?.admin, '/admin/forms')
-    const adminFormPath = resolvePagePath(settings.pages?.adminForm, '/admin/forms/:id')
-    const adminSubmissionsPath = resolvePagePath(settings.pages?.adminSubmissions, '/admin/forms/:id/submissions')
-    const adminSubmissionPath = resolvePagePath(settings.pages?.adminSubmission, '/admin/forms/:id/submissions/:submissionId')
+    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    const withAdmin = hasNuxtModule('@frigear-nu/admin')
+    const adminPage = (setting: string | boolean | undefined, ...segments: string[]) =>
+      withAdmin ? resolvePagePath(setting, adminRoute(nuxt, 'forms', ...segments)) : undefined
+    const adminPath = adminPage(settings.pages?.admin)
+    const adminFormPath = adminPage(settings.pages?.adminForm, ':id')
+    const adminSubmissionsPath = adminPage(settings.pages?.adminSubmissions, ':id', 'submissions')
+    const adminSubmissionPath = adminPage(settings.pages?.adminSubmission, ':id', 'submissions', ':submissionId')
 
     nuxt.options.runtimeConfig.forms = {
       rateLimit: settings.rateLimit ?? 10,

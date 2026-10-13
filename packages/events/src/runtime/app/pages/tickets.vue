@@ -13,9 +13,10 @@ defineOptions({ name: 'EventTicketsPage' })
   <div>
     <AccountHeader v-if="hasAccountHeader" />
     <UContainer :class="hasAccountHeader ? 'pb-10' : 'py-10'">
-      <AdminPageHeader
+      <UPageHeader
         v-if="!hasAccountHeader"
         :title="t('myTickets', 'My tickets')"
+        :ui="{ root: 'pt-0 pb-6 mb-6', title: 'text-2xl sm:text-3xl' }"
       />
       <p
         v-if="!tickets.length"

@@ -129,7 +129,14 @@ export default defineNuxtModule<ModuleOptions>({
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin
     const adminOptions = typeof settings.admin === 'object' ? settings.admin : {}
-    const adminPagePath = withAdmin ? resolvePagePath(adminOptions.page ?? true, '/admin/users') : undefined
+    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    const withAdminShell = hasNuxtModule('@frigear-nu/admin')
+    if (withAdmin && !withAdminShell) {
+      console.warn('[@frigear-nu/users] `settings.admin` is on, but `@frigear-nu/admin` is not installed: the admin API is registered, the admin pages are not.')
+    }
+    const adminPagePath = withAdmin && withAdminShell
+      ? resolvePagePath(adminOptions.page ?? true, (await import('@frigear-nu/admin/utils')).adminRoute(nuxt, 'users'))
+      : undefined
 
     if (withAdmin) {
       for (const [method, path, file] of [
