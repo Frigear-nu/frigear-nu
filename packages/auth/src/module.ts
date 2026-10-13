@@ -285,6 +285,7 @@ export {}
       'usePasswordReset',
       'useRegistration',
       'useAuthPages',
+      'useAfterLogin',
     ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
 
     // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
