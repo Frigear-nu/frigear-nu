@@ -11,5 +11,6 @@ const { t, policyUrl } = useConsentT()
       {{ t('policy') }}
     </p>
     <CookieConsentManage />
+    <CookieConsentBannerActions />
   </div>
 </template>

@@ -11,6 +11,12 @@ describe('cookie-consent (customized by the app)', async () => {
     expect(html).not.toContain('Manage cookies')
   })
 
+  it('lets the app replace only the banner button row', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('custom actions')
+    expect(html).not.toContain('cookie-consent-accept')
+  })
+
   it('resolves the localized policy url and label for the current locale', async () => {
     const html = await $fetch<string>('/')
     expect(html).toMatch(/data-testid="policy-url">\s*\/legal\/cookies\s*</)
