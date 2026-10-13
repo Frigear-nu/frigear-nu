@@ -3,13 +3,12 @@
   "type": "module",
   "private": true,
   "bin": {
-    "frigear-nu": "./src/index.ts"
+    "frigear-nu": "./bin/cli.mjs"
   },
   "exports": {
     "default": "./src/index.ts"
   },
   "scripts": {
-    "build": "unbuild .",
     "dev": "node bin/cli.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -24,7 +23,6 @@
     "@frigear-nu/eslint-config": "workspace:*",
     "@types/node": "^24.1.0",
     "eslint": "^10.8.1",
-    "jiti": "^2.7.0",
-    "unbuild": "^3.6.1"
+    "jiti": "^2.7.0"
   }
 }

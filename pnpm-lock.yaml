@@ -756,9 +756,6 @@ importers:
       jiti:
         specifier: ^2.7.0
         version: 2.7.0
-      unbuild:
-        specifier: ^3.6.1
-        version: 3.6.1(typescript@6.0.3)(vue-sfc-transformer@0.2.5(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.43)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.11)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3)))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
 
   packages/cookie-consent:
     dependencies:
