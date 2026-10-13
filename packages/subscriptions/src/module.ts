@@ -1,6 +1,7 @@
 import {
   addComponentsDir,
   addImports,
+  addPlugin,
   addRouteMiddleware,
   addServerHandler,
   addServerImportsDir,
@@ -236,6 +237,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useSubscription', from: resolver.resolve('./runtime/app/composables/useSubscription') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
+    addPlugin({ src: resolver.resolve('./runtime/app/plugins/warm-plans.client'), mode: 'client' })
     addRouteMiddleware({
       name: 'subscription',
       path: resolver.resolve('./runtime/app/middleware/subscription'),

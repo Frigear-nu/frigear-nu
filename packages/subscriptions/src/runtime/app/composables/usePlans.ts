@@ -18,10 +18,29 @@ export interface SubscriptionPlan {
   prices: SubscriptionPlanPrice[]
 }
 
+export type PlansResponse = { plans: SubscriptionPlan[] }
+
+/** Matches the server-side KV cache (`CACHE_TTL_SECONDS`), so a client-side hit is never older than the server's own. */
+export const PLANS_CLIENT_CACHE_MS = 5 * 60 * 1000
+
+export type PlansCache = { at: number, data: PlansResponse } | null
+
+export const usePlansCache = () => useState<PlansCache>('subscriptions:plans:cache', () => null)
+
 export const usePlans = () => {
-  const { data, status, error, refresh } = useFetch<{ plans: SubscriptionPlan[] }>('/api/subscriptions/plans', {
+  // Nuxt purges `useFetch` data once the last component using the key unmounts, so navigating away and back would
+  // blank the table and refetch. `useState` survives navigation and is carried over from the server render.
+  const cache = usePlansCache()
+
+  const { data, status, error, refresh } = useFetch<PlansResponse>('/api/subscriptions/plans', {
     key: 'subscriptions:plans',
     default: () => ({ plans: [] }),
+    getCachedData: (_key, _nuxtApp, ctx) =>
+      ctx.cause !== 'refresh:manual' && cache.value && Date.now() - cache.value.at < PLANS_CLIENT_CACHE_MS ? cache.value.data : undefined,
+    transform: (response) => {
+      cache.value = { at: Date.now(), data: response }
+      return response
+    },
   })
 
   const plans = computed<SubscriptionPlan[]>(() =>

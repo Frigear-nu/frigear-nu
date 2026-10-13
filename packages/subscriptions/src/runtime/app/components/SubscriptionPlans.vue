@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { createReusableTemplate, useMediaQuery } from '@vueuse/core'
+import { createReusableTemplate } from '@vueuse/core'
 import { formatMoney } from '@frigear-nu/ui/money'
 import { usePlans } from '../composables/usePlans'
 import type { SubscriptionPlan, SubscriptionPlanPrice } from '../composables/usePlans'
@@ -66,8 +66,9 @@ function stateOf(plan: SubscriptionPlan): 'current' | 'resume' | 'upgrade' | 'do
 const stateLabel = (state: ReturnType<typeof stateOf>) =>
   t(state, { current: 'Current plan', resume: 'Resubscribe', subscribe: 'Subscribe', upgrade: 'Upgrade', downgrade: 'Downgrade' }[state])
 
-const isWide = useMediaQuery('(min-width: 640px)', { ssrWidth: 1024 })
-const useTabs = computed(() => props.mode === 'tabs' || (props.mode === 'auto' && !isWide.value))
+// `auto` renders both layouts and lets CSS pick one, so the server and client markup match (no swap after hydration).
+const showTabs = computed(() => props.mode !== 'list')
+const showGrid = computed(() => props.mode !== 'tabs')
 const activeTab = ref<string>()
 const tabItems = computed(() => visible.value.map(plan => ({
   value: plan.key,
@@ -258,26 +259,28 @@ watch([visible, subscriptionStatus, loggedIn], () => {
     />
 
     <template v-if="visible.length">
-      <UTabs
-        v-if="useTabs"
-        v-model="activeTab"
-        :items="tabItems"
-        :content="false"
-        class="w-full"
-      />
-      <div
-        v-if="useTabs"
-        class="pt-2"
-      >
-        <ReuseCard
-          v-if="visible.find(p => p.key === activeTab)"
-          :plan="visible.find(p => p.key === activeTab)!"
+      <template v-if="showTabs">
+        <UTabs
+          v-model="activeTab"
+          :items="tabItems"
+          :content="false"
+          class="w-full"
+          :class="{ 'sm:hidden': showGrid }"
         />
-      </div>
+        <div
+          class="pt-2"
+          :class="{ 'sm:hidden': showGrid }"
+        >
+          <ReuseCard
+            v-if="visible.find(p => p.key === activeTab)"
+            :plan="visible.find(p => p.key === activeTab)!"
+          />
+        </div>
+      </template>
       <div
-        v-else
-        class="grid items-stretch gap-6 sm:grid-cols-2"
-        :class="visible.length >= 3 ? 'lg:grid-cols-3' : ''"
+        v-if="showGrid"
+        class="items-stretch gap-6 sm:grid-cols-2"
+        :class="[showTabs ? 'hidden sm:grid' : 'grid', visible.length >= 3 ? 'lg:grid-cols-3' : '']"
       >
         <ReuseCard
           v-for="plan in visible"
