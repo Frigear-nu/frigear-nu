@@ -7,6 +7,8 @@ export type FrigearProfile = {
   emailVerified?: boolean
   // The frigear.nu user id (`sub`); only used when `forceId` is on.
   id?: number
+  /** The role frigear.nu says the user has; only set when role syncing is on and the claim is present. */
+  role?: string
 }
 
 /**
@@ -24,6 +26,7 @@ export async function syncFrigearUser(profile: FrigearProfile, options: { forceI
     email,
     avatar: profile.picture,
     lastLoginAt: new Date(),
+    ...(profile.role && { role: profile.role }),
   }
 
   if (options.forceId) {
@@ -36,13 +39,13 @@ export async function syncFrigearUser(profile: FrigearProfile, options: { forceI
     if (byEmail && byEmail.id !== id) await users.changeId(byEmail.id, id!)
 
     const user = byEmail ?? await users.findById(id!)
-    if (!user) return users.create({ id, name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verifiedAt })
+    if (!user) return users.create({ id, name: fields.name, email, avatar: fields.avatar, role: fields.role, emailVerifiedAt: verifiedAt })
 
     return (await users.update(id!, { ...fields, emailVerifiedAt: user.emailVerifiedAt ?? verifiedAt }))!
   }
 
   const user = await users.findByEmail(email)
-  if (!user) return users.create({ name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verifiedAt })
+  if (!user) return users.create({ name: fields.name, email, avatar: fields.avatar, role: fields.role, emailVerifiedAt: verifiedAt })
 
-  return await users.update(user.id, { lastLoginAt: fields.lastLoginAt, emailVerifiedAt: user.emailVerifiedAt ?? verifiedAt }) ?? user
+  return await users.update(user.id, { lastLoginAt: fields.lastLoginAt, role: fields.role, emailVerifiedAt: user.emailVerifiedAt ?? verifiedAt }) ?? user
 }

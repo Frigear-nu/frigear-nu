@@ -6,6 +6,8 @@ const DEFAULT_SSO_URL = 'https://frigear.nu'
 export type FrigearSsoConfig = {
   enabled: boolean
   forceId: boolean
+  /** Apply the `role` claim of frigear.nu to the local user at every login. */
+  syncRole: boolean
   url: string
   clientId: string
   clientSecret: string
@@ -30,6 +32,7 @@ export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
   return {
     enabled: config.previewDeployment === true || !!(sso?.clientId && sso?.clientSecret),
     forceId: config.frigear?.forceId === true,
+    syncRole: config.frigear?.syncRole !== false,
     url,
     clientId,
     clientSecret,

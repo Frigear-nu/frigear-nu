@@ -56,6 +56,8 @@ declare module 'nuxt/schema' {
       sso?: { url?: string, clientId?: string, clientSecret?: string }
       // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
       forceId?: boolean
+      // Apply the `role` claim of frigear.nu to the local user at every login (an admin there is an admin here). Defaults to true.
+      syncRole?: boolean
     }
   }
 

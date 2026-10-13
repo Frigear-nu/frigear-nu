@@ -51,9 +51,11 @@ export interface AuthUserCreate {
   avatar?: string
   password?: string
   emailVerifiedAt?: Date
+  /** Only with a roles column on `users` (`@frigear-nu/authorization`); set by identity providers that dictate it. */
+  role?: string
 }
 
-export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'avatar' | 'password' | 'emailVerifiedAt' | 'lastLoginAt'>>
+export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'avatar' | 'password' | 'emailVerifiedAt' | 'lastLoginAt'>> & { role?: string }
 
 /**
  * Where the sign-in flows read and write users. `@frigear-nu/users` provides it (`setAuthUserStore`); a host without
