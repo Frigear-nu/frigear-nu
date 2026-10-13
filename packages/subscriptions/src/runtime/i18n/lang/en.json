@@ -60,6 +60,7 @@
     "success": {
       "title": "Thank you!",
       "body": "Your subscription is being activated. This can take a few seconds.",
+      "activeBody": "Your subscription is now active.",
       "continue": "Continue"
     },
     "cancel": {

@@ -60,6 +60,7 @@
     "success": {
       "title": "Tak!",
       "body": "Dit abonnement bliver aktiveret. Det kan tage et par sekunder.",
+      "activeBody": "Dit abonnement er aktiveret.",
       "continue": "Fortsæt"
     },
     "cancel": {
