@@ -97,6 +97,7 @@
     }
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
     "@frigear-nu/admin": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/widget": "workspace:*",

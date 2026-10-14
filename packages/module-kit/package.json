@@ -33,6 +33,11 @@
       "types": "./src/runtime/utils/schedule.ts",
       "import": "./src/runtime/utils/schedule.ts",
       "default": "./src/runtime/utils/schedule.ts"
+    },
+    "./testing": {
+      "types": "./src/runtime/utils/schema-parity.ts",
+      "import": "./src/runtime/utils/schema-parity.ts",
+      "default": "./src/runtime/utils/schema-parity.ts"
     }
   },
   "typesVersions": {
@@ -58,6 +63,11 @@
         "types": "./dist/runtime/utils/schedule.d.ts",
         "import": "./dist/runtime/utils/schedule.js",
         "default": "./dist/runtime/utils/schedule.js"
+      },
+      "./testing": {
+        "types": "./dist/runtime/utils/schema-parity.d.ts",
+        "import": "./dist/runtime/utils/schema-parity.js",
+        "default": "./dist/runtime/utils/schema-parity.js"
       }
     },
     "main": "./dist/module.mjs",

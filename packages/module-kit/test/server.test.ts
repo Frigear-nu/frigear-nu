@@ -359,6 +359,34 @@ export const accounts = { locale: text().default('da') }
     }).rejects.toThrow(/Could not find a table export named "accounts"/)
   })
 
+  it('throws when the schema file is missing for the current dialect', async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'database-table-dialect-'))
+    roots.push(rootDir)
+    mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+    writeFileSync(join(rootDir, 'server/db/schema.sqlite.ts'), 'export const accounts = sqliteTable(\'accounts\', {})')
+    const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+    const nuxt = {
+      options: { rootDir, _layers: [{ config: { rootDir } }] },
+      hook: (name: string, callback: (props: never) => Promise<void>) => {
+        hooks.set(name, [...(hooks.get(name) ?? []), callback])
+      },
+      callHook: async (name: string, props: never) => {
+        for (const callback of hooks.get(name) ?? []) await callback(props)
+      },
+    } as unknown as Nuxt
+
+    registerDatabaseTable(nuxt, {
+      name: 'accounts',
+      resolver: createResolver(rootDir),
+      schema: dialect => `server/db/schema.${dialect}`,
+    })
+
+    await expect(async () => {
+      const paths: string[] = []
+      await nuxt.callHook('hub:db:schema:extend', { dialect: 'postgresql', paths })
+    }).rejects.toThrow(/No postgresql schema at "server\/db\/schema\.postgresql"/)
+  })
+
   it('registers multiple tables from the same schema file into a single file, resolving cross-table references', async () => {
     const rootDir = mkdtempSync(join(tmpdir(), 'database-table-regular-'))
     roots.push(rootDir)

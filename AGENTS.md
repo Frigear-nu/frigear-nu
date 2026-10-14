@@ -166,6 +166,30 @@ manually — check before assuming plain pnpm scripts are the only path.
 - A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
   `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
 
+### Database schemas: one file per dialect
+
+- Every module schema and extension file (`schema.sqlite.ts`, `users.sqlite.ts`, `server/db/extend.sqlite.ts`, ...)
+  ships with a `.postgresql.ts` twin next to it, exporting the same tables with the same table, column and index names.
+  Change both in the same commit; they must always stay in sync.
+- Every package that owns a schema has a `test/schema-parity.test.ts` calling `expectSchemaParity(sqlite, postgresql)`
+  from `@frigear-nu/module-kit/testing`. It compares tables, columns (drizzle data type, not null, primary key, unique,
+  defaults, `$defaultFn`/`$onUpdateFn`), indexes and foreign keys. Add a case when you add a schema file. A module-kit
+  test fails when a `.sqlite.ts` schema has no `.postgresql.ts` twin.
+- Map the types like this, so the drizzle data types match:
+
+  | sqlite | postgresql |
+  |---|---|
+  | `sqliteTable` (`drizzle-orm/sqlite-core`) | `pgTable` (`drizzle-orm/pg-core`) |
+  | `integer().primaryKey({ autoIncrement: true })` | `serial().primaryKey()` |
+  | `integer({ mode: 'timestamp' })` | `timestamp({ withTimezone: true })` |
+  | `integer({ mode: 'boolean' })` | `boolean()` |
+  | `text({ mode: 'json' })` | `jsonb()` |
+  | `integer()` holding epoch milliseconds | `bigint({ mode: 'number' })` |
+  | `customType({ dataType: () => 'text' })` | the same `customType` from `pg-core` |
+
+- Runtime code must work on both dialects: no `db.run`/`db.batch`/`PRAGMA`, `rowid` or sqlite-only SQL without a
+  postgres branch (see `changeId` in `packages/users/src/runtime/server/user-store.ts`).
+
 ### Database extensions and authenticated test fixtures
 
 - `extendDatabaseTable` changes the generated Drizzle schema, not the database itself. Whenever a module adds or
