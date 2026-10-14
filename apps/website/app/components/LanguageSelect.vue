@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { locale, locales } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
+const multiLocale = useRuntimeConfig().public.multiLocale === true
 const availableLocales = computed(() => normalizeLocales(locales.value))
 
 const localeObj = computed(() => availableLocales.value.find(localeItem => localeItem.code === locale.value) || {
@@ -47,7 +48,7 @@ function getFlagUrl(locale: string): string {
 </script>
 
 <template>
-  <ClientOnly>
+  <ClientOnly v-if="multiLocale">
     <UPopover
       :mode="$device.isMobile ? 'click' : 'hover'"
       :content="{ align: 'end' }"

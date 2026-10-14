@@ -2,6 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const { locale, locales } = useI18n()
+const multiLocale = useRuntimeConfig().public.multiLocale === true
 const route = useRoute()
 const { localizePath } = useContentLocale()
 
@@ -41,6 +42,7 @@ const currentLabel = computed(() =>
 
 <template>
   <UDropdownMenu
+    v-if="multiLocale"
     :items="items"
     :content="{ align: 'end' }"
     :ui="{ content: 'w-44' }"

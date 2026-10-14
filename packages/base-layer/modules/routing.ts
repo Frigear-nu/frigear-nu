@@ -35,6 +35,11 @@ export default defineNuxtModule({
     const isI18nEnabled = !!i18nOptions?.locales
     const routeNameSeparator = i18nOptions?.routesNameSeparator || DEFAULT_ROUTE_NAME_SEPARATOR
 
+    // Derived from the build-time config so the server and client always agree (reading the runtime i18n
+    // state made the language picker render on the server and disappear after hydration).
+    const publicConfig = nuxt.options.runtimeConfig.public as Record<string, unknown>
+    publicConfig.multiLocale = getAvailableLocales(nuxt.options as typeof nuxt.options & { i18n?: LayerI18nOptions }).length > 1
+
     // Only add the landing route if the consuming app doesn't already
     // define its own `index.vue` (which takes precedence over the layer's).
 
