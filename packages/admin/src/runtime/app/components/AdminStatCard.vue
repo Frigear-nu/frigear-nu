@@ -5,7 +5,7 @@ defineProps<{ label: string, loading?: boolean, empty?: string }>()
 </script>
 
 <template>
-  <section class="border-default bg-default flex h-full flex-col gap-2 overflow-hidden rounded-xl border p-4">
+  <section class="border-default bg-default dark:bg-elevated/40 flex h-full flex-col gap-2 overflow-hidden rounded-xl border p-4">
     <h2 class="text-muted text-sm">
       {{ label }}
     </h2>

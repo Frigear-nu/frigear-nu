@@ -17,7 +17,7 @@ const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admi
       <template #empty>
         <div
           v-if="items.length"
-          class="border-default bg-default grid overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-3"
+          class="border-default bg-default dark:bg-elevated/40 grid overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-3"
         >
           <NuxtLink
             v-for="item in items"

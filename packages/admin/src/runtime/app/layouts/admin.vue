@@ -43,7 +43,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="bg-muted h-dvh w-full overflow-hidden">
+  <div class="bg-muted dark:bg-default h-dvh w-full overflow-hidden">
     <UDashboardGroup
       unit="rem"
       :ui="{ base: 'admin-group relative flex h-full w-full overflow-hidden' }"
@@ -100,7 +100,7 @@ watch(() => route.path, () => {
         </template>
       </UDashboardSidebar>
 
-      <UDashboardPanel :ui="{ root: 'bg-muted', body: 'p-0 sm:p-0 gap-0' }">
+      <UDashboardPanel :ui="{ root: 'bg-muted dark:bg-default', body: 'p-0 sm:p-0 gap-0' }">
         <template #header>
           <UDashboardNavbar
             :ui="{ root: 'bg-default border-b border-default h-12 px-4 sm:px-6' }"

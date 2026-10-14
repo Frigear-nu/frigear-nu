@@ -11,7 +11,7 @@ const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
 </script>
 
 <template>
-  <div class="border-default bg-default overflow-hidden rounded-xl border">
+  <div class="border-default bg-default dark:bg-elevated/40 overflow-hidden rounded-xl border">
     <UTable
       :data="data"
       :columns="columns"
