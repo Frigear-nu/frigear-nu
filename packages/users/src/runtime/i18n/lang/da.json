@@ -64,6 +64,10 @@
       },
       "tabs": {
         "overview": "Oversigt"
+      },
+      "stats": {
+        "newMembers": "Nye medlemmer",
+        "ofTotal": "{total} brugere i alt"
       }
     }
   }

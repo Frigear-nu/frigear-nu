@@ -20,7 +20,11 @@
       "statusColumn": "Status",
       "refunded": "Refunded",
       "reference": "Reference",
-      "defaultDescription": "Payment"
+      "defaultDescription": "Payment",
+      "revenue": "Revenue, 30 days",
+      "noRevenue": "No payments yet.",
+      "transactions": "{count} transactions",
+      "recent": "Recent transactions"
     }
   }
 }

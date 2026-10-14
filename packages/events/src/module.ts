@@ -142,6 +142,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/:slug/purchase', 'public/purchase.post')
 
     route('get', '/admin/membership-options', 'admin/membership-options.get')
+    route('get', '/admin/upcoming', 'admin/upcoming.get')
     route('get', '/admin/events', 'admin/events.get')
     route('get', '/admin/events/:id', 'admin/event.get')
     route('post', '/admin/events', 'admin/events.post')
@@ -204,6 +205,13 @@ export default defineNuxtModule<ModuleOptions>({
         { id: 'tickets', component: resolver.resolve('./runtime/app/tabs/Tickets.vue'), order: 10, label: 'Tickets', labelKey: 'events.admin.tabs.tickets', icon: 'i-lucide-ticket' },
         { id: 'attendees', component: resolver.resolve('./runtime/app/tabs/Attendees.vue'), order: 20, label: 'Attendees', labelKey: 'events.admin.tabs.attendees', icon: 'i-lucide-users' },
       ])
+    }
+
+    // Upcoming events as a stat card and a list on the admin dashboard (`admin.dashboard.*` areas of `@frigear-nu/admin`).
+    if (adminPath && hasNuxtModule('@frigear-nu/widget')) {
+      const { extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendWidgets(nuxt, 'admin.dashboard.top', { id: 'events-upcoming-stat', component: resolver.resolve('./runtime/app/widgets/UpcomingEventsStat.vue'), order: 20 })
+      extendWidgets(nuxt, 'admin.dashboard.side', { id: 'events-upcoming', component: resolver.resolve('./runtime/app/widgets/UpcomingEvents.vue'), order: 10 })
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })

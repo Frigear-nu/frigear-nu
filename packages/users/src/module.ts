@@ -138,6 +138,7 @@ export default defineNuxtModule<ModuleOptions>({
         ['get', '/api/admin/users', 'users.get'],
         ['post', '/api/admin/users', 'users.post'],
         ['get', '/api/admin/users/new-members', 'new-members.get'],
+        ['get', '/api/admin/users/stats', 'stats.get'],
         ['get', '/api/admin/users/roles', 'roles.get'],
         ['get', '/api/admin/users/:id', 'user.get'],
         ['patch', '/api/admin/users/:id', 'user.patch'],
@@ -171,6 +172,11 @@ export default defineNuxtModule<ModuleOptions>({
           component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
           order: 20,
           span: 2,
+        })
+        extendWidgets(nuxt, 'admin.dashboard.top', {
+          id: 'users-new-members-stat',
+          component: resolver.resolve('./runtime/app/widgets/NewMembersStat.vue'),
+          order: 10,
         })
       }
     }

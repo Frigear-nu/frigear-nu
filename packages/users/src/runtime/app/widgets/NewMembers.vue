@@ -7,61 +7,40 @@ const { data: members } = await useFetch<{ id: number, name: string, email: stri
 </script>
 
 <template>
-  <UPageCard
-    variant="subtle"
+  <AdminListCard
     :title="t('admin.newMembers.title', 'New members')"
     :description="t('admin.newMembers.description', 'Signed up in the last 30 days.')"
+    :is-empty="!members?.length"
+    :empty="t('admin.newMembers.empty', 'Nobody new yet.')"
+    :to="adminPage"
+    :to-label="t('admin.allUsers', 'All users')"
   >
-    <ul
-      v-if="members?.length"
-      class="divide-default divide-y"
+    <li
+      v-for="member in members"
+      :key="member.id"
+      class="flex items-center justify-between gap-4"
     >
-      <li
-        v-for="member in members"
-        :key="member.id"
-        class="flex items-center justify-between gap-4 py-2 text-sm"
-      >
-        <span class="min-w-0 truncate">
-          <NuxtLink
-            v-if="adminPage"
-            :to="`${adminPage.replace(/\/+$/, '')}/${member.id}`"
-            class="font-medium hover:underline"
-          >{{ member.name }}</NuxtLink>
-          <span
-            v-else
-            class="font-medium"
-          >{{ member.name }}</span>
-          <span class="text-muted"> · {{ member.email }}</span>
-          <UBadge
-            v-if="member.subscription"
-            class="ml-2"
-            size="sm"
-            variant="subtle"
-            :color="['active', 'trialing'].includes(member.subscription.status) ? 'success' : 'neutral'"
-            :label="member.subscription.planKey ?? member.subscription.status"
-          />
-        </span>
-        <time class="text-muted shrink-0">{{ new Date(member.createdAt).toLocaleDateString() }}</time>
-      </li>
-    </ul>
-    <p
-      v-else
-      class="text-muted text-sm"
-    >
-      {{ t('admin.newMembers.empty', 'Nobody new yet.') }}
-    </p>
-    <template
-      v-if="adminPage"
-      #footer
-    >
-      <UButton
-        :to="adminPage"
-        variant="outline"
-        color="neutral"
-        size="xs"
-        trailing-icon="i-lucide-arrow-right"
-        :label="t('admin.allUsers', 'All users')"
-      />
-    </template>
-  </UPageCard>
+      <span class="min-w-0 truncate">
+        <NuxtLink
+          v-if="adminPage"
+          :to="`${adminPage.replace(/\/+$/, '')}/${member.id}`"
+          class="text-highlighted font-medium hover:underline"
+        >{{ member.name }}</NuxtLink>
+        <span
+          v-else
+          class="text-highlighted font-medium"
+        >{{ member.name }}</span>
+        <span class="text-muted"> · {{ member.email }}</span>
+        <UBadge
+          v-if="member.subscription"
+          class="ml-2"
+          size="sm"
+          variant="subtle"
+          :color="['active', 'trialing'].includes(member.subscription.status) ? 'success' : 'neutral'"
+          :label="member.subscription.planKey ?? member.subscription.status"
+        />
+      </span>
+      <time class="text-muted shrink-0">{{ new Date(member.createdAt).toLocaleDateString() }}</time>
+    </li>
+  </AdminListCard>
 </template>

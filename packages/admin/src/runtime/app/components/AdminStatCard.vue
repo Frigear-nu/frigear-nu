@@ -1,11 +1,18 @@
 <script setup lang="ts">
 // Summary tile for widget areas (`admin.*.overview`): same surface and header tokens as `AdminSection`.
 // Put the value in the default slot; `empty` is shown instead when there is nothing to display.
-defineProps<{ label: string, icon?: string, loading?: boolean, empty?: string }>()
+defineProps<{ label: string, icon?: string, to?: string, loading?: boolean, empty?: string }>()
+
+const NuxtLink = resolveComponent('NuxtLink')
 </script>
 
 <template>
-  <section class="bg-elevated/50 ring-default flex h-full items-start gap-3 overflow-hidden rounded-lg p-4 ring">
+  <component
+    :is="to ? NuxtLink : 'section'"
+    :to="to"
+    class="bg-elevated/50 ring-default flex h-full items-start gap-3 overflow-hidden rounded-lg p-4 ring"
+    :class="to && 'hover:bg-elevated transition-colors'"
+  >
     <span
       v-if="icon"
       class="bg-primary/10 ring-primary/25 text-primary flex shrink-0 items-center justify-center rounded-full p-2.5 ring ring-inset"
@@ -39,5 +46,5 @@ defineProps<{ label: string, icon?: string, loading?: boolean, empty?: string }>
         {{ empty }}
       </p>
     </div>
-  </section>
+  </component>
 </template>

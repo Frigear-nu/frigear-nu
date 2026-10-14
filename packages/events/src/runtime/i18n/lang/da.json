@@ -114,6 +114,12 @@
         "details": "Detaljer",
         "tickets": "Billetter",
         "attendees": "Deltagere"
+      },
+      "upcoming": {
+        "stat": "Kommende arrangementer",
+        "title": "Kommende arrangementer",
+        "empty": "Ingen kommende arrangementer.",
+        "all": "Alle arrangementer"
       }
     }
   }

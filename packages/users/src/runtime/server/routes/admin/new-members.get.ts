@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
     .from(schema.users)
     .where(gte(schema.users.createdAt, since))
     .orderBy(desc(schema.users.createdAt))
-    .limit(20)
+    .limit(10)
   const subscriptions = await latestSubscriptions(rows.map(row => row.id))
   return rows.map(row => ({ ...row, subscription: subscriptions.get(row.id) ?? null }))
 })

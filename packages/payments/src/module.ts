@@ -5,6 +5,7 @@ import {
   addServerPlugin,
   createResolver,
   defineNuxtModule,
+  hasNuxtModule,
 } from '@nuxt/kit'
 import {
   moduleApiUrl,
@@ -151,6 +152,18 @@ export default defineNuxtModule<ModuleOptions>({
         span: 2,
       },
     })
+
+    // Recent transactions and revenue on the admin dashboard (`admin.dashboard.*` areas of `@frigear-nu/admin`).
+    addServerHandler({
+      route: moduleApiUrl('payments', 'admin/recent'),
+      method: 'get',
+      handler: resolver.resolve('./runtime/server/routes/admin/recent.get'),
+    })
+    if (hasNuxtModule('@frigear-nu/admin') && hasNuxtModule('@frigear-nu/widget')) {
+      const { extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendWidgets(nuxt, 'admin.dashboard.top', { id: 'payments-revenue-stat', component: resolver.resolve('./runtime/app/widgets/RevenueStat.vue'), order: 30 })
+      extendWidgets(nuxt, 'admin.dashboard.side', { id: 'payments-recent', component: resolver.resolve('./runtime/app/widgets/RecentTransactions.vue'), order: 20 })
+    }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

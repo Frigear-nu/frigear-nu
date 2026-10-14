@@ -2,8 +2,9 @@
 import { getWidgetComponent } from '../utils/components'
 
 // Renders every widget registered for `name` in a responsive grid. Replace the layout by using the `item` slot.
+// `gridClass` replaces the default grid classes of the wrapper (e.g. `'grid gap-4'` for a single stacked column).
 // Each widget receives its static `props`, then every entry of `context` as a prop (e.g. `{ user }`).
-const props = defineProps<{ name: string, context?: Record<string, unknown> }>()
+const props = defineProps<{ name: string, context?: Record<string, unknown>, gridClass?: string }>()
 
 const { data: widgets } = await useWidgets(props.name, () => props.context)
 </script>
@@ -11,7 +12,7 @@ const { data: widgets } = await useWidgets(props.name, () => props.context)
 <template>
   <div
     v-if="widgets?.length"
-    class="grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-4 md:grid-cols-4 md:[&>*]:[grid-column:span_var(--widget-span,1)]"
+    :class="gridClass ?? 'grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-4 md:grid-cols-4 md:[&>*]:[grid-column:span_var(--widget-span,1)]'"
   >
     <template
       v-for="widget in widgets"
