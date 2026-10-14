@@ -18,6 +18,7 @@ import {
   resolvePagePath,
   addModulePages,
   addOptionalMenuSource,
+  inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
 import {
   OAUTH_PROVIDERS,
@@ -236,6 +237,7 @@ export {}
     }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
 
     addServerHandler({
       middleware: true,

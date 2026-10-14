@@ -13,7 +13,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
-import { extendDatabaseTable, registerModule } from '@frigear-nu/module-kit/utils'
+import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { ROUTE_RULE_KEYS } from './runtime/utils/types'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
@@ -163,6 +163,7 @@ export {}
 
     // Server: `allows(event, ...)`, `denies(event, ...)`, `authorize(event, ...)`.
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
 
     addRouteMiddleware({
       name: 'authorization',

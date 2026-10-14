@@ -242,3 +242,19 @@ ${[...properties.values()].map(property => `  ${property},`).join('\n')}
 `).join('')}`,
   })
 }
+
+/**
+ * Makes Nitro bundle (instead of externalize) a module's `runtime` directory. Installed modules live in
+ * `node_modules`, which Nitro externalizes by default; that skips the auto-import transform for the module's
+ * server utils and leaves virtual modules such as `#auth/*` unresolved in consuming apps. Call it next to
+ * `addServerImportsDir` so the module works without the host configuring `nitro.externals.inline` itself.
+ */
+export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) => {
+  const runtime = resolver.resolve('./runtime')
+  nuxt.options.build.transpile.push(runtime)
+  nuxt.hook('nitro:config', (config) => {
+    config.externals ||= {}
+    config.externals.inline ||= []
+    if (!config.externals.inline.includes(runtime)) config.externals.inline.push(runtime)
+  })
+}

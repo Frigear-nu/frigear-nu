@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MONEY_NOTICE } from '@frigear-nu/mcp/utils'
 
 // Input schemas for the staff tools. The REST schemas (`utils/admin-schemas`) coerce dates and
 // transform text, which JSON Schema (what MCP clients receive) cannot represent, so these describe
@@ -13,7 +14,7 @@ const isoDate = z.string().describe('ISO 8601 date-time, e.g. 2026-12-24T18:00:0
 const addon = z.object({
   label: text,
   description: text.nullish(),
-  price: z.number().int().min(0).optional().describe('Minor units (øre/cents).'),
+  price: z.number().min(0).optional().describe(`${MONEY_NOTICE} In the ticket type's currency.`),
   capacity: z.number().int().min(0).nullish(),
   sortOrder: z.number().int().optional(),
 })
@@ -30,8 +31,8 @@ const ticketType = z.object({
   key: z.string().min(1).max(64),
   name: text,
   description: text.nullish(),
-  price: z.number().int().min(0).optional().describe('Minor units (øre/cents).'),
-  currency: z.string().length(3).optional(),
+  price: z.number().min(0).optional().describe(MONEY_NOTICE),
+  currency: z.string().length(3).optional().describe('ISO 4217 code such as DKK or USD. The price is in this currency; defaults to DKK for new ticket types.'),
   hidePrice: z.boolean().optional(),
   capacity: z.number().int().min(0).nullish(),
   saleStartsAt: isoDate.nullish(),

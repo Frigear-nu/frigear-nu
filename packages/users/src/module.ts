@@ -5,7 +5,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages } from '@frigear-nu/module-kit/utils'
+import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { addAuthScope, setAuthUserStore } from '@frigear-nu/auth/utils'
 import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -87,6 +87,7 @@ export default defineNuxtModule<ModuleOptions>({
     setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
 
     // --- Self-service: the signed-in user changes their own profile, email and password --------------
     for (const [path, file] of [

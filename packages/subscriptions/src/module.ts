@@ -18,6 +18,7 @@ import {
   resolvePagePath,
   addModulePages,
   addOptionalMenuSource,
+  inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
@@ -229,6 +230,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     // --- App runtime (owned by the UI side of the package) ---------------------------------

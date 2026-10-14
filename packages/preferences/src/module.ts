@@ -11,7 +11,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { extendDatabaseTable, registerModule } from '@frigear-nu/module-kit/utils'
+import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { PreferenceDefinitionSource } from './runtime/utils/build'
 import type { ModuleOptions } from './types'
 
@@ -99,6 +99,7 @@ declare module '#preferences/definitions' {
     }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     addImports({ name: 'useUserPreferences', from: resolver.resolve('./runtime/app/composables/useUserPreferences') })
 
     addServerHandler({
