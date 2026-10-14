@@ -27,6 +27,7 @@ on:
           - authorization
           - base-layer
           - cookie-consent
+          - eslint-config
           - events
           - forms
           - mcp
@@ -74,7 +75,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","eslint-config"]'
           else
             packages="[\"$PACKAGE\"]"
           fi

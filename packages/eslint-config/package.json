@@ -1,20 +1,38 @@
 {
   "name": "@frigear-nu/eslint-config",
   "version": "0.0.0",
+  "description": "Shared ESLint flat config for Frigear packages and Nuxt apps.",
+  "homepage": "https://docs.frigear.dev/packages/eslint-config",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/eslint-config"
+  },
+  "license": "MIT",
   "type": "module",
+  "main": "./src/index.mjs",
+  "types": "./src/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.mts",
+      "default": "./src/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src"
+  ],
   "scripts": {
     "typecheck": "eslint .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
-  "exports": {
-    ".": "./src/index.ts"
+  "dependencies": {
+    "@nuxt/eslint-config": "^1.17.0"
   },
   "peerDependencies": {
     "eslint": "^9.0.0||^10.0.0"
-  },
-  "devDependencies": {
-    "@nuxt/eslint-config": "^1.17.0"
-  },
-  "homepage": "https://docs.frigear.dev/"
+  }
 }
