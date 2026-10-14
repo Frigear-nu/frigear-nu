@@ -17,6 +17,7 @@ import {
   resolvePagePath,
   addModulePages,
   addOptionalMenuSource,
+  inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
@@ -175,6 +176,7 @@ export default defineNuxtModule<ModuleOptions>({
     route('post', '/:slug/submit', 'public/submit.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))

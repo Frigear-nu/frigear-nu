@@ -15,6 +15,7 @@ import {
   resolvePagePath,
   addModulePages,
   addOptionalMenuSource,
+  inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
@@ -170,6 +171,7 @@ export default defineNuxtModule<ModuleOptions>({
     api('post', 'admin/applications/:id/revoke', 'api/admin/application-revoke.post')
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     // --- App runtime -----------------------------------------------------------------------

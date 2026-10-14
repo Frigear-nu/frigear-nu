@@ -1,4 +1,5 @@
 import { addServerImportsDir, addServerPlugin, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions } from './types'
 
 export type { ModuleOptions } from './types'
@@ -13,6 +14,7 @@ declare module 'nuxt/schema' {
 const DEFAULT_INSTRUCTIONS = [
   'You act as the signed-in user, limited to the scopes of the API token in use. You only see the tools that token and the user are allowed to use.',
   'Personal data of other people (names, emails, form answers) is withheld unless the token carries the matching "*:pii" scope. Responses say when something was withheld; report that to the user instead of looking for another way to get it.',
+  'All monetary values, in tool inputs and outputs, are in whole currency units next to a currency code: 52.2 with "USD" means 52.20 US dollars, never cents. Currencies without decimals (JPY) are whole numbers.',
   'Some settings are deliberately not available here, for example where form submissions are delivered, because changing them could be used to exfiltrate data. When a tool refuses for that reason, tell the user to make the change in the admin UI.',
 ].join('\n')
 
@@ -42,6 +44,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     addServerPlugin(resolver.resolve('./runtime/server/plugins/mcp'))
   },
 })

@@ -12,6 +12,7 @@ import {
   registerLocales,
   registerModule,
   registerTailwindSource,
+  inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
@@ -152,6 +153,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     // Stores membership (invoice) payments announced by `@frigear-nu/subscriptions` when that module is installed.
     addServerPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
     if (options.settings?.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))

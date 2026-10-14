@@ -564,18 +564,29 @@ describe('events (authenticated, database-backed)', async () => {
       const createdEvent = JSON.parse(created.result!.content[0].text) as { id: string }
       const withTypes = await mcpCall(staffManage, 'create-event', {
         slug: 'mcp-tickets', name: 'MCP tickets', startsAt: future(48), status: 'draft',
-        ticketTypes: [{ key: 'general', name: 'General', price: 10000, capacity: 50 }],
+        ticketTypes: [
+          { key: 'general', name: 'General', price: 100, capacity: 50, addonGroups: [{ title: 'Food', addons: [{ label: 'Meat', price: 52.2 }] }] },
+          { key: 'yen', name: 'Yen', price: 500, currency: 'jpy' },
+        ],
       })
       expect(withTypes.result?.isError, JSON.stringify(withTypes)).toBeFalsy()
       const withTypesId = (JSON.parse(withTypes.result!.content[0].text) as { id: string }).id
       expect(createdEvent.id).toBeTruthy()
 
       const definition = await mcpCall(staffManage, 'get-event-definition', { id: withTypesId })
-      const [ticketType] = (JSON.parse(definition.result!.content[0].text) as { ticketTypes: Array<{ id: string, price: number }> }).ticketTypes
-      expect(ticketType?.price).toBe(10000)
-      const updatedType = await mcpCall(staffManage, 'update-ticket-type', { id: ticketType!.id, patch: { price: 15000, capacity: 20, saleEndsAt: future(24) } })
+      const types = (JSON.parse(definition.result!.content[0].text) as { ticketTypes: Array<{ id: string, key: string, price: number, currency: string, addonGroups: Array<{ addons: Array<{ price: number }> }> }> }).ticketTypes
+      const ticketType = types.find(type => type.key === 'general')
+      const yenType = types.find(type => type.key === 'yen')
+      // Whole units in and out; the database keeps minor units (and no decimals for JPY).
+      expect(ticketType).toMatchObject({ price: 100, currency: 'DKK' })
+      expect(ticketType?.addonGroups[0]?.addons[0]?.price).toBe(52.2)
+      expect(yenType).toMatchObject({ price: 500, currency: 'JPY' })
+      const stored = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${withTypesId}`))
+      expect(stored.ticketTypes.find((type: Json) => type.key === 'general')).toMatchObject({ price: 10000 })
+      expect(stored.ticketTypes.find((type: Json) => type.key === 'yen')).toMatchObject({ price: 500 })
+      const updatedType = await mcpCall(staffManage, 'update-ticket-type', { id: ticketType!.id, patch: { price: 150.5, capacity: 20, saleEndsAt: future(24) } })
       expect(updatedType.result?.isError, JSON.stringify(updatedType)).toBeFalsy()
-      expect(JSON.parse(updatedType.result!.content[0].text)).toMatchObject({ id: ticketType!.id, price: 15000, capacity: 20 })
+      expect(JSON.parse(updatedType.result!.content[0].text)).toMatchObject({ id: ticketType!.id, price: 150.5, capacity: 20 })
       expect((await mcpCall(staffManage, 'update-ticket-type', { id: 'nope', patch: { price: 1 } })).result?.isError).toBe(true)
       expect((await mcpCall(guestAll, 'update-ticket-type', { id: ticketType!.id, patch: { price: 1 } })).result?.isError ?? true).toBeTruthy()
 

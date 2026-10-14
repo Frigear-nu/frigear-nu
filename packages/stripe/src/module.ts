@@ -7,7 +7,7 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import type Stripe from 'stripe'
-import { defineVirtualRegistry, registerModule, extendDatabaseTable } from '@frigear-nu/module-kit/utils'
+import { defineVirtualRegistry, registerModule, extendDatabaseTable, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, RegisteredStripeEventHandler, StripeEventHandlerContext, StripePublicRuntimeConfig, StripeRuntimeConfig } from './types'
 
 export type {
@@ -101,6 +101,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
     addServerImports([
       { name: 'onStripeEvent', from: resolver.resolve('./runtime/utils/registry') },
       { name: 'defineStripeEventHandler', from: resolver.resolve('./runtime/utils/handlers') },
