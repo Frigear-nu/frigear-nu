@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Extension point: the body of the Frigear ID page. Override it in the host app
-// (components/Account/IdentificationArea.vue) to compose the area yourself.
+// A placement, not a feature: the body of the page at `settings.pages.idCode`. The module has no opinion on what goes
+// here; the host app provides `components/Account/IdentificationArea.vue`.
 </script>
 
 <template>
-  <AccountIdentificationCode />
+  <div />
 </template>

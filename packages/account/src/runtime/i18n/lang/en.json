@@ -26,11 +26,7 @@
     },
     "identificationCode": {
       "title": "Frigear ID",
-      "description": "Press here to show your ID.",
-      "expiresIn": "Refreshes in {time}s",
-      "refresh": "Refresh",
-      "role": "Role",
-      "error": "Could not create your Frigear ID."
+      "description": "Press here to show your ID."
     },
     "profile": {
       "title": "Profile",

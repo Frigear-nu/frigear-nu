@@ -26,11 +26,7 @@
     },
     "identificationCode": {
       "title": "Frigear ID",
-      "description": "Tryk her for at vise dit ID.",
-      "expiresIn": "Fornyes om {time}s",
-      "refresh": "Opdater",
-      "role": "Rolle",
-      "error": "Kunne ikke oprette dit Frigear ID."
+      "description": "Tryk her for at vise dit ID."
     },
     "profile": {
       "title": "Profil",

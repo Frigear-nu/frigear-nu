@@ -1,7 +1,6 @@
 import {
   addComponentsDir,
   addImports,
-  addServerHandler,
   createResolver,
   defineNuxtModule,
   extendPages,
@@ -16,10 +15,6 @@ export type { ModuleOptions, PublicModuleOptions } from './types'
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     account?: ModuleOptions
-  }
-
-  interface RuntimeConfig {
-    account?: { idCode?: { privateKey?: string, keyId?: string, issuer?: string } }
   }
 
   interface PublicRuntimeConfig {
@@ -57,19 +52,6 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
-
-    addServerHandler({
-      route: '/api/account/id-code',
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/account/id-code.get'),
-    })
-
-    // The Frigear ID QR is signed with `runtimeConfig.account.idCode.privateKey` (NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY) or,
-    // when unset, the RS256 key of `@frigear-nu/oauth-server` (`runtimeConfig.oauthServer`), which publishes the JWKS.
-    const existingAccount = nuxt.options.runtimeConfig.account as { idCode?: object } | undefined
-    nuxt.options.runtimeConfig.account = {
-      idCode: { privateKey: '', keyId: '', issuer: '', ...existingAccount?.idCode },
-    }
 
     addImports([{ name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') }])
 
@@ -138,7 +120,7 @@ export default defineNuxtModule<ModuleOptions>({
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
 
     // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults,
-    // which is how a host overrides single parts (e.g. `AccountIdentificationDetails`) without replacing the rest.
+    // which is how a host overrides single parts (e.g. `AccountIdentificationArea`) without replacing the rest.
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),
       priority: -1,

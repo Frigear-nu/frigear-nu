@@ -75,15 +75,9 @@ await changePassword({ currentPassword: 'old', newPassword: 'new-password', conf
 Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
 `i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).
 
-## Frigear ID (QR code)
+## Frigear ID placement
 
-`settings.pages.idCode` (`true` or a path, default `/account/id`) adds a page with a QR code (`urn:frigear:id:<jwt>`)
-that refreshes every 60 seconds, plus an account menu tile. `GET /api/account/id-code` returns the RS256-signed JWT
-(60s lifetime, `sub` = user id). It signs with `runtimeConfig.account.idCode.privateKey`
-(`NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY`) or, when unset, the `@frigear-nu/oauth-server` key (`runtimeConfig.oauthServer`),
-so scanners can verify it against `/.well-known/jwks.json`. Without a key the endpoint responds `501`.
-`AccountIdentificationCodeDialog` wraps the same content in a modal.
-
-The module only draws the QR code. Override `AccountIdentificationArea` (page body), `AccountIdentificationCodeDetails`
-(under the QR) or `AccountIdentificationBadge` (account header) with a same-named component in your app to inject your
-own content without replacing the rest.
+`settings.pages.idCode` (`true` or a path, default `/account/id`) adds a page and an account menu tile. The module does
+not know what Frigear ID is: the page body is the empty `AccountIdentificationArea` component. Provide
+`components/Account/IdentificationArea.vue` in your app to fill it (any same-named `Account*` component in the app
+overrides the module's), and `AccountIdentificationBadge` to change the id mark in the account header.
