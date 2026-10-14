@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Scoped, PII-safe MCP tools for the frigear ecosystem: modules contribute tools, resources and prompts that are only listed and callable within the scopes the caller holds.",
   "homepage": "https://docs.frigear.dev/modules/mcp",
   "repository": {
