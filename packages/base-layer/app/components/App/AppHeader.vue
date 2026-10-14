@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { data: config } = await useConfig()
 const { data: navigation } = useMenu('main')
+const multiLocale = useRuntimeConfig().public.multiLocale === true
 </script>
 
 <template>
@@ -16,7 +17,7 @@ const { data: navigation } = useMenu('main')
     <AppHeaderCenter />
     <template #right>
       <AppHeaderCTA />
-      <LanguageSelect v-if="typeof $i18n !== 'undefined' && $i18n.locales && $i18n.locales.value && $i18n.locales.value.length > 1" />
+      <LanguageSelect v-if="multiLocale" />
       <UColorModeButton />
       <AppHeaderRight />
     </template>
