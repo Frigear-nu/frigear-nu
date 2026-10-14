@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/base",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Shared Nuxt layer for Frigear websites - bundled modules, UI defaults, content collections, layouts and routing.",
   "homepage": "https://docs.frigear.dev/layers/base",
   "repository": {
