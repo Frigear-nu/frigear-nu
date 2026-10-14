@@ -23,4 +23,16 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 # $NPM_PUBLISH_SKIP_BUILD: the caller already built the package, so skip the `prepack` build.
 pnpm pack ${NPM_PUBLISH_SKIP_BUILD:+--ignore-scripts} --pack-destination "$tmp_dir"
-npm publish "$tmp_dir"/*.tgz --access public
+
+# npm refuses to publish a prerelease (e.g. 1.0.0-0 or 1.0.0-beta.1) without an explicit dist-tag, and would
+# otherwise make it `latest`. Use the prerelease identifier as the tag (`beta`, `rc`), or `next` for a bare number.
+version=$(node -p "require('./package.json').version")
+tag_args=()
+if [[ $version == *-* ]]; then
+  preid=${version#*-}
+  preid=${preid%%.*}
+  [[ $preid =~ ^[0-9]+$ ]] && preid=next
+  tag_args=(--tag "$preid")
+fi
+
+npm publish "$tmp_dir"/*.tgz --access public ${tag_args[@]+"${tag_args[@]}"}
