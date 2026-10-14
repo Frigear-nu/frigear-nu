@@ -137,8 +137,11 @@ export default defineNuxtModule<ModuleOptions>({
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
 
+    // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults,
+    // which is how a host overrides single parts (e.g. `AccountIdentificationDetails`) without replacing the rest.
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),
+      priority: -1,
     })
   },
 })

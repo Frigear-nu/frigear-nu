@@ -83,3 +83,7 @@ that refreshes every 60 seconds, plus an account menu tile. `GET /api/account/id
 (`NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY`) or, when unset, the `@frigear-nu/oauth-server` key (`runtimeConfig.oauthServer`),
 so scanners can verify it against `/.well-known/jwks.json`. Without a key the endpoint responds `501`.
 `AccountIdentificationCodeDialog` wraps the same content in a modal.
+
+The module only draws the QR code. Override `AccountIdentificationArea` (page body), `AccountIdentificationCodeDetails`
+(under the QR) or `AccountIdentificationBadge` (account header) with a same-named component in your app to inject your
+own content without replacing the rest.

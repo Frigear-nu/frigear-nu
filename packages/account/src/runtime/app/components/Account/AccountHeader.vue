@@ -59,9 +59,7 @@ const description = computed(() => current.value?.description)
             {{ user.email }}
           </div>
           <div class="mt-1 flex justify-end">
-            <UBadge variant="soft">
-              Frigear ID: <code>{{ user.id }}</code>
-            </UBadge>
+            <AccountIdentificationBadge />
           </div>
         </div>
       </template>

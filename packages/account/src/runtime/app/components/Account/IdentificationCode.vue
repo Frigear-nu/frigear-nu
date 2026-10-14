@@ -3,7 +3,6 @@ import { renderSVG } from 'uqr'
 import { useIntervalFn } from '@vueuse/core'
 
 const t = useModuleT('account.identificationCode')
-const { user } = useUserSession()
 const { data, refresh, status, error } = useFetch<{ payload: string, expiresIn: number }>('/api/account/id-code', { server: false })
 
 const remaining = ref(0)
@@ -23,8 +22,6 @@ useIntervalFn(() => {
 }, 1000)
 
 const svg = computed(() => data.value ? renderSVG(data.value.payload, { ecc: 'L', border: 1 }) : '')
-const role = computed(() => (user.value as { role?: string } | null)?.role)
-const membership = computed(() => (user.value as { membership?: string } | null)?.membership)
 </script>
 
 <template>
@@ -49,25 +46,7 @@ const membership = computed(() => (user.value as { membership?: string } | null)
         {{ t('expiresIn', 'Refreshes in {time}s').replace('{time}', String(remaining)) }}
       </UBadge>
       <div class="flex flex-wrap justify-center gap-2">
-        <UBadge
-          v-if="user"
-          size="lg"
-        >
-          Frigear ID: {{ user.id }}
-        </UBadge>
-        <UBadge
-          v-if="membership"
-          size="lg"
-        >
-          {{ membership }}
-        </UBadge>
-        <UBadge
-          v-if="role"
-          size="lg"
-          color="success"
-        >
-          {{ t('role', 'Role') }}: {{ role }}
-        </UBadge>
+        <AccountIdentificationCodeDetails />
       </div>
     </template>
     <UIcon

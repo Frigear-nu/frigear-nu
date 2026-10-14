@@ -6,7 +6,7 @@ defineOptions({ name: 'AccountIdCodePage' })
   <UContainer>
     <UPage>
       <UPageBody>
-        <AccountIdentificationCode />
+        <AccountIdentificationArea />
       </UPageBody>
     </UPage>
   </UContainer>
