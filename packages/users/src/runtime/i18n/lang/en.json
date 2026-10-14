@@ -19,8 +19,8 @@
       "save": "Save",
       "error": "Something went wrong.",
       "allUsers": "All users",
-      "newMembers": {
-        "title": "New members",
+      "newUsers": {
+        "title": "New users",
         "description": "Signed up in the last 30 days.",
         "empty": "Nobody new yet."
       },
@@ -43,8 +43,6 @@
       "detail": {
         "profile": "Profile",
         "account": "Account",
-        "membership": "Membership",
-        "noMembership": "No membership.",
         "password": "Password",
         "passkeys": "Passkeys",
         "set": "Set",
@@ -66,7 +64,7 @@
         "overview": "Overview"
       },
       "stats": {
-        "newMembers": "New members",
+        "newUsers": "New users",
         "ofTotal": "{total} users in total"
       }
     }

@@ -7,7 +7,7 @@ import { sortWidgets } from './sort'
 export type { WidgetDefinition, RegisteredWidget } from '../../types'
 export { sortWidgets }
 
-/** Id for a widget without one: its component's file name, e.g. `NewMembers` for `.../NewMembers.vue`. */
+/** Id for a widget without one: its component's file name, e.g. `NewUsers` for `.../NewUsers.vue`. */
 export function deriveWidgetId(widget: Pick<WidgetDefinition, 'id' | 'component'>): string {
   return widget.id ?? basename(widget.component, extname(widget.component))
 }
@@ -20,7 +20,7 @@ export function deriveWidgetId(widget: Pick<WidgetDefinition, 'id' | 'component'
  * import { extendWidgets } from '@frigear-nu/widget/utils'
  *
  * extendWidgets(nuxt, 'admin.dashboard', {
- *   component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
+ *   component: resolver.resolve('./runtime/app/widgets/NewUsers.vue'),
  *   order: 10,
  * })
  * ```
