@@ -20,7 +20,11 @@
       "statusColumn": "Status",
       "refunded": "Refunderet",
       "reference": "Reference",
-      "defaultDescription": "Betaling"
+      "defaultDescription": "Betaling",
+      "revenue": "Omsætning, 30 dage",
+      "noRevenue": "Ingen betalinger endnu.",
+      "transactions": "{count} transaktioner",
+      "recent": "Seneste transaktioner"
     }
   }
 }

@@ -64,6 +64,10 @@
       },
       "tabs": {
         "overview": "Overview"
+      },
+      "stats": {
+        "newMembers": "New members",
+        "ofTotal": "{total} users in total"
       }
     }
   }

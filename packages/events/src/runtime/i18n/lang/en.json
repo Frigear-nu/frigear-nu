@@ -114,6 +114,12 @@
         "details": "Details",
         "tickets": "Tickets",
         "attendees": "Attendees"
+      },
+      "upcoming": {
+        "stat": "Upcoming events",
+        "title": "Upcoming events",
+        "empty": "No upcoming events.",
+        "all": "All events"
       }
     }
   }
