@@ -293,6 +293,9 @@ export default defineNuxtConfig({
       pages: { admin: true, applications: true },
     },
   },
+  payments: {
+    settings: { mcp: true },
+  },
   // Secrets come from NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
   stripe: {},
   subscriptions: {
