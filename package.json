@@ -15,7 +15,7 @@
     "build:website:preview": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --max-old-space-size=6144\" turbo run build --filter=@frigear-nu/website -- --preset cloudflare_module",
     "cloudflare:build": "pnpm build:website",
     "cloudflare:build:preview": "pnpm build:website:preview",
-    "cloudflare:web:deploy": "npx wrangler --cwd ./apps/website deploy && npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json",
+    "cloudflare:web:deploy": "npx wrangler --cwd ./apps/website deploy --config .output/server/wrangler.json && npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json",
     "cloudflare:web:deploy-preview": "npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json && npx wrangler --cwd ./apps/website preview --config .output/server/wrangler.json --name \"${CLOUDFLARE_PREVIEW_NAME:?CLOUDFLARE_PREVIEW_NAME env var is required}\" --json > \"${PREVIEW_OUTPUT_FILE:?PREVIEW_OUTPUT_FILE env var is required}\"",
     "cloudflare:d1:preview:create": "bash scripts/cloudflare-preview-db.sh create",
     "cloudflare:d1:preview:delete": "bash scripts/cloudflare-preview-db.sh delete",
