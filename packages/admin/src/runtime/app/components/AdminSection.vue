@@ -3,14 +3,14 @@ defineProps<{ title?: string, description?: string, loading?: boolean }>()
 </script>
 
 <template>
-  <section class="border-default overflow-hidden rounded-lg border">
+  <section class="border-default bg-default overflow-hidden rounded-xl border">
     <div
       v-if="title || $slots.header || $slots.actions"
-      class="border-default flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+      class="border-default flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5"
     >
       <slot name="header">
         <div class="min-w-0">
-          <h2 class="text-sm font-semibold">
+          <h2 class="text-highlighted text-sm font-semibold">
             {{ title }}
           </h2>
           <p

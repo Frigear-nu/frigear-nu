@@ -43,25 +43,35 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="h-dvh w-full overflow-hidden bg-default">
+  <div class="bg-muted h-dvh w-full overflow-hidden">
     <UDashboardGroup
       unit="rem"
       :ui="{ base: 'admin-group relative flex h-full w-full overflow-hidden' }"
     >
       <UDashboardSidebar
         v-model:open="sidebarOpen"
-        :default-size="16"
+        :default-size="15"
         :min-size="12"
-        :max-size="22"
-        :ui="{ root: 'min-h-0', footer: 'border-t border-default' }"
+        :max-size="20"
+        :ui="{
+          root: 'min-h-0 bg-default border-e border-default',
+          header: 'h-auto px-4 pt-5 pb-3 flex-col items-start gap-0.5',
+          body: 'px-3 py-2',
+          footer: 'border-t border-default px-3 py-2',
+        }"
       >
         <template #header>
           <NuxtLink
             :to="home"
-            class="flex items-center gap-2 font-semibold"
+            class="flex items-center gap-2.5"
           >
-            <UIcon name="i-lucide-layout-dashboard" />
-            <span>{{ t('title', 'Administration') }}</span>
+            <span class="bg-primary text-inverted flex size-8 items-center justify-center rounded-lg">
+              <UIcon
+                name="i-lucide-layout-dashboard"
+                class="size-4.5"
+              />
+            </span>
+            <span class="text-highlighted text-base font-semibold tracking-tight">{{ t('title', 'Administration') }}</span>
           </NuxtLink>
         </template>
 
@@ -69,6 +79,11 @@ watch(() => route.path, () => {
           orientation="vertical"
           :items="links"
           :aria-label="t('nav.label', 'Admin navigation')"
+          :ui="{
+            list: 'space-y-0.5',
+            link: 'rounded-lg px-2.5 py-1.5 text-sm before:rounded-lg aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:font-medium',
+            linkLeadingIcon: 'size-4.5',
+          }"
         />
 
         <template #footer>
@@ -76,25 +91,41 @@ watch(() => route.path, () => {
             to="/"
             color="neutral"
             variant="ghost"
+            size="sm"
             icon="i-lucide-arrow-left"
             :label="t('backToSite', 'Back to the site')"
             block
+            class="justify-start"
           />
         </template>
       </UDashboardSidebar>
 
-      <UDashboardPanel :ui="{ body: 'p-0 sm:p-0 gap-0' }">
+      <UDashboardPanel :ui="{ root: 'bg-muted', body: 'p-0 sm:p-0 gap-0' }">
         <template #header>
-          <UDashboardNavbar :title="title">
+          <UDashboardNavbar
+            :ui="{ root: 'bg-default border-b border-default h-12 px-4 sm:px-6' }"
+          >
             <template #leading>
-              <UDashboardSidebarCollapse />
+              <UDashboardSidebarCollapse
+                color="neutral"
+                variant="ghost"
+              />
+              <span class="text-muted hidden text-sm sm:inline">{{ t('title', 'Administration') }}</span>
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="text-dimmed hidden size-3.5 sm:inline"
+              />
+              <span class="text-highlighted text-sm font-medium">{{ title }}</span>
             </template>
             <template #right>
               <component
                 :is="optional(LanguageSelect)"
                 v-if="optional(LanguageSelect) && multiLocale"
               />
-              <UColorModeButton />
+              <UColorModeButton
+                color="neutral"
+                variant="ghost"
+              />
               <component
                 :is="optional(AccountMenu)"
                 v-if="optional(AccountMenu)"
@@ -104,11 +135,9 @@ watch(() => route.path, () => {
         </template>
 
         <template #body>
-          <UPage :ui="{ root: 'block', center: 'admin-content px-4 sm:px-6' }">
-            <UPageBody class="mt-0 pt-6 pb-12 space-y-0">
-              <slot />
-            </UPageBody>
-          </UPage>
+          <div class="admin-content mx-auto w-full max-w-7xl px-4 pt-6 pb-12 sm:px-6">
+            <slot />
+          </div>
         </template>
       </UDashboardPanel>
     </UDashboardGroup>

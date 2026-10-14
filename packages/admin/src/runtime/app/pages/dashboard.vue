@@ -17,16 +17,31 @@ const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admi
       <template #empty>
         <div
           v-if="items.length"
-          class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4"
+          class="border-default bg-default grid overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-3"
         >
-          <UPageCard
+          <NuxtLink
             v-for="item in items"
             :key="item.id"
-            :title="item.label"
-            :description="item.description"
-            :icon="item.icon"
             :to="item.to"
-          />
+            class="hover:bg-elevated/50 group flex gap-3 p-4 transition-colors"
+          >
+            <UIcon
+              v-if="item.icon"
+              :name="item.icon"
+              class="text-highlighted mt-0.5 size-5 shrink-0"
+            />
+            <div class="min-w-0">
+              <p class="text-highlighted group-hover:text-primary text-sm font-semibold transition-colors">
+                {{ item.label }}
+              </p>
+              <p
+                v-if="item.description"
+                class="text-muted mt-0.5 text-sm text-pretty"
+              >
+                {{ item.description }}
+              </p>
+            </div>
+          </NuxtLink>
         </div>
         <p
           v-else

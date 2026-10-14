@@ -5,8 +5,8 @@ defineProps<{ label: string, loading?: boolean, empty?: string }>()
 </script>
 
 <template>
-  <section class="border-default flex h-full flex-col gap-2 overflow-hidden rounded-lg border p-4">
-    <h2 class="text-muted text-xs font-medium tracking-wide uppercase">
+  <section class="border-default bg-default flex h-full flex-col gap-2 overflow-hidden rounded-xl border p-4">
+    <h2 class="text-muted text-sm">
       {{ label }}
     </h2>
     <div
