@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/auth",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Authentication for the frigear ecosystem: sign-in flows (password, magic link, OAuth, passkeys), user API tokens, and a shared requireAuth for sessions, tokens and OAuth access tokens, with scopes.",
   "homepage": "https://docs.frigear.dev/modules/auth",
   "repository": {
