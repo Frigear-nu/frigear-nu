@@ -3,7 +3,6 @@ import type { MenuItem } from '@frigear-nu/menu'
 
 const t = useModuleT('account')
 const route = useRoute()
-const { user } = useUserSession()
 const pages = useRuntimeConfig().public.account?.pages
 const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: unknown[] } } }
 
@@ -48,22 +47,7 @@ const description = computed(() => current.value?.description)
       />
 
       <template #links>
-        <div
-          v-if="user"
-          class="flex flex-col"
-        >
-          <div class="text-sm text-muted">
-            {{ t('signedInAs', 'Signed in as') }}
-          </div>
-          <div class="text-primary">
-            {{ user.email }}
-          </div>
-          <div class="mt-1 flex justify-end">
-            <UBadge variant="soft">
-              Frigear ID: <code>{{ user.id }}</code>
-            </UBadge>
-          </div>
-        </div>
+        <AccountHeaderRight />
       </template>
     </UPageHeader>
   </UContainer>

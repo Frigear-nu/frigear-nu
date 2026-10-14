@@ -75,11 +75,7 @@ await changePassword({ currentPassword: 'old', newPassword: 'new-password', conf
 Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
 `i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).
 
-## Frigear ID (QR code)
+## Overriding parts
 
-`settings.pages.idCode` (`true` or a path, default `/account/id`) adds a page with a QR code (`urn:frigear:id:<jwt>`)
-that refreshes every 60 seconds, plus an account menu tile. `GET /api/account/id-code` returns the RS256-signed JWT
-(60s lifetime, `sub` = user id). It signs with `runtimeConfig.account.idCode.privateKey`
-(`NUXT_ACCOUNT_ID_CODE_PRIVATE_KEY`) or, when unset, the `@frigear-nu/oauth-server` key (`runtimeConfig.oauthServer`),
-so scanners can verify it against `/.well-known/jwks.json`. Without a key the endpoint responds `501`.
-`AccountIdentificationCodeDialog` wraps the same content in a modal.
+Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
+`AccountHeaderRight` is the block at the right of the account header; override it to show other details.

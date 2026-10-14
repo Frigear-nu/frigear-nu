@@ -64,8 +64,6 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
-    "jose": "^6.1.0",
-    "uqr": "^0.1.2",
     "zod": "^4.6.5"
   },
   "peerDependencies": {

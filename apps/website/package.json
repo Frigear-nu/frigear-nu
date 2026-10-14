@@ -54,10 +54,12 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
+    "jose": "^6.1.0",
     "nuxt": "catalog:",
     "nuxt-qrcode": "^0.4.10",
     "tailwindcss": "^4.3.3",
     "unstorage": "^1.17.5",
+    "uqr": "^0.1.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {

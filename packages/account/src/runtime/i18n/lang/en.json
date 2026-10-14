@@ -24,14 +24,6 @@
         "description": "Create tokens for scripts and tools."
       }
     },
-    "identificationCode": {
-      "title": "Frigear ID",
-      "description": "Press here to show your ID.",
-      "expiresIn": "Refreshes in {time}s",
-      "refresh": "Refresh",
-      "role": "Role",
-      "error": "Could not create your Frigear ID."
-    },
     "profile": {
       "title": "Profile",
       "description": "Change your information.",
