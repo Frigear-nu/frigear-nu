@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/cookie-consent",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "GDPR cookie consent banner with categories - modules contribute categories (extendCookieConsent), apps gate scripts on consent, and the choice is stored as proof on the user.",
   "homepage": "https://docs.frigear.dev/modules/cookie-consent",
   "repository": {
