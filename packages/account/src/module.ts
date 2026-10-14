@@ -62,7 +62,6 @@ export default defineNuxtModule<ModuleOptions>({
     const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
     const documentsPath = resolvePagePath(settings.pages?.documents, '/account/documents')
-    const idCodePath = resolvePagePath(settings.pages?.idCode, '/account/id')
     const apiTokensPath = resolvePagePath(settings.pages?.apiTokens, '/account/api-tokens')
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
 
@@ -71,11 +70,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     nuxt.options.runtimeConfig.public.account = {
-      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, idCode: idCodePath, apiTokens: apiTokensPath },
+      pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, apiTokens: apiTokensPath },
       documents: settings.documents ?? [],
     }
 
-    if (indexPath || profilePath || securityPath || documentsPath || idCodePath || apiTokensPath) {
+    if (indexPath || profilePath || securityPath || documentsPath || apiTokensPath) {
       extendPages((pages) => {
         const existingPaths = new Set(pages.map(page => page.path))
 
@@ -87,7 +86,6 @@ export default defineNuxtModule<ModuleOptions>({
         add(profilePath, 'account-profile', './runtime/app/pages/profile.vue')
         add(documentsPath, 'account-documents', './runtime/app/pages/documents.vue')
         add(securityPath, 'account-security', './runtime/app/pages/security.vue')
-        add(idCodePath, 'account-id-code', './runtime/app/pages/id-code.vue')
         add(apiTokensPath, 'account-api-tokens', './runtime/app/pages/api-tokens.vue')
 
         // All account pages share one parent route that renders the account header above them.
@@ -105,7 +103,7 @@ export default defineNuxtModule<ModuleOptions>({
         .map(locale => typeof locale === 'string' ? locale : locale.code)
         .map(code => `/${code}`)]
       const rules = nuxt.options.routeRules ||= {}
-      const guarded = [indexPath, profilePath, securityPath, documentsPath, idCodePath, apiTokensPath]
+      const guarded = [indexPath, profilePath, securityPath, documentsPath, apiTokensPath]
         .filter((path): path is string => !!path && !path.startsWith('/account'))
       for (const prefix of prefixes) {
         for (const pattern of [`${prefix}/account`, `${prefix}/account/**`, ...guarded.map(path => `${prefix}${path}`)]) {
@@ -120,7 +118,7 @@ export default defineNuxtModule<ModuleOptions>({
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
 
     // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults,
-    // which is how a host overrides single parts (e.g. `AccountIdentificationArea`) without replacing the rest.
+    // which is how a host overrides single parts (e.g. `AccountHeaderRight`) without replacing the rest.
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),
       priority: -1,

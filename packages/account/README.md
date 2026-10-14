@@ -75,9 +75,7 @@ await changePassword({ currentPassword: 'old', newPassword: 'new-password', conf
 Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
 `i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).
 
-## Frigear ID placement
+## Overriding parts
 
-`settings.pages.idCode` (`true` or a path, default `/account/id`) adds a page and an account menu tile. The module does
-not know what Frigear ID is: the page body is the empty `AccountIdentificationArea` component. Provide
-`components/Account/IdentificationArea.vue` in your app to fill it (any same-named `Account*` component in the app
-overrides the module's), and `AccountIdentificationBadge` to change the id mark in the account header.
+Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
+`AccountHeaderRight` is the block at the right of the account header; override it to show other details.

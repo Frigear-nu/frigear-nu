@@ -2,8 +2,7 @@
 import { renderSVG } from 'uqr'
 import { useIntervalFn } from '@vueuse/core'
 
-// Frigear ID: fills the empty `Account/IdentificationArea` placement of @frigear-nu/account.
-const t = useModuleT('account.identificationCode')
+const t = useModuleT('account.frigearId')
 const { user } = useUserSession()
 const { data, refresh, status, error } = useFetch<{ payload: string, expiresIn: number }>('/api/account/id-code', { server: false })
 

@@ -204,7 +204,7 @@
     }
   },
   "account": {
-    "identificationCode": {
+    "frigearId": {
       "expiresIn": "Refreshes in {time}s",
       "refresh": "Refresh",
       "error": "Could not create your Frigear ID."

@@ -21,7 +21,6 @@ export type PublicModuleOptions = {
     profile?: string
     security?: string
     documents?: string
-    idCode?: string
     apiTokens?: string
   }
   documents: AccountDocument[]
@@ -40,8 +39,6 @@ export type ModuleOptions = {
       security?: string | boolean
       // Lists `settings.documents` for download. Defaults to off.
       documents?: string | boolean
-      // A page whose body is the host's `Account/IdentificationArea` component (empty by default).
-      idCode?: string | boolean
       // Create and revoke personal API tokens (`@frigear-nu/auth`). Defaults to off.
       apiTokens?: string | boolean
     }

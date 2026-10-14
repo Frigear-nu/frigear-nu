@@ -24,10 +24,6 @@
         "description": "Opret nøgler til scripts og værktøjer."
       }
     },
-    "identificationCode": {
-      "title": "Frigear ID",
-      "description": "Tryk her for at vise dit ID."
-    },
     "profile": {
       "title": "Profil",
       "description": "Skift dine brugeroplysninger.",

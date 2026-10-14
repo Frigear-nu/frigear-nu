@@ -24,10 +24,6 @@
         "description": "Create tokens for scripts and tools."
       }
     },
-    "identificationCode": {
-      "title": "Frigear ID",
-      "description": "Press here to show your ID."
-    },
     "profile": {
       "title": "Profile",
       "description": "Change your information.",

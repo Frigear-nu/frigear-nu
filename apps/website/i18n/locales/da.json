@@ -204,7 +204,7 @@
     }
   },
   "account": {
-    "identificationCode": {
+    "frigearId": {
       "expiresIn": "Fornyes om {time}s",
       "refresh": "Opdater",
       "error": "Kunne ikke oprette dit Frigear ID."
