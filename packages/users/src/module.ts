@@ -137,7 +137,7 @@ export default defineNuxtModule<ModuleOptions>({
       for (const [method, path, file] of [
         ['get', '/api/admin/users', 'users.get'],
         ['post', '/api/admin/users', 'users.post'],
-        ['get', '/api/admin/users/new-members', 'new-members.get'],
+        ['get', '/api/admin/users/new', 'new.get'],
         ['get', '/api/admin/users/stats', 'stats.get'],
         ['get', '/api/admin/users/roles', 'roles.get'],
         ['get', '/api/admin/users/:id', 'user.get'],
@@ -168,14 +168,14 @@ export default defineNuxtModule<ModuleOptions>({
           icon: 'i-lucide-user',
         })
         extendWidgets(nuxt, 'admin.dashboard', {
-          id: 'users-new-members',
-          component: resolver.resolve('./runtime/app/widgets/NewMembers.vue'),
+          id: 'users-new-users',
+          component: resolver.resolve('./runtime/app/widgets/NewUsers.vue'),
           order: 20,
           span: 2,
         })
         extendWidgets(nuxt, 'admin.dashboard.top', {
-          id: 'users-new-members-stat',
-          component: resolver.resolve('./runtime/app/widgets/NewMembersStat.vue'),
+          id: 'users-new-users-stat',
+          component: resolver.resolve('./runtime/app/widgets/NewUsersStat.vue'),
           order: 10,
         })
       }

@@ -12,5 +12,5 @@ export default defineEventHandler(async (event) => {
     db.select({ value: count() }).from(schema.users),
     db.select({ value: count() }).from(schema.users).where(gte(schema.users.createdAt, since)),
   ])
-  return { total: total?.value ?? 0, newMembers: recent?.value ?? 0, days: DAYS }
+  return { total: total?.value ?? 0, newUsers: recent?.value ?? 0, days: DAYS }
 })

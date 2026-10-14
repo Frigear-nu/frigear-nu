@@ -11,7 +11,7 @@ export type PublicModuleOptions = {
 export type ModuleOptions = {
   settings?: {
     /**
-     * User administration for staff: list/create/edit users (`/api/admin/users`), a "new members" widget and an
+     * User administration for staff: list/create/edit users (`/api/admin/users`), a "new users" widget and an
      * admin page. Who may do what is decided by the host in the `users:admin:authorize` Nitro hook (denied by
      * default). `page` is the admin page path (`true` = `/admin/users`, `false` = no page).
      */

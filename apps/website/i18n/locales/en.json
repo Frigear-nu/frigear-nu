@@ -200,6 +200,12 @@
         "supplier": "Supplier",
         "partner": "Partner",
         "user": "User"
+      },
+      "newUsers": {
+        "title": "New members"
+      },
+      "stats": {
+        "newUsers": "New members"
       }
     }
   },
