@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commitMessage": "chore(release): @frigear-nu/eslint-config@${version}",
+    "tagName": "eslint-config@${version}",
+    "tagAnnotation": "@frigear-nu/eslint-config@${version}",
+    "push": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "@frigear-nu/eslint-config@${version}"
+  },
+  "npm": {
+    "publish": false
+  },
+  "hooks": {
+    "after:release": "bash ../../scripts/npm-publish.sh"
+  }
+}

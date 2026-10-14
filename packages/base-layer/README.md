@@ -15,6 +15,22 @@ This package is the common foundation used by the Nuxt apps in this monorepo. It
 
 - [apps/website](../../apps/website)
 
+## Usage
+
+```bash
+pnpm add @frigear-nu/base nuxt
+```
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  extends: ['@frigear-nu/base'],
+})
+```
+
+`nuxt` is a peer dependency. The layer ships as source (`app`, `modules`, `shared`, `utils`, `content.config.ts`,
+`nuxt.config.ts`) with no build step. Its `@frigear-nu/menu` dependency is installed with it.
+
 ## Setup
 
 From the repository root:
@@ -64,3 +80,11 @@ Page front matter also accepts `container: true`, which wraps the rendered body 
 - This package is a shared workspace dependency and is linked via `workspace:*` from apps.
 - Keep changes here compatible with both consuming apps.
 - If you change module config or public runtime behavior, validate both app consumers in the same change.
+
+## Publishing
+
+Released like the other packages (see the [publishing guide](../../apps/docs/content/1.getting-started/4.publishing.md)):
+the **Release** workflow with `base-layer`, or `pnpm exec release-it` from this folder. Check what ships with
+`pnpm pack --dry-run`. Only the paths in `files` are published; add new top-level folders there. Dependencies the layer
+needs at runtime belong in `dependencies`, not `devDependencies`. There is deliberately no `postinstall` script: it would
+run in every consumer's install.

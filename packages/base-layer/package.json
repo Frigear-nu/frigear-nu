@@ -1,27 +1,32 @@
 {
   "name": "@frigear-nu/base",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
+  "description": "Shared Nuxt layer for Frigear websites - bundled modules, UI defaults, content collections, layouts and routing.",
+  "homepage": "https://docs.frigear.dev/layers/base",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/base-layer"
+  },
+  "license": "MIT",
   "type": "module",
   "main": "./nuxt.config.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "app",
-    "i18n",
     "content.config.ts",
-    "index.d.ts",
     "modules",
     "nuxt.config.ts",
-    "nuxt.schema.ts",
-    "server",
     "shared",
-    "utils",
-    "README.md"
+    "utils"
   ],
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "prepare": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "nuxt typecheck"
@@ -46,7 +51,6 @@
     "@vueuse/core": "^15.0.0",
     "defu": "^6.1.7",
     "motion-v": "^2.4.0",
-    "nuxt": "catalog:",
     "nuxt-og-image": "^7.0.2",
     "nuxt-seo-utils": "^9.0.1",
     "scule": "^1.3.0",
@@ -54,9 +58,13 @@
     "ufo": "^1.6.4",
     "zod": "^4.5.4"
   },
+  "peerDependencies": {
+    "nuxt": "^4.6.0"
+  },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
     "eslint": "^10.9.1",
+    "nuxt": "catalog:",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.11"
   },

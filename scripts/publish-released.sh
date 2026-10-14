@@ -10,7 +10,8 @@ filters=()
 while read -r package; do filters+=(--filter "./packages/$package"); done < "$list"
 
 # Versions are embedded in the build output, so this has to happen after the version bumps.
-pnpm --workspace-concurrency=3 "${filters[@]}" run --if-present build
+# `base-layer` is a source-shipped Nuxt layer: its `build` is a full `nuxt build` that is not part of the tarball.
+pnpm --workspace-concurrency=3 "${filters[@]}" --filter '!./packages/base-layer' run --if-present build
 
 # `-P` keeps going after a failure and makes xargs exit non-zero at the end.
 xargs -P 4 -I{} bash -c '

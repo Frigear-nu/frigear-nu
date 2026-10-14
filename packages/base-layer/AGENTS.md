@@ -47,3 +47,4 @@ pnpm --filter @frigear-nu/website dev
 - Update the lockfile with `pnpm install` when dependencies change.
 - Keep documentation aligned with the actual shared behavior of the layer.
 - Always keep README.md & this AGENTS.md (relevant) up to date with changes and conventions.
+- The package is published to npm as source. Keep `files` in `package.json` in sync with the top-level folders the layer uses, never add a `postinstall` (use `prepare`), and keep `nuxt` a peer dependency. Verify with `pnpm --filter '@frigear-nu/base' exec pnpm pack --dry-run`.
