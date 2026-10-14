@@ -27,7 +27,10 @@ const columns = [{ accessorKey: 'name', header: 'Name' }, { accessorKey: 'email'
       </template>
     </AdminPageHeader>
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <AdminStatCard label="Users">
+      <AdminStatCard
+        label="Users"
+        icon="i-lucide-users"
+      >
         1 204
       </AdminStatCard>
       <AdminStatCard label="Active">

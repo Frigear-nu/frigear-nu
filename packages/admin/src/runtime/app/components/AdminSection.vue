@@ -3,7 +3,7 @@ defineProps<{ title?: string, description?: string, loading?: boolean }>()
 </script>
 
 <template>
-  <section class="border-default bg-default dark:bg-elevated/40 overflow-hidden rounded-xl border">
+  <section class="bg-elevated/50 ring-default ring overflow-hidden rounded-lg">
     <div
       v-if="title || $slots.header || $slots.actions"
       class="border-default flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5"

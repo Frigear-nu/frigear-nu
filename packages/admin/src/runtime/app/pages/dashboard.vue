@@ -15,34 +15,25 @@ const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admi
     />
     <WidgetArea name="admin.dashboard">
       <template #empty>
-        <div
+        <UPageGrid
           v-if="items.length"
-          class="border-default bg-default dark:bg-elevated/40 grid overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-3"
+          class="lg:grid-cols-3"
         >
-          <NuxtLink
+          <UPageCard
             v-for="item in items"
             :key="item.id"
+            :title="item.label"
+            :description="item.description"
+            :icon="item.icon"
             :to="item.to"
-            class="hover:bg-elevated/50 group flex gap-3 p-4 transition-colors"
-          >
-            <UIcon
-              v-if="item.icon"
-              :name="item.icon"
-              class="text-highlighted mt-0.5 size-5 shrink-0"
-            />
-            <div class="min-w-0">
-              <p class="text-highlighted group-hover:text-primary text-sm font-semibold transition-colors">
-                {{ item.label }}
-              </p>
-              <p
-                v-if="item.description"
-                class="text-muted mt-0.5 text-sm text-pretty"
-              >
-                {{ item.description }}
-              </p>
-            </div>
-          </NuxtLink>
-        </div>
+            variant="subtle"
+            :ui="{
+              container: 'gap-y-1.5',
+              wrapper: 'items-start',
+              leading: 'p-2.5 rounded-full bg-primary/10 ring ring-inset ring-primary/25 flex-col',
+            }"
+          />
+        </UPageGrid>
         <p
           v-else
           class="text-muted"

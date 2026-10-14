@@ -40,106 +40,102 @@ const sidebarOpen = ref(false)
 watch(() => route.path, () => {
   sidebarOpen.value = false
 })
+
+// ⌘K palette over the same entries as the sidebar.
+const searchGroups = computed(() => [{
+  id: 'admin-nav',
+  label: t('search.goTo', 'Go to'),
+  items: links.value.map(({ label, icon, to }) => ({ id: to ?? label, label, icon, to })),
+}])
 </script>
 
 <template>
-  <div class="bg-muted dark:bg-default h-dvh w-full overflow-hidden">
-    <UDashboardGroup
-      unit="rem"
-      :ui="{ base: 'admin-group relative flex h-full w-full overflow-hidden' }"
+  <UDashboardGroup unit="rem">
+    <UDashboardSidebar
+      id="admin"
+      v-model:open="sidebarOpen"
+      collapsible
+      resizable
+      class="bg-elevated/25"
+      :ui="{ footer: 'lg:border-t lg:border-default' }"
     >
-      <UDashboardSidebar
-        v-model:open="sidebarOpen"
-        :default-size="15"
-        :min-size="12"
-        :max-size="20"
-        :ui="{
-          root: 'min-h-0 bg-default border-e border-default',
-          header: 'h-auto px-4 pt-5 pb-3 flex-col items-start gap-0.5',
-          body: 'px-3 py-2',
-          footer: 'border-t border-default px-3 py-2',
-        }"
-      >
-        <template #header>
-          <NuxtLink
-            :to="home"
-            class="flex items-center gap-2.5"
-          >
-            <span class="bg-primary text-inverted flex size-8 items-center justify-center rounded-lg">
-              <UIcon
-                name="i-lucide-layout-dashboard"
-                class="size-4.5"
-              />
-            </span>
-            <span class="text-highlighted text-base font-semibold tracking-tight">{{ t('title', 'Administration') }}</span>
-          </NuxtLink>
-        </template>
+      <template #header="{ collapsed }">
+        <NuxtLink
+          :to="home"
+          class="flex min-w-0 items-center gap-2"
+        >
+          <span class="bg-primary text-inverted flex size-7 shrink-0 items-center justify-center rounded-lg">
+            <UIcon
+              name="i-lucide-layout-dashboard"
+              class="size-4"
+            />
+          </span>
+          <span
+            v-if="!collapsed"
+            class="text-highlighted truncate font-semibold"
+          >{{ t('title', 'Administration') }}</span>
+        </NuxtLink>
+      </template>
 
-        <UNavigationMenu
-          orientation="vertical"
-          :items="links"
-          :aria-label="t('nav.label', 'Admin navigation')"
-          :ui="{
-            list: 'space-y-0.5',
-            link: 'rounded-lg px-2.5 py-1.5 text-sm before:rounded-lg aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:font-medium',
-            linkLeadingIcon: 'size-4.5',
-          }"
+      <template #default="{ collapsed }">
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          class="bg-transparent ring-default"
         />
 
-        <template #footer>
-          <UButton
-            to="/"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-arrow-left"
-            :label="t('backToSite', 'Back to the site')"
-            block
-            class="justify-start"
-          />
-        </template>
-      </UDashboardSidebar>
+        <UNavigationMenu
+          :collapsed="collapsed"
+          :items="links"
+          orientation="vertical"
+          tooltip
+          :aria-label="t('nav.label', 'Admin navigation')"
+        />
+      </template>
 
-      <UDashboardPanel :ui="{ root: 'bg-muted dark:bg-default', body: 'p-0 sm:p-0 gap-0' }">
-        <template #header>
-          <UDashboardNavbar
-            :ui="{ root: 'bg-default border-b border-default h-12 px-4 sm:px-6' }"
-          >
-            <template #leading>
-              <UDashboardSidebarCollapse
-                color="neutral"
-                variant="ghost"
-              />
-              <span class="text-muted hidden text-sm sm:inline">{{ t('title', 'Administration') }}</span>
-              <UIcon
-                name="i-lucide-chevron-right"
-                class="text-dimmed hidden size-3.5 sm:inline"
-              />
-              <span class="text-highlighted text-sm font-medium">{{ title }}</span>
-            </template>
-            <template #right>
-              <component
-                :is="optional(LanguageSelect)"
-                v-if="optional(LanguageSelect) && multiLocale"
-              />
-              <UColorModeButton
-                color="neutral"
-                variant="ghost"
-              />
-              <component
-                :is="optional(AccountMenu)"
-                v-if="optional(AccountMenu)"
-              />
-            </template>
-          </UDashboardNavbar>
-        </template>
+      <template #footer="{ collapsed }">
+        <UButton
+          to="/"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-arrow-left"
+          :label="collapsed ? undefined : t('backToSite', 'Back to the site')"
+          :square="collapsed"
+          block
+          class="justify-start"
+        />
+      </template>
+    </UDashboardSidebar>
 
-        <template #body>
-          <div class="admin-content mx-auto w-full max-w-7xl px-4 pt-6 pb-12 sm:px-6">
-            <slot />
-          </div>
-        </template>
-      </UDashboardPanel>
-    </UDashboardGroup>
-  </div>
+    <UDashboardSearch :groups="searchGroups" />
+
+    <UDashboardPanel id="admin-main">
+      <template #header>
+        <UDashboardNavbar
+          :title="title"
+          :ui="{ right: 'gap-2' }"
+        >
+          <template #leading>
+            <UDashboardSidebarCollapse />
+          </template>
+          <template #right>
+            <component
+              :is="optional(LanguageSelect)"
+              v-if="optional(LanguageSelect) && multiLocale"
+            />
+            <UColorModeButton />
+            <component
+              :is="optional(AccountMenu)"
+              v-if="optional(AccountMenu)"
+            />
+          </template>
+        </UDashboardNavbar>
+      </template>
+
+      <template #body>
+        <div class="admin-content mx-auto w-full max-w-7xl">
+          <slot />
+        </div>
+      </template>
+    </UDashboardPanel>
+  </UDashboardGroup>
 </template>
