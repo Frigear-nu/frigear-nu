@@ -13,7 +13,7 @@
         "CLOUDFLARE_DOMAIN_ROOT"
       ],
       "passThroughEnv": ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
-      "outputs": [".output/**"]
+      "outputs": [".output/**", ".wrangler/deploy/**"]
     }
   }
 }
