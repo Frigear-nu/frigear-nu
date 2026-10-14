@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { getTableColumns } from 'drizzle-orm'
-import { userCredentials, passwordResets, magicLinks } from '../src/runtime/db/schema.sqlite'
-import { users as userColumns } from '../src/runtime/db/users.sqlite'
+import * as sqliteSchema from '../src/runtime/db/schema.sqlite'
+import * as postgresqlSchema from '../src/runtime/db/schema.postgresql'
+import * as sqliteUsers from '../src/runtime/db/users.sqlite'
+import * as postgresqlUsers from '../src/runtime/db/users.postgresql'
 
-describe('auth schema', () => {
+const dialects = [
+  { dialect: 'sqlite', ...sqliteSchema, userColumns: sqliteUsers.users },
+  { dialect: 'postgresql', ...postgresqlSchema, userColumns: postgresqlUsers.users },
+]
+
+describe.each(dialects)('auth schema ($dialect)', ({ userCredentials, passwordResets, magicLinks, userColumns }) => {
   it('adds the credential columns to users', () => {
     expect(Object.keys(getTableColumns(userColumns))).toEqual(['password', 'emailVerifiedAt', 'lastLoginAt'])
   })

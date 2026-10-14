@@ -16,14 +16,15 @@ export async function loadAuthUser(id: string | number): Promise<AuthUser | null
 
 /**
  * Statements (for a batch) that point everything this module keeps for a user at a new id. These tables have no
- * foreign key, so a store that re-keys users (`AuthUserStore.changeId`) has to include them.
+ * foreign key, so a store that re-keys users (`AuthUserStore.changeId`) has to include them. Pass `executor` (e.g. a
+ * transaction) to build the statements on it instead of on `db`.
  */
-export function rekeyUserAuthData(from: number, to: number) {
+export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeof db, 'update'> = db) {
   return [
-    db.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from))),
-    ...(schema.userCredentials ? [db.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
-    ...(schema.passwordResets ? [db.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
-    ...(schema.magicLinks ? [db.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
+    executor.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from))),
+    ...(schema.userCredentials ? [executor.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
+    ...(schema.passwordResets ? [executor.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
+    ...(schema.magicLinks ? [executor.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
   ]
 }
 
