@@ -23,15 +23,19 @@ on:
           - all
           - account
           - admin
+          - auth
           - authorization
+          - base-layer
           - cookie-consent
           - events
           - forms
+          - mcp
           - menu
           - module-kit
           - notify
           - oauth-server
           - payments
+          - preferences
           - stripe
           - subscriptions
           - ui
@@ -70,7 +74,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences"]'
           else
             packages="[\"$PACKAGE\"]"
           fi

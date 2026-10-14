@@ -700,9 +700,6 @@ importers:
       motion-v:
         specifier: ^2.4.0
         version: 2.5.0(@vueuse/core@15.0.0(vue@3.5.43(typescript@6.0.3)))(vue@3.5.43(typescript@6.0.3))
-      nuxt:
-        specifier: 'catalog:'
-        version: 4.6.1(f309819f8244455d2ee4fc034f5babe6)
       nuxt-og-image:
         specifier: ^7.0.2
         version: 7.0.2(5b08b20f55c352f7bd185e8b77086552)
@@ -728,6 +725,9 @@ importers:
       eslint:
         specifier: ^10.9.1
         version: 10.12.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.1(f309819f8244455d2ee4fc034f5babe6)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
