@@ -7,6 +7,9 @@ const props = defineProps<{ formId: string, slug: string }>()
 
 const t = useModuleT('forms')
 const toast = useToast()
+const showError = useErrorToast()
+const { copy: copyText } = useCopyToClipboard()
+const format = useFormat()
 const base = computed(() => `/api/forms/admin/forms/${props.formId}`)
 const access = computed(() => resolveAccess(definition.value))
 
@@ -50,10 +53,7 @@ function patchMoment(side: 'from' | 'to', patch: Partial<FormScheduleMoment>) {
   if (schedule.value.type === 'yearly') setSchedule({ ...schedule.value, [side]: { ...schedule.value[side], ...patch } })
 }
 
-const fail = (cause: unknown) => toast.add({
-  title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'),
-  color: 'error',
-})
+const fail = (cause: unknown) => showError(cause, t('error.generic', 'Something went wrong. Please try again.'))
 
 // --- Tokens ---------------------------------------------------------------------------------
 const { data: tokens, refresh: refreshTokens } = await useFetch<FormAccessTokenDto[]>(() => `${base.value}/tokens`, { default: () => [] })
@@ -86,15 +86,7 @@ async function revoke(token: FormAccessTokenDto) {
   }
 }
 
-async function copy(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.add({ title: t('preview.copied', 'Copied to clipboard.'), color: 'success' })
-  }
-  catch (cause) {
-    fail(cause)
-  }
-}
+const copy = (text: string) => copyText(text, t('preview.copied', 'Copied to clipboard.'))
 
 // --- Password -------------------------------------------------------------------------------
 const { data: passwordStatus, refresh: refreshPassword } = await useFetch<FormPasswordStatusDto>(() => `${base.value}/password`, { default: () => ({ set: false }) })
@@ -338,7 +330,7 @@ const snippet = computed(() => {
               <code>{{ token.prefix }}…</code>
               ·
               {{ token.lastUsedAt
-                ? t('access.lastUsed', 'Last used {date}', { date: new Date(token.lastUsedAt).toLocaleString() })
+                ? t('access.lastUsed', 'Last used {date}', { date: format.dateTime(token.lastUsedAt) })
                 : t('access.neverUsed', 'Never used') }}
             </p>
           </div>

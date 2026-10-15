@@ -1,296 +1,204 @@
 <script setup lang="ts">
-import type { FormSummaryDto } from '../../../types'
-import { defineForm } from '../../utils'
+import type { TableColumn } from '@nuxt/ui'
+import type { FormStatus, FormSummaryDto } from '../../../types'
 
 const t = useModuleT('forms')
 const paths = useFormsPaths()
-const toast = useToast()
-const link = useFormLink()
-const { data: forms, error, refresh } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms')
+const format = useFormat()
+const actions = useFormActions()
+const { data: forms, error, status } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms', { key: FORMS_LIST_KEY })
 
-const starter = defineForm({
-  mode: 'single',
-  storage: 'db',
-  steps: [{
-    id: 'main',
-    fields: [
-      { key: 'name', type: 'text', label: 'Name', required: true },
-      { key: 'message', type: 'textarea', label: 'Message', required: true },
-    ],
-  }],
-})
-
-const creating = ref(false)
-const draft = reactive({ name: '', slug: '' })
-const importing = ref(false)
-const importJson = ref('')
-
-const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-watch(() => draft.name, (name, previous) => {
-  if (draft.slug === slugify(previous)) draft.slug = slugify(name)
-})
-
-async function create() {
-  try {
-    const created = await $fetch<{ id: string }>('/api/forms/admin/forms', { method: 'POST', body: { ...draft, definition: starter } })
-    await navigateTo(paths('adminForm', { id: created.id }))
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
-  }
-}
-
-async function clone(form: FormSummaryDto) {
-  try {
-    const copy = await $fetch<{ id: string }>(`/api/forms/admin/forms/${form.id}/clone`, { method: 'POST' })
-    await navigateTo(paths('adminForm', { id: copy.id }))
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
-  }
-}
-
-async function runImport() {
-  try {
-    const parsed = JSON.parse(importJson.value)
-    const result = await $fetch<{ inserted: string[], skipped: string[] }>('/api/forms/admin/import', {
-      method: 'POST',
-      body: { forms: Array.isArray(parsed) ? parsed : [parsed] },
-    })
-    toast.add({ title: t('admin.imported', 'Imported {inserted}, skipped {skipped} existing.', { inserted: result.inserted.length, skipped: result.skipped.length }), color: 'success' })
-    importing.value = false
-    importJson.value = ''
-    await refresh()
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('admin.invalidJson', 'The JSON is not valid.'), color: 'error' })
-  }
-}
-
-type Row = { original: FormSummaryDto }
-const columns = [
-  { accessorKey: 'name', header: t('admin.name', 'Name') },
-  { accessorKey: 'status', header: t('admin.status', 'Status') },
-  { id: 'actions', header: '' },
-]
-
-const statusColor = { draft: 'neutral', published: 'success', archived: 'warning' } as const
-
-const statuses = ['published', 'draft', 'archived'] as const
-const tab = ref<typeof statuses[number]>('published')
 const search = ref('')
-
-const tabs = computed(() => statuses.map(status => ({
-  value: status,
-  label: t(`status.${status}`, status),
-  badge: (forms.value ?? []).filter(form => form.status === status).length,
-})))
+const statusFilter = ref<FormStatus | 'all'>('all')
+const statusItems = computed(() => [
+  { value: 'all', label: t('admin.allStatuses', 'All statuses') },
+  ...(['published', 'draft', 'archived'] as const).map(value => ({ value, label: t(`status.${value}`, value) })),
+])
 
 const visibleForms = computed(() => {
   const query = search.value.trim().toLowerCase()
   return (forms.value ?? []).filter(form =>
-    form.status === tab.value
+    (statusFilter.value === 'all' || form.status === statusFilter.value)
     && (!query || form.name.toLowerCase().includes(query) || form.slug.toLowerCase().includes(query)),
   )
 })
+const filtered = computed(() => !!search.value.trim() || statusFilter.value !== 'all')
+function clearFilters() {
+  search.value = ''
+  statusFilter.value = 'all'
+}
+
+const columns = computed<TableColumn<FormSummaryDto>[]>(() => [
+  { accessorKey: 'name', header: t('admin.name', 'Name') },
+  { accessorKey: 'status', header: t('admin.status', 'Status') },
+  { accessorKey: 'submissionCount', header: t('admin.submissionsTitle', 'Submissions') },
+  { accessorKey: 'updatedAt', header: t('admin.updated', 'Updated') },
+  { id: 'actions', header: '' },
+])
+
+const editPath = (form: FormSummaryDto) => paths('adminForm', { id: form.id })
+const menu = (form: FormSummaryDto) => actions.menu(form, {
+  extra: [{ label: t('admin.open', 'Open'), icon: 'i-lucide-arrow-right', to: editPath(form) }],
+})
+
+const importing = ref(false)
+const importText = ref('')
+const importBusy = ref(false)
+async function runImport() {
+  importBusy.value = true
+  try {
+    if (await actions.importJson(importText.value)) {
+      importing.value = false
+      importText.value = ''
+    }
+  }
+  finally {
+    importBusy.value = false
+  }
+}
 </script>
 
 <template>
-  <AdminPage>
-    <AdminPageHeader :title="t('admin.title', 'Forms')">
+  <div class="flex flex-col gap-4">
+    <PageHeading :title="t('admin.title', 'Forms')">
       <template #actions>
         <UButton
           color="neutral"
           variant="outline"
           icon="i-lucide-upload"
-          :label="t('admin.import', 'Import')"
+          :label="t('admin.import', 'Import JSON')"
           @click="importing = true"
         />
         <UButton
           icon="i-lucide-plus"
           :label="t('admin.new', 'New form')"
-          @click="creating = true"
+          @click="actions.create()"
         />
       </template>
-    </AdminPageHeader>
+    </PageHeading>
 
-    <UAlert
+    <UEmpty
       v-if="error"
-      color="error"
-      variant="subtle"
+      icon="i-lucide-lock"
       :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
     />
 
-    <div
-      v-else
-      class="flex flex-wrap items-center justify-between gap-3"
-    >
-      <UTabs
-        v-model="tab"
-        :items="tabs"
-        :content="false"
-        class="w-auto"
-      />
-      <UInput
-        v-model="search"
-        class="w-full sm:w-72"
-        icon="i-lucide-search"
-        :placeholder="t('admin.search', 'Search forms')"
-        :aria-label="t('admin.search', 'Search forms')"
-      />
-    </div>
-
-    <AdminTable
-      v-if="!error"
-      :data="visibleForms"
-      :columns="columns"
-      @select="(_: Event, row: Row) => navigateTo(paths('adminForm', { id: row.original.id }))"
-    >
-      <template #name-cell="{ row }">
-        <div class="space-y-0.5">
-          <p class="font-medium">
-            {{ row.original.name }}
-          </p>
-          <p class="text-sm text-muted">
-            /{{ row.original.slug }} · {{ row.original.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page') }}
-            · v{{ row.original.version }}
-            <template v-if="row.original.storage === 'none'">
-              · {{ t('admin.notStored', 'Not stored') }}
-            </template>
-          </p>
-        </div>
-      </template>
-      <template #status-cell="{ row }">
-        <UBadge
-          :color="statusColor[row.original.status]"
-          variant="subtle"
-          :label="t(`status.${row.original.status}`, row.original.status)"
+    <template v-else>
+      <PageToolbar>
+        <UInput
+          v-model="search"
+          class="w-full sm:w-72"
+          icon="i-lucide-search"
+          :placeholder="t('admin.search', 'Search forms')"
+          :aria-label="t('admin.search', 'Search forms')"
         />
-      </template>
-      <template #actions-cell="{ row }">
-        <div class="flex items-center justify-end gap-2">
-          <UButton
-            v-if="row.original.storage === 'db' || row.original.submissionCount > 0"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :to="paths('adminSubmissions', { id: row.original.id })"
-            :label="t('admin.submissions', 'Submissions ({count})', { count: row.original.submissionCount })"
-            @click.stop
-          />
-          <UButton
-            v-if="row.original.status === 'published' && link.enabled.value"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-link"
-            :aria-label="t('admin.copyLink', 'Copy link')"
-            @click.stop="link.copy(row.original.slug)"
-          />
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-copy"
-            :aria-label="t('admin.clone', 'Duplicate')"
-            @click="clone(form)"
-          />
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-pencil"
-            :to="paths('adminForm', { id: row.original.id })"
-            :aria-label="t('admin.edit', 'Edit')"
-            @click.stop
-          />
-        </div>
-      </template>
-      <template #empty>
-        <AdminEmpty
-          icon="i-lucide-clipboard-list"
-          :title="forms?.length ? t('admin.noMatches', 'No forms match.') : t('admin.empty', 'No forms yet.')"
+        <USelect
+          v-model="statusFilter"
+          class="w-full sm:w-44"
+          :items="statusItems"
+          :aria-label="t('admin.statusFilter', 'Filter by status')"
         />
-      </template>
-    </AdminTable>
+      </PageToolbar>
 
-    <UModal
-      v-model:open="creating"
-      :title="t('admin.new', 'New form')"
-    >
-      <template #body>
-        <form
-          id="admin-form-create"
-          class="space-y-4"
-          @submit.prevent="create"
+      <TableCard :loading="status === 'pending' && !forms">
+        <UTable
+          :data="visibleForms"
+          :columns="columns"
+          :ui="tableUi()"
+          @select="(_: Event, row: { original: FormSummaryDto }) => navigateTo(editPath(row.original))"
         >
-          <UFormField :label="t('admin.name', 'Name')">
-            <UInput
-              v-model="draft.name"
-              class="w-full"
-              autofocus
+          <template #name-cell="{ row }">
+            <div class="space-y-0.5">
+              <p class="text-highlighted font-medium">
+                {{ row.original.name }}
+              </p>
+              <p class="text-muted text-sm">
+                /{{ row.original.slug }} · {{ row.original.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page') }}
+                · v{{ row.original.version }}
+                <template v-if="row.original.storage === 'none'">
+                  · {{ t('admin.notStored', 'Not stored') }}
+                </template>
+              </p>
+            </div>
+          </template>
+          <template #status-cell="{ row }">
+            <UBadge
+              :color="statusColor(row.original.status, { archived: 'warning' })"
+              variant="subtle"
+              :label="t(`status.${row.original.status}`, row.original.status)"
             />
-          </UFormField>
-          <UFormField
-            :label="t('admin.slug', 'Slug')"
-            :description="t('admin.slugHint', 'Used in the public address.')"
-          >
-            <UInput
-              v-model="draft.slug"
-              class="w-full"
+          </template>
+          <template #updatedAt-cell="{ row }">
+            <span class="text-muted">{{ format.date(row.original.updatedAt) }}</span>
+          </template>
+          <template #actions-cell="{ row }">
+            <RowMenu
+              :items="menu(row.original)"
+              :subject="row.original.name"
             />
-          </UFormField>
-        </form>
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton
-            variant="subtle"
-            color="neutral"
-            :label="t('admin.cancel', 'Cancel')"
-            @click="creating = false"
-          />
-          <UButton
-            type="submit"
-            form="admin-form-create"
-            :label="t('admin.create', 'Create')"
-            :disabled="!draft.name || !draft.slug"
-          />
-        </div>
-      </template>
-    </UModal>
+          </template>
+          <template #empty>
+            <UEmpty
+              variant="naked"
+              icon="i-lucide-clipboard-list"
+              :title="filtered ? t('admin.noMatches', 'No forms match.') : t('admin.empty', 'No forms yet')"
+              :description="filtered ? undefined : t('admin.emptyDescription', 'Create a form to start collecting answers.')"
+            >
+              <template #actions>
+                <UButton
+                  v-if="filtered"
+                  color="neutral"
+                  variant="outline"
+                  :label="t('admin.clearFilters', 'Clear filters')"
+                  @click="clearFilters"
+                />
+                <UButton
+                  v-else
+                  icon="i-lucide-plus"
+                  :label="t('admin.new', 'New form')"
+                  @click="actions.create()"
+                />
+              </template>
+            </UEmpty>
+          </template>
+        </UTable>
+        <template
+          v-if="forms?.length"
+          #footer
+        >
+          <span>{{ t('admin.showing', '{shown} of {total} forms', { shown: visibleForms.length, total: forms.length }) }}</span>
+        </template>
+      </TableCard>
+    </template>
 
     <UModal
       v-model:open="importing"
-      :title="t('admin.import', 'Import')"
+      :title="t('admin.import', 'Import JSON')"
+      :description="t('admin.importHint', 'Paste one form or a list of forms (each with slug, name and definition). Forms whose slug already exists are skipped.')"
+      :ui="{ footer: 'justify-end gap-2' }"
     >
       <template #body>
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            {{ t('admin.importHint', 'Paste one form or a list of forms (each with slug, name and definition). Forms whose slug already exists are skipped.') }}
-          </p>
-          <UTextarea
-            v-model="importJson"
-            :rows="12"
-            class="w-full font-mono text-xs"
-          />
-        </div>
+        <UTextarea
+          v-model="importText"
+          :rows="12"
+          class="w-full font-mono text-xs"
+        />
       </template>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton
-            variant="subtle"
-            color="neutral"
-            :label="t('admin.cancel', 'Cancel')"
-            @click="importing = false"
-          />
-          <UButton
-            :label="t('admin.import', 'Import')"
-            :disabled="!importJson.trim()"
-            @click="runImport"
-          />
-        </div>
+        <UButton
+          color="neutral"
+          variant="outline"
+          :label="t('admin.cancel', 'Cancel')"
+          :disabled="importBusy"
+          @click="importing = false"
+        />
+        <UButton
+          :label="t('admin.importSubmit', 'Import forms')"
+          :loading="importBusy"
+          :disabled="!importText.trim()"
+          @click="runImport"
+        />
       </template>
     </UModal>
-  </AdminPage>
+  </div>
 </template>
