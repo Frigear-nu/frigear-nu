@@ -2,17 +2,22 @@
 import type { ContentNavigationItem } from '@nuxt/content'
 
 const { data: config } = await useConfig()
+// The same entries as the desktop header (`main` menu, including items modules add); the content config's
+// `navigation` when the menu has none.
+const { data: menu } = await useMenu('main')
+const appConfig = useAppConfig()
 
 const items = computed(() => {
-  const iconOnMobile = useAppConfig().header?.icon?.mobile
+  const source = menu.value?.length ? menu.value : config.value?.navigation
+  const iconOnMobile = appConfig.header?.icon?.mobile
 
   if (typeof iconOnMobile === 'boolean' && !iconOnMobile) {
-    return config.value?.navigation?.map(item => ({
+    return source?.map(item => ({
       ...item,
       icon: undefined,
     }))
   } else {
-    return config.value?.navigation
+    return source
   }
 })
 
@@ -21,15 +26,15 @@ const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 
 <template>
   <div class="mt-4">
-    <UPageGrid v-if="config?.navigation">
+    <UPageGrid v-if="items?.length">
       <UPageCard
-        v-for="item in items "
+        v-for="item in items"
         :key="item.label"
         :title="item.label"
         :icon="item.icon"
         :description="item.description"
         :to="item.to"
-        class="hober:shadow-lg"
+        class="hover:shadow-lg"
         variant="subtle"
         :ui="{ title: 'text-xl font-semibold' }"
       />

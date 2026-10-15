@@ -19,7 +19,7 @@ describe('account pages (opt-in, with menus installed)', async () => {
     expect(html).toContain('Change password')
   })
 
-  it('renders the dashboard page with Profile/Security tiles', async () => {
+  it('renders the overview page with Profile/Security shortcuts', async () => {
     const html = await $fetch('/account')
     expect(html).toContain('Profile')
     expect(html).toContain('Security')
@@ -31,14 +31,15 @@ describe('account pages (opt-in, with menus installed)', async () => {
     expect(html).toContain('/assets/handbook.docx')
   })
 
-  it('renders the API tokens page and lists it on the dashboard', async () => {
+  it('renders the API tokens page and lists it on the overview', async () => {
     const html = await $fetch('/account/api-tokens')
-    expect(html).toContain('Create an API token')
+    expect(html).toContain('Create API token')
     expect(html).toContain('Your tokens')
+    expect(html).toContain('You have not created any tokens yet.')
     expect(await $fetch('/account')).toContain('API tokens')
   })
 
-  it('shows a Documents tile on the dashboard', async () => {
+  it('shows a Documents shortcut on the overview', async () => {
     expect(await $fetch('/account')).toContain('Documents')
   })
 })

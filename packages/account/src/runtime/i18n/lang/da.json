@@ -7,6 +7,10 @@
         "label": "Konto",
         "description": "Din konto."
       },
+      "overview": {
+        "label": "Overblik",
+        "description": "Et overblik over din konto."
+      },
       "profile": {
         "label": "Profil",
         "description": "Administrer dine profiloplysninger og e-mailadresse."
@@ -23,6 +27,22 @@
         "label": "API-nøgler",
         "description": "Opret nøgler til scripts og værktøjer."
       }
+    },
+    "nav": {
+      "label": "Kontonavigation"
+    },
+    "accountMenu": "Kontomenu",
+    "appearance": {
+      "label": "Udseende",
+      "light": "Lyst",
+      "dark": "Mørkt",
+      "system": "System"
+    },
+    "overview": {
+      "title": "Konto",
+      "description": "Dine oplysninger og alt, der hører til din konto.",
+      "shortcuts": "Din konto",
+      "empty": "Her er ikke noget endnu."
     },
     "profile": {
       "title": "Profil",
@@ -97,6 +117,10 @@
         "unnamed": "Passkey",
         "created": "Tilføjet {date}",
         "remove": "Fjern passkey",
+        "removeConfirm": {
+          "title": "Fjern {name}?",
+          "description": "Du kan ikke længere logge ind med denne passkey. Den ligger stadig på din enhed, indtil du sletter den dér."
+        },
         "empty": "Du har ikke tilføjet nogen passkeys endnu.",
         "name": {
           "label": "Navn på passkey",
@@ -109,29 +133,31 @@
         "loadError": "Kunne ikke hente dine passkeys."
       }
     },
-    "backTo": "Tilbage til konto",
     "signedInAs": "Logget ind som",
     "apiTokens": {
       "title": "API-nøgler",
       "description": "Opret nøgler til scripts og værktøjer.",
       "allScopes": "Fuld adgang",
-      "copy": "Kopiér",
+      "copy": "Kopiér nøgle",
       "copied": "Nøglen er kopieret.",
       "copiedSnippet": "Kopieret.",
-      "copyError": "Kunne ikke kopiere. Markér nøglen og kopiér den manuelt.",
+      "copySnippet": "Kopiér kommando",
       "create": {
-        "title": "Opret en API-nøgle",
+        "title": "Opret API-nøgle",
         "description": "Nøgler lader scripts og værktøjer som MCP-klienter handle på dine vegne. Giv hver nøgle kun de rettigheder, den har brug for.",
-        "submit": "Opret nøgle"
+        "submit": "Opret API-nøgle"
       },
       "createError": "Kunne ikke oprette nøglen.",
+      "created": "Nøglen er oprettet",
       "name": {
         "label": "Navn",
+        "description": "Så du kan genkende nøglen senere.",
         "placeholder": "fx Min MCP-klient",
         "required": "Giv nøglen et navn."
       },
       "scopes": {
         "label": "Rettigheder",
+        "description": "Hvad nøglen må.",
         "placeholder": "Vælg hvad nøglen må",
         "required": "Vælg mindst én rettighed."
       },
@@ -161,11 +187,13 @@
       },
       "list": {
         "title": "Dine nøgler",
-        "description": "Træk en nøgle tilbage for at stoppe den med det samme.",
+        "description": "Nøgler lader scripts og værktøjer som MCP-klienter handle på dine vegne. Træk en nøgle tilbage for at stoppe den med det samme.",
         "empty": "Du har ikke oprettet nogen nøgler endnu.",
-        "created": "Oprettet {date}",
-        "lastUsed": "Sidst brugt {date}",
-        "expires": "Udløber {date}"
+        "name": "Navn",
+        "createdColumn": "Oprettet",
+        "lastUsedColumn": "Sidst brugt",
+        "expiresColumn": "Udløber",
+        "neverUsed": "Aldrig"
       },
       "status": {
         "ok": "Aktiv",
@@ -173,6 +201,10 @@
         "expired": "Udløbet"
       },
       "revoke": "Træk nøgle tilbage",
+      "revokeConfirm": {
+        "title": "Træk {name} tilbage?",
+        "description": "Scripts og værktøjer, der bruger nøglen, holder op med at virke med det samme. Det kan ikke fortrydes."
+      },
       "revoked": "Nøglen er trukket tilbage.",
       "revokeError": "Kunne ikke trække nøglen tilbage."
     }

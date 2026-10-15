@@ -2,6 +2,9 @@
 const { data: config } = await useConfig()
 const { data: navigation } = useMenu('main')
 const multiLocale = useRuntimeConfig().public.multiLocale === true
+// Off when the account menu offers Appearance instead (the footer toggle stays for signed-out visitors).
+const appConfig = useAppConfig()
+const colorModeButton = computed(() => appConfig.header?.colorMode !== false)
 </script>
 
 <template>
@@ -18,7 +21,7 @@ const multiLocale = useRuntimeConfig().public.multiLocale === true
     <template #right>
       <AppHeaderCTA />
       <LanguageSelect v-if="multiLocale" />
-      <UColorModeButton />
+      <UColorModeButton v-if="colorModeButton" />
       <AppHeaderRight />
     </template>
 

@@ -13,30 +13,29 @@ const documents = computed(() =>
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageBody>
-        <UPageGrid v-if="documents.length">
-          <UPageCard
-            v-for="document in documents"
-            :key="document.id"
-            :title="documentLabel(document, locale)"
-            :icon="document.icon ?? 'i-lucide-file'"
-          >
-            <UButton
-              download
-              external
-              :to="document.path"
-              icon="i-lucide-download"
-              :label="t('download', 'Download')"
-            />
-          </UPageCard>
-        </UPageGrid>
-        <UEmpty
-          v-else
-          :title="t('empty', 'No documents for you yet.')"
-        />
-      </UPageBody>
-    </UPage>
-  </UContainer>
+  <div class="flex flex-col gap-4">
+    <SectionCard>
+      <UPageGrid v-if="documents.length">
+        <UPageCard
+          v-for="document in documents"
+          :key="document.id"
+          :title="documentLabel(document, locale)"
+          :icon="document.icon ?? 'i-lucide-file'"
+        >
+          <UButton
+            download
+            external
+            :to="document.path"
+            icon="i-lucide-download"
+            :label="t('download', 'Download')"
+          />
+        </UPageCard>
+      </UPageGrid>
+      <UEmpty
+        v-else
+        variant="naked"
+        :title="t('empty', 'No documents for you yet.')"
+      />
+    </SectionCard>
+  </div>
 </template>
