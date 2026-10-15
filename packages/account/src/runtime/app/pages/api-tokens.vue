@@ -124,7 +124,10 @@ const activeTab = computed(() => connectTabs.value.find(tab => tab.value === act
       </template>
     </UAlert>
 
-    <TableCard :loading="status === 'pending' && !tokens?.length">
+    <TableCard
+      :loading="status === 'pending' && !tokens?.length"
+      :refreshing="status === 'pending' && !!tokens?.length"
+    >
       <template #header>
         <div class="min-w-0">
           <h2 class="text-sm font-semibold text-highlighted">
@@ -147,33 +150,41 @@ const activeTab = computed(() => connectTabs.value.find(tab => tab.value === act
         :ui="tableUi({ tr: '' })"
       >
         <template #name-cell="{ row }">
-          <div class="flex min-w-0 flex-col">
-            <span class="flex items-center gap-2 font-medium text-highlighted">
-              {{ row.original.name }}
+          <TableIdentity
+            :title="row.original.name"
+            :description="`${row.original.prefix}…${row.original.last4}`"
+          >
+            <template #badges>
               <UBadge
                 :color="tokenStatusColor(row.original.status)"
                 variant="subtle"
+                size="sm"
                 :label="t(`status.${row.original.status}`, row.original.status)"
               />
-            </span>
-            <span class="font-mono text-xs text-muted">{{ row.original.prefix }}…{{ row.original.last4 }}</span>
-          </div>
+            </template>
+          </TableIdentity>
         </template>
         <template #scopes-cell="{ row }">
           <span class="text-muted">{{ row.original.scopes.join(', ') }}</span>
         </template>
         <template #createdAt-cell="{ row }">
-          {{ format.date(row.original.createdAt) }}
+          <span class="tabular-nums">{{ format.date(row.original.createdAt) }}</span>
         </template>
         <template #lastUsedAt-cell="{ row }">
-          <span v-if="row.original.lastUsedAt">{{ format.date(row.original.lastUsedAt) }}</span>
+          <span
+            v-if="row.original.lastUsedAt"
+            class="tabular-nums"
+          >{{ format.date(row.original.lastUsedAt) }}</span>
           <span
             v-else
             class="text-dimmed"
           >{{ t('list.neverUsed', 'Never') }}</span>
         </template>
         <template #expiresAt-cell="{ row }">
-          <span v-if="row.original.expiresAt">{{ format.date(row.original.expiresAt) }}</span>
+          <span
+            v-if="row.original.expiresAt"
+            class="tabular-nums"
+          >{{ format.date(row.original.expiresAt) }}</span>
           <span
             v-else
             class="text-dimmed"

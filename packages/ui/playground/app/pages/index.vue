@@ -5,8 +5,24 @@ const toggle = ref(false)
 const interval = ref(3600)
 const tab = ref('details')
 const format = useFormat()
-const rows = [{ name: 'Ada Lovelace', email: 'ada@example.com' }, { name: 'Grace Hopper', email: 'grace@example.com' }]
-const columns = [{ accessorKey: 'name', header: 'Name' }, { accessorKey: 'email', header: 'Email' }]
+const rows: { name: string, email: string, tickets: number, note?: string }[] = [
+  { name: 'Ada Lovelace', email: 'ada@example.com', tickets: 2, note: 'Vegetarian' },
+  { name: 'Grace Hopper', email: 'grace@example.com', tickets: 12 },
+]
+const { sorting, header } = useTableSort({ id: 'name', desc: false })
+const TableIdentity = resolveComponent('TableIdentity')
+const columns = [
+  {
+    accessorKey: 'name',
+    header: header('name', 'Name'),
+    cell: ({ row }: { row: { original: typeof rows[number] } }) => h(TableIdentity, { title: row.original.name, description: row.original.email, avatar: { alt: row.original.name } }),
+  },
+  { accessorKey: 'tickets', header: header('tickets', 'Tickets'), meta: numericColumn },
+  { accessorKey: 'note', header: 'Note', cell: ({ row }: { row: { original: typeof rows[number] } }) => row.original.note ?? emptyCell() },
+]
+const page = ref(1)
+const pageSize = ref(20)
+const refreshing = ref(false)
 const menu = [[{ label: 'Open', icon: 'i-lucide-arrow-right' }, { label: 'Edit', icon: 'i-lucide-pencil' }], [{ label: 'Delete event', icon: 'i-lucide-trash-2', color: 'error' as const }]]
 </script>
 
@@ -101,14 +117,23 @@ const menu = [[{ label: 'Open', icon: 'i-lucide-arrow-right' }, { label: 'Edit',
       >
         <DescriptionList :items="[{ label: 'Venue', value: 'Copenhagen' }, { label: 'Capacity', value: null }]" />
       </SectionCard>
-      <TableCard>
+      <USwitch
+        v-model="refreshing"
+        label="Refreshing"
+      />
+      <TableCard :refreshing="refreshing">
         <UTable
+          v-model:sorting="sorting"
           :data="rows"
           :columns="columns"
           :ui="tableUi()"
         />
         <template #footer>
-          {{ rows.length }} attendees
+          <TablePagination
+            v-model:page="page"
+            v-model:page-size="pageSize"
+            :total="132"
+          />
         </template>
       </TableCard>
       <ListCard

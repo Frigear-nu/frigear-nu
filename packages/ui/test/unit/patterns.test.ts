@@ -10,6 +10,9 @@ import {
   statusColor,
   stripLocale,
   tableUi,
+  nextTableSort,
+  tablePageRange,
+  tableSortQuery,
 } from '../../src/runtime/utils'
 
 describe('errorMessage', () => {
@@ -106,8 +109,48 @@ describe('statusColor', () => {
 })
 
 describe('tableUi', () => {
+  const defaults = { th: 'text-muted text-xs font-normal py-2', td: 'max-md:py-3 md:py-2', tr: 'cursor-pointer' }
+
   it('merges overrides into the defaults', () => {
-    expect(tableUi()).toEqual({ th: 'text-muted font-normal', td: 'py-3', tr: 'cursor-pointer' })
-    expect(tableUi({ tr: '' })).toEqual({ th: 'text-muted font-normal', td: 'py-3', tr: '' })
+    expect(tableUi()).toEqual(defaults)
+    expect(tableUi({ tr: '' })).toEqual({ ...defaults, tr: '' })
+  })
+
+  it('lets a sticky table scroll inside its card', () => {
+    expect(tableUi({}, { sticky: true })).toEqual({ root: 'max-h-[70vh]', ...defaults })
+    expect(tableUi({ root: 'max-h-96' }, { sticky: true }).root).toBe('max-h-96')
+  })
+})
+
+describe('table sorting', () => {
+  it('cycles ascending, descending, unsorted', () => {
+    const asc = nextTableSort(null, 'name')
+    expect(asc).toEqual({ id: 'name', desc: false })
+    const desc = nextTableSort(asc, 'name')
+    expect(desc).toEqual({ id: 'name', desc: true })
+    expect(nextTableSort(desc, 'name')).toBeNull()
+  })
+
+  it('starts ascending on another column', () => {
+    expect(nextTableSort({ id: 'name', desc: true }, 'email')).toEqual({ id: 'email', desc: false })
+  })
+
+  it('turns the sort into a server query', () => {
+    expect(tableSortQuery({ id: 'createdAt', desc: true })).toEqual({ sort: 'createdAt', order: 'desc' })
+    expect(tableSortQuery({ id: 'name', desc: false })).toEqual({ sort: 'name', order: 'asc' })
+    expect(tableSortQuery(null)).toEqual({ sort: undefined, order: undefined })
+  })
+})
+
+describe('tablePageRange', () => {
+  it('returns the rows shown on a page', () => {
+    expect(tablePageRange(1, 20, 132)).toEqual({ from: 1, to: 20 })
+    expect(tablePageRange(2, 20, 132)).toEqual({ from: 21, to: 40 })
+    expect(tablePageRange(7, 20, 132)).toEqual({ from: 121, to: 132 })
+  })
+
+  it('is empty without rows or past the last page', () => {
+    expect(tablePageRange(1, 20, 0)).toEqual({ from: 0, to: 0 })
+    expect(tablePageRange(9, 20, 132)).toEqual({ from: 0, to: 0 })
   })
 })

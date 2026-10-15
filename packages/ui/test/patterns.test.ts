@@ -38,4 +38,23 @@ describe('page patterns', async () => {
     expect(other).toBeDefined()
     expect(other).not.toContain('aria-current')
   })
+
+  it('renders the identity cell with its second line', async () => {
+    const html = await $fetch<string>('/table')
+    expect(html).toContain('Ada Lovelace')
+    expect(html).toContain('ada@example.com')
+  })
+
+  it('shows the range, rows per page and pages of a long list', async () => {
+    const html = await $fetch<string>('/table')
+    expect(html).toContain('21–40 of 132')
+    expect(html).toContain('Rows per page')
+    expect(html).toMatch(/aria-busy="true"/)
+  })
+
+  it('hides paging when everything fits on one page', async () => {
+    const html = await $fetch<string>('/table')
+    expect(html).toContain('1–3 of 3')
+    expect(html.match(/Rows per page/g)).toHaveLength(1)
+  })
 })

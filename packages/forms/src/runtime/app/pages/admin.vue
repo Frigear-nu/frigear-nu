@@ -28,13 +28,20 @@ function clearFilters() {
   statusFilter.value = 'all'
 }
 
+const { sorting, header } = useTableSort({ id: 'updatedAt', desc: true })
 const columns = computed<TableColumn<FormSummaryDto>[]>(() => [
-  { accessorKey: 'name', header: t('admin.name', 'Name') },
-  { accessorKey: 'status', header: t('admin.status', 'Status') },
-  { accessorKey: 'submissionCount', header: t('admin.submissionsTitle', 'Submissions') },
-  { accessorKey: 'updatedAt', header: t('admin.updated', 'Updated') },
-  { id: 'actions', header: '' },
+  { accessorKey: 'name', header: header('name', t('admin.name', 'Name')) },
+  { accessorKey: 'status', header: header('status', t('admin.status', 'Status')) },
+  { accessorKey: 'submissionCount', header: header('submissionCount', t('admin.submissionsTitle', 'Submissions')), meta: numericColumn },
+  { accessorKey: 'updatedAt', header: header('updatedAt', t('admin.updated', 'Updated')) },
+  { id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0' } } },
 ])
+const formDescription = (form: FormSummaryDto) => [
+  `/${form.slug}`,
+  form.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page'),
+  `v${form.version}`,
+  ...(form.storage === 'none' ? [t('admin.notStored', 'Not stored')] : []),
+].join(' · ')
 
 const editPath = (form: FormSummaryDto) => paths('adminForm', { id: form.id })
 const menu = (form: FormSummaryDto) => actions.menu(form, {
@@ -100,26 +107,22 @@ async function runImport() {
         />
       </PageToolbar>
 
-      <TableCard :loading="status === 'pending' && !forms">
+      <TableCard
+        :loading="status === 'pending' && !forms"
+        :refreshing="status === 'pending' && !!forms"
+      >
         <UTable
+          v-model:sorting="sorting"
           :data="visibleForms"
           :columns="columns"
           :ui="tableUi()"
           @select="(_: Event, row: { original: FormSummaryDto }) => navigateTo(editPath(row.original))"
         >
           <template #name-cell="{ row }">
-            <div class="space-y-0.5">
-              <p class="text-highlighted font-medium">
-                {{ row.original.name }}
-              </p>
-              <p class="text-muted text-sm">
-                /{{ row.original.slug }} · {{ row.original.mode === 'stepped' ? t('admin.stepped', 'Stepped') : t('admin.single', 'Single page') }}
-                · v{{ row.original.version }}
-                <template v-if="row.original.storage === 'none'">
-                  · {{ t('admin.notStored', 'Not stored') }}
-                </template>
-              </p>
-            </div>
+            <TableIdentity
+              :title="row.original.name"
+              :description="formDescription(row.original)"
+            />
           </template>
           <template #status-cell="{ row }">
             <UBadge
@@ -129,7 +132,7 @@ async function runImport() {
             />
           </template>
           <template #updatedAt-cell="{ row }">
-            <span class="text-muted">{{ format.date(row.original.updatedAt) }}</span>
+            <span class="tabular-nums">{{ format.date(row.original.updatedAt) }}</span>
           </template>
           <template #actions-cell="{ row }">
             <RowMenu
