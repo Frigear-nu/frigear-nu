@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import type { PaymentDto } from '../../../types'
-import { formatMoney } from '@frigear-nu/ui/money'
 
 defineOptions({ name: 'PaymentsRecentTransactions' })
 
-// List card for the `admin.dashboard.side` area: the latest settled or failed payments.
+// List card for the `admin.dashboard.side` area: the latest settled or failed payments. The "view all" link goes to
+// the users list, where each user's payments are on their Payments tab.
 const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
+const format = useFormat()
+const { localize } = useLocaleLink()
 const usersPage = useRuntimeConfig().public.users?.pages?.admin
+const usersPath = usersPage ? localize(usersPage.replace(/\/+$/, '')) : undefined
 const { data, status: fetchStatus } = useLazyFetch<{ items: (PaymentDto & { userName: string | null })[] }>('/api/payments/admin/recent', { key: 'admin-payments-recent' })
 
-const date = (value: string | null) => value ? new Date(value).toLocaleDateString() : '–'
-const color = (value: string) => value === 'paid' ? 'success' : value === 'failed' ? 'error' : 'neutral'
-const userTo = (id: number) => usersPage ? `${usersPage.replace(/\/+$/, '')}/${id}` : undefined
+const userTo = (id: number) => usersPath ? `${usersPath}/${id}` : undefined
 </script>
 
 <template>
-  <AdminListCard
+  <ListCard
     :title="t('recent', 'Recent transactions')"
     :loading="fetchStatus === 'pending' && !data"
     :is-empty="!data?.items.length"
-    :empty="t('empty', 'No payments yet.')"
+    :empty="t('empty', 'No payments yet')"
+    :to="usersPath"
+    :to-label="t('viewUsers', 'View users')"
   >
     <li
       v-for="payment in data?.items"
@@ -40,20 +43,20 @@ const userTo = (id: number) => usersPage ? `${usersPage.replace(/\/+$/, '')}/${i
           class="text-highlighted block truncate font-medium"
         >{{ payment.userName ?? payment.description ?? t('defaultDescription', 'Payment') }}</span>
         <p class="text-muted truncate text-xs">
-          {{ date(payment.paidAt ?? payment.createdAt) }}<template v-if="payment.description && payment.userName">
+          {{ format.date(payment.paidAt ?? payment.createdAt) }}<template v-if="payment.description && payment.userName">
             · {{ payment.description }}
           </template>
         </p>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
-        <span class="text-highlighted font-medium">{{ formatMoney(payment.amount, payment.currency) }}</span>
+        <span class="text-highlighted font-medium">{{ format.money(payment.amount, payment.currency) }}</span>
         <UBadge
           size="sm"
           variant="subtle"
-          :color="color(payment.status)"
+          :color="statusColor(payment.status, { partially_refunded: 'warning' })"
           :label="status(payment.status, payment.status)"
         />
       </div>
     </li>
-  </AdminListCard>
+  </ListCard>
 </template>

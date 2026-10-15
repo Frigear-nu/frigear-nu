@@ -13,7 +13,7 @@
       "tab": "Payments",
       "title": "Payments",
       "lastPayment": "Last payment",
-      "empty": "No payments yet.",
+      "empty": "No payments yet",
       "date": "Date",
       "description": "Description",
       "amount": "Amount",
@@ -22,9 +22,10 @@
       "reference": "Reference",
       "defaultDescription": "Payment",
       "revenue": "Revenue, 30 days",
-      "noRevenue": "No payments yet.",
+      "noRevenue": "No payments yet",
       "transactions": "{count} transactions",
-      "recent": "Recent transactions"
+      "recent": "Recent transactions",
+      "viewUsers": "View users"
     }
   }
 }

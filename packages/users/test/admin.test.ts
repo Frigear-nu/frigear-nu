@@ -149,6 +149,28 @@ describe('users admin', async () => {
     expect((await unverified.json()).emailVerifiedAt).toBeNull()
   })
 
+  it('renders the list with a row menu and the detail page with a breadcrumb', async () => {
+    const page = async (path: string) => {
+      const response = await call('GET', path, undefined, staff)
+      expect(response.status, path).toBe(200)
+      return response.text()
+    }
+
+    const list = await page('/admin/users')
+    expect(list).toContain('Add user')
+    // One `RowMenu` per row, named after its user.
+    expect(list).toContain('aria-label="Actions for Staff"')
+    expect(list).toContain('staff@example.com')
+
+    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
+    const detail = await page(`/admin/users/${items[0].id}`)
+    expect(detail).toMatch(/<nav[^>]*aria-label="breadcrumb"/i)
+    expect(detail).toMatch(/<h1[^>]*>(?:<!--\[-->)?Staff/)
+    expect(detail).toContain('aria-label="Actions for Staff"')
+
+    expect(await page('/admin/users/99999')).toContain('User not found')
+  }, 120_000)
+
   it('deletes users through the policy but never the acting user', async () => {
     const created = await (await call('POST', '/api/admin/users', { name: 'Gone', email: 'gone@example.com', sendWelcomeEmail: false }, staff)).json()
     expect((await call('DELETE', `/api/admin/users/${created.id}`, undefined, member)).status).toBe(403)
