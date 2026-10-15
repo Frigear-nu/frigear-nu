@@ -90,7 +90,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
-  async setup(options, nuxt) {
+  setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
       { name: 'forms:manage', description: 'Manage forms and submissions (staff)' },
@@ -141,7 +141,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // --- Database -------------------------------------------------------------------------
-    await registerDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })

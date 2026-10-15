@@ -164,7 +164,8 @@ manually — check before assuming plain pnpm scripts are the only path.
 - Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
   the session is empty for bearer requests.
 - A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
-  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
+  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see
+  [Database extensions and authenticated test fixtures](#database-extensions-and-authenticated-test-fixtures)).
 
 ### Database schemas: one file per dialect
 
@@ -192,19 +193,30 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 ### Database extensions and authenticated test fixtures
 
-- `extendDatabaseTable` changes the generated Drizzle schema, not the database itself. Whenever a module adds or
-  changes columns, generate and commit migrations for every affected fixture using its complete module configuration,
-  including the extending modules. Commit the SQL, Drizzle snapshot, and migration journal together; these are versioned
-  schema history, not disposable build artifacts.
+- `registerDatabaseTable` and `extendDatabaseTable` change the generated Drizzle schema, not the database itself.
+  Whenever a module adds or changes columns, generate and commit migrations for every affected fixture using its
+  complete module configuration, including the extending modules. Commit the SQL, Drizzle snapshot, and migration
+  journal together; these are versioned schema history, not disposable build artifacts.
+- Omit `name` on both calls: `registerDatabaseTable` registers every table export of its schema file and
+  `extendDatabaseTable` extends whichever tables the file has a matching export for. Pass `name` only to restrict
+  (for example auth's feature-dependent table list). Schema files are plain drizzle tables parsed as text, so keep them
+  to imports and table calls; `factory` / `defineExtendableTable` are deprecated.
+- A host application extends tables from its own `server/db/extend.<dialect>.ts` (one exported table or columns object
+  per table), merged after every module and layer. The host generates and commits its own migration for it.
 - Prepare the fixture before generating migrations so `.nuxt/hub/db/schema.mjs` includes all registered extensions.
-  Do not generate migrations from only the owning module's base schema.
+  Do not generate migrations from only the owning module's base schema. From the repo root, with an absolute `--cwd`:
+  `pnpm --filter @frigear-nu/<pkg> exec nuxt db generate --cwd "$PWD/packages/<pkg>/test/fixtures/<fixture>"`.
+  After changing a schema or an extension, run it for every fixture that has committed migrations: it must print
+  `No schema changes, nothing to migrate` and leave `git status 'packages/*/test/fixtures'` clean. If it creates a
+  migration, the fixture needs one (see the module-kit page for naming it); delete any stray generated migration you
+  do not intend to commit.
 - Fixtures exercising email/password registration need `authentication.settings.password` (on by default). This enables
   both login and registration APIs; `settings.pages.register` only enables the UI page.
 - Database-backed auth tests use `dev: true` so NuxtHub applies committed migrations on startup. Reset only the
   fixture's dedicated `.data` directory before the suite and clean it up afterward to avoid duplicate-user failures
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
-- A missing session cookie can be a database error, not disabled authentication: the account fixture needed an
-  `accepted_terms_at` migration after the account module extended `users`. See
+- A missing session cookie can be a database error, not disabled authentication: a column added by an extending module
+  without a matching fixture migration makes every write to that table fail. See
   `apps/docs/content/4.modules/10.module-kit.md` for the migration workflow.
 
 ---

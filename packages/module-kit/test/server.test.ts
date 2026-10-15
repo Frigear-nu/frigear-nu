@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { addTemplate, createResolver } from '@nuxt/kit'
 import type { Nuxt, NuxtTemplate } from '@nuxt/schema'
@@ -53,7 +54,7 @@ function setup(override?: string, extensionFile?: (dialect: string) => string, l
 describe('registerDatabaseTable', () => {
   it('generates a schema from the module factory without an extension file', async () => {
     const { run } = setup()
-    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/module-kit/db/accounts.sqlite.ts'])
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     expect(template.write).toBe(true)
     expect((template.getContents as () => string)()).toContain('export const accounts = defineAccountsTable({ name: "accounts", columns: {  } })')
@@ -84,7 +85,7 @@ describe('registerDatabaseTable', () => {
       resolver: createResolver(import.meta.url),
       schema: dialect => `./fixtures/posts.${dialect}`,
     })
-    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/module-kit/db/accounts.sqlite.ts', '/generated/module-kit/db/posts.sqlite.ts'])
     const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
     expect((accountTemplate.getContents as () => string)()).toContain('extra0["accounts" as keyof typeof extra0]')
@@ -162,7 +163,7 @@ describe('registerDatabaseTable', () => {
       resolver: createResolver(rootDir),
       file: () => 'server/db/registered.sqlite.ts',
     })
-    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/module-kit/db/accounts.sqlite.ts', '/generated/module-kit/db/posts.sqlite.ts'])
     const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
     expect((accountTemplate.getContents as () => string)())
@@ -188,7 +189,7 @@ describe('registerDatabaseTable', () => {
       resolver: createResolver(rootDir),
       file: () => 'server/db/registered.sqlite.ts',
     })
-    expect(await run()).toEqual(['/generated/accounts/schema.sqlite.ts', '/generated/posts/schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/module-kit/db/accounts.sqlite.ts', '/generated/module-kit/db/posts.sqlite.ts'])
     const accountTemplate = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const postTemplate = vi.mocked(addTemplate).mock.calls[1]![0] as NuxtTemplate
     expect((accountTemplate.getContents as () => string)())
@@ -288,7 +289,7 @@ function setupRegular() {
 describe('registerDatabaseTable (without a factory)', () => {
   it('generates a merged table directly from a regular drizzle schema file', async () => {
     const { run } = setupRegular()
-    expect(await run()).toEqual(['/generated/users/accounts.schema.sqlite.ts'])
+    expect(await run()).toEqual(['/generated/module-kit/db/accounts.sqlite.ts'])
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
     expect(content).toContain('import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"')
@@ -409,7 +410,7 @@ export const accounts = { locale: text().default('da') }
 
     const paths: string[] = []
     await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
-    expect(paths).toEqual(['/generated/users/users-userpasskeys.schema.sqlite.ts'])
+    expect(paths).toEqual(['/generated/module-kit/db/users-user-passkeys.sqlite.ts'])
 
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
@@ -440,7 +441,7 @@ export const accounts = { locale: text().default('da') }
 
     const paths: string[] = []
     await nuxt.callHook('hub:db:schema:extend', { dialect: 'sqlite', paths })
-    expect(paths).toEqual(['/generated/users/users-userpasskeys.schema.sqlite.ts'])
+    expect(paths).toEqual(['/generated/module-kit/db/users-user-passkeys.sqlite.ts'])
 
     const template = vi.mocked(addTemplate).mock.calls[0]![0] as NuxtTemplate
     const content = (template.getContents as () => string)()
@@ -471,5 +472,220 @@ export const accounts = { locale: text().default('da') }
       resolver: createResolver(import.meta.url),
       schema: dialect => `./fixtures/regular/multi.${dialect}`,
     })).toThrow(/requires a single "name".*when "factory" is set/)
+  })
+})
+
+function setupHooks() {
+  const rootDir = mkdtempSync(join(tmpdir(), 'database-table-new-'))
+  roots.push(rootDir)
+  mkdirSync(join(rootDir, 'server/db'), { recursive: true })
+  const hooks = new Map<string, Array<(props: never) => Promise<void>>>()
+  const nuxt = {
+    options: { rootDir, _layers: [{ config: { rootDir } }] },
+    hook: (name: string, callback: (props: never) => Promise<void>) => {
+      hooks.set(name, [...(hooks.get(name) ?? []), callback])
+    },
+    callHook: async (name: string, props: never) => {
+      for (const callback of hooks.get(name) ?? []) await callback(props)
+    },
+  } as unknown as Nuxt
+  const write = (file: string, content: string) => writeFileSync(join(rootDir, 'server/db', file), content)
+  const run = async (dialect = 'sqlite') => {
+    const paths: string[] = []
+    await nuxt.callHook('hub:db:schema:extend', { dialect, paths })
+    return paths
+  }
+  const contents = (index = 0) => ((vi.mocked(addTemplate).mock.calls[index]![0] as NuxtTemplate).getContents as () => string)()
+  return { nuxt, hooks, rootDir, write, run, contents, resolver: createResolver(rootDir) }
+}
+
+describe('registerDatabaseTable / extendDatabaseTable (synchronous registration)', () => {
+  it('returns undefined and registers its hooks before any await', () => {
+    const { nuxt, hooks, resolver } = setupHooks()
+    const registered = registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    expect(registered).toBeUndefined()
+    expect(hooks.get('hub:db:schema:extend')).toHaveLength(1)
+
+    const extended = extendDatabaseTable(nuxt, { resolver, file: dialect => `server/db/extra.${dialect}.ts` })
+    expect(extended).toBeUndefined()
+    expect(hooks.get('module-kit:db:table:extend')).toHaveLength(1)
+  })
+
+  it('extends only the table that has a matching export when "name" is omitted', async () => {
+    const { nuxt, write, run, contents, resolver } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/multi.sqlite' })
+    write('shared.sqlite.ts', `
+import { text } from 'drizzle-orm/sqlite-core'
+export const users = { nickname: text() }
+export const unrelated = { shouldNotAppear: text() }
+`)
+    extendDatabaseTable(nuxt, { resolver, file: dialect => `server/db/shared.${dialect}.ts` })
+    expect(await run()).toEqual(['/generated/module-kit/db/users-user-passkeys.sqlite.ts'])
+
+    const content = contents()
+    expect(content).toContain('nickname: text(),')
+    expect(content).not.toContain('shouldNotAppear')
+    // The other table of the same schema is untouched.
+    const passkeys = content.slice(content.indexOf('export const userPasskeys'))
+    expect(passkeys).not.toContain('nickname')
+    expect(passkeys).toContain('userId: integer()')
+  })
+
+  it('skips an extension file that does not exist for the dialect', async () => {
+    const { nuxt, run, contents, resolver } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/schema.sqlite' })
+    extendDatabaseTable(nuxt, { resolver, file: dialect => `server/db/missing.${dialect}.ts` })
+    await run()
+    expect(contents()).toContain('export const accounts = sqliteTable("accounts", {')
+  })
+})
+
+describe('registerDatabaseTable (schema validation)', () => {
+  it('throws naming the dialect, the expected file and the override option when the dialect file is missing', async () => {
+    const { nuxt, run, resolver } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    await expect(run('sqlite')).rejects.toThrow(/No sqlite schema at "server\/db\/schema\.sqlite".*`override`/s)
+  })
+
+  it('ignores exported non-table objects when discovering tables', async () => {
+    const { nuxt, write, run, contents, resolver } = setupHooks()
+    write('schema.sqlite.ts', `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+export const things = sqliteTable('things', { id: text().primaryKey() })
+export const defaults = { id: text() }
+`)
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    expect(await run()).toEqual(['/generated/module-kit/db/things.sqlite.ts'])
+    expect(contents()).toContain('export const things = sqliteTable("things", {')
+    expect(contents()).not.toContain('export const defaults')
+  })
+
+  it('errors when an explicit name points at an export that is not a table call', async () => {
+    const { nuxt, write, run, resolver } = setupHooks()
+    write('schema.sqlite.ts', `
+import { text } from 'drizzle-orm/sqlite-core'
+export const defaults = { id: text() }
+`)
+    registerDatabaseTable(nuxt, { name: 'defaults', resolver, schema: dialect => `server/db/schema.${dialect}` })
+    await expect(run()).rejects.toThrow(/"defaults".*exists but is not a table call/)
+  })
+})
+
+describe('registerDatabaseTable (merging diagnostics)', () => {
+  it('warns once when an extension file drops a table-config argument, and keeps the base indexes', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { nuxt, write, run, contents } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/multi.sqlite' })
+    write('extend.sqlite.ts', `
+import { sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
+export const userPasskeys = sqliteTable('user_passkeys', {
+  label: text(),
+}, t => [index('extension_label_idx').on(t.label)])
+`)
+    await run()
+    await run()
+    const messages = warn.mock.calls.map(call => String(call[0])).filter(text => text.includes('table-config argument'))
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toContain('userPasskeys')
+    const content = contents(0)
+    expect(content).toContain('label: text(),')
+    expect(content).toContain('index(\'user_passkey_user_idx\').on(t.userId)')
+    expect(content).not.toContain('extension_label_idx')
+    warn.mockRestore()
+  })
+
+  it('warns when the extension declares a different SQL table name than the base', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { nuxt, write, run, contents } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/schema.sqlite' })
+    write('extend.sqlite.ts', `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+export const accounts = sqliteTable('people', { nickname: text() })
+`)
+    await run()
+    expect(warn.mock.calls.some(call => /declares the SQL table "people" but the base schema declares "accounts"/.test(String(call[0])))).toBe(true)
+    expect(contents()).toContain('export const accounts = sqliteTable("accounts", {')
+    warn.mockRestore()
+  })
+
+  it('rewrites relative imports of the schema file to absolute paths and keeps type-only specifiers', async () => {
+    const { nuxt, run, contents } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/relative.sqlite' })
+    await run()
+    const types = fileURLToPath(new URL('./fixtures/regular/types', import.meta.url))
+    expect(contents()).toContain(`import { type Foo } from ${JSON.stringify(types)}`)
+  })
+
+  it('de-duplicates `X` and `type X` imports of the same module, preferring the value import', async () => {
+    const { nuxt, write, run, contents, resolver } = setupHooks()
+    write('schema.sqlite.ts', `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { Value } from 'pkg'
+import type { Mode, Other } from 'pkg'
+export const things = sqliteTable('things', { id: text().primaryKey().$type<Mode>() })
+`)
+    write('extend.sqlite.ts', `
+import { text } from 'drizzle-orm/sqlite-core'
+import { Mode, type Other } from 'pkg'
+import type { Value } from 'pkg'
+export const things = { extra: text().$type<Mode | Other | Value>() }
+`)
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    await run()
+    expect(contents()).toContain('import { Value, Mode, type Other } from "pkg"')
+  })
+
+  it('honours a legacy per-table default export in regular mode', async () => {
+    const { nuxt, write, run, contents, resolver } = setupHooks()
+    write('schema.sqlite.ts', `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+export const things = sqliteTable('things', { id: text().primaryKey() })
+`)
+    write('things.extend.sqlite.ts', `
+import { text } from 'drizzle-orm/sqlite-core'
+export default { legacyColumn: text() }
+`)
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    await run()
+    expect(contents()).toContain('legacyColumn: text(),')
+  })
+
+  it('warns when a legacy per-table file has neither a named nor a default export that parses', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { nuxt, write, run, contents, resolver } = setupHooks()
+    write('schema.sqlite.ts', `
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+export const things = sqliteTable('things', { id: text().primaryKey() })
+`)
+    write('things.extend.sqlite.ts', 'export const unrelated = 1')
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    await run()
+    expect(warn.mock.calls.some(call => /legacy `things\.extend\.sqlite` file/.test(String(call[0])))).toBe(true)
+    expect(contents()).not.toContain('unrelated')
+    warn.mockRestore()
+  })
+
+  it('appends a short hash to the generated file name when the table names are long', async () => {
+    const { nuxt, write, run, resolver } = setupHooks()
+    const names = Array.from({ length: 8 }, (_, index) => `someVeryLongTableName${index}`)
+    write('schema.sqlite.ts', `import { sqliteTable, text } from 'drizzle-orm/sqlite-core'\n${names.map(name => `export const ${name} = sqliteTable('${name}', { id: text().primaryKey() })`).join('\n')}\n`)
+    registerDatabaseTable(nuxt, { resolver, schema: dialect => `server/db/schema.${dialect}` })
+    const [path] = await run()
+    expect(path).toMatch(/^\/generated\/module-kit\/db\/[a-z0-9-]{1,69}-[0-9a-f]{8}\.sqlite\.ts$/)
+  })
+})
+
+describe('registerDatabaseTable (deprecated factory)', () => {
+  it('logs the deprecation warning once across registrations', async () => {
+    vi.resetModules()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fresh = await import('../src/runtime/utils/server')
+    const { nuxt, resolver } = setupHooks()
+    for (let index = 0; index < 2; index++) {
+      fresh.registerDatabaseTable(nuxt, { name: 'accounts', factory: 'defineAccountsTable', resolver, schema: dialect => `./fixtures/schema.${dialect}` })
+    }
+    const deprecations = warn.mock.calls.filter(call => /`factory` \/ `defineExtendableTable` are deprecated/.test(String(call[0])))
+    expect(deprecations).toHaveLength(1)
+    warn.mockRestore()
   })
 })

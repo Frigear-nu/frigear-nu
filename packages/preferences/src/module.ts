@@ -41,7 +41,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     // One JSON column on `users` holds every preference. Hosts must generate and commit their own migration.
     extendDatabaseTable(nuxt, {
-      name: 'users',
       resolver,
       file: dialect => `./runtime/server/db/schema.${dialect}`,
     })

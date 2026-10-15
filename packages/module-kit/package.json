@@ -44,6 +44,12 @@
     "*": {
       ".": [
         "./src/module.ts"
+      ],
+      "utils": [
+        "./src/runtime/utils/index.ts"
+      ],
+      "schedule": [
+        "./src/runtime/utils/schedule.ts"
       ]
     }
   },
@@ -75,6 +81,12 @@
       "*": {
         ".": [
           "./dist/types.d.mts"
+        ],
+        "utils": [
+          "./dist/runtime/utils/index.d.ts"
+        ],
+        "schedule": [
+          "./dist/runtime/utils/schedule.d.ts"
         ]
       }
     }

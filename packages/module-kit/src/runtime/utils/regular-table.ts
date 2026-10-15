@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import ts from 'typescript'
 
 export type ParsedTableExport = {
@@ -6,7 +7,11 @@ export type ParsedTableExport = {
   tableCall?: { callee: string, tableName: string, extraArgs?: string[] }
   /** Column (or spread) entries keyed by property name, in source order. Values are the raw `key: value` source text. */
   properties: Map<string, string>
-  /** Named imports collected from the file, keyed by module specifier. */
+  /**
+   * Named imports collected from the file, keyed by module specifier. Relative specifiers (`./`, `../`) are
+   * rewritten to absolute paths, since the properties are re-emitted into a generated file elsewhere. Type-only
+   * specifiers keep their `type` modifier (stored as `type X`).
+   */
   imports: Map<string, Set<string>>
 }
 
@@ -15,7 +20,12 @@ const parseSource = (filePath: string) => {
   return ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 }
 
-const collectImports = (source: ts.SourceFile) => {
+const toAbsoluteSpecifier = (filePath: string, specifier: string) =>
+  specifier.startsWith('./') || specifier.startsWith('../')
+    ? resolve(dirname(filePath), specifier).replace(/\\/g, '/')
+    : specifier
+
+const collectImports = (source: ts.SourceFile, filePath: string) => {
   const imports = new Map<string, Set<string>>()
   for (const statement of source.statements) {
     if (
@@ -24,9 +34,13 @@ const collectImports = (source: ts.SourceFile) => {
       && ts.isNamedImports(statement.importClause.namedBindings)
       && ts.isStringLiteralLike(statement.moduleSpecifier)
     ) {
-      const specifiers = imports.get(statement.moduleSpecifier.text) ?? new Set<string>()
-      for (const element of statement.importClause.namedBindings.elements) specifiers.add(element.getText())
-      imports.set(statement.moduleSpecifier.text, specifiers)
+      const module = toAbsoluteSpecifier(filePath, statement.moduleSpecifier.text)
+      const specifiers = imports.get(module) ?? new Set<string>()
+      const typeOnly = statement.importClause.isTypeOnly
+      for (const element of statement.importClause.namedBindings.elements) {
+        specifiers.add(typeOnly && !element.isTypeOnly ? `type ${element.getText()}` : element.getText())
+      }
+      imports.set(module, specifiers)
     }
   }
   return imports
@@ -79,7 +93,7 @@ const toTableResult = (initializer: ts.Expression, imports: Map<string, Set<stri
  */
 export const parseRegularTableExport = (filePath: string, exportName: string): ParsedTableExport | undefined => {
   const source = parseSource(filePath)
-  const imports = collectImports(source)
+  const imports = collectImports(source, filePath)
 
   for (const statement of source.statements) {
     if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
@@ -104,18 +118,21 @@ export const parseRegularTableExport = (filePath: string, exportName: string): P
  * export - i.e. every export that `parseRegularTableExport` would be able to parse. Used by `registerDatabaseTable`
  * to auto-discover table names when none are explicitly provided. Does not include the `default` export, since it
  * has no name to register a table under.
+ *
+ * With `tablesOnly`, only exports initialised by a table call (e.g. `sqliteTable('users', { ... })`) are listed;
+ * plain column objects and wrapper calls are ignored. That is what `registerDatabaseTable` uses for auto-discovery.
  */
-export const listRegularTableExportNames = (filePath: string): string[] => {
+export const listRegularTableExportNames = (filePath: string, options: { tablesOnly?: boolean } = {}): string[] => {
   const source = parseSource(filePath)
-  const imports = collectImports(source)
+  const imports = collectImports(source, filePath)
 
   const names: string[] = []
   for (const statement of source.statements) {
     if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
       for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.initializer && toTableResult(declaration.initializer, imports)) {
-          names.push(declaration.name.text)
-        }
+        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
+        const result = toTableResult(declaration.initializer, imports)
+        if (result && (!options.tablesOnly || result.tableCall)) names.push(declaration.name.text)
       }
     }
   }

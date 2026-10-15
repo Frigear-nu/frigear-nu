@@ -1,11 +1,21 @@
 import { addTemplate, createResolver, useLogger } from '@nuxt/kit'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { kebabCase } from 'scule'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
 import { listRegularTableExportNames, parseRegularTableExport } from './regular-table'
 
-type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
-type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
+export type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
+export type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
+
+const LOG_PREFIX = '[@frigear-nu/module-kit]'
+const warned = new Set<string>()
+const warnOnce = (key: string, message: string) => {
+  if (warned.has(key)) return
+  warned.add(key)
+  console.warn(`${LOG_PREFIX} ${message}`)
+}
 
 declare module '@nuxt/schema' {
   interface NuxtHooks {
@@ -16,8 +26,8 @@ declare module '@nuxt/schema' {
 
 /**
  * A typed identity helper for defining a table's extension columns. It exists purely for type
- * inference/clarity when authoring `server/db/extend.<dialect>.ts` files — it returns the columns
- * object unchanged.
+ * inference/clarity when authoring an extension file (`server/db/extend.<dialect>.ts` or a file passed to
+ * `extendDatabaseTable`) - it returns the columns object unchanged. A plain `sqliteTable(...)` export works too.
  */
 export const defineTableColumns = <T extends Record<string, ColumnBuilderBase>>(
   columns: T,
@@ -25,10 +35,13 @@ export const defineTableColumns = <T extends Record<string, ColumnBuilderBase>>(
   return columns
 }
 
-type TableDefinerProps = { name: string, columns: Record<string, ColumnBuilderBase> }
+export type TableDefinerProps = { name: string, columns: Record<string, ColumnBuilderBase> }
 type TableDefinerFn<T> = (props: TableDefinerProps) => T
 
 /**
+ * @deprecated Export plain drizzle tables (e.g. `export const users = sqliteTable('users', { ... })`) and register
+ * the file with `registerDatabaseTable` without `factory`.
+ *
  * Wraps a Drizzle table factory so it receives `{ name, columns }`, letting the factory pass
  * `name` straight through to e.g. `sqliteTable(name, columns)` instead of hard-coding it, so the
  * table name only has to be maintained once, in the `registerDatabaseTable` call.
@@ -46,25 +59,31 @@ export const defineExtendableTable = <T>(table: TableDefinerFn<T>) => {
  * `registerDatabaseTable` instead, unless they need full control over how their schema file is
  * built.
  */
-export const onDatabaseSchemaExtend = async (
+export const onDatabaseSchemaExtend = (
   nuxt: Nuxt,
   extender: DbExtenderFn,
-) => {
-  return nuxt.hook('hub:db:schema:extend', extender)
+): void => {
+  nuxt.hook('hub:db:schema:extend', extender)
 }
 
-type DatabaseTableOptions = {
+export type DatabaseTableOptions = {
   /**
    * The name of the table's export (e.g. `users`). Pass an array of names (e.g. `['users', 'userPasskeys']`) to
    * register several tables that are exported from the same `schema` file in one go - they're generated into a
    * single file so that tables can reference each other (e.g. a foreign key `.references(() => users.id)`). An
    * array of names (or omitting `name` entirely) is only supported when `factory` is omitted.
    *
-   * When omitted, every table-like export in `schema` (and its extension files) is registered automatically - this
-   * is equivalent to passing an array of every such export's name.
+   * Omit it in the common case: every export of `schema` initialised by a table call (`sqliteTable(...)`,
+   * `pgTable(...)`) is then registered automatically - this is equivalent to passing an array of every such
+   * export's name. Exported non-table objects are ignored. Pass `name` only to restrict which tables are registered
+   * (e.g. a feature-dependent subset), or to point at a single export; a `name` that does not point at a table call
+   * throws.
    */
   name?: string | string[]
   /**
+   * @deprecated Export plain drizzle tables and register the file without `factory`. A one-time warning is logged
+   * when it is used.
+   *
    * The exported factory function name to call with merged extension columns (e.g. `defineUsersTable`), as produced
    * by `defineExtendableTable`. When omitted, `schema` (and every registered/layer extension file) is treated as a
    * "regular" drizzle file - e.g. `export const users = sqliteTable('users', { ... })` - and its columns are merged
@@ -73,12 +92,15 @@ type DatabaseTableOptions = {
    */
   factory?: string
   resolver: ReturnType<typeof createResolver>
+  /** Path (resolved against `resolver`) of the schema file for a dialect, e.g. `./runtime/db/schema.sqlite`. The file must exist for every dialect the host can use. */
   schema: (dialect: string) => string
+  /** Escape hatch: a path (relative to the host root) of a schema file used instead of the generated one. */
   override?: string
+  /** Path of the extension file looked up in the host and each layer, instead of `server/db/extend.<dialect>.ts`. Also disables the legacy `<name>.extend.<dialect>` lookup. */
   extensionFile?: (dialect: string) => string
 }
 
-type TableExtensionOptions = {
+export type TableExtensionOptions = {
   /**
    * The name of the table to extend (e.g. `users`). Pass an array of names (e.g. `['users', 'userPasskeys']`) when
    * `file` exports columns for several tables at once - it's resolved and parsed once per matching table, same as
@@ -94,11 +116,13 @@ type TableExtensionOptions = {
 }
 
 /**
- * Registers a column file to be merged into a named table whenever its schema is generated (see
- * `registerDatabaseTable`). Fires the `module-kit:db:table:extend` hook internally, which
- * `registerDatabaseTable` listens to.
+ * Registers a column file to be merged into another module's table whenever its schema is generated (see
+ * `registerDatabaseTable`). The file exports the table by its name (`export const users = sqliteTable('users', { ... })`,
+ * or a plain columns object) and is merged into every table it has a matching export for; omit `name` unless you
+ * need to restrict it. A file that does not exist for the active dialect is skipped. Hooks into
+ * `module-kit:db:table:extend`, which `registerDatabaseTable` fires once per table.
  */
-export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) => {
+export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions): void => {
   const names = options.name === undefined ? undefined : (Array.isArray(options.name) ? options.name : [options.name])
   nuxt.hook('module-kit:db:table:extend', async ({ name, dialect, paths }) => {
     if (names === undefined || names.includes(name)) {
@@ -112,16 +136,18 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) 
 }
 
 /**
- * The table-owning module registers its schema with `registerDatabaseTable`. It generates the
- * table by importing the named `factory` from `schema`, merging in any columns registered
- * through `extendDatabaseTable` and any Nuxt-layer extension files, then calling the factory with
- * `{ name, columns }`.
+ * The table-owning module registers its schema with `registerDatabaseTable`. The schema file is a plain drizzle
+ * file (`export const users = sqliteTable('users', { ... })`); its table exports are merged with the columns
+ * registered through `extendDatabaseTable` and the Nuxt-layer `server/db/extend.<dialect>.ts` files, and written to
+ * `.nuxt/module-kit/db/`.
  *
- * When `name` is an array, or omitted entirely, every (named or auto-discovered) table is generated into a single
- * file - this lets tables declared in the same `schema` file reference each other directly (e.g. a foreign key
- * `.references(() => users.id)` from a `userPasskeys` table), since they share the same module scope.
+ * Every table export of `schema` is registered unless `name` restricts them. Several tables are generated into a
+ * single file, so tables declared in the same `schema` file can reference each other directly (e.g. a foreign key
+ * `.references(() => users.id)`), since they share the same module scope.
+ *
+ * Throws when `schema` has no file for the active dialect (use `override` to point at your own file).
  */
-export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions) => {
+export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions): void => {
   const { name, factory, resolver, schema, override, extensionFile } = options
 
   if (factory && (name === undefined || Array.isArray(name))) {
@@ -131,21 +157,28 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
     )
   }
 
-  return onDatabaseSchemaExtend(nuxt, async ({ dialect, paths }) => {
+  if (factory) {
+    warnOnce(
+      `factory:${factory}`,
+      '`factory` / `defineExtendableTable` are deprecated: export plain drizzle tables and register the file without `factory`.',
+    )
+  }
+
+  onDatabaseSchemaExtend(nuxt, async ({ dialect, paths }) => {
     if (override && override !== 'default') {
       paths.push(await resolver.resolvePath(override, { cwd: nuxt.options.rootDir }))
       return
     }
 
     const schemaPath = await resolver.resolvePath(schema(dialect))
-    // Only for a missing dialect variant: a schema file that exists for no dialect is the generated template's problem.
-    if (dialect !== 'sqlite' && !existsSync(schemaPath) && existsSync(await resolver.resolvePath(schema('sqlite')))) {
+    if (!existsSync(schemaPath)) {
       throw new Error(
-        `[module-kit] No ${dialect} schema at "${schema(dialect)}" (resolved to "${schemaPath}"). `
-        + `Every module schema must ship a file per dialect, e.g. \`schema.sqlite.ts\` and \`schema.postgresql.ts\`.`,
+        `${LOG_PREFIX} No ${dialect} schema at "${schema(dialect)}" (resolved to "${schemaPath}"). `
+        + `Every module schema must ship a file per dialect, e.g. \`schema.sqlite.ts\` and \`schema.postgresql.ts\`. `
+        + `Add the ${dialect} file, or pass the \`override\` option to point at one.`,
       )
     }
-    const names = name === undefined ? listRegularTableExportNames(schemaPath) : (Array.isArray(name) ? name : [name])
+    const names = name === undefined ? listRegularTableExportNames(schemaPath, { tablesOnly: true }) : (Array.isArray(name) ? name : [name])
 
     if (names.length === 0) {
       throw new Error(
@@ -154,11 +187,11 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
       )
     }
 
-    const extensionsByName = new Map<string, Array<{ file: string, legacy: boolean }>>()
+    const extensionsByName = new Map<string, Array<{ file: string, legacy: boolean, perTable: boolean }>>()
     for (const tableName of names) {
       const registered: string[] = []
       await nuxt.callHook('module-kit:db:table:extend', { name: tableName, dialect, paths: registered })
-      extensionsByName.set(tableName, registered.map(file => ({ file, legacy: true })))
+      extensionsByName.set(tableName, registered.map(file => ({ file, legacy: true, perTable: false })))
     }
 
     const layerRoots = [...new Set(nuxt.options._layers?.map(layer => layer.config.rootDir).reverse() ?? [])]
@@ -168,11 +201,11 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
       if (!extensionFile) {
         for (const tableName of names) {
           const legacyPath = await rootResolver.resolvePath(`server/db/${tableName}.extend.${dialect}`)
-          if (existsSync(legacyPath)) extensionsByName.get(tableName)!.push({ file: legacyPath, legacy: true })
+          if (existsSync(legacyPath)) extensionsByName.get(tableName)!.push({ file: legacyPath, legacy: true, perTable: true })
         }
       }
       if (existsSync(extensionPath)) {
-        for (const tableName of names) extensionsByName.get(tableName)!.push({ file: extensionPath, legacy: false })
+        for (const tableName of names) extensionsByName.get(tableName)!.push({ file: extensionPath, legacy: false, perTable: false })
       }
     }
 
@@ -185,7 +218,7 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
     const tableName = names[0]!
     const extensions = extensionsByName.get(tableName)!
     const template = addTemplate({
-      filename: `${tableName}/schema.${dialect}.ts`,
+      filename: `module-kit/db/${kebabCase(tableName)}.${dialect}.ts`,
       write: true,
       getContents: () => `
 import { ${factory} } from ${JSON.stringify(resolver.resolve(schema(dialect)))}
@@ -197,54 +230,90 @@ export const ${tableName} = ${factory}({ name: ${JSON.stringify(tableName)}, col
   })
 }
 
+/** `module-kit/db/<kebab(names)>.<dialect>.ts`, with a short hash appended when the names make it long. */
+const templateFilename = (names: string[], dialect: string) => {
+  const joined = names.join('-')
+  const base = kebabCase(joined)
+  const stem = base.length > 80
+    ? `${base.slice(0, 60)}-${createHash('sha1').update(joined).digest('hex').slice(0, 8)}`
+    : base
+  return `module-kit/db/${stem}.${dialect}.ts`
+}
+
+const mergeSpecifier = (specifiers: Map<string, string>, specifier: string) => {
+  // `X` and `type X` import the same binding: prefer the value import.
+  const bare = specifier.replace(/^type\s+/, '')
+  const existing = specifiers.get(bare)
+  if (existing === undefined || (existing.startsWith('type ') && !specifier.startsWith('type '))) specifiers.set(bare, specifier)
+}
+
 const buildRegularTableTemplate = (options: {
   names: string[]
   dialect: string
   schemaPath: string
-  extensionsByName: Map<string, Array<{ file: string, legacy: boolean }>>
+  extensionsByName: Map<string, Array<{ file: string, legacy: boolean, perTable: boolean }>>
 }) => {
   const { names, dialect, schemaPath, extensionsByName } = options
 
-  const importsByModule = new Map<string, Set<string>>()
+  const importsByModule = new Map<string, Map<string, string>>()
+  const addImports = (imports: Map<string, Set<string>>) => {
+    for (const [module, specifiers] of imports) {
+      const merged = importsByModule.get(module) ?? new Map<string, string>()
+      for (const specifier of specifiers) mergeSpecifier(merged, specifier)
+      importsByModule.set(module, merged)
+    }
+  }
+
   const tables = names.map((name) => {
     const base = parseRegularTableExport(schemaPath, name)
-    if (!base?.tableCall) {
+    if (!base) {
       throw new Error(
         `[module-kit] Could not find a table export named "${name}" in "${schemaPath}". `
         + `When "factory" is omitted, "schema" must be a regular drizzle file, e.g. `
         + `\`export const ${name} = sqliteTable(${JSON.stringify(name)}, { ... })\`.`,
       )
     }
-
-    const properties = new Map(base.properties)
-    for (const [module, specifiers] of base.imports) {
-      const set = importsByModule.get(module) ?? new Set<string>()
-      for (const specifier of specifiers) set.add(specifier)
-      importsByModule.set(module, set)
+    if (!base.tableCall) {
+      throw new Error(
+        `[module-kit] The export "${name}" in "${schemaPath}" exists but is not a table call. `
+        + `When "factory" is omitted, "schema" must be a regular drizzle file, e.g. `
+        + `\`export const ${name} = sqliteTable(${JSON.stringify(name)}, { ... })\`.`,
+      )
     }
 
-    for (const { file } of extensionsByName.get(name) ?? []) {
-      const parsed = parseRegularTableExport(file, name)
-      if (!parsed) continue
+    const properties = new Map(base.properties)
+    addImports(base.imports)
+
+    for (const { file, legacy, perTable } of extensionsByName.get(name) ?? []) {
+      const parsed = parseRegularTableExport(file, name) ?? (legacy ? parseRegularTableExport(file, 'default') : undefined)
+      if (!parsed) {
+        if (perTable) {
+          warnOnce(`unparsed:${file}:${name}`, `"${file}" is a legacy \`${name}.extend.${dialect}\` file but neither an export named "${name}" nor a default export could be read from it; its columns are left out.`)
+        }
+        continue
+      }
+
+      if (parsed.tableCall?.extraArgs?.length) {
+        warnOnce(`indexes:${file}:${name}`, `"${file}" (table "${name}"): the table-config argument (indexes, constraints) of an extension file is ignored. Declare it in the base schema, or add it in a migration.`)
+      }
+      if (parsed.tableCall && parsed.tableCall.tableName !== base.tableCall.tableName) {
+        warnOnce(`table-name:${file}:${name}`, `"${file}" (table "${name}") declares the SQL table "${parsed.tableCall.tableName}" but the base schema declares "${base.tableCall.tableName}"; the base name is used.`)
+      }
 
       for (const [key, value] of parsed.properties) {
         properties.delete(key)
         properties.set(key, value)
       }
-      for (const [module, specifiers] of parsed.imports) {
-        const set = importsByModule.get(module) ?? new Set<string>()
-        for (const specifier of specifiers) set.add(specifier)
-        importsByModule.set(module, set)
-      }
+      addImports(parsed.imports)
     }
 
     return { name, tableCall: base.tableCall, properties }
   })
 
   return addTemplate({
-    filename: `users/${tables.map(({ name }) => name)?.join('-')?.toLowerCase() || crypto.randomUUID()}.schema.${dialect}.ts`,
+    filename: templateFilename(tables.map(({ name }) => name), dialect),
     write: true,
-    getContents: () => `${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
+    getContents: () => `${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers.values()].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
 ${tables.map(({ name, tableCall, properties }) => `
 export const ${name} = ${tableCall.callee}(${JSON.stringify(tableCall.tableName)}, {
 ${[...properties.values()].map(property => `  ${property},`).join('\n')}
@@ -254,7 +323,8 @@ ${[...properties.values()].map(property => `  ${property},`).join('\n')}
 }
 
 /**
- * Makes Nitro bundle (instead of externalize) a module's `runtime` directory. Installed modules live in
+ * Makes Nitro bundle (instead of externalize) a module's `runtime` directory, and pushes it into `build.transpile`
+ * so the app side is transpiled too. Installed modules live in
  * `node_modules`, which Nitro externalizes by default; that skips the auto-import transform for the module's
  * server utils and leaves virtual modules such as `#auth/*` unresolved in consuming apps. Call it next to
  * `addServerImportsDir` so the module works without the host configuring `nitro.externals.inline` itself.

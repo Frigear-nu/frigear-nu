@@ -90,7 +90,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
   },
-  async setup(options, nuxt) {
+  setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt, { name: 'oauth:read', description: 'See which applications you can sign in to (MCP)' })
     const resolver = createResolver(import.meta.url)
@@ -141,7 +141,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // --- Database -------------------------------------------------------------------------
-    await registerDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })

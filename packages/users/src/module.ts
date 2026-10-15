@@ -77,8 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
 
-    await registerDatabaseTable(nuxt, {
-      name: ['users'],
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
     })
@@ -106,8 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
           handler: resolver.resolve(`./runtime/server/routes/me/${file}.get`),
         })
       }
-      await registerDatabaseTable(nuxt, {
-        name: ['accountEmailChanges'],
+      registerDatabaseTable(nuxt, {
         resolver,
         schema: dialect => `./runtime/db/email-changes.${dialect}`,
       })

@@ -102,8 +102,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // --- Database -------------------------------------------------------------------------
-    await registerDatabaseTable(nuxt, {
-      name: 'payments',
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
