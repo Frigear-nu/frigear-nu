@@ -90,21 +90,13 @@ export function useFormsPaths() {
 export function useFormLink() {
   const paths = useFormsPaths()
   const origin = useRequestURL().origin
-  const toast = useToast()
+  const { copy: copyText } = useCopyToClipboard()
   const t = useModuleT('forms')
   const pages = (useRuntimeConfig().public.forms as { pages?: { form?: string } } | undefined)?.pages
   const enabled = computed(() => !!pages?.form)
   const url = (slug: string) => `${origin}${paths('form', { slug })}`
 
-  async function copy(slug: string) {
-    try {
-      await navigator.clipboard.writeText(url(slug))
-      toast.add({ title: t('admin.linkCopied', 'Link copied.'), color: 'success' })
-    }
-    catch {
-      toast.add({ title: t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
-    }
-  }
+  const copy = (slug: string) => copyText(url(slug), t('admin.linkCopied', 'Link copied.'))
 
   return { enabled, url, copy }
 }

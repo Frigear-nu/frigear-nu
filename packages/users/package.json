@@ -68,6 +68,7 @@
     "@frigear-nu/mcp": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
+    "@frigear-nu/ui": "workspace:*",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "^4.6.0",
     "drizzle-kit": "^0.31.11",

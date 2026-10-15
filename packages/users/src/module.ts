@@ -64,7 +64,7 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.0',
       optional: true,
     },
-    // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
+    // The admin shell and, through `@frigear-nu/ui`, the page patterns (`PageHeading`, `TableCard`, ...) the admin pages use.
     '@frigear-nu/admin': {
       version: '>=0.0.0',
       optional: true,
@@ -77,8 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
 
-    await registerDatabaseTable(nuxt, {
-      name: ['users'],
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
     })
@@ -106,8 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
           handler: resolver.resolve(`./runtime/server/routes/me/${file}.get`),
         })
       }
-      await registerDatabaseTable(nuxt, {
-        name: ['accountEmailChanges'],
+      registerDatabaseTable(nuxt, {
         resolver,
         schema: dialect => `./runtime/db/email-changes.${dialect}`,
       })
@@ -124,7 +122,7 @@ export default defineNuxtModule<ModuleOptions>({
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin
     const adminOptions = typeof settings.admin === 'object' ? settings.admin : {}
-    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    // The admin pages live in the admin shell of `@frigear-nu/admin`, so they only exist with it.
     const withAdminShell = hasNuxtModule('@frigear-nu/admin')
     if (withAdmin && !withAdminShell) {
       console.warn('[@frigear-nu/users] `settings.admin` is on, but `@frigear-nu/admin` is not installed: the admin API is registered, the admin pages are not.')

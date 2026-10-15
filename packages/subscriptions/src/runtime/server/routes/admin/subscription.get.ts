@@ -1,6 +1,6 @@
-import type { AdminMembershipResponse } from '../../../../types'
+import type { AdminMembershipResponse as MembershipResponse } from '../../../../types'
 
-export default defineEventHandler(async (event): Promise<AdminMembershipResponse> => {
+export default defineEventHandler(async (event): Promise<MembershipResponse> => {
   const { target } = await loadUsersAdminTarget(event, 'view')
   const current = currentEntitledRow(await listUserSubscriptionRows(target.id))
   const iso = (date: Date | null | undefined) => (date ? date.toISOString() : null)

@@ -17,7 +17,7 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true },
+      pages: { index: true, profile: true, security: true, apiTokens: true },
     },
   },
 })

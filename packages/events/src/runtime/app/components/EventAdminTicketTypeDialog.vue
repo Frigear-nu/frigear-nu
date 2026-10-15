@@ -2,7 +2,7 @@
 import type { Translated } from '../../../types'
 import { toCents, fromCents } from '@frigear-nu/ui/money'
 import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
-import { type AdminTicketType, useAdminAction } from '../utils/admin-event'
+import type { StaffTicketType } from '../utils/admin-event'
 
 defineOptions({ name: 'EventAdminTicketTypeDialog' })
 
@@ -18,7 +18,7 @@ const emit = defineEmits<{ refresh: [] }>()
 const t = useModuleT('events')
 const locale = useEventsLocale()
 const tr = useEventsTranslate()
-const { busy, run } = useAdminAction()
+const { busy, run } = useAction()
 
 type Membership = 'any' | string[] | null
 type Rule = { mode: 'none' | 'any' | 'plans', plans: string[] }
@@ -32,10 +32,10 @@ const toRule = (value: Membership | undefined): Rule => value === 'any' ? { mode
 const fromRule = (rule: Rule): Membership => rule.mode === 'any' ? 'any' : rule.mode === 'plans' && rule.plans.length ? [...rule.plans] : null
 
 const dialog = ref(false)
-const editingType = ref<AdminTicketType | null>(null)
+const editingType = ref<StaffTicketType | null>(null)
 const type = reactive({ key: '', name: undefined as Translated | undefined, description: undefined as Translated | undefined, price: 0, capacity: '' as string | number, requires: toRule(null), excludes: toRule(null) })
 
-function open(ticketType?: AdminTicketType) {
+function open(ticketType?: StaffTicketType) {
   editingType.value = ticketType ?? null
   Object.assign(type, {
     key: ticketType?.key ?? '',
@@ -68,7 +68,7 @@ const save = () => run(async () => {
   }
   dialog.value = false
   emit('refresh')
-}, t('admin.typeSaved', 'Ticket type saved.'))
+}, { success: t('admin.typeSaved', 'Ticket type saved.') })
 </script>
 
 <template>
@@ -172,7 +172,7 @@ const save = () => run(async () => {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton
-          variant="subtle"
+          variant="outline"
           color="neutral"
           :label="t('admin.cancel', 'Cancel')"
           @click="dialog = false"

@@ -1,3 +1,4 @@
+<!-- @deprecated: use UEmpty (`variant="naked"` inside cards, one action in `#actions`) -->
 <script setup lang="ts">
 defineProps<{ icon?: string, title: string, description?: string }>()
 </script>

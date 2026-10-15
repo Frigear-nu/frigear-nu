@@ -13,7 +13,7 @@ const props = defineProps<{
 }>()
 
 const t = useModuleT('forms')
-const toast = useToast()
+const { copy: copyText } = useCopyToClipboard()
 const paths = useFormsPaths()
 const path = computed(() => paths('form', { slug: props.slug }))
 
@@ -74,13 +74,7 @@ watch(open, (value) => {
   if (value) tryAgain()
 })
 
-async function copy() {
-  try {
-    await navigator.clipboard.writeText(json.value)
-    toast.add({ title: t('preview.copied', 'Copied to clipboard.'), color: 'success' })
-  }
-  catch { /* clipboard unavailable */ }
-}
+const copy = () => copyText(json.value, t('preview.copied', 'Copied to clipboard.'))
 </script>
 
 <template>

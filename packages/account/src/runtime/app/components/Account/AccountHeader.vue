@@ -1,54 +1,29 @@
 <script setup lang="ts">
-import type { MenuItem } from '@frigear-nu/menu'
-
+// The heading of an account page, rendered by the `account` layout. The title is the page's `title` meta, else the
+// account menu item the route belongs to (so pages other modules add get their label), else "Account". A page hides
+// it with `definePageMeta({ heading: false })`; the document title is set either way. `AccountHeaderRight` fills the
+// actions, override it in the host app to show other details.
 const t = useModuleT('account')
 const route = useRoute()
-const pages = useRuntimeConfig().public.account?.pages
-const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: unknown[] } } }
+const { current } = await useAccountNav()
 
-// `@frigear-nu/menu` is optional: without it there are no items to match and the header falls back to the plain title.
-const items = typeof useMenu === 'function' ? useMenu('account').data : ref<MenuItem[]>([])
-
-const trimSlash = (path: string) => path.length > 1 ? path.replace(/\/+$/, '') : path
-
-// With a locale prefix strategy the route is `/<locale>/account/...` while the items point at the plain path.
-const stripLocale = (path: string) => {
-  const trimmed = trimSlash(path)
-  const first = trimmed.split('/')[1]
-  const codes = (nuxtApp.$i18n?.locales?.value ?? []).map(locale => typeof locale === 'string' ? locale : (locale as { code: string }).code)
-  return first && codes.includes(first) ? (trimmed.slice(first.length + 1) || '/') : trimmed
-}
-
-// The menu item the current route belongs to, so the header follows whatever the account pages are configured and
-// registered as (including pages other modules add to the account menu) instead of a fixed list.
-const current = computed(() => {
-  const path = stripLocale(route.path)
-  return (items.value ?? []).find(item => item.to && !item.external && stripLocale(item.to) === path)
+const title = computed(() => {
+  const meta = route.meta.title
+  return (typeof meta === 'string' && meta) || current.value?.label || t('title', 'Account')
 })
-
-const title = computed(() => current.value?.label ?? t('title', 'Account'))
 const description = computed(() => current.value?.description)
+
+useHead({ title })
 </script>
 
 <template>
-  <UContainer>
-    <UPageHeader
-      :title="title"
-      :description="description"
-      :ui="{ wrapper: 'flex-row items-center justify-between gap-4', description: 'mt-2' }"
-    >
-      <UButton
-        v-if="current && pages?.index"
-        variant="link"
-        icon="i-lucide-arrow-left"
-        :to="pages.index"
-        :label="t('backTo', 'Back to account')"
-        class="-ml-3 mt-2"
-      />
-
-      <template #links>
-        <AccountHeaderRight />
-      </template>
-    </UPageHeader>
-  </UContainer>
+  <PageHeading
+    v-if="route.meta.heading !== false"
+    :title="title"
+    :description="description"
+  >
+    <template #actions>
+      <AccountHeaderRight />
+    </template>
+  </PageHeading>
 </template>

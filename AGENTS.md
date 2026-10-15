@@ -164,7 +164,8 @@ manually — check before assuming plain pnpm scripts are the only path.
 - Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
   the session is empty for bearer requests.
 - A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
-  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
+  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see
+  [Database extensions and authenticated test fixtures](#database-extensions-and-authenticated-test-fixtures)).
 
 ### Database schemas: one file per dialect
 
@@ -192,20 +193,65 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 ### Database extensions and authenticated test fixtures
 
-- `extendDatabaseTable` changes the generated Drizzle schema, not the database itself. Whenever a module adds or
-  changes columns, generate and commit migrations for every affected fixture using its complete module configuration,
-  including the extending modules. Commit the SQL, Drizzle snapshot, and migration journal together; these are versioned
-  schema history, not disposable build artifacts.
+- `registerDatabaseTable` and `extendDatabaseTable` change the generated Drizzle schema, not the database itself.
+  Whenever a module adds or changes columns, generate and commit migrations for every affected fixture using its
+  complete module configuration, including the extending modules. Commit the SQL, Drizzle snapshot, and migration
+  journal together; these are versioned schema history, not disposable build artifacts.
+- Omit `name` on both calls: `registerDatabaseTable` registers every table export of its schema file and
+  `extendDatabaseTable` extends whichever tables the file has a matching export for. Pass `name` only to restrict
+  (for example auth's feature-dependent table list). Schema files are plain drizzle tables parsed as text, so keep them
+  to imports and table calls; `factory` / `defineExtendableTable` are deprecated.
+- A host application extends tables from its own `server/db/extend.<dialect>.ts` (one exported table or columns object
+  per table), merged after every module and layer. The host generates and commits its own migration for it.
 - Prepare the fixture before generating migrations so `.nuxt/hub/db/schema.mjs` includes all registered extensions.
-  Do not generate migrations from only the owning module's base schema.
+  Do not generate migrations from only the owning module's base schema. From the repo root, with an absolute `--cwd`:
+  `pnpm --filter @frigear-nu/<pkg> exec nuxt db generate --cwd "$PWD/packages/<pkg>/test/fixtures/<fixture>"`.
+  After changing a schema or an extension, run it for every fixture that has committed migrations: it must print
+  `No schema changes, nothing to migrate` and leave `git status 'packages/*/test/fixtures'` clean. If it creates a
+  migration, the fixture needs one (see the module-kit page for naming it); delete any stray generated migration you
+  do not intend to commit.
 - Fixtures exercising email/password registration need `authentication.settings.password` (on by default). This enables
   both login and registration APIs; `settings.pages.register` only enables the UI page.
 - Database-backed auth tests use `dev: true` so NuxtHub applies committed migrations on startup. Reset only the
   fixture's dedicated `.data` directory before the suite and clean it up afterward to avoid duplicate-user failures
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
-- A missing session cookie can be a database error, not disabled authentication: the account fixture needed an
-  `accepted_terms_at` migration after the account module extended `users`. See
+- A missing session cookie can be a database error, not disabled authentication: a column added by an extending module
+  without a matching fixture migration makes every write to that table fail. See
   `apps/docs/content/4.modules/10.module-kit.md` for the migration workflow.
+
+---
+
+## UX patterns
+
+Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
+`apps/docs/content/1.getting-started/6.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
+live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
+
+- **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
+  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account`, inside
+  the site layout. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
+  account menu, not the chrome.
+- **Headings.** App pages (admin, account) use `PageHeading`; public pages use `UContainer > UPage > UPageHeader`. The
+  page root is `<div class="flex flex-col gap-4">`. Do not use the deprecated `Admin*` components in new code.
+- **Lists** are `PageHeading` + primary action, `PageToolbar` past ~8 rows, `UTable :ui="tableUi()"` inside
+  `TableCard`, clickable rows and a `RowMenu` in the last column. Empty states are `UEmpty` with exactly one action.
+- **Detail pages** have a `PageHeading` breadcrumb back to the list and `SectionCard` sections. Use `WidgetTabs`
+  (`extendTabs`) when other modules can add sections, `PageTabs` when the page owns them. Light entities open in a
+  slideover with the record in the URL query.
+- **Create and edit** use `FormSlideover` + `UForm`/zod, opened through `useOverlay()` and resolved with the saved
+  record. Cancel is `color="neutral" variant="outline"`, the primary action comes last, hints go in `UFormField`
+  `description`.
+- **One `use<Entity>Actions()` composable per entity** owns create/edit/remove, toasts, refresh and `menu(record)`.
+  `RowMenu` order: Open, edits, then the destructive action in its own red group. No loose icon buttons in rows.
+- **Destructive actions confirm** with `useConfirmDialog({ destructive: true })` and say what else is affected; never
+  `window.confirm`.
+- **Feedback** is a toast with a title and the record name; errors go through `useErrorToast` / `errorToToast`, busy
+  state through `useAction`. Pass context through the URL (deep links), not state hand-offs.
+- **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the
+  object ("Add unit", "Delete application"), never bare "Add"/"Delete". Dates and money via `useFormat()`; links via
+  `useLocaleLink().localize` so the locale prefix survives.
+- **Patterns, not theme.** Shared components add structure only; colours, fonts and radius stay Nuxt UI's. Status badges
+  use `statusColor`; card frames use `surfaceClass`.
 
 ---
 

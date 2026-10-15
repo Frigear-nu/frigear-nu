@@ -14,6 +14,14 @@ describe('account pages (without @frigear-nu/menu installed)', async () => {
     await expect($fetch('/account/security')).resolves.toContain('Change password')
   })
 
+  it('builds the account navigation from the configured pages', async () => {
+    const html = await $fetch<string>('/account/security')
+    const nav = html.slice(html.indexOf('aria-label="Account navigation"'))
+    expect(nav).toContain('href="/account/profile"')
+    expect(nav).toContain('href="/account/security"')
+    expect(html).toMatch(/<h1[^>]*>(?:<!--[^>]*-->)?\s*Security\s*(?:<!--[^>]*-->)?<\/h1>/)
+  })
+
   it('skips the dashboard page since it requires @frigear-nu/menu', async () => {
     await expect($fetch('/account')).rejects.toMatchObject({ statusCode: 404 })
   })

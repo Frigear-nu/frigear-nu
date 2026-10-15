@@ -50,7 +50,8 @@ export function matchesMenuGroup(group: string, prefix: string): boolean {
 /**
  * Resolves every item addressed by a parsed menu path out of that menu's groups - a single
  * group's items for a plain path, or every matching group's items (flattened, unsorted) for a
- * wildcard path.
+ * wildcard path. Wildcard reads set each item's `group` to the group it was found in, so a view
+ * can split one read back into its groups (items pushed by runtime sources carry no `group`).
  */
 export function collectMenuItems(groups: Record<string, MenuItem[]> | undefined, parsed: ParsedMenuPath): MenuItem[] {
   if (!groups) return []
@@ -58,7 +59,7 @@ export function collectMenuItems(groups: Record<string, MenuItem[]> | undefined,
 
   const matched: MenuItem[] = []
   for (const [group, items] of Object.entries(groups)) {
-    if (matchesMenuGroup(group, parsed.group)) matched.push(...items)
+    if (matchesMenuGroup(group, parsed.group)) matched.push(...items.map(item => ({ ...item, group })))
   }
   return matched
 }

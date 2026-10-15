@@ -20,7 +20,8 @@
       "confirmDowngrade": "If you downgrade, your current subscription runs until the next due date, then switches.",
       "subscribeTo": "You will now subscribe to:",
       "changeTitle": "Update subscription",
-      "checkoutTitle": "Get a membership"
+      "checkoutTitle": "Get a membership",
+      "confirmResume": "Your membership will keep renewing as before."
     },
     "interval": {
       "day": "day",
@@ -61,12 +62,12 @@
       "title": "Thank you!",
       "body": "Your subscription is being activated. This can take a few seconds.",
       "activeBody": "Your subscription is now active.",
-      "continue": "Continue"
+      "back": "Back to membership"
     },
     "cancel": {
       "title": "Checkout canceled",
       "body": "No changes were made and you have not been charged.",
-      "back": "Back to plans"
+      "back": "Back to membership"
     },
     "errors": {
       "checkout": "Failed to start checkout.",
@@ -113,7 +114,18 @@
         "started": "Started",
         "periodEnd": "Period end",
         "ended": "Ended"
-      }
+      },
+      "type": "Type",
+      "validUntil": "Valid until",
+      "status": "Status",
+      "revokeTitle": "Revoke the free membership of {name}?",
+      "revokeBody": "They lose the membership benefits right away. A paid subscription is not affected.",
+      "revokeConfirm": "Revoke free membership"
+    },
+    "overview": {
+      "label": "Membership",
+      "none": "No active membership",
+      "manage": "Manage membership"
     }
   }
 }

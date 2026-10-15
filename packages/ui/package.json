@@ -22,7 +22,9 @@
     "./composables/*": "./src/runtime/composables/*.ts",
     "./translated": "./src/runtime/translated.ts",
     "./markdown": "./src/runtime/markdown.ts",
-    "./money": "./src/runtime/shared/money.ts"
+    "./money": "./src/runtime/shared/money.ts",
+    "./utils": "./src/runtime/utils/index.ts",
+    "./types": "./src/runtime/types.ts"
   },
   "publishConfig": {
     "exports": {
@@ -36,7 +38,9 @@
       "./composables/*": "./dist/runtime/composables/*.js",
       "./translated": "./dist/runtime/translated.js",
       "./markdown": "./dist/runtime/markdown.js",
-      "./money": "./dist/runtime/shared/money.js"
+      "./money": "./dist/runtime/shared/money.js",
+      "./utils": "./dist/runtime/utils/index.js",
+      "./types": "./dist/runtime/types.js"
     },
     "main": "./dist/module.mjs",
     "typesVersions": {
@@ -66,19 +70,21 @@
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground"
   },
   "dependencies": {
+    "@frigear-nu/module-kit": "workspace:*",
     "@nuxt/kit": "^4.6.0",
     "@vueuse/core": "^13.5.0",
-    "defu": "^6.1.4",
-    "nuxt-monaco-editor": "^1.4.1",
-    "monaco-editor": "^0.56.0"
+    "defu": "^6.1.4"
   },
   "devDependencies": {
     "@frigear-nu/eslint-config": "workspace:*",
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.6.0",
+    "@nuxt/test-utils": "^4.3.2",
     "@nuxt/ui": "^4.10.0",
     "eslint": "^10.8.1",
+    "monaco-editor": "^0.56.0",
     "nuxt": "catalog:",
+    "nuxt-monaco-editor": "^1.4.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^5.0.0",
@@ -87,6 +93,16 @@
   "peerDependencies": {
     "@nuxt/ui": "^4.10.0",
     "nuxt": "^3.0.0 || ^4.0.0",
-    "vue": "3.x"
+    "vue": "3.x",
+    "monaco-editor": "^0.56.0",
+    "nuxt-monaco-editor": "^1.4.1"
+  },
+  "peerDependenciesMeta": {
+    "monaco-editor": {
+      "optional": true
+    },
+    "nuxt-monaco-editor": {
+      "optional": true
+    }
   }
 }

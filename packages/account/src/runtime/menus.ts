@@ -16,6 +16,18 @@ export default defineMenuSource(() => {
       to: config.pages.index,
       order: -99,
     })
+
+    // The first entry of the account navigation: the overview at the area's base path.
+    extendMenuItem('account', {
+      id: 'account-overview',
+      label: 'Overview',
+      labelKey: 'account.menu.overview.label',
+      description: 'A summary of your account.',
+      descriptionKey: 'account.menu.overview.description',
+      icon: 'i-lucide-layout-dashboard',
+      to: config.pages.index,
+      order: 0,
+    })
   }
 
   if (config?.pages?.profile) {

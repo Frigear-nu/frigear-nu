@@ -67,7 +67,6 @@ export default defineNuxtModule<ModuleOptions>({
       addServerHandler({ route: '/api/cookie-consent', method: 'get', handler: resolver.resolve('./runtime/server/routes/cookie-consent/index.get') })
       addServerHandler({ route: '/api/cookie-consent', method: 'post', handler: resolver.resolve('./runtime/server/routes/cookie-consent/index.post') })
       extendDatabaseTable(nuxt, {
-        name: 'users',
         resolver,
         file: dialect => `./runtime/server/db/schema.${dialect}`,
       })

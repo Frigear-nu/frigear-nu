@@ -1,38 +1,33 @@
 <script setup lang="ts">
+defineOptions({ name: 'EventTicketsPage' })
+
+// No container or heading of its own: the `account` layout of `@frigear-nu/account` (applied to `/account/**`)
+// provides the left navigation and the page heading.
 const t = useModuleT('events')
 const { tickets, pay } = useMyTickets()
-const pages = useRuntimeConfig().public.events?.pages
-const eventTo = (slug: string) => (pages?.event || '/events/:slug').replace(':slug', encodeURIComponent(slug))
-// The account header (title, "Back to account", signed-in user) comes from `@frigear-nu/account`, which is optional here.
-const AccountHeader = resolveComponent('AccountHeader')
-const hasAccountHeader = typeof AccountHeader !== 'string'
-defineOptions({ name: 'EventTicketsPage' })
+const links = useEventLinks()
 </script>
 
 <template>
-  <div>
-    <AccountHeader v-if="hasAccountHeader" />
-    <UContainer :class="hasAccountHeader ? 'pb-10' : 'py-10'">
-      <UPageHeader
-        v-if="!hasAccountHeader"
-        :title="t('myTickets', 'My tickets')"
-        :ui="{ root: 'pt-0 pb-6 mb-6', title: 'text-2xl sm:text-3xl' }"
+  <div class="flex flex-col gap-4">
+    <UEmpty
+      v-if="!tickets.length"
+      icon="i-lucide-ticket"
+      :title="t('noTicketsTitle', 'No tickets yet')"
+      :description="t('noTickets', 'You do not have any tickets yet.')"
+      :actions="[{ label: t('browseEvents', 'Browse events'), to: links.events(), icon: 'i-lucide-calendar' }]"
+    />
+    <div
+      v-else
+      class="grid gap-4 md:grid-cols-2"
+    >
+      <EventTicketCard
+        v-for="ticket in tickets"
+        :key="ticket.id"
+        :ticket="ticket"
+        :to="links.event(ticket.eventSlug)"
+        @pay="pay"
       />
-      <p
-        v-if="!tickets.length"
-        class="text-muted"
-      >
-        {{ t('noTickets', 'You do not have any tickets yet.') }}
-      </p>
-      <div class="grid gap-4 md:grid-cols-2">
-        <EventTicketCard
-          v-for="ticket in tickets"
-          :key="ticket.id"
-          :ticket="ticket"
-          :to="eventTo(ticket.eventSlug)"
-          @pay="pay"
-        />
-      </div>
-    </UContainer>
+    </div>
   </div>
 </template>

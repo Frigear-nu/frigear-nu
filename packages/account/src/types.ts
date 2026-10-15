@@ -28,6 +28,11 @@ export type PublicModuleOptions = {
 
 export type ModuleOptions = {
   settings?: {
+    /**
+     * Renders `/account`, `/account/**` and the configured page paths in the `account` layout (the site layout with
+     * a left account navigation). `false` leaves the layout to the host. Defaults to `true`.
+     */
+    layout?: boolean
     // Each page accepts a custom path (string), `true` for the default path, or `false`/omitted
     // to disable it. Enabling a page requires `@nuxt/ui` to be installed in the consuming app,
     // since the shipped pages are built with it.

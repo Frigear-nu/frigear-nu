@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const { data: items } = useMenu('account')
-const { data: dashboardItems } = useMenu('account.dropdown')
+const { data: dropdownItems } = useMenu('account.dropdown')
 </script>
 
 <template>
-  <div>
+  <UApp>
     <h2>`account`</h2>
     <ul>
       <li
@@ -19,7 +19,7 @@ const { data: dashboardItems } = useMenu('account.dropdown')
     <h2>`account.dropdown`</h2>
     <ul>
       <li
-        v-for="item in dashboardItems"
+        v-for="item in dropdownItems"
         :key="item.id"
       >
         <NuxtLink :to="item.to">
@@ -27,6 +27,9 @@ const { data: dashboardItems } = useMenu('account.dropdown')
         </NuxtLink>
       </li>
     </ul>
-    <NuxtPage />
-  </div>
+    <AccountMenu />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+  </UApp>
 </template>

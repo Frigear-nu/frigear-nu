@@ -69,6 +69,7 @@
   "dependencies": {
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@nuxt/kit": "^4.6.0",
     "nuxt-auth-utils": "^0.5.30"

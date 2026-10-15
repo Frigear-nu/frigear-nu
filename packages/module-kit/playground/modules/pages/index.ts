@@ -23,7 +23,7 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     db: true,
   },
-  async setup(_options, _nuxt) {
+  setup(_options, _nuxt) {
     const resolver = createResolver(import.meta.url)
     // Module setup logic here
     registerModule(moduleName, _nuxt)
@@ -52,8 +52,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     if (_options.db) {
-      await registerDatabaseTable(_nuxt, {
-        name: 'pages',
+      registerDatabaseTable(_nuxt, {
         resolver,
         schema: dialect => `server/db/schema.${dialect}.ts`,
       })
