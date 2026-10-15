@@ -502,6 +502,33 @@ describe('events (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('pages', () => {
+    it('renders the public list and detail with links to the event', async () => {
+      const event = await createEvent({ name: { en: 'Page smoke party' } }, [{ key: 'default', name: 'Admission', price: 0 }])
+
+      const list = await fetch('/events')
+      expect(list.status).toBe(200)
+      const listHtml = await list.text()
+      expect(listHtml).toContain('Page smoke party')
+      expect(listHtml).toContain(`href="/events/${event.slug}"`)
+
+      const page = await fetch(`/events/${event.slug}`)
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain('Page smoke party')
+    }, 180_000)
+
+    it('renders the staff list and event page', async () => {
+      const event = await createEvent({ name: { en: 'Staff smoke party' } })
+      const list = await fetch('/admin/events', { headers: { cookie: staff.cookie } })
+      expect(list.status).toBe(200)
+      expect(await list.text()).toContain('Staff smoke party')
+
+      const page = await fetch(`/admin/events/${event.id}`, { headers: { cookie: staff.cookie } })
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain('Staff smoke party')
+    }, 180_000)
+  })
+
   describe('API tokens', () => {
     const createToken = async (cookie: string, scopes: string[]) => {
       const response = await fetch('/api/auth/tokens', {
