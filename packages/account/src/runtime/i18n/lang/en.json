@@ -7,6 +7,10 @@
         "label": "Account",
         "description": "Your account."
       },
+      "overview": {
+        "label": "Overview",
+        "description": "A summary of your account."
+      },
       "profile": {
         "label": "Profile",
         "description": "Manage your profile details and email address."
@@ -23,6 +27,22 @@
         "label": "API tokens",
         "description": "Create tokens for scripts and tools."
       }
+    },
+    "nav": {
+      "label": "Account navigation"
+    },
+    "accountMenu": "Account menu",
+    "appearance": {
+      "label": "Appearance",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "overview": {
+      "title": "Account",
+      "description": "Your details and everything that belongs to your account.",
+      "shortcuts": "Your account",
+      "empty": "Nothing here yet."
     },
     "profile": {
       "title": "Profile",
@@ -97,6 +117,10 @@
         "unnamed": "Passkey",
         "created": "Added {date}",
         "remove": "Remove passkey",
+        "removeConfirm": {
+          "title": "Remove {name}?",
+          "description": "You can no longer sign in with this passkey. It stays on your device until you delete it there."
+        },
         "empty": "You have not added any passkeys yet.",
         "name": {
           "label": "Passkey name",
@@ -109,29 +133,31 @@
         "loadError": "Could not load your passkeys."
       }
     },
-    "backTo": "Back to account",
     "signedInAs": "Signed in as",
     "apiTokens": {
       "title": "API tokens",
       "description": "Create tokens for scripts and tools.",
       "allScopes": "Full access",
-      "copy": "Copy",
+      "copy": "Copy token",
       "copied": "Token copied.",
       "copiedSnippet": "Copied.",
-      "copyError": "Could not copy. Select the token and copy it manually.",
+      "copySnippet": "Copy command",
       "create": {
-        "title": "Create an API token",
+        "title": "Create API token",
         "description": "Tokens let scripts and tools such as MCP clients act as you. Give each one only the scopes it needs.",
-        "submit": "Create token"
+        "submit": "Create API token"
       },
       "createError": "Could not create the token.",
+      "created": "Token created",
       "name": {
         "label": "Name",
+        "description": "So you recognise the token later.",
         "placeholder": "e.g. My MCP client",
         "required": "Give the token a name."
       },
       "scopes": {
         "label": "Scopes",
+        "description": "What the token may do.",
         "placeholder": "Choose what the token may do",
         "required": "Pick at least one scope."
       },
@@ -161,11 +187,13 @@
       },
       "list": {
         "title": "Your tokens",
-        "description": "Revoke a token to stop it working immediately.",
+        "description": "Tokens let scripts and tools such as MCP clients act as you. Revoke one to stop it working immediately.",
         "empty": "You have not created any tokens yet.",
-        "created": "Created {date}",
-        "lastUsed": "Last used {date}",
-        "expires": "Expires {date}"
+        "name": "Name",
+        "createdColumn": "Created",
+        "lastUsedColumn": "Last used",
+        "expiresColumn": "Expires",
+        "neverUsed": "Never"
       },
       "status": {
         "ok": "Active",
@@ -173,6 +201,10 @@
         "expired": "Expired"
       },
       "revoke": "Revoke token",
+      "revokeConfirm": {
+        "title": "Revoke {name}?",
+        "description": "Scripts and tools using this token stop working immediately. This cannot be undone."
+      },
       "revoked": "Token revoked.",
       "revokeError": "Could not revoke the token."
     }

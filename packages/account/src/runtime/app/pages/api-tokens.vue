@@ -1,103 +1,68 @@
 <script setup lang="ts">
-import { z } from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
+import type { ApiToken, ApiTokenScope } from '../utils/api-tokens'
+import AccountApiTokenSlideover from '../components/Account/AccountApiTokenSlideover.vue'
 
 defineOptions({ name: 'AccountApiTokensPage' })
 
-interface ApiToken {
-  id: string
-  name: string
-  prefix: string
-  last4: string
-  scopes: string[]
-  expiresAt: string | null
-  lastUsedAt: string | null
-  createdAt: string
-  status: 'ok' | 'revoked' | 'expired'
-}
-interface ScopeInfo { name: string, description?: string }
-
 const t = useModuleT('account.apiTokens')
 const toast = useToast()
+const showError = useErrorToast()
+const confirm = useConfirmDialog()
+const format = useFormat()
+const { copy } = useCopyToClipboard()
+const overlay = useOverlay()
+const createSlideover = overlay.create(AccountApiTokenSlideover, { destroyOnClose: true })
 
-const { data: tokens, refresh } = await useFetch<ApiToken[]>('/api/auth/tokens', { key: 'account-api-tokens', default: () => [] })
-const { data: scopes } = await useFetch<ScopeInfo[]>('/api/auth/scopes', { key: 'account-api-token-scopes', default: () => [] })
+const { data: tokens, refresh, status } = await useFetch<ApiToken[]>('/api/auth/tokens', { key: 'account-api-tokens', default: () => [] })
+const { data: scopes } = await useFetch<ApiTokenScope[]>('/api/auth/scopes', { key: 'account-api-token-scopes', default: () => [] })
 
-const scopeItems = computed(() => (scopes.value ?? []).map(scope => ({
-  label: scope.name === '*' ? t('allScopes', 'Full access') : scope.name,
-  description: scope.description,
-  value: scope.name,
-})))
-const expiryItems = computed(() => [
-  { label: t('expiry.30', '30 days'), value: 30 },
-  { label: t('expiry.90', '90 days'), value: 90 },
-  { label: t('expiry.365', '1 year'), value: 365 },
-  { label: t('expiry.never', 'No expiry'), value: 0 },
-])
-
-const schema = z.object({
-  name: z.string().trim().min(1, t('name.required', 'Give the token a name.')).max(80),
-  scopes: z.array(z.string()).min(1, t('scopes.required', 'Pick at least one scope.')),
-  expiresInDays: z.number(),
-})
-type Schema = z.output<typeof schema>
-
-const state = reactive<Schema>({ name: '', scopes: [], expiresInDays: 90 })
-const creating = ref(false)
-const revokingId = ref<string | null>(null)
 // The plaintext token exists only in the response to the create call; it is shown once, then dropped.
 const revealed = ref<{ name: string, token: string } | null>(null)
 
-function errorMessage(e: unknown, fallback: string) {
-  const err = e as { data?: { statusMessage?: string }, statusMessage?: string }
-  return err?.data?.statusMessage ?? err?.statusMessage ?? fallback
+async function onCreate() {
+  const created = await createSlideover.open({ scopes: scopes.value ?? [] })
+  if (!created) return
+  revealed.value = { name: created.name, token: created.token }
+  toast.add({ title: t('created', 'Token created'), description: created.name, color: 'success', icon: 'i-lucide-check' })
+  await refresh()
 }
 
-async function onCreate(event: FormSubmitEvent<Schema>) {
-  creating.value = true
-  try {
-    const created = await $fetch<ApiToken & { token: string }>('/api/auth/tokens', {
-      method: 'POST',
-      body: { name: event.data.name, scopes: event.data.scopes, expiresInDays: event.data.expiresInDays || null },
-    })
-    revealed.value = { name: created.name, token: created.token }
-    state.name = ''
-    state.scopes = []
-    await refresh()
-  }
-  catch (e) {
-    toast.add({ title: errorMessage(e, t('createError', 'Could not create the token.')), color: 'error' })
-  }
-  finally {
-    creating.value = false
-  }
-}
-
-async function copyText(text: string, success: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.add({ title: success, color: 'success' })
-  }
-  catch {
-    toast.add({ title: t('copyError', 'Could not copy. Select the token and copy it manually.'), color: 'warning' })
-  }
-}
-
-const copyToken = () => revealed.value && copyText(revealed.value.token, t('copied', 'Token copied.'))
+const copyToken = () => revealed.value && copy(revealed.value.token, t('copied', 'Token copied.'))
 
 async function onRevoke(token: ApiToken) {
-  revokingId.value = token.id
+  const confirmed = await confirm({
+    title: t('revokeConfirm.title', 'Revoke {name}?', { name: token.name }),
+    description: t('revokeConfirm.description', 'Scripts and tools using this token stop working immediately. This cannot be undone.'),
+    confirmText: t('revoke', 'Revoke token'),
+    destructive: true,
+  })
+  if (!confirmed) return
   try {
     await $fetch(`/api/auth/tokens/${token.id}`, { method: 'DELETE' })
-    toast.add({ title: t('revoked', 'Token revoked.'), color: 'success' })
+    toast.add({ title: t('revoked', 'Token revoked.'), description: token.name, color: 'success', icon: 'i-lucide-check' })
     await refresh()
   }
   catch (e) {
-    toast.add({ title: errorMessage(e, t('revokeError', 'Could not revoke the token.')), color: 'error' })
+    showError(e, t('revokeError', 'Could not revoke the token.'))
   }
-  finally {
-    revokingId.value = null
-  }
+}
+
+const tokenMenu = (token: ApiToken): DropdownMenuItem[][] => token.status === 'revoked'
+  ? []
+  : [[{ label: t('revoke', 'Revoke token'), icon: 'i-lucide-ban', color: 'error', onSelect: () => onRevoke(token) }]]
+
+const columns = computed<TableColumn<ApiToken>[]>(() => [
+  { accessorKey: 'name', header: t('list.name', 'Name') },
+  { accessorKey: 'scopes', header: t('scopes.label', 'Scopes') },
+  { accessorKey: 'createdAt', header: t('list.createdColumn', 'Created') },
+  { accessorKey: 'lastUsedAt', header: t('list.lastUsedColumn', 'Last used') },
+  { accessorKey: 'expiresAt', header: t('list.expiresColumn', 'Expires') },
+  { id: 'actions', meta: { class: { td: 'w-px text-right' } } },
+])
+
+function tokenStatusColor(status: ApiToken['status']) {
+  return statusColor(status, { ok: 'success', expired: 'warning' })
 }
 
 // The token is only ever inlined into a snippet while it is revealed; afterwards the snippets show a placeholder.
@@ -120,225 +85,163 @@ const connectTabs = computed(() => [
     value: 'chatgpt',
     steps: t('connect.chatgpt.steps', 'ChatGPT: open Settings → Connectors → Advanced, turn on Developer mode, then create a connector with the URL below. Choose OAuth and sign in when asked. No token needed.'),
     code: mcpUrl,
+    extraSteps: undefined,
+    extraCode: undefined,
   },
 ])
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
-function formatDate(value: string | null) {
-  if (!value) return ''
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '' : dateFormatter.format(date)
-}
-
-function statusColor(status: ApiToken['status']) {
-  return status === 'ok' ? 'success' : status === 'expired' ? 'warning' : 'neutral'
-}
+const activeTab = computed(() => connectTabs.value.find(tab => tab.value === activeConnect.value) ?? connectTabs.value[0])
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageBody>
-        <UPageCard
-          :title="t('create.title', 'Create an API token')"
-          :description="t('create.description', 'Tokens let scripts and tools such as MCP clients act as you. Give each one only the scopes it needs.')"
-          variant="subtle"
-        >
-          <UAlert
-            v-if="revealed"
-            color="success"
-            variant="subtle"
+  <div class="flex flex-col gap-4">
+    <UAlert
+      v-if="revealed"
+      color="success"
+      variant="subtle"
+      icon="i-lucide-key-round"
+      :title="t('reveal.title', 'Copy your new token now')"
+      :description="t('reveal.description', 'This is the only time it is shown. If you lose it, create a new one.')"
+    >
+      <template #actions>
+        <UInput
+          :model-value="revealed.token"
+          readonly
+          class="w-full sm:w-96"
+          :aria-label="t('reveal.label', 'New token')"
+          @focus="($event.target as HTMLInputElement).select()"
+        />
+        <UButton
+          icon="i-lucide-copy"
+          :label="t('copy', 'Copy token')"
+          @click="copyToken"
+        />
+        <UButton
+          color="neutral"
+          variant="ghost"
+          :label="t('reveal.done', 'Done')"
+          @click="revealed = null"
+        />
+      </template>
+    </UAlert>
+
+    <TableCard :loading="status === 'pending' && !tokens?.length">
+      <template #header>
+        <div class="min-w-0">
+          <h2 class="text-sm font-semibold text-highlighted">
+            {{ t('list.title', 'Your tokens') }}
+          </h2>
+          <p class="text-sm text-muted">
+            {{ t('list.description', 'Tokens let scripts and tools such as MCP clients act as you. Revoke one to stop it working immediately.') }}
+          </p>
+        </div>
+        <UButton
+          icon="i-lucide-plus"
+          :label="t('create.submit', 'Create API token')"
+          @click="onCreate"
+        />
+      </template>
+
+      <UTable
+        :data="tokens ?? []"
+        :columns="columns"
+        :ui="tableUi({ tr: '' })"
+      >
+        <template #name-cell="{ row }">
+          <div class="flex min-w-0 flex-col">
+            <span class="flex items-center gap-2 font-medium text-highlighted">
+              {{ row.original.name }}
+              <UBadge
+                :color="tokenStatusColor(row.original.status)"
+                variant="subtle"
+                :label="t(`status.${row.original.status}`, row.original.status)"
+              />
+            </span>
+            <span class="font-mono text-xs text-muted">{{ row.original.prefix }}…{{ row.original.last4 }}</span>
+          </div>
+        </template>
+        <template #scopes-cell="{ row }">
+          <span class="text-muted">{{ row.original.scopes.join(', ') }}</span>
+        </template>
+        <template #createdAt-cell="{ row }">
+          {{ format.date(row.original.createdAt) }}
+        </template>
+        <template #lastUsedAt-cell="{ row }">
+          <span v-if="row.original.lastUsedAt">{{ format.date(row.original.lastUsedAt) }}</span>
+          <span
+            v-else
+            class="text-dimmed"
+          >{{ t('list.neverUsed', 'Never') }}</span>
+        </template>
+        <template #expiresAt-cell="{ row }">
+          <span v-if="row.original.expiresAt">{{ format.date(row.original.expiresAt) }}</span>
+          <span
+            v-else
+            class="text-dimmed"
+          >{{ t('expiry.never', 'No expiry') }}</span>
+        </template>
+        <template #actions-cell="{ row }">
+          <RowMenu
+            v-if="row.original.status !== 'revoked'"
+            :items="tokenMenu(row.original)"
+            :subject="row.original.name"
+          />
+        </template>
+        <template #empty>
+          <UEmpty
+            variant="naked"
             icon="i-lucide-key-round"
-            :title="t('reveal.title', 'Copy your new token now')"
-            :description="t('reveal.description', 'This is the only time it is shown. If you lose it, create a new one.')"
-          >
-            <template #actions>
-              <UInput
-                :model-value="revealed.token"
-                readonly
-                class="w-full sm:w-96"
-                :aria-label="t('reveal.label', 'New token')"
-                @focus="($event.target as HTMLInputElement).select()"
-              />
+            :title="t('list.empty', 'You have not created any tokens yet.')"
+            :actions="[{ label: t('create.submit', 'Create API token'), icon: 'i-lucide-plus', onClick: onCreate }]"
+          />
+        </template>
+      </UTable>
+    </TableCard>
+
+    <SectionCard
+      v-if="mcpEnabled"
+      :title="t('connect.title', 'Connect to MCP')"
+      :description="t('connect.description', 'Use your account from an AI assistant. Your API token is only filled into the commands right after you create it.')"
+    >
+      <div class="flex min-w-0 flex-col gap-3">
+        <PageTabs
+          v-model="activeConnect"
+          :items="connectTabs.map(tab => ({ label: tab.label, value: tab.value }))"
+        />
+        <template v-if="activeTab">
+          <p class="text-sm text-muted">
+            {{ activeTab.steps }}
+          </p>
+          <div class="relative min-w-0">
+            <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ activeTab.code }}</code></pre>
+            <UButton
+              class="absolute right-2 top-2"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-copy"
+              :aria-label="t('copySnippet', 'Copy command')"
+              @click="copy(activeTab.code, t('copiedSnippet', 'Copied.'))"
+            />
+          </div>
+          <template v-if="activeTab.extraCode">
+            <p class="text-sm text-muted">
+              {{ activeTab.extraSteps }}
+            </p>
+            <div class="relative min-w-0">
+              <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ activeTab.extraCode }}</code></pre>
               <UButton
-                icon="i-lucide-copy"
-                :label="t('copy', 'Copy')"
-                @click="copyToken"
-              />
-              <UButton
+                class="absolute right-2 top-2"
                 color="neutral"
                 variant="ghost"
-                :label="t('reveal.done', 'Done')"
-                @click="revealed = null"
+                size="xs"
+                icon="i-lucide-copy"
+                :aria-label="t('copySnippet', 'Copy command')"
+                @click="copy(activeTab.extraCode, t('copiedSnippet', 'Copied.'))"
               />
-            </template>
-          </UAlert>
-
-          <UForm
-            :schema="schema"
-            :state="state"
-            class="space-y-4"
-            @submit="onCreate"
-          >
-            <UFormField
-              :label="t('name.label', 'Name')"
-              name="name"
-              required
-            >
-              <UInput
-                v-model="state.name"
-                :placeholder="t('name.placeholder', 'e.g. My MCP client')"
-                maxlength="80"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField
-              :label="t('scopes.label', 'Scopes')"
-              name="scopes"
-              required
-            >
-              <USelectMenu
-                v-model="state.scopes"
-                :items="scopeItems"
-                value-key="value"
-                multiple
-                :placeholder="t('scopes.placeholder', 'Choose what the token may do')"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField
-              :label="t('expiry.label', 'Expires')"
-              name="expiresInDays"
-            >
-              <USelect
-                v-model="state.expiresInDays"
-                :items="expiryItems"
-                value-key="value"
-                class="w-full sm:max-w-xs"
-              />
-            </UFormField>
-            <UButton
-              type="submit"
-              :loading="creating"
-              :label="t('create.submit', 'Create token')"
-            />
-          </UForm>
-        </UPageCard>
-
-        <UPageCard
-          v-if="mcpEnabled"
-          :title="t('connect.title', 'Connect to MCP')"
-          :description="t('connect.description', 'Use your account from an AI assistant. Your API token is only filled into the commands right after you create it.')"
-          variant="subtle"
-        >
-          <UTabs
-            v-model="activeConnect"
-            :items="connectTabs"
-            :content="false"
-            class="w-full"
-          />
-          <template
-            v-for="tab in connectTabs"
-            :key="tab.value"
-          >
-            <div
-              v-if="tab.value === activeConnect"
-              class="min-w-0 max-w-full space-y-3"
-            >
-              <p class="text-sm text-muted">
-                {{ tab.steps }}
-              </p>
-              <div class="relative min-w-0">
-                <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.code }}</code></pre>
-                <UButton
-                  class="absolute right-2 top-2"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  icon="i-lucide-copy"
-                  :aria-label="t('copy', 'Copy')"
-                  @click="copyText(tab.code, t('copiedSnippet', 'Copied.'))"
-                />
-              </div>
-              <template v-if="tab.extraCode">
-                <p class="text-sm text-muted">
-                  {{ tab.extraSteps }}
-                </p>
-                <div class="relative min-w-0">
-                  <pre class="max-w-full whitespace-pre-wrap break-all rounded-md bg-elevated p-3 pr-12 text-sm"><code>{{ tab.extraCode }}</code></pre>
-                  <UButton
-                    class="absolute right-2 top-2"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    icon="i-lucide-copy"
-                    :aria-label="t('copy', 'Copy')"
-                    @click="copyText(tab.extraCode ?? '', t('copiedSnippet', 'Copied.'))"
-                  />
-                </div>
-              </template>
             </div>
           </template>
-        </UPageCard>
-
-        <UPageCard
-          :title="t('list.title', 'Your tokens')"
-          :description="t('list.description', 'Revoke a token to stop it working immediately.')"
-          variant="subtle"
-        >
-          <ul
-            v-if="tokens?.length"
-            class="divide-y divide-default"
-          >
-            <li
-              v-for="token in tokens"
-              :key="token.id"
-              class="flex items-center justify-between gap-3 py-3"
-            >
-              <div class="min-w-0">
-                <p class="flex items-center gap-2 truncate font-medium text-highlighted">
-                  {{ token.name }}
-                  <UBadge
-                    :color="statusColor(token.status)"
-                    variant="subtle"
-                    :label="t(`status.${token.status}`, token.status)"
-                  />
-                </p>
-                <p class="font-mono text-sm text-muted">
-                  {{ token.prefix }}…{{ token.last4 }}
-                </p>
-                <p class="text-sm text-muted">
-                  {{ token.scopes.join(', ') }}
-                </p>
-                <p class="text-sm text-muted">
-                  {{ t('list.created', 'Created {date}', { date: formatDate(token.createdAt) }) }}
-                  <template v-if="token.lastUsedAt">
-                    · {{ t('list.lastUsed', 'Last used {date}', { date: formatDate(token.lastUsedAt) }) }}
-                  </template>
-                  <template v-if="token.expiresAt">
-                    · {{ t('list.expires', 'Expires {date}', { date: formatDate(token.expiresAt) }) }}
-                  </template>
-                </p>
-              </div>
-              <UButton
-                v-if="token.status !== 'revoked'"
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                :loading="revokingId === token.id"
-                :aria-label="t('revoke', 'Revoke token')"
-                @click="onRevoke(token)"
-              />
-            </li>
-          </ul>
-          <p
-            v-else
-            class="text-sm text-muted"
-          >
-            {{ t('list.empty', 'You have not created any tokens yet.') }}
-          </p>
-        </UPageCard>
-      </UPageBody>
-    </UPage>
-  </UContainer>
+        </template>
+      </div>
+    </SectionCard>
+  </div>
 </template>
