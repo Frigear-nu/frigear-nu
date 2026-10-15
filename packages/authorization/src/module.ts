@@ -75,7 +75,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.
     extendDatabaseTable(nuxt, {
-      name: 'users',
       resolver,
       file: dialect => `./runtime/server/db/schema.${dialect}`,
     })

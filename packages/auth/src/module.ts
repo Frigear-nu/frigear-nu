@@ -113,7 +113,7 @@ export default defineNuxtModule<ModuleOptions>({
       defaults: { webAuthn: true },
     },
   },
-  async setup(options, nuxt) {
+  setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
@@ -136,7 +136,7 @@ export default defineNuxtModule<ModuleOptions>({
     if (withPasswordReset) tables.push('passwordResets')
     if (withMagicLink || withVerifyEmail) tables.push('magicLinks')
 
-    await registerDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       name: tables,
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
@@ -144,7 +144,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     // Credential columns on the `users` table owned by `@frigear-nu/users` (ignored when that module is absent).
     extendDatabaseTable(nuxt, {
-      name: 'users',
       resolver,
       file: dialect => `./runtime/db/users.${dialect}`,
     })

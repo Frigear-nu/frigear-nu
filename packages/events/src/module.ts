@@ -123,7 +123,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // --- Database -------------------------------------------------------------------------
-    await registerDatabaseTable(nuxt, {
+    registerDatabaseTable(nuxt, {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
