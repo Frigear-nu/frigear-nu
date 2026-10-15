@@ -33,5 +33,18 @@
     "write": "Skriv",
     "preview": "Vis",
     "empty": "Intet at vise"
+  },
+  "patterns": {
+    "notSet": "Ikke angivet",
+    "moreActions": "Flere handlinger",
+    "actionsFor": "Handlinger for {subject}",
+    "viewAll": "Se alle",
+    "copied": "Kopieret",
+    "genericError": "Noget gik galt.",
+    "open": "Åbn",
+    "edit": "Redigér",
+    "delete": "Slet",
+    "confirm": "Bekræft",
+    "breadcrumb": "Brødkrummesti"
   }
 }
