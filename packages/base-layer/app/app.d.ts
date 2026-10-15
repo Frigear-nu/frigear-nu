@@ -1,6 +1,8 @@
 declare module 'nuxt/schema' {
   interface AppConfigInput {
     header?: {
+      /** Show the colour-mode toggle in the header (default `true`). */
+      colorMode?: boolean
       icon?: {
         desktop?: boolean
         mobile?: boolean
@@ -14,6 +16,8 @@ declare module 'nuxt/schema' {
 
   interface AppConfig {
     header?: {
+      /** Show the colour-mode toggle in the header (default `true`). */
+      colorMode?: boolean
       icon?: {
         desktop?: boolean
         mobile?: boolean
