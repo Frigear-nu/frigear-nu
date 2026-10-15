@@ -22,7 +22,7 @@ const menu = computed(() => user.value
   ? actions.menu(user.value, {
       open: false,
       can: user.value.can,
-      onRemoved: () => navigateTo(actions.listPath.value),
+      onRemoved: async () => { await navigateTo(actions.listPath.value) },
     })
   : [])
 </script>

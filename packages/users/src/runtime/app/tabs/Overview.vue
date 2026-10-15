@@ -63,7 +63,11 @@ async function save() {
   if (saved) emit('refresh')
 }
 
-const remove = () => actions.remove(props.user, { onRemoved: () => navigateTo(actions.listPath.value) })
+const remove = () => actions.remove(props.user, {
+  onRemoved: async () => {
+    await navigateTo(actions.listPath.value)
+  },
+})
 </script>
 
 <template>
