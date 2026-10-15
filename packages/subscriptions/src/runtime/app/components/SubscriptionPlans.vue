@@ -30,6 +30,7 @@ const ti = useModuleT('subscriptions.interval')
 const { plans: allPlans, status } = usePlans()
 const { plan: currentPlan, isActive, cancelsAt, pending, subscribe, error, status: subscriptionStatus } = useSubscription()
 const { loggedIn } = useUserSession()
+const format = useFormat()
 const route = useRoute()
 const [DefineCard, ReuseCard] = createReusableTemplate<{ plan: SubscriptionPlan, preview?: boolean }>()
 
@@ -42,7 +43,8 @@ function priceFor(plan: SubscriptionPlan): SubscriptionPlanPrice | undefined {
 
 function formatPrice(price: SubscriptionPlanPrice) {
   if (price.amount === null) return ''
-  return formatMoney(price.amount, props.currency ?? price.currency, props.locale)
+  const currency = props.currency ?? price.currency
+  return props.locale ? formatMoney(price.amount, currency, props.locale) : format.money(price.amount, currency)
 }
 
 function intervalLabel(price: SubscriptionPlanPrice) {
@@ -324,6 +326,7 @@ watch([visible, subscriptionStatus, loggedIn], () => {
         >
           <div class="flex w-full justify-end gap-2">
             <UButton
+              color="neutral"
               variant="outline"
               :label="t('cancel', 'Cancel')"
               @click="confirming = null"

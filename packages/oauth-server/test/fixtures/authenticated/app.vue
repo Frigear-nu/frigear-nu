@@ -1,3 +1,6 @@
 <template>
-  <div>authenticated</div>
+  <UApp>
+    <div>authenticated</div>
+    <NuxtPage />
+  </UApp>
 </template>

@@ -20,7 +20,8 @@
       "confirmDowngrade": "Hvis du nedgraderer, kører dit nuværende abonnement til næste forfaldsdato, hvorefter det skifter.",
       "subscribeTo": "Du abonnerer nu på:",
       "changeTitle": "Opdatér abonnement",
-      "checkoutTitle": "Bliv medlem"
+      "checkoutTitle": "Bliv medlem",
+      "confirmResume": "Dit medlemskab fornyes som hidtil."
     },
     "interval": {
       "day": "dag",
@@ -61,12 +62,12 @@
       "title": "Tak!",
       "body": "Dit abonnement bliver aktiveret. Det kan tage et par sekunder.",
       "activeBody": "Dit abonnement er aktiveret.",
-      "continue": "Fortsæt"
+      "back": "Tilbage til medlemskab"
     },
     "cancel": {
       "title": "Betaling annulleret",
       "body": "Der blev ikke foretaget ændringer, og du er ikke blevet opkrævet.",
-      "back": "Tilbage til planer"
+      "back": "Tilbage til medlemskab"
     },
     "errors": {
       "checkout": "Kunne ikke starte betalingen.",
@@ -113,7 +114,18 @@
         "started": "Startet",
         "periodEnd": "Periodeslut",
         "ended": "Afsluttet"
-      }
+      },
+      "type": "Type",
+      "validUntil": "Gyldigt til",
+      "status": "Status",
+      "revokeTitle": "Fjern det gratis medlemskab for {name}?",
+      "revokeBody": "Brugeren mister medlemsfordelene med det samme. Et betalt abonnement påvirkes ikke.",
+      "revokeConfirm": "Fjern gratis medlemskab"
+    },
+    "overview": {
+      "label": "Medlemskab",
+      "none": "Intet aktivt medlemskab",
+      "manage": "Administrér medlemskab"
     }
   }
 }

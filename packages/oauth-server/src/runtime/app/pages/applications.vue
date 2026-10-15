@@ -1,51 +1,40 @@
 <script setup lang="ts">
 defineOptions({ name: 'OAuthApplicationsPage' })
 
+// No container or heading: the `account` layout provides both.
+const t = useModuleT('oauthServer')
 const { applications, status } = useMyApplications()
 </script>
 
 <template>
-  <UContainer class="py-10">
-    <h1 class="mb-6 text-2xl font-semibold">
-      Applications
-    </h1>
-    <p
+  <div class="flex flex-col gap-4">
+    <UEmpty
       v-if="status !== 'pending' && !applications.length"
-      class="text-muted"
+      icon="i-lucide-layout-grid"
+      :title="t('applications.emptyTitle', 'No applications yet')"
+      :description="t('applications.emptyDescription', 'There are no applications you can sign in to yet.')"
+    />
+    <div
+      v-else
+      class="grid gap-4 md:grid-cols-2"
     >
-      There are no applications you can sign in to yet.
-    </p>
-    <div class="grid gap-4 md:grid-cols-2">
-      <UCard
+      <UPageCard
         v-for="application in applications"
         :key="application.id"
+        variant="outline"
+        :title="application.name"
+        :description="application.description ?? application.websiteUrl"
+        :icon="application.icon || 'i-lucide-globe'"
       >
-        <div class="flex items-start gap-3">
-          <UIcon
-            :name="application.icon || 'i-lucide-globe'"
-            class="mt-1 size-6 shrink-0"
-          />
-          <div class="min-w-0 flex-1">
-            <h2 class="font-medium">
-              {{ application.name }}
-            </h2>
-            <p
-              v-if="application.description"
-              class="text-sm text-muted"
-            >
-              {{ application.description }}
-            </p>
-          </div>
-          <UButton
-            :to="application.loginUrl"
-            external
-            trailing-icon="i-lucide-arrow-up-right"
-            size="sm"
-          >
-            Open
-          </UButton>
-        </div>
-      </UCard>
+        <UButton
+          :to="application.loginUrl"
+          external
+          trailing-icon="i-lucide-arrow-up-right"
+          size="sm"
+          :label="t('applications.open', 'Open')"
+          :aria-label="t('applications.openApplication', 'Open {name}', { name: application.name })"
+        />
+      </UPageCard>
     </div>
-  </UContainer>
+  </div>
 </template>
