@@ -67,9 +67,20 @@ describe('collectMenuItems', () => {
 
   it('returns the prefix group and every group nested under it for a wildcard prefix', () => {
     expect(collectMenuItems(groups, { menu: 'dashboard', group: 'account', wildcard: true })).toEqual([
-      { label: 'Account' },
-      { label: 'Sub' },
+      { label: 'Account', group: 'account' },
+      { label: 'Sub', group: 'account.sub' },
     ])
+  })
+
+  it('annotates every item of a wildcard read with the group it was found in', () => {
+    expect(collectMenuItems(groups, { menu: 'dashboard', group: '', wildcard: true }).map(item => item.group))
+      .toEqual(['', 'account', 'account.sub', 'other'])
+  })
+
+  it('leaves the items of a plain read untouched', () => {
+    const items = collectMenuItems(groups, { menu: 'dashboard', group: 'account', wildcard: false })
+    expect(items).toBe(groups.account)
+    expect(items[0]).not.toHaveProperty('group')
   })
 
   it('returns an empty array when there are no groups for the menu', () => {
