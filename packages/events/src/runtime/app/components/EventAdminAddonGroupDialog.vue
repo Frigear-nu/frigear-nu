@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Translated } from '../../../types'
-import { type AdminAddonGroup, type AdminTicketType, useAdminAction } from '../utils/admin-event'
+import type { StaffAddonGroup, StaffTicketType } from '../utils/admin-event'
 
 defineOptions({ name: 'EventAdminAddonGroupDialog' })
 
@@ -10,14 +10,14 @@ const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('events')
 const tr = useEventsTranslate()
-const { busy, run } = useAdminAction()
+const { busy, run } = useAction()
 
 const dialog = ref(false)
 const ticketTypeId = ref('')
-const editingGroup = ref<AdminAddonGroup | null>(null)
+const editingGroup = ref<StaffAddonGroup | null>(null)
 const group = reactive({ title: undefined as Translated | undefined, required: false, multiple: false })
 
-function open(ticketType: AdminTicketType, existing?: AdminAddonGroup) {
+function open(ticketType: StaffTicketType, existing?: StaffAddonGroup) {
   ticketTypeId.value = ticketType.id
   editingGroup.value = existing ?? null
   Object.assign(group, { title: existing?.title, required: existing?.required ?? false, multiple: existing?.multiple ?? false })
@@ -36,7 +36,7 @@ const save = () => run(async () => {
   }
   dialog.value = false
   emit('refresh')
-}, t('admin.groupSaved', 'Add-on group saved.'))
+}, { success: t('admin.groupSaved', 'Add-on group saved.') })
 </script>
 
 <template>
@@ -72,7 +72,7 @@ const save = () => run(async () => {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton
-          variant="subtle"
+          variant="outline"
           color="neutral"
           :label="t('admin.cancel', 'Cancel')"
           @click="dialog = false"

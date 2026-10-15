@@ -3,18 +3,20 @@ import type { Translated } from '../../../types'
 import AttendeesTab from '../tabs/Attendees.vue'
 import DetailsTab from '../tabs/Details.vue'
 import TicketsTab from '../tabs/Tickets.vue'
-import { type AdminEvent, toLocalInput, useAdminAction } from '../utils/admin-event'
+import { type StaffEvent, toLocalInput } from '../utils/admin-event'
 
 defineOptions({ name: 'EventsAdminEventPage' })
 
 const t = useModuleT('events')
 const route = useRoute()
 const tr = useEventsTranslate()
-const pages = useRuntimeConfig().public.events?.pages
+const links = useEventLinks()
+const actions = useEventActions()
+const hasPublicPage = !!useRuntimeConfig().public.events?.pages?.event
 const id = computed(() => String(route.params.id))
-const { busy, run } = useAdminAction()
+const { busy, run } = useAction()
 
-const { data: event, refresh } = await useFetch<AdminEvent>(() => `/api/events/admin/events/${id.value}`)
+const { data: event, refresh } = await useFetch<StaffEvent>(() => `/api/events/admin/events/${id.value}`)
 
 // The tabs below the key facts are the `admin.events` area: modules add tabs with `extendTabs(nuxt, 'admin.events', ...)`
 // and each tab component receives the `event` and may emit `refresh`. `@frigear-nu/widget` is optional; without it
@@ -42,7 +44,6 @@ watch(event, (value) => {
 }, { immediate: true })
 
 const statuses = computed(() => ['draft', 'published', 'archived'].map(value => ({ value, label: t(`admin.statuses.${value}`, value.charAt(0).toUpperCase() + value.slice(1)) })))
-const statusColor: Record<string, 'success' | 'warning' | 'neutral'> = { draft: 'warning', published: 'success', archived: 'neutral' }
 
 const saveFacts = () => run(async () => {
   await $fetch(`/api/events/admin/events/${id.value}`, {
@@ -56,33 +57,43 @@ const saveFacts = () => run(async () => {
     },
   })
   await refresh()
-}, t('admin.saved', 'Saved.'))
+}, { success: t('admin.saved', 'Saved.') })
 </script>
 
 <template>
-  <AdminPage v-if="event">
-    <AdminPageHeader
+  <div
+    v-if="event"
+    class="flex flex-col gap-4"
+  >
+    <PageHeading
       :title="tr(event.name)"
-      :back="{ label: t('admin.title', 'Events'), to: pages?.admin || '/admin/events' }"
+      :breadcrumb="[{ label: t('admin.title', 'Events'), to: links.admin() }, { label: tr(event.name) }]"
     >
-      <UBadge
-        variant="subtle"
-        :color="statusColor[event.status] ?? 'neutral'"
-        :label="t(`admin.statuses.${event.status}`, event.status)"
-      />
+      <template #badge>
+        <UBadge
+          variant="subtle"
+          :color="statusColor(event.status)"
+          :label="t(`admin.statuses.${event.status}`, event.status)"
+        />
+      </template>
       <template #actions>
         <UButton
-          v-if="event.status === 'published' && pages?.event"
-          :to="pages.event.replace(':slug', encodeURIComponent(event.slug))"
+          v-if="event.status === 'published' && hasPublicPage"
+          :to="links.event(event.slug)"
           variant="outline"
           color="neutral"
           icon="i-lucide-external-link"
           :label="t('admin.viewPublic', 'View public page')"
         />
+        <RowMenu
+          variant="outline"
+          :subject="tr(event.name)"
+          :items="actions.menu(event, { open: false, viewPublic: false, onRemoved: () => navigateTo(links.admin()) })"
+        />
       </template>
-    </AdminPageHeader>
+    </PageHeading>
 
-    <AdminSection :title="t('admin.keyFacts', 'Event')">
+    <SectionCard :title="t('admin.keyFacts', 'Event')">
       <form
         id="admin-event-facts"
         class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -127,11 +138,11 @@ const saveFacts = () => run(async () => {
             type="submit"
             form="admin-event-facts"
             :loading="busy"
-            :label="t('admin.save', 'Save')"
+            :label="t('admin.saveEvent', 'Save event')"
           />
         </div>
       </template>
-    </AdminSection>
+    </SectionCard>
 
     <component
       :is="tabs"
@@ -154,10 +165,11 @@ const saveFacts = () => run(async () => {
         @refresh="refresh"
       />
     </template>
-  </AdminPage>
-  <AdminEmpty
+  </div>
+  <UEmpty
     v-else
     icon="i-lucide-calendar-x"
     :title="t('notFound', 'Event not found')"
+    :actions="[{ label: t('admin.allEvents', 'All events'), to: links.admin(), color: 'neutral', variant: 'outline' }]"
   />
 </template>

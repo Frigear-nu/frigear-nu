@@ -5,7 +5,7 @@ export default defineMenuSource(() => {
   const config = useRuntimeConfig().public.events as { pages?: { tickets?: string, admin?: string } } | undefined
 
   if (config?.pages?.tickets) {
-    const item = defineMenuItem({
+    extendMenuItem('account', defineMenuItem({
       id: 'event-tickets',
       label: 'Tickets',
       labelKey: 'events.menu.tickets.label',
@@ -14,11 +14,7 @@ export default defineMenuSource(() => {
       icon: 'i-lucide-ticket',
       to: config.pages.tickets,
       order: 40,
-    })
-
-    // `account` is rendered by the account dashboard, `dashboard.account` is the generic dashboard menu.
-    extendMenuItem('account', item)
-    extendMenuItem('dashboard.account', item)
+    }))
   }
 
   // The staff entry of the admin sidebar (`@frigear-nu/admin`); the page and API stay gated by `events:authorize`.
