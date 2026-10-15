@@ -200,6 +200,12 @@
         "supplier": "Leverandør",
         "partner": "Partner",
         "user": "Bruger"
+      },
+      "newUsers": {
+        "title": "Nye medlemmer"
+      },
+      "stats": {
+        "newUsers": "Nye medlemmer"
       }
     }
   },

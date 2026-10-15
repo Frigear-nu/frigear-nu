@@ -150,7 +150,7 @@ Modules by area
   Interface and content
 
   #description
-  [Forms](/modules/forms), [Cookie Consent](/modules/cookie-consent), [UI](/modules/ui), [Menu](/modules/menu), [Widget](/modules/widget) and [Admin](/modules/admin).
+  [Forms](/modules/forms), [Cookie Consent](/modules/cookie-consent), [UI](/modules/ui), [Menu](/modules/menu), [Widget](/modules/widget) and [Admin](/modules/admin). New screens follow the [UX patterns](/getting-started/ux-patterns).
   :::
 
   :::u-page-feature

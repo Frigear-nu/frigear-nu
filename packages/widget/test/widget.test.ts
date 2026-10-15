@@ -7,7 +7,7 @@ const createNuxt = () => ({ options: {}, callHook: vi.fn() }) as unknown as Nuxt
 describe('deriveWidgetId', () => {
   it('uses the explicit id, else the component file name', () => {
     expect(deriveWidgetId({ id: 'x', component: '/a/B.vue' })).toBe('x')
-    expect(deriveWidgetId({ component: '/a/NewMembers.vue' })).toBe('NewMembers')
+    expect(deriveWidgetId({ component: '/a/NewUsers.vue' })).toBe('NewUsers')
   })
 })
 

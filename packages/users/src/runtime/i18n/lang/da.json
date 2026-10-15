@@ -19,8 +19,8 @@
       "save": "Gem",
       "error": "Noget gik galt.",
       "allUsers": "Alle brugere",
-      "newMembers": {
-        "title": "Nye medlemmer",
+      "newUsers": {
+        "title": "Nye brugere",
         "description": "Tilmeldt inden for de seneste 30 dage.",
         "empty": "Ingen nye endnu."
       },
@@ -43,8 +43,6 @@
       "detail": {
         "profile": "Profil",
         "account": "Konto",
-        "membership": "Medlemskab",
-        "noMembership": "Intet medlemskab.",
         "password": "Adgangskode",
         "passkeys": "Adgangsnøgler",
         "set": "Angivet",
@@ -66,7 +64,7 @@
         "overview": "Oversigt"
       },
       "stats": {
-        "newMembers": "Nye medlemmer",
+        "newUsers": "Nye brugere",
         "ofTotal": "{total} brugere i alt"
       }
     }

@@ -64,8 +64,8 @@ describe('users admin', async () => {
     expect(edited.status, await edited.clone().text()).toBe(200)
     expect(await edited.json()).toMatchObject({ name: 'Renamed' })
 
-    const members = await (await call('GET', '/api/admin/users/new-members', undefined, staff)).json()
-    expect(members.length).toBeGreaterThan(0)
+    const users = await (await call('GET', '/api/admin/users/new', undefined, staff)).json()
+    expect(users.length).toBeGreaterThan(0)
   })
 
   it('rejects duplicate emails and unknown users', async () => {

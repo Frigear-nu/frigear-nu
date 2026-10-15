@@ -166,6 +166,30 @@ manually — check before assuming plain pnpm scripts are the only path.
 - A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
   `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see below).
 
+### Database schemas: one file per dialect
+
+- Every module schema and extension file (`schema.sqlite.ts`, `users.sqlite.ts`, `server/db/extend.sqlite.ts`, ...)
+  ships with a `.postgresql.ts` twin next to it, exporting the same tables with the same table, column and index names.
+  Change both in the same commit; they must always stay in sync.
+- Every package that owns a schema has a `test/schema-parity.test.ts` calling `expectSchemaParity(sqlite, postgresql)`
+  from `@frigear-nu/module-kit/testing`. It compares tables, columns (drizzle data type, not null, primary key, unique,
+  defaults, `$defaultFn`/`$onUpdateFn`), indexes and foreign keys. Add a case when you add a schema file. A module-kit
+  test fails when a `.sqlite.ts` schema has no `.postgresql.ts` twin.
+- Map the types like this, so the drizzle data types match:
+
+  | sqlite | postgresql |
+  |---|---|
+  | `sqliteTable` (`drizzle-orm/sqlite-core`) | `pgTable` (`drizzle-orm/pg-core`) |
+  | `integer().primaryKey({ autoIncrement: true })` | `serial().primaryKey()` |
+  | `integer({ mode: 'timestamp' })` | `timestamp({ withTimezone: true })` |
+  | `integer({ mode: 'boolean' })` | `boolean()` |
+  | `text({ mode: 'json' })` | `jsonb()` |
+  | `integer()` holding epoch milliseconds | `bigint({ mode: 'number' })` |
+  | `customType({ dataType: () => 'text' })` | the same `customType` from `pg-core` |
+
+- Runtime code must work on both dialects: no `db.run`/`db.batch`/`PRAGMA`, `rowid` or sqlite-only SQL without a
+  postgres branch (see `changeId` in `packages/users/src/runtime/server/user-store.ts`).
+
 ### Database extensions and authenticated test fixtures
 
 - `extendDatabaseTable` changes the generated Drizzle schema, not the database itself. Whenever a module adds or
@@ -182,6 +206,40 @@ manually — check before assuming plain pnpm scripts are the only path.
 - A missing session cookie can be a database error, not disabled authentication: the account fixture needed an
   `accepted_terms_at` migration after the account module extended `users`. See
   `apps/docs/content/4.modules/10.module-kit.md` for the migration workflow.
+
+---
+
+## UX patterns
+
+Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
+`apps/docs/content/1.getting-started/6.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
+live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
+
+- **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
+  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account`, inside
+  the site layout. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
+  account menu, not the chrome.
+- **Headings.** App pages (admin, account) use `PageHeading`; public pages use `UContainer > UPage > UPageHeader`. The
+  page root is `<div class="flex flex-col gap-4">`. Do not use the deprecated `Admin*` components in new code.
+- **Lists** are `PageHeading` + primary action, `PageToolbar` past ~8 rows, `UTable :ui="tableUi()"` inside
+  `TableCard`, clickable rows and a `RowMenu` in the last column. Empty states are `UEmpty` with exactly one action.
+- **Detail pages** have a `PageHeading` breadcrumb back to the list and `SectionCard` sections. Use `WidgetTabs`
+  (`extendTabs`) when other modules can add sections, `PageTabs` when the page owns them. Light entities open in a
+  slideover with the record in the URL query.
+- **Create and edit** use `FormSlideover` + `UForm`/zod, opened through `useOverlay()` and resolved with the saved
+  record. Cancel is `color="neutral" variant="outline"`, the primary action comes last, hints go in `UFormField`
+  `description`.
+- **One `use<Entity>Actions()` composable per entity** owns create/edit/remove, toasts, refresh and `menu(record)`.
+  `RowMenu` order: Open, edits, then the destructive action in its own red group. No loose icon buttons in rows.
+- **Destructive actions confirm** with `useConfirmDialog({ destructive: true })` and say what else is affected; never
+  `window.confirm`.
+- **Feedback** is a toast with a title and the record name; errors go through `useErrorToast` / `errorToToast`, busy
+  state through `useAction`. Pass context through the URL (deep links), not state hand-offs.
+- **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the
+  object ("Add unit", "Delete application"), never bare "Add"/"Delete". Dates and money via `useFormat()`; links via
+  `useLocaleLink().localize` so the locale prefix survives.
+- **Patterns, not theme.** Shared components add structure only; colours, fonts and radius stay Nuxt UI's. Status badges
+  use `statusColor`; card frames use `surfaceClass`.
 
 ---
 

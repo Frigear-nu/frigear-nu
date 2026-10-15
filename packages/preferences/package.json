@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/preferences",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Typed per-user preferences that modules and the host app register, stored on the user and optionally forwarded to OAuth applications as claims.",
   "homepage": "https://docs.frigear.dev/modules/preferences",
   "repository": {

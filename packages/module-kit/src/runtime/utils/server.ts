@@ -1,4 +1,4 @@
-import { addTemplate, createResolver } from '@nuxt/kit'
+import { addTemplate, createResolver, useLogger } from '@nuxt/kit'
 import { existsSync } from 'node:fs'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
@@ -104,6 +104,9 @@ export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions) 
     if (names === undefined || names.includes(name)) {
       const file = await options.resolver.resolvePath(options.file(dialect))
       if (existsSync(file)) paths.push(file)
+      else if (dialect !== 'sqlite' && existsSync(await options.resolver.resolvePath(options.file('sqlite')))) {
+        useLogger('module-kit').warn(`No ${dialect} variant of "${options.file('sqlite')}" (table "${name}"): its columns are left out of the ${dialect} schema.`)
+      }
     }
   })
 }
@@ -135,6 +138,13 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
     }
 
     const schemaPath = await resolver.resolvePath(schema(dialect))
+    // Only for a missing dialect variant: a schema file that exists for no dialect is the generated template's problem.
+    if (dialect !== 'sqlite' && !existsSync(schemaPath) && existsSync(await resolver.resolvePath(schema('sqlite')))) {
+      throw new Error(
+        `[module-kit] No ${dialect} schema at "${schema(dialect)}" (resolved to "${schemaPath}"). `
+        + `Every module schema must ship a file per dialect, e.g. \`schema.sqlite.ts\` and \`schema.postgresql.ts\`.`,
+      )
+    }
     const names = name === undefined ? listRegularTableExportNames(schemaPath) : (Array.isArray(name) ? name : [name])
 
     if (names.length === 0) {

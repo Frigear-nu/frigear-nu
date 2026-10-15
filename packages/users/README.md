@@ -11,7 +11,7 @@ change about themselves. How people sign in lives in [`@frigear-nu/auth`](../aut
 ## Features
 
 - ⛰ The `users` table and its schema, extended by other modules (credentials by `auth`, `role` by `authorization`, ...).
-- 🛠 Staff administration (`settings.admin`): list, create, edit, delete and re-invite users, a "new members" widget and
+- 🛠 Staff administration (`settings.admin`): list, create, edit, delete and re-invite users, a "new users" widget and
   an admin page (with `@frigear-nu/admin`). Policy is the host's, through the `users:admin:authorize` hook.
 - 🧑 Self-service: change profile, email (optionally confirmed from the inbox) and password.
 - 🧩 `requireUser` / `getUser` for server routes, and `extendUsersAdmin` for modules that add to the admin user page.

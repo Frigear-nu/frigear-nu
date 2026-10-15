@@ -59,3 +59,13 @@ describe('listRegularTableExportNames', () => {
     expect(listRegularTableExportNames(file)).toEqual([])
   })
 })
+
+describe('parseRegularTableExport (postgresql)', () => {
+  it('extracts a pgTable export the same way', () => {
+    const file = fileURLToPath(new URL('./fixtures/regular/schema.postgresql.ts', import.meta.url))
+    const result = parseRegularTableExport(file, 'accounts')
+    expect(result!.tableCall).toEqual({ callee: 'pgTable', tableName: 'accounts' })
+    expect([...result!.properties.keys()]).toEqual(['id', 'name'])
+    expect(result!.imports.get('drizzle-orm/pg-core')).toEqual(new Set(['integer', 'pgTable', 'text']))
+  })
+})
