@@ -54,9 +54,29 @@ describe('listRegularTableExportNames', () => {
     expect(listRegularTableExportNames(file)).toEqual(['users', 'userPasskeys'])
   })
 
+  it('lists only exports initialised by a table call with `tablesOnly`', () => {
+    const plain = fileURLToPath(new URL('./fixtures/regular/plain-object.sqlite.ts', import.meta.url))
+    expect(listRegularTableExportNames(plain)).toEqual(['accounts'])
+    expect(listRegularTableExportNames(plain, { tablesOnly: true })).toEqual([])
+
+    const multi = fileURLToPath(new URL('./fixtures/regular/multi.sqlite.ts', import.meta.url))
+    expect(listRegularTableExportNames(multi, { tablesOnly: true })).toEqual(['users', 'userPasskeys'])
+  })
+
   it('does not include the default export', () => {
     const file = fileURLToPath(new URL('./fixtures/regular/default-export.sqlite.ts', import.meta.url))
     expect(listRegularTableExportNames(file)).toEqual([])
+  })
+})
+
+describe('parseRegularTableExport (imports)', () => {
+  it('rewrites relative specifiers to absolute paths and keeps `type` on type-only imports', () => {
+    const file = fileURLToPath(new URL('./fixtures/regular/relative.sqlite.ts', import.meta.url))
+    const types = fileURLToPath(new URL('./fixtures/regular/types', import.meta.url))
+    const result = parseRegularTableExport(file, 'things')
+    expect(result!.imports.get(types)).toEqual(new Set(['type Foo']))
+    expect([...result!.imports.keys()].some(module => module.startsWith('.'))).toBe(false)
+    expect(result!.imports.get('drizzle-orm/sqlite-core')).toEqual(new Set(['sqliteTable', 'text']))
   })
 })
 
