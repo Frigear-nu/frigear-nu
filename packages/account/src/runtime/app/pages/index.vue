@@ -46,6 +46,7 @@ const profile = computed(() => {
       :is="widgetArea"
       v-if="widgetArea"
       name="account.overview"
+      :context="{ user }"
     />
 
     <ListCard
