@@ -469,4 +469,20 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(body).not.toContain('price_member_m')
     })
   })
+
+  describe('pages', () => {
+    it('renders the checkout canceled page as an empty state with one way back', async () => {
+      const html = await $fetch<string>('/account/membership/cancel')
+      expect(html).toContain('Checkout canceled')
+      expect(html).toContain('Back to membership')
+      // The account layout owns the heading and the container.
+      expect(html).not.toContain('<h1')
+    }, 120_000)
+
+    it('renders the membership page without a hero heading', async () => {
+      const html = await $fetch<string>('/account/membership')
+      expect(html).not.toContain('<h1')
+      expect(html).toContain('Member')
+    }, 120_000)
+  })
 })

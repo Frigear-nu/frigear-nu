@@ -106,11 +106,13 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
+    // The pages and admin pieces are built from its components and composables (`SectionCard`, `useFormat`, ...).
+    '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     // Membership invoices are only announced (and stored as payments) when it is installed.
     '@frigear-nu/payments': { version: '>=0.0.0', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
-    // The admin user tab and card are built from its components, so they are only added with it.
+    // The admin user tab and card live on its admin user page, so they are only added with it.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
@@ -251,6 +253,12 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'subscriptions-cancel', path: cancelPath, file: './runtime/app/pages/cancel.vue' },
     ])
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
+
+    // A summary of the membership on the account overview (`account.overview` area of `@frigear-nu/account`).
+    if (membershipPath && hasNuxtModule('@frigear-nu/widget', nuxt)) {
+      const { extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendWidgets(nuxt, 'account.overview', { id: 'subscriptions-membership', component: resolver.resolve('./runtime/app/widgets/MembershipSummary.vue'), order: 10 })
+    }
   },
 })

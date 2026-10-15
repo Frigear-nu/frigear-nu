@@ -5,33 +5,32 @@ import { useSubscription } from '../composables/useSubscription'
 
 defineOptions({ name: 'SubscriptionMembershipPage' })
 
+// No container or page heading: under `/account/**` the `account` layout provides both.
 const t = useModuleT('subscriptions')
 const { isActive, cancelsAt } = useSubscription()
 const { loggedIn } = useUserSession()
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageBody class="space-y-8">
-        <SubscriptionStatus v-if="isActive" />
-        <div
-          v-else-if="loggedIn"
-          class="space-y-2 text-center"
-        >
-          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">
-            {{ t('status.heroTitle', 'Join the team today') }}
-          </h1>
-          <p class="text-muted">
-            {{ t('status.heroDescription', 'Set up your membership to get started!') }}
-          </p>
-        </div>
-        <UPageHeader
-          v-if="cancelsAt"
-          :title="t('plans.resubscribe', 'Resubscribe')"
-        />
-        <SubscriptionPlans confirm-change />
-      </UPageBody>
-    </UPage>
-  </UContainer>
+  <div class="flex flex-col gap-6">
+    <SubscriptionStatus v-if="isActive" />
+    <div
+      v-else-if="loggedIn"
+      class="flex flex-col gap-1"
+    >
+      <h2 class="text-highlighted text-lg font-semibold">
+        {{ t('status.heroTitle', 'Join the team today') }}
+      </h2>
+      <p class="text-muted text-sm">
+        {{ t('status.heroDescription', 'Set up your membership to get started!') }}
+      </p>
+    </div>
+    <h2
+      v-if="cancelsAt"
+      class="text-highlighted text-lg font-semibold"
+    >
+      {{ t('plans.resubscribe', 'Resubscribe') }}
+    </h2>
+    <SubscriptionPlans confirm-change />
+  </div>
 </template>

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AdminPaymentLinkResponse } from '../../../../types'
+import type { AdminPaymentLinkResponse as PaymentLinkResponse } from '../../../../types'
 
 const bodySchema = z.object({
   planKey: z.string().min(1).optional(),
@@ -13,7 +13,7 @@ const escapeHtml = (value: string) =>
 
 // Staff creates a Stripe Checkout session for the user (same shape as the self-service checkout) and gets the
 // URL back, optionally emailed to the user through @frigear-nu/notify. Checkout sessions expire after 24 hours.
-export default defineEventHandler(async (event): Promise<AdminPaymentLinkResponse> => {
+export default defineEventHandler(async (event): Promise<PaymentLinkResponse> => {
   const { target } = await loadUsersAdminTarget(event, 'update')
   const body = await readValidatedBody(event, bodySchema.parse)
   const origin = getRequestURL(event).origin

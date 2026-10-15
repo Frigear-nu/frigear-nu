@@ -1,11 +1,11 @@
 import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
 
-// Only registered when `@frigear-nu/menu` is installed (see `module.ts`).
+// Only registered when `@frigear-nu/menu` is installed (see `module.ts`), as the `account` menu source.
 export default defineMenuSource(() => {
   const config = useRuntimeConfig().public.subscriptions as { pages?: { membership?: string } } | undefined
 
   if (config?.pages?.membership) {
-    const item = defineMenuItem({
+    extendMenuItem('account', defineMenuItem({
       id: 'subscription',
       label: 'Subscription',
       labelKey: 'subscriptions.menu.subscription.label',
@@ -13,10 +13,7 @@ export default defineMenuSource(() => {
       descriptionKey: 'subscriptions.menu.subscription.description',
       icon: 'i-lucide-credit-card',
       to: config.pages.membership,
-      order: 30,
-    })
-
-    extendMenuItem('account', item)
-    extendMenuItem('dashboard.account', item)
+      order: 15,
+    }))
   }
 })

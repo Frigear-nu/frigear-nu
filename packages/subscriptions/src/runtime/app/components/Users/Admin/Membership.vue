@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminMembershipResponse, AdminPaymentLinkResponse } from '../../../../../types'
+import type { AdminMembershipResponse as MembershipResponse, AdminPaymentLinkResponse as PaymentLinkResponse } from '../../../../../types'
 
 defineOptions({ name: 'UsersAdminMembership' })
 
@@ -8,18 +8,23 @@ const props = defineProps<{ user: { id: number, name: string, email: string } }>
 const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('subscriptions.admin')
+const format = useFormat()
+const confirm = useConfirmDialog()
+const { copy } = useCopyToClipboard()
 const toast = useToast()
+const grantAction = useAction()
+const linkAction = useAction()
+const revokeAction = useAction()
 const base = computed(() => `/api/admin/users/${props.user.id}/subscription`)
 
 // Lazy so the tab renders (with skeletons) immediately and this request runs in parallel with the history request.
-const { data, refresh, status } = useLazyFetch<AdminMembershipResponse>(() => base.value, { key: () => `admin-membership-${props.user.id}` })
+const { data, refresh, status } = useLazyFetch<MembershipResponse>(() => base.value, { key: () => `admin-membership-${props.user.id}` })
 const loading = computed(() => status.value === 'pending' && !data.value)
 
 const planKey = ref<string | undefined>(undefined)
 const endsAt = ref('')
 const emailUser = ref(true)
 const link = ref<string | null>(null)
-const busy = ref<'grant' | 'link' | 'revoke' | null>(null)
 
 const planItems = computed(() => (data.value?.plans ?? []).map(plan => ({ label: plan.label, value: plan.key })))
 watchEffect(() => {
@@ -28,109 +33,99 @@ watchEffect(() => {
 
 const current = computed(() => data.value?.current ?? null)
 const planLabel = (key: string | null) => planItems.value.find(item => item.value === key)?.label ?? key ?? '–'
-const formatDate = (value: string) => new Date(value).toLocaleDateString()
 
-function fail(cause: unknown) {
-  toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error', 'Something went wrong.'), color: 'error' })
-}
+const details = computed(() => [
+  { key: 'plan', label: t('plan', 'Plan') },
+  { key: 'type', label: t('type', 'Type'), value: current.value?.source === 'manual' ? t('free', 'Free of charge') : t('paid', 'Paid (Stripe)') },
+  {
+    key: 'validUntil',
+    label: t('validUntil', 'Valid until'),
+    value: current.value?.currentPeriodEnd ? format.date(current.value.currentPeriodEnd) : t('openEnded', 'No end date'),
+  },
+])
 
 async function changed() {
   await refresh()
   emit('refresh')
 }
 
-async function run(kind: 'grant' | 'link' | 'revoke', action: () => Promise<void>) {
-  busy.value = kind
-  try {
-    await action()
-  }
-  catch (cause) {
-    fail(cause)
-  }
-  finally {
-    busy.value = null
-  }
-}
-
-const grant = () => run('grant', async () => {
+const grant = () => grantAction.run(async () => {
   await $fetch(base.value, {
     method: 'POST',
     body: { planKey: planKey.value, endsAt: endsAt.value ? new Date(`${endsAt.value}T23:59:59`).toISOString() : null },
   })
   link.value = null
-  toast.add({ title: t('granted', 'Membership granted.'), color: 'success' })
   await changed()
-})
+}, { success: t('granted', 'Membership granted.'), error: t('error', 'Something went wrong.') })
 
-const revoke = () => run('revoke', async () => {
-  await $fetch(base.value, { method: 'DELETE' })
-  toast.add({ title: t('revoked', 'Membership revoked.'), color: 'success' })
-  await changed()
-})
+async function revoke() {
+  const confirmed = await confirm({
+    title: t('revokeTitle', 'Revoke the free membership of {name}?', { name: props.user.name }),
+    description: t('revokeBody', 'They lose the membership benefits right away. A paid subscription is not affected.'),
+    confirmText: t('revokeConfirm', 'Revoke free membership'),
+    destructive: true,
+  })
+  if (!confirmed) return
+  await revokeAction.run(async () => {
+    await $fetch(base.value, { method: 'DELETE' })
+    await changed()
+  }, { success: t('revoked', 'Membership revoked.'), error: t('error', 'Something went wrong.') })
+}
 
-const sendLink = () => run('link', async () => {
-  const result = await $fetch<AdminPaymentLinkResponse>(`${base.value}/payment-link`, {
+async function sendLink() {
+  const result = await linkAction.run(() => $fetch<PaymentLinkResponse>(`${base.value}/payment-link`, {
     method: 'POST',
     body: { planKey: planKey.value, email: emailUser.value },
-  })
+  }), { error: t('error', 'Something went wrong.') })
+  if (!result) return
   link.value = result.url
-  toast.add({ title: result.emailed ? t('linkEmailed', 'Payment link created and emailed.') : t('linkCreated', 'Payment link created.'), color: 'success' })
-})
-
-async function copy() {
-  if (!link.value) return
-  try {
-    await navigator.clipboard.writeText(link.value)
-    toast.add({ title: t('copied', 'Link copied.'), color: 'success' })
-  }
-  catch (cause) {
-    fail(cause)
-  }
+  toast.add({
+    title: result.emailed ? t('linkEmailed', 'Payment link created and emailed.') : t('linkCreated', 'Payment link created.'),
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
 }
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex flex-col gap-4">
+    <template v-if="current">
+      <DescriptionList
+        :items="details"
+      >
+        <template #plan>
+          <UBadge
+            variant="subtle"
+            :color="current.source === 'manual' ? 'info' : statusColor('active')"
+            :label="planLabel(current.planKey)"
+          />
+        </template>
+      </DescriptionList>
+      <div v-if="current.source === 'manual'">
+        <UButton
+          color="error"
+          variant="soft"
+          size="sm"
+          icon="i-lucide-user-x"
+          :loading="revokeAction.busy.value"
+          :label="t('revoke', 'Revoke free membership')"
+          @click="revoke"
+        />
+      </div>
+    </template>
     <div
-      v-if="loading"
+      v-else-if="loading"
       class="space-y-2"
     >
       <USkeleton class="h-6 w-1/2" />
       <USkeleton class="h-9 w-2/3" />
     </div>
-    <div
+    <p
       v-else
-      class="flex flex-wrap items-center gap-2 text-sm"
+      class="text-muted text-sm"
     >
-      <template v-if="current">
-        <UBadge
-          variant="subtle"
-          :color="current.source === 'manual' ? 'info' : 'success'"
-          :label="planLabel(current.planKey)"
-        />
-        <span class="text-muted">
-          {{ current.source === 'manual' ? t('free', 'Free of charge') : t('paid', 'Paid (Stripe)') }}
-          ·
-          {{ current.currentPeriodEnd ? t('until', 'until {date}', { date: formatDate(current.currentPeriodEnd) }) : t('openEnded', 'No end date') }}
-        </span>
-        <UButton
-          v-if="current.source === 'manual'"
-          color="error"
-          variant="soft"
-          size="sm"
-          icon="i-lucide-user-x"
-          :loading="busy === 'revoke'"
-          :label="t('revoke', 'Revoke free membership')"
-          @click="revoke"
-        />
-      </template>
-      <p
-        v-else
-        class="text-muted"
-      >
-        {{ t('none', 'No active membership.') }}
-      </p>
-    </div>
+      {{ t('none', 'No active membership.') }}
+    </p>
 
     <p
       v-if="!loading && current && current.source !== 'manual'"
@@ -140,7 +135,7 @@ async function copy() {
     </p>
     <div
       v-else-if="!loading && planItems.length"
-      class="space-y-3"
+      class="flex flex-col gap-3"
     >
       <div class="flex flex-wrap items-end gap-3">
         <UFormField :label="t('plan', 'Plan')">
@@ -160,7 +155,7 @@ async function copy() {
         <UButton
           icon="i-lucide-gift"
           :disabled="!planKey"
-          :loading="busy === 'grant'"
+          :loading="grantAction.busy.value"
           :label="t('grant', 'Grant free')"
           @click="grant"
         />
@@ -172,7 +167,7 @@ async function copy() {
           variant="outline"
           icon="i-lucide-link"
           :disabled="!planKey"
-          :loading="busy === 'link'"
+          :loading="linkAction.busy.value"
           :label="t('sendLink', 'Send payment link')"
           @click="sendLink"
         />
@@ -182,29 +177,25 @@ async function copy() {
         />
       </div>
 
-      <div
-        v-if="link"
-        class="flex items-center gap-2"
-      >
-        <UInput
-          :model-value="link"
-          readonly
-          class="flex-1"
-        />
-        <UButton
-          color="neutral"
-          variant="soft"
-          icon="i-lucide-copy"
-          :label="t('copy', 'Copy link')"
-          @click="copy"
-        />
-      </div>
-      <p
-        v-if="link"
-        class="text-muted text-xs"
-      >
-        {{ t('linkHint', 'The link is valid for 24 hours.') }}
-      </p>
+      <template v-if="link">
+        <div class="flex items-center gap-2">
+          <UInput
+            :model-value="link"
+            readonly
+            class="flex-1"
+          />
+          <UButton
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-copy"
+            :label="t('copy', 'Copy link')"
+            @click="copy(link, t('copied', 'Link copied.'))"
+          />
+        </div>
+        <p class="text-muted text-xs">
+          {{ t('linkHint', 'The link is valid for 24 hours.') }}
+        </p>
+      </template>
     </div>
   </div>
 </template>

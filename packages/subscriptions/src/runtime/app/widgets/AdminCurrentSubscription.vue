@@ -8,17 +8,21 @@ const t = useModuleT('subscriptions.admin')
 </script>
 
 <template>
-  <AdminStatCard
+  <StatCard
     :label="t('currentSubscription', 'Current subscription')"
+    icon="i-lucide-badge-check"
     :empty="t('none', 'No active membership.')"
   >
-    <template v-if="user.subscription">
+    <template
+      v-if="user.subscription"
+      #default
+    >
       <UBadge
         variant="subtle"
-        :color="['active', 'trialing'].includes(user.subscription.status) ? 'success' : 'neutral'"
+        :color="statusColor(user.subscription.status)"
         :label="user.subscription.planKey ?? user.subscription.status"
       />
-      <span class="text-muted">{{ user.subscription.status }}</span>
+      <span class="text-muted text-sm font-normal">{{ user.subscription.status }}</span>
     </template>
-  </AdminStatCard>
+  </StatCard>
 </template>

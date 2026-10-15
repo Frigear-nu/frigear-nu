@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate as formatDateValue } from '@frigear-nu/ui/utils'
 import { usePlans } from '../composables/usePlans'
 import { useSubscription } from '../composables/useSubscription'
 
@@ -10,6 +11,7 @@ const props = defineProps<{
 
 const t = useModuleT('subscriptions.status')
 const tp = useModuleT('subscriptions.catalog')
+const format = useFormat()
 const { plans } = usePlans()
 const { subscription, plan, status, isActive, cancelsAt, pending, error, subscribe, openPortal } = useSubscription()
 
@@ -21,16 +23,15 @@ const planLabel = computed(() => {
 const badge = computed(() => {
   const value = subscription.value?.status
   if (cancelsAt.value) return { label: t('cancelling', 'Subscription is ending'), color: 'warning' as const, icon: 'i-lucide-battery-warning' }
-  if (value === 'active') return { label: t('active', 'Active'), color: 'success' as const, icon: 'i-lucide-shield-check' }
-  if (value === 'trialing') return { label: t('trialing', 'Trial'), color: 'info' as const }
-  if (value === 'past_due' || value === 'unpaid') return { label: t('pastDue', 'Past due'), color: 'warning' as const }
-  if (value === 'canceled') return { label: t('canceled', 'Canceled'), color: 'neutral' as const }
-  return { label: t('other', 'Inactive'), color: 'neutral' as const }
+  if (value === 'active') return { label: t('active', 'Active'), color: statusColor(value), icon: 'i-lucide-shield-check' }
+  if (value === 'trialing') return { label: t('trialing', 'Trial'), color: statusColor(value) }
+  if (value === 'past_due' || value === 'unpaid') return { label: t('pastDue', 'Past due'), color: statusColor('past_due') }
+  if (value === 'canceled') return { label: t('canceled', 'Canceled'), color: statusColor(value) }
+  return { label: t('other', 'Inactive'), color: statusColor(value) }
 })
 
-function formatDate(value: string | null) {
-  return value ? new Intl.DateTimeFormat(props.locale, { dateStyle: 'long' }).format(new Date(value)) : ''
-}
+// The `locale` prop wins over the active locale.
+const formatDate = (value: string | null) => formatDateValue(value, props.locale ?? format.locale.value, { dateStyle: 'long' })
 
 const isManual = computed(() => subscription.value?.source === 'manual')
 
@@ -48,20 +49,22 @@ const manage = () => openPortal().catch(() => undefined)
 </script>
 
 <template>
-  <UCard :ui="{ root: 'rounded-xl' }">
-    <template #header>
-      <slot name="header">
-        <h3 class="font-semibold">
-          {{ t('title', 'Your subscription') }}
-        </h3>
-      </slot>
+  <SectionCard
+    :title="t('title', 'Your subscription')"
+    icon="i-lucide-credit-card"
+  >
+    <template
+      v-if="$slots.header"
+      #header
+    >
+      <slot name="header" />
     </template>
 
     <slot
       v-if="status === 'pending' && !subscription"
       name="loading"
     >
-      <p class="text-sm text-muted">
+      <p class="text-muted text-sm">
         {{ t('loading', 'Loading subscription…') }}
       </p>
     </slot>
@@ -72,14 +75,14 @@ const manage = () => openPortal().catch(() => undefined)
     >
       <div class="flex items-center justify-between gap-2">
         <div class="flex flex-col">
-          <span class="text-sm text-muted">{{ t('currentPlan', 'Current plan') }}</span>
+          <span class="text-muted text-sm">{{ t('currentPlan', 'Current plan') }}</span>
           <slot
             name="plan"
             :plan="plan"
             :label="planLabel"
             :subscription="subscription"
           >
-            <span class="text-lg font-semibold">{{ planLabel }}</span>
+            <span class="text-highlighted text-lg font-semibold">{{ planLabel }}</span>
           </slot>
         </div>
         <slot
@@ -90,7 +93,7 @@ const manage = () => openPortal().catch(() => undefined)
           <UBadge
             :color="badge.color"
             :icon="badge.icon"
-            variant="soft"
+            variant="subtle"
           >
             {{ badge.label }}
           </UBadge>
@@ -104,7 +107,7 @@ const manage = () => openPortal().catch(() => undefined)
       >
         <div
           v-if="dateText"
-          class="rounded-md bg-muted/50 px-4 py-3 text-sm"
+          class="bg-muted/50 rounded-md px-4 py-3 text-sm"
         >
           {{ dateText }}
         </div>
@@ -115,7 +118,7 @@ const manage = () => openPortal().catch(() => undefined)
       v-else
       name="empty"
     >
-      <p class="text-sm text-muted">
+      <p class="text-muted text-sm">
         {{ t('none', 'You do not have an active subscription.') }}
       </p>
     </slot>
@@ -157,6 +160,7 @@ const manage = () => openPortal().catch(() => undefined)
             @click="resubscribe"
           />
           <UButton
+            color="neutral"
             variant="outline"
             icon="i-lucide-credit-card"
             :loading="pending"
@@ -166,5 +170,5 @@ const manage = () => openPortal().catch(() => undefined)
         </div>
       </slot>
     </template>
-  </UCard>
+  </SectionCard>
 </template>
