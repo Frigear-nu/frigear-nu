@@ -87,7 +87,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
-    // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
+    // The admin pages only exist with the admin shell; its page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   setup(options, nuxt) {
@@ -193,6 +193,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useFormsPaths', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormLink', from: resolver.resolve('./runtime/app/composables/useForms') },
       { name: 'useFormStepper', from: resolver.resolve('./runtime/app/composables/useFormStepper') },
+      { name: 'useFormActions', from: resolver.resolve('./runtime/app/composables/useFormActions') },
+      { name: 'FORMS_LIST_KEY', from: resolver.resolve('./runtime/app/composables/useFormActions') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
     // Global so MDC (Nuxt Content) resolves `::form-embed{slug="..."}` in any collection without a local wrapper.
@@ -207,6 +209,6 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'forms-admin-submission', path: adminSubmissionPath, file: './runtime/app/pages/admin-submission.vue' },
     ])
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'admin.nav' })
   },
 })

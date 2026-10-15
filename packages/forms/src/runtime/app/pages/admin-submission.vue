@@ -1,55 +1,85 @@
 <script setup lang="ts">
-import type { SubmissionDto } from '../../../types'
+import type { FormAdminDto, SubmissionDto } from '../../../types'
 
 const t = useModuleT('forms')
 const route = useRoute()
 const paths = useFormsPaths()
-const toast = useToast()
+const format = useFormat()
+const actions = useFormActions()
 const id = computed(() => String(route.params.id))
 const submissionId = computed(() => String(route.params.submissionId))
+const { data: form } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, { key: `forms:admin:form:${id.value}` })
 const { data: submission, error, refresh } = await useFetch<SubmissionDto>(() => `/api/forms/admin/submissions/${submissionId.value}`)
 
-const redelivering = ref(false)
 async function redeliver() {
-  redelivering.value = true
-  try {
-    await $fetch(`/api/forms/admin/submissions/${submissionId.value}/redeliver`, { method: 'POST' })
-    await refresh()
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
-  }
-  finally {
-    redelivering.value = false
-  }
+  if (await actions.redeliver(submissionId.value)) await refresh()
 }
+
+const breadcrumb = computed(() => [
+  { label: t('admin.title', 'Forms'), to: paths('admin') },
+  { label: form.value?.name ?? id.value, to: paths('adminForm', { id: id.value }) },
+  { label: t('admin.submissionsTitle', 'Submissions'), to: paths('adminSubmissions', { id: id.value }) },
+  { label: `#${submissionId.value}` },
+])
+const menu = computed(() => [[{
+  label: t('admin.redeliver', 'Deliver again'),
+  icon: 'i-lucide-send',
+  onSelect: redeliver,
+}]])
+const notFound = computed(() => error.value?.statusCode === 404)
 </script>
 
 <template>
-  <AdminPage>
-    <UAlert
-      v-if="error || !submission"
-      color="error"
-      variant="subtle"
-      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
-    />
-
-    <template v-else>
-      <AdminPageHeader
-        :title="new Date(submission.createdAt).toLocaleString()"
+  <div class="flex flex-col gap-4">
+    <template v-if="submission">
+      <PageHeading
+        :title="format.dateTime(submission.createdAt)"
         :description="`${submission.formSlug} · v${submission.formVersion} · ${submission.locale}`"
-        :back="{ label: t('admin.submissionsTitle', 'Submissions'), to: paths('adminSubmissions', { id }) }"
-      />
+        :breadcrumb="breadcrumb"
+      >
+        <template #badge>
+          <UBadge
+            :color="statusColor(submission.deliveryStatus)"
+            variant="subtle"
+            :label="t(`delivery.${submission.deliveryStatus}`, submission.deliveryStatus)"
+          />
+        </template>
+        <template #actions>
+          <RowMenu
+            :items="menu"
+            :subject="format.dateTime(submission.createdAt)"
+            variant="outline"
+          />
+        </template>
+      </PageHeading>
 
       <UAlert
-        :color="submission.deliveryStatus === 'failed' ? 'error' : 'neutral'"
+        v-if="submission.deliveryError"
+        color="error"
         variant="subtle"
         :title="t(`delivery.${submission.deliveryStatus}`, submission.deliveryStatus)"
-        :description="submission.deliveryError ?? undefined"
-        :actions="[{ label: t('admin.redeliver', 'Deliver again'), loading: redelivering, onClick: redeliver }]"
+        :description="submission.deliveryError"
       />
 
-      <FormSubmissionView :submission="submission" />
+      <SectionCard :title="t('admin.answers', 'Answers')">
+        <FormSubmissionView :submission="submission" />
+      </SectionCard>
     </template>
-  </AdminPage>
+
+    <UEmpty
+      v-else
+      :icon="notFound ? 'i-lucide-inbox' : 'i-lucide-lock'"
+      :title="notFound ? t('admin.submissionNotFound', 'This submission does not exist.') : t('admin.forbidden', 'You are not allowed to manage forms.')"
+    >
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-arrow-left"
+          :to="paths('adminSubmissions', { id })"
+          :label="t('admin.submissionsTitle', 'Submissions')"
+        />
+      </template>
+    </UEmpty>
+  </div>
 </template>

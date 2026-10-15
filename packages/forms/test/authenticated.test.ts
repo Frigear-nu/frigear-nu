@@ -157,6 +157,44 @@ describe('forms (authenticated, database-backed)', async () => {
       expect(admin.status, adminHtml.slice(0, 600)).toBe(200)
       expect(adminHtml).toContain('You are not allowed to manage forms.')
     })
+
+    it('server-renders the admin list and editor with the shared page patterns', { timeout: 60_000 }, async () => {
+      const form = await create('Patterns', stepped)
+      const page = async (path: string) => {
+        const response = await fetch(path, { headers: { cookie: staff.cookie } })
+        const html = await response.text()
+        expect(response.status, html.slice(0, 600)).toBe(200)
+        return html
+      }
+
+      // List: heading actions, a `RowMenu` trigger named after the row, and no deprecated `Admin*` markup.
+      const list = await page('/admin/forms')
+      expect(list).toContain('New form')
+      expect(list).toContain('Import JSON')
+      expect(list).toContain(`aria-label="Actions for ${form.name}"`)
+
+      // Editor: breadcrumb back to the list, status badge, Save and the state tabs.
+      const editor = await page(`/admin/forms/${form.id}`)
+      expect(editor).toContain('aria-label="breadcrumb"')
+      expect(editor).toContain('href="/admin/forms"')
+      expect(editor).toContain('>Forms<')
+      expect(editor).toContain(`>${form.name}<`)
+      expect(editor).toContain('>published<')
+      expect(editor).toContain('Save form')
+      expect(editor).toContain('Delivery &amp; storage')
+      expect(editor).toContain(`aria-label="Actions for ${form.name}"`)
+
+      // A form that does not exist gets an empty state with a way back.
+      const missing = await page('/admin/forms/does-not-exist')
+      expect(missing).toContain('This form does not exist.')
+      expect(missing).toContain('All forms')
+
+      // Submissions: breadcrumb with the form's name.
+      const submissions = await page(`/admin/forms/${form.id}/submissions`)
+      expect(submissions).toContain('aria-label="breadcrumb"')
+      expect(submissions).toContain(`>${form.name}<`)
+      expect(submissions).toContain('No submissions yet.')
+    })
   })
 
   describe('FormEmbed', () => {

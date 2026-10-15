@@ -5,10 +5,13 @@ import { formDefinitionSchema } from '../../utils'
 const t = useModuleT('forms')
 const route = useRoute()
 const paths = useFormsPaths()
-const toast = useToast()
-const link = useFormLink()
+const actions = useFormActions()
+const { busy: saving, run } = useAction()
 const id = computed(() => String(route.params.id))
-const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`)
+const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, {
+  key: `forms:admin:form:${id.value}`,
+})
+const notFound = computed(() => error.value?.statusCode === 404)
 
 const draft = reactive({ name: form.value?.name ?? '', slug: form.value?.slug ?? '', status: (form.value?.status ?? 'draft') as FormStatus })
 // The builder and the JSON editor both work on `definition`; the JSON text is only (re)generated when
@@ -46,6 +49,7 @@ const checked = computed(() => {
     : { definition: undefined, issues: result.error.issues.map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`) }
 })
 
+// The builder, settings, access and JSON tabs edit one unsaved draft, so they are state tabs, not routes.
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
   { value: 'settings', label: t('admin.settings', 'Delivery & storage'), icon: 'i-lucide-settings' },
@@ -54,98 +58,85 @@ const tabs = computed(() => [
 ])
 
 const previewKey = ref(0)
-const saving = ref(false)
 const statuses: FormStatus[] = ['draft', 'published', 'archived']
 
 async function save() {
   if (!checked.value.definition) return
-  saving.value = true
-  try {
+  await run(async () => {
     await $fetch(`/api/forms/admin/forms/${id.value}`, { method: 'PATCH', body: { ...draft, definition: checked.value.definition } })
     await refresh()
     previewKey.value++
-    toast.add({ title: t('admin.saved', 'Saved.'), color: 'success' })
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('error.generic', 'Something went wrong. Please try again.'), color: 'error' })
-  }
-  finally {
-    saving.value = false
-  }
+  }, { success: t('admin.saved', 'Saved.') })
 }
+
+const listPath = paths('admin')
+const menu = computed(() => form.value
+  ? actions.menu({ ...form.value, storage: form.value.definition.storage }, { onRemoved: () => navigateTo(listPath) })
+  : [])
 </script>
 
 <template>
-  <AdminPage>
-    <UAlert
-      v-if="error || !form"
-      color="error"
-      variant="subtle"
-      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
-    />
-
-    <template v-else>
-      <AdminPageHeader
+  <div class="flex flex-col gap-4">
+    <template v-if="form">
+      <PageHeading
+        :breadcrumb="[{ label: t('admin.title', 'Forms'), to: listPath }, { label: form.name }]"
         :title="form.name"
-        :back="{ label: t('admin.title', 'Forms'), to: paths('admin') }"
       >
         <template #title>
-          {{ form.name }} <span class="text-base font-normal text-muted">v{{ form.version }}</span>
+          {{ form.name }} <span class="text-muted text-base font-normal">v{{ form.version }}</span>
+        </template>
+        <template #badge>
+          <UBadge
+            :color="statusColor(form.status, { archived: 'warning' })"
+            variant="subtle"
+            :label="t(`status.${form.status}`, form.status)"
+          />
         </template>
         <template #actions>
           <UButton
-            v-if="form.status === 'published' && link.enabled.value"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-link"
-            :label="t('admin.copyLink', 'Copy link')"
-            @click="link.copy(form.slug)"
-          />
-          <UButton
-            v-if="form.definition.storage === 'db' || (form.submissionCount ?? 0) > 0"
-            color="neutral"
-            variant="outline"
-            :to="paths('adminSubmissions', { id: form.id })"
-            :label="t('admin.submissionsTitle', 'Submissions')"
-          />
-          <UButton
             :loading="saving"
             :disabled="!checked.definition"
-            :label="t('admin.save', 'Save')"
+            :label="t('admin.save', 'Save form')"
             @click="save"
           />
+          <RowMenu
+            :items="menu"
+            :subject="form.name"
+            variant="outline"
+          />
         </template>
-      </AdminPageHeader>
+      </PageHeading>
 
-      <div class="grid gap-4 sm:grid-cols-3">
-        <UFormField :label="t('admin.name', 'Name')">
-          <UInput
-            v-model="draft.name"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField :label="t('admin.slug', 'Slug')">
-          <UInput
-            v-model="draft.slug"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField :label="t('admin.status', 'Status')">
-          <USelect
-            v-model="draft.status"
-            :items="statuses.map(value => ({ value, label: t(`status.${value}`, value) }))"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
+      <SectionCard :title="t('admin.details', 'Details')">
+        <div class="grid gap-4 sm:grid-cols-3">
+          <UFormField :label="t('admin.name', 'Name')">
+            <UInput
+              v-model="draft.name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField :label="t('admin.slug', 'Slug')">
+            <UInput
+              v-model="draft.slug"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField :label="t('admin.status', 'Status')">
+            <USelect
+              v-model="draft.status"
+              :items="statuses.map(value => ({ value, label: t(`status.${value}`, value) }))"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </SectionCard>
 
-      <UTabs
+      <PageTabs
         v-model="tab"
         :items="tabs"
-        :content="false"
-        class="w-full"
       />
 
+      <!-- The builder has its own chrome (canvas and settings panel), so it is not framed again. -->
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
@@ -161,32 +152,29 @@ async function save() {
         </template>
       </FormBuilder>
 
-      <FormBuilderSettings
-        v-else-if="tab === 'settings'"
-        v-model="definition"
-      />
+      <SectionCard v-else-if="tab === 'settings'">
+        <FormBuilderSettings v-model="definition" />
+      </SectionCard>
 
-      <FormBuilderAccess
-        v-else-if="tab === 'access'"
-        v-model="definition"
-        :form-id="form.id"
-        :slug="form.slug"
-      />
+      <SectionCard v-else-if="tab === 'access'">
+        <FormBuilderAccess
+          v-model="definition"
+          :form-id="form.id"
+          :slug="form.slug"
+        />
+      </SectionCard>
 
-      <div
+      <SectionCard
         v-else-if="tab === 'json'"
-        class="space-y-3"
+        :title="t('admin.definition', 'Definition (JSON)')"
       >
-        <h2 class="font-semibold">
-          {{ t('admin.definition', 'Definition (JSON)') }}
-        </h2>
         <UTextarea
           :model-value="json"
           :rows="30"
           class="w-full font-mono text-xs"
           @update:model-value="onJson(String($event))"
         />
-      </div>
+      </SectionCard>
 
       <UAlert
         v-if="checked.issues.length"
@@ -206,5 +194,21 @@ async function save() {
         </template>
       </UAlert>
     </template>
-  </AdminPage>
+
+    <UEmpty
+      v-else
+      :icon="notFound ? 'i-lucide-clipboard-x' : 'i-lucide-lock'"
+      :title="notFound ? t('admin.notFound', 'This form does not exist.') : t('admin.forbidden', 'You are not allowed to manage forms.')"
+    >
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-arrow-left"
+          :to="listPath"
+          :label="t('admin.allForms', 'All forms')"
+        />
+      </template>
+    </UEmpty>
+  </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const t = useModuleT('forms')
+const format = useFormat()
 const slug = computed(() => String(route.params.slug))
 const { data: access } = await useFormAccess(slug)
 
@@ -41,55 +42,56 @@ useHead({ title: computed(() => access.value?.name ?? '') })
 </script>
 
 <template>
-  <UContainer class="max-w-2xl py-10">
-    <h1
-      v-if="access"
-      class="mb-6 text-3xl font-bold"
-    >
-      {{ access.name }}
-    </h1>
-
-    <UAlert
-      v-if="access && !access.open"
-      icon="i-lucide-calendar-x"
-      color="neutral"
-      variant="subtle"
-      :title="t('schedule.closed', 'This form is closed.')"
-      :description="access.opensAt
-        ? t('schedule.opensAt', 'It opens again {date}.', { date: new Date(access.opensAt).toLocaleString() })
-        : undefined"
-    />
-
-    <UCard v-else-if="gated && !unlocked">
-      <form
-        class="space-y-4"
-        @submit.prevent="unlock"
-      >
-        <UFormField
-          :label="t('access.passwordLabel', 'Password')"
-          :description="t('access.passwordHint', 'This form is protected. Enter the password you were given.')"
-          :error="wrong ? t('access.passwordWrong', 'Wrong password.') : undefined"
-        >
-          <UInput
-            v-model="password"
-            type="password"
-            autocomplete="off"
-            class="w-full"
-          />
-        </UFormField>
-        <UButton
-          type="submit"
-          :loading="checking"
-          :disabled="!password"
-          :label="t('access.unlock', 'Continue')"
+  <UContainer>
+    <UPage>
+      <UPageHeader
+        v-if="access"
+        :title="access.name"
+      />
+      <UPageBody class="max-w-2xl">
+        <UAlert
+          v-if="access && !access.open"
+          icon="i-lucide-calendar-x"
+          color="neutral"
+          variant="subtle"
+          :title="t('schedule.closed', 'This form is closed.')"
+          :description="access.opensAt
+            ? t('schedule.opensAt', 'It opens again {date}.', { date: format.dateTime(access.opensAt) })
+            : undefined"
         />
-      </form>
-    </UCard>
 
-    <FormRenderer
-      v-else-if="!needsSignIn"
-      :slug="slug"
-      :password="unlocked || undefined"
-    />
+        <SectionCard v-else-if="gated && !unlocked">
+          <form
+            class="space-y-4"
+            @submit.prevent="unlock"
+          >
+            <UFormField
+              :label="t('access.passwordLabel', 'Password')"
+              :description="t('access.passwordHint', 'This form is protected. Enter the password you were given.')"
+              :error="wrong ? t('access.passwordWrong', 'Wrong password.') : undefined"
+            >
+              <UInput
+                v-model="password"
+                type="password"
+                autocomplete="off"
+                class="w-full"
+              />
+            </UFormField>
+            <UButton
+              type="submit"
+              :loading="checking"
+              :disabled="!password"
+              :label="t('access.unlock', 'Continue')"
+            />
+          </form>
+        </SectionCard>
+
+        <FormRenderer
+          v-else-if="!needsSignIn"
+          :slug="slug"
+          :password="unlocked || undefined"
+        />
+      </UPageBody>
+    </UPage>
   </UContainer>
 </template>

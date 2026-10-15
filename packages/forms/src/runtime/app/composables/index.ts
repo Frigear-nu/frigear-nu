@@ -1,4 +1,5 @@
 export { useForm, useFormAccess, useFormsLocale, useFormsLocales, useFormsPaths, emptyAnswers, submitAnswers, fieldLabel } from './useForms'
+export { useFormActions, FORMS_LIST_KEY } from './useFormActions'
 export { useFormStepper } from './useFormStepper'
 export { useFormBuilderEditor } from './useFormBuilderEditor'
 export { useFormBuilderLabels, fieldTypeIcons } from './useFormBuilderLabels'
