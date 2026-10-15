@@ -86,7 +86,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-    // Provides the shared page components of the admin page (`AdminPage`, `AdminTable`, ...).
+    // Provides the admin shell (layout, nav groups) the admin page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
   },
@@ -111,7 +111,7 @@ export default defineNuxtModule<ModuleOptions>({
     const authorizePath = settings.pages?.authorize === false
       ? '/authorize'
       : resolvePagePath(settings.pages?.authorize ?? true, '/authorize')!
-    // The admin page is built from the components of `@frigear-nu/admin`, so it only exists with it.
+    // The admin page lives in the shell of `@frigear-nu/admin`, so it only exists with it.
     const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
@@ -178,6 +178,7 @@ export default defineNuxtModule<ModuleOptions>({
     addImports([
       { name: 'useOAuthApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
       { name: 'useMyApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
+      { name: 'useOAuthApplicationActions', from: resolver.resolve('./runtime/app/composables/useOAuthApplicationActions') },
     ])
 
     addModulePages(MODULE_NAME, resolver, [
@@ -186,6 +187,6 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'oauth-applications', path: applicationsPath, file: './runtime/app/pages/applications.vue' },
     ])
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
   },
 })

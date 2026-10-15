@@ -132,6 +132,19 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       await ok(await json(staff.cookie, 'DELETE', `/api/oauth-server/admin/applications/${created.id}`))
       expect((await json(staff.cookie, 'GET', `/api/oauth-server/admin/applications/${created.id}`)).status).toBe(404)
     })
+
+    it('renders the admin page with a row menu per application', async () => {
+      const created = await createApp({ name: 'Menu app' })
+      const response = await fetch('/admin/oauth', { headers: { cookie: staff.cookie } })
+      expect(response.status).toBe(200)
+      const html = await response.text()
+      expect(html).toContain('OAuth applications')
+      expect(html).toContain('Add application')
+      // The row menu trigger is labelled with the application it acts on.
+      expect(html).toContain('aria-label="Actions for Menu app"')
+      await ok(await json(staff.cookie, 'DELETE', `/api/oauth-server/admin/applications/${created.id}`))
+      // The first render compiles the page in dev mode.
+    }, 120_000)
   })
 
   describe('authorization code flow with PKCE', () => {
