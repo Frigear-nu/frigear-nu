@@ -8,11 +8,13 @@ const { data: menu } = await useMenu('main')
 const appConfig = useAppConfig()
 
 const items = computed(() => {
-  const source = menu.value?.length ? menu.value : config.value?.navigation
+  // The content config's `navigation` is only a list when the host sets one.
+  const fallback = Array.isArray(config.value?.navigation) ? config.value.navigation : []
+  const source = menu.value?.length ? menu.value : fallback
   const iconOnMobile = appConfig.header?.icon?.mobile
 
   if (typeof iconOnMobile === 'boolean' && !iconOnMobile) {
-    return source?.map(item => ({
+    return source.map(item => ({
       ...item,
       icon: undefined,
     }))
