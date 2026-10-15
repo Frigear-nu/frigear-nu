@@ -28,7 +28,7 @@ English fallbacks; every one of them can be overridden by a prop.
 | `useAction()` | `{ busy, run(fn, { success?, error? }) }`: toasts success, toasts and swallows errors |
 | `useErrorToast()` | `(e, title?) => void`: an error as a red toast |
 | `useCopyToClipboard()` | `{ copy(text, message?) }` with a "Copied" toast |
-| `useFormat()` | `{ date, dateTime, time, dateRange, money }` in the active locale |
+| `useFormat()` | `{ date, dateTime, time, dateRange, money }` in the active locale and the app time zone (`appConfig.frigearUi.timeZone`, e.g. `Europe/Copenhagen`), so server and client render the same text |
 | `useLocaleLink()` | `{ localize, strip, isActive }`: locale-prefix aware paths (identity without i18n) |
 | `useNavLinks(items, { exact })` | Menu items to `UNavigationMenu` links with localised `to` and `active` |
 
