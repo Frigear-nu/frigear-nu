@@ -6,9 +6,7 @@
         "description": "Administrér systemets brugere."
       },
       "title": "Brugere",
-      "create": "Opret bruger",
-      "edit": "Redigér bruger",
-      "filter": "Filtrér...",
+      "create": "Tilføj bruger",
       "name": "Navn",
       "email": "E-mail",
       "role": "Rolle",
@@ -25,7 +23,7 @@
         "empty": "Ingen nye endnu."
       },
       "search": "Søg på navn, e-mail eller rolle...",
-      "empty": "Ingen brugere matcher.",
+      "empty": "Ingen brugere matcher",
       "total": "{count} brugere",
       "lastLogin": "Seneste login",
       "created": "Oprettet",
@@ -39,26 +37,21 @@
       },
       "subscription": "Abonnement",
       "rolePlaceholder": "Vælg en rolle",
-      "created_ok": "Brugeren er oprettet.",
       "detail": {
         "profile": "Profil",
         "account": "Konto",
         "password": "Adgangskode",
         "passkeys": "Adgangsnøgler",
         "set": "Angivet",
-        "notSet": "Ikke angivet",
         "emailHelp": "Ændres adressen, markeres den som ikke bekræftet, og der sendes et bekræftelseslink til den nye.",
         "saved": "Gemt.",
         "savedEmail": "Gemt. En bekræftelsesmail er sendt til den nye adresse.",
-        "resent": "Login-link sendt.",
-        "sendLink": "Send et login-link",
-        "sendVerification": "Send bekræftelsesmail igen",
         "danger": "Farezone",
-        "delete": "Slet bruger",
-        "deleteTitle": "Slet denne bruger?",
-        "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
-        "deleted": "Brugeren er slettet.",
-        "notFound": "Brugeren blev ikke fundet."
+        "notFound": "Brugeren blev ikke fundet",
+        "never": "Aldrig",
+        "saveProfile": "Gem profil",
+        "dangerHint": "Fjerner kontoen og dens loginmetoder for altid.",
+        "notFoundHint": "Den er måske slettet."
       },
       "tabs": {
         "overview": "Oversigt"
@@ -66,7 +59,20 @@
       "stats": {
         "newUsers": "Nye brugere",
         "ofTotal": "{total} brugere i alt"
-      }
+      },
+      "createHint": "De kan logge ind med det link, vi sender dem på e-mail.",
+      "createSubmit": "Tilføj bruger",
+      "createdOk": "Brugeren er oprettet.",
+      "nameRequired": "Angiv et navn.",
+      "emailInvalid": "Angiv en gyldig e-mailadresse.",
+      "open": "Åbn",
+      "resendLink": "Send login-link igen",
+      "sendVerification": "Send bekræftelsesmail igen",
+      "resent": "Login-link sendt.",
+      "deleteUser": "Slet bruger",
+      "deleteTitle": "Slet {name}?",
+      "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
+      "deleted": "Brugeren er slettet."
     }
   }
 }

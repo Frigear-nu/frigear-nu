@@ -6,9 +6,7 @@
         "description": "Manage the users of the system."
       },
       "title": "Users",
-      "create": "Create user",
-      "edit": "Edit user",
-      "filter": "Filter...",
+      "create": "Add user",
       "name": "Name",
       "email": "Email",
       "role": "Role",
@@ -25,7 +23,7 @@
         "empty": "Nobody new yet."
       },
       "search": "Search name, email or role...",
-      "empty": "No users match.",
+      "empty": "No users match",
       "total": "{count} users",
       "lastLogin": "Last sign-in",
       "created": "Created",
@@ -39,26 +37,21 @@
       },
       "subscription": "Subscription",
       "rolePlaceholder": "Select a role",
-      "created_ok": "User created.",
       "detail": {
         "profile": "Profile",
         "account": "Account",
         "password": "Password",
         "passkeys": "Passkeys",
         "set": "Set",
-        "notSet": "Not set",
         "emailHelp": "Changing the address marks it unverified and emails a verification link to the new one.",
         "saved": "Saved.",
         "savedEmail": "Saved. A verification email was sent to the new address.",
-        "resent": "Sign-in link sent.",
-        "sendLink": "Email a sign-in link",
-        "sendVerification": "Resend verification email",
         "danger": "Danger zone",
-        "delete": "Delete user",
-        "deleteTitle": "Delete this user?",
-        "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
-        "deleted": "User deleted.",
-        "notFound": "User not found."
+        "notFound": "User not found",
+        "never": "Never",
+        "saveProfile": "Save profile",
+        "dangerHint": "Removes the account and its sign-in methods for good.",
+        "notFoundHint": "It may have been deleted."
       },
       "tabs": {
         "overview": "Overview"
@@ -66,7 +59,20 @@
       "stats": {
         "newUsers": "New users",
         "ofTotal": "{total} users in total"
-      }
+      },
+      "createHint": "They can sign in with the link we email them.",
+      "createSubmit": "Add user",
+      "createdOk": "User created.",
+      "nameRequired": "Enter a name.",
+      "emailInvalid": "Enter a valid email address.",
+      "open": "Open",
+      "resendLink": "Resend sign-in link",
+      "sendVerification": "Resend verification email",
+      "resent": "Sign-in link sent.",
+      "deleteUser": "Delete user",
+      "deleteTitle": "Delete {name}?",
+      "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
+      "deleted": "User deleted."
     }
   }
 }

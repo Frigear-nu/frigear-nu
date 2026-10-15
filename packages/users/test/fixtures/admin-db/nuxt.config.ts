@@ -3,6 +3,8 @@ import MyModule from '../../../src/module'
 export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
+    '@frigear-nu/admin',
+    '@frigear-nu/widget',
     MyModule,
   ],
   runtimeConfig: {
@@ -17,6 +19,8 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
+  // The admin area is unguarded here (no authorization module); the users admin API still runs the policy plugin.
+  admin: { settings: { roles: false } },
   authentication: {
     settings: { magicLink: true },
   },
@@ -24,6 +28,6 @@ export default defineNuxtConfig({
     email: { driver: './server/utils/mail-driver' },
   },
   users: {
-    settings: { admin: { page: false } },
+    settings: { admin: true },
   },
 })

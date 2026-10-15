@@ -1,14 +1,14 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import type { UserRow, UsersPage } from '../utils/admin-user'
+import { ADMIN_USERS_KEY } from '../utils/admin-user'
+import { useUserActions } from '../composables/useUserActions'
+
 defineOptions({ name: 'UsersAdminPage' })
 
-type AdminUser = { id: number, name: string, email: string, role?: string, emailVerifiedAt: string | null, lastLoginAt?: string | null, createdAt: string, subscription?: { planKey: string | null, status: string } | null }
-type AdminUsersPage = { items: AdminUser[], total: number, page: number, pageSize: number, hasRoles: boolean, hasSubscriptions: boolean, roles: string[] }
-
 const t = useModuleT('users')
-const toast = useToast()
-const route = useRoute()
-// Detail pages live under the current path, which keeps any locale prefix.
-const userPath = (id: number) => `${route.path.replace(/\/+$/, '')}/${id}`
+const format = useFormat()
+const actions = useUserActions()
 
 const search = ref('')
 // Debounced so the API is not hit on every keystroke.
@@ -38,7 +38,8 @@ const query = computed(() => ({
   order: sorting.value[0] ? (sorting.value[0].desc ? 'desc' : 'asc') : undefined,
 }))
 
-const { data, status } = await useFetch<AdminUsersPage>('/api/admin/users', {
+const { data, status } = await useFetch<UsersPage>('/api/admin/users', {
+  key: ADMIN_USERS_KEY,
   query,
   default: () => ({ items: [], total: 0, page: 1, pageSize: 20, hasRoles: false, hasSubscriptions: false, roles: [] }),
 })
@@ -54,10 +55,13 @@ watch([q, verified, role, pageSize, sorting], () => {
   page.value = 1
 })
 
-const dateFormat = (value?: string | null) => value ? new Date(value).toLocaleString() : '–'
+const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
+const RowMenu = resolveComponent('RowMenu')
+
 const sortable = (accessorKey: string, label: string) => ({
   accessorKey,
-  header: () => h(resolveComponent('UButton'), {
+  header: () => h(UButton, {
     color: 'neutral',
     variant: 'ghost',
     label,
@@ -72,30 +76,40 @@ const sortable = (accessorKey: string, label: string) => ({
   }),
 })
 
-const columns = computed(() => [
+const dateCell = (value?: string | null) => format.dateTime(value) || '–'
+
+const columns = computed<TableColumn<UserRow>[]>(() => [
   sortable('id', 'ID'),
   sortable('name', t('admin.name', 'Name')),
   sortable('email', t('admin.email', 'Email')),
-  ...(hasRoles.value ? [{ ...sortable('role', t('admin.role', 'Role')), cell: ({ row }: { row: { original: AdminUser } }) => row.original.role ? roleLabel(row.original.role) : '–' }] : []),
+  ...(hasRoles.value ? [{ ...sortable('role', t('admin.role', 'Role')), cell: ({ row }: { row: { original: UserRow } }) => row.original.role ? roleLabel(row.original.role) : '–' }] : []),
   ...(hasSubscriptions.value
     ? [{
         id: 'subscription',
         header: t('admin.subscription', 'Subscription'),
-        cell: ({ row }: { row: { original: AdminUser } }) => {
+        cell: ({ row }: { row: { original: UserRow } }) => {
           const subscription = row.original.subscription
           return subscription
-            ? h(resolveComponent('UBadge'), {
-                variant: 'subtle',
-                color: ['active', 'trialing'].includes(subscription.status) ? 'success' : 'neutral',
-                label: subscription.planKey ?? subscription.status,
-              })
+            ? h(UBadge, { variant: 'subtle', color: statusColor(subscription.status), label: subscription.planKey ?? subscription.status })
             : '–'
         },
       }]
     : []),
-  { id: 'verified', header: t('admin.verified', 'Verified'), cell: ({ row }: { row: { original: AdminUser } }) => row.original.emailVerifiedAt ? '✓' : '–' },
-  { ...sortable('lastLoginAt', t('admin.lastLogin', 'Last sign-in')), cell: ({ row }: { row: { original: AdminUser } }) => dateFormat(row.original.lastLoginAt) },
-  { ...sortable('createdAt', t('admin.created', 'Created')), cell: ({ row }: { row: { original: AdminUser } }) => dateFormat(row.original.createdAt) },
+  {
+    id: 'verified',
+    header: t('admin.verified', 'Verified'),
+    cell: ({ row }) => h(UBadge, {
+      variant: 'subtle',
+      color: row.original.emailVerifiedAt ? 'success' : 'neutral',
+      label: row.original.emailVerifiedAt ? t('admin.filters.verified', 'Verified') : t('admin.filters.unverified', 'Unverified'),
+    }),
+  },
+  { ...sortable('lastLoginAt', t('admin.lastLogin', 'Last sign-in')), cell: ({ row }: { row: { original: UserRow } }) => dateCell(row.original.lastLoginAt) },
+  { ...sortable('createdAt', t('admin.created', 'Created')), cell: ({ row }: { row: { original: UserRow } }) => dateCell(row.original.createdAt) },
+  {
+    id: 'actions',
+    cell: ({ row }) => h(RowMenu, { items: actions.menu(row.original), subject: row.original.name }),
+  },
 ])
 
 const verifiedOptions = computed(() => [
@@ -111,52 +125,29 @@ function resetFilters() {
   verified.value = 'all'
 }
 
-// The modal creates users; existing ones are edited on their own page.
-const open = ref(false)
-const form = reactive({ name: '', email: '', role: '', emailVerified: false, sendWelcomeEmail: true })
-const saving = ref(false)
-
-function startCreate() {
-  Object.assign(form, { name: '', email: '', role: '', emailVerified: false, sendWelcomeEmail: true })
-  open.value = true
+function openUser(_event: Event, row: { original: UserRow }) {
+  return navigateTo(actions.userPath(row.original.id))
 }
 
-function openUser(_event: Event, row: { original: AdminUser }) {
-  return navigateTo(userPath(row.original.id))
-}
-
-async function save() {
-  saving.value = true
-  try {
-    const created = await $fetch<{ id: number }>('/api/admin/users', {
-      method: 'POST',
-      body: { ...form, role: hasRoles.value && form.role ? form.role : undefined },
-    })
-    open.value = false
-    toast.add({ title: t('admin.created_ok', 'User created.'), color: 'success' })
-    await navigateTo(userPath(created.id))
-  }
-  catch (cause) {
-    toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('admin.error', 'Something went wrong.'), color: 'error' })
-  }
-  finally {
-    saving.value = false
-  }
+async function addUser() {
+  const created = await actions.create({ roles: hasRoles.value ? data.value.roles : [] })
+  if (created) await navigateTo(actions.userPath(created.id))
 }
 </script>
 
 <template>
-  <AdminPage>
-    <AdminPageHeader :title="t('admin.title', 'Users')">
-      <template #links>
+  <div class="flex flex-col gap-4">
+    <PageHeading :title="t('admin.title', 'Users')">
+      <template #actions>
         <UButton
           icon="i-lucide-user-plus"
-          :label="t('admin.create', 'Create user')"
-          @click="startCreate"
+          :label="t('admin.create', 'Add user')"
+          @click="addUser"
         />
       </template>
-    </AdminPageHeader>
-    <AdminToolbar>
+    </PageHeading>
+
+    <PageToolbar>
       <UInput
         v-model="search"
         class="w-full max-w-sm"
@@ -184,97 +175,43 @@ async function save() {
         :label="t('admin.filters.clear', 'Clear filters')"
         @click="resetFilters"
       />
-    </AdminToolbar>
-    <AdminTable
-      :data="data.items"
-      :columns="columns"
-      :loading="loading"
-      @select="openUser"
-    >
-      <template #empty>
-        <AdminEmpty
-          icon="i-lucide-users"
-          :title="t('admin.empty', 'No users match.')"
-        />
-      </template>
-    </AdminTable>
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 text-sm text-muted">
-        <span>{{ t('admin.total', '{count} users', { count: data.total }) }}</span>
-        <USelect
-          v-model="pageSize"
-          :items="pageSizes"
-          class="w-20"
-        />
-      </div>
-      <UPagination
-        v-model:page="page"
-        :items-per-page="pageSize"
-        :total="data.total"
-      />
-    </div>
-    <UModal
-      v-model:open="open"
-      :title="t('admin.create', 'Create user')"
-    >
-      <template #body>
-        <form
-          id="admin-user-form"
-          class="flex flex-col gap-4"
-          @submit.prevent="save"
-        >
-          <UFormField :label="t('admin.name', 'Name')">
-            <UInput
-              v-model="form.name"
-              class="w-full"
-              required
-            />
-          </UFormField>
-          <UFormField :label="t('admin.email', 'Email')">
-            <UInput
-              v-model="form.email"
-              type="email"
-              class="w-full"
-              required
-            />
-          </UFormField>
-          <UFormField
-            v-if="hasRoles"
-            :label="t('admin.role', 'Role')"
-          >
-            <USelect
-              v-model="form.role"
-              :items="roleItems"
-              class="w-full"
-              :placeholder="t('admin.rolePlaceholder', 'Select a role')"
-            />
-          </UFormField>
-          <UCheckbox
-            v-model="form.emailVerified"
-            :label="t('admin.emailVerified', 'Mark the email address as verified')"
+    </PageToolbar>
+
+    <TableCard>
+      <UTable
+        :data="data.items"
+        :columns="columns"
+        :loading="loading"
+        :ui="tableUi()"
+        @select="openUser"
+      >
+        <template #empty>
+          <UEmpty
+            icon="i-lucide-users"
+            variant="naked"
+            :title="t('admin.empty', 'No users match')"
+            :actions="[filtersActive
+              ? { label: t('admin.filters.clear', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: resetFilters }
+              : { label: t('admin.create', 'Add user'), icon: 'i-lucide-user-plus', onClick: addUser }]"
           />
-          <UCheckbox
-            v-model="form.sendWelcomeEmail"
-            :label="t('admin.sendWelcome', 'Email a sign-in link')"
-          />
-        </form>
-      </template>
+        </template>
+      </UTable>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton
-            variant="subtle"
-            color="neutral"
-            :label="t('admin.cancel', 'Cancel')"
-            @click="open = false"
-          />
-          <UButton
-            type="submit"
-            form="admin-user-form"
-            :loading="saving"
-            :label="t('admin.save', 'Save')"
+        <div class="flex items-center gap-3">
+          <span>{{ t('admin.total', '{count} users', { count: data.total }) }}</span>
+          <USelect
+            v-model="pageSize"
+            :items="pageSizes"
+            size="sm"
+            class="w-20"
           />
         </div>
+        <UPagination
+          v-model:page="page"
+          :items-per-page="pageSize"
+          :total="data.total"
+        />
       </template>
-    </UModal>
-  </AdminPage>
+    </TableCard>
+  </div>
 </template>
