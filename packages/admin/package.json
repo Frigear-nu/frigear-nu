@@ -71,25 +71,25 @@
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
-    "@nuxt/kit": "^4.6.0",
+    "@nuxt/kit": "catalog:",
     "nuxt-auth-utils": "^0.5.30"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^3.4.2",
-    "@nuxt/eslint-config": "^1.17.0",
-    "@nuxt/module-builder": "^1.0.3",
-    "@nuxt/schema": "^4.6.0",
-    "@nuxt/test-utils": "^4.3.2",
-    "@nuxt/ui": "^4.11.0",
-    "@types/node": "latest",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@types/node": "catalog:",
     "changelogen": "^0.6.2",
-    "eslint": "^10.10.0",
+    "eslint": "catalog:",
     "nuxt": "catalog:",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.1",
-    "vue-tsc": "^3.3.11"
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   },
   "peerDependencies": {
-    "@nuxt/ui": "^4.10.0"
+    "@nuxt/ui": "catalog:"
   }
 }

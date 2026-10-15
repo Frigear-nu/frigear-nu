@@ -30,9 +30,9 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@nuxt/eslint-config": "^1.17.0"
+    "@nuxt/eslint-config": "catalog:"
   },
   "peerDependencies": {
-    "eslint": "^9.0.0||^10.0.0"
+    "eslint": "catalog:"
   }
 }

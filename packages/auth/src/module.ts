@@ -94,7 +94,7 @@ export default defineNuxtModule<ModuleOptions>({
       pages: {},
     },
   },
-  moduleDependencies: {
+  moduleDependencies: nuxt => ({
     '@nuxthub/core': {
       version: '>=0.0.1',
     },
@@ -110,9 +110,11 @@ export default defineNuxtModule<ModuleOptions>({
     },
     'nuxt-auth-utils': {
       version: '>=0.0.1',
-      defaults: { webAuthn: true },
+      // Only when passkeys are on: nuxt-auth-utils imports `@simplewebauthn/server` at setup to check it is
+      // installed, which costs seconds on a cold boot.
+      defaults: { webAuthn: nuxt.options.authentication?.settings?.webAuthn === true },
     },
-  },
+  }),
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))

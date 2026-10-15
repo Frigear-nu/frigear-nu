@@ -1,6 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import ts from 'typescript'
+import { parseSync } from 'oxc-parser'
+import type {
+  Argument,
+  ExportDefaultDeclarationKind,
+  ImportDeclaration,
+  ObjectExpression,
+  ObjectProperty,
+  Program,
+  Span,
+} from 'oxc-parser'
 
 export type ParsedTableExport = {
   /** The callee + sql table name, present only when the export is a table factory call, e.g. `sqliteTable('users', {...})`. */
@@ -15,9 +24,28 @@ export type ParsedTableExport = {
   imports: Map<string, Set<string>>
 }
 
-const parseSource = (filePath: string) => {
-  const text = readFileSync(filePath, 'utf8')
-  return ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+type ParsedSource = {
+  program: Program
+  /** Raw source text of the node, equivalent to the TypeScript compiler's `node.getText()`. */
+  text: (node: Span) => string
+}
+
+const lineAndColumn = (source: string, offset: number) => {
+  const before = source.slice(0, offset)
+  const line = before.split('\n').length
+  const column = offset - before.lastIndexOf('\n')
+  return `${line}:${column}`
+}
+
+const parseSource = (filePath: string): ParsedSource => {
+  const source = readFileSync(filePath, 'utf8')
+  const result = parseSync(filePath, source, { sourceType: 'module', lang: 'ts' })
+  const error = result.errors.find(error => error.severity === 'Error')
+  if (error) {
+    const position = error.labels[0] ? ` at ${lineAndColumn(source, error.labels[0].start)}` : ''
+    throw new Error(`Failed to parse the schema file "${filePath}"${position}: ${error.message}`)
+  }
+  return { program: result.program, text: node => source.slice(node.start, node.end) }
 }
 
 const toAbsoluteSpecifier = (filePath: string, specifier: string) =>
@@ -25,20 +53,21 @@ const toAbsoluteSpecifier = (filePath: string, specifier: string) =>
     ? resolve(dirname(filePath), specifier).replace(/\\/g, '/')
     : specifier
 
-const collectImports = (source: ts.SourceFile, filePath: string) => {
+/** Whether the declaration has a named-import clause (`{ ... }`), even an empty one; default and namespace imports do not count. */
+const hasNamedBindings = (statement: ImportDeclaration, text: ParsedSource['text']) =>
+  statement.specifiers.some(specifier => specifier.type === 'ImportSpecifier')
+  || text({ start: statement.start, end: statement.source.start }).includes('{')
+
+const collectImports = ({ program, text }: ParsedSource, filePath: string) => {
   const imports = new Map<string, Set<string>>()
-  for (const statement of source.statements) {
-    if (
-      ts.isImportDeclaration(statement)
-      && statement.importClause?.namedBindings
-      && ts.isNamedImports(statement.importClause.namedBindings)
-      && ts.isStringLiteralLike(statement.moduleSpecifier)
-    ) {
-      const module = toAbsoluteSpecifier(filePath, statement.moduleSpecifier.text)
+  for (const statement of program.body) {
+    if (statement.type === 'ImportDeclaration' && hasNamedBindings(statement, text)) {
+      const module = toAbsoluteSpecifier(filePath, statement.source.value)
       const specifiers = imports.get(module) ?? new Set<string>()
-      const typeOnly = statement.importClause.isTypeOnly
-      for (const element of statement.importClause.namedBindings.elements) {
-        specifiers.add(typeOnly && !element.isTypeOnly ? `type ${element.getText()}` : element.getText())
+      const typeOnly = statement.importKind === 'type'
+      for (const element of statement.specifiers) {
+        if (element.type !== 'ImportSpecifier') continue
+        specifiers.add(typeOnly && element.importKind !== 'type' ? `type ${text(element)}` : text(element))
       }
       imports.set(module, specifiers)
     }
@@ -46,22 +75,45 @@ const collectImports = (source: ts.SourceFile, filePath: string) => {
   return imports
 }
 
-const toTableResult = (initializer: ts.Expression, imports: Map<string, Set<string>>): ParsedTableExport | undefined => {
-  let objectLiteral: ts.ObjectLiteralExpression | undefined
+/** The string value of a string literal or a substitution-free template literal (`'users'` / `` `users` ``), like `ts.isStringLiteralLike`. */
+const stringLiteralValue = (node: Argument): string | undefined => {
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0 && node.quasis.length === 1) {
+    const [quasi] = node.quasis
+    return quasi!.value.cooked ?? quasi!.value.raw
+  }
+  return undefined
+}
+
+/** The property name as written, including the brackets of a computed key, like `property.name.getText()`. */
+const propertyName = (property: ObjectProperty, { text }: ParsedSource) => {
+  if (!property.computed) return text(property.key)
+  const source = text(property)
+  return source.slice(0, source.indexOf(']', property.key.end - property.start) + 1)
+}
+
+const toTableResult = (
+  initializer: ExportDefaultDeclarationKind,
+  parsed: ParsedSource,
+  imports: Map<string, Set<string>>,
+): ParsedTableExport | undefined => {
+  const { text } = parsed
+  let objectLiteral: ObjectExpression | undefined
   let tableCall: { callee: string, tableName: string, extraArgs?: string[] } | undefined
 
-  if (ts.isCallExpression(initializer)) {
+  if (initializer.type === 'CallExpression') {
     const args = initializer.arguments
-    if (args.length >= 2 && ts.isStringLiteralLike(args[0]!) && ts.isObjectLiteralExpression(args[1]!)) {
-      const extraArgs = args.length > 2 ? args.slice(2).map(arg => arg.getText()) : undefined
-      tableCall = { callee: initializer.expression.getText(), tableName: args[0].text, extraArgs }
+    const tableName = args[0] ? stringLiteralValue(args[0]) : undefined
+    if (args.length >= 2 && tableName !== undefined && args[1]!.type === 'ObjectExpression') {
+      const extraArgs = args.length > 2 ? args.slice(2).map(arg => text(arg)) : undefined
+      tableCall = { callee: text(initializer.callee), tableName, extraArgs }
       objectLiteral = args[1]
     }
-    else if (args.length === 1 && ts.isObjectLiteralExpression(args[0]!)) {
+    else if (args.length === 1 && args[0]!.type === 'ObjectExpression') {
       objectLiteral = args[0]
     }
   }
-  else if (ts.isObjectLiteralExpression(initializer)) {
+  else if (initializer.type === 'ObjectExpression') {
     objectLiteral = initializer
   }
 
@@ -69,11 +121,13 @@ const toTableResult = (initializer: ts.Expression, imports: Map<string, Set<stri
 
   const properties = new Map<string, string>()
   for (const property of objectLiteral.properties) {
-    if (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) {
-      properties.set(property.name.getText(), property.getText())
+    if (property.type === 'Property') {
+      // Methods and accessors are not column assignments, so they are skipped like the TypeScript parser did.
+      if (property.method || property.kind !== 'init') continue
+      properties.set(propertyName(property, parsed), text(property))
     }
-    else if (ts.isSpreadAssignment(property)) {
-      properties.set(`__spread_${properties.size}`, property.getText())
+    else if (property.type === 'SpreadElement') {
+      properties.set(`__spread_${properties.size}`, text(property))
     }
   }
 
@@ -92,20 +146,20 @@ const toTableResult = (initializer: ts.Expression, imports: Map<string, Set<stri
  *   when `exportName` is `'default'`
  */
 export const parseRegularTableExport = (filePath: string, exportName: string): ParsedTableExport | undefined => {
-  const source = parseSource(filePath)
-  const imports = collectImports(source, filePath)
+  const parsed = parseSource(filePath)
+  const imports = collectImports(parsed, filePath)
 
-  for (const statement of source.statements) {
-    if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === exportName && declaration.initializer) {
-          const result = toTableResult(declaration.initializer, imports)
+  for (const statement of parsed.program.body) {
+    if (statement.type === 'ExportNamedDeclaration' && statement.declaration?.type === 'VariableDeclaration') {
+      for (const declaration of statement.declaration.declarations) {
+        if (declaration.id.type === 'Identifier' && declaration.id.name === exportName && declaration.init) {
+          const result = toTableResult(declaration.init, parsed, imports)
           if (result) return result
         }
       }
     }
-    else if (exportName === 'default' && ts.isExportAssignment(statement) && !statement.isExportEquals) {
-      const result = toTableResult(statement.expression, imports)
+    else if (exportName === 'default' && statement.type === 'ExportDefaultDeclaration') {
+      const result = toTableResult(statement.declaration, parsed, imports)
       if (result) return result
     }
   }
@@ -123,16 +177,16 @@ export const parseRegularTableExport = (filePath: string, exportName: string): P
  * plain column objects and wrapper calls are ignored. That is what `registerDatabaseTable` uses for auto-discovery.
  */
 export const listRegularTableExportNames = (filePath: string, options: { tablesOnly?: boolean } = {}): string[] => {
-  const source = parseSource(filePath)
-  const imports = collectImports(source, filePath)
+  const parsed = parseSource(filePath)
+  const imports = collectImports(parsed, filePath)
 
   const names: string[] = []
-  for (const statement of source.statements) {
-    if (ts.isVariableStatement(statement) && statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
-        const result = toTableResult(declaration.initializer, imports)
-        if (result && (!options.tablesOnly || result.tableCall)) names.push(declaration.name.text)
+  for (const statement of parsed.program.body) {
+    if (statement.type === 'ExportNamedDeclaration' && statement.declaration?.type === 'VariableDeclaration') {
+      for (const declaration of statement.declaration.declarations) {
+        if (declaration.id.type !== 'Identifier' || !declaration.init) continue
+        const result = toTableResult(declaration.init, parsed, imports)
+        if (result && (!options.tablesOnly || result.tableCall)) names.push(declaration.id.name)
       }
     }
   }

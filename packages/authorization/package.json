@@ -69,25 +69,25 @@
     "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/users": "workspace:*",
     "@libsql/client": "^0.18.0",
-    "@nuxt/kit": "^4.6.0",
-    "drizzle-kit": "^0.31.11",
-    "drizzle-orm": "^0.45.3"
+    "@nuxt/kit": "catalog:",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:"
   },
   "peerDependencies": {
-    "@nuxthub/core": "^0.10.8"
+    "@nuxthub/core": "catalog:"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^3.4.2",
-    "@nuxt/eslint-config": "^1.17.0",
-    "@nuxt/module-builder": "^1.0.3",
-    "@nuxt/schema": "^4.6.0",
-    "@nuxt/test-utils": "^4.3.2",
-    "@nuxthub/core": "^0.10.8",
-    "@types/node": "latest",
-    "eslint": "^10.10.0",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxthub/core": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
     "nuxt": "catalog:",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.1",
-    "vue-tsc": "^3.3.11"
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

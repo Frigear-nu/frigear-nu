@@ -46,20 +46,20 @@
     "prepack": "nuxt-module-build build"
   },
   "dependencies": {
-    "@nuxt/kit": "^4.6.0",
+    "@nuxt/kit": "catalog:",
     "defu": "^6.1.7",
     "ufo": "^1.6.4"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^3.4.2",
-    "@nuxt/eslint-config": "^1.17.0",
-    "@nuxt/module-builder": "^1.0.3",
-    "@nuxt/schema": "^4.6.0",
-    "@nuxt/test-utils": "^4.3.2",
-    "eslint": "^10.12.0",
-    "typescript": "^6.0.3",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
     "nuxt": "catalog:",
-    "vitest": "^5.0.1",
-    "vue-tsc": "^3.3.11"
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

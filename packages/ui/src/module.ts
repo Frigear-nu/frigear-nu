@@ -28,19 +28,14 @@ export default defineNuxtModule({
     // Tailwind must see the classes of these components, wherever the package is installed.
     registerTailwindSource(nuxt, resolver.resolve('./runtime'))
 
-    // Register global components (available everywhere without importing)
-    addComponentsDir({
-      path: resolver.resolve('./runtime/components/global'),
-      global: true,
-      prefix: '',
-      ignore: hasNuxtModule('nuxt-monaco-editor', nuxt) ? [] : ['**/MonacoCodeEditor.vue'],
-    })
-
-    // Register non-global components (lazy-imported on demand)
+    // Every component is a lazy auto-import, resolved by name where it is used. None is registered with
+    // `global: true`: a global component is bundled into the app entry and transformed before the first
+    // render of every page, and none of these is referenced dynamically (Nuxt Content, `resolveComponent`).
     addComponentsDir({
       path: resolver.resolve('./runtime/components'),
       prefix: '',
-      ignore: ['global/**'],
+      pathPrefix: false,
+      ignore: hasNuxtModule('nuxt-monaco-editor', nuxt) ? [] : ['**/MonacoCodeEditor.vue'],
     })
 
     // Auto-import composables and the pure helpers (`errorMessage`, `formatDate`, `statusColor`, …)
