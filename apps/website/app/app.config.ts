@@ -5,6 +5,10 @@ export default defineAppConfig({
       dark: '/images/branding/logos/full/frigear-logo-white-2834-1479.png',
     },
   },
+  header: {
+    // Appearance lives in the account menu; signed-out visitors still have the toggle in the footer.
+    colorMode: false,
+  },
   socials: {
     instagram: 'https://instagram.com/frigear.nu',
     facebook: 'https://facebook.com/frigear.nu',
