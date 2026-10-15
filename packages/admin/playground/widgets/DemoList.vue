@@ -3,13 +3,12 @@ defineProps<{ title: string, description?: string, rows: string[] }>()
 </script>
 
 <template>
-  <AdminListCard
+  <ListCard
     :title="title"
     :description="description"
     :is-empty="!rows.length"
     empty="Nothing yet."
     to="/admin"
-    to-label="View all"
   >
     <li
       v-for="row in rows"
@@ -17,5 +16,5 @@ defineProps<{ title: string, description?: string, rows: string[] }>()
     >
       {{ row }}
     </li>
-  </AdminListCard>
+  </ListCard>
 </template>

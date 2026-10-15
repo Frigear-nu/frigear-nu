@@ -2,7 +2,12 @@
   "admin": {
     "title": "Administration",
     "nav": {
-      "label": "Admin-navigation"
+      "label": "Admin-navigation",
+      "groups": {
+        "overview": "Overblik",
+        "manage": "Administrér",
+        "settings": "Indstillinger"
+      }
     },
     "dashboard": {
       "title": "Oversigt",
@@ -13,6 +18,9 @@
     "menu": {
       "label": "Admin",
       "description": "Administration"
+    },
+    "search": {
+      "goTo": "Gå til"
     }
   }
 }

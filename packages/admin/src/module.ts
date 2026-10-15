@@ -8,6 +8,7 @@ import {
 } from '@nuxt/kit'
 import { registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { extendMenu } from '@frigear-nu/menu/utils'
+import { ADMIN_NAV_GROUPS } from './runtime/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
@@ -35,6 +36,8 @@ export default defineNuxtModule<ModuleOptions>({
     'nuxt-auth-utils': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.0' },
     '@frigear-nu/widget': { version: '>=0.0.0' },
+    // Page pattern components (`PageHeading`, `SectionCard`, ...) and `useNavLinks`.
+    '@frigear-nu/ui': { version: '>=0.0.0' },
     '@frigear-nu/authorization': { version: '>=0.0.0', optional: true },
   },
   setup(options, nuxt) {
@@ -52,6 +55,7 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
 
     addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
+    // Deprecated aliases over the `@frigear-nu/ui` page patterns, kept until every module has moved over.
     for (const name of ['AdminPage', 'AdminPageHeader', 'AdminSection', 'AdminToolbar', 'AdminEmpty', 'AdminTable', 'AdminStatCard', 'AdminKeyValue', 'AdminListCard']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
     }
@@ -103,9 +107,9 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
-    // "Dashboard" first in the sidebar, above the modules' own entries.
+    // "Dashboard" alone in the Overview group, above the modules' own entries.
     if (dashboardPath) {
-      extendMenu(nuxt, 'admin.nav', {
+      extendMenu(nuxt, ADMIN_NAV_GROUPS.overview, {
         id: 'admin-dashboard',
         label: 'Dashboard',
         labelKey: 'admin.dashboard.title',
