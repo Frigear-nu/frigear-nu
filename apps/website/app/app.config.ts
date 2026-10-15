@@ -9,6 +9,10 @@ export default defineAppConfig({
     // Appearance lives in the account menu; signed-out visitors still have the toggle in the footer.
     colorMode: false,
   },
+  frigearUi: {
+    // `useFormat()` renders dates in this zone on the server and the client alike, so hydration never disagrees.
+    timeZone: 'Europe/Copenhagen',
+  },
   socials: {
     instagram: 'https://instagram.com/frigear.nu',
     facebook: 'https://facebook.com/frigear.nu',

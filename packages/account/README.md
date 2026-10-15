@@ -10,8 +10,9 @@ A module for the account area (profile, security, documents, API tokens pages) i
 - 🔒 Change your password.
 - 🔑 Manage passkeys (via `@frigear-nu/auth`'s `usePasskeys`, when WebAuthn is enabled there).
 - 🧩 Overridable composable (`useAccount`) and opt-in profile/security pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
-- 🗂️ Contributes "Profile"/"Security" tiles to `@frigear-nu/menu` (when installed), and an opt-in dashboard page
-  listing them.
+- 🗂️ An `account` layout (inside the site layout) with a left account navigation built from the `account` menu
+  of `@frigear-nu/menu` (when installed), an overview page listing the same entries, and an `account.overview` widget
+  area (when `@frigear-nu/widget` is installed).
 
 This module is a UI shell: it owns no tables and no mutation routes. The forms call the self-service routes of
 `@frigear-nu/users` (`/api/users/me/*`) and the token routes of `@frigear-nu/auth`.
@@ -36,7 +37,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
-    '@frigear-nu/menu', // optional - enables the dashboard tiles/page
+    '@frigear-nu/menu', // optional - enables the account navigation and overview page
     '@frigear-nu/account',
   ],
   account: {
@@ -78,4 +79,6 @@ Strings live under the `account.*` namespace in `da`/`en` locale files and can b
 ## Overriding parts
 
 Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
-`AccountHeaderRight` is the block at the right of the account header; override it to show other details.
+`AccountHeaderRight` is the actions block of the account page heading (and of the overview's summary card);
+override it to show other details. Set `account.layout: false` to opt out of the account layout and render the
+pages in your own.
