@@ -161,7 +161,14 @@ export default defineNuxtModule<ModuleOptions>({
     if (hasNuxtModule('@frigear-nu/admin') && hasNuxtModule('@frigear-nu/widget')) {
       const { extendWidgets } = await import('@frigear-nu/widget/utils')
       extendWidgets(nuxt, 'admin.dashboard.top', { id: 'payments-revenue-stat', component: resolver.resolve('./runtime/app/widgets/RevenueStat.vue'), order: 30 })
-      extendWidgets(nuxt, 'admin.dashboard.side', { id: 'payments-recent', component: resolver.resolve('./runtime/app/widgets/RecentTransactions.vue'), order: 20 })
+      extendWidgets(nuxt, 'admin.dashboard.side', {
+        id: 'payments-recent',
+        component: resolver.resolve('./runtime/app/widgets/RecentTransactions.vue'),
+        order: 20,
+        props: {
+          tabId: 'payments',
+        },
+      })
     }
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))

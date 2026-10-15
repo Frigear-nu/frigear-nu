@@ -3,8 +3,13 @@ import type { PaymentDto } from '../../../types'
 
 defineOptions({ name: 'PaymentsRecentTransactions' })
 
-// List card for the `admin.dashboard.side` area: the latest settled or failed payments. The "view all" link goes to
-// the users list, where each user's payments are on their Payments tab.
+const props = withDefaults(defineProps<{
+  // Id of the payments tab in the `admin.users` area, selected through `?tab=` on the admin user page.
+  tabId?: string
+}>(), { tabId: 'payments' })
+
+// List card for the `admin.dashboard.side` area: the latest settled or failed payments. Each row deep links to the
+// user's Payments tab; the "view all" link goes to the users list.
 const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
 const format = useFormat()
@@ -13,7 +18,7 @@ const usersPage = useRuntimeConfig().public.users?.pages?.admin
 const usersPath = usersPage ? localize(usersPage.replace(/\/+$/, '')) : undefined
 const { data, status: fetchStatus } = useLazyFetch<{ items: (PaymentDto & { userName: string | null })[] }>('/api/payments/admin/recent', { key: 'admin-payments-recent' })
 
-const userTo = (id: number) => usersPath ? `${usersPath}/${id}` : undefined
+const userTo = (id: number) => usersPath ? { path: `${usersPath}/${id}`, query: { tab: props.tabId } } : undefined
 </script>
 
 <template>
