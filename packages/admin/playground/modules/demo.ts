@@ -1,11 +1,14 @@
 import { createResolver, defineNuxtModule } from '@nuxt/kit'
-import { extendAdminDashboard } from '@frigear-nu/admin/utils'
+import { extendAdminDashboard, extendAdminNav } from '@frigear-nu/admin/utils'
 
-// Registers stand-ins for the widgets other modules contribute, to see the three dashboard areas.
+// Registers stand-ins for the nav entries and widgets other modules contribute, to see the nav groups and the
+// three dashboard areas.
 export default defineNuxtModule({
   meta: { name: 'playground-demo-widgets' },
   setup(_options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
+    extendAdminNav(nuxt, { label: 'Users', to: '/admin/demo', icon: 'i-lucide-users', order: 10, description: 'Page patterns demo.' })
+    extendAdminNav(nuxt, { label: 'Applications', to: '/admin/applications', icon: 'i-lucide-key-round', order: 10 }, 'settings')
     extendAdminDashboard(nuxt, [
       { id: 'stat-members', component: resolve('../widgets/DemoStat.vue'), order: 10, props: { label: 'New members', icon: 'i-lucide-user-plus', value: '24', hint: '1 204 users in total' } },
       { id: 'stat-events', component: resolve('../widgets/DemoStat.vue'), order: 20, props: { label: 'Upcoming events', icon: 'i-lucide-calendar-days', value: '3' } },

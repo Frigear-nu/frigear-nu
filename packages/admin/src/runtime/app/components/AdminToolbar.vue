@@ -1,5 +1,6 @@
+<!-- @deprecated: use PageToolbar from @frigear-nu/ui -->
 <template>
-  <div class="flex flex-wrap items-center gap-3">
+  <PageToolbar>
     <slot />
-  </div>
+  </PageToolbar>
 </template>

@@ -33,5 +33,18 @@
     "write": "Write",
     "preview": "Preview",
     "empty": "Nothing to preview"
+  },
+  "patterns": {
+    "notSet": "Not set",
+    "moreActions": "More actions",
+    "actionsFor": "Actions for {subject}",
+    "viewAll": "View all",
+    "copied": "Copied",
+    "genericError": "Something went wrong.",
+    "open": "Open",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "breadcrumb": "Breadcrumb"
   }
 }

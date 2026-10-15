@@ -14,6 +14,18 @@ export const adminRoute = (nuxt: Nuxt, ...segments: string[]) => {
 }
 
 export const ADMIN_NAV_MENU = 'admin.nav'
+
+/**
+ * The sidebar groups, as menu paths: Overview (the dashboard), Manage (the modules' pages, the `admin.nav` root)
+ * and Settings. Runtime menu sources register with `extendMenuItem(ADMIN_NAV_GROUPS.settings, item)`.
+ */
+export const ADMIN_NAV_GROUPS = {
+  overview: 'admin.nav.overview',
+  manage: 'admin.nav',
+  settings: 'admin.nav.settings',
+} as const
+
+export type AdminNavGroup = keyof typeof ADMIN_NAV_GROUPS
 export const ADMIN_DASHBOARD_AREA = 'admin.dashboard'
 /** The stat row above the dashboard content. */
 export const ADMIN_DASHBOARD_TOP_AREA = 'admin.dashboard.top'
@@ -28,12 +40,16 @@ const DASHBOARD_AREAS: Record<AdminDashboardPosition, string> = {
   side: ADMIN_DASHBOARD_SIDE_AREA,
 }
 
-/** Adds entries to the admin sidebar (the `admin.nav` menu of `@frigear-nu/menu`). Call from a module's `setup()`. */
-export const extendAdminNav = (nuxt: Nuxt, items: MenuItem | MenuItem[]) => extendMenu(nuxt, ADMIN_NAV_MENU, items)
+/**
+ * Adds entries to the admin sidebar (the `admin.nav` menu of `@frigear-nu/menu`), into `group` (default `manage`).
+ * Call from a module's `setup()`.
+ */
+export const extendAdminNav = (nuxt: Nuxt, items: MenuItem | MenuItem[], group: AdminNavGroup = 'manage') =>
+  extendMenu(nuxt, ADMIN_NAV_GROUPS[group], items)
 
 /**
  * Adds widgets to the admin dashboard (an area of `@frigear-nu/widget`). Call from a module's `setup()`.
- * `position` picks the area: `top` is the stat row (use `AdminStatCard`), `main` the content column (the default),
+ * `position` picks the area: `top` is the stat row (use `StatCard`), `main` the content column (the default),
  * `side` the narrow column.
  */
 export const extendAdminDashboard = (nuxt: Nuxt, widgets: WidgetDefinition | WidgetDefinition[], position: AdminDashboardPosition = 'main') =>

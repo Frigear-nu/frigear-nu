@@ -2,9 +2,10 @@
 defineOptions({ name: 'AdminDashboardPage' })
 
 const t = useModuleT('admin')
-const { data: menu } = await useMenu('admin.nav')
-// The dashboard entry would just link to this page.
-const items = computed(() => (menu.value ?? []).filter(item => item.id !== 'admin-dashboard'))
+const { localize } = useLocaleLink()
+// Shortcuts to the Manage and Settings pages; the Overview group only holds this dashboard.
+const { data: menu } = await useMenu('admin.nav.*')
+const items = computed(() => (menu.value ?? []).filter(item => item.group !== 'nav.overview' && item.id !== 'admin-dashboard'))
 
 // Modules fill three areas: the stat row, the main column and the narrow side column (see `extendAdminDashboard`).
 const [{ data: top }, { data: main }, { data: side }] = await Promise.all([
@@ -17,8 +18,8 @@ const stack = 'flex flex-col gap-4'
 </script>
 
 <template>
-  <AdminPage>
-    <AdminPageHeader
+  <div class="flex flex-col gap-4">
+    <PageHeading
       :title="t('dashboard.title', 'Dashboard')"
       :description="t('dashboard.description', 'Overview and shortcuts for administrators.')"
     />
@@ -48,7 +49,7 @@ const stack = 'flex flex-col gap-4'
           :title="item.label"
           :description="item.description"
           :icon="item.icon"
-          :to="item.to"
+          :to="item.to && !item.external ? localize(item.to) : item.to"
           variant="subtle"
           :ui="{
             container: 'gap-y-1.5',
@@ -57,12 +58,12 @@ const stack = 'flex flex-col gap-4'
           }"
         />
       </UPageGrid>
-      <p
+      <UEmpty
         v-else
-        class="text-muted"
-      >
-        {{ t('dashboard.empty', 'Nothing here yet. Modules add their admin pages and widgets automatically.') }}
-      </p>
+        icon="i-lucide-layout-dashboard"
+        :title="t('dashboard.empty', 'Nothing here yet. Modules add their admin pages and widgets automatically.')"
+        variant="naked"
+      />
     </template>
-  </AdminPage>
+  </div>
 </template>

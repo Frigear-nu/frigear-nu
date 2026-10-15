@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { CommandPaletteGroup, NavigationMenuItem } from '@nuxt/ui'
+
 defineOptions({ name: 'AdminLayout' })
 
 const t = useModuleT('admin')
@@ -11,42 +13,47 @@ const AccountMenu = resolveComponent('AccountMenu')
 const optional = (component: unknown) => typeof component === 'string' ? undefined : component
 const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: unknown[] } } }
 const multiLocale = (nuxtApp.$i18n?.locales?.value?.length ?? 0) > 1
-const { data: items } = await useMenu('admin.nav')
 
 const home = config?.dashboard ?? config?.base ?? '/admin'
+const { localize } = useLocaleLink()
 
-const stripLocale = (path: string) => {
-  const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path
-  const first = trimmed.split('/')[1]
-  const codes = (nuxtApp.$i18n?.locales?.value ?? []).map(l => typeof l === 'string' ? l : (l as { code: string }).code)
-  return first && codes.includes(first) ? (trimmed.slice(first.length + 1) || '/') : trimmed
-}
+// One read of every group (`admin.nav`, `admin.nav.overview`, `admin.nav.settings`); each item carries its group.
+const { data: items } = await useMenu('admin.nav.*')
+type GroupName = 'overview' | 'manage' | 'settings'
+const groupOf = (group?: string): GroupName => group === 'nav.overview' ? 'overview' : group === 'nav.settings' ? 'settings' : 'manage'
+const byGroup = (name: GroupName) => (items.value ?? []).filter(item => groupOf(item.group) === name)
 
-const links = computed(() => (items.value ?? []).map(item => ({
-  label: item.label,
-  icon: item.icon,
-  to: item.to,
-  external: item.external,
-  // The dashboard lives at the base itself, so it only matches exactly (ignoring a locale prefix).
-  active: !!item.to && (item.to === home
-    ? stripLocale(route.path) === home
-    : route.path === item.to || route.path.startsWith(`${item.to}/`)),
-})))
+// The dashboard lives at the base itself, so it only matches exactly (ignoring a locale prefix).
+const navOptions = { exact: [home] }
+const overview = useNavLinks(() => byGroup('overview'), navOptions)
+const manage = useNavLinks(() => byGroup('manage'), navOptions)
+const settings = useNavLinks(() => byGroup('settings'), navOptions)
+
+const groups = computed(() => [
+  { id: 'overview', label: undefined, links: overview.value },
+  { id: 'manage', label: t('nav.groups.manage', 'Manage'), links: manage.value },
+  { id: 'settings', label: t('nav.groups.settings', 'Settings'), links: settings.value },
+].filter(group => group.links.length))
+
+// Overview needs no heading: it holds the dashboard only.
+const navigation = computed<NavigationMenuItem[][]>(() => groups.value.map(group => group.label
+  ? [{ type: 'label', label: group.label }, ...group.links]
+  : group.links))
 
 // The header names the section being viewed: the nav entry the route belongs to, else the area itself.
-const title = computed(() => links.value.find(link => link.active)?.label ?? t('title', 'Administration'))
+const title = computed(() => groups.value.flatMap(group => group.links).find(link => link.active)?.label ?? t('title', 'Administration'))
 
 const sidebarOpen = ref(false)
 watch(() => route.path, () => {
   sidebarOpen.value = false
 })
 
-// ⌘K palette over the same entries as the sidebar.
-const searchGroups = computed(() => [{
-  id: 'admin-nav',
-  label: t('search.goTo', 'Go to'),
-  items: links.value.map(({ label, icon, to }) => ({ id: to ?? label, label, icon, to })),
-}])
+// ⌘K palette over the same entries as the sidebar, one group per nav group.
+const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(group => ({
+  id: `admin-nav-${group.id}`,
+  label: group.label ?? t('search.goTo', 'Go to'),
+  items: group.links.map(({ label, icon, to }) => ({ id: String(to ?? label), label, icon, to })),
+})))
 </script>
 
 <template>
@@ -57,11 +64,11 @@ const searchGroups = computed(() => [{
       collapsible
       resizable
       class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }"
+      :ui="{ footer: 'lg:border-t lg:border-default flex-col items-stretch gap-1' }"
     >
       <template #header="{ collapsed }">
         <NuxtLink
-          :to="home"
+          :to="localize(home)"
           class="flex min-w-0 items-center gap-2"
         >
           <span class="bg-primary text-inverted flex size-7 shrink-0 items-center justify-center rounded-lg">
@@ -85,7 +92,7 @@ const searchGroups = computed(() => [{
 
         <UNavigationMenu
           :collapsed="collapsed"
-          :items="links"
+          :items="navigation"
           orientation="vertical"
           tooltip
           :aria-label="t('nav.label', 'Admin navigation')"
@@ -94,7 +101,7 @@ const searchGroups = computed(() => [{
 
       <template #footer="{ collapsed }">
         <UButton
-          to="/"
+          :to="localize('/')"
           color="neutral"
           variant="ghost"
           icon="i-lucide-arrow-left"
@@ -102,6 +109,12 @@ const searchGroups = computed(() => [{
           :square="collapsed"
           block
           class="justify-start"
+        />
+        <component
+          :is="optional(AccountMenu)"
+          v-if="optional(AccountMenu)"
+          block
+          :collapsed="collapsed"
         />
       </template>
     </UDashboardSidebar>
@@ -122,17 +135,12 @@ const searchGroups = computed(() => [{
               :is="optional(LanguageSelect)"
               v-if="optional(LanguageSelect) && multiLocale"
             />
-            <UColorModeButton />
-            <component
-              :is="optional(AccountMenu)"
-              v-if="optional(AccountMenu)"
-            />
           </template>
         </UDashboardNavbar>
       </template>
 
       <template #body>
-        <div class="admin-content mx-auto w-full max-w-7xl">
+        <div class="mx-auto w-full max-w-7xl">
           <slot />
         </div>
       </template>

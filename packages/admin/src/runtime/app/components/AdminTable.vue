@@ -1,3 +1,4 @@
+<!-- @deprecated: use `<TableCard><UTable :ui="tableUi()" … /></TableCard>` from @frigear-nu/ui -->
 <script setup lang="ts" generic="T extends object">
 import type { TableColumn, TableRow } from '@nuxt/ui'
 
@@ -11,7 +12,7 @@ const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
 </script>
 
 <template>
-  <div class="bg-elevated/50 ring-default ring overflow-hidden rounded-lg">
+  <TableCard>
     <UTable
       :data="data"
       :columns="columns"
@@ -31,11 +32,13 @@ const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
         v-if="empty && !$slots.empty"
         #empty
       >
-        <AdminEmpty
+        <UEmpty
           icon="i-lucide-inbox"
           :title="empty"
+          variant="naked"
+          class="py-10"
         />
       </template>
     </UTable>
-  </div>
+  </TableCard>
 </template>

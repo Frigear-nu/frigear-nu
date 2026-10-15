@@ -44,11 +44,11 @@ function onKeydown(event: KeyboardEvent, index: number) {
 <template>
   <div
     v-if="tabs?.length"
-    class="flex flex-col gap-6"
+    class="flex flex-col gap-4"
   >
     <div
       role="tablist"
-      class="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-default"
+      class="-mx-1 flex overflow-x-auto overflow-y-hidden border-b border-default"
     >
       <button
         v-for="(tab, index) in tabs"
@@ -59,15 +59,15 @@ function onKeydown(event: KeyboardEvent, index: number) {
         :aria-selected="tab.id === active?.id"
         :aria-controls="`tabpanel-${name}`"
         :tabindex="tab.id === active?.id ? 0 : -1"
-        class="inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors"
-        :class="tab.id === active?.id ? 'border-primary text-highlighted' : 'border-transparent text-muted hover:text-default'"
+        class="inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary/50"
+        :class="tab.id === active?.id ? 'border-primary text-highlighted' : 'border-transparent text-muted hover:text-highlighted'"
         @click="select(tab.id)"
         @keydown="onKeydown($event, index)"
       >
         <UIcon
           v-if="tab.icon"
           :name="tab.icon"
-          class="size-4"
+          class="size-5 shrink-0 max-sm:hidden"
         />
         {{ tab.label }}
       </button>

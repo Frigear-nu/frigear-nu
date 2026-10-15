@@ -3,15 +3,11 @@ defineProps<{ label: string, icon: string, value: string, hint?: string }>()
 </script>
 
 <template>
-  <AdminStatCard
+  <StatCard
     :label="label"
     :icon="icon"
+    :value="value"
+    :hint="hint"
     to="/admin"
-  >
-    <span>{{ value }}</span>
-    <span
-      v-if="hint"
-      class="text-muted text-sm font-normal"
-    >{{ hint }}</span>
-  </AdminStatCard>
+  />
 </template>
