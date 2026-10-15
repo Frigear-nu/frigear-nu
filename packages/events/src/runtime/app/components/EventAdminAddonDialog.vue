@@ -2,7 +2,7 @@
 import type { Translated } from '../../../types'
 import { fromCents, toCents } from '@frigear-nu/ui/money'
 import { DEFAULT_CURRENCY } from '../../utils'
-import { type AdminAddon, type AdminAddonGroup, useAdminAction } from '../utils/admin-event'
+import type { StaffAddon, StaffAddonGroup } from '../utils/admin-event'
 
 defineOptions({ name: 'EventAdminAddonDialog' })
 
@@ -12,17 +12,17 @@ const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('events')
 const tr = useEventsTranslate()
-const { busy, run } = useAdminAction()
+const { busy, run } = useAction()
 
 const dialog = ref(false)
 const groupId = ref('')
-const editingAddon = ref<AdminAddon | null>(null)
+const editingAddon = ref<StaffAddon | null>(null)
 const addon = reactive({ label: undefined as Translated | undefined, description: undefined as Translated | undefined, price: 0, capacity: '' as string | number })
 
 // Add-ons are priced in the currency of the ticket type they belong to.
 const addonCurrency = ref(DEFAULT_CURRENCY)
 
-function open(addonGroup: AdminAddonGroup, currency: string, existing?: AdminAddon) {
+function open(addonGroup: StaffAddonGroup, currency: string, existing?: StaffAddon) {
   groupId.value = addonGroup.id
   addonCurrency.value = currency
   editingAddon.value = existing ?? null
@@ -53,7 +53,7 @@ const save = () => run(async () => {
   }
   dialog.value = false
   emit('refresh')
-}, t('admin.addonSaved', 'Add-on saved.'))
+}, { success: t('admin.addonSaved', 'Add-on saved.') })
 </script>
 
 <template>
@@ -108,7 +108,7 @@ const save = () => run(async () => {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton
-          variant="subtle"
+          variant="outline"
           color="neutral"
           :label="t('admin.cancel', 'Cancel')"
           @click="dialog = false"

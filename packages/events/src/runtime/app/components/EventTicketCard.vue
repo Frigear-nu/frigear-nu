@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { renderSVG } from 'uqr'
 import type { TicketDto } from '../../../types'
-import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
 
 const props = defineProps<{ ticket: TicketDto, to?: string }>()
 const emit = defineEmits<{ pay: [ticketId: string] }>()
 const t = useModuleT('events')
-const locale = useEventsLocale()
+const format = useFormat()
 const tr = useEventsTranslate()
 
-const colors: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = { paid: 'success', pending: 'warning', cancelled: 'neutral', expired: 'neutral', refunded: 'error' }
 // An <img> data URI (not v-html): the SVG is generated locally from the code and never parsed as markup.
 const qr = computed(() => (props.ticket.code ? `data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(props.ticket.code, { border: 1 }))}` : null))
 const showQr = ref(false)
@@ -19,7 +17,7 @@ const showQr = ref(false)
   <UCard :ui="{ body: 'flex flex-col gap-3' }">
     <div class="flex items-start gap-2">
       <div>
-        <h3 class="font-semibold">
+        <h3 class="text-highlighted font-semibold">
           {{ tr(ticket.eventName) }}
         </h3>
         <p class="text-sm text-muted">
@@ -33,14 +31,14 @@ const showQr = ref(false)
       </div>
       <UBadge
         class="ml-auto capitalize"
-        :color="colors[ticket.status] ?? 'neutral'"
+        :color="statusColor(ticket.status, { refunded: 'error' })"
         variant="subtle"
       >
         {{ t(`tickets.status.${ticket.status}`, ticket.status) }}
       </UBadge>
     </div>
     <p class="text-sm">
-      {{ ticket.amount === 0 ? t('detail.tickets.free', 'Free') : formatPrice(ticket.amount, ticket.currency, locale) }}
+      {{ ticket.amount === 0 ? t('detail.tickets.free', 'Free') : format.money(ticket.amount, ticket.currency) }}
       <UBadge
         v-if="ticket.checkedInAt"
         color="info"
@@ -77,7 +75,7 @@ const showQr = ref(false)
     <img
       v-if="showQr && qr"
       :src="qr"
-      alt="Ticket QR code"
+      :alt="t('tickets.qrAlt', 'Ticket QR code')"
       class="mx-auto w-56 rounded-md bg-white p-2"
     >
   </UCard>

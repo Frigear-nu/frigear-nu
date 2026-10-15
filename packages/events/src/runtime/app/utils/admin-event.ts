@@ -1,6 +1,6 @@
 import type { Translated } from '../../../types'
 
-export type AdminAddon = {
+export type StaffAddon = {
   id: string
   label: Translated
   description: Translated | null
@@ -8,15 +8,15 @@ export type AdminAddon = {
   capacity: number | null
 }
 
-export type AdminAddonGroup = {
+export type StaffAddonGroup = {
   id: string
   title: Translated
   required: boolean
   multiple: boolean
-  addons: AdminAddon[]
+  addons: StaffAddon[]
 }
 
-export type AdminTicketType = {
+export type StaffTicketType = {
   id: string
   key: string
   name: Translated
@@ -28,10 +28,10 @@ export type AdminTicketType = {
   saleEndsAt: string | null
   requiresMembership: 'any' | string[] | null
   excludesMembership: 'any' | string[] | null
-  addonGroups: AdminAddonGroup[]
+  addonGroups: StaffAddonGroup[]
 }
 
-export type AdminEvent = {
+export type StaffEvent = {
   id: string
   slug: string
   name: Translated
@@ -41,33 +41,15 @@ export type AdminEvent = {
   startsAt: string
   endsAt: string | null
   location: Translated | null
-  ticketTypes: AdminTicketType[]
+  ticketTypes: StaffTicketType[]
 }
+
+/** The fields the event list shows; the full `StaffEvent` fits it too. */
+export type StaffEventSummary = Pick<StaffEvent, 'id' | 'slug' | 'name' | 'status' | 'startsAt' | 'location'>
 
 /** `datetime-local` inputs want the local time without a zone, not the stored ISO instant. */
 export const toLocalInput = (value: string | null) => {
   if (!value) return ''
   const date = new Date(value)
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
-/** Runs an admin action with a shared busy flag, toasting the success message or the server's error. */
-export function useAdminAction() {
-  const t = useModuleT('events')
-  const toast = useToast()
-  const busy = ref(false)
-  async function run(action: () => Promise<unknown>, success?: string) {
-    busy.value = true
-    try {
-      await action()
-      if (success) toast.add({ title: success, color: 'success' })
-    }
-    catch (cause) {
-      toast.add({ title: (cause as { statusMessage?: string }).statusMessage ?? t('admin.error', 'Something went wrong.'), color: 'error' })
-    }
-    finally {
-      busy.value = false
-    }
-  }
-  return { busy, run }
 }

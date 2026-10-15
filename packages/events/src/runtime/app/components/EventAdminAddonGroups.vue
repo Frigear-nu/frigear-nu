@@ -1,41 +1,66 @@
 <script setup lang="ts">
-import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
-import { type AdminAddon, type AdminAddonGroup, type AdminTicketType, useAdminAction } from '../utils/admin-event'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type { StaffAddon, StaffAddonGroup, StaffTicketType } from '../utils/admin-event'
 
 defineOptions({ name: 'EventAdminAddonGroups' })
 
 // The add-on groups of one ticket type (shown in the expanded row of the ticket types table), with their choices.
 // Create/edit dialogs are owned by the parent; this component only asks for them and handles deletes.
-defineProps<{ ticketType: AdminTicketType }>()
+defineProps<{ ticketType: StaffTicketType }>()
 const emit = defineEmits<{
   refresh: []
   addGroup: []
-  editGroup: [group: AdminAddonGroup]
-  addAddon: [group: AdminAddonGroup]
-  editAddon: [group: AdminAddonGroup, addon: AdminAddon]
+  editGroup: [group: StaffAddonGroup]
+  addAddon: [group: StaffAddonGroup]
+  editAddon: [group: StaffAddonGroup, addon: StaffAddon]
 }>()
 
 const t = useModuleT('events')
-const locale = useEventsLocale()
+const format = useFormat()
 const tr = useEventsTranslate()
 const confirmAction = useConfirmDialog()
-const { run } = useAdminAction()
+const { run } = useAction()
 
-const removeGroup = async (addonGroup: AdminAddonGroup) => {
-  if (!await confirmAction({ title: t('admin.confirmRemoveGroup', 'Delete this add-on group and its choices?'), confirmText: t('admin.remove', 'Delete'), cancelText: t('admin.cancel', 'Cancel'), destructive: true })) return
+const removeGroup = async (addonGroup: StaffAddonGroup) => {
+  const title = tr(addonGroup.title)
+  if (!await confirmAction({
+    title: t('admin.confirmRemoveGroup', 'Delete {name}?', { name: title }),
+    description: t('admin.confirmRemoveGroupDescription', 'Its choices are deleted too. Tickets already bought keep the choices they made.'),
+    confirmText: t('admin.removeGroup', 'Delete add-on group'),
+    destructive: true,
+  })) return
   return run(async () => {
     await $fetch(`/api/events/admin/addon-groups/${addonGroup.id}`, { method: 'DELETE' })
     emit('refresh')
-  })
+  }, { success: t('admin.groupDeleted', 'Deleted {name}', { name: title }) })
 }
 
-const removeAddon = async (existing: AdminAddon) => {
-  if (!await confirmAction({ title: t('admin.confirmRemoveAddon', 'Delete this choice?'), confirmText: t('admin.remove', 'Delete'), cancelText: t('admin.cancel', 'Cancel'), destructive: true })) return
+const removeAddon = async (existing: StaffAddon) => {
+  const label = tr(existing.label)
+  if (!await confirmAction({
+    title: t('admin.confirmRemoveAddon', 'Delete {name}?', { name: label }),
+    description: t('admin.confirmRemoveAddonDescription', 'Tickets already bought keep the choice they made.'),
+    confirmText: t('admin.removeAddon', 'Delete choice'),
+    destructive: true,
+  })) return
   return run(async () => {
     await $fetch(`/api/events/admin/addons/${existing.id}`, { method: 'DELETE' })
     emit('refresh')
-  })
+  }, { success: t('admin.addonDeleted', 'Deleted {name}', { name: label }) })
 }
+
+const groupMenu = (addonGroup: StaffAddonGroup): DropdownMenuItem[][] => [
+  [
+    { label: t('admin.addAddon', 'Add choice'), icon: 'i-lucide-plus', onSelect: () => emit('addAddon', addonGroup) },
+    { label: t('admin.editGroup', 'Edit add-on group'), icon: 'i-lucide-pencil', onSelect: () => emit('editGroup', addonGroup) },
+  ],
+  [{ label: t('admin.removeGroup', 'Delete add-on group'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void removeGroup(addonGroup) } }],
+]
+
+const addonMenu = (addonGroup: StaffAddonGroup, item: StaffAddon): DropdownMenuItem[][] => [
+  [{ label: t('admin.editAddon', 'Edit choice'), icon: 'i-lucide-pencil', onSelect: () => emit('editAddon', addonGroup, item) }],
+  [{ label: t('admin.removeAddon', 'Delete choice'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void removeAddon(item) } }],
+]
 </script>
 
 <template>
@@ -43,42 +68,21 @@ const removeAddon = async (existing: AdminAddon) => {
     <div
       v-for="addonGroup in ticketType.addonGroups"
       :key="addonGroup.id"
-      class="border-default overflow-hidden rounded-lg border bg-default"
+      class="border-default bg-default overflow-hidden rounded-lg border"
     >
       <div class="border-default flex items-center justify-between gap-2 border-b px-3 py-2">
         <div class="min-w-0 text-sm">
-          <span class="font-medium">{{ tr(addonGroup.title) }}</span>
+          <span class="text-highlighted font-medium">{{ tr(addonGroup.title) }}</span>
           <span class="text-muted ms-2 text-xs">
             {{ addonGroup.required ? t('admin.groupRequired', 'required') : t('admin.groupOptional', 'optional') }}
             · {{ addonGroup.multiple ? t('admin.groupMultiple', 'several choices') : t('admin.groupSingle', 'one choice') }}
           </span>
         </div>
-        <div class="flex shrink-0 gap-1">
-          <UButton
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            :aria-label="t('admin.addAddon', 'Add choice')"
-            @click="emit('addAddon', addonGroup)"
-          />
-          <UButton
-            icon="i-lucide-pencil"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            :aria-label="t('admin.edit', 'Edit')"
-            @click="emit('editGroup', addonGroup)"
-          />
-          <UButton
-            icon="i-lucide-trash"
-            color="error"
-            variant="ghost"
-            size="xs"
-            :aria-label="t('admin.remove', 'Delete')"
-            @click="removeGroup(addonGroup)"
-          />
-        </div>
+        <RowMenu
+          :items="groupMenu(addonGroup)"
+          :subject="tr(addonGroup.title)"
+          size="xs"
+        />
       </div>
       <ul
         v-if="addonGroup.addons.length"
@@ -91,26 +95,13 @@ const removeAddon = async (existing: AdminAddon) => {
         >
           <div>
             {{ tr(item.label) }}
-            <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${formatPrice(item.price, ticketType.currency, locale)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'capacity') }} {{ item.capacity }}</template></span>
+            <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${format.money(item.price, ticketType.currency)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'Capacity').toLowerCase() }} {{ item.capacity }}</template></span>
           </div>
-          <div class="flex shrink-0 gap-1">
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('admin.edit', 'Edit')"
-              @click="emit('editAddon', addonGroup, item)"
-            />
-            <UButton
-              icon="i-lucide-trash"
-              color="error"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('admin.remove', 'Delete')"
-              @click="removeAddon(item)"
-            />
-          </div>
+          <RowMenu
+            :items="addonMenu(addonGroup, item)"
+            :subject="tr(item.label)"
+            size="xs"
+          />
         </li>
       </ul>
       <p

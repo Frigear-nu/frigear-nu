@@ -90,7 +90,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/subscriptions': { version: '>=0.0.1', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
-    // Provides the shared page components of the admin pages (`AdminPage`, `AdminTable`, ...).
+    // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
@@ -110,7 +110,7 @@ export default defineNuxtModule<ModuleOptions>({
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
     const ticketsPath = resolvePagePath(settings.pages?.tickets, '/account/tickets')
-    // The admin pages are built from the components of `@frigear-nu/admin`, so they only exist with it.
+    // The admin pages live in the shell of `@frigear-nu/admin`, so they only exist with it.
     const withAdmin = hasNuxtModule('@frigear-nu/admin')
     const adminPath = withAdmin ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'events')) : undefined
     const adminEventPath = withAdmin ? resolvePagePath(settings.pages?.adminEvent, adminRoute(nuxt, 'events', ':id')) : undefined
@@ -184,6 +184,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useEventsLocale', from: resolver.resolve('./runtime/app/composables/useEvents') },
       { name: 'useEventsFallbackLocale', from: resolver.resolve('./runtime/app/composables/useEvents') },
       { name: 'useEventsTranslate', from: resolver.resolve('./runtime/app/composables/useEvents') },
+      { name: 'useEventLinks', from: resolver.resolve('./runtime/app/composables/useEventLinks') },
+      { name: 'useEventActions', from: resolver.resolve('./runtime/app/composables/useEventActions') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
@@ -214,6 +216,6 @@ export default defineNuxtModule<ModuleOptions>({
       extendWidgets(nuxt, 'admin.dashboard.side', { id: 'events-upcoming', component: resolver.resolve('./runtime/app/widgets/UpcomingEvents.vue'), order: 10 })
     }
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard.account' })
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
   },
 })

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { Translated } from '../../../types'
-import { type AdminEvent, useAdminAction } from '../utils/admin-event'
+import type { StaffEvent } from '../utils/admin-event'
 
 defineOptions({ name: 'EventsAdminDetailsTab' })
 
 // The built-in "Details" tab of the `admin.events` area: the texts shown on the public event page.
-const props = defineProps<{ event: AdminEvent }>()
+const props = defineProps<{ event: StaffEvent }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('events')
 const tr = useEventsTranslate()
-const { busy, run } = useAdminAction()
+const { busy, run } = useAction()
 
 // Texts are edited per language with `TranslatedInput`; an empty one is `undefined` and saved as `null`.
 const form = reactive({
@@ -18,7 +18,7 @@ const form = reactive({
   description: undefined as Translated | undefined,
   body: undefined as Translated | undefined,
 })
-function fill(value: AdminEvent) {
+function fill(value: StaffEvent) {
   Object.assign(form, { name: value.name, description: value.description ?? undefined, body: value.body ?? undefined })
 }
 fill(props.event)
@@ -30,11 +30,11 @@ const save = () => run(async () => {
     body: { name: form.name, description: form.description ?? null, body: form.body ?? null },
   })
   emit('refresh')
-}, t('admin.saved', 'Saved.'))
+}, { success: t('admin.saved', 'Saved.') })
 </script>
 
 <template>
-  <AdminSection :title="t('admin.details', 'Details')">
+  <SectionCard :title="t('admin.details', 'Details')">
     <form
       id="admin-event-details"
       class="flex flex-col gap-4"
@@ -76,5 +76,5 @@ const save = () => run(async () => {
         />
       </div>
     </template>
-  </AdminSection>
+  </SectionCard>
 </template>

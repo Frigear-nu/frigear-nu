@@ -3,14 +3,14 @@ import type { EventSummaryDto } from '../../../types'
 
 defineProps<{ event: EventSummaryDto, to: string }>()
 const t = useModuleT('events')
-const locale = useEventsLocale()
+const format = useFormat()
 const tr = useEventsTranslate()
 </script>
 
 <template>
   <NuxtLink
     :to="to"
-    class="group flex flex-col overflow-hidden rounded-xl bg-default ring ring-default transition hover:shadow-lg"
+    class="group bg-default ring-default flex flex-col overflow-hidden rounded-lg ring transition hover:shadow-lg"
   >
     <img
       v-if="event.image"
@@ -32,26 +32,21 @@ const tr = useEventsTranslate()
       >
         {{ t('members', 'Members') }}
       </UBadge>
-      <h3 class="text-lg font-semibold text-highlighted">
+      <h3 class="text-highlighted font-semibold">
         {{ tr(event.name) }}
       </h3>
-      <p class="text-sm text-muted">
-        <NuxtTime
-          :datetime="event.startsAt"
-          :locale="locale"
-          date-style="full"
-          time-style="short"
-        /><template v-if="event.location">
+      <p class="text-muted text-sm">
+        {{ format.dateTime(event.startsAt, { dateStyle: 'full' }) }}<template v-if="event.location">
           · {{ tr(event.location) }}
         </template>
       </p>
       <p
         v-if="event.description"
-        class="line-clamp-3 text-sm text-muted"
+        class="text-muted line-clamp-3 text-sm"
       >
         {{ tr(event.description) }}
       </p>
-      <span class="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium text-primary">
+      <span class="text-primary mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium">
         {{ t('viewEvent', 'View event') }}
         <UIcon
           name="i-lucide-arrow-right"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TicketTypeDto } from '../../../types'
 import { withMdcData } from '@frigear-nu/ui/markdown'
-import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
 import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
 
 const props = defineProps<{
@@ -12,7 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{ purchase: [ticketTypeId: string, addonIds: string[]] }>()
 
 const t = useModuleT('events')
-const locale = useEventsLocale()
+const format = useFormat()
 // MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
 const hasMdc = typeof resolveComponent('MDC') !== 'string'
 const tr = useEventsTranslate()
@@ -95,7 +94,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
         <span
           v-if="!type.hidePrice"
           class="ml-auto font-bold text-primary"
-        >{{ type.price === 0 ? t('picker.free', 'Free') : formatPrice(type.price, type.currency, locale) }}</span>
+        >{{ type.price === 0 ? t('picker.free', 'Free') : format.money(type.price, type.currency) }}</span>
       </div>
       <div
         v-if="type.description"
@@ -103,7 +102,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       >
         <MDC
           v-if="hasMdc"
-          :value="withMdcData(tr(type.description), ticketMdcData(type, tr(type.name), locale))"
+          :value="withMdcData(tr(type.description), ticketMdcData(type, tr(type.name), format.locale.value))"
           class="prose prose-sm max-w-none text-muted"
         />
         <template v-else>
@@ -140,7 +139,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
         >
           {{ t('picker.soldOut', 'Sold out') }}
         </UBadge>
-        <span class="ml-auto text-sm">{{ addon.price === 0 ? t('picker.included', 'Included') : `+ ${formatPrice(addon.price, selected!.currency, locale)}` }}</span>
+        <span class="ml-auto text-sm">{{ addon.price === 0 ? t('picker.included', 'Included') : `+ ${format.money(addon.price, selected!.currency)}` }}</span>
       </button>
     </fieldset>
 
@@ -152,7 +151,7 @@ function toggle(groupId: string, addonId: string, multiple: boolean) {
       :disabled="!selected || !isAvailable(selected) || missingRequired"
       @click="emit('purchase', selected!.id, addonIds)"
     >
-      {{ total === 0 ? t('picker.getFree', 'Get free ticket') : `${t('picker.buy', 'Buy ticket')} · ${formatPrice(total, selected?.currency ?? DEFAULT_CURRENCY, locale)}` }}
+      {{ total === 0 ? t('picker.getFree', 'Get free ticket') : `${t('picker.buy', 'Buy ticket')} · ${format.money(total, selected?.currency ?? DEFAULT_CURRENCY)}` }}
     </UButton>
     <UAlert
       v-else

@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     '@frigear-nu/subscriptions',
     EventsModule,
   ],
+  pages: true,
   runtimeConfig: {
     session: {
       password: 'a-test-only-session-password-at-least-32-chars',
@@ -31,7 +32,7 @@ export default defineNuxtConfig({
     kv: true,
   },
   events: {
-    settings: { pages: {}, mcp: true },
+    settings: { pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true }, mcp: true },
   },
   subscriptions: {
     plans: {
