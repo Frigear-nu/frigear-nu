@@ -71,28 +71,28 @@
   },
   "dependencies": {
     "@frigear-nu/module-kit": "workspace:*",
-    "@nuxt/kit": "^4.6.0",
+    "@nuxt/kit": "catalog:",
     "@vueuse/core": "^13.5.0",
     "defu": "^6.1.4"
   },
   "devDependencies": {
     "@frigear-nu/eslint-config": "workspace:*",
-    "@nuxt/module-builder": "^1.0.3",
-    "@nuxt/schema": "^4.6.0",
-    "@nuxt/test-utils": "^4.3.2",
-    "@nuxt/ui": "^4.10.0",
-    "eslint": "^10.8.1",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "eslint": "catalog:",
     "monaco-editor": "^0.56.0",
     "nuxt": "catalog:",
     "nuxt-monaco-editor": "^1.4.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.0",
-    "vue-tsc": "^3.3.11"
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   },
   "peerDependencies": {
-    "@nuxt/ui": "^4.10.0",
-    "nuxt": "^3.0.0 || ^4.0.0",
+    "@nuxt/ui": "catalog:",
+    "nuxt": "catalog:",
     "vue": "3.x",
     "monaco-editor": "^0.56.0",
     "nuxt-monaco-editor": "^1.4.1"

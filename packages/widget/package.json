@@ -67,21 +67,21 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@nuxt/kit": "^4.6.0",
+    "@nuxt/kit": "catalog:",
     "@frigear-nu/module-kit": "workspace:*"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^3.4.2",
-    "@nuxt/eslint-config": "^1.17.0",
-    "@nuxt/module-builder": "^1.0.3",
-    "@nuxt/schema": "^4.6.0",
-    "@nuxt/test-utils": "^4.3.2",
-    "@types/node": "latest",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@types/node": "catalog:",
     "changelogen": "^0.6.2",
-    "eslint": "^10.10.0",
+    "eslint": "catalog:",
     "nuxt": "catalog:",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.1",
-    "vue-tsc": "^3.3.11"
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

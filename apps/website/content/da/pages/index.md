@@ -81,7 +81,7 @@ images:
   :::u-button
   ---
   color: primary
-  icon: i-carbon-email
+  icon: i-lucide-mail
   size: lg
   to: /#contact
   variant: subtle

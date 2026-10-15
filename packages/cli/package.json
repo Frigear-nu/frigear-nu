@@ -21,8 +21,8 @@
   },
   "devDependencies": {
     "@frigear-nu/eslint-config": "workspace:*",
-    "@types/node": "^24.1.0",
-    "eslint": "^10.8.1",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
     "jiti": "^2.7.0"
   }
 }

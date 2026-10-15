@@ -1,6 +1,7 @@
 import { addTemplate, createResolver, useLogger } from '@nuxt/kit'
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { kebabCase } from 'scule'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
@@ -10,6 +11,8 @@ export type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void
 export type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
 
 const LOG_PREFIX = '[@frigear-nu/module-kit]'
+/** Extensions a legacy `server/db/<table>.extend.<dialect>` file may have (what `resolvePath` would try). */
+const SCRIPT_EXTENSIONS = ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs']
 const warned = new Set<string>()
 const warnOnce = (key: string, message: string) => {
   if (warned.has(key)) return
@@ -124,11 +127,19 @@ export type TableExtensionOptions = {
  */
 export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions): void => {
   const names = options.name === undefined ? undefined : (Array.isArray(options.name) ? options.name : [options.name])
+  // The hook fires once per table of every registered schema; resolve each dialect's file only the first time.
+  const resolved = new Map<string, Promise<string | undefined>>()
+  const resolveFile = (dialect: string) => {
+    if (!resolved.has(dialect)) {
+      resolved.set(dialect, options.resolver.resolvePath(options.file(dialect)).then(file => existsSync(file) ? file : undefined))
+    }
+    return resolved.get(dialect)!
+  }
   nuxt.hook('module-kit:db:table:extend', async ({ name, dialect, paths }) => {
     if (names === undefined || names.includes(name)) {
-      const file = await options.resolver.resolvePath(options.file(dialect))
-      if (existsSync(file)) paths.push(file)
-      else if (dialect !== 'sqlite' && existsSync(await options.resolver.resolvePath(options.file('sqlite')))) {
+      const file = await resolveFile(dialect)
+      if (file) paths.push(file)
+      else if (dialect !== 'sqlite' && await resolveFile('sqlite')) {
         useLogger('module-kit').warn(`No ${dialect} variant of "${options.file('sqlite')}" (table "${name}"): its columns are left out of the ${dialect} schema.`)
       }
     }
@@ -196,12 +207,17 @@ export const registerDatabaseTable = (nuxt: Nuxt, options: DatabaseTableOptions)
 
     const layerRoots = [...new Set(nuxt.options._layers?.map(layer => layer.config.rootDir).reverse() ?? [])]
     for (const root of [...layerRoots.filter(root => root !== nuxt.options.rootDir), nuxt.options.rootDir]) {
-      const rootResolver = createResolver(root)
-      const extensionPath = await rootResolver.resolvePath(extensionFile?.(dialect) ?? `server/db/extend.${dialect}.ts`)
+      // One directory listing per root instead of a `resolvePath` (several `stat`s) per table: this hook runs once
+      // per registered schema file at every boot, for every layer.
+      const dbDir = join(root, 'server/db')
+      const dbFiles = existsSync(dbDir) ? readdirSync(dbDir) : []
+      const extensionPath = extensionFile
+        ? await createResolver(root).resolvePath(extensionFile(dialect))
+        : join(dbDir, `extend.${dialect}.ts`)
       if (!extensionFile) {
         for (const tableName of names) {
-          const legacyPath = await rootResolver.resolvePath(`server/db/${tableName}.extend.${dialect}`)
-          if (existsSync(legacyPath)) extensionsByName.get(tableName)!.push({ file: legacyPath, legacy: true, perTable: true })
+          const legacyFile = dbFiles.find(file => SCRIPT_EXTENSIONS.some(ext => file === `${tableName}.extend.${dialect}${ext}`))
+          if (legacyFile) extensionsByName.get(tableName)!.push({ file: join(dbDir, legacyFile), legacy: true, perTable: true })
         }
       }
       if (existsSync(extensionPath)) {
