@@ -10,33 +10,13 @@ const t = useModuleT('users')
 const format = useFormat()
 const actions = useUserActions()
 
-const search = ref('')
-// Debounced so the API is not hit on every keystroke.
-const q = ref('')
-let searchTimer: ReturnType<typeof setTimeout> | undefined
-watch(search, (value) => {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    q.value = value.trim()
-  }, 300)
+// `all` stands for no filter (a select cannot hold an empty value).
+const { page, pageSize, search, sort: sortState, filters, query, filtered, reset } = useTableQuery({
+  sort: { id: 'createdAt', desc: true },
+  filters: { verified: 'all', role: 'all' },
 })
-onBeforeUnmount(() => clearTimeout(searchTimer))
-const verified = ref<'all' | 'true' | 'false'>('all')
-// `all` stands for no role filter (a select cannot hold an empty value).
-const role = ref('all')
-const page = ref(1)
-const pageSize = ref(20)
-const sorting = ref<{ id: string, desc: boolean }[]>([{ id: 'createdAt', desc: true }])
-
-const query = computed(() => ({
-  page: page.value,
-  pageSize: pageSize.value,
-  q: q.value || undefined,
-  verified: verified.value === 'all' ? undefined : verified.value,
-  role: role.value === 'all' ? undefined : role.value,
-  sort: sorting.value[0]?.id,
-  order: sorting.value[0] ? (sorting.value[0].desc ? 'desc' : 'asc') : undefined,
-}))
+const sort = useTableSort(null, sortState)
+const { sorting } = sort
 
 const { data, status } = await useFetch<UsersPage>('/api/admin/users', {
   key: ADMIN_USERS_KEY,
@@ -48,50 +28,48 @@ const hasSubscriptions = computed(() => data.value.hasSubscriptions)
 const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
 const roleItems = computed(() => data.value.roles.map(value => ({ label: roleLabel(value), value })))
 const roleFilterItems = computed(() => [{ label: t('admin.filters.allRoles', 'All roles'), value: 'all' }, ...roleItems.value])
-const loading = computed(() => status.value === 'pending')
-
-// Any change to the filters or sorting starts over on page 1.
-watch([q, verified, role, pageSize, sorting], () => {
-  page.value = 1
-})
+const pending = computed(() => status.value === 'pending')
+// The previous page stays on screen (dimmed) while the next one loads; skeletons only on the very first load.
+const loading = computed(() => pending.value && !data.value.items.length)
+const refreshing = computed(() => pending.value && !!data.value.items.length)
 
 const UBadge = resolveComponent('UBadge')
-const UButton = resolveComponent('UButton')
+const TableIdentity = resolveComponent('TableIdentity')
 const RowMenu = resolveComponent('RowMenu')
 
-const sortable = (accessorKey: string, label: string) => ({
-  accessorKey,
-  header: () => h(UButton, {
-    color: 'neutral',
-    variant: 'ghost',
-    label,
-    class: '-mx-2.5',
-    icon: sorting.value[0]?.id === accessorKey
-      ? (sorting.value[0].desc ? 'i-lucide-arrow-down' : 'i-lucide-arrow-up')
-      : 'i-lucide-arrow-up-down',
-    onClick: () => {
-      const current = sorting.value[0]
-      sorting.value = [{ id: accessorKey, desc: current?.id === accessorKey ? !current.desc : false }]
-    },
-  }),
-})
+type Cell = { row: { original: UserRow } }
 
-const dateCell = (value?: string | null) => format.dateTime(value) || '–'
+// The date reads quickly; hovering shows the time too.
+const dateCell = (value?: string | null) => value
+  ? h('time', { datetime: value, title: format.dateTime(value), class: 'tabular-nums' }, format.date(value))
+  : emptyCell()
 
 const columns = computed<TableColumn<UserRow>[]>(() => [
-  sortable('id', 'ID'),
-  sortable('name', t('admin.name', 'Name')),
-  sortable('email', t('admin.email', 'Email')),
-  ...(hasRoles.value ? [{ ...sortable('role', t('admin.role', 'Role')), cell: ({ row }: { row: { original: UserRow } }) => row.original.role ? roleLabel(row.original.role) : '–' }] : []),
+  {
+    accessorKey: 'name',
+    header: sort.header('name', t('admin.user', 'User')),
+    cell: ({ row }: Cell) => h(TableIdentity, {
+      title: row.original.name,
+      description: row.original.email,
+      avatar: { alt: row.original.name },
+    }),
+  },
+  ...(hasRoles.value
+    ? [{
+        accessorKey: 'role',
+        header: sort.header('role', t('admin.role', 'Role')),
+        cell: ({ row }: Cell) => row.original.role ? roleLabel(row.original.role) : emptyCell(),
+      }]
+    : []),
   ...(hasSubscriptions.value
     ? [{
         id: 'subscription',
         header: t('admin.subscription', 'Subscription'),
-        cell: ({ row }: { row: { original: UserRow } }) => {
+        cell: ({ row }: Cell) => {
           const subscription = row.original.subscription
           return subscription
             ? h(UBadge, { variant: 'subtle', color: statusColor(subscription.status), label: subscription.planKey ?? subscription.status })
-            : '–'
+            : emptyCell()
         },
       }]
     : []),
@@ -104,10 +82,16 @@ const columns = computed<TableColumn<UserRow>[]>(() => [
       label: row.original.emailVerifiedAt ? t('admin.filters.verified', 'Verified') : t('admin.filters.unverified', 'Unverified'),
     }),
   },
-  { ...sortable('lastLoginAt', t('admin.lastLogin', 'Last sign-in')), cell: ({ row }: { row: { original: UserRow } }) => dateCell(row.original.lastLoginAt) },
-  { ...sortable('createdAt', t('admin.created', 'Created')), cell: ({ row }: { row: { original: UserRow } }) => dateCell(row.original.createdAt) },
+  { accessorKey: 'lastLoginAt', header: sort.header('lastLoginAt', t('admin.lastLogin', 'Last sign-in')), cell: ({ row }: Cell) => dateCell(row.original.lastLoginAt) },
+  { accessorKey: 'createdAt', header: sort.header('createdAt', t('admin.created', 'Created')), cell: ({ row }: Cell) => dateCell(row.original.createdAt) },
+  {
+    accessorKey: 'id',
+    header: sort.header('id', 'ID'),
+    meta: { class: { th: 'w-0', td: 'w-0 text-dimmed tabular-nums' } },
+  },
   {
     id: 'actions',
+    meta: { class: { th: 'w-0', td: 'w-0' } },
     cell: ({ row }) => h(RowMenu, { items: actions.menu(row.original), subject: row.original.name }),
   },
 ])
@@ -117,13 +101,6 @@ const verifiedOptions = computed(() => [
   { label: t('admin.filters.verified', 'Verified'), value: 'true' },
   { label: t('admin.filters.unverified', 'Unverified'), value: 'false' },
 ])
-const pageSizes = [10, 20, 50, 100]
-const filtersActive = computed(() => !!(search.value || role.value !== 'all' || verified.value !== 'all'))
-function resetFilters() {
-  search.value = ''
-  role.value = 'all'
-  verified.value = 'all'
-}
 
 function openUser(_event: Event, row: { original: UserRow }) {
   return navigateTo(actions.userPath(row.original.id))
@@ -152,37 +129,42 @@ async function addUser() {
         v-model="search"
         class="w-full max-w-sm"
         icon="i-lucide-search"
-        :loading="loading"
+        :loading="pending"
         :placeholder="t('admin.search', 'Search name, email or role...')"
       />
       <USelect
-        v-model="verified"
+        v-model="filters.verified"
         :items="verifiedOptions"
         class="w-40"
       />
       <USelect
         v-if="hasRoles"
-        v-model="role"
+        v-model="filters.role"
         :items="roleFilterItems"
         class="w-48"
         icon="i-lucide-shield"
       />
       <UButton
-        v-if="filtersActive"
+        v-if="filtered"
         variant="ghost"
         color="neutral"
         icon="i-lucide-x"
         :label="t('admin.filters.clear', 'Clear filters')"
-        @click="resetFilters"
+        @click="reset"
       />
     </PageToolbar>
 
-    <TableCard>
+    <TableCard
+      :loading="loading"
+      :refreshing="refreshing"
+    >
       <UTable
+        v-model:sorting="sorting"
         :data="data.items"
         :columns="columns"
-        :loading="loading"
-        :ui="tableUi()"
+        :sorting-options="{ manualSorting: true }"
+        :ui="tableUi({}, { sticky: true })"
+        sticky
         @select="openUser"
       >
         <template #empty>
@@ -190,25 +172,16 @@ async function addUser() {
             icon="i-lucide-users"
             variant="naked"
             :title="t('admin.empty', 'No users match')"
-            :actions="[filtersActive
-              ? { label: t('admin.filters.clear', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: resetFilters }
+            :actions="[filtered
+              ? { label: t('admin.filters.clear', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: reset }
               : { label: t('admin.create', 'Add user'), icon: 'i-lucide-user-plus', onClick: addUser }]"
           />
         </template>
       </UTable>
       <template #footer>
-        <div class="flex items-center gap-3">
-          <span>{{ t('admin.total', '{count} users', { count: data.total }) }}</span>
-          <USelect
-            v-model="pageSize"
-            :items="pageSizes"
-            size="sm"
-            class="w-20"
-          />
-        </div>
-        <UPagination
+        <TablePagination
           v-model:page="page"
-          :items-per-page="pageSize"
+          v-model:page-size="pageSize"
           :total="data.total"
         />
       </template>

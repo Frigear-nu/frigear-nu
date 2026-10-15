@@ -15,8 +15,8 @@ const forbidden = computed(() => error.value?.statusCode === 401 || error.value?
 const columns = computed<TableColumn<Application>[]>(() => [
   { accessorKey: 'name', header: t('admin.application', 'Application') },
   { id: 'access', header: t('admin.access', 'Access') },
-  { id: 'grants', header: t('admin.signedIn', 'Signed in') },
-  { id: 'actions', header: '' },
+  { id: 'grants', header: t('admin.signedIn', 'Signed in'), meta: numericColumn },
+  { id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0' } } },
 ])
 </script>
 
@@ -44,38 +44,33 @@ const columns = computed<TableColumn<Application>[]>(() => [
       :title="t('admin.forbiddenTitle', 'You are not allowed to manage OAuth applications')"
       :description="t('admin.forbiddenDescription', 'Ask an administrator for access.')"
     />
-    <TableCard v-else>
+    <TableCard
+      v-else
+      :loading="status === 'pending' && !applications.length"
+      :refreshing="status === 'pending' && !!applications.length"
+    >
       <UTable
         :data="applications"
         :columns="columns"
-        :loading="status === 'pending'"
         :ui="tableUi()"
         @select="(_event, row) => actions.edit(row.original)"
       >
         <template #name-cell="{ row }">
-          <div class="flex min-w-0 items-start gap-3">
-            <UIcon
-              :name="row.original.icon || 'i-lucide-globe'"
-              class="mt-0.5 size-5 shrink-0"
-            />
-            <div class="min-w-0">
-              <p class="text-highlighted flex items-center gap-2 font-medium">
-                {{ row.original.name }}
-                <UBadge
-                  v-if="!row.original.isActive"
-                  color="neutral"
-                  variant="subtle"
-                  :label="t('admin.disabled', 'Disabled')"
-                />
-              </p>
-              <p class="truncate text-sm text-muted">
-                {{ row.original.websiteUrl }}
-              </p>
-              <p class="truncate text-xs text-muted">
-                {{ t('admin.callback', 'Callback') }}: {{ row.original.callbackUrl }}
-              </p>
-            </div>
-          </div>
+          <TableIdentity
+            :title="row.original.name"
+            :description="row.original.websiteUrl"
+            :avatar="{ icon: row.original.icon || 'i-lucide-globe' }"
+          >
+            <template #badges>
+              <UBadge
+                v-if="!row.original.isActive"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                :label="t('admin.disabled', 'Disabled')"
+              />
+            </template>
+          </TableIdentity>
         </template>
         <template #access-cell="{ row }">
           <div class="flex flex-wrap gap-1">

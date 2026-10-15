@@ -11,11 +11,12 @@ const id = computed(() => String(route.params.id))
 const { data: form } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, { key: `forms:admin:form:${id.value}` })
 const { data: submissions, error, status, refresh } = await useFetch<SubmissionSummaryDto[]>(() => `/api/forms/admin/forms/${id.value}/submissions`)
 
+const { sorting, header } = useTableSort({ id: 'createdAt', desc: true })
 const columns = computed<TableColumn<SubmissionSummaryDto>[]>(() => [
-  { accessorKey: 'createdAt', header: t('admin.submittedAt', 'Submitted') },
+  { accessorKey: 'createdAt', header: header('createdAt', t('admin.submittedAt', 'Submitted')) },
   { id: 'preview', header: t('admin.answers', 'Answers') },
-  { accessorKey: 'deliveryStatus', header: t('admin.delivery', 'Delivery') },
-  { id: 'actions', header: '' },
+  { accessorKey: 'deliveryStatus', header: header('deliveryStatus', t('admin.delivery', 'Delivery')) },
+  { id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0' } } },
 ])
 
 const submissionPath = (submission: SubmissionSummaryDto) => paths('adminSubmission', { id: id.value, submissionId: submission.id })
@@ -53,15 +54,17 @@ const breadcrumb = computed(() => [
     <TableCard
       v-else
       :loading="status === 'pending' && !submissions"
+      :refreshing="status === 'pending' && !!submissions"
     >
       <UTable
+        v-model:sorting="sorting"
         :data="submissions ?? []"
         :columns="columns"
         :ui="tableUi()"
         @select="(_: Event, row: { original: SubmissionSummaryDto }) => navigateTo(submissionPath(row.original))"
       >
         <template #createdAt-cell="{ row }">
-          <span class="text-muted">{{ format.dateTime(row.original.createdAt) }}</span>
+          <span class="tabular-nums">{{ format.dateTime(row.original.createdAt) }}</span>
         </template>
         <template #preview-cell="{ row }">
           <p class="max-w-md truncate">

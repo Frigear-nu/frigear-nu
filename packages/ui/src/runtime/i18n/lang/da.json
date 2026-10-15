@@ -45,6 +45,12 @@
     "edit": "Redigér",
     "delete": "Slet",
     "confirm": "Bekræft",
-    "breadcrumb": "Brødkrummesti"
+    "breadcrumb": "Brødkrummesti",
+    "sortBy": "Sortér efter {column}",
+    "sortedAsc": "Sortér efter {column}, nu stigende",
+    "sortedDesc": "Sortér efter {column}, nu faldende",
+    "range": "{from}–{to} af {total}",
+    "noRows": "Ingen rækker",
+    "rowsPerPage": "Rækker pr. side"
   }
 }

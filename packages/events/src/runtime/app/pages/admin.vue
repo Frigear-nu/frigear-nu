@@ -11,20 +11,32 @@ const links = useEventLinks()
 const actions = useEventActions()
 const { data: events, status, refresh } = await useFetch<StaffEventSummary[]>('/api/events/admin/events', { default: () => [] })
 
+const { sorting, header } = useTableSort({ id: 'startsAt', desc: true })
+
 const UBadge = resolveComponent('UBadge')
 const RowMenu = resolveComponent('RowMenu')
+const TableIdentity = resolveComponent('TableIdentity')
 
 const columns = computed<TableColumn<StaffEventSummary>[]>(() => [
-  { accessorKey: 'name', header: t('admin.name', 'Name'), cell: ({ row }) => tr(row.original.name) },
+  {
+    id: 'name',
+    accessorFn: row => tr(row.name),
+    header: header('name', t('admin.name', 'Name')),
+    cell: ({ row }) => h(TableIdentity, { title: tr(row.original.name), description: tr(row.original.location) }),
+  },
   {
     accessorKey: 'status',
-    header: t('admin.status', 'Status'),
+    header: header('status', t('admin.status', 'Status')),
     cell: ({ row }) => h(UBadge, { variant: 'subtle', color: statusColor(row.original.status), label: t(`admin.statuses.${row.original.status}`, row.original.status) }),
   },
-  { accessorKey: 'startsAt', header: t('admin.starts', 'Starts'), cell: ({ row }) => format.dateTime(row.original.startsAt) },
-  { accessorKey: 'location', header: t('admin.location', 'Location'), cell: ({ row }) => tr(row.original.location) },
+  {
+    accessorKey: 'startsAt',
+    header: header('startsAt', t('admin.starts', 'Starts')),
+    cell: ({ row }) => row.original.startsAt ? h('span', { class: 'tabular-nums' }, format.dateTime(row.original.startsAt)) : emptyCell(),
+  },
   {
     id: 'actions',
+    meta: { class: { th: 'w-0', td: 'w-0' } },
     cell: ({ row }) => h(RowMenu, { items: actions.menu(row.original, { onRemoved: refresh }), subject: tr(row.original.name) }),
   },
 ])
@@ -50,8 +62,12 @@ async function create() {
       </template>
     </PageHeading>
 
-    <TableCard :loading="status === 'pending' && !events.length">
+    <TableCard
+      :loading="status === 'pending' && !events.length"
+      :refreshing="status === 'pending' && !!events.length"
+    >
       <UTable
+        v-model:sorting="sorting"
         :data="events"
         :columns="columns"
         :ui="tableUi()"

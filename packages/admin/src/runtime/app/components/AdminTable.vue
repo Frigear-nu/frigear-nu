@@ -17,6 +17,7 @@ const emit = defineEmits<{ select: [e: Event, row: TableRow<T>] }>()
       :data="data"
       :columns="columns"
       :loading="loading"
+      :ui="tableUi()"
       @select="(e: Event, row: TableRow<T>) => emit('select', e, row)"
     >
       <template
