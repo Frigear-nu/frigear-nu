@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PaymentDto } from '../../../types'
-import { formatMoney as formatMinorAmount } from '@frigear-nu/ui/money'
 
 defineOptions({ name: 'UsersAdminLastPayment' })
 
@@ -9,6 +8,7 @@ const props = defineProps<{ user: { id: number } }>()
 
 const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
+const format = useFormat()
 
 // Lazy: the card shows a skeleton instead of holding up the rest of the page.
 const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
@@ -16,23 +16,37 @@ const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
   { key: () => `admin-last-payment-${props.user.id}`, query: { limit: 1 } },
 )
 const last = computed(() => payments.value?.[0])
-const date = (value: string | null) => value ? new Date(value).toLocaleDateString() : '–'
+const facts = computed(() => last.value
+  ? [
+      { key: 'amount', label: t('amount', 'Amount'), value: format.money(last.value.amount, last.value.currency) },
+      { key: 'status', label: t('statusColumn', 'Status') },
+      { key: 'date', label: t('date', 'Date'), value: format.date(last.value.paidAt ?? last.value.createdAt) },
+    ]
+  : [])
 </script>
 
 <template>
-  <AdminStatCard
-    :label="t('lastPayment', 'Last payment')"
-    :empty="t('empty', 'No payments yet.')"
+  <SectionCard
+    :title="t('lastPayment', 'Last payment')"
     :loading="fetchStatus === 'pending' && !payments"
   >
-    <template v-if="last">
-      <span class="text-highlighted font-medium">{{ formatMinorAmount(last.amount, last.currency) }}</span>
-      <UBadge
-        variant="subtle"
-        :color="last.status === 'paid' ? 'success' : 'neutral'"
-        :label="status(last.status, last.status)"
-      />
-      <span class="text-muted">{{ date(last.paidAt ?? last.createdAt) }}</span>
-    </template>
-  </AdminStatCard>
+    <DescriptionList
+      v-if="last"
+      :items="facts"
+    >
+      <template #status>
+        <UBadge
+          variant="subtle"
+          :color="statusColor(last.status, { partially_refunded: 'warning' })"
+          :label="status(last.status, last.status)"
+        />
+      </template>
+    </DescriptionList>
+    <UEmpty
+      v-else
+      icon="i-lucide-credit-card"
+      variant="naked"
+      :title="t('empty', 'No payments yet')"
+    />
+  </SectionCard>
 </template>

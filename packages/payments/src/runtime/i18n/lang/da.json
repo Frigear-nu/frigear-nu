@@ -13,7 +13,7 @@
       "tab": "Betalinger",
       "title": "Betalinger",
       "lastPayment": "Seneste betaling",
-      "empty": "Ingen betalinger endnu.",
+      "empty": "Ingen betalinger endnu",
       "date": "Dato",
       "description": "Beskrivelse",
       "amount": "Beløb",
@@ -22,9 +22,10 @@
       "reference": "Reference",
       "defaultDescription": "Betaling",
       "revenue": "Omsætning, 30 dage",
-      "noRevenue": "Ingen betalinger endnu.",
+      "noRevenue": "Ingen betalinger endnu",
       "transactions": "{count} transaktioner",
-      "recent": "Seneste transaktioner"
+      "recent": "Seneste transaktioner",
+      "viewUsers": "Se brugere"
     }
   }
 }
