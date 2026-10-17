@@ -267,7 +267,8 @@ Er du klar til at ansøge?
   label: Hop til ansøgningsformen
   ---
   :::
-::
 
-::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+#default
+  :::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+  :::
 ::
