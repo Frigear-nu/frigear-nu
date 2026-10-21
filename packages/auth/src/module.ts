@@ -237,6 +237,8 @@ export {}
 `,
     }, { nitro: true, nuxt: true })
 
+    // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
+    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
 

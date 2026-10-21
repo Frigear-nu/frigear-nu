@@ -20,6 +20,9 @@
       ".": {
         "types": "./dist/types.d.mts",
         "import": "./dist/module.mjs"
+      },
+      "./types": {
+        "types": "./dist/types.d.mts"
       }
     },
     "main": "./dist/module.mjs",

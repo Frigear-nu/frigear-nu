@@ -105,6 +105,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/mcp': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
+    // The payment link email is dispatched through it.
+    '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/stripe': { version: '>=0.0.1' },
     // The pages and admin pieces are built from its components and composables (`SectionCard`, `useFormat`, ...).
     '@frigear-nu/ui': { version: '>=0.0.1' },
@@ -230,6 +232,8 @@ export default defineNuxtModule<ModuleOptions>({
       },
     })
 
+    // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
+    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))

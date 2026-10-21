@@ -85,6 +85,8 @@ export default defineNuxtModule<ModuleOptions>({
     // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
     setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
 
+    // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
+    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
 

@@ -39,7 +39,42 @@ export interface EmailNotification<M = NotificationMeta> {
   text?: string
   /** Address replies should go to (the `Reply-To` header). */
   replyTo?: string
+  /**
+   * Template to render this email from instead of `subject`/`body`/`text`, when a renderer is
+   * installed (`@frigear-nu/email-templates` listens on the `notify:email` hook). Without one,
+   * the notification goes out as built, so `subject` and `body` are always the fallback.
+   */
+  template?: EmailTemplateRef
   meta?: M
+}
+
+/**
+ * A template to render an email from: its name (the template's file name, e.g. `auth-magic-link`)
+ * and the props to render it with. Deliberately untyped here: the names only exist once a
+ * renderer has scanned the templates (see `sendEmailTemplate` in `@frigear-nu/email-templates`).
+ */
+export type EmailTemplateRef = {
+  name: string
+  props?: Record<string, unknown>
+  /** Locale to render with, when the renderer has i18n. */
+  locale?: string
+}
+
+/**
+ * A directory of email templates (top-level `*.vue` files, named by file name) that a module
+ * ships, registered through the `notify:email:templates` Nuxt hook. Only used when a renderer
+ * (`@frigear-nu/email-templates`) is installed; host templates with the same name win.
+ */
+export type EmailTemplateSource = {
+  dir: string
+}
+
+/**
+ * Passed to the `notify:email` Nitro hook before an email is handed to the driver. Listeners may
+ * replace or mutate `notification`, e.g. to render `notification.template`.
+ */
+export type NotifyEmailContext = {
+  notification: EmailNotification
 }
 
 /**

@@ -71,6 +71,7 @@
     "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/mcp": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
     "@frigear-nu/stripe": "workspace:*",
     "@frigear-nu/ui": "workspace:*",
     "@frigear-nu/users": "workspace:*",

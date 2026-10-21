@@ -1,6 +1,6 @@
 import smsDriver from '#notify/sms-driver'
 import simpleDriver from '#notify/simple-driver'
-import type { EmailNotification, SMSNotification, SimpleNotification } from '../../../types'
+import type { EmailNotification, NotifyEmailContext, SMSNotification, SimpleNotification } from '../../../types'
 /**
  * Dispatches an email notification through the driver configured on the `@frigear-nu/notify`
  * module (`notify.email.driver`, see `#notify/email-driver`). Auto-imported wherever this module
@@ -8,7 +8,11 @@ import type { EmailNotification, SMSNotification, SimpleNotification } from '../
  * and call this - driver selection stays entirely with the app/consuming layer.
  */
 export async function dispatchEmailNotification(notification: EmailNotification) {
-  return import('#notify/email-driver').then(({ default: emailDriver }) => emailDriver(notification))
+  // Listeners (e.g. `@frigear-nu/email-templates`) may render `notification.template` here; with
+  // none, the notification is sent exactly as it was built.
+  const context: NotifyEmailContext = { notification }
+  await useNitroApp().hooks.callHook('notify:email', context)
+  return import('#notify/email-driver').then(({ default: emailDriver }) => emailDriver(context.notification))
 }
 
 /**

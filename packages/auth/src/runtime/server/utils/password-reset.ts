@@ -10,12 +10,16 @@ export type PasswordResetEmailPayload = {
  * stays trivial to test, and so future notifications follow the same "build, then dispatch"
  * shape without needing their own module option.
  */
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 export function buildPasswordResetNotification({ to, resetUrl }: PasswordResetEmailPayload): EmailNotification {
   return {
     to,
     subject: 'Reset your password',
-    body: `<p>Click the link below to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    body: `<p>Click the link below to reset your password:</p><p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>`,
     text: `Reset your password: ${resetUrl}`,
+    template: { name: 'auth-password-reset', props: { url: resetUrl } },
   }
 }
 

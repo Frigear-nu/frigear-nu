@@ -50,6 +50,7 @@ export default defineEventHandler(async (event): Promise<PaymentLinkResponse> =>
       body: `<p>Hi ${escapeHtml(target.name)},</p><p>Use the link below to complete your ${escapeHtml(label)} membership. The link is valid for 24 hours.</p>`
         + `<p><a href="${escapeHtml(session.url)}">${escapeHtml(session.url)}</a></p>`,
       text: `Hi ${target.name},\n\nComplete your ${label} membership (valid for 24 hours): ${session.url}`,
+      template: { name: 'subscriptions-payment-link', props: { name: target.name, label, url: session.url } },
     })
     emailed = true
   }
