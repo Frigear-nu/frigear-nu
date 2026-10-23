@@ -69,10 +69,21 @@ describe('email templates', async () => {
   ])('renders the built-in %s template', async (name, props, subject) => {
     const rendered = await $fetch<{ subject: string, body: string, text: string }>(`/api/render/${name}`, { method: 'POST', body: props })
     expect(rendered.subject).toBe(subject)
-    if ('name' in props) expect(rendered.text).toContain('Hi Ada,')
+    // The shared layout: configured logo and the footer.
+    expect(rendered.body).toContain('src="https://cdn.example.test/logo.png"')
+    expect(rendered.body).toContain('alt="Fixture Co"')
+    expect(rendered.text).toContain('This email was sent automatically for security reasons.')
     if ('url' in props) {
       expect(rendered.body).toContain('href="https://x.test/l"')
       expect(rendered.text).toContain('https://x.test/l')
     }
+  })
+
+  it.each([
+    ['users-email-changed', { name: 'Ada', newEmail: 'new@x.test', url: 'https://x.test/l' }],
+    ['users-password-changed', { name: 'Ada' }],
+  ])('renders the %s security alert in the configured danger colour', async (name, props) => {
+    const rendered = await $fetch<{ body: string }>(`/api/render/${name}`, { method: 'POST', body: props })
+    expect(rendered.body).toContain('color:#b91c1c')
   })
 })

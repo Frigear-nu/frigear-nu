@@ -78,6 +78,7 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:",
@@ -85,6 +86,7 @@
     "@simplewebauthn/server": "^11.0.0"
   },
   "devDependencies": {
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
@@ -101,6 +103,9 @@
     "vue-tsc": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/email-templates": {
+      "optional": true
+    },
     "@frigear-nu/menu": {
       "optional": true
     },

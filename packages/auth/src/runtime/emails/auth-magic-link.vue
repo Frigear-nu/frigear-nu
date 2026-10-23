@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailLinkFallback, EmailText } from '@frigear-nu/email-templates/components'
+
 defineProps<{
   name: string
   url: string
@@ -6,31 +8,30 @@ defineProps<{
 </script>
 
 <template>
-  <EHtml>
-    <EHead />
-    <EBody style="background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-      <EContainer style="background-color: #ffffff; margin: 24px auto; padding: 32px">
-        <ESubject>Your sign-in link</ESubject>
-        <ESection>
-          <EText style="font-size: 16px; line-height: 24px">
-            Hi {{ name }},
-          </EText>
-          <EText style="font-size: 16px; line-height: 24px">
-            Click the button below to sign in. It can be used once and expires in 2 hours.
-          </EText>
-          <EButton
-            :href="url"
-            style="background-color: #111827; border-radius: 6px; color: #ffffff; font-size: 16px; padding: 12px 20px"
-          >
-            Sign in
-          </EButton>
-          <EText style="color: #6b7280; font-size: 14px; line-height: 20px">
-            Or open this link: <ELink :href="url">
-              {{ url }}
-            </ELink>
-          </EText>
-        </ESection>
-      </EContainer>
-    </EBody>
-  </EHtml>
+  <EmailLayout preview="Your secure sign-in link">
+    <ESubject>Your sign-in link</ESubject>
+    <EmailHeading>
+      Your magic link
+    </EmailHeading>
+    <EmailDivider />
+    <EmailText>
+      Hi {{ name }},
+    </EmailText>
+    <EmailText>
+      You requested a secure sign-in link. Click the button below to sign in to your account.
+    </EmailText>
+    <EmailText>
+      The link can only be used once and expires in 2 hours.
+    </EmailText>
+    <EmailButton
+      :href="url"
+    >
+      Sign in
+    </EmailButton>
+    <EmailLinkFallback :href="url" />
+    <EmailDivider />
+    <EmailText>
+      If you didn’t request this email, you can safely ignore it. No action is required.
+    </EmailText>
+  </EmailLayout>
 </template>

@@ -7,21 +7,26 @@ import {
   updateTemplates,
 } from '@nuxt/kit'
 import { inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
+import { defu } from 'defu'
 import type { EmailTemplateSource } from '@frigear-nu/notify/types'
 import { layerTemplateDirs, mergeTemplates, templatesVirtualModule } from './templates'
-import type { ModuleOptions } from './types'
+import type { EmailTemplatesRuntimeConfig, ModuleOptions } from './types'
 
 export type {
   ModuleOptions,
   EmailTemplates,
   EmailTemplateName,
   EmailTemplateProps,
+  EmailTemplatesRuntimeConfig,
   RenderedEmailTemplate,
 } from './types'
 
 declare module 'nuxt/schema' {
   interface NuxtConfig {
     emailTemplates?: ModuleOptions
+  }
+  interface RuntimeConfig {
+    emailTemplates: EmailTemplatesRuntimeConfig
   }
 }
 
@@ -34,9 +39,22 @@ export default defineNuxtModule<ModuleOptions>({
     // Keeps Shiki (`ECodeBlock`) out of the server bundle unless the host turns it back on.
     'nuxt-email-renderer': { version: '>=2.11.0', defaults: { codeHighlighting: false } },
   },
-  async setup(_options, nuxt) {
+  async setup(options, nuxt) {
     registerModule('@frigear-nu/email-templates', nuxt)
     const resolver = createResolver(import.meta.url)
+
+    // Branding read by the shared components at render time; options seed it, NUXT_EMAIL_TEMPLATES_* override it.
+    const runtimeConfig = nuxt.options.runtimeConfig as { emailTemplates?: Partial<EmailTemplatesRuntimeConfig> }
+    runtimeConfig.emailTemplates = defu(runtimeConfig.emailTemplates, {
+      brandName: options.brandName ?? 'Frigear',
+      logoUrl: options.logoUrl ?? '',
+      siteUrl: options.siteUrl ?? '',
+      colors: { primary: options.colors?.primary ?? '#2563eb', danger: options.colors?.danger ?? '#dc2626' },
+    })
+
+    // The shared building blocks, importable from any template (host, layer or module) whether or not
+    // the package resolves from that file's location. Nuxt aliases reach Nitro and the generated tsconfig paths.
+    nuxt.options.alias['@frigear-nu/email-templates/components'] = resolver.resolve('./runtime/components')
 
     // Directories of templates other modules ship. Resolved lazily so modules set up after this
     // one can still register theirs.

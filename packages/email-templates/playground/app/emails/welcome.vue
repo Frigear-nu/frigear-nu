@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailLinkFallback, EmailText } from '@frigear-nu/email-templates/components'
+
 defineProps<{
   name: string
   url: string
@@ -6,17 +8,14 @@ defineProps<{
 </script>
 
 <template>
-  <EHtml>
-    <EHead />
-    <EBody>
-      <EContainer>
-        <ESubject>Welcome, {{ name }}</ESubject>
-        <EHeading>Welcome, {{ name }}!</EHeading>
-        <EText>Thanks for signing up.</EText>
-        <EButton :href="url">
-          Get started
-        </EButton>
-      </EContainer>
-    </EBody>
-  </EHtml>
+  <EmailLayout :preview="`Welcome, ${name}!`">
+    <ESubject>Welcome, {{ name }}</ESubject>
+    <EmailHeading>Welcome, {{ name }}!</EmailHeading>
+    <EmailDivider />
+    <EmailText>Thanks for signing up. Click the button below to get started.</EmailText>
+    <EmailButton :href="url">
+      Get started
+    </EmailButton>
+    <EmailLinkFallback :href="url" />
+  </EmailLayout>
 </template>

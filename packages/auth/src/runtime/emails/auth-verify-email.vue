@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailLinkFallback, EmailText } from '@frigear-nu/email-templates/components'
+
 defineProps<{
   name: string
   url: string
@@ -6,31 +8,27 @@ defineProps<{
 </script>
 
 <template>
-  <EHtml>
-    <EHead />
-    <EBody style="background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-      <EContainer style="background-color: #ffffff; margin: 24px auto; padding: 32px">
-        <ESubject>Welcome! Please verify your email</ESubject>
-        <ESection>
-          <EText style="font-size: 16px; line-height: 24px">
-            Hi {{ name }},
-          </EText>
-          <EText style="font-size: 16px; line-height: 24px">
-            Welcome! Click the button below to verify your email address and sign in.
-          </EText>
-          <EButton
-            :href="url"
-            style="background-color: #111827; border-radius: 6px; color: #ffffff; font-size: 16px; padding: 12px 20px"
-          >
-            Verify email
-          </EButton>
-          <EText style="color: #6b7280; font-size: 14px; line-height: 20px">
-            Or open this link: <ELink :href="url">
-              {{ url }}
-            </ELink>
-          </EText>
-        </ESection>
-      </EContainer>
-    </EBody>
-  </EHtml>
+  <EmailLayout preview="Verify your email address to get started">
+    <ESubject>Welcome! Please verify your email</ESubject>
+    <EmailHeading>
+      Welcome, {{ name }}!
+    </EmailHeading>
+    <EmailDivider />
+    <EmailText>
+      Your account has been created.
+    </EmailText>
+    <EmailText>
+      Please verify your email address by clicking the button below. This also signs you in.
+    </EmailText>
+    <EmailButton
+      :href="url"
+    >
+      Verify email
+    </EmailButton>
+    <EmailLinkFallback :href="url" />
+    <EmailDivider />
+    <EmailText>
+      If you didn’t create an account, you can safely ignore this email.
+    </EmailText>
+  </EmailLayout>
 </template>

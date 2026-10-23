@@ -1,0 +1,8 @@
+export { default as EmailLayout } from './EmailLayout.vue'
+export { default as EmailHeader } from './EmailHeader.vue'
+export { default as EmailHeading } from './EmailHeading.vue'
+export { default as EmailText } from './EmailText.vue'
+export { default as EmailButton } from './EmailButton.vue'
+export { default as EmailLinkFallback } from './EmailLinkFallback.vue'
+export { default as EmailDivider } from './EmailDivider.vue'
+export { default as EmailFooter } from './EmailFooter.vue'

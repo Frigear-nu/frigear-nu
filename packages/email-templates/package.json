@@ -17,6 +17,11 @@
       "import": "./src/module.ts",
       "default": "./src/module.ts"
     },
+    "./components": {
+      "types": "./src/runtime/components/index.ts",
+      "import": "./src/runtime/components/index.ts",
+      "default": "./src/runtime/components/index.ts"
+    },
     "./types": "./src/types.ts"
   },
   "publishConfig": {
@@ -25,6 +30,11 @@
         "types": "./dist/types.d.mts",
         "import": "./dist/module.mjs",
         "default": "./dist/module.mjs"
+      },
+      "./components": {
+        "types": "./dist/runtime/components/index.d.ts",
+        "import": "./dist/runtime/components/index.js",
+        "default": "./dist/runtime/components/index.js"
       },
       "./types": {
         "types": "./dist/types.d.mts"
@@ -60,9 +70,10 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@nuxt/kit": "catalog:",
     "@frigear-nu/module-kit": "workspace:*",
     "@frigear-nu/notify": "workspace:*",
+    "@nuxt/kit": "catalog:",
+    "defu": "^6.1.7",
     "nuxt-email-renderer": "^2.11.2"
   },
   "devDependencies": {

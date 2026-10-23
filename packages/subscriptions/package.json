@@ -86,12 +86,16 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/email-templates": {
+      "optional": true
+    },
     "@frigear-nu/menu": {
       "optional": true
     },
@@ -103,6 +107,7 @@
     }
   },
   "devDependencies": {
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@nuxt/devtools": "catalog:",

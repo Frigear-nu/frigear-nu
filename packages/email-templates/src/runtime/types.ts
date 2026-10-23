@@ -32,3 +32,19 @@ export type RenderedEmailTemplate = {
   /** Plain-text body, unless rendering it was turned off. */
   text?: string
 }
+
+/** Private `runtimeConfig.emailTemplates`, overridable through `NUXT_EMAIL_TEMPLATES_*` env vars. */
+export type EmailTemplatesRuntimeConfig = {
+  /** `NUXT_EMAIL_TEMPLATES_BRAND_NAME`: logo alt text, and the header when there is no logo. */
+  brandName: string
+  /** `NUXT_EMAIL_TEMPLATES_LOGO_URL`: absolute, or a path resolved against `siteUrl` (e.g. `/logo.png`). */
+  logoUrl: string
+  /** `NUXT_EMAIL_TEMPLATES_SITE_URL`: base URL for a relative `logoUrl`. */
+  siteUrl: string
+  colors: {
+    /** `NUXT_EMAIL_TEMPLATES_COLORS_PRIMARY`: buttons. */
+    primary: string
+    /** `NUXT_EMAIL_TEMPLATES_COLORS_DANGER`: security alerts. */
+    danger: string
+  }
+}
