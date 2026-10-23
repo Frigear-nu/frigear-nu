@@ -5,7 +5,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
-import type { ModuleOptions, NotifyRuntimeConfig } from './types'
+import type { EmailTemplateSource, ModuleOptions, NotifyRuntimeConfig } from './types'
 import { defu } from 'defu'
 import { joinURL } from 'ufo'
 
@@ -17,6 +17,9 @@ export type {
   SimpleDriver,
   SMSDriver,
   EmailDriver,
+  EmailTemplateRef,
+  EmailTemplateSource,
+  NotifyEmailContext,
 } from './types'
 
 declare module '@nuxt/schema' {
@@ -25,6 +28,13 @@ declare module '@nuxt/schema' {
   }
   interface RuntimeConfig {
     notify: NotifyRuntimeConfig
+  }
+  interface NuxtHooks {
+    /**
+     * Modules push the directories of email templates they ship (see `EmailTemplateSource`).
+     * Called by `@frigear-nu/email-templates`; without it, nothing reads them.
+     */
+    'notify:email:templates': (sources: EmailTemplateSource[]) => void | Promise<void>
   }
 }
 
@@ -107,6 +117,23 @@ export default defineNuxtModule<ModuleOptions>({
     registerServerDriver('email-driver', 'EmailDriver', emailBuiltin ? 'auto' : emailDriver, { auto: AUTO_EMAIL_DRIVER })
     registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
     registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
+
+    // The `notify:email` runtime hook, generated so every server program (host and modules) sees it.
+    addTypeTemplate({
+      filename: 'types/notify-hooks.d.ts',
+      getContents: () => `declare module 'nitropack/types' {
+  interface NitroRuntimeHooks {
+    /**
+     * Called by \`dispatchEmailNotification\` before the driver sends the email. Listeners may
+     * replace \`ctx.notification\`, e.g. \`@frigear-nu/email-templates\` renders its \`template\`.
+     */
+    'notify:email': (ctx: import(${JSON.stringify(resolver.resolve('./types'))}).NotifyEmailContext) => void | Promise<void>
+  }
+}
+
+export {}
+`,
+    }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
   },

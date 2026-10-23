@@ -78,6 +78,7 @@
   },
   "peerDependencies": {
     "@frigear-nu/admin": ">=0.0.0",
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@nuxt/ui": "catalog:",
@@ -85,6 +86,9 @@
   },
   "peerDependenciesMeta": {
     "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/email-templates": {
       "optional": true
     },
     "@frigear-nu/menu": {
@@ -100,6 +104,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
     "@frigear-nu/admin": "workspace:*",
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
     "@frigear-nu/widget": "workspace:*",
     "@nuxt/devtools": "catalog:",

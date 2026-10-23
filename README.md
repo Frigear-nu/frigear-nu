@@ -26,6 +26,7 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/mcp](./packages/mcp) - Scoped, PII-safe MCP tools contributed by modules on top of `@nuxtjs/mcp-toolkit`
 - [@frigear-nu/users](./packages/users) - The user entity: users table, staff administration and self-service profile, email and password changes
 - [@frigear-nu/notify](./packages/notify) - Email notification driver/dispatch Nuxt module (app chooses the driver), shared across modules
+- [@frigear-nu/email-templates](./packages/email-templates) - Vue email templates for notify (nuxt-email-renderer): typed `sendEmailTemplate`, and module emails rendered from templates the host can override
 - [@frigear-nu/menu](./packages/menu) - Named, shareable navigation menus (`extendMenu`, Nuxt Content, `useMenu`) contributed to by other frigear modules
 - [@frigear-nu/widget](./packages/widget) - Named widget areas that modules contribute components to and hosts render (`extendWidgets`, `<WidgetArea>`, `widgets:filter`)
 - [@frigear-nu/admin](./packages/admin) - Generic admin area: guarded shell, dashboard and navigation that other modules register into

@@ -11,6 +11,7 @@ export function buildVerifyEmailChangeNotification({ to, name, url }: { to: stri
     subject: 'Confirm your new email address',
     body: `<p>Hi ${escapeHtml(name)},</p><p>Confirm that this is your new email address. The link expires in 24 hours.</p>${link(url)}`,
     text: `Hi ${name},\n\nConfirm your new email address (expires in 24 hours): ${url}`,
+    template: { name: 'users-verify-email-change', props: { name, url } },
   }
 }
 
@@ -21,6 +22,7 @@ export function buildEmailChangedNotification({ to, name, newEmail, revertUrl }:
     body: `<p>Hi ${escapeHtml(name)},</p><p>The email address on your account was changed to <strong>${escapeHtml(newEmail)}</strong>.`
       + ` If this wasn't you, undo it within 7 days:</p>${link(revertUrl)}`,
     text: `Hi ${name},\n\nThe email address on your account was changed to ${newEmail}. If this wasn't you, undo it within 7 days: ${revertUrl}`,
+    template: { name: 'users-email-changed', props: { name, newEmail, url: revertUrl } },
   }
 }
 
@@ -30,5 +32,6 @@ export function buildPasswordChangedNotification({ to, name }: { to: string, nam
     subject: 'Your password was changed',
     body: `<p>Hi ${escapeHtml(name)},</p><p>The password on your account was just changed. If this wasn't you, reset it right away.</p>`,
     text: `Hi ${name},\n\nThe password on your account was just changed. If this wasn't you, reset it right away.`,
+    template: { name: 'users-password-changed', props: { name } },
   }
 }

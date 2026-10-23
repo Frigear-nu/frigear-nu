@@ -1,0 +1,93 @@
+{
+  "name": "@frigear-nu/email-templates",
+  "version": "0.1.0",
+  "description": "Vue email templates for @frigear-nu/notify, rendered with nuxt-email-renderer: typed sendEmailTemplate for hosts, module-owned templates hosts can override.",
+  "homepage": "https://docs.frigear.dev/modules/email-templates",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/email-templates"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./components": {
+      "types": "./src/runtime/components/index.ts",
+      "import": "./src/runtime/components/index.ts",
+      "default": "./src/runtime/components/index.ts"
+    },
+    "./types": "./src/types.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./components": {
+        "types": "./dist/runtime/components/index.d.ts",
+        "import": "./dist/runtime/components/index.js",
+        "default": "./dist/runtime/components/index.js"
+      },
+      "./types": {
+        "types": "./dist/types.d.mts"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
+    "@nuxt/kit": "catalog:",
+    "defu": "^6.1.7",
+    "nuxt-email-renderer": "^2.11.2"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@types/node": "catalog:",
+    "changelogen": "^0.6.2",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

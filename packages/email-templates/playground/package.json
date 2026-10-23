@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name": "@frigear-nu/email-templates-playground",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "@frigear-nu/email-templates": "workspace:*",
+    "@frigear-nu/notify": "workspace:*",
+    "nuxt": "catalog:"
+  }
+}
