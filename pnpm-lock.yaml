@@ -275,6 +275,9 @@ importers:
       '@frigear-nu/cookie-consent':
         specifier: workspace:*
         version: link:../../packages/cookie-consent
+      '@frigear-nu/email-templates':
+        specifier: workspace:*
+        version: link:../../packages/email-templates
       '@frigear-nu/events':
         specifier: workspace:*
         version: link:../../packages/events

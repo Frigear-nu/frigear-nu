@@ -23,6 +23,7 @@
     "@frigear-nu/authorization": "workspace:*",
     "@frigear-nu/base": "workspace:*",
     "@frigear-nu/cookie-consent": "workspace:*",
+    "@frigear-nu/email-templates": "workspace:*",
     "@frigear-nu/events": "workspace:*",
     "@frigear-nu/forms": "workspace:*",
     "@frigear-nu/menu": "workspace:*",
