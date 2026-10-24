@@ -23,6 +23,7 @@ export default defineNuxtConfig({
     '@frigear-nu/admin',
     '@frigear-nu/account',
     '@frigear-nu/notify',
+    '@frigear-nu/email-templates',
     '@frigear-nu/stripe',
     '@frigear-nu/subscriptions',
     '@frigear-nu/payments',
@@ -244,6 +245,13 @@ export default defineNuxtConfig({
   },
   cookieConsent: {
     policyUrl: '/legal/gdpr',
+  },
+  // Renders module emails (auth, users, subscriptions) from their Vue templates; without it notify sends plain HTML.
+  emailTemplates: {
+    brandName: 'Frigear.nu',
+    logoUrl: '/logo.png',
+    // Mail clients need an absolute logo URL, so local dev borrows the production one.
+    siteUrl: `https://${process.env.DEPLOYMENT_HOST || 'frigear.nu'}`,
   },
   eslint: {
     config: {
