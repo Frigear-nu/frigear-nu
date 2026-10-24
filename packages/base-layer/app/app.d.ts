@@ -8,6 +8,10 @@ declare module 'nuxt/schema' {
         mobile?: boolean
       }
     }
+    seo?: {
+      /** Emit hreflang alternates and `og:locale:alternate` on multi-locale sites (default `true`). */
+      localeAlternates?: boolean
+    }
     socials?: Record<string, string>
     github?: {
       url?: string
@@ -22,6 +26,10 @@ declare module 'nuxt/schema' {
         desktop?: boolean
         mobile?: boolean
       }
+    }
+    seo?: {
+      /** Emit hreflang alternates and `og:locale:alternate` on multi-locale sites (default `true`). */
+      localeAlternates?: boolean
     }
     socials?: Record<string, string>
     github?: {
