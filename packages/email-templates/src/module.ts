@@ -77,6 +77,10 @@ export default defineNuxtModule<ModuleOptions>({
         // Published modules ship their templates inside node_modules: bundle them so the Vue plugin compiles them.
         nitroConfig.externals ||= {}
         nitroConfig.externals.inline = [...(nitroConfig.externals.inline ?? []), ...moduleDirs]
+        // In dev the renderer mounts its templates directory as `fs` storage even when the host has none,
+        // and unstorage refuses an `fs` driver without a base. Hosts that only use module templates hit it.
+        const emailsStorage = nitroConfig.devStorage?.emails
+        if (emailsStorage && emailsStorage.driver === 'fs' && !emailsStorage.base) delete nitroConfig.devStorage!.emails
       })
     })
 
