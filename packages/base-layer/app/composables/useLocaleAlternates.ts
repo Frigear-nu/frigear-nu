@@ -1,4 +1,6 @@
-import { parseURL, stringifyParsedURL } from 'ufo'
+import { hasProtocol, parseURL, stringifyParsedURL } from 'ufo'
+
+let warnedMissingSiteUrl = false
 
 /**
  * Adds the i18n language alternates to the head of every page: a
@@ -11,7 +13,8 @@ import { parseURL, stringifyParsedURL } from 'ufo'
  * nuxt-seo-utils uses for the canonical, so both share `site.url`.
  *
  * Emits nothing on single-locale sites or when the app config sets
- * `seo.localeAlternates: false`.
+ * `seo.localeAlternates: false`. Without a `site.url` the hrefs would be
+ * relative, which search engines ignore, so the links are skipped instead.
  */
 export const useLocaleAlternates = () => {
   const appConfig = useAppConfig()
@@ -34,7 +37,7 @@ export const useLocaleAlternates = () => {
   useHead({
     link: () => {
       if (!enabled.value) return []
-      return (localeHead.value.link ?? [])
+      const links = (localeHead.value.link ?? [])
         .flatMap(link => (link.rel === 'alternate' && 'hreflang' in link && link.hreflang && link.href)
           ? [{
               key: `locale-alternate-${link.hreflang}`,
@@ -43,6 +46,14 @@ export const useLocaleAlternates = () => {
               href: toAbsolute(link.href),
             }]
           : [])
+      if (links.some(link => !hasProtocol(link.href))) {
+        if ((import.meta.dev || import.meta.prerender) && !warnedMissingSiteUrl) {
+          warnedMissingSiteUrl = true
+          console.warn('[@frigear-nu/base] hreflang alternates need an absolute `site.url`; set it (at build time for prerendered routes). Skipping them.')
+        }
+        return []
+      }
+      return links
     },
     meta: () => {
       if (!enabled.value) return []

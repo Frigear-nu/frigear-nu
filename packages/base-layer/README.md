@@ -84,7 +84,8 @@ With more than one i18n locale, every page gets `<link rel="alternate" hreflang>
   `og:url`, `og:locale` and `<html lang>` stay with `nuxt-seo-utils`.
 - Each locale's `language` (BCP 47) decides its hreflang; a locale without one gets no alternate. Include a region
   (`da-DK`, `en-GB`) for `og:locale:alternate`, which leaves out bare languages such as `en`.
-- Hrefs are absolute, built from `site.url` like the canonical.
+- Hrefs are absolute, built from `site.url` like the canonical. Without a `site.url` the links are skipped (with a
+  warning in dev and during prerender); prerendered routes need `site.url` at build time.
 - Opt out with `seo: { localeAlternates: false }` in `app.config.ts`, for apps that write their own hreflang tags or
   enable i18n's `experimental.strictSeo`.
 
