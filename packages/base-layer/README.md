@@ -75,6 +75,20 @@ localized/non-localized setup, see the [Base Layer docs](../../apps/docs/content
 
 Page front matter also accepts `container: true`, which wraps the rendered body in a `UContainer` (use it for plain prose pages such as legal; pages built from `u-page-*` sections manage their own containers). It also accepts `seo: { title, description, image, noindex }`, and `config.yaml` accepts `seo: { titleTemplate, description, image }`; the layer ships no SEO defaults, see the docs.
 
+## Languages and hreflang
+
+With more than one i18n locale, every page gets `<link rel="alternate" hreflang>` tags for each locale plus
+`x-default`, and `og:locale:alternate` for the other locales (`useLocaleAlternates()`, called from `app.vue`).
+
+- The alternates come from the app's `i18n.locales`, through `@nuxtjs/i18n`'s `useLocaleHead()`. The canonical,
+  `og:url`, `og:locale` and `<html lang>` stay with `nuxt-seo-utils`.
+- Each locale's `language` (BCP 47) decides its hreflang; a locale without one gets no alternate. Include a region
+  (`da-DK`, `en-GB`) for `og:locale:alternate`, which leaves out bare languages such as `en`.
+- Hrefs are absolute like the canonical: from `site.url` when set, otherwise from the request origin. Prerendered
+  routes need `site.url` at build time; without it their alternate links are skipped with a warning.
+- Opt out with `seo: { localeAlternates: false }` in `app.config.ts`, for apps that write their own hreflang tags or
+  enable i18n's `experimental.strictSeo`.
+
 ## Notes
 
 - This package is a shared workspace dependency and is linked via `workspace:*` from apps.

@@ -2,6 +2,11 @@
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 import { contactForm } from './forms/contact'
 
+// The public URL, when the build knows it: the deployment host or an explicit NUXT_SITE_URL. Otherwise (PR previews,
+// local builds) `site.url` stays unset and canonical and hreflang URLs come from the request origin.
+const knownSiteUrl = process.env.NUXT_SITE_URL
+  || (process.env.DEPLOYMENT_HOST ? `https://${process.env.DEPLOYMENT_HOST}` : undefined)
+
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
   modules: [
@@ -83,7 +88,7 @@ export default defineNuxtConfig({
   // Only the production custom domain is indexable: PR previews and *.workers.dev hosts are `noindex`/Disallow: /.
   site: {
     name: 'Frigear.nu',
-    ...(process.env.DEPLOYMENT_HOST && { url: `https://${process.env.DEPLOYMENT_HOST}` }),
+    ...(knownSiteUrl && { url: knownSiteUrl }),
     indexable: !!process.env.DEPLOYMENT_HOST
       && !process.env.DEPLOYMENT_HOST.endsWith('.workers.dev')
       && !process.env.PR_NUMBER,
@@ -110,7 +115,8 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/': { prerender: true },
+    // A prerendered page has no request to take its URL from, so only prerender when the site URL is known.
+    '/': { prerender: !!knownSiteUrl },
   },
 
   compatibilityDate: '2026-06-30',
@@ -282,8 +288,8 @@ export default defineNuxtConfig({
   i18n: {
     defaultLocale: 'da',
     locales: [
-      { code: 'da', name: 'Dansk', file: 'da.json' },
-      { code: 'en', name: 'English', file: 'en.json' },
+      { code: 'da', language: 'da-DK', name: 'Dansk', file: 'da.json' },
+      { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
     ],
   },
   notify: {

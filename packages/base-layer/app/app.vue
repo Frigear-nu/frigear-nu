@@ -9,6 +9,7 @@ useHead({
 })
 
 usePageSeo()
+useLocaleAlternates()
 </script>
 
 <template>
