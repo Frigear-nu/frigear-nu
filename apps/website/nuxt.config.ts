@@ -2,6 +2,11 @@
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 import { contactForm } from './forms/contact'
 
+// The public URL, when the build knows it: the deployment host or an explicit NUXT_SITE_URL. Otherwise (PR previews,
+// local builds) `site.url` stays unset and canonical and hreflang URLs come from the request origin.
+const knownSiteUrl = process.env.NUXT_SITE_URL
+  || (process.env.DEPLOYMENT_HOST ? `https://${process.env.DEPLOYMENT_HOST}` : undefined)
+
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
   modules: [
@@ -83,9 +88,7 @@ export default defineNuxtConfig({
   // Only the production custom domain is indexable: PR previews and *.workers.dev hosts are `noindex`/Disallow: /.
   site: {
     name: 'Frigear.nu',
-    // Always set so prerendered pages (`/`) get absolute canonical and hreflang URLs. PR previews pass their own
-    // URL as NUXT_SITE_URL (see deploy-website.yml) without setting DEPLOYMENT_HOST.
-    url: process.env.NUXT_SITE_URL || `https://${process.env.DEPLOYMENT_HOST || 'frigear.nu'}`,
+    ...(knownSiteUrl && { url: knownSiteUrl }),
     indexable: !!process.env.DEPLOYMENT_HOST
       && !process.env.DEPLOYMENT_HOST.endsWith('.workers.dev')
       && !process.env.PR_NUMBER,
@@ -112,7 +115,8 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/': { prerender: true },
+    // A prerendered page has no request to take its URL from, so only prerender when the site URL is known.
+    '/': { prerender: !!knownSiteUrl },
   },
 
   compatibilityDate: '2026-06-30',

@@ -13,8 +13,9 @@ let warnedMissingSiteUrl = false
  * nuxt-seo-utils uses for the canonical, so both share `site.url`.
  *
  * Emits nothing on single-locale sites or when the app config sets
- * `seo.localeAlternates: false`. Without a `site.url` the hrefs would be
- * relative, which search engines ignore, so the links are skipped instead.
+ * `seo.localeAlternates: false`. Without a `site.url` the resolver falls
+ * back to the request origin; a prerender has neither, and relative hrefs are
+ * ignored by search engines, so the links are skipped instead.
  */
 export const useLocaleAlternates = () => {
   const appConfig = useAppConfig()
