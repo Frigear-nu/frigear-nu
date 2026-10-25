@@ -83,9 +83,9 @@ export default defineNuxtConfig({
   // Only the production custom domain is indexable: PR previews and *.workers.dev hosts are `noindex`/Disallow: /.
   site: {
     name: 'Frigear.nu',
-    // Always set so prerendered pages (`/`) get absolute canonical and hreflang URLs; previews without a host
-    // point at production, which is fine because they are not indexable.
-    url: `https://${process.env.DEPLOYMENT_HOST || 'frigear.nu'}`,
+    // Always set so prerendered pages (`/`) get absolute canonical and hreflang URLs. PR previews pass their own
+    // URL as NUXT_SITE_URL (see deploy-website.yml) without setting DEPLOYMENT_HOST.
+    url: process.env.NUXT_SITE_URL || `https://${process.env.DEPLOYMENT_HOST || 'frigear.nu'}`,
     indexable: !!process.env.DEPLOYMENT_HOST
       && !process.env.DEPLOYMENT_HOST.endsWith('.workers.dev')
       && !process.env.PR_NUMBER,
