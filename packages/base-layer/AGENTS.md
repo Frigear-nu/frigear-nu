@@ -13,7 +13,7 @@ This package should stay framework- and app-agnostic enough to serve both websit
 
 ## Versioning and tooling
 
-- Node.js: `24.21.0`
+- Node.js: `24.22.1`
 - PNPM: `11.24.0`
 - Monorepo manager: pnpm workspaces (`pnpm-workspace.yaml`)
 
