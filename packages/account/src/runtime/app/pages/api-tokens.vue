@@ -14,8 +14,10 @@ const { copy } = useCopyToClipboard()
 const overlay = useOverlay()
 const createSlideover = overlay.create(AccountApiTokenSlideover, { destroyOnClose: true })
 
-const { data: tokens, refresh, status } = await useFetch<ApiToken[]>('/api/auth/tokens', { key: 'account-api-tokens', default: () => [] })
-const { data: scopes } = await useFetch<ApiTokenScope[]>('/api/auth/scopes', { key: 'account-api-token-scopes', default: () => [] })
+// Revisits reuse the last response (`refresh()` after create/revoke always asks the server); the scope catalogue only
+// changes with a deploy, so it is reused until the page is reloaded.
+const { data: tokens, refresh, status } = await useCachedFetch<ApiToken[]>('/api/auth/tokens', { key: 'account-api-tokens', ttl: 60_000 })
+const { data: scopes } = await useCachedFetch<ApiTokenScope[]>('/api/auth/scopes', { key: 'account-api-token-scopes' })
 
 // The plaintext token exists only in the response to the create call; it is shown once, then dropped.
 const revealed = ref<{ name: string, token: string } | null>(null)
