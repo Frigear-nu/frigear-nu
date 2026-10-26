@@ -222,4 +222,39 @@ describe('auth tokens', async () => {
     await call('PATCH', '/api/test/user', { body: { id: 2, remove: true } })
     expect((await call('GET', '/api/test/me', { bearer: token })).status).toBe(401)
   })
+
+  describe('GET /api/_bootstrap', () => {
+    it('requires a signed-in caller', async () => {
+      const anonymous = await call('GET', '/api/_bootstrap?scope=account')
+      expect(anonymous.status).toBe(401)
+    })
+
+    it('returns every provider of the scope in one response and leaves a failing one out', async () => {
+      const response = await call('GET', '/api/_bootstrap?scope=account', { cookie: ada })
+      expect(response.status, await response.clone().text()).toBe(200)
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+      expect(await response.json()).toEqual({
+        'test:profile': { id: 1, name: 'Ada' },
+        'test:events': [{ id: 'e1', owner: 1 }],
+      })
+    })
+
+    it('keeps scopes apart', async () => {
+      const response = await call('GET', '/api/_bootstrap?scope=admin', { cookie: ada })
+      expect(await response.json()).toEqual({ 'test:admin': { id: 1, name: 'Ada' } })
+    })
+
+    it('leaves out what a token may not read', async () => {
+      const { token } = await createToken(ada, { scopes: ['events:write'] })
+      const response = await call('GET', '/api/_bootstrap?scope=account', { bearer: token })
+      expect(response.status, await response.clone().text()).toBe(200)
+      expect(await response.json()).toEqual({ 'test:profile': { id: 1, name: 'Ada' } })
+    })
+
+    it('rejects a missing or unknown scope', async () => {
+      expect((await call('GET', '/api/_bootstrap', { cookie: ada })).status).toBe(400)
+      expect((await call('GET', '/api/_bootstrap?scope=nope', { cookie: ada })).status).toBe(404)
+      expect((await call('GET', '/api/_bootstrap?scope=constructor', { cookie: ada })).status).toBe(404)
+    })
+  })
 })
