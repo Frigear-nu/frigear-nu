@@ -245,6 +245,9 @@ live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules
   `RowMenu` order: Open, edits, then the destructive action in its own red group. No loose icon buttons in rows.
 - **Destructive actions confirm** with `useConfirmDialog({ destructive: true })` and say what else is affected; never
   `window.confirm`.
+- **Loading.** Pages `await` their data (`useCachedFetch` for data that should survive navigation); `useLazyFetch`
+  only in widgets. Never render an empty, "join" or "not a member" state while `status` is `'pending'` or after an
+  error: show a skeleton (`SectionCard`/`ListCard`/`TableCard :loading`) or the error instead.
 - **Feedback** is a toast with a title and the record name; errors go through `useErrorToast` / `errorToToast`, busy
   state through `useAction`. Pass context through the URL (deep links), not state hand-offs.
 - **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the

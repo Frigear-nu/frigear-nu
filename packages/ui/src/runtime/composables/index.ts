@@ -1,4 +1,5 @@
 export * from './useAction.ts'
+export * from './useCachedFetch.ts'
 export * from './useConfirmDialog.ts'
 export * from './useCopyToClipboard.ts'
 export * from './useErrorToast.ts'
