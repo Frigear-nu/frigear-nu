@@ -32,6 +32,11 @@ function isEntitled(item: UserSubscription) {
   return !(item.source === 'manual' && item.currentPeriodEnd && new Date(item.currentPeriodEnd).getTime() <= Date.now())
 }
 
+/**
+ * The signed-in user's subscription and the checkout / billing-portal actions. Awaitable: `await useSubscription()` in
+ * a page renders the subscription on the server; components and widgets can use it without `await` and show a
+ * placeholder while `loading`.
+ */
 export const useSubscription = () => {
   const { loggedIn } = useUserSession()
   const t = useModuleT('subscriptions')
@@ -40,12 +45,13 @@ export const useSubscription = () => {
 
   // `useCachedFetch` keeps the response across navigation (Nuxt drops `useFetch` data once the last component using
   // the key unmounts) and reuses it for a minute; `refresh()` (after checkout, sign-in) always asks the server.
-  const { data, status, error: loadError, loading, refresh, clear } = useCachedFetch<MeResponse>('/api/subscriptions/me', {
+  const fetched = useCachedFetch<MeResponse>('/api/subscriptions/me', {
     key: ME_KEY,
     ttl: CLIENT_CACHE_MS,
     immediate: loggedIn.value,
     watch: false,
   })
+  const { data, status, error: loadError, loading, refresh, clear } = fetched
 
   watch(loggedIn, (value) => {
     if (value) refresh()
@@ -117,5 +123,6 @@ export const useSubscription = () => {
     }, t('errors.portal', 'Failed to open the billing portal.'))
   }
 
-  return { subscription, plan, status, loading, loadError, isActive, cancelsAt, has, pending, error, refresh, subscribe, openPortal }
+  const api = { subscription, plan, status, loading, loadError, isActive, cancelsAt, has, pending, error, refresh, subscribe, openPortal }
+  return Object.assign(fetched.then(() => api), api)
 }

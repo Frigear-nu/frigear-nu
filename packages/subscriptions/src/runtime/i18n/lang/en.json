@@ -56,7 +56,9 @@
       "free": "Free membership",
       "freeUntil": "Free membership until {date}",
       "heroTitle": "Join the team today",
-      "heroDescription": "Set up your membership to get started!"
+      "heroDescription": "Set up your membership to get started!",
+      "loadFailed": "Your membership could not be loaded",
+      "tryAgain": "Try again"
     },
     "success": {
       "title": "Thank you!",

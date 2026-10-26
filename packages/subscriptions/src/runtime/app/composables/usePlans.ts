@@ -26,16 +26,19 @@ export const PLANS_CLIENT_CACHE_MS = 5 * 60 * 1000
 /** The `useCachedFetch` key of the plans; `warm-plans.client.ts` primes it. */
 export const PLANS_KEY = 'subscriptions:plans'
 
+/** The plans, sorted by rank. Awaitable, like `useSubscription`. */
 export const usePlans = () => {
   // `useCachedFetch` keeps the plans across navigation, so going back to the pricing table does not blank it.
-  const { data, status, error, loading, refresh } = useCachedFetch<PlansResponse>('/api/subscriptions/plans', {
+  const fetched = useCachedFetch<PlansResponse>('/api/subscriptions/plans', {
     key: PLANS_KEY,
     ttl: PLANS_CLIENT_CACHE_MS,
   })
+  const { data, status, error, loading, refresh } = fetched
 
   const plans = computed<SubscriptionPlan[]>(() =>
     [...(data.value?.plans ?? [])].sort((a, b) => a.rank - b.rank),
   )
 
-  return { plans, status, error, loading, refresh }
+  const api = { plans, status, error, loading, refresh }
+  return Object.assign(fetched.then(() => api), api)
 }

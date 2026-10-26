@@ -13,7 +13,7 @@ const t = useModuleT('subscriptions.status')
 const tp = useModuleT('subscriptions.catalog')
 const format = useFormat()
 const { plans } = usePlans()
-const { subscription, plan, status, isActive, cancelsAt, pending, error, subscribe, openPortal } = useSubscription()
+const { subscription, plan, isActive, cancelsAt, loading, pending, error, subscribe, openPortal } = useSubscription()
 
 const planLabel = computed(() => {
   const found = plans.value.find(p => p.key === plan.value)
@@ -61,7 +61,7 @@ const manage = () => openPortal().catch(() => undefined)
     </template>
 
     <slot
-      v-if="status === 'pending' && !subscription"
+      v-if="loading"
       name="loading"
     >
       <p class="text-muted text-sm">

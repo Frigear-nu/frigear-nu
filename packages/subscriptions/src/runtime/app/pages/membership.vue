@@ -7,13 +7,28 @@ defineOptions({ name: 'SubscriptionMembershipPage' })
 
 // No container or page heading: under `/account/**` the `account` layout provides both.
 const t = useModuleT('subscriptions')
-const { isActive, cancelsAt } = useSubscription()
+// Awaited, so the server renders the right state; on client navigation the remembered subscription shows at once.
+const { isActive, cancelsAt, loading, loadError, refresh } = await useSubscription()
 const { loggedIn } = useUserSession()
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <SubscriptionStatus v-if="isActive" />
+    <!-- Until the subscription is known, a placeholder the size of the status card: never the "join" hero. -->
+    <SectionCard
+      v-if="loading"
+      :title="t('status.title', 'Your subscription')"
+      icon="i-lucide-credit-card"
+      loading
+    />
+    <SubscriptionStatus v-else-if="isActive" />
+    <UEmpty
+      v-else-if="loadError"
+      icon="i-lucide-circle-alert"
+      :title="t('status.loadFailed', 'Your membership could not be loaded')"
+      :description="errorMessage(loadError)"
+      :actions="[{ label: t('status.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
     <div
       v-else-if="loggedIn"
       class="flex flex-col gap-1"

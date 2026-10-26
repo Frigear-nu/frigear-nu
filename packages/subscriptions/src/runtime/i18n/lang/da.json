@@ -56,7 +56,9 @@
       "free": "Gratis medlemskab",
       "freeUntil": "Gratis medlemskab til {date}",
       "heroTitle": "Bliv en del af holdet i dag",
-      "heroDescription": "Opret dit medlemskab for at komme i gang!"
+      "heroDescription": "Opret dit medlemskab for at komme i gang!",
+      "loadFailed": "Dit medlemskab kunne ikke indlæses",
+      "tryAgain": "Prøv igen"
     },
     "success": {
       "title": "Tak!",
