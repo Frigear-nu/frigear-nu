@@ -45,6 +45,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "confirm": "Confirm",
+    "sections": "Sections",
     "breadcrumb": "Breadcrumb",
     "sortBy": "Sort by {column}",
     "sortedAsc": "Sort by {column}, now ascending",

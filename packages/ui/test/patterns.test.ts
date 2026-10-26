@@ -39,6 +39,11 @@ describe('page patterns', async () => {
     expect(other).not.toContain('aria-current')
   })
 
+  it('names the section switcher after its current section', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('aria-label="Event sections: Overview"')
+  })
+
   it('renders the identity cell with its second line', async () => {
     const html = await $fetch<string>('/table')
     expect(html).toContain('Ada Lovelace')
