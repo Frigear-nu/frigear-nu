@@ -19,6 +19,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  defineBootstrapRegistry,
 } from '@frigear-nu/module-kit/utils'
 import {
   OAUTH_PROVIDERS,
@@ -255,6 +256,11 @@ export {}
     ] as const) {
       addServerHandler({ route: moduleApiUrl('auth', path), method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
     }
+
+    // One request for an area's user-scoped data (`GET /api/_bootstrap?scope=account`): it authenticates once and
+    // runs every provider modules registered with `registerBootstrapProvider` for that scope.
+    defineBootstrapRegistry(nuxt)
+    addServerHandler({ route: '/api/_bootstrap', method: 'get', handler: resolver.resolve('./runtime/server/routes/bootstrap.get') })
 
     // --- Sign-in flows ----------------------------------------------------------------------------
     const route = (path: string, file: string, method?: 'get' | 'post' | 'delete') => addServerHandler({
