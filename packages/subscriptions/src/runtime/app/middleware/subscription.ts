@@ -9,12 +9,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const target = meta?.redirectTo ?? config?.pages?.membership
   if (!target || to.path === target) return
 
-  const { loggedIn } = useUserSession()
-  let activePlan: string | null = null
-  if (loggedIn.value) {
-    const me = await useRequestFetch()<{ activePlan: string | null }>('/api/subscriptions/me').catch(() => null)
-    activePlan = me?.activePlan ?? null
-  }
+  // The same cached response the pages read, so guarding a route costs no extra request (and none at all when the
+  // visitor is signed out, or when the page already loaded it on the server and hydration seeded the cache).
+  const { plan } = await useSubscription()
+  const activePlan = plan.value
 
   const allowed = activePlan !== null && (!meta?.plans?.length || meta.plans.includes(activePlan))
   if (!allowed) return navigateTo({ path: target, query: { redirect: to.fullPath } })
