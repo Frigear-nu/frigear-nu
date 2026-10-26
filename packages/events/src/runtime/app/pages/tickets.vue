@@ -26,7 +26,7 @@ const links = useEventLinks()
       v-else-if="error && !tickets.length"
       icon="i-lucide-circle-alert"
       :title="t('ticketsLoadFailed', 'Your tickets could not be loaded')"
-      :description="errorMessage(error)"
+      :description="errorMessage(error, '')"
       :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
     <UEmpty

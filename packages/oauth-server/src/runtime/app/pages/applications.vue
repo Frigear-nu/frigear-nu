@@ -24,7 +24,7 @@ const { applications, loading, error, refresh } = await useMyApplications()
       v-else-if="error && !applications.length"
       icon="i-lucide-circle-alert"
       :title="t('applications.loadFailed', 'Your applications could not be loaded')"
-      :description="errorMessage(error)"
+      :description="errorMessage(error, '')"
       :actions="[{ label: t('applications.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
     <UEmpty

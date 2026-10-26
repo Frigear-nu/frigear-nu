@@ -26,7 +26,7 @@ const { loggedIn } = useUserSession()
       v-else-if="loadError"
       icon="i-lucide-circle-alert"
       :title="t('status.loadFailed', 'Your membership could not be loaded')"
-      :description="errorMessage(loadError)"
+      :description="errorMessage(loadError, '')"
       :actions="[{ label: t('status.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
     <div
