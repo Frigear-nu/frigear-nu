@@ -1,4 +1,5 @@
 export * from './useAction.ts'
+export * from './useBootstrap.ts'
 export * from './useCachedFetch.ts'
 export * from './useConfirmDialog.ts'
 export * from './useCopyToClipboard.ts'
