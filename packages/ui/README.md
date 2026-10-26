@@ -12,6 +12,7 @@ English fallbacks; every one of them can be overridden by a prop.
 | Component | Use |
 |---|---|
 | `PageHeading` | Title block of an app page: breadcrumb (array) or eyebrow line (string), `#badge`, description, meta row, `#actions` |
+| `PageSectionSwitcher` | Full-width button naming the current section, with a menu of all sections (mobile section navigation) |
 | `PageTabs` | Tabs under a heading: links (`to`, route decides) or state (`v-model` + `value`) |
 | `SectionCard` | A titled card for one section (form, key facts); `flush` for tables and lists |
 | `TableCard` | The surface a `UTable` sits in (`:ui="tableUi()"`), with `#header` and `#footer` (total, pagination) |
