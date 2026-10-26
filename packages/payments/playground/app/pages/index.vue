@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { payments } = usePayments()
+const { payments } = await usePayments()
 </script>
 
 <template>

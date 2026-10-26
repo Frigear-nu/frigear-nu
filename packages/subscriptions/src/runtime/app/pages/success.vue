@@ -4,7 +4,9 @@ import { useSubscription } from '../composables/useSubscription'
 defineOptions({ name: 'SubscriptionSuccessPage' })
 
 const t = useModuleT('subscriptions.success')
-const { refresh, isActive } = useSubscription()
+// Awaited, so the server already knows whether the subscription is active and the first render is never the wrong
+// state; the polling below only covers the webhook landing after the redirect.
+const { refresh, isActive } = await useSubscription()
 const { localize } = useLocaleLink()
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
 

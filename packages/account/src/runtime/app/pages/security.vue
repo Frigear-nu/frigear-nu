@@ -47,24 +47,24 @@ async function onSubmitPassword(event: FormSubmitEvent<PasswordSchema>) {
 // --- Passkeys --------------------------------------------------------------------------------------------------
 interface Passkey { id: string, name: string | null, createdAt: string | Date }
 
-const passkeyList = ref<Passkey[]>([])
 const passkeyName = ref('')
 const passkeyPending = ref(false)
-const passkeysLoading = ref(false)
 
-async function loadPasskeys() {
-  if (!passkeys) return
-  passkeysLoading.value = true
-  try {
-    passkeyList.value = await passkeys.listPasskeys()
-  }
-  catch (e) {
-    showError(e, t('passkeys.loadError', 'Could not load your passkeys.'))
-  }
-  finally {
-    passkeysLoading.value = false
-  }
-}
+// Loaded on the server (awaited), so the card renders with the list instead of "no passkeys" until the client
+// catches up. Keyed by user so another account on the same browser never sees a remembered list; it is refetched on
+// every visit (`ttl: 0`) while the remembered one stays on screen. Nothing is requested when WebAuthn is off.
+const {
+  data: passkeyData,
+  error: passkeysError,
+  loading: passkeysLoading,
+  refresh: loadPasskeys,
+} = await useCachedFetch<Passkey[]>('/api/auth/webauthn/credentials', {
+  key: () => `account:passkeys:${user.value?.id ?? 'anonymous'}`,
+  ttl: 0,
+  immediate: webAuthnEnabled,
+  watch: false,
+})
+const passkeyList = computed(() => passkeyData.value ?? [])
 
 async function onRegisterPasskey() {
   passkeyPending.value = true
@@ -108,8 +108,6 @@ async function onRemovePasskey(passkey: Passkey) {
 const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
   { label: t('passkeys.remove', 'Remove passkey'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => onRemovePasskey(passkey) },
 ]]
-
-onMounted(loadPasskeys)
 </script>
 
 <template>
@@ -178,7 +176,7 @@ onMounted(loadPasskeys)
       v-if="passkeys?.isEnabled.value"
       :title="t('passkeys.title', 'Passkeys')"
       :description="t('passkeys.description', 'Sign in with your fingerprint, face or device PIN instead of a password.')"
-      :loading="passkeysLoading && !passkeyList.length"
+      :loading="passkeysLoading"
       flush
     >
       <ul
@@ -210,6 +208,14 @@ onMounted(loadPasskeys)
           />
         </li>
       </ul>
+      <UEmpty
+        v-else-if="passkeysError"
+        variant="naked"
+        icon="i-lucide-circle-alert"
+        :title="t('passkeys.loadError', 'Could not load your passkeys.')"
+        :description="errorMessage(passkeysError, '')"
+        :actions="[{ label: t('passkeys.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => loadPasskeys() }]"
+      />
       <UEmpty
         v-else
         variant="naked"

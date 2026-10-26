@@ -91,7 +91,9 @@
       "open": "Open",
       "openApplication": "Open {name}",
       "emptyTitle": "No applications yet",
-      "emptyDescription": "There are no applications you can sign in to yet."
+      "emptyDescription": "There are no applications you can sign in to yet.",
+      "loadFailed": "Your applications could not be loaded",
+      "tryAgain": "Try again"
     },
     "authorize": {
       "title": "Sign in to {name}",

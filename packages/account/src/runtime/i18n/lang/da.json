@@ -130,7 +130,8 @@
         "registerError": "Kunne ikke registrere passkey.",
         "removed": "Passkey fjernet.",
         "removeError": "Kunne ikke fjerne passkey.",
-        "loadError": "Kunne ikke hente dine passkeys."
+        "loadError": "Kunne ikke hente dine passkeys.",
+        "tryAgain": "Prøv igen"
       }
     },
     "signedInAs": "Logget ind som",

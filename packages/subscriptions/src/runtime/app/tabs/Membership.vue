@@ -16,11 +16,13 @@ const format = useFormat()
 const UBadge = resolveComponent('UBadge')
 
 // Lazy: both requests of this tab (this one and the membership panel's) start immediately and in parallel.
-const { data: history, refresh: refreshHistory, status } = useLazyFetch<MeResponse>(
+const { data: history, refresh: refreshHistory, status, error } = useLazyFetch<MeResponse>(
   () => `/api/admin/users/${props.user.id}/subscriptions`,
   { key: () => `admin-subscriptions-${props.user.id}` },
 )
 
+// Only the first load blanks the table; a refresh keeps the rows on screen.
+const loading = computed(() => status.value === 'pending' && !history.value)
 const date = (value: string | null) => format.date(value) || '–'
 const columns = computed<TableColumn<Row>[]>(() => [
   { accessorKey: 'planKey', header: t('history.plan', 'Plan'), cell: ({ row }) => row.original.planKey ?? row.original.priceId },
@@ -49,15 +51,24 @@ async function changed() {
     <SectionCard
       :title="t('history.title', 'Subscription history')"
       flush
+      :loading="loading"
     >
       <UTable
         :data="history?.subscriptions ?? []"
         :columns="columns"
-        :loading="status === 'pending'"
+        :loading="status === 'pending' && !loading"
         :ui="tableUi({ tr: '' })"
       >
         <template #empty>
           <UEmpty
+            v-if="error"
+            variant="naked"
+            icon="i-lucide-circle-alert"
+            :title="t('history.loadFailed', 'The subscription history could not be loaded')"
+            :description="errorMessage(error, '')"
+          />
+          <UEmpty
+            v-else
             variant="naked"
             icon="i-lucide-badge-check"
             :title="t('history.empty', 'No subscriptions yet.')"

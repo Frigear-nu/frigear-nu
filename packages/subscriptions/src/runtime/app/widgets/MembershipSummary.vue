@@ -11,7 +11,7 @@ const tp = useModuleT('subscriptions.catalog')
 const format = useFormat()
 const { localize } = useLocaleLink()
 const { plans } = usePlans()
-const { subscription, plan, status, isActive, cancelsAt } = useSubscription()
+const { subscription, plan, isActive, cancelsAt, loading } = useSubscription()
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
 
 const planLabel = computed(() => {
@@ -33,7 +33,7 @@ const hint = computed(() => {
     :label="t('label', 'Membership')"
     icon="i-lucide-credit-card"
     :to="membership ? localize(membership) : undefined"
-    :loading="status === 'pending' && !subscription"
+    :loading="loading"
     :value="isActive ? planLabel : undefined"
     :hint="isActive ? hint : undefined"
     :empty="t('none', 'No active membership')"

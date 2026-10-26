@@ -229,6 +229,8 @@
     },
     "listDescription": "Find an event and get your ticket.",
     "noTicketsTitle": "No tickets yet",
+    "ticketsLoadFailed": "Your tickets could not be loaded",
+    "tryAgain": "Try again",
     "browseEvents": "Browse events"
   }
 }

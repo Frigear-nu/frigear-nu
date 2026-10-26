@@ -67,7 +67,14 @@ const keyMissing = computed(() => !captchaSiteKey(props.field))
         data-testid="captcha-secret-status"
       >
         <span class="text-muted">{{ t('captcha.secretStatus', 'Secret key') }}:</span>
-        <span :class="secrets.source === 'unset' ? 'text-warning' : 'text-success'">{{ secrets.statusLabel }}</span>
+        <USkeleton
+          v-if="secrets.loading"
+          class="h-5 w-32"
+        />
+        <span
+          v-else
+          :class="secrets.source === 'unset' ? 'text-warning' : 'text-success'"
+        >{{ secrets.statusLabel }}</span>
       </p>
       <UAlert
         v-if="secrets.secrets?.unreadable"

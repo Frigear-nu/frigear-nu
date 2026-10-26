@@ -27,8 +27,8 @@ const emit = defineEmits<{ select: [plan: SubscriptionPlan, price: SubscriptionP
 const t = useModuleT('subscriptions.plans')
 const tp = useModuleT('subscriptions.catalog')
 const ti = useModuleT('subscriptions.interval')
-const { plans: allPlans, status } = usePlans()
-const { plan: currentPlan, isActive, cancelsAt, pending, subscribe, error, status: subscriptionStatus } = useSubscription()
+const { plans: allPlans, loading: plansLoading } = usePlans()
+const { plan: currentPlan, isActive, cancelsAt, pending, subscribe, error, status: subscriptionStatus, loading: subscriptionLoading } = useSubscription()
 const { loggedIn } = useUserSession()
 const format = useFormat()
 const route = useRoute()
@@ -224,7 +224,7 @@ watch([visible, subscriptionStatus, loggedIn], () => {
               block
               size="lg"
               class="uppercase"
-              :loading="pending"
+              :loading="pending || (loggedIn && subscriptionLoading)"
               :disabled="stateOf(plan) === 'current' || !priceFor(plan)"
               :variant="stateOf(plan) === 'current' ? 'subtle' : 'solid'"
               :label="loggedIn ? stateLabel(stateOf(plan)) : t('subscribe', 'Subscribe')"
@@ -236,7 +236,7 @@ watch([visible, subscriptionStatus, loggedIn], () => {
     </DefineCard>
 
     <slot
-      v-if="status === 'pending' && !visible.length"
+      v-if="plansLoading && !visible.length"
       name="loading"
     >
       <p class="text-center text-sm text-muted">

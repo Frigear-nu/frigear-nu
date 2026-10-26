@@ -57,4 +57,19 @@ describe('page patterns', async () => {
     expect(html).toContain('1–3 of 3')
     expect(html.match(/Rows per page/g)).toHaveLength(1)
   })
+
+  it('useCachedFetch renders awaited data on the server, without copying it into the cache state', async () => {
+    const html = await $fetch<string>('/cached-fetch')
+    expect(html).toMatch(/<li[^>]*>\s*alpha\s*<\/li>/)
+    expect(html).not.toContain('Loading items')
+    expect(html).not.toContain('No items')
+    // Once in the markup and once in the payload (as `useFetch` data): the client-side cache starts empty.
+    expect(html.match(/alpha/g)).toHaveLength(2)
+  })
+
+  it('useCachedFetch renders a failed request as an error, not as an empty list', async () => {
+    const html = await $fetch<string>('/cached-fetch?fail=1')
+    expect(html).toContain('Failed: Forbidden')
+    expect(html).not.toContain('No items')
+  })
 })

@@ -91,7 +91,9 @@
       "open": "Åbn",
       "openApplication": "Åbn {name}",
       "emptyTitle": "Ingen applikationer endnu",
-      "emptyDescription": "Der er endnu ingen applikationer, du kan logge ind på."
+      "emptyDescription": "Der er endnu ingen applikationer, du kan logge ind på.",
+      "loadFailed": "Dine applikationer kunne ikke indlæses",
+      "tryAgain": "Prøv igen"
     },
     "authorize": {
       "title": "Log ind på {name}",

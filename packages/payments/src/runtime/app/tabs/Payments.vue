@@ -12,11 +12,13 @@ const t = useModuleT('payments.admin')
 const status = useModuleT('payments.status')
 const format = useFormat()
 
-const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
+// Lazy, so the tab shell renders at once. `loading` is only the first load: a refresh keeps the rows on screen.
+const { data: payments, status: fetchStatus, error } = useLazyFetch<PaymentDto[]>(
   () => `/api/admin/users/${props.user.id}/payments`,
   { key: () => `admin-payments-${props.user.id}` },
 )
 
+const loading = computed(() => fetchStatus.value === 'pending' && !payments.value)
 const statusLabel = (value: string) => status(value, value)
 const columns = computed<TableColumn<PaymentDto>[]>(() => [
   { accessorKey: 'createdAt', header: t('date', 'Date') },
@@ -29,7 +31,10 @@ const columns = computed<TableColumn<PaymentDto>[]>(() => [
 </script>
 
 <template>
-  <TableCard>
+  <TableCard
+    :loading="loading"
+    :refreshing="fetchStatus === 'pending' && !loading"
+  >
     <template #header>
       <h2 class="text-highlighted text-sm font-semibold">
         {{ t('title', 'Payments') }}
@@ -38,7 +43,6 @@ const columns = computed<TableColumn<PaymentDto>[]>(() => [
     <UTable
       :data="payments ?? []"
       :columns="columns"
-      :loading="fetchStatus === 'pending'"
       :ui="tableUi({ tr: '' })"
     >
       <template #createdAt-cell="{ row }">
@@ -65,6 +69,14 @@ const columns = computed<TableColumn<PaymentDto>[]>(() => [
       </template>
       <template #empty>
         <UEmpty
+          v-if="error"
+          icon="i-lucide-circle-alert"
+          variant="naked"
+          :title="t('loadFailed', 'The payments could not be loaded')"
+          :description="errorMessage(error, '')"
+        />
+        <UEmpty
+          v-else
           icon="i-lucide-credit-card"
           variant="naked"
           :title="t('empty', 'No payments yet')"

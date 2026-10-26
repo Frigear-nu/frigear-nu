@@ -119,8 +119,8 @@ Redirects to `redirectTo` (else the membership page) with `?redirect=<route>`; a
 
 ## Composables and components
 
-- `usePlans()` - `{ plans, status, error, refresh }`.
-- `useSubscription()` - `{ subscription, plan, status, isActive, cancelsAt, has(plan), pending, error, refresh, subscribe(planKeyOrPriceId, { successUrl?, cancelUrl? }), openPortal(returnUrl?) }`.
+- `usePlans()` - `{ plans, status, loading, error, refresh }`.
+- `useSubscription()` - `{ subscription, plan, status, loading, loadError, isActive, cancelsAt, has(plan), pending, error, refresh, subscribe(planKeyOrPriceId, { successUrl?, cancelUrl? }), openPortal(returnUrl?) }`.
 - `<SubscriptionPlans>` - props `locale`, `currency`, `interval`, `plans`, `confirmChange`; slots `loading`,
   `empty`, `header`, `badge`, `price`, `features`, `action`, `confirm`, `confirm-actions`.
 - `<SubscriptionStatus>` - props `locale`; slots `header`, `loading`, `empty`, `plan`, `badge`, `dates`, `actions`.

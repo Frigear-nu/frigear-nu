@@ -229,6 +229,8 @@
     },
     "listDescription": "Find et arrangement og få din billet.",
     "noTicketsTitle": "Ingen billetter endnu",
+    "ticketsLoadFailed": "Dine billetter kunne ikke indlæses",
+    "tryAgain": "Prøv igen",
     "browseEvents": "Se arrangementer"
   }
 }
