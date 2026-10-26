@@ -18,6 +18,8 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
   const url = computed(() => toValue(formId) ? `/api/forms/admin/forms/${toValue(formId)}/secrets` : undefined)
   const value = ref('')
   const saving = ref(false)
+  // True until the first load settled, so the status line shows a placeholder instead of a wrong "Not set".
+  const loading = ref(Boolean(toValue(formId)))
   const source = computed(() => captcha.value ? secrets.value?.captcha[captcha.value.provider]?.source : undefined)
   const statusLabel = computed(() => ({
     form: t('captcha.secretForm', 'Configured via form'),
@@ -26,12 +28,18 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
   })[source.value ?? 'unset'])
 
   async function load() {
-    if (!url.value) return
+    if (!url.value) {
+      loading.value = false
+      return
+    }
     try {
       secrets.value = await $fetch<FormSecretsDto>(url.value)
     }
     catch {
       secrets.value = undefined
+    }
+    finally {
+      loading.value = false
     }
   }
   onMounted(load)
@@ -73,6 +81,7 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
     /** What the admin is typing, not saved yet. */
     value,
     saving,
+    loading,
     source,
     statusLabel,
     setValue: (next: string) => {
