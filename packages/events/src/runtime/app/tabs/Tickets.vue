@@ -29,9 +29,15 @@ const typeColumns = computed<TableColumn<StaffTicketType>[]>(() => [
 // Membership rules are only offered when @frigear-nu/subscriptions is installed; the plans come from it.
 type Membership = 'any' | string[] | null
 
-const { data: membershipOptions } = useLazyFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', { default: () => ({ available: false, options: [] }) })
-const membershipEnabled = computed(() => membershipOptions.value.available)
-const plans = computed(() => membershipOptions.value.options.map(option => ({ label: option.label, value: option.value })))
+// Not awaited (the tab renders at once) and without a default: until the options are known `optionsLoading` is true and
+// the access column shows a placeholder where a rule is set, so labels never switch from plan keys to names later.
+// Remembered across navigation, and part of the server render on a hard load.
+const { data: membershipOptions, loading: optionsLoading } = useCachedFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', {
+  key: 'events:admin:membership-options',
+  ttl: 5 * 60_000,
+})
+const membershipEnabled = computed(() => membershipOptions.value?.available === true)
+const plans = computed(() => (membershipOptions.value?.options ?? []).map(option => ({ label: option.label, value: option.value })))
 const planLabel = (key: string) => plans.value.find(plan => plan.value === key)?.label ?? key
 const describeRule = (value: Membership | undefined) => value === 'any' ? t('admin.ruleAny', 'Any membership') : Array.isArray(value) ? value.map(planLabel).join(', ') : ''
 
@@ -100,7 +106,14 @@ const menu = (ticketType: StaffTicketType): DropdownMenuItem[][] => [
           {{ row.original.capacity ?? '–' }}
         </template>
         <template #access-cell="{ row }">
-          <div class="flex flex-wrap gap-1">
+          <USkeleton
+            v-if="optionsLoading && (row.original.requiresMembership || row.original.excludesMembership)"
+            class="h-5 w-28"
+          />
+          <div
+            v-else
+            class="flex flex-wrap gap-1"
+          >
             <UBadge
               v-if="row.original.requiresMembership"
               variant="subtle"
