@@ -43,21 +43,41 @@ export async function useEvent(slug: MaybeRefOrGetter<string>) {
   return { event: data, status, error, refresh, purchase }
 }
 
+/** How long the client reuses the ticket list when the page mounts again (client navigation). */
+const MY_TICKETS_TTL_MS = 60 * 1000
+
+/**
+ * The signed-in user's tickets. Awaitable: `await useMyTickets()` in a page renders them on the server; a widget can
+ * use it without `await` and show a skeleton while `loading`.
+ *
+ * `tickets` is `[]` until loaded and after an error: check `loading` and `error` before showing an empty state.
+ */
 export function useMyTickets() {
   const { loggedIn } = useUserSession()
-  const { data, status, refresh } = useFetch<TicketDto[]>('/api/events/tickets/me', {
+  // Always asks the server, which knows the visitor from the request's cookie. Gating the request on the client-side
+  // session (`immediate: loggedIn.value`) left the list empty for good whenever the session state was not loaded yet
+  // when the page set up, as `watch: false` never retried.
+  const fetched = useCachedFetch<TicketDto[]>('/api/events/tickets/me', {
     key: 'events:tickets:mine',
-    immediate: loggedIn.value,
+    ttl: MY_TICKETS_TTL_MS,
     watch: false,
-    default: () => [],
   })
+  const { status, error, loading, refresh, clear } = fetched
+
+  watch(loggedIn, (value) => {
+    if (value) refresh()
+    else clear()
+  })
+
+  const tickets = computed(() => fetched.data.value ?? [])
 
   async function pay(ticketId: string) {
     const { url } = await $fetch<{ url: string }>(`/api/events/tickets/${ticketId}/pay`, { method: 'POST' })
     await navigateTo(url, { external: true })
   }
 
-  return { tickets: data, status, refresh, pay }
+  const api = { tickets, status, error, loading, refresh, pay }
+  return Object.assign(fetched.then(() => api), api)
 }
 
 /** Locale for translated texts: `@nuxtjs/i18n`'s when installed, otherwise `en`. */

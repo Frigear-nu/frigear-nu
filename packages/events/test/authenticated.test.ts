@@ -527,6 +527,22 @@ describe('events (authenticated, database-backed)', async () => {
       expect(page.status).toBe(200)
       expect(await page.text()).toContain('Staff smoke party')
     }, 180_000)
+
+    it('renders my tickets on the server, and the empty state only without tickets', async () => {
+      const event = await createEvent({ name: { en: 'Ticket page party' } }, [{ key: 'default', name: 'Admission', price: 0 }])
+      const [holder, newcomer] = [await user('Holder'), await user('Newcomer')]
+      await ok(await buy(holder.cookie, event.slug, (await detail(event.slug)).ticketTypes[0].id))
+
+      const page = await fetch('/account/tickets', { headers: { cookie: holder.cookie } })
+      expect(page.status).toBe(200)
+      const html = await page.text()
+      expect(html).toContain('Ticket page party')
+      expect(html).not.toContain('No tickets yet')
+
+      const empty = await fetch('/account/tickets', { headers: { cookie: newcomer.cookie } })
+      expect(empty.status).toBe(200)
+      expect(await empty.text()).toContain('No tickets yet')
+    }, 180_000)
   })
 
   describe('API tokens', () => {
