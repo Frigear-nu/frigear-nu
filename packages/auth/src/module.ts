@@ -8,6 +8,7 @@ import {
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
+  hasNuxtModule,
 } from '@nuxt/kit'
 import {
   extendDatabaseTable,
@@ -278,7 +279,9 @@ export {}
       route('forgot-password', 'session/forgot-password.post')
       route('reset-password', 'session/reset-password.post')
     }
-    if (withMagicLink || withVerifyEmail) route('/auth/magic-link', 'session/magic-link.get', 'get')
+    // The emailed link opens the `/auth/magic-link` page (below); its button signs in through this POST, so a GET
+    // (a mail scanner, a link preview) never uses a link up.
+    if (withMagicLink || withVerifyEmail) route('magic-link/confirm', 'session/magic-link-confirm.post', 'post')
     if (withMagicLink) route('magic-link', 'session/magic-link.post', 'post')
     if (withWebAuthn) {
       route('webauthn/register', 'webauthn/register.post')
@@ -309,10 +312,6 @@ export {}
     // An absolute register URL only feeds the login page link; there is no local page to register.
     const localRegisterPath = isExternalUrl(registerPath) ? undefined : registerPath
 
-    if (loginPath || localRegisterPath) {
-      addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
-    }
-
     addModulePages('@frigear-nu/auth', resolver, [
       { name: 'auth-login', path: loginPath, file: './runtime/app/pages/login.vue' },
       { name: 'auth-register', path: localRegisterPath, file: './runtime/app/pages/register.vue' },
@@ -320,6 +319,23 @@ export {}
       { name: 'auth-forgot-password', path: loginPath && withPasswordReset ? '/forgot-password' : undefined, file: './runtime/app/pages/forgot-password.vue' },
       { name: 'auth-reset-password', path: loginPath && withPasswordReset ? '/reset-password' : undefined, file: './runtime/app/pages/reset-password.vue' },
     ])
+
+    // Pages that emailed links open (the magic link here, the email change pages of `@frigear-nu/users`) need
+    // `@nuxt/ui`, which may be installed by another module, so this is decided once every module is set up.
+    nuxt.hook('modules:done', () => {
+      const withUi = hasNuxtModule('@nuxt/ui', nuxt)
+      if (loginPath || localRegisterPath || withUi) {
+        addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
+      }
+      if (!withMagicLink && !withVerifyEmail) return
+      if (!withUi) {
+        console.warn('[@frigear-nu/auth] Magic links / email verification are on, but `@nuxt/ui` is not installed: add your own page at `/auth/magic-link` that posts the `code` to `/api/auth/magic-link/confirm`.')
+        return
+      }
+      addModulePages('@frigear-nu/auth', resolver, [
+        { name: 'auth-magic-link', path: '/auth/magic-link', file: './runtime/app/pages/magic-link.vue' },
+      ])
+    })
 
     // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
     // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through

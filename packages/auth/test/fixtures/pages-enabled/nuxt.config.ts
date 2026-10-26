@@ -16,6 +16,8 @@ export default defineNuxtConfig({
   authentication: {
     settings: {
       pages: { login: true, register: true },
+      // The emailed link opens the `/auth/magic-link` confirm page.
+      magicLink: true,
     },
   },
 })

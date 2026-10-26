@@ -4,6 +4,7 @@
     "signUp": "Opret konto",
     "signOut": "Log ud",
     "signedInAs": "Logget ind som",
+    "signInToContinue": "Log ind for at fortsætte.",
     "dontHaveAnAccount": "Har du ik' en Frigear konto endnu? ➜",
     "alreadyHaveAnAccount": "Har du allerede en Frigear konto? ➜",
     "name": {
@@ -54,7 +55,15 @@
           "description": "Din konto vil ik' ha' noget password, men du kan trygt logge ind fra din e-mail."
         }
       },
-      "invalid": "Det her login-link er ugyldigt eller udløbet."
+      "invalid": "Det her login-link er ugyldigt eller udløbet.",
+      "continue": {
+        "title": "Fortsæt med at logge ind",
+        "description": "Gør dit login færdigt med linket, vi sendte dig. Det bekræfter også din e-mailadresse.",
+        "submit": "Fortsæt med at logge ind",
+        "signedIn": "Du er logget ind som {email}. Fortsætter du, bliver du logget ind på kontoen, linket blev sendt til.",
+        "invalidHint": "Et link kan kun bruges én gang og udløber efter 2 timer. Bed om et nyt fra login-siden.",
+        "failed": "Noget gik galt. Prøv igen."
+      }
     },
     "verifyEmail": {
       "title": "Verificer din e-mail",

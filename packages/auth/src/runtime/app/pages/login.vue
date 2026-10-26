@@ -92,6 +92,14 @@ async function onPasskeyLogin() {
       variant="subtle"
       :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
     />
+    <!-- Sent here from a page that needs an account (`?redirect=`); signing in returns there. -->
+    <UAlert
+      v-else-if="requestedRedirect"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-lock"
+      :title="t('signInToContinue', 'Sign in to continue.')"
+    />
 
     <template v-if="magicLinkOpen">
       <UAlert

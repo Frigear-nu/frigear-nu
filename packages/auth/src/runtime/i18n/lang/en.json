@@ -4,6 +4,7 @@
     "signUp": "Sign Up",
     "signOut": "Sign Out",
     "signedInAs": "Signed in as",
+    "signInToContinue": "Sign in to continue.",
     "dontHaveAnAccount": "Don't have a Frigear account yet? ➜",
     "alreadyHaveAnAccount": "Already got a Frigear account? ➜",
     "name": {
@@ -54,7 +55,15 @@
           "description": "Your account will have no password, you can sign in with your e-mail."
         }
       },
-      "invalid": "This sign-in link is invalid or has expired."
+      "invalid": "This sign-in link is invalid or has expired.",
+      "continue": {
+        "title": "Continue signing in",
+        "description": "Finish signing in with the link we emailed you. This also confirms your e-mail address.",
+        "submit": "Continue signing in",
+        "signedIn": "You are signed in as {email}. Continuing signs you in with the account this link was sent to.",
+        "invalidHint": "Links can be used once and expire after 2 hours. Request a new one from the log in page.",
+        "failed": "Something went wrong. Try again."
+      }
     },
     "verifyEmail": {
       "title": "Verify your e-mail",
