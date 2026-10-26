@@ -121,7 +121,8 @@ export default defineNuxtModule<ModuleOptions>({
 
     extendPages((pages) => {
       if (dashboardPath && !pages.some(page => page.path === dashboardPath)) {
-        pages.push({ name: 'admin-dashboard', path: dashboardPath, file: resolver.resolve('./runtime/app/pages/dashboard.vue') })
+        // `moduleName` marks the page as module-owned, so it is never looked up in `@nuxt/content`.
+        pages.push({ name: 'admin-dashboard', path: dashboardPath, file: resolver.resolve('./runtime/app/pages/dashboard.vue'), meta: { moduleName: '@frigear-nu/admin' } })
       }
     })
   },
