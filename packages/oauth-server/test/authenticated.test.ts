@@ -167,8 +167,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(response.headers.get('location')).toBe(`/login?redirect=${encodeURIComponent(`/oauth/authorize?${query}`)}`)
     })
 
-    // Registers two users (password hashing) and makes seven requests, which can pass 5s on a busy CI runner.
-    it('checks the role of the user', { timeout: 30_000 }, async () => {
+    it('checks the role of the user', async () => {
       const app = await createApp({ allowedRoles: ['staff'] })
       const member = await user('Member')
       const nobody = await user('Nobody', 'nobody.test')
