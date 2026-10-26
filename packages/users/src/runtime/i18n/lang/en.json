@@ -74,6 +74,43 @@
       "deleteTitle": "Delete {name}?",
       "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
       "deleted": "User deleted."
+    },
+    "emailChange": {
+      "verify": {
+        "title": "Confirm your new e-mail address",
+        "submit": "Confirm new e-mail address"
+      },
+      "invalid": "This confirmation link is invalid or has expired.",
+      "invalidHint": "Links expire after 24 hours. Change your e-mail address again from your profile to get a new one.",
+      "done": "Your e-mail address is now {email}.",
+      "alreadyConfirmed": "This e-mail change was already confirmed.",
+      "signIn": {
+        "description": "To confirm {email} as your new e-mail address, sign in to the account that asked for the change. You come back here afterwards.",
+        "submit": "Sign in to confirm"
+      },
+      "wrongAccount": {
+        "title": "This change belongs to another account",
+        "description": "You are signed in as {email}. Sign out, then sign in to the account that asked to change its e-mail address.",
+        "signOut": "Sign out"
+      },
+      "taken": "Another account already uses this e-mail address.",
+      "failed": "Could not confirm your new e-mail address. Try again.",
+      "backToProfile": "Back to your profile",
+      "revert": {
+        "title": "Undo e-mail change",
+        "description": "The e-mail address of your account was changed to {newEmail}. If that was not you, restore {oldEmail}.",
+        "submit": "Restore {email}",
+        "invalid": "This link is invalid or has expired.",
+        "invalidHint": "The link works once, for 7 days after the change.",
+        "already": "This change was already undone.",
+        "done": "Your e-mail address is {email} again.",
+        "doneHint": "Sign in again. If you did not ask for the change, reset your password too.",
+        "doneHintNoReset": "Sign in again to continue.",
+        "signIn": "Sign in",
+        "resetPassword": "Reset password",
+        "taken": "Another account now uses your old e-mail address. Contact us to get your account back.",
+        "failed": "Could not restore your e-mail address. Try again."
+      }
     }
   }
 }

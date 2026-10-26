@@ -23,6 +23,10 @@ const menu = [[{ label: 'Open' }], [{ label: 'Delete event', color: 'error' as c
       </template>
     </PageHeading>
     <PageTabs :items="tabs" />
+    <PageSectionSwitcher
+      :items="[{ label: 'Overview', to: '/', icon: 'i-lucide-info', active: true }, { label: 'Other', to: '/other' }]"
+      label="Event sections"
+    />
     <SectionCard title="Key facts">
       <DescriptionList :items="[{ label: 'Venue', value: 'Copenhagen' }, { label: 'Capacity', value: null }]" />
     </SectionCard>

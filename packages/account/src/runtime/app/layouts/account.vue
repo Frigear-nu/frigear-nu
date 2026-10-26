@@ -2,7 +2,7 @@
 import type { LayoutKey } from '#app'
 
 // The account area: the site's own `default` layout (header and footer) with a left account navigation built from
-// the `account` menu. On narrow screens the navigation is a tab strip above the content. Without a `default` layout
+// the `account` menu. On narrow screens the navigation is a section switcher (a button with a menu) above the content. Without a `default` layout
 // (e.g. an app with no layouts) `NuxtLayout` renders the content as is.
 defineOptions({ name: 'AccountLayout' })
 
@@ -48,11 +48,11 @@ const profile = computed(() => {
         </template>
 
         <div class="flex min-w-0 flex-col gap-6 py-8">
-          <PageTabs
+          <PageSectionSwitcher
             v-if="links.length"
             class="lg:hidden"
             :items="links"
-            :aria-label="t('nav.label', 'Account navigation')"
+            :label="t('nav.label', 'Account navigation')"
           />
           <AccountHeader />
           <slot />

@@ -45,6 +45,7 @@
     "edit": "Redigér",
     "delete": "Slet",
     "confirm": "Bekræft",
+    "sections": "Sektioner",
     "breadcrumb": "Brødkrummesti",
     "sortBy": "Sortér efter {column}",
     "sortedAsc": "Sortér efter {column}, nu stigende",

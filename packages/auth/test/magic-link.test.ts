@@ -20,9 +20,14 @@ describe('magic link & email verification', async () => {
     })).rejects.toMatchObject({ statusCode: 400 })
   })
 
-  it('requires a code on the emailed link', async () => {
-    const response = await fetch('/auth/magic-link', { redirect: 'manual' })
-    expect(response.status).toBe(400)
+  it('signs in only through the POST, which requires a valid code', async () => {
+    await expect($fetch('/api/auth/magic-link/confirm', { method: 'POST', body: {} }))
+      .rejects.toMatchObject({ statusCode: 400 })
+    // Opening the emailed link is a plain page view: no sign-in, no session (the database flow is tested in
+    // `@frigear-nu/users`' magic-link-flow test).
+    const opened = await fetch('/auth/magic-link?code=nope', { redirect: 'manual' })
+    expect(opened.status).not.toBe(302)
+    expect(opened.headers.get('set-cookie')).toBeNull()
   })
 
   it('registers the Facebook OAuth route', async () => {

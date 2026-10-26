@@ -18,7 +18,7 @@ async function latestLink(to: string) {
   const mail = (await sentMails()).reverse().find(m => m.to === to)
   if (!mail) throw new Error(`No mail to ${to}`)
   const url = new URL(mail.text.match(/https?:\/\/\S+/)![0])
-  return url.pathname + url.search
+  return { path: url.pathname + url.search, code: url.searchParams.get('code')! }
 }
 
 const post = (path: string, body: unknown) => fetch(path, {
@@ -45,20 +45,27 @@ describe('magic links & email verification (database)', async () => {
     const login = await post('/api/auth/login', { email: credentials.email, password: credentials.password })
     expect(login.status).toBe(403)
 
-    const link = await fetch(await latestLink(credentials.email), { redirect: 'manual' })
-    expect(link.status).toBe(302)
-    expect(link.headers.get('location')).toBe('/')
-    expect(link.headers.get('set-cookie')).toContain('nuxt-session')
+    const { path, code } = await latestLink(credentials.email)
+    expect(path).toMatch(/^\/auth\/magic-link\?code=/)
+
+    // Opening the link (a mail scanner, a link preview) neither signs in nor uses it up.
+    const opened = await fetch(path, { redirect: 'manual' })
+    expect(opened.headers.get('set-cookie')).toBeNull()
+    expect((await post('/api/auth/login', { email: credentials.email, password: credentials.password })).status).toBe(403)
+
+    const confirmed = await post('/api/auth/magic-link/confirm', { code })
+    expect(confirmed.status, await confirmed.clone().text()).toBe(200)
+    expect(await confirmed.json()).toEqual({ redirect: '/' })
+    expect(confirmed.headers.get('set-cookie')).toContain('nuxt-session')
 
     const verified = await post('/api/auth/login', { email: credentials.email, password: credentials.password })
     expect(verified.status, await verified.clone().text()).toBe(200)
   })
 
   it('a link works once', async () => {
-    const path = await latestLink(credentials.email)
-    const replay = await fetch(path, { redirect: 'manual' })
-    expect(replay.status).toBe(302)
-    expect(replay.headers.get('location')).toContain('error=magic-link')
+    const { code } = await latestLink(credentials.email)
+    const replay = await post('/api/auth/magic-link/confirm', { code })
+    expect(replay.status).toBe(400)
     expect(replay.headers.get('set-cookie')).toBeNull()
   })
 
@@ -80,10 +87,10 @@ describe('magic links & email verification (database)', async () => {
     await new Promise(resolve => setTimeout(resolve, 2200))
     expect((await post('/api/auth/magic-link', { email: credentials.email, redirect: '/account' })).status).toBe(200)
     expect((await sentMails()).length).toBe(before + 1)
-    expect((await fetch(await latestLink(credentials.email), { redirect: 'manual' })).headers.get('location')).toBe('/account')
+    expect(await (await post('/api/auth/magic-link/confirm', { code: (await latestLink(credentials.email)).code })).json()).toEqual({ redirect: '/account' })
 
     await new Promise(resolve => setTimeout(resolve, 2200))
     await post('/api/auth/magic-link', { email: credentials.email, redirect: 'https://evil.example/' })
-    expect((await fetch(await latestLink(credentials.email), { redirect: 'manual' })).headers.get('location')).toBe('/')
+    expect(await (await post('/api/auth/magic-link/confirm', { code: (await latestLink(credentials.email)).code })).json()).toEqual({ redirect: '/' })
   })
 })
