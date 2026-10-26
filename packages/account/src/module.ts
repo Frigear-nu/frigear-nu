@@ -2,6 +2,9 @@ import {
   addComponentsDir,
   addImports,
   addLayout,
+  addPlugin,
+  addRouteMiddleware,
+  addTypeTemplate,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -9,6 +12,8 @@ import {
 import {
   addModulePages,
   addOptionalMenuSource,
+  defineVirtualRegistry,
+  getBootstrapProviders,
   registerLocales,
   registerModule,
   registerTailwindSource,
@@ -129,6 +134,27 @@ export default defineNuxtModule<ModuleOptions>({
     }
     else {
       console.warn('[@frigear-nu/account] @frigear-nu/authorization is not installed: the account pages are not guarded. Install it and guard `/account/**` yourself.')
+    }
+
+    // One request for the user-scoped data modules show in the area (`registerBootstrapProvider` with
+    // `scope: 'account'`), made by a route middleware on every account page. `#account/bootstrap` lists the keys, so
+    // the middleware does nothing when no module registered one (the list is only known once every module is done).
+    defineVirtualRegistry(nuxt, {
+      filename: 'account/bootstrap.mjs',
+      alias: '#account/bootstrap',
+      collect: () => getBootstrapProviders(nuxt, 'account').map(provider => provider.key),
+      contents: keys => `export const keys = ${JSON.stringify(keys)}\n`,
+    })
+    addTypeTemplate({
+      filename: 'types/account-bootstrap.d.ts',
+      getContents: () => `declare module '#account/bootstrap' {\n  export const keys: string[]\n}\nexport {}\n`,
+    })
+    addRouteMiddleware({ name: 'account-bootstrap', path: resolver.resolve('./runtime/app/middleware/bootstrap') })
+    addPlugin({ src: resolver.resolve('./runtime/app/plugins/bootstrap.client'), mode: 'client' })
+    const areaRules = nuxt.options.routeRules ||= {}
+    for (const pattern of areaPatterns) {
+      const rule = (areaRules[pattern] ?? {}) as { appMiddleware?: Record<string, boolean> }
+      areaRules[pattern] = { ...rule, appMiddleware: { 'account-bootstrap': true, ...rule.appMiddleware } } as (typeof areaRules)[string]
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
