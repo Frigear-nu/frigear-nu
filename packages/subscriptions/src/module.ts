@@ -18,6 +18,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
@@ -192,6 +193,12 @@ export default defineNuxtModule<ModuleOptions>({
       route: moduleApiUrl('subscriptions', 'me'),
       method: 'get',
       handler: resolver.resolve('./runtime/server/routes/subscriptions/me.get'),
+    })
+    // The account area loads it together with the other modules' data (`useSubscription()` reads the same key).
+    registerBootstrapProvider(nuxt, {
+      scope: 'account',
+      key: 'subscriptions:me',
+      handler: resolver.resolve('./runtime/server/bootstrap/my-subscriptions'),
     })
     addServerHandler({
       route: moduleApiUrl('subscriptions', 'checkout'),

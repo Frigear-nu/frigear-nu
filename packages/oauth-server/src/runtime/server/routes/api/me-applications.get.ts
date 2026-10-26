@@ -1,7 +1,4 @@
-import type { UserApplicationDto } from '../../../../types'
+import myApplications from '../../bootstrap/my-applications'
 
 // The applications the signed-in user may sign in to.
-export default defineEventHandler(async (event): Promise<UserApplicationDto[]> => {
-  const userId = await requireSessionUserId(event)
-  return listUserApplications(userId, event)
-})
+export default defineEventHandler(myApplications)

@@ -17,6 +17,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
@@ -135,6 +136,12 @@ export default defineNuxtModule<ModuleOptions>({
     route('get', '', 'public/events.get')
     // Static `tickets/*` and `check-in` segments win over `:slug` in the router.
     route('get', '/tickets/me', 'public/tickets-me.get')
+    // The account area loads them together with the other modules' data (`useMyTickets()` reads the same key).
+    registerBootstrapProvider(nuxt, {
+      scope: 'account',
+      key: 'events:tickets:mine',
+      handler: resolver.resolve('./runtime/server/bootstrap/my-tickets'),
+    })
     route('get', '/tickets/:id', 'public/ticket.get')
     route('post', '/tickets/:id/pay', 'public/ticket-pay.post')
     route('post', '/check-in', 'public/check-in.post')

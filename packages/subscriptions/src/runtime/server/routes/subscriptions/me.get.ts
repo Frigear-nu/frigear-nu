@@ -1,4 +1,3 @@
-export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { scopes: ['subscriptions:read'] })
-  return listUserSubscriptions(user.id)
-})
+import mySubscriptions from '../../bootstrap/my-subscriptions'
+
+export default defineEventHandler(mySubscriptions)
