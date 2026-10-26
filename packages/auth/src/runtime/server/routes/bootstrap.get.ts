@@ -1,4 +1,7 @@
+import type { H3Event } from 'h3'
 import { providers } from '#bootstrap/providers'
+
+type Provider = { key: string, handler: (event: H3Event) => unknown }
 
 /**
  * `GET /api/_bootstrap?scope=<scope>`: the signed-in user's data for an area in one request. Authenticates once, then
@@ -13,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (typeof scope !== 'string' || !scope) {
     throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: 'The `scope` query parameter is required.' })
   }
-  const list = Object.hasOwn(providers, scope) ? providers[scope] : undefined
+  const list: Provider[] | undefined = Object.hasOwn(providers, scope) ? providers[scope] : undefined
   if (!list?.length) throw createError({ statusCode: 404, statusMessage: 'Not Found', message: `Unknown bootstrap scope "${scope}".` })
 
   setResponseHeader(event, 'cache-control', 'private, no-store')
