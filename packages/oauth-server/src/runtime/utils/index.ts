@@ -3,6 +3,13 @@ export type * from '../../types'
 
 export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'
+/** `confidential` clients hold a secret; `public` clients (native and single-page apps) cannot and rely on PKCE alone. */
+export const CLIENT_TYPES = ['confidential', 'public'] as const
+
+/** Schemes that can never be a native app redirect: they are web schemes, or can run or leak content. */
+const NON_NATIVE_SCHEMES = new Set([
+  'http:', 'https:', 'ws:', 'wss:', 'ftp:', 'file:', 'javascript:', 'data:', 'blob:', 'vbscript:', 'about:', 'mailto:', 'tel:', 'sms:', 'chrome:', 'view-source:',
+])
 
 /** Whether a user holding `roles` may use an application restricted to `allowedRoles`. Empty = everyone. */
 export function matchesAllowedRoles(allowedRoles: readonly string[] | null | undefined, roles: readonly string[]): boolean {
@@ -26,6 +33,24 @@ export function resolveScope(requested: string | null | undefined, supported: re
 export function isSecureOrigin(url: URL): boolean {
   if (url.protocol === 'https:') return true
   return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+}
+
+/**
+ * A redirect URI that opens a native app: a private-use scheme such as `com.example.app:/callback` (RFC 8252 §7.1) or a
+ * webview origin such as `capacitor://localhost/callback`. No web or dangerous schemes, credentials, fragments or
+ * wildcards. Only meaningful for `public` clients, and always matched exactly.
+ */
+export function isNativeRedirectUri(value: string | URL): boolean {
+  let url: URL
+  try {
+    url = typeof value === 'string' ? new URL(value) : value
+  }
+  catch {
+    return false
+  }
+  if (!/^[a-z][a-z0-9+.-]*:$/.test(url.protocol) || NON_NATIVE_SCHEMES.has(url.protocol)) return false
+  if (url.username || url.password || url.hash) return false
+  return !url.href.includes('*')
 }
 
 export function normalizeWebsiteUrl(value: string): string {
@@ -57,9 +82,14 @@ export type RedirectUriRules = {
   previewUrlPattern?: string | null
   redirectUris?: readonly string[] | null
   callbackPath?: string
+  /** Public clients only: also accept the native redirect URIs listed in `redirectUris`. */
+  allowNativeRedirects?: boolean
 }
 
-/** Exact match on `websiteUrl + callbackPath`, an explicit extra redirect URI, or the preview pattern. */
+/**
+ * Exact match on `websiteUrl + callbackPath`, an explicit extra redirect URI, or the preview pattern. Native redirect URIs
+ * (see `isNativeRedirectUri`) are only accepted for public clients, and only when listed in `redirectUris`.
+ */
 export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules): boolean {
   const callbackPath = rules.callbackPath ?? DEFAULT_CALLBACK_PATH
   let url: URL
@@ -69,7 +99,8 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   catch {
     return false
   }
-  if (url.hash || !isSecureOrigin(url)) return false
+  if (url.hash) return false
+  if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
   if (redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
   if (rules.previewUrlPattern) return previewPatternToRegExp(rules.previewUrlPattern, callbackPath).test(redirectUri)

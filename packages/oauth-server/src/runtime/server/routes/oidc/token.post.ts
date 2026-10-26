@@ -1,17 +1,18 @@
 import { readBody } from 'h3'
 
-// Token endpoint: `authorization_code` (PKCE) and `refresh_token` (rotating) grants for confidential clients.
+// Token endpoint: `authorization_code` (PKCE) and `refresh_token` (rotating) grants. Confidential clients send their
+// secret; public clients (native apps, SPAs) only their `client_id`.
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Cache-Control', 'no-store')
   setResponseHeader(event, 'Pragma', 'no-cache')
   const body = (await readBody(event).catch(() => undefined)) as Record<string, unknown> | undefined
 
-  const credentials = readClientCredentials(event, body)
-  const row = credentials ? await getApplicationRow(credentials.clientId) : null
-  if (!credentials || !row || !(await verifyApplicationSecret(row, credentials.clientSecret))) {
-    if (credentials?.basic) setResponseHeader(event, 'WWW-Authenticate', 'Basic')
+  const client = await authenticateClient(event, body)
+  if (!('row' in client)) {
+    if (client.basic) setResponseHeader(event, 'WWW-Authenticate', 'Basic')
     return oauthError(event, 401, 'invalid_client', 'Client authentication failed.')
   }
+  const row = client.row
   const application = toApplication(row)
   const grantType = body?.grant_type
 

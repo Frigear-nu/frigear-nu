@@ -80,6 +80,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(config.token_endpoint).toBe('https://id.example.test/oauth/token')
       expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups', 'oauth:read'])
       expect(config.code_challenge_methods_supported).toEqual(['S256'])
+      expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_basic', 'client_secret_post', 'none'])
 
       const jwks = await $fetch<Json>('/.well-known/jwks.json')
       expect(jwks.keys).toHaveLength(2) // the current key and the retired one, see the rotation tests
@@ -344,6 +345,246 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const again = await signIn({ ...app, clientSecret })
       await ok(await admin('POST', '/revoke'))
       expect((await form('/oauth/token', { grant_type: 'refresh_token', refresh_token: again.refresh_token }, { authorization: basic(app.clientId, clientSecret) })).status).toBe(400)
+    })
+  })
+
+  describe('public clients (native apps and single-page apps)', () => {
+    const NATIVE = 'com.example.app:/callback'
+    const WEBVIEW = 'capacitor://localhost/auth/callback'
+    const publicApp = (overrides: Json = {}) => createApp({ clientType: 'public', redirectUris: [NATIVE, WEBVIEW], ...overrides })
+
+    /** Approves an authorization request and returns the code the app receives on its redirect URI. */
+    async function nativeCode(app: Json, challenge: string, redirectUri = NATIVE, extra: Record<string, string> = {}) {
+      const query = authorizeQuery(app.clientId, challenge, { redirect_uri: redirectUri, ...extra })
+      const response = await json(staff.cookie, 'POST', '/oauth/authorize', { ...Object.fromEntries(query), approved: true })
+      const decision = await ok(response)
+      const redirect = new URL(decision.redirectUrl)
+      expect(redirect.protocol + redirect.pathname).toBe(new URL(redirectUri).protocol + new URL(redirectUri).pathname)
+      expect(redirect.searchParams.get('state')).toBe('state-123')
+      return redirect.searchParams.get('code')!
+    }
+
+    /** A public client identifies itself with `client_id` only. */
+    const publicToken = (app: Json, body: Record<string, string>) => form('/oauth/token', { client_id: app.clientId, ...body })
+
+    async function signIn(app: Json, redirectUri = NATIVE, scope?: string) {
+      const { verifier, challenge } = pkce()
+      const code = await nativeCode(app, challenge, redirectUri, scope ? { scope } : {})
+      return await ok(await publicToken(app, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier })) as Json
+    }
+
+    it('registers without a secret, shows it as public, and has nothing to rotate', async () => {
+      const app = await publicApp()
+      expect(app).toMatchObject({ clientType: 'public', clientSecret: null, redirectUris: [NATIVE, WEBVIEW] })
+      expect(app.secretHash).toBeUndefined()
+
+      const list = await ok(await json(staff.cookie, 'GET', '/api/oauth-server/admin/applications')) as unknown as Json[]
+      expect(list.find(application => application.id === app.id)).toMatchObject({ clientType: 'public' })
+
+      const rotate = await json(staff.cookie, 'POST', `/api/oauth-server/admin/applications/${app.id}/secret`)
+      expect(rotate.status).toBe(400)
+    })
+
+    it('defaults to confidential, with a secret, and keeps the type fixed', async () => {
+      const confidential = await createApp()
+      expect(confidential).toMatchObject({ clientType: 'confidential' })
+      expect(confidential.clientSecret).toHaveLength(64)
+
+      const patch = (id: string, body: Json) => json(staff.cookie, 'PATCH', `/api/oauth-server/admin/applications/${id}`, body)
+      expect((await patch(confidential.id, { clientType: 'public' })).status).toBe(400)
+      const pub = await publicApp()
+      expect((await patch(pub.id, { clientType: 'confidential' })).status).toBe(400)
+      // Sending the unchanged type, as the admin form does, is fine.
+      expect(await ok(await patch(pub.id, { clientType: 'public', name: 'Renamed' }))).toMatchObject({ name: 'Renamed', clientType: 'public' })
+    })
+
+    it('limits native redirect URIs to public clients and refuses dangerous schemes', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      const post = (body: Json) => json(staff.cookie, 'POST', '/api/oauth-server/admin/applications', { name: 'x', websiteUrl: 'https://app.example.com', ...body })
+      expect((await post({ redirectUris: [NATIVE] })).status).toBe(400) // confidential
+      expect((await post({ clientType: 'confidential', redirectUris: [WEBVIEW] })).status).toBe(400)
+      for (const uri of ['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'com.example.*:/cb', 'com.example.app:/cb#frag', 'http://app.example.com/cb']) {
+        expect((await post({ clientType: 'public', redirectUris: [uri] })).status, uri).toBe(400)
+      }
+      expect((await post({ clientType: 'public', redirectUris: ['https://app.example.com/cb', 'http://localhost:3000/cb'] })).status).toBe(201)
+
+      const confidential = await createApp()
+      const patch = await json(staff.cookie, 'PATCH', `/api/oauth-server/admin/applications/${confidential.id}`, { redirectUris: [NATIVE] })
+      expect(patch.status).toBe(400)
+      const pub = await publicApp()
+      expect(await ok(await json(staff.cookie, 'PATCH', `/api/oauth-server/admin/applications/${pub.id}`, { redirectUris: [NATIVE, 'com.example.other:/cb'] })))
+        .toMatchObject({ redirectUris: [NATIVE, 'com.example.other:/cb'] })
+    })
+
+    it('only redirects to registered native URIs, and still requires PKCE', async () => {
+      const app = await publicApp()
+      const { challenge } = pkce()
+      for (const uri of ['com.example.app:/other', 'com.example.app:/callback/extra', 'com.evil.app:/callback', 'https://evil.example.com/cb']) {
+        const response = await json(staff.cookie, 'POST', '/oauth/authorize', { ...Object.fromEntries(authorizeQuery(app.clientId, challenge, { redirect_uri: uri })), approved: true })
+        expect(response.status, uri).toBe(400)
+      }
+      const noChallenge = await json(staff.cookie, 'POST', '/oauth/authorize', { client_id: app.clientId, redirect_uri: NATIVE, response_type: 'code', state: 'state-123', approved: true })
+      expect(noChallenge.status).toBe(400)
+      const plain = await json(staff.cookie, 'POST', '/oauth/authorize', { ...Object.fromEntries(authorizeQuery(app.clientId, challenge, { code_challenge_method: 'plain' })), redirect_uri: NATIVE, approved: true })
+      expect(plain.status).toBe(400)
+    })
+
+    it('exchanges the code with PKCE and no secret, and the token calls the API', async () => {
+      const app = await publicApp()
+      const tokens = await signIn(app, WEBVIEW, 'openid groups')
+      expect(tokens).toMatchObject({ token_type: 'Bearer' })
+      expect(tokens.refresh_token).toBeTypeOf('string')
+
+      const me = await $fetch<Json>('/api/test/whoami', { headers: { authorization: `Bearer ${tokens.access_token}` } })
+      expect(me).toMatchObject({ kind: 'oauth', userId: staff.id, clientId: app.clientId })
+    })
+
+    it('rejects a wrong verifier, a replayed code, and a different redirect_uri', async () => {
+      const app = await publicApp()
+      const { verifier, challenge } = pkce()
+
+      const code = await nativeCode(app, challenge)
+      const wrong = await publicToken(app, { grant_type: 'authorization_code', code, redirect_uri: NATIVE, code_verifier: pkce().verifier })
+      expect(wrong.status).toBe(400)
+      expect(await wrong.json()).toMatchObject({ error: 'invalid_grant' })
+      // The code is burned by the failed attempt.
+      expect((await publicToken(app, { grant_type: 'authorization_code', code, redirect_uri: NATIVE, code_verifier: verifier })).status).toBe(400)
+
+      const other = await nativeCode(app, challenge)
+      expect((await publicToken(app, { grant_type: 'authorization_code', code: other, redirect_uri: WEBVIEW, code_verifier: verifier })).status).toBe(400)
+
+      const missing = await publicToken(app, { grant_type: 'authorization_code', code: await nativeCode(app, challenge), redirect_uri: NATIVE })
+      expect(missing.status).toBe(400)
+      expect(await missing.json()).toMatchObject({ error: 'invalid_request' })
+    })
+
+    it('does not accept a code issued to another client', async () => {
+      const app = await publicApp()
+      const intruder = await publicApp()
+      const { verifier, challenge } = pkce()
+      const code = await nativeCode(app, challenge)
+      expect((await publicToken(intruder, { grant_type: 'authorization_code', code, redirect_uri: NATIVE, code_verifier: verifier })).status).toBe(400)
+    })
+
+    it('identifies clients correctly: no secret for public, never without one for confidential', async () => {
+      const app = await publicApp()
+      const { verifier, challenge } = pkce()
+      const body = async () => ({ grant_type: 'authorization_code', code: await nativeCode(app, challenge), redirect_uri: NATIVE, code_verifier: verifier })
+
+      // A secret sent to a public client is a misconfiguration: refused, not silently ignored.
+      expect((await publicToken(app, { ...await body(), client_secret: 'anything' })).status).toBe(401)
+      expect((await form('/oauth/token', await body(), { authorization: basic(app.clientId, 'anything') })).status).toBe(401)
+      // An empty secret (some libraries always send the field) and HTTP Basic without one are fine.
+      expect((await publicToken(app, { ...await body(), client_secret: '' })).status).toBe(200)
+      expect((await form('/oauth/token', await body(), { authorization: basic(app.clientId, '') })).status).toBe(200)
+      // No client at all.
+      expect((await form('/oauth/token', await body())).status).toBe(401)
+      expect((await form('/oauth/token', { ...await body(), client_id: 'app_unknown' })).status).toBe(401)
+
+      // The same request with only a client_id fails for a confidential client.
+      const confidential = await createApp()
+      const code = await authorizeCode(staff, confidential.clientId, challenge)
+      const response = await form('/oauth/token', { client_id: confidential.clientId, grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })
+      expect(response.status).toBe(401)
+      expect(await response.json()).toMatchObject({ error: 'invalid_client' })
+    })
+
+    it('rotates refresh tokens without a secret, and a replay revokes the family', async () => {
+      const app = await publicApp()
+      const first = await signIn(app)
+      const refresh = (token: string, client = app) => publicToken(client, { grant_type: 'refresh_token', refresh_token: token })
+
+      const second = await ok(await refresh(first.refresh_token))
+      expect(second.refresh_token).not.toBe(first.refresh_token)
+      expect(second.access_token).toBeTypeOf('string')
+
+      expect((await refresh(first.refresh_token)).status).toBe(400)
+      expect((await refresh(second.refresh_token)).status).toBe(400) // theft response: the family is dead
+    })
+
+    it('binds refresh tokens and revocation to the client they were issued to', async () => {
+      const app = await publicApp()
+      const other = await publicApp()
+      const tokens = await signIn(app)
+
+      // Another public client knows nothing more than a client_id, so it must not be able to use or kill the token.
+      expect((await publicToken(other, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status).toBe(400)
+      await ok(await form('/oauth/revoke', { client_id: other.clientId, token: tokens.refresh_token }))
+      const stillWorks = await publicToken(app, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })
+      expect(stillWorks.status, await stillWorks.clone().text()).toBe(200)
+    })
+
+    it('revokes on request without a secret', async () => {
+      const app = await publicApp()
+      const tokens = await signIn(app)
+      await ok(await form('/oauth/revoke', { client_id: app.clientId, token: tokens.refresh_token }))
+      expect((await publicToken(app, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status).toBe(400)
+
+      expect((await form('/oauth/revoke', { token: 'x' })).status).toBe(401)
+      expect((await form('/oauth/revoke', { client_id: app.clientId, client_secret: 'x', token: 'x' })).status).toBe(401)
+      const confidential = await createApp()
+      expect((await form('/oauth/revoke', { client_id: confidential.clientId, token: 'x' })).status).toBe(401)
+    })
+
+    it('stops when the application is disabled', async () => {
+      const app = await publicApp()
+      const tokens = await signIn(app)
+      await ok(await json(staff.cookie, 'PATCH', `/api/oauth-server/admin/applications/${app.id}`, { isActive: false }))
+      expect((await publicToken(app, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status).toBe(400)
+      const { challenge } = pkce()
+      const response = await json(staff.cookie, 'POST', '/oauth/authorize', { ...Object.fromEntries(authorizeQuery(app.clientId, challenge, { redirect_uri: NATIVE })), approved: true })
+      expect(response.status).toBe(400)
+    })
+  })
+
+  describe('CORS for browser clients on other origins', () => {
+    const ALLOWED = 'capacitor://localhost'
+    const preflight = (path: string, origin: string, method = 'POST') => fetch(path, {
+      method: 'OPTIONS',
+      headers: { 'origin': origin, 'access-control-request-method': method, 'access-control-request-headers': 'authorization, content-type' },
+    })
+
+    it('answers preflights of the token, revoke, userinfo and discovery endpoints for configured origins only', async () => {
+      for (const [path, method] of [['/oauth/token', 'POST'], ['/oauth/revoke', 'POST'], ['/oauth/userinfo', 'GET'], ['/.well-known/openid-configuration', 'GET'], ['/.well-known/jwks.json', 'GET']] as const) {
+        const response = await preflight(path, ALLOWED, method)
+        expect(response.status, path).toBe(204)
+        expect(response.headers.get('access-control-allow-origin'), path).toBe(ALLOWED)
+        expect(response.headers.get('access-control-allow-methods'), path).toContain(method)
+        expect(response.headers.get('access-control-allow-headers'), path).toContain('authorization')
+        expect(response.headers.get('vary'), path).toContain('Origin')
+        expect(response.headers.get('access-control-allow-credentials'), path).toBeNull()
+      }
+      expect((await preflight('/oauth/token', 'https://app.example.com')).headers.get('access-control-allow-origin')).toBe('https://app.example.com')
+    })
+
+    it('gives other origins nothing, and never uses a wildcard', async () => {
+      for (const origin of ['https://evil.example.com', 'capacitor://localhost.evil.com', 'http://capacitor://localhost', 'null', '*']) {
+        const response = await preflight('/oauth/token', origin)
+        expect(response.headers.get('access-control-allow-origin'), origin).toBeNull()
+        expect(response.headers.get('access-control-allow-methods'), origin).toBeNull()
+        expect(response.status, origin).not.toBe(204)
+      }
+    })
+
+    it('adds the headers to real responses, and varies on Origin even without one', async () => {
+      const app = await createApp()
+      const response = await form('/oauth/token', { grant_type: 'refresh_token', refresh_token: 'x' }, { authorization: basic(app.clientId, app.clientSecret), origin: ALLOWED })
+      expect(response.headers.get('access-control-allow-origin')).toBe(ALLOWED)
+
+      const discovery = await fetch('/.well-known/openid-configuration', { headers: { origin: ALLOWED } })
+      expect(discovery.headers.get('access-control-allow-origin')).toBe(ALLOWED)
+      const plain = await fetch('/.well-known/openid-configuration')
+      expect(plain.headers.get('access-control-allow-origin')).toBeNull()
+      expect(plain.headers.get('vary')).toContain('Origin')
+    })
+
+    it('does not open up the authorization endpoint or anything else', async () => {
+      const authorize = await fetch(`/oauth/authorize?${authorizeQuery('app_x', pkce().challenge)}`, { headers: { origin: ALLOWED }, redirect: 'manual' })
+      expect(authorize.headers.get('access-control-allow-origin')).toBeNull()
+      const consent = await preflight('/oauth/authorize', ALLOWED)
+      expect(consent.headers.get('access-control-allow-origin')).toBeNull()
+      const admin = await preflight('/api/oauth-server/admin/applications', ALLOWED, 'GET')
+      expect(admin.headers.get('access-control-allow-origin')).toBeNull()
     })
   })
 

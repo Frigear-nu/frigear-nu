@@ -5,7 +5,8 @@ defineOptions({ name: 'OAuthCredentialsModal' })
 defineProps<{
   name: string
   clientId: string
-  clientSecret: string
+  /** `null` for a public client: it has no secret. */
+  clientSecret: string | null
 }>()
 
 const t = useModuleT('oauthServer')
@@ -15,7 +16,7 @@ const { copy } = useCopyToClipboard()
 <template>
   <UModal
     :title="t('credentials.title', 'Credentials for {name}', { name })"
-    :description="t('credentials.description', 'Copy the client secret now. It is only shown once.')"
+    :description="clientSecret ? t('credentials.description', 'Copy the client secret now. It is only shown once.') : t('credentials.publicDescription', 'This is a public client: it has no client secret and signs in with PKCE only.')"
   >
     <template #body>
       <DescriptionList
@@ -38,7 +39,14 @@ const { copy } = useCopyToClipboard()
           </div>
         </template>
         <template #clientSecret>
-          <div class="flex items-center gap-2">
+          <span
+            v-if="!clientSecret"
+            class="text-muted"
+          >{{ t('credentials.noSecret', 'None (public client)') }}</span>
+          <div
+            v-else
+            class="flex items-center gap-2"
+          >
             <code class="min-w-0 break-all">{{ clientSecret }}</code>
             <UButton
               size="xs"

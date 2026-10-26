@@ -2,8 +2,8 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import type { H3Event } from 'h3'
-import type { ApplicationInput, OAuthApplication, UserApplicationDto } from '../../../types'
-import { isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl } from '../../utils'
+import type { ApplicationInput, ClientType, OAuthApplication, UserApplicationDto } from '../../../types'
+import { CLIENT_TYPES, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
 
@@ -18,10 +18,22 @@ const httpsUrl = z.string().trim().max(2048).refine((value) => {
   }
 }, 'Must be a https URL (http is only allowed for localhost).')
 
+/** An https URL (http only for localhost) or a native app URI. Whether native ones are allowed depends on the client type. */
+const redirectUri = z.string().trim().max(2048).refine((value) => {
+  try {
+    const url = new URL(value)
+    return !url.hash && (isSecureOrigin(url) || isNativeRedirectUri(url))
+  }
+  catch {
+    return false
+  }
+}, 'Must be a https URL (http is only allowed for localhost) or, for public clients, a custom-scheme URI.')
+
 const names = z.array(z.string().trim().min(1).max(64)).max(50)
 
 /** Validation shared by the admin API and `createApplication` / `updateApplication`. */
 export const applicationInputSchema = z.object({
+  clientType: z.enum(CLIENT_TYPES).optional(),
   name: z.string().trim().min(1).max(120),
   websiteUrl: z.string().trim().max(2048),
   description: z.string().trim().max(1000).nullish(),
@@ -29,7 +41,7 @@ export const applicationInputSchema = z.object({
   priority: z.number().int().min(-1000).max(1000).optional(),
   loginUrl: httpsUrl.nullish(),
   previewUrlPattern: z.string().trim().max(2048).startsWith('https://').nullish(),
-  redirectUris: z.array(httpsUrl).max(20).optional(),
+  redirectUris: z.array(redirectUri).max(20).optional(),
   allowedRoles: names.optional(),
   tags: names.optional(),
   isActive: z.boolean().optional(),
@@ -52,9 +64,16 @@ function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
       throw fail(400, (error as Error).message)
     }
   }
+  if (next.redirectUris) next.redirectUris = [...new Set(next.redirectUris)]
   if (next.allowedRoles) next.allowedRoles = [...new Set(next.allowedRoles)].sort()
   if (next.tags) next.tags = [...new Set(next.tags)]
   return next
+}
+
+/** Native redirect URIs are for public clients only: a confidential client keeps to https (and localhost). */
+function assertRedirectUris(uris: readonly string[] | undefined, clientType: ClientType) {
+  if (clientType === 'public' || !uris) return
+  if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw fail(400, 'Only public clients may use custom-scheme redirect URIs.')
 }
 
 /** The row including `secretHash`; only for credential checks. Use `getApplication` everywhere else. */
@@ -74,26 +93,37 @@ export async function listApplications(): Promise<OAuthApplication[]> {
   return rows.map(toApplication)
 }
 
-/** Creates an application. The returned `secret` is the only time the plain secret is available. */
-export async function createApplication(input: ApplicationInput, ownerId?: number | null): Promise<{ application: OAuthApplication, secret: string }> {
+/**
+ * Creates an application. The returned `secret` is the only time the plain secret is available; it is `null` for
+ * `public` clients, which have none.
+ */
+export async function createApplication(input: ApplicationInput, ownerId?: number | null): Promise<{ application: OAuthApplication, secret: string | null }> {
   const data = normalizeInput(applicationInputSchema.parse(input))
-  const secret = generateSecret()
+  const clientType = data.clientType ?? 'confidential'
+  assertRedirectUris(data.redirectUris, clientType)
+  const secret = clientType === 'public' ? null : generateSecret()
   const [row] = await db.insert(schema.oauthApplications).values({
     id: newId('app'),
-    secretHash: await sha256Hex(secret),
     ownerId: ownerId ?? null,
     ...data,
+    clientType,
+    // A public client has no secret to hash; see `secretHash` in the schema.
+    secretHash: await sha256Hex(secret ?? generateSecret()),
   }).returning()
   return { application: toApplication(row!), secret }
 }
 
 export async function updateApplication(id: string, patch: Partial<ApplicationInput>): Promise<OAuthApplication> {
-  const data = normalizeInput(applicationPatchSchema.parse(patch))
-  const [row] = Object.keys(data).length
-    ? await db.update(schema.oauthApplications).set(data).where(eq(schema.oauthApplications.id, id)).returning()
-    : [await getApplicationRow(id)]
-  if (!row) throw fail(404, 'Application not found.')
-  return toApplication(row)
+  const { clientType, ...data } = normalizeInput(applicationPatchSchema.parse(patch))
+  const existing = await getApplicationRow(id)
+  if (!existing) throw fail(404, 'Application not found.')
+  // A secret cannot be created or dropped by editing: register a new application instead.
+  if (clientType && clientType !== existing.clientType) throw fail(400, 'The client type cannot be changed.')
+  assertRedirectUris(data.redirectUris, existing.clientType)
+
+  if (!Object.keys(data).length) return toApplication(existing)
+  const [row] = await db.update(schema.oauthApplications).set(data).where(eq(schema.oauthApplications.id, id)).returning()
+  return toApplication(row ?? existing)
 }
 
 /** Deletes the application with its authorization codes and refresh tokens. */
@@ -106,6 +136,8 @@ export async function deleteApplication(id: string): Promise<void> {
 
 /** Replaces the client secret and revokes the refresh tokens issued with the old one. */
 export async function rotateApplicationSecret(id: string): Promise<{ secret: string }> {
+  const existing = await getApplicationRow(id)
+  if (existing?.clientType === 'public') throw fail(400, 'Public clients have no client secret.')
   const secret = generateSecret()
   const updated = await db.update(schema.oauthApplications)
     .set({ secretHash: await sha256Hex(secret) })
@@ -118,6 +150,22 @@ export async function rotateApplicationSecret(id: string): Promise<{ secret: str
 
 export async function verifyApplicationSecret(row: ApplicationRow, secret: string): Promise<boolean> {
   return safeEqual(await sha256Hex(secret), row.secretHash)
+}
+
+/**
+ * Authenticates the client of a token or revocation request. Confidential clients must present their secret. Public
+ * clients are identified by `client_id` alone (their security is PKCE plus refresh token rotation); a secret sent to one
+ * is refused, as it can only mean the app was configured with the wrong kind of client.
+ */
+export async function authenticateClient(event: H3Event, body: Record<string, unknown> | undefined): Promise<{ row: ApplicationRow } | { basic: boolean }> {
+  const auth = readClientAuth(event, body)
+  const row = auth ? await getApplicationRow(auth.clientId) : null
+  const basic = auth?.basic ?? false
+  if (!auth || !row) return { basic }
+
+  if (row.clientType === 'public') return auth.clientSecret ? { basic } : { row }
+  if (!auth.clientSecret || !(await verifyApplicationSecret(row, auth.clientSecret))) return { basic }
+  return { row }
 }
 
 /** Revokes every refresh token of an application (e.g. after a secret leak). */

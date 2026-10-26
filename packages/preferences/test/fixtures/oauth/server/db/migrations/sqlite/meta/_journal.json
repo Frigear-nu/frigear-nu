@@ -15,6 +15,13 @@
       "when": 1791859675536,
       "tag": "0001_split_auth_from_users",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793008422405,
+      "tag": "0002_add_oauth_client_type",
+      "breakpoints": true
     }
   ]
 }

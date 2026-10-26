@@ -6,7 +6,13 @@ import { pgTable, text, integer, boolean, jsonb, timestamp, index } from 'drizzl
 export const oauthApplications = pgTable('oauth_applications', {
   /** `app_` + random id; it is the OAuth `client_id`. */
   id: text().primaryKey(),
-  /** SHA-256 hex of the client secret. The secret itself is only shown once. */
+  /** `confidential` clients authenticate with a secret; `public` ones (native apps, SPAs) rely on PKCE alone. */
+  clientType: text({ enum: ['confidential', 'public'] }).notNull().default('confidential'),
+  /**
+   * SHA-256 hex of the client secret. The secret itself is only shown once. Public clients have none: they get the hash
+   * of a random value nobody ever sees, so the column stays `NOT NULL` (relaxing it would make SQLite rebuild this table,
+   * which can cascade-delete the refresh tokens that reference it) and `clientType` decides whether it is ever checked.
+   */
   secretHash: text().notNull(),
   name: text().notNull(),
   description: text(),

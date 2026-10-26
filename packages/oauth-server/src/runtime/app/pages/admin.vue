@@ -63,6 +63,13 @@ const columns = computed<TableColumn<Application>[]>(() => [
           >
             <template #badges>
               <UBadge
+                v-if="row.original.clientType === 'public'"
+                color="info"
+                variant="subtle"
+                size="sm"
+                :label="t('admin.public', 'Public')"
+              />
+              <UBadge
                 v-if="!row.original.isActive"
                 color="neutral"
                 variant="subtle"

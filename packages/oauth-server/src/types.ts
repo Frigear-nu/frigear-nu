@@ -1,5 +1,8 @@
 import type { H3Event } from 'h3'
 
+/** `confidential` applications authenticate with a client secret; `public` ones (native apps, SPAs) rely on PKCE alone. */
+export type ClientType = 'confidential' | 'public'
+
 export type ModuleOptions = {
   /**
    * The `iss` claim and the discovery issuer, e.g. `https://id.example.com`. Defaults to the origin of the
@@ -18,6 +21,14 @@ export type ModuleOptions = {
   callbackPath?: string
   /** Extra scopes advertised and accepted next to `openid profile email`. Enrich their claims with `oauth:claims`. */
   scopes?: string[]
+  /**
+   * Browser apps on another origin (for example the webview of a Capacitor app at `capacitor://localhost`) may call the
+   * token, revocation, userinfo and discovery endpoints. Exact origins only, never `*`. The authorization endpoint is
+   * never opened up: it is a top-level navigation. Cookies are not allowed cross-origin either.
+   */
+  cors?: {
+    origins?: string[]
+  }
   settings?: {
     // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
     mcp?: boolean
@@ -53,6 +64,8 @@ export type OAuthServerRuntimeConfig = {
   codeTtl: number
   callbackPath: string
   scopes: string[]
+  /** Allowed CORS origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS` takes a comma separated list). */
+  corsOrigins: string[] | string
   authorizePath: string
   signInPath?: string
 }
@@ -73,6 +86,8 @@ export type OAuthUser = {
 export type OAuthApplication = {
   /** `app_` + random id; it is the OAuth `client_id`. */
   id: string
+  /** `public` applications have no client secret; they must use PKCE and may register native redirect URIs. */
+  clientType: ClientType
   name: string
   description: string | null
   icon: string | null
@@ -80,7 +95,7 @@ export type OAuthApplication = {
   websiteUrl: string
   loginUrl: string | null
   previewUrlPattern: string | null
-  /** Extra exact redirect URIs next to the derived `websiteUrl + callbackPath`. */
+  /** Extra exact redirect URIs next to the derived `websiteUrl + callbackPath`. Public clients may list native (custom scheme) URIs. */
   redirectUris: string[]
   /** Roles allowed to sign in. Empty = every signed-in user. */
   allowedRoles: string[]
@@ -97,6 +112,8 @@ export type UserApplicationDto = Pick<OAuthApplication, 'id' | 'name' | 'descrip
 }
 
 export type ApplicationInput = {
+  /** Fixed at creation. Defaults to `confidential`. */
+  clientType?: ClientType
   name: string
   websiteUrl: string
   description?: string | null
@@ -171,7 +188,11 @@ export type AdminApplicationDto = Omit<OAuthApplication, 'createdAt' | 'updatedA
 }
 
 /** Returned once when an application is created. */
-export type CreatedApplicationDto = AdminApplicationDto & { clientId: string, clientSecret: string }
+export type CreatedApplicationDto = AdminApplicationDto & {
+  clientId: string
+  /** `null` for public clients: they have no secret. */
+  clientSecret: string | null
+}
 
 export type ConsentDto = {
   application: Pick<OAuthApplication, 'id' | 'name' | 'description' | 'icon' | 'websiteUrl'>
