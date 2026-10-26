@@ -1,6 +1,6 @@
 import type { MenuItem } from '../../../types'
 import { parseMenuPath } from '../../utils/menu'
-import { pushMenuItems } from './state'
+import { currentMenuStore, pushMenuItems } from './state'
 
 /**
  * Pushes one (or more) item(s) into a menu's group, creating both if they don't exist yet. Paths
@@ -13,5 +13,5 @@ export function extendMenuItem(path: string, item: MenuItem | MenuItem[]): void 
   if (wildcard) {
     throw new Error(`[@frigear-nu/menu] Cannot register items into wildcard path "${path}" - wildcards are only supported when reading a menu via \`useMenu\`.`)
   }
-  pushMenuItems(menu, group, item)
+  pushMenuItems(currentMenuStore(), menu, group, item)
 }

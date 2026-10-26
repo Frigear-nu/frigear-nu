@@ -1,7 +1,7 @@
 import { computed, unref } from 'vue'
 import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
 import { type MenuTranslator, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder, translateMenuItem } from '../../utils/menu'
-import { menus } from '../utils/state'
+import { getAppMenuStore } from '../utils/state'
 import type { MenuItem } from '../../../types'
 import type { AsyncData, NuxtError } from 'nuxt/app'
 
@@ -76,7 +76,7 @@ export const useMenu = (path: string): AsyncData<MenuItem[], NuxtError<unknown> 
     () => `menu:${path}:${locale.value ?? ''}`,
     async () => {
       const i18n = nuxtApp.$i18n?.t && nuxtApp.$i18n.te ? (nuxtApp.$i18n as MenuTranslator) : undefined
-      const registered = collectMenuItems(menus[menu], parsed).map(item => translateMenuItem(item, i18n))
+      const registered = collectMenuItems(getAppMenuStore(nuxtApp)[menu], parsed).map(item => translateMenuItem(item, i18n))
       const content = await loadContentItems(menu, parsed, unref(locale))
       const result = sortByOrder([...content, ...registered])
       // Fired once a menu's items have been resolved and are about to be handed to a view -
