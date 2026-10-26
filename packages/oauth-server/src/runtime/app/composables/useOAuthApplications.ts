@@ -62,14 +62,26 @@ export function useOAuthApplications() {
   return { applications: data, status, error, refresh, create, update, remove, rotateSecret, revokeGrants }
 }
 
-/** The applications the signed-in user may sign in to. */
+/**
+ * The applications the signed-in user may sign in to. Awaitable: `await useMyApplications()` in a page renders them on
+ * the server. `applications` is `[]` until loaded and after an error: check `loading` and `error` first.
+ */
 export function useMyApplications() {
   const { loggedIn } = useUserSession()
-  const { data, status, refresh } = useFetch<UserApplicationDto[]>(`${BASE}/me/applications`, {
+  // The server knows the visitor from the request's cookie, so the request does not wait for the client-side session.
+  const fetched = useCachedFetch<UserApplicationDto[]>(`${BASE}/me/applications`, {
     key: 'oauth-server:mine',
-    immediate: loggedIn.value,
+    ttl: 5 * 60 * 1000,
     watch: false,
-    default: () => [],
   })
-  return { applications: data, status, refresh }
+  const { status, error, loading, refresh, clear } = fetched
+
+  watch(loggedIn, (value) => {
+    if (value) refresh()
+    else clear()
+  })
+
+  const applications = computed(() => fetched.data.value ?? [])
+  const api = { applications, status, error, loading, refresh }
+  return Object.assign(fetched.then(() => api), api)
 }
