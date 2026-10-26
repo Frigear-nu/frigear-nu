@@ -36,10 +36,17 @@ export const useCachedFetchStore = (): Ref<CachedFetchStore> => useState<CachedF
 
 /**
  * Remember a response for `key` as if `useCachedFetch` had fetched it, e.g. data loaded ahead of time (a warm-up, an
- * aggregated request). `data` must have the shape the composable's `transform` produces. Client only.
+ * aggregated request such as `loadBootstrap`). `data` must have the shape the composable's `transform` produces.
+ *
+ * On the server it goes into this request's payload under `key`, where `useCachedFetch` finds it during server
+ * rendering (no request of its own) and the client finds it while hydrating. Prime before the components using
+ * `key` set up (a route middleware), so they see it.
  */
 export function primeCachedFetch<T>(key: string, data: T) {
-  if (import.meta.server) return
+  if (import.meta.server) {
+    useNuxtApp().payload.data[key] = data
+    return
+  }
   useCachedFetchStore().value[key] = markRaw({ at: Date.now(), data })
 }
 
@@ -57,7 +64,8 @@ export function clearCachedFetch(keys?: string | string[] | ((key: string) => bo
 
 /**
  * Where `useCachedFetch` gets data without a request, in this order:
- * 1. while hydrating, the server's response from the payload (and it is remembered for later mounts);
+ * 1. while hydrating, the server's response from the payload (and it is remembered for later mounts); on the server,
+ *    data primed for this request (`primeCachedFetch`);
  * 2. on a mount (`cause: 'initial'`), the remembered response while it is younger than `ttl`;
  * 3. otherwise nothing, so `useFetch` fetches. Refreshes (`refresh()`, `refreshNuxtData`, watchers) always fetch.
  *
@@ -70,8 +78,11 @@ export function cachedFetchData(
   cache: CachedFetchStore,
   ttl: number | undefined,
   now = Date.now(),
+  server = !!import.meta.server,
 ): { data: unknown, remember: boolean } | undefined {
-  if (nuxtApp.isHydrating && nuxtApp.payload.data[key] !== undefined) return { data: nuxtApp.payload.data[key], remember: true }
+  if ((nuxtApp.isHydrating || (server && cause === 'initial')) && nuxtApp.payload.data[key] !== undefined) {
+    return { data: nuxtApp.payload.data[key], remember: true }
+  }
   if (cause !== 'initial') return undefined
   const entry = cache[key]
   if (!entry) return undefined
