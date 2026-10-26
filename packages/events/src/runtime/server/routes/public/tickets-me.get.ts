@@ -1,6 +1,3 @@
-import type { TicketDto } from '../../../../types'
+import myTickets from '../../bootstrap/my-tickets'
 
-export default defineEventHandler(async (event): Promise<TicketDto[]> => {
-  const user = await requireUser(event, { scopes: ['tickets:read'] })
-  return listUserTickets(user.id)
-})
+export default defineEventHandler(myTickets)
