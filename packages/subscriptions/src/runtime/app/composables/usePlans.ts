@@ -23,29 +23,19 @@ export type PlansResponse = { plans: SubscriptionPlan[] }
 /** Matches the server-side KV cache (`CACHE_TTL_SECONDS`), so a client-side hit is never older than the server's own. */
 export const PLANS_CLIENT_CACHE_MS = 5 * 60 * 1000
 
-export type PlansCache = { at: number, data: PlansResponse } | null
-
-export const usePlansCache = () => useState<PlansCache>('subscriptions:plans:cache', () => null)
+/** The `useCachedFetch` key of the plans; `warm-plans.client.ts` primes it. */
+export const PLANS_KEY = 'subscriptions:plans'
 
 export const usePlans = () => {
-  // Nuxt purges `useFetch` data once the last component using the key unmounts, so navigating away and back would
-  // blank the table and refetch. `useState` survives navigation and is carried over from the server render.
-  const cache = usePlansCache()
-
-  const { data, status, error, refresh } = useFetch<PlansResponse>('/api/subscriptions/plans', {
-    key: 'subscriptions:plans',
-    default: () => ({ plans: [] }),
-    getCachedData: (_key, _nuxtApp, ctx) =>
-      ctx.cause !== 'refresh:manual' && cache.value && Date.now() - cache.value.at < PLANS_CLIENT_CACHE_MS ? cache.value.data : undefined,
-    transform: (response) => {
-      cache.value = { at: Date.now(), data: response }
-      return response
-    },
+  // `useCachedFetch` keeps the plans across navigation, so going back to the pricing table does not blank it.
+  const { data, status, error, loading, refresh } = useCachedFetch<PlansResponse>('/api/subscriptions/plans', {
+    key: PLANS_KEY,
+    ttl: PLANS_CLIENT_CACHE_MS,
   })
 
   const plans = computed<SubscriptionPlan[]>(() =>
     [...(data.value?.plans ?? [])].sort((a, b) => a.rank - b.rank),
   )
 
-  return { plans, status, error, refresh }
+  return { plans, status, error, loading, refresh }
 }

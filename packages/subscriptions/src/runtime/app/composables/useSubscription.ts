@@ -24,6 +24,8 @@ const ACTIVE_STATUSES = ['active', 'trialing']
 /** How long the client reuses the last `me` response when remounting (e.g. navigating back to the pricing page). */
 const CLIENT_CACHE_MS = 60 * 1000
 
+const ME_KEY = 'subscriptions:me'
+
 /** Mirrors the server's `isEntitledRow`: ended rows and manual (free) grants past their end date do not count. */
 function isEntitled(item: UserSubscription) {
   if (!ACTIVE_STATUSES.includes(item.status) || item.endedAt) return false
@@ -36,30 +38,18 @@ export const useSubscription = () => {
   const pending = ref(false)
   const error = ref<string | null>(null)
 
-  // Nuxt purges `useFetch` data when the last component using the key unmounts, which blanked the current-plan state
-  // (and refetched) on every navigation back. `useState` survives navigation and is carried over from the server render.
-  // Manual refreshes (after checkout, sign-in) bypass it and update it.
-  const cache = useState<{ at: number, data: MeResponse } | null>('subscriptions:me:cache', () => null)
-
-  const { data, status, refresh } = useFetch<MeResponse>('/api/subscriptions/me', {
-    key: 'subscriptions:me',
-    default: () => ({ subscriptions: [], activePlan: null }),
+  // `useCachedFetch` keeps the response across navigation (Nuxt drops `useFetch` data once the last component using
+  // the key unmounts) and reuses it for a minute; `refresh()` (after checkout, sign-in) always asks the server.
+  const { data, status, error: loadError, loading, refresh, clear } = useCachedFetch<MeResponse>('/api/subscriptions/me', {
+    key: ME_KEY,
+    ttl: CLIENT_CACHE_MS,
     immediate: loggedIn.value,
     watch: false,
-    getCachedData: (_key, _nuxtApp, ctx) =>
-      ctx.cause !== 'refresh:manual' && cache.value && Date.now() - cache.value.at < CLIENT_CACHE_MS ? cache.value.data : undefined,
-    transform: (response) => {
-      cache.value = { at: Date.now(), data: response }
-      return response
-    },
   })
 
   watch(loggedIn, (value) => {
     if (value) refresh()
-    else {
-      cache.value = null
-      data.value = { subscriptions: [], activePlan: null }
-    }
+    else clear()
   })
 
   const subscription = computed<UserSubscription | null>(() => {
@@ -127,5 +117,5 @@ export const useSubscription = () => {
     }, t('errors.portal', 'Failed to open the billing portal.'))
   }
 
-  return { subscription, plan, status, isActive, cancelsAt, has, pending, error, refresh, subscribe, openPortal }
+  return { subscription, plan, status, loading, loadError, isActive, cancelsAt, has, pending, error, refresh, subscribe, openPortal }
 }
