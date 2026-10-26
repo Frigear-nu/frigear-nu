@@ -109,6 +109,7 @@
       "currentSubscription": "Nuværende abonnement",
       "history": {
         "title": "Abonnementshistorik",
+        "loadFailed": "Abonnementshistorikken kunne ikke hentes",
         "empty": "Ingen abonnementer endnu.",
         "plan": "Plan",
         "status": "Status",

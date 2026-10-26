@@ -109,6 +109,7 @@
       "currentSubscription": "Current subscription",
       "history": {
         "title": "Subscription history",
+        "loadFailed": "The subscription history could not be loaded",
         "empty": "No subscriptions yet.",
         "plan": "Plan",
         "status": "Status",
