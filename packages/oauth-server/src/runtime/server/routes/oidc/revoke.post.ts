@@ -4,12 +4,12 @@ import { readBody } from 'h3'
 // Access tokens are short-lived JWTs and cannot be revoked.
 export default defineEventHandler(async (event) => {
   const body = (await readBody(event).catch(() => undefined)) as Record<string, unknown> | undefined
-  const credentials = readClientCredentials(event, body)
-  const row = credentials ? await getApplicationRow(credentials.clientId) : null
-  if (!credentials || !row || !(await verifyApplicationSecret(row, credentials.clientSecret))) {
-    if (credentials?.basic) setResponseHeader(event, 'WWW-Authenticate', 'Basic')
+  const client = await authenticateClient(event, body)
+  if (!('row' in client)) {
+    if (client.basic) setResponseHeader(event, 'WWW-Authenticate', 'Basic')
     return oauthError(event, 401, 'invalid_client', 'Client authentication failed.')
   }
+  const row = client.row
   if (typeof body?.token === 'string') await revokeRefreshToken(body.token, row.id)
   setResponseStatus(event, 200)
   return {}

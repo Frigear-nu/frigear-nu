@@ -1,0 +1,1 @@
+ALTER TABLE `oauth_applications` ADD `client_type` text DEFAULT 'confidential' NOT NULL;

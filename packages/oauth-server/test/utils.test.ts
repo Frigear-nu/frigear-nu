@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isNativeRedirectUri,
   matchesAllowedRoles,
   normalizeWebsiteUrl,
   parseScope,
@@ -67,5 +68,64 @@ describe('validateRedirectUri', () => {
 
   it('honours a custom callback path', () => {
     expect(validateRedirectUri('https://app.example.com/cb', { websiteUrl: 'https://app.example.com', callbackPath: '/cb' })).toBe(true)
+  })
+})
+
+describe('isNativeRedirectUri', () => {
+  it('accepts private-use schemes and webview origins', () => {
+    expect(isNativeRedirectUri('com.example.app:/callback')).toBe(true)
+    expect(isNativeRedirectUri('com.example.app://callback')).toBe(true)
+    expect(isNativeRedirectUri('capacitor://localhost/auth/callback')).toBe(true)
+    expect(isNativeRedirectUri('myapp://oauth')).toBe(true)
+  })
+
+  it('rejects web, dangerous and malformed URIs', () => {
+    for (const uri of [
+      'https://app.example.com/cb',
+      'http://localhost:3000/cb',
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'file:///etc/passwd',
+      'blob:https://app.example.com/x',
+      'ftp://example.com/x',
+      'mailto:a@example.com',
+      'com.example.app:/callback#fragment',
+      'com.example.app://user:pass@host/cb',
+      'com.example.*:/callback',
+      'com.example.app:/*',
+      'not a url',
+      '',
+    ]) expect(isNativeRedirectUri(uri), uri).toBe(false)
+  })
+})
+
+describe('validateRedirectUri for native apps', () => {
+  const rules = { websiteUrl: 'https://app.example.com', redirectUris: ['com.example.app:/callback', 'capacitor://localhost/auth/callback'] }
+
+  it('only accepts listed native URIs, and only for public clients', () => {
+    expect(validateRedirectUri('com.example.app:/callback', { ...rules, allowNativeRedirects: true })).toBe(true)
+    expect(validateRedirectUri('capacitor://localhost/auth/callback', { ...rules, allowNativeRedirects: true })).toBe(true)
+    expect(validateRedirectUri('com.example.app:/callback', rules)).toBe(false)
+    expect(validateRedirectUri('com.example.app:/callback', { ...rules, allowNativeRedirects: false })).toBe(false)
+  })
+
+  it('matches exactly: no prefixes, case changes or other paths', () => {
+    const publicRules = { ...rules, allowNativeRedirects: true }
+    expect(validateRedirectUri('com.example.app:/callback/extra', publicRules)).toBe(false)
+    expect(validateRedirectUri('com.example.app:/other', publicRules)).toBe(false)
+    expect(validateRedirectUri('com.example.app:/callback?x=1', publicRules)).toBe(false)
+    expect(validateRedirectUri('com.evil.app:/callback', publicRules)).toBe(false)
+    expect(validateRedirectUri('capacitor://localhost/other', publicRules)).toBe(false)
+  })
+
+  it('does not let an unlisted dangerous scheme through even when public', () => {
+    const publicRules = { websiteUrl: 'https://app.example.com', redirectUris: ['javascript:alert(1)'], allowNativeRedirects: true }
+    expect(validateRedirectUri('javascript:alert(1)', publicRules)).toBe(false)
+  })
+
+  it('still applies the https rules to web redirects of a public client', () => {
+    const publicRules = { websiteUrl: 'https://app.example.com', allowNativeRedirects: true }
+    expect(validateRedirectUri('https://app.example.com/auth/frigear', publicRules)).toBe(true)
+    expect(validateRedirectUri('http://app.example.com/auth/frigear', publicRules)).toBe(false)
   })
 })

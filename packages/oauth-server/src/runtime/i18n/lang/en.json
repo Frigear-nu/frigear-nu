@@ -19,6 +19,7 @@
       "application": "Application",
       "access": "Access",
       "signedIn": "Signed in",
+      "public": "Public",
       "disabled": "Disabled",
       "callback": "Callback",
       "everyone": "Every signed-in user",
@@ -66,7 +67,14 @@
       "tags": "Tags",
       "description": "Description",
       "icon": "Icon",
-      "priority": "Priority"
+      "priority": "Priority",
+      "clientType": "Client type",
+      "clientTypeConfidential": "Confidential (server-side, has a client secret)",
+      "clientTypePublic": "Public (native or single-page app, no secret)",
+      "clientTypeHint": "Cannot be changed later. Public clients sign in with PKCE only, so they never get a secret.",
+      "redirectUris": "Redirect URIs",
+      "redirectUrisHint": "Extra exact redirect URIs. Public clients may use custom-scheme URIs such as com.example.app:/callback.",
+      "redirectUriInvalid": "Enter a https URL or, for public clients, a custom-scheme URI."
     },
     "credentials": {
       "title": "Credentials for {name}",
@@ -75,7 +83,9 @@
       "clientSecret": "Client secret",
       "copy": "Copy",
       "copiedClientId": "Client ID copied",
-      "copiedClientSecret": "Client secret copied"
+      "copiedClientSecret": "Client secret copied",
+      "publicDescription": "This is a public client: it has no client secret and signs in with PKCE only.",
+      "noSecret": "None (public client)"
     },
     "applications": {
       "open": "Open",

@@ -77,6 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
     codeTtl: 600,
     callbackPath: '/auth/frigear',
     scopes: [],
+    cors: { origins: [] },
     settings: { pages: {} },
   },
   moduleDependencies: {
@@ -115,6 +116,15 @@ export default defineNuxtModule<ModuleOptions>({
     const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
+    const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
+    for (const origin of corsOrigins) {
+      // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
+      const url = URL.canParse(origin) ? new URL(origin) : undefined
+      if (!url || origin === '*' || origin !== `${url.protocol}//${url.host}`) {
+        throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${origin}".`)
+      }
+    }
+
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).
     const existing = nuxt.options.runtimeConfig.oauthServer as Partial<OAuthServerRuntimeConfig> | undefined
     nuxt.options.runtimeConfig.oauthServer = {
@@ -129,6 +139,7 @@ export default defineNuxtModule<ModuleOptions>({
       codeTtl: options.codeTtl ?? 600,
       callbackPath: options.callbackPath ?? '/auth/frigear',
       scopes: options.scopes ?? [],
+      corsOrigins,
       authorizePath,
       signInPath: settings.signInPath,
     }
@@ -147,6 +158,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- OAuth / OIDC endpoints (standard paths) -------------------------------------------
+    addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/oauth-cors') })
     const handler = (file: string) => resolver.resolve(`./runtime/server/routes/${file}`)
     addServerHandler({ route: '/.well-known/openid-configuration', method: 'get', handler: handler('oidc/openid-configuration.get') })
     addServerHandler({ route: '/.well-known/jwks.json', method: 'get', handler: handler('oidc/jwks.get') })

@@ -40,18 +40,21 @@ export async function verifyCodeChallenge(verifier: string, challenge: string): 
 }
 
 /**
- * Client credentials from the `Authorization: Basic` header (id and secret are form-urlencoded and
- * split on the *first* colon, RFC 6749 §2.3.1) or from the request body.
+ * Client authentication data from the `Authorization: Basic` header (id and secret are form-urlencoded and split on
+ * the *first* colon, RFC 6749 §2.3.1) or from the request body. The secret is empty when none was sent, which is what
+ * public clients do. Whether that is acceptable depends on the application (see `authenticateClient`).
  */
-export function readClientCredentials(event: H3Event, body: Record<string, unknown> | undefined): { clientId: string, clientSecret: string, basic: boolean } | null {
+export function readClientAuth(event: H3Event, body: Record<string, unknown> | undefined): { clientId: string, clientSecret: string, basic: boolean } | null {
   const header = getHeader(event, 'authorization')
   if (header?.toLowerCase().startsWith('basic ')) {
     try {
       const decoded = atob(header.slice(6).trim())
       const index = decoded.indexOf(':')
       if (index === -1) return null
+      const clientId = decodeURIComponent(decoded.slice(0, index).replace(/\+/g, ' '))
+      if (!clientId) return null
       return {
-        clientId: decodeURIComponent(decoded.slice(0, index).replace(/\+/g, ' ')),
+        clientId,
         clientSecret: decodeURIComponent(decoded.slice(index + 1).replace(/\+/g, ' ')),
         basic: true,
       }
@@ -61,6 +64,12 @@ export function readClientCredentials(event: H3Event, body: Record<string, unkno
     }
   }
   const clientId = typeof body?.client_id === 'string' ? body.client_id : ''
-  const clientSecret = typeof body?.client_secret === 'string' ? body.client_secret : ''
-  return clientId && clientSecret ? { clientId, clientSecret, basic: false } : null
+  if (!clientId) return null
+  return { clientId, clientSecret: typeof body?.client_secret === 'string' ? body.client_secret : '', basic: false }
+}
+
+/** Client credentials that include a secret, or `null`. Confidential clients only; see `readClientAuth`. */
+export function readClientCredentials(event: H3Event, body: Record<string, unknown> | undefined): { clientId: string, clientSecret: string, basic: boolean } | null {
+  const auth = readClientAuth(event, body)
+  return auth?.clientSecret ? auth : null
 }

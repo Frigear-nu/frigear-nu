@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { AdminApplicationDto, ApplicationInput, CreatedApplicationDto } from '../../../types'
+import type { AdminApplicationDto, ApplicationInput, ClientType, CreatedApplicationDto } from '../../../types'
+import { isNativeRedirectUri, isSecureOrigin } from '../../utils'
 
 type Saved = AdminApplicationDto | CreatedApplicationDto
 
@@ -24,7 +25,16 @@ const emit = defineEmits<{
 const t = useModuleT('oauthServer')
 const { busy, run } = useAction()
 
+/** https (http for localhost) for everyone; a custom scheme only when the client is public. The server decides again. */
+const isAllowedRedirect = (value: string, clientType: ClientType) => {
+  if (!URL.canParse(value)) return false
+  const url = new URL(value)
+  return !url.hash && (isSecureOrigin(url) || (clientType === 'public' && isNativeRedirectUri(url)))
+}
+
 const schema = z.object({
+  clientType: z.enum(['confidential', 'public']),
+  redirectUris: z.array(z.string()),
   name: z.string().trim().min(1, t('form.nameRequired', 'Enter a name.')),
   websiteUrl: z.url(t('form.websiteUrlInvalid', 'Enter a full URL, for example https://app.example.com.')),
   loginUrl: z.string(),
@@ -39,6 +49,8 @@ const schema = z.object({
 type FormState = z.infer<typeof schema>
 
 const state = reactive<FormState>({
+  clientType: props.application?.clientType ?? 'confidential',
+  redirectUris: [...(props.application?.redirectUris ?? [])],
   name: props.application?.name ?? '',
   websiteUrl: props.application?.websiteUrl ?? '',
   loginUrl: props.application?.loginUrl ?? '',
@@ -52,9 +64,20 @@ const state = reactive<FormState>({
 
 const formId = 'oauth-application-form'
 
+const clientTypeItems = computed(() => [
+  { label: t('form.clientTypeConfidential', 'Confidential (server-side, has a client secret)'), value: 'confidential' },
+  { label: t('form.clientTypePublic', 'Public (native or single-page app, no secret)'), value: 'public' },
+])
+
+// Cross-field rule (depends on the client type), so it runs next to the schema.
+const redirectUriError = computed(() => state.redirectUris.find(uri => !isAllowedRedirect(uri, state.clientType)))
+
 async function onSubmit(event: FormSubmitEvent<FormState>) {
   const value = event.data
+  if (redirectUriError.value) return
   const saved = await run(() => props.save({
+    clientType: value.clientType,
+    redirectUris: value.redirectUris,
     name: value.name,
     websiteUrl: value.websiteUrl,
     loginUrl: value.loginUrl || null,
@@ -85,6 +108,18 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       class="grid gap-4"
       @submit="onSubmit"
     >
+      <UFormField
+        name="clientType"
+        :label="t('form.clientType', 'Client type')"
+        :description="t('form.clientTypeHint', 'Cannot be changed later. Public clients sign in with PKCE only, so they never get a secret.')"
+      >
+        <USelect
+          v-model="state.clientType"
+          :items="clientTypeItems"
+          :disabled="!!application"
+          class="w-full"
+        />
+      </UFormField>
       <UFormField
         name="name"
         :label="t('form.name', 'Name')"
@@ -124,6 +159,17 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInput
           v-model="state.previewUrlPattern"
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        name="redirectUris"
+        :label="t('form.redirectUris', 'Redirect URIs')"
+        :description="t('form.redirectUrisHint', 'Extra exact redirect URIs. Public clients may use custom-scheme URIs such as com.example.app:/callback.')"
+        :error="redirectUriError ? t('form.redirectUriInvalid', 'Enter a https URL or, for public clients, a custom-scheme URI.') : undefined"
+      >
+        <UInputTags
+          v-model="state.redirectUris"
           class="w-full"
         />
       </UFormField>

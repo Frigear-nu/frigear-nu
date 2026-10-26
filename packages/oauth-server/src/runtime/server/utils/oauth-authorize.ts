@@ -31,7 +31,7 @@ export async function validateAuthorizeRequest(input: unknown): Promise<{ reques
 
   const application = await getApplication(request.client_id)
   if (!application || !application.isActive) throw fail(400, 'Unknown or disabled application.')
-  const valid = validateRedirectUri(request.redirect_uri, { ...application, callbackPath: useOAuthConfig().callbackPath })
+  const valid = validateRedirectUri(request.redirect_uri, { ...application, callbackPath: useOAuthConfig().callbackPath, allowNativeRedirects: application.clientType === 'public' })
   if (!valid) throw fail(400, 'The redirect_uri is not allowed for this application.')
 
   const scope = resolveScope(request.scope, getSupportedScopes())

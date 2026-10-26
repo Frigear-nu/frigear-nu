@@ -24,6 +24,7 @@ export default defineNuxtConfig({
   oauthServer: {
     issuer: 'https://id.example.test',
     scopes: ['groups'],
+    cors: { origins: ['capacitor://localhost', 'https://app.example.com'] },
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
 })

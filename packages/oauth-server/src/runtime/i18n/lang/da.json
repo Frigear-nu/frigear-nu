@@ -19,6 +19,7 @@
       "application": "Applikation",
       "access": "Adgang",
       "signedIn": "Logget ind",
+      "public": "Offentlig",
       "disabled": "Deaktiveret",
       "callback": "Callback",
       "everyone": "Alle indloggede brugere",
@@ -66,7 +67,14 @@
       "tags": "Tags",
       "description": "Beskrivelse",
       "icon": "Ikon",
-      "priority": "Prioritet"
+      "priority": "Prioritet",
+      "clientType": "Klienttype",
+      "clientTypeConfidential": "Fortrolig (serverside, har en klienthemmelighed)",
+      "clientTypePublic": "Offentlig (native app eller single-page-app, ingen hemmelighed)",
+      "clientTypeHint": "Kan ikke ændres senere. Offentlige klienter logger kun ind med PKCE og får derfor aldrig en hemmelighed.",
+      "redirectUris": "Redirect-URI'er",
+      "redirectUrisHint": "Ekstra præcise redirect-URI'er. Offentlige klienter må bruge URI'er med eget skema, fx com.example.app:/callback.",
+      "redirectUriInvalid": "Angiv en https-URL eller, for offentlige klienter, en URI med eget skema."
     },
     "credentials": {
       "title": "Legitimationsoplysninger for {name}",
@@ -75,7 +83,9 @@
       "clientSecret": "Klienthemmelighed",
       "copy": "Kopiér",
       "copiedClientId": "Klient-id kopieret",
-      "copiedClientSecret": "Klienthemmelighed kopieret"
+      "copiedClientSecret": "Klienthemmelighed kopieret",
+      "publicDescription": "Dette er en offentlig klient: den har ingen klienthemmelighed og logger kun ind med PKCE.",
+      "noSecret": "Ingen (offentlig klient)"
     },
     "applications": {
       "open": "Åbn",

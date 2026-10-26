@@ -5,6 +5,13 @@ export function useOAuthConfig() {
   return useRuntimeConfig().oauthServer
 }
 
+/** Origins allowed to call the token, revocation, userinfo and discovery endpoints from a browser. Never `*`. */
+export function getOAuthCorsOrigins(): string[] {
+  const configured = useOAuthConfig().corsOrigins
+  const list = Array.isArray(configured) ? configured : String(configured ?? '').split(',')
+  return list.map(origin => origin.trim()).filter(origin => origin && origin !== '*')
+}
+
 /** The configured issuer, or the origin the request came in on (honouring `x-forwarded-*`). */
 export function getOAuthIssuer(event: H3Event): string {
   const configured = useOAuthConfig().issuer

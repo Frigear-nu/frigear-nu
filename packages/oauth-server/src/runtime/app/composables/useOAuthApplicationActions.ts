@@ -22,7 +22,7 @@ export function useOAuthApplicationActions() {
   const refresh = () => refreshNuxtData(OAUTH_APPLICATIONS_KEY)
 
   /** Shows the client secret once. */
-  function showCredentials(credentials: { name: string, clientId: string, clientSecret: string }) {
+  function showCredentials(credentials: { name: string, clientId: string, clientSecret: string | null }) {
     overlay.create(OAuthCredentialsModal, { destroyOnClose: true, props: credentials }).open()
   }
 
@@ -126,7 +126,8 @@ export function useOAuthApplicationActions() {
       icon: application.isActive ? 'i-lucide-pause' : 'i-lucide-play',
       onSelect: () => { void toggle(application) },
     },
-    { label: t('admin.newSecret', 'New client secret'), icon: 'i-lucide-key-round', onSelect: () => { void rotateSecret(application) } },
+    // Public clients have no secret to replace.
+    ...(application.clientType === 'public' ? [] : [{ label: t('admin.newSecret', 'New client secret'), icon: 'i-lucide-key-round', onSelect: () => { void rotateSecret(application) } }]),
     { label: t('admin.signOutEveryone', 'Sign everyone out'), icon: 'i-lucide-log-out', onSelect: () => { void signOutEveryone(application) } },
   ], [
     { label: t('admin.delete', 'Delete application'), icon: 'i-lucide-trash', color: 'error', onSelect: () => { void remove(application) } },

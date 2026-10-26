@@ -6,5 +6,6 @@ export default defineEventHandler(async (event) => {
   const input = await readValidatedBody(event, applicationInputSchema.parse)
   const { application, secret } = await createApplication(input, userId)
   setResponseStatus(event, 201)
+  // `clientSecret` is `null` for public clients.
   return { ...application, clientId: application.id, clientSecret: secret }
 })
