@@ -130,7 +130,8 @@
         "registerError": "Could not register the passkey.",
         "removed": "Passkey removed.",
         "removeError": "Could not remove the passkey.",
-        "loadError": "Could not load your passkeys."
+        "loadError": "Could not load your passkeys.",
+        "tryAgain": "Try again"
       }
     },
     "signedInAs": "Signed in as",
