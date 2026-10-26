@@ -1,13 +1,14 @@
 export const useNavigation = (tags?: string[]) => {
+  // Resolved in setup: calling a composable inside the handler, after an await, loses the Nuxt context.
+  const config = useConfig()
+
   return useAsyncData(
     () => `navigation:${tags?.join(',') || 'all'}`,
     async () => {
-      const { data: config } = await useConfig() // or however you access the pending promise
-      if (!tags) {
-        return config.value?.navigation || []
-      }
-      return (config.value?.navigation || [])
-        .filter(item => !tags || tags.some(tag => item?.tags?.includes(tag)))
+      const { data } = await config
+      const navigation = data.value?.navigation || []
+      if (!tags) return navigation
+      return navigation.filter(item => tags.some(tag => item?.tags?.includes(tag)))
     },
   )
 }

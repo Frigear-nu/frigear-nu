@@ -1,7 +1,6 @@
 import {
   addComponentsDir,
   addImports,
-  addPlugin,
   addRouteMiddleware,
   addServerHandler,
   addServerImportsDir,
@@ -19,6 +18,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
@@ -194,6 +194,12 @@ export default defineNuxtModule<ModuleOptions>({
       method: 'get',
       handler: resolver.resolve('./runtime/server/routes/subscriptions/me.get'),
     })
+    // The account area loads it together with the other modules' data (`useSubscription()` reads the same key).
+    registerBootstrapProvider(nuxt, {
+      scope: 'account',
+      key: 'subscriptions:me',
+      handler: resolver.resolve('./runtime/server/bootstrap/my-subscriptions'),
+    })
     addServerHandler({
       route: moduleApiUrl('subscriptions', 'checkout'),
       method: 'post',
@@ -244,7 +250,6 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useSubscription', from: resolver.resolve('./runtime/app/composables/useSubscription') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
-    addPlugin({ src: resolver.resolve('./runtime/app/plugins/warm-plans.client'), mode: 'client' })
     addRouteMiddleware({
       name: 'subscription',
       path: resolver.resolve('./runtime/app/middleware/subscription'),

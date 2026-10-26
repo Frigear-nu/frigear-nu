@@ -16,6 +16,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
@@ -174,6 +175,12 @@ export default defineNuxtModule<ModuleOptions>({
 
     api('get', 'consent', 'api/consent.get')
     api('get', 'me/applications', 'api/me-applications.get')
+    // The account area loads them together with the other modules' data (`useMyApplications()` reads the same key).
+    registerBootstrapProvider(nuxt, {
+      scope: 'account',
+      key: 'oauth-server:mine',
+      handler: resolver.resolve('./runtime/server/bootstrap/my-applications'),
+    })
     api('get', 'admin/applications', 'api/admin/applications.get')
     api('post', 'admin/applications', 'api/admin/applications.post')
     api('get', 'admin/applications/:id', 'api/admin/application.get')

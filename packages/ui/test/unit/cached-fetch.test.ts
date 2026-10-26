@@ -99,6 +99,14 @@ describe('cachedFetchData', () => {
   it('fetches when nothing is remembered', () => {
     expect(cachedFetchData('k', app(true, {}), 'initial', {}, undefined)).toBeUndefined()
   })
+
+  it('uses data primed into the payload while rendering on the server, but only on mount', () => {
+    const primed = app(false, { k: [3] })
+    expect(cachedFetchData('k', primed, 'initial', {}, 0, Date.now(), true)).toEqual({ data: [3], remember: true })
+    expect(cachedFetchData('k', primed, 'refresh:manual', {}, 0, Date.now(), true)).toBeUndefined()
+    // In the browser the payload is only read while hydrating.
+    expect(cachedFetchData('k', primed, 'initial', {}, 0, Date.now(), false)).toBeUndefined()
+  })
 })
 
 describe('useCachedFetch', () => {

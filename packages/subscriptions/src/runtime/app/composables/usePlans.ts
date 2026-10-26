@@ -23,7 +23,7 @@ export type PlansResponse = { plans: SubscriptionPlan[] }
 /** Matches the server-side KV cache (`CACHE_TTL_SECONDS`), so a client-side hit is never older than the server's own. */
 export const PLANS_CLIENT_CACHE_MS = 5 * 60 * 1000
 
-/** The `useCachedFetch` key of the plans; `warm-plans.client.ts` primes it. */
+/** The `useCachedFetch` key of the plans. */
 export const PLANS_KEY = 'subscriptions:plans'
 
 /** The plans, sorted by rank. Awaitable, like `useSubscription`. */
