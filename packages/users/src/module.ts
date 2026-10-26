@@ -100,13 +100,27 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     if (settings.verifyEmailChange) {
-      for (const file of ['verify-email-change', 'revert-email-change']) {
-        addServerHandler({
-          route: `/auth/${file}`,
-          method: 'get',
-          handler: resolver.resolve(`./runtime/server/routes/me/${file}.get`),
-        })
+      // The emailed links open pages (`/auth/verify-email-change`, `/auth/revert-email-change`) that only read
+      // (GET); the change is applied by their buttons (POST), so mail scanners and link previews use nothing up.
+      for (const [method, path, file] of [
+        ['get', 'email-change', 'email-change.get'],
+        ['post', 'email-change/confirm', 'email-change-confirm.post'],
+        ['get', 'email-change/revert', 'email-change-revert.get'],
+        ['post', 'email-change/revert', 'email-change-revert.post'],
+      ] as const) {
+        addServerHandler({ route: moduleApiUrl('users', path), method, handler: resolver.resolve(`./runtime/server/routes/me/${file}`) })
       }
+      // The pages need `@nuxt/ui`, which may be installed by another module, so this waits until every module is set up.
+      nuxt.hook('modules:done', () => {
+        if (!hasNuxtModule('@nuxt/ui', nuxt)) {
+          console.warn('[@frigear-nu/users] `settings.verifyEmailChange` is on, but `@nuxt/ui` is not installed: add your own pages at `/auth/verify-email-change` and `/auth/revert-email-change` (see the users module docs).')
+          return
+        }
+        addModulePages('@frigear-nu/users', resolver, [
+          { name: 'users-verify-email-change', path: '/auth/verify-email-change', file: './runtime/app/pages/verify-email-change.vue' },
+          { name: 'users-revert-email-change', path: '/auth/revert-email-change', file: './runtime/app/pages/revert-email-change.vue' },
+        ])
+      })
       registerDatabaseTable(nuxt, {
         resolver,
         schema: dialect => `./runtime/db/email-changes.${dialect}`,

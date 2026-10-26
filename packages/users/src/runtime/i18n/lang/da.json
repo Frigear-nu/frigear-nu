@@ -74,6 +74,43 @@
       "deleteTitle": "Slet {name}?",
       "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
       "deleted": "Brugeren er slettet."
+    },
+    "emailChange": {
+      "verify": {
+        "title": "Bekræft din nye e-mailadresse",
+        "submit": "Bekræft ny e-mailadresse"
+      },
+      "invalid": "Linket er ugyldigt eller udløbet.",
+      "invalidHint": "Links udløber efter 24 timer. Skift din e-mailadresse igen fra din profil for at få et nyt.",
+      "done": "Din e-mailadresse er nu {email}.",
+      "alreadyConfirmed": "Den her e-mailændring er allerede bekræftet.",
+      "signIn": {
+        "description": "Log ind på kontoen, der bad om ændringen, for at bekræfte {email} som din nye e-mailadresse. Du kommer tilbage hertil bagefter.",
+        "submit": "Log ind for at bekræfte"
+      },
+      "wrongAccount": {
+        "title": "Ændringen hører til en anden konto",
+        "description": "Du er logget ind som {email}. Log ud, og log så ind på kontoen, der bad om at skifte e-mailadresse.",
+        "signOut": "Log ud"
+      },
+      "taken": "En anden konto bruger allerede den e-mailadresse.",
+      "failed": "Din nye e-mailadresse kunne ikke bekræftes. Prøv igen.",
+      "backToProfile": "Tilbage til din profil",
+      "revert": {
+        "title": "Fortryd e-mailændring",
+        "description": "E-mailadressen på din konto blev ændret til {newEmail}. Hvis det ikke var dig, så gendan {oldEmail}.",
+        "submit": "Gendan {email}",
+        "invalid": "Linket er ugyldigt eller udløbet.",
+        "invalidHint": "Linket virker én gang, i 7 dage efter ændringen.",
+        "already": "Ændringen er allerede fortrudt.",
+        "done": "Din e-mailadresse er {email} igen.",
+        "doneHint": "Log ind igen. Hvis du ikke bad om ændringen, så nulstil også dit password.",
+        "doneHintNoReset": "Log ind igen for at fortsætte.",
+        "signIn": "Log ind",
+        "resetPassword": "Nulstil password",
+        "taken": "En anden konto bruger nu din gamle e-mailadresse. Kontakt os for at få din konto tilbage.",
+        "failed": "Din e-mailadresse kunne ikke gendannes. Prøv igen."
+      }
     }
   }
 }
