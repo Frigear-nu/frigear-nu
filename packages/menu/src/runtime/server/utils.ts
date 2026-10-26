@@ -6,7 +6,7 @@ import { useRuntimeConfig } from 'nitropack/runtime'
 // @ts-ignore
 import { staticItems, sources } from '#menus/server-sources'
 import { type MenuItem, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder } from '../utils/menu'
-import { menus, pushMenuItems, resetMenus } from '../app/utils/state'
+import { processMenuStore as menus, pushMenuItems, resetMenus } from '../app/utils/state'
 import type { MenuSource } from '../../types'
 
 type MenuSourceEntry = { menu: string, source: MenuSource }
@@ -18,18 +18,18 @@ let registered: Promise<void> | undefined
 
 function registerItems(): Promise<void> {
   registered ??= (async () => {
-    resetMenus()
+    resetMenus(menus)
 
     for (const [menu, groups] of Object.entries(staticItems as Record<string, Record<string, MenuItem[]>>)) {
       for (const [group, items] of Object.entries(groups)) {
-        if (items.length > 0) pushMenuItems(menu, group, items)
+        if (items.length > 0) pushMenuItems(menus, menu, group, items)
       }
     }
 
     for (const { menu, source } of sources as MenuSourceEntry[]) {
       const items: Parameters<MenuSource>[0] = []
       await source(items)
-      if (items.length > 0) pushMenuItems(menu, '', items)
+      if (items.length > 0) pushMenuItems(menus, menu, '', items)
     }
   })().catch((error) => {
     registered = undefined
