@@ -1,3 +1,4 @@
+/** The default prefix of user API tokens; a host sets its own with `authentication.apiTokens.prefix`. */
 export const USER_TOKEN_PREFIX = 'fnu_'
 
 /** `lastUsedAt` is only written this often, so reads do not turn into writes. */
@@ -13,14 +14,14 @@ export async function hashToken(token: string): Promise<string> {
 const base64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
 
 /** A new random token (shown once) with what is stored: its hash and display fragments. */
-export async function generateUserToken() {
-  const token = `${USER_TOKEN_PREFIX}${base64url(crypto.getRandomValues(new Uint8Array(32)))}`
-  return { token, ...await describeToken(token) }
+export async function generateUserToken(prefix: string = USER_TOKEN_PREFIX) {
+  const token = `${prefix}${base64url(crypto.getRandomValues(new Uint8Array(32)))}`
+  return { token, ...await describeToken(token, prefix) }
 }
 
-/** The only parts of a token that are persisted. The plaintext never is. */
-export async function describeToken(token: string) {
-  return { tokenHash: await hashToken(token), prefix: token.slice(0, 8), last4: token.slice(-4) }
+/** The only parts of a token that are persisted: its prefix and four characters after it are shown. The plaintext never is. */
+export async function describeToken(token: string, prefix: string = USER_TOKEN_PREFIX) {
+  return { tokenHash: await hashToken(token), prefix: token.slice(0, prefix.length + 4), last4: token.slice(-4) }
 }
 
 /** Extracts the token of an `Authorization: Bearer <token>` header (scheme is case-insensitive). */

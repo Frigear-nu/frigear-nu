@@ -12,8 +12,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Unknown scopes: ${unknown.join(', ')}` })
   }
 
-  const days = body.expiresInDays === undefined ? useRuntimeConfig(event).authentication?.tokenTtlDays : body.expiresInDays
-  const { token, tokenHash, prefix, last4 } = await generateUserToken()
+  const config = useRuntimeConfig(event).authentication
+  const days = body.expiresInDays === undefined ? config?.tokenTtlDays : body.expiresInDays
+  const { token, tokenHash, prefix, last4 } = await generateUserToken(config?.apiTokenPrefix)
   const [row] = await db.insert(schema.authUserTokens).values({
     id: newTokenId(),
     userId: String(user.id),
