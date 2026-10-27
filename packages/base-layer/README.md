@@ -94,6 +94,7 @@ With more than one i18n locale, every page gets `<link rel="alternate" hreflang>
 - This package is a shared workspace dependency and is linked via `workspace:*` from apps.
 - Keep changes here compatible with both consuming apps.
 - If you change module config or public runtime behavior, validate both app consumers in the same change.
+- Client-side navigation: the content page and landing template render `UPageHeader`, `UPageBody` and `ContentRenderer` directly, not their `Lazy*` variants. Every page needs them, and a lazy wrapper costs one more round trip on each navigation. `app.vue` shows `NuxtLoadingIndicator`. `@nuxt/ui` must be ≥ 4.12: older `ULink` renders `NuxtLink` in `custom` mode without its prefetch listeners, so links never prefetch on hover or focus.
 
 ## Publishing
 

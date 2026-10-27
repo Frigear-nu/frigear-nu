@@ -14,6 +14,8 @@ useLocaleAlternates()
 
 <template>
   <UApp>
+    <!-- Feedback while a client-side navigation loads; the default throttle hides it on fast ones. -->
+    <NuxtLoadingIndicator color="var(--ui-primary)" />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
