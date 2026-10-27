@@ -12,10 +12,10 @@ describe('user API tokens (disabled)', async () => {
   })
 
   it('does not register the token routes', async () => {
-    // No route is registered, so the request falls through to the app's SSR fallback.
-    for (const method of ['GET', 'POST']) {
-      const response = await fetch('/api/auth/tokens', { method, headers: { 'content-type': 'application/json' }, body: method === 'POST' ? '{"name":"CI","scopes":[]}' : undefined })
-      expect(await response.text()).toContain('<!DOCTYPE html')
-    }
+    // GET falls through to the OAuth `:provider` route, which knows no provider called `tokens`.
+    expect((await fetch('/api/auth/tokens')).status).toBe(404)
+    // POST has no route at all, so it falls through to the app's SSR fallback.
+    const created = await fetch('/api/auth/tokens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"name":"CI","scopes":[]}' })
+    expect(await created.text()).toContain('<!DOCTYPE html')
   })
 })

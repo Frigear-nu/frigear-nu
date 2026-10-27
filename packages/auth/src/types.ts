@@ -28,8 +28,33 @@ export interface AuthScopeAvailabilityContext {
   available: boolean
 }
 
-export const OAUTH_PROVIDERS = ['github', 'google', 'facebook', 'frigear'] as const
-export type OAuthProvider = typeof OAUTH_PROVIDERS[number]
+/**
+ * An OAuth provider: any provider nuxt-auth-utils ships (`github`, `auth0`, `okta`, `keycloak`, `oidc`, ...) or `frigear`.
+ * See https://github.com/atinux/nuxt-auth-utils#supported-oauth-providers.
+ */
+export type OAuthProvider = string
+
+/** Overrides for one OAuth provider in `authentication.settings.oauth`. */
+export interface OAuthProviderOptions {
+  /** Button label. Defaults to the provider's name; `auth.oauth.<provider>.label` translates it per locale. */
+  label?: string
+  /** Iconify name for the button, e.g. `i-simple-icons-auth0`. */
+  icon?: string
+  /** Create an account for an email without one. `false` only signs in existing users (invite-only apps). Defaults to `true`. */
+  signUp?: boolean
+  /** Passed to the nuxt-auth-utils handler (`scope`, `authorizationParams`, ...). Keep secrets in env vars. */
+  config?: Record<string, unknown>
+}
+
+/** A sign-in button, as returned by `GET /api/auth/providers`. */
+export interface OAuthProviderButton {
+  key: OAuthProvider
+  to: string
+  label?: string
+  icon?: string
+  /** Full page navigation instead of the router. */
+  external?: boolean
+}
 
 /** The subset of `settings` the client reads, exposed through `runtimeConfig.public.authentication`. */
 export type PublicModuleOptions = {
@@ -38,6 +63,7 @@ export type PublicModuleOptions = {
   webAuthn: boolean
   magicLink: boolean
   verifyEmail: boolean
+  /** Providers enabled in `settings.oauth`. The buttons come from `GET /api/auth/providers`, which also sees env-only ones. */
   oauth: OAuthProvider[]
   /** User API tokens are on (`apiTokens` is not `false`). */
   apiTokens: boolean
@@ -91,11 +117,13 @@ export interface AuthSettings {
     mapper?: string
   }
   /**
-   * The "simple" OAuth routes we ship (e.g. `/api/auth/github`). Client id/secret are configured the way
-   * nuxt-auth-utils expects (env vars). `frigear` signs in with frigear.nu (OIDC) and is only active when
+   * OAuth sign-in through nuxt-auth-utils (`GET /api/auth/<provider>`). A provider is on when its credentials are set
+   * the way nuxt-auth-utils reads them (`NUXT_OAUTH_<PROVIDER>_CLIENT_ID`, `..._CLIENT_SECRET`, ...), so nothing has to
+   * be listed here. List a provider to override its button or sign-up policy, or set it to `false` to keep it off.
+   * `frigear` signs in with frigear.nu (OIDC) at `/auth/frigear` and has to be enabled here; it is active when
    * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` is configured.
    */
-  oauth?: Partial<Record<OAuthProvider, boolean>>
+  oauth?: Record<OAuthProvider, boolean | OAuthProviderOptions>
 }
 
 export interface ModuleOptions {
