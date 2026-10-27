@@ -6,7 +6,7 @@ if (!data.value) {
 </script>
 
 <template>
-  <LazyContentRenderer
+  <ContentRenderer
     v-if="data"
     :value="data"
   />

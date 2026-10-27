@@ -11,18 +11,18 @@ if (!data.value) {
 <template>
   <UPage>
     <UContainer v-if="data && data.pageHeader">
-      <LazyUPageHeader
+      <UPageHeader
         v-bind="data.pageHeader"
         :ui="{ root: 'text-center', wrapper: 'lg:flex-col lg:items-center lg:justify-center' }"
       />
     </UContainer>
-    <LazyUPageBody>
+    <UPageBody>
       <component
         :is="data?.container ? UContainer : 'div'"
         v-if="data"
       >
-        <LazyContentRenderer :value="data" />
+        <ContentRenderer :value="data" />
       </component>
-    </LazyUPageBody>
+    </UPageBody>
   </UPage>
 </template>
