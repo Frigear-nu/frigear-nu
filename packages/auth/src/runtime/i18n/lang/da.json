@@ -4,7 +4,10 @@
     "signUp": "Opret konto",
     "signOut": "Log ud",
     "signedInAs": "Logget ind som",
-    "signInToContinue": "Log ind for at fortsætte.",
+    "signInReason": {
+      "title": "Du skal være logget ind for at gøre dette",
+      "description": "Log ind for at fortsætte. Bagefter kommer du direkte tilbage, hvor du var."
+    },
     "dontHaveAnAccount": "Har du ik' en Frigear konto endnu? ➜",
     "alreadyHaveAnAccount": "Har du allerede en Frigear konto? ➜",
     "name": {

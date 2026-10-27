@@ -3,7 +3,21 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      // The website builds from the workspace packages' sources (stubs), so it needs no package builds. Their files
+      // must still be in the hash: without them a change in `packages/**` replays an old build (and deploys it).
       "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
+        "!**/.nuxt/**",
+        "!**/.output/**",
+        "!**/.data/**",
+        "!**/dist/**",
+        "!**/node_modules/**",
+        "!**/*.md",
+        "!$TURBO_ROOT$/packages/*/test/**"
+      ],
       "env": [
         "NITRO_PRESET",
         "NUXT_*",
