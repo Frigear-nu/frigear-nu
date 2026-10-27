@@ -1,11 +1,28 @@
-import { fileURLToPath } from 'node:url'
+import MyModule from '../../../src/module'
 
-// The `auth-db` fixture (its test routes, user store and migrations) with a host token prefix. The schema is the same,
-// so the layer's migrations apply; `nuxt db generate` here only diffs against this folder, so do not commit its output.
+// User API tokens with a host prefix. A fixture of its own rather than a layer over `auth-db`: NuxtHub generates its
+// database client into the layer's node_modules, which the two suites would then share while running in parallel.
 export default defineNuxtConfig({
-  extends: ['../auth-db'],
+  modules: [
+    '@nuxthub/core',
+    MyModule,
+  ],
+  runtimeConfig: {
+    session: {
+      password: 'a-test-only-session-password-at-least-32-chars',
+    },
+  },
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      driver: 'libsql',
+      applyMigrationsDuringBuild: false,
+    },
+  },
   authentication: {
-    userStore: fileURLToPath(new URL('../auth-db/server/utils/user-store', import.meta.url)),
+    userStore: './server/utils/user-store',
+    settings: { password: false },
     apiTokens: { prefix: 'acme_' },
+    scopes: [{ name: 'events:read', description: 'Read events' }],
   },
 })
