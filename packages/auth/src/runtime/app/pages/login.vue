@@ -9,6 +9,8 @@ const magicLinkEmail = ref('')
 const magicLinkSent = ref(false)
 // The emailed link redirects back here with `?error=magic-link` when it is invalid, used or expired.
 const linkFailed = computed(() => route.query.error === 'magic-link')
+// An OAuth provider with `signUp: false` sends an email without an account back here with `?error=oauth-signup`.
+const noAccount = computed(() => route.query.error === 'oauth-signup')
 const passkeys = passkeyLoginEnabled.value ? usePasskeys() : undefined
 const passkeyPending = ref(false)
 
@@ -101,6 +103,12 @@ async function onPasskeyLogin() {
       color="error"
       variant="subtle"
       :title="t('magicLink.invalid', 'This sign-in link is invalid or has expired.')"
+    />
+    <UAlert
+      v-else-if="noAccount"
+      color="error"
+      variant="subtle"
+      :title="t('errors.signIn.noAccount', 'There is no account for this email. Ask for an invitation, or sign in another way.')"
     />
     <!-- Sent here from a page that needs an account (`?redirect=`); signing in returns there. -->
     <UAlert

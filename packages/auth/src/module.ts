@@ -22,27 +22,29 @@ import {
   inlineModuleRuntime,
   defineBootstrapRegistry,
 } from '@frigear-nu/module-kit/utils'
-import {
-  OAUTH_PROVIDERS,
-  type AuthResolverDefinition,
-  type AuthScopeAvailabilityContext,
-  type AuthScopeDefinition,
-  type ModuleOptions,
-  type OAuthProvider,
-  type PublicModuleOptions,
+import type { Nitro } from 'nitropack'
+import { lowerFirst } from 'scule'
+import type {
+  AuthResolverDefinition,
+  AuthScopeAvailabilityContext,
+  AuthScopeDefinition,
+  ModuleOptions,
+  OAuthProvider,
+  PublicModuleOptions,
 } from './types'
 import type { AuthUserStoreRegistration } from './runtime/utils/build'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 
-export {
-  OAUTH_PROVIDERS,
-  type AuthResolverDefinition,
-  type AuthScopeAvailabilityContext,
-  type AuthScopeDefinition,
-  type AuthSettings,
-  type ModuleOptions,
-  type OAuthProvider,
-  type PublicModuleOptions,
+export type {
+  AuthResolverDefinition,
+  AuthScopeAvailabilityContext,
+  AuthScopeDefinition,
+  AuthSettings,
+  ModuleOptions,
+  OAuthProvider,
+  OAuthProviderButton,
+  OAuthProviderOptions,
+  PublicModuleOptions,
 } from './types'
 
 // Build-time twin of the server's `isInternalPath`: only same-site absolute paths are followed after sign in.
@@ -128,7 +130,9 @@ export default defineNuxtModule<ModuleOptions>({
     const withWebAuthn = settings.webAuthn === true
     const withMagicLink = !!settings.magicLink
     const withVerifyEmail = withPassword && settings.verifyEmail === true
-    const oauthProviders: OAuthProvider[] = OAUTH_PROVIDERS.filter(provider => settings.oauth?.[provider])
+    // Providers listed in settings; the others turn on through their nuxt-auth-utils env vars (`#auth/oauth` below).
+    const oauthSettings = settings.oauth ?? {}
+    const oauthProviders: OAuthProvider[] = Object.keys(oauthSettings).filter(provider => oauthSettings[provider] !== false)
     if (!withWebAuthn) {
       nuxt.options.auth ||= {}
       nuxt.options.auth.webAuthn = false
@@ -235,9 +239,41 @@ declare module '#auth/session-mapper' {
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
   export default mapSessionUser
 }
+declare module '#auth/oauth' {
+  type OAuthHandlerOptions = {
+    config?: Record<string, unknown>
+    onSuccess: (event: import('h3').H3Event, result: { user: Record<string, unknown> }) => unknown
+  }
+  export const handlers: Record<string, () => Promise<(options: OAuthHandlerOptions) => import('h3').EventHandler>>
+  export const settings: Record<string, false | import('${resolver.resolve('./types')}').OAuthProviderOptions>
+}
 export {}
 `,
     }, { nitro: true, nuxt: true })
+
+    // OAuth sign-in reuses nuxt-auth-utils' handlers: each `defineOAuth<Provider>EventHandler` it auto-imports is a
+    // provider here, loaded on first use and keyed like its `runtimeConfig.oauth` block, so its env vars turn it on.
+    let nitroInstance: Nitro | undefined
+    nuxt.hook('nitro:init', (nitro) => {
+      nitroInstance = nitro
+    })
+    addServerTemplate({
+      filename: '#auth/oauth',
+      getContents: async () => {
+        const configKeys = Object.keys((nuxt.options.runtimeConfig as { oauth?: Record<string, unknown> }).oauth ?? {})
+        const keyOf = (name: string) => configKeys.find(key => key.toLowerCase() === name.toLowerCase()) ?? lowerFirst(name)
+        const handlers = (await nitroInstance?.unimport?.getImports() ?? []).flatMap(({ name, as, from }) => {
+          const provider = /^defineOAuth(\w+)EventHandler$/.exec(as ?? name)?.[1]
+          return provider ? [`${JSON.stringify(keyOf(provider))}: () => import(${JSON.stringify(from)}).then(m => m[${JSON.stringify(name)}])`] : []
+        })
+        const providerSettings = Object.fromEntries(Object.entries(oauthSettings)
+          .map(([provider, value]) => [keyOf(provider), value === true ? {} : value]))
+        return [
+          `export const handlers = { ${handlers.join(', ')} }`,
+          `export const settings = ${JSON.stringify(providerSettings)}`,
+        ].join('\n')
+      },
+    })
 
     // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
@@ -289,9 +325,15 @@ export {}
       route('webauthn/credentials', 'webauthn/credentials/index.get')
       route('webauthn/credentials/:id', 'webauthn/credentials/[id].delete', 'delete')
     }
+    // Every nuxt-auth-utils provider, answering 404 until it is configured (decided per request, credentials are
+    // runtime secrets). The static `/api/auth/*` routes win over `:provider`.
+    route('providers', 'oauth/providers.get', 'get')
+    route(':provider', 'oauth/[provider].get', 'get')
     // The IdP redirects the browser back to `/auth/frigear` (a navigation, like `/auth/logout`), so it is not under `/api`.
-    for (const provider of oauthProviders) route(provider === 'frigear' ? '/auth/frigear' : provider, `oauth/${provider}.get`, 'get')
-    if (oauthProviders.includes('frigear')) route('frigear-status', 'oauth/frigear-status.get', 'get')
+    if (oauthProviders.includes('frigear')) {
+      route('/auth/frigear', 'oauth/frigear.get', 'get')
+      route('frigear-status', 'oauth/frigear-status.get', 'get')
+    }
 
     addImports([
       'useLogin',

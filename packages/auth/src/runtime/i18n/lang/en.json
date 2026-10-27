@@ -101,7 +101,8 @@
     "errors": {
       "signIn": {
         "noPassword": "You have not set a password, please reset your password or sign in with magic link.",
-        "failed": "Sign in failed, are you sure you have an account or this is the correct password?"
+        "failed": "Sign in failed, are you sure you have an account or this is the correct password?",
+        "noAccount": "There is no account for this email. Ask for an invitation, or sign in another way."
       },
       "signUp": {
         "failed": "Sign up failed, are you sure you don't have an account with this e-mail?"

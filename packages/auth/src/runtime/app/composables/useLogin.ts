@@ -1,18 +1,21 @@
-import { OAUTH_PROVIDER_META } from '../utils/oauth-providers'
+import { upperFirst } from 'scule'
+import type { OAuthProviderButton } from '../../../types'
+import { DEFAULT_OAUTH_ICON, OAUTH_PROVIDER_META } from '../utils/oauth-providers'
 
 export const useLogin = () => {
   const config = useRuntimeConfig().public.authentication
+  const t = useModuleT('auth')
 
   const passwordLoginEnabled = computed(() => config?.password === true)
   const passkeyLoginEnabled = computed(() => config?.webAuthn === true)
-  // The build time flag cannot see runtime secrets (production), so the server is asked when it says no.
-  const { data: frigearStatus } = config?.oauth?.includes('frigear') && config.frigearSso !== true
-    ? useFetch<{ enabled: boolean }>('/api/auth/frigear-status', { key: 'auth-frigear-status', default: () => ({ enabled: false }) })
-    : { data: ref<{ enabled: boolean } | null>(null) }
-  const frigearEnabled = computed(() => config?.frigearSso === true || frigearStatus.value?.enabled === true)
-  const oauthProviders = computed(() => (config?.oauth ?? [])
-    .filter(provider => provider !== 'frigear' || frigearEnabled.value)
-    .map(provider => OAUTH_PROVIDER_META[provider]))
+  // The server decides per request: providers turn on through their credentials, usually runtime secrets.
+  const { data: providerButtons } = useFetch<OAuthProviderButton[]>('/api/auth/providers', { key: 'auth-oauth-providers', default: () => [] })
+  // Structurally a `@nuxt/ui` `ButtonProps`, so each entry can go straight into `UAuthForm`'s `providers`.
+  const oauthProviders = computed(() => (providerButtons.value ?? []).map(({ label, icon, ...button }) => ({
+    ...button,
+    label: label ?? t(`oauth.${button.key}.label`, OAUTH_PROVIDER_META[button.key]?.label ?? upperFirst(button.key)),
+    icon: icon ?? OAUTH_PROVIDER_META[button.key]?.icon ?? DEFAULT_OAUTH_ICON,
+  })))
   const isEnabled = computed(() => passwordLoginEnabled.value || passkeyLoginEnabled.value || oauthProviders.value.length > 0)
 
   const pending = ref(false)
