@@ -88,6 +88,10 @@
         "description": "Log ind på kontoen, der bad om ændringen, for at bekræfte {email} som din nye e-mailadresse. Du kommer tilbage hertil bagefter.",
         "submit": "Log ind for at bekræfte"
       },
+      "signInReason": {
+        "title": "Log ind for at bekræfte din nye e-mailadresse",
+        "description": "Dit bekræftelseslink virker stadig. Log ind på kontoen, der bad om ændringen, og bekræft den på næste side."
+      },
       "wrongAccount": {
         "title": "Ændringen hører til en anden konto",
         "description": "Du er logget ind som {email}. Log ud, og log så ind på kontoen, der bad om at skifte e-mailadresse.",

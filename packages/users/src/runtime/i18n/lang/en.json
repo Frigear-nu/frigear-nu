@@ -88,6 +88,10 @@
         "description": "To confirm {email} as your new e-mail address, sign in to the account that asked for the change. You come back here afterwards.",
         "submit": "Sign in to confirm"
       },
+      "signInReason": {
+        "title": "Sign in to confirm your new e-mail address",
+        "description": "Your confirmation link still works. Sign in to the account that asked for the change, then confirm it on the next page."
+      },
       "wrongAccount": {
         "title": "This change belongs to another account",
         "description": "You are signed in as {email}. Sign out, then sign in to the account that asked to change its e-mail address.",

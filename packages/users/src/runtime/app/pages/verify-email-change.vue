@@ -25,7 +25,13 @@ const { data: preview, error: previewError } = await useFetch<Preview>('/api/use
   watch: [loggedIn],
 })
 
-const signInLink = computed(() => `${loginPath}?redirect=${encodeURIComponent(route.fullPath)}`)
+// The sign-in page shows why (`?reason=`, the `users.emailChange.signInReason` strings) and sends them back here.
+const signInLink = computed(() => ({ path: loginPath, query: { redirect: route.fullPath, reason: 'users.emailChange' } }))
+
+// Signed out with a link that still works: straight to sign-in. Nothing is used up on the way.
+if (preview.value?.status === 'pending' && !loggedIn.value) {
+  await navigateTo(signInLink.value)
+}
 const signedInEmail = computed(() => (user.value as { email?: string } | null)?.email ?? '')
 
 const confirming = ref(false)
@@ -74,6 +80,7 @@ async function onSignOut() {
   signingOut.value = true
   try {
     await clear()
+    await navigateTo(signInLink.value)
   }
   finally {
     signingOut.value = false

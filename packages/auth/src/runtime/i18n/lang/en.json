@@ -4,7 +4,10 @@
     "signUp": "Sign Up",
     "signOut": "Sign Out",
     "signedInAs": "Signed in as",
-    "signInToContinue": "Sign in to continue.",
+    "signInReason": {
+      "title": "You need to be signed in to do this",
+      "description": "Sign in to continue. Afterwards you are sent straight back to where you were."
+    },
     "dontHaveAnAccount": "Don't have a Frigear account yet? ➜",
     "alreadyHaveAnAccount": "Already got a Frigear account? ➜",
     "name": {

@@ -2,16 +2,26 @@
 defineOptions({ name: 'UsersLoginPage' })
 
 const t = useModuleT('auth')
+const route = useRoute()
 const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthProviders } = useLogin()
 const magicLink = useMagicLink()
 const magicLinkEmail = ref('')
 const magicLinkSent = ref(false)
 // The emailed link redirects back here with `?error=magic-link` when it is invalid, used or expired.
-const linkFailed = computed(() => useRoute().query.error === 'magic-link')
+const linkFailed = computed(() => route.query.error === 'magic-link')
 const passkeys = passkeyLoginEnabled.value ? usePasskeys() : undefined
 const passkeyPending = ref(false)
 
 const { requested: requestedRedirect, go: afterLogin } = useAfterLogin()
+
+// Why the page that sent them here needs an account: `?reason=<namespace>` reads `<namespace>.signInReason.title` and
+// `.description`, so each module words its own reason. Unknown reasons get the generic text.
+const reason = route.query.reason
+const reasonT = typeof reason === 'string' && /^[a-z][\w-]*(?:\.[\w-]+)*$/i.test(reason) ? useModuleT(reason) : t
+const signInReason = computed(() => ({
+  title: reasonT('signInReason.title', t('signInReason.title', 'You need to be signed in to do this')),
+  description: reasonT('signInReason.description', t('signInReason.description', 'Sign in to continue. Afterwards you are sent straight back to where you were.')),
+}))
 
 const magicLinkOpen = ref(false)
 const providers = computed(() => [
@@ -98,7 +108,8 @@ async function onPasskeyLogin() {
       color="neutral"
       variant="subtle"
       icon="i-lucide-lock"
-      :title="t('signInToContinue', 'Sign in to continue.')"
+      :title="signInReason.title"
+      :description="signInReason.description"
     />
 
     <template v-if="magicLinkOpen">

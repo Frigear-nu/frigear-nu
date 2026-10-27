@@ -24,8 +24,13 @@ describe('login/register pages (opt-in)', async () => {
     expect(await response.text()).toContain('Continue signing in')
   })
 
-  it('tells guests sent from a protected page to sign in to continue', async () => {
-    expect(await $fetch('/login?redirect=/account')).toContain('Sign in to continue.')
-    expect(await $fetch('/login')).not.toContain('Sign in to continue.')
+  it('tells guests sent from a protected page why they have to sign in', async () => {
+    const generic = await $fetch<string>('/login?redirect=/account')
+    expect(generic).toContain('You need to be signed in to do this')
+    expect(generic).toContain('Afterwards you are sent straight back to where you were.')
+    expect(await $fetch('/login')).not.toContain('You need to be signed in to do this')
+    // A reason without strings (or not a key at all) falls back to the generic text.
+    expect(await $fetch('/login?redirect=/account&reason=nope.missing')).toContain('You need to be signed in to do this')
+    expect(await $fetch('/login?redirect=/account&reason=..%2F')).toContain('You need to be signed in to do this')
   })
 })

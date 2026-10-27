@@ -69,10 +69,17 @@ describe('verified email change', async () => {
     expect(verifyPath).toMatch(/^\/auth\/verify-email-change\?code=/)
     const code = codeOf(verifyPath)
 
-    // Opening the link (a mail scanner, a link preview) and reading the preview change nothing.
+    // Opening the link signed out (a mail scanner, a link preview, another browser) sends you to sign in, says why
+    // and comes back to the link. That, and reading the preview, change nothing.
     const opened = await fetch(verifyPath, { redirect: 'manual' })
-    expect(opened.status).not.toBe(302)
+    expect(opened.status).toBe(302)
+    const signIn = new URL(opened.headers.get('location')!, 'http://localhost')
+    expect(signIn.pathname).toBe('/login')
+    expect(signIn.searchParams.get('redirect')).toBe(verifyPath)
+    expect(signIn.searchParams.get('reason')).toBe('users.emailChange')
     expect(opened.headers.get('set-cookie')).toBeNull()
+    // Signed in as the owner, the link opens the page.
+    expect((await fetch(verifyPath, { redirect: 'manual', headers: { cookie } })).status).toBe(200)
     expect(await preview(`/api/users/email-change?code=${code}`)).toEqual({
       status: 'pending', signedIn: false, owner: false, newEmail: 'ada-new@example.com', oldEmail: 'a***@example.com',
     })
@@ -99,6 +106,8 @@ describe('verified email change', async () => {
     // The link can't be used twice.
     expect((await post('/api/users/email-change/confirm', { code }, cookie)).status).toBe(400)
     expect(await preview(`/api/users/email-change?code=${code}`)).toMatchObject({ status: 'confirmed' })
+    // A used link says so on the page, without asking to sign in.
+    expect((await fetch(verifyPath, { redirect: 'manual' })).status).toBe(200)
 
     // The old address is told, with a link that works signed out, once, and only through the POST.
     const revertPath = await linkTo('ada@example.com', /revert-email-change/)

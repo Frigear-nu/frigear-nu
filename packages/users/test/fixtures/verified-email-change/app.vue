@@ -1,6 +1,3 @@
 <template>
-  <div>authenticated</div>
+  <NuxtPage />
 </template>
-
-<script setup>
-</script>
