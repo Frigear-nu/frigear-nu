@@ -3,7 +3,7 @@
 Authentication for the frigear ecosystem. **Signing in**: email/password, password reset, magic links, email
 verification, passkeys and OAuth providers (including "Log in with frigear.nu"), with opt-in login/register pages.
 **Identifying callers**: one `requireAuth` for every way a caller can authenticate: the cookie session, a static
-**user API token** (`fnu_…`) and an **OAuth access token** issued to an application. Scopes narrow what a token may do,
+**user API token** (`fnu_…` by default, `authentication.apiTokens.prefix`; `apiTokens: false` turns them off) and an **OAuth access token** issued to an application. Scopes narrow what a token may do,
 and the owner's current role still applies.
 
 ```ts

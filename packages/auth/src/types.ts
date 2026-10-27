@@ -39,6 +39,8 @@ export type PublicModuleOptions = {
   magicLink: boolean
   verifyEmail: boolean
   oauth: OAuthProvider[]
+  /** User API tokens are on (`apiTokens` is not `false`). */
+  apiTokens: boolean
   /** Show the "Log in with frigear.nu" button (the route itself re-checks at request time). */
   frigearSso?: boolean
   pages: { login?: string, register?: string }
@@ -97,6 +99,14 @@ export interface AuthSettings {
 }
 
 export interface ModuleOptions {
+  /**
+   * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/tokens`.
+   * `false` turns them off: no token routes, and bearer tokens with the prefix are no longer resolved. Defaults to `true`.
+   */
+  apiTokens?: boolean | {
+    /** What every new token starts with (letters, digits, `_` and `-`). Changing it invalidates issued tokens. Defaults to `fnu_`. */
+    prefix?: string
+  }
   /** Default lifetime in days for new user tokens; `null`/omitted means they never expire. */
   tokenTtlDays?: number | null
   /** Path to a module whose default export is an `AuthUserStore` (overrides the one registered by `@frigear-nu/users`). */

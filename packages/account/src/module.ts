@@ -83,8 +83,14 @@ export default defineNuxtModule<ModuleOptions>({
     const profilePath = resolvePagePath(settings.pages?.profile, '/account/profile')
     const securityPath = resolvePagePath(settings.pages?.security, '/account/security')
     const documentsPath = resolvePagePath(settings.pages?.documents, '/account/documents')
-    const apiTokensPath = resolvePagePath(settings.pages?.apiTokens, '/account/api-tokens')
+    // No API tokens page when `@frigear-nu/auth` has user API tokens turned off (`authentication.apiTokens: false`).
+    const withApiTokens = nuxt.options.authentication?.apiTokens !== false
+    const apiTokensPath = withApiTokens ? resolvePagePath(settings.pages?.apiTokens, '/account/api-tokens') : undefined
     const indexPath = withMenus ? resolvePagePath(settings.pages?.index, '/account') : undefined
+
+    if (!withApiTokens && settings.pages?.apiTokens) {
+      console.warn('[@frigear-nu/account] `settings.pages.apiTokens` was set, but `authentication.apiTokens` is `false` - skipping the API tokens page.')
+    }
 
     if (!withMenus && settings.pages?.index) {
       console.warn('[@frigear-nu/account] `settings.pages.index` was set, but `@frigear-nu/menu` is not installed - skipping the dashboard page.')

@@ -28,6 +28,12 @@ describe('generateUserToken', () => {
     expect(last4).toBe(token.slice(-4))
     expect(tokenHash).not.toContain(token)
   })
+
+  it('uses a host prefix and shows it plus four characters', async () => {
+    const { token, prefix } = await generateUserToken('acme_live_')
+    expect(token).toMatch(/^acme_live_[\w-]{43}$/)
+    expect(prefix).toBe(token.slice(0, 14))
+  })
 })
 
 describe('hashToken', () => {

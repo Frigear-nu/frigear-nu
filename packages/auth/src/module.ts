@@ -32,6 +32,7 @@ import {
   type PublicModuleOptions,
 } from './types'
 import type { AuthUserStoreRegistration } from './runtime/utils/build'
+import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 
 export {
@@ -56,7 +57,7 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    authentication?: { tokenTtlDays: number | null, magicLinkSignUp: boolean, magicLinkCooldown: number }
+    authentication?: { tokenTtlDays: number | null, apiTokenPrefix: string, magicLinkSignUp: boolean, magicLinkCooldown: number }
     // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
     previewDeployment?: boolean
     frigear?: {
@@ -129,6 +130,12 @@ export default defineNuxtModule<ModuleOptions>({
     const withMagicLink = !!settings.magicLink
     const withVerifyEmail = withPassword && settings.verifyEmail === true
     const oauthProviders: OAuthProvider[] = OAUTH_PROVIDERS.filter(provider => settings.oauth?.[provider])
+    const withApiTokens = options.apiTokens !== false
+    const apiTokenPrefix = (typeof options.apiTokens === 'object' ? options.apiTokens.prefix : undefined) ?? USER_TOKEN_PREFIX
+    // No `.`, so a user token can never be mistaken for a JWT.
+    if (!/^[\w-]+$/.test(apiTokenPrefix)) {
+      throw new Error(`[@frigear-nu/auth] \`apiTokens.prefix\` must be letters, digits, \`_\` or \`-\`, got ${JSON.stringify(apiTokenPrefix)}.`)
+    }
     if (!withWebAuthn) {
       nuxt.options.auth ||= {}
       nuxt.options.auth.webAuthn = false
@@ -155,6 +162,7 @@ export default defineNuxtModule<ModuleOptions>({
     const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
     nuxt.options.runtimeConfig.authentication = {
       tokenTtlDays: options.tokenTtlDays ?? null,
+      apiTokenPrefix,
       magicLinkSignUp: magicLinkSettings.signUp === true,
       magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
     }
@@ -163,12 +171,14 @@ export default defineNuxtModule<ModuleOptions>({
     addServerTemplate({
       filename: '#auth/resolvers',
       getContents: async () => {
-        const registered: AuthResolverDefinition[] = [{
-          name: 'user-token',
-          prefix: 'fnu_',
-          order: 50,
-          resolver: resolver.resolve('./runtime/server/resolvers/user-token'),
-        }]
+        const registered: AuthResolverDefinition[] = withApiTokens
+          ? [{
+              name: 'user-token',
+              prefix: apiTokenPrefix,
+              order: 50,
+              resolver: resolver.resolve('./runtime/server/resolvers/user-token'),
+            }]
+          : []
         await nuxt.callHook('auth:resolvers', registered)
         return [
           ...registered.map((definition, index) => `import resolve${index} from ${JSON.stringify(definition.resolver)}`),
@@ -249,10 +259,15 @@ export {}
       handler: resolver.resolve('./runtime/server/middleware/auth'),
     })
 
+    // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
     for (const [method, path, file] of [
-      ['get', 'tokens', 'tokens.get'],
-      ['post', 'tokens', 'tokens.post'],
-      ['delete', 'tokens/:id', 'token.delete'],
+      ...(withApiTokens
+        ? [
+            ['get', 'tokens', 'tokens.get'],
+            ['post', 'tokens', 'tokens.post'],
+            ['delete', 'tokens/:id', 'token.delete'],
+          ] as const
+        : []),
       ['get', 'scopes', 'scopes.get'],
     ] as const) {
       addServerHandler({ route: moduleApiUrl('auth', path), method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
@@ -381,6 +396,7 @@ export {}
       magicLink: withMagicLink,
       verifyEmail: withVerifyEmail,
       oauth: oauthProviders,
+      apiTokens: withApiTokens,
       frigearSso: frigearSsoEnabled,
       pages: { login: loginPath, register: registerPath },
       afterLogin: resolveAfterLogin(settings.afterLogin),
