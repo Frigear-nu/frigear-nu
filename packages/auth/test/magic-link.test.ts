@@ -30,9 +30,8 @@ describe('magic link & email verification', async () => {
     expect(opened.headers.get('set-cookie')).toBeNull()
   })
 
-  it('registers the Facebook OAuth route', async () => {
-    // Without credentials nuxt-auth-utils answers with its configuration error instead of a 404.
+  it('keeps a listed OAuth provider off until its credentials are set', async () => {
     const response = await fetch('/api/auth/facebook', { redirect: 'manual' })
-    expect(response.status).not.toBe(404)
+    expect(response.status).toBe(404)
   })
 })
