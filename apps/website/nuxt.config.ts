@@ -239,10 +239,10 @@ export default defineNuxtConfig({
       magicLink: true,
       verifyEmail: true,
       session: { mapper: '~~/server/utils/map-session-user' },
-      // Credentials: NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
+      // Facebook (like any other nuxt-auth-utils provider) is offered once its credentials are set at runtime:
+      // NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
       // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
-      // Facebook is only offered when its client id is configured (at build time as well as runtime).
-      oauth: { facebook: !!process.env.NUXT_OAUTH_FACEBOOK_CLIENT_ID, frigear: true },
+      oauth: { frigear: true },
     },
   },
   authorization: {
