@@ -1,5 +1,6 @@
-@import "tailwindcss";
-@import "@nuxt/ui";
+/* The base layer's stylesheet (Tailwind, Nuxt UI, the `Public Sans` font and the brand colour scales): an app
+ * with its own `main.css` replaces the layer's, so it imports it to stay in one Tailwind compile unit. */
+@import "@frigear-nu/base/app/assets/css/main.css";
 
 /**
  * Content below is ONLY for advanced color linears that cannot be done in the file it is used in
@@ -19,6 +20,3 @@
     @apply bg-linear-to-br from-cyan-700/20 via-25% via-lime-600/10 to-45% to-transparent;
   }
 }
-
-
-
