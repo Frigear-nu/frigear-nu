@@ -81,7 +81,7 @@ Strings live under the `account.*` namespace in `da`/`en` locale files and can b
 
 Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
 `AccountIdentity` is shown next to the user in the overview's summary card (by default a role badge for anyone who is
-not a plain `user`); override it to show other details, such as a member or ID badge. Set `account.layout: false` to
+not a plain `user`); override it to show other details, such as a member or ID badge. Set `account.settings.layout: false` to
 opt out of the account layout and render the pages in your own.
 
 ## Page headings
