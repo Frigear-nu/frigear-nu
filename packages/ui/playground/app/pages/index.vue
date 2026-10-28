@@ -70,9 +70,8 @@ const menu = [[{ label: 'Open', icon: 'i-lucide-arrow-right' }, { label: 'Edit',
         :breadcrumb="[{ label: 'Events', to: '/' }, { label: 'Spring meetup' }]"
       >
         <template #badge>
-          <UBadge
-            :color="statusColor('published')"
-            variant="subtle"
+          <StatusBadge
+            status="published"
             label="Published"
           />
         </template>
@@ -135,6 +134,35 @@ const menu = [[{ label: 'Open', icon: 'i-lucide-arrow-right' }, { label: 'Edit',
             :total="132"
           />
         </template>
+      </TableCard>
+      <div class="flex flex-wrap items-center gap-2">
+        <StatusBadge status="published" />
+        <StatusBadge
+          status="pending"
+          label="Awaiting review"
+        />
+        <StatusBadge status="failed" />
+        <StatusBadge status="draft" />
+        <StatusBadge
+          status="archived"
+          :colors="{ archived: 'warning' }"
+        />
+      </div>
+      <TableCard
+        title="Attendees"
+        description="Everyone registered for this event."
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-plus"
+            label="Add attendee"
+          />
+        </template>
+        <UTable
+          :data="rows"
+          :columns="columns"
+          :ui="tableUi()"
+        />
       </TableCard>
       <ListCard
         title="Recent sign-ups"

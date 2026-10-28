@@ -1,5 +1,4 @@
 import {
-  addComponent,
   addLayout,
   createResolver,
   defineNuxtModule,
@@ -55,10 +54,6 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
 
     addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
-    // Deprecated aliases over the `@frigear-nu/ui` page patterns, kept until every module has moved over.
-    for (const name of ['AdminPage', 'AdminPageHeader', 'AdminSection', 'AdminToolbar', 'AdminEmpty', 'AdminTable', 'AdminStatCard', 'AdminKeyValue', 'AdminListCard']) {
-      addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
-    }
 
     // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
     const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])

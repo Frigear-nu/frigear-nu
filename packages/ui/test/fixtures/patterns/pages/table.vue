@@ -26,5 +26,28 @@ const pageSize = ref(20)
         <TablePagination :total="3" />
       </template>
     </TableCard>
+    <TableCard
+      title="Recent payments"
+      description="Last thirty days"
+    >
+      <template #actions>
+        <UButton label="Export payments" />
+      </template>
+      <span>titled-table-body</span>
+    </TableCard>
+    <div class="flex gap-2">
+      <StatusBadge status="published" />
+      <StatusBadge
+        status="pending"
+        label="Awaiting review"
+      />
+      <StatusBadge status="failed" />
+      <StatusBadge status="draft" />
+      <StatusBadge
+        status="archived"
+        :colors="{ archived: 'warning' }"
+      />
+      <StatusBadge status="" />
+    </div>
   </div>
 </template>

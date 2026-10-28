@@ -2,14 +2,17 @@
 import { surfaceClass } from '../../utils/surface'
 
 /**
- * The surface a list table sits in: `<TableCard><UTable :ui="tableUi()" … /></TableCard>`. `#header` sits above
- * the table (filters, a title), `#footer` below it (`TablePagination`). A surface only, so the table keeps its
- * typed slots.
+ * The surface a list table sits in: `<TableCard><UTable :ui="tableUi()" … /></TableCard>`. `title`/`description`
+ * (or `#header`) and `#actions` form a header row like `SectionCard`'s, for tables that sit in a tab or a detail
+ * page. `#header` replaces the title block (filters above the table).
+ * `#footer` sits below the table (`TablePagination`). A surface only, so the table keeps its typed slots.
  *
  * `loading` is the first load (skeleton rows, nothing to show yet); `refreshing` is every load after that: the
  * current rows stay and are dimmed until the next ones arrive, so paging, sorting and filtering do not flash.
  */
 defineProps<{
+  title?: string
+  description?: string
   /** Shows skeleton rows instead of the default slot. */
   loading?: boolean
   /** Dims the rows on screen while new ones load. */
@@ -23,10 +26,33 @@ defineProps<{
     :aria-busy="loading || refreshing ? 'true' : undefined"
   >
     <div
-      v-if="$slots.header"
-      class="border-default flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+      v-if="title || description || $slots.header || $slots.actions"
+      class="border-default flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5"
     >
-      <slot name="header" />
+      <slot name="header">
+        <div class="flex min-w-0 items-center gap-2">
+          <div class="min-w-0">
+            <h2
+              v-if="title"
+              class="text-highlighted text-sm font-semibold"
+            >
+              {{ title }}
+            </h2>
+            <p
+              v-if="description"
+              class="text-muted text-sm"
+            >
+              {{ description }}
+            </p>
+          </div>
+        </div>
+      </slot>
+      <div
+        v-if="$slots.actions"
+        class="flex items-center gap-2"
+      >
+        <slot name="actions" />
+      </div>
     </div>
     <div
       v-if="loading"
