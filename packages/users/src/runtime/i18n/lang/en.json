@@ -18,6 +18,9 @@
       "save": "Save",
       "error": "Something went wrong.",
       "allUsers": "All users",
+      "forbidden": "You do not have access to users",
+      "loadFailed": "Users could not be loaded",
+      "tryAgain": "Try again",
       "newUsers": {
         "title": "New users",
         "description": "Signed up in the last 30 days.",
@@ -36,7 +39,7 @@
         "clear": "Clear filters",
         "allRoles": "All roles"
       },
-      "subscription": "Subscription",
+      "subscription": "Membership",
       "rolePlaceholder": "Select a role",
       "detail": {
         "profile": "Profile",
@@ -47,11 +50,10 @@
         "emailHelp": "Changing the address marks it unverified and emails a verification link to the new one.",
         "saved": "Saved.",
         "savedEmail": "Saved. A verification email was sent to the new address.",
-        "danger": "Danger zone",
         "notFound": "User not found",
+        "loadFailed": "The user could not be loaded",
         "never": "Never",
         "saveProfile": "Save profile",
-        "dangerHint": "Removes the account and its sign-in methods for good.",
         "notFoundHint": "It may have been deleted."
       },
       "tabs": {

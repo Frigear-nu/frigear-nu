@@ -18,6 +18,9 @@
       "save": "Gem",
       "error": "Noget gik galt.",
       "allUsers": "Alle brugere",
+      "forbidden": "Du har ikke adgang til brugere",
+      "loadFailed": "Brugerne kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
       "newUsers": {
         "title": "Nye brugere",
         "description": "Tilmeldt inden for de seneste 30 dage.",
@@ -36,7 +39,7 @@
         "clear": "Ryd filtre",
         "allRoles": "Alle roller"
       },
-      "subscription": "Abonnement",
+      "subscription": "Medlemskab",
       "rolePlaceholder": "Vælg en rolle",
       "detail": {
         "profile": "Profil",
@@ -47,11 +50,10 @@
         "emailHelp": "Ændres adressen, markeres den som ikke bekræftet, og der sendes et bekræftelseslink til den nye.",
         "saved": "Gemt.",
         "savedEmail": "Gemt. En bekræftelsesmail er sendt til den nye adresse.",
-        "danger": "Farezone",
         "notFound": "Brugeren blev ikke fundet",
+        "loadFailed": "Brugeren kunne ikke indlæses",
         "never": "Aldrig",
         "saveProfile": "Gem profil",
-        "dangerHint": "Fjerner kontoen og dens loginmetoder for altid.",
         "notFoundHint": "Den er måske slettet."
       },
       "tabs": {
