@@ -34,7 +34,7 @@ const { localize } = useLocaleLink()
 // Resolved by name so a host's own override wins and nothing is required; a name that doesn't resolve stays a string.
 const resolvedLanguageSelect = resolveComponent('LanguageSelect')
 const languageSelect = typeof resolvedLanguageSelect === 'string' ? undefined : resolvedLanguageSelect
-const publicConfig = useRuntimeConfig().public as { multiLocale?: unknown }
+const publicConfig = (useRuntimeConfig() as unknown as { public?: { multiLocale?: unknown } }).public ?? {}
 const nuxtApp = useNuxtApp() as unknown as { $i18n?: { locales?: { value?: unknown[] } } }
 const multiLocale = typeof publicConfig.multiLocale === 'boolean'
   ? publicConfig.multiLocale
