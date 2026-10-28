@@ -75,7 +75,6 @@ const activeTab = ref<string>()
 const tabItems = computed(() => visible.value.map(plan => ({
   value: plan.key,
   label: priceFor(plan) ? `/ ${intervalLabel(priceFor(plan)!)}` : labelOf(plan),
-  plan,
 })))
 watchEffect(() => {
   if (!activeTab.value || !visible.value.some(p => p.key === activeTab.value)) {
@@ -159,12 +158,10 @@ watch([visible, subscriptionStatus, loggedIn], () => {
         :highlight="!preview && highlighted(plan)"
         :badge="!preview && stateOf(plan) === 'current' ? t('current', 'Current plan') : undefined"
         :tagline="priceFor(plan)?.trialPeriodDays ? t('trial', '{days}-day free trial', { days: priceFor(plan)!.trialPeriodDays! }) : undefined"
-        variant="subtle"
+        variant="outline"
         :ui="{
-          root: 'rounded-xl transition-shadow hover:shadow-lg',
           title: 'text-lg font-semibold',
-          price: 'text-4xl font-extrabold text-primary',
-          billingCycle: 'uppercase ml-1 text-muted',
+          billingCycle: 'ml-1 text-muted',
           terms: 'text-xs text-muted',
         }"
       >
@@ -223,7 +220,6 @@ watch([visible, subscriptionStatus, loggedIn], () => {
             <UButton
               block
               size="lg"
-              class="uppercase"
               :loading="pending || (loggedIn && subscriptionLoading)"
               :disabled="stateOf(plan) === 'current' || !priceFor(plan)"
               :variant="stateOf(plan) === 'current' ? 'subtle' : 'solid'"
@@ -262,11 +258,9 @@ watch([visible, subscriptionStatus, loggedIn], () => {
 
     <template v-if="visible.length">
       <template v-if="showTabs">
-        <UTabs
+        <PageTabs
           v-model="activeTab"
           :items="tabItems"
-          :content="false"
-          class="w-full"
           :class="{ 'sm:hidden': showGrid }"
         />
         <div
@@ -281,7 +275,7 @@ watch([visible, subscriptionStatus, loggedIn], () => {
       </template>
       <div
         v-if="showGrid"
-        class="items-stretch gap-6 sm:grid-cols-2"
+        class="items-stretch gap-4 sm:grid-cols-2"
         :class="[showTabs ? 'hidden sm:grid' : 'grid', visible.length >= 3 ? 'lg:grid-cols-3' : '']"
       >
         <ReuseCard

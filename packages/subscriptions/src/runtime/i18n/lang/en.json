@@ -19,7 +19,7 @@
       "confirmUpgrade": "If you upgrade, you are moved to the higher plan immediately. Any remaining credit is deducted and you are charged the difference right away.",
       "confirmDowngrade": "If you downgrade, your current subscription runs until the next due date, then switches.",
       "subscribeTo": "You will now subscribe to:",
-      "changeTitle": "Update subscription",
+      "changeTitle": "Update membership",
       "checkoutTitle": "Get a membership",
       "confirmResume": "Your membership will keep renewing as before."
     },
@@ -35,9 +35,9 @@
       "quarter": "quarter"
     },
     "status": {
-      "loading": "Loading subscription…",
-      "title": "Your subscription",
-      "none": "You do not have an active subscription.",
+      "loading": "Loading membership…",
+      "title": "Your membership",
+      "none": "You do not have an active membership.",
       "renews": "Renews on {date}",
       "cancels": "Ends on {date}",
       "manage": "Manage billing",
@@ -48,26 +48,28 @@
       "canceled": "Canceled",
       "other": "Inactive",
       "currentPlan": "Current plan",
-      "cancelling": "Subscription is ending",
+      "cancelling": "Membership is ending",
       "cancelsAt": "Ending at {date}",
       "renewsAutomaticallyAt": "Renews automatically on {date}",
       "cancel": "Cancel membership",
       "changePaymentMethod": "Change payment method",
       "free": "Free membership",
       "freeUntil": "Free membership until {date}",
-      "heroTitle": "Join the team today",
-      "heroDescription": "Set up your membership to get started!",
+      "emptyTitle": "No membership yet",
+      "emptyDescription": "Set up your membership to get started!",
       "loadFailed": "Your membership could not be loaded",
       "tryAgain": "Try again"
     },
     "success": {
       "title": "Thank you!",
-      "body": "Your subscription is being activated. This can take a few seconds.",
-      "activeBody": "Your subscription is now active.",
+      "crumb": "Checkout complete",
+      "body": "Your membership is being activated. This can take a few seconds.",
+      "activeBody": "Your membership is now active.",
       "back": "Back to membership"
     },
     "cancel": {
       "title": "Checkout canceled",
+      "crumb": "Checkout canceled",
       "body": "No changes were made and you have not been charged.",
       "back": "Back to membership"
     },
@@ -76,8 +78,8 @@
       "portal": "Failed to open the billing portal."
     },
     "menu": {
-      "subscription": {
-        "label": "Subscription",
+      "membership": {
+        "label": "Membership",
         "description": "Manage your plan and billing."
       }
     },
@@ -104,9 +106,9 @@
       "linkHint": "The link is valid for 24 hours.",
       "paidHint": "Paid subscriptions are managed in Stripe.",
       "error": "Something went wrong.",
-      "tab": "Subscription",
+      "tab": "Membership",
       "membership": "Membership",
-      "currentSubscription": "Current subscription",
+      "currentSubscription": "Current membership",
       "history": {
         "title": "Subscription history",
         "loadFailed": "The subscription history could not be loaded",
