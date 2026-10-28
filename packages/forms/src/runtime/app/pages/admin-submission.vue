@@ -11,21 +11,17 @@ const submissionId = computed(() => String(route.params.submissionId))
 const { data: form } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, { key: `forms:admin:form:${id.value}` })
 const { data: submission, error, refresh } = await useFetch<SubmissionDto>(() => `/api/forms/admin/submissions/${submissionId.value}`)
 
-async function redeliver() {
-  if (await actions.redeliver(submissionId.value)) await refresh()
-}
-
 const breadcrumb = computed(() => [
   { label: t('admin.title', 'Forms'), to: paths('admin') },
   { label: form.value?.name ?? id.value, to: paths('adminForm', { id: id.value }) },
   { label: t('admin.submissionsTitle', 'Submissions'), to: paths('adminSubmissions', { id: id.value }) },
   { label: `#${submissionId.value}` },
 ])
-const menu = computed(() => [[{
-  label: t('admin.redeliver', 'Deliver again'),
-  icon: 'i-lucide-send',
-  onSelect: redeliver,
-}]])
+const menu = computed(() => actions.submissionMenu(
+  { id: submissionId.value, formId: id.value },
+  { open: false, onRedelivered: () => refresh() },
+))
+const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 const notFound = computed(() => error.value?.statusCode === 404)
 </script>
 
@@ -38,9 +34,8 @@ const notFound = computed(() => error.value?.statusCode === 404)
         :breadcrumb="breadcrumb"
       >
         <template #badge>
-          <UBadge
-            :color="statusColor(submission.deliveryStatus)"
-            variant="subtle"
+          <StatusBadge
+            :status="submission.deliveryStatus"
             :label="t(`delivery.${submission.deliveryStatus}`, submission.deliveryStatus)"
           />
         </template>
@@ -67,9 +62,9 @@ const notFound = computed(() => error.value?.statusCode === 404)
     </template>
 
     <UEmpty
-      v-else
-      :icon="notFound ? 'i-lucide-inbox' : 'i-lucide-lock'"
-      :title="notFound ? t('admin.submissionNotFound', 'This submission does not exist.') : t('admin.forbidden', 'You are not allowed to manage forms.')"
+      v-else-if="notFound"
+      icon="i-lucide-inbox"
+      :title="t('admin.submissionNotFound', 'This submission does not exist.')"
     >
       <template #actions>
         <UButton
@@ -81,5 +76,19 @@ const notFound = computed(() => error.value?.statusCode === 404)
         />
       </template>
     </UEmpty>
+
+    <UEmpty
+      v-else-if="forbidden"
+      icon="i-lucide-lock"
+      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
+    />
+
+    <UEmpty
+      v-else
+      icon="i-lucide-circle-alert"
+      :title="t('admin.submissionLoadFailed', 'The submission could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
   </div>
 </template>

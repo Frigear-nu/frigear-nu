@@ -126,7 +126,14 @@
       "details": "Details",
       "submissionNotFound": "This submission does not exist.",
       "noSubmissionsHint": "Answers appear here once someone submits the form.",
-      "redelivered": "Delivered again"
+      "redelivered": "Delivered again",
+      "importEmpty": "Paste the JSON to import.",
+      "importLabel": "Forms as JSON",
+      "loadFailed": "Forms could not be loaded",
+      "tryAgain": "Try again",
+      "formLoadFailed": "The form could not be loaded",
+      "submissionsLoadFailed": "Submissions could not be loaded",
+      "submissionLoadFailed": "The submission could not be loaded"
     },
     "schedule": {
       "closed": "This form is closed.",
@@ -198,6 +205,7 @@
       "failed": "Delivery failed",
       "title": "Delivery & storage",
       "storeTitle": "Store submissions",
+      "storageTitle": "Storage",
       "storeHint": "Keep submissions in the database so they can be reviewed under Submissions.",
       "filesWarning": "This form has file upload fields, which need stored submissions. Remove them or keep storing.",
       "lostWarning": "Submissions are neither stored nor emailed. Add recipients or keep storing, or answers are lost unless something handles forms:submitted.",

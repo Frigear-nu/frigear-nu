@@ -134,287 +134,283 @@ const snippet = computed(() => {
 </script>
 
 <template>
-  <div class="max-w-2xl space-y-8">
-    <section class="space-y-4">
-      <h2 class="font-semibold">
-        {{ t('access.title', 'Who can use this form') }}
-      </h2>
-      <UFormField
-        :label="t('access.availability', 'Availability')"
-        :description="access.availability === 'api'
-          ? t('access.availabilityApiHint', 'No public page: the form can only be read and submitted through the API.')
-          : t('access.availabilityWebHint', 'The public page and the API are both available.')"
-      >
-        <USelect
-          :model-value="access.availability"
-          :items="availabilities"
-          :disabled="access.auth === 'token'"
-          class="w-full"
-          @update:model-value="definition = setAccess(definition, { availability: $event as FormAvailability })"
-        />
-      </UFormField>
-
-      <UFormField
-        :label="t('access.auth', 'Authentication')"
-        :description="access.auth === 'token' ? t('access.authTokenHint', 'Token forms are API only: a token cannot be typed into a page.') : undefined"
-      >
-        <USelect
-          :model-value="access.auth"
-          :items="authModes"
-          class="w-full"
-          @update:model-value="definition = setAccess(definition, { auth: $event as FormAuthMode })"
-        />
-      </UFormField>
-      <UFormField
-        :label="t('schedule.title', 'Open period')"
-        :description="t('schedule.hint', 'Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.')"
-      >
-        <USelect
-          :model-value="schedule.type"
-          :items="scheduleTypes"
-          class="w-full"
-          @update:model-value="changeScheduleType($event as FormSchedule['type'])"
-        />
-      </UFormField>
-
-      <div
-        v-if="schedule.type === 'range'"
-        class="grid gap-4 sm:grid-cols-2"
-      >
-        <UFormField :label="t('schedule.opens', 'Opens')">
-          <UInput
-            type="datetime-local"
-            class="w-full"
-            :model-value="toLocalInput(schedule.from)"
-            @update:model-value="setSchedule({ ...schedule, from: fromLocalInput($event as string) })"
-          />
-        </UFormField>
-        <UFormField :label="t('schedule.closes', 'Closes')">
-          <UInput
-            type="datetime-local"
-            class="w-full"
-            :model-value="toLocalInput(schedule.to)"
-            @update:model-value="setSchedule({ ...schedule, to: fromLocalInput($event as string) })"
-          />
-        </UFormField>
-      </div>
-
-      <div
-        v-else-if="schedule.type === 'yearly'"
-        class="space-y-4"
-      >
-        <div
-          v-for="side in (['from', 'to'] as const)"
-          :key="side"
-          class="grid gap-4 sm:grid-cols-3"
+  <div class="flex flex-col gap-4">
+    <SectionCard :title="t('access.title', 'Who can use this form')">
+      <div class="flex flex-col gap-4">
+        <UFormField
+          :label="t('access.availability', 'Availability')"
+          :description="access.availability === 'api'
+            ? t('access.availabilityApiHint', 'No public page: the form can only be read and submitted through the API.')
+            : t('access.availabilityWebHint', 'The public page and the API are both available.')"
         >
-          <UFormField :label="side === 'from' ? t('schedule.opens', 'Opens') : t('schedule.closes', 'Closes')">
-            <USelect
-              :model-value="schedule[side].month"
-              :items="months"
+          <USelect
+            :model-value="access.availability"
+            :items="availabilities"
+            :disabled="access.auth === 'token'"
+            class="w-full sm:max-w-sm"
+            @update:model-value="definition = setAccess(definition, { availability: $event as FormAvailability })"
+          />
+        </UFormField>
+
+        <UFormField
+          :label="t('access.auth', 'Authentication')"
+          :description="access.auth === 'token' ? t('access.authTokenHint', 'Token forms are API only: a token cannot be typed into a page.') : undefined"
+        >
+          <USelect
+            :model-value="access.auth"
+            :items="authModes"
+            class="w-full sm:max-w-sm"
+            @update:model-value="definition = setAccess(definition, { auth: $event as FormAuthMode })"
+          />
+        </UFormField>
+        <UFormField
+          :label="t('schedule.title', 'Open period')"
+          :description="t('schedule.hint', 'Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.')"
+        >
+          <USelect
+            :model-value="schedule.type"
+            :items="scheduleTypes"
+            class="w-full sm:max-w-sm"
+            @update:model-value="changeScheduleType($event as FormSchedule['type'])"
+          />
+        </UFormField>
+
+        <div
+          v-if="schedule.type === 'range'"
+          class="grid gap-4 sm:max-w-xl sm:grid-cols-2"
+        >
+          <UFormField :label="t('schedule.opens', 'Opens')">
+            <UInput
+              type="datetime-local"
               class="w-full"
-              @update:model-value="patchMoment(side, { month: Number($event) })"
+              :model-value="toLocalInput(schedule.from)"
+              @update:model-value="setSchedule({ ...schedule, from: fromLocalInput($event as string) })"
             />
           </UFormField>
-          <UFormField :label="t('schedule.day', 'Day')">
+          <UFormField :label="t('schedule.closes', 'Closes')">
             <UInput
-              type="number"
-              min="1"
-              max="31"
+              type="datetime-local"
               class="w-full"
-              :model-value="schedule[side].day"
-              @update:model-value="patchMoment(side, { day: Number($event) })"
-            />
-          </UFormField>
-          <UFormField :label="t('schedule.time', 'Time')">
-            <UInput
-              type="time"
-              class="w-full"
-              :model-value="schedule[side].time"
-              @update:model-value="patchMoment(side, { time: String($event) })"
+              :model-value="toLocalInput(schedule.to)"
+              @update:model-value="setSchedule({ ...schedule, to: fromLocalInput($event as string) })"
             />
           </UFormField>
         </div>
-        <UFormField :label="t('schedule.timezone', 'Timezone')">
-          <UInput
-            class="w-full"
-            :model-value="schedule.timezone"
-            @update:model-value="setSchedule({ ...schedule, timezone: String($event) })"
-          />
-        </UFormField>
+
+        <div
+          v-else-if="schedule.type === 'yearly'"
+          class="flex flex-col gap-4 sm:max-w-xl"
+        >
+          <div
+            v-for="side in (['from', 'to'] as const)"
+            :key="side"
+            class="grid gap-4 sm:grid-cols-3"
+          >
+            <UFormField :label="side === 'from' ? t('schedule.opens', 'Opens') : t('schedule.closes', 'Closes')">
+              <USelect
+                :model-value="schedule[side].month"
+                :items="months"
+                class="w-full"
+                @update:model-value="patchMoment(side, { month: Number($event) })"
+              />
+            </UFormField>
+            <UFormField :label="t('schedule.day', 'Day')">
+              <UInput
+                type="number"
+                min="1"
+                max="31"
+                class="w-full"
+                :model-value="schedule[side].day"
+                @update:model-value="patchMoment(side, { day: Number($event) })"
+              />
+            </UFormField>
+            <UFormField :label="t('schedule.time', 'Time')">
+              <UInput
+                type="time"
+                class="w-full"
+                :model-value="schedule[side].time"
+                @update:model-value="patchMoment(side, { time: String($event) })"
+              />
+            </UFormField>
+          </div>
+          <UFormField :label="t('schedule.timezone', 'Timezone')">
+            <UInput
+              class="w-full sm:max-w-sm"
+              :model-value="schedule.timezone"
+              @update:model-value="setSchedule({ ...schedule, timezone: String($event) })"
+            />
+          </UFormField>
+        </div>
+
+        <p class="text-sm text-muted">
+          {{ t('access.saveHint', 'Availability and authentication are saved with the form. Tokens and the password take effect immediately.') }}
+        </p>
       </div>
+    </SectionCard>
 
-      <p class="text-sm text-muted">
-        {{ t('access.saveHint', 'Availability and authentication are saved with the form. Tokens and the password take effect immediately.') }}
-      </p>
-    </section>
-
-    <section class="space-y-4">
-      <h2 class="font-semibold">
-        {{ t('access.tokensTitle', 'API tokens') }}
-      </h2>
-      <p class="text-sm text-muted">
-        {{ t('access.tokensHint', 'Send a token as Authorization: Bearer TOKEN or in the x-form-token header. It is shown only once.') }}
-      </p>
-      <UAlert
-        v-if="access.auth !== 'token'"
-        color="neutral"
-        variant="subtle"
-        :title="t('access.tokensInactive', 'Tokens are only checked when authentication is set to API token.')"
-      />
-
-      <form
-        class="flex gap-2"
-        @submit.prevent="createToken"
-      >
-        <UInput
-          v-model="tokenName"
-          :placeholder="t('access.tokenName', 'Token name, e.g. Mobile app')"
-          class="flex-1"
+    <SectionCard :title="t('access.tokensTitle', 'API tokens')">
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-muted">
+          {{ t('access.tokensHint', 'Send a token as Authorization: Bearer TOKEN or in the x-form-token header. It is shown only once.') }}
+        </p>
+        <UAlert
+          v-if="access.auth !== 'token'"
+          color="neutral"
+          variant="subtle"
+          :title="t('access.tokensInactive', 'Tokens are only checked when authentication is set to API token.')"
         />
-        <UButton
-          type="submit"
-          :loading="creating"
-          :disabled="!tokenName.trim()"
-          :label="t('access.createToken', 'Create token')"
-        />
-      </form>
 
-      <UAlert
-        v-if="revealed"
-        color="success"
-        variant="subtle"
-        :title="t('access.tokenCreated', 'Copy this token now. You will not see it again.')"
-        :close="true"
-        @update:open="revealed = undefined"
-      >
-        <template #description>
-          <div class="mt-2 flex items-center gap-2">
-            <code
-              data-testid="revealed-token"
-              class="break-all rounded bg-elevated px-2 py-1 text-xs"
-            >{{ revealed.token }}</code>
+        <form
+          class="flex gap-2"
+          @submit.prevent="createToken"
+        >
+          <UInput
+            v-model="tokenName"
+            :placeholder="t('access.tokenName', 'Token name, e.g. Mobile app')"
+            class="flex-1 sm:max-w-sm"
+          />
+          <UButton
+            type="submit"
+            :loading="creating"
+            :disabled="!tokenName.trim()"
+            :label="t('access.createToken', 'Create token')"
+          />
+        </form>
+
+        <UAlert
+          v-if="revealed"
+          color="success"
+          variant="subtle"
+          :title="t('access.tokenCreated', 'Copy this token now. You will not see it again.')"
+          :close="true"
+          @update:open="revealed = undefined"
+        >
+          <template #description>
+            <div class="mt-2 flex items-center gap-2">
+              <code
+                data-testid="revealed-token"
+                class="break-all rounded bg-elevated px-2 py-1 text-xs"
+              >{{ revealed.token }}</code>
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="xs"
+                icon="i-lucide-copy"
+                :label="t('preview.copy', 'Copy')"
+                @click="copy(revealed.token)"
+              />
+            </div>
+          </template>
+        </UAlert>
+
+        <ul
+          v-if="tokens?.length"
+          class="divide-y divide-default rounded-md border border-default"
+        >
+          <li
+            v-for="token in tokens"
+            :key="token.id"
+            class="flex items-center justify-between gap-3 p-3"
+          >
+            <div class="min-w-0">
+              <p class="truncate font-medium">
+                {{ token.name }}
+                <StatusBadge
+                  v-if="token.revokedAt"
+                  status="revoked"
+                  size="sm"
+                  :label="t('access.revoked', 'Revoked')"
+                  :colors="{ revoked: 'error' }"
+                />
+              </p>
+              <p class="text-xs text-muted">
+                <code>{{ token.prefix }}…</code>
+                ·
+                {{ token.lastUsedAt
+                  ? t('access.lastUsed', 'Last used {date}', { date: format.dateTime(token.lastUsedAt) })
+                  : t('access.neverUsed', 'Never used') }}
+              </p>
+            </div>
             <UButton
-              color="neutral"
+              v-if="!token.revokedAt"
+              color="error"
               variant="outline"
               size="xs"
-              icon="i-lucide-copy"
-              :label="t('preview.copy', 'Copy')"
-              @click="copy(revealed.token)"
+              :label="t('access.revoke', 'Revoke')"
+              @click="revoke(token)"
             />
-          </div>
-        </template>
-      </UAlert>
-
-      <ul
-        v-if="tokens?.length"
-        class="divide-y divide-default rounded-md border border-default"
-      >
-        <li
-          v-for="token in tokens"
-          :key="token.id"
-          class="flex items-center justify-between gap-3 p-3"
+          </li>
+        </ul>
+        <p
+          v-else
+          class="text-sm text-muted"
         >
-          <div class="min-w-0">
-            <p class="truncate font-medium">
-              {{ token.name }}
-              <UBadge
-                v-if="token.revokedAt"
-                color="error"
-                variant="subtle"
-                size="sm"
-                :label="t('access.revoked', 'Revoked')"
-              />
-            </p>
-            <p class="text-xs text-muted">
-              <code>{{ token.prefix }}…</code>
-              ·
-              {{ token.lastUsedAt
-                ? t('access.lastUsed', 'Last used {date}', { date: format.dateTime(token.lastUsedAt) })
-                : t('access.neverUsed', 'Never used') }}
-            </p>
-          </div>
+          {{ t('access.noTokens', 'No tokens yet.') }}
+        </p>
+      </div>
+    </SectionCard>
+
+    <SectionCard :title="t('access.passwordTitle', 'Shared password')">
+      <div class="flex flex-col gap-4">
+        <UAlert
+          v-if="access.auth === 'password' && !passwordStatus?.set"
+          color="warning"
+          variant="subtle"
+          :title="t('access.passwordMissing', 'No password is set, so nobody can open this form yet.')"
+        />
+        <p
+          v-else
+          class="text-sm text-muted"
+        >
+          {{ passwordStatus?.set ? t('access.passwordIsSet', 'A password is set.') : t('access.passwordIsNotSet', 'No password is set.') }}
+          {{ access.auth !== 'password' ? t('access.passwordInactive', 'It is only checked when authentication is set to Shared password.') : '' }}
+        </p>
+        <form
+          class="flex gap-2"
+          @submit.prevent="savePassword"
+        >
+          <UInput
+            v-model="password"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="passwordStatus?.set ? t('access.newPassword', 'New password') : t('access.setPassword', 'Password (min. 6 characters)')"
+            class="flex-1 sm:max-w-sm"
+          />
           <UButton
-            v-if="!token.revokedAt"
+            type="submit"
+            :loading="savingPassword"
+            :disabled="password.length < 6"
+            :label="passwordStatus?.set ? t('access.changePassword', 'Change') : t('access.savePassword', 'Set password')"
+          />
+          <UButton
+            v-if="passwordStatus?.set"
+            type="button"
             color="error"
             variant="outline"
-            size="xs"
-            :label="t('access.revoke', 'Revoke')"
-            @click="revoke(token)"
+            :label="t('access.clearPassword', 'Clear')"
+            @click="clearPassword"
           />
-        </li>
-      </ul>
-      <p
-        v-else
-        class="text-sm text-muted"
-      >
-        {{ t('access.noTokens', 'No tokens yet.') }}
-      </p>
-    </section>
-
-    <section class="space-y-4">
-      <h2 class="font-semibold">
-        {{ t('access.passwordTitle', 'Shared password') }}
-      </h2>
-      <UAlert
-        v-if="access.auth === 'password' && !passwordStatus?.set"
-        color="warning"
-        variant="subtle"
-        :title="t('access.passwordMissing', 'No password is set, so nobody can open this form yet.')"
-      />
-      <p
-        v-else
-        class="text-sm text-muted"
-      >
-        {{ passwordStatus?.set ? t('access.passwordIsSet', 'A password is set.') : t('access.passwordIsNotSet', 'No password is set.') }}
-        {{ access.auth !== 'password' ? t('access.passwordInactive', 'It is only checked when authentication is set to Shared password.') : '' }}
-      </p>
-      <form
-        class="flex gap-2"
-        @submit.prevent="savePassword"
-      >
-        <UInput
-          v-model="password"
-          type="password"
-          autocomplete="new-password"
-          :placeholder="passwordStatus?.set ? t('access.newPassword', 'New password') : t('access.setPassword', 'Password (min. 6 characters)')"
-          class="flex-1"
-        />
-        <UButton
-          type="submit"
-          :loading="savingPassword"
-          :disabled="password.length < 6"
-          :label="passwordStatus?.set ? t('access.changePassword', 'Change') : t('access.savePassword', 'Set password')"
-        />
-        <UButton
-          v-if="passwordStatus?.set"
-          type="button"
-          color="error"
-          variant="outline"
-          :label="t('access.clearPassword', 'Clear')"
-          @click="clearPassword"
-        />
-      </form>
-    </section>
-
-    <section class="space-y-3">
-      <h2 class="font-semibold">
-        {{ t('access.apiTitle', 'API') }}
-      </h2>
-      <p class="text-sm text-muted">
-        {{ t('access.apiHint', 'Submit with POST (JSON, or multipart with file:KEY parts). The definition is available with GET on /api/forms/{slug}.', { slug: props.slug }) }}
-      </p>
-      <div class="flex items-start gap-2">
-        <pre class="flex-1 overflow-x-auto rounded-md bg-elevated p-3 text-xs">{{ snippet }}</pre>
-        <UButton
-          color="neutral"
-          variant="outline"
-          size="xs"
-          icon="i-lucide-copy"
-          :label="t('preview.copy', 'Copy')"
-          @click="copy(snippet)"
-        />
+        </form>
       </div>
-    </section>
+    </SectionCard>
+
+    <SectionCard :title="t('access.apiTitle', 'API')">
+      <div class="flex flex-col gap-4">
+        <p class="text-sm text-muted">
+          {{ t('access.apiHint', 'Submit with POST (JSON, or multipart with file:KEY parts). The definition is available with GET on /api/forms/{slug}.', { slug: props.slug }) }}
+        </p>
+        <div class="flex items-start gap-2">
+          <pre class="flex-1 overflow-x-auto rounded-md bg-elevated p-3 text-xs">{{ snippet }}</pre>
+          <UButton
+            color="neutral"
+            variant="outline"
+            size="xs"
+            icon="i-lucide-copy"
+            :label="t('preview.copy', 'Copy')"
+            @click="copy(snippet)"
+          />
+        </div>
+      </div>
+    </SectionCard>
   </div>
 </template>

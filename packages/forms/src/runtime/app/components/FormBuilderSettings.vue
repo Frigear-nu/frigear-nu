@@ -66,167 +66,165 @@ const routeFieldItems = computed(() => [
 </script>
 
 <template>
-  <div class="max-w-2xl space-y-8">
-    <section class="space-y-3">
-      <h2 class="font-semibold">
-        {{ t('delivery.storeTitle', 'Store submissions') }}
-      </h2>
-      <USwitch
-        :model-value="definition.storage === 'db'"
-        :label="t('delivery.storeTitle', 'Store submissions')"
-        :description="t('delivery.storeHint', 'Keep submissions in the database so they can be reviewed under Submissions.')"
-        @update:model-value="definition = setStorage(definition, $event ? 'db' : 'none')"
-      />
-      <UAlert
-        v-if="warnings.files"
-        color="warning"
-        variant="subtle"
-        :title="t('delivery.filesWarning', 'This form has file upload fields, which need stored submissions. Remove them or keep storing.')"
-      />
-      <UAlert
-        v-if="warnings.lost"
-        color="warning"
-        variant="subtle"
-        :title="t('delivery.lostWarning', 'Submissions are neither stored nor emailed. Add recipients or keep storing, or answers are lost unless something handles forms:submitted.')"
-      />
-    </section>
-
-    <section class="space-y-4">
-      <h2 class="font-semibold">
-        {{ t('delivery.emailTitle', 'Email notification') }}
-      </h2>
-      <UFormField
-        :label="t('delivery.recipients', 'Recipients')"
-        :description="t('delivery.recipientsHint', 'Press Enter after each address. Leave empty to turn email off.')"
-      >
-        <UInputTags
-          :model-value="email?.to ?? []"
-          type="email"
-          class="w-full"
-          @update:model-value="definition = setEmailRecipients(definition, $event)"
+  <div class="flex flex-col gap-4">
+    <SectionCard :title="t('delivery.storageTitle', 'Storage')">
+      <div class="flex flex-col gap-4">
+        <USwitch
+          :model-value="definition.storage === 'db'"
+          :label="t('delivery.storeTitle', 'Store submissions')"
+          :description="t('delivery.storeHint', 'Keep submissions in the database so they can be reviewed under Submissions.')"
+          @update:model-value="definition = setStorage(definition, $event ? 'db' : 'none')"
         />
-      </UFormField>
+        <UAlert
+          v-if="warnings.files"
+          color="warning"
+          variant="subtle"
+          :title="t('delivery.filesWarning', 'This form has file upload fields, which need stored submissions. Remove them or keep storing.')"
+        />
+        <UAlert
+          v-if="warnings.lost"
+          color="warning"
+          variant="subtle"
+          :title="t('delivery.lostWarning', 'Submissions are neither stored nor emailed. Add recipients or keep storing, or answers are lost unless something handles forms:submitted.')"
+        />
+      </div>
+    </SectionCard>
 
-      <p
-        v-if="!email"
-        class="text-sm text-muted"
-      >
-        {{ t('delivery.needRecipients', 'Add recipients first to set the subject, reply-to and routing.') }}
-      </p>
-
-      <template v-else>
+    <SectionCard :title="t('delivery.emailTitle', 'Email notification')">
+      <div class="flex flex-col gap-4">
         <UFormField
-          :label="t('delivery.subject', 'Subject')"
-          :description="t('delivery.subjectHint', 'Variables from the list below work here too.')"
+          :label="t('delivery.recipients', 'Recipients')"
+          :description="t('delivery.recipientsHint', 'Press Enter after each address. Leave empty to turn email off.')"
         >
-          <FormBuilderText
-            :model-value="email.subject"
-            @update:model-value="definition = patchEmailDelivery(definition, { subject: $event })"
+          <UInputTags
+            :model-value="email?.to ?? []"
+            type="email"
+            class="w-full sm:max-w-sm"
+            @update:model-value="definition = setEmailRecipients(definition, $event)"
           />
         </UFormField>
 
-        <UFormField
-          :label="t('delivery.body', 'Email body')"
-          :description="t('delivery.bodyHint', 'Optional. Leave empty to email the list of all answers. Variables are replaced with the submitted values.')"
+        <p
+          v-if="!email"
+          class="text-sm text-muted"
         >
-          <div
-            ref="bodyEditor"
-            class="space-y-2"
-            @focusin="rememberTextarea"
+          {{ t('delivery.needRecipients', 'Add recipients first to set the subject, reply-to and routing.') }}
+        </p>
+
+        <template v-else>
+          <UFormField
+            :label="t('delivery.subject', 'Subject')"
+            :description="t('delivery.subjectHint', 'Variables from the list below work here too.')"
           >
             <FormBuilderText
-              :model-value="email.body"
-              multiline
-              :preview="false"
-              @update:model-value="definition = patchEmailDelivery(definition, { body: $event })"
+              :model-value="email.subject"
+              @update:model-value="definition = patchEmailDelivery(definition, { subject: $event })"
             />
-            <div class="space-y-1">
-              <p class="text-xs text-muted">
-                {{ t('delivery.bodyVariables', 'Click a variable to insert it at the cursor. The full list of answers is') }}
-                <code>{{ answersExample }}</code>.
-              </p>
-              <div class="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+          </UFormField>
+
+          <UFormField
+            :label="t('delivery.body', 'Email body')"
+            :description="t('delivery.bodyHint', 'Optional. Leave empty to email the list of all answers. Variables are replaced with the submitted values.')"
+          >
+            <div
+              ref="bodyEditor"
+              class="space-y-2"
+              @focusin="rememberTextarea"
+            >
+              <FormBuilderText
+                :model-value="email.body"
+                multiline
+                :preview="false"
+                @update:model-value="definition = patchEmailDelivery(definition, { body: $event })"
+              />
+              <div class="space-y-1">
+                <p class="text-xs text-muted">
+                  {{ t('delivery.bodyVariables', 'Click a variable to insert it at the cursor. The full list of answers is') }}
+                  <code>{{ answersExample }}</code>.
+                </p>
+                <div class="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+                  <UButton
+                    v-for="name in variables"
+                    :key="name"
+                    type="button"
+                    color="neutral"
+                    variant="subtle"
+                    size="xs"
+                    class="font-mono"
+                    :label="variableLabel(name)"
+                    @click="insertVariable(name)"
+                  />
+                </div>
+              </div>
+              <UAlert
+                v-if="unknownVariables.length"
+                color="warning"
+                variant="subtle"
+                :title="t('delivery.bodyUnknown', 'Unknown variables are left empty: {names}', { names: unknownVariables.map(variableLabel).join(', ') })"
+              />
+              <div
+                v-if="email.body"
+                class="space-y-1"
+              >
+                <p class="text-xs font-medium text-muted">
+                  {{ t('delivery.bodyPreview', 'Preview with sample answers') }}
+                </p>
+                <pre class="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-default bg-elevated/50 p-2 text-xs">{{ preview }}</pre>
                 <UButton
-                  v-for="name in variables"
-                  :key="name"
                   type="button"
                   color="neutral"
-                  variant="subtle"
+                  variant="link"
                   size="xs"
-                  class="font-mono"
-                  :label="variableLabel(name)"
-                  @click="insertVariable(name)"
+                  icon="i-lucide-rotate-ccw"
+                  :label="t('delivery.bodyReset', 'Reset to the default body')"
+                  @click="definition = patchEmailDelivery(definition, { body: undefined })"
                 />
               </div>
             </div>
-            <UAlert
-              v-if="unknownVariables.length"
-              color="warning"
-              variant="subtle"
-              :title="t('delivery.bodyUnknown', 'Unknown variables are left empty: {names}', { names: unknownVariables.map(variableLabel).join(', ') })"
-            />
-            <div
-              v-if="email.body"
-              class="space-y-1"
-            >
-              <p class="text-xs font-medium text-muted">
-                {{ t('delivery.bodyPreview', 'Preview with sample answers') }}
-              </p>
-              <pre class="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-default bg-elevated/50 p-2 text-xs">{{ preview }}</pre>
-              <UButton
-                type="button"
-                color="neutral"
-                variant="link"
-                size="xs"
-                icon="i-lucide-rotate-ccw"
-                :label="t('delivery.bodyReset', 'Reset to the default body')"
-                @click="definition = patchEmailDelivery(definition, { body: undefined })"
-              />
-            </div>
-          </div>
-        </UFormField>
+          </UFormField>
 
-        <UFormField
-          :label="t('delivery.replyTo', 'Reply to')"
-          :description="t('delivery.replyToHint', 'The answer of this email field becomes the Reply-To.')"
-        >
-          <USelect
-            :model-value="email.replyToField ?? NONE"
-            :items="replyToItems"
-            :disabled="!replyToFields.length"
-            class="w-full"
-            @update:model-value="definition = patchEmailDelivery(definition, { replyToField: $event === NONE ? undefined : String($event) })"
-          />
-        </UFormField>
-
-        <UFormField
-          v-if="routable.length"
-          :label="t('delivery.routing', 'Route by answer')"
-          :description="t('delivery.routingHint', 'Send to other recipients depending on the answer. Others get the default recipients.')"
-        >
-          <USelect
-            :model-value="email.routes?.field ?? NONE"
-            :items="routeFieldItems"
-            class="w-full"
-            @update:model-value="definition = setRouteField(definition, $event === NONE ? undefined : String($event))"
-          />
-        </UFormField>
-
-        <template v-if="routeField">
           <UFormField
-            v-for="option in routeField.options"
-            :key="option.value"
-            :label="t('delivery.routeTo', 'Recipients for “{value}”', { value: translate(option.label, locale) || option.value })"
+            :label="t('delivery.replyTo', 'Reply to')"
+            :description="t('delivery.replyToHint', 'The answer of this email field becomes the Reply-To.')"
           >
-            <UInputTags
-              :model-value="email.routes?.to[option.value] ?? []"
-              type="email"
-              class="w-full"
-              @update:model-value="definition = setRoute(definition, option.value, $event)"
+            <USelect
+              :model-value="email.replyToField ?? NONE"
+              :items="replyToItems"
+              :disabled="!replyToFields.length"
+              class="w-full sm:max-w-sm"
+              @update:model-value="definition = patchEmailDelivery(definition, { replyToField: $event === NONE ? undefined : String($event) })"
             />
           </UFormField>
+
+          <UFormField
+            v-if="routable.length"
+            :label="t('delivery.routing', 'Route by answer')"
+            :description="t('delivery.routingHint', 'Send to other recipients depending on the answer. Others get the default recipients.')"
+          >
+            <USelect
+              :model-value="email.routes?.field ?? NONE"
+              :items="routeFieldItems"
+              class="w-full sm:max-w-sm"
+              @update:model-value="definition = setRouteField(definition, $event === NONE ? undefined : String($event))"
+            />
+          </UFormField>
+
+          <template v-if="routeField">
+            <UFormField
+              v-for="option in routeField.options"
+              :key="option.value"
+              :label="t('delivery.routeTo', 'Recipients for “{value}”', { value: translate(option.label, locale) || option.value })"
+            >
+              <UInputTags
+                :model-value="email.routes?.to[option.value] ?? []"
+                type="email"
+                class="w-full sm:max-w-sm"
+                @update:model-value="definition = setRoute(definition, option.value, $event)"
+              />
+            </UFormField>
+          </template>
         </template>
-      </template>
-    </section>
+      </div>
+    </SectionCard>
   </div>
 </template>
