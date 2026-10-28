@@ -10,6 +10,9 @@ type SavedApplication = AdminApplicationDto | CreatedApplicationDto | false | un
  * Everything you can do to an application: `create` / `edit` (a `FormSlideover`), `remove`, `toggle`, `rotateSecret`,
  * `signOutEveryone`, `copyClientId` and `menu(application)` for the row menu. Toasts, confirmations and the refresh
  * of the admin list are handled here.
+ *
+ * `edit` owns the `?application=<id>` query parameter of the page it is opened from: it is set while the form is open
+ * and cleared when it closes, so an edit can be linked to and survives a reload (the admin page opens it again).
  */
 export function useOAuthApplicationActions() {
   const t = useModuleT('oauthServer')
@@ -19,7 +22,18 @@ export function useOAuthApplicationActions() {
   const { busy, run } = useAction()
   const { copy } = useCopyToClipboard()
 
+  const route = useRoute()
+  const router = useRouter()
+  /** The application whose form is open, so a second `edit` for it (the page reacting to the query) is ignored. */
+  const editing = ref<string | null>(null)
+
   const refresh = () => refreshNuxtData(OAUTH_APPLICATIONS_KEY)
+
+  /** Sets or clears `?application=` without adding a history entry. */
+  function setQuery(id: string | null) {
+    const { application: _previous, ...rest } = route.query
+    return router.replace({ query: id ? { ...rest, application: id } : rest })
+  }
 
   /** Shows the client secret once. */
   function showCredentials(credentials: { name: string, clientId: string, clientSecret: string | null }) {
@@ -45,21 +59,35 @@ export function useOAuthApplicationActions() {
     return saved
   }
 
-  /** Opens the form to edit an application. Resolves with the application, or `false` when cancelled. */
+  /**
+   * Opens the form to edit an application and puts `?application=<id>` in the URL while it is open. Resolves with the
+   * application, or `false` when cancelled (`undefined` when its form is already open).
+   */
   async function edit(application: AdminApplicationDto): Promise<SavedApplication> {
-    const saved = await overlay.create(OAuthApplicationSlideover, {
-      destroyOnClose: true,
-      props: {
-        application,
-        save: async (input: ApplicationInput) => {
-          const updated = await oauthApplicationsApi.update(application.id, input)
-          await refresh()
-          return updated
+    if (editing.value === application.id) return undefined
+    editing.value = application.id
+    const path = route.path
+    await setQuery(application.id)
+    try {
+      const saved = await overlay.create(OAuthApplicationSlideover, {
+        destroyOnClose: true,
+        props: {
+          application,
+          save: async (input: ApplicationInput) => {
+            const updated = await oauthApplicationsApi.update(application.id, input)
+            await refresh()
+            return updated
+          },
         },
-      },
-    }).open()
-    if (saved) toast.add({ title: t('admin.updated', 'Application updated'), description: saved.name, color: 'success', icon: 'i-lucide-check' })
-    return saved
+      }).open()
+      if (saved) toast.add({ title: t('admin.updated', 'Application updated'), description: saved.name, color: 'success', icon: 'i-lucide-check' })
+      return saved
+    }
+    finally {
+      editing.value = null
+      // Only while still on the page it was opened from: the visitor may have navigated away with the form open.
+      if (route.path === path && route.query.application === application.id) await setQuery(null)
+    }
   }
 
   async function remove(application: AdminApplicationDto) {
@@ -130,7 +158,7 @@ export function useOAuthApplicationActions() {
     ...(application.clientType === 'public' ? [] : [{ label: t('admin.newSecret', 'New client secret'), icon: 'i-lucide-key-round', onSelect: () => { void rotateSecret(application) } }]),
     { label: t('admin.signOutEveryone', 'Sign everyone out'), icon: 'i-lucide-log-out', onSelect: () => { void signOutEveryone(application) } },
   ], [
-    { label: t('admin.delete', 'Delete application'), icon: 'i-lucide-trash', color: 'error', onSelect: () => { void remove(application) } },
+    { label: t('admin.delete', 'Delete application'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void remove(application) } },
   ]]
 
   return { busy, create, edit, remove, toggle, rotateSecret, signOutEveryone, copyClientId, menu }

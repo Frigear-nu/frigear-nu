@@ -7,17 +7,31 @@ type Application = AdminApplicationDto
 defineOptions({ name: 'OAuthAdminPage' })
 
 const t = useModuleT('oauthServer')
-const { applications, status, error } = useOAuthApplications()
+const route = useRoute()
+const { applications, error, loading, refreshing, refresh } = await useOAuthApplications()
 const actions = useOAuthApplicationActions()
+const sort = useTableSort()
+const { sorting } = sort
 
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
+const failed = computed(() => !!error.value && !forbidden.value && !applications.value.length)
 
 const columns = computed<TableColumn<Application>[]>(() => [
-  { accessorKey: 'name', header: t('admin.application', 'Application') },
+  { accessorKey: 'name', header: sort.header('name', t('admin.application', 'Application')) },
   { id: 'access', header: t('admin.access', 'Access') },
-  { id: 'grants', header: t('admin.signedIn', 'Signed in'), meta: numericColumn },
+  { id: 'grants', accessorFn: row => row.activeGrants ?? 0, header: sort.header('grants', t('admin.signedIn', 'Signed in')), meta: numericColumn },
   { id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0' } } },
 ])
+
+// Deep link: `?application=<id>` opens that application's form (`actions.edit` sets and clears the parameter itself).
+// Client only: an overlay cannot open during server rendering, so the first look happens once mounted.
+function openFromQuery() {
+  const id = route.query.application
+  const application = typeof id === 'string' ? applications.value.find(item => item.id === id) : undefined
+  if (application) void actions.edit(application)
+}
+onMounted(openFromQuery)
+watch(() => route.query.application, openFromQuery)
 </script>
 
 <template>
@@ -44,12 +58,20 @@ const columns = computed<TableColumn<Application>[]>(() => [
       :title="t('admin.forbiddenTitle', 'You are not allowed to manage OAuth applications')"
       :description="t('admin.forbiddenDescription', 'Ask an administrator for access.')"
     />
+    <UEmpty
+      v-else-if="failed"
+      icon="i-lucide-circle-alert"
+      :title="t('admin.loadFailed', 'OAuth applications could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
     <TableCard
       v-else
-      :loading="status === 'pending' && !applications.length"
-      :refreshing="status === 'pending' && !!applications.length"
+      :loading="loading"
+      :refreshing="refreshing"
     >
       <UTable
+        v-model:sorting="sorting"
         :data="applications"
         :columns="columns"
         :ui="tableUi()"
