@@ -32,6 +32,7 @@
       "label": "Kontonavigation"
     },
     "accountMenu": "Kontomenu",
+    "backToSite": "Tilbage til siden",
     "appearance": {
       "label": "Udseende",
       "light": "Lyst",
@@ -39,14 +40,14 @@
       "system": "System"
     },
     "overview": {
-      "title": "Konto",
-      "description": "Dine oplysninger og alt, der hører til din konto.",
       "shortcuts": "Din konto",
       "empty": "Her er ikke noget endnu."
     },
     "profile": {
-      "title": "Profil",
-      "description": "Skift dine brugeroplysninger.",
+      "details": {
+        "title": "Navn og avatar",
+        "description": "Sådan ser andre dig."
+      },
       "name": {
         "label": "Navn",
         "description": "Dit fulde navn.",
@@ -54,10 +55,11 @@
       },
       "email": {
         "label": "E-mail",
-        "description": "Din awesome e-mail.",
+        "description": "Hvor vi sender beskeder, og hvordan du logger ind.",
         "change": {
           "title": "Skift din e-mail",
           "label": "Ny e-mail",
+          "current": "Din adresse er nu {email}.",
           "sent": {
             "title": "Tjek din indbakke",
             "description": "Vi har sendt et link til din nye adresse. Ændringen træder først i kraft når du bekræfter den."
@@ -76,13 +78,13 @@
       },
       "save": "Gem profil",
       "saved": "Profil opdateret",
-      "saveFailed": "Kunne ikke opdatere din profil.",
-      "cancel": "Annuller"
+      "saveFailed": "Kunne ikke opdatere din profil."
     },
     "documents": {
       "title": "Dokumenter",
       "description": "Dine dokumenter.",
       "download": "Download",
+      "downloadNamed": "Download {name}",
       "empty": "Ingen dokumenter til dig endnu."
     },
     "security": {
@@ -112,7 +114,7 @@
       },
       "passkeys": {
         "title": "Passkeys",
-        "register": "Registrér en passkey",
+        "add": "Tilføj passkey",
         "description": "Log ind med fingeraftryk, ansigt eller enhedens pinkode i stedet for et password.",
         "unnamed": "Passkey",
         "created": "Tilføjet {date}",
@@ -124,6 +126,7 @@
         "empty": "Du har ikke tilføjet nogen passkeys endnu.",
         "name": {
           "label": "Navn på passkey",
+          "description": "Valgfrit. Gør det nemmere at kende dine passkeys fra hinanden.",
           "placeholder": "Navn, fx MacBook"
         },
         "registered": "Passkey tilføjet.",
@@ -134,7 +137,6 @@
         "tryAgain": "Prøv igen"
       }
     },
-    "signedInAs": "Logget ind som",
     "apiTokens": {
       "title": "API-nøgler",
       "description": "Opret nøgler til scripts og værktøjer.",

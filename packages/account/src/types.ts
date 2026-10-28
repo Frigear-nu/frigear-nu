@@ -29,8 +29,8 @@ export type PublicModuleOptions = {
 export type ModuleOptions = {
   settings?: {
     /**
-     * Renders `/account`, `/account/**` and the configured page paths in the `account` layout (the site layout with
-     * a left account navigation). `false` leaves the layout to the host. Defaults to `true`.
+     * Renders `/account`, `/account/**` and the configured page paths in the `account` layout (the shared `AppShell`
+     * dashboard shell with the account navigation). `false` leaves the layout to the host. Defaults to `true`.
      */
     layout?: boolean
     // Each page accepts a custom path (string), `true` for the default path, or `false`/omitted

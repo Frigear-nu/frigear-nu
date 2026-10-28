@@ -63,9 +63,8 @@ const columns = computed<TableColumn<ApiToken>[]>(() => [
   { id: 'actions', meta: { class: { td: 'w-px text-right' } } },
 ])
 
-function tokenStatusColor(status: ApiToken['status']) {
-  return statusColor(status, { ok: 'success', expired: 'warning' })
-}
+// `ok` is not one of `statusColor`'s live states, `expired` needs attention; `revoked` stays neutral.
+const tokenStatusColors = { ok: 'success', expired: 'warning' } as const
 
 // The token is only ever inlined into a snippet while it is revealed; afterwards the snippets show a placeholder.
 const mcpEnabled = useRuntimeConfig().public.users?.mcp === true
@@ -96,6 +95,16 @@ const activeTab = computed(() => connectTabs.value.find(tab => tab.value === act
 
 <template>
   <div class="flex flex-col gap-4">
+    <AccountHeader>
+      <template #actions>
+        <UButton
+          icon="i-lucide-plus"
+          :label="t('create.submit', 'Create API token')"
+          @click="onCreate"
+        />
+      </template>
+    </AccountHeader>
+
     <UAlert
       v-if="revealed"
       color="success"
@@ -127,25 +136,11 @@ const activeTab = computed(() => connectTabs.value.find(tab => tab.value === act
     </UAlert>
 
     <TableCard
-      :loading="status === 'pending' && !tokens?.length"
-      :refreshing="status === 'pending' && !!tokens?.length"
+      :title="t('list.title', 'Your tokens')"
+      :description="t('list.description', 'Tokens let scripts and tools such as MCP clients act as you. Revoke one to stop it working immediately.')"
+      :loading="status === 'pending' && !tokens"
+      :refreshing="status === 'pending' && !!tokens"
     >
-      <template #header>
-        <div class="min-w-0">
-          <h2 class="text-sm font-semibold text-highlighted">
-            {{ t('list.title', 'Your tokens') }}
-          </h2>
-          <p class="text-sm text-muted">
-            {{ t('list.description', 'Tokens let scripts and tools such as MCP clients act as you. Revoke one to stop it working immediately.') }}
-          </p>
-        </div>
-        <UButton
-          icon="i-lucide-plus"
-          :label="t('create.submit', 'Create API token')"
-          @click="onCreate"
-        />
-      </template>
-
       <UTable
         :data="tokens ?? []"
         :columns="columns"
@@ -157,11 +152,11 @@ const activeTab = computed(() => connectTabs.value.find(tab => tab.value === act
             :description="`${row.original.prefix}…${row.original.last4}`"
           >
             <template #badges>
-              <UBadge
-                :color="tokenStatusColor(row.original.status)"
-                variant="subtle"
-                size="sm"
+              <StatusBadge
+                :status="row.original.status"
                 :label="t(`status.${row.original.status}`, row.original.status)"
+                :colors="tokenStatusColors"
+                size="sm"
               />
             </template>
           </TableIdentity>

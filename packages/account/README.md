@@ -10,9 +10,10 @@ A module for the account area (profile, security, documents, API tokens pages) i
 - 🔒 Change your password.
 - 🔑 Manage passkeys (via `@frigear-nu/auth`'s `usePasskeys`, when WebAuthn is enabled there).
 - 🧩 Overridable composable (`useAccount`) and opt-in profile/security pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
-- 🗂️ An `account` layout (inside the site layout) with a left account navigation built from the `account` menu
-  of `@frigear-nu/menu` (when installed), an overview page listing the same entries, and an `account.overview` widget
-  area (when `@frigear-nu/widget` is installed).
+- 🗂️ An `account` layout on the shared dashboard shell (`AppShell` from `@frigear-nu/ui`, the same chrome as the
+  admin area): a sidebar with the account navigation built from the `account` menu of `@frigear-nu/menu` (when
+  installed), "Back to the site" and the account menu, an overview page listing the same entries, and an
+  `account.overview` widget area (when `@frigear-nu/widget` is installed).
 
 This module is a UI shell: it owns no tables and no mutation routes. The forms call the self-service routes of
 `@frigear-nu/users` (`/api/users/me/*`) and the token routes of `@frigear-nu/auth`.
@@ -79,6 +80,14 @@ Strings live under the `account.*` namespace in `da`/`en` locale files and can b
 ## Overriding parts
 
 Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
-`AccountHeaderRight` is the actions block of the account page heading (and of the overview's summary card);
-override it to show other details. Set `account.layout: false` to opt out of the account layout and render the
-pages in your own.
+`AccountIdentity` is shown next to the user in the overview's summary card (by default a role badge for anyone who is
+not a plain `user`); override it to show other details, such as a member or ID badge. Set `account.layout: false` to
+opt out of the account layout and render the pages in your own.
+
+## Page headings
+
+The layout renders no heading: every page renders its own, as the first child of its root
+`<div class="flex flex-col gap-4">`. The module's pages use `AccountHeader`, a `PageHeading` whose title is the page's
+`title` meta, else the label of the `account` menu item the route belongs to; the description comes from the same
+item, and `#actions` is passed through (the API tokens page puts "Create API token" there). Pages other modules add
+under `/account` render a `PageHeading` with the same i18n keys as their menu item.

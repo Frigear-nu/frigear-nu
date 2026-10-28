@@ -32,6 +32,7 @@
       "label": "Account navigation"
     },
     "accountMenu": "Account menu",
+    "backToSite": "Back to the site",
     "appearance": {
       "label": "Appearance",
       "light": "Light",
@@ -39,14 +40,14 @@
       "system": "System"
     },
     "overview": {
-      "title": "Account",
-      "description": "Your details and everything that belongs to your account.",
       "shortcuts": "Your account",
       "empty": "Nothing here yet."
     },
     "profile": {
-      "title": "Profile",
-      "description": "Change your information.",
+      "details": {
+        "title": "Name and avatar",
+        "description": "How you appear to others."
+      },
       "name": {
         "label": "Name",
         "description": "Your full name.",
@@ -54,10 +55,11 @@
       },
       "email": {
         "label": "E-mail",
-        "description": "Your awesome E-mail.",
+        "description": "Where we send messages and how you sign in.",
         "change": {
           "title": "Change e-mail",
           "label": "New e-mail",
+          "current": "Your address is now {email}.",
           "sent": {
             "title": "Check your inbox",
             "description": "We sent a link to your new address. It takes effect once you confirm it."
@@ -76,13 +78,13 @@
       },
       "save": "Save profile",
       "saved": "Profile updated",
-      "saveFailed": "Could not update your profile.",
-      "cancel": "Cancel"
+      "saveFailed": "Could not update your profile."
     },
     "documents": {
       "title": "Documents",
       "description": "Your documents.",
       "download": "Download",
+      "downloadNamed": "Download {name}",
       "empty": "No documents for you yet."
     },
     "security": {
@@ -112,7 +114,7 @@
       },
       "passkeys": {
         "title": "Passkeys",
-        "register": "Register a passkey",
+        "add": "Add passkey",
         "description": "Sign in with your fingerprint, face or device PIN instead of a password.",
         "unnamed": "Passkey",
         "created": "Added {date}",
@@ -124,6 +126,7 @@
         "empty": "You have not added any passkeys yet.",
         "name": {
           "label": "Passkey name",
+          "description": "Optional. Helps you tell your passkeys apart.",
           "placeholder": "Name, e.g. MacBook"
         },
         "registered": "Passkey added.",
@@ -134,7 +137,6 @@
         "tryAgain": "Try again"
       }
     },
-    "signedInAs": "Signed in as",
     "apiTokens": {
       "title": "API tokens",
       "description": "Create tokens for scripts and tools.",

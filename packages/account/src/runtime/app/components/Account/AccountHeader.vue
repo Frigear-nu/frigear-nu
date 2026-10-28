@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// The heading of an account page, rendered by the `account` layout. The title is the page's `title` meta, else the
-// account menu item the route belongs to (so pages other modules add get their label), else "Account". A page hides
-// it with `definePageMeta({ heading: false })`; the document title is set either way. `AccountHeaderRight` fills the
-// actions, override it in the host app to show other details.
+// The heading of an account page, rendered by the page itself as the first child of its root: a `PageHeading` filled
+// from the account navigation. The title is the page's `title` meta, else the account menu item the route belongs to
+// (the longest matching path, so `/account/membership/success` still reads "Membership"), else "Account"; the
+// description comes from the same item. `#actions` is passed through to the heading. It also sets the document title,
+// which wins over the shell's default (the active nav label) when a page's `title` meta differs from it.
+defineSlots<{ actions?: () => unknown }>()
+
 const t = useModuleT('account')
 const route = useRoute()
 const { current } = await useAccountNav()
@@ -18,12 +21,14 @@ useHead({ title })
 
 <template>
   <PageHeading
-    v-if="route.meta.heading !== false"
     :title="title"
     :description="description"
   >
-    <template #actions>
-      <AccountHeaderRight />
+    <template
+      v-if="$slots.actions"
+      #actions
+    >
+      <slot name="actions" />
     </template>
   </PageHeading>
 </template>

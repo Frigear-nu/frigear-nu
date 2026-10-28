@@ -1,63 +1,34 @@
 <script setup lang="ts">
-import type { LayoutKey } from '#app'
-
-// The account area: the site's own `default` layout (header and footer) with a left account navigation built from
-// the `account` menu. On narrow screens the navigation is a section switcher (a button with a menu) above the content. Without a `default` layout
-// (e.g. an app with no layouts) `NuxtLayout` renders the content as is.
+// The account area: the shared dashboard shell (`AppShell` from @frigear-nu/ui), the same chrome as the admin area.
+// The sidebar lists the `account` menu (or the enabled pages without the menu module) and ends with "Back to the site"
+// and the account menu, the one place the signed-in identity is shown. Pages render their own heading
+// (`AccountHeader` or `PageHeading`); paths are passed raw, the shell localises them.
 defineOptions({ name: 'AccountLayout' })
 
-// The host's site layout. Cast: whether a `default` layout exists depends on the app, not on this module.
-const siteLayout = 'default' as unknown as LayoutKey
-
 const t = useModuleT('account')
-const { user } = useUserSession()
+const home = useRuntimeConfig().public.account?.pages?.index ?? '/account'
 const { links } = await useAccountNav()
-
-const profile = computed(() => {
-  const value = user.value as { name?: string | null, email?: string | null, avatar?: string | null } | null
-  const name = value?.name || value?.email || t('title', 'Account')
-  return {
-    name,
-    email: value?.name ? value.email ?? undefined : undefined,
-    avatar: { src: value?.avatar || undefined, alt: name },
-  }
-})
 </script>
 
 <template>
-  <NuxtLayout :name="siteLayout">
-    <UContainer>
-      <UPage>
-        <template #left>
-          <UPageAside>
-            <UUser
-              v-if="user"
-              :name="profile.name"
-              :description="profile.email"
-              :avatar="profile.avatar"
-              class="mb-4 px-2.5"
-              :ui="{ name: 'truncate', description: 'truncate' }"
-            />
-            <UNavigationMenu
-              :items="links"
-              orientation="vertical"
-              highlight
-              :aria-label="t('nav.label', 'Account navigation')"
-            />
-          </UPageAside>
-        </template>
+  <AppShell
+    id="account"
+    :title="t('title', 'Account')"
+    :home="home"
+    icon="i-lucide-user-round"
+    :navigation="[links]"
+    :nav-label="t('nav.label', 'Account navigation')"
+    :back-to="{ to: '/', label: t('backToSite', 'Back to the site') }"
+  >
+    <template #sidebar-footer="{ collapsed }">
+      <AccountMenu
+        block
+        :collapsed="collapsed"
+      />
+    </template>
 
-        <div class="flex min-w-0 flex-col gap-6 py-8">
-          <PageSectionSwitcher
-            v-if="links.length"
-            class="lg:hidden"
-            :items="links"
-            :label="t('nav.label', 'Account navigation')"
-          />
-          <AccountHeader />
-          <slot />
-        </div>
-      </UPage>
-    </UContainer>
-  </NuxtLayout>
+    <div class="flex flex-col gap-4">
+      <slot />
+    </div>
+  </AppShell>
 </template>

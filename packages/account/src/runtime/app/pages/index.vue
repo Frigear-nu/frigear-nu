@@ -1,7 +1,5 @@
 <script setup lang="ts">
 defineOptions({ name: 'AccountIndexPage' })
-// The summary card below carries `AccountHeaderRight`, so the layout's heading would only repeat it.
-definePageMeta({ heading: false })
 
 const t = useModuleT('account')
 const { user } = useUserSession()
@@ -24,10 +22,7 @@ const profile = computed(() => {
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeading
-      :title="t('overview.title', 'Account')"
-      :description="t('overview.description', 'Your details and everything that belongs to your account.')"
-    />
+    <AccountHeader />
 
     <SectionCard>
       <div class="flex flex-wrap items-center justify-between gap-4">
@@ -38,7 +33,7 @@ const profile = computed(() => {
           size="lg"
           :ui="{ name: 'truncate', description: 'truncate' }"
         />
-        <AccountHeaderRight />
+        <AccountIdentity />
       </div>
     </SectionCard>
 
@@ -47,6 +42,7 @@ const profile = computed(() => {
       v-if="widgetArea"
       name="account.overview"
       :context="{ user }"
+      grid-class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
     />
 
     <ListCard
