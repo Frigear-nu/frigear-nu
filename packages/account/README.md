@@ -81,8 +81,9 @@ Strings live under the `account.*` namespace in `da`/`en` locale files and can b
 
 Any `Account*` component can be replaced by a same-named component in your app (the module's have a lower priority).
 `AccountIdentity` is shown next to the user in the overview's summary card (by default a role badge for anyone who is
-not a plain `user`); override it to show other details, such as a member or ID badge. Set `account.settings.layout: false` to
-opt out of the account layout and render the pages in your own.
+not a plain `user`); override it to show other details, such as a member or ID badge. To replace the whole layout,
+define `app/layouts/account.vue` in your app: it wins over the module's, and the account pages still render in it. Set
+`account.settings.layout: false` to remove the layout entirely and render the pages in whatever layout the app picks.
 
 ## Page headings
 

@@ -30,7 +30,9 @@ export type ModuleOptions = {
   settings?: {
     /**
      * Renders `/account`, `/account/**` and the configured page paths in the `account` layout (the site layout with
-     * a left account navigation). `false` leaves the layout to the host. Defaults to `true`.
+     * a left account navigation). An `account` layout of the app (`app/layouts/account.vue`) or a layer replaces the
+     * module's and the area still renders in it. `false` registers no layout and sets no layout rule: the pages render
+     * in whatever layout the app picks. Defaults to `true`.
      */
     layout?: boolean
     // Each page accepts a custom path (string), `true` for the default path, or `false`/omitted

@@ -1,5 +1,4 @@
 import {
-  addLayout,
   createResolver,
   defineNuxtModule,
   extendPages,
@@ -53,8 +52,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
 
-    addLayout({ src: resolver.resolve('./runtime/app/layouts/admin.vue'), filename: 'admin.vue' }, 'admin')
-
     // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
     const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])
       .map(locale => typeof locale === 'string' ? locale : locale.code)
@@ -78,6 +75,13 @@ export default defineNuxtModule<ModuleOptions>({
     // Every page under the base (including other modules', whenever they register) gets the shell unless it
     // chose a layout itself. A route rule rather than page meta, so registration order doesn't matter.
     if (settings.layout !== false) {
+      // An `admin` layout of the app (`app/layouts/admin.vue`) or a layer wins: Nuxt scans the layouts into
+      // `app.layouts` before `app:resolve`, so ours only fills the gap, and the route rule below applies whichever it
+      // is. Not `addLayout`: its `app:templates` hook runs again on every `updateTemplates()` in dev, where the scan is
+      // cached, finds our own earlier entry and warns that `admin` "is already provided by #build/admin.vue".
+      nuxt.hook('app:resolve', (app) => {
+        app.layouts.admin ||= { name: 'admin', file: resolver.resolve('./runtime/app/layouts/admin.vue') }
+      })
       const rules = nuxt.options.routeRules ||= {}
       for (const prefixed of bases) {
         // `<base>/**` does not match the dashboard at `base` itself.
