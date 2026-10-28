@@ -228,12 +228,13 @@ Every screen follows the same patterns so the app stays predictable as modules a
 live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
-  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account`. Both
-  app areas render in the shared `AppShell` (`@frigear-nu/ui`), so they have the same chrome: no site header or footer,
-  the account menu in the sidebar footer. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
+  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a
+  settings page inside the site: site header and footer, a left section list, `PageSectionSwitcher` on narrow screens).
+  `/admin/**` = `admin`, the shared `AppShell` (`@frigear-nu/ui`): no site header or footer, the account menu in the
+  sidebar footer. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
   account menu, not the chrome.
 - **Headings.** App pages (admin, account) use `PageHeading`, and every app page renders its own (account pages through
-  `AccountHeader`, or `PageHeading` with the menu item's i18n keys); the shell's navbar eyebrow is not a heading, so a
+  `AccountHeader`, or `PageHeading` with the menu item's i18n keys); neither layout renders a heading (the admin navbar eyebrow is not one), so a
   page has exactly one `<h1>`. Public pages use `UContainer > UPage > UPageHeader`. The page root is
   `<div class="flex flex-col gap-4">`. Do not use the deprecated `Admin*` components in new code.
 - **Lists** are `PageHeading` + primary action, `PageToolbar` past ~8 rows, `UTable :ui="tableUi()"` inside
@@ -259,7 +260,7 @@ live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules
 - **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the
   object ("Add unit", "Delete application"), never bare "Add"/"Delete". Dates and money via `useFormat()`; links via
   `useLocaleLink().localize` so the locale prefix survives.
-- **Patterns, plus a light app theme.** Shared components add structure only; `AppShell` gives the app areas a light
+- **Patterns, plus a light app theme.** Shared components add structure only; `AppShell` gives the admin area a light
   theme (chrome tones, brand tile); colours, fonts and radius stay Nuxt UI's. Status badges use `StatusBadge`
   (`statusColor`); card frames use `surfaceClass`.
 
