@@ -25,7 +25,10 @@ const format = useFormat()
 const confirmAction = useConfirmDialog()
 const { run } = useAction()
 
-const { data: attendees, refresh } = await useFetch<Attendee[]>(() => `/api/events/admin/events/${props.event.id}/tickets`, { default: () => [] })
+const { data: attendees, status, error, refresh } = await useFetch<Attendee[]>(() => `/api/events/admin/events/${props.event.id}/tickets`)
+const rows = computed(() => attendees.value ?? [])
+const loading = computed(() => status.value === 'pending' && !attendees.value)
+const refreshing = computed(() => status.value === 'pending' && !!attendees.value)
 
 const typeName = (ticketTypeId: string) => tr(props.event.ticketTypes.find(item => item.id === ticketTypeId)?.name)
 const who = (ticket: Attendee) => ticket.userName || ticket.userEmail || ''
@@ -57,53 +60,62 @@ const menu = (ticket: Attendee): DropdownMenuItem[][] => {
   return [refund, cancel].filter(group => group.length)
 }
 
+const TableIdentity = resolveComponent('TableIdentity')
+const StatusBadge = resolveComponent('StatusBadge')
+const RowMenu = resolveComponent('RowMenu')
+
 const columns = computed<TableColumn<Attendee>[]>(() => [
-  { accessorKey: 'userName', header: t('admin.attendee', 'Attendee') },
-  { accessorKey: 'ticketTypeId', header: t('admin.ticketType', 'Ticket') },
-  { accessorKey: 'status', header: t('admin.status', 'Status') },
-  { accessorKey: 'checkedInAt', header: t('admin.checkedIn', 'Checked in') },
-  { id: 'actions' },
+  {
+    accessorKey: 'userName',
+    header: t('admin.attendee', 'Attendee'),
+    cell: ({ row }) => h(TableIdentity, { title: who(row.original), description: row.original.userName ? row.original.userEmail : null }),
+  },
+  {
+    accessorKey: 'ticketTypeId',
+    header: t('admin.ticketType', 'Ticket'),
+    cell: ({ row }) => typeName(row.original.ticketTypeId) || emptyCell(),
+  },
+  {
+    accessorKey: 'status',
+    header: t('admin.status', 'Status'),
+    cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: t(`tickets.status.${row.original.status}`, row.original.status) }),
+  },
+  {
+    accessorKey: 'checkedInAt',
+    header: t('admin.checkedIn', 'Checked in'),
+    cell: ({ row }) => row.original.checkedInAt ? h('span', { class: 'tabular-nums' }, format.dateTime(row.original.checkedInAt)) : emptyCell(),
+  },
+  {
+    id: 'actions',
+    meta: { class: { th: 'w-0', td: 'w-0' } },
+    cell: ({ row }) => {
+      const items = menu(row.original)
+      return items.length ? h(RowMenu, { items, subject: who(row.original) }) : null
+    },
+  },
 ])
 </script>
 
 <template>
-  <SectionCard
+  <TableCard
     :title="t('admin.attendees', 'Attendees')"
-    flush
+    :loading="loading"
+    :refreshing="refreshing"
   >
+    <UEmpty
+      v-if="error && !attendees"
+      variant="naked"
+      icon="i-lucide-circle-alert"
+      :title="t('admin.attendeesLoadFailed', 'Attendees could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
     <UTable
-      :data="attendees"
+      v-else
+      :data="rows"
       :columns="columns"
       :ui="tableUi({ tr: '' })"
     >
-      <template #userName-cell="{ row }">
-        <span class="text-highlighted font-medium">{{ row.original.userName }}</span>
-        <span class="text-muted"> · {{ row.original.userEmail }}</span>
-      </template>
-      <template #ticketTypeId-cell="{ row }">
-        {{ typeName(row.original.ticketTypeId) }}
-      </template>
-      <template #status-cell="{ row }">
-        <UBadge
-          variant="subtle"
-          :color="statusColor(row.original.status)"
-          :label="t(`tickets.status.${row.original.status}`, row.original.status)"
-        />
-      </template>
-      <template #checkedInAt-cell="{ row }">
-        <span v-if="row.original.checkedInAt">{{ format.dateTime(row.original.checkedInAt) }}</span>
-        <span
-          v-else
-          class="text-muted"
-        >–</span>
-      </template>
-      <template #actions-cell="{ row }">
-        <RowMenu
-          v-if="menu(row.original).length"
-          :items="menu(row.original)"
-          :subject="who(row.original)"
-        />
-      </template>
       <template #empty>
         <UEmpty
           variant="naked"
@@ -112,5 +124,5 @@ const columns = computed<TableColumn<Attendee>[]>(() => [
         />
       </template>
     </UTable>
-  </SectionCard>
+  </TableCard>
 </template>

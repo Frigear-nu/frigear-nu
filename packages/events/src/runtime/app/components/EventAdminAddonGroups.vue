@@ -1,66 +1,17 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from '@nuxt/ui'
-import type { StaffAddon, StaffAddonGroup, StaffTicketType } from '../utils/admin-event'
+import type { StaffTicketType } from '../utils/admin-event'
 
 defineOptions({ name: 'EventAdminAddonGroups' })
 
 // The add-on groups of one ticket type (shown in the expanded row of the ticket types table), with their choices.
-// Create/edit dialogs are owned by the parent; this component only asks for them and handles deletes.
+// Forms, deletes and menus come from `useEventCatalogActions`; `refresh` is emitted after every change.
 defineProps<{ ticketType: StaffTicketType }>()
-const emit = defineEmits<{
-  refresh: []
-  addGroup: []
-  editGroup: [group: StaffAddonGroup]
-  addAddon: [group: StaffAddonGroup]
-  editAddon: [group: StaffAddonGroup, addon: StaffAddon]
-}>()
+const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('events')
 const format = useFormat()
 const tr = useEventsTranslate()
-const confirmAction = useConfirmDialog()
-const { run } = useAction()
-
-const removeGroup = async (addonGroup: StaffAddonGroup) => {
-  const title = tr(addonGroup.title)
-  if (!await confirmAction({
-    title: t('admin.confirmRemoveGroup', 'Delete {name}?', { name: title }),
-    description: t('admin.confirmRemoveGroupDescription', 'Its choices are deleted too. Tickets already bought keep the choices they made.'),
-    confirmText: t('admin.removeGroup', 'Delete add-on group'),
-    destructive: true,
-  })) return
-  return run(async () => {
-    await $fetch(`/api/events/admin/addon-groups/${addonGroup.id}`, { method: 'DELETE' })
-    emit('refresh')
-  }, { success: t('admin.groupDeleted', 'Deleted {name}', { name: title }) })
-}
-
-const removeAddon = async (existing: StaffAddon) => {
-  const label = tr(existing.label)
-  if (!await confirmAction({
-    title: t('admin.confirmRemoveAddon', 'Delete {name}?', { name: label }),
-    description: t('admin.confirmRemoveAddonDescription', 'Tickets already bought keep the choice they made.'),
-    confirmText: t('admin.removeAddon', 'Delete choice'),
-    destructive: true,
-  })) return
-  return run(async () => {
-    await $fetch(`/api/events/admin/addons/${existing.id}`, { method: 'DELETE' })
-    emit('refresh')
-  }, { success: t('admin.addonDeleted', 'Deleted {name}', { name: label }) })
-}
-
-const groupMenu = (addonGroup: StaffAddonGroup): DropdownMenuItem[][] => [
-  [
-    { label: t('admin.addAddon', 'Add choice'), icon: 'i-lucide-plus', onSelect: () => emit('addAddon', addonGroup) },
-    { label: t('admin.editGroup', 'Edit add-on group'), icon: 'i-lucide-pencil', onSelect: () => emit('editGroup', addonGroup) },
-  ],
-  [{ label: t('admin.removeGroup', 'Delete add-on group'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void removeGroup(addonGroup) } }],
-]
-
-const addonMenu = (addonGroup: StaffAddonGroup, item: StaffAddon): DropdownMenuItem[][] => [
-  [{ label: t('admin.editAddon', 'Edit choice'), icon: 'i-lucide-pencil', onSelect: () => emit('editAddon', addonGroup, item) }],
-  [{ label: t('admin.removeAddon', 'Delete choice'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void removeAddon(item) } }],
-]
+const catalog = useEventCatalogActions({ onChanged: () => emit('refresh') })
 </script>
 
 <template>
@@ -79,7 +30,7 @@ const addonMenu = (addonGroup: StaffAddonGroup, item: StaffAddon): DropdownMenuI
           </span>
         </div>
         <RowMenu
-          :items="groupMenu(addonGroup)"
+          :items="catalog.groupMenu(ticketType, addonGroup)"
           :subject="tr(addonGroup.title)"
           size="xs"
         />
@@ -95,10 +46,10 @@ const addonMenu = (addonGroup: StaffAddonGroup, item: StaffAddon): DropdownMenuI
         >
           <div>
             {{ tr(item.label) }}
-            <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${format.money(item.price, ticketType.currency)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'Capacity').toLowerCase() }} {{ item.capacity }}</template></span>
+            <span class="text-muted">· {{ item.price === 0 ? t('admin.included', 'Included') : `+ ${format.money(item.price, ticketType.currency)}` }}<template v-if="item.capacity !== null"> · {{ t('admin.capacity', 'Capacity').toLowerCase() }} <span class="tabular-nums">{{ item.capacity }}</span></template></span>
           </div>
           <RowMenu
-            :items="addonMenu(addonGroup, item)"
+            :items="catalog.addonMenu(ticketType, addonGroup, item)"
             :subject="tr(item.label)"
             size="xs"
           />
@@ -118,7 +69,7 @@ const addonMenu = (addonGroup: StaffAddonGroup, item: StaffAddon): DropdownMenuI
         variant="outline"
         size="xs"
         :label="t('admin.addGroup', 'Add add-on group')"
-        @click="emit('addGroup')"
+        @click="catalog.openGroup(ticketType)"
       />
     </div>
   </div>

@@ -8,75 +8,74 @@ const t = useModuleT('events')
 const format = useFormat()
 const tr = useEventsTranslate()
 
+// The ticket type and the chosen add-ons, under the event name.
+const description = computed(() => [props.ticket.ticketTypeName, ...props.ticket.addons.map(addon => addon.label)].map(value => tr(value)).filter(Boolean).join(' · '))
+
 // An <img> data URI (not v-html): the SVG is generated locally from the code and never parsed as markup.
 const qr = computed(() => (props.ticket.code ? `data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(props.ticket.code, { border: 1 }))}` : null))
 const showQr = ref(false)
+const canPay = computed(() => props.ticket.status === 'pending')
+const hasActions = computed(() => !!props.to || !!qr.value || canPay.value)
 </script>
 
 <template>
-  <UCard :ui="{ body: 'flex flex-col gap-3' }">
-    <div class="flex items-start gap-2">
-      <div>
-        <h3 class="text-highlighted font-semibold">
-          {{ tr(ticket.eventName) }}
-        </h3>
-        <p class="text-sm text-muted">
-          {{ tr(ticket.ticketTypeName) }}<template
-            v-for="addon in ticket.addons"
-            :key="addon.id"
-          >
-            · {{ tr(addon.label) }}
-          </template>
-        </p>
-      </div>
-      <UBadge
-        class="ml-auto capitalize"
-        :color="statusColor(ticket.status, { refunded: 'error' })"
-        variant="subtle"
+  <SectionCard
+    :title="tr(ticket.eventName)"
+    :description="description"
+  >
+    <template #actions>
+      <StatusBadge
+        :status="ticket.status"
+        :label="t(`tickets.status.${ticket.status}`, ticket.status)"
+        :colors="{ refunded: 'error' }"
+      />
+    </template>
+
+    <div class="flex flex-col gap-3">
+      <p class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="tabular-nums">{{ ticket.amount === 0 ? t('detail.tickets.free', 'Free') : format.money(ticket.amount, ticket.currency) }}</span>
+        <UBadge
+          v-if="ticket.checkedInAt"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-check"
+          :label="t('checkedIn', 'Checked in')"
+        />
+      </p>
+      <img
+        v-if="showQr && qr"
+        :src="qr"
+        :alt="t('tickets.qrAlt', 'Ticket QR code')"
+        class="mx-auto w-56 rounded-md bg-white p-2"
       >
-        {{ t(`tickets.status.${ticket.status}`, ticket.status) }}
-      </UBadge>
     </div>
-    <p class="text-sm">
-      {{ ticket.amount === 0 ? t('detail.tickets.free', 'Free') : format.money(ticket.amount, ticket.currency) }}
-      <UBadge
-        v-if="ticket.checkedInAt"
-        color="info"
-        variant="subtle"
-        class="ml-2"
-      >
-        {{ t('checkedIn', 'Checked in') }}
-      </UBadge>
-    </p>
-    <div class="flex gap-2">
-      <UButton
-        v-if="ticket.status === 'pending'"
-        @click="emit('pay', ticket.id)"
-      >
-        {{ t('tickets.payNow', 'Pay now') }}
-      </UButton>
-      <UButton
-        v-if="qr"
-        variant="subtle"
-        icon="i-lucide-qr-code"
-        @click="showQr = !showQr"
-      >
-        {{ showQr ? t('hideQr', 'Hide QR code') : t('tickets.viewQrCode', 'Show QR code') }}
-      </UButton>
-      <UButton
-        v-if="to"
-        :to="to"
-        variant="ghost"
-        class="ml-auto"
-      >
-        {{ t('viewEvent', 'View event') }}
-      </UButton>
-    </div>
-    <img
-      v-if="showQr && qr"
-      :src="qr"
-      :alt="t('tickets.qrAlt', 'Ticket QR code')"
-      class="mx-auto w-56 rounded-md bg-white p-2"
+
+    <template
+      v-if="hasActions"
+      #footer
     >
-  </UCard>
+      <div class="flex flex-wrap justify-end gap-2">
+        <UButton
+          v-if="to"
+          :to="to"
+          color="neutral"
+          variant="outline"
+          :label="t('viewEvent', 'View event')"
+        />
+        <UButton
+          v-if="qr"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-qr-code"
+          :label="showQr ? t('hideQr', 'Hide QR code') : t('tickets.viewQrCode', 'Show QR code')"
+          @click="showQr = !showQr"
+        />
+        <UButton
+          v-if="canPay"
+          :label="t('tickets.payNow', 'Pay now')"
+          @click="emit('pay', ticket.id)"
+        />
+      </div>
+    </template>
+  </SectionCard>
 </template>

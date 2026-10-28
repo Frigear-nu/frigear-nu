@@ -1,3 +1,5 @@
 export { useEvents, useEvent, useMyTickets, useEventsLocale, useEventsFallbackLocale, useEventsTranslate } from './useEvents'
 export { useEventLinks } from './useEventLinks'
 export { useEventActions } from './useEventActions'
+export { useEventCatalogActions } from './useEventCatalogActions'
+export type { EventCatalogActionsOptions, CatalogSaved } from './useEventCatalogActions'

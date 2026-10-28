@@ -1,30 +1,33 @@
 <script setup lang="ts">
-import type { Translated } from '../../../types'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { type EventFormState, eventFormSchema } from '../utils/admin-event'
 
 defineOptions({ name: 'EventFormSlideover' })
 
 // Create form of a new event (a draft), opened with `useOverlay()` by `useEventActions().create()`: it closes with the
-// created event, or `false` when cancelled.
+// created event, or `false` when cancelled. Validates with the same schema as the event's "Details" tab.
 const emit = defineEmits<{ close: [created: { id: string, slug: string } | false] }>()
 
 const t = useModuleT('events')
 const tr = useEventsTranslate()
 const { busy, run } = useAction()
 
-const draft = reactive({ name: undefined as Translated | undefined, slug: '', startsAt: '', location: undefined as Translated | undefined })
+const schema = eventFormSchema(t, tr)
+const state = reactive<EventFormState>({ name: undefined, slug: '', startsAt: '', endsAt: '', status: 'draft', location: undefined })
 
 const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 // The URL name follows the name (in the current locale) until it is edited by hand.
-const draftName = computed(() => tr(draft.name))
+const draftName = computed(() => tr(state.name))
 watch(draftName, (name, previous) => {
-  if (draft.slug === slugify(previous)) draft.slug = slugify(name)
+  if (state.slug === slugify(previous)) state.slug = slugify(name)
 })
 
-async function save() {
+async function save(event: FormSubmitEvent<EventFormState>) {
+  const { name, slug, startsAt, endsAt, location } = event.data
   const created = await run(
     () => $fetch<{ id: string, slug: string }>('/api/events/admin/events', {
       method: 'POST',
-      body: { name: draft.name, slug: draft.slug, startsAt: draft.startsAt, location: draft.location || null, status: 'draft' },
+      body: { name, slug, startsAt, endsAt: endsAt || null, location: location || null, status: 'draft' },
     }),
     { success: t('admin.created', 'Event created') },
   )
@@ -39,42 +42,60 @@ async function save() {
     :description="t('admin.createDescription', 'It is saved as a draft until you publish it.')"
     :submit-label="t('admin.createAction', 'Create draft')"
     :loading="busy"
-    :disabled="!draftName"
     @close="emit('close', false)"
   >
-    <form
+    <UForm
       id="event-form"
+      :schema="schema"
+      :state="state"
       class="flex flex-col gap-4"
-      @submit.prevent="save"
+      @submit="save"
     >
-      <UFormField :label="t('admin.name', 'Name')">
-        <TranslatedInput
-          v-model="draft.name"
-          required
+      <UFormField
+        name="name"
+        :label="t('admin.name', 'Name')"
+        required
+      >
+        <TranslatedInput v-model="state.name" />
+      </UFormField>
+      <UFormField
+        name="slug"
+        :label="t('admin.slug', 'URL name')"
+        :description="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
+        required
+      >
+        <UInput
+          v-model="state.slug"
+          class="w-full"
         />
       </UFormField>
       <UFormField
-        :label="t('admin.slug', 'URL name')"
-        :description="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
+        name="startsAt"
+        :label="t('admin.starts', 'Starts')"
+        required
       >
         <UInput
-          v-model="draft.slug"
-          class="w-full"
-          required
-          pattern="[a-z0-9]+(-[a-z0-9]+)*"
-        />
-      </UFormField>
-      <UFormField :label="t('admin.starts', 'Starts')">
-        <UInput
-          v-model="draft.startsAt"
+          v-model="state.startsAt"
           type="datetime-local"
           class="w-full"
-          required
         />
       </UFormField>
-      <UFormField :label="t('admin.location', 'Location')">
-        <TranslatedInput v-model="draft.location" />
+      <UFormField
+        name="endsAt"
+        :label="t('admin.ends', 'Ends')"
+      >
+        <UInput
+          v-model="state.endsAt"
+          type="datetime-local"
+          class="w-full"
+        />
       </UFormField>
-    </form>
+      <UFormField
+        name="location"
+        :label="t('admin.location', 'Location')"
+      >
+        <TranslatedInput v-model="state.location" />
+      </UFormField>
+    </UForm>
   </FormSlideover>
 </template>

@@ -14,8 +14,8 @@ export type EventMenuOptions = {
 }
 
 /**
- * What staff can do with an event, shared by the list and the event page: `create` (a slideover that resolves with the
- * new event, or `false` when cancelled), `duplicate`, `remove` (confirms first) and `menu(event)`, the row menu in the
+ * What staff can do with an event, shared by the list and the event page: `create` (a slideover; navigates to the new
+ * event and resolves with it, or `false` when cancelled), `duplicate`, `remove` (confirms first) and `menu(event)`, the row menu in the
  * same order everywhere: Open, View public page, Duplicate | extras | Delete.
  */
 export function useEventActions() {
@@ -27,8 +27,12 @@ export function useEventActions() {
   const tr = useEventsTranslate()
   const hasPublicPage = !!useRuntimeConfig().public.events?.pages?.event
 
-  async function create(): Promise<{ id: string, slug: string } | false | undefined> {
-    return overlay.create(EventFormSlideover, { destroyOnClose: true }).open()
+  /** Opens the create form and, once saved, goes to the new event's admin page. Resolves with it, or `false`. */
+  async function create(): Promise<{ id: string, slug: string } | false> {
+    const created = await overlay.create(EventFormSlideover, { destroyOnClose: true }).open()
+    if (!created) return false
+    await navigateTo(links.adminEvent(created.id))
+    return created
   }
 
   async function duplicate(event: StaffEventSummary) {

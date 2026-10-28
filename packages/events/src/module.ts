@@ -193,6 +193,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useEventsTranslate', from: resolver.resolve('./runtime/app/composables/useEvents') },
       { name: 'useEventLinks', from: resolver.resolve('./runtime/app/composables/useEventLinks') },
       { name: 'useEventActions', from: resolver.resolve('./runtime/app/composables/useEventActions') },
+      { name: 'useEventCatalogActions', from: resolver.resolve('./runtime/app/composables/useEventCatalogActions') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
