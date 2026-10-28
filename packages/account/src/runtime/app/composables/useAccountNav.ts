@@ -13,7 +13,7 @@ export interface AccountNavItem {
 /**
  * The account navigation: the items of the `account` menu (so pages other modules add show up too), or, without
  * `@frigear-nu/menu`, the account pages enabled in `account.settings.pages`. `links` are ready for
- * `UNavigationMenu`/`AppShell` (localised, `active` set, the overview only active on its own path) and `current` is
+ * `UNavigationMenu`/`PageSectionSwitcher` (localised, `active` set, the overview only active on its own path) and `current` is
  * the item the route belongs to. Await it, so the menu is resolved before the page renders on the server.
  */
 export async function useAccountNav() {

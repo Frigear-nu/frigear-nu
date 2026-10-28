@@ -32,7 +32,6 @@
       "label": "Kontonavigation"
     },
     "accountMenu": "Kontomenu",
-    "backToSite": "Tilbage til siden",
     "appearance": {
       "label": "Udseende",
       "light": "Lyst",
@@ -55,6 +54,7 @@
       },
       "email": {
         "label": "E-mail",
+        "address": "Adresse",
         "description": "Hvor vi sender beskeder, og hvordan du logger ind.",
         "change": {
           "title": "Skift din e-mail",

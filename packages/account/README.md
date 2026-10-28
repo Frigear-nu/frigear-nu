@@ -10,10 +10,10 @@ A module for the account area (profile, security, documents, API tokens pages) i
 - 🔒 Change your password.
 - 🔑 Manage passkeys (via `@frigear-nu/auth`'s `usePasskeys`, when WebAuthn is enabled there).
 - 🧩 Overridable composable (`useAccount`) and opt-in profile/security pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
-- 🗂️ An `account` layout on the shared dashboard shell (`AppShell` from `@frigear-nu/ui`, the same chrome as the
-  admin area): a sidebar with the account navigation built from the `account` menu of `@frigear-nu/menu` (when
-  installed), "Back to the site" and the account menu, an overview page listing the same entries, and an
-  `account.overview` widget area (when `@frigear-nu/widget` is installed).
+- 🗂️ An `account` layout: a settings page inside the public site (the site header and footer stay), with a centred
+  `max-w-5xl` content column. Wide screens get a left section list with the signed-in user, narrow screens a
+  `PageSectionSwitcher`, both built from the `account` menu of `@frigear-nu/menu` (when installed). Plus an overview
+  page listing the same entries, and an `account.overview` widget area (when `@frigear-nu/widget` is installed).
 
 This module is a UI shell: it owns no tables and no mutation routes. The forms call the self-service routes of
 `@frigear-nu/users` (`/api/users/me/*`) and the token routes of `@frigear-nu/auth`.

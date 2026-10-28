@@ -32,7 +32,6 @@
       "label": "Account navigation"
     },
     "accountMenu": "Account menu",
-    "backToSite": "Back to the site",
     "appearance": {
       "label": "Appearance",
       "light": "Light",
@@ -55,6 +54,7 @@
       },
       "email": {
         "label": "E-mail",
+        "address": "Address",
         "description": "Where we send messages and how you sign in.",
         "change": {
           "title": "Change e-mail",
