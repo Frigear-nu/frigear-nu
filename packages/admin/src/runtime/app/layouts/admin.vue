@@ -4,18 +4,13 @@ import type { CommandPaletteGroup, NavigationMenuItem } from '@nuxt/ui'
 defineOptions({ name: 'AdminLayout' })
 
 const t = useModuleT('admin')
-const route = useRoute()
 const config = useRuntimeConfig().public.admin
-// The same header controls as the site, resolved by name so a host's own overrides win and nothing is required:
-// `LanguageSelect` (base layer), `AccountMenu` (@frigear-nu/account). A name that doesn't resolve stays a string.
-const LanguageSelect = resolveComponent('LanguageSelect')
+// `AccountMenu` (@frigear-nu/account) is resolved by name so a host's own override wins and nothing is required:
+// a name that doesn't resolve stays a string. `LanguageSelect` and the rest of the chrome belong to `AppShell`.
 const AccountMenu = resolveComponent('AccountMenu')
 const optional = (component: unknown) => typeof component === 'string' ? undefined : component
-const nuxtApp = useNuxtApp() as { $i18n?: { locales?: { value?: unknown[] } } }
-const multiLocale = (nuxtApp.$i18n?.locales?.value?.length ?? 0) > 1
 
 const home = config?.dashboard ?? config?.base ?? '/admin'
-const { localize } = useLocaleLink()
 
 // One read of every group (`admin.nav`, `admin.nav.overview`, `admin.nav.settings`); each item carries its group.
 const { data: items } = await useMenu('admin.nav.*')
@@ -40,14 +35,6 @@ const navigation = computed<NavigationMenuItem[][]>(() => groups.value.map(group
   ? [{ type: 'label', label: group.label }, ...group.links]
   : group.links))
 
-// The header names the section being viewed: the nav entry the route belongs to, else the area itself.
-const title = computed(() => groups.value.flatMap(group => group.links).find(link => link.active)?.label ?? t('title', 'Administration'))
-
-const sidebarOpen = ref(false)
-watch(() => route.path, () => {
-  sidebarOpen.value = false
-})
-
 // ⌘K palette over the same entries as the sidebar, one group per nav group.
 const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(group => ({
   id: `admin-nav-${group.id}`,
@@ -57,93 +44,26 @@ const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(grou
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
-    <UDashboardSidebar
-      id="admin"
-      v-model:open="sidebarOpen"
-      collapsible
-      resizable
-      class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default flex-col items-stretch gap-1' }"
-    >
-      <template #header="{ collapsed }">
-        <NuxtLink
-          :to="localize(home)"
-          class="flex min-w-0 items-center gap-2"
-        >
-          <span class="bg-primary text-inverted flex size-7 shrink-0 items-center justify-center rounded-lg">
-            <UIcon
-              name="i-lucide-layout-dashboard"
-              class="size-4"
-            />
-          </span>
-          <span
-            v-if="!collapsed"
-            class="text-highlighted truncate font-semibold"
-          >{{ t('title', 'Administration') }}</span>
-        </NuxtLink>
-      </template>
+  <!-- The dashboard chrome (brand, sidebar, eyebrow navbar, language select) is the shared `AppShell`; this layout only
+       feeds it the admin menus and the account menu. Paths are passed raw: the shell localises them. -->
+  <AppShell
+    id="admin"
+    :title="t('title', 'Administration')"
+    :home="home"
+    :navigation="navigation"
+    :nav-label="t('nav.label', 'Admin navigation')"
+    :search-groups="searchGroups"
+    :back-to="{ to: '/', label: t('backToSite', 'Back to the site') }"
+  >
+    <template #sidebar-footer="{ collapsed }">
+      <component
+        :is="optional(AccountMenu)"
+        v-if="optional(AccountMenu)"
+        block
+        :collapsed="collapsed"
+      />
+    </template>
 
-      <template #default="{ collapsed }">
-        <UDashboardSearchButton
-          :collapsed="collapsed"
-          class="bg-transparent ring-default"
-        />
-
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="navigation"
-          orientation="vertical"
-          tooltip
-          :aria-label="t('nav.label', 'Admin navigation')"
-        />
-      </template>
-
-      <template #footer="{ collapsed }">
-        <UButton
-          :to="localize('/')"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-arrow-left"
-          :label="collapsed ? undefined : t('backToSite', 'Back to the site')"
-          :square="collapsed"
-          block
-          class="justify-start"
-        />
-        <component
-          :is="optional(AccountMenu)"
-          v-if="optional(AccountMenu)"
-          block
-          :collapsed="collapsed"
-        />
-      </template>
-    </UDashboardSidebar>
-
-    <UDashboardSearch :groups="searchGroups" />
-
-    <UDashboardPanel id="admin-main">
-      <template #header>
-        <UDashboardNavbar
-          :title="title"
-          :ui="{ right: 'gap-2' }"
-        >
-          <template #leading>
-            <UDashboardSidebarCollapse />
-          </template>
-          <template #right>
-            <component
-              :is="optional(LanguageSelect)"
-              v-if="optional(LanguageSelect) && multiLocale"
-            />
-          </template>
-        </UDashboardNavbar>
-      </template>
-
-      <template #body>
-        <div class="mx-auto w-full max-w-7xl">
-          <slot />
-        </div>
-      </template>
-    </UDashboardPanel>
-  </UDashboardGroup>
+    <slot />
+  </AppShell>
 </template>

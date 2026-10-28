@@ -67,6 +67,11 @@ describe('admin area', async () => {
     expect(html).toContain('alias-empty')
   })
 
+  it('renders exactly one h1: the page heading, not the shell navbar', async () => {
+    const html = await $fetch<string>('/admin/things')
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+
   it('leaves pages outside the base alone', async () => {
     const html = await $fetch<string>('/')
     expect(html).toContain('public-home')
