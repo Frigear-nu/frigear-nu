@@ -145,6 +145,7 @@
       "hint": "Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.",
       "opens": "Opens",
       "closes": "Closes",
+      "month": "Month",
       "day": "Day",
       "time": "Time",
       "timezone": "Timezone"

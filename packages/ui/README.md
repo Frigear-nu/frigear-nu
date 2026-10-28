@@ -54,6 +54,7 @@ English fallbacks; every one of them can be overridden by a prop.
 | `ListCard` | A short divided list with a "View all" link |
 | `DescriptionList` | Label/value rows; empty values read "Not set"; slot per `key` |
 | `PageToolbar` | Search and filters above a table, `#right` for counts |
+| `FormRow` | A `UFormField` as a settings row (label and hint left, control right, stacked below `sm`) for inline forms in a `SectionCard`; parent `divide-y divide-default` |
 | `FormSlideover` | Create/edit form in a slideover with Cancel + submit (`form="<formId>"`); works with `useOverlay` |
 | `ConfirmDialog` / `useConfirmDialog()` | Confirmation before destructive actions |
 

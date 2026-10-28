@@ -145,6 +145,7 @@
       "hint": "Uden for perioden vises en lukket-besked, og indsendelser afvises. En sæson, der slutter før den starter, løber over nytår.",
       "opens": "Åbner",
       "closes": "Lukker",
+      "month": "Måned",
       "day": "Dag",
       "time": "Tid",
       "timezone": "Tidszone"

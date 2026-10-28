@@ -69,12 +69,15 @@ const routeFieldItems = computed(() => [
   <div class="flex flex-col gap-4">
     <SectionCard :title="t('delivery.storageTitle', 'Storage')">
       <div class="flex flex-col gap-4">
-        <USwitch
-          :model-value="definition.storage === 'db'"
+        <FormRow
           :label="t('delivery.storeTitle', 'Store submissions')"
           :description="t('delivery.storeHint', 'Keep submissions in the database so they can be reviewed under Submissions.')"
-          @update:model-value="definition = setStorage(definition, $event ? 'db' : 'none')"
-        />
+        >
+          <USwitch
+            :model-value="definition.storage === 'db'"
+            @update:model-value="definition = setStorage(definition, $event ? 'db' : 'none')"
+          />
+        </FormRow>
         <UAlert
           v-if="warnings.files"
           color="warning"
@@ -91,8 +94,8 @@ const routeFieldItems = computed(() => [
     </SectionCard>
 
     <SectionCard :title="t('delivery.emailTitle', 'Email notification')">
-      <div class="flex flex-col gap-4">
-        <UFormField
+      <div class="flex flex-col divide-y divide-default">
+        <FormRow
           :label="t('delivery.recipients', 'Recipients')"
           :description="t('delivery.recipientsHint', 'Press Enter after each address. Leave empty to turn email off.')"
         >
@@ -102,27 +105,28 @@ const routeFieldItems = computed(() => [
             class="w-full sm:max-w-sm"
             @update:model-value="definition = setEmailRecipients(definition, $event)"
           />
-        </UFormField>
+        </FormRow>
 
         <p
           v-if="!email"
-          class="text-sm text-muted"
+          class="pt-4 text-sm text-muted"
         >
           {{ t('delivery.needRecipients', 'Add recipients first to set the subject, reply-to and routing.') }}
         </p>
 
         <template v-else>
-          <UFormField
+          <FormRow
             :label="t('delivery.subject', 'Subject')"
             :description="t('delivery.subjectHint', 'Variables from the list below work here too.')"
           >
             <FormBuilderText
               :model-value="email.subject"
+              class="sm:max-w-sm"
               @update:model-value="definition = patchEmailDelivery(definition, { subject: $event })"
             />
-          </UFormField>
+          </FormRow>
 
-          <UFormField
+          <FormRow
             :label="t('delivery.body', 'Email body')"
             :description="t('delivery.bodyHint', 'Optional. Leave empty to email the list of all answers. Variables are replaced with the submitted values.')"
           >
@@ -181,9 +185,9 @@ const routeFieldItems = computed(() => [
                 />
               </div>
             </div>
-          </UFormField>
+          </FormRow>
 
-          <UFormField
+          <FormRow
             :label="t('delivery.replyTo', 'Reply to')"
             :description="t('delivery.replyToHint', 'The answer of this email field becomes the Reply-To.')"
           >
@@ -194,9 +198,9 @@ const routeFieldItems = computed(() => [
               class="w-full sm:max-w-sm"
               @update:model-value="definition = patchEmailDelivery(definition, { replyToField: $event === NONE ? undefined : String($event) })"
             />
-          </UFormField>
+          </FormRow>
 
-          <UFormField
+          <FormRow
             v-if="routable.length"
             :label="t('delivery.routing', 'Route by answer')"
             :description="t('delivery.routingHint', 'Send to other recipients depending on the answer. Others get the default recipients.')"
@@ -207,10 +211,10 @@ const routeFieldItems = computed(() => [
               class="w-full sm:max-w-sm"
               @update:model-value="definition = setRouteField(definition, $event === NONE ? undefined : String($event))"
             />
-          </UFormField>
+          </FormRow>
 
           <template v-if="routeField">
-            <UFormField
+            <FormRow
               v-for="option in routeField.options"
               :key="option.value"
               :label="t('delivery.routeTo', 'Recipients for “{value}”', { value: translate(option.label, locale) || option.value })"
@@ -221,7 +225,7 @@ const routeFieldItems = computed(() => [
                 class="w-full sm:max-w-sm"
                 @update:model-value="definition = setRoute(definition, option.value, $event)"
               />
-            </UFormField>
+            </FormRow>
           </template>
         </template>
       </div>

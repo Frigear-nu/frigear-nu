@@ -111,10 +111,10 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
         id="account-change-password"
         :schema="passwordSchema"
         :state="passwordState"
-        class="flex flex-col gap-4"
+        class="flex flex-col divide-y divide-default"
         @submit="onSubmitPassword"
       >
-        <UFormField
+        <FormRow
           :label="t('changePassword.current.label', 'Current password')"
           name="currentPassword"
           required
@@ -125,8 +125,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="current-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
-        <UFormField
+        </FormRow>
+        <FormRow
           :label="t('changePassword.new.label', 'New password')"
           name="newPassword"
           required
@@ -137,8 +137,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="new-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
-        <UFormField
+        </FormRow>
+        <FormRow
           :label="t('changePassword.confirm.label', 'Confirm new password')"
           name="confirmNewPassword"
           required
@@ -149,7 +149,7 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="new-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
+        </FormRow>
       </UForm>
       <template #footer>
         <div class="flex justify-end gap-2">

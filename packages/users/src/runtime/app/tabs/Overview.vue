@@ -88,21 +88,21 @@ async function save(event: FormSubmitEvent<Schema>) {
           id="user-profile-form"
           :schema="schema"
           :state="form"
-          class="flex flex-col gap-4"
+          class="flex flex-col divide-y divide-default"
           @submit="save"
         >
-          <UFormField
+          <FormRow
             name="name"
             :label="t('admin.name', 'Name')"
             required
           >
             <UInput
               v-model="form.name"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UFormField
+          </FormRow>
+          <FormRow
             name="email"
             :label="t('admin.email', 'Email')"
             required
@@ -111,11 +111,11 @@ async function save(event: FormSubmitEvent<Schema>) {
             <UInput
               v-model="form.email"
               type="email"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UFormField
+          </FormRow>
+          <FormRow
             v-if="user.hasRoles"
             name="role"
             :label="t('admin.role', 'Role')"
@@ -123,16 +123,21 @@ async function save(event: FormSubmitEvent<Schema>) {
             <USelect
               v-model="form.role"
               :items="roleItems"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :placeholder="t('admin.rolePlaceholder', 'Select a role')"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UCheckbox
-            v-model="form.emailVerified"
-            :label="t('admin.emailVerified', 'Mark the email address as verified')"
-            :disabled="!user.can.update || form.email !== user.email"
-          />
+          </FormRow>
+          <FormRow
+            name="emailVerified"
+            :label="t('admin.verified', 'Verified')"
+          >
+            <UCheckbox
+              v-model="form.emailVerified"
+              :label="t('admin.emailVerified', 'Mark the email address as verified')"
+              :disabled="!user.can.update || form.email !== user.email"
+            />
+          </FormRow>
         </UForm>
         <template #footer>
           <div class="flex justify-end">

@@ -61,67 +61,71 @@ async function save(event: FormSubmitEvent<EventFormState>) {
       id="admin-event-details"
       :schema="schema"
       :state="state"
-      class="flex flex-col gap-4"
+      class="flex flex-col divide-y divide-default"
       @submit="save"
     >
-      <UFormField
+      <FormRow
         name="name"
         :label="t('admin.name', 'Name')"
         required
       >
-        <TranslatedInput v-model="state.name" />
-      </UFormField>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField
-          name="status"
-          :label="t('admin.status', 'Status')"
-        >
-          <USelect
-            v-model="state.status"
-            :items="statuses"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          name="slug"
-          :label="t('admin.slug', 'URL name')"
-          :description="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
-          required
-        >
-          <UInput
-            v-model="state.slug"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          name="startsAt"
-          :label="t('admin.starts', 'Starts')"
-          required
-        >
-          <UInput
-            v-model="state.startsAt"
-            type="datetime-local"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          name="endsAt"
-          :label="t('admin.ends', 'Ends')"
-        >
-          <UInput
-            v-model="state.endsAt"
-            type="datetime-local"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <UFormField
+        <TranslatedInput
+          v-model="state.name"
+          class="sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
+        name="status"
+        :label="t('admin.status', 'Status')"
+      >
+        <USelect
+          v-model="state.status"
+          :items="statuses"
+          class="w-full sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
+        name="slug"
+        :label="t('admin.slug', 'URL name')"
+        :description="t('admin.slugHelp', 'Lowercase letters, numbers and dashes.')"
+        required
+      >
+        <UInput
+          v-model="state.slug"
+          class="w-full sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
+        name="startsAt"
+        :label="t('admin.starts', 'Starts')"
+        required
+      >
+        <UInput
+          v-model="state.startsAt"
+          type="datetime-local"
+          class="w-full sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
+        name="endsAt"
+        :label="t('admin.ends', 'Ends')"
+      >
+        <UInput
+          v-model="state.endsAt"
+          type="datetime-local"
+          class="w-full sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
         name="location"
         :label="t('admin.location', 'Location')"
       >
-        <TranslatedInput v-model="state.location" />
-      </UFormField>
-      <UFormField
+        <TranslatedInput
+          v-model="state.location"
+          class="sm:max-w-sm"
+        />
+      </FormRow>
+      <FormRow
         name="description"
         :label="t('admin.description', 'Description')"
       >
@@ -130,8 +134,8 @@ async function save(event: FormSubmitEvent<EventFormState>) {
           multiline
           mdc
         />
-      </UFormField>
-      <UFormField
+      </FormRow>
+      <FormRow
         name="body"
         :label="t('admin.body', 'Details')"
         :description="t('admin.bodyHelp', 'Shown on the event page. Markdown is supported.')"
@@ -142,7 +146,7 @@ async function save(event: FormSubmitEvent<EventFormState>) {
           mdc
           :rows="8"
         />
-      </UFormField>
+      </FormRow>
     </UForm>
     <template #footer>
       <div class="flex justify-end gap-2">

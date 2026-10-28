@@ -93,6 +93,15 @@ const { data: passwordStatus, refresh: refreshPassword } = await useFetch<FormPa
 const password = ref('')
 const savingPassword = ref(false)
 
+// The row's hint: whether a password is set, and that it is ignored unless authentication is Shared password. The
+// missing-password warning above the row replaces the first part.
+const passwordHint = computed(() => [
+  access.value.auth === 'password' && !passwordStatus.value?.set
+    ? ''
+    : passwordStatus.value?.set ? t('access.passwordIsSet', 'A password is set.') : t('access.passwordIsNotSet', 'No password is set.'),
+  access.value.auth !== 'password' ? t('access.passwordInactive', 'It is only checked when authentication is set to Shared password.') : '',
+].filter(Boolean).join(' ') || undefined)
+
 async function savePassword() {
   savingPassword.value = true
   try {
@@ -136,8 +145,8 @@ const snippet = computed(() => {
 <template>
   <div class="flex flex-col gap-4">
     <SectionCard :title="t('access.title', 'Who can use this form')">
-      <div class="flex flex-col gap-4">
-        <UFormField
+      <div class="flex flex-col divide-y divide-default">
+        <FormRow
           :label="t('access.availability', 'Availability')"
           :description="access.availability === 'api'
             ? t('access.availabilityApiHint', 'No public page: the form can only be read and submitted through the API.')
@@ -150,9 +159,9 @@ const snippet = computed(() => {
             class="w-full sm:max-w-sm"
             @update:model-value="definition = setAccess(definition, { availability: $event as FormAvailability })"
           />
-        </UFormField>
+        </FormRow>
 
-        <UFormField
+        <FormRow
           :label="t('access.auth', 'Authentication')"
           :description="access.auth === 'token' ? t('access.authTokenHint', 'Token forms are API only: a token cannot be typed into a page.') : undefined"
         >
@@ -162,8 +171,8 @@ const snippet = computed(() => {
             class="w-full sm:max-w-sm"
             @update:model-value="definition = setAccess(definition, { auth: $event as FormAuthMode })"
           />
-        </UFormField>
-        <UFormField
+        </FormRow>
+        <FormRow
           :label="t('schedule.title', 'Open period')"
           :description="t('schedule.hint', 'Outside the period the form shows a closed notice and rejects submissions. A season whose end is before its start wraps over new year.')"
         >
@@ -173,76 +182,72 @@ const snippet = computed(() => {
             class="w-full sm:max-w-sm"
             @update:model-value="changeScheduleType($event as FormSchedule['type'])"
           />
-        </UFormField>
+        </FormRow>
 
-        <div
-          v-if="schedule.type === 'range'"
-          class="grid gap-4 sm:max-w-xl sm:grid-cols-2"
-        >
-          <UFormField :label="t('schedule.opens', 'Opens')">
+        <template v-if="schedule.type === 'range'">
+          <FormRow :label="t('schedule.opens', 'Opens')">
             <UInput
               type="datetime-local"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :model-value="toLocalInput(schedule.from)"
               @update:model-value="setSchedule({ ...schedule, from: fromLocalInput($event as string) })"
             />
-          </UFormField>
-          <UFormField :label="t('schedule.closes', 'Closes')">
+          </FormRow>
+          <FormRow :label="t('schedule.closes', 'Closes')">
             <UInput
               type="datetime-local"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :model-value="toLocalInput(schedule.to)"
               @update:model-value="setSchedule({ ...schedule, to: fromLocalInput($event as string) })"
             />
-          </UFormField>
-        </div>
+          </FormRow>
+        </template>
 
-        <div
-          v-else-if="schedule.type === 'yearly'"
-          class="flex flex-col gap-4 sm:max-w-xl"
-        >
-          <div
+        <template v-else-if="schedule.type === 'yearly'">
+          <FormRow
             v-for="side in (['from', 'to'] as const)"
             :key="side"
-            class="grid gap-4 sm:grid-cols-3"
+            :label="side === 'from' ? t('schedule.opens', 'Opens') : t('schedule.closes', 'Closes')"
           >
-            <UFormField :label="side === 'from' ? t('schedule.opens', 'Opens') : t('schedule.closes', 'Closes')">
-              <USelect
-                :model-value="schedule[side].month"
-                :items="months"
-                class="w-full"
-                @update:model-value="patchMoment(side, { month: Number($event) })"
-              />
-            </UFormField>
-            <UFormField :label="t('schedule.day', 'Day')">
-              <UInput
-                type="number"
-                min="1"
-                max="31"
-                class="w-full"
-                :model-value="schedule[side].day"
-                @update:model-value="patchMoment(side, { day: Number($event) })"
-              />
-            </UFormField>
-            <UFormField :label="t('schedule.time', 'Time')">
-              <UInput
-                type="time"
-                class="w-full"
-                :model-value="schedule[side].time"
-                @update:model-value="patchMoment(side, { time: String($event) })"
-              />
-            </UFormField>
-          </div>
-          <UFormField :label="t('schedule.timezone', 'Timezone')">
+            <div class="grid grid-cols-3 gap-2 sm:max-w-sm">
+              <UFormField :label="t('schedule.month', 'Month')">
+                <USelect
+                  :model-value="schedule[side].month"
+                  :items="months"
+                  class="w-full"
+                  @update:model-value="patchMoment(side, { month: Number($event) })"
+                />
+              </UFormField>
+              <UFormField :label="t('schedule.day', 'Day')">
+                <UInput
+                  type="number"
+                  min="1"
+                  max="31"
+                  class="w-full"
+                  :model-value="schedule[side].day"
+                  @update:model-value="patchMoment(side, { day: Number($event) })"
+                />
+              </UFormField>
+              <UFormField :label="t('schedule.time', 'Time')">
+                <UInput
+                  type="time"
+                  class="w-full"
+                  :model-value="schedule[side].time"
+                  @update:model-value="patchMoment(side, { time: String($event) })"
+                />
+              </UFormField>
+            </div>
+          </FormRow>
+          <FormRow :label="t('schedule.timezone', 'Timezone')">
             <UInput
               class="w-full sm:max-w-sm"
               :model-value="schedule.timezone"
               @update:model-value="setSchedule({ ...schedule, timezone: String($event) })"
             />
-          </UFormField>
-        </div>
+          </FormRow>
+        </template>
 
-        <p class="text-sm text-muted">
+        <p class="pt-4 text-sm text-muted">
           {{ t('access.saveHint', 'Availability and authentication are saved with the form. Tokens and the password take effect immediately.') }}
         </p>
       </div>
@@ -358,39 +363,37 @@ const snippet = computed(() => {
           variant="subtle"
           :title="t('access.passwordMissing', 'No password is set, so nobody can open this form yet.')"
         />
-        <p
-          v-else
-          class="text-sm text-muted"
+        <FormRow
+          :label="t('access.passwordLabel', 'Password')"
+          :description="passwordHint"
         >
-          {{ passwordStatus?.set ? t('access.passwordIsSet', 'A password is set.') : t('access.passwordIsNotSet', 'No password is set.') }}
-          {{ access.auth !== 'password' ? t('access.passwordInactive', 'It is only checked when authentication is set to Shared password.') : '' }}
-        </p>
-        <form
-          class="flex gap-2"
-          @submit.prevent="savePassword"
-        >
-          <UInput
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            :placeholder="passwordStatus?.set ? t('access.newPassword', 'New password') : t('access.setPassword', 'Password (min. 6 characters)')"
-            class="flex-1 sm:max-w-sm"
-          />
-          <UButton
-            type="submit"
-            :loading="savingPassword"
-            :disabled="password.length < 6"
-            :label="passwordStatus?.set ? t('access.changePassword', 'Change') : t('access.savePassword', 'Set password')"
-          />
-          <UButton
-            v-if="passwordStatus?.set"
-            type="button"
-            color="error"
-            variant="outline"
-            :label="t('access.clearPassword', 'Clear')"
-            @click="clearPassword"
-          />
-        </form>
+          <form
+            class="flex flex-wrap gap-2"
+            @submit.prevent="savePassword"
+          >
+            <UInput
+              v-model="password"
+              type="password"
+              autocomplete="new-password"
+              :placeholder="passwordStatus?.set ? t('access.newPassword', 'New password') : t('access.setPassword', 'Password (min. 6 characters)')"
+              class="min-w-0 flex-1 sm:max-w-sm"
+            />
+            <UButton
+              type="submit"
+              :loading="savingPassword"
+              :disabled="password.length < 6"
+              :label="passwordStatus?.set ? t('access.changePassword', 'Change') : t('access.savePassword', 'Set password')"
+            />
+            <UButton
+              v-if="passwordStatus?.set"
+              type="button"
+              color="error"
+              variant="outline"
+              :label="t('access.clearPassword', 'Clear')"
+              @click="clearPassword"
+            />
+          </form>
+        </FormRow>
       </div>
     </SectionCard>
 

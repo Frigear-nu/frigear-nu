@@ -244,7 +244,8 @@ live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules
   slideover with the record in the URL query.
 - **Create and edit** use `FormSlideover` + `UForm`/zod, opened through `useOverlay()` and resolved with the saved
   record. Cancel is `color="neutral" variant="outline"`, the primary action comes last, hints go in `UFormField`
-  `description`.
+  `description`. Inline settings forms in a `SectionCard` use `FormRow` (horizontal label/hint | control rows) in a
+  `divide-y divide-default` parent; slideover forms stay vertical.
 - **One `use<Entity>Actions()` composable per entity** owns create/edit/remove, toasts, refresh and `menu(record)`.
   `RowMenu` order: Open, edits, then the destructive action in its own red group (icon `trash-2`). No loose icon buttons
   in rows.
