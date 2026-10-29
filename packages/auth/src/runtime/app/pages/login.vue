@@ -98,6 +98,8 @@ async function onPasskeyLogin() {
       </ULink>.
     </template>
 
+    <!-- The last alert is for guests sent here from a page that needs an account (`?redirect=`); signing in returns
+         there. Keep comments out of a v-if chain: in dev they turn a branch into a fragment and break hydration. -->
     <UAlert
       v-if="linkFailed"
       color="error"
@@ -110,7 +112,6 @@ async function onPasskeyLogin() {
       variant="subtle"
       :title="t('errors.signIn.noAccount', 'There is no account for this email. Ask for an invitation, or sign in another way.')"
     />
-    <!-- Sent here from a page that needs an account (`?redirect=`); signing in returns there. -->
     <UAlert
       v-else-if="requestedRedirect"
       color="neutral"

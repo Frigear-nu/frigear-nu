@@ -35,7 +35,6 @@ const isCheckbox = computed(() => props.field.type === 'checkbox')
     class="prose prose-sm max-w-none text-muted"
     v-html="html"
   />
-  <!-- eslint-enable vue/no-v-html -->
 
   <UFormField
     v-else-if="field.type === 'captcha'"
@@ -119,4 +118,5 @@ const isCheckbox = computed(() => props.field.type === 'checkbox')
       class="w-full"
     />
   </UFormField>
+  <!-- eslint-enable vue/no-v-html -->
 </template>

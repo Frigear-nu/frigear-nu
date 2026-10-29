@@ -150,6 +150,7 @@
     "@nuxt/schema": "catalog:",
     "@nuxt/test-utils": "catalog:",
     "@types/node": "catalog:",
+    "@vue/compiler-dom": "^3.5.43",
     "changelogen": "^0.6.2",
     "eslint": "catalog:",
     "nuxt": "catalog:",
