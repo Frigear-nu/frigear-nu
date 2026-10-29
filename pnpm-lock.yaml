@@ -1345,6 +1345,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
+      '@vue/compiler-dom':
+        specifier: ^3.5.43
+        version: 3.5.43
       changelogen:
         specifier: ^0.6.2
         version: 0.6.2(magicast@0.5.5)

@@ -65,7 +65,6 @@ const html = computed(() => renderMarkdown(model.value ?? ''))
         v-html="html"
       />
     </div>
-    <!-- eslint-enable vue/no-v-html -->
     <UTextarea
       v-else
       v-model="model"
@@ -75,5 +74,6 @@ const html = computed(() => renderMarkdown(model.value ?? ''))
       :disabled="disabled"
       class="w-full"
     />
+    <!-- eslint-enable vue/no-v-html -->
   </div>
 </template>

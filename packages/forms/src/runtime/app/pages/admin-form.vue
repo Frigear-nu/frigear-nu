@@ -137,7 +137,8 @@ const menu = computed(() => form.value
         :items="tabs"
       />
 
-      <!-- The builder has its own chrome (canvas and settings panel), so it is not framed again. -->
+      <!-- The builder has its own chrome (canvas and settings panel), so it is not framed again; settings and
+           access render their own `SectionCard`s, one per topic. -->
       <FormBuilder
         v-if="tab === 'builder'"
         v-model="definition"
@@ -153,7 +154,6 @@ const menu = computed(() => form.value
         </template>
       </FormBuilder>
 
-      <!-- Settings and access render their own `SectionCard`s, one per topic. -->
       <FormBuilderSettings
         v-else-if="tab === 'settings'"
         v-model="definition"
