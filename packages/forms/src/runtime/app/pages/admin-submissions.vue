@@ -20,16 +20,11 @@ const columns = computed<TableColumn<SubmissionSummaryDto>[]>(() => [
 ])
 
 const submissionPath = (submission: SubmissionSummaryDto) => paths('adminSubmission', { id: id.value, submissionId: submission.id })
-const menu = (submission: SubmissionSummaryDto) => [[
-  { label: t('admin.open', 'Open'), icon: 'i-lucide-arrow-right', to: submissionPath(submission) },
-  {
-    label: t('admin.redeliver', 'Deliver again'),
-    icon: 'i-lucide-send',
-    onSelect: async () => {
-      if (await actions.redeliver(submission.id)) await refresh()
-    },
-  },
-]]
+const menu = (submission: SubmissionSummaryDto) => actions.submissionMenu(
+  { id: submission.id, formId: id.value },
+  { onRedelivered: () => refresh() },
+)
+const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 
 const breadcrumb = computed(() => [
   { label: t('admin.title', 'Forms'), to: paths('admin') },
@@ -46,9 +41,11 @@ const breadcrumb = computed(() => [
     />
 
     <UEmpty
-      v-if="error"
-      icon="i-lucide-lock"
-      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
+      v-if="error && !submissions"
+      :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
+      :title="forbidden ? t('admin.forbidden', 'You are not allowed to manage forms.') : t('admin.submissionsLoadFailed', 'Submissions could not be loaded')"
+      :description="forbidden ? undefined : errorMessage(error, '')"
+      :actions="forbidden ? undefined : [{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
 
     <TableCard
@@ -80,9 +77,8 @@ const breadcrumb = computed(() => [
           </p>
         </template>
         <template #deliveryStatus-cell="{ row }">
-          <UBadge
-            :color="statusColor(row.original.deliveryStatus)"
-            variant="subtle"
+          <StatusBadge
+            :status="row.original.deliveryStatus"
             :label="t(`delivery.${row.original.deliveryStatus}`, row.original.deliveryStatus)"
           />
         </template>

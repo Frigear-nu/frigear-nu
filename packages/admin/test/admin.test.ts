@@ -46,25 +46,30 @@ describe('admin area', async () => {
     expect(html).toContain('Administration')
   })
 
-  it('still renders the deprecated Admin* components', async () => {
+  it('renders the shared page components', async () => {
     const html = await $fetch<string>('/admin/things')
-    // AdminPageHeader: `back` becomes a breadcrumb, `#links` the actions.
+    // PageHeading: the breadcrumb links back to the list, `#actions` holds the links.
     expect(html).toMatch(/<nav[^>]*aria-label="breadcrumb"/i)
     expect(html).toContain('alias-back')
     expect(html).toMatch(/<h1[^>]*>(?:<!--\[-->)?alias-heading/)
     expect(html).toContain('alias-description')
     expect(html).toContain('alias-links')
     expect(html).toContain('alias-toolbar')
-    // AdminSection with `#flush` + AdminTable.
+    // SectionCard + TableCard around a UTable.
     expect(html).toContain('alias-section')
     expect(html).toContain('alias-table-row')
-    // AdminKeyValue: slots per key, an en dash for empty values.
+    // DescriptionList: slots per key, "Not set" for empty values.
     expect(html).toContain('alias-plan-slot')
-    expect(html).toContain('–')
+    expect(html).toContain('Not set')
     expect(html).toContain('alias-stat-value')
     expect(html).toContain('alias-list-row')
     expect(html).toContain('View all')
     expect(html).toContain('alias-empty')
+  })
+
+  it('renders exactly one h1: the page heading, not the shell navbar', async () => {
+    const html = await $fetch<string>('/admin/things')
+    expect(html.match(/<h1/g)).toHaveLength(1)
   })
 
   it('leaves pages outside the base alone', async () => {

@@ -12,7 +12,11 @@ export type ModuleOptions = {
      * (only when that module is installed). Defaults to `['admin']`. Pass `false` to set no rule and guard the area yourself.
      */
     roles?: string[] | false
-    /** Applies the `admin` layout to every page under `base` that has no layout of its own. Defaults to `true`. */
+    /**
+     * Applies the `admin` layout to every page under `base` that has no layout of its own. An `admin` layout of the
+     * app (`app/layouts/admin.vue`) or a layer replaces the module's and the area still renders in it. `false`
+     * registers no layout and sets no layout rule. Defaults to `true`.
+     */
     layout?: boolean
   }
 }

@@ -5,19 +5,26 @@ import { useSubscription } from '../composables/useSubscription'
 
 defineOptions({ name: 'SubscriptionMembershipPage' })
 
-// No container or page heading: under `/account/**` the `account` layout provides both.
+// No container: under `/account/**` the `account` layout provides it. The page renders its own heading, from the
+// same keys as its account menu item, so title and navigation label cannot drift.
 const t = useModuleT('subscriptions')
+const tm = useModuleT('subscriptions.menu.membership')
 // Awaited, so the server renders the right state; on client navigation the remembered subscription shows at once.
 const { isActive, cancelsAt, loading, loadError, refresh } = await useSubscription()
 const { loggedIn } = useUserSession()
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <!-- Until the subscription is known, a placeholder the size of the status card: never the "join" hero. -->
+  <div class="flex flex-col gap-4">
+    <PageHeading
+      :title="tm('label', 'Membership')"
+      :description="tm('description', 'Manage your plan and billing.')"
+    />
+
+    <!-- Until the subscription is known, a placeholder the size of the status card: never the "join" empty state. -->
     <SectionCard
       v-if="loading"
-      :title="t('status.title', 'Your subscription')"
+      :title="t('status.title', 'Your membership')"
       icon="i-lucide-credit-card"
       loading
     />
@@ -29,23 +36,28 @@ const { loggedIn } = useUserSession()
       :description="errorMessage(loadError, '')"
       :actions="[{ label: t('status.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
-    <div
+    <SectionCard
       v-else-if="loggedIn"
-      class="flex flex-col gap-1"
+      :title="t('status.title', 'Your membership')"
+      icon="i-lucide-credit-card"
     >
-      <h2 class="text-highlighted text-lg font-semibold">
-        {{ t('status.heroTitle', 'Join the team today') }}
-      </h2>
-      <p class="text-muted text-sm">
-        {{ t('status.heroDescription', 'Set up your membership to get started!') }}
-      </p>
-    </div>
-    <h2
+      <UEmpty
+        variant="naked"
+        icon="i-lucide-badge-check"
+        :title="t('status.emptyTitle', 'No membership yet')"
+        :description="t('status.emptyDescription', 'Set up your membership to get started!')"
+      />
+    </SectionCard>
+
+    <SectionCard
       v-if="cancelsAt"
-      class="text-highlighted text-lg font-semibold"
+      :title="t('plans.resubscribe', 'Resubscribe')"
     >
-      {{ t('plans.resubscribe', 'Resubscribe') }}
-    </h2>
-    <SubscriptionPlans confirm-change />
+      <SubscriptionPlans confirm-change />
+    </SectionCard>
+    <SubscriptionPlans
+      v-else
+      confirm-change
+    />
   </div>
 </template>

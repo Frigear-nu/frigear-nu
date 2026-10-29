@@ -475,13 +475,14 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const html = await $fetch<string>('/account/membership/cancel')
       expect(html).toContain('Checkout canceled')
       expect(html).toContain('Back to membership')
-      // The account layout owns the heading and the container.
-      expect(html).not.toContain('<h1')
+      // The page renders its own heading (one h1) with a breadcrumb back to the membership page.
+      expect(html.match(/<h1/g)).toHaveLength(1)
+      expect(html).toContain('Membership')
     }, 120_000)
 
-    it('renders the membership page without a hero heading', async () => {
+    it('renders the membership page with its own single heading', async () => {
       const html = await $fetch<string>('/account/membership')
-      expect(html).not.toContain('<h1')
+      expect(html.match(/<h1/g)).toHaveLength(1)
       expect(html).toContain('Member')
     }, 120_000)
   })

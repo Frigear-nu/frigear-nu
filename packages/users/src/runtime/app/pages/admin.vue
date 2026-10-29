@@ -18,22 +18,24 @@ const { page, pageSize, search, sort: sortState, filters, query, filtered, reset
 const sort = useTableSort(null, sortState)
 const { sorting } = sort
 
-const { data, status } = await useFetch<UsersPage>('/api/admin/users', {
+const { data, status, error, refresh } = await useFetch<UsersPage>('/api/admin/users', {
   key: ADMIN_USERS_KEY,
   query,
-  default: () => ({ items: [], total: 0, page: 1, pageSize: 20, hasRoles: false, hasSubscriptions: false, roles: [] }),
 })
-const hasRoles = computed(() => data.value.hasRoles)
-const hasSubscriptions = computed(() => data.value.hasSubscriptions)
+const rows = computed(() => data.value?.items ?? [])
+const hasRoles = computed(() => data.value?.hasRoles ?? false)
+const hasSubscriptions = computed(() => data.value?.hasSubscriptions ?? false)
+const roles = computed(() => data.value?.roles ?? [])
+const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
-const roleItems = computed(() => data.value.roles.map(value => ({ label: roleLabel(value), value })))
+const roleItems = computed(() => roles.value.map(value => ({ label: roleLabel(value), value })))
 const roleFilterItems = computed(() => [{ label: t('admin.filters.allRoles', 'All roles'), value: 'all' }, ...roleItems.value])
 const pending = computed(() => status.value === 'pending')
 // The previous page stays on screen (dimmed) while the next one loads; skeletons only on the very first load.
-const loading = computed(() => pending.value && !data.value.items.length)
-const refreshing = computed(() => pending.value && !!data.value.items.length)
+const loading = computed(() => pending.value && !data.value)
+const refreshing = computed(() => pending.value && !!data.value)
 
-const UBadge = resolveComponent('UBadge')
+const StatusBadge = resolveComponent('StatusBadge')
 const TableIdentity = resolveComponent('TableIdentity')
 const RowMenu = resolveComponent('RowMenu')
 
@@ -64,11 +66,11 @@ const columns = computed<TableColumn<UserRow>[]>(() => [
   ...(hasSubscriptions.value
     ? [{
         id: 'subscription',
-        header: t('admin.subscription', 'Subscription'),
+        header: t('admin.subscription', 'Membership'),
         cell: ({ row }: Cell) => {
           const subscription = row.original.subscription
           return subscription
-            ? h(UBadge, { variant: 'subtle', color: statusColor(subscription.status), label: subscription.planKey ?? subscription.status })
+            ? h(StatusBadge, { status: subscription.status, label: subscription.planKey ?? subscription.status })
             : emptyCell()
         },
       }]
@@ -76,9 +78,9 @@ const columns = computed<TableColumn<UserRow>[]>(() => [
   {
     id: 'verified',
     header: t('admin.verified', 'Verified'),
-    cell: ({ row }) => h(UBadge, {
-      variant: 'subtle',
-      color: row.original.emailVerifiedAt ? 'success' : 'neutral',
+    cell: ({ row }) => h(StatusBadge, {
+      status: row.original.emailVerifiedAt ? 'verified' : 'unverified',
+      colors: { verified: 'success' },
       label: row.original.emailVerifiedAt ? t('admin.filters.verified', 'Verified') : t('admin.filters.unverified', 'Unverified'),
     }),
   },
@@ -106,10 +108,8 @@ function openUser(_event: Event, row: { original: UserRow }) {
   return navigateTo(actions.userPath(row.original.id))
 }
 
-async function addUser() {
-  const created = await actions.create({ roles: hasRoles.value ? data.value.roles : [] })
-  if (created) await navigateTo(actions.userPath(created.id))
-}
+// The composable opens the form and navigates to the new user's page.
+const addUser = () => actions.create({ roles: hasRoles.value ? roles.value : [] })
 </script>
 
 <template>
@@ -117,74 +117,84 @@ async function addUser() {
     <PageHeading :title="t('admin.title', 'Users')">
       <template #actions>
         <UButton
-          icon="i-lucide-user-plus"
+          icon="i-lucide-plus"
           :label="t('admin.create', 'Add user')"
           @click="addUser"
         />
       </template>
     </PageHeading>
 
-    <PageToolbar>
-      <UInput
-        v-model="search"
-        class="w-full max-w-sm"
-        icon="i-lucide-search"
-        :loading="pending"
-        :placeholder="t('admin.search', 'Search name, email or role...')"
-      />
-      <USelect
-        v-model="filters.verified"
-        :items="verifiedOptions"
-        class="w-40"
-      />
-      <USelect
-        v-if="hasRoles"
-        v-model="filters.role"
-        :items="roleFilterItems"
-        class="w-48"
-        icon="i-lucide-shield"
-      />
-      <UButton
-        v-if="filtered"
-        variant="ghost"
-        color="neutral"
-        icon="i-lucide-x"
-        :label="t('admin.filters.clear', 'Clear filters')"
-        @click="reset"
-      />
-    </PageToolbar>
+    <UEmpty
+      v-if="error && !data"
+      :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
+      :title="forbidden ? t('admin.forbidden', 'You do not have access to users') : t('admin.loadFailed', 'Users could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="forbidden ? [] : [{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
 
-    <TableCard
-      :loading="loading"
-      :refreshing="refreshing"
-    >
-      <UTable
-        v-model:sorting="sorting"
-        :data="data.items"
-        :columns="columns"
-        :sorting-options="{ manualSorting: true }"
-        :ui="tableUi({}, { sticky: true })"
-        sticky
-        @select="openUser"
+    <template v-else>
+      <PageToolbar>
+        <UInput
+          v-model="search"
+          class="w-full max-w-sm"
+          icon="i-lucide-search"
+          :loading="pending"
+          :placeholder="t('admin.search', 'Search name, email or role...')"
+        />
+        <USelect
+          v-model="filters.verified"
+          :items="verifiedOptions"
+          class="w-40"
+        />
+        <USelect
+          v-if="hasRoles"
+          v-model="filters.role"
+          :items="roleFilterItems"
+          class="w-48"
+          icon="i-lucide-shield"
+        />
+        <UButton
+          v-if="filtered"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-x"
+          :label="t('admin.filters.clear', 'Clear filters')"
+          @click="reset"
+        />
+      </PageToolbar>
+
+      <TableCard
+        :loading="loading"
+        :refreshing="refreshing"
       >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-users"
-            variant="naked"
-            :title="t('admin.empty', 'No users match')"
-            :actions="[filtered
-              ? { label: t('admin.filters.clear', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: reset }
-              : { label: t('admin.create', 'Add user'), icon: 'i-lucide-user-plus', onClick: addUser }]"
+        <UTable
+          v-model:sorting="sorting"
+          :data="rows"
+          :columns="columns"
+          :sorting-options="{ manualSorting: true }"
+          :ui="tableUi({}, { sticky: true })"
+          sticky
+          @select="openUser"
+        >
+          <template #empty>
+            <UEmpty
+              icon="i-lucide-users"
+              variant="naked"
+              :title="t('admin.empty', 'No users match')"
+              :actions="[filtered
+                ? { label: t('admin.filters.clear', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: reset }
+                : { label: t('admin.create', 'Add user'), icon: 'i-lucide-plus', onClick: addUser }]"
+            />
+          </template>
+        </UTable>
+        <template #footer>
+          <TablePagination
+            v-model:page="page"
+            v-model:page-size="pageSize"
+            :total="data?.total ?? 0"
           />
         </template>
-      </UTable>
-      <template #footer>
-        <TablePagination
-          v-model:page="page"
-          v-model:page-size="pageSize"
-          :total="data.total"
-        />
-      </template>
-    </TableCard>
+      </TableCard>
+    </template>
   </div>
 </template>

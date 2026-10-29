@@ -16,6 +16,8 @@
       "new": "Add application",
       "forbiddenTitle": "You are not allowed to manage OAuth applications",
       "forbiddenDescription": "Ask an administrator for access.",
+      "loadFailed": "OAuth applications could not be loaded",
+      "tryAgain": "Try again",
       "application": "Application",
       "access": "Access",
       "signedIn": "Signed in",

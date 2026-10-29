@@ -7,6 +7,39 @@ card uses the same `bg-elevated/50 ring ring-default rounded-lg` surface and the
 Built-in strings come from `@nuxtjs/i18n` when installed (`patterns.*`, `actions.*`; `en` and `da` included), with
 English fallbacks; every one of them can be overridden by a prop.
 
+## App shell
+
+`AppShell` is the dashboard shell of the app areas (admin, account); an area layout wraps its pages in it:
+
+```vue
+<AppShell
+  id="admin"
+  :title="t('title', 'Administration')"
+  home="/admin"
+  :navigation="navigation"
+  :nav-label="t('nav.label', 'Admin navigation')"
+  :search-groups="searchGroups"
+  :back-to="{ to: '/', label: t('backToSite', 'Back to the site') }"
+>
+  <template #sidebar-footer="{ collapsed }">
+    <AccountMenu block :collapsed="collapsed" />
+  </template>
+  <slot />
+</AppShell>
+```
+
+- `id` keys the `dashboard-sidebar-<id>` cookie (collapse, width); one per area. `home` and `backTo.to` are raw
+  paths, the shell adds the locale prefix.
+- `navigation` is a list of `UNavigationMenu` groups (`type: 'label'` rows head a group). The navbar shows a muted
+  eyebrow, `title › active section`, never a heading: the page renders the only `<h1>` through `PageHeading`.
+- `searchGroups` adds the ⌘K button and palette (without the colour-mode group); leave it out for no search.
+- The body is centred at `max-w-7xl`; `wide` or `definePageMeta({ wide: true })` makes it full width.
+- The document title defaults to the active section (else `title`); a page's own `useHead` wins.
+- Slots: `brand`, `sidebar-top`, `sidebar-footer` (all get `{ collapsed }`), `navbar-left` (replaces the eyebrow),
+  `navbar-right` (defaults to `LanguageSelect` when the app has one and more than one locale), default.
+- The light app theme is utility classes on the shell (`bg-default` body, `bg-elevated/25` sidebar, a
+  primary-coloured brand tile); hosts can target `[data-area=app]`.
+
 ## Page patterns
 
 | Component | Use |
@@ -21,6 +54,7 @@ English fallbacks; every one of them can be overridden by a prop.
 | `ListCard` | A short divided list with a "View all" link |
 | `DescriptionList` | Label/value rows; empty values read "Not set"; slot per `key` |
 | `PageToolbar` | Search and filters above a table, `#right` for counts |
+| `FormRow` | A `UFormField` as a settings row (label and hint left, control right, stacked below `sm`) for inline forms in a `SectionCard`; parent `divide-y divide-default` |
 | `FormSlideover` | Create/edit form in a slideover with Cancel + submit (`form="<formId>"`); works with `useOverlay` |
 | `ConfirmDialog` / `useConfirmDialog()` | Confirmation before destructive actions |
 

@@ -1,7 +1,6 @@
 import {
   addComponentsDir,
   addImports,
-  addLayout,
   addPlugin,
   addRouteMiddleware,
   addTypeTemplate,
@@ -122,7 +121,13 @@ export default defineNuxtModule<ModuleOptions>({
     // the account shell unless it chose a layout itself. A route rule rather than page meta, so registration order
     // doesn't matter.
     if (settings.layout !== false) {
-      addLayout({ src: resolver.resolve('./runtime/app/layouts/account.vue'), filename: 'account.vue' }, 'account')
+      // An `account` layout of the app (`app/layouts/account.vue`) or a layer wins: Nuxt scans the layouts into
+      // `app.layouts` before `app:resolve`, so ours only fills the gap, and the route rule below applies whichever it
+      // is. Not `addLayout`: its `app:templates` hook runs again on every `updateTemplates()` in dev, where the scan is
+      // cached, finds our own earlier entry and warns that `account` "is already provided by #build/account.vue".
+      nuxt.hook('app:resolve', (app) => {
+        app.layouts.account ||= { name: 'account', file: resolver.resolve('./runtime/app/layouts/account.vue') }
+      })
       const rules = nuxt.options.routeRules ||= {}
       for (const pattern of areaPatterns) {
         rules[pattern] = { appLayout: 'account', ...rules[pattern] } as (typeof rules)[string]
@@ -166,7 +171,7 @@ export default defineNuxtModule<ModuleOptions>({
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
 
     // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults,
-    // which is how a host overrides single parts (e.g. `AccountHeaderRight`) without replacing the rest.
+    // which is how a host overrides single parts (e.g. `AccountIdentity`) without replacing the rest.
     addComponentsDir({
       path: resolver.resolve('./runtime/app/components'),
       priority: -1,

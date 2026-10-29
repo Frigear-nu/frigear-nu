@@ -20,6 +20,7 @@ const { data: payments, status: fetchStatus, error } = useLazyFetch<PaymentDto[]
 
 const loading = computed(() => fetchStatus.value === 'pending' && !payments.value)
 const statusLabel = (value: string) => status(value, value)
+const paymentDate = (payment: PaymentDto) => format.dateTime(payment.paidAt ?? payment.createdAt) || ''
 const columns = computed<TableColumn<PaymentDto>[]>(() => [
   { accessorKey: 'createdAt', header: t('date', 'Date') },
   { accessorKey: 'description', header: t('description', 'Description') },
@@ -32,40 +33,57 @@ const columns = computed<TableColumn<PaymentDto>[]>(() => [
 
 <template>
   <TableCard
+    :title="t('title', 'Payments')"
     :loading="loading"
     :refreshing="fetchStatus === 'pending' && !loading"
   >
-    <template #header>
-      <h2 class="text-highlighted text-sm font-semibold">
-        {{ t('title', 'Payments') }}
-      </h2>
-    </template>
     <UTable
       :data="payments ?? []"
       :columns="columns"
       :ui="tableUi({ tr: '' })"
     >
       <template #createdAt-cell="{ row }">
-        <span class="whitespace-nowrap">{{ format.dateTime(row.original.paidAt ?? row.original.createdAt) || '–' }}</span>
+        <span
+          v-if="paymentDate(row.original)"
+          class="whitespace-nowrap tabular-nums"
+        >{{ paymentDate(row.original) }}</span>
+        <span
+          v-else
+          class="text-dimmed"
+        >–</span>
       </template>
       <template #description-cell="{ row }">
         {{ row.original.description ?? t('defaultDescription', 'Payment') }}
       </template>
       <template #amount-cell="{ row }">
-        <span class="whitespace-nowrap">{{ format.money(row.original.amount, row.original.currency) }}</span>
+        <span class="whitespace-nowrap tabular-nums">{{ format.money(row.original.amount, row.original.currency) }}</span>
       </template>
       <template #status-cell="{ row }">
-        <UBadge
-          variant="subtle"
-          :color="statusColor(row.original.status, { partially_refunded: 'warning' })"
+        <StatusBadge
+          :status="row.original.status"
           :label="statusLabel(row.original.status)"
+          :colors="{ partially_refunded: 'warning' }"
         />
       </template>
       <template #refundedAmount-cell="{ row }">
-        <span class="whitespace-nowrap">{{ row.original.refundedAmount ? format.money(row.original.refundedAmount, row.original.currency) : '–' }}</span>
+        <span
+          v-if="row.original.refundedAmount"
+          class="whitespace-nowrap tabular-nums"
+        >{{ format.money(row.original.refundedAmount, row.original.currency) }}</span>
+        <span
+          v-else
+          class="text-dimmed"
+        >–</span>
       </template>
       <template #referenceType-cell="{ row }">
-        <span class="text-muted">{{ row.original.referenceType ? `${row.original.referenceType} ${row.original.referenceId ?? ''}`.trim() : '–' }}</span>
+        <span
+          v-if="row.original.referenceType"
+          class="text-muted"
+        >{{ `${row.original.referenceType} ${row.original.referenceId ?? ''}`.trim() }}</span>
+        <span
+          v-else
+          class="text-dimmed"
+        >–</span>
       </template>
       <template #empty>
         <UEmpty

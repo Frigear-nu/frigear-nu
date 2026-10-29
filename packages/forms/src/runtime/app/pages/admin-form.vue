@@ -12,6 +12,7 @@ const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/
   key: `forms:admin:form:${id.value}`,
 })
 const notFound = computed(() => error.value?.statusCode === 404)
+const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 
 const draft = reactive({ name: form.value?.name ?? '', slug: form.value?.slug ?? '', status: (form.value?.status ?? 'draft') as FormStatus })
 // The builder and the JSON editor both work on `definition`; the JSON text is only (re)generated when
@@ -71,7 +72,7 @@ async function save() {
 
 const listPath = paths('admin')
 const menu = computed(() => form.value
-  ? actions.menu({ ...form.value, storage: form.value.definition.storage }, { onRemoved: () => navigateTo(listPath) })
+  ? actions.menu({ ...form.value, storage: form.value.definition.storage }, { open: false, onRemoved: () => navigateTo(listPath) })
   : [])
 </script>
 
@@ -86,10 +87,10 @@ const menu = computed(() => form.value
           {{ form.name }} <span class="text-muted text-base font-normal">v{{ form.version }}</span>
         </template>
         <template #badge>
-          <UBadge
-            :color="statusColor(form.status, { archived: 'warning' })"
-            variant="subtle"
+          <StatusBadge
+            :status="form.status"
             :label="t(`status.${form.status}`, form.status)"
+            :colors="{ archived: 'warning' }"
           />
         </template>
         <template #actions>
@@ -152,17 +153,18 @@ const menu = computed(() => form.value
         </template>
       </FormBuilder>
 
-      <SectionCard v-else-if="tab === 'settings'">
-        <FormBuilderSettings v-model="definition" />
-      </SectionCard>
+      <!-- Settings and access render their own `SectionCard`s, one per topic. -->
+      <FormBuilderSettings
+        v-else-if="tab === 'settings'"
+        v-model="definition"
+      />
 
-      <SectionCard v-else-if="tab === 'access'">
-        <FormBuilderAccess
-          v-model="definition"
-          :form-id="form.id"
-          :slug="form.slug"
-        />
-      </SectionCard>
+      <FormBuilderAccess
+        v-else-if="tab === 'access'"
+        v-model="definition"
+        :form-id="form.id"
+        :slug="form.slug"
+      />
 
       <SectionCard
         v-else-if="tab === 'json'"
@@ -196,9 +198,9 @@ const menu = computed(() => form.value
     </template>
 
     <UEmpty
-      v-else
-      :icon="notFound ? 'i-lucide-clipboard-x' : 'i-lucide-lock'"
-      :title="notFound ? t('admin.notFound', 'This form does not exist.') : t('admin.forbidden', 'You are not allowed to manage forms.')"
+      v-else-if="notFound"
+      icon="i-lucide-clipboard-x"
+      :title="t('admin.notFound', 'This form does not exist.')"
     >
       <template #actions>
         <UButton
@@ -210,5 +212,19 @@ const menu = computed(() => form.value
         />
       </template>
     </UEmpty>
+
+    <UEmpty
+      v-else-if="forbidden"
+      icon="i-lucide-lock"
+      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
+    />
+
+    <UEmpty
+      v-else
+      icon="i-lucide-circle-alert"
+      :title="t('admin.formLoadFailed', 'The form could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
   </div>
 </template>

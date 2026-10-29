@@ -1,53 +1,57 @@
 <script setup lang="ts">
 defineOptions({ name: 'AdminThingsPage' })
 
-// Renders every deprecated `Admin*` alias, so they keep working until all modules use the ui components.
+// Renders the shared page components, so the layout and the patterns are exercised together.
 const rows = [{ name: 'alias-table-row' }]
 const columns = [{ accessorKey: 'name', header: 'Name' }]
 </script>
 
 <template>
-  <AdminPage>
+  <div class="flex flex-col gap-4">
     <div>things-page</div>
-    <AdminPageHeader
+    <PageHeading
       title="alias-heading"
       description="alias-description"
-      :back="{ label: 'alias-back', to: '/admin' }"
+      :breadcrumb="[{ label: 'alias-back', to: '/admin' }, { label: 'alias-heading' }]"
     >
-      <template #links>
+      <template #actions>
         <span>alias-links</span>
       </template>
-    </AdminPageHeader>
-    <AdminToolbar>
+    </PageHeading>
+    <PageToolbar>
       <span>alias-toolbar</span>
-    </AdminToolbar>
-    <AdminSection title="alias-section">
-      <template #flush>
-        <AdminTable
+    </PageToolbar>
+    <SectionCard title="alias-section">
+      <TableCard>
+        <UTable
           :data="rows"
           :columns="columns"
+          :ui="tableUi()"
         />
-      </template>
-    </AdminSection>
-    <AdminSection title="alias-key-values">
-      <AdminKeyValue :items="[{ key: 'plan', label: 'Plan', value: 'alias-plan' }, { key: 'seats', label: 'Seats', value: null }]">
+      </TableCard>
+    </SectionCard>
+    <SectionCard title="alias-key-values">
+      <DescriptionList :items="[{ key: 'plan', label: 'Plan', value: 'alias-plan' }, { key: 'seats', label: 'Seats', value: null }]">
         <template #plan="{ item }">
           <strong>{{ item.value }}-slot</strong>
         </template>
-      </AdminKeyValue>
-    </AdminSection>
-    <AdminStatCard
+      </DescriptionList>
+    </SectionCard>
+    <StatCard
       label="alias-stat"
       icon="i-lucide-users"
     >
       alias-stat-value
-    </AdminStatCard>
-    <AdminListCard
+    </StatCard>
+    <ListCard
       title="alias-list"
       to="/admin"
     >
       <li>alias-list-row</li>
-    </AdminListCard>
-    <AdminEmpty title="alias-empty" />
-  </AdminPage>
+    </ListCard>
+    <UEmpty
+      variant="naked"
+      title="alias-empty"
+    />
+  </div>
 </template>

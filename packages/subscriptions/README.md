@@ -13,7 +13,7 @@ webhook) and [`@frigear-nu/users`](../users). One-off payments are out of scope.
 - 🔐 Entitlement utils (`hasActiveSubscription`, `getUserSubscription`) and a `subscription` route middleware.
 - 🧩 `usePlans` / `useSubscription` composables, `SubscriptionPlans` / `SubscriptionStatus` components with slots and
   optional i18n, and opt-in membership/success/cancel pages (built with [`@nuxt/ui`](https://ui.nuxt.com)).
-- 🗂️ Contributes a "Subscription" item to `@frigear-nu/menu` (when installed).
+- 🗂️ Contributes a "Membership" item to `@frigear-nu/menu` (when installed).
 
 ## Quick Setup
 

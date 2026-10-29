@@ -15,7 +15,7 @@ export interface UserMenuOptions {
 }
 
 /**
- * Everything staff do to a user: `create` (a slideover), `remove` (confirm, toast, refresh) and `menu(user)` for the
+ * Everything staff do to a user: `create` (a slideover, then the new user's page), `remove` (confirm, toast, refresh) and `menu(user)` for the
  * `RowMenu` of the list rows and the detail heading, ordered Open, sign-in link, extras, then Delete in its own group.
  */
 export function useUserActions() {
@@ -31,9 +31,11 @@ export function useUserActions() {
   /** The admin page of one user. */
   const userPath = (id: number) => `${listPath.value}/${id}`
 
-  /** Opens the create form; resolves with the created user, or `false` when cancelled. The caller navigates. */
+  /** Opens the create form, then opens the new user's page; resolves with the created user, or `false` when cancelled. */
   async function create(options: { roles?: string[] } = {}): Promise<UserRow | false> {
-    return await overlay.create(UserCreateSlideover).open({ roles: options.roles ?? [] }) as UserRow | false
+    const created = await overlay.create(UserCreateSlideover).open({ roles: options.roles ?? [] }) as UserRow | false
+    if (created) await navigateTo(userPath(created.id))
+    return created
   }
 
   /** Confirms, deletes and refreshes. Resolves `true` once the user is gone. */

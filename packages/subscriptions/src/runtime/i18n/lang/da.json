@@ -19,7 +19,7 @@
       "confirmUpgrade": "Hvis du opgraderer, flyttes du straks til den højere plan. Resterende kredit fratrækkes, og du opkræves differencen med det samme.",
       "confirmDowngrade": "Hvis du nedgraderer, kører dit nuværende abonnement til næste forfaldsdato, hvorefter det skifter.",
       "subscribeTo": "Du abonnerer nu på:",
-      "changeTitle": "Opdatér abonnement",
+      "changeTitle": "Opdatér medlemskab",
       "checkoutTitle": "Bliv medlem",
       "confirmResume": "Dit medlemskab fornyes som hidtil."
     },
@@ -48,26 +48,28 @@
       "canceled": "Annulleret",
       "other": "Inaktiv",
       "currentPlan": "Nuværende plan",
-      "cancelling": "Abonnementet udløber",
+      "cancelling": "Medlemskabet udløber",
       "cancelsAt": "Slutter {date}",
       "renewsAutomaticallyAt": "Fornyes automatisk {date}",
       "cancel": "Opsig medlemskab",
       "changePaymentMethod": "Skift betalingsmetode",
       "free": "Gratis medlemskab",
       "freeUntil": "Gratis medlemskab til {date}",
-      "heroTitle": "Bliv en del af holdet i dag",
-      "heroDescription": "Opret dit medlemskab for at komme i gang!",
+      "emptyTitle": "Intet medlemskab endnu",
+      "emptyDescription": "Opret dit medlemskab for at komme i gang!",
       "loadFailed": "Dit medlemskab kunne ikke indlæses",
       "tryAgain": "Prøv igen"
     },
     "success": {
       "title": "Tak!",
-      "body": "Dit abonnement bliver aktiveret. Det kan tage et par sekunder.",
-      "activeBody": "Dit abonnement er aktiveret.",
+      "crumb": "Betaling gennemført",
+      "body": "Dit medlemskab bliver aktiveret. Det kan tage et par sekunder.",
+      "activeBody": "Dit medlemskab er aktiveret.",
       "back": "Tilbage til medlemskab"
     },
     "cancel": {
       "title": "Betaling annulleret",
+      "crumb": "Betaling annulleret",
       "body": "Der blev ikke foretaget ændringer, og du er ikke blevet opkrævet.",
       "back": "Tilbage til medlemskab"
     },
@@ -76,9 +78,9 @@
       "portal": "Kunne ikke åbne betalingsportalen."
     },
     "menu": {
-      "subscription": {
-        "label": "Abonnement",
-        "description": "Administrer dit abonnement og din betaling."
+      "membership": {
+        "label": "Medlemskab",
+        "description": "Administrer dit medlemskab og din betaling."
       }
     },
     "admin": {
@@ -104,9 +106,9 @@
       "linkHint": "Linket er gyldigt i 24 timer.",
       "paidHint": "Betalte abonnementer administreres i Stripe.",
       "error": "Noget gik galt.",
-      "tab": "Abonnement",
+      "tab": "Medlemskab",
       "membership": "Medlemskab",
-      "currentSubscription": "Nuværende abonnement",
+      "currentSubscription": "Nuværende medlemskab",
       "history": {
         "title": "Abonnementshistorik",
         "loadFailed": "Abonnementshistorikken kunne ikke hentes",

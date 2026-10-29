@@ -126,7 +126,14 @@
       "details": "Detaljer",
       "submissionNotFound": "Besvarelsen findes ikke.",
       "noSubmissionsHint": "Svar vises her, når nogen udfylder formularen.",
-      "redelivered": "Leveret igen"
+      "redelivered": "Leveret igen",
+      "importEmpty": "Indsæt den JSON, der skal importeres.",
+      "importLabel": "Formularer som JSON",
+      "loadFailed": "Formularerne kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
+      "formLoadFailed": "Formularen kunne ikke indlæses",
+      "submissionsLoadFailed": "Besvarelserne kunne ikke indlæses",
+      "submissionLoadFailed": "Besvarelsen kunne ikke indlæses"
     },
     "schedule": {
       "closed": "Formularen er lukket.",
@@ -138,6 +145,7 @@
       "hint": "Uden for perioden vises en lukket-besked, og indsendelser afvises. En sæson, der slutter før den starter, løber over nytår.",
       "opens": "Åbner",
       "closes": "Lukker",
+      "month": "Måned",
       "day": "Dag",
       "time": "Tid",
       "timezone": "Tidszone"
@@ -198,6 +206,7 @@
       "failed": "Levering fejlede",
       "title": "Levering og lagring",
       "storeTitle": "Gem besvarelser",
+      "storageTitle": "Lagring",
       "storeHint": "Gem besvarelser i databasen, så de kan ses under Besvarelser.",
       "filesWarning": "Formularen har filupload-felter, som kræver gemte besvarelser. Fjern dem, eller fortsæt med at gemme.",
       "lostWarning": "Besvarelser hverken gemmes eller sendes på mail. Tilføj modtagere eller fortsæt med at gemme, ellers går svarene tabt, medmindre noget håndterer forms:submitted.",

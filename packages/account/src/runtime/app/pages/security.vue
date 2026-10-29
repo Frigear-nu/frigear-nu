@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
+import AccountPasskeySlideover from '../components/Account/AccountPasskeySlideover.vue'
 
 defineOptions({ name: 'AccountSecurityPage' })
 
@@ -47,9 +48,6 @@ async function onSubmitPassword(event: FormSubmitEvent<PasswordSchema>) {
 // --- Passkeys --------------------------------------------------------------------------------------------------
 interface Passkey { id: string, name: string | null, createdAt: string | Date }
 
-const passkeyName = ref('')
-const passkeyPending = ref(false)
-
 // Loaded on the server (awaited), so the card renders with the list instead of "no passkeys" until the client
 // catches up. Keyed by user so another account on the same browser never sees a remembered list; it is refetched on
 // every visit (`ttl: 0`) while the remembered one stays on screen. Nothing is requested when WebAuthn is off.
@@ -66,23 +64,14 @@ const {
 })
 const passkeyList = computed(() => passkeyData.value ?? [])
 
-async function onRegisterPasskey() {
-  passkeyPending.value = true
-  try {
-    await passkeys?.registerPasskey(user.value?.email ?? '', passkeyName.value)
-    passkeyName.value = ''
-    toast.add({ title: t('passkeys.registered', 'Passkey added.'), color: 'success', icon: 'i-lucide-check' })
-    await loadPasskeys()
-  }
-  catch (e) {
-    // Dismissing the browser prompt rejects with a NotAllowedError, which is not worth an error toast.
-    if ((e as { name?: string })?.name !== 'NotAllowedError') {
-      showError(e, t('passkeys.registerError', 'Could not register the passkey.'))
-    }
-  }
-  finally {
-    passkeyPending.value = false
-  }
+const overlay = useOverlay()
+const passkeySlideover = overlay.create(AccountPasskeySlideover, { destroyOnClose: true })
+
+async function onAddPasskey() {
+  const added = await passkeySlideover.open({ userName: user.value?.email ?? '' })
+  if (!added) return
+  toast.add({ title: t('passkeys.registered', 'Passkey added.'), color: 'success', icon: 'i-lucide-check' })
+  await loadPasskeys()
 }
 
 const passkeyLabel = (passkey: Passkey) => passkey.name || t('passkeys.unnamed', 'Passkey')
@@ -112,6 +101,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
 
 <template>
   <div class="flex flex-col gap-4">
+    <AccountHeader />
+
     <SectionCard
       :title="t('password.title', 'Password')"
       :description="t('password.description', 'Change your password.')"
@@ -120,10 +111,10 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
         id="account-change-password"
         :schema="passwordSchema"
         :state="passwordState"
-        class="flex flex-col gap-4"
+        class="flex flex-col divide-y divide-default"
         @submit="onSubmitPassword"
       >
-        <UFormField
+        <FormRow
           :label="t('changePassword.current.label', 'Current password')"
           name="currentPassword"
           required
@@ -134,8 +125,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="current-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
-        <UFormField
+        </FormRow>
+        <FormRow
           :label="t('changePassword.new.label', 'New password')"
           name="newPassword"
           required
@@ -146,8 +137,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="new-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
-        <UFormField
+        </FormRow>
+        <FormRow
           :label="t('changePassword.confirm.label', 'Confirm new password')"
           name="confirmNewPassword"
           required
@@ -158,10 +149,10 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             autocomplete="new-password"
             class="w-full sm:max-w-sm"
           />
-        </UFormField>
+        </FormRow>
       </UForm>
       <template #footer>
-        <div class="flex justify-end">
+        <div class="flex justify-end gap-2">
           <UButton
             type="submit"
             form="account-change-password"
@@ -179,6 +170,13 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
       :loading="passkeysLoading"
       flush
     >
+      <template #actions>
+        <UButton
+          icon="i-lucide-plus"
+          :label="t('passkeys.add', 'Add passkey')"
+          @click="onAddPasskey"
+        />
+      </template>
       <ul
         v-if="passkeyList.length"
         class="divide-y divide-default"
@@ -186,21 +184,19 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
         <li
           v-for="passkey in passkeyList"
           :key="passkey.id"
-          class="flex items-center justify-between gap-3 px-4 py-3"
+          class="flex items-center gap-3 px-4 py-3"
         >
-          <div class="flex min-w-0 items-center gap-3">
-            <UIcon
-              name="i-lucide-key-round"
-              class="size-5 shrink-0 text-muted"
-            />
-            <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-highlighted">
-                {{ passkeyLabel(passkey) }}
-              </p>
-              <p class="text-sm text-muted">
-                {{ t('passkeys.created', 'Added {date}', { date: format.date(passkey.createdAt) }) }}
-              </p>
-            </div>
+          <UIcon
+            name="i-lucide-key-round"
+            class="size-5 shrink-0 text-muted"
+          />
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-highlighted">
+              {{ passkeyLabel(passkey) }}
+            </p>
+            <p class="text-sm text-muted">
+              {{ t('passkeys.created', 'Added {date}', { date: format.date(passkey.createdAt) }) }}
+            </p>
           </div>
           <RowMenu
             :items="passkeyMenu(passkey)"
@@ -221,28 +217,8 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
         variant="naked"
         icon="i-lucide-key-round"
         :title="t('passkeys.empty', 'You have not added any passkeys yet.')"
+        :actions="[{ label: t('passkeys.add', 'Add passkey'), icon: 'i-lucide-plus', onClick: onAddPasskey }]"
       />
-
-      <template #footer>
-        <form
-          class="flex flex-col gap-2 sm:flex-row sm:justify-end"
-          @submit.prevent="onRegisterPasskey"
-        >
-          <UInput
-            v-model="passkeyName"
-            :placeholder="t('passkeys.name.placeholder', 'Name, e.g. MacBook')"
-            :aria-label="t('passkeys.name.label', 'Passkey name')"
-            maxlength="100"
-            class="w-full sm:max-w-xs"
-          />
-          <UButton
-            type="submit"
-            icon="i-lucide-plus"
-            :loading="passkeyPending"
-            :label="t('passkeys.register', 'Register a passkey')"
-          />
-        </form>
-      </template>
     </SectionCard>
   </div>
 </template>

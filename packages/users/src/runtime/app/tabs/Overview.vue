@@ -1,24 +1,32 @@
 <script setup lang="ts">
+import { z } from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserDetail } from '../utils/admin-user'
-import { useUserActions } from '../composables/useUserActions'
 
 defineOptions({ name: 'UsersAdminOverviewTab' })
 
-// The built-in "Overview" tab of the `admin.users` area: profile form, account facts and the danger zone,
+// The built-in "Overview" tab of the `admin.users` area: profile form and account facts (deleting lives in the heading's row menu),
 // with an `admin.users.overview` widget area on top for modules' summary cards (e.g. subscription, last payment).
 const props = defineProps<{ user: UserDetail }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const t = useModuleT('users')
 const format = useFormat()
-const actions = useUserActions()
 const { busy: saving, run } = useAction()
 
 // `@frigear-nu/widget` is optional: without it there is no summary area.
 const OverviewWidgets = resolveComponent('WidgetArea')
 const overviewWidgets = typeof OverviewWidgets === 'string' ? undefined : OverviewWidgets
 
-const form = reactive({ name: '', email: '', role: '', emailVerified: false })
+const schema = z.object({
+  name: z.string().trim().min(1, t('admin.nameRequired', 'Enter a name.')).max(120),
+  email: z.string().trim().email(t('admin.emailInvalid', 'Enter a valid email address.')),
+  role: z.string(),
+  emailVerified: z.boolean(),
+})
+type Schema = z.output<typeof schema>
+
+const form = reactive<Schema>({ name: '', email: '', role: '', emailVerified: false })
 function fill(value: UserDetail) {
   Object.assign(form, { name: value.name, email: value.email, role: value.role ?? '', emailVerified: !!value.emailVerifiedAt })
 }
@@ -45,29 +53,24 @@ const dirty = computed(() => (
   || form.emailVerified !== !!props.user.emailVerifiedAt
 ))
 
-async function save() {
-  const emailChanged = form.email !== props.user.email
+async function save(event: FormSubmitEvent<Schema>) {
+  const { name, email, role, emailVerified } = event.data
+  const emailChanged = email !== props.user.email
   const saved = await run(
     () => $fetch(`/api/admin/users/${props.user.id}`, {
       method: 'PATCH',
       body: {
-        name: form.name,
-        email: form.email,
-        ...(props.user.hasRoles && form.role ? { role: form.role } : {}),
+        name,
+        email,
+        ...(props.user.hasRoles && role ? { role } : {}),
         // An unchanged address keeps its state unless staff toggled it; a changed one is verified by email.
-        ...(emailChanged ? {} : { emailVerified: form.emailVerified }),
+        ...(emailChanged ? {} : { emailVerified }),
       },
     }).then(() => true),
     { success: emailChanged ? t('admin.detail.savedEmail', 'Saved. A verification email was sent to the new address.') : t('admin.detail.saved', 'Saved.') },
   )
   if (saved) emit('refresh')
 }
-
-const remove = () => actions.remove(props.user, {
-  onRemoved: async () => {
-    await navigateTo(actions.listPath.value)
-  },
-})
 </script>
 
 <template>
@@ -81,49 +84,61 @@ const remove = () => actions.remove(props.user, {
 
     <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
       <SectionCard :title="t('admin.detail.profile', 'Profile')">
-        <form
+        <UForm
           id="user-profile-form"
-          class="flex flex-col gap-4"
-          @submit.prevent="save"
+          :schema="schema"
+          :state="form"
+          class="flex flex-col divide-y divide-default"
+          @submit="save"
         >
-          <UFormField :label="t('admin.name', 'Name')">
+          <FormRow
+            name="name"
+            :label="t('admin.name', 'Name')"
+            required
+          >
             <UInput
               v-model="form.name"
-              class="w-full"
-              required
+              class="w-full sm:max-w-sm"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UFormField
+          </FormRow>
+          <FormRow
+            name="email"
             :label="t('admin.email', 'Email')"
+            required
             :description="t('admin.detail.emailHelp', 'Changing the address marks it unverified and emails a verification link to the new one.')"
           >
             <UInput
               v-model="form.email"
               type="email"
-              class="w-full"
-              required
+              class="w-full sm:max-w-sm"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UFormField
+          </FormRow>
+          <FormRow
             v-if="user.hasRoles"
+            name="role"
             :label="t('admin.role', 'Role')"
           >
             <USelect
               v-model="form.role"
               :items="roleItems"
-              class="w-full"
+              class="w-full sm:max-w-sm"
               :placeholder="t('admin.rolePlaceholder', 'Select a role')"
               :disabled="!user.can.update"
             />
-          </UFormField>
-          <UCheckbox
-            v-model="form.emailVerified"
-            :label="t('admin.emailVerified', 'Mark the email address as verified')"
-            :disabled="!user.can.update || form.email !== user.email"
-          />
-        </form>
+          </FormRow>
+          <FormRow
+            name="emailVerified"
+            :label="t('admin.verified', 'Verified')"
+          >
+            <UCheckbox
+              v-model="form.emailVerified"
+              :label="t('admin.emailVerified', 'Mark the email address as verified')"
+              :disabled="!user.can.update || form.email !== user.email"
+            />
+          </FormRow>
+        </UForm>
         <template #footer>
           <div class="flex justify-end">
             <UButton
@@ -137,25 +152,9 @@ const remove = () => actions.remove(props.user, {
         </template>
       </SectionCard>
 
-      <div class="flex flex-col gap-4">
-        <SectionCard :title="t('admin.detail.account', 'Account')">
-          <DescriptionList :items="accountFacts" />
-        </SectionCard>
-
-        <SectionCard
-          v-if="user.can.delete"
-          :title="t('admin.detail.danger', 'Danger zone')"
-          :description="t('admin.detail.dangerHint', 'Removes the account and its sign-in methods for good.')"
-        >
-          <UButton
-            color="error"
-            variant="soft"
-            icon="i-lucide-trash-2"
-            :label="t('admin.deleteUser', 'Delete user')"
-            @click="remove"
-          />
-        </SectionCard>
-      </div>
+      <SectionCard :title="t('admin.detail.account', 'Account')">
+        <DescriptionList :items="accountFacts" />
+      </SectionCard>
     </div>
   </div>
 </template>

@@ -6,11 +6,11 @@ export default defineMenuSource(() => {
 
   if (config?.pages?.membership) {
     extendMenuItem('account', defineMenuItem({
-      id: 'subscription',
-      label: 'Subscription',
-      labelKey: 'subscriptions.menu.subscription.label',
+      id: 'membership',
+      label: 'Membership',
+      labelKey: 'subscriptions.menu.membership.label',
       description: 'Manage your plan and billing.',
-      descriptionKey: 'subscriptions.menu.subscription.description',
+      descriptionKey: 'subscriptions.menu.membership.description',
       icon: 'i-lucide-credit-card',
       to: config.pages.membership,
       order: 15,

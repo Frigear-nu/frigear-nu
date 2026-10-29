@@ -228,21 +228,28 @@ Every screen follows the same patterns so the app stays predictable as modules a
 live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
-  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account`, inside
-  the site layout. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
+  Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a
+  settings page inside the site: site header and footer, a left section list, `PageSectionSwitcher` on narrow screens).
+  `/admin/**` = `admin`, the shared `AppShell` (`@frigear-nu/ui`): no site header or footer, the account menu in the
+  sidebar footer. New features go into an existing nav group; a new group needs a reason. Colour mode lives in the
   account menu, not the chrome.
-- **Headings.** App pages (admin, account) use `PageHeading`; public pages use `UContainer > UPage > UPageHeader`. The
-  page root is `<div class="flex flex-col gap-4">`. Do not use the deprecated `Admin*` components in new code.
+- **Headings.** App pages (admin, account) use `PageHeading`, and every app page renders its own (account pages through
+  `AccountHeader`, or `PageHeading` with the menu item's i18n keys); neither layout renders a heading (the admin navbar eyebrow is not one), so a
+  page has exactly one `<h1>`. Public pages use `UContainer > UPage > UPageHeader`. The page root is
+  `<div class="flex flex-col gap-4">`. Do not use the deprecated `Admin*` components in new code.
 - **Lists** are `PageHeading` + primary action, `PageToolbar` past ~8 rows, `UTable :ui="tableUi()"` inside
-  `TableCard`, clickable rows and a `RowMenu` in the last column. Empty states are `UEmpty` with exactly one action.
-- **Detail pages** have a `PageHeading` breadcrumb back to the list and `SectionCard` sections. Use `WidgetTabs`
+  `TableCard`, clickable rows and a `RowMenu` in the last column. Status badges are `StatusBadge`. A table in a tab or on
+  a detail page is `TableCard :title`, never a `flush` `SectionCard`. Empty states are `UEmpty` with exactly one action.
+- **Detail pages** have a `PageHeading` breadcrumb back to the list and `SectionCard` sections (a table section is `TableCard :title`). Use `WidgetTabs`
   (`extendTabs`) when other modules can add sections, `PageTabs` when the page owns them. Light entities open in a
   slideover with the record in the URL query.
 - **Create and edit** use `FormSlideover` + `UForm`/zod, opened through `useOverlay()` and resolved with the saved
   record. Cancel is `color="neutral" variant="outline"`, the primary action comes last, hints go in `UFormField`
-  `description`.
+  `description`. Inline settings forms in a `SectionCard` use `FormRow` (horizontal label/hint | control rows) in a
+  `divide-y divide-default` parent; slideover forms stay vertical.
 - **One `use<Entity>Actions()` composable per entity** owns create/edit/remove, toasts, refresh and `menu(record)`.
-  `RowMenu` order: Open, edits, then the destructive action in its own red group. No loose icon buttons in rows.
+  `RowMenu` order: Open, edits, then the destructive action in its own red group (icon `trash-2`). No loose icon buttons
+  in rows.
 - **Destructive actions confirm** with `useConfirmDialog({ destructive: true })` and say what else is affected; never
   `window.confirm`.
 - **Loading.** Pages `await` their data (`useCachedFetch` for data that should survive navigation); `useLazyFetch`
@@ -253,8 +260,9 @@ live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules
 - **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the
   object ("Add unit", "Delete application"), never bare "Add"/"Delete". Dates and money via `useFormat()`; links via
   `useLocaleLink().localize` so the locale prefix survives.
-- **Patterns, not theme.** Shared components add structure only; colours, fonts and radius stay Nuxt UI's. Status badges
-  use `statusColor`; card frames use `surfaceClass`.
+- **Patterns, plus a light app theme.** Shared components add structure only; `AppShell` gives the admin area a light
+  theme (chrome tones, brand tile); colours, fonts and radius stay Nuxt UI's. Status badges use `StatusBadge`
+  (`statusColor`); card frames use `surfaceClass`.
 
 ---
 

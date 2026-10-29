@@ -211,7 +211,7 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/routes/subscriptions/portal.post'),
     })
 
-    // Staff membership management (grant free / payment link / revoke) plus a "Subscription" tab and a summary card on
+    // Staff membership management (grant free / payment link / revoke) plus a "Membership" tab and a summary card on
     // the admin user page of `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`,
     // `view` for reads, `update` for changes). Used by the `UsersAdminMembership` component.
     await extendUsersAdmin(nuxt, {
@@ -223,10 +223,10 @@ export default defineNuxtModule<ModuleOptions>({
         ['post', 'subscription/payment-link', 'payment-link.post'],
       ] as const).map(([method, path, file]) => ({ method, path, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })),
       tab: {
-        id: 'subscription',
+        id: 'membership',
         component: resolver.resolve('./runtime/app/tabs/Membership.vue'),
         order: 10,
-        label: 'Subscription',
+        label: 'Membership',
         labelKey: 'subscriptions.admin.tab',
         icon: 'i-lucide-badge-check',
       },

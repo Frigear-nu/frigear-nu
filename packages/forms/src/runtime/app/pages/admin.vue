@@ -6,7 +6,7 @@ const t = useModuleT('forms')
 const paths = useFormsPaths()
 const format = useFormat()
 const actions = useFormActions()
-const { data: forms, error, status } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms', { key: FORMS_LIST_KEY })
+const { data: forms, error, status, refresh } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms', { key: FORMS_LIST_KEY })
 
 const search = ref('')
 const statusFilter = ref<FormStatus | 'all'>('all')
@@ -43,26 +43,11 @@ const formDescription = (form: FormSummaryDto) => [
   ...(form.storage === 'none' ? [t('admin.notStored', 'Not stored')] : []),
 ].join(' · ')
 
-const editPath = (form: FormSummaryDto) => paths('adminForm', { id: form.id })
-const menu = (form: FormSummaryDto) => actions.menu(form, {
-  extra: [{ label: t('admin.open', 'Open'), icon: 'i-lucide-arrow-right', to: editPath(form) }],
-})
+// 401/403 means "not allowed" (no retry will help); anything else is a failed request.
+const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 
-const importing = ref(false)
-const importText = ref('')
-const importBusy = ref(false)
-async function runImport() {
-  importBusy.value = true
-  try {
-    if (await actions.importJson(importText.value)) {
-      importing.value = false
-      importText.value = ''
-    }
-  }
-  finally {
-    importBusy.value = false
-  }
-}
+const editPath = (form: FormSummaryDto) => paths('adminForm', { id: form.id })
+const menu = (form: FormSummaryDto) => actions.menu(form)
 </script>
 
 <template>
@@ -74,7 +59,7 @@ async function runImport() {
           variant="outline"
           icon="i-lucide-upload"
           :label="t('admin.import', 'Import JSON')"
-          @click="importing = true"
+          @click="actions.importJson()"
         />
         <UButton
           icon="i-lucide-plus"
@@ -85,9 +70,11 @@ async function runImport() {
     </PageHeading>
 
     <UEmpty
-      v-if="error"
-      icon="i-lucide-lock"
-      :title="t('admin.forbidden', 'You are not allowed to manage forms.')"
+      v-if="error && !forms"
+      :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
+      :title="forbidden ? t('admin.forbidden', 'You are not allowed to manage forms.') : t('admin.loadFailed', 'Forms could not be loaded')"
+      :description="forbidden ? undefined : errorMessage(error, '')"
+      :actions="forbidden ? undefined : [{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
 
     <template v-else>
@@ -125,10 +112,10 @@ async function runImport() {
             />
           </template>
           <template #status-cell="{ row }">
-            <UBadge
-              :color="statusColor(row.original.status, { archived: 'warning' })"
-              variant="subtle"
+            <StatusBadge
+              :status="row.original.status"
               :label="t(`status.${row.original.status}`, row.original.status)"
+              :colors="{ archived: 'warning' }"
             />
           </template>
           <template #updatedAt-cell="{ row }">
@@ -173,35 +160,5 @@ async function runImport() {
         </template>
       </TableCard>
     </template>
-
-    <UModal
-      v-model:open="importing"
-      :title="t('admin.import', 'Import JSON')"
-      :description="t('admin.importHint', 'Paste one form or a list of forms (each with slug, name and definition). Forms whose slug already exists are skipped.')"
-      :ui="{ footer: 'justify-end gap-2' }"
-    >
-      <template #body>
-        <UTextarea
-          v-model="importText"
-          :rows="12"
-          class="w-full font-mono text-xs"
-        />
-      </template>
-      <template #footer>
-        <UButton
-          color="neutral"
-          variant="outline"
-          :label="t('admin.cancel', 'Cancel')"
-          :disabled="importBusy"
-          @click="importing = false"
-        />
-        <UButton
-          :label="t('admin.importSubmit', 'Import forms')"
-          :loading="importBusy"
-          :disabled="!importText.trim()"
-          @click="runImport"
-        />
-      </template>
-    </UModal>
   </div>
 </template>

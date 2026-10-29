@@ -63,6 +63,45 @@ describe('page patterns', async () => {
     expect(html.match(/Rows per page/g)).toHaveLength(1)
   })
 
+  describe('app shell', () => {
+    it('renders one h1 (the page heading), never the navbar title', async () => {
+      const html = await $fetch<string>('/shell')
+      expect(html.match(/<h1[\s>]/g)).toHaveLength(1)
+      expect(html).toMatch(/<h1[^>]*>(?:<!--\[-->)?\s*Shell page/)
+      expect(html).toContain('data-area="app"')
+      // Collapse and width persist under the area's id.
+      expect(html).toContain('id="dashboard-sidebar-fixture"')
+    })
+
+    it('labels the navigation and shows the area and section as an eyebrow', async () => {
+      const html = await $fetch<string>('/shell')
+      expect(html).toContain('aria-label="Fixture navigation"')
+      const eyebrow = /<p[^>]*data-slot="eyebrow"[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? ''
+      expect(eyebrow).toContain('Fixture area')
+      expect(eyebrow).toContain('Shell')
+    })
+
+    it('renders the collapse button, the mobile toggle, search and the sidebar footer', async () => {
+      const html = await $fetch<string>('/shell')
+      expect(html).toContain('aria-label="Collapse sidebar"')
+      expect(html).toContain('aria-label="Open sidebar"')
+      expect(html).toMatch(/<kbd[^>]*>/)
+      expect(html).toContain('Back to the site')
+      expect(html).toContain('Sidebar footer')
+      expect(html).not.toContain('Switch to dark mode')
+    })
+
+    it('centres the body unless the page is wide', async () => {
+      expect(await $fetch<string>('/shell')).toContain('max-w-7xl')
+      expect(await $fetch<string>('/wide')).not.toContain('max-w-7xl')
+    })
+
+    it('titles the document after the section unless the page sets its own title', async () => {
+      expect(await $fetch<string>('/shell')).toContain('<title>Shell</title>')
+      expect(await $fetch<string>('/wide')).toContain('<title>Wide page</title>')
+    })
+  })
+
   it('useCachedFetch renders awaited data on the server, without copying it into the cache state', async () => {
     const html = await $fetch<string>('/cached-fetch')
     expect(html).toMatch(/<li[^>]*>\s*alpha\s*<\/li>/)
@@ -76,5 +115,38 @@ describe('page patterns', async () => {
     const html = await $fetch<string>('/cached-fetch?fail=1')
     expect(html).toContain('Failed: Forbidden')
     expect(html).not.toContain('No items')
+  })
+
+  describe('status badge and titled table card', () => {
+    // The class list of the badge showing `text`.
+    const badge = (html: string, text: string) =>
+      html.split('<span data-slot="base"').find(chunk => chunk.includes(`class="truncate">${text}</span>`))?.match(/class="([^"]*)"/)?.[1] ?? ''
+
+    it('maps a status to its badge colour and lets `colors` override it', async () => {
+      const html = await $fetch<string>('/table')
+      expect(badge(html, 'published')).toContain('text-success')
+      expect(badge(html, 'Awaiting review')).toContain('text-warning')
+      expect(badge(html, 'failed')).toContain('text-error')
+      // Unknown statuses are neutral; `archived` is neutral too until the override turns it amber.
+      expect(badge(html, 'draft')).not.toMatch(/text-(success|warning|error)/)
+      expect(badge(html, 'draft')).not.toBe('')
+      expect(badge(html, 'archived')).toContain('text-warning')
+    })
+
+    it('renders nothing for an empty status without a label', async () => {
+      const html = await $fetch<string>('/table')
+      // published, Awaiting review, failed, draft and archived; the sixth badge has neither status nor label.
+      expect(html.match(/<span data-slot="base"/g)).toHaveLength(5)
+    })
+
+    it('renders the title, description and actions of a TableCard header', async () => {
+      const html = await $fetch<string>('/table')
+      expect(html).toMatch(/<h2[^>]*>\s*Recent payments\s*<\/h2>/)
+      expect(html).toContain('Last thirty days')
+      expect(html).toContain('Export payments')
+      expect(html).toContain('titled-table-body')
+      // Cards without a title, description, `#header` or `#actions` have no header row.
+      expect(html.match(/<h2/g)).toHaveLength(1)
+    })
   })
 })

@@ -4,7 +4,7 @@ import type { MeResponse } from '../../../types'
 
 defineOptions({ name: 'UsersAdminMembershipTab' })
 
-// The "Subscription" tab of the `admin.users` area (`@frigear-nu/users`): grant/revoke/payment link plus the
+// The "Membership" tab of the `admin.users` area (`@frigear-nu/users`): grant/revoke/payment link plus the
 // user's whole subscription history.
 const props = defineProps<{ user: { id: number, name: string, email: string } }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -13,7 +13,7 @@ type Row = MeResponse['subscriptions'][number]
 
 const t = useModuleT('subscriptions.admin')
 const format = useFormat()
-const UBadge = resolveComponent('UBadge')
+const StatusBadge = resolveComponent('StatusBadge')
 
 // Lazy: both requests of this tab (this one and the membership panel's) start immediately and in parallel.
 const { data: history, refresh: refreshHistory, status, error } = useLazyFetch<MeResponse>(
@@ -23,10 +23,10 @@ const { data: history, refresh: refreshHistory, status, error } = useLazyFetch<M
 
 // Only the first load blanks the table; a refresh keeps the rows on screen.
 const loading = computed(() => status.value === 'pending' && !history.value)
-const date = (value: string | null) => format.date(value) || '–'
+const date = (value: string | null) => format.date(value) || emptyCell()
 const columns = computed<TableColumn<Row>[]>(() => [
   { accessorKey: 'planKey', header: t('history.plan', 'Plan'), cell: ({ row }) => row.original.planKey ?? row.original.priceId },
-  { accessorKey: 'status', header: t('history.status', 'Status'), cell: ({ row }) => h(UBadge, { label: row.original.status, variant: 'subtle', color: statusColor(row.original.status) }) },
+  { accessorKey: 'status', header: t('history.status', 'Status'), cell: ({ row }) => h(StatusBadge, { status: row.original.status }) },
   { accessorKey: 'source', header: t('history.source', 'Source'), cell: ({ row }) => row.original.source === 'manual' ? t('free', 'Free of charge') : t('paid', 'Paid (Stripe)') },
   { accessorKey: 'currentPeriodStart', header: t('history.started', 'Started'), cell: ({ row }) => date(row.original.currentPeriodStart) },
   { accessorKey: 'currentPeriodEnd', header: t('history.periodEnd', 'Period end'), cell: ({ row }) => date(row.original.currentPeriodEnd) },
@@ -48,15 +48,14 @@ async function changed() {
       />
     </SectionCard>
 
-    <SectionCard
+    <TableCard
       :title="t('history.title', 'Subscription history')"
-      flush
       :loading="loading"
+      :refreshing="status === 'pending' && !loading"
     >
       <UTable
         :data="history?.subscriptions ?? []"
         :columns="columns"
-        :loading="status === 'pending' && !loading"
         :ui="tableUi({ tr: '' })"
       >
         <template #empty>
@@ -75,6 +74,6 @@ async function changed() {
           />
         </template>
       </UTable>
-    </SectionCard>
+    </TableCard>
   </div>
 </template>

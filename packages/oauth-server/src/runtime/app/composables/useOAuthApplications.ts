@@ -2,7 +2,6 @@ import type { AdminApplicationDto, ApplicationInput, CreatedApplicationDto, User
 
 const BASE = '/api/oauth-server'
 
-// Aliased so the `<Admin` deprecated-component grep gate does not match the generics below.
 type Application = AdminApplicationDto
 
 /** The `useFetch` key of the admin list; `refreshNuxtData(OAUTH_APPLICATIONS_KEY)` reloads it from anywhere. */
@@ -23,12 +22,18 @@ export const oauthApplicationsApi = {
     $fetch(`${BASE}/admin/applications/${id}/revoke`, { method: 'POST' }),
 }
 
-/** Admin CRUD for applications. Every call needs the host's `oauth:authorize` hook to allow the user. */
+/**
+ * Admin CRUD for applications. Awaitable: `await useOAuthApplications()` in a page renders the list on the server.
+ * `applications` is `[]` until loaded and after an error: check `loading` and `error` first. Every call needs the
+ * host's `oauth:authorize` hook to allow the user.
+ */
 export function useOAuthApplications() {
-  const { data, status, error, refresh } = useFetch<Application[]>(`${BASE}/admin/applications`, {
-    key: OAUTH_APPLICATIONS_KEY,
-    default: () => [],
-  })
+  const fetched = useFetch<Application[]>(`${BASE}/admin/applications`, { key: OAUTH_APPLICATIONS_KEY })
+  const { data, status, error, refresh } = fetched
+  const applications = computed(() => data.value ?? [])
+  // `loading` is the first load (nothing to show yet); `refreshing` every load after that (rows stay, dimmed).
+  const loading = computed(() => status.value === 'pending' && !data.value)
+  const refreshing = computed(() => status.value === 'pending' && !!data.value)
 
   async function create(input: ApplicationInput) {
     const created = await oauthApplicationsApi.create(input)
@@ -59,7 +64,8 @@ export function useOAuthApplications() {
     await refresh()
   }
 
-  return { applications: data, status, error, refresh, create, update, remove, rotateSecret, revokeGrants }
+  const api = { applications, status, error, loading, refreshing, refresh, create, update, remove, rotateSecret, revokeGrants }
+  return Object.assign(fetched.then(() => api), api)
 }
 
 /**

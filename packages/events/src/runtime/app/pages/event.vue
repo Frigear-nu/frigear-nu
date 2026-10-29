@@ -121,7 +121,10 @@ defineOptions({ name: 'EventDetailPage' })
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">
-          <div class="bg-elevated/50 ring-default flex items-start gap-3 rounded-lg p-4 ring">
+          <div
+            class="flex items-start gap-3 p-4"
+            :class="surfaceClass"
+          >
             <UIcon
               name="i-lucide-calendar"
               class="text-primary mt-0.5 size-5 shrink-0"
@@ -141,8 +144,8 @@ defineOptions({ name: 'EventDetailPage' })
             :href="event.locationUrl || undefined"
             :target="event.locationUrl ? '_blank' : undefined"
             :rel="event.locationUrl ? 'noopener' : undefined"
-            class="bg-elevated/50 ring-default flex items-start gap-3 rounded-lg p-4 ring"
-            :class="event.locationUrl ? 'hover:bg-elevated transition' : ''"
+            class="flex items-start gap-3 p-4"
+            :class="[surfaceClass, event.locationUrl ? 'hover:bg-elevated transition' : '']"
           >
             <UIcon
               name="i-lucide-map-pin"

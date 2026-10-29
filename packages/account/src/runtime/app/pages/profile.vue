@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import AccountChangeEmailSlideover from '../components/Account/AccountChangeEmailSlideover.vue'
 
 defineOptions({ name: 'AccountProfilePage' })
 
@@ -8,7 +9,7 @@ const t = useModuleT('account.profile')
 const toast = useToast()
 const route = useRoute()
 const { user } = useUserSession()
-const { updateProfileDetails, changeEmailAddress } = useAccount()
+const { updateProfileDetails } = useAccount()
 
 const schema = z.object({
   name: z.string().trim().min(1, t('name.required', 'Please enter your name.')),
@@ -43,29 +44,30 @@ function onSubmitProfile(event: FormSubmitEvent<Schema>) {
 }
 
 // With `verifyEmailChange` the address only changes after the emailed link was followed.
-const emailModalOpen = ref(false)
-const newEmail = ref('')
 const emailVerificationSent = ref(false)
 const emailChanged = computed(() => route.query['email-changed'] === '1')
 const emailChangeFailed = computed(() => route.query.error === 'email-change')
-const emailSchema = z.object({ email: z.email(t('email.invalid', 'Enter a valid email address.')) })
 
-const emailAction = useAction()
-async function onSubmitEmail() {
-  const result = await emailAction.run(
-    () => changeEmailAddress({ email: newEmail.value }),
-    { error: t('email.change.error', 'Could not change your email address.') },
-  )
+const overlay = useOverlay()
+const emailSlideover = overlay.create(AccountChangeEmailSlideover, { destroyOnClose: true })
+
+async function onChangeEmail() {
+  const result = await emailSlideover.open({ email: user.value?.email ?? undefined })
   if (!result) return
-  emailVerificationSent.value = result.verificationRequired === true
-  emailModalOpen.value = false
-  newEmail.value = ''
-  toast.add({ title: result.verificationRequired ? t('email.change.sent.title', 'Check your inbox') : t('email.change.done', 'Your email address was changed.'), color: 'success' })
+  emailVerificationSent.value = result.verificationRequired
+  toast.add({
+    title: result.verificationRequired ? t('email.change.sent.title', 'Check your inbox') : t('email.change.done', 'Your email address was changed.'),
+    description: result.verificationRequired ? undefined : user.value?.email ?? undefined,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
+    <AccountHeader />
+
     <UAlert
       v-if="emailChanged"
       color="success"
@@ -86,52 +88,51 @@ async function onSubmitEmail() {
     />
 
     <SectionCard
-      :title="t('title', 'Profile')"
-      :description="t('description', 'Change your information.')"
+      :title="t('details.title', 'Name and avatar')"
+      :description="t('details.description', 'How you appear to others.')"
     >
       <UForm
         id="account-profile"
         :schema="schema"
         :state="state"
-        class="flex flex-col gap-4"
+        class="flex flex-col divide-y divide-default"
         @submit="onSubmitProfile"
       >
-        <UFormField
+        <FormRow
           name="name"
           :label="t('name.label', 'Name')"
           :description="t('name.description', 'Your full name.')"
           required
-          class="flex items-start justify-between gap-4 max-sm:flex-col"
         >
           <UInput
             v-model="state.name"
             autocomplete="name"
+            class="w-full sm:max-w-sm"
           />
-        </UFormField>
-        <USeparator />
-        <UFormField
+        </FormRow>
+        <FormRow
           name="avatar"
           :label="t('avatar.label', 'Avatar')"
           :description="t('avatar.description', 'Link to a square image.')"
-          class="flex items-start justify-between gap-4 max-sm:flex-col"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 sm:max-w-sm">
             <UAvatar
               :src="state.avatar || undefined"
               :alt="state.name"
-              size="xl"
+              size="lg"
             />
             <UInput
               v-model="state.avatar"
               type="url"
               placeholder="https://"
               :aria-label="t('avatar.url', 'Avatar URL')"
+              class="min-w-0 flex-1"
             />
           </div>
-        </UFormField>
+        </FormRow>
       </UForm>
       <template #footer>
-        <div class="flex justify-end">
+        <div class="flex justify-end gap-2">
           <UButton
             type="submit"
             form="account-profile"
@@ -143,71 +144,28 @@ async function onSubmitEmail() {
       </template>
     </SectionCard>
 
-    <SectionCard
-      :title="t('email.label', 'Email')"
-      :description="t('email.description', 'Your email address.')"
-    >
-      <template #actions>
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-pencil"
-          :label="t('email.change.title', 'Change email')"
-          @click="emailModalOpen = true"
-        />
-      </template>
-      <UInput
-        :model-value="user?.email ?? ''"
-        type="email"
-        readonly
-        disabled
-        class="w-full sm:max-w-xs"
-        :aria-label="t('email.label', 'Email')"
-      />
-    </SectionCard>
-
-    <UModal
-      v-model:open="emailModalOpen"
-      :title="t('email.change.title', 'Change email')"
-    >
-      <template #body>
-        <UForm
-          id="account-change-email"
-          :schema="emailSchema"
-          :state="{ email: newEmail }"
-          class="flex flex-col gap-4"
-          @submit="onSubmitEmail"
-        >
-          <UFormField
-            name="email"
-            :label="t('email.change.label', 'New e-mail')"
-            required
-          >
-            <UInput
-              v-model="newEmail"
-              type="email"
-              autocomplete="email"
-              class="w-full"
-            />
-          </UFormField>
-        </UForm>
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
+    <SectionCard :title="t('email.label', 'Email')">
+      <FormRow
+        :label="t('email.address', 'Address')"
+        :description="t('email.description', 'Where we send messages and how you sign in.')"
+      >
+        <div class="flex flex-wrap items-center gap-2 sm:max-w-lg">
+          <UInput
+            :model-value="user?.email ?? ''"
+            type="email"
+            readonly
+            disabled
+            class="min-w-48 flex-1"
+          />
           <UButton
             color="neutral"
             variant="outline"
-            :label="t('cancel', 'Cancel')"
-            @click="emailModalOpen = false"
-          />
-          <UButton
-            type="submit"
-            form="account-change-email"
-            :loading="emailAction.busy.value"
+            icon="i-lucide-pencil"
             :label="t('email.change.title', 'Change email')"
+            @click="onChangeEmail"
           />
         </div>
-      </template>
-    </UModal>
+      </FormRow>
+    </SectionCard>
   </div>
 </template>

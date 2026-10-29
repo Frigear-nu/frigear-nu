@@ -16,6 +16,8 @@
       "new": "Tilføj applikation",
       "forbiddenTitle": "Du har ikke adgang til at administrere OAuth-applikationer",
       "forbiddenDescription": "Bed en administrator om adgang.",
+      "loadFailed": "OAuth-applikationer kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
       "application": "Applikation",
       "access": "Adgang",
       "signedIn": "Logget ind",

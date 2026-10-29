@@ -8,7 +8,12 @@ const t = useModuleT('subscriptions.success')
 // state; the polling below only covers the webhook landing after the redirect.
 const { refresh, isActive } = await useSubscription()
 const { localize } = useLocaleLink()
+const tm = useModuleT('subscriptions.menu.membership')
 const membership = useRuntimeConfig().public.subscriptions?.pages?.membership
+const breadcrumb = computed(() => [
+  ...(membership ? [{ label: tm('label', 'Membership'), to: localize(membership) }] : []),
+  { label: t('crumb', 'Checkout complete') },
+])
 
 // The webhook may land slightly after the redirect; keep polling until active (or we give up after ~2 minutes).
 const MAX_ATTEMPTS = 40
@@ -27,12 +32,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <UEmpty
-    :icon="isActive ? 'i-lucide-circle-check' : 'i-lucide-loader-circle'"
-    :title="t('title', 'Thank you!')"
-    :description="isActive
-      ? t('activeBody', 'Your subscription is now active.')
-      : t('body', 'Your subscription is being activated. This can take a few seconds.')"
-    :actions="membership ? [{ label: t('back', 'Back to membership'), to: localize(membership) }] : []"
-  />
+  <div class="flex flex-col gap-4">
+    <PageHeading
+      :title="tm('label', 'Membership')"
+      :description="tm('description', 'Manage your plan and billing.')"
+      :breadcrumb="breadcrumb"
+    />
+    <UEmpty
+      :icon="isActive ? 'i-lucide-circle-check' : 'i-lucide-loader-circle'"
+      :title="t('title', 'Thank you!')"
+      :description="isActive
+        ? t('activeBody', 'Your membership is now active.')
+        : t('body', 'Your membership is being activated. This can take a few seconds.')"
+      :actions="membership ? [{ label: t('back', 'Back to membership'), to: localize(membership) }] : []"
+    />
+  </div>
 </template>

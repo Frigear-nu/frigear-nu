@@ -14,26 +14,41 @@ const documents = computed(() =>
 
 <template>
   <div class="flex flex-col gap-4">
-    <SectionCard>
-      <UPageGrid v-if="documents.length">
-        <UPageCard
+    <AccountHeader />
+
+    <SectionCard flush>
+      <ul
+        v-if="documents.length"
+        class="divide-y divide-default"
+      >
+        <li
           v-for="document in documents"
           :key="document.id"
-          :title="documentLabel(document, locale)"
-          :icon="document.icon ?? 'i-lucide-file'"
+          class="flex items-center gap-3 px-4 py-3"
         >
+          <UIcon
+            :name="document.icon ?? 'i-lucide-file'"
+            class="size-5 shrink-0 text-muted"
+          />
+          <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">
+            {{ documentLabel(document, locale) }}
+          </p>
           <UButton
             download
             external
             :to="document.path"
+            color="neutral"
+            variant="outline"
             icon="i-lucide-download"
             :label="t('download', 'Download')"
+            :aria-label="t('downloadNamed', 'Download {name}', { name: documentLabel(document, locale) })"
           />
-        </UPageCard>
-      </UPageGrid>
+        </li>
+      </ul>
       <UEmpty
         v-else
         variant="naked"
+        icon="i-lucide-files"
         :title="t('empty', 'No documents for you yet.')"
       />
     </SectionCard>

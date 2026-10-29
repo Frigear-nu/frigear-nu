@@ -20,14 +20,15 @@ const planLabel = computed(() => {
   return plan.value ? tp(`${plan.value}.label`, found?.label ?? plan.value) : plan.value
 })
 
+// `status` is what `StatusBadge` colours by; `color` stays on the object for consumers of the `badge` slot.
 const badge = computed(() => {
   const value = subscription.value?.status
-  if (cancelsAt.value) return { label: t('cancelling', 'Subscription is ending'), color: 'warning' as const, icon: 'i-lucide-battery-warning' }
-  if (value === 'active') return { label: t('active', 'Active'), color: statusColor(value), icon: 'i-lucide-shield-check' }
-  if (value === 'trialing') return { label: t('trialing', 'Trial'), color: statusColor(value) }
-  if (value === 'past_due' || value === 'unpaid') return { label: t('pastDue', 'Past due'), color: statusColor('past_due') }
-  if (value === 'canceled') return { label: t('canceled', 'Canceled'), color: statusColor(value) }
-  return { label: t('other', 'Inactive'), color: statusColor(value) }
+  if (cancelsAt.value) return { status: 'cancelling', label: t('cancelling', 'Membership is ending'), color: 'warning' as const, icon: 'i-lucide-battery-warning' }
+  if (value === 'active') return { status: value, label: t('active', 'Active'), color: statusColor(value), icon: 'i-lucide-shield-check' }
+  if (value === 'trialing') return { status: value, label: t('trialing', 'Trial'), color: statusColor(value), icon: undefined }
+  if (value === 'past_due' || value === 'unpaid') return { status: 'past_due', label: t('pastDue', 'Past due'), color: statusColor('past_due'), icon: undefined }
+  if (value === 'canceled') return { status: value, label: t('canceled', 'Canceled'), color: statusColor(value), icon: undefined }
+  return { status: value, label: t('other', 'Inactive'), color: statusColor(value), icon: undefined }
 })
 
 // The `locale` prop wins over the active locale.
@@ -50,8 +51,9 @@ const manage = () => openPortal().catch(() => undefined)
 
 <template>
   <SectionCard
-    :title="t('title', 'Your subscription')"
+    :title="t('title', 'Your membership')"
     icon="i-lucide-credit-card"
+    :loading="loading && !$slots.loading"
   >
     <template
       v-if="$slots.header"
@@ -65,7 +67,7 @@ const manage = () => openPortal().catch(() => undefined)
       name="loading"
     >
       <p class="text-muted text-sm">
-        {{ t('loading', 'Loading subscription…') }}
+        {{ t('loading', 'Loading membership…') }}
       </p>
     </slot>
 
@@ -90,13 +92,12 @@ const manage = () => openPortal().catch(() => undefined)
           :subscription="subscription"
           :badge="badge"
         >
-          <UBadge
-            :color="badge.color"
+          <StatusBadge
+            :status="badge.status"
+            :label="badge.label"
             :icon="badge.icon"
-            variant="subtle"
-          >
-            {{ badge.label }}
-          </UBadge>
+            :colors="{ cancelling: 'warning' }"
+          />
         </slot>
       </div>
       <slot
@@ -119,7 +120,7 @@ const manage = () => openPortal().catch(() => undefined)
       name="empty"
     >
       <p class="text-muted text-sm">
-        {{ t('none', 'You do not have an active subscription.') }}
+        {{ t('none', 'You do not have an active membership.') }}
       </p>
     </slot>
 
@@ -142,22 +143,15 @@ const manage = () => openPortal().catch(() => undefined)
         :cancelling="!!cancelsAt"
         :pending="pending"
       >
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap justify-end gap-2">
           <UButton
             v-if="!cancelsAt"
             color="error"
-            variant="soft"
+            variant="outline"
             icon="i-lucide-x"
             :loading="pending"
             :label="t('cancel', 'Cancel membership')"
             @click="manage"
-          />
-          <UButton
-            v-else
-            icon="i-lucide-rotate-ccw"
-            :loading="pending"
-            :label="t('resubscribe', 'Resubscribe')"
-            @click="resubscribe"
           />
           <UButton
             color="neutral"
@@ -166,6 +160,13 @@ const manage = () => openPortal().catch(() => undefined)
             :loading="pending"
             :label="t('changePaymentMethod', 'Change payment method')"
             @click="manage"
+          />
+          <UButton
+            v-if="cancelsAt"
+            icon="i-lucide-rotate-ccw"
+            :loading="pending"
+            :label="t('resubscribe', 'Resubscribe')"
+            @click="resubscribe"
           />
         </div>
       </slot>
