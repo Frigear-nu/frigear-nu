@@ -2,7 +2,6 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   addImports,
-  addServerHandler,
   addServerImportsDir,
   addServerPlugin,
   addServerTemplate,
@@ -11,11 +10,11 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { PreferenceDefinitionSource } from './runtime/utils/build'
 import type { ModuleOptions } from './types'
 
-export type { ModuleOptions, UserPreferences } from './types'
+export type { ModuleOptions, PreferencesDto, UserPreferences } from './types'
 export type { PreferenceDefinition, PreferenceDefinitions, PreferencesOf } from './runtime/define'
 
 declare module 'nuxt/schema' {
@@ -101,11 +100,9 @@ declare module '#preferences/definitions' {
     inlineModuleRuntime(nuxt, resolver)
     addImports({ name: 'useUserPreferences', from: resolver.resolve('./runtime/app/composables/useUserPreferences') })
 
-    addServerHandler({
-      route: '/api/preferences',
-      method: 'patch',
-      handler: resolver.resolve('./runtime/server/routes/preferences.patch'),
-    })
+    addModuleRoutes(resolver, [
+      { method: 'patch', path: '', file: 'preferences.patch' },
+    ], { base: '/api/preferences' })
 
     if (hasNuxtModule('@frigear-nu/oauth-server')) {
       addServerPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))

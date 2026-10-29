@@ -25,3 +25,5 @@ export function addUserPreferences(nuxt: Nuxt, source: PreferenceDefinitionSourc
     sources.push(source)
   })
 }
+
+export { preferencesApi } from './api'

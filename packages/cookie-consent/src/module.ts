@@ -1,13 +1,12 @@
 import {
   addComponentsDir,
   addImports,
-  addServerHandler,
   addServerImports,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerModule, registerLocales, extendDatabaseTable, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, registerModule, registerLocales, extendDatabaseTable, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { DEFAULT_CATEGORIES, computeVersion, mergeCategories } from './runtime/utils/consent'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -16,6 +15,7 @@ export type {
   PublicModuleOptions,
   ConsentCategory,
   ConsentCookie,
+  ConsentDto,
   ConsentMessages,
   ConsentState,
   Translated,
@@ -64,8 +64,10 @@ export default defineNuxtModule<ModuleOptions>({
     addComponentsDir({ path: resolver.resolve('./runtime/app/components'), priority: -1 })
 
     if (persistToUser) {
-      addServerHandler({ route: '/api/cookie-consent', method: 'get', handler: resolver.resolve('./runtime/server/routes/cookie-consent/index.get') })
-      addServerHandler({ route: '/api/cookie-consent', method: 'post', handler: resolver.resolve('./runtime/server/routes/cookie-consent/index.post') })
+      addModuleRoutes(resolver, [
+        { method: 'get', path: '', file: 'cookie-consent/index.get' },
+        { method: 'post', path: '', file: 'cookie-consent/index.post' },
+      ], { base: '/api/cookie-consent' })
       extendDatabaseTable(nuxt, {
         resolver,
         file: dialect => `./runtime/server/db/schema.${dialect}`,

@@ -20,3 +20,6 @@ export type ModuleOptions = {
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface UserPreferences {}
+
+/** The response of `PATCH /api/preferences`: the preferences now stored for the caller. */
+export type PreferencesDto = UserPreferences

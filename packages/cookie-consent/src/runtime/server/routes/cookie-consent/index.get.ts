@@ -1,7 +1,9 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
+import type { ConsentDto } from '../../../../types'
 
-export default defineEventHandler(async (event) => {
+// `GET /api/cookie-consent` (session only): the signed-in user's stored choice.
+export default defineEventHandler(async (event): Promise<ConsentDto> => {
   const user = await requireUser(event, { sessionOnly: true })
   const [row] = await db.select({
     acceptedAt: schema.users.cookieConsentAcceptedAt,

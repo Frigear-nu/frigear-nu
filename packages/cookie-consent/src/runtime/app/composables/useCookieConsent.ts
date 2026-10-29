@@ -1,5 +1,6 @@
 import type { NuxtApp } from '#app'
-import type { ConsentState } from '../../../types'
+import type { ConsentDto, ConsentState } from '../../../types'
+import { cookieConsentApi } from '../../utils/api'
 import { acceptAllChoices, buildConsent, normalizeConsent, rejectAllChoices } from '../../utils/consent'
 
 const createCookieConsent = (nuxtApp: NuxtApp) => {
@@ -26,7 +27,7 @@ const createCookieConsent = (nuxtApp: NuxtApp) => {
     const { loggedIn } = useUserSession()
     if (!loggedIn.value) return
     try {
-      await $fetch('/api/cookie-consent', { method: 'POST', body: { categories: state.categories, version: state.v } })
+      await $fetch<ConsentDto>(cookieConsentApi.root, { method: 'POST', body: { categories: state.categories, version: state.v } })
     }
     catch (error) {
       // The cookie is the source of truth for the browser; a failed audit write must not break the UI.
@@ -62,7 +63,7 @@ const createCookieConsent = (nuxtApp: NuxtApp) => {
     const { loggedIn } = useUserSession()
     if (!loggedIn.value) return
     try {
-      const { consent: stored } = await $fetch<{ consent: ConsentState | null }>('/api/cookie-consent')
+      const { consent: stored } = await $fetch<ConsentDto>(cookieConsentApi.root)
       const state = normalizeConsent(stored, config.categories, config.version, stored?.ts)
       if (state) {
         cookie.value = state

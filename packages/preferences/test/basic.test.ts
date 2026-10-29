@@ -2,9 +2,12 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { expectApiError, apiClient } from '@frigear-nu/module-kit/testing'
+import { authApi } from '@frigear-nu/auth/utils'
+import { preferencesApi } from '../src/runtime/utils/api'
 
 async function register(email: string) {
-  const response = await fetch('/api/auth/register', {
+  const response = await fetch(authApi.register, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: 'Ada', email, password: 'supersecret123' }),
@@ -13,7 +16,7 @@ async function register(email: string) {
   return response.headers.get('set-cookie')!
 }
 
-const patch = (cookie: string | undefined, body: unknown) => fetch('/api/preferences', {
+const patch = (cookie: string | undefined, body: unknown) => fetch(preferencesApi.root, {
   method: 'PATCH',
   headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
   body: JSON.stringify(body),
@@ -31,7 +34,7 @@ describe('preferences API', async () => {
   })
 
   it('requires a session', async () => {
-    expect((await patch(undefined, { colorMode: 'dark' })).status).toBe(401)
+    await expectApiError(apiClient().fetch('PATCH', preferencesApi.root, { colorMode: 'dark' }), 401, 'unauthorized')
   })
 
   it('stores validated preferences and reflects them in the session user', async () => {
@@ -57,13 +60,11 @@ describe('preferences API', async () => {
   it('rejects unknown keys and invalid values without storing anything', async () => {
     const cookie = await register('prefs-hedy@example.com')
 
-    const unknown = await patch(cookie, { nope: true })
-    expect(unknown.status).toBe(400)
-    const invalid = await patch(cookie, { colorMode: 'neon' })
-    expect(invalid.status).toBe(400)
+    const api = apiClient({ cookie })
+    await expectApiError(api.fetch('PATCH', preferencesApi.root, { nope: true }), 400)
+    await expectApiError(api.fetch('PATCH', preferencesApi.root, { colorMode: 'neon' }), 400)
     // One bad key rejects the whole update.
-    const mixed = await patch(cookie, { compactTables: true, colorMode: 'neon' })
-    expect(mixed.status).toBe(400)
+    await expectApiError(api.fetch('PATCH', preferencesApi.root, { compactTables: true, colorMode: 'neon' }), 400)
 
     const after = await patch(cookie, {})
     expect(await after.json()).toEqual({})
