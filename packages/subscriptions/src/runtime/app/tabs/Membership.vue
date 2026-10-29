@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { MeResponse } from '../../../types'
+import { subscriptionsApi } from '../../utils/api'
 
 defineOptions({ name: 'UsersAdminMembershipTab' })
 
@@ -17,7 +18,7 @@ const StatusBadge = resolveComponent('StatusBadge')
 
 // Lazy: both requests of this tab (this one and the membership panel's) start immediately and in parallel.
 const { data: history, refresh: refreshHistory, status, error } = useLazyFetch<MeResponse>(
-  () => `/api/admin/users/${props.user.id}/subscriptions`,
+  () => subscriptionsApi.admin.history(props.user.id),
   { key: () => `admin-subscriptions-${props.user.id}` },
 )
 

@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 import { kv } from '@nuxthub/kv'
 import { handlers as registeredHandlers } from '#stripe/handlers'
 import { getRuntimeStripeEventHandlers } from '../../utils/registry'
+import { apiError, badRequest, notConfigured } from '@frigear-nu/module-kit/server'
 import type { StripeEventHandler, StripeEventHandlerContext } from '../../../types'
 
 const PROCESSED_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -39,17 +40,17 @@ function getEventCustomerId(stripeEvent: Stripe.Event): string | null {
 export default defineEventHandler(async (event) => {
   const { webhookSecret } = useRuntimeConfig(event).stripe
   if (!webhookSecret) {
-    throw createError({ statusCode: 500, statusMessage: 'Stripe webhook is not configured (missing NUXT_STRIPE_WEBHOOK_SECRET).' })
+    throw notConfigured('Stripe webhook is not configured (missing NUXT_STRIPE_WEBHOOK_SECRET).')
   }
 
   const signature = getHeader(event, 'stripe-signature')
   if (!signature) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing stripe-signature header.' })
+    throw badRequest('Missing stripe-signature header.')
   }
 
   const rawBody = await readRawBody(event, 'utf8')
   if (!rawBody) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing request body.' })
+    throw badRequest('Missing request body.')
   }
 
   let stripeEvent: Stripe.Event
@@ -64,7 +65,7 @@ export default defineEventHandler(async (event) => {
   }
   catch (error) {
     console.warn('[@frigear-nu/stripe] Rejected webhook with an invalid signature:', error instanceof Error ? error.message : error)
-    throw createError({ statusCode: 400, statusMessage: 'Invalid Stripe signature.' })
+    throw badRequest('Invalid Stripe signature.')
   }
 
   const processedKey = `stripe:event:${stripeEvent.id}`
@@ -100,7 +101,7 @@ export default defineEventHandler(async (event) => {
 
   if (failures > 0) {
     // Not marked as processed, so Stripe's retry re-runs every handler (they must be idempotent).
-    throw createError({ statusCode: 500, statusMessage: `${failures} Stripe event handler(s) failed.` })
+    throw apiError(500, 'handler_failed', `${failures} Stripe event handler(s) failed.`)
   }
 
   await kv.set(processedKey, Date.now(), { ttl: PROCESSED_TTL_SECONDS })

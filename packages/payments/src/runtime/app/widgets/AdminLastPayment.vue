@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PaymentDto } from '../../../types'
+import { paymentsApi } from '../../utils'
 
 defineOptions({ name: 'UsersAdminLastPayment' })
 
@@ -12,7 +13,7 @@ const format = useFormat()
 
 // Lazy: the card shows a skeleton instead of holding up the rest of the page.
 const { data: payments, status: fetchStatus } = useLazyFetch<PaymentDto[]>(
-  () => `/api/admin/users/${props.user.id}/payments`,
+  () => paymentsApi.admin.userPayments(props.user.id),
   { key: () => `admin-last-payment-${props.user.id}`, query: { limit: 1 } },
 )
 const last = computed(() => payments.value?.[0])

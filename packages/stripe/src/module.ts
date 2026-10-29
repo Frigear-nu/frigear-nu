@@ -1,5 +1,4 @@
 import {
-  addServerHandler,
   addServerImports,
   addServerImportsDir,
   addTypeTemplate,
@@ -7,7 +6,7 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import type Stripe from 'stripe'
-import { defineVirtualRegistry, registerModule, extendDatabaseTable, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, defineVirtualRegistry, registerModule, extendDatabaseTable, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, RegisteredStripeEventHandler, StripeEventHandlerContext, StripePublicRuntimeConfig, StripeRuntimeConfig } from './types'
 
 export type {
@@ -76,7 +75,8 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule('@frigear-nu/stripe', nuxt)
     const resolver = createResolver(import.meta.url)
-    const webhookPath = options.settings?.webhookPath || DEFAULT_WEBHOOK_PATH
+    const configuredPath = options.settings?.webhookPath || DEFAULT_WEBHOOK_PATH
+    const webhookPath = configuredPath.startsWith('/') ? configuredPath : `/${configuredPath}`
 
     if (!nuxt.options.hub?.kv) {
       throw new Error('[@frigear-nu/stripe] NuxtHub KV is required for webhook idempotency. Set `hub: { kv: true }` in your Nuxt config.')
@@ -94,11 +94,8 @@ export default defineNuxtModule<ModuleOptions>({
       ...runtimeConfig.public.stripe,
     }
 
-    addServerHandler({
-      route: webhookPath,
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/webhook.post'),
-    })
+    // `webhookPath` is registered at a Stripe endpoint, so it is configurable and ignores the `/api/stripe` base.
+    addModuleRoutes(resolver, [{ method: 'post', path: webhookPath, file: 'webhook.post' }], { base: '/api/stripe' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

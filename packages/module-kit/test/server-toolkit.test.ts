@@ -200,6 +200,13 @@ describe('helpers', () => {
     expect(sameOriginUrl('https://example.test', origin)).toBe('https://example.test/')
   })
 
+  it('resolveSameOriginUrl keeps the Stripe session placeholder in the query intact', () => {
+    const event = makeEvent('/api/x', 'example.test')
+    const url = '/success?session_id={CHECKOUT_SESSION_ID}'
+    expect(resolveSameOriginUrl(event, url)).toContain('session_id={CHECKOUT_SESSION_ID}')
+    expect(resolveSameOriginUrl(event, `http://example.test${url}`)).toContain('session_id={CHECKOUT_SESSION_ID}')
+  })
+
   it('resolveSameOriginUrl falls back and throws 400 for other origins', () => {
     const event = makeEvent('/api/x', 'example.test')
     expect(resolveSameOriginUrl(event, undefined, { fallback: '/membership' })).toBe('http://example.test/membership')

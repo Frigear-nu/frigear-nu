@@ -1,9 +1,10 @@
+import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AdminMembershipResponse as MembershipResponse } from '../../../../types'
 
+// The user's current membership and the plans staff may grant.
 export default defineEventHandler(async (event): Promise<MembershipResponse> => {
   const { target } = await loadUsersAdminTarget(event, 'view')
   const current = currentEntitledRow(await listUserSubscriptionRows(target.id))
-  const iso = (date: Date | null | undefined) => (date ? date.toISOString() : null)
 
   const plans = useRuntimeConfig().subscriptions?.plans ?? {}
   return {
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event): Promise<MembershipResponse> => 
           planKey: current.planKey,
           status: current.status,
           source: current.source === 'manual' ? 'manual' : 'stripe',
-          currentPeriodEnd: iso(current.currentPeriodEnd),
+          currentPeriodEnd: isoDate(current.currentPeriodEnd),
           cancelAtPeriodEnd: current.cancelAtPeriodEnd,
         }
       : null,

@@ -4,6 +4,8 @@ import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { getHookCalls, getStripeCalls, registerUser, sendEvent } from './helpers'
 import { authApi } from '@frigear-nu/auth/utils'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { paymentsApi } from '../src/runtime/utils/api'
 
 type Row = {
   id: string
@@ -222,45 +224,38 @@ describe('payments (authenticated, database-backed)', async () => {
       const mine = await pay(gus.cookie, { items: ticketItems })
       await pay(hal.cookie, { items: ticketItems })
 
-      const list = await $fetch<Array<{ id: string, userId: number }>>('/api/payments', { headers: { cookie: gus.cookie } })
+      const list = await apiClient({ cookie: gus.cookie }).json<Array<{ id: string, userId: number, checkoutSessionId?: unknown }>>('GET', paymentsApi.me.list)
       expect(list.map(item => item.id)).toEqual([mine.payment.id])
-      expect((await fetch('/api/payments')).status).toBe(401)
+      // An allowlisted DTO: no Stripe ids.
+      expect(list[0]).not.toHaveProperty('checkoutSessionId')
+      await expectApiError(apiClient().json('GET', paymentsApi.me.list), 401)
     })
 
     it('resumes with the open session, or a fresh one once expired, but never when paid', async () => {
       const user = await registerUser('Ivy', 'ivy@example.com')
       const other = await registerUser('Jon', 'jon@example.com')
       const { payment, url } = await pay(user.cookie, { items: ticketItems })
-      const resume = (cookie: string, id: string) => fetch('/api/payments/resume', {
-        method: 'POST',
-        headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ paymentId: id }),
-      })
+      const resume = (cookie: string, id: string) => apiClient({ cookie }).json<{ url: string }>('POST', paymentsApi.me.resume(id))
 
-      const open = await resume(user.cookie, payment.id)
-      expect(await open.json()).toEqual({ url })
-      expect((await resume(other.cookie, payment.id)).status).toBe(404)
+      expect(await resume(user.cookie, payment.id)).toEqual({ url })
+      await expectApiError(resume(other.cookie, payment.id), 404, 'not_found')
+      await expectApiError(apiClient().json('POST', paymentsApi.me.resume(payment.id)), 401)
 
       const oldSession = (await rows()).find(row => row.id === payment.id)!.checkoutSessionId
       await $fetch('/api/test/expire-session', { method: 'POST', body: { id: oldSession } })
-      const fresh = await (await resume(user.cookie, payment.id)).json() as { url: string }
+      const fresh = await resume(user.cookie, payment.id)
       expect(fresh.url).not.toBe(url)
       const newSession = (await rows()).find(row => row.id === payment.id)!.checkoutSessionId
       expect(newSession).not.toBe(oldSession)
 
       await sendEvent('resume_paid', 'checkout.session.completed', { id: newSession, payment_status: 'paid', payment_intent: 'pi_ivy' })
-      expect((await resume(user.cookie, payment.id)).status).toBe(409)
+      await expectApiError(resume(user.cookie, payment.id), 409, 'conflict')
     })
   })
 
   describe('resumePayment after the session expired', () => {
     const resume = async (cookie: string, id: string) => {
-      const response = await fetch('/api/payments/resume', {
-        method: 'POST',
-        headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ paymentId: id }),
-      })
-      expect(response.status, await response.clone().text()).toBe(200)
+      await apiClient({ cookie }).json('POST', paymentsApi.me.resume(id))
     }
     const lastSession = async () => (await getStripeCalls()).filter(call => call.method === 'POST' && call.path === '/v1/checkout/sessions').at(-1)!
     const expire = async (id: string) => {
@@ -327,9 +322,16 @@ describe('payments (authenticated, database-backed)', async () => {
     it('lists payments for a token with the scope only', async () => {
       const user = await registerUser('Token', 'token@example.com')
       const read = await createToken(user.cookie, ['payments:read'])
-      expect((await fetch('/api/payments', { headers: bearer(read) })).status).toBe(200)
-      expect((await fetch('/api/payments', { headers: bearer(await createToken(user.cookie, ['payments:write'])) })).status).toBe(403)
-      expect((await fetch('/api/payments', { headers: bearer('fnu_invalid') })).status).toBe(401)
+      expect((await fetch(paymentsApi.me.list, { headers: bearer(read) })).status).toBe(200)
+      await expectApiError(apiClient({ bearer: await createToken(user.cookie, ['payments:write']) }).json('GET', paymentsApi.me.list), 403, 'insufficient_scope')
+      await expectApiError(apiClient({ bearer: 'fnu_invalid' }).json('GET', paymentsApi.me.list), 401)
+    })
+
+    it('resumes a payment with the write scope', async () => {
+      const user = await registerUser('Token Two', 'token-two@example.com')
+      const { payment, url } = await pay(user.cookie, { items: ticketItems })
+      const write = await createToken(user.cookie, ['payments:write'])
+      expect(await apiClient({ bearer: write }).json('POST', paymentsApi.me.resume(payment.id))).toEqual({ url })
     })
   })
 
@@ -338,10 +340,10 @@ describe('payments (authenticated, database-backed)', async () => {
       const staffCookie = await registerStaff()
       const member = await registerUser('Member', 'member@example.com')
 
-      expect((await fetch(`/api/admin/users/${member.id}/payments`)).status).toBe(401)
-      expect((await fetch(`/api/admin/users/${member.id}/payments`, { headers: { cookie: member.cookie } })).status).toBe(403)
-      expect((await fetch('/api/admin/users/nope/payments', { headers: { cookie: staffCookie } })).status).toBe(400)
-      expect((await fetch('/api/admin/users/99999/payments', { headers: { cookie: staffCookie } })).status).toBe(404)
+      await expectApiError(apiClient().json('GET', paymentsApi.admin.userPayments(member.id)), 401)
+      await expectApiError(apiClient({ cookie: member.cookie }).json('GET', paymentsApi.admin.userPayments(member.id)), 403)
+      await expectApiError(apiClient({ cookie: staffCookie }).json('GET', paymentsApi.admin.userPayments('nope')), 400)
+      await expectApiError(apiClient({ cookie: staffCookie }).json('GET', paymentsApi.admin.userPayments(99999)), 404)
     })
 
     it('lists the user\'s payments for allowed staff, honouring limit', async () => {
@@ -351,18 +353,36 @@ describe('payments (authenticated, database-backed)', async () => {
       const second = await pay(user.cookie, { items: [{ name: 'Ticket', amount: 1000, currency: 'DKK' }] })
 
       // Only the configured staff account passes the test policy.
-      expect((await fetch(`/api/admin/users/${user.id}/payments`, { headers: { cookie: staff.cookie } })).status).toBe(403)
+      await expectApiError(apiClient({ cookie: staff.cookie }).json('GET', paymentsApi.admin.userPayments(user.id)), 403)
 
-      const admin = await registerStaff()
-      const response = await fetch(`/api/admin/users/${user.id}/payments`, { headers: { cookie: admin } })
-      expect(response.status, await response.clone().text()).toBe(200)
-      const list = await response.json() as { id: string, userId: number }[]
+      const admin = apiClient({ cookie: await registerStaff() })
+      const list = await admin.json<{ id: string, userId: number }[]>('GET', paymentsApi.admin.userPayments(user.id))
       // Newest first by `createdAt` (second resolution), so two payments in the same second may swap.
       expect(list.map(payment => payment.id).sort()).toEqual([first.payment.id, second.payment.id].sort())
       expect(list.every(payment => payment.userId === user.id)).toBe(true)
 
-      const limited = await (await fetch(`/api/admin/users/${user.id}/payments?limit=1`, { headers: { cookie: admin } })).json() as unknown[]
-      expect(limited).toHaveLength(1)
+      expect(await admin.json<unknown[]>('GET', `${paymentsApi.admin.userPayments(user.id)}?limit=1`)).toHaveLength(1)
+      await expectApiError(admin.json('GET', `${paymentsApi.admin.userPayments(user.id)}?limit=0`), 400)
+    })
+  })
+
+  describe('admin: recent payments', () => {
+    it('shows the dashboard object to allowed staff only', async () => {
+      const member = await registerUser('Dash Member', 'dash-member@example.com')
+      const buyer = await registerUser('Buyer', 'buyer@example.com')
+      const { payment } = await pay(buyer.cookie, { items: ticketItems })
+      const session = (await rows()).find(row => row.id === payment.id)!.checkoutSessionId
+      await sendEvent('recent_paid', 'checkout.session.completed', { id: session, payment_status: 'paid', payment_intent: 'pi_recent' })
+
+      const staff = apiClient({ cookie: await registerStaff() })
+      const recent = await staff.json<{ days: number, revenue: Array<{ currency: string, amount: number, count: number }>, items: Array<{ id: string, userName: string | null, checkoutSessionId?: unknown }> }>('GET', paymentsApi.admin.recent)
+      expect(recent.days).toBe(30)
+      expect(recent.revenue.find(entry => entry.currency === 'dkk')?.amount).toBeGreaterThanOrEqual(25000)
+      expect(recent.items.find(item => item.id === payment.id)).toMatchObject({ userName: 'Buyer' })
+      expect(recent.items[0]).not.toHaveProperty('checkoutSessionId')
+
+      await expectApiError(apiClient().json('GET', paymentsApi.admin.recent), 401)
+      await expectApiError(apiClient({ cookie: member.cookie }).json('GET', paymentsApi.admin.recent), 403, 'forbidden')
     })
   })
 })

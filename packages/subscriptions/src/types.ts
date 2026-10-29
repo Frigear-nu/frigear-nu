@@ -137,7 +137,7 @@ export type PlansFilterContext = {
   plans: ResolvedPlan[]
 }
 
-/** `GET /api/admin/users/:id/subscription` (staff). */
+/** `GET /api/admin/users/:id/membership` (staff). */
 export type AdminMembershipResponse = {
   plans: Array<{ key: string, label: string, rank: number }>
   current: {
@@ -150,7 +150,7 @@ export type AdminMembershipResponse = {
   } | null
 }
 
-/** `POST /api/admin/users/:id/subscription/payment-link` (staff). */
+/** `POST /api/admin/users/:id/membership/payment-link` (staff). */
 export type AdminPaymentLinkResponse = { url: string, emailed: boolean }
 
 /**

@@ -1,3 +1,5 @@
+import { subscriptionsApi } from '../../utils/api'
+
 export interface SubscriptionPlanPrice {
   id: string
   /** Minor units (e.g. cents). */
@@ -29,7 +31,7 @@ export const PLANS_KEY = 'subscriptions:plans'
 /** The plans, sorted by rank. Awaitable, like `useSubscription`. */
 export const usePlans = () => {
   // `useCachedFetch` keeps the plans across navigation, so going back to the pricing table does not blank it.
-  const fetched = useCachedFetch<PlansResponse>('/api/subscriptions/plans', {
+  const fetched = useCachedFetch<PlansResponse>(subscriptionsApi.plans, {
     key: PLANS_KEY,
     ttl: PLANS_CLIENT_CACHE_MS,
   })

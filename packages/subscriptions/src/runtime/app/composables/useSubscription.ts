@@ -1,4 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
+import { subscriptionsApi } from '../../utils/api'
 
 export interface UserSubscription {
   id: string
@@ -45,7 +46,7 @@ export const useSubscription = () => {
 
   // `useCachedFetch` keeps the response across navigation (Nuxt drops `useFetch` data once the last component using
   // the key unmounts) and reuses it for a minute; `refresh()` (after checkout, sign-in) always asks the server.
-  const fetched = useCachedFetch<MeResponse>('/api/subscriptions/me', {
+  const fetched = useCachedFetch<MeResponse>(subscriptionsApi.me.subscriptions, {
     key: ME_KEY,
     ttl: CLIENT_CACHE_MS,
     immediate: loggedIn.value,
@@ -95,7 +96,7 @@ export const useSubscription = () => {
     const absolute = (path?: string) => (path ? `${origin}${path}` : undefined)
 
     return run(async () => {
-      const result = await $fetch<CheckoutResponse>('/api/subscriptions/checkout', {
+      const result = await $fetch<CheckoutResponse>(subscriptionsApi.me.checkout, {
         method: 'POST',
         body: {
           ...(isPrice ? { priceId: planKeyOrPriceId } : { planKey: planKeyOrPriceId }),
@@ -115,7 +116,7 @@ export const useSubscription = () => {
 
   function openPortal(returnUrl?: string) {
     return run(async () => {
-      const { url } = await $fetch<{ url: string }>('/api/subscriptions/portal', {
+      const { url } = await $fetch<{ url: string }>(subscriptionsApi.me.portal, {
         method: 'POST',
         body: { returnUrl: returnUrl ?? (import.meta.client ? window.location.href : undefined) },
       })

@@ -1,4 +1,5 @@
-import type { PaymentDto } from '../../../types'
+import type { PaymentDto, ResumeResponse } from '../../../types'
+import { paymentsApi } from '../../utils'
 
 /**
  * The signed-in user's payments, plus a helper to resume an unpaid one. Awaitable: `await usePayments()` in a page
@@ -7,7 +8,7 @@ import type { PaymentDto } from '../../../types'
 export function usePayments() {
   const { loggedIn } = useUserSession()
   // The server knows the visitor from the request's cookie, so the request does not wait for the client-side session.
-  const fetched = useCachedFetch<PaymentDto[]>('/api/payments', {
+  const fetched = useCachedFetch<PaymentDto[]>(paymentsApi.me.list, {
     key: 'payments:mine',
     ttl: 60 * 1000,
     watch: false,
@@ -22,7 +23,7 @@ export function usePayments() {
   const payments = computed(() => fetched.data.value ?? [])
 
   async function resume(paymentId: string) {
-    const { url } = await $fetch<{ url: string }>('/api/payments/resume', { method: 'POST', body: { paymentId } })
+    const { url } = await $fetch<ResumeResponse>(paymentsApi.me.resume(paymentId), { method: 'POST' })
     await navigateTo(url, { external: true })
   }
 

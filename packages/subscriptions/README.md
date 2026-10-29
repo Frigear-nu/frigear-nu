@@ -77,12 +77,12 @@ a local user are logged and ignored.
 
 - `GET /api/subscriptions/plans` - public; `{ plans }` with live prices, after the `subscriptions:plans:filter` hook.
 - `GET /api/subscriptions/me` - `{ subscriptions, activePlan }` (401 when signed out).
-- `POST /api/subscriptions/checkout` - body `{ planKey?, priceId?, successUrl?, cancelUrl? }` (one of `planKey`/`priceId`
+- `POST /api/subscriptions/me/checkout` - session only (a bearer token gets 403 `session_required`); body `{ planKey?, priceId?, successUrl?, cancelUrl? }` (one of `planKey`/`priceId`
   required; a multi-price plan needs `priceId`). Returns `{ url }` (new Checkout Session) or
   `{ updated: true, kind: 'upgrade' | 'downgrade' }`. A higher rank upgrades immediately (`always_invoice` proration);
   a lower or equal rank (including monthly to yearly of one plan) is scheduled for period end. `400` for unknown or hidden
   plans/prices and URLs outside the request origin, `409` when already on that price.
-- `POST /api/subscriptions/portal` - body `{ returnUrl? }`; returns `{ url }` of a billing portal session.
+- `POST /api/subscriptions/me/portal` - session only; body `{ returnUrl? }`; returns `{ url }` of a billing portal session.
 
 ## Policy hooks
 

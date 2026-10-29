@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import type { CheckoutBeforeContext, CreatePaymentInput, InvoicePaymentInput, CreatePaymentResult, PaymentDto, PaymentItem, PaymentReference, PaymentStatus } from '../../../types'
-import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
+import { apiError, badRequest, conflict, notFound, resolveSameOriginUrl } from '@frigear-nu/module-kit/server'
 import { sumItems } from '../../utils'
 
 type PaymentRow = typeof schema.payments.$inferSelect
@@ -29,12 +29,10 @@ function safeReturnUrl(input: string, event: H3Event | undefined, name: string):
   if (!event) {
     // Without a request there is no origin to compare with; still only allow absolute http(s) URLs.
     const absolute = URL.canParse(input) && ['http:', 'https:'].includes(new URL(input).protocol)
-    if (!absolute) throw createError({ statusCode: 400, statusMessage: `${name} must be an absolute http(s) URL.` })
+    if (!absolute) throw badRequest(`${name} must be an absolute http(s) URL.`)
     return input
   }
-  const resolved = resolveSameOriginUrl(input, getRequestURL(event).origin)
-  if (!resolved) throw createError({ statusCode: 400, statusMessage: `${name} must be a relative path or an URL on the same origin.` })
-  return resolved
+  return resolveSameOriginUrl(event, input, { name })
 }
 
 function toLineItems(items: PaymentItem[], currency: string) {
@@ -98,13 +96,13 @@ function expiresAt(minutes: number): number {
  * Pass the request `event` to have the return URLs restricted to the current origin.
  */
 export async function createPayment(input: CreatePaymentInput, event?: H3Event): Promise<CreatePaymentResult> {
-  if (input.items.length === 0) throw createError({ statusCode: 400, statusMessage: 'A payment needs at least one item.' })
+  if (input.items.length === 0) throw badRequest('A payment needs at least one item.')
   const currency = input.items[0]!.currency.toLowerCase()
   if (input.items.some(item => item.currency.toLowerCase() !== currency)) {
-    throw createError({ statusCode: 400, statusMessage: 'All items in a payment must share one currency.' })
+    throw badRequest('All items in a payment must share one currency.')
   }
   const amount = sumItems(input.items)
-  if (amount <= 0) throw createError({ statusCode: 400, statusMessage: 'The payment amount must be greater than zero.' })
+  if (amount <= 0) throw badRequest('The payment amount must be greater than zero.')
 
   const config = useRuntimeConfig().payments
   const stripe = useStripe()
@@ -125,7 +123,7 @@ export async function createPayment(input: CreatePaymentInput, event?: H3Event):
   })
 
   const session = await stripe.checkout.sessions.create(params)
-  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
+  if (!session.url) throw apiError(502, 'bad_gateway', 'Stripe did not return a checkout URL.')
 
   try {
     const [row] = await db.insert(schema.payments).values({
@@ -181,21 +179,21 @@ export async function resumePayment(paymentId: string, userId: number, event?: H
   const [row] = await db.select().from(schema.payments)
     .where(and(eq(schema.payments.id, paymentId), eq(schema.payments.userId, userId)))
     .limit(1)
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Payment not found.' })
+  if (!row) throw notFound('Payment not found.')
   if (row.status === 'paid' || row.status === 'refunded' || row.status === 'partially_refunded') {
-    throw createError({ statusCode: 409, statusMessage: 'This payment is already paid.' })
+    throw conflict('This payment is already paid.')
   }
 
   const stripe = useStripe()
-  if (!row.checkoutSessionId) throw createError({ statusCode: 409, statusMessage: 'This payment cannot be resumed.' })
+  if (!row.checkoutSessionId) throw conflict('This payment cannot be resumed.')
   const session = await stripe.checkout.sessions.retrieve(row.checkoutSessionId)
   if (session.status === 'open' && session.url) return { url: session.url }
-  if (session.status === 'complete') throw createError({ statusCode: 409, statusMessage: 'This payment is already paid.' })
+  if (session.status === 'complete') throw conflict('This payment is already paid.')
 
   const origin = event ? getRequestURL(event).origin : undefined
   const successUrl = session.success_url ?? origin
   const cancelUrl = session.cancel_url ?? origin
-  if (!successUrl || !cancelUrl) throw createError({ statusCode: 409, statusMessage: 'Cannot resume this payment.' })
+  if (!successUrl || !cancelUrl) throw conflict('Cannot resume this payment.')
 
   // Rows created before `items` was stored only have the total: fall back to one generic line.
   const items: PaymentItem[] = row.items?.length
@@ -216,7 +214,7 @@ export async function resumePayment(paymentId: string, userId: number, event?: H
     event,
   })
   const next = await stripe.checkout.sessions.create(params)
-  if (!next.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
+  if (!next.url) throw apiError(502, 'bad_gateway', 'Stripe did not return a checkout URL.')
 
   await db.update(schema.payments)
     .set({ checkoutSessionId: next.id, status: 'pending' })
@@ -230,12 +228,12 @@ export async function resumePayment(paymentId: string, userId: number, event?: H
  */
 export async function refundPayment(paymentId: string, options: { amount?: number } = {}): Promise<void> {
   const [row] = await db.select().from(schema.payments).where(eq(schema.payments.id, paymentId)).limit(1)
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Payment not found.' })
+  if (!row) throw notFound('Payment not found.')
   if (!row.paymentIntentId || (row.status !== 'paid' && row.status !== 'partially_refunded')) {
-    throw createError({ statusCode: 409, statusMessage: 'Only paid payments can be refunded.' })
+    throw conflict('Only paid payments can be refunded.')
   }
   if (options.amount !== undefined && (options.amount <= 0 || options.amount > row.amount - row.refundedAmount)) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid refund amount.' })
+    throw badRequest('Invalid refund amount.')
   }
 
   await useStripe().refunds.create({
@@ -283,7 +281,7 @@ export async function recordInvoicePayment(input: InvoicePaymentInput): Promise<
   // Lost a race with a concurrent delivery of the same invoice: that one fires the hook.
   if (!row) {
     const [current] = await db.select().from(schema.payments).where(eq(schema.payments.invoiceId, input.invoiceId)).limit(1)
-    if (!current) throw createError({ statusCode: 500, statusMessage: 'Could not record the invoice payment.' })
+    if (!current) throw apiError(500, 'internal_error', 'Could not record the invoice payment.')
     return toPaymentDto(current)
   }
 

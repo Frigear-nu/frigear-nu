@@ -4,6 +4,8 @@ import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { eventId, getStripeCalls, iso, makeEvent, postWebhook, subscriptionObject } from './helpers'
 import { authApi } from '@frigear-nu/auth/utils'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { subscriptionsApi } from '../src/runtime/utils/api'
 
 type Row = {
   id: string
@@ -108,15 +110,15 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
   describe('protected routes', () => {
     it('rejects anonymous access with 401', async () => {
-      await expect($fetch('/api/subscriptions/me')).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch('/api/subscriptions/checkout', { method: 'POST', body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch('/api/subscriptions/portal', { method: 'POST', body: {} })).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(subscriptionsApi.me.subscriptions)).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(subscriptionsApi.me.checkout, { method: 'POST', body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(subscriptionsApi.me.portal, { method: 'POST', body: {} })).rejects.toMatchObject({ statusCode: 401 })
     })
   })
 
   describe('GET /api/subscriptions/plans', () => {
     it('lists configured plans with live prices from Stripe, filtered by the policy hook', async () => {
-      const { plans } = await $fetch<{ plans: Array<{ key: string, label: string, description?: string, rank: number, prices: Array<Record<string, unknown>> }> }>('/api/subscriptions/plans')
+      const { plans } = await $fetch<{ plans: Array<{ key: string, label: string, description?: string, rank: number, prices: Array<Record<string, unknown>> }> }>(subscriptionsApi.plans)
 
       // `secret` is hidden by the fixture's `subscriptions:plans:filter` hook.
       expect(plans.map(plan => plan.key)).toEqual(['member', 'patron'])
@@ -130,14 +132,14 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     })
 
     it('lets the policy hook adjust the response per request', async () => {
-      const { plans } = await $fetch<{ plans: Array<{ key: string }> }>('/api/subscriptions/plans?hide=member')
+      const { plans } = await $fetch<{ plans: Array<{ key: string }> }>(`${subscriptionsApi.plans}?hide=member`)
       expect(plans.map(plan => plan.key)).toEqual(['patron', 'secret'])
     })
 
     it('caches Stripe lookups', async () => {
-      await $fetch('/api/subscriptions/plans')
+      await $fetch(subscriptionsApi.plans)
       await getStripeCalls(true)
-      await $fetch('/api/subscriptions/plans')
+      await $fetch(subscriptionsApi.plans)
       expect((await getStripeCalls()).filter(call => call.path.startsWith('/v1/prices'))).toHaveLength(0)
     })
   })
@@ -145,10 +147,10 @@ describe('subscriptions (authenticated, database-backed)', async () => {
   describe('GET /api/subscriptions/me', () => {
     it('returns the user\'s subscriptions and the derived active plan', async () => {
       const user = await registerUser('Me', 'me@example.com')
-      expect(await $fetch('/api/subscriptions/me', { headers: { cookie: user.cookie } })).toEqual({ subscriptions: [], activePlan: null })
+      expect(await $fetch(subscriptionsApi.me.subscriptions, { headers: { cookie: user.cookie } })).toEqual({ subscriptions: [], activePlan: null })
 
       await sendSubscription('customer.subscription.created', 'me1', { id: 'sub_me', customer: user.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly' })
-      const me = await $fetch<{ subscriptions: Array<Record<string, unknown>>, activePlan: string | null }>('/api/subscriptions/me', { headers: { cookie: user.cookie } })
+      const me = await $fetch<{ subscriptions: Array<Record<string, unknown>>, activePlan: string | null }>(subscriptionsApi.me.subscriptions, { headers: { cookie: user.cookie } })
       expect(me.activePlan).toBe('member')
       expect(me.subscriptions).toEqual([{
         id: 'sub_me',
@@ -164,12 +166,12 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     })
   })
 
-  describe('POST /api/subscriptions/checkout', () => {
+  describe('POST /api/subscriptions/me/checkout', () => {
     it('creates a Stripe Checkout session for a new subscriber with default URLs', async () => {
       const user = await registerUser('Buyer', 'buyer@example.com')
       await getStripeCalls(true)
 
-      const result = await $fetch<{ url: string }>('/api/subscriptions/checkout', {
+      const result = await $fetch<{ url: string }>(subscriptionsApi.me.checkout, {
         method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'patron' },
       })
       expect(result.url).toBe('https://checkout.stripe.test/c/cs_test_1')
@@ -188,15 +190,15 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
     it('requires a priceId when a plan has several prices, and accepts one that belongs to it', async () => {
       const user = await registerUser('Multi', 'multi@example.com')
-      await expect($fetch('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member' } }))
+      await expect($fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member' } }))
         .rejects.toMatchObject({ statusCode: 400 })
-      const ok = await $fetch<{ url: string }>('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member', priceId: 'price_member_y' } })
+      const ok = await $fetch<{ url: string }>(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member', priceId: 'price_member_y' } })
       expect(ok.url).toContain('checkout.stripe.test')
     })
 
     it('rejects unknown plans/prices, hidden plans, and invalid bodies', async () => {
       const user = await registerUser('Bad', 'bad@example.com')
-      const post = (body: Record<string, unknown>) => $fetch('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body })
+      const post = (body: Record<string, unknown>) => $fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body })
       await expect(post({ planKey: 'nope' })).rejects.toMatchObject({ statusCode: 400 })
       await expect(post({ priceId: 'price_nope' })).rejects.toMatchObject({ statusCode: 400 })
       await expect(post({ planKey: 'secret' })).rejects.toMatchObject({ statusCode: 400 })
@@ -205,7 +207,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
     it('accepts relative and same-origin absolute URLs, and rejects other origins', async () => {
       const user = await registerUser('Urls', 'urls@example.com')
-      const post = (body: Record<string, unknown>) => $fetch<{ url: string }>('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body })
+      const post = (body: Record<string, unknown>) => $fetch<{ url: string }>(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body })
 
       await getStripeCalls(true)
       await post({ planKey: 'patron', successUrl: '/thanks' })
@@ -220,7 +222,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
     it('lets the before-hook deny a checkout', async () => {
       const user = await registerUser('Denied', 'denied@example.com')
-      await expect($fetch('/api/subscriptions/checkout', {
+      await expect($fetch(subscriptionsApi.me.checkout, {
         method: 'POST', headers: { 'cookie': user.cookie, 'x-deny': '1' }, body: { planKey: 'patron' },
       })).rejects.toMatchObject({ statusCode: 403 })
     })
@@ -228,7 +230,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     it('lets the before-hook adjust the Checkout params', async () => {
       const user = await registerUser('Trial', 'trial@example.com')
       await getStripeCalls(true)
-      await $fetch('/api/subscriptions/checkout', { method: 'POST', headers: { 'cookie': user.cookie, 'x-trial': '1' }, body: { planKey: 'patron' } })
+      await $fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { 'cookie': user.cookie, 'x-trial': '1' }, body: { planKey: 'patron' } })
       const call = (await getStripeCalls()).find(item => item.path === '/v1/checkout/sessions')!
       expect(call.params['subscription_data[trial_period_days]']).toBe('7')
     })
@@ -238,7 +240,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       await sendSubscription('customer.subscription.created', 'up', { id: 'sub_up', customer: user.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly' })
       await getStripeCalls(true)
 
-      const result = await $fetch('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'patron' } })
+      const result = await $fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'patron' } })
       expect(result).toEqual({ updated: true, kind: 'upgrade' })
 
       const calls = await getStripeCalls()
@@ -256,7 +258,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       await sendSubscription('customer.subscription.created', 'down', { id: 'sub_down', customer: user.customerId, priceId: 'price_patron_y' })
       await getStripeCalls(true)
 
-      const result = await $fetch('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member', priceId: 'price_member_m' } })
+      const result = await $fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'member', priceId: 'price_member_m' } })
       expect(result).toEqual({ updated: true, kind: 'downgrade' })
 
       const calls = await getStripeCalls()
@@ -275,17 +277,17 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     it('refuses to subscribe to the price the user already holds', async () => {
       const user = await registerUser('Same', 'same@example.com')
       await sendSubscription('customer.subscription.created', 'same', { id: 'sub_same', customer: user.customerId, priceId: 'price_patron_y' })
-      await expect($fetch('/api/subscriptions/checkout', { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'patron' } }))
+      await expect($fetch(subscriptionsApi.me.checkout, { method: 'POST', headers: { cookie: user.cookie }, body: { planKey: 'patron' } }))
         .rejects.toMatchObject({ statusCode: 409 })
     })
   })
 
-  describe('POST /api/subscriptions/portal', () => {
+  describe('POST /api/subscriptions/me/portal', () => {
     it('creates a billing portal session for the user\'s customer', async () => {
       const user = await registerUser('Portal', 'portal@example.com')
       await getStripeCalls(true)
 
-      const result = await $fetch<{ url: string }>('/api/subscriptions/portal', { method: 'POST', headers: { cookie: user.cookie }, body: { returnUrl: '/account/membership' } })
+      const result = await $fetch<{ url: string }>(subscriptionsApi.me.portal, { method: 'POST', headers: { cookie: user.cookie }, body: { returnUrl: '/account/membership' } })
       expect(result.url).toBe('https://billing.stripe.test/p/session')
 
       const call = (await getStripeCalls()).find(item => item.path === '/v1/billing_portal/sessions')!
@@ -295,31 +297,37 @@ describe('subscriptions (authenticated, database-backed)', async () => {
 
     it('rejects a return URL on another origin', async () => {
       const user = await registerUser('Portal2', 'portal2@example.com')
-      await expect($fetch('/api/subscriptions/portal', { method: 'POST', headers: { cookie: user.cookie }, body: { returnUrl: 'https://evil.example' } }))
+      await expect($fetch(subscriptionsApi.me.portal, { method: 'POST', headers: { cookie: user.cookie }, body: { returnUrl: 'https://evil.example' } }))
         .rejects.toMatchObject({ statusCode: 400 })
     })
   })
 
   describe('admin membership (staff)', () => {
     const staffHeaders = (cookie: string) => ({ 'cookie': cookie, 'x-staff': '1' })
+    // The fixture's staff policy reads the `x-staff` header, which `apiClient` does not send.
+    const staffFetch = (cookie: string, method: string, path: string, body?: unknown) => fetch(path, {
+      method,
+      headers: { ...staffHeaders(cookie), ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
     const entitled = async (userId: number) =>
       (await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${userId}`)).has
 
     it('requires a signed-in staff member', async () => {
       const target = await registerUser('Target Auth', 'target-auth@example.com')
       const member = await registerUser('Plain', 'plain@example.com')
-      const url = `/api/admin/users/${target.id}/subscription`
+      const url = subscriptionsApi.admin.membership(target.id)
 
       await expect($fetch(url)).rejects.toMatchObject({ statusCode: 401 })
       await expect($fetch(url, { method: 'POST', headers: { cookie: member.cookie }, body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 403 })
-      await expect($fetch(`${url}/payment-link`, { method: 'POST', headers: { cookie: member.cookie }, body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch(subscriptionsApi.admin.paymentLink(target.id), { method: 'POST', headers: { cookie: member.cookie }, body: { planKey: 'member' } })).rejects.toMatchObject({ statusCode: 403 })
       expect(await entitled(target.id)).toBe(false)
     })
 
     it('grants a free membership that counts as active, then revokes it', async () => {
       const staff = await registerUser('Staff', 'staff@example.com')
       const target = await registerUser('Free Member', 'free@example.com')
-      const url = `/api/admin/users/${target.id}/subscription`
+      const url = subscriptionsApi.admin.membership(target.id)
       const headers = staffHeaders(staff.cookie)
 
       const before = await $fetch<{ plans: Array<{ key: string }>, current: unknown }>(url, { headers })
@@ -329,12 +337,15 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'nope' } })).rejects.toMatchObject({ statusCode: 400 })
       await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'member', endsAt: '2000-01-01' } })).rejects.toMatchObject({ statusCode: 400 })
 
-      const granted = await $fetch<{ id: string }>(url, { method: 'POST', headers, body: { planKey: 'member' } })
+      const grantedResponse = await staffFetch(staff.cookie, 'POST', url, { planKey: 'member' })
+      expect(grantedResponse.status, await grantedResponse.clone().text()).toBe(201)
+      const granted = await grantedResponse.json() as { id: string, source: string, planKey: string }
+      expect(granted).toMatchObject({ planKey: 'member', source: 'manual', status: 'active' })
       expect(granted.id).toMatch(/^manual_/)
       expect(await row(granted.id)).toMatchObject({ userId: target.id, planKey: 'member', status: 'active', source: 'manual', priceId: '', endedAt: null })
       expect(await entitled(target.id)).toBe(true)
 
-      const me = await $fetch<{ activePlan: string | null, subscriptions: Array<{ source: string }> }>('/api/subscriptions/me', { headers: { cookie: target.cookie } })
+      const me = await $fetch<{ activePlan: string | null, subscriptions: Array<{ source: string }> }>(subscriptionsApi.me.subscriptions, { headers: { cookie: target.cookie } })
       expect(me).toMatchObject({ activePlan: 'member', subscriptions: [{ source: 'manual' }] })
       expect(await $fetch(url, { headers })).toMatchObject({ current: { planKey: 'member', source: 'manual', currentPeriodEnd: null } })
 
@@ -344,17 +355,29 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(await row(replaced.id)).toMatchObject({ planKey: 'patron', status: 'active' })
 
       await expect($fetch(url, { method: 'DELETE', headers: { cookie: target.cookie } })).rejects.toMatchObject({ statusCode: 403 })
-      await $fetch(url, { method: 'DELETE', headers })
+      const revoked = await staffFetch(staff.cookie, 'DELETE', url)
+      expect(revoked.status).toBe(204)
+      expect(await revoked.text()).toBe('')
       expect(await entitled(target.id)).toBe(false)
       expect(await row(replaced.id)).toMatchObject({ status: 'canceled' })
-      await expect($fetch(url, { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
+      await expectApiError(staffFetch(staff.cookie, 'DELETE', url), 404, 'not_found')
 
       // The history lists every row, including the replaced and the revoked grants.
-      const history = await $fetch<{ subscriptions: Array<{ id: string, planKey: string | null, source: string, endedAt: string | null }> }>(`/api/admin/users/${target.id}/subscriptions`, { headers })
+      const history = await $fetch<{ subscriptions: Array<{ id: string, planKey: string | null, source: string, endedAt: string | null }> }>(subscriptionsApi.admin.history(target.id), { headers })
       expect(history.subscriptions.map(item => item.id).sort()).toEqual([granted.id, replaced.id].sort())
       expect(history.subscriptions.every(item => item.source === 'manual' && item.endedAt !== null)).toBe(true)
-      await expect($fetch(`/api/admin/users/${target.id}/subscriptions`)).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch(`/api/admin/users/${target.id}/subscriptions`, { headers: { cookie: target.cookie } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch(subscriptionsApi.admin.history(target.id))).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch(subscriptionsApi.admin.history(target.id), { headers: { cookie: target.cookie } })).rejects.toMatchObject({ statusCode: 403 })
+    })
+
+    it('serves the membership and its history', async () => {
+      const staff = await registerUser('Staff Old', 'staff-old@example.com')
+      const target = await registerUser('Old Paths', 'old-paths@example.com')
+      const get = async (path: string) => (await staffFetch(staff.cookie, 'GET', path)).json()
+      expect(await get(subscriptionsApi.admin.membership(target.id))).toMatchObject({ current: null })
+      expect(await get(subscriptionsApi.admin.history(target.id))).toEqual({ subscriptions: [], activePlan: null })
+      // The former `/subscription` and `/subscriptions` paths are gone.
+      expect((await staffFetch(staff.cookie, 'POST', `/api/admin/users/${target.id}/subscription`, { planKey: 'member' })).status).not.toBe(201)
     })
 
     it('does not grant or link over a paid subscription', async () => {
@@ -363,15 +386,15 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       await sendSubscription('customer.subscription.created', 'adm-paid', { id: 'sub_adm_paid', customer: target.customerId, priceId: 'price_member_m', lookupKey: 'member_monthly' })
       const headers = staffHeaders(staff.cookie)
 
-      await expect($fetch(`/api/admin/users/${target.id}/subscription`, { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
-      await expect($fetch(`/api/admin/users/${target.id}/subscription/payment-link`, { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
-      await expect($fetch(`/api/admin/users/${target.id}/subscription`, { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
+      await expect($fetch(subscriptionsApi.admin.membership(target.id), { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
+      await expect($fetch(subscriptionsApi.admin.paymentLink(target.id), { method: 'POST', headers, body: { planKey: 'patron' } })).rejects.toMatchObject({ statusCode: 409 })
+      await expect($fetch(subscriptionsApi.admin.membership(target.id), { method: 'DELETE', headers })).rejects.toMatchObject({ statusCode: 404 })
     })
 
     it('creates a Stripe Checkout link for the user, optionally emailing it', async () => {
       const staff = await registerUser('Staff Three', 'staff3@example.com')
       const target = await registerUser('Linked', 'linked@example.com')
-      const url = `/api/admin/users/${target.id}/subscription/payment-link`
+      const url = subscriptionsApi.admin.paymentLink(target.id)
       const headers = staffHeaders(staff.cookie)
 
       await getStripeCalls(true)
@@ -433,13 +456,13 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     it('reads the subscription with the scope, and never opens the billing portal', async () => {
       const user = await registerUser('Token', 'token@example.com')
       const read = await createToken(user.cookie, ['subscriptions:read'])
-      expect((await fetch('/api/subscriptions/me', { headers: bearer(read) })).status).toBe(200)
-      expect((await fetch('/api/subscriptions/me', { headers: bearer(await createToken(user.cookie, ['subscriptions:write'])) })).status).toBe(403)
+      expect((await fetch(subscriptionsApi.me.subscriptions, { headers: bearer(read) })).status).toBe(200)
 
       // The billing portal is session-only: even full access cannot use it.
       const full = await createToken(user.cookie, ['*'])
-      const portal = await fetch('/api/subscriptions/portal', { method: 'POST', headers: { 'content-type': 'application/json', ...bearer(full) }, body: '{}' })
-      expect(portal.status).toBe(403)
+      await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.portal, {}), 403, 'session_required')
+      // So is the checkout (billing).
+      await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.checkout, { planKey: 'patron' }), 403, 'session_required')
     })
   })
   describe('MCP tools', () => {

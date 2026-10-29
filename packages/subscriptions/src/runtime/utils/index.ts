@@ -2,7 +2,7 @@
 // this from Nitro code (route handlers, plugins) rather than from the Vue app.
 export { getUserSubscription, hasActiveSubscription } from '../server/utils/subscriptions'
 export type { HasActiveSubscriptionOptions } from '../server/utils/subscriptions'
-export { decideChangeKind, resolvePlanKey, resolveSameOriginUrl, isWithinDisabledRanges, DEFAULT_ENTITLED_STATUSES } from './plans'
+export { decideChangeKind, resolvePlanKey, isWithinDisabledRanges, DEFAULT_ENTITLED_STATUSES } from './plans'
 export type {
   CheckoutBeforeContext,
   PlansFilterContext,
@@ -11,3 +11,4 @@ export type {
   SubscriptionDto,
   ModuleOptions,
 } from '../../types'
+export * from './api'

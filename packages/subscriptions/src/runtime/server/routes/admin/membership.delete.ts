@@ -1,5 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { and, eq, isNull } from 'drizzle-orm'
+import { noContent, notFound } from '@frigear-nu/module-kit/server'
 
 // Revokes the user's manual (free) grant. Paid Stripe subscriptions are managed in Stripe / the billing portal.
 export default defineEventHandler(async (event) => {
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event) => {
     ))
     .returning({ id: schema.subscriptions.id })
   if (!revoked.length) {
-    throw createError({ statusCode: 404, statusMessage: 'The user has no free membership to revoke.' })
+    throw notFound('The user has no free membership to revoke.')
   }
-  return { revoked: revoked.length }
+  return noContent(event)
 })

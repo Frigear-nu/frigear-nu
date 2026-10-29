@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { subscriptionsApi } from '../../../../utils/api'
 import type { AdminMembershipResponse as MembershipResponse, AdminPaymentLinkResponse as PaymentLinkResponse } from '../../../../../types'
 
 defineOptions({ name: 'UsersAdminMembership' })
@@ -15,7 +16,7 @@ const toast = useToast()
 const grantAction = useAction()
 const linkAction = useAction()
 const revokeAction = useAction()
-const base = computed(() => `/api/admin/users/${props.user.id}/subscription`)
+const base = computed(() => subscriptionsApi.admin.membership(props.user.id))
 
 // Lazy so the tab renders (with skeletons) immediately and this request runs in parallel with the history request.
 const { data, refresh, status } = useLazyFetch<MembershipResponse>(() => base.value, { key: () => `admin-membership-${props.user.id}` })
@@ -73,7 +74,7 @@ async function revoke() {
 }
 
 async function sendLink() {
-  const result = await linkAction.run(() => $fetch<PaymentLinkResponse>(`${base.value}/payment-link`, {
+  const result = await linkAction.run(() => $fetch<PaymentLinkResponse>(subscriptionsApi.admin.paymentLink(props.user.id), {
     method: 'POST',
     body: { planKey: planKey.value, email: emailUser.value },
   }), { error: t('error', 'Something went wrong.') })

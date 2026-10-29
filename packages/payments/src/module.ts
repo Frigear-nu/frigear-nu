@@ -1,6 +1,5 @@
 import {
   addImports,
-  addServerHandler,
   addServerImportsDir,
   addServerPlugin,
   createResolver,
@@ -8,7 +7,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  moduleApiUrl,
+  addModuleRoutes,
   registerDatabaseTable,
   registerLocales,
   registerModule,
@@ -20,6 +19,7 @@ import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
+  AuthorizeContext,
   CheckoutBeforeContext,
   ModuleOptions,
   PaymentHookContext,
@@ -27,6 +27,7 @@ import type {
 } from './types'
 
 export type {
+  AuthorizeContext,
   CheckoutBeforeContext,
   CreatePaymentInput,
   CreatePaymentResult,
@@ -53,6 +54,8 @@ declare module '@nuxt/schema' {
 
 declare module 'nitropack' {
   interface NitroRuntimeHooks {
+    /** Staff gate (the dashboard's recent payments): set `ctx.allowed = true` to let the user in. Denied by default. */
+    'payments:authorize': (ctx: AuthorizeContext) => void | Promise<void>
     /** Policy hook: throw to deny a checkout, or adjust `ctx.params` before it reaches Stripe. */
     'payments:checkout:before': (ctx: CheckoutBeforeContext) => void | Promise<void>
     /** A payment became `paid` (fired once, from the verified Stripe event). */
@@ -94,6 +97,7 @@ export default defineNuxtModule<ModuleOptions>({
     addAuthScope(nuxt,
       { name: 'payments:read', description: 'Read your payments' },
       { name: 'payments:write', description: 'Resume your payments' },
+      { name: 'payments:manage', description: 'See recent payments and revenue (staff)' },
     )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -123,16 +127,10 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- API routes -----------------------------------------------------------------------
-    addServerHandler({
-      route: moduleApiUrl('payments'),
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/payments/index.get'),
-    })
-    addServerHandler({
-      route: moduleApiUrl('payments', 'resume'),
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/payments/resume.post'),
-    })
+    addModuleRoutes(resolver, [
+      { method: 'get', path: 'me', file: 'me/payments.get' },
+      { method: 'post', path: 'me/:id/resume', file: 'me/resume.post' },
+    ], { base: '/api/payments' })
 
     // Staff view of a user's payments plus a "Payments" tab and a "Last payment" card on the admin user page of
     // `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`, `view`).
@@ -155,11 +153,9 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // Recent transactions and revenue on the admin dashboard (`admin.dashboard.*` areas of `@frigear-nu/admin`).
-    addServerHandler({
-      route: moduleApiUrl('payments', 'admin/recent'),
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/admin/recent.get'),
-    })
+    addModuleRoutes(resolver, [
+      { method: 'get', path: 'recent', file: 'admin/recent.get' },
+    ], { base: '/api/admin/payments' })
     if (hasNuxtModule('@frigear-nu/admin') && hasNuxtModule('@frigear-nu/widget')) {
       const { extendWidgets } = await import('@frigear-nu/widget/utils')
       extendWidgets(nuxt, 'admin.dashboard.top', { id: 'payments-revenue-stat', component: resolver.resolve('./runtime/app/widgets/RevenueStat.vue'), order: 30 })
@@ -177,6 +173,7 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     // Stores membership (invoice) payments announced by `@frigear-nu/subscriptions` when that module is installed.
     addServerPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))
     if (options.settings?.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     addImports([

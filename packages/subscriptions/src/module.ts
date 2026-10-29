@@ -2,14 +2,13 @@ import {
   addComponentsDir,
   addImports,
   addRouteMiddleware,
-  addServerHandler,
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  moduleApiUrl,
+  addModuleRoutes,
   registerDatabaseTable,
   registerModule,
   registerLocales,
@@ -121,7 +120,6 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
       { name: 'subscriptions:read', description: 'Read your subscription and plans' },
-      { name: 'subscriptions:write', description: 'Start a subscription checkout' },
     )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -184,43 +182,29 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // --- API routes -----------------------------------------------------------------------
-    addServerHandler({
-      route: moduleApiUrl('subscriptions', 'plans'),
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/subscriptions/plans.get'),
-    })
-    addServerHandler({
-      route: moduleApiUrl('subscriptions', 'me'),
-      method: 'get',
-      handler: resolver.resolve('./runtime/server/routes/subscriptions/me.get'),
-    })
+    // `plans` and `me` are static segments next to the caller's own `me/...` actions.
+    addModuleRoutes(resolver, [
+      { method: 'get', path: 'plans', file: 'subscriptions/plans.get' },
+      { method: 'get', path: 'me', file: 'subscriptions/me.get' },
+      { method: 'post', path: 'me/checkout', file: 'me/checkout.post' },
+      { method: 'post', path: 'me/portal', file: 'me/portal.post' },
+    ], { base: '/api/subscriptions' })
     // The account area loads it together with the other modules' data (`useSubscription()` reads the same key).
     registerBootstrapProvider(nuxt, {
       scope: 'account',
       key: 'subscriptions:me',
       handler: resolver.resolve('./runtime/server/bootstrap/my-subscriptions'),
     })
-    addServerHandler({
-      route: moduleApiUrl('subscriptions', 'checkout'),
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/subscriptions/checkout.post'),
-    })
-    addServerHandler({
-      route: moduleApiUrl('subscriptions', 'portal'),
-      method: 'post',
-      handler: resolver.resolve('./runtime/server/routes/subscriptions/portal.post'),
-    })
-
     // Staff membership management (grant free / payment link / revoke) plus a "Membership" tab and a summary card on
     // the admin user page of `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`,
     // `view` for reads, `update` for changes). Used by the `UsersAdminMembership` component.
     await extendUsersAdmin(nuxt, {
       routes: ([
-        ['get', 'subscription', 'subscription.get'],
-        ['get', 'subscriptions', 'subscriptions.get'],
-        ['post', 'subscription', 'subscription.post'],
-        ['delete', 'subscription', 'subscription.delete'],
-        ['post', 'subscription/payment-link', 'payment-link.post'],
+        ['get', 'membership', 'membership.get'],
+        ['get', 'membership/history', 'membership-history.get'],
+        ['post', 'membership', 'membership.post'],
+        ['delete', 'membership', 'membership.delete'],
+        ['post', 'membership/payment-link', 'payment-link.post'],
       ] as const).map(([method, path, file]) => ({ method, path, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })),
       tab: {
         id: 'membership',

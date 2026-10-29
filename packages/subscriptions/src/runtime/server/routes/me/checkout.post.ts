@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { CheckoutBeforeContext, CheckoutBody, CheckoutResponse } from '../../../../types'
-import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
+import { apiError, conflict, resolveSameOriginUrl } from '@frigear-nu/module-kit/server'
 import { LIVE_STATUSES, decideChangeKind } from '../../../utils/plans'
 
 const bodySchema = z.object({
@@ -13,24 +13,16 @@ const bodySchema = z.object({
 }).refine(body => body.planKey || body.priceId, { message: 'Provide `planKey` or `priceId`.' }) satisfies z.ZodType<CheckoutBody>
 
 export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
-  const user = await requireUser(event, { scopes: ['subscriptions:write'] })
+  // Billing: a session is required, a bearer token is refused (403 `session_required`).
+  const user = await requireUser(event, { sessionOnly: true })
   const body = await readValidatedBody(event, bodySchema.parse)
-  const origin = getRequestURL(event).origin
   const config = useRuntimeConfig()
   const pages = config.public.subscriptions?.pages ?? {}
   const configuredPlans = config.subscriptions?.plans ?? {}
   const stripe = useStripe()
 
-  const safeUrl = (input: string | undefined, fallbackPath: string | undefined, name: string) => {
-    if (input) {
-      const safe = resolveSameOriginUrl(input, origin)
-      if (!safe) throw createError({ statusCode: 400, statusMessage: `${name} must be a relative path or an URL on the same origin.` })
-      return safe
-    }
-    return `${origin}${fallbackPath ?? pages.membership ?? '/'}`
-  }
-  const successUrl = safeUrl(body.successUrl, pages.success, 'successUrl')
-  const cancelUrl = safeUrl(body.cancelUrl, pages.cancel, 'cancelUrl')
+  const successUrl = resolveSameOriginUrl(event, body.successUrl, { fallback: pages.success ?? pages.membership, name: 'successUrl' })
+  const cancelUrl = resolveSameOriginUrl(event, body.cancelUrl, { fallback: pages.cancel ?? pages.membership, name: 'cancelUrl' })
 
   // --- Resolve the target price / plan --------------------------------------------------
   const { priceId, planKey } = await resolveCheckoutTarget(stripe, await getAvailablePlans(event), body)
@@ -48,7 +40,7 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
   }
 
   if (existing?.priceId === priceId) {
-    throw createError({ statusCode: 409, statusMessage: 'You are already subscribed to this price.' })
+    throw conflict('You are already subscribed to this price.')
   }
 
   const kind: CheckoutBeforeContext['kind'] = existing
@@ -86,7 +78,7 @@ export default defineEventHandler(async (event): Promise<CheckoutResponse> => {
 
   const customer = await ensureStripeCustomer(user.id)
   const session = await stripe.checkout.sessions.create({ ...hookContext.params, customer })
-  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
+  if (!session.url) throw apiError(502, 'bad_gateway', 'Stripe did not return a checkout URL.')
   return { url: session.url }
 })
 
@@ -104,7 +96,7 @@ async function resumeSubscription(stripe: StripeClient, subscriptionId: string) 
 async function upgradeSubscription(stripe: StripeClient, subscriptionId: string, priceId: string) {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
   const item = subscription.items.data[0]
-  if (!item) throw createError({ statusCode: 409, statusMessage: 'The subscription has no items to change.' })
+  if (!item) throw conflict('The subscription has no items to change.')
 
   const scheduleId = typeof subscription.schedule === 'string' ? subscription.schedule : subscription.schedule?.id
   if (scheduleId) await stripe.subscriptionSchedules.release(scheduleId)
@@ -120,7 +112,7 @@ async function upgradeSubscription(stripe: StripeClient, subscriptionId: string,
 async function scheduleDowngrade(stripe: StripeClient, subscriptionId: string, priceId: string) {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
   const item = subscription.items.data[0]
-  if (!item) throw createError({ statusCode: 409, statusMessage: 'The subscription has no items to change.' })
+  if (!item) throw conflict('The subscription has no items to change.')
 
   const scheduleId = typeof subscription.schedule === 'string' ? subscription.schedule : subscription.schedule?.id
   const schedule = scheduleId
@@ -128,7 +120,7 @@ async function scheduleDowngrade(stripe: StripeClient, subscriptionId: string, p
     : await stripe.subscriptionSchedules.create({ from_subscription: subscriptionId })
 
   const current = schedule.phases[0]
-  if (!current) throw createError({ statusCode: 409, statusMessage: 'Could not read the current billing phase.' })
+  if (!current) throw conflict('Could not read the current billing phase.')
 
   await stripe.subscriptionSchedules.update(schedule.id, {
     end_behavior: 'release',
