@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/authorization",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Policy-based authorization (abilities, resolvers, route rules, <Can>) for the frigear ecosystem, built on @frigear-nu/users.",
   "homepage": "https://docs.frigear.dev/modules/authorization",
   "repository": {
