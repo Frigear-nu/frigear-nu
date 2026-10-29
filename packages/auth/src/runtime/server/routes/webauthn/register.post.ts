@@ -1,7 +1,8 @@
 import { db, schema } from '@nuxthub/db'
-
 import { z } from 'zod'
+import { apiError, forbidden } from '@frigear-nu/module-kit/server'
 
+// `POST /api/auth/webauthn/register`: adds a passkey to the signed-in account, or signs up with one.
 export default defineWebAuthnRegisterEventHandler({
   async storeChallenge(_event, challenge, attemptId) {
     await useStorage().setItem(`webauthn:registration:${attemptId}`, challenge)
@@ -11,18 +12,23 @@ export default defineWebAuthnRegisterEventHandler({
     const challenge = await useStorage().getItem<string>(key)
     await useStorage().removeItem(key)
 
-    if (!challenge) throw createError({ statusCode: 400, statusMessage: 'Registration challenge expired.' })
+    if (!challenge) throw apiError(400, 'challenge_expired', 'Registration challenge expired.')
 
     return challenge
   },
   async validateUser(userBody, event) {
     const session = await getUserSession(event)
 
-    if (session.user?.email && session.user.email !== userBody.userName) {
-      throw createError({ statusCode: 400, statusMessage: 'Email does not match the current session.' })
+    const body = z.object({
+      userName: z.string().trim().toLowerCase().email(),
+      displayName: z.string().trim().max(100).optional(),
+    }).parse(userBody)
+
+    if (session.user?.email && session.user.email.toLowerCase() !== body.userName) {
+      throw apiError(400, 'email_mismatch', 'Email does not match the current session.')
     }
 
-    return z.object({ userName: z.string().email(), displayName: z.string().trim().max(100).optional() }).parse(userBody)
+    return body
   },
   async onSuccess(event, { credential, user }) {
     const users = useAuthUserStore()
@@ -31,11 +37,12 @@ export default defineWebAuthnRegisterEventHandler({
 
     if (dbUser) {
       const session = await getUserSession(event)
-      if (session.user?.email !== dbUser.email) {
-        throw createError({ statusCode: 403, statusMessage: 'Authenticate before adding a passkey to this account.' })
+      if (session.user?.email?.toLowerCase() !== dbUser.email.toLowerCase()) {
+        throw forbidden('Authenticate before adding a passkey to this account.')
       }
     }
     else {
+      // TODO(owner): this signs up an unverified account even when `verifyEmail` is on; decide whether it should.
       dbUser = await users.create({ name: user.userName, email: user.userName })
       createdUserId = dbUser.id
     }

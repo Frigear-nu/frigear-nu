@@ -16,6 +16,9 @@ export interface LoadBootstrapOptions {
 
 export const BOOTSTRAP_TTL_MS = 60 * 1000
 
+// `authApi.bootstrap` of `@frigear-nu/auth`, which `ui` does not depend on.
+const BOOTSTRAP_URL = '/api/auth/bootstrap'
+
 const stateKey = (scope: string) => `ui:bootstrap:${scope}`
 const inFlight = new Map<string, Promise<void>>()
 
@@ -23,7 +26,7 @@ const inFlight = new Map<string, Promise<void>>()
 export const useBootstrapState = (scope: string) => useState<BootstrapState | null>(stateKey(scope), () => null)
 
 /**
- * Load an area's user-scoped data in one request (`GET /api/_bootstrap?scope=<scope>`, served by `@frigear-nu/auth`)
+ * Load an area's user-scoped data in one request (`GET /api/auth/bootstrap?scope=<scope>`, served by `@frigear-nu/auth`)
  * and prime the `useCachedFetch` entry of every key it returns, so the modules' composables (`useMyTickets()`,
  * `useSubscription()`, ...) render without a request of their own. Call it from a route middleware of the area: it
  * runs before the page's components set up, on the server and on every client navigation.
@@ -59,7 +62,7 @@ export async function loadBootstrap(scope: string, options: LoadBootstrapOptions
     try {
       // On the server `useRequestFetch` forwards the visitor's cookie and calls the route in-process.
       const fetcher = import.meta.server ? useRequestFetch() : $fetch
-      const data = await fetcher<Record<string, unknown>>('/api/_bootstrap', { query: { scope } })
+      const data = await fetcher<Record<string, unknown>>(BOOTSTRAP_URL, { query: { scope } })
       // The Nuxt context does not survive the `await`; `primeCachedFetch` needs it.
       nuxtApp.runWithContext(() => {
         for (const [key, value] of Object.entries(data)) primeCachedFetch(key, value)

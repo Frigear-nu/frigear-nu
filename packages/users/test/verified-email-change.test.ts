@@ -32,7 +32,7 @@ async function post(path: string, body: unknown, cookie?: string) {
 
 async function register(name: string, email: string) {
   const response = await post('/api/auth/register', { name, email, password: 'supersecret123' })
-  expect(response.status, await response.clone().text()).toBe(200)
+  expect(response.status, await response.clone().text()).toBe(201)
   return response.headers.get('set-cookie')!
 }
 

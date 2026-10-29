@@ -39,7 +39,7 @@ export async function registerUser(name: string, email: string) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.clone().text()).toBe(200)
+  expect(response.status, await response.clone().text()).toBe(201)
   const cookie = response.headers.get('set-cookie')!
   const customerId = `cus_${email}`
   const { id } = await $fetch<{ id: number }>('/api/test/link', { method: 'POST', body: { email, customerId } })

@@ -9,7 +9,7 @@ async function registerAndGetCookie(payload: { name: string, email: string, pass
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  expect(response.status, await response.text()).toBe(200)
+  expect(response.status, await response.text()).toBe(201)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
   return cookie
@@ -21,7 +21,7 @@ async function mcpRegister(name: string, email: string) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.clone().text()).toBe(200)
+  expect(response.status, await response.clone().text()).toBe(201)
   return response.headers.get('set-cookie')!
 }
 

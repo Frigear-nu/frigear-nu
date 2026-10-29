@@ -1,17 +1,19 @@
 import { z } from 'zod'
+import { conflict, created } from '@frigear-nu/module-kit/server'
 
 const bodySchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8),
 })
 
+// `POST /api/auth/register`: creates an account (201). Signs in at once unless `verifyEmail` is on.
 export default defineEventHandler(async (event) => {
   const { name, email, password } = await readValidatedBody(event, bodySchema.parse)
   const users = useAuthUserStore()
 
   if (await users.findByEmail(email)) {
-    throw createError({ statusCode: 409, statusMessage: 'A user with this email already exists.' })
+    throw conflict('A user with this email already exists.')
   }
 
   const user = await users.create({ name, email, password: await hashPassword(password) })
@@ -19,10 +21,10 @@ export default defineEventHandler(async (event) => {
   if (useRuntimeConfig(event).public.authentication?.verifyEmail) {
     // No session until the address is verified; following the emailed link signs the user in.
     await sendVerificationLink(event, user)
-    return { id: user.id, verificationRequired: true }
+    return created(event, { id: user.id, verificationRequired: true })
   }
 
   await setUserSession(event, { user: mapUserToSession(user) })
 
-  return { id: user.id, verificationRequired: false }
+  return created(event, { id: user.id, verificationRequired: false })
 })

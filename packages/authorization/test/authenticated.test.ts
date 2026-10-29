@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { authApi } from '@frigear-nu/auth/utils'
 
 async function register(payload: { name: string, email: string, password: string }) {
   const response = await fetch('/api/auth/register', {
@@ -10,7 +11,7 @@ async function register(payload: { name: string, email: string, password: string
     body: JSON.stringify(payload),
   })
   const body = await response.text()
-  expect(response.status, body).toBe(200)
+  expect(response.status, body).toBe(201)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
   return { cookie, user: JSON.parse(body) as { id: number, role?: string } }
@@ -134,12 +135,12 @@ describe('authorization (authenticated)', async () => {
 
   describe('bearer tokens (via @frigear-nu/auth)', () => {
     async function createToken(cookie: string) {
-      const response = await fetch('/api/auth/tokens', {
+      const response = await fetch(authApi.me.tokens, {
         method: 'POST',
         headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({ name: 'test', scopes: ['*'] }),
       })
-      expect(response.status, await response.clone().text()).toBe(200)
+      expect(response.status, await response.clone().text()).toBe(201)
       return (await response.json() as { token: string }).token
     }
 
@@ -171,7 +172,7 @@ describe('authorization (authenticated)', async () => {
 
     it('keeps token management session-only', async () => {
       const token = await createToken(userCookie)
-      await expect($fetch('/api/auth/tokens', { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch(authApi.me.tokens, { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
     })
   })
 })

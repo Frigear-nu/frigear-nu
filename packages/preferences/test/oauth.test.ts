@@ -46,7 +46,7 @@ describe('preferences as OAuth claims', async () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Ada', email, password: 'supersecret123' }),
     })
-    expect(response.status, await response.clone().text()).toBe(200)
+    expect(response.status, await response.clone().text()).toBe(201)
     return response.headers.get('set-cookie')!
   }
 

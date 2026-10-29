@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { authApi } from '@frigear-nu/auth/utils'
 
 const fixture = fileURLToPath(new URL('./fixtures/mcp-db', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -41,12 +42,12 @@ async function login(id: number) {
 }
 
 async function createToken(cookie: string, scopes: string[]) {
-  const response = await fetch('/api/auth/tokens', {
+  const response = await fetch(authApi.me.tokens, {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
     body: JSON.stringify({ name: 'MCP', scopes }),
   })
-  expect(response.status, await response.clone().text()).toBe(200)
+  expect(response.status, await response.clone().text()).toBe(201)
   return (await response.json() as { token: string }).token
 }
 

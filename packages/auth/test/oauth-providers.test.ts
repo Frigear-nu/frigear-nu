@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
+import { authApi } from '../src/runtime/utils/api'
 
 describe('oauth providers (any nuxt-auth-utils provider, on through its credentials)', async () => {
   await setup({
@@ -8,27 +9,27 @@ describe('oauth providers (any nuxt-auth-utils provider, on through its credenti
   })
 
   it('lists the configured providers, listed ones first with their overrides', async () => {
-    expect(await $fetch('/api/auth/providers')).toEqual([
+    expect(await $fetch(authApi.providers)).toEqual([
       { key: 'auth0', to: '/api/auth/auth0', label: 'Company SSO', icon: 'i-simple-icons-auth0' },
       { key: 'okta', to: '/api/auth/okta' },
     ])
   })
 
   it('redirects to the provider of a configured route', async () => {
-    const response = await fetch('/api/auth/auth0', { redirect: 'manual' })
+    const response = await fetch(authApi.provider('auth0'), { redirect: 'manual' })
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toMatch(/^https:\/\/example\.auth0\.com\/authorize\?/)
   })
 
   it('answers 404 for a provider without credentials, turned off, or unknown', async () => {
     for (const provider of ['google', 'github', 'nope']) {
-      const response = await fetch(`/api/auth/${provider}`, { redirect: 'manual' })
+      const response = await fetch(authApi.provider(provider), { redirect: 'manual' })
       expect(response.status, provider).toBe(404)
     }
   })
 
   it('leaves the static auth routes in front of the provider route', async () => {
-    const response = await fetch('/api/auth/scopes')
+    const response = await fetch(authApi.scopes)
     expect(response.status).not.toBe(404)
   })
 

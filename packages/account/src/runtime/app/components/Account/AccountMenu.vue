@@ -14,6 +14,7 @@ const { user } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
 const { localize, strip } = useLocaleLink()
+const showError = useErrorToast()
 
 // `@frigear-nu/menu` is optional: without it only the user and Appearance are listed.
 const dropdown = typeof useMenu === 'function' ? useMenu('account.dropdown').data : ref<MenuItem[]>([])
@@ -32,13 +33,28 @@ const isHere = (to: string) => {
   return current === target || (target !== '/' && current.startsWith(`${target}/`))
 }
 
-const toItem = (item: MenuItem): DropdownMenuItem => ({
-  label: item.label,
-  icon: item.icon,
-  to: item.to && !item.external ? localize(item.to) : item.to,
-  external: item.external,
-  replace: item.external,
-})
+// An action item (`method`, e.g. sign out) posts to its `to`, then reloads the home page, so no state of the old
+// session survives on the client.
+const runAction = async (item: MenuItem & { to: string }) => {
+  try {
+    await $fetch(item.to, { method: 'POST' })
+  }
+  catch (error) {
+    showError(error)
+    return
+  }
+  await navigateTo(localize('/'), { external: true, replace: true })
+}
+
+const toItem = (item: MenuItem): DropdownMenuItem => item.method && item.to
+  ? { label: item.label, icon: item.icon, onSelect: () => runAction(item as MenuItem & { to: string }) }
+  : {
+      label: item.label,
+      icon: item.icon,
+      to: item.to && !item.external ? localize(item.to) : item.to,
+      external: item.external,
+      replace: item.external,
+    }
 
 const appearance = (label: string, value: 'light' | 'dark' | 'system', icon: string): DropdownMenuItem => ({
   label,
@@ -55,7 +71,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
   const visible = (dropdown.value ?? []).filter((item) => {
     const roles = item.meta?.roles as string[] | undefined
     if (roles?.length && !(role.value && roles.includes(role.value))) return false
-    return !item.to || item.external || !isHere(item.to)
+    return !item.to || item.external || item.method || !isHere(item.to)
   })
   // Sign out (order 99 and up) goes last, below Appearance.
   const last = (item: MenuItem) => (item.order ?? 0) >= 99

@@ -1,3 +1,5 @@
+import { authApi } from '../../utils/api'
+
 export const useMagicLink = () => {
   const config = useRuntimeConfig().public.authentication
 
@@ -12,7 +14,7 @@ export const useMagicLink = () => {
     error.value = null
 
     try {
-      await $fetch('/api/auth/magic-link', { method: 'POST', body: payload })
+      await $fetch(authApi.magicLink, { method: 'POST', body: payload })
     }
     catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to send the link.'

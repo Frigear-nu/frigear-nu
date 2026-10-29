@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { DEFAULT_CATEGORIES, computeVersion } from '../src/runtime/utils'
+import { authApi } from '@frigear-nu/auth/utils'
 
 const version = computeVersion('test', DEFAULT_CATEGORIES)
 
@@ -12,7 +13,7 @@ async function registerAndGetCookie(email: string) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: 'Ada Lovelace', email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.text()).toBe(200)
+  expect(response.status, await response.text()).toBe(201)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
   return cookie
@@ -58,12 +59,12 @@ describe('cookie-consent persisted on the user', async () => {
 
   it('keeps consent session-only: a token, even with full access, cannot read or write it', async () => {
     const cookie = await registerAndGetCookie('tokens@example.com')
-    const created = await fetch('/api/auth/tokens', {
+    const created = await fetch(authApi.me.tokens, {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie },
       body: JSON.stringify({ name: 'test', scopes: ['*'] }),
     })
-    expect(created.status, await created.clone().text()).toBe(200)
+    expect(created.status, await created.clone().text()).toBe(201)
     const { token } = await created.json() as { token: string }
 
     const headers = { authorization: `Bearer ${token}` }

@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { authApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/auth-db', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -26,8 +27,8 @@ async function login(id: number) {
 }
 
 async function createToken(cookie: string, body: { name?: string, scopes?: string[], expiresInDays?: number | null } = {}) {
-  const response = await call('POST', '/api/auth/tokens', { cookie, body: { name: 'CI', scopes: ['events:read'], ...body } })
-  expect(response.status, await response.clone().text()).toBe(200)
+  const response = await call('POST', authApi.me.tokens, { cookie, body: { name: 'CI', scopes: ['events:read'], ...body } })
+  expect(response.status, await response.clone().text()).toBe(201)
   return await response.json() as { id: string, token: string, prefix: string, last4: string, status: string }
 }
 
@@ -63,7 +64,7 @@ describe('auth tokens', async () => {
     expect(created.status).toBe('ok')
     expect(JSON.stringify(created)).not.toContain('tokenHash')
 
-    const list = await call('GET', '/api/auth/tokens', { cookie: ada })
+    const list = await call('GET', authApi.me.tokens, { cookie: ada })
     const body = await list.json() as Array<Record<string, unknown>>
     expect(body.map(token => token.id)).toContain(created.id)
     const listed = JSON.stringify(body)
@@ -111,30 +112,34 @@ describe('auth tokens', async () => {
 
   it('does not let a token manage tokens', async () => {
     const { token } = await createToken(ada, { scopes: ['*'] })
-    expect((await call('GET', '/api/auth/tokens', { bearer: token })).status).toBe(403)
-    expect((await call('POST', '/api/auth/tokens', { bearer: token, body: { name: 'x', scopes: ['*'] } })).status).toBe(403)
-    expect((await call('GET', '/api/auth/scopes', { bearer: token })).status).toBe(403)
+    const bearer = apiClient({ bearer: token })
+    await expectApiError(bearer.json('GET', authApi.me.tokens), 403, 'session_required')
+    await expectApiError(bearer.json('POST', authApi.me.tokens, { name: 'x', scopes: ['*'] }), 403, 'session_required')
+    await expectApiError(bearer.json('DELETE', authApi.me.token('aut_x')), 403, 'session_required')
+    await expectApiError(bearer.json('GET', authApi.scopes), 403, 'session_required')
   })
 
   it('rejects unknown scopes and invalid bodies', async () => {
-    expect((await call('POST', '/api/auth/tokens', { cookie: ada, body: { name: 'x', scopes: ['nope:read'] } })).status).toBe(400)
-    expect((await call('POST', '/api/auth/tokens', { cookie: ada, body: { name: '', scopes: ['events:read'] } })).status).toBe(400)
-    expect((await call('POST', '/api/auth/tokens', { cookie: ada, body: { name: 'x', scopes: [] } })).status).toBe(400)
+    const api = apiClient({ cookie: ada })
+    const unknown = await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: ['nope:read'] }), 400, 'unknown_scope')
+    expect(unknown.data).toMatchObject({ scopes: ['nope:read'] })
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: '', scopes: ['events:read'] }), 400)
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: [] }), 400)
   })
 
   it('lists the grantable scopes', async () => {
-    const scopes = await (await call('GET', '/api/auth/scopes', { cookie: ada })).json() as Array<{ name: string }>
+    const scopes = await (await call('GET', authApi.scopes, { cookie: ada })).json() as Array<{ name: string }>
     expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write'])
   })
 
   it('only offers and accepts role-restricted scopes to users with that role', async () => {
-    expect((await call('POST', '/api/auth/tokens', { cookie: ada, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(400)
+    expect((await call('POST', authApi.me.tokens, { cookie: ada, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(400)
 
     await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
     const admin = await login(2)
-    const scopes = await (await call('GET', '/api/auth/scopes', { cookie: admin })).json() as Array<{ name: string }>
+    const scopes = await (await call('GET', authApi.scopes, { cookie: admin })).json() as Array<{ name: string }>
     expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write', 'events:admin'])
-    expect((await call('POST', '/api/auth/tokens', { cookie: admin, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(200)
+    expect((await call('POST', authApi.me.tokens, { cookie: admin, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(201)
     await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'user' } } })
   })
 
@@ -142,14 +147,18 @@ describe('auth tokens', async () => {
     const { id, token } = await createToken(ada)
     expect((await call('GET', '/api/test/me', { bearer: token })).status).toBe(200)
 
-    expect((await call('DELETE', `/api/auth/tokens/${id}`, { cookie: ada })).status).toBe(200)
+    const revoked = await call('DELETE', authApi.me.token(id), { cookie: ada })
+    expect(revoked.status).toBe(204)
+    expect(await revoked.text()).toBe('')
 
     const response = await call('GET', '/api/test/me', { bearer: token })
     expect(response.status).toBe(401)
     expect(response.headers.get('www-authenticate')).toContain('invalid_token')
 
-    const list = await (await call('GET', '/api/auth/tokens', { cookie: ada })).json() as Array<{ id: string, status: string }>
+    const list = await apiClient({ cookie: ada }).json<Array<{ id: string, status: string, createdAt: string }>>('GET', authApi.me.tokens)
     expect(list.find(item => item.id === id)?.status).toBe('revoked')
+    // Dates are ISO strings.
+    expect(list.find(item => item.id === id)?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/)
   })
 
   it('treats missing credentials and missing scopes as anonymous for optional routes', async () => {
@@ -197,10 +206,11 @@ describe('auth tokens', async () => {
   it('isolates tokens between users', async () => {
     const { id, token } = await createToken(ada)
 
-    const boList = await (await call('GET', '/api/auth/tokens', { cookie: bo })).json() as Array<{ id: string }>
+    const api = apiClient({ cookie: bo })
+    const boList = await api.json<Array<{ id: string }>>('GET', authApi.me.tokens)
     expect(boList.map(item => item.id)).not.toContain(id)
-    expect((await call('DELETE', `/api/auth/tokens/${id}`, { cookie: bo })).status).toBe(404)
-    expect((await call('DELETE', '/api/auth/tokens/aut_missing', { cookie: bo })).status).toBe(404)
+    await expectApiError(api.json('DELETE', authApi.me.token(id)), 404, 'not_found')
+    await expectApiError(api.json('DELETE', authApi.me.token('aut_missing')), 404, 'not_found')
 
     // Bo's attempt changed nothing: the token still works, and acts as Ada.
     const me = await call('GET', '/api/test/me', { bearer: token })
@@ -228,14 +238,34 @@ describe('auth tokens', async () => {
     expect((await call('GET', '/api/test/me', { bearer: token })).status).toBe(401)
   })
 
-  describe('GET /api/_bootstrap', () => {
+  describe('POST /api/auth/logout', () => {
+    it('clears the session cookie and answers 204', async () => {
+      const cookie = await login(1)
+      const response = await call('POST', authApi.logout, { cookie })
+      expect(response.status, await response.clone().text()).toBe(204)
+      const cleared = response.headers.get('set-cookie') ?? ''
+      // The session cookie is overwritten with an empty value.
+      expect(cleared.split(';')[0]).toBe(`${cookie.split('=')[0]}=`)
+
+      // What the browser keeps afterwards is an anonymous session.
+      const next = cleared.split(';')[0]!
+      await expectApiError(apiClient({ cookie: next }).json('GET', '/api/test/me'), 401, 'unauthorized')
+    })
+
+    it('is never a GET, so a link or a prefetch cannot sign out', async () => {
+      const cookie = await login(1)
+      // `GET /api/auth/logout` falls through to the OAuth `:provider` route, which knows no provider `logout`.
+      await expectApiError(apiClient({ cookie }).json('GET', authApi.logout), 404)
+    })
+  })
+
+  describe('GET /api/auth/bootstrap', () => {
     it('requires a signed-in caller', async () => {
-      const anonymous = await call('GET', '/api/_bootstrap?scope=account')
-      expect(anonymous.status).toBe(401)
+      await expectApiError(apiClient().json('GET', `${authApi.bootstrap}?scope=account`), 401, 'unauthorized')
     })
 
     it('returns every provider of the scope in one response and leaves a failing one out', async () => {
-      const response = await call('GET', '/api/_bootstrap?scope=account', { cookie: ada })
+      const response = await call('GET', `${authApi.bootstrap}?scope=account`, { cookie: ada })
       expect(response.status, await response.clone().text()).toBe(200)
       expect(response.headers.get('cache-control')).toBe('private, no-store')
       expect(await response.json()).toEqual({
@@ -245,21 +275,26 @@ describe('auth tokens', async () => {
     })
 
     it('keeps scopes apart', async () => {
-      const response = await call('GET', '/api/_bootstrap?scope=admin', { cookie: ada })
+      const response = await call('GET', `${authApi.bootstrap}?scope=admin`, { cookie: ada })
       expect(await response.json()).toEqual({ 'test:admin': { id: 1, name: 'Ada' } })
     })
 
     it('leaves out what a token may not read', async () => {
       const { token } = await createToken(ada, { scopes: ['events:write'] })
-      const response = await call('GET', '/api/_bootstrap?scope=account', { bearer: token })
+      const response = await call('GET', `${authApi.bootstrap}?scope=account`, { bearer: token })
       expect(response.status, await response.clone().text()).toBe(200)
       expect(await response.json()).toEqual({ 'test:profile': { id: 1, name: 'Ada' } })
     })
 
     it('rejects a missing or unknown scope', async () => {
-      expect((await call('GET', '/api/_bootstrap', { cookie: ada })).status).toBe(400)
-      expect((await call('GET', '/api/_bootstrap?scope=nope', { cookie: ada })).status).toBe(404)
-      expect((await call('GET', '/api/_bootstrap?scope=constructor', { cookie: ada })).status).toBe(404)
+      const api = apiClient({ cookie: ada })
+      await expectApiError(api.json('GET', authApi.bootstrap), 400, 'bad_request')
+      await expectApiError(api.json('GET', `${authApi.bootstrap}?scope=nope`), 404, 'not_found')
+      await expectApiError(api.json('GET', `${authApi.bootstrap}?scope=constructor`), 404, 'not_found')
+    })
+
+    it('is no longer served at the old path', async () => {
+      expect((await call('GET', '/api/_bootstrap?scope=account', { cookie: ada })).headers.get('content-type') ?? '').not.toContain('application/json')
     })
   })
 })

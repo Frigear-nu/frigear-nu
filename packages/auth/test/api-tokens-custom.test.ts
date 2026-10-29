@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { authApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/api-tokens-custom', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -31,8 +32,8 @@ describe('auth tokens (host prefix)', async () => {
     expect(login.status, await login.clone().text()).toBe(200)
     cookie = login.headers.get('set-cookie')!.split(';')[0]!
 
-    const response = await call('POST', '/api/auth/tokens', { cookie, body: { name: 'CI', scopes: ['events:read'] } })
-    expect(response.status, await response.clone().text()).toBe(200)
+    const response = await call('POST', authApi.me.tokens, { cookie, body: { name: 'CI', scopes: ['events:read'] } })
+    expect(response.status, await response.clone().text()).toBe(201)
     const created = await response.json() as { token: string, prefix: string }
     expect(created.token).toMatch(/^acme_[\w-]{43}$/)
     expect(created.prefix).toBe(created.token.slice(0, 9))

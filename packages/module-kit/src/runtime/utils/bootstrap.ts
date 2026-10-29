@@ -6,7 +6,7 @@ import { defineVirtualRegistry } from './registry'
 export interface BootstrapProvider {
   /**
    * The area the data belongs to, e.g. `account`. The area's owner loads every provider of its scope in one request
-   * (`GET /api/_bootstrap?scope=<scope>`) when the visitor enters it.
+   * (`GET /api/auth/bootstrap?scope=<scope>`) when the visitor enters it.
    */
   scope: string
   /**

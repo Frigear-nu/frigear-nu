@@ -1,13 +1,14 @@
 import { db, schema } from '@nuxthub/db'
-
 import { z } from 'zod'
 
 const bodySchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
 })
 
 const RESET_CODE_TTL_MINUTES = 30
 
+// `POST /api/auth/forgot-password`: emails a reset link to a registered address.
+// TODO(owner): no cooldown per address or client yet (unlike magic links); decide on throttling.
 export default defineEventHandler(async (event) => {
   const { email } = await readValidatedBody(event, bodySchema.parse)
 

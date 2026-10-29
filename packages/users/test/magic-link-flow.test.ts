@@ -38,7 +38,7 @@ describe('magic links & email verification (database)', async () => {
 
   it('registering requires verification: no session and no login until the emailed link was followed', async () => {
     const register = await post('/api/auth/register', credentials)
-    expect(register.status, await register.clone().text()).toBe(200)
+    expect(register.status, await register.clone().text()).toBe(201)
     expect(await register.json()).toMatchObject({ verificationRequired: true })
     expect(register.headers.get('set-cookie')).toBeNull()
 

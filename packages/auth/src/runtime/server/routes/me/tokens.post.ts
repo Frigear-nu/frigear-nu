@@ -1,15 +1,18 @@
 import { db, schema } from '@nuxthub/db'
-import { isGrantableScope } from '../../utils/scopes'
-import { generateUserToken } from '../../utils/tokens'
+import { apiError, created } from '@frigear-nu/module-kit/server'
+import type { AuthCreatedTokenDto } from '../../../../types'
+import { isGrantableScope } from '../../../utils/scopes'
+import { generateUserToken } from '../../../utils/tokens'
 
-export default defineEventHandler(async (event) => {
+// `POST /api/auth/me/tokens` (session only): creates an API token. 201 with the token, the only time its plaintext exists.
+export default defineEventHandler(async (event): Promise<AuthCreatedTokenDto> => {
   const { user } = await requireAuth(event, { sessionOnly: true })
   const body = await readValidatedBody(event, createTokenSchema.parse)
 
   const registered = (await availableScopes(event, user as { id: number, role?: string })).map(scope => scope.name)
   const unknown = body.scopes.filter(scope => !isGrantableScope(scope, registered))
   if (unknown.length) {
-    throw createError({ statusCode: 400, statusMessage: `Unknown scopes: ${unknown.join(', ')}` })
+    throw apiError(400, 'unknown_scope', `Unknown scopes: ${unknown.join(', ')}`, { scopes: unknown })
   }
 
   const config = useRuntimeConfig(event).authentication
@@ -27,5 +30,5 @@ export default defineEventHandler(async (event) => {
   }).returning()
 
   // The plaintext token is returned this once; only its hash is stored.
-  return { ...toPublicToken(row!), token }
+  return created(event, { ...toTokenDto(row!), token })
 })

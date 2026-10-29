@@ -1,3 +1,5 @@
+import { authApi } from '../../utils/api'
+
 export const useRegistration = () => {
   const config = useRuntimeConfig().public.authentication
 
@@ -11,7 +13,7 @@ export const useRegistration = () => {
     error.value = null
 
     try {
-      const result = await $fetch<{ id: number, verificationRequired: boolean }>('/api/auth/register', { method: 'POST', body: payload })
+      const result = await $fetch<{ id: number, verificationRequired: boolean }>(authApi.register, { method: 'POST', body: payload })
       await useUserSession().fetch()
       return result
     }

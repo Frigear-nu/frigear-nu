@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, eq, gt, isNull } from 'drizzle-orm'
-
 import { z } from 'zod'
+import { apiError, notFound } from '@frigear-nu/module-kit/server'
 
 const bodySchema = z.object({
   code: z.string().min(1),
@@ -12,6 +12,7 @@ const bodySchema = z.object({
   path: ['confirmPassword'],
 })
 
+// `POST /api/auth/reset-password`: sets a new password with an emailed code and signs in.
 export default defineEventHandler(async (event) => {
   const { code, password } = await readValidatedBody(event, bodySchema.parse)
 
@@ -25,13 +26,13 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!passwordReset) {
-    throw createError({ statusCode: 400, statusMessage: 'This password reset link is invalid or has expired.' })
+    throw apiError(400, 'invalid_link', 'This password reset link is invalid or has expired.')
   }
 
   const user = await useAuthUserStore().update(passwordReset.userId, { password: await hashPassword(password) })
 
   if (!user) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+    throw notFound('User not found.')
   }
 
   await setUserSession(event, { user: mapUserToSession(user) })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { authApi } from '../../utils/api'
 import { isAppPage } from '../utils/after-login'
 
 defineOptions({ name: 'AuthMagicLinkPage' })
@@ -24,7 +25,7 @@ async function onContinue() {
   error.value = null
 
   try {
-    const { redirect } = await $fetch<{ redirect: string }>('/api/auth/magic-link/confirm', {
+    const { redirect } = await $fetch<{ redirect: string }>(authApi.magicLinkConfirm, {
       method: 'POST',
       body: { code: code.value },
     })

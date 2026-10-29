@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { getHookCalls, getStripeCalls, registerUser, sendEvent } from './helpers'
+import { authApi } from '@frigear-nu/auth/utils'
 
 type Row = {
   id: string
@@ -313,12 +314,12 @@ describe('payments (authenticated, database-backed)', async () => {
 
   describe('API tokens', () => {
     const createToken = async (cookie: string, scopes: string[]) => {
-      const response = await fetch('/api/auth/tokens', {
+      const response = await fetch(authApi.me.tokens, {
         method: 'POST',
         headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({ name: 'test', scopes }),
       })
-      expect(response.status, await response.clone().text()).toBe(200)
+      expect(response.status, await response.clone().text()).toBe(201)
       return (await response.json() as { token: string }).token
     }
     const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
