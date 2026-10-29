@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 
 const fixture = fileURLToPath(new URL('./fixtures/auth-db', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -50,6 +51,8 @@ describe('auth tokens', async () => {
     const anonymous = await call('GET', '/api/test/me')
     expect(anonymous.status).toBe(401)
     expect(anonymous.headers.get('www-authenticate')).toBe('Bearer')
+    expect((await anonymous.json()).data).toMatchObject({ code: 'unauthorized' })
+    await expectApiError(apiClient().json('GET', '/api/test/me'), 401, 'unauthorized')
   })
 
   it('creates a token, returns the plaintext once and never exposes the hash', async () => {
@@ -85,7 +88,8 @@ describe('auth tokens', async () => {
     const { token } = await createToken(ada, { scopes: ['events:write'] })
     const response = await call('GET', '/api/test/events', { bearer: token })
     expect(response.status).toBe(403)
-    expect((await response.json()).data).toMatchObject({ error: 'insufficient_scope' })
+    expect((await response.json()).data).toMatchObject({ error: 'insufficient_scope', code: 'insufficient_scope', scopes: ['events:read'] })
+    await expectApiError(apiClient({ bearer: token }).json('GET', '/api/test/events'), 403, 'insufficient_scope')
     expect(response.headers.get('www-authenticate')).toContain('insufficient_scope')
   })
 
@@ -100,7 +104,8 @@ describe('auth tokens', async () => {
     const { token } = await createToken(ada, { scopes: ['*'] })
     const account = await call('POST', '/api/test/account', { bearer: token })
     expect(account.status).toBe(403)
-    expect((await account.json()).data).toMatchObject({ error: 'session_required' })
+    expect((await account.json()).data).toMatchObject({ error: 'session_required', code: 'session_required' })
+    await expectApiError(apiClient({ bearer: token }).fetch('POST', '/api/test/account'), 403, 'session_required')
     expect((await call('POST', '/api/test/account', { cookie: ada })).status).toBe(200)
   })
 

@@ -1,8 +1,9 @@
-import { addTemplate, createResolver, useLogger } from '@nuxt/kit'
+import { addServerHandler, addTemplate, createResolver, useLogger } from '@nuxt/kit'
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { kebabCase } from 'scule'
+import { joinURL, withLeadingSlash, withoutTrailingSlash } from 'ufo'
 import type { Nuxt } from '@nuxt/schema'
 import type { ColumnBuilderBase } from 'drizzle-orm'
 import { listRegularTableExportNames, parseRegularTableExport } from './regular-table'
@@ -353,4 +354,40 @@ export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof crea
     config.externals.inline ||= []
     if (!config.externals.inline.includes(runtime)) config.externals.inline.push(runtime)
   })
+}
+
+export type ModuleRoute = {
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete'
+  /** Joined onto `base` (`:id` → `/api/admin/events/:id`); a path starting with `/` ignores `base`. `''` is `base` itself. */
+  path: string
+  /** The handler file, relative to the module's `./runtime/server/routes/` (`admin/events.get`). */
+  file: string
+}
+
+/** The URL a `ModuleRoute` is mounted at (see `addModuleRoutes`). */
+export const moduleRoutePath = (path: string, base: string) =>
+  withoutTrailingSlash(withLeadingSlash(path.startsWith('/') ? path : joinURL(base, path))) || '/'
+
+/**
+ * Registers a module's HTTP routes in one place, from a table of `{ method, path, file }`. Every module uses it, so
+ * routes are declared the same way everywhere and a module's URL surface can be read off one array.
+ *
+ *     addModuleRoutes(resolver, [
+ *       { method: 'get', path: '', file: 'admin/events.get' },
+ *       { method: 'get', path: ':id', file: 'admin/event.get' },
+ *       { method: 'get', path: '/api/events/me/tickets', file: 'me/tickets.get' },
+ *     ], { base: '/api/admin/events' })
+ */
+export const addModuleRoutes = (
+  resolver: ReturnType<typeof createResolver>,
+  routes: ModuleRoute[],
+  options: { base: string },
+): void => {
+  for (const { method, path, file } of routes) {
+    addServerHandler({
+      route: moduleRoutePath(path, options.base),
+      method,
+      handler: resolver.resolve(joinURL('./runtime/server/routes', file)),
+    })
+  }
 }
