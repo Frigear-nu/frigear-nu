@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserRow } from '../utils/admin-user'
@@ -27,7 +28,7 @@ const roleItems = computed(() => (props.roles ?? []).map(value => ({ label: role
 
 async function save(event: FormSubmitEvent<Schema>) {
   const created = await run(
-    () => $fetch<UserRow>('/api/admin/users', {
+    () => $fetch<UserRow>(usersApi.admin.users, {
       method: 'POST',
       body: { ...event.data, role: roleItems.value.length && event.data.role ? event.data.role : undefined },
     }),

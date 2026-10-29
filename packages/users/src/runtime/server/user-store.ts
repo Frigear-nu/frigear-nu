@@ -12,6 +12,10 @@ const asId = (id: string | number) => {
   return Number.isSafeInteger(numeric) ? numeric : null
 }
 
+// Every email is stored trimmed and lowercased (`normalizeUserEmail`), whoever writes it: auth's sign-in flows too.
+const withNormalizedEmail = <T extends { email?: string | null }>(values: T): T =>
+  typeof values.email === 'string' ? { ...values, email: normalizeUserEmail(values.email) } : values
+
 // The host picks the dialect (`hub.db`); the generated schema tells which one it is.
 const isPostgres = () => is(schema.users, PgTable)
 
@@ -50,15 +54,16 @@ const store: AuthUserStore = {
     if (numeric === null) return null
     return await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, numeric) }) ?? null
   },
+  // Case-insensitive, index first (see `findUserByEmail`).
   async findByEmail(email) {
-    return await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, email) }) ?? null
+    return await findUserByEmail(email)
   },
   async create(values) {
-    const [user] = await db.insert(schema.users).values(values).returning()
+    const [user] = await db.insert(schema.users).values(withNormalizedEmail(values)).returning()
     return user!
   },
   async update(id, values) {
-    const [user] = await db.update(schema.users).set(values).where(eq(schema.users.id, id)).returning()
+    const [user] = await db.update(schema.users).set(withNormalizedEmail(values)).where(eq(schema.users.id, id)).returning()
     return user ?? null
   },
   async remove(id) {

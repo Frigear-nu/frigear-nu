@@ -2,6 +2,9 @@ import { addServerHandler, hasNuxtModule } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import type { TabDefinition, WidgetDefinition } from '@frigear-nu/widget/utils'
 
+export { usersApi } from './api'
+export type { AdminUserDto, ProfileDto } from '../../types'
+
 export interface UsersAdminExtension {
   /** Staff routes on the user, mounted at `/api/admin/users/:id/<path>`. Handlers are absolute paths. */
   routes?: { method: 'get' | 'post' | 'patch' | 'delete', path: string, handler: string }[]

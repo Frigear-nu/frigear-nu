@@ -2,6 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import UserCreateSlideover from '../components/UserCreateSlideover.vue'
 import type { UserRow, UserSubject } from '../utils/admin-user'
 import { ADMIN_USERS_KEY } from '../utils/admin-user'
+import { usersApi } from '../../utils/api'
 
 export interface UserMenuOptions {
   /** Extra groups between the sign-in link and the destructive group (modules add theirs here). */
@@ -48,7 +49,7 @@ export function useUserActions() {
     })
     if (!confirmed) return false
     const done = await run(
-      () => $fetch(`/api/admin/users/${user.id}`, { method: 'DELETE' }).then(() => true),
+      () => $fetch(usersApi.admin.user(user.id), { method: 'DELETE' }).then(() => true),
       { success: t('admin.deleted', 'User deleted.') },
     )
     if (!done) return false
@@ -60,7 +61,7 @@ export function useUserActions() {
   /** Emails the sign-in link (or, for an unverified address, the verification email) again. */
   async function resend(user: UserSubject): Promise<boolean> {
     const sent = await run(
-      () => $fetch(`/api/admin/users/${user.id}/resend`, { method: 'POST' }).then(() => true),
+      () => $fetch(usersApi.admin.resend(user.id), { method: 'POST' }).then(() => true),
       { success: t('admin.resent', 'Sign-in link sent.') },
     )
     return !!sent

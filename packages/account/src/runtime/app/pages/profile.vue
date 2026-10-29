@@ -13,7 +13,11 @@ const { updateProfileDetails } = useAccount()
 
 const schema = z.object({
   name: z.string().trim().min(1, t('name.required', 'Please enter your name.')),
-  avatar: z.union([z.literal(''), z.url(t('avatar.invalid', 'Enter a valid URL.'))]).optional(),
+  // The server's rule: an http(s) URL of at most 2048 characters (empty clears the avatar).
+  avatar: z.union([
+    z.literal(''),
+    z.url({ protocol: /^https?$/, message: t('avatar.invalid', 'Enter a valid URL.') }).max(2048, t('avatar.invalid', 'Enter a valid URL.')),
+  ]).optional(),
 })
 type Schema = z.output<typeof schema>
 
@@ -38,7 +42,7 @@ const dirty = computed(() => state.name !== saved.value.name || state.avatar !==
 const profileAction = useAction()
 function onSubmitProfile(event: FormSubmitEvent<Schema>) {
   return profileAction.run(
-    () => updateProfileDetails({ name: event.data.name, avatar: event.data.avatar || undefined }),
+    () => updateProfileDetails({ name: event.data.name, avatar: event.data.avatar || null }),
     { success: t('saved', 'Profile updated'), error: t('saveFailed', 'Could not update your profile.') },
   )
 }

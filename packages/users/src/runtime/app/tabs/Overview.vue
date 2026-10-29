@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserDetail } from '../utils/admin-user'
@@ -57,7 +58,7 @@ async function save(event: FormSubmitEvent<Schema>) {
   const { name, email, role, emailVerified } = event.data
   const emailChanged = email !== props.user.email
   const saved = await run(
-    () => $fetch(`/api/admin/users/${props.user.id}`, {
+    () => $fetch(usersApi.admin.user(props.user.id), {
       method: 'PATCH',
       body: {
         name,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
+
 defineOptions({ name: 'UsersRevertEmailChangePage' })
 
 type Preview = { status: 'pending' | 'reverted' | 'expired', oldEmail: string, newEmail: string }
@@ -12,7 +14,7 @@ const loginPath = useAuthPages().login
 const passwordReset = useRuntimeConfig().public.authentication?.passwordReset === true
 
 const code = computed(() => typeof route.query.code === 'string' ? route.query.code : '')
-const { data: preview, error: previewError } = await useFetch<Preview>('/api/users/email-change/revert', {
+const { data: preview, error: previewError } = await useFetch<Preview>(usersApi.emailChangeRevert, {
   query: { code },
   immediate: !!code.value,
 })
@@ -32,7 +34,7 @@ async function onRevert() {
   error.value = null
 
   try {
-    const result = await $fetch<{ email: string, signedOut: boolean }>('/api/users/email-change/revert', {
+    const result = await $fetch<{ email: string, signedOut: boolean }>(usersApi.emailChangeRevert, {
       method: 'POST',
       body: { code: code.value },
     })

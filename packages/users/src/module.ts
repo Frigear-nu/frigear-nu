@@ -1,16 +1,16 @@
 import {
-  addServerHandler,
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { moduleApiUrl, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { addAuthScope, setAuthUserStore } from '@frigear-nu/auth/utils'
 import type { UsersAdminContext, UsersAdminRolesContext } from './runtime/server/utils/admin'
+import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
-export type { ModuleOptions, PublicModuleOptions } from './types'
+export type { AdminUserDto, ModuleOptions, ProfileDto, PublicModuleOptions } from './types'
 
 declare module 'nitropack' {
   interface NitroRuntimeHooks {
@@ -91,25 +91,23 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
 
     // --- Self-service: the signed-in user changes their own profile, email and password --------------
-    for (const [path, file] of [
-      ['me/profile', 'profile.post'],
-      ['me/change-email', 'change-email.post'],
-      ['me/change-password', 'change-password.post'],
-    ] as const) {
-      addServerHandler({ route: moduleApiUrl('users', path), method: 'post', handler: resolver.resolve(`./runtime/server/routes/me/${file}`) })
-    }
+    // Every route of the module, read off two tables (paths relative to `/api/users` and `/api/admin/users`;
+    // `usersApi` in `runtime/utils/api.ts` builds the same URLs for app code and tests).
+    const selfRoutes: ModuleRoute[] = [
+      { method: 'patch', path: 'me', file: 'me/profile.patch' },
+      { method: 'put', path: 'me/email', file: 'me/email.put' },
+      { method: 'put', path: 'me/password', file: 'me/password.put' },
+    ]
 
     if (settings.verifyEmailChange) {
       // The emailed links open pages (`/auth/verify-email-change`, `/auth/revert-email-change`) that only read
       // (GET); the change is applied by their buttons (POST), so mail scanners and link previews use nothing up.
-      for (const [method, path, file] of [
-        ['get', 'email-change', 'email-change.get'],
-        ['post', 'email-change/confirm', 'email-change-confirm.post'],
-        ['get', 'email-change/revert', 'email-change-revert.get'],
-        ['post', 'email-change/revert', 'email-change-revert.post'],
-      ] as const) {
-        addServerHandler({ route: moduleApiUrl('users', path), method, handler: resolver.resolve(`./runtime/server/routes/me/${file}`) })
-      }
+      selfRoutes.push(
+        { method: 'get', path: 'email-change', file: 'me/email-change.get' },
+        { method: 'post', path: 'email-change/confirm', file: 'me/email-change-confirm.post' },
+        { method: 'get', path: 'email-change/revert', file: 'me/email-change-revert.get' },
+        { method: 'post', path: 'email-change/revert', file: 'me/email-change-revert.post' },
+      )
       // The pages need `@nuxt/ui`, which may be installed by another module, so this waits until every module is set up.
       nuxt.hook('modules:done', () => {
         if (!hasNuxtModule('@nuxt/ui', nuxt)) {
@@ -126,6 +124,7 @@ export default defineNuxtModule<ModuleOptions>({
         schema: dialect => `./runtime/db/email-changes.${dialect}`,
       })
     }
+    addModuleRoutes(resolver, selfRoutes, { base: '/api/users' })
 
     if (settings.mcp === true) {
       const { addMcpDefinitions } = await import('@frigear-nu/mcp/utils')
@@ -148,19 +147,18 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
 
     if (withAdmin) {
-      for (const [method, path, file] of [
-        ['get', '/api/admin/users', 'users.get'],
-        ['post', '/api/admin/users', 'users.post'],
-        ['get', '/api/admin/users/new', 'new.get'],
-        ['get', '/api/admin/users/stats', 'stats.get'],
-        ['get', '/api/admin/users/roles', 'roles.get'],
-        ['get', '/api/admin/users/:id', 'user.get'],
-        ['patch', '/api/admin/users/:id', 'user.patch'],
-        ['delete', '/api/admin/users/:id', 'user.delete'],
-        ['post', '/api/admin/users/:id/resend', 'user-resend.post'],
-      ] as const) {
-        addServerHandler({ route: path, method, handler: resolver.resolve(`./runtime/server/routes/admin/${file}`) })
-      }
+      // Static segments (`new`, `stats`, `roles`) win over `:id` in the router.
+      addModuleRoutes(resolver, [
+        { method: 'get', path: '', file: 'admin/users.get' },
+        { method: 'post', path: '', file: 'admin/users.post' },
+        { method: 'get', path: 'new', file: 'admin/new.get' },
+        { method: 'get', path: 'stats', file: 'admin/stats.get' },
+        { method: 'get', path: 'roles', file: 'admin/roles.get' },
+        { method: 'get', path: ':id', file: 'admin/user.get' },
+        { method: 'patch', path: ':id', file: 'admin/user.patch' },
+        { method: 'delete', path: ':id', file: 'admin/user.delete' },
+        { method: 'post', path: ':id/resend', file: 'admin/user-resend.post' },
+      ], { base: '/api/admin/users' })
 
       if (adminPagePath) {
         addModulePages('@frigear-nu/users', resolver, [

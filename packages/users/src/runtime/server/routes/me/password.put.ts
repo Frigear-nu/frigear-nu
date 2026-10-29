@@ -1,6 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { apiError, notFound } from '@frigear-nu/module-kit/server'
 
 const bodySchema = z.object({
   currentPassword: z.string().min(1),
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const dbUser = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, user.id) })
 
   if (!dbUser?.password || !(await verifyPassword(dbUser.password, currentPassword))) {
-    throw createError({ statusCode: 401, statusMessage: 'Your current password is incorrect.' })
+    throw apiError(401, 'invalid_credentials', 'Your current password is incorrect.')
   }
 
   const hashed = await hashPassword(newPassword)
@@ -28,9 +29,7 @@ export default defineEventHandler(async (event) => {
     .where(eq(schema.users.id, user.id))
     .returning()
 
-  if (!updated) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
-  }
+  if (!updated) throw notFound('User not found.')
 
   await setUserSession(event, { user: mapUserToSession(updated) })
 
@@ -38,5 +37,5 @@ export default defineEventHandler(async (event) => {
   await dispatchEmailNotification(buildPasswordChangedNotification({ to: updated.email, name: updated.name }))
     .catch(error => console.error('[@frigear-nu/users] Could not send the password changed notice.', error))
 
-  return { id: updated.id }
+  return toProfileDto(updated)
 })

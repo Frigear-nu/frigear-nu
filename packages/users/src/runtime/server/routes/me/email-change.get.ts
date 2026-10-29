@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { notFound } from '@frigear-nu/module-kit/server'
 import { EMAIL_CHANGE_INVALID, findEmailChangeByCode, maskEmail } from '../../email-change'
 
 // Read-only preview for the `/auth/verify-email-change` page: what the link would change and whether the caller may
@@ -9,7 +10,7 @@ export default defineEventHandler(async (event) => {
 
   const change = await findEmailChangeByCode(code)
   if (!change) {
-    throw createError({ statusCode: 404, statusMessage: EMAIL_CHANGE_INVALID })
+    throw notFound(EMAIL_CHANGE_INVALID)
   }
 
   const user = await getUser(event)

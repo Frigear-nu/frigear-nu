@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
 import type { TableColumn } from '@nuxt/ui'
 import type { UserRow, UsersPage } from '../utils/admin-user'
 import { ADMIN_USERS_KEY } from '../utils/admin-user'
@@ -18,7 +19,7 @@ const { page, pageSize, search, sort: sortState, filters, query, filtered, reset
 const sort = useTableSort(null, sortState)
 const { sorting } = sort
 
-const { data, status, error, refresh } = await useFetch<UsersPage>('/api/admin/users', {
+const { data, status, error, refresh } = await useFetch<UsersPage>(usersApi.admin.users, {
   key: ADMIN_USERS_KEY,
   query,
 })

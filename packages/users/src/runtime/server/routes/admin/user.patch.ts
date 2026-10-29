@@ -1,59 +1,50 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { emailField, nameField } from '../../schemas'
 
 const bodySchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
-  email: z.string().email().toLowerCase().optional(),
-  role: z.string().min(1).optional(),
+  name: nameField().optional(),
+  email: emailField().optional(),
+  role: z.string().trim().min(1).max(60).optional(),
   emailVerified: z.boolean().optional(),
 })
 
 export default defineEventHandler(async (event) => {
-  const id = Number(getRouterParam(event, 'id'))
-  if (!Number.isInteger(id)) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid user id.' })
-  }
+  // Authorizes `update` (outright, then on the target) before the body is read or the user looked up.
+  const { target } = await loadUsersAdminTarget(event, 'update')
   const input = await readValidatedBody(event, bodySchema.parse)
   const withRole = usersHaveRoles()
 
-  const target = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })
-  if (!target) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
-  }
-
+  // The host decides on the values too (e.g. which roles this staff member may hand out).
   await authorizeUsersAdmin(event, 'update', {
     input: { role: withRole ? input.role : undefined, email: input.email, name: input.name },
-    target: { id: target.id, email: target.email, role: withRole ? (target as { role?: string }).role : undefined },
+    target: usersAdminTargetInfo(target),
   })
 
-  if (input.email && input.email !== target.email) {
-    const taken = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, input.email!) })
-    if (taken) {
-      throw createError({ statusCode: 409, statusMessage: 'A user with this email already exists.' })
-    }
-  }
+  // A legacy mixed-case address resubmitted in lowercase is not a change.
+  const emailChanged = !!input.email && !sameUserEmail(input.email, target.email)
+  if (emailChanged) await assertEmailAvailable(input.email!, { exceptUserId: target.id })
 
-  const emailChanged = !!input.email && input.email !== target.email
-  const [updated] = await db.update(schema.users)
-    .set({
-      ...(input.name ? { name: input.name } : {}),
-      // A changed address was typed in by staff, so it is unverified until its owner confirms it (unless staff
-      // explicitly marks it verified in the same request).
-      ...(emailChanged ? { email: input.email, emailVerifiedAt: input.emailVerified ? new Date() : null } : {}),
-      ...(!emailChanged && input.emailVerified !== undefined
-        ? { emailVerifiedAt: input.emailVerified ? (target.emailVerifiedAt ?? new Date()) : null }
-        : {}),
-      ...(withRole && input.role ? { role: input.role } : {}),
-    } as Partial<typeof schema.users.$inferInsert>)
-    .where(eq(schema.users.id, id))
-    .returning()
+  const changes = {
+    ...(input.name ? { name: input.name } : {}),
+    // A changed address was typed in by staff, so it is unverified until its owner confirms it (unless staff
+    // explicitly marks it verified in the same request).
+    ...(emailChanged ? { email: input.email, emailVerifiedAt: input.emailVerified ? new Date() : null } : {}),
+    ...(!emailChanged && input.emailVerified !== undefined
+      ? { emailVerifiedAt: input.emailVerified ? (target.emailVerifiedAt ?? new Date()) : null }
+      : {}),
+    ...(withRole && input.role ? { role: input.role } : {}),
+  } as Partial<typeof schema.users.$inferInsert>
+  // Nothing to write (e.g. the same address resubmitted in another case): answer the user as stored.
+  if (!Object.keys(changes).length) return toAdminUserDto(target)
+
+  const [updated] = await db.update(schema.users).set(changes).where(eq(schema.users.id, target.id)).returning()
 
   // Ask the new address's owner to confirm it.
   if (emailChanged && !input.emailVerified) {
     await sendVerificationLink(event, updated!)
   }
 
-  const { password: _password, ...safe } = updated!
-  return safe
+  return toAdminUserDto(updated!)
 })

@@ -1,15 +1,10 @@
 // The shapes of the users admin API, shared by the admin pages, their tabs and `useUserActions`.
+import type { AdminUserDto } from '../../../types'
+
 export type UserSubscription = { planKey: string | null, status: string }
 
-/** One row of `GET /api/admin/users`. */
-export type UserRow = {
-  id: number
-  name: string
-  email: string
-  role?: string
-  emailVerifiedAt: string | null
-  lastLoginAt?: string | null
-  createdAt: string
+/** One row of `GET /api/admin/users` (and `GET /api/admin/users/new`); the create response has no `subscription`. */
+export type UserRow = AdminUserDto & {
   subscription?: UserSubscription | null
 }
 
@@ -25,14 +20,7 @@ export type UsersPage = {
 }
 
 /** The shape of `GET /api/admin/users/:id`. */
-export type UserDetail = {
-  id: number
-  name: string
-  email: string
-  role?: string
-  emailVerifiedAt: string | null
-  lastLoginAt?: string | null
-  createdAt: string
+export type UserDetail = AdminUserDto & {
   hasPassword: boolean
   passkeys: number
   subscription: UserSubscription | null

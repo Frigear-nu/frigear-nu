@@ -29,3 +29,25 @@ export type ModuleOptions = {
     mcp?: boolean
   }
 }
+
+/** A user as the users admin API returns it (`GET /api/admin/users/:id`, create and edit): an allowlist, never the row. */
+export type AdminUserDto = {
+  id: number
+  name: string
+  email: string
+  /** Only when an authorization module added the `role` column. */
+  role?: string
+  avatar: string | null
+  emailVerifiedAt: string | null
+  lastLoginAt: string | null
+  createdAt: string
+}
+
+/** The signed-in user's own profile, as the self-service routes return it. */
+export type ProfileDto = {
+  id: number
+  name: string
+  email: string
+  avatar: string | null
+  emailVerifiedAt: string | null
+}

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
+
 defineOptions({ name: 'UsersVerifyEmailChangePage' })
 
 type Preview = {
@@ -18,7 +20,7 @@ const loginPath = useAuthPages().login
 const profilePath = useRuntimeConfig().public.users?.profilePath
 
 const code = computed(() => typeof route.query.code === 'string' ? route.query.code : '')
-const { data: preview, error: previewError } = await useFetch<Preview>('/api/users/email-change', {
+const { data: preview, error: previewError } = await useFetch<Preview>(usersApi.emailChange, {
   query: { code },
   immediate: !!code.value,
   // Signing out (wrong account) changes who may confirm.
@@ -53,7 +55,7 @@ async function onConfirm() {
   error.value = null
 
   try {
-    const result = await $fetch<{ email: string, redirect?: string }>('/api/users/email-change/confirm', {
+    const result = await $fetch<{ email: string, redirect?: string }>(usersApi.emailChangeConfirm, {
       method: 'POST',
       body: { code: code.value },
     })
