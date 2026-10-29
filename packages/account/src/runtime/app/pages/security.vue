@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
+import { authApi } from '@frigear-nu/auth/api'
+import type { AuthPasskeyDto } from '@frigear-nu/auth/utils'
 import AccountPasskeySlideover from '../components/Account/AccountPasskeySlideover.vue'
 
 defineOptions({ name: 'AccountSecurityPage' })
@@ -46,7 +48,7 @@ async function onSubmitPassword(event: FormSubmitEvent<PasswordSchema>) {
 }
 
 // --- Passkeys --------------------------------------------------------------------------------------------------
-interface Passkey { id: string, name: string | null, createdAt: string | Date }
+type Passkey = AuthPasskeyDto
 
 // Loaded on the server (awaited), so the card renders with the list instead of "no passkeys" until the client
 // catches up. Keyed by user so another account on the same browser never sees a remembered list; it is refetched on
@@ -56,7 +58,7 @@ const {
   error: passkeysError,
   loading: passkeysLoading,
   refresh: loadPasskeys,
-} = await useCachedFetch<Passkey[]>('/api/auth/webauthn/credentials', {
+} = await useCachedFetch<Passkey[]>(authApi.me.passkeys, {
   key: () => `account:passkeys:${user.value?.id ?? 'anonymous'}`,
   ttl: 0,
   immediate: webAuthnEnabled,

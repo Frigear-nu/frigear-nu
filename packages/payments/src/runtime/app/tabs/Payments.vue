@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { PaymentDto } from '../../../types'
+import { paymentsApi } from '../../utils'
 
 defineOptions({ name: 'UsersAdminPayments' })
 
@@ -14,7 +15,7 @@ const format = useFormat()
 
 // Lazy, so the tab shell renders at once. `loading` is only the first load: a refresh keeps the rows on screen.
 const { data: payments, status: fetchStatus, error } = useLazyFetch<PaymentDto[]>(
-  () => `/api/admin/users/${props.user.id}/payments`,
+  () => paymentsApi.admin.userPayments(props.user.id),
   { key: () => `admin-payments-${props.user.id}` },
 )
 

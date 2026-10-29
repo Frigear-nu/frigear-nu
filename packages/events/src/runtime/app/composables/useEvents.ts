@@ -1,10 +1,10 @@
 import type { EventDetailDto, EventSummaryDto, TicketDto, Translated } from '../../../types'
-import { translate } from '../../utils'
+import { eventsApi, translate } from '../../utils'
 
 export async function useEvents() {
   // `now` is captured once and shared with the client payload, so the grouping hydrates identically.
   const now = useState('events:now', () => Date.now())
-  const { data, status, refresh } = await useFetch<EventSummaryDto[]>('/api/events', { key: 'events:list', default: () => [] })
+  const { data, status, refresh } = await useFetch<EventSummaryDto[]>(eventsApi.list, { key: 'events:list', default: () => [] })
 
   const grouped = computed(() => {
     const start = (e: EventSummaryDto) => new Date(e.startsAt).getTime()
@@ -24,14 +24,14 @@ export async function useEvent(slug: MaybeRefOrGetter<string>) {
   const { loggedIn } = useUserSession()
   // Resolved before the await: composables need the Nuxt context.
   const locale = useEventsLocale()
-  const { data, status, error, refresh } = await useFetch<EventDetailDto>(() => `/api/events/${toValue(slug)}`, {
+  const { data, status, error, refresh } = await useFetch<EventDetailDto>(() => eventsApi.event(toValue(slug)), {
     key: `events:detail:${toValue(slug)}`,
     // Eligibility (membership, limits) depends on the session; refetch quietly, keeping the data on screen.
     watch: [loggedIn],
   })
 
   async function purchase(ticketTypeId: string, addonIds: string[] = []) {
-    const result = await $fetch<{ ticket: TicketDto, url?: string }>(`/api/events/${toValue(slug)}/purchase`, {
+    const result = await $fetch<{ ticket: TicketDto, url?: string }>(eventsApi.purchase(toValue(slug)), {
       method: 'POST',
       body: { ticketTypeId, addonIds, locale: locale.value },
     })
@@ -57,7 +57,7 @@ export function useMyTickets() {
   // Always asks the server, which knows the visitor from the request's cookie. Gating the request on the client-side
   // session (`immediate: loggedIn.value`) left the list empty for good whenever the session state was not loaded yet
   // when the page set up, as `watch: false` never retried.
-  const fetched = useCachedFetch<TicketDto[]>('/api/events/tickets/me', {
+  const fetched = useCachedFetch<TicketDto[]>(eventsApi.me.tickets, {
     key: 'events:tickets:mine',
     ttl: MY_TICKETS_TTL_MS,
     watch: false,
@@ -72,7 +72,7 @@ export function useMyTickets() {
   const tickets = computed(() => fetched.data.value ?? [])
 
   async function pay(ticketId: string) {
-    const { url } = await $fetch<{ url: string }>(`/api/events/tickets/${ticketId}/pay`, { method: 'POST' })
+    const { url } = await $fetch<{ url: string }>(eventsApi.me.pay(ticketId), { method: 'POST' })
     await navigateTo(url, { external: true })
   }
 

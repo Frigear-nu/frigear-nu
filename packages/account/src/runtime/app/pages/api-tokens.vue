@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
+import { authApi } from '@frigear-nu/auth/api'
 import type { ApiToken, ApiTokenScope } from '../utils/api-tokens'
 import AccountApiTokenSlideover from '../components/Account/AccountApiTokenSlideover.vue'
 
@@ -16,8 +17,8 @@ const createSlideover = overlay.create(AccountApiTokenSlideover, { destroyOnClos
 
 // Revisits reuse the last response (`refresh()` after create/revoke always asks the server); the scope catalogue only
 // changes with a deploy, so it is reused until the page is reloaded.
-const { data: tokens, refresh, status } = await useCachedFetch<ApiToken[]>('/api/auth/tokens', { key: 'account-api-tokens', ttl: 60_000 })
-const { data: scopes } = await useCachedFetch<ApiTokenScope[]>('/api/auth/scopes', { key: 'account-api-token-scopes' })
+const { data: tokens, refresh, status } = await useCachedFetch<ApiToken[]>(authApi.me.tokens, { key: 'account-api-tokens', ttl: 60_000 })
+const { data: scopes } = await useCachedFetch<ApiTokenScope[]>(authApi.scopes, { key: 'account-api-token-scopes' })
 
 // The plaintext token exists only in the response to the create call; it is shown once, then dropped.
 const revealed = ref<{ name: string, token: string } | null>(null)
@@ -41,7 +42,7 @@ async function onRevoke(token: ApiToken) {
   })
   if (!confirmed) return
   try {
-    await $fetch(`/api/auth/tokens/${token.id}`, { method: 'DELETE' })
+    await $fetch(authApi.me.token(token.id), { method: 'DELETE' })
     toast.add({ title: t('revoked', 'Token revoked.'), description: token.name, color: 'success', icon: 'i-lucide-check' })
     await refresh()
   }

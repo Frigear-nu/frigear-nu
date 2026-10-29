@@ -46,7 +46,10 @@
       "enabled": "Application enabled",
       "disabledToast": "Application disabled",
       "secretReplaced": "Client secret replaced",
-      "signedOut": "Everyone signed out"
+      "signedOut": "Everyone signed out",
+      "search": "Search name or client ID...",
+      "noMatches": "No applications match",
+      "clearSearch": "Clear search"
     },
     "form": {
       "createTitle": "Add application",

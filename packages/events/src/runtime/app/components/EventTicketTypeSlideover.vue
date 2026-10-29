@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Translated } from '../../../types'
 import { toCents, fromCents } from '@frigear-nu/ui/money'
-import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
+import { DEFAULT_CURRENCY, eventsApi, ticketMdcData } from '../../utils'
 import type { MembershipPlans, StaffTicketType } from '../utils/admin-event'
 
 defineOptions({ name: 'EventTicketTypeSlideover' })
@@ -77,8 +77,8 @@ async function save(event: FormSubmitEvent<Schema>) {
   }
   const saved = await run(
     () => props.ticketType
-      ? $fetch<{ id: string }>(`/api/events/admin/ticket-types/${props.ticketType.id}`, { method: 'PATCH', body })
-      : $fetch<{ id: string }>(`/api/events/admin/events/${props.eventId}/ticket-types`, { method: 'POST', body: { key: data.key, ...body } }),
+      ? $fetch<{ id: string }>(eventsApi.admin.ticketType(props.ticketType.id), { method: 'PATCH', body })
+      : $fetch<{ id: string }>(eventsApi.admin.ticketTypes(props.eventId), { method: 'POST', body: { key: data.key, ...body } }),
     { success: t('admin.typeSaved', 'Ticket type saved.') },
   )
   if (saved) emit('close', saved)

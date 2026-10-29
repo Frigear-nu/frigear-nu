@@ -112,7 +112,6 @@
       "clearFilters": "Ryd filtre",
       "noMatches": "Ingen formularer matcher.",
       "emptyDescription": "Opret en formular for at begynde at indsamle svar.",
-      "showing": "{shown} af {total} formularer",
       "open": "Åbn",
       "updated": "Opdateret",
       "cloned": "Formular duplikeret",

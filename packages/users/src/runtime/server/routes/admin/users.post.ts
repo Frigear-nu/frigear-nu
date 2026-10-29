@@ -1,41 +1,41 @@
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
+import { apiError, created } from '@frigear-nu/module-kit/server'
+import { emailField, nameField } from '../../schemas'
 
 const bodySchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  email: z.string().email().toLowerCase(),
-  role: z.string().min(1).optional(),
+  name: nameField(),
+  email: emailField(),
+  role: z.string().trim().min(1).max(60).optional(),
   // Verified accounts are signed in by the emailed link below; leave unverified to let the user verify themselves.
   emailVerified: z.boolean().default(false),
   sendWelcomeEmail: z.boolean().default(true),
 })
 
 export default defineEventHandler(async (event) => {
+  // Staff only, before the body is read; then the host decides on the values (e.g. the role handed out).
+  await authorizeUsersAdmin(event, 'create')
   const input = await readValidatedBody(event, bodySchema.parse)
   const withRole = usersHaveRoles()
   await authorizeUsersAdmin(event, 'create', { input: { role: withRole ? input.role : undefined, email: input.email, name: input.name } })
 
-  const existing = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, input.email) })
-  if (existing) {
-    throw createError({ statusCode: 409, statusMessage: 'A user with this email already exists.' })
-  }
+  await assertEmailAvailable(input.email)
 
-  const [created] = await db.insert(schema.users).values({
+  const [user] = await db.insert(schema.users).values({
     name: input.name,
     email: input.email,
     emailVerifiedAt: input.emailVerified ? new Date() : null,
     ...(withRole && input.role ? { role: input.role } : {}),
   } as typeof schema.users.$inferInsert).returning()
 
-  if (!created) {
-    throw createError({ statusCode: 500, statusMessage: 'Failed to create the user.' })
+  if (!user) {
+    throw apiError(500, 'internal_error', 'Failed to create the user.')
   }
 
   // The user has no password: the emailed single-use link (which also verifies the address) signs them in.
   if (input.sendWelcomeEmail) {
-    await sendVerificationLink(event, created)
+    await sendVerificationLink(event, user)
   }
 
-  const { password: _password, ...safe } = created
-  return safe
+  return created(event, toAdminUserDto(user))
 })

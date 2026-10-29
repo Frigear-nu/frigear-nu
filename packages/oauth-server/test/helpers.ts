@@ -13,7 +13,8 @@ export async function registerUser(name: string, email: string) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.clone().text()).toBe(200)
+  // 201 once auth answers registrations as a create.
+  expect([200, 201], await response.clone().text()).toContain(response.status)
   const cookie = response.headers.get('set-cookie')!
   const me = await fetch('/api/_auth/session', { headers: { cookie } }).then(r => r.json()) as Json
   return { cookie, id: me.user.id as number }

@@ -1,6 +1,8 @@
 import type { H3Event } from 'h3'
+import { apiError } from '@frigear-nu/module-kit/server'
 import { handlers, settings } from '#auth/oauth'
 import type { OAuthProviderButton } from '../../../types'
+import { authApi } from '../../utils/api'
 
 type OAuthProfile = Record<string, unknown>
 
@@ -40,11 +42,11 @@ export function listOAuthProviders(event: H3Event): OAuthProviderButton[] {
       const frigear = settings.frigear
       if (!frigear || !resolveFrigearSso(event).enabled) return []
       // Full page navigation: the route redirects to frigear.nu.
-      return [{ key: 'frigear', to: '/auth/frigear', external: true, label: frigear.label, icon: frigear.icon }]
+      return [{ key: 'frigear', to: authApi.frigear, external: true, label: frigear.label, icon: frigear.icon }]
     }
     const provider = resolveOAuthProvider(event, name)
     if (!provider) return []
-    return [{ key: provider.key, to: `/api/auth/${provider.key}`, label: provider.options.label, icon: provider.options.icon }]
+    return [{ key: provider.key, to: authApi.provider(provider.key), label: provider.options.label, icon: provider.options.icon }]
   })
 }
 
@@ -53,14 +55,14 @@ export function listOAuthProviders(event: H3Event): OAuthProviderButton[] {
  * matched by email; with `signUp: false` an unknown email is sent back to the login page instead of getting an account.
  */
 export async function handleOAuthUser(event: H3Event, provider: string, profile: OAuthProfile, options: { signUp?: boolean } = {}) {
-  const email = profile.email as string | undefined
+  const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() || undefined : undefined
 
   if (!email) {
-    throw createError({ statusCode: 400, statusMessage: `No email returned from the ${provider} OAuth provider.` })
+    throw apiError(400, 'email_missing', `No email returned from the ${provider} OAuth provider.`)
   }
   // Matching an unverified address would sign in to the account that owns it.
   if (profile.email_verified === false) {
-    throw createError({ statusCode: 403, statusMessage: `The ${provider} account's email address is not verified.` })
+    throw apiError(403, 'email_not_verified', `The ${provider} account's email address is not verified.`)
   }
 
   const users = useAuthUserStore()

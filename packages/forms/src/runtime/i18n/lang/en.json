@@ -112,7 +112,6 @@
       "clearFilters": "Clear filters",
       "noMatches": "No forms match.",
       "emptyDescription": "Create a form to start collecting answers.",
-      "showing": "{shown} of {total} forms",
       "open": "Open",
       "updated": "Updated",
       "cloned": "Form duplicated",

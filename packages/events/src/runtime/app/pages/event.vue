@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { eventsApi } from '../../utils/api'
+
 // MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
 const hasMdc = typeof resolveComponent('MDC') !== 'string'
 const t = useModuleT('events')
@@ -29,7 +31,7 @@ onMounted(async () => {
   if (payment.value !== 'success' || !returnedTicket.value) return
   paidState.value = 'waiting'
   for (let attempt = 0; attempt < 20; attempt++) {
-    const ticket = await $fetch<{ status: string }>(`/api/events/tickets/${returnedTicket.value}`).catch(() => null)
+    const ticket = await $fetch<{ status: string }>(eventsApi.me.ticket(returnedTicket.value)).catch(() => null)
     if (ticket?.status === 'paid') {
       paidState.value = 'paid'
       await refresh()

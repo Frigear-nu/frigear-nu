@@ -3,7 +3,6 @@
 export { registerStripeEventHandler, defineStripeEventHandler } from './handlers'
 export type { RegisterStripeEventHandlerOptions } from './handlers'
 export { onStripeEvent } from './registry'
-export { resolveSameOriginUrl } from './url'
 export type {
   ModuleOptions,
   StripeEventType,

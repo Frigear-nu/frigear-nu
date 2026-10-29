@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { desc, getTableColumns, inArray } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
+import { intIdParams, notFound } from '@frigear-nu/module-kit/server'
 
 export type UsersAdminAction = 'view' | 'create' | 'update' | 'delete'
 
@@ -29,13 +30,17 @@ export type UsersAdminRolesContext = {
 /** Whether another module added a `role` column to `users` (`@frigear-nu/authorization`). */
 export const usersHaveRoles = () => 'role' in getTableColumns(schema.users)
 
-/** Whether the host policy allows the signed-in user to do `action` (never throws on denial). */
+// The host's staff gate (`users:admin:authorize`); `action`, `input` and `target` are merged into the hook context.
+const usersAdminGate = definePolicyGate<Pick<UsersAdminContext, 'action' | 'input' | 'target'>>('users:admin:authorize')
+
+const USERS_ADMIN_DENIED = 'You are not allowed to manage users.'
+
+/** Whether the host policy allows the signed-in user to do `action` (never throws on denial; 401/403 without a session). */
 export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}) {
   // Staff actions are never available to API tokens or OAuth access tokens.
   const user = await requireUser(event, { sessionOnly: true })
-  const context: UsersAdminContext = { event, userId: user.id as number, action, ...details, allowed: false }
-  await useNitroApp().hooks.callHook('users:admin:authorize', context)
-  return { allowed: context.allowed, user }
+  const allowed = await usersAdminGate.isAllowed(event, user.id as number, { action, ...details })
+  return { allowed, user }
 }
 
 /**
@@ -43,10 +48,8 @@ export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminActi
  * otherwise. The users module knows nothing about roles or staff: that policy is the host's.
  */
 export async function authorizeUsersAdmin(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}) {
-  const { allowed, user } = await isUsersAdminAllowed(event, action, details)
-  if (!allowed) {
-    throw createError({ statusCode: 403, statusMessage: 'You are not allowed to manage users.' })
-  }
+  const user = await requireUser(event, { sessionOnly: true })
+  await usersAdminGate.assert(event, user.id as number, USERS_ADMIN_DENIED, { action, ...details })
   return user
 }
 
@@ -87,20 +90,26 @@ export async function latestSubscriptions(userIds: number[]) {
   return result
 }
 
+/** The policy view of a stored user: what the `users:admin:authorize` hook sees as `target`. */
+export const usersAdminTargetInfo = (user: { id: number, email: string }) => ({
+  id: user.id,
+  email: user.email,
+  role: usersHaveRoles() ? (user as { role?: string }).role : undefined,
+})
+
 /**
  * Loads the user a staff member is acting on (`/api/admin/users/:id/...`) and runs the users admin policy against
- * them (`view` for reads, `update` for changes). Throws 400/401/403/404. For routes added with `extendUsersAdmin`.
+ * them (`view` for reads, `update` for changes). For routes added with `extendUsersAdmin`.
+ *
+ * Authorizes before it looks anything up: 401 without a session, 403 when the host denies `action` outright, then
+ * 400 for a malformed id, 404 for an unknown user, and 403 again when the host denies `action` on this target.
  */
 export async function loadUsersAdminTarget(event: H3Event, action: Exclude<UsersAdminAction, 'create'>) {
-  const id = Number(getRouterParam(event, 'id'))
-  if (!Number.isInteger(id)) throw createError({ statusCode: 400, statusMessage: 'Invalid user id.' })
+  await authorizeUsersAdmin(event, action)
+  const { id } = await getValidatedRouterParams(event, intIdParams().parse)
 
   const target = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })
-  const actor = await authorizeUsersAdmin(
-    event,
-    action,
-    target ? { target: { id: target.id, email: target.email, role: (target as { role?: string }).role }, input: {} } : {},
-  )
-  if (!target) throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+  if (!target) throw notFound('User not found.')
+  const actor = await authorizeUsersAdmin(event, action, { target: usersAdminTargetInfo(target), input: {} })
   return { actor, target }
 }

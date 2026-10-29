@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { Translated } from '../../../types'
+import type { UpcomingEventsDto } from '../../../types'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventsUpcomingList' })
 
 // List card for the `admin.dashboard.side` area: the next published events.
-type Upcoming = { id: string, name: Translated, location: Translated | null, startsAt: string }
 
 const t = useModuleT('events')
 const format = useFormat()
 const tr = useEventsTranslate()
 const links = useEventLinks()
-const { data, status } = useLazyFetch<{ total: number, items: Upcoming[] }>('/api/events/admin/upcoming', { key: 'admin-events-upcoming' })
+const { data, status } = useLazyFetch<UpcomingEventsDto>(eventsApi.admin.upcoming, { key: 'admin-events-upcoming' })
 </script>
 
 <template>

@@ -1,12 +1,13 @@
 import { exportJWK, importPKCS8, importSPKI } from 'jose'
 import type { CryptoKey, JWK } from 'jose'
+import { apiError } from '@frigear-nu/module-kit/server'
 
 /** Accepts PEMs pasted into env files: strips wrapping quotes and turns literal `\n` into newlines. */
 export function normalizePemKey(raw: string): string {
   return raw.trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n').trim()
 }
 
-const notConfigured = () => createError({ statusCode: 500, statusMessage: 'The OAuth server signing keys are not configured.' })
+const notConfigured = () => apiError(500, 'not_configured', 'The OAuth server signing keys are not configured.')
 
 let cache: { pem: string, publicPem: string, privateKey: CryptoKey, publicJwk: JWK } | undefined
 
@@ -43,7 +44,7 @@ function parsePreviousKeys(): Record<string, string> {
     return Object.fromEntries(Object.entries(parsed as Record<string, string>).map(([kid, pem]) => [kid, normalizePemKey(String(pem))]))
   }
   catch {
-    throw createError({ statusCode: 500, statusMessage: 'The OAuth server previous public keys are not valid JSON.' })
+    throw apiError(500, 'not_configured', 'The OAuth server previous public keys are not valid JSON.')
   }
 }
 

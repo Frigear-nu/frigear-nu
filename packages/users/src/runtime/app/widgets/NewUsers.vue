@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
 import type { UserRow } from '../utils/admin-user'
 
 defineOptions({ name: 'UsersNewUsersWidget' })
@@ -8,7 +9,7 @@ const format = useFormat()
 const { localize } = useLocaleLink()
 const adminPage = useRuntimeConfig().public.users?.pages?.admin
 const listPath = adminPage ? localize(adminPage.replace(/\/+$/, '')) : undefined
-const { data: users, status } = useLazyFetch<UserRow[]>('/api/admin/users/new', { key: 'admin-users-new', default: () => [] })
+const { data: users, status } = useLazyFetch<UserRow[]>(usersApi.admin.new, { key: 'admin-users-new', default: () => [] })
 </script>
 
 <template>

@@ -56,9 +56,11 @@ export default defineNuxtConfig({
 
 ## API routes
 
-- `POST /api/account/profile` - updates `name`/`avatar`.
-- `POST /api/account/change-email` - updates `email` (rejects if already taken by another user).
-- `POST /api/account/change-password` - verifies `currentPassword` and updates to `newPassword`.
+These routes belong to `@frigear-nu/users`; the account pages call them:
+
+- `PATCH /api/users/me` - updates `name`/`avatar`.
+- `PUT /api/users/me/email` - updates `email` (rejects if already taken by another user).
+- `PUT /api/users/me/password` - verifies `currentPassword` and updates to `newPassword`.
 
 All three require an authenticated session and re-map the updated user into it.
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { apiError, conflict } from '@frigear-nu/module-kit/server'
 import type { AdminPaymentLinkResponse as PaymentLinkResponse } from '../../../../types'
 
 const bodySchema = z.object({
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event): Promise<PaymentLinkResponse> =>
 
   const current = currentEntitledRow(await listUserSubscriptionRows(target.id))
   if (current && current.source !== 'manual') {
-    throw createError({ statusCode: 409, statusMessage: 'The user already has a paid subscription.' })
+    throw conflict('The user already has a paid subscription.')
   }
 
   // Staff may pick any configured plan, so the per-request plan filter hook is not applied here.
@@ -38,7 +39,7 @@ export default defineEventHandler(async (event): Promise<PaymentLinkResponse> =>
     client_reference_id: String(target.id),
     subscription_data: { metadata: { userId: String(target.id), ...(planKey ? { planKey } : {}) } },
   })
-  if (!session.url) throw createError({ statusCode: 502, statusMessage: 'Stripe did not return a checkout URL.' })
+  if (!session.url) throw apiError(502, 'bad_gateway', 'Stripe did not return a checkout URL.')
 
   let emailed = false
   if (body.email) {

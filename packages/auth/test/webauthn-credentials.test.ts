@@ -3,6 +3,7 @@ import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 import { eq } from 'drizzle-orm'
+import { createError } from 'h3'
 import * as authSchema from '../src/runtime/db/schema.sqlite'
 
 // The users table belongs to @frigear-nu/users; this stand-in only has what the passkey routes need from a user.
@@ -24,6 +25,7 @@ const setUserSession = vi.fn(async (_event: unknown, data: { user: unknown }) =>
   session = { user: data.user as { id: number, email: string } }
 })
 vi.stubGlobal('defineWebAuthnRegisterEventHandler', (options: unknown) => options)
+vi.stubGlobal('defineWebAuthnAuthenticateEventHandler', (options: unknown) => options)
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('useStorage', () => ({ setItem: vi.fn(), getItem: vi.fn(), removeItem: vi.fn() }))
 vi.stubGlobal('getUserSession', async () => session)
@@ -39,13 +41,17 @@ const requireAuth = vi.fn(async (_event: unknown, _options?: { sessionOnly?: boo
 vi.stubGlobal('requireAuth', requireAuth)
 vi.stubGlobal('useAuthUserStore', () => ({
   findByEmail: async (email: string) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, email) })) ?? null,
+  findById: async (id: number) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })) ?? null,
   create: async (values: { name: string, email: string }) => (await db.insert(users).values(values).returning())[0]!,
   remove: async (id: number) => { await db.delete(users).where(eq(users.id, id)) },
 }))
 vi.stubGlobal('setUserSession', setUserSession)
 vi.stubGlobal('mapUserToSession', (user: { id: number, email: string }) => ({ id: user.id, email: user.email }))
-vi.stubGlobal('getRouterParam', (event: { params: Record<string, string> }, name: string) => event.params[name])
-vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
+vi.stubGlobal('getValidatedRouterParams', async (event: { params: Record<string, string> }, parse: (value: unknown) => unknown) => parse(event.params))
+vi.stubGlobal('toPasskeyDto', (await import('../src/runtime/server/utils/passkeys')).toPasskeyDto)
+
+// What h3 needs of an event to set the response status (`noContent`).
+const routeEvent = (params: Record<string, string> = {}) => ({ params, node: { res: {} as { statusCode?: number } } })
 
 interface RegisterHandler {
   validateUser: (body: unknown, event: unknown) => Promise<{ userName: string, displayName?: string }>
@@ -57,15 +63,15 @@ const credential = (id: string) => ({ id, publicKey: 'pk-' + id, counter: 0, bac
 describe('webauthn credential routes', () => {
   let register: RegisterHandler
   let list: (event: unknown) => Promise<Record<string, unknown>[]>
-  let remove: (event: unknown) => Promise<{ success: boolean }>
+  let remove: (event: unknown) => Promise<null>
 
   beforeAll(async () => {
     await client.execute('PRAGMA foreign_keys = ON')
     await client.execute(`CREATE TABLE users (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, email text NOT NULL UNIQUE)`)
     await client.execute(`CREATE TABLE user_credentials (id text PRIMARY KEY NOT NULL, userId integer NOT NULL, publicKey text NOT NULL, counter integer DEFAULT 0 NOT NULL, backedUp integer DEFAULT false NOT NULL, transports text, name text, createdAt integer NOT NULL)`)
     register = (await import('../src/runtime/server/routes/webauthn/register.post')).default as unknown as RegisterHandler
-    list = (await import('../src/runtime/server/routes/webauthn/credentials/index.get')).default as never
-    remove = (await import('../src/runtime/server/routes/webauthn/credentials/[id].delete')).default as never
+    list = (await import('../src/runtime/server/routes/me/passkeys.get')).default as never
+    remove = (await import('../src/runtime/server/routes/me/passkey.delete')).default as never
   })
 
   beforeEach(async () => {
@@ -107,9 +113,10 @@ describe('webauthn credential routes', () => {
     ])
     session = { user: { id: a!.id, email: a!.email } }
 
-    const result = await list({})
+    const result = await list(routeEvent())
     expect(result.map(c => c.id)).toEqual(['a-1'])
-    expect(result[0]).not.toHaveProperty('publicKey')
+    expect(Object.keys(result[0]!).sort()).toEqual(['backedUp', 'createdAt', 'id', 'name', 'transports'])
+    expect(result[0]!.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/)
   })
 
   it('removes only the session user\'s own passkeys', async () => {
@@ -120,23 +127,71 @@ describe('webauthn credential routes', () => {
     ])
     session = { user: { id: a!.id, email: a!.email } }
 
-    await expect(remove({ params: { id: 'b-1' } })).rejects.toMatchObject({ statusCode: 404 })
-    expect(await remove({ params: { id: 'a-1' } })).toEqual({ success: true })
+    await expect(remove(routeEvent({ id: 'b-1' }))).rejects.toMatchObject({ statusCode: 404, data: { code: 'not_found' } })
+    const event = routeEvent({ id: 'a-1' })
+    expect(await remove(event)).toBeNull()
+    expect(event.node.res.statusCode).toBe(204)
 
     const remaining = await db.query.userCredentials.findMany()
     expect(remaining.map(c => c.id)).toEqual(['b-1'])
   })
 
   it('requires a session to list or remove passkeys', async () => {
-    await expect(list({})).rejects.toMatchObject({ statusCode: 401 })
-    await expect(remove({ params: { id: 'x' } })).rejects.toMatchObject({ statusCode: 401 })
+    await expect(list(routeEvent())).rejects.toMatchObject({ statusCode: 401 })
+    await expect(remove(routeEvent({ id: 'x' }))).rejects.toMatchObject({ statusCode: 401 })
   })
 
   it('asks for a session-only credential, so bearer tokens cannot manage passkeys', async () => {
     requireAuth.mockClear()
-    await expect(list({})).rejects.toBeDefined()
-    await expect(remove({ params: { id: 'x' } })).rejects.toBeDefined()
+    await expect(list(routeEvent())).rejects.toBeDefined()
+    await expect(remove(routeEvent({ id: 'x' }))).rejects.toBeDefined()
     expect(requireAuth).toHaveBeenCalledTimes(2)
     for (const [, options] of requireAuth.mock.calls) expect(options).toEqual({ sessionOnly: true })
+  })
+})
+
+interface AuthenticateHandler {
+  allowCredentials: (event: unknown, userName: string) => Promise<Array<{ id: string }>>
+  getCredential: (event: unknown, id: string) => Promise<unknown>
+  onError: (event: unknown, error: unknown) => Promise<void>
+}
+
+describe('webauthn authenticate route', () => {
+  let authenticate: AuthenticateHandler
+
+  beforeAll(async () => {
+    authenticate = (await import('../src/runtime/server/routes/webauthn/authenticate.post')).default as unknown as AuthenticateHandler
+  })
+
+  beforeEach(async () => {
+    await client.execute('DELETE FROM user_credentials')
+    await client.execute('DELETE FROM users')
+  })
+
+  const invalid = { statusCode: 401, data: { code: 'invalid_credentials' } }
+
+  it('answers one generic 401 for an unknown address and for an account without passkeys', async () => {
+    await db.insert(schema.users).values({ name: 'A', email: 'a@example.com' })
+
+    const unknown = await authenticate.allowCredentials({}, 'nobody@example.com').catch(error => error)
+    const noPasskeys = await authenticate.allowCredentials({}, 'a@example.com').catch(error => error)
+    expect(unknown).toMatchObject(invalid)
+    expect(noPasskeys).toMatchObject(invalid)
+    // Nothing tells the two apart.
+    expect(noPasskeys.statusMessage).toBe(unknown.statusMessage)
+  })
+
+  it('offers the account\'s passkeys, whatever the case of the address', async () => {
+    const [a] = await db.insert(schema.users).values({ name: 'A', email: 'a@example.com' }).returning()
+    await db.insert(schema.userCredentials).values({ ...credential('a-1'), userId: a!.id })
+    expect(await authenticate.allowCredentials({}, ' A@Example.com ')).toEqual([{ id: 'a-1' }])
+  })
+
+  it('answers the generic 401 for an unknown credential and a failed verification', async () => {
+    await expect(authenticate.getCredential({}, 'missing')).rejects.toMatchObject(invalid)
+    // nuxt-auth-utils hands a failed verification to `onError` as a bare 400 (or a 500).
+    await expect(authenticate.onError({}, createError({ statusCode: 400, message: 'Failed to verify registration response' }))).rejects.toMatchObject(invalid)
+    const expired = createError({ statusCode: 400, statusMessage: 'Challenge expired.', data: { code: 'challenge_expired' } })
+    await expect(authenticate.onError({}, expired)).rejects.toBe(expired)
   })
 })

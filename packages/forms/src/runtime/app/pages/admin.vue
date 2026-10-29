@@ -1,34 +1,26 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FormStatus, FormSummaryDto } from '../../../types'
+import type { FormSummaryDto, FormsPage } from '../../../types'
+import { formsApi } from '../../utils'
 
 const t = useModuleT('forms')
 const paths = useFormsPaths()
 const format = useFormat()
 const actions = useFormActions()
-const { data: forms, error, status, refresh } = await useFetch<FormSummaryDto[]>('/api/forms/admin/forms', { key: FORMS_LIST_KEY })
 
-const search = ref('')
-const statusFilter = ref<FormStatus | 'all'>('all')
+// Search, status filter, sort and page live in the URL and go to the API (`all`, the default, is left out).
+const list = useTableQuery({ sort: { id: 'updatedAt', desc: true }, filters: { status: 'all' } })
+const { page, pageSize, search, filters, filtered } = list
+const { data, error, status, refresh } = await useFetch<FormsPage<FormSummaryDto>>(formsApi.admin.forms, { key: FORMS_LIST_KEY, query: list.query })
+const forms = computed(() => data.value?.items ?? [])
+
 const statusItems = computed(() => [
   { value: 'all', label: t('admin.allStatuses', 'All statuses') },
   ...(['published', 'draft', 'archived'] as const).map(value => ({ value, label: t(`status.${value}`, value) })),
 ])
+const clearFilters = () => list.reset()
 
-const visibleForms = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  return (forms.value ?? []).filter(form =>
-    (statusFilter.value === 'all' || form.status === statusFilter.value)
-    && (!query || form.name.toLowerCase().includes(query) || form.slug.toLowerCase().includes(query)),
-  )
-})
-const filtered = computed(() => !!search.value.trim() || statusFilter.value !== 'all')
-function clearFilters() {
-  search.value = ''
-  statusFilter.value = 'all'
-}
-
-const { sorting, header } = useTableSort({ id: 'updatedAt', desc: true })
+const { sorting, header } = useTableSort(null, list.sort)
 const columns = computed<TableColumn<FormSummaryDto>[]>(() => [
   { accessorKey: 'name', header: header('name', t('admin.name', 'Name')) },
   { accessorKey: 'status', header: header('status', t('admin.status', 'Status')) },
@@ -70,7 +62,7 @@ const menu = (form: FormSummaryDto) => actions.menu(form)
     </PageHeading>
 
     <UEmpty
-      v-if="error && !forms"
+      v-if="error && !data"
       :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
       :title="forbidden ? t('admin.forbidden', 'You are not allowed to manage forms.') : t('admin.loadFailed', 'Forms could not be loaded')"
       :description="forbidden ? undefined : errorMessage(error, '')"
@@ -87,7 +79,7 @@ const menu = (form: FormSummaryDto) => actions.menu(form)
           :aria-label="t('admin.search', 'Search forms')"
         />
         <USelect
-          v-model="statusFilter"
+          v-model="filters.status"
           class="w-full sm:w-44"
           :items="statusItems"
           :aria-label="t('admin.statusFilter', 'Filter by status')"
@@ -95,13 +87,14 @@ const menu = (form: FormSummaryDto) => actions.menu(form)
       </PageToolbar>
 
       <TableCard
-        :loading="status === 'pending' && !forms"
-        :refreshing="status === 'pending' && !!forms"
+        :loading="status === 'pending' && !data"
+        :refreshing="status === 'pending' && !!data"
       >
         <UTable
           v-model:sorting="sorting"
-          :data="visibleForms"
+          :data="forms"
           :columns="columns"
+          :sorting-options="{ manualSorting: true }"
           :ui="tableUi()"
           @select="(_: Event, row: { original: FormSummaryDto }) => navigateTo(editPath(row.original))"
         >
@@ -152,11 +145,12 @@ const menu = (form: FormSummaryDto) => actions.menu(form)
             </UEmpty>
           </template>
         </UTable>
-        <template
-          v-if="forms?.length"
-          #footer
-        >
-          <span>{{ t('admin.showing', '{shown} of {total} forms', { shown: visibleForms.length, total: forms.length }) }}</span>
+        <template #footer>
+          <TablePagination
+            v-model:page="page"
+            v-model:page-size="pageSize"
+            :total="data?.total ?? 0"
+          />
         </template>
       </TableCard>
     </template>

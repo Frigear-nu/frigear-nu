@@ -2,23 +2,24 @@ import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import type { H3Event } from 'h3'
-import type { AuthScopeAvailabilityContext } from '../../../types'
+import { isoDate } from '@frigear-nu/module-kit/server'
+import type { AuthScopeAvailabilityContext, AuthTokenDto } from '../../../types'
 import { scopes as registeredScopes } from '#auth/scopes'
 import { tokenStatus } from '../../utils/tokens'
 
 type TokenRow = typeof schema.authUserTokens.$inferSelect
 
 /** What the API returns about a token: never the hash. */
-export function toPublicToken(row: TokenRow) {
+export function toAuthTokenDto(row: TokenRow): AuthTokenDto {
   return {
     id: row.id,
     name: row.name,
     prefix: row.prefix,
     last4: row.last4,
     scopes: row.scopes,
-    expiresAt: row.expiresAt,
-    lastUsedAt: row.lastUsedAt,
-    createdAt: row.createdAt,
+    expiresAt: isoDate(row.expiresAt),
+    lastUsedAt: isoDate(row.lastUsedAt),
+    createdAt: isoDate(row.createdAt),
     status: tokenStatus(row),
   }
 }

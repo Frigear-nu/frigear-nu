@@ -1,21 +1,14 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import type { StaffEvent } from '../utils/admin-event'
+import { refDebounced } from '@vueuse/core'
+import type { AttendeeDto } from '../../../types'
+import type { AttendeesPage, StaffEvent } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventsAdminAttendeesTab' })
 
 // The built-in "Attendees" tab of the `admin.events` area: every ticket of the event, with refund and cancel.
-type Attendee = {
-  id: string
-  ticketTypeId: string
-  status: string
-  amount: number
-  currency: string
-  paymentId: string | null
-  checkedInAt: string | null
-  userName: string | null
-  userEmail: string | null
-}
+type Attendee = AttendeeDto
 
 const props = defineProps<{ event: StaffEvent }>()
 
@@ -25,10 +18,21 @@ const format = useFormat()
 const confirmAction = useConfirmDialog()
 const { run } = useAction()
 
-const { data: attendees, status, error, refresh } = await useFetch<Attendee[]>(() => `/api/events/admin/events/${props.event.id}/tickets`)
-const rows = computed(() => attendees.value ?? [])
-const loading = computed(() => status.value === 'pending' && !attendees.value)
-const refreshing = computed(() => status.value === 'pending' && !!attendees.value)
+// Paginated on the server. Kept in the tab (not the URL): the page also holds the other tabs.
+const page = ref(1)
+const pageSize = ref(50)
+const search = ref('')
+const q = refDebounced(search, 300)
+// A new search or page size starts again at page 1.
+watch([q, pageSize], () => {
+  page.value = 1
+})
+const query = computed(() => ({ page: page.value, pageSize: pageSize.value, q: q.value.trim() || undefined }))
+
+const { data, status, error, refresh } = await useFetch<AttendeesPage>(() => eventsApi.admin.attendees(props.event.id), { query })
+const rows = computed(() => data.value?.items ?? [])
+const loading = computed(() => status.value === 'pending' && !data.value)
+const refreshing = computed(() => status.value === 'pending' && !!data.value)
 
 const typeName = (ticketTypeId: string) => tr(props.event.ticketTypes.find(item => item.id === ticketTypeId)?.name)
 const who = (ticket: Attendee) => ticket.userName || ticket.userEmail || ''
@@ -44,7 +48,7 @@ const ticketAction = async (ticket: Attendee, action: 'cancel' | 'refund') => {
   })
   if (!confirmed) return
   return run(async () => {
-    await $fetch(`/api/events/admin/tickets/${ticket.id}/${action}`, { method: 'POST' })
+    await $fetch(action === 'refund' ? eventsApi.admin.refundTicket(ticket.id) : eventsApi.admin.cancelTicket(ticket.id), { method: 'POST' })
     await refresh()
   }, { success: action === 'refund' ? t('admin.refunded', 'Refunded.') : t('admin.cancelled', 'Cancelled.') })
 }
@@ -102,8 +106,18 @@ const columns = computed<TableColumn<Attendee>[]>(() => [
     :loading="loading"
     :refreshing="refreshing"
   >
+    <template #actions>
+      <UInput
+        v-model="search"
+        icon="i-lucide-search"
+        size="sm"
+        :placeholder="t('admin.searchAttendees', 'Search name or email')"
+        :aria-label="t('admin.searchAttendees', 'Search name or email')"
+        class="w-full sm:max-w-xs"
+      />
+    </template>
     <UEmpty
-      v-if="error && !attendees"
+      v-if="error && !data"
       variant="naked"
       icon="i-lucide-circle-alert"
       :title="t('admin.attendeesLoadFailed', 'Attendees could not be loaded')"
@@ -124,5 +138,13 @@ const columns = computed<TableColumn<Attendee>[]>(() => [
         />
       </template>
     </UTable>
+    <template #footer>
+      <TablePagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :page-sizes="[50, 100]"
+        :total="data?.total ?? 0"
+      />
+    </template>
   </TableCard>
 </template>

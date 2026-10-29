@@ -157,8 +157,9 @@ manually — check before assuming plain pnpm scripts are the only path.
   `getUserSession` is only for flows that are session by nature (login, logout, OAuth consent).
 - Sign-in belongs to `@frigear-nu/auth` (settings under `authentication.settings`); `@frigear-nu/users` owns the user
   entity, the admin and self-service changes. Auth reaches users only through the `AuthUserStore` that users registers.
-- Define staff gates with `definePolicyGate('<module>:authorize')` and offer staff scopes with `defineStaffScopes`
-  (both from `@frigear-nu/auth`), not with a hook of your own.
+- Define staff access with `defineStaffGuard({ hook: '<module>:authorize', scope, message })` (built on
+  `definePolicyGate`, which takes extra hook context: `isAllowed(event, userId, extra?)`) and offer staff scopes with
+  `defineStaffScopes` (all from `@frigear-nu/auth`), not with a hook of your own.
 - Anything that changes who the user is or how they sign in (password, email, passkeys, API tokens, billing portal,
   admin) must pass `sessionOnly: true`. Register the scopes a module understands with `addAuthScope`.
 - Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
@@ -166,6 +167,44 @@ manually — check before assuming plain pnpm scripts are the only path.
 - A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
   `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see
   [Database extensions and authenticated test fixtures](#database-extensions-and-authenticated-test-fixtures)).
+
+#### HTTP route conventions
+
+Full guide: `apps/docs/content/1.getting-started/5.writing-a-module.md#http-route-conventions`; the toolkit is
+`@frigear-nu/module-kit/server` (explicit import, not auto-imported).
+
+- **URLs.** Everything under `/api/<module>`; staff routes under `/api/admin/<module>/...` (the module's main resource
+  is the module path: `GET /api/admin/events`, `GET /api/admin/events/:id`); the caller's own things under
+  `/api/<module>/me/...`. Ids are path params, collections plural, non-CRUD actions `POST /<resource>/:id/<verb>`.
+  Partial update is PATCH, replace-a-value PUT, a state change is never GET. Exceptions: `/.well-known/*`, `/oauth/*`,
+  webhooks and OAuth callbacks registered at a provider.
+- **Registration.** `addModuleRoutes(resolver, [{ method, path, file }], { base })` from `@frigear-nu/module-kit/utils`
+  in `module.ts` (`file` relative to `./runtime/server/routes/`, a `path` starting with `/` ignores `base`). Typed path
+  builders live in the module's `src/runtime/utils/api.ts` and are used by app code, tests and docs instead of literals.
+- **Handler order.** Authenticate/authorize, parse params, parse body/query, load the target, act. Never 404 before
+  401/403.
+- **Input.** h3's `getValidatedRouterParams(event, idParams().parse)` (`intIdParams` for numeric ids),
+  `readValidatedBody(event, schema.parse)`, `getValidatedQuery(event, schema.parse)` with zod. No raw `readBody`,
+  `getQuery` or `getRouterParam(...)!` on JSON routes, no wrappers around them.
+- **Errors.** `apiError(status, code, message, data?)` or `notFound`/`forbidden`/`conflict`/`badRequest`/
+  `notConfigured`/`validationError`: message in `statusMessage`, snake_case code in `data.code`.
+- **Responses.** Create: `created(event, dto)` (201). Update/action: 200 + DTO. Delete/revoke: `noContent(event)` (204).
+  Every response is an allowlisted DTO from a `to<Entity>Dto()` in `server/utils` (never a drizzle row), dates as ISO
+  strings (`isoDate`), types in `src/types.ts`.
+- **Field issues.** When a client needs per-field issues, use `schema.safeParse` + `validationError(issues)` from the
+  toolkit: h3's `readValidatedBody` only carries the zod error as text (forms `submit` is the example).
+- **Server util names.** Every module's `server/utils` is auto-imported into one namespace, so exported names must be
+  module-prefixed (`toFormTokenDto`, `toAuthTokenDto`, not `toTokenDto`).
+- **Path builders** are imported from `@frigear-nu/<pkg>/api` (not `./utils`, which pulls in `@nuxt/kit`); relative
+  imports inside a package stay relative.
+- **Pagination.** Admin lists use `pageQuery({ sort, filters })` + `paginate()` → `{ items, total, page, pageSize }`
+  (the query keys of `useTableQuery`). Small bounded lists stay arrays.
+- **Staff guard.** One `defineStaffGuard({ hook, scope, message })` (`@frigear-nu/auth`) per module:
+  `guard.require(event)` for reads and edits, `guard.require(event, { sessionOnly: true })` for credential minting,
+  money and billing, `guard.can(event, userId)` for MCP. It returns `{ userId, principal }`; load the user with
+  `loadAuthUser(userId)` when needed.
+- **Tests.** `apiClient({ cookie?, bearer? })` and `expectApiError(promise, status, code?)` from
+  `@frigear-nu/module-kit/testing`.
 
 ### Database schemas: one file per dialect
 

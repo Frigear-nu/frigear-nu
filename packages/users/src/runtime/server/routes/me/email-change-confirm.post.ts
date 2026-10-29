@@ -1,6 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import { z } from 'zod'
+import { badRequest, forbidden, notFound } from '@frigear-nu/module-kit/server'
 import { EMAIL_CHANGE_INVALID, findEmailChangeByCode } from '../../email-change'
 
 const REVERT_TTL_DAYS = 7
@@ -14,16 +15,13 @@ export default defineEventHandler(async (event) => {
 
   const change = await findEmailChangeByCode(code)
   if (!change || change.verifiedAt || change.expiresAt <= now) {
-    throw createError({ statusCode: 400, statusMessage: EMAIL_CHANGE_INVALID })
+    throw badRequest(EMAIL_CHANGE_INVALID)
   }
   if (change.userId !== user.id) {
-    throw createError({ statusCode: 403, statusMessage: 'This email change belongs to another account. Sign in as that account to confirm it.' })
+    throw forbidden('This email change belongs to another account. Sign in as that account to confirm it.')
   }
 
-  const taken = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, change.newEmail) })
-  if (taken && taken.id !== change.userId) {
-    throw createError({ statusCode: 409, statusMessage: 'A user with this email already exists.' })
-  }
+  await assertEmailAvailable(change.newEmail, { exceptUserId: change.userId })
 
   // Used up atomically, so two concurrent confirmations apply (and notify) once.
   const [claimed] = await db.update(schema.accountEmailChanges)
@@ -37,17 +35,15 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!claimed) {
-    throw createError({ statusCode: 400, statusMessage: EMAIL_CHANGE_INVALID })
+    throw badRequest(EMAIL_CHANGE_INVALID)
   }
 
   const [updated] = await db.update(schema.users)
-    .set({ email: claimed.newEmail, emailVerifiedAt: now })
+    .set({ email: normalizeUserEmail(claimed.newEmail), emailVerifiedAt: now })
     .where(eq(schema.users.id, claimed.userId))
     .returning()
 
-  if (!updated) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
-  }
+  if (!updated) throw notFound('User not found.')
 
   await setUserSession(event, { user: mapUserToSession(updated) })
 

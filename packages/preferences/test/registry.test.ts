@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { definePreferences } from '../src/runtime/define'
-import { parsePreferencePatch, preferenceClaims, readPreference, resolvePreferences } from '../src/runtime/utils/registry'
+import { applyPreferencePatch, parsePreferencePatch, preferenceClaims, preferencePatchSchema, readPreference, resolvePreferences } from '../src/runtime/utils/registry'
 
 const registry = resolvePreferences([
   definePreferences({
@@ -31,20 +31,25 @@ describe('resolvePreferences', () => {
   })
 })
 
-describe('parsePreferencePatch', () => {
-  it('accepts valid values and treats null as clearing', () => {
-    expect(parsePreferencePatch(registry, { colorMode: 'dark', compactTables: null })).toEqual({
-      ok: true,
-      set: { colorMode: 'dark' },
-      remove: ['compactTables'],
-    })
+describe('preferencePatchSchema', () => {
+  const schema = preferencePatchSchema(registry)
+
+  it('accepts valid values and null, and applies them to the stored preferences', () => {
+    const patch = schema.parse({ colorMode: 'dark', compactTables: null })
+    expect(patch).toEqual({ colorMode: 'dark', compactTables: null })
+    expect(applyPreferencePatch({ compactTables: true, digest: 'daily' }, patch)).toEqual({ colorMode: 'dark', digest: 'daily' })
+  })
+
+  it('keeps only the keys that were sent, even when a definition has a default', () => {
+    const withDefault = resolvePreferences([definePreferences({ pageSize: z.number().default(25), colorMode: z.string() })])
+    expect(parsePreferencePatch(withDefault, { colorMode: 'dark' })).toEqual({ colorMode: 'dark' })
   })
 
   it('rejects unknown keys, invalid values and non-objects', () => {
-    expect(parsePreferencePatch(registry, { nope: 1 })).toMatchObject({ ok: false, message: 'Unknown preference "nope".' })
-    expect(parsePreferencePatch(registry, { colorMode: 'neon' })).toMatchObject({ ok: false, message: 'Invalid value for "colorMode".' })
-    expect(parsePreferencePatch(registry, 'dark')).toMatchObject({ ok: false })
-    expect(parsePreferencePatch(registry, [])).toMatchObject({ ok: false })
+    expect(schema.safeParse({ nope: 1 }).success).toBe(false)
+    expect(schema.safeParse({ colorMode: 'neon' }).success).toBe(false)
+    expect(schema.safeParse('dark').success).toBe(false)
+    expect(schema.safeParse([]).success).toBe(false)
   })
 })
 

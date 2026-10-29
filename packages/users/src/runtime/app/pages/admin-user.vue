@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usersApi } from '../../utils/api'
 import OverviewTab from '../tabs/Overview.vue'
 import { useUserActions } from '../composables/useUserActions'
 import type { UserDetail } from '../utils/admin-user'
@@ -10,7 +11,7 @@ const route = useRoute()
 const actions = useUserActions()
 const id = computed(() => route.params.id as string)
 
-const { data: user, refresh, error } = await useFetch<UserDetail>(() => `/api/admin/users/${id.value}`)
+const { data: user, refresh, error } = await useFetch<UserDetail>(() => usersApi.admin.user(id.value))
 const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
 
 // The page is a tab view over the `admin.users` area: modules add tabs with `extendTabs(nuxt, 'admin.users', ...)` and

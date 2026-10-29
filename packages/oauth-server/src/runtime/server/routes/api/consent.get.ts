@@ -1,11 +1,14 @@
 import { getQuery } from 'h3'
+import type { ConsentDto } from '../../../../types'
+import { parseAuthorizeRequest } from '../../utils/oauth-authorize'
 
 // Data for the consent page: which application asks for which scopes. Re-validates the whole request.
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<ConsentDto> => {
   const userId = await requireSessionUserId(event)
-  const { application, scope } = await validateAuthorizeRequest(getQuery(event))
-  const user = await getOAuthUser(userId)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unknown user.' })
+  // Not `getValidatedQuery`: it would replace the message naming the bad parameters with h3's generic one.
+  const query = parseAuthorizeRequest(getQuery(event))
+  const { application, scope } = await validateAuthorizeRequest(query)
+  const user = await requireOAuthUser(userId)
   await assertApplicationAccess(event, user, application)
 
   return {

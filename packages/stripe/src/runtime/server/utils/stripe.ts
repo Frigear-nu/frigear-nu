@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, isNull } from 'drizzle-orm'
+import { notConfigured, notFound } from '@frigear-nu/module-kit/server'
 
 let cached: { key: string, apiVersion: string, client: Stripe } | undefined
 
@@ -12,7 +13,7 @@ export function useStripe(): Stripe {
   const { secretKey, apiVersion } = useRuntimeConfig().stripe
 
   if (!secretKey) {
-    throw createError({ statusCode: 500, statusMessage: 'Stripe is not configured (missing `runtimeConfig.stripe.secretKey` / NUXT_STRIPE_SECRET_KEY).' })
+    throw notConfigured('Stripe is not configured (missing `runtimeConfig.stripe.secretKey` / NUXT_STRIPE_SECRET_KEY).')
   }
 
   if (!cached || cached.key !== secretKey || cached.apiVersion !== apiVersion) {
@@ -39,7 +40,7 @@ const escapeSearchValue = (value: string) => value.replace(/\\/g, '\\\\').replac
 export async function ensureStripeCustomer(userId: number): Promise<string> {
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1)
   if (!user) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+    throw notFound('User not found.')
   }
   if (user.stripeCustomerId) return user.stripeCustomerId
 

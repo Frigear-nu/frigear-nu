@@ -1,7 +1,6 @@
 import {
   addComponentsDir,
   addImports,
-  addServerHandler,
   addServerImportsDir,
   addServerPlugin,
   createResolver,
@@ -18,6 +17,7 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   registerBootstrapProvider,
+  addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
@@ -130,44 +130,47 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- API routes -----------------------------------------------------------------------
-    const route = (method: 'get' | 'post' | 'patch' | 'delete', path: string, file: string) =>
-      addServerHandler({ route: `/api/events${path}`, method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
-
-    route('get', '', 'public/events.get')
-    // Static `tickets/*` and `check-in` segments win over `:slug` in the router.
-    route('get', '/tickets/me', 'public/tickets-me.get')
-    // The account area loads them together with the other modules' data (`useMyTickets()` reads the same key).
+    // Static segments (`me`, and `/api/admin/events/{upcoming,membership-options,check-in,ticket-types,...}`) win over
+    // `:slug` / `:id` in h3's radix router, whatever the registration order.
+    addModuleRoutes(resolver, [
+      { method: 'get', path: '', file: 'public/events.get' },
+      { method: 'get', path: 'me/tickets', file: 'me/tickets.get' },
+      { method: 'get', path: 'me/tickets/:id', file: 'me/ticket.get' },
+      { method: 'post', path: 'me/tickets/:id/pay', file: 'me/ticket-pay.post' },
+      { method: 'get', path: ':slug', file: 'public/event.get' },
+      { method: 'post', path: ':slug/purchase', file: 'public/purchase.post' },
+    ], { base: '/api/events' })
+    // The account area loads the caller's tickets together with the other modules' data (`useMyTickets()` reads the
+    // same key); the handler is shared with `GET /api/events/me/tickets`.
     registerBootstrapProvider(nuxt, {
       scope: 'account',
       key: 'events:tickets:mine',
       handler: resolver.resolve('./runtime/server/bootstrap/my-tickets'),
     })
-    route('get', '/tickets/:id', 'public/ticket.get')
-    route('post', '/tickets/:id/pay', 'public/ticket-pay.post')
-    route('post', '/check-in', 'public/check-in.post')
-    route('get', '/:slug', 'public/event.get')
-    route('post', '/:slug/purchase', 'public/purchase.post')
 
-    route('get', '/admin/membership-options', 'admin/membership-options.get')
-    route('get', '/admin/upcoming', 'admin/upcoming.get')
-    route('get', '/admin/events', 'admin/events.get')
-    route('get', '/admin/events/:id', 'admin/event.get')
-    route('post', '/admin/events', 'admin/events.post')
-    route('patch', '/admin/events/:id', 'admin/event.patch')
-    route('delete', '/admin/events/:id', 'admin/event.delete')
-    route('post', '/admin/events/:id/clone', 'admin/event-clone.post')
-    route('get', '/admin/events/:id/tickets', 'admin/attendees.get')
-    route('post', '/admin/events/:id/ticket-types', 'admin/ticket-types.post')
-    route('patch', '/admin/ticket-types/:id', 'admin/ticket-type.patch')
-    route('delete', '/admin/ticket-types/:id', 'admin/ticket-type.delete')
-    route('post', '/admin/ticket-types/:id/addon-groups', 'admin/addon-groups.post')
-    route('patch', '/admin/addon-groups/:id', 'admin/addon-group.patch')
-    route('delete', '/admin/addon-groups/:id', 'admin/addon-group.delete')
-    route('post', '/admin/addon-groups/:id/addons', 'admin/addons.post')
-    route('patch', '/admin/addons/:id', 'admin/addon.patch')
-    route('delete', '/admin/addons/:id', 'admin/addon.delete')
-    route('post', '/admin/tickets/:id/cancel', 'admin/ticket-cancel.post')
-    route('post', '/admin/tickets/:id/refund', 'admin/ticket-refund.post')
+    addModuleRoutes(resolver, [
+      { method: 'get', path: '', file: 'admin/events.get' },
+      { method: 'post', path: '', file: 'admin/events.post' },
+      { method: 'get', path: 'membership-options', file: 'admin/membership-options.get' },
+      { method: 'get', path: 'upcoming', file: 'admin/upcoming.get' },
+      { method: 'post', path: 'check-in', file: 'admin/check-in.post' },
+      { method: 'get', path: ':id', file: 'admin/event.get' },
+      { method: 'patch', path: ':id', file: 'admin/event.patch' },
+      { method: 'delete', path: ':id', file: 'admin/event.delete' },
+      { method: 'post', path: ':id/clone', file: 'admin/event-clone.post' },
+      { method: 'get', path: ':id/tickets', file: 'admin/attendees.get' },
+      { method: 'post', path: ':id/ticket-types', file: 'admin/ticket-types.post' },
+      { method: 'patch', path: 'ticket-types/:id', file: 'admin/ticket-type.patch' },
+      { method: 'delete', path: 'ticket-types/:id', file: 'admin/ticket-type.delete' },
+      { method: 'post', path: 'ticket-types/:id/addon-groups', file: 'admin/addon-groups.post' },
+      { method: 'patch', path: 'addon-groups/:id', file: 'admin/addon-group.patch' },
+      { method: 'delete', path: 'addon-groups/:id', file: 'admin/addon-group.delete' },
+      { method: 'post', path: 'addon-groups/:id/addons', file: 'admin/addons.post' },
+      { method: 'patch', path: 'addons/:id', file: 'admin/addon.patch' },
+      { method: 'delete', path: 'addons/:id', file: 'admin/addon.delete' },
+      { method: 'post', path: 'tickets/:id/cancel', file: 'admin/ticket-cancel.post' },
+      { method: 'post', path: 'tickets/:id/refund', file: 'admin/ticket-refund.post' },
+    ], { base: '/api/admin/events' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

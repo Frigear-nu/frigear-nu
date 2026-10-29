@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import type { FormSubmitEvent, FormErrorEvent } from '@nuxt/ui'
 import type { LocationQueryRaw } from 'vue-router'
+import { formsApi } from '@frigear-nu/forms/api'
 
 import {
   contactFormSchema,
@@ -78,7 +79,7 @@ async function onSubmit(event: FormSubmitEvent<ContactFormSchema>) {
   try {
     // Delivered by the `contact` form of @frigear-nu/forms (seeded in forms/contact.ts).
     const { phone, phonePrefix, subjectOther, ...rest } = event.data
-    await $fetch('/api/forms/contact/submit', {
+    await $fetch(formsApi.submit('contact'), {
       method: 'POST',
       body: {
         locale: locale.value,
@@ -102,8 +103,10 @@ async function onSubmit(event: FormSubmitEvent<ContactFormSchema>) {
   } catch (err: unknown) {
     let description = 'Ukendt fejl. Prøv lige igen senere.'
     if (typeof err === 'object' && err !== null) {
-      const e = err as { data?: { message?: string }, message?: string }
-      description = e.data?.message ?? e.message ?? description
+      // A rejected submission answers 400 with the validation issues in `data.issues`.
+      const e = err as { data?: { message?: string, data?: { issues?: { message?: string }[] } }, message?: string }
+      const issues = (e.data?.data?.issues ?? []).map(issue => issue.message).filter(Boolean)
+      description = issues.length ? issues.join(' ') : e.data?.message ?? e.message ?? description
     }
     toast.add({
       icon: 'lucide-alert-circle',

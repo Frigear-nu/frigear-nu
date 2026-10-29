@@ -1,29 +1,28 @@
 import { fileURLToPath } from 'node:url'
 import { readFile, rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
-import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { setup } from '@nuxt/test-utils/e2e'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { authApi } from '@frigear-nu/auth/api'
+import { usersApi } from '../src/runtime/utils/api'
+import type { AdminUserDto } from '../src/types'
 
 const fixture = fileURLToPath(new URL('./fixtures/admin-db', import.meta.url))
 const dataDir = `${fixture}/.data`
 const mailFile = `${dataDir}/mails.jsonl`
+
+type Row = AdminUserDto & { subscription?: unknown }
+type Page = { items: Row[], total: number, page: number, pageSize: number }
 
 async function sentMails(): Promise<{ to: string, subject: string }[]> {
   const raw = await readFile(mailFile, 'utf8').catch(() => '')
   return raw.split('\n').filter(Boolean).map(line => JSON.parse(line))
 }
 
-async function call(method: string, path: string, body?: unknown, cookie?: string) {
-  return fetch(path, {
-    method,
-    headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-}
-
 async function register(name: string, email: string) {
-  const response = await call('POST', '/api/auth/register', { name, email, password: 'supersecret123' })
-  expect(response.status, await response.clone().text()).toBe(200)
-  return response.headers.get('set-cookie')!
+  const response = await apiClient().fetch('POST', authApi.register, { name, email, password: 'supersecret123' })
+  expect(response.status, await response.clone().text()).toBe(201)
+  return response.headers.get('set-cookie')!.split(';')[0]!
 }
 
 describe('users admin', async () => {
@@ -33,56 +32,101 @@ describe('users admin', async () => {
 
   await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 
-  let staff: string
-  let member: string
+  const anonymous = apiClient()
+  let staff: ReturnType<typeof apiClient>
+  let member: ReturnType<typeof apiClient>
+  let memberId: number
 
   it('is closed to guests and to users the host policy does not allow', async () => {
-    staff = await register('Staff', 'staff@example.com')
-    member = await register('Member', 'member@example.com')
+    staff = apiClient({ cookie: await register('Staff', 'staff@example.com') })
+    member = apiClient({ cookie: await register('Member', 'member@example.com') })
 
-    expect((await call('GET', '/api/admin/users')).status).toBe(401)
-    expect((await call('GET', '/api/admin/users', undefined, member)).status).toBe(403)
-    expect((await call('POST', '/api/admin/users', { name: 'X', email: 'x@example.com' }, member)).status).toBe(403)
-    expect((await call('PATCH', '/api/admin/users/1', { name: 'X' }, member)).status).toBe(403)
+    await expectApiError(anonymous.json('GET', usersApi.admin.users), 401)
+    await expectApiError(member.json('GET', usersApi.admin.users), 403, 'forbidden')
+    await expectApiError(member.json('POST', usersApi.admin.users, { name: 'X', email: 'x@example.com' }), 403, 'forbidden')
+    await expectApiError(member.json('PATCH', usersApi.admin.user(1), { name: 'X' }), 403, 'forbidden')
   })
 
-  it('lets allowed staff create, list and edit users without exposing passwords', async () => {
-    const created = await call('POST', '/api/admin/users', { name: 'New Person', email: 'New@Example.com' }, staff)
-    expect(created.status, await created.clone().text()).toBe(200)
-    const user = await created.json()
-    expect(user).toMatchObject({ name: 'New Person', email: 'new@example.com', emailVerifiedAt: null })
-    expect(user).not.toHaveProperty('password')
+  it('authorizes before it looks up the user: 401/403 even for unknown or malformed ids', async () => {
+    for (const id of [99999, 'abc']) {
+      await expectApiError(anonymous.json('GET', usersApi.admin.user(id)), 401)
+      await expectApiError(member.json('GET', usersApi.admin.user(id)), 403, 'forbidden')
+      await expectApiError(member.json('PATCH', usersApi.admin.user(id), { name: 'Ghost' }), 403, 'forbidden')
+      await expectApiError(member.json('DELETE', usersApi.admin.user(id)), 403, 'forbidden')
+      await expectApiError(member.json('POST', usersApi.admin.resend(id)), 403, 'forbidden')
+    }
+    // An invalid body is not looked at before the caller is allowed.
+    await expectApiError(member.json('POST', usersApi.admin.users, { email: 'not-an-email' }), 403, 'forbidden')
+  })
+
+  it('lets allowed staff create (201), list and edit users through DTOs', async () => {
+    const created = await staff.fetch('POST', usersApi.admin.users, { name: 'New Person', email: '  New@Example.com ' })
+    expect(created.status, await created.clone().text()).toBe(201)
+    const user = await created.json() as Row
+    expect(user).toMatchObject({ name: 'New Person', email: 'new@example.com', emailVerifiedAt: null, avatar: null })
+    expect(Object.keys(user).sort()).toEqual(['avatar', 'createdAt', 'email', 'emailVerifiedAt', 'id', 'lastLoginAt', 'name'])
 
     // A sign-in link was emailed to the new user.
     expect((await sentMails()).some(mail => mail.to === 'new@example.com')).toBe(true)
 
-    const { items: list } = await (await call('GET', '/api/admin/users', undefined, staff)).json()
-    expect(list.map((u: { email: string }) => u.email)).toContain('new@example.com')
-    expect(list.every((u: object) => !('password' in u))).toBe(true)
+    const { items: list } = await staff.json<Page>('GET', usersApi.admin.users)
+    expect(list.map(u => u.email)).toContain('new@example.com')
+    expect(list.every(u => !('password' in u))).toBe(true)
+    memberId = list.find(u => u.email === 'member@example.com')!.id
 
-    const edited = await call('PATCH', `/api/admin/users/${user.id}`, { name: 'Renamed' }, staff)
-    expect(edited.status, await edited.clone().text()).toBe(200)
-    expect(await edited.json()).toMatchObject({ name: 'Renamed' })
+    const edited = await staff.json<Row>('PATCH', usersApi.admin.user(user.id), { name: 'Renamed' })
+    expect(edited).toMatchObject({ name: 'Renamed' })
+    expect(edited).not.toHaveProperty('password')
 
-    const users = await (await call('GET', '/api/admin/users/new', undefined, staff)).json()
+    const users = await staff.json<Row[]>('GET', usersApi.admin.new)
     expect(users.length).toBeGreaterThan(0)
+    expect(users.every(u => !('password' in u))).toBe(true)
   })
 
-  it('rejects duplicate emails and unknown users', async () => {
-    expect((await call('POST', '/api/admin/users', { name: 'Dup', email: 'member@example.com' }, staff)).status).toBe(409)
-    expect((await call('PATCH', '/api/admin/users/99999', { name: 'Ghost' }, staff)).status).toBe(404)
-    expect((await call('PATCH', '/api/admin/users/abc', { name: 'Ghost' }, staff)).status).toBe(400)
+  it('validates names and rejects unknown users', async () => {
+    await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'x'.repeat(121), email: 'long@example.com' }), 400)
+    await expectApiError(staff.json('PATCH', usersApi.admin.user(99999), { name: 'Ghost' }), 404, 'not_found')
+    await expectApiError(staff.json('PATCH', usersApi.admin.user('abc'), { name: 'Ghost' }), 400)
+  })
+
+  it('rejects duplicate emails whatever their case', async () => {
+    await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'Dup', email: 'member@example.com' }), 409, 'conflict')
+    await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'Dup', email: 'MEMBER@Example.com' }), 409, 'conflict')
+    const other = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Other', email: 'other@example.com', sendWelcomeEmail: false })
+    await expectApiError(staff.json('PATCH', usersApi.admin.user(other.id), { email: 'Member@Example.COM' }), 409, 'conflict')
+
+    // A row stored before emails were normalised still blocks its address, in any case.
+    const legacy = await apiClient().json<{ id: number }>('POST', '/api/test/legacy-user', { name: 'Legacy', email: 'Legacy@Example.com', password: 'supersecret123' })
+    await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'Dup', email: 'legacy@example.com' }), 409, 'conflict')
+    await expectApiError(staff.json('PATCH', usersApi.admin.user(other.id), { email: 'LEGACY@example.com' }), 409, 'conflict')
+    // Its owner may re-save the same address in another case: not a change, so no conflict and no re-verification.
+    const before = (await sentMails()).length
+    expect(await staff.json<Row>('PATCH', usersApi.admin.user(legacy.id), { email: 'legacy@example.com' }))
+      .toMatchObject({ email: 'Legacy@Example.com' })
+    expect((await sentMails()).length).toBe(before)
+  })
+
+  it('signs in with an email in any case (users store lookups are case-insensitive)', async () => {
+    const response = await apiClient().fetch('POST', authApi.register, { name: 'Ada', email: 'Ada@Example.com', password: 'supersecret123' })
+    expect(response.status, await response.clone().text()).toBe(201)
+
+    for (const email of ['ada@example.com', 'ADA@EXAMPLE.COM']) {
+      const login = await apiClient().fetch('POST', authApi.login, { email, password: 'supersecret123' })
+      expect(login.status, await login.clone().text()).toBe(200)
+    }
+
+    await apiClient().json('POST', '/api/test/legacy-user', { name: 'Mixed', email: 'Mixed.Case@Example.com', password: 'supersecret123' })
+    const legacyLogin = await apiClient().fetch('POST', authApi.login, { email: 'mixed.case@example.com', password: 'supersecret123' })
+    expect(legacyLogin.status, await legacyLogin.clone().text()).toBe(200)
   })
 
   it('marks a staff-changed email as unverified', async () => {
-    const { items: list } = await (await call('GET', '/api/admin/users', undefined, staff)).json()
-    const target = list.find((u: { email: string }) => u.email === 'member@example.com')
-    const edited = await call('PATCH', `/api/admin/users/${target.id}`, { email: 'member2@example.com' }, staff)
-    expect(await edited.json()).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
+    const edited = await staff.json<Row>('PATCH', usersApi.admin.user(memberId), { email: 'Member2@Example.com' })
+    expect(edited).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
   })
 
   it('paginates, searches, filters and sorts through the API', async () => {
-    const fetchPage = async (query: string) => (await call('GET', `/api/admin/users?${query}`, undefined, staff)).json()
+    const fetchPage = (query: string) => staff.json<Page>('GET', `${usersApi.admin.users}?${query}`)
 
     const first = await fetchPage('pageSize=1&sort=id&order=asc')
     expect(first.items).toHaveLength(1)
@@ -90,68 +134,78 @@ describe('users admin', async () => {
     expect(first.pageSize).toBe(1)
 
     const second = await fetchPage('pageSize=1&page=2&sort=id&order=asc')
-    expect(second.items[0].id).toBeGreaterThan(first.items[0].id)
+    expect(second.items[0]!.id).toBeGreaterThan(first.items[0]!.id)
 
     const search = await fetchPage('q=renamed')
     expect(search.total).toBe(1)
-    expect(search.items[0].name).toBe('Renamed')
+    expect(search.items[0]!.name).toBe('Renamed')
 
     // LIKE wildcards are matched literally.
     expect((await fetchPage('q=%25')).total).toBe(0)
 
     const unverified = await fetchPage('verified=false&pageSize=100')
-    expect(unverified.items.every((u: { emailVerifiedAt: unknown }) => u.emailVerifiedAt === null)).toBe(true)
+    expect(unverified.items.every(u => u.emailVerifiedAt === null)).toBe(true)
 
     const sorted = await fetchPage('sort=email&order=asc&pageSize=100')
-    const emails = sorted.items.map((u: { email: string }) => u.email)
+    const emails = sorted.items.map(u => u.email)
     expect(emails).toEqual([...emails].sort())
 
-    expect((await call('GET', '/api/admin/users?pageSize=1000', undefined, staff)).status).toBe(400)
+    await expectApiError(fetchPage('pageSize=1000'), 400)
   })
 
   it('offers the roles the host policy allows to the acting user', async () => {
-    expect((await call('GET', '/api/admin/users/roles')).status).toBe(401)
-    expect((await call('GET', '/api/admin/users/roles', undefined, member)).status).toBe(403)
-    expect(await (await call('GET', '/api/admin/users/roles', undefined, staff)).json()).toEqual({ roles: ['manager', 'user'] })
+    await expectApiError(anonymous.json('GET', usersApi.admin.roles), 401)
+    await expectApiError(member.json('GET', usersApi.admin.roles), 403)
+    expect(await staff.json('GET', usersApi.admin.roles)).toEqual({ roles: ['manager', 'user'] })
+  })
+
+  it('reports the dashboard stats to staff only', async () => {
+    await expectApiError(anonymous.json('GET', usersApi.admin.stats), 401)
+    await expectApiError(member.json('GET', usersApi.admin.stats), 403)
+    const { items, total } = await staff.json<Page>('GET', `${usersApi.admin.users}?pageSize=1`)
+    expect(items).toHaveLength(1)
+    const stats = await staff.json<{ total: number, newUsers: number, days: number }>('GET', usersApi.admin.stats)
+    // Everyone here signed up just now.
+    expect(stats).toEqual({ total, newUsers: total, days: 30 })
   })
 
   it('shows a user with passkeys count and permissions, and resends the sign-in link', async () => {
-    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
+    const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff`)
     expect(items[0]).toHaveProperty('subscription', null)
 
-    const detail = await (await call('GET', `/api/admin/users/${items[0].id}`, undefined, staff)).json()
+    const detail = await staff.json<Record<string, unknown>>('GET', usersApi.admin.user(items[0]!.id))
     expect(detail).toMatchObject({ email: 'staff@example.com', passkeys: 0, hasPassword: true, subscription: null })
     expect(detail).not.toHaveProperty('password')
     // Deleting yourself is never offered.
     expect(detail.can).toEqual({ update: true, delete: false })
 
-    expect((await call('GET', `/api/admin/users/${items[0].id}`, undefined, member)).status).toBe(403)
-    expect((await call('GET', '/api/admin/users/99999', undefined, staff)).status).toBe(404)
+    await expectApiError(member.json('GET', usersApi.admin.user(items[0]!.id)), 403)
+    await expectApiError(staff.json('GET', usersApi.admin.user(99999)), 404, 'not_found')
 
     const before = (await sentMails()).length
-    expect((await call('POST', `/api/admin/users/${items[0].id}/resend`, undefined, staff)).status).toBe(200)
+    expect(await staff.json('POST', usersApi.admin.resend(items[0]!.id))).toEqual({ ok: true })
     expect((await sentMails()).length).toBe(before + 1)
   })
 
   it('emails a verification link after an admin changes the address and can verify directly', async () => {
-    const created = await (await call('POST', '/api/admin/users', { name: 'Mover', email: 'mover@example.com', sendWelcomeEmail: false }, staff)).json()
+    const created = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Mover', email: 'mover@example.com', sendWelcomeEmail: false })
     const before = (await sentMails()).length
 
-    const moved = await call('PATCH', `/api/admin/users/${created.id}`, { email: 'moved@example.com' }, staff)
-    expect(await moved.json()).toMatchObject({ email: 'moved@example.com', emailVerifiedAt: null })
+    const moved = await staff.json<Row>('PATCH', usersApi.admin.user(created.id), { email: 'moved@example.com' })
+    expect(moved).toMatchObject({ email: 'moved@example.com', emailVerifiedAt: null })
     const mails = await sentMails()
     expect(mails.length).toBe(before + 1)
     expect(mails.at(-1)!.to).toBe('moved@example.com')
 
-    const verified = await call('PATCH', `/api/admin/users/${created.id}`, { emailVerified: true }, staff)
-    expect((await verified.json()).emailVerifiedAt).not.toBeNull()
-    const unverified = await call('PATCH', `/api/admin/users/${created.id}`, { emailVerified: false }, staff)
-    expect((await unverified.json()).emailVerifiedAt).toBeNull()
+    const verified = await staff.json<Row>('PATCH', usersApi.admin.user(created.id), { emailVerified: true })
+    expect(verified.emailVerifiedAt).not.toBeNull()
+    const unverified = await staff.json<Row>('PATCH', usersApi.admin.user(created.id), { emailVerified: false })
+    expect(unverified.emailVerifiedAt).toBeNull()
   })
 
   it('renders the list with a row menu and the detail page with a breadcrumb', async () => {
     const page = async (path: string) => {
-      const response = await call('GET', path, undefined, staff)
+      const response = await staff.fetch('GET', path)
       expect(response.status, path).toBe(200)
       return response.text()
     }
@@ -162,8 +216,8 @@ describe('users admin', async () => {
     expect(list).toContain('aria-label="Actions for Staff"')
     expect(list).toContain('staff@example.com')
 
-    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
-    const detail = await page(`/admin/users/${items[0].id}`)
+    const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff`)
+    const detail = await page(`/admin/users/${items[0]!.id}`)
     expect(detail).toMatch(/<nav[^>]*aria-label="breadcrumb"/i)
     expect(detail).toMatch(/<h1[^>]*>(?:<!--\[-->)?Staff/)
     expect(detail).toContain('aria-label="Actions for Staff"')
@@ -171,14 +225,16 @@ describe('users admin', async () => {
     expect(await page('/admin/users/99999')).toContain('User not found')
   }, 120_000)
 
-  it('deletes users through the policy but never the acting user', async () => {
-    const created = await (await call('POST', '/api/admin/users', { name: 'Gone', email: 'gone@example.com', sendWelcomeEmail: false }, staff)).json()
-    expect((await call('DELETE', `/api/admin/users/${created.id}`, undefined, member)).status).toBe(403)
-    expect((await call('DELETE', `/api/admin/users/${created.id}`, undefined, staff)).status).toBe(200)
-    expect((await call('GET', `/api/admin/users/${created.id}`, undefined, staff)).status).toBe(404)
-    expect((await call('DELETE', '/api/admin/users/99999', undefined, staff)).status).toBe(404)
+  it('deletes users (204) through the policy but never the acting user', async () => {
+    const created = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Gone', email: 'gone@example.com', sendWelcomeEmail: false })
+    await expectApiError(member.json('DELETE', usersApi.admin.user(created.id)), 403)
+    const deleted = await staff.fetch('DELETE', usersApi.admin.user(created.id))
+    expect(deleted.status).toBe(204)
+    expect(await deleted.text()).toBe('')
+    await expectApiError(staff.json('GET', usersApi.admin.user(created.id)), 404)
+    await expectApiError(staff.json('DELETE', usersApi.admin.user(99999)), 404)
 
-    const { items } = await (await call('GET', '/api/admin/users?q=staff', undefined, staff)).json()
-    expect((await call('DELETE', `/api/admin/users/${items[0].id}`, undefined, staff)).status).toBe(400)
+    const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff`)
+    await expectApiError(staff.json('DELETE', usersApi.admin.user(items[0]!.id)), 400)
   })
 })

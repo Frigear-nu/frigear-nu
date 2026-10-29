@@ -47,7 +47,9 @@ export const ticketTypeInput = z.object({
 })
 
 export const eventInput = z.object({
-  slug: z.string().min(1).max(128).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and dashes.'),
+  // `me` is the static segment of `/api/events/me/...`: h3's router never falls back to `:slug` past it.
+  slug: z.string().min(1).max(128).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and dashes.')
+    .refine(slug => slug !== 'me', 'This URL name is reserved.'),
   name: translated,
   description: translated.nullish(),
   body: translated.nullish(),

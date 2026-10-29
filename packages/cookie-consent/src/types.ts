@@ -92,3 +92,9 @@ export interface ConsentState {
   ts: number
   categories: Record<string, boolean>
 }
+
+/** The response of `GET` and `POST /api/cookie-consent`: the signed-in user's stored choice. */
+export interface ConsentDto {
+  /** `null` while the user has not answered. */
+  consent: ConsentState | null
+}

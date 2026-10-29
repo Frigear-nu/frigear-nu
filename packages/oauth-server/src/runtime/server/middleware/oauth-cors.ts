@@ -1,12 +1,14 @@
+import { oidc } from '../../utils/api'
+
 // CORS for browser apps on another origin (e.g. a Capacitor webview), limited to the endpoints a public client calls.
 // `/oauth/authorize` is deliberately absent: it is a top-level navigation and carries the user's cookie session.
 // No `Access-Control-Allow-Credentials`, so cookies never travel cross-origin: bearer and client credentials only.
 const METHODS: Record<string, string> = {
-  '/oauth/token': 'POST, OPTIONS',
-  '/oauth/revoke': 'POST, OPTIONS',
-  '/oauth/userinfo': 'GET, OPTIONS',
-  '/.well-known/openid-configuration': 'GET, OPTIONS',
-  '/.well-known/jwks.json': 'GET, OPTIONS',
+  [oidc.token]: 'POST, OPTIONS',
+  [oidc.revoke]: 'POST, OPTIONS',
+  [oidc.userinfo]: 'GET, OPTIONS',
+  [oidc.configuration]: 'GET, OPTIONS',
+  [oidc.jwks]: 'GET, OPTIONS',
 }
 
 export default defineEventHandler((event) => {

@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { setup, $fetch } from '@nuxt/test-utils/e2e'
+import { authApi } from '../src/runtime/utils/api'
 
 describe('password auth (disabled)', async () => {
   await setup({
@@ -13,7 +14,7 @@ describe('password auth (disabled)', async () => {
   })
 
   it('does not register the login route', async () => {
-    const html = await $fetch('/api/auth/login', {
+    const html = await $fetch(authApi.login, {
       method: 'POST',
       body: { email: 'user@example.com', password: 'password' },
     })
@@ -23,7 +24,7 @@ describe('password auth (disabled)', async () => {
   })
 
   it('does not register the register route', async () => {
-    const html = await $fetch('/api/auth/register', {
+    const html = await $fetch(authApi.register, {
       method: 'POST',
       body: { name: 'User', email: 'user@example.com', password: 'password123' },
     })
@@ -31,7 +32,7 @@ describe('password auth (disabled)', async () => {
   })
 
   it('does not register the forgot-password route', async () => {
-    const html = await $fetch('/api/auth/forgot-password', {
+    const html = await $fetch(authApi.forgotPassword, {
       method: 'POST',
       body: { email: 'user@example.com' },
     })
@@ -39,7 +40,7 @@ describe('password auth (disabled)', async () => {
   })
 
   it('does not register the reset-password route', async () => {
-    const html = await $fetch('/api/auth/reset-password', {
+    const html = await $fetch(authApi.resetPassword, {
       method: 'POST',
       body: { code: 'abc', password: 'password123', confirmPassword: 'password123' },
     })

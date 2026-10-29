@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
+import { authApi } from '../src/runtime/utils/api'
 
 describe('magic link & email verification', async () => {
   await setup({
@@ -14,14 +15,14 @@ describe('magic link & email verification', async () => {
   })
 
   it('registers the magic link route and validates the request body', async () => {
-    await expect($fetch('/api/auth/magic-link', {
+    await expect($fetch(authApi.magicLink, {
       method: 'POST',
       body: { email: 'not-an-email' },
     })).rejects.toMatchObject({ statusCode: 400 })
   })
 
   it('signs in only through the POST, which requires a valid code', async () => {
-    await expect($fetch('/api/auth/magic-link/confirm', { method: 'POST', body: {} }))
+    await expect($fetch(authApi.magicLinkConfirm, { method: 'POST', body: {} }))
       .rejects.toMatchObject({ statusCode: 400 })
     // Opening the emailed link is a plain page view: no sign-in, no session (the database flow is tested in
     // `@frigear-nu/users`' magic-link-flow test).
@@ -31,7 +32,7 @@ describe('magic link & email verification', async () => {
   })
 
   it('keeps a listed OAuth provider off until its credentials are set', async () => {
-    const response = await fetch('/api/auth/facebook', { redirect: 'manual' })
+    const response = await fetch(authApi.provider('facebook'), { redirect: 'manual' })
     expect(response.status).toBe(404)
   })
 })

@@ -1,6 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, eq, gt, isNotNull, isNull } from 'drizzle-orm'
 import { z } from 'zod'
+import { badRequest } from '@frigear-nu/module-kit/server'
 import { EMAIL_REVERT_INVALID, findEmailChangeByRevertCode } from '../../email-change'
 
 // The "Restore" button of the `/auth/revert-email-change` page: puts the old address back. No sign-in needed (the
@@ -11,13 +12,10 @@ export default defineEventHandler(async (event) => {
 
   const change = await findEmailChangeByRevertCode(code)
   if (!change?.verifiedAt || change.revertedAt || !change.revertExpiresAt || change.revertExpiresAt <= now) {
-    throw createError({ statusCode: 400, statusMessage: EMAIL_REVERT_INVALID })
+    throw badRequest(EMAIL_REVERT_INVALID)
   }
 
-  const taken = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, change.oldEmail) })
-  if (taken && taken.id !== change.userId) {
-    throw createError({ statusCode: 409, statusMessage: 'The old address now belongs to another account.' })
-  }
+  await assertEmailAvailable(change.oldEmail, { exceptUserId: change.userId, message: 'The old address now belongs to another account.' })
 
   const [claimed] = await db.update(schema.accountEmailChanges)
     .set({ revertedAt: now })
@@ -30,10 +28,10 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!claimed) {
-    throw createError({ statusCode: 400, statusMessage: EMAIL_REVERT_INVALID })
+    throw badRequest(EMAIL_REVERT_INVALID)
   }
 
-  await db.update(schema.users).set({ email: claimed.oldEmail }).where(eq(schema.users.id, claimed.userId))
+  await db.update(schema.users).set({ email: normalizeUserEmail(claimed.oldEmail) }).where(eq(schema.users.id, claimed.userId))
 
   // A session of this account still carries the new address: sign it out so the next sign-in reflects the revert.
   const session = await getUserSession(event)

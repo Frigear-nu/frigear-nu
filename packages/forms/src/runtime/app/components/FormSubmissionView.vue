@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SubmissionDto } from '../../../types'
-import { isAnswerField, resolveVisibility, translate } from '../../utils'
+import { formsApi, isAnswerField, resolveVisibility, translate } from '../../utils'
 
 const props = defineProps<{ submission: SubmissionDto }>()
 
@@ -28,7 +28,7 @@ const sections = computed(() => resolveVisibility(props.submission.definition, p
   }),
 })))
 
-const fileUrl = (fileId: string) => `/api/forms/admin/submissions/${props.submission.id}/files/${fileId}`
+const fileUrl = (fileId: string) => formsApi.admin.submissionFile(props.submission.id, fileId)
 </script>
 
 <template>

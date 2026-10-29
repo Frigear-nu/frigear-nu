@@ -2,26 +2,21 @@ import { db, schema } from '@nuxthub/db'
 import { and, eq, sql } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import type { PurchaseBody, PurchaseResponse, TicketDto } from '../../../types'
-import { resolveSameOriginUrl } from '@frigear-nu/stripe/utils'
+import { apiError, resolveSameOriginUrl } from '@frigear-nu/module-kit/server'
 import { newId, newTicketCode, normalizeMembership, translate } from '../../utils'
 import { countAddonSeats, countSeats, getPublishedEventRow, holdsSeat, loadCatalog, toTicketDtos } from './catalog'
 import { meetsMembership, passesExclusion } from './membership'
 
-const fail = (statusCode: number, statusMessage: string) => createError({ statusCode, statusMessage })
+const CODES: Record<number, string> = { 400: 'bad_request', 403: 'forbidden', 404: 'not_found', 409: 'conflict' }
+const fail = (statusCode: 400 | 403 | 404 | 409, message: string) => apiError(statusCode, CODES[statusCode]!, message)
 
 function returnUrls(event: H3Event, slug: string, ticketId: string, body: PurchaseBody) {
-  const origin = getRequestURL(event).origin
   const pages = useRuntimeConfig().public.events?.pages ?? {}
   const eventPath = (pages.event || '/events/:slug').replace(':slug', encodeURIComponent(slug))
-  const resolve = (input: string | undefined, status: 'success' | 'cancel', name: string) => {
-    if (input) {
-      const safe = resolveSameOriginUrl(input, origin)
-      if (!safe) throw fail(400, `${name} must be a relative path or an URL on the same origin.`)
-      return safe
-    }
-    return `${origin}${eventPath}?ticket=${ticketId}&payment=${status}`
+  return {
+    successUrl: resolveSameOriginUrl(event, body.successUrl, { fallback: `${eventPath}?ticket=${ticketId}&payment=success`, name: 'successUrl' }),
+    cancelUrl: resolveSameOriginUrl(event, body.cancelUrl, { fallback: `${eventPath}?ticket=${ticketId}&payment=cancel`, name: 'cancelUrl' }),
   }
-  return { successUrl: resolve(body.successUrl, 'success', 'successUrl'), cancelUrl: resolve(body.cancelUrl, 'cancel', 'cancelUrl') }
 }
 
 /** Frees the seat of a ticket the purchase could not complete. */

@@ -241,7 +241,10 @@
       "loadFailed": "Arrangementerne kunne ikke indlæses",
       "forbidden": "Du har ikke adgang til arrangementer",
       "eventLoadFailed": "Arrangementet kunne ikke indlæses",
-      "attendeesLoadFailed": "Deltagerne kunne ikke indlæses"
+      "attendeesLoadFailed": "Deltagerne kunne ikke indlæses",
+      "allStatuses": "Alle statusser",
+      "clearFilters": "Ryd filtre",
+      "searchAttendees": "Søg navn eller e-mail"
     },
     "listDescription": "Find et arrangement og få din billet.",
     "noTicketsTitle": "Ingen billetter endnu",

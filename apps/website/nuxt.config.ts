@@ -45,11 +45,6 @@ export default defineNuxtConfig({
         sqliteConnector: 'native',
       },
     },
-    nitro: {
-      scheduledTasks: {
-        '*/1 * * * *': ['test'],
-      },
-    },
   },
 
   $production: {
@@ -123,9 +118,6 @@ export default defineNuxtConfig({
 
   // .nitro @ defaults
   nitro: {
-    experimental: {
-      tasks: true,
-    },
     cloudflare: {
       deployConfig: true,
       nodeCompat: true,

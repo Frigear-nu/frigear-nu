@@ -1,6 +1,7 @@
 import { upperFirst } from 'scule'
 import type { OAuthProviderButton } from '../../../types'
 import { DEFAULT_OAUTH_ICON, OAUTH_PROVIDER_META } from '../utils/oauth-providers'
+import { authApi } from '../../utils/api'
 
 export const useLogin = () => {
   const config = useRuntimeConfig().public.authentication
@@ -9,7 +10,7 @@ export const useLogin = () => {
   const passwordLoginEnabled = computed(() => config?.password === true)
   const passkeyLoginEnabled = computed(() => config?.webAuthn === true)
   // The server decides per request: providers turn on through their credentials, usually runtime secrets.
-  const { data: providerButtons } = useFetch<OAuthProviderButton[]>('/api/auth/providers', { key: 'auth-oauth-providers', default: () => [] })
+  const { data: providerButtons } = useFetch<OAuthProviderButton[]>(authApi.providers, { key: 'auth-oauth-providers', default: () => [] })
   // Structurally a `@nuxt/ui` `ButtonProps`, so each entry can go straight into `UAuthForm`'s `providers`.
   const oauthProviders = computed(() => (providerButtons.value ?? []).map(({ label, icon, ...button }) => ({
     ...button,
@@ -26,7 +27,7 @@ export const useLogin = () => {
     error.value = null
 
     try {
-      await $fetch('/api/auth/login', { method: 'POST', body: payload })
+      await $fetch(authApi.login, { method: 'POST', body: payload })
       await useUserSession().fetch()
     }
     catch (err) {

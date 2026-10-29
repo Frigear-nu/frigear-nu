@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
+import { isoDate } from '@frigear-nu/module-kit/server'
 
 // Without `forms:pii` only metadata is returned: no answers, no submitter id, no file names.
 // File contents are never available through MCP.
@@ -11,18 +12,17 @@ export default defineScopedMcpTool({
   annotations: { readOnlyHint: true },
   inputSchema: { id: z.string() },
   handler: async ({ id }, ctx) => {
-    const [row] = await db.select().from(schema.formSubmissions).where(eq(schema.formSubmissions.id, id)).limit(1)
-    if (!row) throw createError({ statusCode: 404, statusMessage: 'Submission not found.' })
+    const row = await findSubmissionById(id)
     const files = await db.select().from(schema.formSubmissionFiles).where(eq(schema.formSubmissionFiles.submissionId, row.id))
     const allow = ctx.hasScope('forms:pii')
     const submission = redactPii({
       ...pick(row, ['id', 'formId', 'formSlug', 'formVersion', 'locale', 'deliveryStatus']),
-      createdAt: row.createdAt.toISOString(),
+      createdAt: isoDate(row.createdAt),
       answeredFields: Object.keys(row.answers),
       fileCount: files.length,
       answers: row.answers,
       userId: row.userId,
-      files: files.map(({ id, fieldKey, filename, contentType, size }) => ({ id, fieldKey, filename, contentType, size })),
+      files: files.map(toSubmissionFileDto),
     }, { allow, fields: ['answers', 'userId', 'files'] })
     return { notice: piiNotice(allow, 'forms:pii', 'Answers, the submitter and file names'), submission }
   },

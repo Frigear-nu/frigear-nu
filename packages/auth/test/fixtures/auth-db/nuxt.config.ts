@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     MyModule,
-    // Providers of the `/api/_bootstrap` test: two that load, one that fails, and one in another scope.
+    // Providers of the `/api/auth/bootstrap` test: two that load, one that fails, and one in another scope.
     (_options, nuxt) => {
       registerBootstrapProvider(nuxt, { scope: 'account', key: 'test:profile', handler: bootstrap('profile') })
       registerBootstrapProvider(nuxt, { scope: 'account', key: 'test:events', handler: bootstrap('events') })

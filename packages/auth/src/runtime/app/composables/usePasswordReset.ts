@@ -1,3 +1,5 @@
+import { authApi } from '../../utils/api'
+
 export const usePasswordReset = () => {
   const config = useRuntimeConfig().public.authentication
 
@@ -11,7 +13,7 @@ export const usePasswordReset = () => {
     error.value = null
 
     try {
-      await $fetch('/api/auth/forgot-password', { method: 'POST', body: payload })
+      await $fetch(authApi.forgotPassword, { method: 'POST', body: payload })
     }
     catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to request a password reset.'
@@ -27,7 +29,7 @@ export const usePasswordReset = () => {
     error.value = null
 
     try {
-      await $fetch('/api/auth/reset-password', { method: 'POST', body: payload })
+      await $fetch(authApi.resetPassword, { method: 'POST', body: payload })
       await useUserSession().fetch()
     }
     catch (err) {

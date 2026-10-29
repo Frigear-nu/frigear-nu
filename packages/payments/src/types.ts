@@ -94,3 +94,21 @@ export type CheckoutBeforeContext = {
 }
 
 export type ResumeResponse = { url: string }
+
+/** Context of the `payments:authorize` hook. */
+export type AuthorizeContext = {
+  event: H3Event
+  userId: number
+  /** Set `ctx.allowed = true` to let the user see the dashboard's recent payments and revenue. Denied by default. */
+  allowed: boolean
+}
+
+/** A payment with the name of the user who made it, as the admin dashboard lists them. */
+export type RecentPaymentDto = PaymentDto & { userName: string | null }
+
+/** `GET /api/admin/payments/recent`: the last 30 days' revenue per currency and the latest settled payments. */
+export type RecentPaymentsDto = {
+  days: number
+  revenue: { currency: string, amount: number, count: number }[]
+  items: RecentPaymentDto[]
+}

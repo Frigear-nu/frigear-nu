@@ -1,4 +1,5 @@
 import type { UserPreferences } from '../../../types'
+import { preferencesApi } from '../../utils/api'
 
 /**
  * The signed-in user's preferences, typed from every registered definer file.
@@ -20,7 +21,7 @@ export const useUserPreferences = () => {
   async function set<K extends keyof UserPreferences>(key: K, value: UserPreferences[K] | null) {
     pending.value = true
     try {
-      await $fetch('/api/preferences', { method: 'PATCH', body: { [key]: value } })
+      await $fetch(preferencesApi.root, { method: 'PATCH', body: { [key]: value } })
       await refreshSession()
     }
     finally {

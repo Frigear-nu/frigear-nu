@@ -1,12 +1,8 @@
-export interface UserPasskey {
-  id: string
-  userId: number
-  counter: number
-  backedUp: boolean
-  transports: string[] | null
-  name: string | null
-  createdAt: string | Date
-}
+import type { AuthPasskeyDto } from '../../../types'
+import { authApi } from '../../utils/api'
+
+/** A passkey of the signed-in user, as `GET /api/auth/me/passkeys` returns it. */
+export type UserPasskey = AuthPasskeyDto
 
 export const usePasskeys = () => {
   const config = useRuntimeConfig().public.authentication
@@ -14,8 +10,8 @@ export const usePasskeys = () => {
   const isEnabled = computed(() => config?.webAuthn === true)
 
   const { register, authenticate } = useWebAuthn({
-    registerEndpoint: '/api/auth/webauthn/register',
-    authenticateEndpoint: '/api/auth/webauthn/authenticate',
+    registerEndpoint: authApi.webauthn.register,
+    authenticateEndpoint: authApi.webauthn.authenticate,
   })
   const { fetch: fetchUserSession } = useUserSession()
 
@@ -28,11 +24,11 @@ export const usePasskeys = () => {
   }
 
   function listPasskeys() {
-    return $fetch<UserPasskey[]>('/api/auth/webauthn/credentials')
+    return $fetch<UserPasskey[]>(authApi.me.passkeys)
   }
 
-  function removePasskey(id: string) {
-    return $fetch(`/api/auth/webauthn/credentials/${id}`, { method: 'DELETE' })
+  async function removePasskey(id: string) {
+    await $fetch(authApi.me.passkey(id), { method: 'DELETE' })
   }
 
   return { isEnabled, registerPasskey, authenticateWithPasskey, listPasskeys, removePasskey }

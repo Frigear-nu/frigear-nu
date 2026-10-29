@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { FormAdminDto, SubmissionSummaryDto } from '../../../types'
+import type { FormAdminDto, FormsPage, SubmissionSummaryDto } from '../../../types'
+import { formsApi } from '../../utils'
 
 const t = useModuleT('forms')
 const route = useRoute()
@@ -8,10 +9,14 @@ const paths = useFormsPaths()
 const format = useFormat()
 const actions = useFormActions()
 const id = computed(() => String(route.params.id))
-const { data: form } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, { key: `forms:admin:form:${id.value}` })
-const { data: submissions, error, status, refresh } = await useFetch<SubmissionSummaryDto[]>(() => `/api/forms/admin/forms/${id.value}/submissions`)
+const { data: form } = await useFetch<FormAdminDto>(() => formsApi.admin.form(id.value), { key: `forms:admin:form:${id.value}` })
+// Page and sort live in the URL and go to the API (newest first by default).
+const list = useTableQuery({ sort: { id: 'createdAt', desc: true } })
+const { page, pageSize } = list
+const { data, error, status, refresh } = await useFetch<FormsPage<SubmissionSummaryDto>>(() => formsApi.admin.submissions(id.value), { query: list.query })
+const submissions = computed(() => data.value?.items ?? [])
 
-const { sorting, header } = useTableSort({ id: 'createdAt', desc: true })
+const { sorting, header } = useTableSort(null, list.sort)
 const columns = computed<TableColumn<SubmissionSummaryDto>[]>(() => [
   { accessorKey: 'createdAt', header: header('createdAt', t('admin.submittedAt', 'Submitted')) },
   { id: 'preview', header: t('admin.answers', 'Answers') },
@@ -41,7 +46,7 @@ const breadcrumb = computed(() => [
     />
 
     <UEmpty
-      v-if="error && !submissions"
+      v-if="error && !data"
       :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
       :title="forbidden ? t('admin.forbidden', 'You are not allowed to manage forms.') : t('admin.submissionsLoadFailed', 'Submissions could not be loaded')"
       :description="forbidden ? undefined : errorMessage(error, '')"
@@ -50,13 +55,14 @@ const breadcrumb = computed(() => [
 
     <TableCard
       v-else
-      :loading="status === 'pending' && !submissions"
-      :refreshing="status === 'pending' && !!submissions"
+      :loading="status === 'pending' && !data"
+      :refreshing="status === 'pending' && !!data"
     >
       <UTable
         v-model:sorting="sorting"
-        :data="submissions ?? []"
+        :data="submissions"
         :columns="columns"
+        :sorting-options="{ manualSorting: true }"
         :ui="tableUi()"
         @select="(_: Event, row: { original: SubmissionSummaryDto }) => navigateTo(submissionPath(row.original))"
       >
@@ -97,6 +103,13 @@ const breadcrumb = computed(() => [
           />
         </template>
       </UTable>
+      <template #footer>
+        <TablePagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :total="data?.total ?? 0"
+        />
+      </template>
     </TableCard>
   </div>
 </template>

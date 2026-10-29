@@ -46,6 +46,32 @@ export interface OAuthProviderOptions {
   config?: Record<string, unknown>
 }
 
+/** A user API token as the API returns it (`GET /api/auth/me/tokens`): never the hash, dates as ISO strings. */
+export interface AuthTokenDto {
+  id: string
+  name: string
+  /** The first characters of the token, to recognise it. */
+  prefix: string
+  last4: string
+  scopes: string[]
+  expiresAt: string | null
+  lastUsedAt: string | null
+  createdAt: string
+  status: 'ok' | 'revoked' | 'expired'
+}
+
+/** The response to `POST /api/auth/me/tokens`: the only time the plaintext `token` exists. */
+export type AuthCreatedTokenDto = AuthTokenDto & { token: string }
+
+/** A passkey as the API returns it (`GET /api/auth/me/passkeys`): never the public key, dates as ISO strings. */
+export interface AuthPasskeyDto {
+  id: string
+  name: string | null
+  backedUp: boolean
+  transports: string[] | null
+  createdAt: string
+}
+
 /** A sign-in button, as returned by `GET /api/auth/providers`. */
 export interface OAuthProviderButton {
   key: OAuthProvider
@@ -128,7 +154,7 @@ export interface AuthSettings {
 
 export interface ModuleOptions {
   /**
-   * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/tokens`.
+   * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/me/tokens`.
    * `false` turns them off: no token routes, and bearer tokens with the prefix are no longer resolved. Defaults to `true`.
    */
   apiTokens?: boolean | {

@@ -1,10 +1,11 @@
 import { db, schema } from '@nuxthub/db'
 import type { z } from 'zod'
 import { newId } from '../../utils'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
+import { badRequest, conflict, notFound } from '@frigear-nu/module-kit/server'
 import { loadCatalog } from './catalog'
 import { eventInput, ticketTypeInput } from './admin-schemas'
-import type { addonGroupInput, ticketTypeInput } from './admin-schemas'
+import type { addonGroupInput } from './admin-schemas'
 
 type TicketTypeInput = z.output<typeof ticketTypeInput>
 type AddonGroupInput = z.output<typeof addonGroupInput>
@@ -16,6 +17,14 @@ export async function insertAddonGroup(ticketTypeId: string, input: AddonGroupIn
     await db.insert(schema.eventAddons).values({ id: newId('adn'), groupId: row!.id, ...addon, description: addon.description ?? null, capacity: addon.capacity ?? null })
   }
   return row!
+}
+
+/** 409 when another ticket type of `eventId` already uses `key` (keys are unique per event). */
+export async function assertTicketTypeKeyFree(eventId: string, key: string, exceptId?: string) {
+  const [taken] = await db.select({ id: schema.eventTicketTypes.id }).from(schema.eventTicketTypes)
+    .where(and(eq(schema.eventTicketTypes.eventId, eventId), eq(schema.eventTicketTypes.key, key)))
+    .limit(1)
+  if (taken && taken.id !== exceptId) throw conflict('A ticket type with this key already exists on the event.', { field: 'key' })
 }
 
 export async function insertTicketType(eventId: string, input: TicketTypeInput) {
@@ -42,7 +51,7 @@ export async function insertTicketType(eventId: string, input: TicketTypeInput) 
 export async function assertMembershipAvailable(...inputs: Array<{ requiresMembership?: unknown, excludesMembership?: unknown } | undefined>) {
   if (!inputs.some(input => input?.requiresMembership || input?.excludesMembership)) return
   if ((await getMembershipOptions()).available) return
-  throw createError({ statusCode: 400, statusMessage: 'Membership rules need a membership provider such as @frigear-nu/subscriptions.' })
+  throw badRequest('Membership rules need a membership provider such as @frigear-nu/subscriptions.')
 }
 
 type EventInput = z.output<typeof eventInput>
@@ -53,7 +62,7 @@ export async function createEventWithCatalog(raw: EventInput) {
   await assertMembershipAvailable(input, ...(ticketTypes ?? []))
 
   const [taken] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, input.slug)).limit(1)
-  if (taken) throw createError({ statusCode: 409, statusMessage: 'An event with this slug already exists.' })
+  if (taken) throw conflict('An event with this slug already exists.', { field: 'slug' })
 
   const [row] = await db.insert(schema.events).values({
     id: newId('evn'),
@@ -68,8 +77,12 @@ export const eventPatchSchema = eventInput.omit({ ticketTypes: true }).partial()
 
 export async function patchEventRow(id: string, patch: z.output<typeof eventPatchSchema>) {
   await assertMembershipAvailable(patch)
+  if (patch.slug) {
+    const [taken] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, patch.slug)).limit(1)
+    if (taken && taken.id !== id) throw conflict('An event with this slug already exists.', { field: 'slug' })
+  }
   const [row] = await db.update(schema.events).set(patch).where(eq(schema.events.id, id)).returning()
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
+  if (!row) throw notFound('Event not found.')
   return row
 }
 
@@ -78,15 +91,20 @@ export const ticketTypePatchSchema = ticketTypeInput.omit({ addonGroups: true })
 
 export async function patchTicketTypeRow(id: string, patch: z.output<typeof ticketTypePatchSchema>) {
   await assertMembershipAvailable(patch)
+  if (patch.key) {
+    const [current] = await db.select({ eventId: schema.eventTicketTypes.eventId }).from(schema.eventTicketTypes).where(eq(schema.eventTicketTypes.id, id)).limit(1)
+    if (!current) throw notFound('Ticket type not found.')
+    await assertTicketTypeKeyFree(current.eventId, patch.key, id)
+  }
   const [row] = await db.update(schema.eventTicketTypes).set(patch).where(eq(schema.eventTicketTypes.id, id)).returning()
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Ticket type not found.' })
+  if (!row) throw notFound('Ticket type not found.')
   return row
 }
 
 /** One event with all of its ticket types (capacity and sale window included), whatever its status. */
 export async function getEventWithTicketTypes(id: string) {
   const [row] = await db.select().from(schema.events).where(eq(schema.events.id, id)).limit(1)
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Event not found.' })
+  if (!row) throw notFound('Event not found.')
   const ticketTypes = await db.select().from(schema.eventTicketTypes)
     .where(eq(schema.eventTicketTypes.eventId, id))
     .orderBy(asc(schema.eventTicketTypes.sortOrder))

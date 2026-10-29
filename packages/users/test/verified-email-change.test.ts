@@ -2,6 +2,9 @@ import { fileURLToPath } from 'node:url'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { apiClient } from '@frigear-nu/module-kit/testing'
+import { authApi } from '@frigear-nu/auth/api'
+import { usersApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/verified-email-change', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -22,17 +25,12 @@ async function linkTo(to: string, pattern: RegExp) {
   return new URL(url).pathname + new URL(url).search
 }
 
-async function post(path: string, body: unknown, cookie?: string) {
-  return fetch(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    body: JSON.stringify(body),
-  })
-}
+const post = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('POST', path, body)
+const put = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('PUT', path, body)
 
 async function register(name: string, email: string) {
-  const response = await post('/api/auth/register', { name, email, password: 'supersecret123' })
-  expect(response.status, await response.clone().text()).toBe(200)
+  const response = await post(authApi.register, { name, email, password: 'supersecret123' })
+  expect(response.status, await response.clone().text()).toBe(201)
   return response.headers.get('set-cookie')!
 }
 
@@ -46,7 +44,7 @@ describe('verified email change', async () => {
   await setup({ rootDir: fixture, dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000 })
   await writeFile(mailFile, '').catch(() => {})
 
-  const login = (email: string) => post('/api/auth/login', { email, password: 'supersecret123' })
+  const login = (email: string) => post(authApi.login, { email, password: 'supersecret123' })
   const codeOf = (path: string) => new URL(path, 'http://localhost').searchParams.get('code')!
   async function preview(path: string, cookie?: string) {
     const response = await fetch(path, { headers: cookie ? { cookie } : {} })
@@ -57,7 +55,7 @@ describe('verified email change', async () => {
   it('only applies the new address once its owner confirmed it, and can be reverted from the old one', async () => {
     const cookie = await register('Ada', 'ada@example.com')
 
-    const request = await post('/api/users/me/change-email', { email: 'ada-new@example.com' }, cookie)
+    const request = await put(usersApi.me.email, { email: 'ada-new@example.com' }, cookie)
     expect(request.status, await request.clone().text()).toBe(200)
     expect(await request.json()).toMatchObject({ verificationRequired: true })
 
@@ -80,23 +78,23 @@ describe('verified email change', async () => {
     expect(opened.headers.get('set-cookie')).toBeNull()
     // Signed in as the owner, the link opens the page.
     expect((await fetch(verifyPath, { redirect: 'manual', headers: { cookie } })).status).toBe(200)
-    expect(await preview(`/api/users/email-change?code=${code}`)).toEqual({
+    expect(await preview(`${usersApi.emailChange}?code=${code}`)).toEqual({
       status: 'pending', signedIn: false, owner: false, newEmail: 'ada-new@example.com', oldEmail: 'a***@example.com',
     })
-    expect(await preview(`/api/users/email-change?code=${code}`, cookie)).toMatchObject({
+    expect(await preview(`${usersApi.emailChange}?code=${code}`, cookie)).toMatchObject({
       status: 'pending', signedIn: true, owner: true, oldEmail: 'ada@example.com',
     })
     expect((await login('ada-new@example.com')).status).toBe(401)
 
     // Confirming needs a browser session of the account that asked for the change.
-    expect((await post('/api/users/email-change/confirm', { code })).status).toBe(401)
+    expect((await post(usersApi.emailChangeConfirm, { code })).status).toBe(401)
     const other = await register('Bob', 'bob@example.com')
-    expect(await preview(`/api/users/email-change?code=${code}`, other)).toMatchObject({ owner: false, oldEmail: 'a***@example.com' })
-    expect((await post('/api/users/email-change/confirm', { code }, other)).status).toBe(403)
+    expect(await preview(`${usersApi.emailChange}?code=${code}`, other)).toMatchObject({ owner: false, oldEmail: 'a***@example.com' })
+    expect((await post(usersApi.emailChangeConfirm, { code }, other)).status).toBe(403)
     expect((await login('ada-new@example.com')).status).toBe(401)
-    expect(await preview(`/api/users/email-change?code=${code}`)).toMatchObject({ status: 'pending' })
+    expect(await preview(`${usersApi.emailChange}?code=${code}`)).toMatchObject({ status: 'pending' })
 
-    const confirm = await post('/api/users/email-change/confirm', { code }, cookie)
+    const confirm = await post(usersApi.emailChangeConfirm, { code }, cookie)
     expect(confirm.status, await confirm.clone().text()).toBe(200)
     expect(await confirm.json()).toMatchObject({ email: 'ada-new@example.com' })
     expect(confirm.headers.get('set-cookie')).toContain('nuxt-session')
@@ -104,8 +102,8 @@ describe('verified email change', async () => {
     expect((await login('ada-new@example.com')).status).toBe(200)
 
     // The link can't be used twice.
-    expect((await post('/api/users/email-change/confirm', { code }, cookie)).status).toBe(400)
-    expect(await preview(`/api/users/email-change?code=${code}`)).toMatchObject({ status: 'confirmed' })
+    expect((await post(usersApi.emailChangeConfirm, { code }, cookie)).status).toBe(400)
+    expect(await preview(`${usersApi.emailChange}?code=${code}`)).toMatchObject({ status: 'confirmed' })
     // A used link says so on the page, without asking to sign in.
     expect((await fetch(verifyPath, { redirect: 'manual' })).status).toBe(200)
 
@@ -114,32 +112,32 @@ describe('verified email change', async () => {
     expect(revertPath).toMatch(/^\/auth\/revert-email-change\?code=/)
     const revertCode = codeOf(revertPath)
     expect((await fetch(revertPath, { redirect: 'manual' })).headers.get('set-cookie')).toBeNull()
-    expect(await preview(`/api/users/email-change/revert?code=${revertCode}`)).toEqual({
+    expect(await preview(`${usersApi.emailChangeRevert}?code=${revertCode}`)).toEqual({
       status: 'pending', oldEmail: 'ada@example.com', newEmail: 'ada-new@example.com',
     })
     expect((await login('ada-new@example.com')).status).toBe(200)
 
-    const revert = await post('/api/users/email-change/revert', { code: revertCode })
+    const revert = await post(usersApi.emailChangeRevert, { code: revertCode })
     expect(revert.status, await revert.clone().text()).toBe(200)
     expect(await revert.json()).toEqual({ email: 'ada@example.com', signedOut: false })
     expect((await login('ada@example.com')).status).toBe(200)
     expect((await login('ada-new@example.com')).status).toBe(401)
 
-    expect((await post('/api/users/email-change/revert', { code: revertCode })).status).toBe(400)
-    expect(await preview(`/api/users/email-change/revert?code=${revertCode}`)).toMatchObject({ status: 'reverted' })
+    expect((await post(usersApi.emailChangeRevert, { code: revertCode })).status).toBe(400)
+    expect(await preview(`${usersApi.emailChangeRevert}?code=${revertCode}`)).toMatchObject({ status: 'reverted' })
   })
 
   it('rejects unknown codes', async () => {
-    expect((await fetch('/api/users/email-change?code=nope')).status).toBe(404)
-    expect((await fetch('/api/users/email-change/revert?code=nope')).status).toBe(404)
+    expect((await fetch(`${usersApi.emailChange}?code=nope`)).status).toBe(404)
+    expect((await fetch(`${usersApi.emailChangeRevert}?code=nope`)).status).toBe(404)
     const cookie = await register('Linus', 'linus@example.com')
-    expect((await post('/api/users/email-change/confirm', { code: 'nope' }, cookie)).status).toBe(400)
-    expect((await post('/api/users/email-change/revert', { code: 'nope' })).status).toBe(400)
+    expect((await post(usersApi.emailChangeConfirm, { code: 'nope' }, cookie)).status).toBe(400)
+    expect((await post(usersApi.emailChangeRevert, { code: 'nope' })).status).toBe(400)
   })
 
   it('tells the user when their password was changed', async () => {
     const cookie = await register('Grace', 'grace@example.com')
-    const response = await post('/api/users/me/change-password', {
+    const response = await put(usersApi.me.password, {
       currentPassword: 'supersecret123', newPassword: 'new-password123', confirmNewPassword: 'new-password123',
     }, cookie)
     expect(response.status, await response.clone().text()).toBe(200)

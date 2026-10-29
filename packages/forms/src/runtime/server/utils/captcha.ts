@@ -1,3 +1,4 @@
+import { apiError } from '@frigear-nu/module-kit/server'
 import type { H3Event } from 'h3'
 import type { CaptchaProvider, CaptchaVerifyContext } from '../../../types'
 
@@ -23,7 +24,7 @@ export async function verifyCaptcha(event: H3Event, provider: CaptchaProvider, t
 
   if (!secret) {
     console.error(`[forms] captcha provider "${provider}" has no secret key: set one on the form or NUXT_FORMS_CAPTCHA_${provider.toUpperCase()}_SECRET_KEY.`)
-    throw createError({ statusCode: 500, statusMessage: `The ${provider} captcha is not configured on the server.`, data: { captcha: true } })
+    throw apiError(500, 'not_configured', `The ${provider} captcha is not configured on the server.`, { captcha: true })
   }
 
   const body = new URLSearchParams({ secret, response: token })
@@ -34,6 +35,6 @@ export async function verifyCaptcha(event: H3Event, provider: CaptchaProvider, t
   }
   catch (cause) {
     console.error(`[forms] ${provider} verification request failed:`, cause)
-    throw createError({ statusCode: 502, statusMessage: 'The captcha could not be verified. Please try again.', data: { captcha: true } })
+    throw apiError(502, 'captcha_unavailable', 'The captcha could not be verified. Please try again.', { captcha: true })
   }
 }

@@ -187,6 +187,14 @@ export type AdminApplicationDto = Omit<OAuthApplication, 'createdAt' | 'updatedA
   callbackUrl: string
 }
 
+/** One page of `GET /api/admin/oauth-server/applications` (the shape `useTableQuery` speaks). */
+export type AdminApplicationsPage = {
+  items: AdminApplicationDto[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /** Returned once when an application is created. */
 export type CreatedApplicationDto = AdminApplicationDto & {
   clientId: string

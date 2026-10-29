@@ -1,6 +1,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { LazyFormCreateSlideover, LazyFormImportSlideover } from '#components'
-import type { FormAdminDto, FormStatus, FormStorage } from '../../../types'
+import type { FormAdminDto, FormImportResultDto, FormStatus, FormStorage, SubmissionDeliveryDto } from '../../../types'
+import { formsApi } from '../../utils'
 
 /** What the actions need to know about a form: a list row or the loaded form fits. */
 export interface FormActionTarget {
@@ -19,10 +20,7 @@ export interface SubmissionActionTarget {
 }
 
 /** What importing reports back: slugs that were created and slugs that already existed. */
-export interface FormImportResult {
-  inserted: string[]
-  skipped: string[]
-}
+export type FormImportResult = FormImportResultDto
 
 /** The cache key of the admin form list, so every action can refresh it. */
 export const FORMS_LIST_KEY = 'forms:admin:forms'
@@ -51,7 +49,7 @@ export function useFormActions() {
   /** Copies the form into a new draft and opens it. */
   async function clone(form: Pick<FormActionTarget, 'id'>): Promise<boolean> {
     const copy = await run(
-      () => $fetch<{ id: string }>(`/api/forms/admin/forms/${form.id}/clone`, { method: 'POST' }),
+      () => $fetch<FormAdminDto>(formsApi.admin.clone(form.id), { method: 'POST' }),
       { success: t('admin.cloned', 'Form duplicated') },
     )
     if (!copy) return false
@@ -69,7 +67,8 @@ export function useFormActions() {
     })
     if (!confirmed) return false
     const archived = await run(
-      () => $fetch(`/api/forms/admin/forms/${form.id}`, { method: 'DELETE' }),
+      // 204 No Content: `run` resolves with `undefined` on failure, so map success to `true`.
+      () => $fetch(formsApi.admin.form(form.id), { method: 'DELETE' }).then(() => true),
       { success: t('admin.archived', 'Form archived') },
     )
     if (!archived) return false
@@ -91,10 +90,7 @@ export function useFormActions() {
 
   /** Runs the delivery hooks of a stored submission again. */
   async function redeliver(submissionId: string): Promise<boolean> {
-    const result = await run(() => $fetch<{ deliveryStatus: string, deliveryError: string | null }>(
-      `/api/forms/admin/submissions/${submissionId}/redeliver`,
-      { method: 'POST' },
-    ))
+    const result = await run(() => $fetch<SubmissionDeliveryDto>(formsApi.admin.redeliver(submissionId), { method: 'POST' }))
     if (!result) return false
     if (result.deliveryStatus === 'failed') {
       showError(new Error(result.deliveryError ?? ''), t('delivery.failed', 'Delivery failed'))

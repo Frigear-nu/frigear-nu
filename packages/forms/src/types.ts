@@ -379,6 +379,18 @@ export type SubmissionDto = {
   createdAt: string
 }
 
+/** The outcome of `POST /api/admin/forms/submissions/:id/redeliver`. */
+export type SubmissionDeliveryDto = {
+  deliveryStatus: DeliveryStatus
+  deliveryError: string | null
+}
+
+/** The outcome of `POST /api/admin/forms/import`: slugs that were inserted, and slugs skipped because they exist. */
+export type FormImportResultDto = { inserted: string[], skipped: string[] }
+
+/** One page of a paginated admin list (`GET /api/admin/forms`, `GET /api/admin/forms/:id/submissions`). */
+export type FormsPage<T> = { items: T[], total: number, page: number, pageSize: number }
+
 export type SubmitResponse = { ok: true, id: string | null }
 
 /** Descriptor of a picked/uploaded file, as validated on both client and server. */

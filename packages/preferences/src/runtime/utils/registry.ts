@@ -1,4 +1,4 @@
-import type { z } from 'zod'
+import { z } from 'zod'
 import type { PreferenceDefinitions } from '../define'
 
 export interface ResolvedPreference {
@@ -28,30 +28,32 @@ export function resolvePreferences(sources: PreferenceDefinitions[]): Map<string
   return registry
 }
 
-export type PreferencePatchResult
-  = { ok: true, set: Record<string, unknown>, remove: string[] }
-    | { ok: false, message: string }
+/**
+ * The zod schema of a partial update, built from the registered definitions: a strict object, so an unknown key is
+ * rejected, whose values satisfy their definition's schema or are `null` (which clears the preference).
+ */
+export function preferencePatchSchema(registry: Map<string, ResolvedPreference>) {
+  const shape: Record<string, z.ZodType> = {}
+  for (const [key, definition] of registry) shape[key] = definition.schema.nullable().optional()
+  return z.strictObject(shape)
+}
 
 /**
- * Validates a partial update: every key must be registered, a value must satisfy its schema, and `null` clears
- * the preference.
+ * Validates a partial update with `preferencePatchSchema` and keeps only the keys the caller sent: a definition with
+ * a `.default()` must not be written just because the key was left out. Throws a `ZodError` (h3 answers 400).
  */
-export function parsePreferencePatch(registry: Map<string, ResolvedPreference>, body: unknown): PreferencePatchResult {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, message: 'Expected an object of preferences.' }
-  const set: Record<string, unknown> = {}
-  const remove: string[] = []
-  for (const [key, value] of Object.entries(body)) {
-    const definition = registry.get(key)
-    if (!definition) return { ok: false, message: `Unknown preference "${key}".` }
-    if (value === null) {
-      remove.push(key)
-      continue
-    }
-    const parsed = definition.schema.safeParse(value)
-    if (!parsed.success) return { ok: false, message: `Invalid value for "${key}".` }
-    set[key] = parsed.data
-  }
-  return { ok: true, set, remove }
+export function parsePreferencePatch(registry: Map<string, ResolvedPreference>, body: unknown): Record<string, unknown> {
+  const parsed: Record<string, unknown> = preferencePatchSchema(registry).parse(body)
+  return Object.fromEntries(Object.keys(body as object).map(key => [key, parsed[key]]))
+}
+
+/** Applies a validated patch to the stored preferences: values set, `null` clears. */
+export function applyPreferencePatch(
+  stored: Record<string, unknown> | null | undefined,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...stored, ...patch }
+  return Object.fromEntries(Object.entries(next).filter(([, value]) => value !== null && value !== undefined))
 }
 
 /** The stored value when it still satisfies the schema, so a changed schema never leaks stale data. */

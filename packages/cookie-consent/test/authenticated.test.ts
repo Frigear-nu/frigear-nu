@@ -1,18 +1,20 @@
 import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { DEFAULT_CATEGORIES, computeVersion } from '../src/runtime/utils'
+import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { DEFAULT_CATEGORIES, computeVersion, cookieConsentApi } from '../src/runtime/utils'
+import { authApi } from '@frigear-nu/auth/api'
 
 const version = computeVersion('test', DEFAULT_CATEGORIES)
 
 async function registerAndGetCookie(email: string) {
-  const response = await fetch('/api/auth/register', {
+  const response = await fetch(authApi.register, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name: 'Ada Lovelace', email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.text()).toBe(200)
+  expect(response.status, await response.text()).toBe(201)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
   return cookie
@@ -29,45 +31,42 @@ describe('cookie-consent persisted on the user', async () => {
     dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
+  const api = cookieConsentApi.root
+
   it('requires a session', async () => {
-    await expect($fetch('/api/cookie-consent')).rejects.toMatchObject({ statusCode: 401 })
-    await expect($fetch('/api/cookie-consent', { method: 'POST', body: { categories: {}, version } })).rejects.toMatchObject({ statusCode: 401 })
+    await expectApiError(apiClient().json('GET', api), 401, 'unauthorized')
+    await expectApiError(apiClient().json('POST', api, { categories: {}, version }), 401, 'unauthorized')
   })
 
   it('rejects an outdated version and unknown categories', async () => {
-    const cookie = await registerAndGetCookie('invalid@example.com')
-    await expect($fetch('/api/cookie-consent', { method: 'POST', headers: { cookie }, body: { categories: { analytics: true }, version: 'stale' } }))
-      .rejects.toMatchObject({ statusCode: 409 })
-    await expect($fetch('/api/cookie-consent', { method: 'POST', headers: { cookie }, body: { categories: { bogus: true }, version } }))
-      .rejects.toMatchObject({ statusCode: 400 })
+    const user = apiClient({ cookie: await registerAndGetCookie('invalid@example.com') })
+    await expectApiError(user.json('POST', api, { categories: { analytics: true }, version: 'stale' }), 409, 'outdated_version')
+    await expectApiError(user.json('POST', api, { categories: { bogus: true }, version }), 400, 'unknown_categories')
+    await expectApiError(user.json('POST', api, { categories: 'all', version }), 400)
   })
 
-  it('stores timestamp, version and categories and returns them', async () => {
-    const cookie = await registerAndGetCookie('ada@example.com')
-    expect(await $fetch('/api/cookie-consent', { headers: { cookie } })).toEqual({ consent: null })
+  it('stores timestamp, version and categories and returns them like GET does', async () => {
+    const user = apiClient({ cookie: await registerAndGetCookie('ada@example.com') })
+    expect(await user.json('GET', api)).toEqual({ consent: null })
 
-    const saved = await $fetch<{ v: string, ts: number, categories: Record<string, boolean> }>('/api/cookie-consent', {
-      method: 'POST',
-      headers: { cookie },
-      body: { categories: { analytics: true, marketing: false }, version },
+    const saved = await user.json<{ consent: { v: string, ts: number, categories: Record<string, boolean> } }>('POST', api, {
+      categories: { analytics: true, marketing: false },
+      version,
     })
-    expect(saved.categories).toEqual({ necessary: true, analytics: true, marketing: false })
+    expect(saved.consent.v).toBe(version)
+    expect(saved.consent.categories).toEqual({ necessary: true, analytics: true, marketing: false })
 
-    expect(await $fetch('/api/cookie-consent', { headers: { cookie } })).toEqual({ consent: saved })
+    expect(await user.json('GET', api)).toEqual(saved)
   })
 
   it('keeps consent session-only: a token, even with full access, cannot read or write it', async () => {
     const cookie = await registerAndGetCookie('tokens@example.com')
-    const created = await fetch('/api/auth/tokens', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', cookie },
-      body: JSON.stringify({ name: 'test', scopes: ['*'] }),
-    })
-    expect(created.status, await created.clone().text()).toBe(200)
+    const created = await apiClient({ cookie }).fetch('POST', authApi.me.tokens, { name: 'test', scopes: ['*'] })
+    expect(created.status, await created.clone().text()).toBe(201)
     const { token } = await created.json() as { token: string }
 
-    const headers = { authorization: `Bearer ${token}` }
-    expect((await fetch('/api/cookie-consent', { headers })).status).toBe(403)
-    expect((await fetch('/api/cookie-consent', { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ categories: {}, version }) })).status).toBe(403)
+    const bearer = apiClient({ bearer: token })
+    await expectApiError(bearer.fetch('GET', api), 403)
+    await expectApiError(bearer.fetch('POST', api, { categories: {}, version }), 403)
   })
 })

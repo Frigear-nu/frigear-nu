@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { notFound } from '@frigear-nu/module-kit/server'
 import { EMAIL_REVERT_INVALID, findEmailChangeByRevertCode } from '../../email-change'
 
 // Read-only preview for the `/auth/revert-email-change` page. Never uses the code up.
@@ -8,7 +9,7 @@ export default defineEventHandler(async (event) => {
 
   const change = await findEmailChangeByRevertCode(code)
   if (!change?.verifiedAt) {
-    throw createError({ statusCode: 404, statusMessage: EMAIL_REVERT_INVALID })
+    throw notFound(EMAIL_REVERT_INVALID)
   }
 
   const status = change.revertedAt

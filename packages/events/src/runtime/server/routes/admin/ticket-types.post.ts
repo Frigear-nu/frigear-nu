@@ -1,13 +1,18 @@
-import { assertMembershipAvailable, insertTicketType } from '../../utils/admin'
+import { db, schema } from '@nuxthub/db'
+import { eq } from 'drizzle-orm'
+import { created, idParams, notFound } from '@frigear-nu/module-kit/server'
+import type { AdminTicketTypeDto } from '../../../../types'
+import { assertMembershipAvailable, assertTicketTypeKeyFree, insertTicketType } from '../../utils/admin'
 import { ticketTypeInput } from '../../utils/admin-schemas'
 
-export default defineEventHandler(async (event) => {
-  await requireEventsManager(event)
+// Adds a ticket type (optionally with its addon groups and addons) to the event `:id`.
+export default defineEventHandler(async (event): Promise<AdminTicketTypeDto> => {
+  await eventsStaff.require(event)
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
   const input = await readValidatedBody(event, ticketTypeInput.parse)
+  const [parent] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.id, id)).limit(1)
+  if (!parent) throw notFound('Event not found.')
   await assertMembershipAvailable(input)
-  const row = await insertTicketType(getRouterParam(event, 'id')!, input).catch((error) => {
-    throw createError({ statusCode: 409, statusMessage: 'Could not create the ticket type (unknown event, or the key is taken).', cause: error })
-  })
-  setResponseStatus(event, 201)
-  return row
+  await assertTicketTypeKeyFree(id, input.key)
+  return created(event, toAdminTicketTypeDto(await insertTicketType(id, input)))
 })

@@ -1,3 +1,6 @@
+import { usersApi } from '@frigear-nu/users/api'
+import type { ProfileDto } from '@frigear-nu/users/api'
+
 export const useAccount = () => {
   const pending = ref(false)
   const error = ref<string | null>(null)
@@ -20,23 +23,24 @@ export const useAccount = () => {
     }
   }
 
-  function updateProfileDetails(payload: { name: string, avatar?: string }) {
+  /** `avatar: null` clears the avatar; leaving it out keeps it. */
+  function updateProfileDetails(payload: { name?: string, avatar?: string | null }) {
     return withRequest(
-      () => $fetch('/api/users/me/profile', { method: 'POST', body: payload }),
+      () => $fetch<ProfileDto>(usersApi.me.profile, { method: 'PATCH', body: payload }),
       'Failed to update your profile.',
     )
   }
 
   function changeEmailAddress(payload: { email: string }) {
     return withRequest(
-      () => $fetch('/api/users/me/change-email', { method: 'POST', body: payload }),
+      () => $fetch<ProfileDto & { verificationRequired: boolean }>(usersApi.me.email, { method: 'PUT', body: payload }),
       'Failed to change your email address.',
     )
   }
 
   function changePassword(payload: { currentPassword: string, newPassword: string, confirmNewPassword: string }) {
     return withRequest(
-      () => $fetch('/api/users/me/change-password', { method: 'POST', body: payload }),
+      () => $fetch<ProfileDto>(usersApi.me.password, { method: 'PUT', body: payload }),
       'Failed to change your password.',
     )
   }

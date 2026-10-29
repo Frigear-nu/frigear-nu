@@ -5,15 +5,23 @@ import type { MembershipRequirement } from '../types'
 
 export { translate }
 export * from './links'
+export * from './api'
 
 export type {
   AddonDto,
+  AdminAddonDto,
+  AdminAddonGroupDto,
+  AdminEventDetailDto,
+  AdminEventDto,
+  AdminTicketTypeDto,
+  AttendeeDto,
   AddonGroupDto,
   AuthorizeContext,
   CheckInResponse,
   EventDetailDto,
   EventStatus,
   EventSummaryDto,
+  MembershipOptionsDto,
   MembershipRequirement,
   ModuleOptions,
   PurchaseBeforeContext,
@@ -24,6 +32,7 @@ export type {
   TicketStatus,
   TicketTypeDto,
   Translated,
+  UpcomingEventsDto,
 } from '../types'
 
 /** The currency tickets and add-ons are sold in unless they say otherwise (the column default). */

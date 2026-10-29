@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { authApi } from '@frigear-nu/auth/api'
 import type { ApiTokenScope, CreatedApiToken } from '../../utils/api-tokens'
 
 // "Create API token" form, opened from the API tokens page with `useOverlay()`. Resolves with the created token
@@ -35,7 +36,7 @@ const state = reactive<Schema>({ name: '', scopes: [], expiresInDays: 90 })
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   const created = await run(
-    () => $fetch<CreatedApiToken>('/api/auth/tokens', {
+    () => $fetch<CreatedApiToken>(authApi.me.tokens, {
       method: 'POST',
       body: { name: event.data.name, scopes: event.data.scopes, expiresInDays: event.data.expiresInDays || null },
     }),

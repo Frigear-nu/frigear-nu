@@ -4,6 +4,7 @@ import EventAddonGroupSlideover from '../components/EventAddonGroupSlideover.vue
 import EventAddonSlideover from '../components/EventAddonSlideover.vue'
 import EventTicketTypeSlideover from '../components/EventTicketTypeSlideover.vue'
 import type { MembershipPlans, StaffAddon, StaffAddonGroup, StaffTicketType } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 export type EventCatalogActionsOptions = {
   /** The event new ticket types are added to. Only needed to add ticket types. */
@@ -69,7 +70,7 @@ export function useEventCatalogActions(options: EventCatalogActionsOptions = {})
   function removeTicketType(ticketType: StaffTicketType): Promise<boolean> {
     const name = tr(ticketType.name)
     return remove({
-      url: `/api/events/admin/ticket-types/${ticketType.id}`,
+      url: eventsApi.admin.ticketType(ticketType.id),
       title: t('admin.confirmRemoveType', 'Delete {name}?', { name }),
       description: t('admin.confirmRemoveTypeDescription', 'Its add-on groups and choices are deleted too. A ticket type with active tickets cannot be deleted.'),
       confirmText: t('admin.removeType', 'Delete ticket type'),
@@ -80,7 +81,7 @@ export function useEventCatalogActions(options: EventCatalogActionsOptions = {})
   function removeGroup(group: StaffAddonGroup): Promise<boolean> {
     const name = tr(group.title)
     return remove({
-      url: `/api/events/admin/addon-groups/${group.id}`,
+      url: eventsApi.admin.addonGroup(group.id),
       title: t('admin.confirmRemoveGroup', 'Delete {name}?', { name }),
       description: t('admin.confirmRemoveGroupDescription', 'Its choices are deleted too. Tickets already bought keep the choices they made.'),
       confirmText: t('admin.removeGroup', 'Delete add-on group'),
@@ -91,7 +92,7 @@ export function useEventCatalogActions(options: EventCatalogActionsOptions = {})
   function removeAddon(addon: StaffAddon): Promise<boolean> {
     const name = tr(addon.label)
     return remove({
-      url: `/api/events/admin/addons/${addon.id}`,
+      url: eventsApi.admin.addon(addon.id),
       title: t('admin.confirmRemoveAddon', 'Delete {name}?', { name }),
       description: t('admin.confirmRemoveAddonDescription', 'Tickets already bought keep the choice they made.'),
       confirmText: t('admin.removeAddon', 'Delete choice'),

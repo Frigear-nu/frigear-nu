@@ -3,6 +3,7 @@ import AttendeesTab from '../tabs/Attendees.vue'
 import DetailsTab from '../tabs/Details.vue'
 import TicketsTab from '../tabs/Tickets.vue'
 import type { StaffEvent } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventsAdminEventPage' })
 
@@ -15,7 +16,7 @@ const actions = useEventActions()
 const hasPublicPage = !!useRuntimeConfig().public.events?.pages?.event
 const id = computed(() => String(route.params.id))
 
-const { data: event, error, refresh } = await useFetch<StaffEvent>(() => `/api/events/admin/events/${id.value}`)
+const { data: event, error, refresh } = await useFetch<StaffEvent>(() => eventsApi.admin.event(id.value))
 const notFound = computed(() => error.value?.statusCode === 404)
 
 // The tabs below the key facts are the `admin.events` area: modules add tabs with `extendTabs(nuxt, 'admin.events', ...)`

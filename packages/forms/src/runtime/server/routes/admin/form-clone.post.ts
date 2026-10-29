@@ -1,15 +1,16 @@
 import { db, schema } from '@nuxthub/db'
+import { created, idParams, uniqueCopySlug } from '@frigear-nu/module-kit/server'
+import type { FormAdminDto } from '../../../../types'
 import { newId } from '../../../utils'
 
 // Copies a form's name and definition into a new draft. Submissions, tokens, the password and secrets
 // belong to the original and are not copied.
-export default defineEventHandler(async (event) => {
-  await requireFormsManager(event)
-  const source = await findFormById(getRouterParam(event, 'id')!)
+export default defineEventHandler(async (event): Promise<FormAdminDto> => {
+  await formsStaff.require(event)
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
+  const source = await findFormById(id)
 
-  let slug = `${source.slug}-copy`
-  for (let n = 2; await findFormBySlug(slug); n++) slug = `${source.slug}-copy-${n}`
-
+  const slug = await uniqueCopySlug(source.slug, findFormBySlug)
   const [row] = await db.insert(schema.forms).values({
     id: newId('frm'),
     slug,
@@ -17,6 +18,5 @@ export default defineEventHandler(async (event) => {
     status: 'draft',
     definition: source.definition,
   }).returning()
-  setResponseStatus(event, 201)
-  return toAdminForm(row!)
+  return created(event, toAdminForm(row!))
 })

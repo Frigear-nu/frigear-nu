@@ -2,12 +2,13 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import type { H3Event } from 'h3'
-import type { ApplicationInput, ClientType, OAuthApplication, UserApplicationDto } from '../../../types'
+import { badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
+import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, UserApplicationDto } from '../../../types'
 import { CLIENT_TYPES, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
 
-const fail = (statusCode: number, statusMessage: string) => createError({ statusCode, statusMessage })
+const applicationNotFound = () => notFound('Application not found.')
 
 const httpsUrl = z.string().trim().max(2048).refine((value) => {
   try {
@@ -54,6 +55,42 @@ export function toApplication(row: ApplicationRow): OAuthApplication {
   return application
 }
 
+/** The redirect URI an application has to accept on its side: its website plus the configured callback path. */
+export function applicationCallbackUrl(application: Pick<OAuthApplication, 'websiteUrl'>): string {
+  return `${application.websiteUrl}${useOAuthConfig().callbackPath}`
+}
+
+/** The admin view of an application (never the secret hash), with the active sign-ins when counted. */
+export function toAdminApplicationDto(application: OAuthApplication, activeGrants?: number): AdminApplicationDto {
+  return {
+    id: application.id,
+    clientType: application.clientType,
+    name: application.name,
+    description: application.description,
+    icon: application.icon,
+    priority: application.priority,
+    websiteUrl: application.websiteUrl,
+    loginUrl: application.loginUrl,
+    previewUrlPattern: application.previewUrlPattern,
+    redirectUris: application.redirectUris,
+    allowedRoles: application.allowedRoles,
+    tags: application.tags,
+    ownerId: application.ownerId,
+    isActive: application.isActive,
+    createdAt: isoDate(application.createdAt),
+    updatedAt: isoDate(application.updatedAt),
+    ...(activeGrants === undefined ? {} : { activeGrants }),
+    callbackUrl: applicationCallbackUrl(application),
+  }
+}
+
+/** One application for a staff route, or 404 `not_found`. */
+export async function requireApplication(id: string): Promise<OAuthApplication> {
+  const application = await getApplication(id)
+  if (!application) throw applicationNotFound()
+  return application
+}
+
 function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
   const next = { ...input }
   if (next.websiteUrl !== undefined) {
@@ -61,7 +98,7 @@ function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
       next.websiteUrl = normalizeWebsiteUrl(next.websiteUrl)
     }
     catch (error) {
-      throw fail(400, (error as Error).message)
+      throw badRequest((error as Error).message)
     }
   }
   if (next.redirectUris) next.redirectUris = [...new Set(next.redirectUris)]
@@ -73,7 +110,7 @@ function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
 /** Native redirect URIs are for public clients only: a confidential client keeps to https (and localhost). */
 function assertRedirectUris(uris: readonly string[] | undefined, clientType: ClientType) {
   if (clientType === 'public' || !uris) return
-  if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw fail(400, 'Only public clients may use custom-scheme redirect URIs.')
+  if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw badRequest('Only public clients may use custom-scheme redirect URIs.')
 }
 
 /** The row including `secretHash`; only for credential checks. Use `getApplication` everywhere else. */
@@ -85,12 +122,6 @@ export async function getApplicationRow(id: string): Promise<ApplicationRow | nu
 export async function getApplication(id: string): Promise<OAuthApplication | null> {
   const row = await getApplicationRow(id)
   return row ? toApplication(row) : null
-}
-
-export async function listApplications(): Promise<OAuthApplication[]> {
-  const rows = await db.select().from(schema.oauthApplications)
-    .orderBy(desc(schema.oauthApplications.priority), schema.oauthApplications.name)
-  return rows.map(toApplication)
 }
 
 /**
@@ -116,9 +147,9 @@ export async function createApplication(input: ApplicationInput, ownerId?: numbe
 export async function updateApplication(id: string, patch: Partial<ApplicationInput>): Promise<OAuthApplication> {
   const { clientType, ...data } = normalizeInput(applicationPatchSchema.parse(patch))
   const existing = await getApplicationRow(id)
-  if (!existing) throw fail(404, 'Application not found.')
+  if (!existing) throw applicationNotFound()
   // A secret cannot be created or dropped by editing: register a new application instead.
-  if (clientType && clientType !== existing.clientType) throw fail(400, 'The client type cannot be changed.')
+  if (clientType && clientType !== existing.clientType) throw badRequest('The client type cannot be changed.')
   assertRedirectUris(data.redirectUris, existing.clientType)
 
   if (!Object.keys(data).length) return toApplication(existing)
@@ -131,19 +162,19 @@ export async function deleteApplication(id: string): Promise<void> {
   await db.delete(schema.oauthRefreshTokens).where(eq(schema.oauthRefreshTokens.applicationId, id))
   await db.delete(schema.oauthAuthorizationCodes).where(eq(schema.oauthAuthorizationCodes.applicationId, id))
   const deleted = await db.delete(schema.oauthApplications).where(eq(schema.oauthApplications.id, id)).returning({ id: schema.oauthApplications.id })
-  if (!deleted.length) throw fail(404, 'Application not found.')
+  if (!deleted.length) throw applicationNotFound()
 }
 
 /** Replaces the client secret and revokes the refresh tokens issued with the old one. */
 export async function rotateApplicationSecret(id: string): Promise<{ secret: string }> {
   const existing = await getApplicationRow(id)
-  if (existing?.clientType === 'public') throw fail(400, 'Public clients have no client secret.')
+  if (existing?.clientType === 'public') throw badRequest('Public clients have no client secret.')
   const secret = generateSecret()
   const updated = await db.update(schema.oauthApplications)
     .set({ secretHash: await sha256Hex(secret) })
     .where(eq(schema.oauthApplications.id, id))
     .returning({ id: schema.oauthApplications.id })
-  if (!updated.length) throw fail(404, 'Application not found.')
+  if (!updated.length) throw applicationNotFound()
   await revokeApplicationGrants(id)
   return { secret }
 }

@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
 const bodySchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   // Only used when the address is unknown and `magicLink.signUp` creates the account.
   name: z.string().trim().min(1).max(120).optional(),
   redirect: z.string().optional(),
 })
 
-// Always answers the same way, whether or not the address is registered, so it can't be used to enumerate accounts.
+// `POST /api/auth/magic-link`: emails a sign-in link. Always answers the same way, whether or not the address is registered, so it can't be used to enumerate accounts.
 export default defineEventHandler(async (event) => {
   const { email, name, redirect } = await readValidatedBody(event, bodySchema.parse)
   const signUp = useRuntimeConfig(event).authentication?.magicLinkSignUp === true

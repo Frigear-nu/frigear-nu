@@ -1,22 +1,17 @@
 import { db, schema } from '@nuxthub/db'
-import { and, asc, count, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
-import type { SQL, AnyColumn } from 'drizzle-orm'
+import { and, count, eq, isNotNull, isNull, or } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { z } from 'zod'
+import { escapeLike, likeEscaped as like, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 
-const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  q: z.string().trim().max(200).optional(),
-  role: z.string().trim().min(1).max(60).optional(),
-  verified: z.enum(['true', 'false']).optional(),
-  sort: z.enum(['id', 'name', 'email', 'role', 'createdAt', 'lastLoginAt']).default('createdAt'),
-  order: z.enum(['asc', 'desc']).default('desc'),
+const querySchema = pageQuery({
+  sort: ['id', 'name', 'email', 'role', 'createdAt', 'lastLoginAt'],
+  defaultSort: 'createdAt',
+  filters: {
+    role: z.string().trim().min(1).max(60).optional(),
+    verified: z.enum(['true', 'false']).optional(),
+  },
 })
-
-const like = (column: AnyColumn, pattern: string) => sql`${column} like ${pattern} escape '\\'`
-
-/** Escapes LIKE wildcards so a search for `50%` matches literally. */
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, char => `\\${char}`)
 
 export default defineEventHandler(async (event) => {
   const actor = await authorizeUsersAdmin(event, 'view')
@@ -38,37 +33,31 @@ export default defineEventHandler(async (event) => {
   }
   const where = conditions.length ? and(...conditions) : undefined
 
-  const sortColumn = query.sort === 'role'
-    ? (withRole ? columns.role : undefined)
-    : schema.users[query.sort]
-  const direction = query.order === 'asc' ? asc : desc
   // `id` as a tiebreaker keeps pages stable when many rows share the sort value.
-  const orderBy = [...(sortColumn ? [direction(sortColumn)] : []), desc(schema.users.id)]
+  const orderBy = orderByQuery({
+    id: schema.users.id,
+    name: schema.users.name,
+    email: schema.users.email,
+    role: withRole ? columns.role : undefined,
+    createdAt: schema.users.createdAt,
+    lastLoginAt: schema.users.lastLoginAt,
+  }, query, { tiebreaker: schema.users.id })
 
+  const { limit, offset } = pageRange(query)
   const [rows, [totals]] = await Promise.all([
-    db.select().from(schema.users).where(where).orderBy(...orderBy)
-      .limit(query.pageSize).offset((query.page - 1) * query.pageSize),
+    db.select().from(schema.users).where(where).orderBy(...orderBy).limit(limit).offset(offset),
     db.select({ total: count() }).from(schema.users).where(where),
   ])
 
   const subscriptions = await latestSubscriptions(rows.map(user => user.id))
   const roles = withRole ? await assignableRoles(event, actor.id as number) : []
 
-  // Never expose the password hash.
   return {
-    items: rows.map(user => ({
-      subscription: subscriptions.get(user.id) ?? null,
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      ...(withRole ? { role: (user as { role?: string }).role } : {}),
-      emailVerifiedAt: user.emailVerifiedAt,
-      lastLoginAt: user.lastLoginAt,
-      createdAt: user.createdAt,
-    })),
-    total: totals?.total ?? 0,
-    page: query.page,
-    pageSize: query.pageSize,
+    ...paginate({
+      total: totals?.total ?? 0,
+      query,
+      items: rows.map(user => ({ ...toAdminUserDto(user), subscription: subscriptions.get(user.id) ?? null })),
+    }),
     hasRoles: withRole,
     hasSubscriptions: !!(schema as unknown as Record<string, unknown>).subscriptions,
     roles,

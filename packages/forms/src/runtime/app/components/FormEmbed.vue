@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { embedMode } from '../../utils'
+import { embedMode, formsApi } from '../../utils'
 
 /**
  * Embeds a published form in a page or in Markdown (MDC): `::form-embed{slug="contact"}`.
@@ -41,7 +41,7 @@ async function unlock() {
   checking.value = true
   wrong.value = false
   try {
-    await $fetch(`/api/forms/${props.slug}`, { headers: { [FORM_PASSWORD_HEADER]: password.value } })
+    await $fetch(formsApi.form(props.slug), { headers: { [FORM_PASSWORD_HEADER]: password.value } })
     unlocked.value = password.value
   }
   catch {

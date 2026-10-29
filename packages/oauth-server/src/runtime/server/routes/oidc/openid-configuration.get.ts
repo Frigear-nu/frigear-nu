@@ -1,13 +1,15 @@
+import { oidc } from '../../../utils/api'
+
 export default defineEventHandler((event) => {
   const issuer = getOAuthIssuer(event)
   setResponseHeader(event, 'Cache-Control', 'public, max-age=3600')
   return {
     issuer,
-    authorization_endpoint: `${issuer}/oauth/authorize`,
-    token_endpoint: `${issuer}/oauth/token`,
-    userinfo_endpoint: `${issuer}/oauth/userinfo`,
-    revocation_endpoint: `${issuer}/oauth/revoke`,
-    jwks_uri: `${issuer}/.well-known/jwks.json`,
+    authorization_endpoint: `${issuer}${oidc.authorize}`,
+    token_endpoint: `${issuer}${oidc.token}`,
+    userinfo_endpoint: `${issuer}${oidc.userinfo}`,
+    revocation_endpoint: `${issuer}${oidc.revoke}`,
+    jwks_uri: `${issuer}${oidc.jwks}`,
     response_types_supported: ['code'],
     response_modes_supported: ['query'],
     grant_types_supported: ['authorization_code', 'refresh_token'],

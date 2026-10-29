@@ -1,0 +1,34 @@
+import { db, schema } from '@nuxthub/db'
+import { apiError, created } from '@frigear-nu/module-kit/server'
+import type { AuthCreatedTokenDto } from '../../../../types'
+import { isGrantableScope } from '../../../utils/scopes'
+import { generateUserToken } from '../../../utils/tokens'
+
+// `POST /api/auth/me/tokens` (session only): creates an API token. 201 with the token, the only time its plaintext exists.
+export default defineEventHandler(async (event): Promise<AuthCreatedTokenDto> => {
+  const { user } = await requireAuth(event, { sessionOnly: true })
+  const body = await readValidatedBody(event, createTokenSchema.parse)
+
+  const registered = (await availableScopes(event, user as { id: number, role?: string })).map(scope => scope.name)
+  const unknown = body.scopes.filter(scope => !isGrantableScope(scope, registered))
+  if (unknown.length) {
+    throw apiError(400, 'unknown_scope', `Unknown scopes: ${unknown.join(', ')}`, { scopes: unknown })
+  }
+
+  const config = useRuntimeConfig(event).authentication
+  const days = body.expiresInDays === undefined ? config?.tokenTtlDays : body.expiresInDays
+  const { token, tokenHash, prefix, last4 } = await generateUserToken(config?.apiTokenPrefix)
+  const [row] = await db.insert(schema.authUserTokens).values({
+    id: newTokenId(),
+    userId: String(user.id),
+    name: body.name,
+    tokenHash,
+    prefix,
+    last4,
+    scopes: [...new Set(body.scopes)],
+    expiresAt: days ? new Date(Date.now() + days * 86_400_000) : null,
+  }).returning()
+
+  // The plaintext token is returned this once; only its hash is stored.
+  return created(event, { ...toAuthTokenDto(row!), token })
+})

@@ -104,7 +104,7 @@ export function cachedFetchData(
  * - `await` it in pages so SSR renders with data; in a widget, use it without `await` and render from `loading`.
  *
  * ```ts
- * const { data, error, loading, refresh } = await useCachedFetch<TicketDto[]>('/api/events/tickets/me', {
+ * const { data, error, loading, refresh } = await useCachedFetch<TicketDto[]>('/api/events/me/tickets', {
  *   key: 'events:tickets:mine',
  *   ttl: 60_000,
  * })

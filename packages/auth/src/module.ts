@@ -12,7 +12,7 @@ import {
 } from '@nuxt/kit'
 import {
   extendDatabaseTable,
-  moduleApiUrl,
+  addModuleRoutes,
   registerDatabaseTable,
   registerLocales,
   registerTailwindSource,
@@ -22,6 +22,7 @@ import {
   inlineModuleRuntime,
   defineBootstrapRegistry,
 } from '@frigear-nu/module-kit/utils'
+import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { Nitro } from 'nitropack'
 import { lowerFirst } from 'scule'
 import type {
@@ -37,10 +38,13 @@ import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 
 export type {
+  AuthCreatedTokenDto,
+  AuthPasskeyDto,
   AuthResolverDefinition,
   AuthScopeAvailabilityContext,
   AuthScopeDefinition,
   AuthSettings,
+  AuthTokenDto,
   ModuleOptions,
   OAuthProvider,
   OAuthProviderButton,
@@ -295,60 +299,63 @@ export {}
       handler: resolver.resolve('./runtime/server/middleware/auth'),
     })
 
-    // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
-    for (const [method, path, file] of [
-      ...(withApiTokens
-        ? [
-            ['get', 'tokens', 'tokens.get'],
-            ['post', 'tokens', 'tokens.post'],
-            ['delete', 'tokens/:id', 'token.delete'],
-          ] as const
-        : []),
-      ['get', 'scopes', 'scopes.get'],
-    ] as const) {
-      addServerHandler({ route: moduleApiUrl('auth', path), method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
-    }
-
-    // One request for an area's user-scoped data (`GET /api/_bootstrap?scope=account`): it authenticates once and
-    // runs every provider modules registered with `registerBootstrapProvider` for that scope.
+    // One request for an area's user-scoped data (`GET /api/auth/bootstrap?scope=account`): it authenticates once
+    // and runs every provider modules registered with `registerBootstrapProvider` for that scope.
     defineBootstrapRegistry(nuxt)
-    addServerHandler({ route: '/api/_bootstrap', method: 'get', handler: resolver.resolve('./runtime/server/routes/bootstrap.get') })
 
-    // --- Sign-in flows ----------------------------------------------------------------------------
-    const route = (path: string, file: string, method?: 'get' | 'post' | 'delete') => addServerHandler({
-      route: path.startsWith('/auth/') ? path : moduleApiUrl('auth', path),
-      method,
-      handler: resolver.resolve(`./runtime/server/routes/${file}`),
-    })
-
-    route('/auth/logout', 'session/logout.get', 'get')
+    // Every route of the module, read off one table (paths relative to `/api/auth`; `authApi` in
+    // `runtime/utils/api.ts` builds them for clients). The h3 router prefers static segments, so the static
+    // `/api/auth/*` routes win over `:provider` whatever their order; `:provider` is still listed last.
+    const routes: ModuleRoute[] = [
+      { method: 'post', path: 'logout', file: 'session/logout.post' },
+      { method: 'get', path: 'bootstrap', file: 'bootstrap.get' },
+      { method: 'get', path: 'scopes', file: 'scopes.get' },
+    ]
+    // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
+    if (withApiTokens) {
+      routes.push(
+        { method: 'get', path: 'me/tokens', file: 'me/tokens.get' },
+        { method: 'post', path: 'me/tokens', file: 'me/tokens.post' },
+        { method: 'delete', path: 'me/tokens/:id', file: 'me/token.delete' },
+      )
+    }
     if (withPassword) {
-      route('login', 'session/login.post')
-      route('register', 'session/register.post')
+      routes.push(
+        { method: 'post', path: 'login', file: 'session/login.post' },
+        { method: 'post', path: 'register', file: 'session/register.post' },
+      )
     }
     if (withPasswordReset) {
-      route('forgot-password', 'session/forgot-password.post')
-      route('reset-password', 'session/reset-password.post')
+      routes.push(
+        { method: 'post', path: 'forgot-password', file: 'session/forgot-password.post' },
+        { method: 'post', path: 'reset-password', file: 'session/reset-password.post' },
+      )
     }
     // The emailed link opens the `/auth/magic-link` page (below); its button signs in through this POST, so a GET
     // (a mail scanner, a link preview) never uses a link up.
-    if (withMagicLink || withVerifyEmail) route('magic-link/confirm', 'session/magic-link-confirm.post', 'post')
-    if (withMagicLink) route('magic-link', 'session/magic-link.post', 'post')
+    if (withMagicLink || withVerifyEmail) routes.push({ method: 'post', path: 'magic-link/confirm', file: 'session/magic-link-confirm.post' })
+    if (withMagicLink) routes.push({ method: 'post', path: 'magic-link', file: 'session/magic-link.post' })
     if (withWebAuthn) {
-      route('webauthn/register', 'webauthn/register.post')
-      route('webauthn/authenticate', 'webauthn/authenticate.post')
-      route('webauthn/credentials', 'webauthn/credentials/index.get')
-      route('webauthn/credentials/:id', 'webauthn/credentials/[id].delete', 'delete')
+      routes.push(
+        { method: 'post', path: 'webauthn/register', file: 'webauthn/register.post' },
+        { method: 'post', path: 'webauthn/authenticate', file: 'webauthn/authenticate.post' },
+        { method: 'get', path: 'me/passkeys', file: 'me/passkeys.get' },
+        { method: 'delete', path: 'me/passkeys/:id', file: 'me/passkey.delete' },
+      )
+    }
+    routes.push({ method: 'get', path: 'providers', file: 'oauth/providers.get' })
+    // The IdP redirects the browser back to `/auth/frigear` (its registered redirect URI, a navigation), so it is
+    // not under `/api` and never moves.
+    if (oauthProviders.includes('frigear')) {
+      routes.push(
+        { method: 'get', path: '/auth/frigear', file: 'oauth/frigear.get' },
+        { method: 'get', path: 'frigear-status', file: 'oauth/frigear-status.get' },
+      )
     }
     // Every nuxt-auth-utils provider, answering 404 until it is configured (decided per request, credentials are
-    // runtime secrets). The static `/api/auth/*` routes win over `:provider`.
-    route('providers', 'oauth/providers.get', 'get')
-    route(':provider', 'oauth/[provider].get', 'get')
-    // The IdP redirects the browser back to `/auth/frigear` (a navigation, like `/auth/logout`), so it is not under `/api`.
-    if (oauthProviders.includes('frigear')) {
-      route('/auth/frigear', 'oauth/frigear.get', 'get')
-      route('frigear-status', 'oauth/frigear-status.get', 'get')
-    }
+    // runtime secrets). It is also each provider's registered callback URL, so the path never moves.
+    routes.push({ method: 'get', path: ':provider', file: 'oauth/provider.get' })
+    addModuleRoutes(resolver, routes, { base: '/api/auth' })
 
     addImports([
       'useLogin',

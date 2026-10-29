@@ -3,6 +3,8 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { oauthServerApi } from '@frigear-nu/oauth-server/api'
+import { preferencesApi } from '../src/runtime/utils/api'
 
 // The key pair only exists for this run.
 const { privateKey } = generateKeyPairSync('rsa', {
@@ -46,7 +48,7 @@ describe('preferences as OAuth claims', async () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Ada', email, password: 'supersecret123' }),
     })
-    expect(response.status, await response.clone().text()).toBe(200)
+    expect(response.status, await response.clone().text()).toBe(201)
     return response.headers.get('set-cookie')!
   }
 
@@ -82,18 +84,20 @@ describe('preferences as OAuth claims', async () => {
 
   it('forwards the opted-in preference with the profile scope only, and nothing else', async () => {
     const cookie = await signIn('claims-ada@example.com')
-    const app = await ok(await send(cookie, 'POST', '/api/oauth-server/admin/applications', {
+    const created = await send(cookie, 'POST', oauthServerApi.admin.applications, {
       name: 'Vouchers',
       websiteUrl: 'https://app.example.com',
       allowedRoles: [],
-    }))
+    })
+    expect(created.status, await created.clone().text()).toBe(201)
+    const app = await created.json() as Json
     const userinfo = (tokens: Json) => $fetch<Json>('/oauth/userinfo', { headers: { authorization: `Bearer ${tokens.access_token}` } })
 
     // Nothing stored yet: the claim is absent so applications keep their own default.
     const before = await exchange(cookie, app, 'openid profile')
     expect(claimsOf(before.tokens.id_token).color_mode).toBeUndefined()
 
-    await ok(await send(cookie, 'PATCH', '/api/preferences', { colorMode: 'dark', compactTables: true }))
+    await ok(await send(cookie, 'PATCH', preferencesApi.root, { colorMode: 'dark', compactTables: true }))
 
     const withProfile = await exchange(cookie, app, 'openid profile')
     const idToken = claimsOf(withProfile.tokens.id_token)

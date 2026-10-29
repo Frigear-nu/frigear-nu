@@ -27,7 +27,7 @@ describe('stripe webhook (authenticated, database-backed)', async () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Ada Lovelace', email: 'ada@example.com', password: 'supersecret123' }),
     })
-    expect(register.status, await register.clone().text()).toBe(200)
+    expect(register.status, await register.clone().text()).toBe(201)
 
     const linked = await $fetch<{ id: number, resolvedId: number | null, column: boolean }>('/api/test/link', {
       method: 'POST',

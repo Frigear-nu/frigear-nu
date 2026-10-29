@@ -19,7 +19,8 @@ export type FrigearProfile = {
  */
 export async function syncFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
   const users = useAuthUserStore()
-  const { email } = profile
+  // Stored lowercased; lookups are case-insensitive, so accounts stored mixed-case still match.
+  const email = profile.email.trim().toLowerCase()
   const verifiedAt = profile.emailVerified ? new Date() : undefined
   const fields = {
     name: profile.name || email,

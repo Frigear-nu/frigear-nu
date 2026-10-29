@@ -1,10 +1,10 @@
-import type { FormSecretsDto } from '../../../../types'
+import { noContent } from '@frigear-nu/module-kit/server'
+import { secretParams } from '../../utils/admin-schemas'
 
-export default defineEventHandler(async (event): Promise<FormSecretsDto> => {
-  await requireFormsManager(event)
-  const form = await findFormById(getRouterParam(event, 'id')!)
-  const key = getRouterParam(event, 'key')!
-  if (!isFormSecretKey(key)) throw createError({ statusCode: 400, statusMessage: 'Unknown secret key.' })
+export default defineEventHandler(async (event) => {
+  await formsStaff.require(event, { sessionOnly: true })
+  const { id, key } = await getValidatedRouterParams(event, secretParams.parse)
+  const form = await findFormById(id)
   await deleteFormSecret(form.id, key)
-  return describeFormSecrets(event, form.id)
+  return noContent(event)
 })

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formsApi } from '../../utils'
+
 const route = useRoute()
 const t = useModuleT('forms')
 const format = useFormat()
@@ -27,7 +29,7 @@ async function unlock() {
   checking.value = true
   wrong.value = false
   try {
-    await $fetch(`/api/forms/${slug.value}`, { headers: { [FORM_PASSWORD_HEADER]: password.value } })
+    await $fetch(formsApi.form(slug.value), { headers: { [FORM_PASSWORD_HEADER]: password.value } })
     unlocked.value = password.value
   }
   catch {

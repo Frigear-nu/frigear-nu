@@ -26,6 +26,11 @@ export type MenuItem = {
   icon?: string
   to?: string
   external?: boolean
+  /**
+   * Makes the item an action instead of a link: a view sends a request with this method to `to` (e.g. `POST
+   * /api/auth/logout`) and then reloads the site's home page, instead of navigating to `to`.
+   */
+  method?: 'post'
   tags?: string[]
   /** Lower numbers render first. Items without an `order` are rendered last, in registration order. */
   order?: number

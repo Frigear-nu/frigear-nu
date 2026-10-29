@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { PaymentDto } from '../../../types'
+import type { RecentPaymentsDto } from '../../../types'
+import { paymentsApi } from '../../utils'
 
 defineOptions({ name: 'PaymentsRecentTransactions' })
 
@@ -16,7 +17,7 @@ const format = useFormat()
 const { localize } = useLocaleLink()
 const usersPage = useRuntimeConfig().public.users?.pages?.admin
 const usersPath = usersPage ? localize(usersPage.replace(/\/+$/, '')) : undefined
-const { data, status: fetchStatus } = useLazyFetch<{ items: (PaymentDto & { userName: string | null })[] }>('/api/payments/admin/recent', { key: 'admin-payments-recent' })
+const { data, status: fetchStatus } = useLazyFetch<RecentPaymentsDto>(paymentsApi.admin.recent, { key: 'admin-payments-recent' })
 
 const userTo = (id: number) => usersPath ? { path: `${usersPath}/${id}`, query: { tab: props.tabId } } : undefined
 </script>

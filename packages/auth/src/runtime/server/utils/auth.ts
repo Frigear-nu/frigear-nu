@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { apiError } from '@frigear-nu/module-kit/server'
 import { resolvers } from '#auth/resolvers'
 import type { AuthPrincipal, RequireUserOptions } from '../../types'
 import { ALL_SCOPES, hasScopes } from '../../utils/scopes'
@@ -54,21 +55,22 @@ export async function getAuth(event: H3Event): Promise<AuthPrincipal | null> {
 
 /**
  * The route entry point for "who is calling". Returns the caller's principal, or throws:
- * 401 without a valid credential, 403 `session_required` for bearer credentials when
- * `sessionOnly` is set, 403 `insufficient_scope` when a required scope is missing.
+ * 401 `unauthorized` without a valid credential, 403 `session_required` for bearer credentials when
+ * `sessionOnly` is set, 403 `insufficient_scope` when a required scope is missing. The code is in `data.code`
+ * (and, for the 403s, also in `data.error`, kept for existing clients).
  */
 export async function requireAuth(event: H3Event, options: RequireUserOptions = {}): Promise<AuthPrincipal> {
   const principal = await getAuth(event)
   if (!principal) {
     setResponseHeader(event, 'www-authenticate', event.context.authRejected ? 'Bearer error="invalid_token"' : 'Bearer')
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+    throw apiError(401, 'unauthorized', 'Unauthorized')
   }
   if (options.sessionOnly && principal.kind !== 'session') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'session_required' } })
+    throw apiError(403, 'session_required', 'Forbidden', { error: 'session_required' })
   }
   if (options.scopes?.length && !hasScopes(principal.scopes, options.scopes)) {
     setResponseHeader(event, 'www-authenticate', `Bearer error="insufficient_scope", scope="${options.scopes.join(' ')}"`)
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'insufficient_scope', scopes: options.scopes } })
+    throw apiError(403, 'insufficient_scope', 'Forbidden', { error: 'insufficient_scope', scopes: options.scopes })
   }
   return principal
 }

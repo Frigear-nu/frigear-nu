@@ -16,7 +16,9 @@ const owner = await requireAuth(event, { sessionOnly: true })
 
 - `requireAuth`, `getAuth` are auto-imported in server code; `@frigear-nu/users` adds `requireUser` / `getUser` for the user alone.
 - Modules register scopes with `addAuthScope` and credential types with `addAuthResolver` (`@frigear-nu/auth/utils`);
-  staff gates are defined with `definePolicyGate` / `defineStaffScopes`.
+  staff access with `defineStaffGuard({ hook, scope, message })` (`require(event, { sessionOnly? })`, `can(event, userId)`),
+  built on `definePolicyGate` (`isAllowed(event, userId, extra?)`, `assert(event, userId, message?, extra?)`), and
+  staff scopes with `defineStaffScopes`.
 - Auth knows users only through an `AuthUserStore`, which `@frigear-nu/users` registers (`setAuthUserStore`);
   `@frigear-nu/oauth-server` supplies the access-token resolver.
 - Sign-in is configured under `authentication.settings` (`password`, `magicLink`, `webAuthn`, `oauth`, `pages`, ...).

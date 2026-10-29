@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormAdminDto, FormDefinition, FormStatus } from '../../../types'
-import { formDefinitionSchema } from '../../utils'
+import { formDefinitionSchema, formsApi } from '../../utils'
 
 const t = useModuleT('forms')
 const route = useRoute()
@@ -8,7 +8,7 @@ const paths = useFormsPaths()
 const actions = useFormActions()
 const { busy: saving, run } = useAction()
 const id = computed(() => String(route.params.id))
-const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, {
+const { data: form, error, refresh } = await useFetch<FormAdminDto>(() => formsApi.admin.form(id.value), {
   key: `forms:admin:form:${id.value}`,
 })
 const notFound = computed(() => error.value?.statusCode === 404)
@@ -64,7 +64,7 @@ const statuses: FormStatus[] = ['draft', 'published', 'archived']
 async function save() {
   if (!checked.value.definition) return
   await run(async () => {
-    await $fetch(`/api/forms/admin/forms/${id.value}`, { method: 'PATCH', body: { ...draft, definition: checked.value.definition } })
+    await $fetch(formsApi.admin.form(id.value), { method: 'PATCH', body: { ...draft, definition: checked.value.definition } })
     await refresh()
     previewKey.value++
   }, { success: t('admin.saved', 'Saved.') })

@@ -42,3 +42,13 @@ export function oauthError(event: H3Event, statusCode: number, error: string, de
   setResponseHeader(event, 'Cache-Control', 'no-store')
   return { error, ...(description ? { error_description: description } : {}) }
 }
+
+/**
+ * The `error_description` for a token or revocation request whose body failed `readValidatedBody` (h3's 400 with the
+ * zod issues in `data`, or unparsable JSON), so the route can still answer the RFC 6749 `invalid_request` body.
+ */
+export function invalidRequestDescription(error: unknown): string {
+  const issues = (error as { data?: { issues?: { path?: PropertyKey[], message?: string }[] } })?.data?.issues
+  if (!Array.isArray(issues) || !issues.length) return 'The request body is malformed.'
+  return `Invalid request: ${issues.map(issue => [issue.path?.map(String).join('.'), issue.message].filter(Boolean).join(' ')).join(', ')}`
+}
