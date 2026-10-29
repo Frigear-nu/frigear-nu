@@ -1,52 +1,20 @@
 import { z } from 'zod'
-import type { Translated } from '../../../types'
+import type { AdminAddonDto, AdminAddonGroupDto, AdminEventDetailDto, AdminEventDto, AdminTicketTypeDto, AttendeeDto, Translated } from '../../../types'
 
-export type StaffAddon = {
-  id: string
-  label: Translated
-  description: Translated | null
-  price: number
-  capacity: number | null
-}
+// The staff views of the admin API's DTOs (`AdminEventDetailDto` of `GET /api/admin/events/:id`, ...).
+export type StaffAddon = AdminAddonDto
+export type StaffAddonGroup = AdminAddonGroupDto & { addons: StaffAddon[] }
+export type StaffTicketType = AdminTicketTypeDto & { addonGroups: StaffAddonGroup[] }
+export type StaffEvent = AdminEventDetailDto
 
-export type StaffAddonGroup = {
-  id: string
-  title: Translated
-  required: boolean
-  multiple: boolean
-  addons: StaffAddon[]
-}
+/** The fields the event list shows (`GET /api/admin/events` items); the full `StaffEvent` fits it too. */
+export type StaffEventSummary = Pick<AdminEventDto, 'id' | 'slug' | 'name' | 'status' | 'startsAt' | 'location'>
 
-export type StaffTicketType = {
-  id: string
-  key: string
-  name: Translated
-  description: Translated | null
-  price: number
-  currency: string
-  capacity: number | null
-  saleStartsAt: string | null
-  saleEndsAt: string | null
-  requiresMembership: 'any' | string[] | null
-  excludesMembership: 'any' | string[] | null
-  addonGroups: StaffAddonGroup[]
-}
+/** One page of `GET /api/admin/events`. */
+export type StaffEventsPage = { items: AdminEventDto[], total: number, page: number, pageSize: number }
 
-export type StaffEvent = {
-  id: string
-  slug: string
-  name: Translated
-  description: Translated | null
-  body: Translated | null
-  status: 'draft' | 'published' | 'archived'
-  startsAt: string
-  endsAt: string | null
-  location: Translated | null
-  ticketTypes: StaffTicketType[]
-}
-
-/** The fields the event list shows; the full `StaffEvent` fits it too. */
-export type StaffEventSummary = Pick<StaffEvent, 'id' | 'slug' | 'name' | 'status' | 'startsAt' | 'location'>
+/** One page of `GET /api/admin/events/:id/tickets`. */
+export type AttendeesPage = { items: AttendeeDto[], total: number, page: number, pageSize: number }
 
 /** `datetime-local` inputs want the local time without a zone, not the stored ISO instant. */
 export const toLocalInput = (value: string | null) => {

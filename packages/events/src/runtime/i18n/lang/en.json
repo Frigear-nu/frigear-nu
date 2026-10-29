@@ -241,7 +241,10 @@
       "loadFailed": "Events could not be loaded",
       "forbidden": "You do not have access to events",
       "eventLoadFailed": "The event could not be loaded",
-      "attendeesLoadFailed": "Attendees could not be loaded"
+      "attendeesLoadFailed": "Attendees could not be loaded",
+      "allStatuses": "All statuses",
+      "clearFilters": "Clear filters",
+      "searchAttendees": "Search name or email"
     },
     "listDescription": "Find an event and get your ticket.",
     "noTicketsTitle": "No tickets yet",

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { PurchaseBody, PurchaseResponse } from '../../../../types'
 
+const paramsSchema = z.object({ slug: z.string().trim().min(1).max(128) })
+
 const bodySchema = z.object({
   ticketTypeId: z.string().min(1),
   addonIds: z.array(z.string().min(1)).max(50).optional(),
@@ -11,6 +13,7 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event): Promise<PurchaseResponse> => {
   const user = await requireUser(event, { scopes: ['tickets:write'] })
+  const { slug } = await getValidatedRouterParams(event, paramsSchema.parse)
   const body = await readValidatedBody(event, bodySchema.parse)
-  return purchaseTicket(event, user.id, getRouterParam(event, 'slug')!, body)
+  return purchaseTicket(event, user.id, slug, body)
 })

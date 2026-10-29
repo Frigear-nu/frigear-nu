@@ -1,7 +1,10 @@
+import { idParams } from '@frigear-nu/module-kit/server'
+import type { AdminEventDto } from '../../../../types'
 import { eventPatchSchema, patchEventRow } from '../../utils/admin'
 
-export default defineEventHandler(async (event) => {
-  await requireEventsManager(event)
+export default defineEventHandler(async (event): Promise<AdminEventDto> => {
+  await eventsStaff.require(event)
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
   const patch = await readValidatedBody(event, eventPatchSchema.parse)
-  return patchEventRow(getRouterParam(event, 'id')!, patch)
+  return toAdminEventDto(await patchEventRow(id, patch))
 })

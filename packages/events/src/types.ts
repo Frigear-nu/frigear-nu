@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 
 import type { Translated } from '@frigear-nu/ui/translated'
+import type { Schedule } from '@frigear-nu/module-kit/schedule'
 
 export type { Translated }
 
@@ -137,6 +138,104 @@ export type CheckInResponse = {
   alreadyCheckedIn: boolean
   checkedInAt: string
   ticket: TicketDto
+}
+
+/** An event as staff see it (`/api/admin/events`): every field, whatever its status. Dates are ISO strings. */
+export type AdminEventDto = {
+  id: string
+  slug: string
+  name: Translated
+  description: Translated | null
+  body: Translated | null
+  image: string | null
+  location: Translated | null
+  locationUrl: string | null
+  startsAt: string
+  endsAt: string | null
+  status: EventStatus
+  requiresMembership: MembershipRequirement
+  createdAt: string
+  updatedAt: string
+}
+
+/** A ticket type as staff see it, with its capacity, sale window and membership rules. */
+export type AdminTicketTypeDto = {
+  id: string
+  eventId: string
+  key: string
+  name: Translated
+  description: Translated | null
+  price: number
+  currency: string
+  hidePrice: boolean
+  capacity: number | null
+  saleStartsAt: string | null
+  saleEndsAt: string | null
+  saleSchedule: Schedule | null
+  maxPerUser: number
+  requiresMembership: MembershipRequirement
+  excludesMembership: MembershipRequirement
+  isDefault: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** An add-on group of a ticket type, as staff see it. */
+export type AdminAddonGroupDto = {
+  id: string
+  ticketTypeId: string
+  title: Translated
+  required: boolean
+  multiple: boolean
+  sortOrder: number
+}
+
+/** An add-on (one choice of a group), as staff see it. */
+export type AdminAddonDto = {
+  id: string
+  groupId: string
+  label: Translated
+  description: Translated | null
+  price: number
+  capacity: number | null
+  sortOrder: number
+}
+
+/** One event with its whole catalogue (`GET /api/admin/events/:id`). */
+export type AdminEventDetailDto = AdminEventDto & {
+  ticketTypes: Array<AdminTicketTypeDto & { addonGroups: Array<AdminAddonGroupDto & { addons: AdminAddonDto[] }> }>
+}
+
+/** One ticket of an event with its holder (`GET /api/admin/events/:id/tickets`). `code` is there for staff check-in. */
+export type AttendeeDto = {
+  id: string
+  eventId: string
+  ticketTypeId: string
+  userId: number
+  status: TicketStatus
+  addons: Array<{ id: string, label: Translated, price: number }>
+  amount: number
+  currency: string
+  paymentId: string | null
+  code: string
+  locale: string | null
+  checkedInAt: string | null
+  createdAt: string
+  userName: string | null
+  userEmail: string | null
+}
+
+/** The admin dashboard's upcoming events (`GET /api/admin/events/upcoming`). */
+export type UpcomingEventsDto = {
+  total: number
+  items: Array<{ id: string, name: Translated, location: Translated | null, startsAt: string }>
+}
+
+/** What a membership provider offers (`GET /api/admin/events/membership-options`). */
+export type MembershipOptionsDto = {
+  available: boolean
+  options: MembershipOption[]
 }
 
 export type PurchaseBeforeContext = {

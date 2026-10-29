@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { StaffEvent, StaffTicketType } from '../utils/admin-event'
+import type { MembershipOptionsDto } from '../../../types'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventsAdminTicketsTab' })
 
@@ -20,7 +22,7 @@ type Membership = 'any' | string[] | null
 // Not awaited (the tab renders at once) and without a default: until the options are known `optionsLoading` is true and
 // the access column shows a placeholder where a rule is set, so labels never switch from plan keys to names later.
 // Remembered across navigation, and part of the server render on a hard load.
-const { data: membershipOptions, loading: optionsLoading } = useCachedFetch<{ available: boolean, options: Array<{ value: string, label: string }> }>('/api/events/admin/membership-options', {
+const { data: membershipOptions, loading: optionsLoading } = useCachedFetch<MembershipOptionsDto>(eventsApi.admin.membershipOptions, {
   key: 'events:admin:membership-options',
   ttl: 5 * 60_000,
 })

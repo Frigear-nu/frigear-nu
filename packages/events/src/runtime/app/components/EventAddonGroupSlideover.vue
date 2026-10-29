@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Translated } from '../../../types'
 import type { StaffAddonGroup } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventAddonGroupSlideover' })
 
@@ -38,8 +39,8 @@ async function save(event: FormSubmitEvent<Schema>) {
   const body = event.data
   const saved = await run(
     () => props.group
-      ? $fetch<{ id: string }>(`/api/events/admin/addon-groups/${props.group.id}`, { method: 'PATCH', body })
-      : $fetch<{ id: string }>(`/api/events/admin/ticket-types/${props.ticketTypeId}/addon-groups`, { method: 'POST', body }),
+      ? $fetch<{ id: string }>(eventsApi.admin.addonGroup(props.group.id), { method: 'PATCH', body })
+      : $fetch<{ id: string }>(eventsApi.admin.addonGroups(props.ticketTypeId), { method: 'POST', body }),
     { success: t('admin.groupSaved', 'Add-on group saved.') },
   )
   if (saved) emit('close', saved)

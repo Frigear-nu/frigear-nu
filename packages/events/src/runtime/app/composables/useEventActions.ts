@@ -1,6 +1,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import EventFormSlideover from '../components/EventFormSlideover.vue'
 import type { StaffEventSummary } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 export type EventMenuOptions = {
   /** Items for the middle group, between the edits and the delete action. */
@@ -37,7 +38,7 @@ export function useEventActions() {
 
   async function duplicate(event: StaffEventSummary) {
     const copy = await run(
-      () => $fetch<{ id: string }>(`/api/events/admin/events/${event.id}/clone`, { method: 'POST' }),
+      () => $fetch<{ id: string }>(eventsApi.admin.clone(event.id), { method: 'POST' }),
       { success: t('admin.duplicated', 'Event duplicated as a draft') },
     )
     if (copy) await navigateTo(links.adminEvent(copy.id))
@@ -54,10 +55,11 @@ export function useEventActions() {
     })
     if (!confirmed) return false
     const done = await run(
-      () => $fetch(`/api/events/admin/events/${event.id}`, { method: 'DELETE' }),
+      // 204: resolves with no body, so map success to `true` (`run` resolves `undefined` on failure).
+      () => $fetch(eventsApi.admin.event(event.id), { method: 'DELETE' }).then(() => true),
       { success: t('admin.deleted', 'Deleted {name}', { name }), error: t('admin.deleteFailed', 'Could not delete the event') },
     )
-    return done !== undefined
+    return done === true
   }
 
   function menu(event: StaffEventSummary, options: EventMenuOptions = {}): DropdownMenuItem[][] {

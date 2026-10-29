@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type EventFormState, eventFormSchema } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventFormSlideover' })
 
@@ -25,7 +26,7 @@ watch(draftName, (name, previous) => {
 async function save(event: FormSubmitEvent<EventFormState>) {
   const { name, slug, startsAt, endsAt, location } = event.data
   const created = await run(
-    () => $fetch<{ id: string, slug: string }>('/api/events/admin/events', {
+    () => $fetch<{ id: string, slug: string }>(eventsApi.admin.events, {
       method: 'POST',
       body: { name, slug, startsAt, endsAt: endsAt || null, location: location || null, status: 'draft' },
     }),

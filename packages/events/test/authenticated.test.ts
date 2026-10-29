@@ -2,17 +2,18 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import type { ApiMethod } from '@frigear-nu/module-kit/testing'
+import { authApi } from '@frigear-nu/auth/utils'
+import { eventsApi } from '../src/runtime/utils/api'
 import { eventId, getStripeCalls, makeEvent, postWebhook, registerUser, sendEvent } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
 type Json = Record<string, any>
 
-const json = (cookie: string | undefined, method: string, path: string, body?: unknown) => fetch(path, {
-  method,
-  headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-  body: body === undefined ? undefined : JSON.stringify(body),
-})
+// The raw response of one call as `cookie` (or anonymously), whatever its status.
+const json = (cookie: string | undefined, method: ApiMethod, path: string, body?: unknown) => apiClient({ cookie }).fetch(method, path, body)
 const ok = async (response: Response) => {
   expect(response.status, await response.clone().text()).toBeLessThan(300)
   return response.json() as Promise<Json>
@@ -36,28 +37,17 @@ const mcpNames = async (bearer: string) => ((await mcpRpc(bearer, 'tools/list'))
 const mcpCall = (bearer: string, name: string, args: Json = {}) => mcpRpc(bearer, 'tools/call', { name, arguments: args })
 
 async function scopesFor(cookie: string) {
-  const response = await fetch('/api/auth/scopes', { headers: { cookie } })
+  const response = await fetch(authApi.scopes, { headers: { cookie } })
   expect(response.status).toBe(200)
   return (await response.json() as Array<{ name: string }>).map(scope => scope.name)
 }
 
 async function tokenStatus(cookie: string, scopes: string[]) {
-  const response = await fetch('/api/auth/tokens', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ name: 'probe', scopes }),
-  })
-  return response.status
+  return (await json(cookie, 'POST', authApi.me.tokens, { name: 'probe', scopes })).status
 }
 
 async function mcpToken(cookie: string, scopes: string[]) {
-  const response = await fetch('/api/auth/tokens', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ name: 'MCP', scopes }),
-  })
-  expect(response.status, await response.clone().text()).toBe(200)
-  return (await response.json() as { token: string }).token
+  return (await ok(await json(cookie, 'POST', authApi.me.tokens, { name: 'MCP', scopes }))).token as string
 }
 
 describe('events (authenticated, database-backed)', async () => {
@@ -74,7 +64,7 @@ describe('events (authenticated, database-backed)', async () => {
   async function createEvent(overrides: Json = {}, ticketTypes: Json[] = []): Promise<Json> {
     staff ??= await registerUser('Staff', 'staff@staff.test')
     const slug = `event-${++counter}`
-    return ok(await json(staff.cookie, 'POST', '/api/events/admin/events', {
+    return ok(await json(staff.cookie, 'POST', eventsApi.admin.events, {
       slug,
       name: { en: 'Summer party', da: 'Sommerfest' },
       startsAt: future(48),
@@ -84,9 +74,9 @@ describe('events (authenticated, database-backed)', async () => {
     }))
   }
 
-  const detail = async (slug: string, cookie?: string) => ok(await json(cookie, 'GET', `/api/events/${slug}`))
+  const detail = async (slug: string, cookie?: string) => ok(await json(cookie, 'GET', eventsApi.event(slug)))
   const buy = (cookie: string, slug: string, ticketTypeId: string, addonIds: string[] = []) =>
-    json(cookie, 'POST', `/api/events/${slug}/purchase`, { ticketTypeId, addonIds })
+    json(cookie, 'POST', eventsApi.purchase(slug), { ticketTypeId, addonIds })
 
   const food = {
     title: { en: 'Food' },
@@ -97,19 +87,19 @@ describe('events (authenticated, database-backed)', async () => {
   describe('staff gate and catalogue', () => {
     it('denies by default: anonymous 401, non-staff 403', async () => {
       const nobody = await user('Nobody')
-      expect((await json(undefined, 'GET', '/api/events/admin/events')).status).toBe(401)
-      expect((await json(nobody.cookie, 'GET', '/api/events/admin/events')).status).toBe(403)
-      expect((await json(nobody.cookie, 'POST', '/api/events/check-in', { code: 'x' })).status).toBe(403)
+      expect((await json(undefined, 'GET', eventsApi.admin.events)).status).toBe(401)
+      expect((await json(nobody.cookie, 'GET', eventsApi.admin.events)).status).toBe(403)
+      expect((await json(nobody.cookie, 'POST', eventsApi.admin.checkIn, { code: 'x' })).status).toBe(403)
     })
 
     it('creates a nested catalogue and shows only published events publicly', async () => {
       const published = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, isDefault: true, addonGroups: [food] }])
       const draft = await createEvent({ status: 'draft' })
 
-      const list = await ok(await json(undefined, 'GET', '/api/events')) as unknown as Json[]
+      const list = await ok(await json(undefined, 'GET', eventsApi.list)) as unknown as Json[]
       expect(list.map(item => item.slug)).toContain(published.slug)
       expect(list.map(item => item.slug)).not.toContain(draft.slug)
-      expect((await json(undefined, 'GET', `/api/events/${draft.slug}`)).status).toBe(404)
+      expect((await json(undefined, 'GET', eventsApi.event(draft.slug))).status).toBe(404)
 
       const shown = await detail(published.slug)
       expect(shown.ticketTypes).toHaveLength(1)
@@ -119,36 +109,36 @@ describe('events (authenticated, database-backed)', async () => {
 
     it('lists addon groups and their addons on the admin event, so staff can manage them', async () => {
       const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 0, addonGroups: [food] }])
-      const full = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${event.id}`))
+      const full = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(event.id)))
       const [group] = full.ticketTypes[0].addonGroups
       expect(group.addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
 
-      const created = await ok(await json(staff.cookie, 'POST', `/api/events/admin/addon-groups/${group.id}/addons`, { label: 'Kids', price: 2500 }))
-      const again = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${event.id}`))
+      const created = await ok(await json(staff.cookie, 'POST', eventsApi.admin.addons(group.id), { label: 'Kids', price: 2500 }))
+      const again = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(event.id)))
       expect(again.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.id)).toContain(created.id)
     })
 
     it('clones an event with its catalogue as a draft', async () => {
       const original = await createEvent({}, [{ key: 'default', name: 'Admission', price: 15000, isDefault: true, addonGroups: [food] }])
-      const copy = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      const copy = await ok(await json(staff.cookie, 'POST', eventsApi.admin.clone(original.id)))
       expect(copy.id).not.toBe(original.id)
       expect(copy.slug).toBe(`${original.slug}-copy`)
       expect(copy.status).toBe('draft')
 
-      const full = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${copy.id}`))
+      const full = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(copy.id)))
       expect(full.ticketTypes).toHaveLength(1)
       expect(full.ticketTypes[0]).toMatchObject({ key: 'default', price: 15000 })
-      const source = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${original.id}`))
+      const source = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(original.id)))
       expect(full.ticketTypes[0].id).not.toBe(source.ticketTypes[0].id)
-      const shown = await ok(await json(staff.cookie, 'PATCH', `/api/events/admin/events/${copy.id}`, { status: 'published' }))
+      const shown = await ok(await json(staff.cookie, 'PATCH', eventsApi.admin.event(copy.id), { status: 'published' }))
       expect(shown.status).toBe('published')
       const pub = await detail(copy.slug)
       expect(pub.ticketTypes[0].addonGroups[0].addons.map((addon: Json) => addon.price)).toEqual([5000, 4000, 0])
 
-      const again = await ok(await json(staff.cookie, 'POST', `/api/events/admin/events/${original.id}/clone`))
+      const again = await ok(await json(staff.cookie, 'POST', eventsApi.admin.clone(original.id)))
       expect(again.slug).toBe(`${original.slug}-copy-2`)
-      expect((await json(staff.cookie, 'POST', '/api/events/admin/events/nope/clone')).status).toBe(404)
-      expect((await json(undefined, 'POST', `/api/events/admin/events/${original.id}/clone`)).status).toBe(401)
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.clone('nope'))).status).toBe(404)
+      expect((await json(undefined, 'POST', eventsApi.admin.clone(original.id))).status).toBe(401)
     })
 
     it('applies a recurring sale season on top of the sale window', async () => {
@@ -175,14 +165,128 @@ describe('events (authenticated, database-backed)', async () => {
       const buyer = await user('Seasonal')
       expect((await buy(buyer.cookie, event.slug, byKey['off-season'].id)).status).toBe(409)
 
-      const bad = await json(staff.cookie, 'POST', `/api/events/admin/events/${event.id}/ticket-types`, { key: 'bad', name: 'Bad', saleSchedule: { type: 'yearly', timezone: 'Nope/Land', from: { month: 1, day: 1, time: '00:00' }, to: { month: 2, day: 1, time: '00:00' } } })
+      const bad = await json(staff.cookie, 'POST', eventsApi.admin.ticketTypes(event.id), { key: 'bad', name: 'Bad', saleSchedule: { type: 'yearly', timezone: 'Nope/Land', from: { month: 1, day: 1, time: '00:00' }, to: { month: 2, day: 1, time: '00:00' } } })
       expect(bad.status).toBe(400)
     })
 
     it('rejects duplicate slugs', async () => {
       const first = await createEvent()
-      const again = await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: first.slug, name: 'x', startsAt: future(1) })
+      const again = await json(staff.cookie, 'POST', eventsApi.admin.events, { slug: first.slug, name: 'x', startsAt: future(1) })
       expect(again.status).toBe(409)
+    })
+  })
+
+  describe('catalogue edits', () => {
+    it('edits and deletes ticket types, addon groups and addons, 404s on missing rows and parents', async () => {
+      const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 1000, addonGroups: [food] }, { key: 'vip', name: 'VIP', price: 5000 }])
+      const full = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(event.id)))
+      const [type, vip] = full.ticketTypes
+      const group = type.addonGroups[0]
+      const addon = group.addons[0]
+
+      // Ticket types: PATCH answers the DTO, a taken key is a 409, a missing row a 404.
+      const patchedType = await ok(await json(staff.cookie, 'PATCH', eventsApi.admin.ticketType(type.id), { price: 1200, capacity: 10 }))
+      expect(patchedType).toMatchObject({ id: type.id, eventId: event.id, price: 1200, capacity: 10 })
+      expect(typeof patchedType.createdAt).toBe('string')
+      await expectApiError(json(staff.cookie, 'PATCH', eventsApi.admin.ticketType(vip.id), { key: 'default' }), 409, 'conflict')
+      await expectApiError(json(staff.cookie, 'POST', eventsApi.admin.ticketTypes(event.id), { key: 'vip', name: 'Again' }), 409, 'conflict')
+      await expectApiError(json(staff.cookie, 'PATCH', eventsApi.admin.ticketType('ttp_missing'), { price: 1 }), 404, 'not_found')
+      await expectApiError(json(staff.cookie, 'POST', eventsApi.admin.ticketTypes('evn_missing'), { key: 'x', name: 'X' }), 404, 'not_found')
+
+      // Addon groups.
+      const patchedGroup = await ok(await json(staff.cookie, 'PATCH', eventsApi.admin.addonGroup(group.id), { multiple: true }))
+      expect(patchedGroup).toMatchObject({ id: group.id, ticketTypeId: type.id, multiple: true, required: true })
+      await expectApiError(json(staff.cookie, 'PATCH', eventsApi.admin.addonGroup('agr_missing'), { multiple: true }), 404, 'not_found')
+      await expectApiError(json(staff.cookie, 'POST', eventsApi.admin.addonGroups('ttp_missing'), { title: 'X' }), 404, 'not_found')
+      const createdGroup = await json(staff.cookie, 'POST', eventsApi.admin.addonGroups(vip.id), { title: 'Drinks', addons: [{ label: 'Wine', price: 100 }] })
+      expect(createdGroup.status).toBe(201)
+
+      // Addons.
+      const patchedAddon = await ok(await json(staff.cookie, 'PATCH', eventsApi.admin.addon(addon.id), { price: 5500, capacity: 3 }))
+      expect(patchedAddon).toMatchObject({ id: addon.id, groupId: group.id, price: 5500, capacity: 3 })
+      await expectApiError(json(staff.cookie, 'PATCH', eventsApi.admin.addon('adn_missing'), { price: 1 }), 404, 'not_found')
+      await expectApiError(json(staff.cookie, 'POST', eventsApi.admin.addons('agr_missing'), { label: 'X' }), 404, 'not_found')
+
+      // Deletes answer 204, then 404 once the row is gone.
+      expect((await json(staff.cookie, 'DELETE', eventsApi.admin.addon(addon.id))).status).toBe(204)
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.addon(addon.id)), 404, 'not_found')
+      expect((await json(staff.cookie, 'DELETE', eventsApi.admin.addonGroup(group.id))).status).toBe(204)
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.addonGroup(group.id)), 404, 'not_found')
+      expect((await json(staff.cookie, 'DELETE', eventsApi.admin.ticketType(vip.id))).status).toBe(204)
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.ticketType(vip.id)), 404, 'not_found')
+
+      const after = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(event.id)))
+      expect(after.ticketTypes.map((item: Json) => item.key)).toEqual(['default'])
+      expect(after.ticketTypes[0].addonGroups).toEqual([])
+    })
+
+    it('refuses to delete a ticket type with active tickets', async () => {
+      const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 0 }])
+      const type = (await detail(event.slug)).ticketTypes[0]
+      await ok(await buy((await user('Holds')).cookie, event.slug, type.id))
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.ticketType(type.id)), 409, 'conflict')
+    })
+
+    it('offers the subscription plans as membership options, to staff only', async () => {
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const options = await ok(await json(staff.cookie, 'GET', eventsApi.admin.membershipOptions))
+      expect(options.available).toBe(true)
+      expect(options.options).toEqual(expect.arrayContaining([{ value: 'member', label: 'Member' }, { value: 'patron', label: 'Patron' }]))
+      await expectApiError(json((await user('Outsider')).cookie, 'GET', eventsApi.admin.membershipOptions), 403, 'forbidden')
+    })
+
+    it('counts and lists the next published events for the dashboard', async () => {
+      const soon = await createEvent({ startsAt: future(1), name: { en: 'Very soon' } })
+      await createEvent({ status: 'draft', startsAt: future(1) })
+      const upcoming = await ok(await json(staff.cookie, 'GET', eventsApi.admin.upcoming))
+      expect(upcoming.total).toBeGreaterThan(0)
+      expect(upcoming.items.length).toBeLessThanOrEqual(5)
+      const item = upcoming.items.find((row: Json) => row.id === soon.id)
+      expect(item).toEqual({ id: soon.id, name: { en: 'Very soon' }, location: null, startsAt: expect.any(String) })
+      await expectApiError(json(undefined, 'GET', eventsApi.admin.upcoming), 401)
+    })
+
+    it('pages, searches and filters the staff event list', async () => {
+      const marker = `pager${++counter}`
+      const a = await createEvent({ slug: `${marker}-a`, name: { en: 'Pager A', da: 'Bladre Ø' }, startsAt: future(10) })
+      const b = await createEvent({ slug: `${marker}-b`, name: { en: 'Pager B' }, startsAt: future(20), status: 'draft' })
+
+      const all = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.events}?q=${marker}&sort=startsAt&order=asc`))
+      expect(all).toMatchObject({ total: 2, page: 1, pageSize: 20 })
+      expect(all.items.map((item: Json) => item.id)).toEqual([a.id, b.id])
+      expect(all.items[0]).toMatchObject({ slug: a.slug, status: 'published', startsAt: expect.any(String), createdAt: expect.any(String) })
+
+      const second = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.events}?q=${marker}&sort=startsAt&order=asc&pageSize=1&page=2`))
+      expect(second).toMatchObject({ total: 2, page: 2, pageSize: 1 })
+      expect(second.items.map((item: Json) => item.id)).toEqual([b.id])
+
+      const drafts = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.events}?q=${marker}&status=draft`))
+      expect(drafts.items.map((item: Json) => item.id)).toEqual([b.id])
+
+      // Any language of the name matches.
+      const byName = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.events}?q=${encodeURIComponent('bladre')}`))
+      expect(byName.items.map((item: Json) => item.id)).toContain(a.id)
+      // Locale keys are not text: `en` matches neither "Pager A", "Bladre Ø" nor the slug.
+      const byKey = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.events}?q=en&pageSize=100`))
+      expect(byKey.items.map((item: Json) => item.id)).not.toContain(a.id)
+
+      await expectApiError(json(staff.cookie, 'GET', `${eventsApi.admin.events}?pageSize=500`), 400)
+      await expectApiError(json(staff.cookie, 'GET', `${eventsApi.admin.events}?status=nope`), 400)
+    })
+
+    it('searches attendees by holder name and email', async () => {
+      const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 0 }])
+      const type = (await detail(event.slug)).ticketTypes[0]
+      const [alice, bob] = [await user('Alicesearch'), await user('Bobsearch')]
+      await ok(await buy(alice.cookie, event.slug, type.id))
+      await ok(await buy(bob.cookie, event.slug, type.id))
+
+      const found = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.attendees(event.id)}?q=alicesearch`))
+      expect(found.total).toBe(1)
+      expect(found.items[0].userName).toBe('Alicesearch')
+      const page = await ok(await json(staff.cookie, 'GET', `${eventsApi.admin.attendees(event.id)}?pageSize=1&sort=name&order=asc`))
+      expect(page).toMatchObject({ total: 2, pageSize: 1 })
+      expect(page.items[0].userName).toBe('Alicesearch')
     })
   })
 
@@ -209,12 +313,12 @@ describe('events (authenticated, database-backed)', async () => {
       expect(shown.location).toEqual({ da: 'Haven', en: 'The garden' })
       const plain = await createEvent({ location: 'Plain street 1' })
       expect((await detail(plain.slug)).location).toBe('Plain street 1')
-      expect((await json(staff.cookie, 'POST', '/api/events/admin/events', { slug: 'blank-name', name: { en: ' ' }, startsAt: future(48) })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.events, { slug: 'blank-name', name: { en: ' ' }, startsAt: future(48) })).status).toBe(400)
 
       const buyer = await user('Lang')
-      const result = await ok(await json(buyer.cookie, 'POST', `/api/events/${event.slug}/purchase`, { ticketTypeId: shown.ticketTypes[0].id, locale: 'da' }))
+      const result = await ok(await json(buyer.cookie, 'POST', eventsApi.purchase(event.slug), { ticketTypeId: shown.ticketTypes[0].id, locale: 'da' }))
       expect(result.ticket.locale).toBe('da')
-      expect((await json(buyer.cookie, 'POST', `/api/events/${event.slug}/purchase`, { ticketTypeId: shown.ticketTypes[0].id, locale: '<script>' })).status).toBe(400)
+      expect((await json(buyer.cookie, 'POST', eventsApi.purchase(event.slug), { ticketTypeId: shown.ticketTypes[0].id, locale: '<script>' })).status).toBe(400)
     })
 
     it('charges ticket + addon through payments, and only turns paid on the Stripe event', async () => {
@@ -238,12 +342,12 @@ describe('events (authenticated, database-backed)', async () => {
       })
 
       // The browser redirect alone changes nothing.
-      expect((await ok(await json(buyer.cookie, 'GET', `/api/events/tickets/${result.ticket.id}`))).status).toBe('pending')
+      expect((await ok(await json(buyer.cookie, 'GET', eventsApi.me.ticket(result.ticket.id)))).status).toBe('pending')
 
       const payment = (await $fetch<Json[]>('/api/test/payments')).find(row => row.id === result.ticket.paymentId)!
       await sendEvent('ticket_paid', 'checkout.session.completed', { id: payment.checkoutSessionId, payment_status: 'paid', payment_intent: `pi_${result.ticket.id}` })
 
-      const paid = await ok(await json(buyer.cookie, 'GET', `/api/events/tickets/${result.ticket.id}`))
+      const paid = await ok(await json(buyer.cookie, 'GET', eventsApi.me.ticket(result.ticket.id)))
       expect(paid).toMatchObject({ status: 'paid', amount: 20000 })
       expect(paid.code).toBeTruthy()
       expect(paid.addons).toMatchObject([{ label: 'Meat', price: 5000 }])
@@ -411,17 +515,17 @@ describe('events (authenticated, database-backed)', async () => {
       const bought = await ok(await buy(buyer.cookie, event.slug, type.id))
       const payment = (await $fetch<Json[]>('/api/test/payments')).find(row => row.id === bought.ticket.paymentId)!
       await sendEvent('refund_paid', 'checkout.session.completed', { id: payment.checkoutSessionId, payment_status: 'paid', payment_intent: 'pi_refund' })
-      const code = (await ok(await json(buyer.cookie, 'GET', `/api/events/tickets/${bought.ticket.id}`))).code
+      const code = (await ok(await json(buyer.cookie, 'GET', eventsApi.me.ticket(bought.ticket.id)))).code
 
       await getStripeCalls(true)
-      await ok(await json(staff.cookie, 'POST', `/api/events/admin/tickets/${bought.ticket.id}/refund`))
+      await ok(await json(staff.cookie, 'POST', eventsApi.admin.refundTicket(bought.ticket.id)))
       expect((await getStripeCalls()).find(call => call.path === '/v1/refunds')!.params).toMatchObject({ payment_intent: 'pi_refund' })
       // Not refunded until Stripe confirms.
       expect((await $fetch<Json[]>('/api/test/tickets')).find(row => row.id === bought.ticket.id)!.status).toBe('paid')
 
       await sendEvent('refund_done', 'charge.refunded', { payment_intent: 'pi_refund', amount: 9000, amount_refunded: 9000 })
       expect((await $fetch<Json[]>('/api/test/tickets')).find(row => row.id === bought.ticket.id)!.status).toBe('refunded')
-      expect((await json(staff.cookie, 'POST', '/api/events/check-in', { code })).status).toBe(409)
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.checkIn, { code })).status).toBe(409)
     })
 
     it('keeps the ticket valid on a partial refund', async () => {
@@ -440,13 +544,13 @@ describe('events (authenticated, database-backed)', async () => {
       const [paidType, freeType] = (await detail(event.slug)).ticketTypes
       const buyer = await user('Resume')
       const pending = await ok(await buy(buyer.cookie, event.slug, paidType.id))
-      const again = await ok(await json(buyer.cookie, 'POST', `/api/events/tickets/${pending.ticket.id}/pay`))
+      const again = await ok(await json(buyer.cookie, 'POST', eventsApi.me.pay(pending.ticket.id)))
       expect(again.url).toBe(pending.url)
 
       const free = await ok(await buy(buyer.cookie, event.slug, freeType.id))
-      expect((await json(buyer.cookie, 'POST', `/api/events/tickets/${free.ticket.id}/pay`)).status).toBe(409)
-      await ok(await json(staff.cookie, 'POST', `/api/events/admin/tickets/${free.ticket.id}/cancel`))
-      expect((await json(staff.cookie, 'POST', `/api/events/admin/tickets/${pending.ticket.id}/refund`)).status).toBe(409)
+      expect((await json(buyer.cookie, 'POST', eventsApi.me.pay(free.ticket.id))).status).toBe(409)
+      await ok(await json(staff.cookie, 'POST', eventsApi.admin.cancelTicket(free.ticket.id)))
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.refundTicket(pending.ticket.id))).status).toBe(409)
     })
   })
 
@@ -458,17 +562,18 @@ describe('events (authenticated, database-backed)', async () => {
       const ticket = (await ok(await buy(guest.cookie, event.slug, free.id))).ticket
       const unpaid = (await ok(await buy(guest.cookie, event.slug, paidType.id))).ticket
 
-      const first = await ok(await json(staff.cookie, 'POST', '/api/events/check-in', { code: ticket.code }))
+      expect(eventsApi.admin.checkIn).toBe('/api/admin/events/check-in')
+      const first = await ok(await json(staff.cookie, 'POST', eventsApi.admin.checkIn, { code: ticket.code }))
       expect(first).toMatchObject({ ok: true, alreadyCheckedIn: false })
       expect(first.ticket.code).toBeNull() // scanners never get the code echoed back
 
-      const second = await ok(await json(staff.cookie, 'POST', '/api/events/check-in', { code: ticket.code }))
+      const second = await ok(await json(staff.cookie, 'POST', eventsApi.admin.checkIn, { code: ticket.code }))
       expect(second).toMatchObject({ alreadyCheckedIn: true, checkedInAt: first.checkedInAt })
 
       const unpaidCode = (await $fetch<Json[]>('/api/test/tickets')).find(row => row.id === unpaid.id)!.code
-      expect((await json(staff.cookie, 'POST', '/api/events/check-in', { code: unpaidCode })).status).toBe(409)
-      expect((await json(staff.cookie, 'POST', '/api/events/check-in', { code: 'nope' })).status).toBe(404)
-      expect((await json(guest.cookie, 'POST', '/api/events/check-in', { code: ticket.code })).status).toBe(403)
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.checkIn, { code: unpaidCode })).status).toBe(409)
+      expect((await json(staff.cookie, 'POST', eventsApi.admin.checkIn, { code: 'nope' })).status).toBe(404)
+      expect((await json(guest.cookie, 'POST', eventsApi.admin.checkIn, { code: ticket.code })).status).toBe(403)
     })
 
     it('lists attendees for staff and refuses to delete events with paid tickets', async () => {
@@ -477,13 +582,18 @@ describe('events (authenticated, database-backed)', async () => {
       const guest = await user('Attendee')
       await ok(await buy(guest.cookie, event.slug, type.id))
 
-      const attendees = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${event.id}/tickets`)) as unknown as Json[]
-      expect(attendees).toHaveLength(1)
-      expect(attendees[0]).toMatchObject({ userEmail: expect.stringContaining('attendee'), status: 'paid' })
-      expect((await json(staff.cookie, 'DELETE', `/api/events/admin/events/${event.id}`)).status).toBe(409)
+      const attendees = await ok(await json(staff.cookie, 'GET', eventsApi.admin.attendees(event.id)))
+      expect(attendees).toMatchObject({ total: 1, page: 1, pageSize: 50 })
+      expect(attendees.items[0]).toMatchObject({ userEmail: expect.stringContaining('attendee'), status: 'paid', code: expect.any(String) })
+      // An allowlisted DTO: internal columns like `checkedInBy` and `updatedAt` stay out.
+      expect(attendees.items[0]).not.toHaveProperty('checkedInBy')
+      expect(attendees.items[0]).not.toHaveProperty('updatedAt')
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.event(event.id)), 409, 'conflict')
 
       const empty = await createEvent()
-      await ok(await json(staff.cookie, 'DELETE', `/api/events/admin/events/${empty.id}`))
+      expect((await json(staff.cookie, 'DELETE', eventsApi.admin.event(empty.id))).status).toBe(204)
+      await expectApiError(json(staff.cookie, 'DELETE', eventsApi.admin.event(empty.id)), 404, 'not_found')
+      await expectApiError(json(staff.cookie, 'GET', eventsApi.admin.attendees('evn_missing')), 404, 'not_found')
     })
   })
 
@@ -495,10 +605,10 @@ describe('events (authenticated, database-backed)', async () => {
       await ok(await buy(me.cookie, event.slug, type.id))
       await ok(await buy(other.cookie, event.slug, type.id))
 
-      const mine = await ok(await json(me.cookie, 'GET', '/api/events/tickets/me')) as unknown as Json[]
+      const mine = await ok(await json(me.cookie, 'GET', eventsApi.me.tickets)) as unknown as Json[]
       expect(mine).toHaveLength(1)
       expect(mine[0]).toMatchObject({ eventSlug: event.slug, status: 'paid' })
-      expect((await json(me.cookie, 'GET', `/api/events/tickets/${(await ok(await json(other.cookie, 'GET', '/api/events/tickets/me')) as unknown as Json[])[0]!.id}`)).status).toBe(404)
+      expect((await json(me.cookie, 'GET', eventsApi.me.ticket((await ok(await json(other.cookie, 'GET', eventsApi.me.tickets)) as unknown as Json[])[0]!.id))).status).toBe(404)
     })
   })
 
@@ -546,25 +656,35 @@ describe('events (authenticated, database-backed)', async () => {
   })
 
   describe('API tokens', () => {
-    const createToken = async (cookie: string, scopes: string[]) => {
-      const response = await fetch('/api/auth/tokens', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', cookie },
-        body: JSON.stringify({ name: 'test', scopes }),
-      })
-      expect(response.status, await response.clone().text()).toBe(200)
-      return (await response.json() as { token: string }).token
-    }
+    const createToken = async (cookie: string, scopes: string[]) =>
+      (await ok(await json(cookie, 'POST', authApi.me.tokens, { name: 'test', scopes }))).token as string
     const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
 
     it('lets a token read tickets with the scope, and refuses without it', async () => {
       const me = await user('Tokenuser')
       const read = await createToken(me.cookie, ['tickets:read'])
-      expect((await fetch('/api/events/tickets/me', { headers: bearer(read) })).status).toBe(200)
+      expect((await fetch(eventsApi.me.tickets, { headers: bearer(read) })).status).toBe(200)
 
       const other = await createToken(me.cookie, ['tickets:write'])
-      expect((await fetch('/api/events/tickets/me', { headers: bearer(other) })).status).toBe(403)
-      expect((await fetch('/api/events/tickets/me', { headers: bearer('fnu_invalid') })).status).toBe(401)
+      expect((await fetch(eventsApi.me.tickets, { headers: bearer(other) })).status).toBe(403)
+      expect((await fetch(eventsApi.me.tickets, { headers: bearer('fnu_invalid') })).status).toBe(401)
+    })
+
+    it('lets a staff token manage events and check in, but never refund (money needs a session)', async () => {
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 9000 }, { key: 'free', name: 'Free', price: 0 }])
+      const [paidType, freeType] = (await detail(event.slug)).ticketTypes
+      const buyer = await user('Bearerrefund')
+      const bought = await ok(await buy(buyer.cookie, event.slug, paidType.id))
+      const payment = (await $fetch<Json[]>('/api/test/payments')).find(row => row.id === bought.ticket.paymentId)!
+      await sendEvent('bearer_refund_paid', 'checkout.session.completed', { id: payment.checkoutSessionId, payment_status: 'paid', payment_intent: 'pi_bearer_refund' })
+      const free = (await ok(await buy(buyer.cookie, event.slug, freeType.id))).ticket
+
+      const api = apiClient({ bearer: await createToken(staff.cookie, ['events:manage']) })
+      expect((await api.json<Json>('GET', eventsApi.admin.event(event.id))).id).toBe(event.id)
+      expect((await api.json<Json>('POST', eventsApi.admin.checkIn, { code: free.code })).alreadyCheckedIn).toBe(false)
+      await expectApiError(api.json('POST', eventsApi.admin.refundTicket(bought.ticket.id)), 403, 'session_required')
+      expect((await $fetch<Json[]>('/api/test/tickets')).find(row => row.id === bought.ticket.id)!.status).toBe('paid')
     })
 
     it('keeps the staff policy in charge: the scope is necessary, not sufficient', async () => {
@@ -572,8 +692,8 @@ describe('events (authenticated, database-backed)', async () => {
       const nobody = await user('Nobody')
 
       const staffToken = await createToken(staff.cookie, ['events:manage'])
-      expect((await fetch('/api/events/admin/events', { headers: bearer(staffToken) })).status).toBe(200)
-      expect((await fetch('/api/events/admin/events', { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
+      expect((await fetch(eventsApi.admin.events, { headers: bearer(staffToken) })).status).toBe(200)
+      expect((await fetch(eventsApi.admin.events, { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
       // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
       expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
       expect(await scopesFor(nobody.cookie)).toContain('tickets:read')
@@ -624,7 +744,7 @@ describe('events (authenticated, database-backed)', async () => {
       expect(ticketType).toMatchObject({ price: 100, currency: 'DKK' })
       expect(ticketType?.addonGroups[0]?.addons[0]?.price).toBe(52.2)
       expect(yenType).toMatchObject({ price: 500, currency: 'JPY' })
-      const stored = await ok(await json(staff.cookie, 'GET', `/api/events/admin/events/${withTypesId}`))
+      const stored = await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(withTypesId)))
       expect(stored.ticketTypes.find((type: Json) => type.key === 'general')).toMatchObject({ price: 10000 })
       expect(stored.ticketTypes.find((type: Json) => type.key === 'yen')).toMatchObject({ price: 500 })
       const updatedType = await mcpCall(staffManage, 'update-ticket-type', { id: ticketType!.id, patch: { price: 150.5, capacity: 20, saleEndsAt: future(24) } })

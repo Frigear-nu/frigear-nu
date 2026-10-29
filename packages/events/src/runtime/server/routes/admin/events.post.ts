@@ -1,11 +1,11 @@
+import { created } from '@frigear-nu/module-kit/server'
+import type { AdminEventDto } from '../../../../types'
 import { createEventWithCatalog } from '../../utils/admin'
 import { eventInput } from '../../utils/admin-schemas'
 
 // Creates an event, optionally with its whole catalogue (ticket types -> addon groups -> addons).
-export default defineEventHandler(async (event) => {
-  await requireEventsManager(event)
+export default defineEventHandler(async (event): Promise<AdminEventDto> => {
+  await eventsStaff.require(event)
   const input = await readValidatedBody(event, eventInput.parse)
-  const row = await createEventWithCatalog(input)
-  setResponseStatus(event, 201)
-  return row
+  return created(event, toAdminEventDto(await createEventWithCatalog(input)))
 })

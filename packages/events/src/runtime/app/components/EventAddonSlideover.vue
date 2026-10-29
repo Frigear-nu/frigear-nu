@@ -4,6 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Translated } from '../../../types'
 import { fromCents, toCents } from '@frigear-nu/ui/money'
 import type { StaffAddon } from '../utils/admin-event'
+import { eventsApi } from '../../utils/api'
 
 defineOptions({ name: 'EventAddonSlideover' })
 
@@ -51,8 +52,8 @@ async function save(event: FormSubmitEvent<Schema>) {
   }
   const saved = await run(
     () => props.addon
-      ? $fetch<{ id: string }>(`/api/events/admin/addons/${props.addon.id}`, { method: 'PATCH', body })
-      : $fetch<{ id: string }>(`/api/events/admin/addon-groups/${props.groupId}/addons`, { method: 'POST', body }),
+      ? $fetch<{ id: string }>(eventsApi.admin.addon(props.addon.id), { method: 'PATCH', body })
+      : $fetch<{ id: string }>(eventsApi.admin.addons(props.groupId), { method: 'POST', body }),
     { success: t('admin.addonSaved', 'Add-on saved.') },
   )
   if (saved) emit('close', saved)

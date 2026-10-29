@@ -1,12 +1,16 @@
+import { db, schema } from '@nuxthub/db'
+import { eq } from 'drizzle-orm'
+import { created, idParams, notFound } from '@frigear-nu/module-kit/server'
+import type { AdminAddonGroupDto } from '../../../../types'
 import { insertAddonGroup } from '../../utils/admin'
 import { addonGroupInput } from '../../utils/admin-schemas'
 
-export default defineEventHandler(async (event) => {
-  await requireEventsManager(event)
+// Adds an addon group (optionally with its addons) to the ticket type `:id`.
+export default defineEventHandler(async (event): Promise<AdminAddonGroupDto> => {
+  await eventsStaff.require(event)
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
   const input = await readValidatedBody(event, addonGroupInput.parse)
-  const row = await insertAddonGroup(getRouterParam(event, 'id')!, input).catch((error) => {
-    throw createError({ statusCode: 409, statusMessage: 'Could not create the addon group (unknown ticket type?).', cause: error })
-  })
-  setResponseStatus(event, 201)
-  return row
+  const [parent] = await db.select({ id: schema.eventTicketTypes.id }).from(schema.eventTicketTypes).where(eq(schema.eventTicketTypes.id, id)).limit(1)
+  if (!parent) throw notFound('Ticket type not found.')
+  return created(event, toAdminAddonGroupDto(await insertAddonGroup(id, input)))
 })

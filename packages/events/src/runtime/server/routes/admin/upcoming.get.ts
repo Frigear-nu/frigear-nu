@@ -1,14 +1,16 @@
 import { db, schema } from '@nuxthub/db'
 import { and, asc, count, eq, gte } from 'drizzle-orm'
+import { isoDate } from '@frigear-nu/module-kit/server'
+import type { UpcomingEventsDto } from '../../../../types'
 
 const LIMIT = 5
 
 // The next published events and how many there are, for the admin dashboard.
-export default defineEventHandler(async (event) => {
-  await requireEventsManager(event)
+export default defineEventHandler(async (event): Promise<UpcomingEventsDto> => {
+  await eventsStaff.require(event)
 
   const upcoming = and(eq(schema.events.status, 'published'), gte(schema.events.startsAt, new Date()))
-  const [[total], items] = await Promise.all([
+  const [[total], rows] = await Promise.all([
     db.select({ value: count() }).from(schema.events).where(upcoming),
     db.select({
       id: schema.events.id,
@@ -17,5 +19,8 @@ export default defineEventHandler(async (event) => {
       startsAt: schema.events.startsAt,
     }).from(schema.events).where(upcoming).orderBy(asc(schema.events.startsAt)).limit(LIMIT),
   ])
-  return { total: total?.value ?? 0, items }
+  return {
+    total: total?.value ?? 0,
+    items: rows.map(row => ({ id: row.id, name: row.name, location: row.location ?? null, startsAt: isoDate(row.startsAt) })),
+  }
 })

@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { $fetch, fetch } from '@nuxt/test-utils/e2e'
 import { expect } from 'vitest'
+import { authApi } from '@frigear-nu/auth/utils'
 
 export const WEBHOOK_SECRET = 'whsec_test_secret'
 
@@ -34,12 +35,12 @@ export async function sendEvent(name: string, type: string, object: Record<strin
 }
 
 export async function registerUser(name: string, email: string) {
-  const response = await fetch('/api/auth/register', {
+  const response = await fetch(authApi.register, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, email, password: 'supersecret123' }),
   })
-  expect(response.status, await response.clone().text()).toBe(200)
+  expect(response.status, await response.clone().text()).toBeLessThan(300)
   const cookie = response.headers.get('set-cookie')!
   const customerId = `cus_${email}`
   const { id } = await $fetch<{ id: number }>('/api/test/link', { method: 'POST', body: { email, customerId } })

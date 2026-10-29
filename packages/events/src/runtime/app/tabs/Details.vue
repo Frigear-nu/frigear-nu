@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { eventsApi } from '../../utils/api'
 import { EVENT_STATUSES, type EventFormState, type StaffEvent, eventFormSchema, toLocalInput } from '../utils/admin-event'
 
 defineOptions({ name: 'EventsAdminDetailsTab' })
@@ -36,7 +37,7 @@ watch(() => props.event, fill)
 async function save(event: FormSubmitEvent<EventFormState>) {
   const data = event.data
   const saved = await run(
-    () => $fetch(`/api/events/admin/events/${props.event.id}`, {
+    () => $fetch(eventsApi.admin.event(props.event.id), {
       method: 'PATCH',
       body: {
         name: data.name,
