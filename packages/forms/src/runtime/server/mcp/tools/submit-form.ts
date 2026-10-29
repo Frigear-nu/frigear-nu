@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { submissionLocale } from '../../utils/submit'
 
 // Always submits as the signed-in caller: there is no user argument, and file uploads, per-form
 // tokens and passwords (which a user token must not be mistaken for) are not available here.
@@ -9,7 +10,7 @@ export default defineScopedMcpTool({
   inputSchema: {
     slug: z.string(),
     answers: z.record(z.string(), z.unknown()).describe('Answers keyed by field key.'),
-    locale: z.string().max(20).optional(),
+    locale: submissionLocale.optional(),
   },
   handler: async ({ slug, answers, locale }, { event, user }) => {
     await enforceRateLimit(event, slug)

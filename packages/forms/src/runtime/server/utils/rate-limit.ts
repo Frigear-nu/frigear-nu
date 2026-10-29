@@ -1,3 +1,4 @@
+import { apiError } from '@frigear-nu/module-kit/server'
 import type { H3Event } from 'h3'
 import { kv } from '@nuxthub/kv'
 
@@ -15,7 +16,7 @@ export async function enforceRateLimit(event: H3Event, slug: string) {
   const used = Number(await kv.get<number>(key) ?? 0)
   if (used >= rateLimit) {
     setResponseHeader(event, 'retry-after', rateLimitWindowSeconds)
-    throw createError({ statusCode: 429, statusMessage: 'Too many submissions, try again later.' })
+    throw apiError(429, 'rate_limited', 'Too many submissions, try again later.')
   }
   await kv.set(key, used + 1, { ttl: rateLimitWindowSeconds })
 }
@@ -32,7 +33,7 @@ export async function assertPasswordAttemptsLeft(event: H3Event, slug: string) {
   if (!rateLimit) return
   if (Number(await kv.get<number>(attemptKey(event, slug)) ?? 0) >= rateLimit) {
     setResponseHeader(event, 'retry-after', rateLimitWindowSeconds)
-    throw createError({ statusCode: 429, statusMessage: 'Too many attempts, try again later.' })
+    throw apiError(429, 'rate_limited', 'Too many attempts, try again later.')
   }
 }
 

@@ -1,3 +1,4 @@
+import { forbidden } from '@frigear-nu/module-kit/server'
 import type { H3Event } from 'h3'
 import { resolveAccess } from '../../utils'
 
@@ -11,7 +12,7 @@ type FormRow = Parameters<typeof authorizeFormAccess>[1]
 export async function assertMcpFormAccess(event: H3Event, form: FormRow) {
   const { auth } = resolveAccess(form.definition)
   if (auth === 'token' || auth === 'password') {
-    throw createError({ statusCode: 403, statusMessage: 'This form needs its own access token or password and cannot be used through MCP.' })
+    throw forbidden('This form needs its own access token or password and cannot be used through MCP.')
   }
   await authorizeFormAccess(event, form)
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormAdminDto, SubmissionDto } from '../../../types'
+import { formsApi } from '../../utils'
 
 const t = useModuleT('forms')
 const route = useRoute()
@@ -8,8 +9,8 @@ const format = useFormat()
 const actions = useFormActions()
 const id = computed(() => String(route.params.id))
 const submissionId = computed(() => String(route.params.submissionId))
-const { data: form } = await useFetch<FormAdminDto>(() => `/api/forms/admin/forms/${id.value}`, { key: `forms:admin:form:${id.value}` })
-const { data: submission, error, refresh } = await useFetch<SubmissionDto>(() => `/api/forms/admin/submissions/${submissionId.value}`)
+const { data: form } = await useFetch<FormAdminDto>(() => formsApi.admin.form(id.value), { key: `forms:admin:form:${id.value}` })
+const { data: submission, error, refresh } = await useFetch<SubmissionDto>(() => formsApi.admin.submission(submissionId.value))
 
 const breadcrumb = computed(() => [
   { label: t('admin.title', 'Forms'), to: paths('admin') },

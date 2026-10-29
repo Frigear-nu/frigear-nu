@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { z } from 'zod'
-import type { FormImportResult } from '../composables/useFormActions'
+import type { FormImportResultDto } from '../../../types'
+import { formsApi } from '../../utils'
 
 // Opened by `useFormActions().importJson()` through `useOverlay()`; closes with what was imported, or `false` when cancelled.
 const emit = defineEmits<{
-  close: [value: FormImportResult | false]
+  close: [value: FormImportResultDto | false]
 }>()
 
 const t = useModuleT('forms')
@@ -28,7 +29,7 @@ const schema = z.object({
 
 async function save() {
   const parsed = parse(state.text)
-  const result = await run(() => $fetch<FormImportResult>('/api/forms/admin/import', {
+  const result = await run(() => $fetch<FormImportResultDto>(formsApi.admin.import, {
     method: 'POST',
     body: { forms: Array.isArray(parsed) ? parsed : [parsed] },
   }))

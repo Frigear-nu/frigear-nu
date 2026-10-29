@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormDefinition, PublicFormDto } from '../../../types'
 import { previewPayload, translate } from '../../utils'
-import { emptyAnswers, submitAnswers, useFormsLocale } from '../composables/useForms'
+import { emptyAnswers, submissionIssues, submitAnswers, useFormsLocale } from '../composables/useForms'
 import { useFormStepper } from '../composables/useFormStepper'
 
 type FormShape = Pick<PublicFormDto, 'slug' | 'definition'> & { definition: Omit<FormDefinition, 'delivery'> }
@@ -61,8 +61,8 @@ async function onSubmit() {
     if (redirect) await navigateTo(redirect)
   }
   catch (error) {
-    const issues = (error as { data?: { data?: { issues?: { path: (string | number)[], message: string }[] } } }).data?.data?.issues
-    if (issues?.length) {
+    const issues = submissionIssues(error)
+    if (issues.length) {
       formRef.value?.setErrors(issues.map(issue => ({ name: String(issue.path[0] ?? ''), message: issue.message })))
       toast.add({ title: t('error.invalid', 'Please check the highlighted fields.'), color: 'error' })
     }

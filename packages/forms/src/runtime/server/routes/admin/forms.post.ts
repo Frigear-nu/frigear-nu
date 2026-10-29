@@ -1,9 +1,9 @@
+import { created } from '@frigear-nu/module-kit/server'
+import type { FormAdminDto } from '../../../../types'
 import { formInput } from '../../utils/admin-schemas'
 
-export default defineEventHandler(async (event) => {
-  await requireFormsManager(event)
+export default defineEventHandler(async (event): Promise<FormAdminDto> => {
+  await formsStaff.require(event)
   const input = await readValidatedBody(event, formInput.parse)
-  const row = await createForm(input)
-  setResponseStatus(event, 201)
-  return toAdminForm(row)
+  return created(event, toAdminForm(await createForm(input)))
 })

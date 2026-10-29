@@ -1,3 +1,4 @@
+import { apiError, isoDate } from '@frigear-nu/module-kit/server'
 import type { H3Event } from 'h3'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
@@ -32,7 +33,7 @@ export function readToken(event: H3Event): string | undefined {
 
 const unauthorized = (event: H3Event, message: string, scheme?: string) => {
   if (scheme) setResponseHeader(event, 'www-authenticate', scheme)
-  return createError({ statusCode: 401, statusMessage: message, data: { access: true } })
+  return apiError(401, 'unauthorized', message, { access: true })
 }
 
 async function verifyToken(event: H3Event, form: FormRow) {
@@ -68,7 +69,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
   const { auth, schedule } = resolveAccess(form.definition)
   if (!isFormOpen(schedule)) {
     const opensAt = nextFormOpening(schedule)
-    throw createError({ statusCode: 403, statusMessage: 'This form is closed.', data: { closed: true, opensAt: opensAt?.toISOString() ?? null } })
+    throw apiError(403, 'form_closed', 'This form is closed.', { closed: true, opensAt: isoDate(opensAt) })
   }
   const user = await getUser(event, { scopes: ['forms:submit'] })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CreatedFormAccessTokenDto, FormAccessTokenDto, FormAuthMode, FormAvailability, FormDefinition, FormPasswordStatusDto, FormSchedule, FormScheduleMoment } from '../../../types'
-import { resolveAccess, setAccess } from '../../utils'
+import { formsApi, resolveAccess, setAccess } from '../../utils'
 
 const definition = defineModel<FormDefinition>({ required: true })
 const props = defineProps<{ formId: string, slug: string }>()
@@ -10,7 +10,6 @@ const toast = useToast()
 const showError = useErrorToast()
 const { copy: copyText } = useCopyToClipboard()
 const format = useFormat()
-const base = computed(() => `/api/forms/admin/forms/${props.formId}`)
 const access = computed(() => resolveAccess(definition.value))
 
 const availabilities = computed(() => [
@@ -56,7 +55,7 @@ function patchMoment(side: 'from' | 'to', patch: Partial<FormScheduleMoment>) {
 const fail = (cause: unknown) => showError(cause, t('error.generic', 'Something went wrong. Please try again.'))
 
 // --- Tokens ---------------------------------------------------------------------------------
-const { data: tokens, refresh: refreshTokens } = await useFetch<FormAccessTokenDto[]>(() => `${base.value}/tokens`, { default: () => [] })
+const { data: tokens, refresh: refreshTokens } = await useFetch<FormAccessTokenDto[]>(() => formsApi.admin.tokens(props.formId), { default: () => [] })
 const tokenName = ref('')
 const creating = ref(false)
 const revealed = ref<CreatedFormAccessTokenDto>()
@@ -64,7 +63,7 @@ const revealed = ref<CreatedFormAccessTokenDto>()
 async function createToken() {
   creating.value = true
   try {
-    revealed.value = await $fetch<CreatedFormAccessTokenDto>(`${base.value}/tokens`, { method: 'POST', body: { name: tokenName.value } })
+    revealed.value = await $fetch<CreatedFormAccessTokenDto>(formsApi.admin.tokens(props.formId), { method: 'POST', body: { name: tokenName.value } })
     tokenName.value = ''
     await refreshTokens()
   }
@@ -78,7 +77,7 @@ async function createToken() {
 
 async function revoke(token: FormAccessTokenDto) {
   try {
-    await $fetch(`${base.value}/tokens/${token.id}`, { method: 'DELETE' })
+    await $fetch(formsApi.admin.token(props.formId, token.id), { method: 'DELETE' })
     await refreshTokens()
   }
   catch (cause) {
@@ -89,7 +88,7 @@ async function revoke(token: FormAccessTokenDto) {
 const copy = (text: string) => copyText(text, t('preview.copied', 'Copied to clipboard.'))
 
 // --- Password -------------------------------------------------------------------------------
-const { data: passwordStatus, refresh: refreshPassword } = await useFetch<FormPasswordStatusDto>(() => `${base.value}/password`, { default: () => ({ set: false }) })
+const { data: passwordStatus, refresh: refreshPassword } = await useFetch<FormPasswordStatusDto>(() => formsApi.admin.password(props.formId), { default: () => ({ set: false }) })
 const password = ref('')
 const savingPassword = ref(false)
 
@@ -105,7 +104,7 @@ const passwordHint = computed(() => [
 async function savePassword() {
   savingPassword.value = true
   try {
-    await $fetch(`${base.value}/password`, { method: 'PUT', body: { password: password.value } })
+    await $fetch(formsApi.admin.password(props.formId), { method: 'PUT', body: { password: password.value } })
     password.value = ''
     await refreshPassword()
     toast.add({ title: t('access.passwordSaved', 'Password saved.'), color: 'success' })
@@ -120,7 +119,7 @@ async function savePassword() {
 
 async function clearPassword() {
   try {
-    await $fetch(`${base.value}/password`, { method: 'DELETE' })
+    await $fetch(formsApi.admin.password(props.formId), { method: 'DELETE' })
     await refreshPassword()
   }
   catch (cause) {
@@ -130,7 +129,7 @@ async function clearPassword() {
 
 // --- API snippet ----------------------------------------------------------------------------
 const origin = useRequestURL().origin
-const submitUrl = computed(() => `${origin}/api/forms/${props.slug}/submit`)
+const submitUrl = computed(() => `${origin}${formsApi.submit(props.slug)}`)
 const snippet = computed(() => {
   const headers = {
     token: '  -H \'Authorization: Bearer TOKEN\' \\\n',

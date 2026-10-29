@@ -1,4 +1,6 @@
 import type { H3Event } from 'h3'
+import { z } from 'zod'
+import { apiError, validationError } from '@frigear-nu/module-kit/server'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { blob } from '@nuxthub/blob'
@@ -12,42 +14,63 @@ export type SubmissionBody = { answers: Record<string, unknown>, locale: string,
 
 const safeFilename = (name: string) => name.replace(/[^\w.-]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'file'
 
+/** A BCP 47-ish locale tag (`en`, `da`, `en-GB`, `zh-Hant-TW`), as every submission path (HTTP, MCP) accepts it. */
+export const submissionLocale = z.string().trim().max(20).regex(/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i, 'Invalid locale.')
+
+/** The JSON submission body. `answers` is checked against the form's definition afterwards. */
+const submissionBodySchema = z.object({
+  answers: z.record(z.string(), z.unknown()).default({}),
+  locale: submissionLocale.default('en'),
+}).prefault({})
+
 /**
  * Reads the submission body: `multipart/form-data` with an `answers` JSON part, an optional
  * `locale` part and one `file:<key>` part per uploaded file, or a plain JSON body
- * `{ answers, locale }` for forms without files.
+ * `{ answers, locale }` for forms without files. Either shape is validated with `submissionBodySchema`
+ * (400 "Validation Error" with the zod issues in `data.issues` when it does not match).
  */
-async function readSubmission(event: H3Event): Promise<{ answers: Record<string, unknown>, locale: string, uploads: Map<string, Upload[]> }> {
+async function readSubmission(event: H3Event): Promise<SubmissionBody> {
   const uploads = new Map<string, Upload[]>()
   const contentType = getRequestHeader(event, 'content-type') ?? ''
 
   if (contentType.includes('multipart/form-data')) {
     const parts = await readMultipartFormData(event) ?? []
-    let answers: Record<string, unknown> = {}
-    let locale = 'en'
+    let answers: unknown = {}
+    let locale: string | undefined
     for (const part of parts) {
       if (part.name === 'answers') {
         try {
           answers = JSON.parse(part.data.toString('utf8'))
         }
         catch {
-          throw createError({ statusCode: 400, statusMessage: 'Invalid answers.' })
+          throw validationError([{ path: ['answers'], message: 'Invalid answers.' }])
         }
       }
       else if (part.name === 'locale') {
-        locale = part.data.toString('utf8').slice(0, 20)
+        locale = part.data.toString('utf8')
       }
       else if (part.name?.startsWith('file:') && part.filename) {
         const key = part.name.slice(5)
         uploads.set(key, [...(uploads.get(key) ?? []), { filename: part.filename, type: part.type ?? 'application/octet-stream', data: part.data }])
       }
     }
-    return { answers, locale, uploads }
+    return { ...parseSubmissionBody({ answers, locale }), uploads }
   }
 
-  const body = await readBody<{ answers?: Record<string, unknown>, locale?: string }>(event)
-  return { answers: body?.answers ?? {}, locale: String(body?.locale ?? 'en').slice(0, 20), uploads }
+  // Not `readValidatedBody`: its 400 carries the zod error only as a message string, and clients need the issues.
+  return { ...parseSubmissionBody(await readBody(event)), uploads }
 }
+
+/** `submissionBodySchema`, failing with the toolkit's 400 `validation_failed` and the issues in `data.issues`. */
+function parseSubmissionBody(input: unknown) {
+  const parsed = submissionBodySchema.safeParse(input)
+  if (!parsed.success) throw validationError(toIssues(parsed.error.issues))
+  return parsed.data
+}
+
+/** The issues of a failed submission, as `{ path, message }` (what `FormRenderer` maps onto its fields). */
+const toIssues = (issues: readonly { path: PropertyKey[], message: string }[]) =>
+  issues.map(issue => ({ path: issue.path.map(segment => typeof segment === 'symbol' ? String(segment) : segment), message: issue.message }))
 
 /** Validates and processes one submission for a published form. */
 export async function processSubmission(event: H3Event, form: FormRow, userId: number | null, body?: SubmissionBody) {
@@ -66,11 +89,7 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
   const skipCaptcha = resolveAccess(definition).auth === 'token'
   const parsed = buildFormSchema(definition, answers, { locale, skipCaptcha }).safeParse(answers)
   if (!parsed.success) {
-    throw createError({
-      statusCode: 422,
-      statusMessage: 'Invalid submission.',
-      data: { issues: parsed.error.issues.map(issue => ({ path: issue.path, message: issue.message })) },
-    })
+    throw validationError(toIssues(parsed.error.issues))
   }
   const validated = parsed.data as Record<string, unknown>
 
@@ -81,11 +100,7 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
     Reflect.deleteProperty(answers, field.key)
     if (skipCaptcha) continue
     if (!await verifyCaptcha(event, resolveCaptcha(field, useRuntimeConfig(event).public.forms?.captcha?.defaultProvider).provider, String(token), form.id)) {
-      throw createError({
-        statusCode: 422,
-        statusMessage: 'Invalid submission.',
-        data: { issues: [{ path: [field.key], message: 'Captcha verification failed. Please try again.' }] },
-      })
+      throw validationError([{ path: [field.key], message: 'Captcha verification failed. Please try again.' }])
     }
   }
 
@@ -160,7 +175,7 @@ export async function processSubmission(event: H3Event, form: FormRow, userId: n
   }
   else if (error) {
     // Nothing else keeps the answers, so the visitor has to be told and can try again.
-    throw createError({ statusCode: 502, statusMessage: 'The submission could not be delivered.' })
+    throw apiError(502, 'delivery_failed', 'The submission could not be delivered.')
   }
 
   if (ctx.delivered || error) {

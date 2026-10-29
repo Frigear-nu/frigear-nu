@@ -1,5 +1,5 @@
 import type { FormField, FormSecretsDto } from '../../../types'
-import { resolveCaptcha } from '../../utils'
+import { formsApi, resolveCaptcha } from '../../utils'
 import { captchaDefaultProvider } from './useCaptcha'
 
 /**
@@ -15,7 +15,9 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
     return selected?.type === 'captcha' ? resolveCaptcha(selected, captchaDefaultProvider()) : undefined
   })
   const secrets = ref<FormSecretsDto>()
-  const url = computed(() => toValue(formId) ? `/api/forms/admin/forms/${toValue(formId)}/secrets` : undefined)
+  const id = computed(() => toValue(formId))
+  const url = computed(() => id.value ? formsApi.admin.secrets(id.value) : undefined)
+  const secretKey = () => `captcha.${captcha.value!.provider}.secretKey`
   const value = ref('')
   const saving = ref(false)
   // True until the first load settled, so the status line shows a placeholder instead of a wrong "Not set".
@@ -48,10 +50,10 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
   })
 
   async function save() {
-    if (!url.value || !captcha.value || !value.value.trim()) return
+    if (!id.value || !captcha.value || !value.value.trim()) return
     saving.value = true
     try {
-      secrets.value = await $fetch<FormSecretsDto>(url.value, { method: 'PUT', body: { key: `captcha.${captcha.value.provider}.secretKey`, value: value.value.trim() } })
+      secrets.value = await $fetch<FormSecretsDto>(formsApi.admin.secret(id.value, secretKey()), { method: 'PUT', body: { value: value.value.trim() } })
       value.value = ''
       toast.add({ title: t('captcha.secretSaved', 'Secret key saved.'), color: 'success' })
     }
@@ -64,9 +66,11 @@ export function useCaptchaSecrets(formId: MaybeRefOrGetter<string | undefined>, 
   }
 
   async function remove() {
-    if (!url.value || !captcha.value) return
+    if (!id.value || !captcha.value) return
     try {
-      secrets.value = await $fetch<FormSecretsDto>(`${url.value}/captcha.${captcha.value.provider}.secretKey`, { method: 'DELETE' })
+      // 204: read the secrets again.
+      await $fetch(formsApi.admin.secret(id.value, secretKey()), { method: 'DELETE' })
+      await load()
       toast.add({ title: t('captcha.secretRemoved', 'Secret key removed.'), color: 'success' })
     }
     catch {

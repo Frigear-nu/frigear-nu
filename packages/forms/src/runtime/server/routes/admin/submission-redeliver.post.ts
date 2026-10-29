@@ -1,12 +1,13 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
-import type { SubmittedContext } from '../../../../types'
+import { idParams } from '@frigear-nu/module-kit/server'
+import type { SubmissionDeliveryDto, SubmittedContext } from '../../../../types'
 
 // Runs the `forms:submitted` hooks again for a stored submission (e.g. after a failed email).
-export default defineEventHandler(async (event) => {
-  await requireFormsManager(event)
-  const [row] = await db.select().from(schema.formSubmissions).where(eq(schema.formSubmissions.id, getRouterParam(event, 'id')!)).limit(1)
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Submission not found.' })
+export default defineEventHandler(async (event): Promise<SubmissionDeliveryDto> => {
+  await formsStaff.require(event)
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
+  const row = await findSubmissionById(id)
   const files = await db.select().from(schema.formSubmissionFiles).where(eq(schema.formSubmissionFiles.submissionId, row.id))
   const [form] = await db.select().from(schema.forms).where(eq(schema.forms.id, row.formId)).limit(1)
 

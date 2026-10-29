@@ -2,7 +2,6 @@ import {
   addComponent,
   addComponentsDir,
   addImports,
-  addServerHandler,
   addServerImportsDir,
   addServerPlugin,
   createResolver,
@@ -18,6 +17,7 @@ import {
   addModulePages,
   addOptionalMenuSource,
   inlineModuleRuntime,
+  addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthScope } from '@frigear-nu/auth/utils'
@@ -147,33 +147,36 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     // --- API routes -----------------------------------------------------------------------
-    const route = (method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string, file: string) =>
-      addServerHandler({ route: `/api/forms${path}`, method, handler: resolver.resolve(`./runtime/server/routes/${file}`) })
-
-    // Static `admin/*` segments win over `:slug` in the router.
-    route('get', '/admin/forms', 'admin/forms.get')
-    route('post', '/admin/forms', 'admin/forms.post')
-    route('get', '/admin/forms/:id', 'admin/form.get')
-    route('patch', '/admin/forms/:id', 'admin/form.patch')
-    route('delete', '/admin/forms/:id', 'admin/form.delete')
-    route('post', '/admin/forms/:id/clone', 'admin/form-clone.post')
-    route('get', '/admin/forms/:id/submissions', 'admin/submissions.get')
-    route('get', '/admin/forms/:id/tokens', 'admin/form-tokens.get')
-    route('post', '/admin/forms/:id/tokens', 'admin/form-tokens.post')
-    route('delete', '/admin/forms/:id/tokens/:tokenId', 'admin/form-token.delete')
-    route('get', '/admin/forms/:id/password', 'admin/form-password.get')
-    route('put', '/admin/forms/:id/password', 'admin/form-password.put')
-    route('delete', '/admin/forms/:id/password', 'admin/form-password.delete')
-    route('get', '/admin/forms/:id/secrets', 'admin/form-secrets.get')
-    route('put', '/admin/forms/:id/secrets', 'admin/form-secrets.put')
-    route('delete', '/admin/forms/:id/secrets/:key', 'admin/form-secret.delete')
-    route('post', '/admin/import', 'admin/import.post')
-    route('get', '/admin/submissions/:id', 'admin/submission.get')
-    route('get', '/admin/submissions/:id/files/:fileId', 'admin/submission-file.get')
-    route('post', '/admin/submissions/:id/redeliver', 'admin/submission-redeliver.post')
-    route('get', '/:slug', 'public/form.get')
-    route('get', '/:slug/access', 'public/access.get')
-    route('post', '/:slug/submit', 'public/submit.post')
+    // Staff routes. The static `import` and `submissions` segments win over `:id` in h3's radix router, so
+    // `/api/admin/forms/import` and `/api/admin/forms/submissions/:id` never reach the `:id` handlers.
+    addModuleRoutes(resolver, [
+      { method: 'get', path: '', file: 'admin/forms.get' },
+      { method: 'post', path: '', file: 'admin/forms.post' },
+      { method: 'post', path: 'import', file: 'admin/import.post' },
+      { method: 'get', path: 'submissions/:id', file: 'admin/submission.get' },
+      { method: 'get', path: 'submissions/:id/files/:fileId', file: 'admin/submission-file.get' },
+      { method: 'post', path: 'submissions/:id/redeliver', file: 'admin/submission-redeliver.post' },
+      { method: 'get', path: ':id', file: 'admin/form.get' },
+      { method: 'patch', path: ':id', file: 'admin/form.patch' },
+      { method: 'delete', path: ':id', file: 'admin/form.delete' },
+      { method: 'post', path: ':id/clone', file: 'admin/form-clone.post' },
+      { method: 'get', path: ':id/submissions', file: 'admin/submissions.get' },
+      { method: 'get', path: ':id/tokens', file: 'admin/form-tokens.get' },
+      { method: 'post', path: ':id/tokens', file: 'admin/form-tokens.post' },
+      { method: 'delete', path: ':id/tokens/:tokenId', file: 'admin/form-token.delete' },
+      { method: 'get', path: ':id/password', file: 'admin/form-password.get' },
+      { method: 'put', path: ':id/password', file: 'admin/form-password.put' },
+      { method: 'delete', path: ':id/password', file: 'admin/form-password.delete' },
+      { method: 'get', path: ':id/secrets', file: 'admin/form-secrets.get' },
+      { method: 'put', path: ':id/secrets/:key', file: 'admin/form-secret.put' },
+      { method: 'delete', path: ':id/secrets/:key', file: 'admin/form-secret.delete' },
+    ], { base: '/api/admin/forms' })
+    // Public routes.
+    addModuleRoutes(resolver, [
+      { method: 'get', path: ':slug', file: 'public/form.get' },
+      { method: 'get', path: ':slug/access', file: 'public/access.get' },
+      { method: 'post', path: ':slug/submit', file: 'public/submit.post' },
+    ], { base: '/api/forms' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormAdminDto } from '../../../types'
-import { defineForm } from '../../utils'
+import { defineForm, formsApi } from '../../utils'
 
 // Opened by `useFormActions().create()` through `useOverlay()`; closes with the created form, or `false` when cancelled.
 const emit = defineEmits<{
@@ -37,7 +37,7 @@ watch(() => state.name, (name, previous) => {
 
 async function save() {
   const created = await run(
-    () => $fetch<FormAdminDto>('/api/forms/admin/forms', { method: 'POST', body: { ...state, definition: starter } }),
+    () => $fetch<FormAdminDto>(formsApi.admin.forms, { method: 'POST', body: { ...state, definition: starter } }),
     { success: t('admin.created', 'Form created') },
   )
   if (created) emit('close', created)
