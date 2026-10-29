@@ -4,7 +4,7 @@ import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { DEFAULT_CATEGORIES, computeVersion, cookieConsentApi } from '../src/runtime/utils'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 
 const version = computeVersion('test', DEFAULT_CATEGORIES)
 

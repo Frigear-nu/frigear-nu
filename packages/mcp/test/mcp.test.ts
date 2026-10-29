@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/mcp-db', import.meta.url))
 const dataDir = `${fixture}/.data`

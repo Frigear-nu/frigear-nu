@@ -10,7 +10,7 @@ import { tokenStatus } from '../../utils/tokens'
 type TokenRow = typeof schema.authUserTokens.$inferSelect
 
 /** What the API returns about a token: never the hash. */
-export function toTokenDto(row: TokenRow): AuthTokenDto {
+export function toAuthTokenDto(row: TokenRow): AuthTokenDto {
   return {
     id: row.id,
     name: row.name,

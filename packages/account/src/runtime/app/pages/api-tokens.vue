@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import type { ApiToken, ApiTokenScope } from '../utils/api-tokens'
 import AccountApiTokenSlideover from '../components/Account/AccountApiTokenSlideover.vue'
 

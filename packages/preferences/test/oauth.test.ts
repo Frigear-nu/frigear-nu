@@ -3,7 +3,7 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { oauthServerApi } from '@frigear-nu/oauth-server/utils'
+import { oauthServerApi } from '@frigear-nu/oauth-server/api'
 import { preferencesApi } from '../src/runtime/utils/api'
 
 // The key pair only exists for this run.

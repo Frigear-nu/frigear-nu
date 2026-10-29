@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import { usersApi } from '../src/runtime/utils/api'
 
 async function registerAndGetCookie(payload: { name: string, email: string, password: string }) {

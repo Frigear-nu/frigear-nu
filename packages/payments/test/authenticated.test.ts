@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { getHookCalls, getStripeCalls, registerUser, sendEvent } from './helpers'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { paymentsApi } from '../src/runtime/utils/api'
 

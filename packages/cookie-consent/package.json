@@ -22,6 +22,11 @@
       "import": "./src/runtime/utils/index.ts",
       "default": "./src/runtime/utils/index.ts"
     },
+    "./api": {
+      "types": "./src/runtime/utils/api.ts",
+      "import": "./src/runtime/utils/api.ts",
+      "default": "./src/runtime/utils/api.ts"
+    },
     "./types": "./src/types.ts"
   },
   "publishConfig": {
@@ -35,6 +40,11 @@
         "types": "./dist/runtime/utils/index.d.ts",
         "import": "./dist/runtime/utils/index.js",
         "default": "./dist/runtime/utils/index.js"
+      },
+      "./api": {
+        "types": "./dist/runtime/utils/api.d.ts",
+        "import": "./dist/runtime/utils/api.js",
+        "default": "./dist/runtime/utils/api.js"
       }
     },
     "main": "./dist/module.mjs",

@@ -30,5 +30,5 @@ export default defineEventHandler(async (event): Promise<AuthCreatedTokenDto> =>
   }).returning()
 
   // The plaintext token is returned this once; only its hash is stored.
-  return created(event, { ...toTokenDto(row!), token })
+  return created(event, { ...toAuthTokenDto(row!), token })
 })

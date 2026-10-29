@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 import { $fetch, fetch } from '@nuxt/test-utils/e2e'
 import { expect } from 'vitest'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 
 export const WEBHOOK_SECRET = 'whsec_test_secret'
 

@@ -1,6 +1,6 @@
 import { fetch } from '@nuxt/test-utils/e2e'
 import { expect } from 'vitest'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 
 export async function registerUser(name: string, email: string) {
   const response = await fetch(authApi.register, {

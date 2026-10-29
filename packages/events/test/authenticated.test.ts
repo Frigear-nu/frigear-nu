@@ -4,7 +4,7 @@ import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import { eventsApi } from '../src/runtime/utils/api'
 import { eventId, getStripeCalls, makeEvent, postWebhook, registerUser, sendEvent } from './helpers'
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import type { AuthPasskeyDto } from '@frigear-nu/auth/utils'
 import AccountPasskeySlideover from '../components/Account/AccountPasskeySlideover.vue'
 

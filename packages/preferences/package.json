@@ -20,6 +20,11 @@
       "types": "./src/runtime/utils/build.ts",
       "import": "./src/runtime/utils/build.ts"
     },
+    "./api": {
+      "types": "./src/runtime/utils/api.ts",
+      "import": "./src/runtime/utils/api.ts",
+      "default": "./src/runtime/utils/api.ts"
+    },
     "./define": {
       "types": "./src/runtime/define.ts",
       "import": "./src/runtime/define.ts"
@@ -35,6 +40,11 @@
       "./utils": {
         "types": "./dist/runtime/utils/build.d.ts",
         "import": "./dist/runtime/utils/build.js"
+      },
+      "./api": {
+        "types": "./dist/runtime/utils/api.d.ts",
+        "import": "./dist/runtime/utils/api.js",
+        "default": "./dist/runtime/utils/api.js"
       },
       "./define": {
         "types": "./dist/runtime/define.d.ts",

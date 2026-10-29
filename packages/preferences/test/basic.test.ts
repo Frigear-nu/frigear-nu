@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { expectApiError, apiClient } from '@frigear-nu/module-kit/testing'
-import { authApi } from '@frigear-nu/auth/utils'
+import { authApi } from '@frigear-nu/auth/api'
 import { preferencesApi } from '../src/runtime/utils/api'
 
 async function register(email: string) {

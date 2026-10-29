@@ -1,7 +1,7 @@
 <script setup lang='ts'>
 import type { FormSubmitEvent, FormErrorEvent } from '@nuxt/ui'
 import type { LocationQueryRaw } from 'vue-router'
-import { formsApi } from '@frigear-nu/forms/utils'
+import { formsApi } from '@frigear-nu/forms/api'
 
 import {
   contactFormSchema,

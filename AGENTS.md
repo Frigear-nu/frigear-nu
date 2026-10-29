@@ -191,6 +191,12 @@ Full guide: `apps/docs/content/1.getting-started/5.writing-a-module.md#http-rout
 - **Responses.** Create: `created(event, dto)` (201). Update/action: 200 + DTO. Delete/revoke: `noContent(event)` (204).
   Every response is an allowlisted DTO from a `to<Entity>Dto()` in `server/utils` (never a drizzle row), dates as ISO
   strings (`isoDate`), types in `src/types.ts`.
+- **Field issues.** When a client needs per-field issues, use `schema.safeParse` + `validationError(issues)` from the
+  toolkit: h3's `readValidatedBody` only carries the zod error as text (forms `submit` is the example).
+- **Server util names.** Every module's `server/utils` is auto-imported into one namespace, so exported names must be
+  module-prefixed (`toFormTokenDto`, `toAuthTokenDto`, not `toTokenDto`).
+- **Path builders** are imported from `@frigear-nu/<pkg>/api` (not `./utils`, which pulls in `@nuxt/kit`); relative
+  imports inside a package stay relative.
 - **Pagination.** Admin lists use `pageQuery({ sort, filters })` + `paginate()` → `{ items, total, page, pageSize }`
   (the query keys of `useTableQuery`). Small bounded lists stay arrays.
 - **Staff guard.** One `defineStaffGuard({ hook, scope, message })` (`@frigear-nu/auth`) per module:
