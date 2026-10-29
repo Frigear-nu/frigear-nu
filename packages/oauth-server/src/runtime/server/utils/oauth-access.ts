@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { apiError, forbidden } from '@frigear-nu/module-kit/server'
 import type {
   ApplicationAccessContext,
   ClaimsContext,
@@ -18,8 +19,15 @@ const adminGate = definePolicyGate('oauth:authorize')
 
 export async function requireOAuthAdmin(event: H3Event): Promise<{ userId: number }> {
   const userId = await requireSessionUserId(event)
-  await adminGate.assert(event, userId, 'You are not allowed to manage OAuth applications.')
+  if (!(await adminGate.isAllowed(event, userId))) throw forbidden('You are not allowed to manage OAuth applications.')
   return { userId }
+}
+
+/** The signed-in user as stored, or 401 `unauthorized` when the account no longer exists. */
+export async function requireOAuthUser(userId: number): Promise<OAuthUser> {
+  const user = await getOAuthUser(userId)
+  if (!user) throw apiError(401, 'unauthorized', 'Unknown user.')
+  return user
 }
 
 /** The user's roles as reported by the `oauth:user:roles` hook listeners (none without a listener). */

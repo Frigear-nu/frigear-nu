@@ -7,7 +7,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
-  moduleApiUrl,
+  addModuleRoutes,
   registerDatabaseTable,
   registerLocales,
   registerModule,
@@ -21,6 +21,7 @@ import {
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
+import { oidc } from './runtime/utils/api'
 import type {
   ApplicationAccessContext,
   AuthorizeContext,
@@ -67,7 +68,6 @@ declare module 'nitropack' {
 }
 
 const MODULE_NAME = '@frigear-nu/oauth-server'
-const API_NAME = 'oauthServer'
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'oauthServer' },
@@ -158,36 +158,40 @@ export default defineNuxtModule<ModuleOptions>({
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
 
-    // --- OAuth / OIDC endpoints (standard paths) -------------------------------------------
+    // --- OAuth / OIDC endpoints (standard paths, absolute) -----------------------------------
     addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/oauth-cors') })
-    const handler = (file: string) => resolver.resolve(`./runtime/server/routes/${file}`)
-    addServerHandler({ route: '/.well-known/openid-configuration', method: 'get', handler: handler('oidc/openid-configuration.get') })
-    addServerHandler({ route: '/.well-known/jwks.json', method: 'get', handler: handler('oidc/jwks.get') })
-    addServerHandler({ route: '/oauth/authorize', method: 'get', handler: handler('oidc/authorize.get') })
-    addServerHandler({ route: '/oauth/authorize', method: 'post', handler: handler('oidc/authorize.post') })
-    addServerHandler({ route: '/oauth/token', method: 'post', handler: handler('oidc/token.post') })
-    addServerHandler({ route: '/oauth/revoke', method: 'post', handler: handler('oidc/revoke.post') })
-    addServerHandler({ route: '/oauth/userinfo', method: 'get', handler: handler('oidc/userinfo.get') })
+    addModuleRoutes(resolver, [
+      { method: 'get', path: oidc.configuration, file: 'oidc/openid-configuration.get' },
+      { method: 'get', path: oidc.jwks, file: 'oidc/jwks.get' },
+      { method: 'get', path: oidc.authorize, file: 'oidc/authorize.get' },
+      { method: 'post', path: oidc.authorize, file: 'oidc/authorize.post' },
+      { method: 'post', path: oidc.token, file: 'oidc/token.post' },
+      { method: 'post', path: oidc.revoke, file: 'oidc/revoke.post' },
+      { method: 'get', path: oidc.userinfo, file: 'oidc/userinfo.get' },
+    ], { base: '/' })
 
-    // --- Module API ------------------------------------------------------------------------
-    const api = (method: 'get' | 'post' | 'patch' | 'delete', path: string, file: string) =>
-      addServerHandler({ route: moduleApiUrl(API_NAME, path), method, handler: handler(file) })
-
-    api('get', 'consent', 'api/consent.get')
-    api('get', 'me/applications', 'api/me-applications.get')
+    // --- Module API: the consent data and the caller's own applications ---------------------
+    addModuleRoutes(resolver, [
+      { method: 'get', path: 'consent', file: 'api/consent.get' },
+      { method: 'get', path: 'me/applications', file: 'api/me-applications.get' },
+    ], { base: '/api/oauth-server' })
     // The account area loads them together with the other modules' data (`useMyApplications()` reads the same key).
     registerBootstrapProvider(nuxt, {
       scope: 'account',
       key: 'oauth-server:mine',
       handler: resolver.resolve('./runtime/server/bootstrap/my-applications'),
     })
-    api('get', 'admin/applications', 'api/admin/applications.get')
-    api('post', 'admin/applications', 'api/admin/applications.post')
-    api('get', 'admin/applications/:id', 'api/admin/application.get')
-    api('patch', 'admin/applications/:id', 'api/admin/application.patch')
-    api('delete', 'admin/applications/:id', 'api/admin/application.delete')
-    api('post', 'admin/applications/:id/secret', 'api/admin/application-secret.post')
-    api('post', 'admin/applications/:id/revoke', 'api/admin/application-revoke.post')
+
+    // --- Staff API (gated by the `oauth:authorize` hook) -----------------------------------
+    addModuleRoutes(resolver, [
+      { method: 'get', path: 'applications', file: 'api/admin/applications.get' },
+      { method: 'post', path: 'applications', file: 'api/admin/applications.post' },
+      { method: 'get', path: 'applications/:id', file: 'api/admin/application.get' },
+      { method: 'patch', path: 'applications/:id', file: 'api/admin/application.patch' },
+      { method: 'delete', path: 'applications/:id', file: 'api/admin/application.delete' },
+      { method: 'post', path: 'applications/:id/secret', file: 'api/admin/application-secret.post' },
+      { method: 'post', path: 'applications/:id/revoke', file: 'api/admin/application-revoke.post' },
+    ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

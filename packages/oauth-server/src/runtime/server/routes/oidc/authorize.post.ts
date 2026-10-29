@@ -18,8 +18,7 @@ export default defineEventHandler(async (event) => {
     return { redirectUrl: redirect.toString() }
   }
 
-  const user = await getOAuthUser(userId)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unknown user.' })
+  const user = await requireOAuthUser(userId)
   await assertApplicationAccess(event, user, application)
 
   const code = await createAuthorizationCode({

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ConsentDto } from '../../../types'
+import { oauthServerApi, oidc } from '../../utils/api'
 
 defineOptions({ name: 'OAuthAuthorizePage' })
 
@@ -8,7 +9,7 @@ const route = useRoute()
 const signInPath = useAuthPages().login
 const showError = useErrorToast()
 
-const { data: consent, error } = await useFetch<ConsentDto>('/api/oauth-server/consent', {
+const { data: consent, error } = await useFetch<ConsentDto>(oauthServerApi.consent, {
   query: route.query,
   key: `oauth-server:consent:${route.fullPath}`,
 })
@@ -32,7 +33,7 @@ const pending = ref<'approve' | 'deny' | null>(null)
 async function decide(approved: boolean) {
   pending.value = approved ? 'approve' : 'deny'
   try {
-    const { redirectUrl } = await $fetch<{ redirectUrl: string }>('/oauth/authorize', {
+    const { redirectUrl } = await $fetch<{ redirectUrl: string }>(oidc.authorize, {
       method: 'POST',
       body: { ...route.query, approved },
     })

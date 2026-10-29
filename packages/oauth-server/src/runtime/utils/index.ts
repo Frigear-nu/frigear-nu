@@ -1,5 +1,6 @@
 // Pure helpers: safe to import from the app, Nitro and tests (`@frigear-nu/oauth-server/utils`).
 export type * from '../../types'
+export { oauthServerApi, oidc } from './api'
 
 export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'

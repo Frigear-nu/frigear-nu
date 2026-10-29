@@ -46,7 +46,10 @@
       "enabled": "Applikationen er aktiveret",
       "disabledToast": "Applikationen er deaktiveret",
       "secretReplaced": "Klienthemmeligheden er skiftet",
-      "signedOut": "Alle er logget ud"
+      "signedOut": "Alle er logget ud",
+      "search": "Søg på navn eller klient-ID...",
+      "noMatches": "Ingen applikationer matcher",
+      "clearSearch": "Ryd søgning"
     },
     "form": {
       "createTitle": "Tilføj applikation",

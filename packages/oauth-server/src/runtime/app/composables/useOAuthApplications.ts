@@ -1,6 +1,6 @@
-import type { AdminApplicationDto, ApplicationInput, CreatedApplicationDto, UserApplicationDto } from '../../../types'
-
-const BASE = '/api/oauth-server'
+import type { MaybeRefOrGetter } from 'vue'
+import type { AdminApplicationDto, AdminApplicationsPage, ApplicationInput, CreatedApplicationDto, UserApplicationDto } from '../../../types'
+import { oauthServerApi } from '../../utils/api'
 
 type Application = AdminApplicationDto
 
@@ -9,28 +9,39 @@ export const OAUTH_APPLICATIONS_KEY = 'oauth-server:applications'
 
 /** The admin endpoints as plain calls (no refresh). Every call needs the host's `oauth:authorize` hook to allow the user. */
 export const oauthApplicationsApi = {
+  get: (id: string) =>
+    $fetch<Application>(oauthServerApi.admin.application(id)),
   create: (input: ApplicationInput) =>
-    $fetch<CreatedApplicationDto>(`${BASE}/admin/applications`, { method: 'POST', body: input }),
+    $fetch<CreatedApplicationDto>(oauthServerApi.admin.applications, { method: 'POST', body: input }),
   update: (id: string, patch: Partial<ApplicationInput>) =>
-    $fetch<Application>(`${BASE}/admin/applications/${id}`, { method: 'PATCH', body: patch }),
-  remove: (id: string) =>
-    $fetch(`${BASE}/admin/applications/${id}`, { method: 'DELETE' }),
+    $fetch<Application>(oauthServerApi.admin.application(id), { method: 'PATCH', body: patch }),
+  /** 204: resolves with `null`. */
+  remove: async (id: string): Promise<null> => {
+    await $fetch(oauthServerApi.admin.application(id), { method: 'DELETE' })
+    return null
+  },
   /** Returns the new client secret; the old one stops working. */
   rotateSecret: async (id: string) =>
-    (await $fetch<{ clientSecret: string }>(`${BASE}/admin/applications/${id}/secret`, { method: 'POST' })).clientSecret,
+    (await $fetch<{ clientSecret: string }>(oauthServerApi.admin.rotateSecret(id), { method: 'POST' })).clientSecret,
+  /** Signs everyone out of the application; resolves with the application. */
   revokeGrants: (id: string) =>
-    $fetch(`${BASE}/admin/applications/${id}/revoke`, { method: 'POST' }),
+    $fetch<Application>(oauthServerApi.admin.revoke(id), { method: 'POST' }),
 }
 
+/** The list query: `page`, `pageSize`, `q` (name or client id), `sort` (`createdAt`, `name`, `priority`) and `order`. */
+export type OAuthApplicationsQuery = Record<string, string | number | undefined>
+
 /**
- * Admin CRUD for applications. Awaitable: `await useOAuthApplications()` in a page renders the list on the server.
- * `applications` is `[]` until loaded and after an error: check `loading` and `error` first. Every call needs the
- * host's `oauth:authorize` hook to allow the user.
+ * Admin CRUD for applications, with one page of the list. Awaitable: `await useOAuthApplications(query)` in a page
+ * renders the list on the server; pass `useTableQuery().query` to page, search and sort it. `applications` is `[]`
+ * until loaded and after an error: check `loading` and `error` first. Every call needs the host's `oauth:authorize`
+ * hook to allow the user.
  */
-export function useOAuthApplications() {
-  const fetched = useFetch<Application[]>(`${BASE}/admin/applications`, { key: OAUTH_APPLICATIONS_KEY })
+export function useOAuthApplications(query: MaybeRefOrGetter<OAuthApplicationsQuery> = {}) {
+  const fetched = useFetch<AdminApplicationsPage>(oauthServerApi.admin.applications, { key: OAUTH_APPLICATIONS_KEY, query })
   const { data, status, error, refresh } = fetched
-  const applications = computed(() => data.value ?? [])
+  const applications = computed(() => data.value?.items ?? [])
+  const total = computed(() => data.value?.total ?? 0)
   // `loading` is the first load (nothing to show yet); `refreshing` every load after that (rows stay, dimmed).
   const loading = computed(() => status.value === 'pending' && !data.value)
   const refreshing = computed(() => status.value === 'pending' && !!data.value)
@@ -50,6 +61,7 @@ export function useOAuthApplications() {
   async function remove(id: string) {
     await oauthApplicationsApi.remove(id)
     await refresh()
+    return null
   }
 
   /** Returns the new client secret; the old one stops working. */
@@ -60,11 +72,12 @@ export function useOAuthApplications() {
   }
 
   async function revokeGrants(id: string) {
-    await oauthApplicationsApi.revokeGrants(id)
+    const application = await oauthApplicationsApi.revokeGrants(id)
     await refresh()
+    return application
   }
 
-  const api = { applications, status, error, loading, refreshing, refresh, create, update, remove, rotateSecret, revokeGrants }
+  const api = { applications, total, data, status, error, loading, refreshing, refresh, create, update, remove, rotateSecret, revokeGrants }
   return Object.assign(fetched.then(() => api), api)
 }
 
@@ -75,7 +88,7 @@ export function useOAuthApplications() {
 export function useMyApplications() {
   const { loggedIn } = useUserSession()
   // The server knows the visitor from the request's cookie, so the request does not wait for the client-side session.
-  const fetched = useCachedFetch<UserApplicationDto[]>(`${BASE}/me/applications`, {
+  const fetched = useCachedFetch<UserApplicationDto[]>(oauthServerApi.me.applications, {
     key: 'oauth-server:mine',
     ttl: 5 * 60 * 1000,
     watch: false,

@@ -1,6 +1,10 @@
+import { idParams } from '@frigear-nu/module-kit/server'
+import { toAdminApplicationDto } from '../../../utils/oauth-applications'
+
 export default defineEventHandler(async (event) => {
   await requireOAuthAdmin(event)
-  const application = await getApplication(getRouterParam(event, 'id') ?? '')
-  if (!application) throw createError({ statusCode: 404, statusMessage: 'Application not found.' })
-  return { ...application, callbackUrl: `${application.websiteUrl}${useOAuthConfig().callbackPath}` }
+  const { id } = await getValidatedRouterParams(event, idParams().parse)
+  const application = await requireApplication(id)
+  const grants = await countActiveGrants([id])
+  return toAdminApplicationDto(application, grants[id] ?? 0)
 })

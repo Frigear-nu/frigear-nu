@@ -1,11 +1,31 @@
-import { readBody } from 'h3'
+import { z } from 'zod'
+
+const param = z.string().max(4096).optional()
+
+/** RFC 6749 §4.1.3 / §6, form encoded (JSON accepted too). Which fields a grant needs is checked per grant below. */
+const bodySchema = z.object({
+  grant_type: param,
+  code: param,
+  redirect_uri: param,
+  code_verifier: param,
+  refresh_token: param,
+  client_id: param,
+  client_secret: param,
+})
 
 // Token endpoint: `authorization_code` (PKCE) and `refresh_token` (rotating) grants. Confidential clients send their
 // secret; public clients (native apps, SPAs) only their `client_id`.
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Cache-Control', 'no-store')
   setResponseHeader(event, 'Pragma', 'no-cache')
-  const body = (await readBody(event).catch(() => undefined)) as Record<string, unknown> | undefined
+  let body: z.infer<typeof bodySchema>
+  try {
+    body = await readValidatedBody(event, bodySchema.parse)
+  }
+  catch (error) {
+    // Spec-shaped, not h3's validation error: OAuth clients read `error`.
+    return oauthError(event, 400, 'invalid_request', invalidRequestDescription(error))
+  }
 
   const client = await authenticateClient(event, body)
   if (!('row' in client)) {
@@ -14,13 +34,13 @@ export default defineEventHandler(async (event) => {
   }
   const row = client.row
   const application = toApplication(row)
-  const grantType = body?.grant_type
+  const grantType = body.grant_type
 
   let grant
   let refreshToken: string
   if (grantType === 'authorization_code') {
-    const { code, redirect_uri: redirectUri, code_verifier: codeVerifier } = body as Record<string, unknown>
-    if (typeof code !== 'string' || typeof redirectUri !== 'string' || typeof codeVerifier !== 'string') {
+    const { code, redirect_uri: redirectUri, code_verifier: codeVerifier } = body
+    if (!code || !redirectUri || !codeVerifier) {
       return oauthError(event, 400, 'invalid_request', 'code, redirect_uri and code_verifier are required.')
     }
     const result = await exchangeAuthorizationCode({ code, application, redirectUri, codeVerifier })
@@ -29,7 +49,7 @@ export default defineEventHandler(async (event) => {
     refreshToken = (await createRefreshToken({ applicationId: application.id, ...grant })).token
   }
   else if (grantType === 'refresh_token') {
-    if (typeof body?.refresh_token !== 'string') return oauthError(event, 400, 'invalid_request', 'refresh_token is required.')
+    if (!body.refresh_token) return oauthError(event, 400, 'invalid_request', 'refresh_token is required.')
     const result = await rotateRefreshToken({ token: body.refresh_token, application })
     if ('error' in result) return oauthError(event, 400, 'invalid_grant', result.error)
     grant = result.grant
