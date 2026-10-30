@@ -23,6 +23,15 @@ describe('cookie-consent (cookie only)', async () => {
     expect(result.analytics).toBe(true)
   })
 
+  it('renders the consent of the cookie on the server', async () => {
+    const consentOf = (html: string) => html.match(/<p id="consent">([^<]*)<\/p>/)?.[1]?.trim()
+    expect(consentOf(await $fetch('/'))).toBe('responded: false, analytics: false')
+
+    const { version } = await $fetch<{ version: string }>('/api/consent')
+    const cookie = encodeURIComponent(JSON.stringify({ v: version, ts: 1, categories: { necessary: true, analytics: true, marketing: false } }))
+    expect(consentOf(await $fetch('/', { headers: { cookie: `cookie-consent=${cookie}` } }))).toBe('responded: true, analytics: true')
+  })
+
   it('ignores consent made against another version and migrates legacy values', async () => {
     const stale = encodeURIComponent(JSON.stringify({ v: 'old', ts: 1, categories: { analytics: true } }))
     expect((await $fetch<{ analytics: boolean }>('/api/consent', { headers: { cookie: `cookie-consent=${stale}` } })).analytics).toBe(false)

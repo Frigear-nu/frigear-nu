@@ -89,7 +89,13 @@ export function useCookieConsent() {
   const nuxtApp = useNuxtApp()
   let instance = instances.get(nuxtApp)
   if (!instance) {
-    instance = nuxtApp.runWithContext(() => effectScope(true).run(() => createCookieConsent(nuxtApp))!)
+    // Not the return value of `runWithContext`: on the server it is a Promise (unctx's `callAsync`). The callback
+    // itself runs synchronously, so take the instance from it.
+    let created: ReturnType<typeof createCookieConsent> | undefined
+    nuxtApp.runWithContext(() => {
+      created = effectScope(true).run(() => createCookieConsent(nuxtApp))
+    })
+    instance = created!
     instances.set(nuxtApp, instance)
   }
   return instance
