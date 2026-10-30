@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import { computed, useUiT } from '#imports'
 
 /**
  * A full-width button naming the current section, with a menu of all sections. The narrow-screen counterpart of a

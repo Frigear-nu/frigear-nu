@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useModuleT, useMyApplications } from '#imports'
+
 defineOptions({ name: 'OAuthApplicationsPage' })
 
 const t = useModuleT('oauthServer')

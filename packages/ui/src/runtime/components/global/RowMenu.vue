@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ButtonProps, DropdownMenuItem } from '@nuxt/ui'
+import { computed, useUiT } from '#imports'
 
 /**
  * The `⋯` menu at the end of a table row or next to a heading. Order: Open, then edits, then the destructive action

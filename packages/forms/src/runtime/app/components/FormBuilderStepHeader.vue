@@ -2,6 +2,7 @@
 import type { FormStep } from '../../../types'
 import { translate } from '../../utils'
 import { useFormsLocale } from '../composables/useForms'
+import { useModuleT } from '#imports'
 
 // The header of a step on the builder canvas: drag handle, title and move/delete actions.
 defineProps<{

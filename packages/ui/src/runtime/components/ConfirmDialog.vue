@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useUiT } from '#imports'
 // The modal behind `useConfirmDialog()`. Cancel resolves `false`, the confirm button `true`.
 interface ConfirmDialogProps {
   title?: string

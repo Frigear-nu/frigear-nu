@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LayoutKey } from '#app'
+import { computed, useAccountNav, useHead, useModuleT, useUserSession } from '#imports'
 
 // The account area as a settings page inside the public site: the host's `default` layout (site header and footer)
 // around a centred settings grid. On wide screens a sticky left column shows the signed-in user and the account

@@ -1,5 +1,6 @@
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import type { AsyncData, NuxtApp, NuxtError, UseFetchOptions } from 'nuxt/app'
+import { computed, markRaw, toValue, useFetch, useNuxtApp, useState } from '#imports'
 
 /** One remembered response: what `useFetch` produced (after `transform`) and when. */
 export interface CachedFetchEntry<T = unknown> {

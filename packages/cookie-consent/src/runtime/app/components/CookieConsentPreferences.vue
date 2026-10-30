@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, useConsentT, useCookieConsent, watch } from '#imports'
+
 const { categories, consent, isPreferencesOpen, save, acceptAll, rejectAll } = useCookieConsent()
 const { t, label, description, localize } = useConsentT()
 

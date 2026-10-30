@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { MenuItem } from '@frigear-nu/menu'
+import { $fetch, computed, navigateTo, ref, useColorMode, useErrorToast, useLocaleLink, useModuleT, useRoute, useUserSession } from '#imports'
+import { useMenu } from '#account/optional'
 
 /**
  * The signed-in user's menu: who is signed in, the `account.dropdown` menu (account, admin, sign out), and the

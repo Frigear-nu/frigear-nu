@@ -2,6 +2,7 @@
 import type { FormDefinition } from '../../../types'
 import { PREVIEW_WIDTHS, previewScale } from '../../utils'
 import type { PreviewDevice } from '../../utils'
+import { computed, onBeforeUnmount, onMounted, ref, useCopyToClipboard, useFormsPaths, useModuleT, useTemplateRef, watch } from '#imports'
 
 const props = defineProps<{
   slug: string

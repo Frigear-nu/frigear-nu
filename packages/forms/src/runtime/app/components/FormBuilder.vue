@@ -5,6 +5,7 @@ import type { FieldPosition } from '../../utils'
 import { useCaptchaSecrets } from '../composables/useCaptchaSecrets'
 import { useFormBuilderEditor } from '../composables/useFormBuilderEditor'
 import { fieldTypeIcons, useFormBuilderLabels } from '../composables/useFormBuilderLabels'
+import { computed, useModuleT } from '#imports'
 
 const definition = defineModel<FormDefinition>({ required: true })
 /** The saved form; enables per-form secrets (captcha secret key), which are stored right away, not with the definition. */

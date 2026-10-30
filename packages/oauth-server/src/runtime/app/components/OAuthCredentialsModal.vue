@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCopyToClipboard, useModuleT } from '#imports'
+
 defineOptions({ name: 'OAuthCredentialsModal' })
 
 /** Shown once after creating an application or replacing its secret. Opened by `useOAuthApplicationActions`. */

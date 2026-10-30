@@ -2,6 +2,7 @@
 import type { Translated } from '../../../types'
 import { collapseTranslated, expandTranslated, readTranslated } from '../../utils'
 import { useFormsLocale, useFormsLocales } from '../composables/useForms'
+import { computed, ref, useModuleT } from '#imports'
 
 const props = withDefaults(defineProps<{
   placeholder?: string

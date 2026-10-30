@@ -1,6 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import type { AdminApplicationDto, AdminApplicationsPage, ApplicationInput, CreatedApplicationDto, UserApplicationDto } from '../../../types'
 import { oauthServerApi } from '../../utils/api'
+import { $fetch, computed, useCachedFetch, useFetch, useUserSession, watch } from '#imports'
 
 type Application = AdminApplicationDto
 

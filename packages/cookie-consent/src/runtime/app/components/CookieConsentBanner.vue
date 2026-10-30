@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useWindowScroll } from '@vueuse/core'
+import { computed, onMounted, ref, useConsentT, useCookieConsent, useNuxtApp, useRoute, watch } from '#imports'
+import { useUserSession } from '#cookie-consent/optional'
 
 const { config, hasResponded, hydrateFromUser } = useCookieConsent()
 const { t, policyUrl } = useConsentT()

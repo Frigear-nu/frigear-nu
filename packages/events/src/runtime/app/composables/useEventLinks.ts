@@ -1,4 +1,5 @@
 import { createEventLinks } from '../../utils/links'
+import { useLocaleLink, useRuntimeConfig } from '#imports'
 
 /**
  * Locale-aware links to the event pages (`/events`, `/events/:slug`, `/account/tickets`, the admin list and event

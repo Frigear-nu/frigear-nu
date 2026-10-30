@@ -3,6 +3,7 @@ import type { AdminApplicationDto, ApplicationInput, CreatedApplicationDto } fro
 import OAuthApplicationSlideover from '../components/OAuthApplicationSlideover.vue'
 import OAuthCredentialsModal from '../components/OAuthCredentialsModal.vue'
 import { OAUTH_APPLICATIONS_KEY, oauthApplicationsApi } from './useOAuthApplications'
+import { ref, refreshNuxtData, useAction, useConfirmDialog, useCopyToClipboard, useModuleT, useOverlay, useRoute, useRouter, useToast } from '#imports'
 
 type SavedApplication = AdminApplicationDto | CreatedApplicationDto | false | undefined
 

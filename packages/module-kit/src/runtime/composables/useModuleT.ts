@@ -1,3 +1,5 @@
+import { useNuxtApp } from '#imports'
+
 type Params = Record<string, string | number>
 
 /**

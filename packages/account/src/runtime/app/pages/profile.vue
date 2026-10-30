@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import AccountChangeEmailSlideover from '../components/Account/AccountChangeEmailSlideover.vue'
+import { computed, reactive, ref, useAccount, useAction, useModuleT, useOverlay, useRoute, useToast, useUserSession, watch } from '#imports'
 
 defineOptions({ name: 'AccountProfilePage' })
 

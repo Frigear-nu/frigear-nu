@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { TableSortState } from '../utils/table'
+import { computed, getCurrentInstance, onBeforeUnmount, reactive, ref, useRoute, useRouter, watch } from '#imports'
 
 export interface TableQueryOptions<F extends Record<string, string>> {
   /** Rows per page when the URL has none. */

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useAfterLogin, useAuthPages, useModuleT, useRegistration } from '#imports'
 
 defineOptions({ name: 'UsersRegisterPage' })
 

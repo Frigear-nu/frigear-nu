@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { UpcomingEventsDto } from '../../../types'
 import { eventsApi } from '../../utils/api'
+import { useEventLinks, useEventsTranslate, useFormat, useLazyFetch, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventsUpcomingList' })
 

@@ -1,3 +1,5 @@
+import { defineNuxtPlugin, useUserSession, watch } from '#imports'
+
 // Applies the `color_mode` claim of frigear.nu once per login, so the same mode is used here. Later changes made on
 // this site are left alone (the marker holds the login the mode was applied for).
 export default defineNuxtPlugin((nuxtApp) => {

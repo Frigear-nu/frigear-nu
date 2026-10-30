@@ -1,3 +1,5 @@
+import { computed, useNuxtApp } from '#imports'
+
 type I18nLike = {
   locale?: { value?: string }
   locales?: { value?: (string | { code: string })[] }

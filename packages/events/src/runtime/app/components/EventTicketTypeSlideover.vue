@@ -5,6 +5,7 @@ import type { Translated } from '../../../types'
 import { toCents, fromCents } from '@frigear-nu/ui/money'
 import { DEFAULT_CURRENCY, eventsApi, ticketMdcData } from '../../utils'
 import type { MembershipPlans, StaffTicketType } from '../utils/admin-event'
+import { $fetch, computed, reactive, useAction, useEventsLocale, useEventsTranslate, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventTicketTypeSlideover' })
 

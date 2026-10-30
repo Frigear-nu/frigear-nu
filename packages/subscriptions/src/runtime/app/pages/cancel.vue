@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
+
 defineOptions({ name: 'SubscriptionCancelPage' })
 
 const t = useModuleT('subscriptions.cancel')

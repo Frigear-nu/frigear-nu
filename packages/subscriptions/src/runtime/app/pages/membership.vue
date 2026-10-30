@@ -2,6 +2,7 @@
 import SubscriptionPlans from '../components/SubscriptionPlans.vue'
 import SubscriptionStatus from '../components/SubscriptionStatus.vue'
 import { useSubscription } from '../composables/useSubscription'
+import { useModuleT, useUserSession } from '#imports'
 
 defineOptions({ name: 'SubscriptionMembershipPage' })
 

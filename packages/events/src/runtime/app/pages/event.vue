@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { eventsApi } from '../../utils/api'
+import { $fetch, computed, createError, onMounted, ref, resolveComponent, useAction, useEvent, useEventLinks, useEventsTranslate, useFormat, useModuleT, useRoute, useRuntimeConfig, useSeoMeta, useToast, useUserSession } from '#imports'
 
 // MDC comes from the host app (Nuxt Content); resolves to a plain string name when absent.
 const hasMdc = typeof resolveComponent('MDC') !== 'string'

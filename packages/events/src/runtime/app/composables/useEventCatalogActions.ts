@@ -5,6 +5,7 @@ import EventAddonSlideover from '../components/EventAddonSlideover.vue'
 import EventTicketTypeSlideover from '../components/EventTicketTypeSlideover.vue'
 import type { MembershipPlans, StaffAddon, StaffAddonGroup, StaffTicketType } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
+import { $fetch, useAction, useConfirmDialog, useEventsTranslate, useModuleT, useOverlay } from '#imports'
 
 export type EventCatalogActionsOptions = {
   /** The event new ticket types are added to. Only needed to add ticket types. */

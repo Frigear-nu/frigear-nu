@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, useEventLinks, useEvents, useModuleT, useSeoMeta } from '#imports'
+
 defineOptions({ name: 'EventsListPage' })
 
 const t = useModuleT('events')

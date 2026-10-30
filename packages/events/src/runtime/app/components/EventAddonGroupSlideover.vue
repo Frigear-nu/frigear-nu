@@ -4,6 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Translated } from '../../../types'
 import type { StaffAddonGroup } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
+import { $fetch, reactive, useAction, useEventsTranslate, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventAddonGroupSlideover' })
 

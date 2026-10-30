@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PhoneConfig } from '../../../types'
 import { composePhone, countryName, defaultPhoneCountry, parsePhone, phoneCountries } from '../../utils'
+import { computed, ref, watch } from '#imports'
 
 const props = defineProps<{
   config?: PhoneConfig

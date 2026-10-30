@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EventSummaryDto } from '../../../types'
+import { useEventsTranslate, useFormat, useModuleT } from '#imports'
 
 defineProps<{ event: EventSummaryDto, to: string }>()
 const t = useModuleT('events')

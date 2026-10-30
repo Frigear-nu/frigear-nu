@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { reactive, ref, useErrorToast, useModuleT, usePasskeys } from '#imports'
 
 // "Add passkey" form, opened from the security page with `useOverlay()` (only when WebAuthn is enabled). Submitting
 // starts the browser's passkey prompt; resolves with `true` once the passkey is registered, or `false` when cancelled.

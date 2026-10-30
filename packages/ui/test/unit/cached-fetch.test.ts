@@ -3,6 +3,9 @@ import { computed, markRaw, ref, shallowRef, toValue } from 'vue'
 import type { Ref } from 'vue'
 import { cachedFetchData, clearCachedFetch, primeCachedFetch, useCachedFetch } from '../../src/runtime/composables/useCachedFetch'
 
+// The composable imports its Nuxt helpers from `#imports`: hand it the stubs `fakeNuxt` puts on `globalThis`.
+vi.mock('#imports', () => new Proxy({}, { has: () => true, get: (_, key) => (globalThis as Record<PropertyKey, unknown>)[key] }))
+
 type Options = {
   key: string
   default: () => unknown

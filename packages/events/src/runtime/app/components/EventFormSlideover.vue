@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type EventFormState, eventFormSchema } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
+import { $fetch, computed, reactive, useAction, useEventsTranslate, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'EventFormSlideover' })
 

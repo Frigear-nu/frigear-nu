@@ -5,6 +5,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
+import { inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { EmailTemplateSource, ModuleOptions, NotifyRuntimeConfig } from './types'
 import { defu } from 'defu'
 import { joinURL } from 'ufo'
@@ -136,5 +137,6 @@ export {}
     }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    inlineModuleRuntime(nuxt, resolver)
   },
 })

@@ -1,5 +1,6 @@
 import { computed, unref } from 'vue'
 import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
+import { queryCollection } from '#menu/optional'
 import { type MenuTranslator, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder, translateMenuItem } from '../../utils/menu'
 import { getAppMenuStore } from '../utils/state'
 import type { MenuItem } from '../../../types'
@@ -36,9 +37,7 @@ async function loadContentItems(menu: string, parsed: ParsedMenuPath, locale: st
   // `@nuxt/content`'s `queryCollection` is only available once the module is installed - this
   // branch is only ever reached when it is (see the build-time check in `module.ts`).
   const collection = localizedCollectionName(source.collection, locale)
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore -- `queryCollection` is globally auto-imported by `@nuxt/content`, an optional peer.
-  const entry = await queryCollection(collection).first()
+  const entry = await queryCollection(collection as Parameters<typeof queryCollection>[0]).first()
   const items = ((entry as Record<string, unknown> | null)?.[source.field] as MenuItem[] | undefined) ?? []
 
   return items.filter((item) => {

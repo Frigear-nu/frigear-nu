@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useModuleT } from '#imports'
+
 defineOptions({ name: 'UsersAdminCurrentSubscription' })
 
 // Summary card for the `admin.users.overview` widget area of the admin user page (`@frigear-nu/users`).

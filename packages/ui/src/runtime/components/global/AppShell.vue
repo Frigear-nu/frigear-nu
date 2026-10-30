@@ -2,6 +2,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { AppShellProps } from '../../types'
 import { useLocaleLink } from '../../composables/useLocaleLink'
+import { computed, resolveComponent, useHead, useNuxtApp, useRoute, useRuntimeConfig } from '#imports'
 
 /**
  * The dashboard shell of the app areas (admin, account): a collapsible, resizable sidebar with the brand, optional

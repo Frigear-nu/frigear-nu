@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormField } from '../../../types'
 import { fieldTypeIcons, useFormBuilderLabels } from '../composables/useFormBuilderLabels'
+import { useModuleT } from '#imports'
 
 // One field on the builder canvas: draggable, selectable, with move/duplicate/delete actions on hover.
 defineProps<{

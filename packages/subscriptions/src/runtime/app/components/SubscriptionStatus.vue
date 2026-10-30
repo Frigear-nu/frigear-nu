@@ -2,6 +2,7 @@
 import { formatDate as formatDateValue } from '@frigear-nu/ui/utils'
 import { usePlans } from '../composables/usePlans'
 import { useSubscription } from '../composables/useSubscription'
+import { computed, statusColor, useFormat, useModuleT } from '#imports'
 
 defineOptions({ name: 'SubscriptionStatus' })
 

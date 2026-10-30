@@ -1,4 +1,5 @@
 import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
+import { useRuntimeConfig } from '#imports'
 
 // Only registered when `@frigear-nu/menu` is installed (see `module.ts`).
 export default defineMenuSource(() => {

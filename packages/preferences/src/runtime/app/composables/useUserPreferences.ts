@@ -1,5 +1,6 @@
 import type { UserPreferences } from '../../../types'
 import { preferencesApi } from '../../utils/api'
+import { $fetch, computed, ref, useUserSession } from '#imports'
 
 /**
  * The signed-in user's preferences, typed from every registered definer file.

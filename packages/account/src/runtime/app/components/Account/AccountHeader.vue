@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, useAccountNav, useHead, useModuleT, useRoute } from '#imports'
 // The heading of an account page, rendered by the page itself as the first child of its root: a `PageHeading` filled
 // from the account navigation. The title is the page's `title` meta, else the account menu item the route belongs to
 // (the longest matching path, so `/account/membership/success` still reads "Membership"), else "Account"; the

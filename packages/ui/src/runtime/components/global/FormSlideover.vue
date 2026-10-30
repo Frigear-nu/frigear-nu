@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, useUiT } from '#imports'
 /**
  * A create/edit form in a slideover. The caller renders the form in the default slot as
  * `<UForm :id="formId" …>` (or `<form :id="formId" @submit.prevent>`); the footer holds Cancel and the submit

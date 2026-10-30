@@ -3,6 +3,7 @@ import { usersApi } from '../../utils/api'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserRow } from '../utils/admin-user'
+import { $fetch, computed, reactive, useAction, useModuleT } from '#imports'
 
 defineOptions({ name: 'UsersUserCreateSlideover' })
 

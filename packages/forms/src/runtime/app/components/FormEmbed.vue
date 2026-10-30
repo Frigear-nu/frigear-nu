@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { embedMode, formsApi } from '../../utils'
+import { $fetch, FORM_PASSWORD_HEADER, computed, ref, useAuthPages, useFormAccess, useModuleT, useRoute, watch } from '#imports'
 
 /**
  * Embeds a published form in a page or in Markdown (MDC): `::form-embed{slug="contact"}`.

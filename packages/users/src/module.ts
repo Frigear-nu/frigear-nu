@@ -168,8 +168,9 @@ export default defineNuxtModule<ModuleOptions>({
       }
 
       // Contributes to the admin dashboard and owns the `admin.users` tab area of the user page (modules add tabs
-      // with `extendTabs(nuxt, 'admin.users', ...)`) when @frigear-nu/widget is installed.
-      if (hasNuxtModule('@frigear-nu/widget')) {
+      // with `extendTabs(nuxt, 'admin.users', ...)`) when @frigear-nu/widget is installed. Only with the admin shell: they
+      // render inside its pages and use `@frigear-nu/ui`, which it brings.
+      if (withAdminShell && hasNuxtModule('@frigear-nu/widget')) {
         const { extendWidgets, extendTabs } = await import('@frigear-nu/widget/utils')
         extendTabs(nuxt, 'admin.users', {
           id: 'overview',

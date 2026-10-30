@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConsentT, useCookieConsent } from '#imports'
 // A small "Manage cookies" link/button for footers. Also lets visitors withdraw consent later.
 const { openPreferences } = useCookieConsent()
 const { t } = useConsentT()

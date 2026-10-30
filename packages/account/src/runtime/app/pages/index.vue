@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, resolveComponent, useAccountNav, useLocaleLink, useModuleT, useRuntimeConfig, useUserSession } from '#imports'
+
 defineOptions({ name: 'AccountIndexPage' })
 
 const t = useModuleT('account')

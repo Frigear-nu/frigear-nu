@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StaffTicketType } from '../utils/admin-event'
+import { useEventCatalogActions, useEventsTranslate, useFormat, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventAdminAddonGroups' })
 

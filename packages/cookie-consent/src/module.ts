@@ -6,7 +6,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { addModuleRoutes, registerModule, registerLocales, extendDatabaseTable, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, registerModule, registerLocales, extendDatabaseTable, registerTailwindSource, inlineModuleRuntime, addOptionalImports } from '@frigear-nu/module-kit/utils'
 import { DEFAULT_CATEGORIES, computeVersion, mergeCategories } from './runtime/utils/consent'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -50,6 +50,14 @@ export default defineNuxtModule<ModuleOptions>({
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const persistToUser = (options.persistToUser ?? true) && hasNuxtModule('@frigear-nu/users')
+    // `useUserSession` (nuxt-auth-utils, through `@frigear-nu/auth`) is only called when `persistToUser` is on.
+    // Not `hasNuxtModule('nuxt-auth-utils')`: that module registers itself as `auth-utils`.
+    addOptionalImports(nuxt, '#cookie-consent/optional', [{
+      name: 'useUserSession',
+      available: () => hasNuxtModule('@frigear-nu/auth', nuxt),
+      fallback: `() => { throw new Error('[@frigear-nu/cookie-consent] \`persistToUser\` needs \`@frigear-nu/users\`') }`,
+      fallbackType: '() => { loggedIn: import(\'vue\').Ref<boolean> }',
+    }])
 
     addImports([
       { name: 'useCookieConsent', from: resolver.resolve('./runtime/app/composables/useCookieConsent') },
@@ -60,6 +68,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'getCookieConsent', from: resolver.resolve('./runtime/server/utils/consent') },
       { name: 'hasCookieConsent', from: resolver.resolve('./runtime/server/utils/consent') },
     ])
+    inlineModuleRuntime(nuxt, resolver)
     // Negative priority: a component with the same name in the app (or a layer) always wins over these defaults.
     addComponentsDir({ path: resolver.resolve('./runtime/app/components'), priority: -1 })
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, useUserSession } from '#imports'
 // Details shown next to the signed-in user in the overview's summary card: the role as a badge for anyone who is not a
 // plain `user`, otherwise nothing. Override it in the host app (`components/Account/AccountIdentity.vue`) to show other
 // details, e.g. a member number or an ID badge.

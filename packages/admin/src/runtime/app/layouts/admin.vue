@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CommandPaletteGroup, NavigationMenuItem } from '@nuxt/ui'
+import { computed, resolveComponent, useMenu, useModuleT, useNavLinks, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'AdminLayout' })
 

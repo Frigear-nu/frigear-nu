@@ -3,6 +3,7 @@ import type { FormField } from '../../../types'
 import type { CaptchaSecrets } from '../composables/useCaptchaSecrets'
 import { captchaProviders } from '../../utils'
 import { captchaSiteKey } from '../composables/useCaptcha'
+import { computed, useModuleT } from '#imports'
 
 // Settings of a selected captcha field: provider, site key, the write-only secret key, theme and size.
 const props = defineProps<{

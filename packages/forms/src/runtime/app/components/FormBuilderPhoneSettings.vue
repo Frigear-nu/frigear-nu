@@ -2,6 +2,7 @@
 import type { FormField } from '../../../types'
 import { allPhoneCountries, countryName, defaultPhoneCountry, phoneCountries } from '../../utils'
 import { useFormsLocale } from '../composables/useForms'
+import { computed, useModuleT } from '#imports'
 
 // Phone input settings of a selected `tel` field: a single input, or a country code picker with an allow-list.
 const props = defineProps<{ field: FormField }>()

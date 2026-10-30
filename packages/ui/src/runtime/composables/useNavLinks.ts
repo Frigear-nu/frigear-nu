@@ -2,6 +2,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import type { NavLinkSource, NavLinksOptions } from '../types'
 import { useLocaleLink } from './useLocaleLink'
+import { computed, toValue } from '#imports'
 
 /**
  * Turns menu items (e.g. `useMenu('admin.nav')`) into `UNavigationMenu` links: `to` gets the active locale's prefix

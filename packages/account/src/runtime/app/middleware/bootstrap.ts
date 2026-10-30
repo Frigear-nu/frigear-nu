@@ -1,4 +1,5 @@
 import { keys } from '#account/bootstrap'
+import { defineNuxtRouteMiddleware, loadBootstrap, useUserSession } from '#imports'
 
 // Runs on every account page (a route rule of the area), before the page's components set up, on the server and on
 // each client navigation: one request loads what the modules registered for the `account` scope and primes their

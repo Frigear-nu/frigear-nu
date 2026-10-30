@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, ref, useAuthPages, useModuleT, usePasswordReset } from '#imports'
+
 defineOptions({ name: 'UsersForgotPasswordPage' })
 
 const t = useModuleT('auth')

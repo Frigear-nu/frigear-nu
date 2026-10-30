@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { renderSVG } from 'uqr'
 import type { TicketDto } from '../../../types'
+import { computed, ref, useEventsTranslate, useFormat, useModuleT } from '#imports'
 
 const props = defineProps<{ ticket: TicketDto, to?: string }>()
 const emit = defineEmits<{ pay: [ticketId: string] }>()

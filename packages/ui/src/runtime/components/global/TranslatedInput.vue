@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { collapseTranslated, expandTranslated, filledLocales, isLocaleCode, readTranslated, translate, writeTranslated } from '../../translated'
 import type { Translated } from '../../translated'
+import { computed, ref, useTranslatedFallbackLocale, useTranslatedLocale, useTranslatedLocales, useUiT } from '#imports'
 
 const props = withDefaults(defineProps<{
   placeholder?: string

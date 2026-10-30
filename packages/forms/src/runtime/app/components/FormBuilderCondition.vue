@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Condition, ConditionOp } from '../../../types'
+import { computed, useModuleT } from '#imports'
 
 const props = defineProps<{
   /** Keys of the fields (before this one) a condition may look at. */

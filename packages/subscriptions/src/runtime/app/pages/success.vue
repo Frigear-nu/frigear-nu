@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSubscription } from '../composables/useSubscription'
+import { computed, onBeforeUnmount, onMounted, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'SubscriptionSuccessPage' })
 

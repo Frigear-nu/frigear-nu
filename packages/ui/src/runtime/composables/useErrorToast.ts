@@ -1,5 +1,6 @@
 import { errorToToast } from '../utils/errors'
 import { useUiT } from './useTranslatedLocales'
+import { useToast } from '#imports'
 
 /**
  * Shows an error as a red toast: `title` (default "Something went wrong.") with the error's message as description.
