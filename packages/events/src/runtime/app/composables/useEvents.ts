@@ -1,5 +1,7 @@
 import type { EventDetailDto, EventSummaryDto, TicketDto, Translated } from '../../../types'
 import { eventsApi, translate } from '../../utils'
+import { $fetch, computed, navigateTo, toValue, useCachedFetch, useFetch, useNuxtApp, useState, useUserSession, watch } from '#imports'
+import type { MaybeRefOrGetter } from '#imports'
 
 export async function useEvents() {
   // `now` is captured once and shared with the client payload, so the grouping hydrates identically.

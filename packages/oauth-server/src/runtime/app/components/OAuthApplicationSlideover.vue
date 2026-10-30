@@ -3,6 +3,7 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AdminApplicationDto, ApplicationInput, ClientType, CreatedApplicationDto } from '../../../types'
 import { isNativeRedirectUri, isSecureOrigin } from '../../utils'
+import { computed, reactive, useAction, useModuleT } from '#imports'
 
 type Saved = AdminApplicationDto | CreatedApplicationDto
 

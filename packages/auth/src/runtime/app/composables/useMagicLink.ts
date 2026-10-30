@@ -1,4 +1,5 @@
 import { authApi } from '../../utils/api'
+import { $fetch, computed, ref, useRuntimeConfig } from '#imports'
 
 export const useMagicLink = () => {
   const config = useRuntimeConfig().public.authentication

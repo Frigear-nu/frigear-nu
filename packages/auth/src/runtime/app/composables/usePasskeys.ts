@@ -1,5 +1,7 @@
 import type { AuthPasskeyDto } from '../../../types'
 import { authApi } from '../../utils/api'
+import { $fetch, computed, useRuntimeConfig, useUserSession } from '#imports'
+import { useWebAuthn } from '#auth/webauthn'
 
 /** A passkey of the signed-in user, as `GET /api/auth/me/passkeys` returns it. */
 export type UserPasskey = AuthPasskeyDto

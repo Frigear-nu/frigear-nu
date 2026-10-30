@@ -1,5 +1,6 @@
 import type { CaptchaProvider, FormField } from '../../../types'
 import { normalizeCaptchaProvider, resolveCaptcha } from '../../utils'
+import { useRuntimeConfig } from '#imports'
 
 type WidgetOptions = {
   'sitekey': string

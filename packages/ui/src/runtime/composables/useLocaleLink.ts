@@ -1,4 +1,5 @@
 import { isExternalPath, stripLocale } from '../utils/locale'
+import { useNuxtApp, useRoute } from '#imports'
 
 type LocaleAwareApp = {
   $i18n?: { locales?: { value?: (string | { code: string })[] } }

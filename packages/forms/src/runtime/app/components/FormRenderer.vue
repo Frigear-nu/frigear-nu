@@ -3,6 +3,7 @@ import type { FormDefinition, PublicFormDto } from '../../../types'
 import { previewPayload, translate } from '../../utils'
 import { emptyAnswers, submissionIssues, submitAnswers, useFormsLocale } from '../composables/useForms'
 import { useFormStepper } from '../composables/useFormStepper'
+import { computed, getCurrentInstance, navigateTo, reactive, ref, useForm, useModuleT, useTemplateRef, useToast, watch } from '#imports'
 
 type FormShape = Pick<PublicFormDto, 'slug' | 'definition'> & { definition: Omit<FormDefinition, 'delivery'> }
 

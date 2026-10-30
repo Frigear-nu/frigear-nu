@@ -2,6 +2,7 @@
 import type { BadgeProps } from '@nuxt/ui'
 import type { StatusColor } from '../../types'
 import { statusColor } from '../../utils/status'
+import { computed } from '#imports'
 
 /**
  * A status as a subtle badge: `<StatusBadge :status="row.status" />`. The colour comes from `statusColor` (green

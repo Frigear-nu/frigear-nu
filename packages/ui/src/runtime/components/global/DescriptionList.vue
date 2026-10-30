@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DescriptionItem } from '../../types'
+import { computed, useUiT } from '#imports'
 
 /**
  * Label/value rows for a detail card. Each row renders the slot named after its `key` (or `label`) when given,

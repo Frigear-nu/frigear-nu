@@ -1,5 +1,5 @@
 import { defineNuxtModule, createResolver, addComponentsDir, addImportsDir, hasNuxtModule } from '@nuxt/kit'
-import { registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { inlineModuleRuntime, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { defaultI18nConfig } from './internal/utils'
 
 const resolver = createResolver(import.meta.url)
@@ -25,6 +25,8 @@ export default defineNuxtModule({
     },
   },
   setup(_options, nuxt) {
+    inlineModuleRuntime(nuxt, resolver)
+
     // Tailwind must see the classes of these components, wherever the package is installed.
     registerTailwindSource(nuxt, resolver.resolve('./runtime'))
 

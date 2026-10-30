@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { currencyOptions, fromCents, toCents } from '../../shared/money'
 import type { Currency } from '../../shared/money'
+import { computed, useNuxtApp } from '#imports'
 
 type MoneyValue = {
   currency: Currency['code']

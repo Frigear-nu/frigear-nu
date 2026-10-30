@@ -1,6 +1,8 @@
 import type { FormDefinition } from '../../../types'
 import { buildFormSchema, resolveVisibility } from '../../utils'
 import type { Answers, MessageTranslator } from '../../utils'
+import { computed, ref, toValue } from '#imports'
+import type { MaybeRefOrGetter } from '#imports'
 
 /**
  * State machine for single page and stepped forms. Steps and fields that are hidden by `showIf`

@@ -4,7 +4,7 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import { ADMIN_NAV_GROUPS } from './runtime/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -41,6 +41,7 @@ export default defineNuxtModule<ModuleOptions>({
   setup(options, nuxt) {
     registerModule('@frigear-nu/admin', nuxt)
     const resolver = createResolver(import.meta.url)
+    inlineModuleRuntime(nuxt, resolver)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 

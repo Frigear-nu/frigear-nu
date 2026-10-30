@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, useAttrs } from '#imports'
 /**
  * One row of an inline settings form (a form in a `SectionCard`, not a slideover): a `UFormField` with
  * `orientation="horizontal"`, the label and its `description` in a left column and the control on the right, stacked

@@ -21,6 +21,7 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   defineBootstrapRegistry,
+  addOptionalImports,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { Nitro } from 'nitropack'
@@ -133,6 +134,13 @@ export default defineNuxtModule<ModuleOptions>({
     const withPassword = settings.password !== false
     const withPasswordReset = withPassword && settings.passwordReset !== false
     const withWebAuthn = settings.webAuthn === true
+    // nuxt-auth-utils only auto-imports `useWebAuthn` with passkeys on; callers check `webAuthn` first.
+    addOptionalImports(nuxt, '#auth/webauthn', [{
+      name: 'useWebAuthn',
+      available: () => withWebAuthn,
+      fallback: `() => { throw new Error('[@frigear-nu/auth] Passkeys are off (\`authentication.settings.webAuthn\`)') }`,
+      fallbackType: '(...args: unknown[]) => never',
+    }])
     const withMagicLink = !!settings.magicLink
     const withVerifyEmail = withPassword && settings.verifyEmail === true
     // Providers listed in settings; the others turn on through their nuxt-auth-utils env vars (`#auth/oauth` below).

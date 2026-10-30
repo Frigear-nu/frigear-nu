@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formsApi } from '../../utils'
+import { $fetch, FORM_PASSWORD_HEADER, computed, createError, navigateTo, ref, useAuthPages, useFormAccess, useFormat, useHead, useModuleT, useRoute } from '#imports'
 
 const route = useRoute()
 const t = useModuleT('forms')

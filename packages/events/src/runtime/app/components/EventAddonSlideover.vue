@@ -5,6 +5,7 @@ import type { Translated } from '../../../types'
 import { fromCents, toCents } from '@frigear-nu/ui/money'
 import type { StaffAddon } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
+import { $fetch, reactive, useAction, useEventsTranslate, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventAddonSlideover' })
 

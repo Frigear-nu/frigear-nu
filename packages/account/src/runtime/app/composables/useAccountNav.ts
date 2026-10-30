@@ -1,4 +1,6 @@
 import type { MenuItem } from '@frigear-nu/menu'
+import { computed, useLocaleLink, useModuleT, useNavLinks, useRuntimeConfig } from '#imports'
+import { useMenu } from '#account/optional'
 
 /** An entry of the account navigation: an item of the `account` menu, or a configured page without the menu module. */
 export interface AccountNavItem {
@@ -21,7 +23,7 @@ export async function useAccountNav() {
   const pages = useRuntimeConfig().public.account?.pages
   const { isActive, strip } = useLocaleLink()
 
-  // `@frigear-nu/menu` is optional: without it `useMenu` is not auto-imported and the configured pages are listed.
+  // `@frigear-nu/menu` is optional: without it `useMenu` is `undefined` and the configured pages are listed.
   const menu = typeof useMenu === 'function' ? useMenu('account') : undefined
 
   const fallback = (): AccountNavItem[] => [

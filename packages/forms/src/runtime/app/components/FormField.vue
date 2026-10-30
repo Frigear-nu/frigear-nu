@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormField } from '../../../types'
 import { isCountryPhone, renderMarkdown, translate } from '../../utils'
+import { computed, useModuleT } from '#imports'
 
 const props = defineProps<{
   field: FormField

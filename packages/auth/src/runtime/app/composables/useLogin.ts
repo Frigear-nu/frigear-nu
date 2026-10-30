@@ -2,6 +2,7 @@ import { upperFirst } from 'scule'
 import type { OAuthProviderButton } from '../../../types'
 import { DEFAULT_OAUTH_ICON, OAUTH_PROVIDER_META } from '../utils/oauth-providers'
 import { authApi } from '../../utils/api'
+import { $fetch, computed, ref, useFetch, useModuleT, useRuntimeConfig, useUserSession } from '#imports'
 
 export const useLogin = () => {
   const config = useRuntimeConfig().public.authentication

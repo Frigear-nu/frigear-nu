@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { tablePageRange } from '../../utils/table'
+import { computed, useUiT } from '#imports'
 
 /**
  * The footer of a paginated list, inside `TableCard #footer`: "21–40 of 132", rows per page and the pages. Pages

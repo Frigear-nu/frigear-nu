@@ -2,6 +2,8 @@ import type { NuxtApp } from '#app'
 import type { ConsentDto, ConsentState } from '../../../types'
 import { cookieConsentApi } from '../../utils/api'
 import { acceptAllChoices, buildConsent, normalizeConsent, rejectAllChoices } from '../../utils/consent'
+import { $fetch, computed, effectScope, getCurrentScope, onScopeDispose, useCookie, useNuxtApp, useRuntimeConfig, useState, watch } from '#imports'
+import { useUserSession } from '#cookie-consent/optional'
 
 const createCookieConsent = (nuxtApp: NuxtApp) => {
   const config = useRuntimeConfig().public.cookieConsent!

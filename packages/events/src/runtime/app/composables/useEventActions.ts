@@ -2,6 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import EventFormSlideover from '../components/EventFormSlideover.vue'
 import type { StaffEventSummary } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
+import { $fetch, navigateTo, useAction, useConfirmDialog, useEventLinks, useEventsTranslate, useModuleT, useOverlay, useRuntimeConfig } from '#imports'
 
 export type EventMenuOptions = {
   /** Items for the middle group, between the edits and the delete action. */

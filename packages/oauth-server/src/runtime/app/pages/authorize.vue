@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ConsentDto } from '../../../types'
 import { oauthServerApi, oidc } from '../../utils/api'
+import { $fetch, navigateTo, ref, useAuthPages, useErrorToast, useFetch, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'OAuthAuthorizePage' })
 

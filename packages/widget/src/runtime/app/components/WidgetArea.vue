@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getWidgetComponent } from '../utils/components'
+import { useWidgets } from '#imports'
 
 // Renders every widget registered for `name` in a responsive grid. Replace the layout by using the `item` slot.
 // `gridClass` replaces the default grid classes of the wrapper (e.g. `'grid gap-4'` for a single stacked column).

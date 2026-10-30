@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getTabComponent } from '../utils/tabs'
+import { computed, nextTick, ref, useRoute, useTabs, watch } from '#imports'
 
 // Renders every tab registered for `name` as a tab list with the active tab's component below it. The active
 // tab is kept in the `?tab=` query parameter. Each tab component receives its static `props`, then every entry

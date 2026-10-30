@@ -4,6 +4,7 @@ import { formatMoney } from '@frigear-nu/ui/money'
 import { usePlans } from '../composables/usePlans'
 import type { SubscriptionPlan, SubscriptionPlanPrice } from '../composables/usePlans'
 import { useSubscription } from '../composables/useSubscription'
+import { computed, navigateTo, ref, useAuthPages, useFormat, useModuleT, useRoute, useRuntimeConfig, useUserSession, watch, watchEffect } from '#imports'
 
 defineOptions({ name: 'SubscriptionPlans' })
 

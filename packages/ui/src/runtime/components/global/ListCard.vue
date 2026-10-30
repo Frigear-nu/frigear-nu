@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { surfaceClass } from '../../utils/surface'
+import { computed, useUiT } from '#imports'
 
 /**
  * A short list in a card (dashboard and overview widgets): title, optional description and `#actions`, rows in the

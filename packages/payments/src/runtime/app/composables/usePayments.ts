@@ -1,5 +1,6 @@
 import type { PaymentDto, ResumeResponse } from '../../../types'
 import { paymentsApi } from '../../utils'
+import { $fetch, computed, navigateTo, useCachedFetch, useUserSession, watch } from '#imports'
 
 /**
  * The signed-in user's payments, plus a helper to resume an unpaid one. Awaitable: `await usePayments()` in a page

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { surfaceClass } from '../../utils/surface'
+import { resolveComponent } from '#imports'
 
 /**
  * A number with a label (and an optional tinted icon and hint). Links to the list it summarises when `to` is set.

@@ -1,6 +1,7 @@
 import { useClipboard } from '@vueuse/core'
 import { useErrorToast } from './useErrorToast'
 import { useUiT } from './useTranslatedLocales'
+import { useToast } from '#imports'
 
 /** Copies text to the clipboard and confirms it with a toast ("Copied", or `message`). Resolves `false` on failure. */
 export function useCopyToClipboard() {

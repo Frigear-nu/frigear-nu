@@ -1,5 +1,6 @@
 import type { ConsentCategory, ConsentMessages, Translated } from '../../../types'
 import { localize } from '../../utils/consent'
+import { computed, useModuleT, useNuxtApp, useRuntimeConfig } from '#imports'
 
 // English fallbacks, used when `@nuxtjs/i18n` isn't installed or a key is missing. The translated
 // strings live in `runtime/i18n/lang/*.json` (namespace `cookieConsent`) and can be overridden by

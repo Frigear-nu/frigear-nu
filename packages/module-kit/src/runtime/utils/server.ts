@@ -339,12 +339,21 @@ ${[...properties.values()].map(property => `  ${property},`).join('\n')}
   })
 }
 
+const escapeRE = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** `imports.exclude` patterns `inlineModuleRuntime` built from Nuxt's `node_modules` pattern -> the runtimes they let through. */
+const runtimeExcludes = new WeakMap<RegExp, string[]>()
+
 /**
  * Makes Nitro bundle (instead of externalize) a module's `runtime` directory, and pushes it into `build.transpile`
- * so the app side is transpiled too. Installed modules live in
- * `node_modules`, which Nitro externalizes by default; that skips the auto-import transform for the module's
- * server utils and leaves virtual modules such as `#auth/*` unresolved in consuming apps. Call it next to
- * `addServerImportsDir` so the module works without the host configuring `nitro.externals.inline` itself.
+ * so the app side is transpiled too. Installed modules live in `node_modules`, which Nitro externalizes by default;
+ * that leaves virtual modules such as `#auth/*` unresolved in consuming apps. Nuxt also leaves every `node_modules`
+ * file except its layers out of Nitro's auto-imports (`nitro.imports.exclude`), so the runtime is carved out of those
+ * patterns: its server code can use `useNitroApp`, `useRuntimeConfig` and other modules' server utils without
+ * importing them. Call it in every module that ships a `runtime` directory, so hosts need neither
+ * `nitro.externals.inline` nor an `imports.exclude` override.
+ *
+ * App code (components, composables, plugins) gets no such carve-out: Nuxt reads `imports.transform` once, before
+ * modules installed through `moduleDependencies` run. It imports what it uses from `#imports` instead.
  */
 export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) => {
   const runtime = resolver.resolve('./runtime')
@@ -353,6 +362,16 @@ export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof crea
     config.externals ||= {}
     config.externals.inline ||= []
     if (!config.externals.inline.includes(runtime)) config.externals.inline.push(runtime)
+    if (!config.imports) return
+    // Nuxt's pattern is `node_modules\/(?!<layer paths>)`; ids under the runtime no longer match it.
+    config.imports.exclude = [config.imports.exclude ?? []].flat().map((pattern) => {
+      if (!(pattern instanceof RegExp)) return pattern
+      const runtimes = runtimeExcludes.get(pattern)
+      if (runtimes?.includes(runtime) || (!runtimes && !pattern.source.startsWith('node_modules'))) return pattern
+      const wrapped = new RegExp(`^(?!${escapeRE(runtime)}/)[\\s\\S]*?(?:${pattern.source})`, pattern.flags)
+      runtimeExcludes.set(wrapped, [...runtimes ?? [], runtime])
+      return wrapped
+    })
   })
 }
 

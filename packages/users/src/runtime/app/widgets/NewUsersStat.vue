@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usersApi } from '../../utils/api'
+import { useLazyFetch, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'UsersNewUsersStat' })
 

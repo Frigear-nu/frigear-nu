@@ -3,6 +3,7 @@ import type { FormField } from '../../../types'
 import { resolveCaptcha } from '../../utils'
 import { captchaDefaultProvider, captchaSiteKey, loadCaptchaScript } from '../composables/useCaptcha'
 import type { CaptchaApi } from '../composables/useCaptcha'
+import { computed, onBeforeUnmount, onMounted, ref, useModuleT, useTemplateRef, watch } from '#imports'
 
 const props = defineProps<{
   field: FormField

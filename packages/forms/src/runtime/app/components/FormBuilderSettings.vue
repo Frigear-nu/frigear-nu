@@ -5,6 +5,7 @@ import {
   setRouteField, setStorage, storageWarnings, translate, unknownBodyVariables,
 } from '../../utils'
 import { useFormsLocale } from '../composables/useForms'
+import { computed, ref, useModuleT } from '#imports'
 
 const definition = defineModel<FormDefinition>({ required: true })
 

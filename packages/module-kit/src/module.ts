@@ -1,4 +1,5 @@
 import { defineNuxtModule, createResolver, addImports } from '@nuxt/kit'
+import { inlineModuleRuntime } from './runtime/utils/server'
 
 export * from './runtime/utils/index'
 
@@ -21,6 +22,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(_options, _nuxt) {
     const _resolver = createResolver(import.meta.url)
+    inlineModuleRuntime(_nuxt, _resolver)
 
     addImports({ name: 'useModuleT', from: _resolver.resolve('./runtime/composables/useModuleT') })
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { currencyOptions } from '../../shared/money'
 import type { Currency } from '../../shared/money'
+import { computed, useNuxtApp } from '#imports'
 
 const currencyCode = defineModel<string>({ default: 'EUR' })
 // Defaults to every ISO currency the runtime knows; pass `currencies` to offer a shorter list.

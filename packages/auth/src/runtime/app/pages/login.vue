@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, ref, useAfterLogin, useAuthPages, useLogin, useMagicLink, useModuleT, usePasskeys, useRoute, useRuntimeConfig } from '#imports'
+
 defineOptions({ name: 'UsersLoginPage' })
 
 const t = useModuleT('auth')

@@ -1,5 +1,6 @@
 import { usersApi } from '@frigear-nu/users/api'
 import type { ProfileDto } from '@frigear-nu/users/api'
+import { $fetch, ref, useUserSession } from '#imports'
 
 export const useAccount = () => {
   const pending = ref(false)

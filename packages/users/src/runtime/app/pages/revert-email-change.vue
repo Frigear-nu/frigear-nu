@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usersApi } from '../../utils/api'
+import { $fetch, computed, ref, useAuthPages, useFetch, useModuleT, useRoute, useRuntimeConfig, useUserSession } from '#imports'
 
 defineOptions({ name: 'UsersRevertEmailChangePage' })
 

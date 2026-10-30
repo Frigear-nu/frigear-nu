@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { eventsApi } from '../../utils/api'
 import { EVENT_STATUSES, type EventFormState, type StaffEvent, eventFormSchema, toLocalInput } from '../utils/admin-event'
+import { $fetch, computed, reactive, useAction, useEventsTranslate, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'EventsAdminDetailsTab' })
 

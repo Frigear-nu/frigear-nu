@@ -146,6 +146,10 @@ manually — check before assuming plain pnpm scripts are the only path.
 - Build packages before relying on their compiled output in `apps/website` if the workspace resolves compiled (not source)
   output — check whether
   `apps/website`'s Vite/Nuxt config aliases packages to `src` or to `dist`.
+- Module runtime code: app files under `src/runtime/**` (components, composables, plugins, pages) import what they use
+  from `#imports` explicitly, since Nuxt does not auto-import into a module installed in `node_modules` (lint enforces
+  it with `no-undef`). Server code under `src/runtime/server/**` may rely on auto-imports, as long as the module calls
+  `inlineModuleRuntime` from `@frigear-nu/module-kit/utils`.
 - New packages: match the existing structure of a sibling package (tsconfig, build tool, test setup) rather than
   introducing a new toolchain.
 

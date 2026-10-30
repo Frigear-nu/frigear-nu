@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, useLocaleLink, useMenu, useModuleT, useWidgets } from '#imports'
+
 defineOptions({ name: 'AdminDashboardPage' })
 
 const t = useModuleT('admin')

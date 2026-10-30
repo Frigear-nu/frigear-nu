@@ -5,6 +5,7 @@ import { translate } from '../../utils'
 import type { FieldPosition } from '../../utils'
 import { useFormBuilderLabels } from '../composables/useFormBuilderLabels'
 import { useFormsLocale } from '../composables/useForms'
+import { computed, useModuleT } from '#imports'
 
 // Settings of the selected field, shown inline under its row: label, help text, key, options, validation,
 // the step it lives in and the condition that shows it. Type specific parts live in their own components.

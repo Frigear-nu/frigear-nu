@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RecentPaymentsDto } from '../../../types'
 import { paymentsApi } from '../../utils'
+import { useFormat, useLazyFetch, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'PaymentsRecentTransactions' })
 

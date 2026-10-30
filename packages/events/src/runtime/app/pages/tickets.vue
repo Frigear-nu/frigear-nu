@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useEventLinks, useModuleT, useMyTickets } from '#imports'
+
 defineOptions({ name: 'EventTicketsPage' })
 
 // No container of its own: the `account` layout of `@frigear-nu/account` (applied to `/account/**`) provides the

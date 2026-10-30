@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { UButton } from '#components'
 import { nextTableSort, tableSortQuery, type TableSortState } from '../utils/table'
 import { useUiT } from './useTranslatedLocales'
+import { computed, h, ref } from '#imports'
 
 const SORT_ICONS = {
   none: 'i-lucide-arrow-up-down',

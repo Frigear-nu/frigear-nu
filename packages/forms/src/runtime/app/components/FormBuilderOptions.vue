@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FieldOption } from '../../../types'
 import { arrayMove } from '../../utils'
+import { useModuleT } from '#imports'
 
 // Editor for the options of a dropdown or single choice field.
 const props = defineProps<{ options?: FieldOption[] }>()

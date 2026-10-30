@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { reactive, useAccount, useAction, useModuleT } from '#imports'
 
 // "Change email" form, opened from the profile page with `useOverlay()`. Resolves with `{ verificationRequired }`
 // (true when `users.settings.verifyEmailChange` sends a confirmation link first) or `false` when cancelled.

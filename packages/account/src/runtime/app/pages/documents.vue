@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { documentLabel, visibleDocuments } from '../utils/documents'
+import { computed, useModuleT, useNuxtApp, useRuntimeConfig, useUserSession } from '#imports'
 
 defineOptions({ name: 'AccountDocumentsPage' })
 

@@ -1,6 +1,7 @@
 import type { FieldType, FormField } from '../../../types'
 import { translate } from '../../utils'
 import { useFormsLocale } from './useForms'
+import { useModuleT } from '#imports'
 
 /** Icon per field type, shown in the builder canvas and the insertion menus. */
 export const fieldTypeIcons: Record<FieldType, string> = {

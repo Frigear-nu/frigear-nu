@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SubmissionDto } from '../../../types'
 import { formsApi, isAnswerField, resolveVisibility, translate } from '../../utils'
+import { computed, useFormsLocale, useModuleT } from '#imports'
 
 const props = defineProps<{ submission: SubmissionDto }>()
 

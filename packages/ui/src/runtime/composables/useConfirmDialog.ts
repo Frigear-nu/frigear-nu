@@ -1,4 +1,5 @@
 import { LazyConfirmDialog } from '#components'
+import { useOverlay } from '#imports'
 
 export interface ConfirmDialogOptions {
   title: string

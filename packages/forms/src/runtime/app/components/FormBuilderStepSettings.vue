@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormStep } from '../../../types'
+import { useModuleT } from '#imports'
 
 // Settings of a selected step: title, help text and the condition that shows it.
 defineProps<{

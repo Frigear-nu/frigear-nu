@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { subscriptionsApi } from '../../utils/api'
+import { $fetch, computed, navigateTo, ref, toValue, useCachedFetch, useModuleT, useRuntimeConfig, useUserSession, watch } from '#imports'
 
 export interface UserSubscription {
   id: string

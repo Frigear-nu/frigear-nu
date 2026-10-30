@@ -17,6 +17,8 @@ import {
   registerModule,
   registerTailwindSource,
   resolvePagePath,
+  inlineModuleRuntime,
+  addOptionalImports,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -64,11 +66,19 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule('@frigear-nu/account', nuxt)
     const resolver = createResolver(import.meta.url)
+    inlineModuleRuntime(nuxt, resolver)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
     const withMenus = hasNuxtModule('@frigear-nu/menu')
+    // `@frigear-nu/menu` is optional: `useMenu` is `undefined` without it.
+    addOptionalImports(nuxt, '#account/optional', [{
+      name: 'useMenu',
+      available: () => hasNuxtModule('@frigear-nu/menu', nuxt),
+      fallback: 'undefined',
+      fallbackType: 'undefined',
+    }])
 
     addImports([
       { name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') },

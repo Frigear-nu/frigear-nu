@@ -1,4 +1,5 @@
 import { clearCachedFetch, primeCachedFetch } from './useCachedFetch'
+import { $fetch, useNuxtApp, useRequestFetch, useState } from '#imports'
 
 /** What the app knows about an area's last bootstrap: when it loaded and which keys it primed. */
 export interface BootstrapState {

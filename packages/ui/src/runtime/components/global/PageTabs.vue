@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 import type { PageTabItem } from '../../types'
+import { computed } from '#imports'
 
 /**
  * Tabs under a page heading. Link mode: items carry `to` and the route decides which one is active. State mode:

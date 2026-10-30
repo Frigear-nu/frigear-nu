@@ -2,6 +2,7 @@
 import type { TicketTypeDto } from '../../../types'
 import { withMdcData } from '@frigear-nu/ui/markdown'
 import { DEFAULT_CURRENCY, ticketMdcData } from '../../utils'
+import { computed, ref, resolveComponent, useEventsTranslate, useFormat, useModuleT, watch } from '#imports'
 
 const props = defineProps<{
   ticketTypes: TicketTypeDto[]

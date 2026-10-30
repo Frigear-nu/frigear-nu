@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { renderMarkdown, withMdcData } from '../../markdown'
+import { computed, ref, resolveComponent, useUiT } from '#imports'
 
 const props = defineProps<{
   placeholder?: string

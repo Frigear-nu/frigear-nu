@@ -6,7 +6,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { defineVirtualRegistry, registerModule } from '@frigear-nu/module-kit/utils'
+import { addOptionalImports, defineVirtualRegistry, inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
 import type { MenuItem, ModuleOptions } from './types'
 
 export type {
@@ -42,6 +42,13 @@ export default defineNuxtModule<ModuleOptions>({
     if (contentEntries.length > 0 && !hasNuxtModule('@nuxt/content')) {
       throw new Error('[@frigear-nu/menu] `content` is configured for one or more menus, but `@nuxt/content` module is not installed. Please install @nuxt/content or remove the `content` option.')
     }
+
+    addOptionalImports(nuxt, '#menu/optional', [{
+      name: 'queryCollection',
+      available: () => hasNuxtModule('@nuxt/content', nuxt),
+      fallback: `() => { throw new Error('[@frigear-nu/menu] \`@nuxt/content\` is not installed') }`,
+      fallbackType: '(collection: string) => never',
+    }])
 
     nuxt.options.runtimeConfig.public.menus = {
       content: Object.fromEntries(
@@ -109,5 +116,6 @@ export const sources = [${sources.map((source, index) => `{ menu: ${JSON.stringi
       from: resolver.resolve('./runtime/server/utils'),
       as: 'useMenu',
     })
+    inlineModuleRuntime(nuxt, resolver)
   },
 })

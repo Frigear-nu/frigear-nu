@@ -5,6 +5,8 @@ import {
   removeField, removeStep, renameFieldKey, updateField, updateStep,
 } from '../../utils'
 import { useConfirmDialog } from '@frigear-nu/ui/composables'
+import { computed, ref, useModuleT, watch } from '#imports'
+import type { Ref } from '#imports'
 
 export type BuilderSelection = { kind: 'field', at: FieldPosition } | { kind: 'step', index: number }
 

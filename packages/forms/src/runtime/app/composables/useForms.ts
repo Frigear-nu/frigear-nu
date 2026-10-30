@@ -1,5 +1,7 @@
 import type { FormAccessInfoDto, FormDefinition, FormField, PublicFormDto, SubmitResponse } from '../../../types'
 import { formsApi, resolveVisibility, translate } from '../../utils'
+import { $fetch, computed, toValue, useCopyToClipboard, useFetch, useModuleT, useNuxtApp, useRequestURL, useRuntimeConfig } from '#imports'
+import type { MaybeRefOrGetter } from '#imports'
 
 /** Locale for translated form content: `@nuxtjs/i18n`'s when installed, otherwise `en`. */
 export function useFormsLocale() {

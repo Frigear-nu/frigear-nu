@@ -1,5 +1,6 @@
 import type { ActionOptions } from '../types'
 import { useErrorToast } from './useErrorToast'
+import { ref, useToast } from '#imports'
 
 /**
  * Runs an async action with a `busy` flag and toasts: `success` once it worked, the error (titled `error`) when it

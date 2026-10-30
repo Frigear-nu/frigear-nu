@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { authApi } from '../../utils/api'
 import { isAppPage } from '../utils/after-login'
+import { $fetch, computed, navigateTo, ref, useAuthPages, useModuleT, useRoute, useRouter, useUserSession } from '#imports'
 
 defineOptions({ name: 'AuthMagicLinkPage' })
 

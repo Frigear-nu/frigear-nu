@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConsentT, useCookieConsent } from '#imports'
 // The button row of the banner. Override this component to change the buttons without replacing the whole banner.
 const { acceptAll, rejectAll, openPreferences } = useCookieConsent()
 const { t } = useConsentT()

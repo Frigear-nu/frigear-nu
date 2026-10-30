@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
+import { $fetch } from '#imports'
 
 type FormItem = {
   options?: string[]
