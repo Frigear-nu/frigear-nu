@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/forms",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Dynamic, database-stored forms (single page or stepped) with submissions, file uploads and email delivery for the frigear ecosystem.",
   "homepage": "https://docs.frigear.dev/modules/forms",
   "repository": {
