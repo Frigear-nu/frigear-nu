@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/users",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "The user entity for the main frigear app: the users table, admin user management and self-service profile, email and password changes. Sign-in lives in @frigear-nu/auth.",
   "homepage": "https://docs.frigear.dev/modules/users",
   "repository": {
