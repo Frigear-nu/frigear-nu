@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/widget",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Named widget areas - modules contribute widgets (extendWidgets) and hosts render them with <WidgetArea>, with ordering and a filter hook for gating.",
   "homepage": "https://docs.frigear.dev/modules/widget",
   "repository": {
