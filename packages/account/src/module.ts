@@ -21,6 +21,7 @@ import {
   addOptionalImports,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
+import { withAppMiddleware, type AppMiddlewareRule } from './route-middleware'
 
 export type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -174,8 +175,8 @@ export default defineNuxtModule<ModuleOptions>({
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/bootstrap.client'), mode: 'client' })
     const areaRules = nuxt.options.routeRules ||= {}
     for (const pattern of areaPatterns) {
-      const rule = (areaRules[pattern] ?? {}) as { appMiddleware?: Record<string, boolean> }
-      areaRules[pattern] = { ...rule, appMiddleware: { 'account-bootstrap': true, ...rule.appMiddleware } } as (typeof areaRules)[string]
+      const rule = (areaRules[pattern] ?? {}) as { appMiddleware?: AppMiddlewareRule }
+      areaRules[pattern] = { ...rule, appMiddleware: withAppMiddleware(rule.appMiddleware, 'account-bootstrap') } as (typeof areaRules)[string]
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
