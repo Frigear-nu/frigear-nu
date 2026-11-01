@@ -109,6 +109,9 @@
       "invalidTitle": "This sign-in request cannot be completed",
       "invalidDescription": "The request is invalid.",
       "failed": "Could not complete the sign-in. Please try again.",
+      "returnTitle": "Return to {name}",
+      "returnToApp": "Return to the app",
+      "returnHint": "If the app did not open, tap the button below. You can close this window afterwards.",
       "scope": {
         "openid": "Verify your identity",
         "profile": "Your name and profile picture",

@@ -97,6 +97,14 @@ describe('isNativeRedirectUri', () => {
       '',
     ]) expect(isNativeRedirectUri(uri), uri).toBe(false)
   })
+
+  // The consent page uses it on the authorization response to decide whether the user must tap to open the app.
+  it('tells native authorization responses from web ones', () => {
+    expect(isNativeRedirectUri('eu.hareland.bills:/auth/callback?code=abc&state=xyz')).toBe(true)
+    expect(isNativeRedirectUri('capacitor://localhost/auth/callback?error=access_denied&state=xyz')).toBe(true)
+    expect(isNativeRedirectUri('https://app.example.com/cb?code=abc&state=xyz')).toBe(false)
+    expect(isNativeRedirectUri('http://localhost:3000/cb?error=access_denied')).toBe(false)
+  })
 })
 
 describe('validateRedirectUri for native apps', () => {
