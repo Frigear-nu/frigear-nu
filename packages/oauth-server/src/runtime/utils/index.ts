@@ -54,6 +54,17 @@ export function isNativeRedirectUri(value: string | URL): boolean {
   return !url.href.includes('*')
 }
 
+/** A website as people read it: the host without `www.` (`https://www.example.com/app` → `example.com`). */
+export function websiteDomain(value: string | null | undefined): string {
+  if (!value) return ''
+  try {
+    return new URL(value).hostname.replace(/^www\./, '')
+  }
+  catch {
+    return value
+  }
+}
+
 export function normalizeWebsiteUrl(value: string): string {
   let url: URL
   try {

@@ -3,6 +3,17 @@ import type { H3Event } from 'h3'
 /** `confidential` applications authenticate with a client secret; `public` ones (native apps, SPAs) rely on PKCE alone. */
 export type ClientType = 'confidential' | 'public'
 
+/** How a scope is presented on the consent screen. Everything but `name` is optional. */
+export type OAuthScopeDefinition = {
+  name: string
+  /** Short, human-readable label, e.g. "View your bills". */
+  label?: string
+  /** One line explaining what the application can do with it. */
+  description?: string
+  /** Iconify name, e.g. `i-lucide-receipt`. */
+  icon?: string
+}
+
 export type ModuleOptions = {
   /**
    * The `iss` claim and the discovery issuer, e.g. `https://id.example.com`. Defaults to the origin of the
@@ -19,8 +30,12 @@ export type ModuleOptions = {
   codeTtl?: number
   /** Path appended to an application's `websiteUrl` to form its redirect URI. Defaults to `/auth/frigear`. */
   callbackPath?: string
-  /** Extra scopes advertised and accepted next to `openid profile email`. Enrich their claims with `oauth:claims`. */
-  scopes?: string[]
+  /**
+   * Extra scopes advertised and accepted next to `openid profile email`. Enrich their claims with `oauth:claims`.
+   * Give a scope a `label`, `description` and `icon` to show it nicely on the consent screen (a plain string shows
+   * the description it was registered with through `addAuthScope`, or its name).
+   */
+  scopes?: Array<string | OAuthScopeDefinition>
   /**
    * Browser apps on another origin (for example the webview of a Capacitor app at `capacitor://localhost`) may call the
    * token, revocation, userinfo and discovery endpoints. Exact origins only, never `*`. The authorization endpoint is
@@ -64,6 +79,8 @@ export type OAuthServerRuntimeConfig = {
   codeTtl: number
   callbackPath: string
   scopes: string[]
+  /** Consent screen details of the configured scopes that have any. */
+  scopeDetails: OAuthScopeDefinition[]
   /** Allowed CORS origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS` takes a comma separated list). */
   corsOrigins: string[] | string
   authorizePath: string
@@ -205,5 +222,7 @@ export type CreatedApplicationDto = AdminApplicationDto & {
 export type ConsentDto = {
   application: Pick<OAuthApplication, 'id' | 'name' | 'description' | 'icon' | 'websiteUrl'>
   scope: string[]
+  /** The requested scopes with whatever the server knows to present them (configured details, registered descriptions). */
+  scopes?: OAuthScopeDefinition[]
   user: { name: string, email: string, avatar: string | null }
 }

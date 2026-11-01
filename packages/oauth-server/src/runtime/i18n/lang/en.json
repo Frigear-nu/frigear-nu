@@ -116,6 +116,15 @@
         "openid": "Verify your identity",
         "profile": "Your name and profile picture",
         "email": "Your email address"
+      },
+      "notYou": "Not you?",
+      "switchAccount": "Sign in with another account",
+      "switchFailed": "Could not sign you out. Please try again.",
+      "trust": "Only allow {name} if you trust it.",
+      "scopeHint": {
+        "openid": "Know who you are when you sign in",
+        "profile": "See your public profile",
+        "email": "See the email address of your account"
       }
     }
   }
