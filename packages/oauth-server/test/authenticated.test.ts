@@ -260,6 +260,18 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await json(undefined, 'GET', `${oauthServerApi.consent}?${query}`)).status).toBe(401)
     })
 
+    it('describes the requested scopes for the consent screen', async () => {
+      const app = await createApp()
+      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: 'openid groups oauth:read' })
+      const consent = await ok(await json(staff.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
+      expect(consent.scopes).toEqual([
+        { name: 'openid' },
+        // Configured details win; a scope registered with `addAuthScope` shows its description as the label.
+        { name: 'groups', label: 'Your groups', description: 'Which groups you belong to', icon: 'i-lucide-users' },
+        { name: 'oauth:read', label: 'See which applications you can sign in to (MCP)' },
+      ])
+    })
+
     it('returns access_denied to the application when the user declines', async () => {
       const app = await createApp()
       const query = authorizeQuery(app.clientId, pkce().challenge)

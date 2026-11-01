@@ -116,6 +116,15 @@
         "openid": "Bekræfte din identitet",
         "profile": "Dit navn og profilbillede",
         "email": "Din e-mailadresse"
+      },
+      "notYou": "Ikke dig?",
+      "switchAccount": "Log ind med en anden konto",
+      "switchFailed": "Du kunne ikke logges ud. Prøv igen.",
+      "trust": "Tillad kun {name}, hvis du stoler på den.",
+      "scopeHint": {
+        "openid": "Vide hvem du er, når du logger ind",
+        "profile": "Se din offentlige profil",
+        "email": "Se e-mailadressen på din konto"
       }
     }
   }

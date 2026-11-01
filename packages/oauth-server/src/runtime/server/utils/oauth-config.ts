@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { OAuthScopeDefinition } from '../../../types'
 import { scopes as apiScopes } from '#auth/scopes'
 
 export function useOAuthConfig() {
@@ -25,6 +26,21 @@ export function getOAuthIssuer(event: H3Event): string {
  */
 export function getSupportedScopes(): string[] {
   return [...new Set(['openid', 'profile', 'email', ...useOAuthConfig().scopes, ...apiScopes.map(scope => scope.name)])]
+}
+
+/**
+ * How to present each scope on the consent screen: the details the host configured, else the description the scope
+ * was registered with through `@frigear-nu/auth` (as its label). Scopes nobody described are just their name.
+ */
+export function getOAuthScopeDetails(scope: string[]): OAuthScopeDefinition[] {
+  const configured = new Map((useOAuthConfig().scopeDetails ?? []).map(details => [details.name, details]))
+  const registered = new Map(apiScopes.map(definition => [definition.name, definition.description]))
+  return scope.map((name) => {
+    const details = configured.get(name)
+    if (details) return { ...details, name }
+    const description = registered.get(name)
+    return description ? { name, label: description } : { name }
+  })
 }
 
 /** The signed-in user's numeric id (the `users` table uses integer ids). Responds 401 when nobody is signed in. */

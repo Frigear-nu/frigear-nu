@@ -6,6 +6,7 @@ import {
   parseScope,
   resolveScope,
   validateRedirectUri,
+  websiteDomain,
 } from '../src/runtime/utils'
 
 describe('matchesAllowedRoles', () => {
@@ -44,6 +45,15 @@ describe('normalizeWebsiteUrl', () => {
     expect(() => normalizeWebsiteUrl('http://app.example.com')).toThrow()
     expect(() => normalizeWebsiteUrl('https://app.example.com/path')).toThrow()
     expect(() => normalizeWebsiteUrl('nope')).toThrow()
+  })
+})
+
+describe('websiteDomain', () => {
+  it('shows the host without www, and leaves anything else alone', () => {
+    expect(websiteDomain('https://www.example.com/some/long/path?query=1')).toBe('example.com')
+    expect(websiteDomain('http://localhost:3000')).toBe('localhost')
+    expect(websiteDomain('not a url')).toBe('not a url')
+    expect(websiteDomain(null)).toBe('')
   })
 })
 

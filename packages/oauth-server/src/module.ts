@@ -117,6 +117,8 @@ export default defineNuxtModule<ModuleOptions>({
     const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
+    const scopes = (options.scopes ?? []).map(scope => typeof scope === 'string' ? { name: scope } : scope)
+
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
       // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
@@ -139,7 +141,8 @@ export default defineNuxtModule<ModuleOptions>({
       refreshTokenTtl: options.refreshTokenTtl ?? 60 * 60 * 24 * 30,
       codeTtl: options.codeTtl ?? 600,
       callbackPath: options.callbackPath ?? '/auth/frigear',
-      scopes: options.scopes ?? [],
+      scopes: scopes.map(scope => scope.name),
+      scopeDetails: scopes.filter(scope => scope.label || scope.description || scope.icon),
       corsOrigins,
       authorizePath,
       signInPath: settings.signInPath,

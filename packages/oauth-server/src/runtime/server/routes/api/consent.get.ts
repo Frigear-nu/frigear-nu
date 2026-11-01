@@ -20,6 +20,7 @@ export default defineEventHandler(async (event): Promise<ConsentDto> => {
       websiteUrl: application.websiteUrl,
     },
     scope,
+    scopes: getOAuthScopeDetails(scope),
     user: { name: user.name, email: user.email, avatar: user.avatar },
   }
 })

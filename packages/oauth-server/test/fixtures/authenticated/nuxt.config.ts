@@ -23,7 +23,7 @@ export default defineNuxtConfig({
   },
   oauthServer: {
     issuer: 'https://id.example.test',
-    scopes: ['groups'],
+    scopes: [{ name: 'groups', label: 'Your groups', description: 'Which groups you belong to', icon: 'i-lucide-users' }],
     cors: { origins: ['capacitor://localhost', 'https://app.example.com'] },
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
