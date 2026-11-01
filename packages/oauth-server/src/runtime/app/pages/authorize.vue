@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ConsentDto } from '../../../types'
+import { isNativeRedirectUri } from '../../utils'
 import { oauthServerApi, oidc } from '../../utils/api'
 import { $fetch, navigateTo, ref, useAuthPages, useErrorToast, useFetch, useModuleT, useRoute } from '#imports'
 
@@ -30,6 +31,8 @@ const scopeLabel = (scope: string) => {
 }
 
 const pending = ref<'approve' | 'deny' | null>(null)
+// Set once a native app's redirect is ready: iOS only opens a custom scheme from a tap, not after a fetch.
+const appRedirectUrl = ref<string | null>(null)
 
 async function decide(approved: boolean) {
   pending.value = approved ? 'approve' : 'deny'
@@ -38,6 +41,12 @@ async function decide(approved: boolean) {
       method: 'POST',
       body: { ...route.query, approved },
     })
+    if (isNativeRedirectUri(redirectUrl)) {
+      appRedirectUrl.value = redirectUrl
+      pending.value = null
+      window.location.href = redirectUrl
+      return
+    }
     await navigateTo(redirectUrl, { external: true })
   }
   catch (err) {
@@ -49,7 +58,22 @@ async function decide(approved: boolean) {
 
 <template>
   <AuthCard
-    v-if="consent"
+    v-if="consent && appRedirectUrl"
+    :title="t('authorize.returnTitle', 'Return to {name}', { name: consent.application.name })"
+    :description="t('authorize.returnHint', 'If the app did not open, tap the button below. You can close this window afterwards.')"
+  >
+    <UButton
+      :to="appRedirectUrl"
+      external
+      block
+      size="lg"
+      icon="i-lucide-external-link"
+      :label="t('authorize.returnToApp', 'Return to the app')"
+    />
+  </AuthCard>
+
+  <AuthCard
+    v-else-if="consent"
     :title="t('authorize.title', 'Sign in to {name}', { name: consent.application.name })"
   >
     <template #description>

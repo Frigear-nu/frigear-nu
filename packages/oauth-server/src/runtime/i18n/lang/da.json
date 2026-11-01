@@ -109,6 +109,9 @@
       "invalidTitle": "Denne loginanmodning kan ikke gennemføres",
       "invalidDescription": "Anmodningen er ugyldig.",
       "failed": "Login kunne ikke gennemføres. Prøv igen.",
+      "returnTitle": "Vend tilbage til {name}",
+      "returnToApp": "Vend tilbage til appen",
+      "returnHint": "Hvis appen ikke åbnede, så tryk på knappen nedenfor. Du kan lukke dette vindue bagefter.",
       "scope": {
         "openid": "Bekræfte din identitet",
         "profile": "Dit navn og profilbillede",
