@@ -107,12 +107,13 @@ jobs:
           restore-keys: |
             turbo-release-${{ runner.os }}-
 
-      # Builds every workspace package the selected package depends on (recursively), so that e.g.
-      # `users` sees `module-kit`'s dist output. Turbo orders them and reuses cached builds.
-      - name: Build package dependencies
+      # Builds the selected package and every workspace package it depends on (recursively), so that e.g.
+      # `users` sees `module-kit`'s dist output, and a package whose own build fails (say a declaration
+      # error) fails here, before anything is versioned or pushed. Turbo orders them and reuses cached builds.
+      - name: Build package and dependencies
         env:
           TURBO_TELEMETRY_DISABLED: 1
-        run: pnpm exec turbo run build --filter="{./packages/${{ matrix.package }}}^..." --cache-dir=.turbo
+        run: pnpm exec turbo run build --filter="{./packages/${{ matrix.package }}}..." --cache-dir=.turbo
 
       - name: Test package
         run: pnpm --filter "./packages/${{ matrix.package }}" run --if-present test

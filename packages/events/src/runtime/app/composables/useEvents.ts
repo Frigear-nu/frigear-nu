@@ -1,9 +1,30 @@
 import type { EventDetailDto, EventSummaryDto, TicketDto, Translated } from '../../../types'
 import { eventsApi, translate } from '../../utils'
 import { $fetch, computed, navigateTo, toValue, useCachedFetch, useFetch, useNuxtApp, useState, useUserSession, watch } from '#imports'
-import type { MaybeRefOrGetter } from '#imports'
+import type { ComputedRef, MaybeRefOrGetter } from '#imports'
+import type { AsyncData, NuxtError } from 'nuxt/app'
 
-export async function useEvents() {
+type EventsAsyncData = Awaited<AsyncData<EventSummaryDto[], NuxtError | undefined>>
+type EventAsyncData = Awaited<AsyncData<EventDetailDto | undefined, NuxtError | undefined>>
+
+/** What `useEvents` resolves with. */
+export interface EventsState {
+  events: EventsAsyncData['data']
+  grouped: ComputedRef<{ ongoing: EventSummaryDto[], upcoming: EventSummaryDto[], past: EventSummaryDto[] }>
+  status: EventsAsyncData['status']
+  refresh: EventsAsyncData['refresh']
+}
+
+/** What `useEvent` resolves with. */
+export interface EventState {
+  event: EventAsyncData['data']
+  status: EventAsyncData['status']
+  error: EventAsyncData['error']
+  refresh: EventAsyncData['refresh']
+  purchase: (ticketTypeId: string, addonIds?: string[]) => Promise<{ ticket: TicketDto, url?: string }>
+}
+
+export async function useEvents(): Promise<EventsState> {
   // `now` is captured once and shared with the client payload, so the grouping hydrates identically.
   const now = useState('events:now', () => Date.now())
   const { data, status, refresh } = await useFetch<EventSummaryDto[]>(eventsApi.list, { key: 'events:list', default: () => [] })
@@ -22,7 +43,7 @@ export async function useEvents() {
 }
 
 /** Awaitable: resolves once the event is fetched, so SSR renders the page with data. */
-export async function useEvent(slug: MaybeRefOrGetter<string>) {
+export async function useEvent(slug: MaybeRefOrGetter<string>): Promise<EventState> {
   const { loggedIn } = useUserSession()
   // Resolved before the await: composables need the Nuxt context.
   const locale = useEventsLocale()

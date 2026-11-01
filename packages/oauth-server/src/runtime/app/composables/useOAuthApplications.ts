@@ -1,4 +1,5 @@
-import type { MaybeRefOrGetter } from 'vue'
+import type { ComputedRef, MaybeRefOrGetter } from 'vue'
+import type { AsyncData, NuxtError } from 'nuxt/app'
 import type { AdminApplicationDto, AdminApplicationsPage, ApplicationInput, CreatedApplicationDto, UserApplicationDto } from '../../../types'
 import { oauthServerApi } from '../../utils/api'
 import { $fetch, computed, useCachedFetch, useFetch, useUserSession, watch } from '#imports'
@@ -32,13 +33,34 @@ export const oauthApplicationsApi = {
 /** The list query: `page`, `pageSize`, `q` (name or client id), `sort` (`createdAt`, `name`, `priority`) and `order`. */
 export type OAuthApplicationsQuery = Record<string, string | number | undefined>
 
+type ApplicationsAsyncData = Awaited<AsyncData<AdminApplicationsPage | undefined, NuxtError | undefined>>
+
+/** What `useOAuthApplications` returns (and resolves with when awaited). */
+export interface OAuthApplicationsState {
+  applications: ComputedRef<Application[]>
+  total: ComputedRef<number>
+  data: ApplicationsAsyncData['data']
+  status: ApplicationsAsyncData['status']
+  error: ApplicationsAsyncData['error']
+  loading: ComputedRef<boolean>
+  refreshing: ComputedRef<boolean>
+  refresh: ApplicationsAsyncData['refresh']
+  create: (input: ApplicationInput) => Promise<CreatedApplicationDto>
+  update: (id: string, patch: Partial<ApplicationInput>) => Promise<Application>
+  remove: (id: string) => Promise<null>
+  rotateSecret: (id: string) => Promise<string>
+  revokeGrants: (id: string) => Promise<Application>
+}
+
 /**
  * Admin CRUD for applications, with one page of the list. Awaitable: `await useOAuthApplications(query)` in a page
  * renders the list on the server; pass `useTableQuery().query` to page, search and sort it. `applications` is `[]`
  * until loaded and after an error: check `loading` and `error` first. Every call needs the host's `oauth:authorize`
  * hook to allow the user.
  */
-export function useOAuthApplications(query: MaybeRefOrGetter<OAuthApplicationsQuery> = {}) {
+export function useOAuthApplications(
+  query: MaybeRefOrGetter<OAuthApplicationsQuery> = {},
+): OAuthApplicationsState & Promise<OAuthApplicationsState> {
   const fetched = useFetch<AdminApplicationsPage>(oauthServerApi.admin.applications, { key: OAUTH_APPLICATIONS_KEY, query })
   const { data, status, error, refresh } = fetched
   const applications = computed(() => data.value?.items ?? [])
@@ -78,7 +100,7 @@ export function useOAuthApplications(query: MaybeRefOrGetter<OAuthApplicationsQu
     return application
   }
 
-  const api = { applications, total, data, status, error, loading, refreshing, refresh, create, update, remove, rotateSecret, revokeGrants }
+  const api: OAuthApplicationsState = { applications, total, data, status, error, loading, refreshing, refresh, create, update, remove, rotateSecret, revokeGrants }
   return Object.assign(fetched.then(() => api), api)
 }
 
