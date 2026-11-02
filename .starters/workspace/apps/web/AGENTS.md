@@ -1,8 +1,10 @@
 # AGENTS.md - `apps/web`
 
 A **Nuxt 4** app on the published `@frigear-nu` modules. Run every command from the repository root
-(`pnpm --filter ./apps/web <command>`), never from this folder. Module docs:
-https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content (start with `1.getting-started/3.quick-start.md`).
+(`pnpm --filter ./apps/web <command>`), never from this folder. Module docs: https://docs.frigear.dev, also as
+Markdown at `https://docs.frigear.dev/raw/<path>.md` (start with
+https://docs.frigear.dev/raw/getting-started/quick-start.md). The source is
+https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content.
 
 ## Layout
 
@@ -26,6 +28,9 @@ server/db/migrations/sqlite/       committed schema history, applied by NuxtHub 
   regenerate.
 
 ## The modules
+
+Each module's page is `https://docs.frigear.dev/modules/<module>` (Markdown:
+`https://docs.frigear.dev/raw/modules/<module>.md`); the full list is at https://docs.frigear.dev/modules.
 
 | Module | Owns |
 | --- | --- |
@@ -65,7 +70,7 @@ to `modules`, set its options from its docs page, then generate and commit a mig
 ## UI
 
 - Nuxt UI 4 (`U*` components) plus the `@frigear-nu/ui` building blocks. The app is wrapped in `<UApp>` (`app/app.vue`).
-- Follow the Frigear UX patterns (`apps/docs/content/1.getting-started/7.ux-patterns.md` in the Frigear repo): admin
+- Follow the Frigear UX patterns (https://docs.frigear.dev/raw/getting-started/ux-patterns.md): admin
   pages use `PageHeading` and `SectionCard` / `TableCard`, create/edit forms use `FormSlideover`, destructive actions
   confirm with `useConfirmDialog({ destructive: true })`.
 - `<script setup lang="ts">` for every component.
