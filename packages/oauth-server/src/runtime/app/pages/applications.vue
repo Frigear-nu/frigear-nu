@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useModuleT, useMyApplications } from '#imports'
+import { errorMessage, useModuleT, useMyApplications } from '#imports'
 
 defineOptions({ name: 'OAuthApplicationsPage' })
 

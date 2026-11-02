@@ -4,7 +4,7 @@ import type { DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
 import { authApi } from '@frigear-nu/auth/api'
 import type { AuthPasskeyDto } from '@frigear-nu/auth/utils'
 import AccountPasskeySlideover from '../components/Account/AccountPasskeySlideover.vue'
-import { computed, reactive, useAccount, useAction, useCachedFetch, useConfirmDialog, useErrorToast, useFormat, useModuleT, useOverlay, usePasskeys, useRuntimeConfig, useToast, useUserSession } from '#imports'
+import { computed, errorMessage, reactive, useAccount, useAction, useCachedFetch, useConfirmDialog, useErrorToast, useFormat, useModuleT, useOverlay, usePasskeys, useRuntimeConfig, useToast, useUserSession } from '#imports'
 
 defineOptions({ name: 'AccountSecurityPage' })
 

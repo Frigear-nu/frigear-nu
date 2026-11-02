@@ -3,7 +3,7 @@ import { usersApi } from '../../utils/api'
 import OverviewTab from '../tabs/Overview.vue'
 import { useUserActions } from '../composables/useUserActions'
 import type { UserDetail } from '../utils/admin-user'
-import { computed, navigateTo, resolveComponent, useFetch, useModuleT, useRoute } from '#imports'
+import { computed, errorMessage, navigateTo, resolveComponent, useFetch, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'UsersAdminUserPage' })
 

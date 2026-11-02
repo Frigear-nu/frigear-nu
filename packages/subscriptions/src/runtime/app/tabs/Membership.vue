@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { MeResponse } from '../../../types'
 import { subscriptionsApi } from '../../utils/api'
-import { computed, emptyCell, h, resolveComponent, useFormat, useLazyFetch, useModuleT } from '#imports'
+import { computed, emptyCell, errorMessage, h, resolveComponent, tableUi, useFormat, useLazyFetch, useModuleT } from '#imports'
 
 defineOptions({ name: 'UsersAdminMembershipTab' })
 

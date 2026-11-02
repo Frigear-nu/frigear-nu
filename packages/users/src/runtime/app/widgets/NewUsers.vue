@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usersApi } from '../../utils/api'
 import type { UserRow } from '../utils/admin-user'
-import { useFormat, useLazyFetch, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
+import { statusColor, useFormat, useLazyFetch, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'UsersNewUsersWidget' })
 

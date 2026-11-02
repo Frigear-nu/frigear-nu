@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { PaymentDto } from '../../../types'
 import { paymentsApi } from '../../utils'
-import { computed, useFormat, useLazyFetch, useModuleT } from '#imports'
+import { computed, errorMessage, tableUi, useFormat, useLazyFetch, useModuleT } from '#imports'
 
 defineOptions({ name: 'UsersAdminPayments' })
 
