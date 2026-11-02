@@ -1,3 +1,4 @@
+import { addAuthScope } from '@frigear-nu/auth/utils'
 import MyModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -6,6 +7,8 @@ export default defineNuxtConfig({
     '@frigear-nu/admin',
     '@frigear-nu/widget',
     MyModule,
+    // A second scope, for a token that lacks `users:read`.
+    (_options, nuxt) => addAuthScope(nuxt, { name: 'test:read', description: 'Test scope' }),
   ],
   runtimeConfig: {
     session: {

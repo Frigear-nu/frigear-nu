@@ -18,8 +18,11 @@ export default eventHandler(async (event) => {
   const defineHandler = await provider.load()
   return defineHandler({
     config: { emailRequired: true, ...provider.options.config },
-    async onSuccess(event: H3Event, { user }: { user: Record<string, unknown> }) {
-      return handleOAuthUser(event, provider.key, user, { signUp: provider.options.signUp })
+    async onSuccess(event: H3Event, { user, tokens }: { user: Record<string, unknown>, tokens?: Record<string, unknown> }) {
+      return handleOAuthUser(event, provider.key, user, {
+        signUp: provider.options.signUp,
+        tokens: provider.options.keepTokens ? tokens : undefined,
+      })
     },
   })(event)
 })

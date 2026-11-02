@@ -3,6 +3,7 @@ import type { H3Event } from 'h3'
 import { badRequest, forbidden } from '@frigear-nu/module-kit/server'
 import type { OAuthApplication, OAuthUser } from '../../../types'
 import { resolveScope, validateRedirectUri } from '../../utils'
+import { scopes as apiScopes } from '#auth/scopes'
 
 /** The authorization request parameters (query on GET, body on POST). */
 export const authorizeRequestSchema = z.object({
@@ -41,6 +42,18 @@ export async function validateAuthorizeRequest(request: AuthorizeRequest): Promi
   const scope = resolveScope(request.scope, getSupportedScopes())
   if (scope.length === 0) throw badRequest('None of the requested scopes is supported.')
   return { request, application, scope }
+}
+
+/**
+ * The scopes of `scope` the user may be granted. An API scope a module registered with `@frigear-nu/auth` is kept
+ * only when the user may hold it (its `roles`, the `auth:scope-available` hook: e.g. `users:read` is staff only);
+ * OIDC and host-configured scopes pass. A plain user asking for a staff scope gets a token without it.
+ */
+export async function filterGrantableScopes(event: H3Event, user: OAuthUser, scope: string[]): Promise<string[]> {
+  const registered = new Set(apiScopes.map(definition => definition.name))
+  if (!scope.some(name => registered.has(name))) return scope
+  const available = new Set((await availableScopes(event, user as OAuthUser & { role?: string })).map(definition => definition.name))
+  return scope.filter(name => !registered.has(name) || available.has(name))
 }
 
 /** Throws 403 unless the user may use the application (role check, active, `oauth:application:access`). */

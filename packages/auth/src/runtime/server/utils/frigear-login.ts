@@ -3,7 +3,7 @@ import type { FrigearSsoConfig } from './frigear-sso'
 
 /**
  * Completes a frigear.nu login: verifies the id token, syncs the local user and starts the session. `response` is the
- * token endpoint response; with `keepTokens` its access and refresh tokens go on the sealed (server-only) session.
+ * token endpoint response; with `keepTokens` its tokens are kept (`storeOAuthTokens`).
  */
 export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}) {
   const tokens = response as Record<string, unknown>
@@ -29,7 +29,6 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
     role,
   }, { forceId: sso.forceId })
 
-  const kept = sso.keepTokens ? toFrigearSessionTokens(tokens) : undefined
   await setUserSession(event, {
     user: mapUserToSession(user),
     frigear: {
@@ -37,8 +36,9 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
       colorMode: parseColorModeClaim(claims.color_mode),
       loggedInAt: Date.now(),
     },
-    ...(kept && { secure: { frigear: kept } }),
   })
+  // The tokens of this login replace any kept before (e.g. a step-up login replaces the plain one).
+  if (sso.keepTokens) await storeOAuthTokens(user.id, 'frigear', parseOAuthTokenResponse(tokens, sso.scopes))
 
   return sendRedirect(event, consumeLoginRedirect(event))
 }

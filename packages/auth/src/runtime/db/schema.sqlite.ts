@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 // There is deliberately no foreign key to `users`: this module sits below it and does not know its table. Whoever
 // removes a user removes these rows too (see `deleteUserCredentials`).
@@ -58,4 +58,25 @@ export const magicLinks = sqliteTable('magic_links', {
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('magic_link_user_idx').on(t.userId),
+])
+
+/**
+ * OAuth tokens kept from sign-ins (`keepTokens` on a provider), so the app can call the provider as the user, also
+ * from tasks and bearer requests. One row per user and provider; every login replaces it. The token columns are
+ * encrypted (AES-GCM, see `oauth-tokens.ts`).
+ */
+export const authOAuthTokens = sqliteTable('auth_oauth_tokens', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  userId: integer().notNull(),
+  /** The provider key: `frigear`, `github`, `oidc`, ... */
+  provider: text().notNull(),
+  accessToken: text().notNull(),
+  refreshToken: text(),
+  tokenType: text(),
+  scopes: text({ mode: 'json' }).$type<string[]>().notNull().$defaultFn(() => []),
+  expiresAt: integer({ mode: 'timestamp' }),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
+}, t => [
+  uniqueIndex('auth_oauth_tokens_user_provider_idx').on(t.userId, t.provider),
 ])

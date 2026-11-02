@@ -65,22 +65,24 @@ export default defineEventHandler(async (event) => {
   const access = await checkApplicationAccess(user, application, event)
   if (!access.allowed) return oauthError(event, 400, 'access_denied', access.reason)
 
-  const input = { event, user, application, scope: grant.scope, roles: access.roles }
+  // Scopes are re-checked too: a user who lost a staff scope gets tokens without it (the grant keeps it, unused).
+  const scope = await filterGrantableScopes(event, user, grant.scope)
+  const input = { event, user, application, scope, roles: access.roles }
   const response: Record<string, unknown> = {
     access_token: await signAccessToken(input),
     token_type: 'Bearer',
     expires_in: useOAuthConfig().accessTokenTtl,
     refresh_token: refreshToken,
-    scope: grant.scope.join(' '),
+    scope: scope.join(' '),
   }
-  if (grant.scope.includes('openid')) {
+  if (scope.includes('openid')) {
     response.id_token = await signIdToken({ ...input, nonce: grant.nonce, authTime: grant.authTime })
   }
 
   await useNitroApp().hooks.callHook('oauth:token:issued', {
     userId: user.id,
     applicationId: application.id,
-    scope: grant.scope,
+    scope,
     grant: grantType as 'authorization_code' | 'refresh_token',
   })
   return response

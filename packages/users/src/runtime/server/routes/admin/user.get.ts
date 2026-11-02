@@ -2,7 +2,8 @@ import { db, schema } from '@nuxthub/db'
 import { count, eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  const { actor, target } = await loadUsersAdminTarget(event, 'view')
+  // Also open to API tokens / OAuth access tokens with `users:read`; they never get `can.update` / `can.delete`.
+  const { actor, target } = await loadUsersAdminTarget(event, 'view', { scopes: [USERS_READ_SCOPE] })
   const withRole = usersHaveRoles()
   const targetInfo = usersAdminTargetInfo(target)
 

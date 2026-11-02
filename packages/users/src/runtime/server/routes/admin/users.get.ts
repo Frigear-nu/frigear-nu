@@ -14,7 +14,8 @@ const querySchema = pageQuery({
 })
 
 export default defineEventHandler(async (event) => {
-  const actor = await authorizeUsersAdmin(event, 'view')
+  // Also open to API tokens / OAuth access tokens with `users:read` (staff only; the policy still runs).
+  const actor = await authorizeUsersAdmin(event, 'view', {}, { scopes: [USERS_READ_SCOPE] })
 
   const query = await getValidatedQuery(event, querySchema.parse)
   const withRole = usersHaveRoles()

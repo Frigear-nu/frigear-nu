@@ -65,16 +65,20 @@ declare module 'nuxt/schema' {
 
   interface RuntimeConfig {
     authentication?: { tokenTtlDays: number | null, apiTokenPrefix: string, magicLinkSignUp: boolean, magicLinkCooldown: number }
+    // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); falls back to a key derived from the session password.
+    authTokensKey?: string
     // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
     previewDeployment?: boolean
     frigear?: {
       // frigear.nu is used as the identity provider when `url`, `clientId` and `clientSecret` are set.
-      sso?: { url?: string, clientId?: string, clientSecret?: string }
+      // `scopes`: what the login asks for (space separated, default `openid profile email`). `stepUpScopes`: extra scopes
+      // a login may add with `/auth/frigear?scope=...` (space separated allowlist, default none).
+      sso?: { url?: string, clientId?: string, clientSecret?: string, scopes?: string, stepUpScopes?: string }
       // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
       forceId?: boolean
       // Apply the `role` claim of frigear.nu to the local user at every login (an admin there is an admin here). Defaults to true.
       syncRole?: boolean
-      // Keep the frigear.nu access and refresh tokens on the sealed session (`getFrigearAccessToken`). Defaults to false.
+      // Keep the frigear.nu tokens in `auth_oauth_tokens` (`getOAuthAccessToken`). Defaults to `oauth.frigear.keepTokens`.
       keepTokens?: boolean
     }
   }
@@ -164,6 +168,13 @@ export default defineNuxtModule<ModuleOptions>({
     if (withWebAuthn) tables.push('userCredentials')
     if (withPasswordReset) tables.push('passwordResets')
     if (withMagicLink || withVerifyEmail) tables.push('magicLinks')
+    // OAuth tokens are kept only for providers that ask for it (`oauth.<provider>.keepTokens`).
+    const keepsTokens = (provider: string) => {
+      const providerOptions = oauthSettings[provider]
+      return typeof providerOptions === 'object' && providerOptions.keepTokens === true
+    }
+    const keepsOAuthTokens = oauthProviders.some(keepsTokens)
+    if (keepsOAuthTokens) tables.push('authOAuthTokens')
 
     registerDatabaseTable(nuxt, {
       name: tables,
@@ -262,12 +273,6 @@ declare module '#auth/user-store' {
 declare module '#auth/session-mapper' {
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
   export default mapSessionUser
-}
-declare module '#auth-utils' {
-  interface SecureSessionData {
-    /** The frigear.nu tokens, kept when \`frigear.keepTokens\` is on. Read them with \`getFrigearAccessToken\`. */
-    frigear?: import('${resolver.resolve('./runtime/server/utils/frigear-tokens')}').FrigearSessionTokens
-  }
 }
 declare module '#auth/oauth' {
   type OAuthHandlerOptions = {
@@ -421,11 +426,12 @@ export {}
     // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
     // `NUXT_PUBLIC_AUTHENTICATION_FRIGEAR_SSO`.
     const runtimeConfig = nuxt.options.runtimeConfig
+    runtimeConfig.authTokensKey ??= ''
     runtimeConfig.frigear = {
       forceId: false,
-      keepTokens: false,
+      keepTokens: keepsTokens('frigear'),
       ...runtimeConfig.frigear,
-      sso: { url: '', clientId: '', clientSecret: '', ...runtimeConfig.frigear?.sso },
+      sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
     }
     const frigearSso = runtimeConfig.frigear.sso!
     const frigearSsoEnabled = oauthProviders.includes('frigear')

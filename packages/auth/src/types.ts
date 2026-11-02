@@ -44,6 +44,11 @@ export interface OAuthProviderOptions {
   signUp?: boolean
   /** Passed to the nuxt-auth-utils handler (`scope`, `authorizationParams`, ...). Keep secrets in env vars. */
   config?: Record<string, unknown>
+  /**
+   * Keep the provider's access and refresh tokens (encrypted, in `auth_oauth_tokens`) at every login, to call the
+   * provider as the user with `getOAuthAccessToken`. Adds the table. Defaults to `false`.
+   */
+  keepTokens?: boolean
 }
 
 /** A user API token as the API returns it (`GET /api/auth/me/tokens`): never the hash, dates as ISO strings. */

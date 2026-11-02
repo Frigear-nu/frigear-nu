@@ -8,13 +8,15 @@ export default eventHandler(async (event) => {
   rememberLoginRedirect(event)
   const sso = resolveFrigearSso(event)
   if (!sso.enabled) throw notFound()
+  // Step-up (`?scope=users:read`) only shapes the authorization request; the callback carries no `scope`.
+  const scope = frigearLoginScopes(sso, getQuery(event).scope)
 
   return defineOAuthOidcEventHandler({
     config: {
       clientId: sso.clientId,
       clientSecret: sso.clientSecret,
       openidConfig: sso.openidConfig,
-      scope: ['openid', 'profile', 'email'],
+      scope,
     },
     async onSuccess(event, { user, tokens }) {
       return handleFrigearLogin(event, sso, user as Record<string, unknown>, tokens)
