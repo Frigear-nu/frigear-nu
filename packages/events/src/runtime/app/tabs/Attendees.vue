@@ -4,7 +4,7 @@ import { refDebounced } from '@vueuse/core'
 import type { AttendeeDto } from '../../../types'
 import type { AttendeesPage, StaffEvent } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
-import { $fetch, computed, emptyCell, h, ref, resolveComponent, useAction, useConfirmDialog, useEventsTranslate, useFetch, useFormat, useModuleT, watch } from '#imports'
+import { $fetch, computed, emptyCell, errorMessage, h, ref, resolveComponent, tableUi, useAction, useConfirmDialog, useEventsTranslate, useFetch, useFormat, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'EventsAdminAttendeesTab' })
 
