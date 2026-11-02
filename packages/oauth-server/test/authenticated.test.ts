@@ -80,7 +80,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const config = await $fetch<Json>(oidc.configuration)
       expect(config.issuer).toBe('https://id.example.test')
       expect(config.token_endpoint).toBe('https://id.example.test/oauth/token')
-      expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups', 'oauth:read'])
+      expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups', 'users:read', 'oauth:read'])
       expect(config.code_challenge_methods_supported).toEqual(['S256'])
       expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_basic', 'client_secret_post', 'none'])
 
@@ -270,6 +270,43 @@ describe('oauth-server (authenticated, database-backed)', async () => {
         { name: 'groups', label: 'Your groups', description: 'Which groups you belong to', icon: 'i-lucide-users' },
         { name: 'oauth:read', label: 'See which applications you can sign in to (MCP)' },
       ])
+    })
+
+    it('grants a staff-only scope to staff and silently drops it for everyone else', async () => {
+      const app = await createApp({ allowedRoles: [] })
+      const member = await user('Plain')
+      staff ??= await user('Staff', 'staff.test')
+      const tokensFor = async (session: Session) => {
+        const { verifier, challenge } = pkce()
+        const query = authorizeQuery(app.clientId, challenge, { scope: 'openid users:read' })
+        const consent = await ok(await json(session.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
+        const code = await authorizeCode(session, app.clientId, challenge, { scope: 'openid users:read' })
+        const tokens = await ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier }))
+        return { consent, tokens }
+      }
+      const bearer = (token: string) => fetch('/api/admin/users', { headers: { authorization: `Bearer ${token}` } })
+
+      const plain = await tokensFor(member)
+      expect(plain.consent.scope).toEqual(['openid'])
+      expect(plain.tokens.scope).toBe('openid')
+      const refused = await bearer(plain.tokens.access_token)
+      expect(refused.status).toBe(403)
+      expect(await refused.json()).toMatchObject({ data: { code: 'insufficient_scope' } })
+
+      const granted = await tokensFor(staff)
+      expect(granted.consent.scope).toEqual(['openid', 'users:read'])
+      expect(granted.tokens.scope).toBe('openid users:read')
+      const list = await bearer(granted.tokens.access_token)
+      expect(list.status, await list.clone().text()).toBe(200)
+      expect((await list.json() as Json).items.length).toBeGreaterThan(0)
+      // Reading is all the scope opens up: changes still need a session.
+      const patch = await fetch(`/api/admin/users/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'authorization': `Bearer ${granted.tokens.access_token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'X' }),
+      })
+      expect(patch.status).toBe(403)
+      expect(await patch.json()).toMatchObject({ data: { code: 'session_required' } })
     })
 
     it('returns access_denied to the application when the user declines', async () => {

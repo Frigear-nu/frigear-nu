@@ -237,4 +237,46 @@ describe('users admin', async () => {
     const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff`)
     await expectApiError(staff.json('DELETE', usersApi.admin.user(items[0]!.id)), 400)
   })
+
+  describe('API tokens with users:read', () => {
+    const createToken = (client: ReturnType<typeof apiClient>, scopes: string[]) =>
+      client.fetch('POST', authApi.me.tokens, { name: 'sync', scopes })
+    const tokenClient = async (client: ReturnType<typeof apiClient>, scopes: string[]) => {
+      const response = await createToken(client, scopes)
+      expect(response.status, await response.clone().text()).toBe(201)
+      return apiClient({ bearer: (await response.json() as { token: string }).token })
+    }
+
+    it('is staff only: a user the policy does not allow cannot obtain it', async () => {
+      const response = await createToken(member, ['users:read'])
+      expect(response.status).toBe(400)
+      expect((await response.json() as { data: { code: string } }).data.code).toBe('unknown_scope')
+      const scopes = await member.json<{ name: string }[]>('GET', authApi.scopes)
+      expect(scopes.map(scope => scope.name)).not.toContain('users:read')
+    })
+
+    it('lets a staff token read the directory and a user, never change them', async () => {
+      const token = await tokenClient(staff, ['users:read'])
+      const { items } = await token.json<Page>('GET', usersApi.admin.users)
+      expect(items.map(u => u.id)).toContain(memberId)
+      const user = await token.json<Row & { can: { update: boolean, delete: boolean } }>('GET', usersApi.admin.user(memberId))
+      expect(user).toMatchObject({ id: memberId, can: { update: false, delete: false } })
+
+      await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { name: 'X' }), 403, 'session_required')
+      await expectApiError(token.json('POST', usersApi.admin.users, { name: 'X', email: 'x@example.com' }), 403, 'session_required')
+      await expectApiError(token.json('DELETE', usersApi.admin.user(memberId)), 403, 'session_required')
+    })
+
+    it('refuses a token without the scope (403 insufficient_scope)', async () => {
+      const token = await tokenClient(staff, ['test:read'])
+      await expectApiError(token.json('GET', usersApi.admin.users), 403, 'insufficient_scope')
+      await expectApiError(token.json('GET', usersApi.admin.user(memberId)), 403, 'insufficient_scope')
+    })
+
+    it('still runs the policy against the token user', async () => {
+      // A `*` token is grantable to anyone, but the policy denies a member every staff read.
+      const token = await tokenClient(member, ['*'])
+      await expectApiError(token.json('GET', usersApi.admin.users), 403, 'forbidden')
+    })
+  })
 })

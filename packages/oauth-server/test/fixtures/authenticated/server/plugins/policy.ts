@@ -10,6 +10,12 @@ export default defineNitroPlugin((nitro) => {
     ctx.allowed = !!user?.email.endsWith('@staff.test')
   })
 
+  // Staff may view the users admin, so only they may hold `users:read`.
+  nitro.hooks.hook('users:admin:authorize', async (ctx) => {
+    const user = await getOAuthUser(ctx.userId)
+    ctx.allowed = ctx.action === 'view' && !!user?.email.endsWith('@staff.test')
+  })
+
   nitro.hooks.hook('oauth:user:roles', async (ctx) => {
     const user = await getOAuthUser(ctx.userId)
     if (user) ctx.roles.push(...rolesFor(user.email))

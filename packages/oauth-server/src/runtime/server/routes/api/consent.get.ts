@@ -7,9 +7,11 @@ export default defineEventHandler(async (event): Promise<ConsentDto> => {
   const userId = await requireSessionUserId(event)
   // Not `getValidatedQuery`: it would replace the message naming the bad parameters with h3's generic one.
   const query = parseAuthorizeRequest(getQuery(event))
-  const { application, scope } = await validateAuthorizeRequest(query)
+  const { application, scope: requested } = await validateAuthorizeRequest(query)
   const user = await requireOAuthUser(userId)
   await assertApplicationAccess(event, user, application)
+  // Scopes the user may not hold are left out, as they are of the code the approval issues.
+  const scope = await filterGrantableScopes(event, user, requested)
 
   return {
     application: {

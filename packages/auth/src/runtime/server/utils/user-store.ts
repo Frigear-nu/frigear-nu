@@ -25,6 +25,7 @@ export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeo
     ...(schema.userCredentials ? [executor.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
     ...(schema.passwordResets ? [executor.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
     ...(schema.magicLinks ? [executor.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
+    ...(schema.authOAuthTokens ? [executor.update(schema.authOAuthTokens).set({ userId: to }).where(eq(schema.authOAuthTokens.userId, from))] : []),
   ]
 }
 
@@ -35,4 +36,5 @@ export async function deleteUserAuthData(userId: number) {
   if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
+  if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
 }

@@ -3,6 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { desc, getTableColumns, inArray } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
 import { intIdParams, notFound } from '@frigear-nu/module-kit/server'
+import { hasScopes } from '@frigear-nu/auth/utils'
 
 export type UsersAdminAction = 'view' | 'create' | 'update' | 'delete'
 
@@ -18,6 +19,18 @@ export type UsersAdminContext = {
   /** Set to `true` to allow. Denied by default. */
   allowed: boolean
 }
+
+/** How a users admin route lets callers in. */
+export type UsersAdminCallerOptions = {
+  /**
+   * `view` only: also accept API tokens and OAuth access tokens that carry these scopes (`users:read` for the
+   * read-only routes). The host policy still runs against the token's user. Without it, a session is required.
+   */
+  scopes?: string[]
+}
+
+/** The scope that lets an API token or OAuth access token read the user directory. Staff only (see the module). */
+export const USERS_READ_SCOPE = 'users:read'
 
 export type UsersAdminRolesContext = {
   event: H3Event
@@ -35,10 +48,22 @@ const usersAdminGate = definePolicyGate<Pick<UsersAdminContext, 'action' | 'inpu
 
 const USERS_ADMIN_DENIED = 'You are not allowed to manage users.'
 
-/** Whether the host policy allows the signed-in user to do `action` (never throws on denial; 401/403 without a session). */
-export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}) {
-  // Staff actions are never available to API tokens or OAuth access tokens.
-  const user = await requireUser(event, { sessionOnly: true })
+/** Whether the host policy lets `userId` view the users admin: who may hold `users:read`. */
+export const isUsersAdminViewer = (event: H3Event, userId: number) => usersAdminGate.isAllowed(event, userId, { action: 'view' })
+
+// Staff actions are never available to API tokens or OAuth access tokens, except reads that name their scopes.
+const requireUsersAdminCaller = (event: H3Event, action: UsersAdminAction, options: UsersAdminCallerOptions) =>
+  requireUser(event, action === 'view' && options.scopes?.length ? { scopes: options.scopes } : { sessionOnly: true })
+
+/**
+ * Whether the host policy allows the caller to do `action` (never throws on denial; 401 without a credential). A
+ * bearer credential is allowed nothing beyond what `options.scopes` opens up.
+ */
+export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}, options: UsersAdminCallerOptions = {}) {
+  const principal = await requireAuth(event)
+  const user = principal.user
+  const bearerAllowed = action === 'view' && !!options.scopes?.length && hasScopes(principal.scopes, options.scopes)
+  if (principal.kind !== 'session' && !bearerAllowed) return { allowed: false, user }
   const allowed = await usersAdminGate.isAllowed(event, user.id as number, { action, ...details })
   return { allowed, user }
 }
@@ -47,8 +72,8 @@ export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminActi
  * Asks the host (the `users:admin:authorize` hook) whether the signed-in user may do `action`; throws 401/403
  * otherwise. The users module knows nothing about roles or staff: that policy is the host's.
  */
-export async function authorizeUsersAdmin(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}) {
-  const user = await requireUser(event, { sessionOnly: true })
+export async function authorizeUsersAdmin(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}, options: UsersAdminCallerOptions = {}) {
+  const user = await requireUsersAdminCaller(event, action, options)
   await usersAdminGate.assert(event, user.id as number, USERS_ADMIN_DENIED, { action, ...details })
   return user
 }
@@ -101,15 +126,17 @@ export const usersAdminTargetInfo = (user: { id: number, email: string }) => ({
  * Loads the user a staff member is acting on (`/api/admin/users/:id/...`) and runs the users admin policy against
  * them (`view` for reads, `update` for changes). For routes added with `extendUsersAdmin`.
  *
+ * `options.scopes` lets bearer credentials with those scopes in for `view` (see `UsersAdminCallerOptions`).
+ *
  * Authorizes before it looks anything up: 401 without a session, 403 when the host denies `action` outright, then
  * 400 for a malformed id, 404 for an unknown user, and 403 again when the host denies `action` on this target.
  */
-export async function loadUsersAdminTarget(event: H3Event, action: Exclude<UsersAdminAction, 'create'>) {
-  await authorizeUsersAdmin(event, action)
+export async function loadUsersAdminTarget(event: H3Event, action: Exclude<UsersAdminAction, 'create'>, options: UsersAdminCallerOptions = {}) {
+  await authorizeUsersAdmin(event, action, {}, options)
   const { id } = await getValidatedRouterParams(event, intIdParams().parse)
 
   const target = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })
   if (!target) throw notFound('User not found.')
-  const actor = await authorizeUsersAdmin(event, action, { target: usersAdminTargetInfo(target), input: {} })
+  const actor = await authorizeUsersAdmin(event, action, { target: usersAdminTargetInfo(target), input: {} }, options)
   return { actor, target }
 }

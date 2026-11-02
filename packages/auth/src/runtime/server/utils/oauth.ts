@@ -35,6 +35,13 @@ export function resolveOAuthProvider(event: H3Event, name: string | undefined) {
   return { key, options: options ?? {}, load: handlers[key]! }
 }
 
+/** The scopes a provider's login asks for (`config.scope`), standing in when its token response names none. */
+function requestedScopes(provider: string): string[] {
+  const options = settings[provider]
+  const scope = options ? options.config?.scope : undefined
+  return Array.isArray(scope) ? scope.filter((item): item is string => typeof item === 'string') : typeof scope === 'string' ? scope.split(/[\s,]+/).filter(Boolean) : []
+}
+
 /** The OAuth sign-in buttons for this request: the providers listed in settings first, in their order. */
 export function listOAuthProviders(event: H3Event): OAuthProviderButton[] {
   return [...new Set([...Object.keys(settings), ...Object.keys(handlers)])].flatMap((name): OAuthProviderButton[] => {
@@ -53,8 +60,9 @@ export function listOAuthProviders(event: H3Event): OAuthProviderButton[] {
 /**
  * Shared find-or-create logic for the nuxt-auth-utils OAuth providers (`GET /api/auth/<provider>`). An existing user is
  * matched by email; with `signUp: false` an unknown email is sent back to the login page instead of getting an account.
+ * `tokens` (the token response, for providers with `keepTokens`) are kept for the user.
  */
-export async function handleOAuthUser(event: H3Event, provider: string, profile: OAuthProfile, options: { signUp?: boolean } = {}) {
+export async function handleOAuthUser(event: H3Event, provider: string, profile: OAuthProfile, options: { signUp?: boolean, tokens?: Record<string, unknown> } = {}) {
   const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() || undefined : undefined
 
   if (!email) {
@@ -78,6 +86,7 @@ export async function handleOAuthUser(event: H3Event, provider: string, profile:
     avatar: avatarOf(profile),
   })
   const updated = await users.update(user.id, { lastLoginAt: new Date() })
+  if (options.tokens) await storeOAuthTokens(user.id, provider, parseOAuthTokenResponse(options.tokens, requestedScopes(provider)))
 
   await setUserSession(event, { user: mapUserToSession(updated ?? user) })
 

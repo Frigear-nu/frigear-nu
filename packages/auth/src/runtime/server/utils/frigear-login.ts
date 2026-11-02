@@ -1,9 +1,14 @@
 import type { H3Event } from 'h3'
 import type { FrigearSsoConfig } from './frigear-sso'
 
-/** Completes a frigear.nu login: verifies the id token, syncs the local user and starts the session. */
-export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, idToken?: string) {
+/**
+ * Completes a frigear.nu login: verifies the id token, syncs the local user and starts the session. `response` is the
+ * token endpoint response; with `keepTokens` its tokens are kept (`storeOAuthTokens`).
+ */
+export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}) {
+  const tokens = response as Record<string, unknown>
   // The verified id token decides who the user is (`sub`); userinfo fills in the profile.
+  const idToken = typeof tokens.id_token === 'string' ? tokens.id_token : undefined
   const verified = idToken ? await verifyFrigearIdToken(sso, idToken) : undefined
   const claims: Record<string, unknown> = { ...verified, ...userinfo, ...(verified?.sub && { sub: verified.sub }) }
 
@@ -32,6 +37,8 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
       loggedInAt: Date.now(),
     },
   })
+  // The tokens of this login replace any kept before (e.g. a step-up login replaces the plain one).
+  if (sso.keepTokens) await storeOAuthTokens(user.id, 'frigear', parseOAuthTokenResponse(tokens, sso.scopes))
 
   return sendRedirect(event, consumeLoginRedirect(event))
 }

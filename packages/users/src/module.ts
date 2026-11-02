@@ -1,5 +1,6 @@
 import {
   addServerImportsDir,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -147,6 +148,11 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
 
     if (withAdmin) {
+      // Lets API tokens and OAuth access tokens read the user directory (`GET /api/admin/users`, `/:id`). Only staff
+      // (the `users:admin:authorize` policy, action `view`) may hold it: the plugin hides it from everyone else.
+      addAuthScope(nuxt, { name: 'users:read', description: 'Read the user directory (staff only)' })
+      addServerPlugin(resolver.resolve('./runtime/server/plugins/users-read-scope'))
+
       // Static segments (`new`, `stats`, `roles`) win over `:id` in the router.
       addModuleRoutes(resolver, [
         { method: 'get', path: '', file: 'admin/users.get' },

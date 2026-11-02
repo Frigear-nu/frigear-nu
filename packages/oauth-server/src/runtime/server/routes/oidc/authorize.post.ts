@@ -20,12 +20,14 @@ export default defineEventHandler(async (event) => {
 
   const user = await requireOAuthUser(userId)
   await assertApplicationAccess(event, user, application)
+  // A scope the user may not hold (e.g. staff only) is dropped, not refused: the application gets a token without it.
+  const granted = await filterGrantableScopes(event, user, scope)
 
   const code = await createAuthorizationCode({
     application,
     userId,
     redirectUri: request.redirect_uri,
-    scope,
+    scope: granted,
     codeChallenge: request.code_challenge,
     nonce: request.nonce,
   })

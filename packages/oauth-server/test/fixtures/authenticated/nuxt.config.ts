@@ -27,4 +27,6 @@ export default defineNuxtConfig({
     cors: { origins: ['capacitor://localhost', 'https://app.example.com'] },
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
+  // The users admin registers the staff-only `users:read` scope.
+  users: { settings: { admin: true } },
 })
