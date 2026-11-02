@@ -8,10 +8,3 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   vue-demi: true
-# The published @frigear-nu modules still carry their development `postinstall`. They ship built, so pnpm skipping it
-# is right; this keeps the skip a warning instead of failing the install.
-strictDepBuilds: false
-# The modules pin each other exactly; keep a single copy of each so they share one auth and users module.
-overrides:
-  '@frigear-nu/auth': ^0.2.1
-  '@frigear-nu/users': ^1.2.1
