@@ -1,6 +1,9 @@
 // Pure helpers: safe to import from the app, Nitro and tests (`@frigear-nu/oauth-server/utils`).
+import type { OAuthScopeDefinition, OAuthScopeGroup } from '../../types'
+
 export type * from '../../types'
 export { oauthServerApi, oidc } from './api'
+export { addOAuthScope } from './build'
 
 export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'
@@ -28,6 +31,37 @@ export function resolveScope(requested: string | null | undefined, supported: re
   const asked = parseScope(requested)
   if (asked.length === 0) return [...DEFAULT_SCOPES]
   return asked.filter(scope => supported.includes(scope))
+}
+
+/** A list from config or env: an array, or a comma separated string (`NUXT_*` env vars). Trimmed, no blanks. */
+export function parseList(value: readonly string[] | string | null | undefined): string[] {
+  const list = Array.isArray(value) ? value : String(value ?? '').split(',')
+  return list.map(item => item.trim()).filter(Boolean)
+}
+
+/**
+ * Merges scope definitions by name (a later definition adds to an earlier one), so a module's `addOAuthScope` and the
+ * host's `scopes` can describe the same scope. Order of first appearance is kept.
+ */
+export function mergeScopeDefinitions(definitions: readonly (string | OAuthScopeDefinition)[]): OAuthScopeDefinition[] {
+  const merged = new Map<string, OAuthScopeDefinition>()
+  for (const entry of definitions) {
+    const definition = typeof entry === 'string' ? { name: entry } : entry
+    const name = definition.name?.trim()
+    if (!name || /\s/.test(name)) throw new Error(`An OAuth scope name must be a single word, got "${definition.name}".`)
+    merged.set(name, { ...merged.get(name), ...definition, name })
+  }
+  return [...merged.values()]
+}
+
+/** The consent screen's groups: this server's own scopes (no `service`) first, then one group per service in order. */
+export function groupScopesByService(scopes: readonly OAuthScopeDefinition[]): OAuthScopeGroup[] {
+  const groups = new Map<string | null, OAuthScopeDefinition[]>([[null, []]])
+  for (const scope of scopes) {
+    const service = scope.service || null
+    groups.set(service, [...(groups.get(service) ?? []), scope])
+  }
+  return [...groups].filter(([, list]) => list.length).map(([service, list]) => ({ service, scopes: list }))
 }
 
 /** HTTPS is required, except for `localhost` / loopback development hosts. */

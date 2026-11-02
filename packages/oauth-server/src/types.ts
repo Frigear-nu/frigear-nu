@@ -12,6 +12,16 @@ export type OAuthScopeDefinition = {
   description?: string
   /** Iconify name, e.g. `i-lucide-receipt`. */
   icon?: string
+  /**
+   * The service the scope belongs to, e.g. `Vouchers` for `vouchers:read`. The consent screen groups scopes by it;
+   * scopes without one belong to this server (the account itself).
+   */
+  service?: string
+  /**
+   * Only staff may be granted it: the host decides who is staff through the `oauth:scope:staff` hook (denied by
+   * default). Anyone else gets a token without the scope.
+   */
+  staffOnly?: boolean
 }
 
 export type ModuleOptions = {
@@ -22,8 +32,17 @@ export type ModuleOptions = {
   issuer?: string
   /** `kid` of the signing key (published in the JWKS). Defaults to `key-1`; change it when rotating keys. */
   keyId?: string
-  /** Access and ID token lifetime in seconds. Defaults to `3600`. */
+  /**
+   * Access and ID token lifetime in seconds. Defaults to `900` (15 minutes). Keep it short (5 to 15 minutes) when
+   * access tokens are accepted by other services (`accessTokenAudience`): they cannot be revoked, only refreshed.
+   */
   accessTokenTtl?: number
+  /**
+   * The `aud` of every access token, e.g. `frigear-services`: the services that accept tokens of this server (resource
+   * servers such as `@frigear-nu/frigear-resource`) check it. Defaults to the application's `client_id`.
+   * `NUXT_OAUTH_SERVER_ACCESS_TOKEN_AUDIENCE` takes a comma separated list.
+   */
+  accessTokenAudience?: string | string[]
   /** Refresh token lifetime in seconds. Defaults to 30 days. */
   refreshTokenTtl?: number
   /** Authorization code lifetime in seconds. Defaults to `600`. */
@@ -31,9 +50,11 @@ export type ModuleOptions = {
   /** Path appended to an application's `websiteUrl` to form its redirect URI. Defaults to `/auth/frigear`. */
   callbackPath?: string
   /**
-   * Extra scopes advertised and accepted next to `openid profile email`. Enrich their claims with `oauth:claims`.
-   * Give a scope a `label`, `description` and `icon` to show it nicely on the consent screen (a plain string shows
-   * the description it was registered with through `addAuthScope`, or its name).
+   * The scope registry: extra scopes advertised and accepted next to `openid profile email`, typically the scopes of the
+   * services that accept this server's access tokens (`vouchers:read`). Modules add theirs with `addOAuthScope`.
+   * Give a scope a `label`, `description`, `icon` and `service` to show it nicely on the consent screen (a plain string
+   * shows the description it was registered with through `addAuthScope`, or its name), and `staffOnly` to keep it
+   * from everyone the `oauth:scope:staff` hook does not call staff. Enrich their claims with `oauth:claims`.
    */
   scopes?: Array<string | OAuthScopeDefinition>
   /**
@@ -75,11 +96,13 @@ export type OAuthServerRuntimeConfig = {
   issuer?: string
   keyId: string
   accessTokenTtl: number
+  /** The shared `aud` of access tokens; empty = the application's `client_id`. */
+  accessTokenAudience: string[] | string
   refreshTokenTtl: number
   codeTtl: number
   callbackPath: string
   scopes: string[]
-  /** Consent screen details of the configured scopes that have any. */
+  /** The scope registry: every configured and registered (`addOAuthScope`) scope with its details. */
   scopeDetails: OAuthScopeDefinition[]
   /** Allowed CORS origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS` takes a comma separated list). */
   corsOrigins: string[] | string
@@ -149,6 +172,15 @@ export type TokenType = 'id_token' | 'access_token' | 'userinfo'
 export type AuthorizeContext = {
   event: H3Event
   userId: number
+  allowed: boolean
+}
+
+/** `oauth:scope:staff`: may `userId` be granted the staff-only `scope`? Set `allowed = true` for staff. */
+export type StaffScopeContext = {
+  event: H3Event
+  userId: number
+  /** The staff-only scope being granted. */
+  scope: string
   allowed: boolean
 }
 
@@ -224,5 +256,14 @@ export type ConsentDto = {
   scope: string[]
   /** The requested scopes with whatever the server knows to present them (configured details, registered descriptions). */
   scopes?: OAuthScopeDefinition[]
+  /** `scopes` grouped by `service`, this server's own scopes (`service: null`) first. */
+  groups?: OAuthScopeGroup[]
   user: { name: string, email: string, avatar: string | null }
+}
+
+/** The scopes of one service on the consent screen. */
+export type OAuthScopeGroup = {
+  /** `null` for this server's own scopes (the account). */
+  service: string | null
+  scopes: OAuthScopeDefinition[]
 }

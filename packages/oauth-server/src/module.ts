@@ -5,6 +5,7 @@ import {
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  useLogger,
 } from '@nuxt/kit'
 import {
   addModuleRoutes,
@@ -22,19 +23,23 @@ import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { oidc } from './runtime/utils/api'
+import { mergeScopeDefinitions, parseList } from './runtime/utils'
 import type {
   ApplicationAccessContext,
   AuthorizeContext,
   ClaimsContext,
   ModuleOptions,
   OAuthServerRuntimeConfig,
+  OAuthScopeDefinition,
   PublicModuleOptions,
+  StaffScopeContext,
   TokenIssuedContext,
   TokenRevokedContext,
   UserRolesContext,
 } from './types'
 
 export type * from './types'
+export { addOAuthScope } from './runtime/utils/build'
 
 declare module '@nuxt/schema' {
   interface NuxtConfig {
@@ -54,6 +59,8 @@ declare module 'nitropack' {
   interface NitroRuntimeHooks {
     /** Admin gate (manage applications): set `ctx.allowed = true` to let the user in. Denied by default. */
     'oauth:authorize': (ctx: AuthorizeContext) => void | Promise<void>
+    /** Staff gate of `staffOnly` scopes: set `ctx.allowed = true` to grant `ctx.scope` to `ctx.userId`. Denied by default. */
+    'oauth:scope:staff': (ctx: StaffScopeContext) => void | Promise<void>
     /** Push the user's roles onto `ctx.roles`. Without a listener nobody has a role. */
     'oauth:user:roles': (ctx: UserRolesContext) => void | Promise<void>
     /** Extra veto after the role check: set `ctx.allowed = false` (and `ctx.reason`) to deny. */
@@ -73,7 +80,7 @@ export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'oauthServer' },
   defaults: {
     keyId: 'key-1',
-    accessTokenTtl: 3600,
+    accessTokenTtl: 900,
     refreshTokenTtl: 60 * 60 * 24 * 30,
     codeTtl: 600,
     callbackPath: '/auth/frigear',
@@ -117,7 +124,14 @@ export default defineNuxtModule<ModuleOptions>({
     const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
-    const scopes = (options.scopes ?? []).map(scope => typeof scope === 'string' ? { name: scope } : scope)
+    const accessTokenTtl = options.accessTokenTtl ?? 900
+    if (!Number.isSafeInteger(accessTokenTtl) || accessTokenTtl <= 0) {
+      throw new Error(`[${MODULE_NAME}] accessTokenTtl must be a positive number of seconds, got "${accessTokenTtl}".`)
+    }
+    const accessTokenAudience = parseList(typeof options.accessTokenAudience === 'string' ? [options.accessTokenAudience] : options.accessTokenAudience)
+    if (accessTokenAudience.length && accessTokenTtl > 900) {
+      useLogger(MODULE_NAME).warn(`Access tokens for "${accessTokenAudience.join(', ')}" live ${accessTokenTtl}s; keep them at 5 to 15 minutes, other services cannot revoke them.`)
+    }
 
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
@@ -137,12 +151,14 @@ export default defineNuxtModule<ModuleOptions>({
       ...existing,
       issuer: options.issuer,
       keyId: options.keyId ?? 'key-1',
-      accessTokenTtl: options.accessTokenTtl ?? 3600,
+      accessTokenTtl,
+      accessTokenAudience,
       refreshTokenTtl: options.refreshTokenTtl ?? 60 * 60 * 24 * 30,
       codeTtl: options.codeTtl ?? 600,
       callbackPath: options.callbackPath ?? '/auth/frigear',
-      scopes: scopes.map(scope => scope.name),
-      scopeDetails: scopes.filter(scope => scope.label || scope.description || scope.icon),
+      // Filled in once every module had the chance to `addOAuthScope` (below).
+      scopes: [],
+      scopeDetails: [],
       corsOrigins,
       authorizePath,
       signInPath: settings.signInPath,
@@ -154,6 +170,15 @@ export default defineNuxtModule<ModuleOptions>({
         applications: applicationsPath,
       },
     }
+
+    // The scope registry: whatever modules add, then the host's `scopes`, which override the details modules gave.
+    nuxt.hook('modules:done', async () => {
+      const registered: OAuthScopeDefinition[] = []
+      await nuxt.callHook('oauth-server:scopes', registered)
+      const scopes = mergeScopeDefinitions([...registered, ...(options.scopes ?? [])])
+      nuxt.options.runtimeConfig.oauthServer.scopes = scopes.map(scope => scope.name)
+      nuxt.options.runtimeConfig.oauthServer.scopeDetails = scopes
+    })
 
     // --- Database -------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {

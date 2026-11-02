@@ -1,6 +1,7 @@
 import { getQuery } from 'h3'
 import type { ConsentDto } from '../../../../types'
 import { parseAuthorizeRequest } from '../../utils/oauth-authorize'
+import { groupScopesByService } from '../../../utils'
 
 // Data for the consent page: which application asks for which scopes. Re-validates the whole request.
 export default defineEventHandler(async (event): Promise<ConsentDto> => {
@@ -12,6 +13,7 @@ export default defineEventHandler(async (event): Promise<ConsentDto> => {
   await assertApplicationAccess(event, user, application)
   // Scopes the user may not hold are left out, as they are of the code the approval issues.
   const scope = await filterGrantableScopes(event, user, requested)
+  const scopes = getOAuthScopeDetails(scope)
 
   return {
     application: {
@@ -22,7 +24,9 @@ export default defineEventHandler(async (event): Promise<ConsentDto> => {
       websiteUrl: application.websiteUrl,
     },
     scope,
-    scopes: getOAuthScopeDetails(scope),
+    scopes,
+    // One consent for every service the application asks for: its scopes grouped by the service they belong to.
+    groups: groupScopesByService(scopes),
     user: { name: user.name, email: user.email, avatar: user.avatar },
   }
 })

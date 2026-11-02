@@ -125,7 +125,8 @@
         "openid": "Know who you are when you sign in",
         "profile": "See your public profile",
         "email": "See the email address of your account"
-      }
+      },
+      "accountGroup": "Your account"
     }
   }
 }

@@ -125,7 +125,8 @@
         "openid": "Vide hvem du er, når du logger ind",
         "profile": "Se din offentlige profil",
         "email": "Se e-mailadressen på din konto"
-      }
+      },
+      "accountGroup": "Din konto"
     }
   }
 }

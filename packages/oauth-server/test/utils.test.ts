@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  groupScopesByService,
   isNativeRedirectUri,
+  mergeScopeDefinitions,
   matchesAllowedRoles,
   normalizeWebsiteUrl,
+  parseList,
   parseScope,
   resolveScope,
   validateRedirectUri,
@@ -32,6 +35,46 @@ describe('scopes', () => {
     expect(resolveScope(undefined, supported)).toEqual(['openid', 'profile', 'email'])
     expect(resolveScope('openid groups nope', supported)).toEqual(['openid', 'groups'])
     expect(resolveScope('nope', supported)).toEqual([])
+  })
+})
+
+describe('scope registry', () => {
+  it('merges definitions by name, later details winning, in order of first appearance', () => {
+    expect(mergeScopeDefinitions([
+      { name: 'shop:order', description: 'From the module', service: 'Shop', icon: 'i-lucide-cart' },
+      'groups',
+      { name: 'shop:order', description: 'From the host' },
+      { name: ' inventory:read ', service: 'Inventory', staffOnly: true },
+    ])).toEqual([
+      { name: 'shop:order', description: 'From the host', service: 'Shop', icon: 'i-lucide-cart' },
+      { name: 'groups' },
+      { name: 'inventory:read', service: 'Inventory', staffOnly: true },
+    ])
+  })
+
+  it('refuses names that are not a single scope token', () => {
+    expect(() => mergeScopeDefinitions(['vouchers:read vouchers:write'])).toThrow(/single word/)
+    expect(() => mergeScopeDefinitions([{ name: ' ' }])).toThrow(/single word/)
+  })
+
+  it('groups by service, the server\'s own scopes first', () => {
+    expect(groupScopesByService([
+      { name: 'vouchers:read', service: 'Vouchers' },
+      { name: 'openid' },
+      { name: 'shop:order', service: 'Shop' },
+      { name: 'vouchers:write', service: 'Vouchers' },
+    ])).toEqual([
+      { service: null, scopes: [{ name: 'openid' }] },
+      { service: 'Vouchers', scopes: [{ name: 'vouchers:read', service: 'Vouchers' }, { name: 'vouchers:write', service: 'Vouchers' }] },
+      { service: 'Shop', scopes: [{ name: 'shop:order', service: 'Shop' }] },
+    ])
+    expect(groupScopesByService([{ name: 'shop:order', service: 'Shop' }])).toEqual([{ service: 'Shop', scopes: [{ name: 'shop:order', service: 'Shop' }] }])
+  })
+
+  it('reads lists from config and env', () => {
+    expect(parseList(' a, b ,,c')).toEqual(['a', 'b', 'c'])
+    expect(parseList(['frigear-services', ' '])).toEqual(['frigear-services'])
+    expect(parseList(undefined)).toEqual([])
   })
 })
 

@@ -44,16 +44,29 @@ export async function validateAuthorizeRequest(request: AuthorizeRequest): Promi
   return { request, application, scope }
 }
 
+// The host's staff gate for `staffOnly` scopes; the scope is merged into the hook context.
+const staffScopeGate = definePolicyGate<{ scope: string }>('oauth:scope:staff')
+
 /**
  * The scopes of `scope` the user may be granted. An API scope a module registered with `@frigear-nu/auth` is kept
  * only when the user may hold it (its `roles`, the `auth:scope-available` hook: e.g. `users:read` is staff only);
- * OIDC and host-configured scopes pass. A plain user asking for a staff scope gets a token without it.
+ * a `staffOnly` scope of the registry only when the `oauth:scope:staff` hook allows the user. OIDC and other
+ * registry scopes pass. A plain user asking for a staff scope gets a token without it.
  */
 export async function filterGrantableScopes(event: H3Event, user: OAuthUser, scope: string[]): Promise<string[]> {
   const registered = new Set(apiScopes.map(definition => definition.name))
-  if (!scope.some(name => registered.has(name))) return scope
-  const available = new Set((await availableScopes(event, user as OAuthUser & { role?: string })).map(definition => definition.name))
-  return scope.filter(name => !registered.has(name) || available.has(name))
+  const staffOnly = new Set(getOAuthScopeRegistry().filter(definition => definition.staffOnly).map(definition => definition.name))
+  const available = scope.some(name => registered.has(name))
+    ? new Set((await availableScopes(event, user as OAuthUser & { role?: string })).map(definition => definition.name))
+    : new Set<string>()
+
+  const granted: string[] = []
+  for (const name of scope) {
+    if (registered.has(name) && !available.has(name)) continue
+    if (staffOnly.has(name) && !(await staffScopeGate.isAllowed(event, user.id, { scope: name }))) continue
+    granted.push(name)
+  }
+  return granted
 }
 
 /** Throws 403 unless the user may use the application (role check, active, `oauth:application:access`). */
