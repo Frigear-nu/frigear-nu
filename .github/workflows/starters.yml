@@ -60,6 +60,7 @@ jobs:
         working-directory: ${{ runner.temp }}/starter
         run: |
           git init -q && git add -A apps/web/server/db/migrations
+          git -c user.name=ci -c user.email=ci@localhost commit -qm baseline
           pnpm db:generate
           if [ -n "$(git status --porcelain apps/web/server/db/migrations)" ]; then
             git status --porcelain apps/web/server/db/migrations
