@@ -59,7 +59,7 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev:playground": "nuxt dev playground",
@@ -70,13 +70,13 @@
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground"
   },
   "dependencies": {
-    "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/module-kit": "workspace:^",
     "@nuxt/kit": "catalog:",
     "@vueuse/core": "^13.5.0",
     "defu": "^6.1.4"
   },
   "devDependencies": {
-    "@frigear-nu/eslint-config": "workspace:*",
+    "@frigear-nu/eslint-config": "workspace:^",
     "@nuxt/module-builder": "catalog:",
     "@nuxt/schema": "catalog:",
     "@nuxt/test-utils": "catalog:",

@@ -20,7 +20,7 @@
     "giget": "^3.3.1"
   },
   "devDependencies": {
-    "@frigear-nu/eslint-config": "workspace:*",
+    "@frigear-nu/eslint-config": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "jiti": "^2.7.0"

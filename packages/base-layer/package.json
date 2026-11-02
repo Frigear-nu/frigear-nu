@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@comark/nuxt": "0.6.2",
-    "@frigear-nu/menu": "workspace:*",
+    "@frigear-nu/menu": "workspace:^",
     "@iconify-json/lucide": "^1.2.127",
     "@iconify-json/simple-icons": "^1.2.94",
     "@nuxt/content": "catalog:",
