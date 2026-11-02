@@ -33,7 +33,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          package_json_file: ${{ runner.temp }}/starter/package.json
+          package_json_file: .starters/workspace/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -60,6 +60,7 @@ jobs:
         working-directory: ${{ runner.temp }}/starter
         run: |
           git init -q && git add -A apps/web/server/db/migrations
+          git -c user.name=ci -c user.email=ci@localhost commit -qm baseline
           pnpm db:generate
           if [ -n "$(git status --porcelain apps/web/server/db/migrations)" ]; then
             git status --porcelain apps/web/server/db/migrations

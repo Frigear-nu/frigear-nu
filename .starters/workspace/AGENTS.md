@@ -26,6 +26,21 @@ pnpm --filter '<pkg-name>' <command>       # pkg-name = "name" field in its pack
 
 The current list of apps and packages is tracked in the root `README.md`; keep it up to date.
 
+## Frigear module docs
+
+The `@frigear-nu/*` modules are documented at https://docs.frigear.dev. Read a module's page before configuring or
+extending it. Every page is also served as Markdown at `https://docs.frigear.dev/raw/<path>.md`, which is easier to
+fetch than the HTML:
+
+- Module index: https://docs.frigear.dev/raw/modules.md
+- One module: `https://docs.frigear.dev/raw/modules/<module>.md` (for example
+  https://docs.frigear.dev/raw/modules/users.md)
+- Quick start: https://docs.frigear.dev/raw/getting-started/quick-start.md
+- UX patterns: https://docs.frigear.dev/raw/getting-started/ux-patterns.md
+
+The docs describe the latest releases; check the version installed in `apps/web/package.json` if something differs.
+The source of the docs and modules is https://github.com/Frigear-nu/frigear-nu (`apps/docs/content`, `packages/*`).
+
 ---
 
 ## Setup
