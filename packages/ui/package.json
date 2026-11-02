@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/ui",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared UI components and composables for Frigear Nuxt applications, built on Nuxt UI.",
   "license": "MIT",
   "homepage": "https://docs.frigear.dev/modules/ui",
