@@ -8,6 +8,8 @@ export type FrigearSsoConfig = {
   forceId: boolean
   /** Apply the `role` claim of frigear.nu to the local user at every login. */
   syncRole: boolean
+  /** Keep the frigear.nu tokens on the sealed session after login (`getFrigearAccessToken`). */
+  keepTokens: boolean
   url: string
   clientId: string
   clientSecret: string
@@ -33,6 +35,7 @@ export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
     enabled: config.previewDeployment === true || !!(sso?.clientId && sso?.clientSecret),
     forceId: config.frigear?.forceId === true,
     syncRole: config.frigear?.syncRole !== false,
+    keepTokens: config.frigear?.keepTokens === true,
     url,
     clientId,
     clientSecret,
@@ -40,8 +43,8 @@ export function resolveFrigearSso(event: H3Event): FrigearSsoConfig {
   }
 }
 
-const loadOpenIdConfiguration = cachedFunction(async (url: string) => {
-  return $fetch<{ jwks_uri?: string }>(url)
+export const loadFrigearOpenIdConfiguration = cachedFunction(async (url: string) => {
+  return $fetch<{ jwks_uri?: string, token_endpoint?: string }>(url)
 }, { name: 'frigear-openid-configuration', getKey: url => url, maxAge: 3600 })
 
 const loadJwks = cachedFunction(async (url: string) => {
@@ -53,7 +56,7 @@ const loadJwks = cachedFunction(async (url: string) => {
  * and that the token was issued for this client. Throws a 401 when it does not verify.
  */
 export async function verifyFrigearIdToken(sso: FrigearSsoConfig, idToken: string): Promise<JWTPayload> {
-  const metadata = await loadOpenIdConfiguration(sso.openidConfig)
+  const metadata = await loadFrigearOpenIdConfiguration(sso.openidConfig)
   const jwks = await loadJwks(metadata?.jwks_uri || `${sso.url}/.well-known/jwks.json`)
   if (!jwks?.keys?.length) {
     throw createError({ statusCode: 502, statusMessage: 'Could not load the signing keys of frigear.nu.' })

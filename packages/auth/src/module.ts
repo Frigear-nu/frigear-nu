@@ -74,6 +74,8 @@ declare module 'nuxt/schema' {
       forceId?: boolean
       // Apply the `role` claim of frigear.nu to the local user at every login (an admin there is an admin here). Defaults to true.
       syncRole?: boolean
+      // Keep the frigear.nu access and refresh tokens on the sealed session (`getFrigearAccessToken`). Defaults to false.
+      keepTokens?: boolean
     }
   }
 
@@ -261,6 +263,12 @@ declare module '#auth/session-mapper' {
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
   export default mapSessionUser
 }
+declare module '#auth-utils' {
+  interface SecureSessionData {
+    /** The frigear.nu tokens, kept when \`frigear.keepTokens\` is on. Read them with \`getFrigearAccessToken\`. */
+    frigear?: import('${resolver.resolve('./runtime/server/utils/frigear-tokens')}').FrigearSessionTokens
+  }
+}
 declare module '#auth/oauth' {
   type OAuthHandlerOptions = {
     config?: Record<string, unknown>
@@ -415,6 +423,7 @@ export {}
     const runtimeConfig = nuxt.options.runtimeConfig
     runtimeConfig.frigear = {
       forceId: false,
+      keepTokens: false,
       ...runtimeConfig.frigear,
       sso: { url: '', clientId: '', clientSecret: '', ...runtimeConfig.frigear?.sso },
     }

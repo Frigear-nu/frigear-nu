@@ -17,7 +17,7 @@ export default eventHandler(async (event) => {
       scope: ['openid', 'profile', 'email'],
     },
     async onSuccess(event, { user, tokens }) {
-      return handleFrigearLogin(event, sso, user as Record<string, unknown>, tokens.id_token as string | undefined)
+      return handleFrigearLogin(event, sso, user as Record<string, unknown>, tokens)
     },
     async onError(event) {
       return sendRedirect(event, '/?error=frigear')
