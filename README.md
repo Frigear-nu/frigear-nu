@@ -7,6 +7,32 @@ A Rewrite of the previous nuxt [simple content site](https://github.com/hareland
 
 The purpose of this repo is to provide a base for building a modular nuxt application with shared modules and components that can be used across multiple applications within the frigear ecosystem.
 
+## Quick start: a new app on the modules
+
+The modules are **Nuxt 4** modules (Nuxt `^4.6`, `app/` directory structure); Nuxt 3 is not supported.
+[`.starters/workspace`](./.starters/workspace) is a ready pnpm workspace with one Nuxt 4 app (`apps/web`) that has
+register/login, `/account` pages and an `/admin` user admin. Copy it with [giget](https://github.com/unjs/giget):
+
+```bash
+pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-project
+cd my-project
+git init
+corepack enable
+pnpm install
+pnpm prepare:env   # then set NUXT_SESSION_PASSWORD and NUXT_ACL_ADMINS (your email) in apps/web/.env
+pnpm dev
+```
+
+Open http://localhost:3000, create an account with the email in `NUXT_ACL_ADMINS`, then visit `/account` and `/admin`.
+The full walkthrough, including how to add more modules, is the
+[Quick start guide](./apps/docs/content/1.getting-started/3.quick-start.md) in the docs.
+
+To work on this repository itself, see [Local development](./apps/docs/content/1.getting-started/4.local-development.md).
+
+## Starters
+
+- [.starters/workspace](./.starters/workspace) - pnpm monorepo + Nuxt 4 app wired to users, auth, authorization, account and admin. Not part of this workspace: it uses the published versions.
+
 
 ## Apps
 
