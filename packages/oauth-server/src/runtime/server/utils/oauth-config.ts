@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import type { OAuthScopeDefinition } from '../../../types'
 import { scopes as apiScopes } from '#auth/scopes'
+import { parseList } from '../../utils'
 
 export function useOAuthConfig() {
   return useRuntimeConfig().oauthServer
@@ -8,9 +9,18 @@ export function useOAuthConfig() {
 
 /** Origins allowed to call the token, revocation, userinfo and discovery endpoints from a browser. Never `*`. */
 export function getOAuthCorsOrigins(): string[] {
-  const configured = useOAuthConfig().corsOrigins
-  const list = Array.isArray(configured) ? configured : String(configured ?? '').split(',')
-  return list.map(origin => origin.trim()).filter(origin => origin && origin !== '*')
+  return parseList(useOAuthConfig().corsOrigins).filter(origin => origin !== '*')
+}
+
+/** The `aud` of access tokens: the configured shared audience, or `undefined` for the application's `client_id`. */
+export function getAccessTokenAudience(): string | string[] | undefined {
+  const audience = parseList(useOAuthConfig().accessTokenAudience)
+  return audience.length > 1 ? audience : audience[0]
+}
+
+/** The scope registry: every scope the host configured or a module added with `addOAuthScope`. */
+export function getOAuthScopeRegistry(): OAuthScopeDefinition[] {
+  return useOAuthConfig().scopeDetails ?? []
 }
 
 /** The configured issuer, or the origin the request came in on (honouring `x-forwarded-*`). */
@@ -33,13 +43,14 @@ export function getSupportedScopes(): string[] {
  * was registered with through `@frigear-nu/auth` (as its label). Scopes nobody described are just their name.
  */
 export function getOAuthScopeDetails(scope: string[]): OAuthScopeDefinition[] {
-  const configured = new Map((useOAuthConfig().scopeDetails ?? []).map(details => [details.name, details]))
+  const configured = new Map(getOAuthScopeRegistry().map(details => [details.name, details]))
   const registered = new Map(apiScopes.map(definition => [definition.name, definition.description]))
   return scope.map((name) => {
-    const details = configured.get(name)
-    if (details) return { ...details, name }
+    // The consent screen needs no staff flag: a scope the user may not hold never reaches it.
+    const { staffOnly: _staffOnly, ...details } = configured.get(name) ?? { name }
     const description = registered.get(name)
-    return description ? { name, label: description } : { name }
+    if (!details.label && description) details.label = description
+    return { ...details, name }
   })
 }
 

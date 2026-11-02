@@ -80,7 +80,12 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const config = await $fetch<Json>(oidc.configuration)
       expect(config.issuer).toBe('https://id.example.test')
       expect(config.token_endpoint).toBe('https://id.example.test/oauth/token')
-      expect(config.scopes_supported).toEqual(['openid', 'profile', 'email', 'groups', 'users:read', 'oauth:read'])
+      expect(config.scopes_supported).toEqual([
+        'openid', 'profile', 'email',
+        // The scope registry: what modules added (`addOAuthScope`), then the host's `scopes`.
+        'inventory:write', 'shop:order', 'groups', 'vouchers:read', 'vouchers:write', 'inventory:read',
+        'users:read', 'oauth:read',
+      ])
       expect(config.code_challenge_methods_supported).toEqual(['S256'])
       expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_basic', 'client_secret_post', 'none'])
 
@@ -339,7 +344,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(response.status, await response.clone().text()).toBe(200)
       expect(response.headers.get('cache-control')).toBe('no-store')
       const tokens = await response.json() as Json
-      expect(tokens).toMatchObject({ token_type: 'Bearer', expires_in: 3600, scope: 'openid profile email groups' })
+      expect(tokens).toMatchObject({ token_type: 'Bearer', expires_in: 600, scope: 'openid profile email groups' })
 
       // The code is single use.
       const replay = await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })
@@ -672,6 +677,110 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const { challenge } = pkce()
       const response = await json(staff.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(authorizeQuery(app.clientId, challenge, { redirect_uri: NATIVE })), approved: true })
       expect(response.status).toBe(400)
+    })
+  })
+
+  describe('one mobile app for every service (scope registry, shared audience)', () => {
+    const MOBILE = 'nu.frigear.app:/callback'
+    const SERVICES = 'openid profile vouchers:read vouchers:write shop:order inventory:read inventory:write'
+    const mobileApp = () => createApp({ clientType: 'public', allowedRoles: [], redirectUris: [MOBILE] })
+
+    /** The mobile app's sign-in: consent, then the code exchanged with PKCE and its `client_id` only. */
+    async function signIn(app: Json, session: Session, scope = SERVICES) {
+      const { verifier, challenge } = pkce()
+      const query = authorizeQuery(app.clientId, challenge, { redirect_uri: MOBILE, scope })
+      const consent = await ok(await json(session.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
+      const decision = await ok(await json(session.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(query), approved: true }))
+      const code = new URL(decision.redirectUrl).searchParams.get('code')!
+      const tokens = await ok(await form(oidc.token, { client_id: app.clientId, grant_type: 'authorization_code', code, redirect_uri: MOBILE, code_verifier: verifier }))
+      return { consent, tokens }
+    }
+
+    it('shows one consent with the scopes grouped by service, staff-only scopes for staff only', async () => {
+      const app = await mobileApp()
+      staff ??= await user('Staff', 'staff.test')
+      const member = await user('Member')
+
+      const forMember = (await signIn(app, member)).consent
+      expect(forMember.scope).toEqual(['openid', 'profile', 'vouchers:read', 'vouchers:write', 'shop:order'])
+      expect(forMember.groups).toEqual([
+        { service: null, scopes: [{ name: 'openid' }, { name: 'profile' }] },
+        { service: 'Vouchers', scopes: [
+          { name: 'vouchers:read', description: 'See your vouchers', service: 'Vouchers' },
+          { name: 'vouchers:write', description: 'Redeem your vouchers', service: 'Vouchers' },
+        ] },
+        // The host's description wins over the module's.
+        { service: 'Shop', scopes: [{ name: 'shop:order', description: 'Place orders in the shop', service: 'Shop' }] },
+      ])
+
+      const forStaff = (await signIn(app, staff)).consent
+      expect(forStaff.scope).toEqual(SERVICES.split(' '))
+      expect(forStaff.groups.map((group: Json) => group.service)).toEqual([null, 'Vouchers', 'Shop', 'Inventory'])
+      // Registered by a module with `addOAuthScope`; the staff flag stays on the server.
+      expect(forStaff.groups[3].scopes).toEqual([
+        { name: 'inventory:read', description: 'See the inventory', service: 'Inventory' },
+        { name: 'inventory:write', description: 'Change the inventory', service: 'Inventory' },
+      ])
+    })
+
+    it('refuses staff-only scopes to everyone else at grant time, and again at every refresh', async () => {
+      const app = await mobileApp()
+      const member = await user('Member')
+      const { tokens } = await signIn(app, member)
+      expect(tokens.scope).toBe('openid profile vouchers:read vouchers:write shop:order')
+      expect(decodeJwt(tokens.access_token).scope).toBe(tokens.scope)
+
+      // Asking for nothing but a staff scope leaves only what the user may hold.
+      const only = await signIn(app, member, 'openid inventory:read')
+      expect(only.tokens.scope).toBe('openid')
+
+      const refreshed = await ok(await form(oidc.token, { client_id: app.clientId, grant_type: 'refresh_token', refresh_token: tokens.refresh_token }))
+      expect(refreshed.scope).toBe(tokens.scope)
+    })
+
+    it('issues short-lived at+jwt access tokens for the shared audience, ID tokens for the app', async () => {
+      const app = await mobileApp()
+      staff ??= await user('Staff', 'staff.test')
+      const { tokens } = await signIn(app, staff)
+      expect(tokens).toMatchObject({ token_type: 'Bearer', expires_in: 600, scope: SERVICES })
+
+      const jwks = createLocalJWKSet(await $fetch<Json>(oidc.jwks) as never)
+      const { payload, protectedHeader } = await jwtVerify(tokens.access_token, jwks, {
+        issuer: 'https://id.example.test',
+        audience: 'frigear-services',
+        typ: 'at+jwt',
+      })
+      expect(protectedHeader).toMatchObject({ alg: 'RS256', typ: 'at+jwt', kid: 'key-1' })
+      // RFC 9068 claims, and still no identity claims.
+      expect(payload).toMatchObject({ sub: String(staff.id), aud: 'frigear-services', client_id: app.clientId, scope: SERVICES })
+      expect(payload.jti).toBeTypeOf('string')
+      expect(payload.exp! - payload.iat!).toBe(600)
+      expect(payload.name).toBeUndefined()
+
+      // The ID token is for the app itself.
+      const id = await jwtVerify(tokens.id_token, jwks, { issuer: 'https://id.example.test', audience: app.clientId })
+      expect(id.payload.exp! - id.payload.iat!).toBe(600)
+
+      // This server accepts its shared-audience tokens too (userinfo, its own API).
+      expect(await $fetch<Json>(oidc.userinfo, { headers: { authorization: `Bearer ${tokens.access_token}` } })).toMatchObject({ sub: String(staff.id) })
+    })
+
+    it('rotates refresh tokens: every refresh a new pair, a replay ends the session', async () => {
+      const app = await mobileApp()
+      const member = await user('Member')
+      const { tokens } = await signIn(app, member)
+      const refresh = (token: string) => form(oidc.token, { client_id: app.clientId, grant_type: 'refresh_token', refresh_token: token })
+
+      const second = await ok(await refresh(tokens.refresh_token))
+      expect(second.refresh_token).not.toBe(tokens.refresh_token)
+      expect(second.access_token).not.toBe(tokens.access_token)
+      expect(decodeJwt(second.access_token)).toMatchObject({ aud: 'frigear-services', client_id: app.clientId })
+      const third = await ok(await refresh(second.refresh_token))
+
+      const replay = await refresh(tokens.refresh_token)
+      expect(replay.status).toBe(400)
+      expect(await replay.json()).toMatchObject({ error: 'invalid_grant' })
+      expect((await refresh(third.refresh_token)).status).toBe(400)
     })
   })
 

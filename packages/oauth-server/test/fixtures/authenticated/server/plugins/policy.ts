@@ -16,6 +16,12 @@ export default defineNitroPlugin((nitro) => {
     ctx.allowed = ctx.action === 'view' && !!user?.email.endsWith('@staff.test')
   })
 
+  // Staff-only registry scopes (`inventory:*`) go to staff only.
+  nitro.hooks.hook('oauth:scope:staff', async (ctx) => {
+    const user = await getOAuthUser(ctx.userId)
+    ctx.allowed = !!user?.email.endsWith('@staff.test')
+  })
+
   nitro.hooks.hook('oauth:user:roles', async (ctx) => {
     const user = await getOAuthUser(ctx.userId)
     if (user) ctx.roles.push(...rolesFor(user.email))

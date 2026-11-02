@@ -32,6 +32,7 @@ const iconIsImage = computed(() => /^(?:https?:)?\/\//.test(application.value?.i
 const initial = computed(() => application.value?.name.trim().charAt(0).toUpperCase() || '?')
 
 type ScopeItem = { name: string, label: string, description?: string, icon: string }
+type ScopeGroup = { key: string, title?: string, items: ScopeItem[] }
 
 const scopeItems = computed<ScopeItem[]>(() => {
   const known: Record<string, Omit<ScopeItem, 'name'>> = {
@@ -56,13 +57,27 @@ const scopeItems = computed<ScopeItem[]>(() => {
   return (consent.value?.scope ?? []).map((name) => {
     const scope = details.get(name)
     if (known[name] && !scope?.label) return { name, ...known[name] }
+    // A registry scope often only has a description: it is the best title there is.
     return {
       name,
-      label: scope?.label || name,
-      description: scope?.description,
+      label: scope?.label || scope?.description || name,
+      description: scope?.label ? scope.description : undefined,
       icon: scope?.icon || 'i-lucide-key-round',
     }
   })
+})
+
+// One consent for every service: the scopes grouped by the service they belong to, the account itself first. Without
+// any service (or from an older server) it is one list without headings.
+const scopeGroups = computed<ScopeGroup[]>(() => {
+  const items = new Map(scopeItems.value.map(item => [item.name, item]))
+  const groups = consent.value?.groups ?? []
+  if (!groups.some(group => group.service)) return [{ key: 'all', items: scopeItems.value }]
+  return groups.map(group => ({
+    key: group.service ?? '',
+    title: group.service ?? t('authorize.accountGroup', 'Your account'),
+    items: group.scopes.map(scope => items.get(scope.name)).filter((item): item is ScopeItem => !!item),
+  }))
 })
 
 const pending = ref<'approve' | 'deny' | 'switch' | null>(null)
@@ -228,31 +243,44 @@ async function switchAccount() {
           <p class="text-sm font-medium text-highlighted">
             {{ t('authorize.wants', '{name} wants to:', { name: application.name }) }}
           </p>
-          <ul class="flex flex-col divide-y divide-default overflow-hidden rounded-lg border border-default">
-            <li
-              v-for="scope in scopeItems"
-              :key="scope.name"
-              class="flex items-start gap-3 p-3"
+          <section
+            v-for="group in scopeGroups"
+            :key="group.key"
+            class="flex flex-col gap-2"
+            :aria-label="group.title"
+          >
+            <h2
+              v-if="group.title"
+              class="text-xs font-medium tracking-wide text-muted uppercase"
             >
-              <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-elevated text-muted">
-                <UIcon
-                  :name="scope.icon"
-                  class="size-4"
-                />
-              </div>
-              <div class="min-w-0 flex-1 pt-0.5">
-                <p class="text-sm font-medium break-words text-highlighted">
-                  {{ scope.label }}
-                </p>
-                <p
-                  v-if="scope.description"
-                  class="text-xs break-words text-muted"
-                >
-                  {{ scope.description }}
-                </p>
-              </div>
-            </li>
-          </ul>
+              {{ group.title }}
+            </h2>
+            <ul class="flex flex-col divide-y divide-default overflow-hidden rounded-lg border border-default">
+              <li
+                v-for="scope in group.items"
+                :key="scope.name"
+                class="flex items-start gap-3 p-3"
+              >
+                <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-elevated text-muted">
+                  <UIcon
+                    :name="scope.icon"
+                    class="size-4"
+                  />
+                </div>
+                <div class="min-w-0 flex-1 pt-0.5">
+                  <p class="text-sm font-medium break-words text-highlighted">
+                    {{ scope.label }}
+                  </p>
+                  <p
+                    v-if="scope.description"
+                    class="text-xs break-words text-muted"
+                  >
+                    {{ scope.description }}
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </section>
         </div>
 
         <!-- Decide -->

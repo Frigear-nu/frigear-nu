@@ -21,7 +21,8 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 - [@frigear-nu/cli](./packages/cli) - Private scaffolder (`pnpm cli module:create`) for new modules
 - [@frigear-nu/eslint-config](./packages/eslint-config)
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear
-- [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens
+- [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens, a scope registry for every service
+- [@frigear-nu/frigear-resource](./packages/frigear-resource) - Resource server for frigear.nu: accepts its `at+jwt` access tokens (JWKS, audience, scopes), provisions users and allows the mobile app's bearer CORS
 - [@frigear-nu/auth](./packages/auth) - Authentication: sign-in flows (password, magic link, OAuth, passkeys), user API tokens and one `requireAuth` for cookie sessions, tokens and OAuth access tokens, with scopes
 - [@frigear-nu/mcp](./packages/mcp) - Scoped, PII-safe MCP tools contributed by modules on top of `@nuxtjs/mcp-toolkit`
 - [@frigear-nu/users](./packages/users) - The user entity: users table, staff administration and self-service profile, email and password changes
