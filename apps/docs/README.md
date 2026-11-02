@@ -25,7 +25,7 @@ Pages are Markdown files grouped by topic under `content/`. Follow the numbered 
 used in the app so pages appear in the intended navigation order.
 
 1. Choose the relevant topic folder under `content/`, or create a new numbered folder for a new topic.
-2. Add a numbered Markdown file, for example `content/1.getting-started/4.adding-documentation.md`. Numbered names
+2. Add a numbered Markdown file, for example `content/1.getting-started/8.adding-documentation.md`. Numbered names
    control the order in navigation; the filename after the number becomes the page route.
 3. Add frontmatter with at least a `title` and `description`. Optional `navigation` metadata can set the page icon or
    display title:
@@ -61,4 +61,6 @@ For a new section, add a `.navigation.yml` file in its folder to set the section
 - **Code and reference.** Signatures, types and payloads go in fenced `ts` blocks. Hooks, routes, options and environment
   variables go in tables. Do not describe them in running prose.
 - **Accuracy.** Check defaults, routes and hooks against the source before documenting them.
+- **Nuxt 4.** Every module targets Nuxt 4. Write Quick setup and other examples as Nuxt 4 code (`app/` directory,
+  `defineNuxtConfig`), never Nuxt 3 or Nuxt 2 patterns.
 - **Links.** Link to pages by slug (`/modules/auth`), never by numbered file name.

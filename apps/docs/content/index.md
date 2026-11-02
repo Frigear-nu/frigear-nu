@@ -9,14 +9,14 @@ seo:
 Build on the Frigear Nuxt ecosystem
 
 #description
-Composable Nuxt modules for sign-in, users, payments, events and forms, a shared base layer, and the tooling to add your own. This is the developer documentation for everything in the `@frigear-nu` workspace.
+Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shared base layer, and the tooling to add your own. This is the developer documentation for everything in the `@frigear-nu` workspace.
 
 #links
   :::u-button
   ---
   color: neutral
   size: xl
-  to: /getting-started/introduction
+  to: /getting-started/quick-start
   trailing-icon: i-lucide-arrow-right
   ---
   Get started
@@ -39,6 +39,18 @@ Composable Nuxt modules for sign-in, users, payments, events and forms, a shared
 Start with what you want to do
 
 #features
+  :::u-page-feature
+  ---
+  icon: i-lucide-rocket
+  to: /getting-started/quick-start
+  ---
+  #title
+  Start a new app
+
+  #description
+  Copy the starter: a Nuxt 4 workspace with sign-in, account pages and a user admin, ready in minutes.
+  :::
+
   :::u-page-feature
   ---
   icon: i-lucide-terminal

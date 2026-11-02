@@ -1,0 +1,68 @@
+name: Starters
+
+# Builds .starters/workspace against the published @frigear-nu versions, the way `giget` users get it, and fails when
+# its committed migrations no longer match the modules' schemas (regenerate them, see AGENTS.md "Starters").
+on:
+  pull_request:
+    paths:
+      - '.starters/**'
+      - '.github/workflows/starters.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.starters/**'
+  schedule:
+    # Weekly, to catch module releases that change a schema.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    name: Workspace starter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Copy the starter out of this workspace
+        run: cp -R .starters/workspace "$RUNNER_TEMP/starter"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: ${{ runner.temp }}/starter/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ runner.temp }}/starter/.nvmrc
+
+      - name: Install
+        working-directory: ${{ runner.temp }}/starter
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Lint
+        working-directory: ${{ runner.temp }}/starter
+        run: pnpm lint
+
+      - name: Typecheck
+        working-directory: ${{ runner.temp }}/starter
+        run: pnpm typecheck
+
+      - name: Build
+        working-directory: ${{ runner.temp }}/starter
+        run: pnpm build
+
+      - name: Migrations are up to date
+        working-directory: ${{ runner.temp }}/starter
+        run: |
+          git init -q && git add -A apps/web/server/db/migrations
+          pnpm db:generate
+          if [ -n "$(git status --porcelain apps/web/server/db/migrations)" ]; then
+            git status --porcelain apps/web/server/db/migrations
+            echo "::error::.starters/workspace migrations are stale: regenerate them (see AGENTS.md, Starters)"
+            exit 1
+          fi
