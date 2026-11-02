@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/frigear-resource",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Accept frigear.nu access tokens in any Frigear service: at+jwt verification against the frigear.nu JWKS, scopes, user provisioning and bearer-only CORS for the mobile app.",
   "homepage": "https://docs.frigear.dev/modules/frigear-resource",
   "repository": {
