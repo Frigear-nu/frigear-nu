@@ -120,7 +120,7 @@
     "playground"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare && nuxt-module-build build",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare && nuxt-module-build build",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev": "npm run dev:prepare && nuxt dev playground",

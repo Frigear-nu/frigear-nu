@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { AdminApplicationDto } from '../../../types'
 import { oauthApplicationsApi } from '../composables/useOAuthApplications'
-import { computed, numericColumn, onMounted, useModuleT, useOAuthApplicationActions, useOAuthApplications, useRoute, useTableQuery, useTableSort, watch } from '#imports'
+import { computed, errorMessage, numericColumn, onMounted, tableUi, useModuleT, useOAuthApplicationActions, useOAuthApplications, useRoute, useTableQuery, useTableSort, watch } from '#imports'
 
 type Application = AdminApplicationDto
 

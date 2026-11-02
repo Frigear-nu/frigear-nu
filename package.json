@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@12.10.0",
   "scripts": {
+    "postinstall": "pnpm --filter \"./packages/*\" run --if-present dev:stub",
     "cli": "node ./packages/cli/bin/cli.mjs",
     "build": "turbo run build --concurrency=4",
     "test": "turbo run test --concurrency=4",

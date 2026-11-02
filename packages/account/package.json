@@ -42,7 +42,7 @@
     "playground"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev": "npm run dev:prepare && nuxt dev playground",
@@ -56,10 +56,10 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/module-kit": "workspace:*",
-    "@frigear-nu/auth": "workspace:*",
-    "@frigear-nu/ui": "workspace:*",
-    "@frigear-nu/users": "workspace:*",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
     "@vueuse/core": "^15.0.0",
@@ -68,9 +68,9 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
-    "@frigear-nu/authorization": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
-    "@frigear-nu/widget": "workspace:*",
+    "@frigear-nu/authorization": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
@@ -89,9 +89,9 @@
     }
   },
   "devDependencies": {
-    "@frigear-nu/authorization": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
-    "@frigear-nu/widget": "workspace:*",
+    "@frigear-nu/authorization": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",

@@ -72,7 +72,10 @@ pnpx giget@latest <source:gh/ssh++> <destination>
 ```
 
 After scaffolding: run `pnpm install` from the repo root, add the new app to the root `README.md`'s app list, and wire
-up any workspace-shared packages (`packages/**`) it needs as `workspace:*` dependencies.
+up any workspace-shared packages (`packages/**`) it needs as `workspace:*` dependencies. Packages under `packages/**`
+depend on each other with `workspace:^` instead, so the published ranges are carets, not exact versions, and never
+have a `postinstall` (it would be published and run in consumers): the stub step is their `dev:stub` script, run by the
+root `postinstall`.
 
 ### Starters (`.starters/**`)
 

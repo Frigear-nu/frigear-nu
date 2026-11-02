@@ -418,16 +418,16 @@ importers:
   packages/account:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -449,13 +449,13 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/authorization':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../authorization
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -503,16 +503,16 @@ importers:
   packages/admin:
     dependencies:
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -564,10 +564,10 @@ importers:
   packages/auth:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/notify':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../notify
       '@libsql/client':
         specifier: ^0.18.0
@@ -604,10 +604,10 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/email-templates':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../email-templates
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -652,13 +652,13 @@ importers:
   packages/authorization:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -716,7 +716,7 @@ importers:
         specifier: 0.6.2
         version: 0.6.2(@nuxt/schema@4.6.1)(confbox@0.2.4)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(nuxt@4.6.1(c7a23713153889962bcb9cce49a19853))(oxc-parser@0.153.0)(rolldown@1.2.11)(shiki@4.5.0)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vue@3.5.43(typescript@6.0.3))
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@iconify-json/lucide':
         specifier: ^1.2.127
@@ -820,7 +820,7 @@ importers:
         version: 1.3.0
     devDependencies:
       '@frigear-nu/eslint-config':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../eslint-config
       '@types/node':
         specifier: 'catalog:'
@@ -835,10 +835,10 @@ importers:
   packages/cookie-consent:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@libsql/client':
         specifier: ^0.18.0
@@ -860,10 +860,10 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -911,10 +911,10 @@ importers:
   packages/email-templates:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/notify':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../notify
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -975,31 +975,31 @@ importers:
   packages/events:
     dependencies:
       '@frigear-nu/admin':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../admin
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/payments':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../payments
       '@frigear-nu/stripe':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../stripe
       '@frigear-nu/subscriptions':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../subscriptions
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1033,10 +1033,10 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1084,25 +1084,25 @@ importers:
   packages/forms:
     dependencies:
       '@frigear-nu/admin':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../admin
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/notify':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../notify
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1127,7 +1127,7 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1175,13 +1175,13 @@ importers:
   packages/frigear-resource:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -1242,10 +1242,10 @@ importers:
   packages/mcp:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -1315,7 +1315,7 @@ importers:
   packages/menu:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -1437,7 +1437,7 @@ importers:
   packages/notify:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -1483,22 +1483,22 @@ importers:
   packages/oauth-server:
     dependencies:
       '@frigear-nu/admin':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../admin
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1523,7 +1523,7 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1571,22 +1571,22 @@ importers:
   packages/payments:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/stripe':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../stripe
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1614,7 +1614,7 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1662,13 +1662,13 @@ importers:
   packages/preferences:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1687,7 +1687,7 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/oauth-server':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../oauth-server
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1732,10 +1732,10 @@ importers:
   packages/stripe:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1805,25 +1805,25 @@ importers:
   packages/subscriptions:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/notify':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../notify
       '@frigear-nu/stripe':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../stripe
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@frigear-nu/users':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../users
       '@libsql/client':
         specifier: ^0.18.0
@@ -1854,13 +1854,13 @@ importers:
         version: 4.6.5
     devDependencies:
       '@frigear-nu/email-templates':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../email-templates
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -1908,7 +1908,7 @@ importers:
   packages/ui:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@nuxt/kit':
         specifier: 'catalog:'
@@ -1924,7 +1924,7 @@ importers:
         version: 3.5.43(typescript@6.0.3)
     devDependencies:
       '@frigear-nu/eslint-config':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../eslint-config
       '@nuxt/module-builder':
         specifier: 'catalog:'
@@ -1966,19 +1966,19 @@ importers:
   packages/users:
     dependencies:
       '@frigear-nu/auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../auth
       '@frigear-nu/mcp':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@frigear-nu/notify':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../notify
       '@frigear-nu/ui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ui
       '@libsql/client':
         specifier: ^0.18.0
@@ -2003,16 +2003,16 @@ importers:
         specifier: ^0.5.9
         version: 0.5.9
       '@frigear-nu/admin':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../admin
       '@frigear-nu/email-templates':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../email-templates
       '@frigear-nu/menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../menu
       '@frigear-nu/widget':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
@@ -2060,7 +2060,7 @@ importers:
   packages/widget:
     dependencies:
       '@frigear-nu/module-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../module-kit
       '@nuxt/kit':
         specifier: 'catalog:'

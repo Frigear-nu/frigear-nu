@@ -47,7 +47,7 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "lint": "eslint .",
@@ -57,9 +57,9 @@
     "test:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/auth": "workspace:*",
-    "@frigear-nu/module-kit": "workspace:*",
-    "@frigear-nu/users": "workspace:*",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/users": "workspace:^",
     "@nuxt/kit": "catalog:",
     "h3": "^1.15.11",
     "jose": "^6.1.0"

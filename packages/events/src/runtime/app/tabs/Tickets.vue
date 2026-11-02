@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { StaffEvent, StaffTicketType } from '../utils/admin-event'
 import type { MembershipOptionsDto } from '../../../types'
 import { eventsApi } from '../../utils/api'
-import { computed, emptyCell, h, numericColumn, resolveComponent, useCachedFetch, useEventCatalogActions, useEventsTranslate, useFormat, useModuleT } from '#imports'
+import { computed, emptyCell, h, numericColumn, resolveComponent, tableUi, useCachedFetch, useEventCatalogActions, useEventsTranslate, useFormat, useModuleT } from '#imports'
 
 defineOptions({ name: 'EventsAdminTicketsTab' })
 

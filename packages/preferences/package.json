@@ -64,7 +64,7 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
@@ -75,9 +75,9 @@
     "test:types": "vue-tsc --noEmit && cd test/fixtures/basic && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/auth": "workspace:*",
-    "@frigear-nu/module-kit": "workspace:*",
-    "@frigear-nu/users": "workspace:*",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
@@ -94,7 +94,7 @@
     }
   },
   "devDependencies": {
-    "@frigear-nu/oauth-server": "workspace:*",
+    "@frigear-nu/oauth-server": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",

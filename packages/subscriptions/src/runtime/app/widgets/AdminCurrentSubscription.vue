@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useModuleT } from '#imports'
+import { statusColor, useModuleT } from '#imports'
 
 defineOptions({ name: 'UsersAdminCurrentSubscription' })
 

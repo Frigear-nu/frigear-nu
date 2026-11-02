@@ -53,7 +53,7 @@
     "playground"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev": "npm run dev:prepare && nuxt dev playground",
@@ -68,7 +68,7 @@
   },
   "dependencies": {
     "@nuxt/kit": "catalog:",
-    "@frigear-nu/module-kit": "workspace:*",
+    "@frigear-nu/module-kit": "workspace:^",
     "zod": "^4.6.5"
   },
   "devDependencies": {

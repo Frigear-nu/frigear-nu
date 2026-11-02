@@ -60,7 +60,7 @@
     "playground"
   ],
   "scripts": {
-    "postinstall": "nuxt-module-build build --stub && nuxt prepare",
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
     "build": "nuxt-module-build build",
     "prepack": "nuxt-module-build build",
     "dev": "npm run dev:prepare && nuxt dev playground",
@@ -74,11 +74,11 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/auth": "workspace:*",
-    "@frigear-nu/mcp": "workspace:*",
-    "@frigear-nu/module-kit": "workspace:*",
-    "@frigear-nu/notify": "workspace:*",
-    "@frigear-nu/ui": "workspace:*",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/mcp": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/notify": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
@@ -88,9 +88,9 @@
   },
   "peerDependencies": {
     "@frigear-nu/admin": ">=0.0.0",
-    "@frigear-nu/email-templates": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
-    "@frigear-nu/widget": "workspace:*",
+    "@frigear-nu/email-templates": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
@@ -113,10 +113,10 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
-    "@frigear-nu/admin": "workspace:*",
-    "@frigear-nu/email-templates": "workspace:*",
-    "@frigear-nu/menu": "workspace:*",
-    "@frigear-nu/widget": "workspace:*",
+    "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/email-templates": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",

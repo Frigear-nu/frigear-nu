@@ -4,7 +4,7 @@ import DetailsTab from '../tabs/Details.vue'
 import TicketsTab from '../tabs/Tickets.vue'
 import type { StaffEvent } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
-import { computed, resolveComponent, useEventActions, useEventLinks, useEventsTranslate, useFetch, useFormat, useModuleT, useRoute, useRuntimeConfig } from '#imports'
+import { computed, errorMessage, navigateTo, resolveComponent, useEventActions, useEventLinks, useEventsTranslate, useFetch, useFormat, useModuleT, useRoute, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'EventsAdminEventPage' })
 

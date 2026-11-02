@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEventLinks, useModuleT, useMyTickets } from '#imports'
+import { errorMessage, useEventLinks, useModuleT, useMyTickets } from '#imports'
 
 defineOptions({ name: 'EventTicketsPage' })
 

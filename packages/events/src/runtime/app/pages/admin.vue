@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { StaffEventSummary, StaffEventsPage } from '../utils/admin-event'
 import { EVENT_STATUSES } from '../utils/admin-event'
 import { eventsApi } from '../../utils/api'
-import { computed, emptyCell, h, resolveComponent, useEventActions, useEventLinks, useEventsTranslate, useFetch, useFormat, useModuleT, useTableQuery, useTableSort } from '#imports'
+import { computed, emptyCell, errorMessage, h, navigateTo, resolveComponent, tableUi, useEventActions, useEventLinks, useEventsTranslate, useFetch, useFormat, useModuleT, useTableQuery, useTableSort } from '#imports'
 
 defineOptions({ name: 'EventsAdminPage' })
 
