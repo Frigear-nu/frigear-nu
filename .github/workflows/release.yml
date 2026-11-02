@@ -1,7 +1,7 @@
 # Publishes one of the public `packages/**` packages to npm using release-it.
 #
 # Triggered manually so a maintainer picks exactly which package to release and
-# what kind of version bump to apply - see apps/docs/content/1.getting-started/4.publishing.md for the full
+# what kind of version bump to apply - see apps/docs/content/1.getting-started/5.publishing.md for the full
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
 #

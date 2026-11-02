@@ -74,6 +74,20 @@ pnpx giget@latest <source:gh/ssh++> <destination>
 After scaffolding: run `pnpm install` from the repo root, add the new app to the root `README.md`'s app list, and wire
 up any workspace-shared packages (`packages/**`) it needs as `workspace:*` dependencies.
 
+### Starters (`.starters/**`)
+
+`.starters/workspace` is the template for a **new project outside this repo** (`pnpx giget@latest
+gh:Frigear-nu/frigear-nu/.starters/workspace <dir>`), documented in `apps/docs/content/1.getting-started/3.quick-start.md`.
+
+- It is not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): it depends on
+  the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and has its own `AGENTS.md`.
+- Work on it in a copy outside the repo (`cp -R .starters/workspace "$TMPDIR/starter"`, then `pnpm install` there) and
+  copy the changes back. Never commit its `node_modules`, `.nuxt`, `.data`, `.env` or `pnpm-lock.yaml`.
+- After releasing a module that changes a schema, or bumping the starter's versions, regenerate its migration in the
+  copy (`pnpm db:generate`) and commit `apps/web/server/db/migrations` back. `.github/workflows/starters.yml` fails
+  when the committed migrations are out of date.
+- Keep the quick start docs page in step with the starter's files and commands.
+
 ---
 
 ## Common commands
@@ -174,7 +188,7 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 #### HTTP route conventions
 
-Full guide: `apps/docs/content/1.getting-started/5.writing-a-module.md#http-route-conventions`; the toolkit is
+Full guide: `apps/docs/content/1.getting-started/6.writing-a-module.md#http-route-conventions`; the toolkit is
 `@frigear-nu/module-kit/server` (explicit import, not auto-imported).
 
 - **URLs.** Everything under `/api/<module>`; staff routes under `/api/admin/<module>/...` (the module's main resource
@@ -267,7 +281,7 @@ Full guide: `apps/docs/content/1.getting-started/5.writing-a-module.md#http-rout
 ## UX patterns
 
 Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
-`apps/docs/content/1.getting-started/6.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
+`apps/docs/content/1.getting-started/7.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
 live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:

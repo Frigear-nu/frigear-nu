@@ -98,7 +98,7 @@ With more than one i18n locale, every page gets `<link rel="alternate" hreflang>
 
 ## Publishing
 
-Released like the other packages (see the [publishing guide](../../apps/docs/content/1.getting-started/4.publishing.md)):
+Released like the other packages (see the [publishing guide](../../apps/docs/content/1.getting-started/5.publishing.md)):
 the **Release** workflow with `base-layer`, or `pnpm exec release-it` from this folder. Check what ships with
 `pnpm pack --dry-run`. Only the paths in `files` are published; add new top-level folders there. Dependencies the layer
 needs at runtime belong in `dependencies`, not `devDependencies`. There is deliberately no `postinstall` script: it would
