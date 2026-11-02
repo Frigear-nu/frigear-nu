@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/subscriptions",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Recurring subscriptions (plans, checkout, upgrade/downgrade, billing portal and entitlements) for the frigear ecosystem, built on @frigear-nu/stripe.",
   "homepage": "https://docs.frigear.dev/modules/subscriptions",
   "repository": {
