@@ -110,6 +110,14 @@ watch(() => route.query.application, openFromQuery)
                   :label="t('admin.public', 'Public')"
                 />
                 <UBadge
+                  v-if="row.original.managed"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  icon="i-lucide-file-cog"
+                  :label="t('admin.managed', 'Managed in nuxt.config')"
+                />
+                <UBadge
                   v-if="!row.original.isActive"
                   color="neutral"
                   variant="subtle"

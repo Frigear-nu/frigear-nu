@@ -9,6 +9,7 @@ const querySchema = pageQuery({ sort: ['createdAt', 'name', 'priority'] })
 export default defineEventHandler(async (event) => {
   await requireOAuthAdmin(event)
   const query = await getValidatedQuery(event, querySchema.parse)
+  await ensureOAuthConfiguredApplications()
 
   const table = schema.oauthApplications
   const where = query.q ? or(likeContains(table.name, query.q), likeContains(table.id, query.q)) : undefined

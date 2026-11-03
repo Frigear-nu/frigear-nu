@@ -825,6 +825,30 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(plain.headers.get('vary')).toContain('Origin')
     })
 
+    it('opens the host API under cors.paths to bearer calls, and nothing else under /api', async () => {
+      const response = await preflight('/api/test/whoami', ALLOWED, 'PATCH')
+      expect(response.status).toBe(204)
+      expect(response.headers.get('access-control-allow-origin')).toBe(ALLOWED)
+      expect(response.headers.get('access-control-allow-methods')).toBe('GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      expect(response.headers.get('access-control-allow-headers')).toBe('authorization, content-type, accept')
+      expect(response.headers.get('access-control-allow-credentials')).toBeNull()
+      expect(response.headers.get('vary')).toContain('Origin')
+
+      // A real call gets the headers too, with `www-authenticate` readable for the 401.
+      const call = await fetch('/api/test/whoami', { headers: { origin: ALLOWED } })
+      expect(call.status).toBe(401)
+      expect(call.headers.get('access-control-allow-origin')).toBe(ALLOWED)
+      expect(call.headers.get('access-control-expose-headers')).toBe('www-authenticate')
+
+      expect((await preflight('/api/test/whoami', 'https://evil.example.com', 'GET')).headers.get('access-control-allow-origin')).toBeNull()
+      // Outside the configured prefixes the API is untouched.
+      for (const path of [oauthServerApi.consent, oauthServerApi.me.applications, '/api/testing']) {
+        const other = await preflight(path, ALLOWED, 'GET')
+        expect(other.headers.get('access-control-allow-origin'), path).toBeNull()
+        expect(other.headers.get('vary') ?? '', path).not.toContain('Origin')
+      }
+    })
+
     it('does not open up the authorization endpoint or anything else', async () => {
       const authorize = await fetch(`${oidc.authorize}?${authorizeQuery('app_x', pkce().challenge)}`, { headers: { origin: ALLOWED }, redirect: 'manual' })
       expect(authorize.headers.get('access-control-allow-origin')).toBeNull()
@@ -832,6 +856,74 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(consent.headers.get('access-control-allow-origin')).toBeNull()
       const admin = await preflight(oauthServerApi.admin.applications, ALLOWED, 'GET')
       expect(admin.headers.get('access-control-allow-origin')).toBeNull()
+    })
+  })
+
+  describe('configured clients', () => {
+    const CLIENT_ID = 'test-mobile'
+    const NATIVE = 'com.example.test:/auth/callback'
+    const DEV = 'http://localhost:3001/auth/callback'
+
+    async function signIn(session: Session, redirectUri: string) {
+      const { verifier, challenge } = pkce()
+      const query = authorizeQuery(CLIENT_ID, challenge, { redirect_uri: redirectUri })
+      const decision = await ok(await json(session.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(query), approved: true }))
+      const code = new URL(decision.redirectUrl).searchParams.get('code')!
+      return form(oidc.token, { client_id: CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier })
+    }
+
+    it('signs in with the fixed client id without anyone creating it (PKCE, no secret)', async () => {
+      const member = await user('Mobile')
+      const tokens = await ok(await signIn(member, NATIVE))
+      expect(tokens).toMatchObject({ token_type: 'Bearer' })
+      expect(tokens.refresh_token).toBeTypeOf('string')
+      expect(decodeJwt(tokens.access_token)).toMatchObject({ client_id: CLIENT_ID, sub: String(member.id) })
+
+      // The fixture runs in dev, so the dev redirect URI is accepted as well.
+      expect((await signIn(member, DEV)).status).toBe(200)
+      const { challenge } = pkce()
+      const other = await json(member.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(authorizeQuery(CLIENT_ID, challenge, { redirect_uri: 'com.example.test:/other' })), approved: true })
+      expect(other.status).toBe(400)
+      // Its web origin is a CORS origin.
+      const preflight = await fetch(oidc.token, { method: 'OPTIONS', headers: { 'origin': 'http://localhost:3001', 'access-control-request-method': 'POST' } })
+      expect(preflight.headers.get('access-control-allow-origin')).toBe('http://localhost:3001')
+    })
+
+    it('lists it as managed, public, with the configured fields', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      const api = apiClient({ cookie: staff.cookie })
+      const list = await api.json<Json>('GET', `${oauthServerApi.admin.applications}?q=${CLIENT_ID}`)
+      expect(list.items).toEqual([expect.objectContaining({
+        id: CLIENT_ID,
+        name: 'Test mobile',
+        clientType: 'public',
+        managed: true,
+        isActive: true,
+        websiteUrl: 'http://localhost:3001',
+        redirectUris: [NATIVE, DEV],
+        tags: ['mobile'],
+      })])
+      expect(list.items[0].secretHash).toBeUndefined()
+      expect((await createApp()).managed).toBe(false)
+    })
+
+    it('refuses edits of config-owned fields and deletion, but can be disabled', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      const api = apiClient({ cookie: staff.cookie })
+      const path = oauthServerApi.admin.application(CLIENT_ID)
+      await expectApiError(api.json('PATCH', path, { name: 'Renamed' }), 409, 'managed_by_config')
+      await expectApiError(api.json('PATCH', path, { redirectUris: [NATIVE, 'com.evil.app:/cb'] }), 409, 'managed_by_config')
+      await expectApiError(api.json('DELETE', path), 409, 'managed_by_config')
+      // The admin form sends every field back unchanged: that is fine.
+      expect(await api.json<Json>('PATCH', path, { name: 'Test mobile', tags: ['mobile'], priority: 3 })).toMatchObject({ name: 'Test mobile', priority: 3 })
+
+      expect(await api.json<Json>('PATCH', path, { isActive: false })).toMatchObject({ isActive: false, managed: true })
+      const member = await user('Mobile')
+      const { challenge } = pkce()
+      const disabled = await json(member.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(authorizeQuery(CLIENT_ID, challenge, { redirect_uri: NATIVE })), approved: true })
+      expect(disabled.status).toBe(400)
+      expect(await api.json<Json>('PATCH', path, { isActive: true })).toMatchObject({ isActive: true })
+      expect((await signIn(member, NATIVE)).status).toBe(200)
     })
   })
 

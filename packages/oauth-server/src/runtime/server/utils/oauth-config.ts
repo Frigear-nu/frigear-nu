@@ -1,15 +1,52 @@
 import type { H3Event } from 'h3'
-import type { OAuthScopeDefinition } from '../../../types'
+import { apiError } from '@frigear-nu/module-kit/server'
+import type { OAuthNormalizedClient, OAuthScopeDefinition } from '../../../types'
 import { scopes as apiScopes } from '#auth/scopes'
-import { parseList } from '../../utils'
+import { normalizeConfiguredClients, parseList } from '../../utils'
 
 export function useOAuthConfig() {
   return useRuntimeConfig().oauthServer
 }
 
-/** Origins allowed to call the token, revocation, userinfo and discovery endpoints from a browser. Never `*`. */
+/**
+ * Origins allowed to call the token, revocation, userinfo and discovery endpoints (and `cors.paths`) from a browser:
+ * `cors.origins` plus the origins of the configured clients. Never `*`.
+ */
 export function getOAuthCorsOrigins(): string[] {
-  return parseList(useOAuthConfig().corsOrigins).filter(origin => origin !== '*')
+  const origins = [...parseList(useOAuthConfig().corsOrigins), ...getOAuthConfiguredClients().flatMap(client => client.corsOrigins)]
+  return [...new Set(origins)].filter(origin => origin !== '*')
+}
+
+/** The host API path prefixes open to the CORS origins (`cors.paths`). */
+export function getOAuthCorsPaths(): string[] {
+  return parseList(useOAuthConfig().corsPaths)
+}
+
+let configuredClients: { source: unknown, clients: OAuthNormalizedClient[] } | undefined
+
+/**
+ * The clients of `oauthServer.clients` (or `NUXT_OAUTH_SERVER_CLIENTS`), validated. An invalid list is a deployment
+ * error: every OAuth request answers 500 `not_configured` until it is fixed.
+ */
+export function getOAuthConfiguredClients(): OAuthNormalizedClient[] {
+  const config = useOAuthConfig()
+  const source = config.clients
+  if (configuredClients && configuredClients.source === source) return configuredClients.clients
+  let clients: OAuthNormalizedClient[]
+  try {
+    clients = normalizeConfiguredClients(source, { dev: import.meta.dev, callbackPath: config.callbackPath })
+  }
+  catch (error) {
+    console.error(`[oauth-server] oauthServer.clients is invalid: ${(error as Error).message}`)
+    throw apiError(500, 'not_configured', 'The configured OAuth clients are invalid.')
+  }
+  configuredClients = { source, clients }
+  return clients
+}
+
+/** Whether the application is defined in `oauthServer.clients` (and so managed by config, not the admin UI). */
+export function isOAuthConfiguredClient(id: string): boolean {
+  return getOAuthConfiguredClients().some(client => client.id === id)
 }
 
 /** The `aud` of access tokens: the configured shared audience, or `undefined` for the application's `client_id`. */

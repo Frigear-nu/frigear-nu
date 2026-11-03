@@ -2,8 +2,8 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import type { H3Event } from 'h3'
-import { badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
-import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, UserApplicationDto } from '../../../types'
+import { apiError, badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
+import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, OAuthNormalizedClient, UserApplicationDto } from '../../../types'
 import { CLIENT_TYPES, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
@@ -81,6 +81,7 @@ export function toAdminApplicationDto(application: OAuthApplication, activeGrant
     updatedAt: isoDate(application.updatedAt),
     ...(activeGrants === undefined ? {} : { activeGrants }),
     callbackUrl: applicationCallbackUrl(application),
+    managed: isOAuthConfiguredClient(application.id),
   }
 }
 
@@ -113,8 +114,84 @@ function assertRedirectUris(uris: readonly string[] | undefined, clientType: Cli
   if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw badRequest('Only public clients may use custom-scheme redirect URIs.')
 }
 
+/** The fields of a configured client that come from config: staff cannot change them (409 `managed_by_config`). */
+const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern'] as const
+
+const managedByConfig = () => apiError(409, 'managed_by_config', 'This application is managed in nuxt.config (oauthServer.clients).')
+
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** The config values a configured client's row should have. */
+function configuredValues(client: OAuthNormalizedClient) {
+  return {
+    name: client.name,
+    description: client.description,
+    icon: client.icon,
+    websiteUrl: client.websiteUrl,
+    redirectUris: client.redirectUris,
+    allowedRoles: client.allowedRoles,
+    tags: client.tags,
+    previewUrlPattern: null,
+  } satisfies Partial<ApplicationRow>
+}
+
+let ensured: Promise<void> | undefined
+let warnedRemoved = false
+
+async function syncConfiguredApplications(): Promise<void> {
+  const clients = getOAuthConfiguredClients()
+  const table = schema.oauthApplications
+  for (const client of clients) {
+    const values = configuredValues(client)
+    // Active when created; from then on `isActive` belongs to staff and the sync never touches it.
+    const inserted = await db.insert(table).values({
+      id: client.id,
+      clientType: 'public',
+      ownerId: null,
+      ...values,
+      isActive: true,
+      // A public client has no secret to hash; see `secretHash` in the schema.
+      secretHash: await sha256Hex(generateSecret()),
+    }).onConflictDoNothing({ target: table.id }).returning({ id: table.id })
+    if (inserted.length) continue
+
+    const [row] = await db.select().from(table).where(eq(table.id, client.id)).limit(1)
+    if (!row) continue
+    if (row.clientType !== 'public') {
+      // Turning a confidential client public would drop its secret: leave it alone.
+      console.warn(`[oauth-server] oauthServer.clients: "${client.id}" exists as a ${row.clientType} application, so it is not synced. Use another id or delete that application.`)
+      continue
+    }
+    const changed = Object.fromEntries(Object.entries(values).filter(([key, value]) => !sameValue(row[key as keyof typeof values], value)))
+    if (Object.keys(changed).length) await db.update(table).set(changed).where(eq(table.id, client.id))
+  }
+
+  if (!warnedRemoved) {
+    warnedRemoved = true
+    // Created applications always have an `app_` id, so anything else was configured once.
+    const rows = await db.select({ id: table.id }).from(table)
+    const removed = rows.map(row => row.id).filter(id => !id.startsWith('app_') && !clients.some(client => client.id === id))
+    if (removed.length) {
+      console.warn(`[oauth-server] Applications ${removed.map(id => `"${id}"`).join(', ')} are no longer in oauthServer.clients. They are kept (with their sign-ins); delete them in the admin UI if they should go.`)
+    }
+  }
+}
+
+/**
+ * Creates the applications of `oauthServer.clients` and keeps their config-owned fields in step, once per server
+ * instance (a failure is retried on the next call). Every application lookup awaits it.
+ */
+export function ensureOAuthConfiguredApplications(): Promise<void> {
+  ensured ??= syncConfiguredApplications().catch((error) => {
+    ensured = undefined
+    throw error
+  })
+  return ensured
+}
+
 /** The row including `secretHash`; only for credential checks. Use `getApplication` everywhere else. */
 export async function getApplicationRow(id: string): Promise<ApplicationRow | null> {
+  await ensureOAuthConfiguredApplications()
   const [row] = await db.select().from(schema.oauthApplications).where(eq(schema.oauthApplications.id, id)).limit(1)
   return row ?? null
 }
@@ -144,10 +221,20 @@ export async function createApplication(input: ApplicationInput, ownerId?: numbe
   return { application: toApplication(row!), secret }
 }
 
+/**
+ * Updates an application. On a configured client (`oauthServer.clients`) only `isActive`, `priority` and `loginUrl` can
+ * change: a different value for a config-owned field is 409 `managed_by_config` (sending the current value is fine).
+ */
 export async function updateApplication(id: string, patch: Partial<ApplicationInput>): Promise<OAuthApplication> {
-  const { clientType, ...data } = normalizeInput(applicationPatchSchema.parse(patch))
+  const parsed = applicationPatchSchema.parse(patch)
   const existing = await getApplicationRow(id)
   if (!existing) throw applicationNotFound()
+  let input: Partial<ApplicationInput> = parsed
+  if (isOAuthConfiguredClient(id)) {
+    if (CONFIG_OWNED.some(key => parsed[key] !== undefined && !sameValue(parsed[key], existing[key]))) throw managedByConfig()
+    input = Object.fromEntries(Object.entries(parsed).filter(([key]) => !(CONFIG_OWNED as readonly string[]).includes(key)))
+  }
+  const { clientType, ...data } = normalizeInput(input)
   // A secret cannot be created or dropped by editing: register a new application instead.
   if (clientType && clientType !== existing.clientType) throw badRequest('The client type cannot be changed.')
   assertRedirectUris(data.redirectUris, existing.clientType)
@@ -157,8 +244,13 @@ export async function updateApplication(id: string, patch: Partial<ApplicationIn
   return toApplication(row ?? existing)
 }
 
-/** Deletes the application with its authorization codes and refresh tokens. */
+/**
+ * Deletes the application with its authorization codes and refresh tokens. A configured client is 409
+ * `managed_by_config`: remove it from `oauthServer.clients` first (or disable it).
+ */
 export async function deleteApplication(id: string): Promise<void> {
+  await ensureOAuthConfiguredApplications()
+  if (isOAuthConfiguredClient(id)) throw managedByConfig()
   await db.delete(schema.oauthRefreshTokens).where(eq(schema.oauthRefreshTokens.applicationId, id))
   await db.delete(schema.oauthAuthorizationCodes).where(eq(schema.oauthAuthorizationCodes.applicationId, id))
   const deleted = await db.delete(schema.oauthApplications).where(eq(schema.oauthApplications.id, id)).returning({ id: schema.oauthApplications.id })
@@ -230,6 +322,7 @@ export async function revokeUserGrants(userId: number, applicationId?: string): 
  * priority first. Applications with a `loginUrl` link there, the others to their website.
  */
 export async function listUserApplications(userId: number, event?: H3Event): Promise<UserApplicationDto[]> {
+  await ensureOAuthConfiguredApplications()
   const roles = await resolveUserRoles(userId, event)
   const rows = await db.select().from(schema.oauthApplications)
     .where(eq(schema.oauthApplications.isActive, true))

@@ -1,3 +1,4 @@
+import { applyBearerCors, matchesPathPrefix } from '@frigear-nu/module-kit/server'
 import { oidc } from '../../utils/api'
 
 // CORS for browser apps on another origin (e.g. a Capacitor webview), limited to the endpoints a public client calls.
@@ -11,25 +12,21 @@ const METHODS: Record<string, string> = {
   [oidc.jwks]: 'GET, OPTIONS',
 }
 
+// `cors.paths`: the host's own API, called with the access tokens this server issues.
+const API_CORS = {
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['authorization', 'content-type', 'accept'],
+  exposeHeaders: ['www-authenticate'],
+}
+
 export default defineEventHandler((event) => {
-  const methods = METHODS[getRequestURL(event).pathname]
-  if (!methods) return
+  const pathname = getRequestURL(event).pathname
+  const methods = METHODS[pathname]
+  // Never the authorization endpoint, even when a configured prefix covers it.
+  const api = !methods && pathname !== oidc.authorize && matchesPathPrefix(pathname, getOAuthCorsPaths())
+  if (!methods && !api) return
 
-  // The response differs per origin, so caches must key on it (discovery is `public`).
-  appendResponseHeader(event, 'Vary', 'Origin')
-
-  const origin = getRequestHeader(event, 'origin')
-  if (!origin || !getOAuthCorsOrigins().includes(origin)) return
-
-  setResponseHeaders(event, {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': methods,
-    'Access-Control-Allow-Headers': 'authorization, content-type',
-    'Access-Control-Max-Age': '600',
-  })
-
-  if (event.method === 'OPTIONS') {
-    setResponseStatus(event, 204)
-    return ''
-  }
+  // `Vary: Origin` always: the response differs per origin, so caches must key on it (discovery is `public`).
+  const preflight = applyBearerCors(event, { origins: getOAuthCorsOrigins(), ...(methods ? { methods } : API_CORS) })
+  if (preflight) return ''
 })
