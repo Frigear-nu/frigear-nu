@@ -8,14 +8,14 @@ navigation:
 This [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) turns a Nuxt app into an iOS / Android app with one config
 block. Use it for a Capacitor app on a static `nuxt generate` build with no server of its own. Tabs are registered once (`mobile.tabs`, plus tabs other modules add) and feed the native iOS tab bar, the web tab
 bar and the page titles. It builds on [`nuxt-capacitor`](https://github.com/hareland/nuxt-capacitor), which writes
-`capacitor.config.json` from your Nuxt config, and signs users in through [OAuth Client](/modules/identity/oauth-client).
+`capacitor.config.json` from your Nuxt config, and signs users in through [Auth in client mode](/modules/identity/auth/client-mode).
 
 :module-runtime{client mobile}
 
 ::note
 **Requires** [`@frigear-nu/module-kit`](/modules/platform/module-kit), `@nuxt/ui` (`>=4`) and `nuxt-capacitor`, all installed
-automatically, and `@capacitor/core` in the app. When `oauthClient` is configured, [`@frigear-nu/oauth-client`](/modules/identity/oauth-client)
-is installed too. Optional: [`@frigear-nu/ui`](/modules/interface/ui) (native confirm dialogs fall back to its
+automatically, and `@capacitor/core` in the app. When `authentication` is configured, [`@frigear-nu/auth`](/modules/identity/auth)
+is installed too; the app sets `authentication.mode: 'client'` itself. Optional: [`@frigear-nu/ui`](/modules/interface/ui) (native confirm dialogs fall back to its
 `useConfirmDialog`) and [`@frigear-nu/menu`](/modules/interface/menu) (the `mobile.tabs` menu adds tabs).
 ::
 
@@ -27,8 +27,8 @@ pnpm add -D @capacitor/cli
 # optional, for the features that use them:
 pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action-sheet @capacitor/dialog \
   @capacitor/share @capacitor/status-bar @capacitor/keyboard
-# with sign-in:
-pnpm add @capacitor/browser @aparajita/capacitor-secure-storage
+# with sign-in, and guards:
+pnpm add @frigear-nu/authorization @capacitor/browser @capacitor/preferences @aparajita/capacitor-secure-storage
 ```
 
 Capacitor links the native code of **the app's own dependencies** only, so install the plugins in the app, not just in a
@@ -36,7 +36,7 @@ package it depends on. [`frigear-mobile doctor`](/modules/interface/mobile/cli-a
 
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui', '@frigear-nu/mobile'],
+  modules: ['@nuxt/ui', '@frigear-nu/mobile', '@frigear-nu/authorization'],
   css: ['~/assets/css/main.css'],
   mobile: {
     appId: 'nu.frigear.bills', // capacitor appId and, in lowercase, the OAuth redirect scheme
@@ -44,14 +44,19 @@ export default defineNuxtConfig({
     tabs: [
       { id: 'home', to: '/', label: 'Upcoming', icon: 'i-lucide-calendar-clock', sfSymbol: 'calendar.badge.clock' },
       { id: 'bills', to: '/bills', label: 'Bills', icon: 'i-lucide-receipt-text', sfSymbol: 'list.bullet.rectangle' },
-      { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle' },
+      { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', requiresAuth: true },
     ],
   },
-  // Optional sign-in. Mobile installs oauth-client with `protect: 'all'` and `native.scheme: appId`.
-  oauthClient: {
-    issuer: 'https://frigear.nu',
-    clientId: 'bills',
-    scopes: ['openid', 'profile', 'offline_access'],
+  // Optional sign-in. Mobile installs @frigear-nu/auth and fills in `client.native.scheme` (from appId); the mode is
+  // the app's to set.
+  authentication: {
+    mode: 'client',
+    client: { issuer: 'https://frigear.nu', clientId: 'bills', scopes: ['openid', 'profile', 'offline_access'] },
+  },
+  // Guards are the app's (@frigear-nu/authorization): signed in everywhere. The login and callback pages stay open.
+  authorization: { redirectTo: '/login' },
+  routeRules: {
+    '/**': { authenticated: true },
   },
 })
 ```
@@ -79,6 +84,23 @@ A script for the loop: `"ios:run": "frigear-mobile native --if-missing && nuxt g
 The module sets these `nuxt-capacitor` defaults (yours win): `capacitor.autoSync: false`, `capacitor.config.appId` and
 `appName`, and the Keyboard plugin's `resize: 'native'`.
 
+## Sign-in
+
+Mobile signs in with [Auth in client mode](/modules/identity/auth/client-mode). When the app configures
+`authentication`, Mobile installs Auth and fills in `client.native.scheme` (from `appId`) and, for `MOBILE_LAN` builds,
+`client.dev.rewriteLoopback`. It never sets the mode: the app sets `authentication.mode: 'client'` itself.
+
+- **Nothing is protected by default.** Which pages need a user is the app's choice, with
+  [Authorization](/modules/identity/authorization) rules such as `'/**': { authenticated: true }`. When Auth signs the
+  app in but no route rule or page requires a user, the build warns that every page is public.
+- **Tabs.** A tab with `requiresAuth: true` is hidden while signed out. Tabs default to `requiresAuth: false`.
+- **Server mode fails.** With Auth in server mode the build fails: a Capacitor app cannot send a same-origin session
+  cookie to the API.
+- **`oauthClient` fails.** Mobile 0.2 refuses an `oauthClient` block (`@frigear-nu/oauth-client` is deprecated) and
+  prints the migration steps. See [Migrating from `@frigear-nu/oauth-client`](/modules/identity/auth/client-mode#migrating-from-frigear-nuoauth-client).
+
+The guards only decide what the app shows. The API decides what is allowed.
+
 ## Options
 
 Configured under `mobile`.
@@ -88,7 +110,7 @@ Configured under `mobile`.
 | `appId` | `string` | `capacitor.config.appId` | Reverse-DNS id. Becomes `capacitor.config.appId` and, lowercased with `_` turned into `-`, the OAuth redirect and deep-link scheme. Without one the build warns and uses `com.example.app`. |
 | `appName` | `string` | `capacitor.config.appName`, else `appId` | `capacitor.config.appName` and the fallback page title. |
 | `tabs` | `MobileTabDefinition[]` | `[]` | See [Tabs](#tabs). |
-| `auth` | `boolean` | on when `@frigear-nu/oauth-client` is installed | Tabs with `requiresAuth` show signed in only. |
+| `auth` | `boolean` | on when `@frigear-nu/auth` runs in client mode | The shell follows Auth's sign-in state: tabs with `requiresAuth` show signed in only. It does not decide which pages need a user. |
 | `spa` | `boolean` | `true` | Sets `ssr: false`: Capacitor serves a static build. |
 | `layout` | `string \| false` | `'mobile'` | Name of the shell layout (also registered as `default` when the app has none). `false` for none. A layout of the app with that name wins. |
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Native navbar and tab bar on iOS, on all platforms, or never. Needs `@capgo/capacitor-native-navigation`; without it the web chrome is used. |
@@ -120,7 +142,7 @@ interface MobileTabDefinition {
   sfSymbol?: string // native iOS tab
   sfSymbolActive?: string
   androidIcon?: string // drawable, with nativeChrome: 'all'
-  requiresAuth?: boolean // default: mobile.auth
+  requiresAuth?: boolean // default: false (hidden while signed out when true)
   match?: string | string[] // default: `to` and `to/**` ('/' matches only itself)
   largeTitle?: boolean // default true
   order?: number // lower first; tabs without it follow in registration order
@@ -211,6 +233,7 @@ command registers them in the native projects.
 
 ## Related
 
-- [OAuth Client](/modules/identity/oauth-client): sign-in, tokens and `$api`.
+- [Auth client mode](/modules/identity/auth/client-mode): sign-in, tokens and `$api`.
+- [Authorization](/modules/identity/authorization): the guards.
 - [Frigear Resource](/modules/identity/frigear-resource): lets each service the app calls accept the access token.
 - [Use your own OAuth server](/guide/going-further/own-oauth-server).

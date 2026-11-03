@@ -20,13 +20,13 @@ Who the users are, how they sign in and what they may do.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
-| [Auth](/modules/identity/auth) | Sign-in (password, magic link, OAuth, passkeys), API tokens, and one `requireAuth` for every credential. | ✓ | ✓ |  |
+| [Auth](/modules/identity/auth) | Sign-in (password, magic link, OAuth, passkeys), API tokens, and one `requireAuth` for every credential. In [client mode](/modules/identity/auth/client-mode), PKCE sign-in for SPAs and Capacitor apps. | ✓ | ✓ | ✓ |
 | [Users](/modules/identity/users) | The user entity, staff administration and self-service profile, email and password changes. | ✓ | ✓ |  |
 | [Account](/modules/identity/account) | Profile, security, documents and API token pages for signed-in users. |  | ✓ |  |
-| [Authorization](/modules/identity/authorization) | Abilities, policies, route rules, `<Can>` and a `role` on users. | ✓ | ✓ |  |
+| [Authorization](/modules/identity/authorization) | Abilities, policies, route rules, `<Can>` and a `role` on users. Guards in both Auth modes. | ✓ | ✓ | ✓ |
 | [Preferences](/modules/identity/preferences) | Typed per-user preferences, optionally forwarded as OAuth claims. | ✓ | ✓ |  |
 | [OAuth Server](/modules/identity/oauth-server) | An OAuth 2.0 / OpenID Connect server for applications your users sign in to. | ✓ | ✓ |  |
-| [OAuth Client](/modules/identity/oauth-client) | PKCE sign-in for browser SPAs and Capacitor apps, with rotating refresh tokens and an authorized `$api`. |  | ✓ | ✓ |
+| OAuth Client | Deprecated: replaced by [Auth client mode](/modules/identity/auth/client-mode). |  | ✓ | ✓ |
 | [Frigear Resource](/modules/identity/frigear-resource) | Accept frigear.nu access tokens in a service, so one mobile app signs in once and calls every service. | ✓ |  |  |
 
 ## Commerce
@@ -80,7 +80,8 @@ directly. The main chains:
 
 - **Sign-in:** `users` installs `auth`, `notify` and `menu`. `account`, `authorization`, `preferences` and
   `oauth-server` build on `users` and `auth`.
-- **Mobile apps:** `mobile` installs `oauth-client` when `oauthClient` is configured. The app signs in at an issuer such as
+- **Mobile apps:** `mobile` installs `auth` when `authentication` is configured, and the app sets
+  `authentication.mode: 'client'`. It picks its guards with `authorization`. The app signs in at an issuer such as
   `oauth-server`, and each service it calls verifies the token with `frigear-resource`. See
   [Identity](/guide/concepts/identity) for how the OAuth modules relate.
 - **Commerce:** `subscriptions`, `payments` and `events` build on `stripe` and `auth`. `events` can read memberships from
