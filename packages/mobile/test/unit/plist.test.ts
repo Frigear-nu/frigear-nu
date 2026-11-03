@@ -54,6 +54,23 @@ describe('Info.plist patching', () => {
     expect(contents.match(/NSAppTransportSecurity/g)).toHaveLength(1)
   })
 
+  it('reads empty <string/> values without shifting the keys after them', () => {
+    const withEmpty = template.replace('<key>CFBundleVersion</key>', '<key>EmptyValue</key>\n\t<string/>\n\t<key>CFBundleVersion</key>')
+    const { contents, changed } = patchInfoPlist(withEmpty, { schemes: ['nu.frigear.app'] })
+    expect(changed).toBe(true)
+    expect(readPlistSchemes(contents)).toEqual(['nu.frigear.app'])
+    expect(patchInfoPlist(contents, { schemes: ['nu.frigear.app'] }).changed).toBe(false)
+  })
+
+  it('fills an empty NSAppTransportSecurity <dict/>', () => {
+    const emptyAts = template.replace('<key>CFBundleVersion</key>', '<key>NSAppTransportSecurity</key>\n\t<dict/>\n\t<key>CFBundleVersion</key>')
+    const { contents, added } = patchInfoPlist(emptyAts, { schemes: [], allowLocalNetworking: true })
+    expect(added).toContain('NSAppTransportSecurity: NSAllowsLocalNetworking')
+    expect(readPlistLocalNetworking(contents)).toBe(true)
+    expect(contents.match(/NSAppTransportSecurity/g)).toHaveLength(1)
+    expect(patchInfoPlist(contents, { schemes: [], allowLocalNetworking: true }).changed).toBe(false)
+  })
+
   it('rejects a file that is not a property list', () => {
     expect(() => patchInfoPlist('<html></html>', { schemes: ['x'] })).toThrow(/property list/)
   })

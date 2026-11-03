@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, navigateTo, useModuleT, useRouter } from '#imports'
+import { computed, useModuleT } from '#imports'
 import { useMobileChrome } from '../composables/useMobileChrome'
+import { useMobileBack } from '../utils/back'
 
 /**
  * The page's title bar in a browser and on Android (on iOS the native navbar draws it, and this keeps only an
@@ -9,12 +10,11 @@ import { useMobileChrome } from '../composables/useMobileChrome'
  */
 const { state, native } = useMobileChrome()
 const t = useModuleT('mobile')
-const router = useRouter()
 const header = computed(() => state.value.header)
+const goBack = useMobileBack(() => state.value)
 
 function back() {
-  if (window.history.length > 1) router.back()
-  else void navigateTo(state.value.activeTab?.to ?? '/')
+  void goBack()
 }
 </script>
 

@@ -1,7 +1,7 @@
 import { defineNuxtPlugin, navigateTo, useRuntimeConfig } from '#imports'
 import { useOAuth } from '#mobile/optional'
 import type { MobileDeepLinkContext } from '../../../types'
-import { classifyDeepLink } from '../../shared/deep-links'
+import { classifyDeepLink, isInAppPath } from '../../shared/deep-links'
 import { useCapacitor } from '../composables/useCapacitor'
 
 /**
@@ -29,12 +29,29 @@ export default defineNuxtPlugin({
       let prevented = false
       const ctx: MobileDeepLinkContext = { url, path: link.path, preventDefault: () => (prevented = true) }
       await nuxtApp.callHook('mobile:deep-link', ctx)
-      if (!prevented) await nuxtApp.runWithContext(() => navigateTo(ctx.path))
+      if (prevented) return
+      // A hook may have changed the path: only ever navigate within the app.
+      if (!isInAppPath(ctx.path)) {
+        console.warn('[@frigear-nu/mobile] Ignored a deep link to a path outside the app:', ctx.path)
+        return
+      }
+      await nuxtApp.runWithContext(() => navigateTo(ctx.path))
     }
+    const handle = (url: string) => open(url).catch(error => console.error('[@frigear-nu/mobile] Deep link failed:', error))
 
-    await app.addListener('appUrlOpen', ({ url }) => void open(url))
+    // iOS also delivers the launch URL as `appUrlOpen`: the cold-start path below skips a URL the event already opened.
+    let starting = true
+    const openedWhileStarting = new Set<string>()
+    await app.addListener('appUrlOpen', ({ url }) => {
+      if (starting) openedWhileStarting.add(url)
+      void handle(url)
+    })
     // Cold start: the link that launched the app, once the router is ready.
     const launch = await app.getLaunchUrl().catch(() => undefined)
-    if (launch?.url) nuxtApp.hook('app:mounted', () => void open(launch.url))
+    nuxtApp.hook('app:mounted', () => {
+      starting = false
+      if (launch?.url && !openedWhileStarting.has(launch.url)) void handle(launch.url)
+      openedWhileStarting.clear()
+    })
   },
 })

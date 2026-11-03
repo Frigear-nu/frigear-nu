@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nativeLoaderTemplate, pickLanAddress, resolveLanHost, resolveSchemes, tabsTemplate, usedPlugins } from '../../src/build'
+import { appIdScheme, nativeLoaderTemplate, pickLanAddress, resolveDeepLinks, resolveLanHost, resolveSchemes, tabsTemplate, usedPlugins } from '../../src/build'
 
 const iface = (address: string, internal = false) => ({ address, family: 'IPv4' as const, internal, netmask: '', mac: '', cidr: null })
 
@@ -51,5 +51,25 @@ describe('usedPlugins', () => {
       .toEqual(['@capacitor/core!', '@capacitor/app!', '@capacitor/haptics', '@capacitor/action-sheet', '@capacitor/dialog', '@capacitor/share'])
     expect(names({ nativeChrome: true, statusBar: true, keyboardAccessoryBar: true, oauth: true }))
       .toEqual(expect.arrayContaining(['@capacitor/status-bar', '@capacitor/keyboard', '@capgo/capacitor-native-navigation', '@capacitor/browser!', '@aparajita/capacitor-secure-storage']))
+  })
+})
+
+describe('deep-link schemes and hosts', () => {
+  it('makes a URL scheme of the app id', () => {
+    expect(appIdScheme('nu.frigear.App')).toBe('nu.frigear.app')
+    expect(appIdScheme('com.my_company.app')).toBe('com.my-company.app')
+    expect(appIdScheme('1password.app')).toBeUndefined()
+  })
+
+  it('defaults to the app id scheme, lowercases and dedupes', () => {
+    expect(resolveDeepLinks({ appId: 'com.my_company.App' })).toEqual({ schemes: ['com.my-company.app'], hosts: [], errors: [] })
+    expect(resolveDeepLinks({ appId: 'a.b', schemes: ['X.Y', 'x.y'], hosts: ['App.Example.com'] }))
+      .toEqual({ schemes: ['x.y'], hosts: ['app.example.com'], errors: [] })
+    expect(resolveDeepLinks({ appId: 'a.b', schemes: false }).schemes).toEqual([])
+  })
+
+  it('rejects what cannot go into Info.plist / AndroidManifest.xml', () => {
+    const { errors } = resolveDeepLinks({ appId: 'a.b', schemes: ['my_app', 'https', 'a"b'], hosts: ['https://app.example.com', 'app.example.com/x', 'a"b'] })
+    expect(errors).toHaveLength(6)
   })
 })

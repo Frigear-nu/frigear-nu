@@ -21,28 +21,41 @@ export interface ManifestLinks {
   hosts: string[]
 }
 
+/** `xml` with its comments blanked out (same length, so offsets stay valid): a commented-out filter registers nothing. */
+const withoutComments = (xml: string) => xml.replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\r\n]/g, ' '))
+
+const escapeAttribute = (value: string) => value
+  .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const decodeAttribute = (value: string) => value
+  .replace(/&quot;/g, '"').replace(/&apos;/g, '\'').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+
 /** The schemes and hosts the manifest's VIEW intent filters accept (`@string/...` resolved from `strings`). */
 export function readManifestLinks(xml: string, strings: Record<string, string> = {}): ManifestLinks {
   const schemes = new Set<string>()
   const hosts = new Set<string>()
-  for (const filter of xml.matchAll(/<intent-filter\b[^>]*>([\s\S]*?)<\/intent-filter>/g)) {
+  for (const filter of withoutComments(xml).matchAll(/<intent-filter\b[^>]*>([\s\S]*?)<\/intent-filter>/g)) {
     const body = filter[1]!
     if (!body.includes('android.intent.action.VIEW')) continue
+    // Android merges the `<data>` elements of one filter: a scheme and a host may sit on separate elements.
+    const filterSchemes = new Set<string>()
+    const filterHosts = new Set<string>()
     for (const data of body.matchAll(/<data\b[^>]*?\/?>/g)) {
       const scheme = ATTRIBUTE('scheme').exec(data[0])?.[1]
       const host = ATTRIBUTE('host').exec(data[0])?.[1]
-      if (scheme) {
-        const resolved = resolve(scheme, strings)
-        if (resolved === 'https' && host) hosts.add(resolve(host, strings).toLowerCase())
-        else if (resolved !== 'https' && resolved !== 'http') schemes.add(resolved)
-      }
+      if (scheme) filterSchemes.add(resolve(decodeAttribute(scheme), strings))
+      if (host) filterHosts.add(resolve(decodeAttribute(host), strings).toLowerCase())
+    }
+    for (const scheme of filterSchemes) {
+      if (scheme === 'https') filterHosts.forEach(host => hosts.add(host))
+      else if (scheme !== 'http') schemes.add(scheme)
     }
   }
   return { schemes: [...schemes], hosts: [...hosts] }
 }
 
 /** The launcher activity: the one with the MAIN / LAUNCHER intent filter (Capacitor's `.MainActivity`). */
-function findLauncherActivity(xml: string): { start: number, closeStart: number } | undefined {
+function findLauncherActivity(source: string): { start: number, closeStart: number } | undefined {
+  const xml = withoutComments(source)
   for (const open of xml.matchAll(/<activity\b[^>]*>/g)) {
     if (open[0].endsWith('/>')) continue
     const closeStart = xml.indexOf('</activity>', open.index)
@@ -82,8 +95,8 @@ export function patchAndroidManifest(xml: string, options: { schemes: string[], 
   ].join(nl)
 
   const blocks = [
-    ...schemes.map(scheme => filter(`<data android:scheme="${scheme}" />`)),
-    ...hosts.map(host => filter(`<data android:scheme="https" android:host="${host}" />`, true)),
+    ...schemes.map(scheme => filter(`<data android:scheme="${escapeAttribute(scheme)}" />`)),
+    ...hosts.map(host => filter(`<data android:scheme="https" android:host="${escapeAttribute(host)}" />`, true)),
   ]
   const before = /^[ \t]*$/.test(xml.slice(lineStart, activity.closeStart)) ? lineStart : activity.closeStart
   const prefix = before === activity.closeStart ? nl : ''

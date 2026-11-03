@@ -1,8 +1,9 @@
-import { defineNuxtPlugin, navigateTo, useColorMode, useRouter, watch } from '#imports'
+import { defineNuxtPlugin, navigateTo, nextTick, useColorMode, watch } from '#imports'
 import { createNativeNavigationController } from '../../shared/native-navigation'
 import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useMobileTabs } from '../composables/useMobileTabs'
+import { useMobileBack } from '../utils/back'
 
 /**
  * On iOS (and Android with `nativeChrome: 'all'`) the native navbar and tab bar of `@capgo/capacitor-native-navigation`
@@ -19,16 +20,20 @@ export default defineNuxtPlugin({
     const plugin = await capacitor.load('nativeNavigation')
     if (!plugin) return
 
-    const router = useRouter()
     const colorMode = useColorMode()
     const { label } = useMobileTabs()
+    const back = useMobileBack(() => state.value)
     const controller = createNativeNavigationController({
       plugin,
       label,
       onSelectTab: async (tab) => {
         await nuxtApp.runWithContext(() => navigateTo(tab.to))
+        // Let the route watcher below apply the new state first.
+        await nextTick()
       },
-      onBack: () => router.back(),
+      onBack: async () => {
+        await nuxtApp.runWithContext(() => back())
+      },
     })
     try {
       await controller.start()

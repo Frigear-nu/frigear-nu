@@ -15,6 +15,13 @@ describe('parseArgs', () => {
     expect(parseArgs(['doctor', '--strict'])).toMatchObject({ command: 'doctor', strict: true })
     expect(parseArgs([])).toMatchObject({ command: 'help' })
   })
+  it('keeps everything after the first = and needs a value where one is expected', () => {
+    expect(parseArgs(['doctor', '--cwd=/tmp/a=b']).cwd).toBe('/tmp/a=b')
+    expect(() => parseArgs(['doctor', '--cwd'])).toThrow(/--cwd needs a value/)
+    expect(() => parseArgs(['doctor', '--cwd', '--strict'])).toThrow(/--cwd needs a value/)
+    expect(() => parseArgs(['native', '--platform='])).toThrow(/--platform needs a value/)
+    expect(() => parseArgs(['doctor', '--strict=no'])).toThrow(/takes no value/)
+  })
   it('rejects unknown input', () => {
     expect(() => parseArgs(['deploy'])).toThrow(/Unknown command/)
     expect(() => parseArgs(['native', '--platform', 'windows'])).toThrow(/ios or android/)

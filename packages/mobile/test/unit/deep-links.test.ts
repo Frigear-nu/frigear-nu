@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyDeepLink } from '../../src/runtime/shared/deep-links'
+import { classifyDeepLink, isInAppPath } from '../../src/runtime/shared/deep-links'
 
 const options = {
   schemes: ['nu.frigear.app'],
@@ -23,6 +23,24 @@ describe('classifyDeepLink', () => {
     expect(classifyDeepLink('https://APP.frigear.nu//evil.example/x', options)).toEqual({ type: 'route', path: '/evil.example/x' })
     expect(classifyDeepLink('http://app.frigear.nu/events/2', options)).toMatchObject({ type: 'ignore', reason: 'unknown-host' })
     expect(classifyDeepLink('https://other.example/events/2', options)).toMatchObject({ type: 'ignore', reason: 'unknown-host' })
+  })
+
+  it('never yields a path that leaves the app (backslashes, empty segments)', () => {
+    expect(classifyDeepLink('nu.frigear.app:\\\\evil.example/x', options)).toEqual({ type: 'route', path: '/evil.example/x' })
+    expect(classifyDeepLink('nu.frigear.app:/\\evil.example', options)).toEqual({ type: 'route', path: '/evil.example' })
+    expect(classifyDeepLink('nu.frigear.app:///\\evil.example', options)).toEqual({ type: 'route', path: '/evil.example' })
+    for (const url of ['nu.frigear.app:\\\\evil.example', 'nu.frigear.app:////evil.example', 'https://app.frigear.nu/\\evil.example']) {
+      const link = classifyDeepLink(url, options)
+      expect(link.type === 'route' && isInAppPath(link.path)).toBe(true)
+    }
+  })
+
+  it('tells in-app paths from ones that leave the app', () => {
+    expect(isInAppPath('/')).toBe(true)
+    expect(isInAppPath('/bills/1?next=//x#\\y')).toBe(true)
+    for (const path of ['//evil.example', '/\\evil.example', '\\evil.example', 'https://evil.example', 'bills', '/a\\b', '/a\nb', '']) {
+      expect(isInAppPath(path), path).toBe(false)
+    }
   })
 
   it('ignores other schemes and garbage', () => {

@@ -88,10 +88,26 @@ describe('native navigation controller', () => {
     await controller.apply(chrome(), colors)
     calls.length = 0
     await controller.apply(chrome({ overlays: 1 }), colors)
-    expect(calls).toEqual([['setTabbar', { hidden: true }]])
+    // A soft hide: the same tabs and selection, animated, so iOS keeps the tab controller.
+    expect(calls).toEqual([['setTabbar', expect.objectContaining({ hidden: true, animated: true, selectedId: 'home' })]])
+    expect((calls[0]![1] as { tabs: unknown[] }).tabs).toHaveLength(2)
     calls.length = 0
     await controller.apply(chrome(), colors)
-    expect(calls.map(([name, options]) => [name, (options as { hidden: boolean }).hidden])).toEqual([['setTabbar', false]])
+    expect(calls).toEqual([['setTabbar', expect.objectContaining({ hidden: false, animated: true, selectedId: 'home' })]])
+  })
+
+  it('sends the tab bar again when a native tap does not change the route', async () => {
+    const { plugin, calls, listeners } = mockPlugin()
+    let release!: () => void
+    const navigated = new Promise<void>(resolve => (release = resolve))
+    const controller = createNativeNavigationController({ plugin, onSelectTab: () => navigated, onBack: vi.fn() })
+    await controller.start()
+    await controller.apply(chrome(), colors)
+    calls.length = 0
+    // A guard keeps the app on home: the chrome state stays the same, but the native bar selected bills.
+    listeners.tabSelect!({ id: 'bills' })
+    release()
+    await vi.waitFor(() => expect(calls).toEqual([['setTabbar', expect.objectContaining({ hidden: false, selectedId: 'home' })]]))
   })
 
   it('hides signed-in tabs signed out and follows the colour mode', async () => {

@@ -9,7 +9,8 @@ interface Token {
   text?: string
 }
 
-const TOKEN = /<!--[\s\S]*?-->|<key>([\s\S]*?)<\/key>|<(string|integer|real|date|data)>([\s\S]*?)<\/\2>|<(dict|array)\s*\/>|<(true|false)\s*\/>|<(\/?)(dict|array|plist)\b[^>]*>/g
+// `<string/>` (an empty string) is a scalar too: unmatched, it would shift every later key onto the wrong value.
+const TOKEN = /<!--[\s\S]*?-->|<key>([\s\S]*?)<\/key>|<(string|integer|real|date|data)>([\s\S]*?)<\/\2>|<(dict|array)\s*\/>|<(true|false)\s*\/>|<(\/?)(dict|array|plist)\b[^>]*>|<(string|data|key)\s*\/>/g
 
 function tokenize(xml: string): Token[] {
   const tokens: Token[] = []
@@ -21,6 +22,8 @@ function tokenize(xml: string): Token[] {
     else if (match[2]) tokens.push({ kind: 'scalar', tag: match[2], start, end, text: decode(match[3] ?? '') })
     else if (match[4]) tokens.push({ kind: 'empty', tag: match[4], start, end })
     else if (match[5]) tokens.push({ kind: 'scalar', tag: match[5], start, end, text: match[5] })
+    else if (match[8] === 'key') tokens.push({ kind: 'key', tag: 'key', start, end, text: '' })
+    else if (match[8]) tokens.push({ kind: 'scalar', tag: match[8], start, end, text: '' })
     else tokens.push({ kind: match[6] ? 'close' : 'open', tag: match[7]!, start, end })
   }
   return tokens
@@ -173,6 +176,15 @@ export function patchInfoPlist(xml: string, options: PlistPatchOptions): { conte
       edits.push({
         at: lineStart(xml, closeStart),
         text: `${ind(1)}<key>NSAppTransportSecurity</key>${nl}${ind(1)}<dict>${nl}${ind(2)}<key>NSAllowsLocalNetworking</key>${nl}${ind(2)}<true/>${nl}${ind(1)}</dict>${nl}`,
+      })
+    }
+    else if (ats.tokens[0]?.kind === 'empty' && ats.tokens[0].tag === 'dict') {
+      // `<dict/>`: replace it.
+      added.push('NSAppTransportSecurity: NSAllowsLocalNetworking')
+      edits.push({
+        at: ats.valueStart,
+        text: `<dict>${nl}${ind(2)}<key>NSAllowsLocalNetworking</key>${nl}${ind(2)}<true/>${nl}${ind(1)}</dict>`,
+        remove: ats.valueEnd - ats.valueStart,
       })
     }
     else if (ats.tokens[0]?.kind === 'open' && !ats.tokens.some(token => token.kind === 'key' && token.text === 'NSAllowsLocalNetworking')) {

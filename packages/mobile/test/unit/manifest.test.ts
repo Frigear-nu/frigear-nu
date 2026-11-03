@@ -37,6 +37,33 @@ describe('AndroidManifest.xml patching', () => {
     expect(patchAndroidManifest(withString, { schemes: ['com.getcapacitor.myapp'], strings }).changed).toBe(false)
   })
 
+  it('merges the <data> elements of a filter, and ignores commented-out filters', () => {
+    const split = template.replace('        </activity>', `            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <data android:scheme="https" />
+                <data android:host="app.frigear.nu" />
+            </intent-filter>
+            <!--
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <data android:scheme="nu.frigear.app" />
+            </intent-filter>
+            -->
+        </activity>`)
+    expect(readManifestLinks(split)).toEqual({ schemes: [], hosts: ['app.frigear.nu'] })
+    const { contents, added } = patchAndroidManifest(split, { schemes: ['nu.frigear.app'], hosts: ['app.frigear.nu'] })
+    expect(added).toEqual(['scheme nu.frigear.app'])
+    // The new filter goes before </activity>, not into the comment.
+    expect(contents.lastIndexOf('<data android:scheme="nu.frigear.app" />')).toBeGreaterThan(contents.indexOf('-->'))
+    expect(readManifestLinks(contents).schemes).toEqual(['nu.frigear.app'])
+  })
+
+  it('escapes the values it writes', () => {
+    const { contents } = patchAndroidManifest(template, { schemes: ['a"b'], hosts: [] })
+    expect(contents).toContain('android:scheme="a&quot;b"')
+    expect(readManifestLinks(contents).schemes).toEqual(['a"b'])
+  })
+
   it('fails without a launcher activity', () => {
     expect(() => patchAndroidManifest('<manifest><application/></manifest>', { schemes: ['x'] })).toThrow(/launcher activity/)
   })

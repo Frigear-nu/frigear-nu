@@ -38,8 +38,16 @@ export function parseArgs(argv: string[]): CliArgs {
   else if (command && command !== 'help' && command !== '--help' && command !== '-h') throw new Error(`Unknown command "${command}".\n\n${USAGE}`)
   while (rest.length) {
     const arg = rest.shift()!
-    const [flag, inline] = arg.split('=', 2) as [string, string | undefined]
-    const value = () => inline ?? rest.shift() ?? ''
+    // Split at the first `=` only: `--cwd=/apps/a=b` keeps the whole path.
+    const eq = arg.startsWith('--') ? arg.indexOf('=') : -1
+    const flag = eq === -1 ? arg : arg.slice(0, eq)
+    const inline = eq === -1 ? undefined : arg.slice(eq + 1)
+    const value = () => {
+      const next = inline ?? (rest[0]?.startsWith('--') ? undefined : rest.shift())
+      if (!next) throw new Error(`${flag} needs a value.\n\n${USAGE}`)
+      return next
+    }
+    if ((flag === '--if-missing' || flag === '--strict') && inline !== undefined) throw new Error(`${flag} takes no value.`)
     if (flag === '--if-missing') args.ifMissing = true
     else if (flag === '--strict') args.strict = true
     else if (flag === '--cwd') args.cwd = resolve(value())
@@ -162,11 +170,12 @@ export function native(args: CliArgs, io: Io = defaultIo): void {
 /** `cap add` needs the web assets folder; a first run has not built the app yet. */
 function ensureWebDir(cwd: string, io: Io) {
   const config = readJson<{ webDir?: string }>(join(cwd, 'capacitor.config.json'))
-  const webDir = join(cwd, config?.webDir ?? '.output/public')
+  // `webDir` may be absolute or point outside the app (`../dist`).
+  const webDir = resolve(cwd, config?.webDir ?? '.output/public')
   if (existsSync(join(webDir, 'index.html'))) return
   mkdirSync(webDir, { recursive: true })
   writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Build the app</title><p>Run nuxt generate, then cap sync.</p>\n')
-  io.log(`Created a placeholder ${join(config?.webDir ?? '.output/public', 'index.html')} (build the app before \`cap sync\`).`)
+  io.log(`Created a placeholder ${join(webDir, 'index.html')} (build the app before \`cap sync\`).`)
 }
 
 export async function main(argv: string[] = process.argv.slice(2), io: Io = defaultIo): Promise<number> {

@@ -90,8 +90,8 @@ export function useNative() {
 
     /** Resolves `true` when shared or copied, `false` when dismissed or not possible. */
     async share(data: { title?: string, text?: string, url?: string }): Promise<boolean> {
-      const plugin = await capacitor.load('share')
       try {
+        const plugin = await capacitor.load('share')
         if (plugin) {
           await plugin.share({ ...data, dialogTitle: data.title })
           return true

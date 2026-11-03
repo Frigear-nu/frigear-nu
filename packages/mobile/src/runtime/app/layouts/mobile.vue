@@ -21,8 +21,8 @@ const padTop = computed(() => native.value || !state.value.header.visible)
       </template>
     </MobileHeader>
     <main
-      class="flex flex-1 flex-col gap-4 px-4 pt-4 pb-[calc(var(--mobile-inset-bottom)+1rem)]"
-      :class="padTop && 'pt-[calc(var(--mobile-inset-top)+1rem)]'"
+      class="flex flex-1 flex-col gap-4 px-4 pb-[calc(var(--mobile-inset-bottom)+1rem)]"
+      :class="padTop ? 'pt-[calc(var(--mobile-inset-top)+1rem)]' : 'pt-4'"
     >
       <slot />
     </main>

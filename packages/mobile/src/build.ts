@@ -103,3 +103,31 @@ export function isPackageInstalled(pkg: string, rootDir: string, modulesDirs: st
   }
   return [...dirs].some(dir => existsSync(join(dir, pkg, 'package.json')))
 }
+
+const URL_SCHEME = /^[a-z][a-z0-9+.-]*$/
+const HOST = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+
+/**
+ * The URL scheme of an app id: lowercase, and `_` (allowed in Android package names, not in schemes) becomes `-`.
+ * `undefined` when no valid scheme comes out of it.
+ */
+export function appIdScheme(appId: string): string | undefined {
+  const scheme = appId.trim().toLowerCase().replace(/_/g, '-')
+  return URL_SCHEME.test(scheme) ? scheme : undefined
+}
+
+/** The lowercase deep-link schemes and hosts, or an error naming the invalid ones (they end up in Info.plist / AndroidManifest.xml). */
+export function resolveDeepLinks(input: { appId: string, schemes?: string[] | false, hosts?: string[] }): { schemes: string[], hosts: string[], errors: string[] } {
+  const errors: string[] = []
+  const defaultScheme = appIdScheme(input.appId)
+  const schemes = input.schemes === false ? [] : (input.schemes ?? (defaultScheme ? [defaultScheme] : [])).map(scheme => scheme.trim().toLowerCase())
+  for (const scheme of schemes) {
+    if (!URL_SCHEME.test(scheme)) errors.push(`\`deepLinks.schemes\`: "${scheme}" is not a URL scheme (a letter, then letters, digits, "+", "-" and ".").`)
+    else if (scheme === 'http' || scheme === 'https') errors.push(`\`deepLinks.schemes\`: "${scheme}" links go in \`deepLinks.hosts\`.`)
+  }
+  const hosts = (input.hosts ?? []).map(host => host.trim().toLowerCase())
+  for (const host of hosts) {
+    if (!HOST.test(host)) errors.push(`\`deepLinks.hosts\`: "${host}" is not a host name (no scheme, path or port: \`app.example.com\`).`)
+  }
+  return { schemes: [...new Set(schemes)], hosts: [...new Set(hosts)], errors }
+}

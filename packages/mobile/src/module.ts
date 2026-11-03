@@ -32,7 +32,7 @@ import type {
   MobileTabDefinition,
   ModuleOptions,
 } from './types'
-import { isPackageInstalled, nativeLoaderTemplate, resolveLanHost, resolveSchemes, tabsTemplate, usedPlugins } from './build'
+import { appIdScheme, isPackageInstalled, nativeLoaderTemplate, resolveDeepLinks, resolveLanHost, resolveSchemes, tabsTemplate, usedPlugins } from './build'
 import { NATIVE_PLUGINS, type NativePluginName } from './runtime/shared/native'
 import { findTabsWithoutPage, normalizeTabs } from './runtime/shared/tabs'
 import { runDoctor } from './runtime/cli/doctor'
@@ -109,6 +109,8 @@ export default defineNuxtModule<ModuleOptions>({
       ?? appId
     const lanHost = lanHostOf(nuxt)
     const oauthConfigured = (nuxt.options as { oauthClient?: unknown }).oauthClient !== undefined
+    // `nu.my_company.App` → `nu.my-company.app`: a URL scheme has no `_` and the OAuth client rejects one.
+    const scheme = appIdScheme(appId)
     return {
       '@frigear-nu/module-kit': { version: '>=0.0.1' },
       '@nuxt/ui': { version: '>=4.0.0' },
@@ -134,7 +136,7 @@ export default defineNuxtModule<ModuleOptions>({
               // Scalars only: array defaults would be appended to the app's own (defu).
               defaults: {
                 protect: 'all' as const,
-                native: { scheme: appId },
+                ...(scheme ? { native: { scheme } } : {}),
                 ...(lanHost ? { dev: { rewriteLoopback: lanHost } } : {}),
               },
             },
@@ -183,7 +185,10 @@ export default defineNuxtModule<ModuleOptions>({
     const lanHost = lanHostOf(nuxt)
     if (lanHost) logger.info(`MOBILE_LAN build: localhost in the issuer and API base becomes ${lanHost}.`)
 
-    const deepLinkSchemes = options.deepLinks?.schemes === false ? [] : (options.deepLinks?.schemes ?? [appId]).map(s => s.toLowerCase())
+    const deepLinks = resolveDeepLinks({ appId, schemes: options.deepLinks?.schemes, hosts: options.deepLinks?.hosts })
+    if (deepLinks.errors.length) throw new Error(`[${MODULE_NAME}] Invalid deep links:\n- ${deepLinks.errors.join('\n- ')}`)
+    if (!appIdScheme(appId) && options.deepLinks?.schemes === undefined && !prepare) logger.warn(`The app id "${appId}" makes no URL scheme: set \`deepLinks.schemes\` (and \`oauthClient.native.scheme\`).`)
+    const deepLinkSchemes = deepLinks.schemes
     const publicDefaults: MobilePublicConfig = {
       appId,
       appName,
@@ -197,7 +202,7 @@ export default defineNuxtModule<ModuleOptions>({
         switchHaptics: options.native?.switchHaptics !== false,
         backButton: options.native?.backButton !== false,
       },
-      deepLinks: { hosts: options.deepLinks?.hosts ?? [], schemes: deepLinkSchemes },
+      deepLinks: { hosts: deepLinks.hosts, schemes: deepLinkSchemes },
       lanHost: lanHost ?? '',
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
@@ -281,7 +286,7 @@ declare module '#mobile/tabs' {
       addPlugin({ src: resolver.resolve('./runtime/app/plugins/native-navigation.client'), mode: 'client' })
     }
     if (plugins.app) {
-      if (deepLinkSchemes.length || options.deepLinks?.hosts?.length) {
+      if (deepLinkSchemes.length || deepLinks.hosts.length) {
         addPlugin({ src: resolver.resolve('./runtime/app/plugins/deep-links.client'), mode: 'client' })
       }
       if (options.native?.backButton !== false) addPlugin({ src: resolver.resolve('./runtime/app/plugins/back-button.client'), mode: 'client' })
@@ -305,7 +310,7 @@ declare module '#mobile/tabs' {
         appName,
         redirectUri,
         schemes: resolveSchemes(redirectUri, deepLinkSchemes),
-        hosts: options.deepLinks?.hosts ?? [],
+        hosts: deepLinks.hosts,
         allowLocalNetworking: options.ios?.allowLocalNetworking !== false,
         plugins: usedPlugins({
           nativeChrome: options.nativeChrome !== false,

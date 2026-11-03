@@ -34,13 +34,26 @@ export function classifyDeepLink(url: string, options: DeepLinkOptions): DeepLin
   if (scheme === 'https' || scheme === 'http') {
     const host = parsed.host.toLowerCase()
     if (scheme !== 'https' || !options.hosts.some(allowed => allowed.toLowerCase() === host)) return { type: 'ignore', reason: 'unknown-host' }
-    // One leading slash: `//evil.example` would be a protocol-relative URL to the router.
-    return { type: 'route', path: `${parsed.pathname.replace(/^\/+/, '/') || '/'}${rest}` }
+    return { type: 'route', path: `${toAppPath(parsed.pathname.split(/[/\\]/))}${rest}` }
   }
   if (!options.schemes.some(allowed => allowed.toLowerCase() === scheme)) return { type: 'ignore', reason: 'unknown-scheme' }
 
-  // `scheme://bills/1` parses `bills` as the host; `scheme:/bills/1` and `scheme:bills/1` have none.
-  const segments = [parsed.host, ...parsed.pathname.split('/')].filter(Boolean)
-  const path = `/${segments.join('/')}`
-  return { type: 'route', path: `${path}${rest}` }
+  // `scheme://bills/1` parses `bills` as the host; `scheme:/bills/1` and `scheme:bills/1` have none. Non-special
+  // schemes keep `\` in the path, which browsers and the router read as `/`: split on both.
+  return { type: 'route', path: `${toAppPath([parsed.host, ...parsed.pathname.split(/[/\\]/)])}${rest}` }
+}
+
+/** One leading slash and no empty segments: `//evil.example` or `/\evil.example` would leave the app. */
+function toAppPath(segments: string[]): string {
+  return `/${segments.filter(Boolean).join('/')}`
+}
+
+/**
+ * Whether `path` stays in the app: one leading `/`, no `\` before the query (browsers read `/\host` as `//host`) and no
+ * control characters. Checked again after the `mobile:deep-link` hook, which may change the path.
+ */
+export function isInAppPath(path: string): boolean {
+  const pathname = path.split(/[?#]/, 1)[0]!
+  // eslint-disable-next-line no-control-regex
+  return /^\/(?![/\\])/.test(pathname) && !pathname.includes('\\') && !/[\u0000-\u001F\u007F]/.test(path)
 }

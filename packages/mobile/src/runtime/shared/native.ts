@@ -73,6 +73,8 @@ export interface NativeNavigationTabbarLike {
   tabs?: NativeNavigationTabLike[]
   selectedId?: string
   colors?: NativeNavigationColorsLike
+  /** With `hidden: true`: a soft hide that keeps the bar mounted (pass the tabs last shown). */
+  animated?: boolean
 }
 
 export interface NativeNavigationPluginLike {
