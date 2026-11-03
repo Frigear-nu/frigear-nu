@@ -1,0 +1,17 @@
+/*
+ * A phone is read at arm's length, so the type scale follows iOS (17pt body, 15pt secondary, 13pt footnote) instead of
+ * the web defaults one step smaller. Tailwind's text utilities read these variables; unlayered, they win over the
+ * theme layer. Opt out with `mobile.ui.iosTypeScale: false`.
+ */
+:root {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: calc(1.375 / 0.9375);
+  --text-base: 1.0625rem;
+  --text-base--line-height: calc(1.5 / 1.0625);
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: calc(1.75 / 1.1875);
+  --text-xl: 1.375rem;
+  --text-xl--line-height: calc(1.875 / 1.375);
+}

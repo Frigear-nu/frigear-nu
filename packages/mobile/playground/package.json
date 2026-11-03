@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "@frigear-nu/mobile-playground",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "@frigear-nu/mobile": "workspace:*",
+    "@nuxt/ui": "catalog:",
+    "nuxt": "catalog:"
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^4.6.0"
+  }
+}

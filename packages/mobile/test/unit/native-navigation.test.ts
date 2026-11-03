@@ -1,0 +1,118 @@
+import { describe, expect, it, vi } from 'vitest'
+import { resolveChrome, type ChromeInput } from '../../src/runtime/shared/chrome'
+import { createNativeNavigationController } from '../../src/runtime/shared/native-navigation'
+import type { NativeNavigationPluginLike } from '../../src/runtime/shared/native'
+import { normalizeTabs } from '../../src/runtime/shared/tabs'
+
+const { tabs } = normalizeTabs([
+  { id: 'home', to: '/', label: 'Home', icon: 'i', sfSymbol: 'house', sfSymbolActive: 'house.fill' },
+  { id: 'bills', to: '/bills', label: 'Bills', icon: 'i', sfSymbol: 'list.bullet' },
+], { auth: true })
+
+const chrome = (overrides: Partial<ChromeInput> = {}) => resolveChrome({
+  platform: 'ios', nativeChrome: 'ios', nativeNavigation: true, tabs, path: '/', authenticated: true,
+  overlays: 0, suppressed: 0, appName: 'App', ...overrides,
+})
+
+function mockPlugin() {
+  const calls: [string, unknown][] = []
+  const listeners: Record<string, (event: { id: string }) => void> = {}
+  const plugin: NativeNavigationPluginLike = {
+    configure: vi.fn(async (options) => {
+      calls.push(['configure', options])
+    }),
+    setNavbar: vi.fn(async (options) => {
+      calls.push(['setNavbar', options])
+    }),
+    setTabbar: vi.fn(async (options) => {
+      calls.push(['setTabbar', options])
+    }),
+    addListener: vi.fn(async (event: string, listener: (event: { id: string }) => void) => {
+      listeners[event] = listener
+      return { remove: vi.fn(async () => {}) }
+    }) as NativeNavigationPluginLike['addListener'],
+  }
+  return { plugin, calls, listeners }
+}
+
+const colors = { foreground: '#0F172A' }
+
+describe('native navigation controller', () => {
+  it('configures CSS insets and routes native taps through onSelectTab', async () => {
+    const { plugin, calls, listeners } = mockPlugin()
+    const onSelectTab = vi.fn()
+    const onBack = vi.fn()
+    const controller = createNativeNavigationController({ plugin, onSelectTab, onBack, label: tab => tab.label.toUpperCase() })
+    await controller.start()
+    expect(calls[0]).toEqual(['configure', { contentInsetMode: 'css' }])
+
+    await controller.apply(chrome(), colors)
+    listeners.tabSelect!({ id: 'bills' })
+    listeners.tabSelect!({ id: 'unknown' })
+    listeners.navbarBack!({ id: '' })
+    expect(onSelectTab).toHaveBeenCalledTimes(1)
+    expect(onSelectTab.mock.calls[0]![0].id).toBe('bills')
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('sets the navbar, then shows the tab bar with the selected tab and SF Symbols', async () => {
+    const { plugin, calls } = mockPlugin()
+    const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+    await controller.apply(chrome(), colors)
+    expect(calls).toEqual([
+      ['setNavbar', { hidden: false, title: 'Home', large: true, backButton: { visible: false }, colors }],
+      ['setTabbar', {
+        hidden: false,
+        selectedId: 'home',
+        tabs: [
+          { id: 'home', title: 'Home', icon: { ios: { sfSymbol: 'house' } }, selectedIcon: { ios: { sfSymbol: 'house.fill' } } },
+          { id: 'bills', title: 'Bills', icon: { ios: { sfSymbol: 'list.bullet' } } },
+        ],
+      }],
+    ])
+  })
+
+  it('skips calls for bars that did not change', async () => {
+    const { plugin, calls } = mockPlugin()
+    const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+    await controller.apply(chrome(), colors)
+    await controller.apply(chrome(), colors)
+    expect(calls).toHaveLength(2)
+    await controller.apply(chrome({ path: '/bills' }), colors)
+    expect(calls.slice(2).map(([name]) => name)).toEqual(['setNavbar', 'setTabbar'])
+  })
+
+  it('hides the tab bar first while an overlay is open, and brings it back after', async () => {
+    const { plugin, calls } = mockPlugin()
+    const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+    await controller.apply(chrome(), colors)
+    calls.length = 0
+    await controller.apply(chrome({ overlays: 1 }), colors)
+    expect(calls).toEqual([['setTabbar', { hidden: true }]])
+    calls.length = 0
+    await controller.apply(chrome(), colors)
+    expect(calls.map(([name, options]) => [name, (options as { hidden: boolean }).hidden])).toEqual([['setTabbar', false]])
+  })
+
+  it('hides signed-in tabs signed out and follows the colour mode', async () => {
+    const { plugin, calls } = mockPlugin()
+    const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+    await controller.apply(chrome({ authenticated: false, path: '/login' }), colors)
+    expect(calls).toEqual([
+      ['setTabbar', { hidden: true }],
+      ['setNavbar', { hidden: false, title: 'App', large: false, backButton: { visible: false }, colors }],
+    ])
+    calls.length = 0
+    await controller.apply(chrome({ authenticated: false, path: '/login' }), { foreground: '#FFFFFF' })
+    expect(calls).toEqual([['setNavbar', expect.objectContaining({ colors: { foreground: '#FFFFFF' } })]])
+  })
+
+  it('retries a bar whose update failed', async () => {
+    const { plugin, calls } = mockPlugin()
+    vi.mocked(plugin.setNavbar).mockRejectedValueOnce(new Error('busy'))
+    const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+    await expect(controller.apply(chrome(), colors)).rejects.toThrow('busy')
+    await controller.apply(chrome(), colors)
+    expect(calls.map(([name]) => name)).toEqual(['setNavbar', 'setTabbar'])
+  })
+})

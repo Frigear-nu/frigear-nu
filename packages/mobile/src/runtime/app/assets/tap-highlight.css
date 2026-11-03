@@ -1,0 +1,4 @@
+/* No grey WebKit flash over a tapped element: buttons show their own pressed state (`:active`, see the mobile plugin). */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
