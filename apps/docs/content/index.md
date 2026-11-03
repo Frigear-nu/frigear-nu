@@ -153,9 +153,9 @@ Who the users are, how they sign in and what they may do. [See all modules](/mod
   :::u-page-card
   ---
   icon: i-lucide-key-round
-  title: OAuth Client
+  title: Auth client mode
   description: PKCE sign-in for SPAs and Capacitor apps.
-  to: /modules/identity/oauth-client
+  to: /modules/identity/auth/client-mode
   ---
   :::
   :::u-page-card

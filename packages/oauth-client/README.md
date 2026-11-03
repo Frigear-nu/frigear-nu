@@ -1,5 +1,11 @@
 # @frigear-nu/oauth-client
 
+> [!WARNING]
+> **Deprecated.** This package is frozen: it gets no new features. Use [`@frigear-nu/auth`](../auth) in client mode
+> (`authentication: { mode: 'client', client: { ... } }`), which has the same PKCE client, one `useUserSession()` /
+> `useAuth()` / `$api` API for web and mobile apps, and guards from `@frigear-nu/authorization`. Auth refuses to run
+> next to this package. Migration guide: https://docs.frigear.dev/modules/identity/auth/client-mode
+
 OAuth 2.1 / OpenID Connect **public client with PKCE** for Nuxt apps that run in the browser (SPAs) or inside a
 Capacitor webview, plus a framework-agnostic core for anything else that has `fetch` and WebCrypto.
 
