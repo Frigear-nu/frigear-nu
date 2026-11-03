@@ -1,0 +1,16 @@
+{
+  "oauthClient": {
+    "signIn": "Log ind",
+    "login": {
+      "title": "Log ind",
+      "description": "Log ind med din konto for at fortsætte.",
+      "failed": "Login mislykkedes",
+      "failedDescription": "Login blev ikke gennemført. Prøv igen."
+    },
+    "callback": {
+      "pending": "Logger dig ind…",
+      "failed": "Login mislykkedes",
+      "retry": "Prøv at logge ind igen"
+    }
+  }
+}
