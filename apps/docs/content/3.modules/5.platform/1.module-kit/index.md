@@ -1,6 +1,8 @@
 ---
 title: Module Kit
 description: Helpers for building Frigear Nuxt modules - pages, URLs, translations, menu sources, virtual registries and extendable database tables.
+navigation:
+  title: Overview
 ---
 
 The shared toolkit behind every Frigear [Nuxt module](https://nuxt.com/docs/4.x/guide/modules). Use it to register
@@ -9,6 +11,8 @@ module owns, without replacing its schema. Almost every `@frigear-nu/*` module d
 authorization, cookie-consent, events, forms, mcp, menu, oauth-server, payments, preferences, stripe, subscriptions,
 users, widget); `notify` and `ui` do not. New to writing a module? Start with
 [Writing a module](/contribute/writing-a-module/scaffold).
+
+:module-runtime{server}
 
 ::note
 **Requires** `@nuxthub/core` only for the [Database](/modules/platform/module-kit/database) helpers, which also need the `drizzle-orm` and

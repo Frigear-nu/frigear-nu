@@ -1,12 +1,16 @@
 ---
 title: Mobile
 description: A Capacitor app shell for Nuxt - one tab registry for native and web tab bars, page titles, safe areas, haptics, deep links, the Android back button and a CLI for the iOS and Android projects.
+navigation:
+  title: Overview
 ---
 
 This [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) turns a Nuxt app into an iOS / Android app with one config
-block. Tabs are registered once (`mobile.tabs`, plus tabs other modules add) and feed the native iOS tab bar, the web tab
+block. Use it for a Capacitor app on a static `nuxt generate` build with no server of its own. Tabs are registered once (`mobile.tabs`, plus tabs other modules add) and feed the native iOS tab bar, the web tab
 bar and the page titles. It builds on [`nuxt-capacitor`](https://github.com/hareland/nuxt-capacitor), which writes
 `capacitor.config.json` from your Nuxt config, and signs users in through [OAuth Client](/modules/identity/oauth-client).
+
+:module-runtime{client mobile}
 
 ::note
 **Requires** [`@frigear-nu/module-kit`](/modules/platform/module-kit), `@nuxt/ui` (`>=4`) and `nuxt-capacitor`, all installed
@@ -28,7 +32,7 @@ pnpm add @capacitor/browser @aparajita/capacitor-secure-storage
 ```
 
 Capacitor links the native code of **the app's own dependencies** only, so install the plugins in the app, not just in a
-package it depends on. [`frigear-mobile doctor`](#cli) lists the missing ones.
+package it depends on. [`frigear-mobile doctor`](/modules/interface/mobile/cli-and-devices#cli) lists the missing ones.
 
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
@@ -97,7 +101,7 @@ Configured under `mobile`.
 | `appearance.toasterOffset` | `boolean` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar. |
 | `deepLinks.schemes` | `string[] \| false` | `[appId]` | Custom schemes routed into the app. `false` for none. |
 | `deepLinks.hosts` | `string[]` | `[]` | `https` hosts of universal links and app links. |
-| `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. See [Device development](#device-development). |
+| `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. See [Device development](/modules/interface/mobile/cli-and-devices#device-development). |
 | `ios.allowLocalNetworking` | `boolean` | `true` | `NSAllowsLocalNetworking` in Info.plist (plain http to the LAN). |
 | `doctor` | `boolean` | `true` | Warnings about native projects and missing plugins when dev or build starts. |
 
@@ -201,51 +205,9 @@ Runtime hooks, called with `useNuxtApp().hook(...)`:
 Deep links need `@capacitor/app` and a scheme in `deepLinks.schemes` or a host in `deepLinks.hosts`. The `native`
 command registers them in the native projects.
 
-## CLI
+## On this module
 
-The package ships the `frigear-mobile` command:
-
-```bash
-frigear-mobile native [--platform ios|android] [--if-missing] [--cwd <dir>]   # cap add + URL schemes, idempotent
-frigear-mobile doctor [--strict] [--cwd <dir>]                                # plugins and native projects
-```
-
-| Command | What it does |
-| --- | --- |
-| `native` | Reads the app's settings from `.nuxt/mobile/native.json` (it runs `nuxt prepare` first), runs `cap add` for platforms that have `@capacitor/ios` or `@capacitor/android` installed and no folder yet, then patches `ios/App/App/Info.plist` (`CFBundleURLTypes` with the OAuth redirect scheme and the deep-link schemes, `NSAllowsLocalNetworking`) and `android/app/src/main/AndroidManifest.xml` (VIEW intent filters, verified app links). Running it again changes nothing. `--if-missing` returns at once when every platform folder exists. |
-| `doctor` | Checks that the app depends on `@capacitor/cli` and on every plugin a feature uses, and that the native projects register the URL schemes. `--strict` exits with `1` on errors. |
-
-## Device development
-
-- **Live reload** (`nuxt dev --host 0.0.0.0`, `cap run ios --live-reload`): `nuxt-capacitor` points the app at the dev
-  server and `@frigear-nu/oauth-client` rewrites a `localhost` issuer and API base to that host.
-- **A build on a phone against a server on this machine:** `MOBILE_LAN=1 nuxt generate` rewrites `localhost` to this
-  machine's LAN address (`MOBILE_LAN=192.168.1.20` chooses it). It never applies in `nuxt dev`, and the build fails when
-  `MOBILE_RELEASE=1` is also set, so a LAN address never ships.
-
-| Variable | Purpose |
-| --- | --- |
-| `MOBILE_LAN` | `1` (or `true`) detects the LAN address; an address fixes it. |
-| `MOBILE_RELEASE` | `1` marks a release build. Combined with `MOBILE_LAN` it fails the build. |
-
-## Android
-
-The web tab bar and header are used on Android by default (`nativeChrome: 'all'` for the native ones, with `androidIcon`
-drawables). The back button closes an open overlay, goes back, returns to the first tab, then minimizes the app.
-Android's WebView origin is `https://localhost`, so a plain-http development server is mixed content: prefer live reload
-there.
-
-## Release checklist
-
-1. Install every plugin `frigear-mobile doctor` lists, as **dependencies** of the app.
-2. Install `@aparajita/capacitor-secure-storage` when the app signs in. A production build fails without it, because
-   tokens would be stored unencrypted. Set `oauthClient.storage: 'preferences'` only if you accept that.
-3. Register the redirect URI `<scheme>:/auth/callback` (the app id in lowercase, `_` as `-`) at the issuer, and allow `capacitor://localhost` and
-   `https://localhost` for CORS there and on your API ([Use your own OAuth server](/guide/going-further/own-oauth-server)).
-4. Point `issuer`, `apiBase` and `clientId` at production (`NUXT_PUBLIC_OAUTH_CLIENT_*`). Never ship a `localhost` or LAN
-   address, and build with `MOBILE_RELEASE=1` so `MOBILE_LAN` cannot slip in.
-5. Run `frigear-mobile native` and `frigear-mobile doctor --strict`, then `nuxt generate` and `cap sync`.
-6. Check that no client secret is in the bundle: the build refuses one.
+- [CLI and devices](/modules/interface/mobile/cli-and-devices): the `frigear-mobile` command, device development, Android and the release checklist.
 
 ## Related
 

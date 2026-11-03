@@ -1,6 +1,8 @@
 ---
 title: OAuth Server
 description: Let users sign in to your applications through an OAuth 2.0 / OpenID Connect server, with roles and claims supplied by the host app.
+navigation:
+  title: Overview
 ---
 
 This [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) turns an app into an OAuth 2.0 / OpenID Connect **server**.
@@ -8,6 +10,8 @@ You register **applications** (OAuth clients), restrict each one to users with c
 the application through your app: authorization code flow with mandatory PKCE, rotating refresh tokens and RS256 signed
 ID tokens. The module is deliberately bare-bone: it knows nothing about roles, admins or what belongs in a token, and the
 host decides through [Nitro hooks](/modules/identity/oauth-server/hooks).
+
+:module-runtime{server client}
 
 ::note
 **Requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/auth`](/modules/identity/auth),

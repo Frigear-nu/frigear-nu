@@ -5,7 +5,7 @@ description: Every Frigear Nuxt module, grouped by what it does, with how they d
 
 A **module** is a [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) that adds a feature to an application. Modules
 live under `packages/` and are published as `@frigear-nu/<name>`. Each module page follows the same layout: a short
-introduction, quick setup, options, then server, app, hooks, routes, database and translations reference. The larger
+introduction, badges for where it runs (**Server**: Nitro routes and utils; **Client**: browser app code; **Mobile**: works in a Capacitor app), quick setup, options, then server, app, hooks, routes, database and translations reference. The larger
 modules are split into a folder whose first page is the overview.
 
 ::note
@@ -18,50 +18,60 @@ sign-in, account pages and a user admin.
 
 Who the users are, how they sign in and what they may do.
 
-- [Auth](/modules/identity/auth): sign-in (password, magic link, OAuth, passkeys), API tokens, and one `requireAuth` for every credential.
-- [Users](/modules/identity/users): the user entity, staff administration and self-service profile, email and password changes.
-- [Account](/modules/identity/account): profile, security, documents and API token pages for signed-in users.
-- [Authorization](/modules/identity/authorization): abilities, policies, route rules, `<Can>` and a `role` on users.
-- [Preferences](/modules/identity/preferences): typed per-user preferences, optionally forwarded as OAuth claims.
-- [OAuth Server](/modules/identity/oauth-server): an OAuth 2.0 / OpenID Connect server for applications your users sign in to.
-- [OAuth Client](/modules/identity/oauth-client): PKCE sign-in for browser SPAs and Capacitor apps, with rotating refresh tokens and an authorized `$api`.
-- [Frigear Resource](/modules/identity/frigear-resource): accept frigear.nu access tokens in a service, so one mobile app signs in once and calls every service.
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Auth](/modules/identity/auth) | Sign-in (password, magic link, OAuth, passkeys), API tokens, and one `requireAuth` for every credential. | ✓ | ✓ |  |
+| [Users](/modules/identity/users) | The user entity, staff administration and self-service profile, email and password changes. | ✓ | ✓ |  |
+| [Account](/modules/identity/account) | Profile, security, documents and API token pages for signed-in users. |  | ✓ |  |
+| [Authorization](/modules/identity/authorization) | Abilities, policies, route rules, `<Can>` and a `role` on users. | ✓ | ✓ |  |
+| [Preferences](/modules/identity/preferences) | Typed per-user preferences, optionally forwarded as OAuth claims. | ✓ | ✓ |  |
+| [OAuth Server](/modules/identity/oauth-server) | An OAuth 2.0 / OpenID Connect server for applications your users sign in to. | ✓ | ✓ |  |
+| [OAuth Client](/modules/identity/oauth-client) | PKCE sign-in for browser SPAs and Capacitor apps, with rotating refresh tokens and an authorized `$api`. |  | ✓ | ✓ |
+| [Frigear Resource](/modules/identity/frigear-resource) | Accept frigear.nu access tokens in a service, so one mobile app signs in once and calls every service. | ✓ |  |  |
 
 ## Commerce
 
 Taking money through Stripe.
 
-- [Stripe](/modules/commerce/stripe): customer linking, one verified webhook and an event-listener API.
-- [Payments](/modules/commerce/payments): one-time Stripe payments with lifecycle hooks.
-- [Subscriptions](/modules/commerce/subscriptions): recurring subscriptions with host-defined plans and entitlements.
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Stripe](/modules/commerce/stripe) | Customer linking, one verified webhook and an event-listener API. | ✓ |  |  |
+| [Payments](/modules/commerce/payments) | One-time Stripe payments with lifecycle hooks. | ✓ | ✓ |  |
+| [Subscriptions](/modules/commerce/subscriptions) | Recurring subscriptions with host-defined plans and entitlements. | ✓ | ✓ |  |
 
 ## Features
 
 Ready-made product features.
 
-- [Events](/modules/features/events): events with ticket types, addons, capacity, membership rules and QR check-in.
-- [Forms](/modules/features/forms): database-backed forms with conditional fields, uploads and delivery.
-- [Cookie Consent](/modules/features/cookie-consent): GDPR banner, consent categories, gating and proof of consent.
-- [MCP](/modules/features/mcp): scope-gated MCP tools that other modules contribute.
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Events](/modules/features/events) | Events with ticket types, addons, capacity, membership rules and QR check-in. | ✓ | ✓ |  |
+| [Forms](/modules/features/forms) | Database-backed forms with conditional fields, uploads and delivery. | ✓ | ✓ |  |
+| [Cookie Consent](/modules/features/cookie-consent) | GDPR banner, consent categories, gating and proof of consent. | ✓ | ✓ |  |
+| [MCP](/modules/features/mcp) | Scope-gated MCP tools that other modules contribute. | ✓ |  |  |
 
 ## Interface
 
 The shell, navigation and components that screens are built from.
 
-- [UI](/modules/interface/ui): shared components, composables and Nuxt UI integration.
-- [Admin](/modules/interface/admin): guarded admin shell, dashboard and navigation that modules register into.
-- [Menu](/modules/interface/menu): named navigation menus that modules and content contribute to.
-- [Widget](/modules/interface/widget): named widget and tab areas that modules contribute components to.
-- [Mobile](/modules/interface/mobile): Capacitor app shell with one tab registry for native and web tab bars, native features, deep links and a CLI.
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [UI](/modules/interface/ui) | Shared components, composables and Nuxt UI integration. |  | ✓ |  |
+| [Admin](/modules/interface/admin) | Guarded admin shell, dashboard and navigation that modules register into. |  | ✓ |  |
+| [Menu](/modules/interface/menu) | Named navigation menus that modules and content contribute to. | ✓ | ✓ |  |
+| [Widget](/modules/interface/widget) | Named widget and tab areas that modules contribute components to. |  | ✓ |  |
+| [Mobile](/modules/interface/mobile) | Capacitor app shell with one tab registry for native and web tab bars, native features, deep links and a CLI. |  | ✓ | ✓ |
 
 ## Platform
 
 Building blocks other modules and apps stand on.
 
-- [Module Kit](/modules/platform/module-kit): helpers for writing modules, the server toolkit and extendable database schemas.
-- [Notify](/modules/platform/notify): email, SMS and simple notification drivers and dispatch.
-- [Email Templates](/modules/platform/email-templates): Vue email templates that modules ship and apps override.
-- [Base Layer](/modules/platform/base-layer): the shared Nuxt **layer** (not a module) that wires the modules, styling and content conventions for Frigear websites.
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Module Kit](/modules/platform/module-kit) | Helpers for writing modules, the server toolkit and extendable database schemas. | ✓ |  |  |
+| [Notify](/modules/platform/notify) | Email, SMS and simple notification drivers and dispatch. | ✓ |  |  |
+| [Email Templates](/modules/platform/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
+| [Base Layer](/modules/platform/base-layer) | The shared Nuxt **layer** (not a module) that wires the modules, styling and content conventions for Frigear websites. |  | ✓ |  |
 
 ## How they fit together
 

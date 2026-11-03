@@ -26,7 +26,7 @@ export default defineNitroPlugin((nitro) => {
 })
 ```
 
-Full documentation: `apps/docs/content/3.modules/3.features/1.events.md`.
+Full documentation: `apps/docs/content/3.modules/3.features/1.events/index.md`.
 
 ## Development
 

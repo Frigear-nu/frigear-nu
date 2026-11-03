@@ -82,4 +82,4 @@ Types (`DescriptionItem`, `PageTabItem`, `StatusColor`, …) are exported from `
 `CurrencyInput`, `MoneyInput`, `DateInput`, `IntervalInput`, `TagInput`, `UrlInput`, `IconInput`, `SwitchToggle`,
 `MarkdownTextarea`, `TranslatedInput`; `MonacoCodeEditor` only when the host installs `nuxt-monaco-editor`.
 
-See the [documentation](../../apps/docs/content/3.modules/4.interface/1.ui.md) and the [playground](./playground).
+See the [documentation](../../apps/docs/content/3.modules/4.interface/1.ui/index.md) and the [playground](./playground).

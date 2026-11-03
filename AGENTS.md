@@ -303,7 +303,7 @@ Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the t
 
 Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
 `apps/docs/content/2.guide/2.ux-patterns/` (docs site: `/guide/ux-patterns/*`). The building blocks
-live in `packages/ui` (reference: `apps/docs/content/3.modules/4.interface/1.ui.md`). Rules:
+live in `packages/ui` (reference: `apps/docs/content/3.modules/4.interface/1.ui/index.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a

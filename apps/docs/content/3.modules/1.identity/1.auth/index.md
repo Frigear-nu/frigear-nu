@@ -1,12 +1,16 @@
 ---
 title: Auth
 description: Sign-in (password, magic link, OAuth, passkeys), user API tokens and one requireAuth for cookie sessions, tokens and OAuth access tokens, with scopes.
+navigation:
+  title: Overview
 ---
 
 The [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) that owns **authentication**: how people sign in, and for
 every server route, who is calling and how. [Users](/modules/identity/users), [Authorization](/modules/identity/authorization),
 [OAuth Server](/modules/identity/oauth-server) and the feature modules build on it; it depends on none of them and knows users
 only through the `AuthUserStore` that Users provides.
+
+:module-runtime{server client}
 
 ::note
 **Requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) (sign-in emails),
