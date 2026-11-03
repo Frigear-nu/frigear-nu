@@ -9,6 +9,8 @@ const { data } = await useAsyncData('api-check', async () => ({
   own: await $api<Echo>('/api/test/echo'),
   ownUrl: await $api<Echo>(`${url.origin}/api/test/echo`),
   ownUrlObject: await $api<Echo>(new URL(`${url.origin}/api/test/echo`)),
+  // A `Request` cannot be rewritten to a path: no credentials on the server.
+  ownRequest: await $api<Echo>(new Request(`${url.origin}/api/test/echo`)),
   other: await $api<Echo>(`${otherOrigin}/api/test/echo`),
   otherBase: await $api<Echo>('/api/test/echo', { baseURL: otherOrigin }),
   // A caller's hook that moves the request elsewhere: the credentials are attached after it.

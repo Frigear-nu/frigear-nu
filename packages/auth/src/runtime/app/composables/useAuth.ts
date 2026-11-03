@@ -39,9 +39,14 @@ export function useAuth() {
 
     /** Ends the session (`POST /api/auth/logout`), clears it here and navigates to `/` (or `redirect`; `false` stays). */
     async logout(options: { redirect?: boolean | string } = {}) {
-      // Through `$api`, so a server render forwards the session cookie to the logout route.
-      await (nuxtApp.$api as (request: string, options: object) => Promise<unknown>)(authApi.logout, { method: 'POST' })
-      await nuxtApp.runWithContext(() => clear())
+      // Through `$api`, so a server render forwards the session cookie to the logout route. Cleared here whatever
+      // the request did.
+      try {
+        await (nuxtApp.$api as (request: string, options: object) => Promise<unknown>)(authApi.logout, { method: 'POST' })
+      }
+      finally {
+        await nuxtApp.runWithContext(() => clear())
+      }
       const target = typeof options.redirect === 'string' && isSafeRedirect(options.redirect) ? options.redirect : '/'
       if (options.redirect !== false) await nuxtApp.runWithContext(() => navigateTo(target))
     },

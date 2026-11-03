@@ -1,6 +1,7 @@
+import { request } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
-import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
+import { setup, $fetch, fetch, url } from '@nuxt/test-utils/e2e'
 import { filesContaining, outputDir } from './utils/output'
 
 describe('login/register pages (opt-in)', async () => {
@@ -55,6 +56,7 @@ describe('login/register pages (opt-in)', async () => {
     expect(result.own).toEqual(forwarded)
     expect(result.ownUrl).toEqual(forwarded)
     expect(result.ownUrlObject).toEqual(forwarded)
+    expect(result.ownRequest).toEqual(none)
     expect(result.other).toEqual(none)
     expect(result.otherBase).toEqual(none)
     expect(result.otherByHook).toEqual(none)
@@ -74,5 +76,37 @@ describe('login/register pages (opt-in)', async () => {
       callback: false,
       complete: expect.stringContaining('client mode only'),
     })
+  })
+
+  it('keeps forwarded credentials in-process when the Host header names another host', async () => {
+    // `fetch` will not send another Host header; a raw request can.
+    const html = await new Promise<string>((resolve, reject) => {
+      const req = request(url('/api-host-check'), { headers: { host: 'evil.invalid', cookie: 'probe=1', authorization: 'Bearer probe' } }, (res) => {
+        let body = ''
+        res.on('data', chunk => (body += chunk))
+        res.on('end', () => resolve(body))
+      })
+      req.on('error', reject)
+      req.end()
+    })
+    const result = JSON.parse(/<pre id="result">([\s\S]*?)<\/pre>/.exec(html)![1]!.replaceAll('&quot;', '"'))
+    // Fetched over the network, these would have failed (or reached that host): they were served in-process.
+    expect(result.origin).toBe('http://evil.invalid')
+    const forwarded = { cookie: expect.stringContaining('probe=1'), authorization: 'Bearer probe' }
+    expect(result.ownUrl).toEqual(forwarded)
+    expect(result.ownUrlObject).toEqual(forwarded)
+    expect(result.ownBase).toEqual(forwarded)
+  })
+
+  it('ends the session and goes to the login page on a 401 from the app while signed in', async () => {
+    const signIn = await fetch('/api/test/sign-in', { method: 'POST' })
+    expect(signIn.status, await signIn.clone().text()).toBe(200)
+    const cookie = signIn.headers.get('set-cookie')!.split(';')[0]!
+    expect(await $fetch('/api/_auth/session', { headers: { cookie } })).toHaveProperty('user')
+    const response = await fetch('/refuse-check', { headers: { cookie }, redirect: 'manual' })
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('/login?redirect=/refuse-check')
+    // The session cookie is cleared in the same response.
+    expect(response.headers.get('set-cookie')).toMatch(/nuxt-session=;|Max-Age=0|Expires=Thu, 01 Jan 1970/)
   })
 })

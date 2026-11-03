@@ -34,8 +34,11 @@ export default defineNuxtPlugin({
     const attach: Hook = (context) => {
       if (!isOwn(context)) return
       const { request, options } = context
-      if (import.meta.server && typeof request === 'string') {
-        if (isAbsolute(request)) context.request = toPath(request)
+      if (import.meta.server) {
+        // A `Request` cannot be rewritten to a path, so it never gets the caller's credentials on the server.
+        if (typeof request !== 'string' && !(request instanceof URL)) return
+        const url = urlOf(request)
+        if (isAbsolute(url)) context.request = toPath(url)
         else if (options.baseURL && isAbsolute(options.baseURL)) options.baseURL = toPath(options.baseURL)
       }
       const headers = new Headers(options.headers)
@@ -50,7 +53,11 @@ export default defineNuxtPlugin({
       await nuxtApp.runWithContext(() => {
         const { login } = useAuthPages()
         const { fullPath, path } = useRoute()
-        if (/^https?:\/\//.test(login)) return navigateTo(login, { external: true })
+        if (/^https?:\/\//.test(login)) {
+          const url = new URL(login)
+          url.searchParams.set('redirect', fullPath)
+          return navigateTo(url.toString(), { external: true })
+        }
         return navigateTo(path === login ? login : { path: login, query: { redirect: fullPath } })
       })
     }

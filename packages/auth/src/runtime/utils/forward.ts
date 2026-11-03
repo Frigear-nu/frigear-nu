@@ -1,5 +1,6 @@
 /** Whether `value` is a path on the current origin: `/x`, never `//host`, a backslash or a full URL. */
-const isOriginPath = (value: string) => value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')
+// eslint-disable-next-line no-control-regex
+const isOriginPath = (value: string) => value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') && !/[\u0000-\u001F\u007F]/.test(value)
 
 const originOf = (value: string) => {
   try {
