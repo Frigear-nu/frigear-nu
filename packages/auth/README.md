@@ -28,7 +28,8 @@ const owner = await requireAuth(event, { sessionOnly: true })
 - The same client API as client mode: `useUserSession()`, `useAuth()` (`login` goes to the login page with
   `?redirect=`, `logout` ends the session) and `$api` / `useApi()`. `$api` sends the caller's credentials (the incoming
   Cookie and Authorization headers during a server render) only to this app's own paths and origin, never to another
-  URL or a foreign `baseURL`.
+  URL or a foreign `baseURL`. A 401 from this app while signed in clears the session and goes to the login page. An
+  app must not provide its own `$api`.
 
 ## Client mode
 

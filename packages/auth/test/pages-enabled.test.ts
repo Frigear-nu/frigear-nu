@@ -51,11 +51,28 @@ describe('login/register pages (opt-in)', async () => {
     const json = /<pre id="result">([\s\S]*?)<\/pre>/.exec(html)?.[1]?.replaceAll('&quot;', '"')
     const result = JSON.parse(json!)
     const forwarded = { cookie: expect.stringContaining('probe=1'), authorization: 'Bearer probe' }
+    const none = { cookie: null, authorization: null }
     expect(result.own).toEqual(forwarded)
     expect(result.ownUrl).toEqual(forwarded)
-    expect(result.other).toEqual({ cookie: null, authorization: null })
-    expect(result.otherBase).toEqual({ cookie: null, authorization: null })
+    expect(result.ownUrlObject).toEqual(forwarded)
+    expect(result.other).toEqual(none)
+    expect(result.otherBase).toEqual(none)
+    expect(result.otherByHook).toEqual(none)
+    expect(result.ownHeaders).toEqual({ cookie: expect.stringContaining('probe=1'), authorization: 'Bearer service' })
+    expect(result.refused).toBe(401)
     expect(result.useApi.cookie).toContain('probe=1')
-    expect(result.status).toBe('signed-out')
+  })
+
+  it('keeps the client-mode `useAuth()` contract, without an OAuth client', async () => {
+    const html = await $fetch<string>('/api-check')
+    const result = JSON.parse(/<pre id="result">([\s\S]*?)<\/pre>/.exec(html)![1]!.replaceAll('&quot;', '"'))
+    expect(result.contract).toEqual({
+      status: 'signed-out',
+      authenticated: false,
+      signingIn: false,
+      token: null,
+      callback: false,
+      complete: expect.stringContaining('client mode only'),
+    })
   })
 })

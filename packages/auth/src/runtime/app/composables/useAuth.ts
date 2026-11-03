@@ -1,4 +1,4 @@
-import { $fetch, computed, navigateTo, readonly, ref, useAuthPages, useUserSession } from '#imports'
+import { computed, navigateTo, readonly, ref, useAuthPages, useNuxtApp, useUserSession } from '#imports'
 import { authApi } from '../../utils/api'
 import { isSafeRedirect } from '../../utils/redirect'
 
@@ -10,6 +10,8 @@ const isExternalUrl = (value: string) => /^https?:\/\//.test(value)
  * `completeLogin()` throws and `isCallbackUrl()` is `false`.
  */
 export function useAuth() {
+  // Captured now: the actions run after awaits, where the Nuxt context is gone during a server render.
+  const nuxtApp = useNuxtApp()
   const { ready, loggedIn, clear } = useUserSession()
   const loginPage = useAuthPages().login
 
@@ -25,10 +27,10 @@ export function useAuth() {
       if (isExternalUrl(loginPage)) {
         const url = new URL(loginPage)
         if (query) url.searchParams.set('redirect', query.redirect)
-        await navigateTo(url.toString(), { external: true })
+        await nuxtApp.runWithContext(() => navigateTo(url.toString(), { external: true }))
         return
       }
-      await navigateTo({ path: loginPage, query })
+      await nuxtApp.runWithContext(() => navigateTo({ path: loginPage, query }))
     },
 
     async completeLogin(_callbackUrl?: string): Promise<never> {
@@ -37,9 +39,11 @@ export function useAuth() {
 
     /** Ends the session (`POST /api/auth/logout`), clears it here and navigates to `/` (or `redirect`; `false` stays). */
     async logout(options: { redirect?: boolean | string } = {}) {
-      await $fetch(authApi.logout, { method: 'POST' })
-      await clear()
-      if (options.redirect !== false) await navigateTo(typeof options.redirect === 'string' ? options.redirect : '/')
+      // Through `$api`, so a server render forwards the session cookie to the logout route.
+      await (nuxtApp.$api as (request: string, options: object) => Promise<unknown>)(authApi.logout, { method: 'POST' })
+      await nuxtApp.runWithContext(() => clear())
+      const target = typeof options.redirect === 'string' && isSafeRedirect(options.redirect) ? options.redirect : '/'
+      if (options.redirect !== false) await nuxtApp.runWithContext(() => navigateTo(target))
     },
 
     /** Always `null`: in server mode the session cookie is the credential. */
