@@ -71,7 +71,7 @@ Content collections (`config`, `pages`) support opt-in localization, fully drive
 
 The `config` and `pages` collections are validated against `WebsiteConfigSchema` and `WebsitePageSchema` (see
 `shared/schema/config.ts` and `shared/schema/page.ts`). For the full schema reference and more detail on the
-localized/non-localized setup, see the [Base Layer docs](../../apps/docs/content/3.layers/1.base.md).
+localized/non-localized setup, see the [Base Layer docs](../../apps/docs/content/4.layers/1.base.md).
 
 Page front matter also accepts `container: true`, which wraps the rendered body in a `UContainer` (use it for plain prose pages such as legal; pages built from `u-page-*` sections manage their own containers). It also accepts `seo: { title, description, image, noindex }`, and `config.yaml` accepts `seo: { titleTemplate, description, image }`; the layer ships no SEO defaults, see the docs.
 

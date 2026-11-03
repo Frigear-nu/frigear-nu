@@ -40,7 +40,7 @@ export default defineNuxtConfig({
 })
 ```
 
-See the [documentation](../../apps/docs/content/4.modules/18.users.md) for the routes, hooks and the user page extension
+See the [documentation](../../apps/docs/content/5.modules/18.users.md) for the routes, hooks and the user page extension
 points, and [`@frigear-nu/auth`](../auth/README.md) for sign-in (`authentication.settings`).
 
 ## Development
