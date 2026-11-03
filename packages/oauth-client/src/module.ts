@@ -84,6 +84,10 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
     const logger = useLogger('oauth-client')
+    // Frozen: it keeps working, but new apps (and Mobile 0.2) use Auth's client mode.
+    if (!nuxt.options._prepare) {
+      logger.warn('`@frigear-nu/oauth-client` is deprecated: use `@frigear-nu/auth` with `authentication.mode: \'client\'`. Migration guide: https://docs.frigear.dev/modules/identity/auth/client-mode')
+    }
     inlineModuleRuntime(nuxt, resolver)
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 

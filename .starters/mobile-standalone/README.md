@@ -32,7 +32,7 @@ pnpm dev
 
 1. Open http://localhost:3000, choose **Create account** and register with the email from `NUXT_ACL_ADMINS`.
 2. Open http://localhost:3001, the mobile app in a browser. **Sign in** goes to `apps/web`, asks for consent and comes
-   back signed in. The Home tab shows your claims and `/api/me`.
+   back signed in. The Home tab shows the signed-in user and `/api/me`.
 3. `pnpm mobile:ios` runs it in the iOS simulator against the same server.
 
 Rename the app (app id, name, client id, scopes) in `apps/mobile/identity.ts`. The full guide, with devices, Android

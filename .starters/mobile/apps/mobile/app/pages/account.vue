@@ -1,11 +1,16 @@
 <script setup lang="ts">
-// The signed-in user, and sign-out. Signing out revokes the refresh token at the issuer and returns to /login.
-const { claims, logout } = useOAuth()
+// The signed-in user, and sign-out. Signing out revokes the refresh token at the issuer and returns to `/`, which the
+// `'/**'` rule sends on to /login.
+const { user } = useUserSession()
+const { logout } = useAuth()
 const native = useNative()
 const signingOut = ref(false)
 
-const name = computed(() => String(claims.value?.name ?? claims.value?.preferred_username ?? 'Signed in'))
-const email = computed(() => claims.value?.email ? String(claims.value.email) : undefined)
+// The default mapping of client mode: `{ id, sub, name, email, avatar, role }` from the ID token claims. Map other
+// claims (`preferred_username`, ...) with `authentication.client.mapUser`.
+const profile = computed(() => user.value as { name?: string, email?: string } | null)
+const name = computed(() => profile.value?.name ?? profile.value?.email ?? 'Signed in')
+const email = computed(() => profile.value?.email)
 
 async function signOut() {
   const confirmed = await native.confirm({
