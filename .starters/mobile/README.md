@@ -2,9 +2,10 @@
 
 A pnpm workspace with one **Capacitor** app (`apps/mobile`): a Nuxt 4 SPA on
 [`@frigear-nu/mobile`](https://docs.frigear.dev/modules/interface/mobile) with a native tab bar on iOS, signing in with
-[`@frigear-nu/oauth-client`](https://docs.frigear.dev/modules/identity/oauth-client) (OAuth 2.1 + PKCE) at an issuer of your
-choice: frigear.nu, your own Frigear server, Keycloak, Auth0, ... It has two tabs, **Home** (your ID token claims and a
-call to `/api/me`) and **Account** (your profile and sign-out).
+[`@frigear-nu/auth`](https://docs.frigear.dev/modules/identity/auth/client-mode) in client mode (OAuth 2.1 + PKCE) at an
+issuer of your choice: frigear.nu, your own Frigear server, Keycloak, Auth0, ... It has two tabs, **Home** (the signed-in
+user and a call to `/api/me`) and **Account** (your profile and sign-out). Every page needs a signed-in user through one
+`@frigear-nu/authorization` route rule (`'/**': { authenticated: true }`); remove it for a public home screen.
 
 Want the server too? Use the [standalone mobile starter](https://docs.frigear.dev/examples/starters/mobile-standalone).
 
@@ -25,8 +26,8 @@ Point `apps/mobile/.env` at your issuer and API:
 
 | Variable | What it is |
 | --- | --- |
-| `NUXT_PUBLIC_OAUTH_CLIENT_ISSUER` | The OAuth / OpenID Connect issuer, e.g. `https://id.example.com`. |
-| `NUXT_PUBLIC_OAUTH_CLIENT_API_BASE` | The API `useApi()` calls with the access token. Default: the issuer. |
+| `NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER` | The OAuth / OpenID Connect issuer, e.g. `https://id.example.com`. |
+| `NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE` | The API `useApi()` calls with the access token. Default: the issuer. |
 
 At the issuer, register a **public** client with the id `mobile` (see `apps/mobile/identity.ts`) and the redirect
 URIs `com.example.mobile:/auth/callback` (the app) and `http://localhost:3001/auth/callback` (development), and allow

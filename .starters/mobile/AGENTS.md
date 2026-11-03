@@ -5,7 +5,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 ## Repo layout
 
 ```
-/apps/mobile      Capacitor app (Nuxt 4 SPA) on @frigear-nu/mobile, signing in with @frigear-nu/oauth-client
+/apps/mobile      Capacitor app (Nuxt 4 SPA) on @frigear-nu/mobile, signing in with @frigear-nu/auth (client mode)
 /apps/**          Other apps - could be any language or deployment target
 /packages/**      Shared workspace packages (config, types, utils, ...)
 /scripts          Workspace scripts (prepare-env.mjs)

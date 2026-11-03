@@ -1,17 +1,18 @@
 # AGENTS.md - `apps/mobile`
 
 A **Capacitor** app: a static Nuxt 4 SPA (`ssr: false`, `nuxt generate` → `.output/public`) on the published
-`@frigear-nu/mobile` and `@frigear-nu/oauth-client` modules, wrapped in native iOS and Android projects. Run every
+`@frigear-nu/mobile`, `@frigear-nu/auth` (client mode) and `@frigear-nu/authorization` modules, wrapped in native iOS
+and Android projects. Run every
 command from the repository root (`pnpm --filter ./apps/mobile <command>`, or the root `mobile:*` scripts), never from
-this folder. Docs: https://docs.frigear.dev/modules/interface/mobile and https://docs.frigear.dev/modules/oauth-client, also as
+this folder. Docs: https://docs.frigear.dev/modules/interface/mobile and https://docs.frigear.dev/modules/identity/auth/client-mode, also as
 Markdown at `https://docs.frigear.dev/raw/<path>.md`.
 
 ## Layout
 
 ```
 identity.ts               app id, app name, OAuth client id, callback path, dev port, scopes: rename the app here
-nuxt.config.ts            modules, tabs (`mobile.tabs`) and sign-in (`oauthClient`), read from identity.ts
-.env.example              NUXT_PUBLIC_OAUTH_CLIENT_* : the issuer and API the app talks to
+nuxt.config.ts            modules, tabs (`mobile.tabs`), sign-in (`authentication`) and guards (`routeRules`), from identity.ts
+.env.example              NUXT_PUBLIC_AUTHENTICATION_CLIENT_* : the issuer and API the app talks to
 app/app.vue               <UApp :toaster="useMobileToaster()">
 app/app.config.ts         branding of the /login page
 app/pages/index.vue       Home tab: the ID token claims and a sample call to /api/me
@@ -21,8 +22,12 @@ ios/, android/            native projects, created by `pnpm mobile:native` (not 
 
 - `identity.ts` is exported as `@workspace/mobile/identity`, so a server in this workspace (the standalone starter's
   `apps/web`) registers the OAuth client from the same values. Keep it plain constants: Node loads it with the config.
-- `mobile` installs `oauthClient` with `protect: 'all'`: every page needs a signed-in user except `/login` and
-  `/auth/callback`. `definePageMeta({ oauth: false })` makes a page public.
+- `mobile` installs `@frigear-nu/auth`; `authentication.mode: 'client'` is set here. The guards are this app's, through
+  `@frigear-nu/authorization`: `routeRules: { '/**': { authenticated: true } }` signs in everywhere, and `/login` and
+  `/auth/callback` stay public without a rule. `definePageMeta({ authorize: false })` makes a page public. A tab with
+  `requiresAuth: true` hides while signed out. Guards only decide what the app shows: the API decides what is allowed.
+- Who is signed in: `useUserSession()` (`loggedIn`, `user`, with `user.id` the issuer's `sub`); sign in and out:
+  `useAuth()` (`login`, `logout`).
 - Call your API with `useApi(url)` or `useNuxtApp().$api(url)`: they add the bearer token, refresh it on `401` and only
   send it to the issuer and `apiBase` origins. Never read tokens yourself.
 - `NUXT_PUBLIC_*` values are baked in by `nuxt generate`: rebuild (`pnpm mobile:sync`) after changing `.env`.
