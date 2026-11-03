@@ -17,7 +17,7 @@ export default defineNuxtConfig({
 })
 ```
 
-Renamed from `@frigear-nu/frigear-resource` (0.1.5): the config key is now `oauthResource` and the env vars
+Renamed from `@frigear-nu/frigear-resource` (0.1.6): the config key is now `oauthResource` and the env vars
 `NUXT_OAUTH_RESOURCE_*`.
 
 Docs: https://docs.frigear.dev/modules/identity/oauth-resource

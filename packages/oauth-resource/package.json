@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/oauth-resource",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "OAuth 2.0 resource server for Nuxt: verifies RFC 9068 at+jwt access tokens against the issuer's JWKS, maps scopes to the auth principal, provisions users and adds bearer-only CORS for the mobile app. Defaults to frigear.nu.",
   "homepage": "https://docs.frigear.dev/modules/identity/oauth-resource",
   "repository": {
