@@ -1,0 +1,21 @@
+{
+  "name": "frigear-mobile-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.10.0",
+  "scripts": {
+    "dev": "pnpm --filter ./apps/mobile dev",
+    "build": "pnpm -r build",
+    "prepare:env": "node scripts/prepare-env.mjs",
+    "mobile:native": "pnpm --filter ./apps/mobile run native",
+    "mobile:doctor": "pnpm --filter ./apps/mobile run doctor",
+    "mobile:sync": "pnpm --filter ./apps/mobile run cap:sync",
+    "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
+    "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",
+    "mobile:android": "pnpm --filter ./apps/mobile run android:run",
+    "test": "pnpm -r --parallel test",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "lint:fix": "pnpm -r --parallel lint:fix",
+    "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules"
+  }
+}
