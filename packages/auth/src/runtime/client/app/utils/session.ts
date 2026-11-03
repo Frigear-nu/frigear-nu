@@ -120,8 +120,16 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
       if (!mapped || typeof mapped !== 'object') throw new TypeError('`authentication.client.mapUser` must return an object.')
     }
     catch (error) {
-      if (current !== version) return
       const failure = classify(error)
+      // A refused token fails this run even when the refusal already ended the session (signing out raises the
+      // version): `auth:user-failed` fires and `wait` rejects. Only a newer sign-in is left alone.
+      if (failure === 'unauthorized' || failure === 'handled') {
+        fail(error)
+        if (current === version) setUser(mapClaimsToUser(claims) as unknown as Record<string, unknown>, claims)
+        if (failure === 'unauthorized' && (current === version || !state.session.value)) await options.onUnauthorized()
+        throw error
+      }
+      if (current !== version) return
       fail(error)
       // Whatever failed, the user is the claims mapping of these claims, never a previous mapping's (a revoked role).
       setUser(mapClaimsToUser(claims) as unknown as Record<string, unknown>, claims)
@@ -130,9 +138,7 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
         key = null
         return
       }
-      // The tokens were refused: handled like a 401 of `$api` (which already did, for its own requests).
-      if (failure === 'unauthorized') await options.onUnauthorized()
-      // A refusal, a configuration error, a userinfo response about another user or a failing mapper: surface it.
+      // A configuration error, a userinfo response about another user or a failing mapper: surface it.
       throw error
     }
     finally {
@@ -184,7 +190,8 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
       await mapped
       // A refresh during the mapping (from its own requests) started a newer run of this sign-in: wait for it too.
       if (state.session.value?.id === sessionId) await settled()
-      return sessionId
+      // The id of the sign-in this applied, while it is still the session (signed out meanwhile: `null`).
+      return state.session.value?.id === sessionId ? sessionId : null
     },
   }
 }

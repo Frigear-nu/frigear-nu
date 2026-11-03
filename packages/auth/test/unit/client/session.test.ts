@@ -140,6 +140,41 @@ describe('the session (async mapping)', () => {
     expect(ctx.onUnauthorized).toHaveBeenCalledTimes(1)
   })
 
+  it('fails the run and rejects `wait` when a `$api` 401 signed the user out during the mapping', async () => {
+    const error = Object.assign(new Error('refused'), { name: 'FetchError', statusCode: 401 })
+    const holder = {} as { ctx: ReturnType<typeof setup> }
+    // `$api` with `onUnauthorized: 'signOut'`: it signs out locally (the core then reports no tokens), then throws.
+    const api = vi.fn(async () => {
+      await holder.ctx.mapper.apply(null)
+      throw error
+    })
+    const ctx = holder.ctx = setup({ mapUser: async ({ api }) => api('/api/me'), api })
+    await expect(ctx.mapper.apply(stored(claims()), { wait: true })).rejects.toBe(error)
+    expect(ctx.hooks.callHook).toHaveBeenCalledWith('auth:user-failed', { error })
+    expect(ctx.state.session.value).toBeNull()
+  })
+
+  it('runs onUnauthorized for a userinfo 401 after the core ended the session', async () => {
+    const error = new OAuthSessionError('invalid_token', 'refused', { status: 401 })
+    const ctx = setup({ userinfo: true })
+    ctx.client.fetchUserInfo.mockImplementation(async () => {
+      await ctx.mapper.apply(null)
+      throw error
+    })
+    await expect(ctx.mapper.apply(stored(claims()), { wait: true })).rejects.toBe(error)
+    expect(ctx.onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(ctx.hooks.callHook).toHaveBeenCalledWith('auth:user-failed', { error })
+  })
+
+  it('returns null from `wait` when the sign-in it mapped is gone', async () => {
+    const result = deferred<Record<string, unknown>>()
+    const ctx = setup({ mapUser: () => result.promise })
+    const waiting = ctx.mapper.apply(stored(claims()), { wait: true })
+    await ctx.mapper.apply(null)
+    result.resolve({ role: 'admin' })
+    expect(await waiting).toBeNull()
+  })
+
   it('maps again on the next refresh after a transient failure', async () => {
     const ctx = setup({ userinfo: true })
     ctx.client.fetchUserInfo.mockRejectedValueOnce(new OAuthTransientError('network_error', 'offline'))
@@ -171,7 +206,7 @@ describe('the session (async mapping)', () => {
     const waiting = ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
     await ctx.mapper.apply(stored(claims(), 's2'), { wait: true })
     first.reject(new TypeError('stale'))
-    await expect(waiting).resolves.toBe('s1')
+    await expect(waiting).resolves.toBeNull()
     expect(ctx.onError).not.toHaveBeenCalled()
     expect(ctx.user()).toMatchObject({ role: 'member' })
   })
@@ -249,8 +284,8 @@ describe('the session (async mapping)', () => {
     const first = ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
     await ctx.mapper.apply(stored(claims(), 's2'))
     runs[0]!.resolve({ role: 'admin' })
-    // The plugin only fires `auth:signed-in` when the returned id is still the session's.
-    expect(await first).toBe('s1')
+    // `null`: that sign-in is no longer the session (the plugin fires no `auth:signed-in` for it).
+    expect(await first).toBeNull()
     expect(ctx.state.session.value!.id).toBe('s2')
     expect(ctx.user()).not.toHaveProperty('role')
     runs[1]!.resolve({ role: 'member' })
