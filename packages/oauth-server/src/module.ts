@@ -22,8 +22,10 @@ import {
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
+import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
-import { mergeScopeDefinitions, parseList } from './runtime/utils'
+import { isExactOrigin, mergeScopeDefinitions, normalizeConfiguredClients, parseList } from './runtime/utils'
+import { loadOrCreateDevSigningKey } from './dev-key'
 import type {
   ApplicationAccessContext,
   AuthorizeContext,
@@ -76,6 +78,24 @@ declare module 'nitropack' {
 
 const MODULE_NAME = '@frigear-nu/oauth-server'
 
+/**
+ * `nuxt dev` without `NUXT_OAUTH_SERVER_PRIVATE_KEY`: a signing key generated once into `.data/oauth-server/dev-key.pem`,
+ * so sign-in works out of the box. Never in a build: production keeps failing with `not_configured` until a key is set.
+ */
+function useDevSigningKey(rootDir: string): string | undefined {
+  const logger = useLogger(MODULE_NAME)
+  const path = join(rootDir, '.data', 'oauth-server', 'dev-key.pem')
+  try {
+    const { pem, created } = loadOrCreateDevSigningKey(path)
+    logger.warn(`${created ? 'Generated' : 'Using'} a development signing key in ${relative(rootDir, path)}. Set NUXT_OAUTH_SERVER_PRIVATE_KEY before deploying.`)
+    return pem
+  }
+  catch (error) {
+    logger.warn(`No signing key configured and no development key could be written (${(error as Error).message}). Set NUXT_OAUTH_SERVER_PRIVATE_KEY.`)
+    return undefined
+  }
+}
+
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'oauthServer' },
   defaults: {
@@ -85,7 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
     codeTtl: 600,
     callbackPath: '/auth/frigear',
     scopes: [],
-    cors: { origins: [] },
+    cors: { origins: [], paths: [] },
     settings: { pages: {} },
   },
   moduleDependencies: {
@@ -136,30 +156,49 @@ export default defineNuxtModule<ModuleOptions>({
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
       // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
-      const url = URL.canParse(origin) ? new URL(origin) : undefined
-      if (!url || origin === '*' || origin !== `${url.protocol}//${url.host}`) {
+      if (!isExactOrigin(origin)) {
         throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${origin}".`)
       }
+    }
+    const corsPaths = parseList(options.cors?.paths)
+    for (const path of corsPaths) {
+      if (!path.startsWith('/') || path.startsWith('//')) throw new Error(`[${MODULE_NAME}] cors.paths must be path prefixes such as "/api/", got "${path}".`)
+    }
+
+    // Configured clients: validated now, and read at runtime, where `NUXT_OAUTH_SERVER_CLIENTS` may replace them (their
+    // CORS origins are added there too, so a client removed by the override takes its origins with it).
+    const callbackPath = options.callbackPath ?? '/auth/frigear'
+    try {
+      normalizeConfiguredClients(options.clients ?? [], { dev: nuxt.options.dev, callbackPath })
+    }
+    catch (error) {
+      throw new Error(`[${MODULE_NAME}] oauthServer.clients: ${(error as Error).message}`, { cause: error })
     }
 
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).
     const existing = nuxt.options.runtimeConfig.oauthServer as Partial<OAuthServerRuntimeConfig> | undefined
+    const devPrivateKey = nuxt.options.dev && !nuxt.options._prepare && !existing?.privateKey && !process.env.NUXT_OAUTH_SERVER_PRIVATE_KEY
+      ? useDevSigningKey(nuxt.options.rootDir)
+      : undefined
     nuxt.options.runtimeConfig.oauthServer = {
       privateKey: '',
       publicKey: '',
       previousPublicKeys: '',
       ...existing,
+      ...(devPrivateKey ? { privateKey: devPrivateKey } : {}),
       issuer: options.issuer,
       keyId: options.keyId ?? 'key-1',
       accessTokenTtl,
       accessTokenAudience,
       refreshTokenTtl: options.refreshTokenTtl ?? 60 * 60 * 24 * 30,
       codeTtl: options.codeTtl ?? 600,
-      callbackPath: options.callbackPath ?? '/auth/frigear',
+      callbackPath,
       // Filled in once every module had the chance to `addOAuthScope` (below).
       scopes: [],
       scopeDetails: [],
       corsOrigins,
+      corsPaths,
+      clients: options.clients ?? [],
       authorizePath,
       signInPath: settings.signInPath,
     }

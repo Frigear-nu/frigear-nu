@@ -146,7 +146,7 @@ export function useOAuthApplicationActions() {
 
   const copyClientId = (application: AdminApplicationDto) => copy(application.id, t('credentials.copiedClientId', 'Client ID copied'))
 
-  /** The row menu: edits, then the destructive action in its own group. */
+  /** The row menu: edits, then the destructive action in its own group (none for configured clients: config owns them). */
   const menu = (application: AdminApplicationDto): DropdownMenuItem[][] => [[
     { label: t('admin.edit', 'Edit application'), icon: 'i-lucide-pencil', onSelect: () => { void edit(application) } },
     { label: t('admin.copyClientId', 'Copy client ID'), icon: 'i-lucide-copy', onSelect: () => { void copyClientId(application) } },
@@ -158,9 +158,11 @@ export function useOAuthApplicationActions() {
     // Public clients have no secret to replace.
     ...(application.clientType === 'public' ? [] : [{ label: t('admin.newSecret', 'New client secret'), icon: 'i-lucide-key-round', onSelect: () => { void rotateSecret(application) } }]),
     { label: t('admin.signOutEveryone', 'Sign everyone out'), icon: 'i-lucide-log-out', onSelect: () => { void signOutEveryone(application) } },
-  ], [
-    { label: t('admin.delete', 'Delete application'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { void remove(application) } },
-  ]]
+  ], ...(application.managed
+    ? []
+    : [[
+        { label: t('admin.delete', 'Delete application'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { void remove(application) } },
+      ]])]
 
   return { busy, create, edit, remove, toggle, rotateSecret, signOutEveryone, copyClientId, menu }
 }

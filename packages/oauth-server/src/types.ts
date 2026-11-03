@@ -63,8 +63,21 @@ export type ModuleOptions = {
    * never opened up: it is a top-level navigation. Cookies are not allowed cross-origin either.
    */
   cors?: {
+    /** Exact origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS`, comma separated). The `clients`' origins are added. */
     origins?: string[]
+    /**
+     * Path prefixes of the host's own API (`['/api/']`) the same origins may call with a bearer token: methods
+     * `GET, POST, PUT, PATCH, DELETE, OPTIONS`, headers `authorization, content-type, accept`, `www-authenticate`
+     * exposed. Defaults to none (`NUXT_OAUTH_SERVER_CORS_PATHS`, comma separated). `/oauth/authorize` stays closed.
+     */
+    paths?: string[]
   }
+  /**
+   * Applications defined in config rather than in the database, with a fixed `client_id` an app can ship with (a mobile
+   * app, a single-page app). They are created on first use and kept in step with the config; staff can still disable
+   * them, but not edit or delete them. `NUXT_OAUTH_SERVER_CLIENTS` (JSON) replaces the list at runtime.
+   */
+  clients?: OAuthConfiguredClient[]
   settings?: {
     // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
     mcp?: boolean
@@ -79,6 +92,53 @@ export type ModuleOptions = {
     /** Where unauthenticated users are sent to sign in. Defaults to the `@frigear-nu/users` login page. */
     signInPath?: string
   }
+}
+
+/** An application defined in `oauthServer.clients`. Only public clients (PKCE, no secret) can be configured. */
+export type OAuthConfiguredClient = {
+  /**
+   * The `client_id`: 3 to 64 letters, digits, `.`, `_` or `-`, starting with a letter or digit, e.g. `mobile` or
+   * `com.example.app`. Not `app_…`, which is the prefix of applications created in the admin UI.
+   */
+  id: string
+  name: string
+  /** Only `public` (the default): a configured client cannot hold a secret. */
+  type?: 'public'
+  /** Exact redirect URIs: https (http for localhost) or native app URIs such as `com.example.app:/auth/callback`. */
+  redirectUris: string[]
+  /** Extra redirect URIs accepted only in development (`nuxt dev`), e.g. `http://localhost:3001/auth/callback`. */
+  devRedirectUris?: string[]
+  /**
+   * The application's origin. Defaults to the origin of the first web redirect URI, else the scheme (and host) of the
+   * first native one, which adds no redirect URI of its own.
+   */
+  websiteUrl?: string
+  description?: string | null
+  icon?: string | null
+  /** Roles allowed to sign in. Empty = every signed-in user. */
+  allowedRoles?: string[]
+  tags?: string[]
+  /**
+   * Origins added to `cors.origins` for this client. Defaults to the origins of its redirect URIs that have one
+   * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`); `false` adds none.
+   */
+  corsOrigins?: string[] | false
+}
+
+/** A configured client after validation (`normalizeConfiguredClients`): what is written to the database. */
+export type OAuthNormalizedClient = {
+  id: string
+  name: string
+  clientType: 'public'
+  websiteUrl: string
+  /** The redirect URIs, plus `devRedirectUris` in development. */
+  redirectUris: string[]
+  description: string | null
+  icon: string | null
+  allowedRoles: string[]
+  tags: string[]
+  /** Origins this client adds to the CORS origins. */
+  corsOrigins: string[]
 }
 
 /** Private runtime config (`runtimeConfig.oauthServer`). Keys are PEM strings, set them through env. */
@@ -106,6 +166,10 @@ export type OAuthServerRuntimeConfig = {
   scopeDetails: OAuthScopeDefinition[]
   /** Allowed CORS origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS` takes a comma separated list). */
   corsOrigins: string[] | string
+  /** Host API path prefixes open to the CORS origins (`NUXT_OAUTH_SERVER_CORS_PATHS` takes a comma separated list). */
+  corsPaths: string[] | string
+  /** The configured clients as given (`NUXT_OAUTH_SERVER_CLIENTS` takes JSON); validated again at runtime. */
+  clients: OAuthConfiguredClient[] | string
   authorizePath: string
   signInPath?: string
 }
@@ -234,6 +298,11 @@ export type AdminApplicationDto = Omit<OAuthApplication, 'createdAt' | 'updatedA
   activeGrants?: number
   /** The redirect URI the application has to accept. */
   callbackUrl: string
+  /**
+   * Defined in `oauthServer.clients`: its name, website, redirect URIs, roles and tags come from config and cannot be
+   * edited or deleted here (409 `managed_by_config`). It can still be disabled.
+   */
+  managed: boolean
 }
 
 /** One page of `GET /api/admin/oauth-server/applications` (the shape `useTableQuery` speaks). */
