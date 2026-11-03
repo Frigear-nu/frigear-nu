@@ -89,5 +89,10 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@nuxthub/core": {
+      "optional": true
+    }
   }
 }

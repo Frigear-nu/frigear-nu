@@ -14,6 +14,7 @@ import {
   defineNuxtModule,
 } from '@nuxt/kit'
 import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { ROUTE_RULE_KEYS } from './runtime/utils/types'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
@@ -35,23 +36,31 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     resolvers: {},
   },
-  moduleDependencies: {
-    '@nuxthub/core': {
-      version: '>=0.10',
-    },
-    '@frigear-nu/module-kit': {
-      version: '>=0.0.1',
-    },
-    '@frigear-nu/auth': {
-      version: '>=0.0.1',
-    },
-    '@frigear-nu/users': {
-      version: '>=0.0.1',
-    },
-  },
+  // The mode is the app's own `authentication.mode` (`resolveAuthMode`). Client mode has no server: the rules only
+  // decide what the app shows, the API decides what is allowed.
+  moduleDependencies: nuxt => resolveAuthMode(nuxt) === 'client'
+    ? {
+        '@frigear-nu/module-kit': { version: '>=0.0.1' },
+        '@frigear-nu/auth': { version: '>=0.0.1' },
+      }
+    : {
+        '@nuxthub/core': {
+          version: '>=0.10',
+        },
+        '@frigear-nu/module-kit': {
+          version: '>=0.0.1',
+        },
+        '@frigear-nu/auth': {
+          version: '>=0.0.1',
+        },
+        '@frigear-nu/users': {
+          version: '>=0.0.1',
+        },
+      },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/authorization', nuxt)
     const resolver = createResolver(import.meta.url)
+    const server = resolveAuthMode(nuxt) === 'server'
 
     nuxt.options.runtimeConfig.public.authorization = {
       routes: {},
@@ -64,20 +73,30 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.hook('modules:done', () => {
       const routes: Record<string, AuthorizationRouteRules> = {}
       const sources = [nuxt.options.routeRules, nuxt.options.nitro?.routeRules]
+      const configured = new Set<string>()
       for (const [pattern, rule] of sources.flatMap(source => Object.entries(source ?? {}))) {
+        configured.add(pattern)
         const picked = Object.fromEntries(ROUTE_RULE_KEYS
           .filter(key => (rule as Record<string, unknown>)[key] !== undefined)
           .map(key => [key, (rule as Record<string, unknown>)[key]]))
         if (Object.keys(picked).length) routes[pattern] = { ...routes[pattern], ...picked }
       }
+      // The anonymous entry points of Auth (sign-in pages, the callback, `/api/auth/**`) stay reachable under any
+      // guard (`'/**': { authenticated: true }`), pages and API alike, unless the app has a rule for that exact pattern.
+      const publicPaths = (nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? []
+      for (const pattern of publicPaths) {
+        if (!configured.has(pattern)) routes[pattern] = { authenticated: false }
+      }
       nuxt.options.runtimeConfig.public.authorization = { routes, redirectTo: options.redirectTo }
     })
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.
-    extendDatabaseTable(nuxt, {
-      resolver,
-      file: dialect => `./runtime/server/db/schema.${dialect}`,
-    })
+    if (server) {
+      extendDatabaseTable(nuxt, {
+        resolver,
+        file: dialect => `./runtime/server/db/schema.${dialect}`,
+      })
+    }
 
     // Resolvers: the configured function (or the nuxt-auth-utils session user) is re-exported through
     // virtual modules so the runtime can import it statically, like `#users/session-mapper`.
@@ -96,14 +115,16 @@ export default defineNuxtModule<ModuleOptions>({
       ? `import * as abilities from ${JSON.stringify(abilitiesFile)}\nexport { abilities }`
       : 'export const abilities = {}'
 
-    addServerTemplate({
-      filename: '#authorization/server-resolver',
-      getContents: () => resolverSource(options.resolvers?.server, './runtime/server/resolver'),
-    })
-    addServerTemplate({
-      filename: '#authorization/abilities',
-      getContents: () => abilitiesSource,
-    })
+    if (server) {
+      addServerTemplate({
+        filename: '#authorization/server-resolver',
+        getContents: () => resolverSource(options.resolvers?.server, './runtime/server/resolver'),
+      })
+      addServerTemplate({
+        filename: '#authorization/abilities',
+        getContents: () => abilitiesSource,
+      })
+    }
     addTemplate({
       filename: 'authorization/client-resolver.mjs',
       write: true,
@@ -134,11 +155,12 @@ declare module '#build/authorization/abilities.mjs' {
 }
 `,
     }, { nitro: true, nuxt: true })
+    // Server mode: the `users.role` column (always set). Client mode: the id_token's `role` claim, when there is one.
     addTypeTemplate({
       filename: 'types/authorization-user.d.ts',
       getContents: () => `declare module '#auth-utils' {
   interface User {
-    role: string
+    role${server ? '' : '?'}: string
   }
 }
 export {}
@@ -151,7 +173,7 @@ export {}
       from: resolver.resolve('./runtime/utils/ability'),
     }))
     addImports(abilityImports)
-    addServerImports(abilityImports)
+    if (server) addServerImports(abilityImports)
 
     // Client: `allows`, `denies`, `authorize`, `useAuthorization`.
     addImports(['allows', 'denies', 'authorize', 'useAuthorization'].map(name => ({
@@ -161,8 +183,10 @@ export {}
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
     // Server: `allows(event, ...)`, `denies(event, ...)`, `authorize(event, ...)`.
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    inlineModuleRuntime(nuxt, resolver)
+    if (server) {
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      inlineModuleRuntime(nuxt, resolver)
+    }
 
     addRouteMiddleware({
       name: 'authorization',
@@ -171,9 +195,11 @@ export {}
     })
 
     // Cheap when no `routeRules` carry an `authorization` entry: only `/api/**` requests are inspected.
-    addServerHandler({
-      middleware: true,
-      handler: resolver.resolve('./runtime/server/middleware/authorization'),
-    })
+    if (server) {
+      addServerHandler({
+        middleware: true,
+        handler: resolver.resolve('./runtime/server/middleware/authorization'),
+      })
+    }
   },
 })

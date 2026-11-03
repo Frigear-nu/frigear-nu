@@ -45,7 +45,9 @@ export function resolveRule(routes: Record<string, RouteRule> | undefined, path:
   return rule.authenticated === false ? undefined : rule
 }
 
-export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule {
+/** The rule of `definePageMeta({ authorize })`; `false` is no rule at all (the page is open). */
+export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule | undefined {
+  if (meta === false) return undefined
   if (typeof meta === 'string') return { ability: meta }
   if (isAbility(meta)) return { ability: meta }
   return meta

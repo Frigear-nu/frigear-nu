@@ -36,11 +36,12 @@ describe('spa (default)', async () => {
     expect(manifest.plugins.map((plugin: { name: string }) => plugin.name)).toContain('@capacitor/browser')
   })
 
-  it('installs the OAuth client with the mobile defaults', async () => {
+  it('installs Auth in client mode with the mobile defaults, guarding nothing', async () => {
     const html = await $fetch<string>('/')
-    expect(html).toContain('protect:"all"')
+    expect(html).toContain('mode:"client"')
     expect(html).toContain('nativeRedirectUri:"nu.frigear.spa:/auth/callback"')
-    // Tabs follow the sign-in state.
+    expect(html).not.toContain('protect:')
+    // The shell follows the sign-in state.
     expect(html).toMatch(/mobile:\{appId:"nu.frigear.Spa"[^}]*auth:true/)
   })
 })

@@ -40,5 +40,5 @@ export interface RouteRule {
 /** The authorization keys that go directly on a `routeRules` entry. */
 export const ROUTE_RULE_KEYS = ['roles', 'ability', 'guest', 'authenticated'] as const
 
-/** What `definePageMeta({ authorize })` accepts. */
-export type AuthorizeMeta = string | Ability | RouteRule
+/** What `definePageMeta({ authorize })` accepts. `false` opens the page, whatever `routeRules` say. */
+export type AuthorizeMeta = string | Ability | RouteRule | false

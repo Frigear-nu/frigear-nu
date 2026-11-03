@@ -33,7 +33,7 @@ export interface NormalizedTabs {
  * Validates and orders tab definitions: unique, well-formed ids, a `to` path, an icon. Later definitions with the same
  * id replace earlier ones in place (a host overrides a module's tab). Sorted by `order`, then registration.
  */
-export function normalizeTabs(definitions: MobileTabDefinition[], options: { auth: boolean, nativeIcons?: boolean }): NormalizedTabs {
+export function normalizeTabs(definitions: MobileTabDefinition[], options: { nativeIcons?: boolean } = {}): NormalizedTabs {
   const errors: string[] = []
   const warnings: string[] = []
   const byId = new Map<string, { definition: MobileTabDefinition, index: number }>()
@@ -66,7 +66,8 @@ export function normalizeTabs(definitions: MobileTabDefinition[], options: { aut
     tabs.push({
       ...rest,
       match: match === undefined ? defaultTabMatch(definition.to) : [match].flat(),
-      requiresAuth: requiresAuth ?? options.auth,
+      // Public unless the tab says otherwise: which pages need a user is the app's choice (route rules).
+      requiresAuth: requiresAuth ?? false,
       index,
     })
   }

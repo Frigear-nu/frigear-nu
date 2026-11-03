@@ -99,5 +99,7 @@ describe('rule evaluation', () => {
     expect(normalizeAuthorizeMeta('isAdmin')).toEqual({ ability: 'isAdmin' })
     expect(normalizeAuthorizeMeta(editPost)).toEqual({ ability: editPost })
     expect(normalizeAuthorizeMeta({ roles: ['admin'] })).toEqual({ roles: ['admin'] })
+    // `authorize: false` opens the page: no rule, whatever `routeRules` say.
+    expect(normalizeAuthorizeMeta(false)).toBeUndefined()
   })
 })

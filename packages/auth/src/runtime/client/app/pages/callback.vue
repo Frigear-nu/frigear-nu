@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { navigateTo, onMounted, ref, useAuth, useModuleT } from '#imports'
+import { definePageMeta, navigateTo, onMounted, ref, useAuth, useModuleT } from '#imports'
 import { OAuthError } from '../../core/errors'
 import { useAuthClientConfig } from '../utils/runtime'
 
 defineOptions({ name: 'AuthClientCallbackPage' })
+// Reachable signed out under any guard of `@frigear-nu/authorization` (`'/**': { authenticated: true }`).
+definePageMeta({ authorize: false })
 
 const t = useModuleT('auth.client')
 const config = useAuthClientConfig()
