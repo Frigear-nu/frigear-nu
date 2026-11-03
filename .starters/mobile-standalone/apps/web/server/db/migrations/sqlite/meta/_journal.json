@@ -15,6 +15,13 @@
       "when": 1793701339473,
       "tag": "0001_oauth_server",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793744044835,
+      "tag": "0002_oauth_application_listed",
+      "breakpoints": true
     }
   ]
 }
