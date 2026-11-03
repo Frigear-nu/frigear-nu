@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     },
   },
   authentication: {
-    settings: { magicLink: { cooldown: 2 }, verifyEmail: true },
+    settings: { magicLink: { cooldown: 3 }, verifyEmail: true },
   },
   notify: {
     email: { driver: './server/utils/mail-driver' },
