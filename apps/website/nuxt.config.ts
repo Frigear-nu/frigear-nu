@@ -294,6 +294,8 @@ export default defineNuxtConfig({
   },
   // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); admins from NUXT_OAUTH_ADMIN_EMAILS.
   oauthServer: {
+    // The Capacitor webview on iOS (`capacitor://localhost`) and Android (`https://localhost`) calls the token endpoints.
+    cors: { origins: ['capacitor://localhost', 'https://localhost'] },
     settings: {
       mcp: true,
       pages: { admin: true, applications: true },

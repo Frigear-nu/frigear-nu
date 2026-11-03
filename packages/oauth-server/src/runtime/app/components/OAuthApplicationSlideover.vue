@@ -33,11 +33,15 @@ const isAllowedRedirect = (value: string, clientType: ClientType) => {
   return !url.hash && (isSecureOrigin(url) || (clientType === 'public' && isNativeRedirectUri(url)))
 }
 
+/** Defined in `oauthServer.clients`: config owns everything but the login URL, priority and whether it is active. */
+const managed = computed(() => !!props.application?.managed)
+
 const schema = z.object({
   clientType: z.enum(['confidential', 'public']),
   redirectUris: z.array(z.string()),
   name: z.string().trim().min(1, t('form.nameRequired', 'Enter a name.')),
-  websiteUrl: z.url(t('form.websiteUrlInvalid', 'Enter a full URL, for example https://app.example.com.')),
+  // A configured native client's website is its app scheme (`com.example.app:`), which is not a web URL.
+  websiteUrl: managed.value ? z.string() : z.url(t('form.websiteUrlInvalid', 'Enter a full URL, for example https://app.example.com.')),
   loginUrl: z.string(),
   previewUrlPattern: z.string(),
   description: z.string(),
@@ -109,6 +113,14 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       class="grid gap-4"
       @submit="onSubmit"
     >
+      <UAlert
+        v-if="managed"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-file-cog"
+        :title="t('form.managedTitle', 'Managed in nuxt.config')"
+        :description="t('form.managedDescription', 'This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles and tags there; only the login URL and priority can be edited here.')"
+      />
       <UFormField
         name="clientType"
         :label="t('form.clientType', 'Client type')"
@@ -128,6 +140,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInput
           v-model="state.name"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -139,6 +152,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInput
           v-model="state.websiteUrl"
+          :disabled="managed"
           class="w-full"
           placeholder="https://app.example.com"
         />
@@ -160,6 +174,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInput
           v-model="state.previewUrlPattern"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -171,6 +186,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInputTags
           v-model="state.redirectUris"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -181,6 +197,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInputTags
           v-model="state.allowedRoles"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -190,6 +207,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UInputTags
           v-model="state.tags"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -199,6 +217,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       >
         <UTextarea
           v-model="state.description"
+          :disabled="managed"
           class="w-full"
         />
       </UFormField>
@@ -209,6 +228,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
         >
           <UInput
             v-model="state.icon"
+            :disabled="managed"
             class="w-full"
           />
         </UFormField>

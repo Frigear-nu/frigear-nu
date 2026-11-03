@@ -39,7 +39,26 @@ export default defineNuxtConfig({
       { name: 'shop:order', description: 'Place orders in the shop', service: 'Shop' },
       { name: 'inventory:read', description: 'See the inventory', service: 'Inventory', staffOnly: true },
     ],
-    cors: { origins: ['capacitor://localhost', 'https://app.example.com'] },
+    // `/api/test/` stands in for the host's API; the admin API stays closed.
+    cors: { origins: ['capacitor://localhost', 'https://app.example.com'], paths: ['/api/test/'] },
+    // A mobile app with a fixed client id, created on first use. The fixture runs in dev, so the dev URI counts.
+    clients: [{
+      id: 'test-mobile',
+      name: 'Test mobile',
+      redirectUris: ['com.example.test:/auth/callback'],
+      devRedirectUris: ['http://localhost:3001/auth/callback'],
+      tags: ['mobile'],
+    }, {
+      // Native only: nothing to open from the user's applications list.
+      id: 'test-native',
+      name: 'Test native',
+      redirectUris: ['com.example.native:/auth/callback'],
+    }, {
+      // The test turns its row confidential, as if the id had been taken by an application created earlier.
+      id: 'test-conflict',
+      name: 'Test conflict',
+      redirectUris: ['com.example.conflict:/auth/callback'],
+    }],
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
   // The users admin registers the staff-only `users:read` scope.
