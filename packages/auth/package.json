@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/auth",
   "version": "0.2.3",
-  "description": "Authentication for the frigear ecosystem: sign-in flows (password, magic link, OAuth, passkeys), user API tokens, and a shared requireAuth for sessions, tokens and OAuth access tokens, with scopes.",
+  "description": "Authentication for the frigear ecosystem: server-side sign-in flows (password, magic link, OAuth, passkeys), user API tokens and a shared requireAuth with scopes, or a public PKCE client mode for SPAs and Capacitor apps.",
   "homepage": "https://docs.frigear.dev/modules/identity/auth",
   "repository": {
     "type": "git",
@@ -26,6 +26,24 @@
       "types": "./src/runtime/utils/api.ts",
       "import": "./src/runtime/utils/api.ts",
       "default": "./src/runtime/utils/api.ts"
+    },
+    "./mode": {
+      "types": "./src/runtime/mode.ts",
+      "import": "./src/runtime/mode.ts",
+      "default": "./src/runtime/mode.ts"
+    },
+    "./client-core": {
+      "types": "./src/runtime/client/core/index.ts",
+      "import": "./src/runtime/client/core/index.ts",
+      "default": "./src/runtime/client/core/index.ts"
+    },
+    "./capacitor": {
+      "types": "./src/runtime/client/capacitor/index.ts",
+      "import": "./src/runtime/client/capacitor/index.ts",
+      "default": "./src/runtime/client/capacitor/index.ts"
+    },
+    "./client-types": {
+      "types": "./src/runtime/client/types.ts"
     }
   },
   "publishConfig": {
@@ -44,6 +62,24 @@
         "types": "./dist/runtime/utils/api.d.ts",
         "import": "./dist/runtime/utils/api.js",
         "default": "./dist/runtime/utils/api.js"
+      },
+      "./mode": {
+        "types": "./dist/runtime/mode.d.ts",
+        "import": "./dist/runtime/mode.js",
+        "default": "./dist/runtime/mode.js"
+      },
+      "./client-core": {
+        "types": "./dist/runtime/client/core/index.d.ts",
+        "import": "./dist/runtime/client/core/index.js",
+        "default": "./dist/runtime/client/core/index.js"
+      },
+      "./capacitor": {
+        "types": "./dist/runtime/client/capacitor/index.d.ts",
+        "import": "./dist/runtime/client/capacitor/index.js",
+        "default": "./dist/runtime/client/capacitor/index.js"
+      },
+      "./client-types": {
+        "types": "./dist/runtime/client/types.d.ts"
       }
     },
     "main": "./dist/module.mjs",
@@ -51,6 +87,18 @@
       "*": {
         ".": [
           "./dist/types.d.mts"
+        ],
+        "mode": [
+          "./dist/runtime/mode.d.ts"
+        ],
+        "client-core": [
+          "./dist/runtime/client/core/index.d.ts"
+        ],
+        "capacitor": [
+          "./dist/runtime/client/capacitor/index.d.ts"
+        ],
+        "client-types": [
+          "./dist/runtime/client/types.d.ts"
         ]
       }
     }
@@ -79,6 +127,7 @@
     "@frigear-nu/notify": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
+    "defu": "^6.1.4",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "h3": "^1.15.11",
@@ -88,6 +137,11 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
+    "@aparajita/capacitor-secure-storage": ">=8.0.0",
+    "@capacitor/app": ">=8.0.0",
+    "@capacitor/browser": ">=8.0.0",
+    "@capacitor/core": ">=8.0.0",
+    "@capacitor/preferences": ">=8.0.0",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@nuxt/ui": "catalog:",
@@ -96,6 +150,11 @@
     "@simplewebauthn/server": "^11.0.0"
   },
   "devDependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/preferences": "^8.0.1",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@nuxt/devtools": "catalog:",
@@ -113,6 +172,21 @@
     "vue-tsc": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@aparajita/capacitor-secure-storage": {
+      "optional": true
+    },
+    "@capacitor/app": {
+      "optional": true
+    },
+    "@capacitor/browser": {
+      "optional": true
+    },
+    "@capacitor/core": {
+      "optional": true
+    },
+    "@capacitor/preferences": {
+      "optional": true
+    },
     "@frigear-nu/email-templates": {
       "optional": true
     },
@@ -120,6 +194,9 @@
       "optional": true
     },
     "@nuxt/ui": {
+      "optional": true
+    },
+    "@nuxthub/core": {
       "optional": true
     },
     "@simplewebauthn/browser": {

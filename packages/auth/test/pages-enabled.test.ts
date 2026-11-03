@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
+import { filesContaining, outputDir } from './utils/output'
 
 describe('login/register pages (opt-in)', async () => {
   await setup({
@@ -32,5 +33,16 @@ describe('login/register pages (opt-in)', async () => {
     // A reason without strings (or not a key at all) falls back to the generic text.
     expect(await $fetch('/login?redirect=/account&reason=nope.missing')).toContain('You need to be signed in to do this')
     expect(await $fetch('/login?redirect=/account&reason=..%2F')).toContain('You need to be signed in to do this')
+  })
+
+  it('publishes the anonymous entry points it owns, for route guards to let through', async () => {
+    const html = await $fetch<string>('/login')
+    expect(html).toContain('mode:"server"')
+    expect(html).toContain('publicPaths:["/login","/register","/forgot-password","/reset-password","/auth/**","/api/auth/**","/api/_auth/**"]')
+  })
+
+  // Bundle exclusion is an acceptance test: server mode ships none of the client mode.
+  it('ships none of the client mode to the browser', () => {
+    expect(filesContaining(outputDir('public'), /auth-client:|Signing you in…|AuthClientLoginPage/)).toEqual([])
   })
 })
