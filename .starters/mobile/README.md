@@ -1,12 +1,12 @@
 # Frigear mobile starter
 
 A pnpm workspace with one **Capacitor** app (`apps/mobile`): a Nuxt 4 SPA on
-[`@frigear-nu/mobile`](https://docs.frigear.dev/modules/mobile) with a native tab bar on iOS, signing in with
-[`@frigear-nu/oauth-client`](https://docs.frigear.dev/modules/oauth-client) (OAuth 2.1 + PKCE) at an issuer of your
+[`@frigear-nu/mobile`](https://docs.frigear.dev/modules/interface/mobile) with a native tab bar on iOS, signing in with
+[`@frigear-nu/oauth-client`](https://docs.frigear.dev/modules/identity/oauth-client) (OAuth 2.1 + PKCE) at an issuer of your
 choice: frigear.nu, your own Frigear server, Keycloak, Auth0, ... It has two tabs, **Home** (your ID token claims and a
 call to `/api/me`) and **Account** (your profile and sign-out).
 
-Want the server too? Use the [standalone mobile starter](https://docs.frigear.dev/guides/mobile-standalone-starter).
+Want the server too? Use the [standalone mobile starter](https://docs.frigear.dev/examples/starters/mobile-standalone).
 
 ## Quick start
 
@@ -31,7 +31,7 @@ Point `apps/mobile/.env` at your issuer and API:
 At the issuer, register a **public** client with the id `mobile` (see `apps/mobile/identity.ts`) and the redirect
 URIs `com.example.mobile:/auth/callback` (the app) and `http://localhost:3001/auth/callback` (development), and allow
 the origins `capacitor://localhost`, `https://localhost` and `http://localhost:3001` for CORS.
-[Use your own OAuth server](https://docs.frigear.dev/guides/own-oauth-server) has the checklist and recipes.
+[Use your own OAuth server](https://docs.frigear.dev/guide/going-further/own-oauth-server) has the checklist and recipes.
 
 ```bash
 pnpm dev          # http://localhost:3001 in a browser
@@ -39,7 +39,7 @@ pnpm mobile:ios   # the iOS simulator
 ```
 
 Rename the app (app id, name, client id, scopes) in `apps/mobile/identity.ts`. The full guide, with devices, Android
-and a production checklist, is the [Mobile starter guide](https://docs.frigear.dev/guides/mobile-starter).
+and a production checklist, is the [Mobile starter guide](https://docs.frigear.dev/examples/starters/mobile).
 
 ## Apps
 

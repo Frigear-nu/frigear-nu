@@ -3,7 +3,7 @@
   "version": "0.2.2",
   "description": "Shared UI components and composables for Frigear Nuxt applications, built on Nuxt UI.",
   "license": "MIT",
-  "homepage": "https://docs.frigear.dev/modules/ui",
+  "homepage": "https://docs.frigear.dev/modules/interface/ui",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

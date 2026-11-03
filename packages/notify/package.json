@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Email, SMS and generic notification dispatch (pluggable drivers) Nuxt module, shared across Frigear modules.",
   "license": "MIT",
-  "homepage": "https://docs.frigear.dev/modules/notify",
+  "homepage": "https://docs.frigear.dev/modules/platform/notify",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

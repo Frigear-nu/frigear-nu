@@ -81,13 +81,13 @@ root `postinstall`.
 
 The starters are templates for a **new project outside this repo**, each a pnpm workspace copied with
 `pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/<starter> <dir>` and documented by a guide (new users begin at the quick start,
-`apps/docs/content/1.getting-started/3.quick-start.md`, which compares the starters and links to each guide):
+`apps/docs/content/1.get-started/2.installation.md`, which compares the starters and links to each guide):
 
 | Starter | What it is | Guide |
 | --- | --- | --- |
-| `.starters/workspace` | `apps/web`: users, auth, account, admin | `apps/docs/content/2.guides/1.workspace-starter.md` |
-| `.starters/mobile` | `apps/mobile`: a Capacitor app on `@frigear-nu/mobile` against any issuer | `apps/docs/content/2.guides/2.mobile-starter.md` |
-| `.starters/mobile-standalone` | `workspace` + `apps/mobile`; `apps/web` adds `@frigear-nu/oauth-server` and the API | `apps/docs/content/2.guides/3.mobile-standalone-starter.md` |
+| `.starters/workspace` | `apps/web`: users, auth, account, admin | `apps/docs/content/4.examples/1.starters/1.workspace.md` |
+| `.starters/mobile` | `apps/mobile`: a Capacitor app on `@frigear-nu/mobile` against any issuer | `apps/docs/content/4.examples/1.starters/2.mobile.md` |
+| `.starters/mobile-standalone` | `workspace` + `apps/mobile`; `apps/web` adds `@frigear-nu/oauth-server` and the API | `apps/docs/content/4.examples/1.starters/3.mobile-standalone.md` |
 
 - They are not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): they depend on
   the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and have their own `AGENTS.md`.
@@ -209,7 +209,7 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 #### HTTP route conventions
 
-Full guide: `apps/docs/content/1.getting-started/6.writing-a-module.md#http-route-conventions`; the toolkit is
+Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the toolkit is
 `@frigear-nu/module-kit/server` (explicit import, not auto-imported).
 
 - **URLs.** Everything under `/api/<module>`; staff routes under `/api/admin/<module>/...` (the module's main resource
@@ -295,15 +295,15 @@ Full guide: `apps/docs/content/1.getting-started/6.writing-a-module.md#http-rout
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
 - A missing session cookie can be a database error, not disabled authentication: a column added by an extending module
   without a matching fixture migration makes every write to that table fail. See
-  `apps/docs/content/5.modules/10.module-kit.md` for the migration workflow.
+  `apps/docs/content/3.modules/5.platform/1.module-kit/5.database.md` for the migration workflow.
 
 ---
 
 ## UX patterns
 
 Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
-`apps/docs/content/1.getting-started/7.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
-live in `packages/ui` (reference: `apps/docs/content/5.modules/17.ui.md`). Rules:
+`apps/docs/content/2.guide/2.ux-patterns/` (docs site: `/guide/ux-patterns/*`). The building blocks
+live in `packages/ui` (reference: `apps/docs/content/3.modules/4.interface/1.ui/index.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a

@@ -7,6 +7,8 @@ import { authApi } from '@frigear-nu/auth/api'
 const fixture = fileURLToPath(new URL('./fixtures/magic-link-db', import.meta.url))
 const dataDir = `${fixture}/.data`
 const mailFile = `${dataDir}/mails.jsonl`
+// Just past the fixture's `magicLink.cooldown` (3s).
+const cooldownMs = 3200
 
 type Mail = { to: string, subject: string, text: string }
 
@@ -79,18 +81,23 @@ describe('magic links & email verification (database)', async () => {
   })
 
   it('does not re-send within the cooldown, then follows an internal redirect once it passed', async () => {
+    // Start the cooldown here rather than relying on the registration link, which a slow runner may have issued
+    // longer ago than the fixture's cooldown (3s).
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
     const before = (await sentMails()).length
-
-    // The registration link was issued just now, so asking again sends nothing.
     expect((await post(authApi.magicLink, { email: credentials.email })).status).toBe(200)
-    expect((await sentMails()).length).toBe(before)
-
-    await new Promise(resolve => setTimeout(resolve, 2200))
-    expect((await post(authApi.magicLink, { email: credentials.email, redirect: '/account' })).status).toBe(200)
     expect((await sentMails()).length).toBe(before + 1)
+
+    // Asking again right away sends nothing.
+    expect((await post(authApi.magicLink, { email: credentials.email })).status).toBe(200)
+    expect((await sentMails()).length).toBe(before + 1)
+
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
+    expect((await post(authApi.magicLink, { email: credentials.email, redirect: '/account' })).status).toBe(200)
+    expect((await sentMails()).length).toBe(before + 2)
     expect(await (await post(authApi.magicLinkConfirm, { code: (await latestLink(credentials.email)).code })).json()).toEqual({ redirect: '/account' })
 
-    await new Promise(resolve => setTimeout(resolve, 2200))
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
     await post(authApi.magicLink, { email: credentials.email, redirect: 'https://evil.example/' })
     expect(await (await post(authApi.magicLinkConfirm, { code: (await latestLink(credentials.email)).code })).json()).toEqual({ redirect: '/' })
   })

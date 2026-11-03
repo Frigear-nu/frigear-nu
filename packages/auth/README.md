@@ -26,7 +26,7 @@ const owner = await requireAuth(event, { sessionOnly: true })
   `NUXT_OAUTH_<PROVIDER>_*` credentials are set; `settings.oauth.<provider>` only overrides its label, icon and sign-up.
 - The config key is `authentication` (`auth` belongs to nuxt-auth-utils).
 
-See the [documentation](../../apps/docs/content/5.modules/03.auth.md) for the full model, security properties and the token API.
+See the [documentation](../../apps/docs/content/3.modules/1.identity/1.auth/index.md) for the full model, security properties and the token API.
 
 ## Development
 

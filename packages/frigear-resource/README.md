@@ -15,4 +15,4 @@ export default defineNuxtConfig({
 })
 ```
 
-Docs: https://docs.frigear.dev/modules/frigear-resource
+Docs: https://docs.frigear.dev/modules/identity/frigear-resource

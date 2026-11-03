@@ -2,7 +2,7 @@
   "name": "@frigear-nu/subscriptions",
   "version": "0.2.2",
   "description": "Recurring subscriptions (plans, checkout, upgrade/downgrade, billing portal and entitlements) for the frigear ecosystem, built on @frigear-nu/stripe.",
-  "homepage": "https://docs.frigear.dev/modules/subscriptions",
+  "homepage": "https://docs.frigear.dev/modules/commerce/subscriptions",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

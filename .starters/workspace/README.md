@@ -29,8 +29,8 @@ Open http://localhost:3000, choose **Create account** and register with the emai
 in the terminal until you configure a [Notify](https://github.com/Frigear-nu/frigear-nu/tree/main/packages/notify) driver.
 
 The full guide, including how to add more modules, is the
-[Workspace starter guide](https://docs.frigear.dev/guides/workspace-starter) in the Frigear docs. For a mobile app next to
-this one, see the [Standalone mobile starter](https://docs.frigear.dev/guides/mobile-standalone-starter).
+[Workspace starter guide](https://docs.frigear.dev/examples/starters/workspace) in the Frigear docs. For a mobile app next to
+this one, see the [Standalone mobile starter](https://docs.frigear.dev/examples/starters/mobile-standalone).
 
 ## Apps
 
