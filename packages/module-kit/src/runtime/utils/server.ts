@@ -340,8 +340,20 @@ ${[...properties.values()].map(property => `  ${property},`).join('\n')}
 }
 
 const escapeRE = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** `imports.exclude` patterns `inlineModuleRuntime` built from Nuxt's `node_modules` pattern -> the runtimes they let through. */
-const runtimeExcludes = new WeakMap<RegExp, string[]>()
+/**
+ * What `inlineModuleRuntime` wraps around a pattern: `^(?!<runtime>/)[\s\S]*?(?:<pattern>)`. The state lives in the
+ * pattern itself, not in module scope, so an app with several copies of module-kit (each module resolving its own)
+ * still carves out every runtime: each copy recognises patterns any other copy wrapped. Wrapping a wrapped pattern
+ * keeps its meaning, since the inner `^` only matches when the outer `[\s\S]*?` is empty.
+ *
+ * Copies before 1.3.1 tracked their wraps in a module-scope `WeakMap`. Patterns they wrapped first are still
+ * recognised here; but when such a copy runs after this one, it leaves this copy's pattern alone, and the runtimes of
+ * its own modules keep being excluded. Hosts avoid that with one copy (an `overrides` / `resolutions` entry).
+ */
+const runtimeCarveOut = (runtime: string) => `^(?!${escapeRE(runtime)}/)`
+/** Nuxt's `node_modules\/(?!<layers>)` pattern, or one that any copy of `inlineModuleRuntime` wrapped. */
+const isNodeModulesExclude = (source: string) =>
+  source.startsWith('node_modules') || (source.startsWith('^(?!') && source.includes('[\\s\\S]*?(?:node_modules'))
 
 /**
  * Makes Nitro bundle (instead of externalize) a module's `runtime` directory, and pushes it into `build.transpile`
@@ -366,11 +378,11 @@ export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof crea
     // Nuxt's pattern is `node_modules\/(?!<layer paths>)`; ids under the runtime no longer match it.
     config.imports.exclude = [config.imports.exclude ?? []].flat().map((pattern) => {
       if (!(pattern instanceof RegExp)) return pattern
-      const runtimes = runtimeExcludes.get(pattern)
-      if (runtimes?.includes(runtime) || (!runtimes && !pattern.source.startsWith('node_modules'))) return pattern
-      const wrapped = new RegExp(`^(?!${escapeRE(runtime)}/)[\\s\\S]*?(?:${pattern.source})`, pattern.flags)
-      runtimeExcludes.set(wrapped, [...runtimes ?? [], runtime])
-      return wrapped
+      const { source, flags } = pattern
+      if (!isNodeModulesExclude(source)) return pattern
+      // `RegExp#source` escapes `/`, so compare against a compiled carve-out.
+      if (source.includes(new RegExp(runtimeCarveOut(runtime)).source)) return pattern
+      return new RegExp(`${runtimeCarveOut(runtime)}[\\s\\S]*?(?:${source})`, flags)
     })
   })
 }
