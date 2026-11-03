@@ -1,21 +1,22 @@
 <script setup lang="ts">
-// A signed-in page (oauthClient `protect: 'all'`): the id_token claims, and one call to your API with the access token.
+// A signed-in page (the `'/**'` route rule): who signed in, and one call to your API with the access token.
 interface Me {
   id: number | string
   name: string
   email: string
 }
 
-const { claims } = useOAuth()
+const { user } = useUserSession()
 const { data: me, status, error, refresh } = useApi<Me>('/api/me')
 
-// The standalone starter's apps/web has /api/me. Another API may not: point NUXT_PUBLIC_OAUTH_CLIENT_API_BASE at yours.
+// The standalone starter's apps/web has /api/me. Another API may not: point NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE
+// at yours.
 const errorText = computed(() => {
   const reason = [error.value?.statusCode, error.value?.statusMessage ?? error.value?.message].filter(Boolean).join(' ')
   return `${reason}. Check that the API has /api/me and allows this app's origin for CORS.`
 })
 
-const claimRows = computed(() => Object.entries(claims.value ?? {}).map(([name, value]) => ({
+const userRows = computed(() => Object.entries(user.value ?? {}).map(([name, value]) => ({
   name,
   value: typeof value === 'object' ? JSON.stringify(value) : String(value),
 })))
@@ -67,13 +68,13 @@ const claimRows = computed(() => Object.entries(claims.value ?? {}).map(([name, 
           Your sign-in
         </h2>
         <p class="text-sm text-muted">
-          The claims of the ID token the issuer returned.
+          <code>useUserSession().user</code>, mapped from the ID token the issuer returned.
         </p>
       </template>
 
       <dl class="divide-y divide-default">
         <div
-          v-for="row in claimRows"
+          v-for="row in userRows"
           :key="row.name"
           class="flex items-start justify-between gap-3 px-4 py-2.5"
         >
