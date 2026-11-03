@@ -157,17 +157,6 @@ export default defineNuxtModule<ModuleOptions>({
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     const prepare = !!nuxt.options._prepare
 
-    // `@frigear-nu/oauth-client` is replaced by Auth's client mode, which protects nothing by default.
-    if ((nuxt.options as { oauthClient?: unknown }).oauthClient !== undefined) {
-      throw new Error(
-        `[${MODULE_NAME}] \`oauthClient\` is configured, but Mobile now signs in with \`@frigear-nu/auth\` in client mode:\n`
-        + '1. Rename `oauthClient` to `authentication: { mode: \'client\', client: { ... } }` and `api.attachTo` to `client.apiOrigins`.\n'
-        + '2. Rename the env vars `NUXT_PUBLIC_OAUTH_CLIENT_*` to `NUXT_PUBLIC_AUTHENTICATION_CLIENT_*`, and add `openid` to the scopes.\n'
-        + '3. Use `useUserSession().user` instead of `useOAuth().claims`, and `useAuth()` for the other `useOAuth()` calls.\n'
-        + '4. Nothing is protected by default any more: install `@frigear-nu/authorization` and add `routeRules: { \'/**\': { authenticated: true } }` to stay signed in everywhere.\n'
-        + 'Or stay on @frigear-nu/mobile 0.1. See https://docs.frigear.dev/modules/identity/auth/client-mode.',
-      )
-    }
     // A Capacitor app cannot carry a same-origin session cookie to the API: Auth has to run as an OAuth client.
     // Checked once every module is installed (Auth may be installed after this module, as its dependency); the hooks
     // below that read `clientAuth` are registered after this one.

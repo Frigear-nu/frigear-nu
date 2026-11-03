@@ -48,7 +48,7 @@ export default defineNuxtConfig({
     ],
   },
   // Optional: sign in. Mobile installs @frigear-nu/auth and fills in `client.native.scheme` (from appId); the mode is
-  // the app's to set. `@frigear-nu/oauth-client` / `oauthClient` is refused (see the client mode migration).
+  // the app's to set.
   authentication: {
     mode: 'client',
     client: { issuer: 'https://frigear.nu', clientId: 'bills', scopes: ['openid', 'profile', 'offline_access'] },

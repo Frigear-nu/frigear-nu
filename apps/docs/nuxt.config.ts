@@ -28,7 +28,6 @@ const redirects: Record<string, string> = {
   "/modules/authorization": "/modules/identity/authorization",
   "/modules/preferences": "/modules/identity/preferences",
   "/modules/oauth-server": "/modules/identity/oauth-server",
-  "/modules/oauth-client": "/modules/identity/oauth-client",
   "/modules/frigear-resource": "/modules/identity/frigear-resource",
   "/modules/stripe": "/modules/commerce/stripe",
   "/modules/payments": "/modules/commerce/payments",

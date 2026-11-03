@@ -238,4 +238,4 @@ const users = await $fetch('https://frigear.nu/api/admin/users', { headers: { Au
 - [Server API](/modules/identity/auth/server): `requireAuth`, policy gates and staff guards, scopes, user API tokens, OAuth access tokens and auth emails.
 - [Reference](/modules/identity/auth/reference): composables, hooks, routes, database tables and translations.
 - [Client mode](/modules/identity/auth/client-mode): `authentication.mode: 'client'`, the public PKCE client for SPAs and
-  Capacitor apps, and the migration from `@frigear-nu/oauth-client`.
+  Capacitor apps.

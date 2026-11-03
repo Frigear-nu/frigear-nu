@@ -37,7 +37,7 @@ describe('mobile with auth and authorization', () => {
       const nuxt = await load({ modules })
       const names = installed(nuxt)
       expect(names).toEqual(expect.arrayContaining(['@frigear-nu/auth', '@frigear-nu/authorization', '@frigear-nu/mobile']))
-      for (const name of ['@nuxthub/core', '@frigear-nu/users', 'auth-utils', '@frigear-nu/oauth-client']) expect(names).not.toContain(name)
+      for (const name of ['@nuxthub/core', '@frigear-nu/users', 'auth-utils']) expect(names).not.toContain(name)
       expect(nuxt.options.ssr).toBe(false)
       // Mobile's scalar defaults reach Auth's client options.
       const client = (nuxt.options.runtimeConfig.public as { authentication: { mode: string, client: { nativeRedirectUri: string } } }).authentication
@@ -60,11 +60,6 @@ describe('mobile with auth and authorization', () => {
     expect(installed(nuxt)).toContain('@frigear-nu/auth')
     expect(installed(nuxt)).not.toContain('@frigear-nu/authorization')
     await nuxt.close()
-  })
-
-  it('refuses a leftover `oauthClient`, with the migration steps', async () => {
-    await expect(load({ modules: [mobile], oauthClient: { issuer: 'https://id.example.test' } } as NuxtConfig))
-      .rejects.toThrow(/`oauthClient` is configured, but Mobile now signs in with `@frigear-nu\/auth` in client mode[\s\S]*authentication: \{ mode: 'client'/)
   })
 
   it.each([
