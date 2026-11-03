@@ -57,7 +57,7 @@ const { applications, loading, error, refresh } = await useMyApplications()
               {{ application.name }}
             </p>
             <p class="text-muted truncate text-sm">
-              {{ application.description ?? application.websiteUrl }}
+              {{ application.description ?? application.websiteUrl ?? application.loginUrl }}
             </p>
           </div>
           <UButton

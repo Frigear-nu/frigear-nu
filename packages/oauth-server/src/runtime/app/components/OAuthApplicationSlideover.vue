@@ -3,7 +3,7 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AdminApplicationDto, ApplicationInput, ClientType, CreatedApplicationDto } from '../../../types'
 import { isNativeRedirectUri, isSecureOrigin } from '../../utils'
-import { computed, reactive, useAction, useModuleT } from '#imports'
+import { computed, reactive, ref, useAction, useModuleT } from '#imports'
 
 type Saved = AdminApplicationDto | CreatedApplicationDto
 
@@ -40,8 +40,8 @@ const schema = z.object({
   clientType: z.enum(['confidential', 'public']),
   redirectUris: z.array(z.string()),
   name: z.string().trim().min(1, t('form.nameRequired', 'Enter a name.')),
-  // A configured native client's website is its app scheme (`com.example.app:`), which is not a web URL.
-  websiteUrl: managed.value ? z.string() : z.url(t('form.websiteUrlInvalid', 'Enter a full URL, for example https://app.example.com.')),
+  // Empty is allowed here; whether this client may leave it out is `websiteUrlError` (it depends on the client type).
+  websiteUrl: z.url(t('form.websiteUrlInvalid', 'Enter a full URL, for example https://app.example.com.')).or(z.literal('')),
   loginUrl: z.string(),
   previewUrlPattern: z.string(),
   description: z.string(),
@@ -49,6 +49,7 @@ const schema = z.object({
   priority: z.number(),
   allowedRoles: z.array(z.string()),
   tags: z.array(z.string()),
+  isListed: z.boolean(),
 })
 
 type FormState = z.infer<typeof schema>
@@ -65,26 +66,47 @@ const state = reactive<FormState>({
   priority: props.application?.priority ?? 0,
   allowedRoles: [...(props.application?.allowedRoles ?? [])],
   tags: [...(props.application?.tags ?? [])],
+  isListed: props.application?.isListed ?? true,
 })
 
 const formId = 'oauth-application-form'
 
 const clientTypeItems = computed(() => [
-  { label: t('form.clientTypeConfidential', 'Confidential (server-side, has a client secret)'), value: 'confidential' },
-  { label: t('form.clientTypePublic', 'Public (native or single-page app, no secret)'), value: 'public' },
+  { label: t('form.clientTypeConfidential', 'Confidential'), value: 'confidential' },
+  { label: t('form.clientTypePublic', 'Public'), value: 'public' },
 ])
 
-// Cross-field rule (depends on the client type), so it runs next to the schema.
+/** What the selected client type means, shown under the select so the items stay short. */
+const clientTypeDetail = computed(() => state.clientType === 'public'
+  ? {
+      icon: 'i-lucide-smartphone',
+      title: t('form.clientTypePublicTitle', 'Native or single-page app'),
+      description: t('form.clientTypePublicDetail', 'Runs on the user\'s device, so it cannot keep a secret. It signs in with PKCE only and may use custom-scheme redirect URIs such as com.example.app:/callback. The website URL is optional.'),
+    }
+  : {
+      icon: 'i-lucide-server',
+      title: t('form.clientTypeConfidentialTitle', 'Server-side app'),
+      description: t('form.clientTypeConfidentialDetail', 'Runs on a server that keeps the client secret. You get the secret once, after adding the application.'),
+    })
+
+// Cross-field rules (they depend on the client type), so they run next to the schema. The server checks them again.
 const redirectUriError = computed(() => state.redirectUris.find(uri => !isAllowedRedirect(uri, state.clientType)))
+const websiteUrlError = computed(() => {
+  if (managed.value || state.websiteUrl) return undefined
+  if (state.clientType === 'confidential') return t('form.websiteUrlRequired', 'Enter the website URL.')
+  return state.redirectUris.length ? undefined : t('form.websiteUrlOrRedirect', 'Enter a website URL or at least one redirect URI.')
+})
+const showWebsiteUrlError = ref(false)
 
 async function onSubmit(event: FormSubmitEvent<FormState>) {
   const value = event.data
-  if (redirectUriError.value) return
+  showWebsiteUrlError.value = true
+  if (redirectUriError.value || websiteUrlError.value) return
   const saved = await run(() => props.save({
     clientType: value.clientType,
     redirectUris: value.redirectUris,
     name: value.name,
-    websiteUrl: value.websiteUrl,
+    websiteUrl: value.websiteUrl || null,
     loginUrl: value.loginUrl || null,
     previewUrlPattern: value.previewUrlPattern || null,
     description: value.description || null,
@@ -92,6 +114,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
     priority: Number(value.priority) || 0,
     allowedRoles: value.allowedRoles,
     tags: value.tags,
+    isListed: value.isListed,
   }))
   if (saved) emit('close', saved)
 }
@@ -124,7 +147,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       <UFormField
         name="clientType"
         :label="t('form.clientType', 'Client type')"
-        :description="t('form.clientTypeHint', 'Cannot be changed later. Public clients sign in with PKCE only, so they never get a secret.')"
+        :description="t('form.clientTypeHint', 'Cannot be changed later.')"
       >
         <USelect
           v-model="state.clientType"
@@ -133,6 +156,13 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
           class="w-full"
         />
       </UFormField>
+      <UAlert
+        color="neutral"
+        variant="subtle"
+        :icon="clientTypeDetail.icon"
+        :title="clientTypeDetail.title"
+        :description="clientTypeDetail.description"
+      />
       <UFormField
         name="name"
         :label="t('form.name', 'Name')"
@@ -147,8 +177,11 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       <UFormField
         name="websiteUrl"
         :label="t('form.websiteUrl', 'Website URL')"
-        :description="t('form.websiteUrlHint', 'The origin of the application, without a path. The callback is the website URL plus the configured callback path.')"
-        required
+        :description="state.clientType === 'public'
+          ? t('form.websiteUrlHintPublic', 'Optional for native apps. When set, users see it and the callback is the website URL plus the configured callback path.')
+          : t('form.websiteUrlHint', 'The origin of the application, without a path. The callback is the website URL plus the configured callback path.')"
+        :required="state.clientType === 'confidential'"
+        :error="showWebsiteUrlError ? websiteUrlError : undefined"
       >
         <UInput
           v-model="state.websiteUrl"
@@ -219,6 +252,16 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
           v-model="state.description"
           :disabled="managed"
           class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        name="isListed"
+        :description="t('form.isListedHint', 'Turn off for apps users only open themselves, such as a mobile app. Sign-in keeps working.')"
+      >
+        <USwitch
+          v-model="state.isListed"
+          :disabled="managed"
+          :label="t('form.isListed', 'Show in the users\' application list')"
         />
       </UFormField>
       <div class="grid grid-cols-2 gap-4">

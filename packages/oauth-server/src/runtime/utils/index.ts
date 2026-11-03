@@ -124,7 +124,8 @@ export function previewPatternToRegExp(pattern: string, callbackPath: string): R
 }
 
 export type RedirectUriRules = {
-  websiteUrl: string
+  /** `null` (or empty) for a public client without a website: only its listed redirect URIs match. */
+  websiteUrl: string | null
   previewUrlPattern?: string | null
   redirectUris?: readonly string[] | null
   callbackPath?: string
@@ -147,7 +148,7 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   }
   if (url.hash) return false
   if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
-  if (redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
+  if (rules.websiteUrl && redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
   if (rules.previewUrlPattern) return previewPatternToRegExp(rules.previewUrlPattern, callbackPath).test(redirectUri)
   return false
@@ -211,7 +212,7 @@ function redirectOrigin(uri: string): string | undefined {
 /**
  * Validates `oauthServer.clients` (or the JSON of `NUXT_OAUTH_SERVER_CLIENTS`) and turns each entry into the application
  * it stands for: a `public` client with a fixed id, its redirect URIs (plus `devRedirectUris` when `dev`), a derived
- * `websiteUrl` and the CORS origins it adds. Throws an `Error` naming the client and the problem.
+ * `websiteUrl` (`null` for a native-only client) and the CORS origins it adds. Throws an `Error` naming the client and the problem.
  */
 export function normalizeConfiguredClients(input: unknown, options: NormalizeClientsOptions = {}): OAuthNormalizedClient[] {
   let value = input
@@ -255,7 +256,7 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
       throw new Error(`${label}: "${invalid}" is not a valid redirect URI (https, http for localhost, or a native app URI such as "com.example.app:/auth/callback").`)
     }
 
-    let websiteUrl: string
+    let websiteUrl: string | null
     if (client.websiteUrl !== undefined && client.websiteUrl !== null) {
       try {
         websiteUrl = normalizeWebsiteUrl(String(client.websiteUrl))
@@ -265,11 +266,11 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
       }
     }
     else {
+      // A native-only client has no website: its redirect URIs are only ever matched exactly.
       const web = redirectUris.find(uri => isSecureOrigin(new URL(uri)))
-      const first = new URL(redirectUris[0]!)
-      // A native website (`com.example.app:`) adds no redirect URI: native ones are only ever matched exactly.
-      websiteUrl = web ? new URL(web).origin : first.host ? `${first.protocol}//${first.host}` : first.protocol
+      websiteUrl = web ? new URL(web).origin : null
     }
+    if (client.listed !== undefined && typeof client.listed !== 'boolean') throw new Error(`${label}: listed must be true or false.`)
 
     const rules = { websiteUrl, redirectUris, callbackPath: options.callbackPath, allowNativeRedirects: true }
     const refused = redirectUris.find(uri => !validateRedirectUri(uri, rules))
@@ -288,6 +289,7 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
       name,
       clientType: 'public' as const,
       websiteUrl,
+      isListed: client.listed ?? true,
       redirectUris,
       description: optionalText(client.description, `${label}: description`, 1000),
       icon: optionalText(client.icon, `${label}: icon`, 120),

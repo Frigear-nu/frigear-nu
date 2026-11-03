@@ -50,7 +50,8 @@
       "signedOut": "Everyone signed out",
       "search": "Search name or client ID...",
       "noMatches": "No applications match",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "unlisted": "Unlisted"
     },
     "form": {
       "createTitle": "Add application",
@@ -58,7 +59,7 @@
       "createDescription": "Register an application that users can sign in to.",
       "editDescription": "Change how the application is registered.",
       "managedTitle": "Managed in nuxt.config",
-      "managedDescription": "This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles and tags there; only the login URL and priority can be edited here.",
+      "managedDescription": "This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles, tags and listing there; only the login URL and priority can be edited here.",
       "create": "Add application",
       "save": "Save application",
       "name": "Name",
@@ -77,12 +78,21 @@
       "icon": "Icon",
       "priority": "Priority",
       "clientType": "Client type",
-      "clientTypeConfidential": "Confidential (server-side, has a client secret)",
-      "clientTypePublic": "Public (native or single-page app, no secret)",
-      "clientTypeHint": "Cannot be changed later. Public clients sign in with PKCE only, so they never get a secret.",
+      "clientTypeConfidential": "Confidential",
+      "clientTypePublic": "Public",
+      "clientTypeHint": "Cannot be changed later.",
       "redirectUris": "Redirect URIs",
       "redirectUrisHint": "Extra exact redirect URIs. Public clients may use custom-scheme URIs such as com.example.app:/callback.",
-      "redirectUriInvalid": "Enter a https URL or, for public clients, a custom-scheme URI."
+      "redirectUriInvalid": "Enter a https URL or, for public clients, a custom-scheme URI.",
+      "clientTypeConfidentialTitle": "Server-side app",
+      "clientTypeConfidentialDetail": "Runs on a server that keeps the client secret. You get the secret once, after adding the application.",
+      "clientTypePublicTitle": "Native or single-page app",
+      "clientTypePublicDetail": "Runs on the user's device, so it cannot keep a secret. It signs in with PKCE only and may use custom-scheme redirect URIs such as com.example.app:/callback. The website URL is optional.",
+      "websiteUrlHintPublic": "Optional for native apps. When set, users see it and the callback is the website URL plus the configured callback path.",
+      "websiteUrlRequired": "Enter the website URL.",
+      "websiteUrlOrRedirect": "Enter a website URL or at least one redirect URI.",
+      "isListed": "Show in the users' application list",
+      "isListedHint": "Turn off for apps users only open themselves, such as a mobile app. Sign-in keeps working."
     },
     "credentials": {
       "title": "Credentials for {name}",

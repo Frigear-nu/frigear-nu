@@ -36,7 +36,7 @@ const names = z.array(z.string().trim().min(1).max(64)).max(50)
 export const applicationInputSchema = z.object({
   clientType: z.enum(CLIENT_TYPES).optional(),
   name: z.string().trim().min(1).max(120),
-  websiteUrl: z.string().trim().max(2048),
+  websiteUrl: z.string().trim().max(2048).nullish(),
   description: z.string().trim().max(1000).nullish(),
   icon: z.string().trim().max(120).nullish(),
   priority: z.number().int().min(-1000).max(1000).optional(),
@@ -46,18 +46,23 @@ export const applicationInputSchema = z.object({
   allowedRoles: names.optional(),
   tags: names.optional(),
   isActive: z.boolean().optional(),
+  isListed: z.boolean().optional(),
 })
 
 export const applicationPatchSchema = applicationInputSchema.partial()
 
 export function toApplication(row: ApplicationRow): OAuthApplication {
   const { secretHash: _secretHash, ...application } = row
-  return application
+  // No website is stored as '' (see `websiteUrl` in the schema).
+  return { ...application, websiteUrl: application.websiteUrl || null }
 }
 
-/** The redirect URI an application has to accept on its side: its website plus the configured callback path. */
-export function applicationCallbackUrl(application: Pick<OAuthApplication, 'websiteUrl'>): string {
-  return `${application.websiteUrl}${useOAuthConfig().callbackPath}`
+/**
+ * The redirect URI an application has to accept on its side: its website plus the configured callback path. `null`
+ * without a website: such a public client only uses its listed redirect URIs.
+ */
+export function applicationCallbackUrl(application: Pick<OAuthApplication, 'websiteUrl'>): string | null {
+  return application.websiteUrl ? `${application.websiteUrl}${useOAuthConfig().callbackPath}` : null
 }
 
 /** The admin view of an application (never the secret hash), with the active sign-ins when counted. */
@@ -77,6 +82,7 @@ export function toAdminApplicationDto(application: OAuthApplication, activeGrant
     tags: application.tags,
     ownerId: application.ownerId,
     isActive: application.isActive,
+    isListed: application.isListed,
     createdAt: isoDate(application.createdAt),
     updatedAt: isoDate(application.updatedAt),
     ...(activeGrants === undefined ? {} : { activeGrants }),
@@ -94,7 +100,9 @@ export async function requireApplication(id: string): Promise<OAuthApplication> 
 
 function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
   const next = { ...input }
-  if (next.websiteUrl !== undefined) {
+  // Leaving the website out is stored as '' (see the schema).
+  if (next.websiteUrl === null || next.websiteUrl === '') next.websiteUrl = ''
+  else if (next.websiteUrl !== undefined) {
     try {
       next.websiteUrl = normalizeWebsiteUrl(next.websiteUrl)
     }
@@ -114,12 +122,23 @@ function assertRedirectUris(uris: readonly string[] | undefined, clientType: Cli
   if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw badRequest('Only public clients may use custom-scheme redirect URIs.')
 }
 
+/**
+ * A confidential client needs a website: its secret is for a server, and the callback is derived from the website. A
+ * public client without one (a native app) needs at least one redirect URI to sign in with.
+ */
+function assertWebsite(websiteUrl: string | null | undefined, redirectUris: readonly string[] | undefined, clientType: ClientType) {
+  if (websiteUrl) return
+  if (clientType === 'confidential') throw badRequest('A confidential client needs a website URL.')
+  if (!redirectUris?.length) throw badRequest('A public client without a website URL needs at least one redirect URI.')
+}
+
 /** The fields of a configured client that come from config: staff cannot change them (409 `managed_by_config`). */
-const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern'] as const
+const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern', 'isListed'] as const
 
 const managedByConfig = () => apiError(409, 'managed_by_config', 'This application is managed in nuxt.config (oauthServer.clients).')
 
-const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+// '' and `null` are both "none" (a missing website is stored as '').
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a === '' ? null : a ?? null) === JSON.stringify(b === '' ? null : b ?? null)
 
 /** The config values a configured client's row should have. */
 function configuredValues(client: OAuthNormalizedClient) {
@@ -127,7 +146,8 @@ function configuredValues(client: OAuthNormalizedClient) {
     name: client.name,
     description: client.description,
     icon: client.icon,
-    websiteUrl: client.websiteUrl,
+    websiteUrl: client.websiteUrl ?? '',
+    isListed: client.isListed,
     redirectUris: client.redirectUris,
     allowedRoles: client.allowedRoles,
     tags: client.tags,
@@ -148,7 +168,10 @@ export function isOAuthManagedApplication(application: Pick<OAuthApplication, 'i
 export function withOAuthConfiguredValues<T extends ApplicationRow | OAuthApplication>(row: T): T {
   if (row.clientType !== 'public') return row
   const client = findOAuthConfiguredClient(row.id)
-  return client ? { ...row, ...configuredValues(client) } : row
+  if (!client) return row
+  const values = configuredValues(client)
+  // A row keeps the stored form ('' for no website); an application the `null` it reads as.
+  return { ...row, ...values, websiteUrl: 'secretHash' in row ? values.websiteUrl : values.websiteUrl || null }
 }
 
 let ensured: Promise<void> | undefined
@@ -223,11 +246,13 @@ export async function createApplication(input: ApplicationInput, ownerId?: numbe
   const data = normalizeInput(applicationInputSchema.parse(input))
   const clientType = data.clientType ?? 'confidential'
   assertRedirectUris(data.redirectUris, clientType)
+  assertWebsite(data.websiteUrl, data.redirectUris, clientType)
   const secret = clientType === 'public' ? null : generateSecret()
   const [row] = await db.insert(schema.oauthApplications).values({
     id: newId('app'),
     ownerId: ownerId ?? null,
     ...data,
+    websiteUrl: data.websiteUrl ?? '',
     clientType,
     // A public client has no secret to hash; see `secretHash` in the schema.
     secretHash: await sha256Hex(secret ?? generateSecret()),
@@ -252,6 +277,9 @@ export async function updateApplication(id: string, patch: Partial<ApplicationIn
   // A secret cannot be created or dropped by editing: register a new application instead.
   if (clientType && clientType !== existing.clientType) throw badRequest('The client type cannot be changed.')
   assertRedirectUris(data.redirectUris, existing.clientType)
+  if (data.websiteUrl !== undefined || data.redirectUris) {
+    assertWebsite(data.websiteUrl ?? existing.websiteUrl, data.redirectUris ?? existing.redirectUris, existing.clientType)
+  }
 
   if (!Object.keys(data).length) return toApplication(existing)
   const [row] = await db.update(schema.oauthApplications).set(data).where(eq(schema.oauthApplications.id, id)).returning()
@@ -332,9 +360,10 @@ export async function revokeUserGrants(userId: number, applicationId?: string): 
 }
 
 /**
- * The active applications a user may sign in to (role check through `oauth:user:roles`), highest
+ * The active, listed applications a user may sign in to (role check through `oauth:user:roles`), highest
  * priority first. Applications with a `loginUrl` link there, the others to their website. An application without a
- * web link (a native-only configured client, whose website is its app scheme) is left out: there is nothing to open.
+ * web link (a native app without a website) is left out: there is nothing to open. Unlisted ones (`isListed: false`)
+ * still sign in, users just open them themselves.
  */
 export async function listUserApplications(userId: number, event?: H3Event): Promise<UserApplicationDto[]> {
   await ensureOAuthConfiguredApplications()
@@ -344,7 +373,7 @@ export async function listUserApplications(userId: number, event?: H3Event): Pro
     .orderBy(desc(schema.oauthApplications.priority), schema.oauthApplications.name)
   return rows
     .map(row => withOAuthConfiguredValues(row))
-    .filter(row => matchesAllowedRoles(row.allowedRoles, roles))
+    .filter(row => row.isListed && matchesAllowedRoles(row.allowedRoles, roles))
     .filter(row => /^https?:\/\//i.test(row.loginUrl || row.websiteUrl))
     .map(row => ({
       id: row.id,
@@ -352,7 +381,7 @@ export async function listUserApplications(userId: number, event?: H3Event): Pro
       description: row.description,
       icon: row.icon,
       priority: row.priority,
-      websiteUrl: row.websiteUrl,
+      websiteUrl: row.websiteUrl || null,
       tags: row.tags,
       loginUrl: row.loginUrl || row.websiteUrl,
     }))

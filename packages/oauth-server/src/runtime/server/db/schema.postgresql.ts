@@ -18,7 +18,10 @@ export const oauthApplications = pgTable('oauth_applications', {
   description: text(),
   icon: text(),
   priority: integer().notNull().default(0),
-  /** Origin of the application, no path. The redirect URI is derived from it. */
+  /**
+   * Origin of the application, no path. The redirect URI is derived from it. Empty for a public client without a
+   * website (a native app); it stays `NOT NULL` for the same reason as `secretHash`. `toApplication` reads '' as `null`.
+   */
   websiteUrl: text().notNull(),
   /** Where "open application" links go; defaults to the website URL. */
   loginUrl: text(),
@@ -31,6 +34,8 @@ export const oauthApplications = pgTable('oauth_applications', {
   tags: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
   ownerId: integer(),
   isActive: boolean().notNull().default(true),
+  /** Shown in the users' application list. Unlisted applications still sign in. */
+  isListed: boolean().notNull().default(true),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 }, t => [

@@ -50,7 +50,8 @@
       "signedOut": "Alle er logget ud",
       "search": "Søg på navn eller klient-ID...",
       "noMatches": "Ingen applikationer matcher",
-      "clearSearch": "Ryd søgning"
+      "clearSearch": "Ryd søgning",
+      "unlisted": "Skjult"
     },
     "form": {
       "createTitle": "Tilføj applikation",
@@ -58,7 +59,7 @@
       "createDescription": "Registrér en applikation, som brugere kan logge ind på.",
       "editDescription": "Ændr hvordan applikationen er registreret.",
       "managedTitle": "Styres i nuxt.config",
-      "managedDescription": "Applikationen er defineret i oauthServer.clients. Ændr navn, website, redirect-URI'er, roller og tags dér; kun login-URL og prioritet kan redigeres her.",
+      "managedDescription": "Applikationen er defineret i oauthServer.clients. Ændr navn, website, redirect-URI'er, roller, tags og visning dér; kun login-URL og prioritet kan redigeres her.",
       "create": "Tilføj applikation",
       "save": "Gem applikation",
       "name": "Navn",
@@ -77,12 +78,21 @@
       "icon": "Ikon",
       "priority": "Prioritet",
       "clientType": "Klienttype",
-      "clientTypeConfidential": "Fortrolig (serverside, har en klienthemmelighed)",
-      "clientTypePublic": "Offentlig (native app eller single-page-app, ingen hemmelighed)",
-      "clientTypeHint": "Kan ikke ændres senere. Offentlige klienter logger kun ind med PKCE og får derfor aldrig en hemmelighed.",
+      "clientTypeConfidential": "Fortrolig",
+      "clientTypePublic": "Offentlig",
+      "clientTypeHint": "Kan ikke ændres senere.",
       "redirectUris": "Redirect-URI'er",
       "redirectUrisHint": "Ekstra præcise redirect-URI'er. Offentlige klienter må bruge URI'er med eget skema, fx com.example.app:/callback.",
-      "redirectUriInvalid": "Angiv en https-URL eller, for offentlige klienter, en URI med eget skema."
+      "redirectUriInvalid": "Angiv en https-URL eller, for offentlige klienter, en URI med eget skema.",
+      "clientTypeConfidentialTitle": "Serverside-app",
+      "clientTypeConfidentialDetail": "Kører på en server, der opbevarer klienthemmeligheden. Du får hemmeligheden én gang, når applikationen er tilføjet.",
+      "clientTypePublicTitle": "Native app eller single-page-app",
+      "clientTypePublicDetail": "Kører på brugerens enhed og kan derfor ikke holde på en hemmelighed. Den logger kun ind med PKCE og må bruge redirect-URI'er med eget skema, fx com.example.app:/callback. Website-URL'en er valgfri.",
+      "websiteUrlHintPublic": "Valgfri for native apps. Hvis den er udfyldt, kan brugerne se den, og callback er website-URL'en plus den konfigurerede callback-sti.",
+      "websiteUrlRequired": "Angiv website-URL'en.",
+      "websiteUrlOrRedirect": "Angiv en website-URL eller mindst én redirect-URI.",
+      "isListed": "Vis i brugernes liste over applikationer",
+      "isListedHint": "Slå fra for apps, som brugerne selv åbner, fx en mobilapp. Login virker stadig."
     },
     "credentials": {
       "title": "Legitimationsoplysninger for {name}",

@@ -109,10 +109,11 @@ export type OAuthConfiguredClient = {
   /** Extra redirect URIs accepted only in development (`nuxt dev`), e.g. `http://localhost:3001/auth/callback`. */
   devRedirectUris?: string[]
   /**
-   * The application's origin. Defaults to the origin of the first web redirect URI, else the scheme (and host) of the
-   * first native one, which adds no redirect URI of its own.
+   * The application's origin. Defaults to the origin of the first web redirect URI; a native-only client has none.
    */
-  websiteUrl?: string
+  websiteUrl?: string | null
+  /** Shown in the users' application list. Defaults to `true`; `false` for apps users only open themselves. */
+  listed?: boolean
   description?: string | null
   icon?: string | null
   /** Roles allowed to sign in. Empty = every signed-in user. */
@@ -130,7 +131,8 @@ export type OAuthNormalizedClient = {
   id: string
   name: string
   clientType: 'public'
-  websiteUrl: string
+  websiteUrl: string | null
+  isListed: boolean
   /** The redirect URIs, plus `devRedirectUris` in development. */
   redirectUris: string[]
   description: string | null
@@ -196,7 +198,8 @@ export type OAuthApplication = {
   description: string | null
   icon: string | null
   priority: number
-  websiteUrl: string
+  /** The application's origin. `null` for a public client without a website (a native app). */
+  websiteUrl: string | null
   loginUrl: string | null
   previewUrlPattern: string | null
   /** Extra exact redirect URIs next to the derived `websiteUrl + callbackPath`. Public clients may list native (custom scheme) URIs. */
@@ -206,6 +209,8 @@ export type OAuthApplication = {
   tags: string[]
   ownerId: number | null
   isActive: boolean
+  /** Shown in the users' application list. Unlisted applications still sign in; users open them themselves. */
+  isListed: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -219,7 +224,8 @@ export type ApplicationInput = {
   /** Fixed at creation. Defaults to `confidential`. */
   clientType?: ClientType
   name: string
-  websiteUrl: string
+  /** Required for confidential clients. A public client without one needs at least one redirect URI. */
+  websiteUrl?: string | null
   description?: string | null
   icon?: string | null
   priority?: number
@@ -229,6 +235,7 @@ export type ApplicationInput = {
   allowedRoles?: string[]
   tags?: string[]
   isActive?: boolean
+  isListed?: boolean
 }
 
 export type TokenType = 'id_token' | 'access_token' | 'userinfo'
@@ -296,8 +303,8 @@ export type AdminApplicationDto = Omit<OAuthApplication, 'createdAt' | 'updatedA
   updatedAt: string
   /** Refresh tokens that are still valid, i.e. users currently signed in. */
   activeGrants?: number
-  /** The redirect URI the application has to accept. */
-  callbackUrl: string
+  /** The redirect URI the application has to accept; `null` without a website URL. */
+  callbackUrl: string | null
   /**
    * Defined in `oauthServer.clients`: its name, website, redirect URIs, roles and tags come from config and cannot be
    * edited or deleted here (409 `managed_by_config`). It can still be disabled.

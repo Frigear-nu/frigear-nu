@@ -9,12 +9,13 @@ import { loadOrCreateDevSigningKey } from '../src/dev-key'
 const mobile = { id: 'mobile', name: 'Mobile', redirectUris: ['com.example.app:/auth/callback'] }
 
 describe('normalizeConfiguredClients', () => {
-  it('turns a native client into a public application with a scheme website and no CORS origin', () => {
+  it('turns a native client into a listed public application without a website or CORS origin', () => {
     expect(normalizeConfiguredClients([mobile])).toEqual([{
       id: 'mobile',
       name: 'Mobile',
       clientType: 'public',
-      websiteUrl: 'com.example.app:',
+      websiteUrl: null,
+      isListed: true,
       redirectUris: ['com.example.app:/auth/callback'],
       description: null,
       icon: null,
@@ -74,10 +75,11 @@ describe('normalizeConfiguredClients', () => {
     expect(() => normalizeConfiguredClients([{ ...mobile, devRedirectUris: ['javascript:alert(1)'] }], { dev: true })).toThrow(/not a valid/)
   })
 
-  it('derives the website from the first web redirect URI, else the first native one', () => {
+  it('derives the website from the first web redirect URI; a native-only client has none', () => {
     const web = normalizeConfiguredClients([{ ...mobile, redirectUris: ['com.example.app:/cb', 'https://app.example.com/auth/callback'] }])[0]!
     expect(web.websiteUrl).toBe('https://app.example.com')
-    expect(normalizeConfiguredClients([{ ...mobile, redirectUris: ['capacitor://localhost/auth/callback'] }])[0]!.websiteUrl).toBe('capacitor://localhost')
+    expect(normalizeConfiguredClients([{ ...mobile, redirectUris: ['capacitor://localhost/auth/callback'] }])[0]!.websiteUrl).toBeNull()
+    expect(normalizeConfiguredClients([mobile])[0]!.websiteUrl).toBeNull()
     expect(normalizeConfiguredClients([{ ...mobile, websiteUrl: 'https://www.example.com/' }])[0]!.websiteUrl).toBe('https://www.example.com')
     expect(() => normalizeConfiguredClients([{ ...mobile, websiteUrl: 'https://example.com/app' }])).toThrow(/without a path/)
     expect(() => normalizeConfiguredClients([{ ...mobile, websiteUrl: 'http://example.com' }])).toThrow(/https/)
@@ -91,6 +93,12 @@ describe('normalizeConfiguredClients', () => {
     for (const origin of ['*', 'https://app.example.com/', 'https://app.example.com/path', 'com.example.app:']) {
       expect(() => normalizeConfiguredClients([{ ...client, corsOrigins: [origin] }]), origin).toThrow(/exact origins/)
     }
+  })
+
+  it('lists a client unless told otherwise', () => {
+    expect(normalizeConfiguredClients([mobile])[0]!.isListed).toBe(true)
+    expect(normalizeConfiguredClients([{ ...mobile, listed: false }])[0]!.isListed).toBe(false)
+    expect(() => normalizeConfiguredClients([{ ...mobile, listed: 'no' }])).toThrow(/listed must be/)
   })
 
   it('cleans up names and texts', () => {
