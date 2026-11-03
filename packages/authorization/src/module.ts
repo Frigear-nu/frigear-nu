@@ -85,7 +85,14 @@ export default defineNuxtModule<ModuleOptions>({
       // The anonymous entry points of Auth (sign-in pages, the callback, `/api/auth/**`) stay reachable under any
       // less specific guard (`'/**': { authenticated: true }`), pages and API alike. App rules for the same or a more
       // specific pattern still apply (`resolveRule`).
-      const exempt = [...new Set((nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? [])]
+      // With @nuxtjs/i18n every page also exists under `/<locale>/...` (the API does not).
+      const prefixes = ['', ...((nuxt.options as { i18n?: { locales?: (string | { code: string })[] } }).i18n?.locales ?? [])
+        .map(locale => typeof locale === 'string' ? locale : locale.code)
+        .map(code => `/${code}`)]
+      const publicPaths = (nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? []
+      const exempt = [...new Set(publicPaths.flatMap(pattern => pattern.startsWith('/api/')
+        ? [pattern]
+        : prefixes.map(prefix => pattern === '/' ? (prefix || '/') : `${prefix}${pattern}`)))]
       nuxt.options.runtimeConfig.public.authorization = { routes, exempt, redirectTo: options.redirectTo }
     })
 
@@ -182,10 +189,9 @@ export {}
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
     // Server: `allows(event, ...)`, `denies(event, ...)`, `authorize(event, ...)`.
-    if (server) {
-      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-      inlineModuleRuntime(nuxt, resolver)
-    }
+    // Transpiles the app runtime too, so it runs in both modes.
+    inlineModuleRuntime(nuxt, resolver)
+    if (server) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 
     addRouteMiddleware({
       name: 'authorization',

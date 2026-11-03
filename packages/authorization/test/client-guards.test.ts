@@ -26,6 +26,13 @@ describe('client mode: guards', () => {
     await nuxt.close()
   })
 
+  it('exempts the sign-in pages under every i18n locale prefix too', async () => {
+    const nuxt = await loadNuxt({ cwd: fixture, dev: false, ready: true, overrides: { i18n: { locales: ['da', { code: 'en' }] } } as never })
+    const { exempt } = nuxt.options.runtimeConfig.public.authorization as { exempt: string[] }
+    expect(exempt).toEqual(['/login', '/da/login', '/en/login', '/auth/callback', '/da/auth/callback', '/en/auth/callback'])
+    await nuxt.close()
+  })
+
   it('lets an app rule for the exact pattern win', async () => {
     const nuxt = await loadNuxt({
       cwd: fixture,
