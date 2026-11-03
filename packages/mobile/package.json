@@ -1,0 +1,161 @@
+{
+  "name": "@frigear-nu/mobile",
+  "version": "0.1.0",
+  "description": "A Capacitor app shell for Nuxt: one tab registry for native (iOS) and web tab bars, page titles, safe areas, haptics, action sheets, deep links, the Android back button and a CLI that sets up the iOS / Android projects. Signs in with @frigear-nu/oauth-client.",
+  "homepage": "https://docs.frigear.dev/modules/mobile",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/mobile"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "types": "./src/module.ts",
+  "bin": {
+    "frigear-mobile": "./bin/frigear-mobile.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    },
+    "./types": "./src/types.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      },
+      "./types": {
+        "types": "./dist/types.d.mts"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "types": "./dist/types.d.mts",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ],
+        "utils": [
+          "./dist/runtime/utils/index.d.ts"
+        ],
+        "types": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt-module-build prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/oauth-client": "workspace:^",
+    "@nuxt/kit": "catalog:",
+    "defu": "^6.1.4",
+    "jiti": "^2.7.0",
+    "nuxt-capacitor": "^0.3.3"
+  },
+  "peerDependencies": {
+    "@capacitor/action-sheet": ">=8.0.0",
+    "@capacitor/app": ">=8.0.0",
+    "@capacitor/cli": ">=8.0.0",
+    "@capacitor/core": ">=8.0.0",
+    "@capacitor/dialog": ">=8.0.0",
+    "@capacitor/haptics": ">=8.0.0",
+    "@capacitor/keyboard": ">=8.0.0",
+    "@capacitor/share": ">=8.0.0",
+    "@capacitor/status-bar": ">=8.0.0",
+    "@capgo/capacitor-native-navigation": ">=8.0.0",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@nuxt/ui": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@capacitor/action-sheet": {
+      "optional": true
+    },
+    "@capacitor/dialog": {
+      "optional": true
+    },
+    "@capacitor/haptics": {
+      "optional": true
+    },
+    "@capacitor/keyboard": {
+      "optional": true
+    },
+    "@capacitor/share": {
+      "optional": true
+    },
+    "@capacitor/status-bar": {
+      "optional": true
+    },
+    "@capgo/capacitor-native-navigation": {
+      "optional": true
+    },
+    "@frigear-nu/menu": {
+      "optional": true
+    },
+    "@frigear-nu/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@capacitor/action-sheet": "^8.1.1",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/dialog": "^8.0.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.4",
+    "@capgo/capacitor-native-navigation": "^8.16.0",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

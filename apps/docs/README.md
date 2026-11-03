@@ -52,7 +52,7 @@ For a new section, add a `.navigation.yml` file in its folder to set the section
 ## Documentation conventions
 
 - **Ordering.** Docus sorts navigation by file name as a string, so use unique two-digit prefixes (`01.`, `02.`, ...).
-  Module pages in `content/4.modules/` are numbered alphabetically by title; insert a new module by renumbering.
+  Module pages in `content/5.modules/` are numbered alphabetically by title; insert a new module by renumbering.
 - **Titles.** Use the plain name (`Auth`, `Cookie Consent`), never a `Module` suffix.
 - **Module page layout**, in this order, skipping sections that do not apply: intro (no H1, no package-name heading),
   requirements note (hard and optional dependencies from `moduleDependencies`), `## Quick setup`, `## Options` (table:

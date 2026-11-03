@@ -277,7 +277,7 @@ Full guide: `apps/docs/content/1.getting-started/6.writing-a-module.md#http-rout
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
 - A missing session cookie can be a database error, not disabled authentication: a column added by an extending module
   without a matching fixture migration makes every write to that table fail. See
-  `apps/docs/content/4.modules/10.module-kit.md` for the migration workflow.
+  `apps/docs/content/5.modules/10.module-kit.md` for the migration workflow.
 
 ---
 
@@ -285,7 +285,7 @@ Full guide: `apps/docs/content/1.getting-started/6.writing-a-module.md#http-rout
 
 Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
 `apps/docs/content/1.getting-started/7.ux-patterns.md` (docs site: `/getting-started/ux-patterns`). The building blocks
-live in `packages/ui` (reference: `apps/docs/content/4.modules/17.ui.md`). Rules:
+live in `packages/ui` (reference: `apps/docs/content/5.modules/17.ui.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a

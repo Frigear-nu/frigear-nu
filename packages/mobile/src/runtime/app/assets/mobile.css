@@ -1,0 +1,30 @@
+/*
+ * The shell's insets, one set of variables whichever chrome draws the bars:
+ *
+ * - `--mobile-inset-top`: space above the content (the native navbar, else the status bar / notch).
+ * - `--mobile-tabbar-height`: the tab bar (native or web), 0 when it is hidden.
+ * - `--mobile-inset-bottom`: space below the content (the tab bar, else the home indicator).
+ *
+ * With the native bars, `@capgo/capacitor-native-navigation` publishes `--cap-native-*` variables. On iOS it reports
+ * `--cap-native-navigation-bottom` as 0 under its tab bar, so the tab bar's own height is used as well.
+ * Unlayered, so they apply over the theme layer.
+ */
+:root {
+  --mobile-inset-top: env(safe-area-inset-top, 0px);
+  --mobile-tabbar-height: 0px;
+  --mobile-inset-bottom: max(var(--mobile-tabbar-height), env(safe-area-inset-bottom, 0px));
+  --mobile-web-tabbar-height: 3.5rem;
+}
+
+html.mobile-chrome-web.mobile-has-tabbar {
+  --mobile-tabbar-height: calc(var(--mobile-web-tabbar-height) + env(safe-area-inset-bottom, 0px));
+}
+
+html.mobile-chrome-native {
+  --mobile-inset-top: var(--cap-native-navigation-top, env(safe-area-inset-top, 0px));
+  --mobile-inset-bottom: max(var(--mobile-tabbar-height), var(--cap-native-navigation-bottom, 0px), env(safe-area-inset-bottom, 0px));
+}
+
+html.mobile-chrome-native.mobile-has-tabbar {
+  --mobile-tabbar-height: max(var(--cap-native-system-tabbar-height, 0px), var(--cap-native-tabbar-height, 0px));
+}

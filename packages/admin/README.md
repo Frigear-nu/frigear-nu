@@ -7,4 +7,4 @@ title: every page renders the one `<h1>` through `PageHeading`. The area also ha
 pages, nav entries and widgets into it. Pages are built from the `@frigear-nu/ui` page patterns (`PageHeading`,
 `SectionCard`, `TableCard`, …).
 
-See the [documentation](../../apps/docs/content/4.modules/02.admin.md) for usage.
+See the [documentation](../../apps/docs/content/5.modules/02.admin.md) for usage.

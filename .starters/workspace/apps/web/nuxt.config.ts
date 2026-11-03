@@ -1,5 +1,5 @@
 // A Nuxt 4 app on the @frigear-nu modules: register/login, /account and /admin with user management.
-// Every module option is documented in https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content/4.modules
+// Every module option is documented in https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content/5.modules
 export default defineNuxtConfig({
   // Order matters only for readability: each module installs the ones it depends on (auth, notify, ui, ...).
   modules: [
