@@ -1,13 +1,13 @@
 import { createLocalJWKSet, errors, jwtVerify } from 'jose'
 import type { JSONWebKeySet } from 'jose'
 import type { AuthUser } from '@frigear-nu/auth/utils'
-import type { FrigearAccessToken, FrigearResourceRuntimeConfig, FrigearUserinfo } from '../../../types'
+import type { OAuthResourceAccessToken, OAuthResourceRuntimeConfig, OAuthResourceUserinfo } from '../../../types'
 import { parseList, resolveIssuerUrls } from '../../utils'
 
-/** `runtimeConfig.frigearResource`, normalised: lists are arrays, `forceId` follows "Log in with frigear.nu" when unset. */
-export function useFrigearResourceConfig() {
+/** `runtimeConfig.oauthResource`, normalised: lists are arrays, `forceId` follows "Log in with frigear.nu" when unset. */
+export function useOAuthResourceConfig() {
   const config = useRuntimeConfig()
-  const resource = config.frigearResource as FrigearResourceRuntimeConfig
+  const resource = config.oauthResource as OAuthResourceRuntimeConfig
   const forceId = resource.forceId === '' || resource.forceId === undefined
     ? (config.frigear as { forceId?: boolean } | undefined)?.forceId === true
     : resource.forceId === true || String(resource.forceId) === 'true'
@@ -27,7 +27,7 @@ const JWKS_REFETCH_COOLDOWN = 30_000
 let jwksCache: { url: string, keys: ReturnType<typeof createLocalJWKSet>, fetchedAt: number } | undefined
 let jwksPending: Promise<ReturnType<typeof createLocalJWKSet>> | undefined
 
-async function getFrigearJwks(url: string, maxAgeMs: number) {
+async function getOAuthResourceJwks(url: string, maxAgeMs: number) {
   if (jwksCache?.url === url && Date.now() - jwksCache.fetchedAt < maxAgeMs) return jwksCache.keys
   jwksPending ??= $fetch<JSONWebKeySet>(url)
     .then((jwks) => {
@@ -42,16 +42,16 @@ async function getFrigearJwks(url: string, maxAgeMs: number) {
 }
 
 /** Forgets the cached keys (tests, or after the issuer rotated). */
-export function clearFrigearJwksCache() {
+export function clearOAuthResourceJwksCache() {
   jwksCache = undefined
 }
 
 /**
- * Verifies a frigear.nu access token: RS256 signature against the issuer's JWKS (cached), the `at+jwt` type, `iss`,
+ * Verifies an access token from the configured issuer: RS256 signature against the issuer's JWKS (cached), the `at+jwt` type, `iss`,
  * `aud` (the shared audience) and `exp`. Returns the claims, or `null` for anything that is not a valid token.
  */
-export async function verifyFrigearAccessToken(token: string): Promise<FrigearAccessToken | null> {
-  const config = useFrigearResourceConfig()
+export async function verifyOAuthResourceToken(token: string): Promise<OAuthResourceAccessToken | null> {
+  const config = useOAuthResourceConfig()
   if (!config.audience.length) return null
   const verify = async (keys: ReturnType<typeof createLocalJWKSet>) => (await jwtVerify(token, keys, {
     issuer: config.issuer,
@@ -63,46 +63,46 @@ export async function verifyFrigearAccessToken(token: string): Promise<FrigearAc
   try {
     let payload
     try {
-      payload = await verify(await getFrigearJwks(config.jwksUrl, config.jwksCacheTtl * 1000))
+      payload = await verify(await getOAuthResourceJwks(config.jwksUrl, config.jwksCacheTtl * 1000))
     }
     catch (error) {
       if (!(error instanceof errors.JWKSNoMatchingKey)) throw error
-      payload = await verify(await getFrigearJwks(config.jwksUrl, JWKS_REFETCH_COOLDOWN))
+      payload = await verify(await getOAuthResourceJwks(config.jwksUrl, JWKS_REFETCH_COOLDOWN))
     }
     if (typeof payload.sub !== 'string' || typeof payload.client_id !== 'string') return null
-    return payload as FrigearAccessToken
+    return payload as OAuthResourceAccessToken
   }
   catch (error) {
     // Invalid tokens are a plain `null`; a failing issuer is worth a log line.
-    if (!(error instanceof errors.JOSEError)) console.error('[frigear-resource] could not verify the access token', error)
+    if (!(error instanceof errors.JOSEError)) console.error('[oauth-resource] could not verify the access token', error)
     return null
   }
 }
 
-// Without `forceId` a frigear.nu id has no column here: users are matched by email, read from userinfo once and
+// Without `forceId` the issuer's user id has no column here: users are matched by email, read from userinfo once and
 // remembered per instance.
 const localIds = new Map<string, number>()
 const LOCAL_ID_CACHE_SIZE = 5000
 
 /**
  * The local user behind a verified token. With `forceId` the local id is `sub`; otherwise the user with the email
- * frigear.nu has for `sub`. A user seen for the first time is created from the issuer's userinfo (read with the token
+ * the issuer has for `sub`. A user seen for the first time is created from the issuer's userinfo (read with the token
  * itself, so it needs the `email` scope). Known users are not written to.
  */
-export async function resolveFrigearUser(token: string, payload: FrigearAccessToken): Promise<AuthUser | null> {
-  const { forceId } = useFrigearResourceConfig()
+export async function resolveOAuthResourceUser(token: string, payload: OAuthResourceAccessToken): Promise<AuthUser | null> {
+  const { forceId } = useOAuthResourceConfig()
   if (forceId) {
     const id = Number(payload.sub)
     if (!Number.isSafeInteger(id) || id <= 0) return null
-    return await loadAuthUser(id) ?? await provisionFrigearUser(token, payload, true)
+    return await loadAuthUser(id) ?? await provisionOAuthResourceUser(token, payload, true)
   }
   const known = localIds.get(payload.sub)
   const user = known !== undefined ? await loadAuthUser(known) : null
-  return user ?? await provisionFrigearUser(token, payload, false)
+  return user ?? await provisionOAuthResourceUser(token, payload, false)
 }
 
-async function provisionFrigearUser(token: string, payload: FrigearAccessToken, forceId: boolean): Promise<AuthUser | null> {
-  const profile = await fetchFrigearUserinfo(token)
+async function provisionOAuthResourceUser(token: string, payload: OAuthResourceAccessToken, forceId: boolean): Promise<AuthUser | null> {
+  const profile = await fetchOAuthResourceUserinfo(token)
   if (!profile?.email || profile.sub !== payload.sub) return null
 
   let stored
@@ -120,7 +120,7 @@ async function provisionFrigearUser(token: string, payload: FrigearAccessToken, 
     const users = useAuthUserStore()
     stored = forceId ? await users.findById(Number(payload.sub)) : await users.findByEmail(profile.email.trim().toLowerCase())
     if (!stored) {
-      console.error('[frigear-resource] could not provision the user', error)
+      console.error('[oauth-resource] could not provision the user', error)
       return null
     }
   }
@@ -132,12 +132,12 @@ async function provisionFrigearUser(token: string, payload: FrigearAccessToken, 
   return loadAuthUser(stored.id)
 }
 
-async function fetchFrigearUserinfo(token: string): Promise<FrigearUserinfo | null> {
+async function fetchOAuthResourceUserinfo(token: string): Promise<OAuthResourceUserinfo | null> {
   try {
-    return await $fetch<FrigearUserinfo>(useFrigearResourceConfig().userinfoUrl, { headers: { authorization: `Bearer ${token}` } })
+    return await $fetch<OAuthResourceUserinfo>(useOAuthResourceConfig().userinfoUrl, { headers: { authorization: `Bearer ${token}` } })
   }
   catch (error) {
-    console.error('[frigear-resource] userinfo request failed', error)
+    console.error('[oauth-resource] userinfo request failed', error)
     return null
   }
 }

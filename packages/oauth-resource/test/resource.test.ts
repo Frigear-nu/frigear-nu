@@ -35,8 +35,8 @@ const issuer = createServer((request, response) => {
 })
 await new Promise<void>(resolve => issuer.listen(0, '127.0.0.1', resolve))
 const issuerUrl = `http://127.0.0.1:${(issuer.address() as AddressInfo).port}`
-process.env.NUXT_FRIGEAR_RESOURCE_JWKS_URL = `${issuerUrl}/.well-known/jwks.json`
-process.env.NUXT_FRIGEAR_RESOURCE_USERINFO_URL = `${issuerUrl}/oauth/userinfo`
+process.env.NUXT_OAUTH_RESOURCE_JWKS_URL = `${issuerUrl}/.well-known/jwks.json`
+process.env.NUXT_OAUTH_RESOURCE_USERINFO_URL = `${issuerUrl}/oauth/userinfo`
 
 type TokenOptions = { sub?: string, scope?: string, aud?: string | string[], iss?: string, typ?: string, exp?: string | number, kid?: string, key?: string, clientId?: string }
 
@@ -57,7 +57,7 @@ const vouchers = '/api/test/vouchers'
 const asBearer = async (options: TokenOptions = {}) => apiClient({ bearer: await accessToken(options) })
 const counters = async () => ({ ...issued })
 
-describe('frigear-resource (a service accepting frigear.nu tokens)', async () => {
+describe('oauth-resource (a service accepting frigear.nu tokens)', async () => {
   const dataDir = fileURLToPath(new URL('./fixtures/basic/.data', import.meta.url))
   await rm(dataDir, { recursive: true, force: true })
   afterAll(async () => {

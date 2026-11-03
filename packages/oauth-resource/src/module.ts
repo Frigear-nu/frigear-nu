@@ -2,24 +2,24 @@ import { addServerHandler, addServerImportsDir, createResolver, defineNuxtModule
 import { inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
 import { addAuthResolver } from '@frigear-nu/auth/utils'
 import { DEFAULT_AUDIENCE, DEFAULT_CORS_ORIGINS, isExactOrigin, parseList, resolveIssuerUrls } from './runtime/utils'
-import type { FrigearResourceRuntimeConfig, ModuleOptions } from './types'
+import type { OAuthResourceRuntimeConfig, ModuleOptions } from './types'
 
 export type * from './types'
 
 declare module '@nuxt/schema' {
   interface NuxtConfig {
-    frigearResource?: ModuleOptions
+    oauthResource?: ModuleOptions
   }
 
   interface RuntimeConfig {
-    frigearResource: FrigearResourceRuntimeConfig
+    oauthResource: OAuthResourceRuntimeConfig
   }
 }
 
-const MODULE_NAME = '@frigear-nu/frigear-resource'
+const MODULE_NAME = '@frigear-nu/oauth-resource'
 
 export default defineNuxtModule<ModuleOptions>({
-  meta: { name: MODULE_NAME, configKey: 'frigearResource' },
+  meta: { name: MODULE_NAME, configKey: 'oauthResource' },
   defaults: {},
   moduleDependencies: {
     '@nuxthub/core': { version: '>=0.10' },
@@ -39,10 +39,10 @@ export default defineNuxtModule<ModuleOptions>({
       }
     }
 
-    // Module options are the defaults; what the host put in `runtimeConfig.frigearResource` (and env) wins.
+    // Module options are the defaults; what the host put in `runtimeConfig.oauthResource` (and env) wins.
     const urls = resolveIssuerUrls(options)
-    const existing = nuxt.options.runtimeConfig.frigearResource as Partial<FrigearResourceRuntimeConfig> | undefined
-    nuxt.options.runtimeConfig.frigearResource = {
+    const existing = nuxt.options.runtimeConfig.oauthResource as Partial<OAuthResourceRuntimeConfig> | undefined
+    nuxt.options.runtimeConfig.oauthResource = {
       issuer: urls.issuer,
       // Derived from the issuer at request time when empty, so overriding only the issuer through env is enough.
       jwksUrl: options.jwksUrl ?? '',
@@ -55,14 +55,14 @@ export default defineNuxtModule<ModuleOptions>({
       ...existing,
     }
 
-    // frigear.nu access tokens authenticate API calls as the user; checked before other JWT resolvers.
+    // The issuer's access tokens authenticate API calls as the user; checked before other JWT resolvers.
     addAuthResolver(nuxt, {
-      name: 'frigear-access-token',
+      name: 'oauth-resource-access-token',
       jwt: true,
       order: 50,
-      resolver: resolver.resolve('./runtime/server/resolvers/frigear-access-token'),
+      resolver: resolver.resolve('./runtime/server/resolvers/oauth-resource-access-token'),
     })
-    addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/frigear-resource-cors') })
+    addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/oauth-resource-cors') })
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
   },

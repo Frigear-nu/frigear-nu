@@ -30,7 +30,7 @@ on:
           - eslint-config
           - events
           - forms
-          - frigear-resource
+          - oauth-resource
           - mcp
           - menu
           - mobile
@@ -78,7 +78,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","frigear-resource","oauth-client","mobile","eslint-config"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","oauth-resource","oauth-client","mobile","eslint-config"]'
           else
             packages="[\"$PACKAGE\"]"
           fi
