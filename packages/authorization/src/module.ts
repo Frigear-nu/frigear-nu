@@ -13,6 +13,7 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
+import type { ModuleDependencyMeta, Nuxt } from '@nuxt/schema'
 import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { ROUTE_RULE_KEYS } from './runtime/utils/types'
@@ -38,7 +39,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   // The mode is the app's own `authentication.mode` (`resolveAuthMode`). Client mode has no server: the rules only
   // decide what the app shows, the API decides what is allowed.
-  moduleDependencies: nuxt => resolveAuthMode(nuxt) === 'client'
+  moduleDependencies: (nuxt: Nuxt): Record<string, ModuleDependencyMeta> => resolveAuthMode(nuxt) === 'client'
     ? {
         '@frigear-nu/module-kit': { version: '>=0.0.1' },
         '@frigear-nu/auth': { version: '>=0.0.1' },
