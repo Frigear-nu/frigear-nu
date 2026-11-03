@@ -5,43 +5,89 @@ seo:
 ---
 
 ::u-page-hero
+---
+orientation: horizontal
+---
 #title
 Build on the Frigear Nuxt ecosystem
 
 #description
-Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shared base layer, and the tooling to add your own.
-
-#headline
-  :::u-button
-  ---
-  color: neutral
-  size: sm
-  to: /get-started/installation
-  variant: subtle
-  trailing-icon: i-lucide-arrow-right
-  ---
-  Quick start: pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-app
-  :::
+Copy a starter and you have a Nuxt 4 app with sign-in, account pages and an admin area. Then add the modules you need.
 
 #links
   :::u-button
   ---
   size: xl
-  to: /get-started/introduction
+  to: /get-started/installation#create-the-project
   trailing-icon: i-lucide-arrow-right
   ---
-  Build an app
+  Create an app
   :::
 
   :::u-button
   ---
   color: neutral
   size: xl
-  to: /contribute/overview
+  to: /modules
   variant: outline
-  icon: i-lucide-git-pull-request
+  icon: i-lucide-blocks
   ---
-  Contribute
+  Browse modules
+  :::
+
+#default
+```bash [Terminal]
+pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-app
+cd my-app
+corepack enable
+pnpm install
+pnpm prepare:env
+pnpm dev
+```
+::
+
+::u-page-section
+#title
+From zero to signed in
+
+#description
+Three steps, no outside services. You need Node.js `24`.
+
+#features
+  :::u-page-feature
+  ---
+  icon: i-lucide-copy
+  to: /get-started/installation#create-the-project
+  ---
+  #title
+  Copy the starter
+
+  #description
+  Copy the workspace starter with giget and install it with pnpm.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-play
+  to: /get-started/installation#run-it-for-the-first-time
+  ---
+  #title
+  Run it
+
+  #description
+  Run `pnpm prepare:env`, put your email in `NUXT_ACL_ADMINS` in `apps/web/.env`, then run `pnpm dev`.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-log-in
+  to: /get-started/installation#sign-in
+  ---
+  #title
+  Sign in
+
+  #description
+  Register with that email. You land on `/account`, and `/admin` is yours.
   :::
 ::
 
@@ -50,299 +96,113 @@ Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shar
 Pick a starter
 
 #description
-Each starter is a pnpm workspace you copy and run. They use the published `@frigear-nu` packages.
+Each starter is a pnpm workspace you copy and run on the published `@frigear-nu` packages.
 
 #features
   :::u-page-feature
   ---
   icon: i-lucide-rocket
-  to: /examples/starters/workspace
+  to: /examples/starters/workspace#create-the-project
   ---
   #title
   Workspace
 
   #description
-  One Nuxt 4 app with registration, sign-in, account pages and a user admin.
+  For a website: one Nuxt app with registration, sign-in, account pages and a user admin. Start here if unsure.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-smartphone
-  to: /examples/starters/mobile
+  to: /examples/starters/mobile#create-the-project
   ---
   #title
   Mobile
 
   #description
-  A Capacitor app that signs in at frigear.nu or any OpenID Connect issuer.
+  For an iOS and Android app that signs in at a server you already have, such as frigear.nu.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-tablet-smartphone
-  to: /examples/starters/mobile-standalone
+  to: /examples/starters/mobile-standalone#create-the-project
   ---
   #title
   Mobile standalone
 
   #description
-  The workspace starter plus a mobile app, with your own OAuth server and API.
+  For an app with its own users and API: the workspace starter plus a mobile app that signs in at it.
   :::
 ::
 
 ::u-page-section
-#headline
-Modules by area
-
 #title
-Identity
+Then add what you need
 
 #description
-Who the users are, how they sign in and what they may do. [See all modules](/modules).
+Modules install what they depend on, so you add only the ones you want. [Adding modules](/get-started/adding-modules) shows how.
 
-#default
-  ::::u-page-grid
-  :::u-page-card
+#features
+  :::u-page-feature
   ---
-  icon: i-lucide-log-in
-  title: Auth
-  description: Sign-in, API tokens and requireAuth.
-  to: /modules/identity/auth
+  icon: i-lucide-user-round
+  to: /modules#identity
   ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-users
-  title: Users
-  description: The user entity and administration.
-  to: /modules/identity/users
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-user-cog
-  title: Account
-  description: Profile and security pages.
-  to: /modules/identity/account
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-shield-check
-  title: Authorization
-  description: Abilities, policies and roles.
-  to: /modules/identity/authorization
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-sliders-horizontal
-  title: Preferences
-  description: Typed per-user preferences.
-  to: /modules/identity/preferences
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-server
-  title: OAuth Server
-  description: An OAuth 2.0 / OpenID Connect server.
-  to: /modules/identity/oauth-server
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-key-round
-  title: OAuth Client
-  description: PKCE sign-in for SPAs and Capacitor apps.
-  to: /modules/identity/oauth-client
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-plug
-  title: Frigear Resource
-  description: Accept frigear.nu access tokens.
-  to: /modules/identity/frigear-resource
-  ---
-  :::
-  ::::
-::
+  #title
+  Identity
 
-::u-page-section
-#title
-Commerce
+  #description
+  Sign-in, users, account pages, roles and OAuth.
+  :::
 
-#description
-Taking money through Stripe.
-
-#default
-  ::::u-page-grid
-  :::u-page-card
+  :::u-page-feature
   ---
   icon: i-lucide-credit-card
-  title: Stripe
-  description: Customers and one verified webhook.
-  to: /modules/commerce/stripe
+  to: /modules#commerce
   ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-banknote
-  title: Payments
-  description: One-time payments.
-  to: /modules/commerce/payments
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-repeat
-  title: Subscriptions
-  description: Plans and entitlements.
-  to: /modules/commerce/subscriptions
-  ---
-  :::
-  ::::
-::
+  #title
+  Commerce
 
-::u-page-section
-#title
-Features
+  #description
+  Stripe customers, one-time payments and subscriptions.
+  :::
 
-#description
-Ready-made product features.
-
-#default
-  ::::u-page-grid
-  :::u-page-card
+  :::u-page-feature
   ---
   icon: i-lucide-ticket
-  title: Events
-  description: Tickets, capacity and QR check-in.
-  to: /modules/features/events
+  to: /modules#features
   ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-clipboard-list
-  title: Forms
-  description: Database-backed forms with delivery.
-  to: /modules/features/forms
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-cookie
-  title: Cookie Consent
-  description: GDPR banner and proof of consent.
-  to: /modules/features/cookie-consent
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-bot
-  title: MCP
-  description: Scope-gated MCP tools.
-  to: /modules/features/mcp
-  ---
-  :::
-  ::::
-::
+  #title
+  Features
 
-::u-page-section
-#title
-Interface
-
-#description
-The shell, navigation and components screens are built from.
-
-#default
-  ::::u-page-grid
-  :::u-page-card
-  ---
-  icon: i-lucide-palette
-  title: UI
-  description: Shared components and composables.
-  to: /modules/interface/ui
-  ---
+  #description
+  Events with tickets, forms, cookie consent and MCP tools.
   :::
-  :::u-page-card
+
+  :::u-page-feature
   ---
   icon: i-lucide-layout-dashboard
-  title: Admin
-  description: The guarded admin shell.
-  to: /modules/interface/admin
+  to: /modules#interface
   ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-menu
-  title: Menu
-  description: Named navigation menus.
-  to: /modules/interface/menu
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-layout-grid
-  title: Widget
-  description: Widget and tab areas.
-  to: /modules/interface/widget
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-smartphone
-  title: Mobile
-  description: The Capacitor app shell.
-  to: /modules/interface/mobile
-  ---
-  :::
-  ::::
-::
+  #title
+  Interface
 
-::u-page-section
-#title
-Platform
+  #description
+  Shared components, the admin shell, menus, widgets and the mobile shell.
+  :::
 
-#description
-Building blocks other modules and apps stand on.
-
-#default
-  ::::u-page-grid
-  :::u-page-card
+  :::u-page-feature
   ---
   icon: i-lucide-wrench
-  title: Module Kit
-  description: Helpers for writing modules.
-  to: /modules/platform/module-kit
+  to: /modules#platform
   ---
+  #title
+  Platform
+
+  #description
+  Email and SMS, email templates, the base layer and helpers for writing modules.
   :::
-  :::u-page-card
-  ---
-  icon: i-lucide-bell
-  title: Notify
-  description: Email and SMS drivers.
-  to: /modules/platform/notify
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-mail
-  title: Email Templates
-  description: Vue email templates.
-  to: /modules/platform/email-templates
-  ---
-  :::
-  :::u-page-card
-  ---
-  icon: i-lucide-layers
-  title: Base Layer
-  description: The shared Nuxt layer.
-  to: /modules/platform/base-layer
-  ---
-  :::
-  ::::
 ::
 
 ::u-page-section
@@ -350,7 +210,7 @@ Building blocks other modules and apps stand on.
 Common tasks
 
 #description
-Short walkthroughs you can copy into your app.
+Short walkthroughs you can copy into your app. For the ideas behind them, read the [Guide](/guide/concepts/architecture).
 
 #features
   :::u-page-feature
@@ -416,84 +276,19 @@ Short walkthroughs you can copy into your app.
 
 ::u-page-section
 #title
-Read first
+Contribute to Frigear
 
-#features
-  :::u-page-feature
+#description
+Change a module, the layer or these docs in the monorepo, keep the starters in step and release packages.
+
+#links
+  :::u-button
   ---
-  icon: i-lucide-network
-  to: /guide/concepts/architecture
-  ---
-  #title
-  Architecture
-
-  #description
-  How modules, the base layer and your app fit together.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-user-round
-  to: /guide/concepts/identity
-  ---
-  #title
-  Identity
-
-  #description
-  How sign-in, users and the OAuth modules relate.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-key-round
-  to: /guide/concepts/auth-and-scopes
-  ---
-  #title
-  Auth and scopes
-
-  #description
-  Credentials, scopes and when a route needs a session.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-panel-left
-  to: /guide/ux-patterns/layouts-and-navigation
-  ---
-  #title
-  Layouts and navigation
-
-  #description
-  Which layout an area uses and where new pages go.
-  :::
-::
-
-::u-page-section
-#title
-Two ways in
-
-#features
-  :::u-page-feature
-  ---
-  icon: i-lucide-rocket
-  to: /get-started/introduction
-  ---
-  #title
-  Build an app
-
-  #description
-  Start from a starter, sign users in, add modules and deploy. You use the published `@frigear-nu` packages.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-git-pull-request
+  color: neutral
   to: /contribute/overview
+  variant: outline
+  icon: i-lucide-git-pull-request
   ---
-  #title
-  Contribute
-
-  #description
-  Work in this monorepo: run it locally, write a module, keep the starters in step and release packages.
+  Contributor guide
   :::
 ::
