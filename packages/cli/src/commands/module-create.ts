@@ -1,9 +1,8 @@
 import { defineCommand } from 'citty'
-import { kebabCase } from 'scule'
 import { resolve } from 'node:path'
 import { defineCommandArgs } from '../utils/args.ts'
 import { downloadTemplateToDir } from '../utils/template.ts'
-import { findWorkspaceRoot, hasPackage, packageScope, readPackage, renamePackage } from '../utils/workspace.ts'
+import { findWorkspaceRoot, hasPackage, packageScope, readPackage, renamePackage, toPackageName } from '../utils/workspace.ts'
 import consola from 'consola'
 
 /**
@@ -44,7 +43,7 @@ export default defineCommand({
   async run({ args }) {
     const logger = consola.withTag('module:create')
     const { template } = args
-    const name = kebabCase(args.name)
+    const name = toPackageName(args.name)
     const root = await findWorkspaceRoot(args.cwd) ?? resolve(args.cwd)
     const modulePath = resolve(root, args.dir, name)
 

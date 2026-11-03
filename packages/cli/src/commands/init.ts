@@ -1,11 +1,10 @@
 import { defineCommand } from 'citty'
 import consola from 'consola'
 import { basename, relative, resolve } from 'node:path'
-import { kebabCase } from 'scule'
 import { defineCommandArgs, templateArgs } from '../utils/args.ts'
 import { installDeps, runPackageScript } from '../utils/install.ts'
 import { downloadTemplateToDir, repoSource } from '../utils/template.ts'
-import { isEmptyDir, renamePackage } from '../utils/workspace.ts'
+import { isEmptyDir, renamePackage, toPackageName } from '../utils/workspace.ts'
 
 export const STARTERS = {
   'workspace': 'apps/web: users, auth, account and admin',
@@ -74,7 +73,7 @@ export default defineCommand({
       logger.error(error instanceof Error ? error.message : error)
       return process.exit(1)
     })
-    await renamePackage(dir, kebabCase(basename(dir)))
+    await renamePackage(dir, toPackageName(basename(dir)))
     logger.success(`Created the ${starter} starter in ${dir}`)
 
     if (args.install) {
@@ -88,6 +87,9 @@ export default defineCommand({
       'Next steps:',
       cd === '.' ? undefined : `  cd ${cd}`,
       args.install ? undefined : '  pnpm install && pnpm prepare:env',
+      ...(starter === 'mobile'
+        ? ['  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/mobile/.env']
+        : ['  put your email in NUXT_ACL_ADMINS in apps/web/.env']),
       '  pnpm dev',
     ].filter(Boolean).join('\n'))
   },

@@ -1,3 +1,4 @@
+import { kebabCase } from 'scule'
 import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -35,3 +36,7 @@ export const listDirs = async (dir: string) => {
 
 /** Whether `dir` is missing or empty. */
 export const isEmptyDir = async (dir: string) => !existsSync(dir) || (await readdir(dir)).length === 0
+
+/** A package or folder name from free text: `My App` → `my-app`. */
+export const toPackageName = (name: string) =>
+  kebabCase(name.replace(/[^\w-]+/g, '-')).replace(/-+/g, '-').replace(/^-|-$/g, '')

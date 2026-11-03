@@ -13,5 +13,11 @@ export const downloadTemplateToDir = async (
     cwd,
     dir: path,
     force,
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    if (template.startsWith(FRIGEAR_REPO) && /\b(?:401|403|404)\b/.test(message) && !process.env.GIGET_AUTH) {
+      throw new Error(`${message}\nWhile Frigear-nu/frigear-nu is not public, set GIGET_AUTH to a GitHub token that can read it, e.g. GIGET_AUTH=$(gh auth token).`, { cause: error })
+    }
+    throw error
   })
 }

@@ -1,11 +1,10 @@
 import { defineCommand } from 'citty'
 import consola from 'consola'
 import { join } from 'node:path'
-import { kebabCase } from 'scule'
 import { defineCommandArgs, templateArgs } from '../utils/args.ts'
 import { installDeps } from '../utils/install.ts'
 import { downloadTemplateToDir, repoSource } from '../utils/template.ts'
-import { findWorkspaceRoot, hasPackage, listDirs, packageScope, readPackage, renamePackage } from '../utils/workspace.ts'
+import { findWorkspaceRoot, hasPackage, listDirs, packageScope, readPackage, renamePackage, toPackageName } from '../utils/workspace.ts'
 
 /** App templates, as paths in the frigear-nu repository. */
 export const APP_TEMPLATES = {
@@ -57,7 +56,7 @@ export default defineCommand({
       return process.exit(1)
     }
 
-    const name = kebabCase(args.name)
+    const name = toPackageName(args.name)
     const appPath = join(root, 'apps', name)
     if (hasPackage(appPath)) {
       logger.error(`App ${name} already exists at ${appPath}`)
