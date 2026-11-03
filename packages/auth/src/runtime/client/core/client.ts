@@ -191,7 +191,14 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
     let idToken = json.id_token ?? null
     if (idToken && !previous) {
       // Sign-in: the id_token must be for us and answer our nonce. Not checked against the clock, which may be off.
-      validateIdToken(idToken, { issuer, clientId, nonce, normalizeIssuer: sameIssuer })
+      // A rejected one fails the sign-in: its tokens are never stored and the refresh token is revoked (best effort).
+      try {
+        validateIdToken(idToken, { issuer, clientId, nonce, normalizeIssuer: sameIssuer })
+      }
+      catch (error) {
+        if (json.refresh_token) void revoke(json.refresh_token)
+        throw error
+      }
     }
     else if (idToken && previous) {
       // Refresh: the new tokens are stored whatever happens (the old refresh token is spent); a bad id_token only

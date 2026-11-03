@@ -193,6 +193,19 @@ describe('id_token', () => {
     expect(await ctx.client.isAuthenticated()).toBe(false)
   })
 
+  it('revokes the refresh token of a sign-in whose id_token is rejected', async () => {
+    let nonce = ''
+    const ctx = setup(({ url }) => url.endsWith('/oauth/revoke')
+      ? new Response(null, { status: 200 })
+      : tokens(1, { id_token: jwt({ ...valid(nonce, 1_000_000_000_000), aud: 'other-app' }) }), { scope: 'openid' })
+    const { url } = await ctx.client.startAuthorization()
+    nonce = new URL(url).searchParams.get('nonce')!
+    await expect(ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${new URL(url).searchParams.get('state')}`)).rejects.toMatchObject({ code: 'invalid_id_token' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(ctx.requests().find(call => call.url.endsWith('/oauth/revoke'))?.body.get('token')).toBe('refresh-1')
+    expect(await ctx.client.getTokens()).toBeNull()
+  })
+
   it('does not fail a sign-in on a device clock that is off by hours', async () => {
     // Issued two hours "before" the device's clock: expired by the device's reckoning, fine by the issuer's.
     const { ctx, run } = withIdToken(nonce => valid(nonce, 1_000_000_000_000 - 7_200_000))

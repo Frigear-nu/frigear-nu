@@ -3,6 +3,7 @@ import { isCallbackUrlFor } from '../../core/urls'
 import type { CallbackResult, GetAccessTokenOptions, OAuthClient } from '../../core/types'
 import { isNativePlatform } from '../../capacitor/adapters'
 import { resolveRedirectUri, safeReturnTo } from '../../utils'
+import { isSafeRedirect } from '../../../utils/redirect'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
 
@@ -47,7 +48,9 @@ export function useAuth() {
       state.status.value = 'signed-out'
       state.claims.value = null
       state.session.value = null
-      if (options.redirect !== false) await navigateTo(typeof options.redirect === 'string' ? options.redirect : config.redirect.afterLogout)
+      // Only to a path on this site (`isSafeRedirect`).
+      const target = typeof options.redirect === 'string' && isSafeRedirect(options.redirect) ? options.redirect : config.redirect.afterLogout
+      if (options.redirect !== false) await navigateTo(target)
     },
 
     /** A valid access token (refreshed when needed), or `null` when signed out or on the server. */

@@ -566,13 +566,21 @@ const NATIVE_PLUGINS = {
   secureStorage: '@aparajita/capacitor-secure-storage',
 } as const
 
-/** Who installs `name`: the app itself, or the modules that list it in their `moduleDependencies`. */
-function installedBy(nuxt: Nuxt, name: string): string {
+/**
+ * Who installs `name`: the app itself, or the modules that list it in their `moduleDependencies` (which may be
+ * async). Nuxt keeps no record of who pulled a dependency in, so their dependency functions run once more; this only
+ * happens on the way to an error.
+ */
+async function installedBy(nuxt: Nuxt, name: string): Promise<string> {
   const entryName = (entry: unknown) => typeof entry === 'string' ? entry : Array.isArray(entry) && typeof entry[0] === 'string' ? entry[0] : undefined
-  const sources = nuxt.options.modules.some(entry => entryName(entry) === name) ? ['the app'] : []
+  // An app lists it by name, or by a path that resolved to it.
+  const own = nuxt.options._installedModules.find(installed => installed.meta?.name === name)?.entryPath
+  const listed = nuxt.options.modules.map(entryName).filter((entry): entry is string => !!entry)
+  const byApp = listed.some(entry => entry === name || (!!own && own.replace(/\.[cm]?[jt]s$/, '') === entry.replace(/\.[cm]?[jt]s$/, '')))
+  const sources = byApp ? ['the app'] : []
   for (const installed of nuxt.options._installedModules) {
     const module = installed.module as { getModuleDependencies?: (nuxt: Nuxt) => unknown }
-    const dependencies = module.getModuleDependencies?.(nuxt)
+    const dependencies = await Promise.resolve(module.getModuleDependencies?.(nuxt)).catch(() => undefined)
     if (dependencies && typeof dependencies === 'object' && name in dependencies && installed.meta?.name) sources.push(installed.meta.name)
   }
   return sources.length ? sources.join(', ') : 'another module'
@@ -623,8 +631,9 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     storage,
     redirect: {
       login: loginPath,
-      afterLogin: client.redirect?.afterLogin ?? '/',
-      afterLogout: client.redirect?.afterLogout ?? '/',
+      // Paths on this site only, like every redirect (`isSafeRedirect`).
+      afterLogin: resolveAfterLogin(client.redirect?.afterLogin),
+      afterLogout: resolveAfterLogin(client.redirect?.afterLogout),
     },
     rewriteLoopback: client.dev?.rewriteLoopback ?? true,
   }
@@ -648,7 +657,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     env: process.env,
     configured: clientConfig.clientSecret,
   })
-  // The shorter variable is the documented one; Nuxt only maps `..._CLIENT_CLIENT_SECRET` on its own.
+  // Nuxt only maps `..._CLIENT_CLIENT_SECRET` onto `client.clientSecret` on its own; the shorter name is read too.
   if (secretAllowed && process.env[SECRET_ENV_NAMES[1]] && !clientConfig.clientSecret) clientConfig.clientSecret = process.env[SECRET_ENV_NAMES[1]]
 
   // Every server feature flag is off, so code that checks them works in both modes.
@@ -747,14 +756,14 @@ export {}
   addPlugin({ src: resolver.resolve('./runtime/client/app/plugins/auth.client'), mode: 'client' })
   addPlugin(resolver.resolve('./runtime/client/app/plugins/api'))
 
-  nuxt.hook('modules:done', () => {
+  nuxt.hook('modules:done', async () => {
     // nuxt-auth-utils needs a server for its session endpoints, Users a database.
     for (const [name, aliases, reason] of [
       ['nuxt-auth-utils', ['nuxt-auth-utils', 'auth-utils'], 'it needs a server for its session endpoints'],
       ['@frigear-nu/users', ['@frigear-nu/users'], 'it needs a database'],
     ] as const) {
       if (!aliases.some(alias => hasNuxtModule(alias, nuxt))) continue
-      throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\`.`)
+      throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${await installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\`.`)
     }
     const guarded = findGuardRules(nuxt.options.routeRules as Record<string, unknown>)
     if (guarded.length && !hasNuxtModule('@frigear-nu/authorization', nuxt) && !prepare) {

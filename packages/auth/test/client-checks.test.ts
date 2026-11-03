@@ -39,6 +39,28 @@ describe('client mode: setup', () => {
     await expect(load({ modules: ['nuxt-auth-utils'] })).rejects.toThrow(/`nuxt-auth-utils` is installed \(by the app\), but client mode has no server/)
   })
 
+  it('names the module that installs nuxt-auth-utils through async moduleDependencies', async () => {
+    await expect(load({ modules: ['./local/pulls-auth-utils'] })).rejects.toThrow(/`nuxt-auth-utils` is installed \(by pulls-auth-utils\)/)
+  })
+
+  it('refuses @frigear-nu/users, naming who installs it', async () => {
+    await expect(load({ modules: [fileURLToPath(new URL('../../users/src/module', import.meta.url))] }))
+      .rejects.toThrow(/`@frigear-nu\/users` is installed \(by the app\), but client mode has no server: it needs a database/)
+  })
+
+  it('keeps the redirects of client mode on this site', async () => {
+    const nuxt = await load({ authentication: { client: { redirect: { afterLogin: '//evil.test', afterLogout: 'https://evil.test' } } } })
+    const config = (nuxt.options.runtimeConfig.public.authentication as { client: { redirect: Record<string, string> } }).client
+    expect(config.redirect).toMatchObject({ afterLogin: '/', afterLogout: '/' })
+    await nuxt.close()
+  })
+
+  it('refuses @frigear-nu/oauth-client next to it in server mode too', async () => {
+    const cwd = fileURLToPath(new URL('./fixtures/password-disabled', import.meta.url))
+    await expect(loadNuxt({ cwd, dev: false, ready: true, overrides: { modules: [fileURLToPath(new URL('../../oauth-client/src/module', import.meta.url))] } }))
+      .rejects.toThrow(/`@frigear-nu\/oauth-client` is installed: it is replaced by/)
+  })
+
   it('refuses @frigear-nu/oauth-client next to it', async () => {
     await expect(load({ modules: [fileURLToPath(new URL('../../oauth-client/src/module', import.meta.url))] }))
       .rejects.toThrow(/`@frigear-nu\/oauth-client` is installed: it is replaced by/)

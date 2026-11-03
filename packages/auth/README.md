@@ -43,9 +43,10 @@ export default defineNuxtConfig({
 })
 ```
 
-- The same client API as server mode: `useUserSession()` (`loggedIn`, `user`, with `user.id` the issuer's `sub`),
-  `useAuth()` (`login`, `completeLogin`, `logout`, `getAccessToken`, `signingIn`, ...) and `$api` / `useApi()`, which
-  send the bearer token to `client.apiBase` and `client.apiOrigins` only.
+- `useUserSession()` as in server mode (`loggedIn`, `user`, with `user.id` the issuer's `sub`), plus `useAuth()`
+  (`login`, `completeLogin`, `logout`, `getAccessToken`, `signingIn`, ...) and `$api` / `useApi()`, which send the
+  bearer token to `client.apiBase` and `client.apiOrigins` only. (Server mode gets `useAuth()`, `$api` and `useApi()`
+  in a later release.)
 - `scopes` must contain `openid`: the user comes from the id_token, and a sign-in without one fails.
 - Login and callback pages (with `@nuxt/ui`) at `settings.pages.login` and `client.callbackPath`; branding through
   `app.config.ts` → `authentication.login`.

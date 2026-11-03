@@ -2,6 +2,7 @@ import { defu } from 'defu'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AuthClientPublicConfig, StorageMode, StorageOption } from './runtime/client/types'
+import { isSafeRedirect } from './runtime/utils/redirect'
 
 // Build-time helpers of the client mode, pure so they can be tested without a Nuxt build.
 
@@ -153,6 +154,5 @@ export function findGuardRules(routeRules: Record<string, unknown> | undefined):
 
 /** The client mode's public paths: the login page (and where sign-outs are sent) and the callback. */
 export function clientPublicPaths(input: { loginPage?: string, loginPath: string, callbackPath: string }): string[] {
-  const internal = (path: string | undefined): path is string => !!path && path.startsWith('/') && !path.startsWith('//')
-  return [...new Set([input.loginPage, input.loginPath, input.callbackPath].filter(internal))]
+  return [...new Set([input.loginPage, input.loginPath, input.callbackPath].filter(isSafeRedirect))]
 }
