@@ -48,6 +48,9 @@ export default defineNuxtConfig({
   bearer token to `client.apiBase` and `client.apiOrigins` only. (Server mode gets `useAuth()`, `$api` and `useApi()`
   in a later release.)
 - `scopes` must contain `openid`: the user comes from the id_token, and a sign-in without one fails.
+- The user is `{ id: sub, sub, name, email, avatar, role }` from the claims. `client.userinfo: true` merges `/userinfo`;
+  `client.mapUser: './app/auth/map-user'` maps it yourself (`({ claims, userinfo, api }) => user`, may be async). Until
+  an async mapping finishes, and when it fails offline, `user` is the claims mapping.
 - Login and callback pages (with `@nuxt/ui`) at `settings.pages.login` and `client.callbackPath`; branding through
   `app.config.ts` → `authentication.login`.
 - Guards belong to `@frigear-nu/authorization` and are UX only: the API decides. Hooks: `auth:signed-in`,

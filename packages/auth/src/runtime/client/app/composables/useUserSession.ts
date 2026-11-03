@@ -1,6 +1,6 @@
 import { computed, useNuxtApp } from '#imports'
 import type { UserSessionComposable } from '#auth-utils'
-import { applySession } from '../utils/session'
+import { getSessionMapper } from '../utils/session'
 import { getAuthClientRuntime } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
 import { useAuth } from './useAuth'
@@ -18,11 +18,11 @@ export function useUserSession(): UserSessionComposable {
     loggedIn: computed(() => state.status.value === 'signed-in' && !!state.session.value?.user),
     user: computed(() => state.session.value?.user ?? null),
     session: state.session,
-    /** Re-reads the stored tokens and maps the user again. */
+    /** Re-reads the stored tokens and maps the user again, fetching userinfo anew. Rejects when the mapping failed. */
     async fetch() {
       if (import.meta.server) return
-      const runtime = await getAuthClientRuntime()
-      await applySession(state, nuxtApp, runtime.client, await runtime.client.getTokens().catch(() => null), runtime.identity)
+      const { client } = await getAuthClientRuntime()
+      await getSessionMapper(nuxtApp)?.apply(await client.getTokens().catch(() => null), { force: true, wait: true })
     },
     /** Signs out without navigating (`useAuth().logout({ redirect: false })`). */
     clear: () => logout({ redirect: false }),

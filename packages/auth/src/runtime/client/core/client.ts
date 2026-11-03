@@ -437,7 +437,19 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
       if (response.status === 401) throw new OAuthSessionError('invalid_token', 'The access token was refused.', { status: 401 })
       if (response.status === 429 || response.status >= 500) throw new OAuthTransientError('server_error', `userinfo failed (${response.status}).`, { status: response.status })
       if (!response.ok) throw new OAuthConfigError('userinfo_failed', `userinfo failed (${response.status}).`, { status: response.status })
-      return await response.json() as UserInfo
+      let info: UserInfo
+      try {
+        info = await response.json() as UserInfo
+      }
+      catch {
+        throw new OAuthTransientError('invalid_userinfo', 'The userinfo response is not JSON.', { status: response.status })
+      }
+      // OpenID Connect Core §5.3.4: a response about another user than the id_token's must not be used.
+      const claims = await client.getClaims()
+      if (!info || typeof info.sub !== 'string' || (claims && info.sub !== claims.sub)) {
+        throw new OAuthAuthorizationError('userinfo_subject_mismatch', 'The userinfo response is about another user than the id_token.')
+      }
+      return info
     },
 
     fetch: (input, init = {}) => authorizedFetch(input, init, shouldAttachToken(String(input), globalThis.location?.href, attachTo.map(rewriteUrl)), doFetch),

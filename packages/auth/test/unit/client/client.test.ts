@@ -580,3 +580,34 @@ describe('logout', () => {
     expect(await ctx.client.isAuthenticated()).toBe(false)
   })
 })
+
+describe('fetchUserInfo', () => {
+  const idToken = jwt({ iss: ISSUER, aud: 'app_1', sub: '42', exp: 2_000_000_000 })
+  const userinfo = (body: unknown, status = 200) => setup(({ url }) => url.endsWith('/oauth/userinfo') ? json(body, status) : tokens(1, { id_token: idToken }))
+
+  it('returns the response about the signed-in user, with the bearer token', async () => {
+    const ctx = userinfo({ sub: '42', role: 'admin' })
+    await signIn(ctx)
+    expect(await ctx.client.fetchUserInfo()).toEqual({ sub: '42', role: 'admin' })
+    expect(ctx.requests().at(-1)!.headers.get('authorization')).toBe('Bearer access-1')
+  })
+
+  it.each([
+    ['another user', { sub: '43' }],
+    ['no subject', { role: 'admin' }],
+  ])('rejects a response about %s', async (_name, body) => {
+    const ctx = userinfo(body)
+    await signIn(ctx)
+    await expect(ctx.client.fetchUserInfo()).rejects.toMatchObject({ code: 'userinfo_subject_mismatch' })
+  })
+
+  it('classifies failures: 401 ends the session, 5xx is transient', async () => {
+    const refused = userinfo({}, 401)
+    await signIn(refused)
+    await expect(refused.client.fetchUserInfo()).rejects.toBeInstanceOf(OAuthError)
+    await expect(refused.client.fetchUserInfo()).rejects.toMatchObject({ kind: 'session' })
+    const down = userinfo({}, 503)
+    await signIn(down)
+    await expect(down.client.fetchUserInfo()).rejects.toBeInstanceOf(OAuthTransientError)
+  })
+})

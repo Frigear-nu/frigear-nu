@@ -1,7 +1,8 @@
-import { $fetch, defineNuxtPlugin, navigateTo } from '#imports'
+import { $fetch, defineNuxtPlugin } from '#imports'
 import { createAuthorizedApi } from '../../utils/api'
 import type { ApiRequest } from '../../utils/api'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
+import { handleUnauthorized } from '../utils/unauthorized'
 
 type FetchOptions = NonNullable<Parameters<typeof $fetch>[1]>
 
@@ -31,11 +32,7 @@ export default defineNuxtPlugin({
           request: request$,
           baseURL: runtime.apiBase,
           attachTo: config.apiOrigins.length ? config.apiOrigins.map(runtime.rewriteUrl) : [runtime.apiBase, runtime.rewriteUrl(config.issuer)],
-          onUnauthorized: async () => {
-            if (config.onUnauthorized !== 'signOut') return
-            await runtime.client.signOutLocally('unauthorized')
-            await nuxtApp.runWithContext(() => navigateTo({ path: config.redirect.login, query: { redirect: nuxtApp.$router.currentRoute.value.fullPath } }))
-          },
+          onUnauthorized: () => handleUnauthorized(nuxtApp, runtime.client, config),
         }) as AuthApi
       }
       return authorized<T>(request, options)

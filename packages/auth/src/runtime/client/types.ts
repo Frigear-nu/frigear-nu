@@ -65,6 +65,15 @@ export interface ClientModuleOptions {
   authorizationParams?: Record<string, string>
   /** Default `auto`. */
   storage?: StorageOption
+  /**
+   * Path to a file (relative to the app's `rootDir`, or a package) whose default export maps the signed-in user:
+   * `({ claims, userinfo, api }: AuthClientUserContext) => User | Promise<User>`. Until it resolves (and when it fails
+   * offline) `user` is the claims mapping. Default: `{ id: sub, sub, name, email, avatar: picture, role }` from the
+   * id_token claims.
+   */
+  mapUser?: string
+  /** The default mapping merges the issuer's `/userinfo` response too (fetched once per sign-in). Default `false`. */
+  userinfo?: boolean
   redirect?: {
     /** Where `onUnauthorized: 'signOut'` and a failed native sign-in send the visitor. Default: the login page. */
     login?: string

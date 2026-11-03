@@ -747,6 +747,28 @@ export {}
 `,
   }, { nuxt: true })
 
+  // The user mapping (`client.mapUser` / `client.userinfo`), imported statically by the client plugin.
+  const clientUser = addTemplate({
+    filename: 'auth/client-user.mjs',
+    write: true,
+    getContents: async () => {
+      const mapUserPath = client.mapUser ? await resolver.resolvePath(client.mapUser, { cwd: nuxt.options.rootDir }) : undefined
+      return [
+        mapUserPath ? `export { default as mapUser } from ${JSON.stringify(mapUserPath)}` : 'export const mapUser = null',
+        `export const userinfo = ${client.userinfo === true}`,
+        '',
+      ].join('\n')
+    },
+  })
+  nuxt.options.alias['#auth/client-user'] = clientUser.dst
+  addTemplate({
+    filename: 'auth/client-user.d.mts',
+    write: true,
+    getContents: () => `export declare const mapUser: import(${clientTypes('core/types')}).AuthClientMapUser | null
+export declare const userinfo: boolean
+`,
+  })
+
   addImports([
     { name: 'useAuth', from: resolver.resolve('./runtime/client/app/composables/useAuth') },
     { name: 'useUserSession', from: resolver.resolve('./runtime/client/app/composables/useUserSession') },

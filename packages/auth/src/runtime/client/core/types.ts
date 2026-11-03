@@ -206,7 +206,10 @@ export interface OAuthClient {
   isAuthenticated(): Promise<boolean>
   /** The claims of the stored id_token (validated when it was received), or `null`. */
   getClaims(): Promise<IdTokenClaims | null>
-  /** `GET` the userinfo endpoint with the access token. */
+  /**
+   * `GET` the userinfo endpoint with the access token. Rejects a response whose `sub` is not the stored id_token's
+   * (`userinfo_subject_mismatch`).
+   */
   fetchUserInfo(): Promise<UserInfo>
   /**
    * `fetch` with the bearer token for `attachTo` origins only; a 401 refreshes once and retries. A refresh that fails
@@ -220,3 +223,19 @@ export interface OAuthClient {
   /** Called on sign-in, refresh, sign-out and failed refreshes. Returns an unsubscribe. */
   onChange(listener: (event: OAuthChangeEvent) => void): () => void
 }
+
+/** What a client-mode `mapUser` function (`authentication.client.mapUser`) is called with. */
+export interface AuthClientUserContext {
+  /** The id_token claims of the signed-in user. */
+  claims: IdTokenClaims
+  /**
+   * The issuer's userinfo response, fetched once per sign-in (and again after `useUserSession().fetch()` or a refresh
+   * that changed the claims). Rejects when its `sub` is not the id_token's.
+   */
+  userinfo: () => Promise<UserInfo>
+  /** `$api`: requests to the API with the bearer token. */
+  api: <T = unknown>(request: string, options?: Record<string, unknown>) => Promise<T>
+}
+
+/** `authentication.client.mapUser`: the default export of that file. The result becomes `useUserSession().user`. */
+export type AuthClientMapUser = (context: AuthClientUserContext) => Record<string, unknown> | Promise<Record<string, unknown>>

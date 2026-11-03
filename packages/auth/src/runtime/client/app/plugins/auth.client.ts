@@ -1,7 +1,10 @@
 import { defineNuxtPlugin, navigateTo } from '#imports'
 import { listenForCallbacks } from '../../capacitor/adapters'
 import { safeReturnTo } from '../../utils'
-import { applySession } from '../utils/session'
+import { mapUser, userinfo } from '#auth/client-user'
+import { createSessionMapper, setSessionMapper } from '../utils/session'
+import type { AuthApi } from './api'
+import { handleUnauthorized } from '../utils/unauthorized'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
 
@@ -26,7 +29,22 @@ export default defineNuxtPlugin({
       return
     }
     const { client } = runtime
-    const apply = (tokens: Parameters<typeof applySession>[3]) => applySession(state, nuxtApp, client, tokens, runtime.identity)
+    const report = (error: unknown) => console.error('[@frigear-nu/auth] Mapping the signed-in user failed:', error)
+    const mapper = createSessionMapper({
+      state,
+      hooks: nuxtApp,
+      client,
+      expected: runtime.identity,
+      mapUser,
+      userinfo,
+      // `$api` is provided by the next plugin; it is only called once a mapping runs.
+      api: (request, options) => (nuxtApp.$api as AuthApi)(request, options),
+      onUnauthorized: () => handleUnauthorized(nuxtApp, client, config),
+      // In the background a mapping error is logged; `useUserSession().fetch()` rejects with it.
+      onError: report,
+    })
+    setSessionMapper(nuxtApp, mapper)
+    const apply = (tokens: Parameters<typeof mapper.apply>[0], wait = false) => mapper.apply(tokens, { wait })
 
     // A restored session is not a sign-in: no `auth:signed-in`.
     await apply(await client.getTokens().catch(() => null))
@@ -36,7 +54,8 @@ export default defineNuxtPlugin({
         void nuxtApp.callHook('auth:refresh-failed', { error: event.error })
         return
       }
-      void apply(event.tokens).then(() => {
+      // `auth:signed-in` gets the mapped user (the claims mapping when mapping failed).
+      void apply(event.tokens, event.type === 'signed-in').catch(report).then(() => {
         if (event.type === 'signed-in' && state.session.value?.user && state.claims.value) {
           void nuxtApp.callHook('auth:signed-in', { user: state.session.value.user, claims: state.claims.value })
         }

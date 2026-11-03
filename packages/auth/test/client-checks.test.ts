@@ -21,6 +21,20 @@ describe('client mode: setup', () => {
     await nuxt.close()
   })
 
+  it('wires `client.mapUser` and `client.userinfo` into the client plugin', async () => {
+    const template = async (nuxt: Awaited<ReturnType<typeof load>>) => {
+      const found = nuxt.options.build.templates.find(entry => entry.filename === 'auth/client-user.mjs')
+      return found?.getContents?.({ nuxt, app: {} as never, options: {} } as never)
+    }
+    const plain = await load()
+    expect(await template(plain)).toBe('export const mapUser = null\nexport const userinfo = false\n')
+    await plain.close()
+    const custom = await load({ authentication: { client: { mapUser: './map-user', userinfo: true } } })
+    expect(await template(custom)).toMatch(/^export \{ default as mapUser \} from ".*\/fixtures\/client-checks\/map-user\.ts"\nexport const userinfo = true\n$/)
+    expect(custom.options.alias['#auth/client-user']).toMatch(/auth\/client-user\.mjs$/)
+    await custom.close()
+  })
+
   it('refuses `ssr: true` in the app\'s config', async () => {
     const cwd = fileURLToPath(new URL('./fixtures/client-ssr', import.meta.url))
     await expect(loadNuxt({ cwd, dev: false, ready: true })).rejects.toThrow(/Client mode renders on the client only: remove `ssr: true`/)
