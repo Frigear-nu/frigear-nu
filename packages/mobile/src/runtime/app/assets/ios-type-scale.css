@@ -1,7 +1,7 @@
 /*
  * A phone is read at arm's length, so the type scale follows iOS (17pt body, 15pt secondary, 13pt footnote) instead of
  * the web defaults one step smaller. Tailwind's text utilities read these variables; unlayered, they win over the
- * theme layer. Opt out with `mobile.ui.iosTypeScale: false`.
+ * theme layer. Opt out with `mobile.appearance.iosTypeScale: false`.
  */
 :root {
   --text-xs: 0.8125rem;

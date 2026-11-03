@@ -97,7 +97,7 @@ export default defineNuxtModule<ModuleOptions>({
     layout: 'mobile',
     nativeChrome: 'ios',
     native: { statusBar: true, keyboardAccessoryBar: true, switchHaptics: true, backButton: true },
-    ui: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
+    appearance: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
     dev: { lanHost: true },
     ios: { allowLocalNetworking: true },
     doctor: true,
@@ -179,8 +179,8 @@ export default defineNuxtModule<ModuleOptions>({
     addMeta({ name: 'theme-color', content: '#0a0a0a', media: '(prefers-color-scheme: dark)' })
 
     nuxt.options.css.push(resolver.resolve('./runtime/app/assets/mobile.css'))
-    if (options.ui?.tapHighlight !== false) nuxt.options.css.push(resolver.resolve('./runtime/app/assets/tap-highlight.css'))
-    if (options.ui?.iosTypeScale !== false) nuxt.options.css.push(resolver.resolve('./runtime/app/assets/ios-type-scale.css'))
+    if (options.appearance?.tapHighlight !== false) nuxt.options.css.push(resolver.resolve('./runtime/app/assets/tap-highlight.css'))
+    if (options.appearance?.iosTypeScale !== false) nuxt.options.css.push(resolver.resolve('./runtime/app/assets/ios-type-scale.css'))
 
     const lanHost = lanHostOf(nuxt)
     if (lanHost) logger.info(`MOBILE_LAN build: localhost in the issuer and API base becomes ${lanHost}.`)
@@ -195,7 +195,7 @@ export default defineNuxtModule<ModuleOptions>({
       auth: false,
       nativeChrome: options.nativeChrome ?? 'ios',
       layout: options.layout ?? 'mobile',
-      toasterOffset: options.ui?.toasterOffset !== false,
+      toasterOffset: options.appearance?.toasterOffset !== false,
       native: {
         statusBar: options.native?.statusBar !== false,
         keyboardAccessoryBar: options.native?.keyboardAccessoryBar !== false,

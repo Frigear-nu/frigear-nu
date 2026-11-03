@@ -96,7 +96,7 @@ export interface ModuleOptions {
     /** Android back button: close an overlay, go back, then minimize the app. Default `true`. */
     backButton?: boolean
   }
-  ui?: {
+  appearance?: {
     /** The iOS type scale (17pt body) instead of the web one a step smaller. Default `true`. */
     iosTypeScale?: boolean
     /** No grey flash over tapped elements, and `:active` states on iOS. Default `true`. */

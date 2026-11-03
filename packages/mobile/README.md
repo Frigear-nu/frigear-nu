@@ -91,9 +91,9 @@ Suggested scripts: `"ios:run": "frigear-mobile native --if-missing && nuxt gener
 | `native.keyboardAccessoryBar` | `true` | iOS: the Done bar above the keyboard |
 | `native.switchHaptics` | `true` | a tick when a `role="switch"` is tapped |
 | `native.backButton` | `true` | Android back button: close overlay → back → first tab → minimize |
-| `ui.iosTypeScale` | `true` | iOS text sizes (17pt body) |
-| `ui.tapHighlight` | `true` | no grey tap flash |
-| `ui.toasterOffset` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar |
+| `appearance.iosTypeScale` | `true` | iOS text sizes (17pt body) |
+| `appearance.tapHighlight` | `true` | no grey tap flash |
+| `appearance.toasterOffset` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar |
 | `deepLinks.schemes` | `[appId]` | custom schemes routed into the app; `false` for none |
 | `deepLinks.hosts` | `[]` | `https` hosts of universal links / app links |
 | `dev.lanHost` | `true` | for `MOBILE_LAN` builds, see [Device development](#device-development) |
