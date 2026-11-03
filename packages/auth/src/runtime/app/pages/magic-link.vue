@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { authApi } from '../../utils/api'
+import { isSafeRedirect } from '../../utils/redirect'
 import { isAppPage } from '../utils/after-login'
 import { $fetch, computed, navigateTo, ref, useAuthPages, useModuleT, useRoute, useRouter, useUserSession } from '#imports'
 
@@ -19,8 +20,6 @@ const invalid = ref(!code.value)
 const error = ref<string | null>(null)
 const signedInEmail = computed(() => (user.value as { email?: string } | null)?.email ?? '')
 
-const isInternalPath = (value: string) => value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')
-
 async function onContinue() {
   pending.value = true
   error.value = null
@@ -31,7 +30,7 @@ async function onContinue() {
       body: { code: code.value },
     })
     await refreshSession()
-    const target = isInternalPath(redirect) ? redirect : '/'
+    const target = isSafeRedirect(redirect) ? redirect : '/'
     // Targets like `/oauth/authorize?...` are server routes and need a full page navigation.
     await navigateTo(target, { external: !isAppPage(router.resolve(target).matched) })
   }

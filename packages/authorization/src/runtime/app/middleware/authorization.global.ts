@@ -4,11 +4,11 @@ import resolveClientUser from '#build/authorization/client-resolver.mjs'
 import { abortNavigation, createError, defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig } from '#imports'
 
 // Runs for every navigation (SSR included). `definePageMeta({ authorize })` replaces the rule from
-// `routeRules[path].authorization`.
+// `routeRules[path].authorization`; `authorize: false` opens the page.
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig().public.authorization
   const meta = to.meta.authorize
-  const rule = meta ? normalizeAuthorizeMeta(meta) : resolveRule(config?.routes, to.path)
+  const rule = meta !== undefined ? normalizeAuthorizeMeta(meta) : resolveRule(config?.routes, to.path, config?.exempt)
   if (!rule) return
 
   const user = await resolveClientUser()

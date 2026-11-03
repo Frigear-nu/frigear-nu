@@ -581,6 +581,9 @@ importers:
       '@simplewebauthn/server':
         specifier: ^11.0.0
         version: 11.0.0
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.7
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.11
@@ -603,6 +606,21 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@aparajita/capacitor-secure-storage':
+        specifier: ^8.0.1
+        version: 8.0.1
+      '@capacitor/app':
+        specifier: ^8.1.2
+        version: 8.1.2(@capacitor/core@8.6.0)
+      '@capacitor/browser':
+        specifier: ^8.0.5
+        version: 8.0.5(@capacitor/core@8.6.0)
+      '@capacitor/core':
+        specifier: ^8.6.0
+        version: 8.6.0
+      '@capacitor/preferences':
+        specifier: ^8.0.1
+        version: 8.0.1(@capacitor/core@8.6.0)
       '@frigear-nu/email-templates':
         specifier: workspace:^
         version: link:../email-templates
@@ -1381,12 +1399,12 @@ importers:
 
   packages/mobile:
     dependencies:
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit
-      '@frigear-nu/oauth-client':
-        specifier: workspace:^
-        version: link:../oauth-client
       '@nuxt/kit':
         specifier: 'catalog:'
         version: 4.6.1(@nuxt/schema@4.6.1)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
@@ -1430,6 +1448,9 @@ importers:
       '@capgo/capacitor-native-navigation':
         specifier: ^8.16.0
         version: 8.16.0(@capacitor/core@8.6.0)
+      '@frigear-nu/authorization':
+        specifier: workspace:^
+        version: link:../authorization
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu

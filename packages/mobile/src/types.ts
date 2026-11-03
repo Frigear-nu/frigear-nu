@@ -24,7 +24,7 @@ export interface MobileTabDefinition {
   sfSymbolActive?: string
   /** Android drawable resource name of the native tab (with `nativeChrome: 'all'`). */
   androidIcon?: string
-  /** Hidden while signed out. Default: `mobile.auth` (on when `@frigear-nu/oauth-client` signs the app in). */
+  /** Hidden while signed out (with `mobile.auth`). Default `false`: which pages need a user is up to the app's route rules. */
   requiresAuth?: boolean
   /**
    * Paths on which this tab is the selected one. Default: `to` and everything below it (`/bills/**`); `/` only matches
@@ -73,8 +73,8 @@ export interface ModuleOptions {
   /** The tabs. Modules add theirs with `extendMobileTabs()` from `@frigear-nu/mobile/utils`. */
   tabs?: MobileTabDefinition[]
   /**
-   * Whether the shell follows the sign-in state of `@frigear-nu/oauth-client` (tabs with `requiresAuth` only show
-   * signed in). Default: on when `oauthClient` is configured.
+   * Whether the shell follows the sign-in state of `@frigear-nu/auth` in client mode (tabs with `requiresAuth` only
+   * show signed in). Default: on when Auth runs in client mode.
    */
   auth?: boolean
   /** `true` (default): a static SPA (`ssr: false`), which is what Capacitor serves from the device. */
@@ -104,7 +104,7 @@ export interface ModuleOptions {
     /** Toasts at the top, below the navbar, as iOS banners. Default `true`. */
     toasterOffset?: boolean
   }
-  /** Deep links routed into the app (OAuth callbacks are always left to `@frigear-nu/oauth-client`). */
+  /** Deep links routed into the app (OAuth callbacks are always left to `@frigear-nu/auth`). */
   deepLinks?: {
     /** `https` hosts of universal links / app links, e.g. `['app.example.com']`. Default none. */
     hosts?: string[]

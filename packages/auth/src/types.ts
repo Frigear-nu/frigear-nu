@@ -1,3 +1,16 @@
+import type { AuthMode } from './runtime/mode'
+import type { AuthClientPublicConfig, ClientModuleOptions } from './runtime/client/types'
+
+export type { AuthMode } from './runtime/mode'
+export type {
+  AuthAppConfig,
+  AuthClientPublicConfig,
+  AuthStatus,
+  ClientModuleOptions,
+  StorageMode,
+  StorageOption,
+} from './runtime/client/types'
+
 export interface AuthResolverDefinition {
   name: string
   /** Claims tokens that start with this prefix. */
@@ -89,6 +102,8 @@ export interface OAuthProviderButton {
 
 /** The subset of `settings` the client reads, exposed through `runtimeConfig.public.authentication`. */
 export type PublicModuleOptions = {
+  mode: AuthMode
+  /** All `false` in client mode. */
   password: boolean
   passwordReset: boolean
   webAuthn: boolean
@@ -103,6 +118,13 @@ export type PublicModuleOptions = {
   pages: { login?: string, register?: string }
   /** Where users land after signing in when no `redirect` was requested. */
   afterLogin: string
+  /**
+   * The anonymous entry points Auth owns (sign-in pages, the callback, `/api/auth/**`), as route patterns. Route guards
+   * always let them through.
+   */
+  publicPaths: string[]
+  /** Client mode only. */
+  client?: AuthClientPublicConfig
 }
 
 /** Interactive sign-in flows. Everything here is opt-in except password sign-in. */
@@ -137,6 +159,8 @@ export interface AuthSettings {
   pages?: {
     login?: string | boolean
     register?: string | boolean
+    /** Client mode only: the page the issuer redirects back to (at `client.callbackPath`). Defaults to `true`. */
+    callback?: boolean
   }
   /**
    * Where users go after signing in (password, passkey, magic link, OAuth/SSO) when no `redirect` was requested.
@@ -158,6 +182,14 @@ export interface AuthSettings {
 }
 
 export interface ModuleOptions {
+  /**
+   * `server` (default): sign-in on this app's server, with a cookie session. `client`: a public OAuth client (PKCE)
+   * for SPAs and Capacitor apps that signs in at `client.issuer`, with no server or database. Set it in the app's own
+   * config; it cannot come from another module.
+   */
+  mode?: AuthMode
+  /** Client mode: the issuer and how this app talks to it. */
+  client?: ClientModuleOptions
   /**
    * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/me/tokens`.
    * `false` turns them off: no token routes, and bearer tokens with the prefix are no longer resolved. Defaults to `true`.

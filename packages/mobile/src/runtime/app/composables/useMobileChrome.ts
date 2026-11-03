@@ -1,5 +1,5 @@
 import { computed, useRoute, useRuntimeConfig } from '#imports'
-import { useOAuth } from '#mobile/optional'
+import { useAuth } from '#mobile/optional'
 import { plugins } from '#mobile/native'
 import type { MobilePageMeta } from '../../../types'
 import { resolveChrome, type ChromeState } from '../../shared/chrome'
@@ -23,7 +23,7 @@ export function useMobileChrome() {
   const translate = useMobileTranslate()
   const overlays = useOverlayCount()
   const suppressed = useSuppressCount()
-  const oauth = config.auth && typeof useOAuth === 'function' ? useOAuth() : undefined
+  const auth = config.auth && typeof useAuth === 'function' ? useAuth() : undefined
 
   const state = computed<ChromeState>(() => resolveChrome({
     platform,
@@ -33,7 +33,7 @@ export function useMobileChrome() {
     path: route.path,
     page: route.meta.mobile as MobilePageMeta | undefined,
     // Unknown (still restoring the session) counts as signed out, so signed-in tabs never flash.
-    authenticated: oauth ? oauth.authenticated.value : null,
+    authenticated: auth ? auth.authenticated.value : null,
     overlays: overlays.value,
     suppressed: suppressed.value,
     appName: config.appName,

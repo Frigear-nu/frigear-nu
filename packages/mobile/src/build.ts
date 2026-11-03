@@ -87,8 +87,8 @@ export function usedPlugins(input: {
   ]
   if (input.oauth) {
     plugins.push(
-      { name: '@capacitor/browser', required: true, feature: 'sign-in (@frigear-nu/oauth-client)' },
-      { name: '@aparajita/capacitor-secure-storage', required: false, feature: 'Keychain token storage (@frigear-nu/oauth-client)' },
+      { name: '@capacitor/browser', required: true, feature: 'sign-in (@frigear-nu/auth client mode)' },
+      { name: '@aparajita/capacitor-secure-storage', required: false, feature: 'Keychain token storage (@frigear-nu/auth client mode)' },
     )
   }
   return plugins
