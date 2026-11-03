@@ -16,7 +16,7 @@ Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shar
   ---
   color: neutral
   size: xl
-  to: /getting-started/quick-start
+  to: /guides/workspace-starter
   trailing-icon: i-lucide-arrow-right
   ---
   Get started
@@ -42,7 +42,7 @@ Start with what you want to do
   :::u-page-feature
   ---
   icon: i-lucide-rocket
-  to: /getting-started/quick-start
+  to: /guides/workspace-starter
   ---
   #title
   Start a new app

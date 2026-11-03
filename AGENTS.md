@@ -79,17 +79,34 @@ root `postinstall`.
 
 ### Starters (`.starters/**`)
 
-`.starters/workspace` is the template for a **new project outside this repo** (`pnpx giget@latest
-gh:Frigear-nu/frigear-nu/.starters/workspace <dir>`), documented in `apps/docs/content/1.getting-started/3.quick-start.md`.
+The starters are templates for a **new project outside this repo**, each a pnpm workspace copied with
+`pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/<starter> <dir>` and documented by a guide:
 
-- It is not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): it depends on
-  the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and has its own `AGENTS.md`.
-- Work on it in a copy outside the repo (`cp -R .starters/workspace "$TMPDIR/starter"`, then `pnpm install` there) and
-  copy the changes back. Never commit its `node_modules`, `.nuxt`, `.data`, `.env` or `pnpm-lock.yaml`.
-- After releasing a module that changes a schema, or bumping the starter's versions, regenerate its migration in the
-  copy (`pnpm db:generate`) and commit `apps/web/server/db/migrations` back. `.github/workflows/starters.yml` fails
-  when the committed migrations are out of date.
-- Keep the quick start docs page in step with the starter's files and commands.
+| Starter | What it is | Guide |
+| --- | --- | --- |
+| `.starters/workspace` | `apps/web`: users, auth, account, admin | `apps/docs/content/2.guides/1.workspace-starter.md` |
+| `.starters/mobile` | `apps/mobile`: a Capacitor app on `@frigear-nu/mobile` against any issuer | `apps/docs/content/2.guides/2.mobile-starter.md` |
+| `.starters/mobile-standalone` | `workspace` + `apps/mobile`; `apps/web` adds `@frigear-nu/oauth-server` and the API | `apps/docs/content/2.guides/3.mobile-standalone-starter.md` |
+
+- They are not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): they depend on
+  the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and have their own `AGENTS.md`.
+- **Shared files stay identical.** `.github/`, `.nvmrc`, `.gitignore`, `pnpm-workspace.yaml`, `scripts/` and
+  `packages/` are the same in every starter, `apps/mobile` is the same in `mobile` and `mobile-standalone`, and
+  `mobile-standalone/apps/web` differs from `workspace/apps/web` only in `nuxt.config.ts`, `package.json`,
+  `.env.example`, `AGENTS.md`, the migrations, `server/api/` and `server/plugins/oauth-policy.ts`. Change a shared file
+  in every starter in the same commit; the `drift` job of `.github/workflows/starters.yml` fails otherwise.
+- `scripts/prepare-env.mjs` (`pnpm prepare:env`) is zero-dependency: it copies each `.env.example` and fills in empty
+  secrets, never overwriting a value.
+- Work on a starter in a copy outside the repo (`cp -R .starters/<starter> "$TMPDIR/<starter>"`, then `pnpm install`
+  there) and copy the changes back. To try unreleased packages, point `@frigear-nu/*` at packed or linked builds with
+  `overrides` in the copy only. Never commit its `node_modules`, `.nuxt`, `.output`, `.data`, `.env`,
+  `pnpm-lock.yaml`, `capacitor.config.json` or the native `ios/` / `android/` folders.
+- After releasing a module that changes a schema, or bumping a starter's versions, regenerate the migrations of every
+  starter with `apps/web` in the copy (`pnpm db:generate`) and commit `apps/web/server/db/migrations` back. CI fails
+  when they are out of date.
+- A starter that needs an unreleased `@frigear-nu` version is skipped with a warning on pull requests and fails on
+  `main`: release the packages before merging.
+- Keep each guide in step with its starter's files and commands.
 
 ---
 
