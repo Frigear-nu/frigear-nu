@@ -20,18 +20,22 @@ export interface IdTokenExpectations {
   /** Compared after `normalize` on both sides. */
   issuer: string
   clientId: string
-  /** Epoch milliseconds. */
-  now: number
-  toleranceSeconds: number
+  /** Epoch milliseconds. Without it `exp` is not checked against the clock. */
+  now?: number
+  toleranceSeconds?: number
   /** Required to match when set (the authorization code flow); unchecked on refresh. */
   nonce?: string
+  /** Required to match when set (a refreshed id_token must be about the same user). */
+  subject?: string
   normalizeIssuer?: (issuer: string) => string
 }
 
 /**
  * OpenID Connect Core §3.1.3.7 checks of an id_token received straight from the token endpoint over TLS: `iss`, `aud`
- * (and `azp` with several audiences), `exp`, `iat` and `nonce`. The signature is not verified: for a token the client
- * fetched itself from the issuer's token endpoint, TLS server authentication stands in for it (§3.1.3.7 item 6).
+ * (and `azp` with several audiences), `sub`, `nonce` and, when `now` is given, `exp` (with `toleranceSeconds`,
+ * default 120). The signature is not verified: for a token the client fetched itself from the issuer's token
+ * endpoint, TLS server authentication stands in for it (§3.1.3.7 item 6). `iat` is not checked: a phone's clock that
+ * runs ahead must not break sign-in.
  */
 export function validateIdToken(token: string, expected: IdTokenExpectations): IdTokenClaims {
   const claims = decodeJwtPayload<IdTokenClaims>(token)
@@ -47,9 +51,9 @@ export function validateIdToken(token: string, expected: IdTokenExpectations): I
     throw fail('The id_token was issued to another client (azp).')
   }
   if (typeof claims.sub !== 'string' || !claims.sub) throw fail('The id_token has no subject.')
-  const tolerance = expected.toleranceSeconds * 1000
-  if (typeof claims.exp !== 'number' || claims.exp * 1000 + tolerance <= expected.now) throw fail('The id_token has expired.')
-  if (typeof claims.iat === 'number' && claims.iat * 1000 - tolerance > expected.now) throw fail('The id_token was issued in the future.')
+  if (expected.subject !== undefined && claims.sub !== expected.subject) throw fail('The id_token is about another user (sub).')
+  if (typeof claims.exp !== 'number') throw fail('The id_token has no expiry.')
+  if (expected.now !== undefined && claims.exp * 1000 + (expected.toleranceSeconds ?? 120) * 1000 <= expected.now) throw fail('The id_token has expired.')
   if (expected.nonce !== undefined && claims.nonce !== expected.nonce) throw fail('The id_token nonce does not match.')
   return claims
 }

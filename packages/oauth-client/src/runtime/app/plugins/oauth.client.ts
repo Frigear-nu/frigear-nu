@@ -6,6 +6,9 @@ import { safeReturnTo } from '../../utils'
 import { getOAuthRuntime } from '../utils/runtime'
 import { useOAuthState } from '../utils/state'
 
+/** `getLaunchUrl()` returns the cold-start URL for the whole process, also after a webview reload. */
+const LAUNCH_URL_KEY = 'oauth-client:launch-url'
+
 const claimsOf = (tokens: OAuthTokens | null): IdTokenClaims | null => {
   if (!tokens?.idToken) return null
   try {
@@ -62,6 +65,9 @@ export default defineNuxtPlugin({
       await listenForCallbacks(runtime.app, {
         isCallbackUrl: url => client.isCallbackUrl(url),
         onCallback: async (url) => {
+          // Anything that does not answer a sign-in we started (a forged or replayed link) is ignored outright: the
+          // browser stays open and the real sign-in can still complete.
+          if (!(await client.matchesPendingAuthorization(url).catch(() => false))) return
           try {
             const { returnTo } = await runtime.flow.complete(url)
             await nuxtApp.runWithContext(() => navigateTo(safeReturnTo(returnTo) ?? config.redirect.afterLogin, { replace: true }))
@@ -70,6 +76,24 @@ export default defineNuxtPlugin({
             console.error('[@frigear-nu/oauth-client] Sign-in failed:', error)
             await nuxtApp.runWithContext(() => navigateTo({ path: config.redirect.login, query: { error: 'sign-in' } }))
           }
+        },
+        launchUrlStore: {
+          get: () => {
+            try {
+              return globalThis.sessionStorage.getItem(LAUNCH_URL_KEY)
+            }
+            catch {
+              return null
+            }
+          },
+          set: (url) => {
+            try {
+              globalThis.sessionStorage.setItem(LAUNCH_URL_KEY, url)
+            }
+            catch {
+              // Not available: the pending check still makes a replay harmless.
+            }
+          },
         },
         // Back in the foreground: refresh a token that expired in the background before the first request needs it.
         onResume: async () => {

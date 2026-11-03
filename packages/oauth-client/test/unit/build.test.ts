@@ -94,3 +94,21 @@ describe('nativeLoaderTemplate', () => {
     expect(source).toContain('import("/abs/storage.ts")')
   })
 })
+
+describe('mergePublicConfig', () => {
+  it('lets lists the host sets replace the module\'s instead of being appended', async () => {
+    const { mergePublicConfig } = await import('../../src/build')
+    const defaults = {
+      issuer: 'https://id.test', clientId: 'app', scope: 'openid', apiBase: '', redirectUri: '', nativeRedirectUri: '',
+      callbackPath: '/auth/callback', discovery: true, endpoints: {}, authorizationParams: {}, storage: 'auto' as const,
+      protect: 'all' as const, publicPaths: ['/about'], redirect: { login: '/login', afterLogin: '/', afterLogout: '/login' },
+      api: { attachTo: ['https://api.test'], onUnauthorized: 'signOut' as const }, rewriteLoopback: true,
+    }
+    const merged = mergePublicConfig({ publicPaths: ['/docs/**'], api: { attachTo: ['https://other.test'], onUnauthorized: 'none' }, clientId: 'host' }, defaults)
+    expect(merged.publicPaths).toEqual(['/docs/**'])
+    expect(merged.api).toEqual({ attachTo: ['https://other.test'], onUnauthorized: 'none' })
+    expect(merged.clientId).toBe('host')
+    expect(merged.issuer).toBe('https://id.test')
+    expect(mergePublicConfig(undefined, defaults).publicPaths).toEqual(['/about'])
+  })
+})

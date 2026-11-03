@@ -10,7 +10,6 @@ import {
   useLogger,
 } from '@nuxt/kit'
 import { addModulePages, defineVirtualRegistry, inlineModuleRuntime, registerLocales, registerModule } from '@frigear-nu/module-kit/utils'
-import { defu } from 'defu'
 import { isAbsolute, resolve } from 'node:path'
 import type { ModuleOptions, OAuthClientAppConfig, OAuthClientPublicConfig } from './types'
 import type { IdTokenClaims, SignOutReason } from './runtime/core/types'
@@ -19,6 +18,7 @@ import {
   assertNoClientSecretInBundle,
   checkNativeStorage,
   isPackageInstalled,
+  mergePublicConfig,
   nativeLoaderTemplate,
   parseStorageOption,
   resolveNativeRedirectUri,
@@ -117,10 +117,13 @@ export default defineNuxtModule<ModuleOptions>({
       },
       api: { attachTo: options.api?.attachTo ?? [], onUnauthorized: options.api?.onUnauthorized ?? 'signOut' },
       rewriteLoopback: options.dev?.rewriteLoopback ?? true,
-      clientSecret: '',
     }
+    // Declared (so `NUXT_PUBLIC_OAUTH_CLIENT_CLIENT_SECRET` maps onto it) only where a secret is allowed: in production
+    // a runtime env var would otherwise be serialized into every server-rendered page.
+    const secretAllowed = nuxt.options.dev || options.allowClientSecretInBundle === true
+    if (secretAllowed) defaults.clientSecret = ''
     const publicConfig = nuxt.options.runtimeConfig.public as { oauthClient?: Partial<OAuthClientPublicConfig> }
-    publicConfig.oauthClient = defu(publicConfig.oauthClient, defaults) as OAuthClientPublicConfig
+    publicConfig.oauthClient = mergePublicConfig(publicConfig.oauthClient, defaults)
 
     assertNoClientSecretInBundle({
       dev: nuxt.options.dev,
@@ -129,7 +132,7 @@ export default defineNuxtModule<ModuleOptions>({
       env: process.env,
       configured: publicConfig.oauthClient.clientSecret,
     })
-    if (nuxt.options.dev && process.env.NUXT_PUBLIC_OAUTH_CLIENT_SECRET && !publicConfig.oauthClient.clientSecret) {
+    if (secretAllowed && process.env.NUXT_PUBLIC_OAUTH_CLIENT_SECRET && !publicConfig.oauthClient.clientSecret) {
       // The shorter variable is the documented one; Nuxt only maps `..._CLIENT_CLIENT_SECRET` on its own.
       publicConfig.oauthClient.clientSecret = process.env.NUXT_PUBLIC_OAUTH_CLIENT_SECRET
     }

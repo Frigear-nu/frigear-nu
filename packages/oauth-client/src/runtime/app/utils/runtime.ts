@@ -92,8 +92,9 @@ async function createRuntime(config: OAuthClientPublicConfig, onSigningIn?: (val
     clientId: config.clientId,
     redirectUri,
     scope: config.scope,
-    // Production builds that would embed one fail (`allowClientSecretInBundle`).
+    // Only declared in development (or with `allowClientSecretInBundle`); production builds that would embed one fail.
     clientSecret: config.clientSecret || undefined,
+    attachTo: [config.apiBase || config.issuer, config.issuer, ...config.api.attachTo].map(rewriteUrl),
     storage,
     transientStorage: transient,
     storageKeyPrefix: prefix,

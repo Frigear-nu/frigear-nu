@@ -1,6 +1,18 @@
+import { defu } from 'defu'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { StorageMode, StorageOption } from './types'
+import type { OAuthClientPublicConfig, StorageMode, StorageOption } from './types'
+
+/**
+ * The host's `runtimeConfig.public.oauthClient` over the module's values. Unlike a plain `defu`, a list the host sets
+ * (`publicPaths`, `api.attachTo`) replaces the module's instead of being appended to it.
+ */
+export function mergePublicConfig(host: Partial<OAuthClientPublicConfig> | undefined, defaults: OAuthClientPublicConfig): OAuthClientPublicConfig {
+  const merged = defu(host, defaults) as OAuthClientPublicConfig
+  if (Array.isArray(host?.publicPaths)) merged.publicPaths = [...host.publicPaths]
+  if (Array.isArray(host?.api?.attachTo)) merged.api = { ...merged.api, attachTo: [...host.api.attachTo] }
+  return merged
+}
 
 // Build-time helpers of the module, pure so they can be tested without a Nuxt build.
 

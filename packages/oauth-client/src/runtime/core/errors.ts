@@ -59,8 +59,10 @@ const CONFIG_CODES = new Set(['invalid_client', 'unauthorized_client', 'unsuppor
 const SESSION_CODES = new Set(['invalid_grant', 'access_denied', 'login_required', 'consent_required', 'interaction_required'])
 
 /**
- * Classifies an error response of the token endpoint (RFC 6749 §5.2). `429` and `5xx` are transient whatever their
- * body says; `401` is `invalid_client`; unknown `4xx` codes end the session, since repeating the request cannot work.
+ * Classifies an error response of the token endpoint (RFC 6749 §5.2). Only an explicit `invalid_grant` (and the other
+ * session codes) ends the session. `429` and `5xx` are transient whatever their body says, and so is a `4xx` without a
+ * readable OAuth error (a WAF's HTML 403, a proxy's 404): the request may well work later. A `401` without one is
+ * `invalid_client`; any other explicit code is a configuration problem.
  */
 export function classifyTokenError(status: number, body: { error?: unknown, error_description?: unknown }): OAuthError {
   const code = typeof body.error === 'string' && body.error ? body.error : undefined
@@ -69,10 +71,17 @@ export function classifyTokenError(status: number, body: { error?: unknown, erro
     : `The token request failed (${status}${code ? ` ${code}` : ''}).`
   if (status === 429 || status >= 500) return new OAuthTransientError(code ?? 'server_error', description, { status })
   if (code && SESSION_CODES.has(code)) return new OAuthSessionError(code, description, { status })
-  if ((code && CONFIG_CODES.has(code)) || status === 401) return new OAuthConfigError(code ?? 'invalid_client', description, { status })
-  return new OAuthSessionError(code ?? 'invalid_grant', description, { status })
+  if (code === 'temporarily_unavailable' || code === 'slow_down') return new OAuthTransientError(code, description, { status })
+  if (code && CONFIG_CODES.has(code)) return new OAuthConfigError(code, description, { status })
+  if (!code && status === 401) return new OAuthConfigError('invalid_client', description, { status })
+  if (!code) return new OAuthTransientError('unexpected_response', description, { status })
+  return new OAuthConfigError(code, description, { status })
 }
 
-/** A `fetch` that threw (offline, DNS, CORS) as a transient error. */
-export const networkError = (url: string, cause: unknown) =>
-  new OAuthTransientError('network_error', `Could not reach ${url}.`, { cause })
+/** A `fetch` that threw (offline, DNS, CORS, timeout) as a transient error. */
+export const networkError = (url: string, cause: unknown) => {
+  const name = (cause as { name?: string } | null)?.name
+  return name === 'TimeoutError' || name === 'AbortError'
+    ? new OAuthTransientError('timeout', `${url} did not answer in time.`, { cause })
+    : new OAuthTransientError('network_error', `Could not reach ${url}.`, { cause })
+}

@@ -19,7 +19,7 @@ describe('basic (module pages, SSR)', async () => {
   it('exposes the resolved public runtime config', async () => {
     const html = await $fetch<string>('/about')
     expect(html).toContain('About the fixture')
-    const config = /oauthClient:\{[\s\S]*?clientSecret:"[^"]*"\}/.exec(html)?.[0]
+    const config = /oauthClient:\{[\s\S]*?rewriteLoopback:\w+\}/.exec(html)?.[0]
     expect(config).toBeDefined()
     expect(config).toContain('issuer:"https://id.example.test"')
     expect(config).toContain('clientId:"fixture-app"')
@@ -28,5 +28,7 @@ describe('basic (module pages, SSR)', async () => {
     expect(config).toContain('nativeRedirectUri:"nu.frigear.fixture:/auth/callback"')
     expect(config).toContain('protect:"all"')
     expect(config).toContain('publicPaths:["/about"]')
+    // Not declared outside development, so a runtime env var can never put a secret into the page.
+    expect(config).not.toContain('clientSecret')
   })
 })

@@ -46,9 +46,14 @@ vi.mock('@capacitor/preferences', () => ({
   },
 }))
 
+// Mirrors @aparajita/capacitor-secure-storage: `set` stores `JSON.stringify(data)` and `get` parses it, while
+// `getItem` returns the raw stored string.
 const keychain = {
+  get: async (key: string) => native.keychain.has(key) ? JSON.parse(native.keychain.get(key)!) : null,
   getItem: async (key: string) => native.keychain.get(key) ?? null,
-  set: async (key: string, value: string) => void native.keychain.set(key, value),
+  set: async (key: string, data: unknown) => void native.keychain.set(key, JSON.stringify(data)),
+  setItem: async (key: string, value: string) => void native.keychain.set(key, value),
+  remove: async (key: string) => native.keychain.delete(key),
   removeItem: async (key: string) => void native.keychain.delete(key),
 }
 
@@ -168,6 +173,18 @@ describe('listenForCallbacks', () => {
     await Promise.resolve()
     expect(native.count('appUrlOpen')).toBe(0)
   })
+
+  it('does not replay the cold-start URL after a webview reload', async () => {
+    const { App } = await import('@capacitor/app')
+    native.launchUrl = `${REDIRECT}?code=cold&state=s`
+    let remembered: string | null = null
+    const launchUrlStore = { get: () => remembered, set: (url: string) => void (remembered = url) }
+    const handled: string[] = []
+    const handlers = { isCallbackUrl: () => true, onCallback: (url: string) => void handled.push(url), launchUrlStore }
+    ;(await listenForCallbacks(App, handlers))()
+    ;(await listenForCallbacks(App, handlers))()
+    expect(handled).toEqual([`${REDIRECT}?code=cold&state=s`])
+  })
 })
 
 describe('withInstallMarker', () => {
@@ -205,8 +222,11 @@ describe('createCapacitorOAuthClient', () => {
     const state = new URL(native.opened[0]!).searchParams.get('state')
     await client.handleCallback(`${REDIRECT}?code=abc&state=${state}`)
 
-    expect(JSON.parse(native.keychain.get('oauth:app:tokens')!).accessToken).toBe('access-1')
+    expect(JSON.parse(JSON.parse(native.keychain.get('oauth:app:tokens')!)).accessToken).toBe('access-1')
     expect(native.prefs.has('oauth:app:tokens')).toBe(false)
     expect(native.prefs.has('oauth:app:installed')).toBe(true)
+    // The tokens read back as tokens: the session survives the first use.
+    expect(await client.getAccessToken()).toBe('access-1')
+    expect(await client.isAuthenticated()).toBe(true)
   })
 })

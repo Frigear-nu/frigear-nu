@@ -28,11 +28,15 @@ export interface PreferencesPluginLike {
   remove(options: { key: string }): Promise<void>
 }
 
-/** `@aparajita/capacitor-secure-storage`. */
+/**
+ * `@aparajita/capacitor-secure-storage`. Its `get`/`set`/`remove` are a pair: `set` stores `JSON.stringify(data)` and
+ * `get` parses it back, while `getItem`/`setItem` store raw strings. Mixing the two would read tokens back as a JSON
+ * string literal, so only the first pair is used.
+ */
 export interface SecureStoragePluginLike {
-  getItem(key: string): Promise<string | null>
+  get(key: string, convertDate?: boolean, sync?: boolean): Promise<unknown>
   set(key: string, data: string, convertDate?: boolean, sync?: boolean, access?: number): Promise<void>
-  removeItem(key: string): Promise<void>
+  remove(key: string, sync?: boolean): Promise<boolean>
 }
 
 /** `window.Capacitor`, without importing `@capacitor/core`. */
@@ -56,10 +60,15 @@ const AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY = 3
 
 /** Keychain (iOS) / Keystore-encrypted storage (Android) through `@aparajita/capacitor-secure-storage`. */
 export const secureStorage = (plugin: SecureStoragePluginLike): TokenStorage => ({
-  get: key => plugin.getItem(key),
+  async get(key) {
+    const value = await plugin.get(key, false, false)
+    return typeof value === 'string' ? value : null
+  },
   // Not synced to iCloud Keychain, and only on this device.
   set: (key, value) => plugin.set(key, value, false, false, AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY),
-  remove: key => plugin.removeItem(key),
+  async remove(key) {
+    await plugin.remove(key, false)
+  },
 })
 
 /**
@@ -128,6 +137,11 @@ export interface AppUrlHandlers {
   onCallback: (url: string) => void | Promise<void>
   /** Called when the app returns to the foreground. */
   onResume?: () => void | Promise<void>
+  /**
+   * Remembers the cold-start URL across webview reloads (`sessionStorage`), since `getLaunchUrl()` keeps returning
+   * it for the lifetime of the process.
+   */
+  launchUrlStore?: { get(): string | null, set(url: string): void }
 }
 
 /**
@@ -146,6 +160,10 @@ export async function listenForCallbacks(app: AppPluginLike, handlers: AppUrlHan
     const onResume = handlers.onResume
     listeners.push(await app.addListener('resume', () => void onResume()))
   }
-  handle((await app.getLaunchUrl().catch(() => undefined))?.url)
+  const launchUrl = (await app.getLaunchUrl().catch(() => undefined))?.url
+  if (launchUrl && handlers.launchUrlStore?.get() !== launchUrl) {
+    handlers.launchUrlStore?.set(launchUrl)
+    handle(launchUrl)
+  }
   return () => listeners.forEach(listener => void listener.remove())
 }

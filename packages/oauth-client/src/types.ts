@@ -120,8 +120,8 @@ export interface OAuthClientPublicConfig {
   redirect: { login: string, afterLogin: string, afterLogout: string }
   api: { attachTo: string[], onUnauthorized: 'signOut' | 'none' }
   rewriteLoopback: boolean | string
-  /** Development against a confidential client only; production builds refuse it. */
-  clientSecret: string
+  /** Development against a confidential client only: only declared in `nuxt dev` (or with `allowClientSecretInBundle`). */
+  clientSecret?: string
 }
 
 /** `app.config.ts` → `oauthClient`. */

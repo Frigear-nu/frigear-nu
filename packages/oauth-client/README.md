@@ -10,9 +10,14 @@ It works with [`@frigear-nu/oauth-server`](../oauth-server) and with any standar
 - OIDC discovery (`openid-configuration`, falling back to RFC 8414), issuer and S256 checks, cached
 - Rotating refresh tokens done safely: one refresh at a time (single-flight in the page, Web Locks across tabs), storage
   re-read under the lock so a tab never reuses a rotated token, a non-rotated refresh token is kept
-- Errors by kind: `session` (`invalid_grant`: signed out), `config` (`invalid_client`, issuer mismatch), `transient`
-  (network, 429, 5xx: the session is kept), `authorization` (failed sign-in)
-- id_token checks (`iss`, `aud`/`azp`, `exp`, `iat`, `nonce`)
+- Errors by kind: `session` (only an explicit `invalid_grant` and friends: signed out), `config` (`invalid_client`,
+  issuer mismatch), `transient` (network, timeouts, 429, 5xx, a 4xx without an OAuth error body: the session is kept),
+  `authorization` (failed sign-in)
+- Every request to the authorization server times out (`requestTimeoutSeconds`, default 15)
+- id_token checks (`iss`, `aud`/`azp`, `sub`, `nonce`; not the device clock). A refreshed id_token that fails them
+  keeps the previous claims; the rotated tokens are always stored
+- Pending sign-ins keyed by `state`: a forged callback is ignored and never cancels a real sign-in, and two tabs can
+  sign in at once
 - Keychain / Keystore token storage on a device, with an install marker that wipes tokens surviving a reinstall
 - `$api` / `useApi()` with the bearer token for allowed origins only and one forced refresh on 401
 - `/login` and `/auth/callback` pages (with `@nuxt/ui`; a page of the app at the same path wins)
@@ -66,7 +71,10 @@ Runtime config lives in `runtimeConfig.public.oauthClient`; the host's own value
 | `NUXT_PUBLIC_OAUTH_CLIENT_NATIVE_REDIRECT_URI` | `nativeRedirectUri` |
 
 `NUXT_PUBLIC_OAUTH_CLIENT_SECRET` is for `nuxt dev` against a confidential client only: a production build that would
-embed a secret fails (`allowClientSecretInBundle: true` to override for throwaway builds).
+embed a secret fails (`allowClientSecretInBundle: true` to override for throwaway builds), and outside development
+`clientSecret` is not declared at all, so a runtime env var cannot leak into server-rendered pages.
+
+Lists the host sets in `runtimeConfig.public.oauthClient` (`publicPaths`, `api.attachTo`) replace the module's.
 
 ## Options
 
@@ -131,11 +139,13 @@ const client = createOAuthClient({
   redirectUri: `${location.origin}/callback`,
   scope: 'openid offline_access',
   storage: webStorage(),
+  attachTo: ['https://api.example.com'],
 })
 await client.authorize() // redirects
 // on /callback:
 const { returnTo } = await client.handleCallback(location.href)
-const response = await client.fetch('https://api.example.com/me') // bearer, refresh + retry on 401
+// bearer only for `attachTo` origins (default: the issuer), refresh + retry on 401
+const response = await client.fetch('https://api.example.com/me')
 ```
 
 A Capacitor app without Nuxt:
@@ -145,7 +155,12 @@ import { SecureStorage } from '@aparajita/capacitor-secure-storage'
 import { createCapacitorOAuthClient, onCapacitorCallback } from '@frigear-nu/oauth-client/capacitor'
 
 const client = createCapacitorOAuthClient({ issuer, clientId, redirectUri: 'com.example.app:/auth/callback', secureStorage: SecureStorage })
-await onCapacitorCallback({ isCallbackUrl: url => client.isCallbackUrl(url), onCallback: url => client.handleCallback(url) })
+await onCapacitorCallback({
+  isCallbackUrl: url => client.isCallbackUrl(url),
+  // Ignore links that answer no sign-in we started.
+  onCallback: async url => (await client.matchesPendingAuthorization(url)) && client.handleCallback(url),
+  launchUrlStore: { get: () => sessionStorage.getItem('launch'), set: url => sessionStorage.setItem('launch', url) },
+})
 ```
 
 `TokenStorage` (`get`/`set`/`remove`, async) and `AuthorizationUserAgent` (`open(url, { redirectUri, onDismissed })`,

@@ -1,6 +1,8 @@
 import { OAuthConfigError } from '../core/errors'
 import { isLoopbackHost, rewriteLoopbackUrl } from '../core/urls'
 
+export { shouldAttachToken } from '../core/urls'
+
 // Pure helpers of the Nuxt runtime, kept apart so they can be tested without Nuxt.
 
 /**
@@ -41,25 +43,6 @@ export function isPublicPath(path: string, patterns: string[]): boolean {
 export function safeReturnTo(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) return undefined
   return value
-}
-
-/** Whether a request to `url` (relative ones resolved against `baseURL`) may carry the bearer token. */
-export function shouldAttachToken(url: string, baseURL: string, attachTo: string[]): boolean {
-  let origin: string
-  try {
-    origin = new URL(url, baseURL || undefined).origin
-  }
-  catch {
-    return false
-  }
-  return attachTo.some((allowed) => {
-    try {
-      return new URL(allowed).origin === origin
-    }
-    catch {
-      return false
-    }
-  })
 }
 
 /**

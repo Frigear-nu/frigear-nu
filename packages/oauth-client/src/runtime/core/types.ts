@@ -45,6 +45,7 @@ export interface AuthorizationServerMetadata {
   userinfo_endpoint?: string
   end_session_endpoint?: string
   jwks_uri?: string
+  authorization_response_iss_parameter_supported?: boolean
   code_challenge_methods_supported?: string[]
   scopes_supported?: string[]
   [key: string]: unknown
@@ -93,8 +94,15 @@ export interface OAuthClientOptions {
   now?: () => number
   /** Refresh when the access token expires within this many seconds. Default 30. */
   refreshSkewSeconds?: number
-  /** Tolerated clock skew for id_token `exp` / `iat`, in seconds. Default 120. */
-  clockToleranceSeconds?: number
+  /**
+   * Origins `client.fetch` sends the bearer token to. Default: the issuer's. A request to any other origin goes out
+   * without it, so a token never leaks to a third party through a mistyped or attacker-supplied URL.
+   */
+  attachTo?: string[]
+  /** Requests to the authorization server (discovery, token, revocation, userinfo) give up after this. Default 15; 0 for none. */
+  requestTimeoutSeconds?: number
+  /** Problems that do not fail the operation (e.g. a refreshed id_token that was not accepted). Default `console.warn`. */
+  onWarning?: (message: string, error?: unknown) => void
   /** How long a started authorization can be completed, in seconds. Default 3600. */
   pendingTtlSeconds?: number
 }
@@ -172,6 +180,11 @@ export interface OAuthClient {
   authorize(options?: { returnTo?: string, params?: Record<string, string>, onDismissed?: () => void }): Promise<AuthorizationRequest>
   /** Whether `url` is this client's redirect URI carrying an authorization response. */
   isCallbackUrl(url: string): boolean
+  /**
+   * Whether `url` answers a sign-in this client started (its `state` is pending). Check it before acting on a URL
+   * handed to the app from outside (deep links): a forged callback must not end a real sign-in.
+   */
+  matchesPendingAuthorization(url: string): Promise<boolean>
   /** Validates `state`, exchanges the code, validates the id_token and stores the tokens. Pass the full redirect URL. */
   handleCallback(callbackUrl: string): Promise<CallbackResult>
   /**
@@ -185,7 +198,10 @@ export interface OAuthClient {
   getClaims(): Promise<IdTokenClaims | null>
   /** `GET` the userinfo endpoint with the access token. */
   fetchUserInfo(): Promise<UserInfo>
-  /** `fetch` with the bearer token; a 401 refreshes once and retries. */
+  /**
+   * `fetch` with the bearer token for `attachTo` origins only; a 401 refreshes once and retries. A refresh that fails
+   * transiently rejects with its `OAuthTransientError`; an ended session returns the 401 response.
+   */
   fetch(input: string | URL, init?: RequestInit): Promise<Response>
   /** Clears local state and revokes the refresh token (best effort). */
   logout(): Promise<void>

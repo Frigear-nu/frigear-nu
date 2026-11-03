@@ -9,11 +9,15 @@ import {
   createOAuthClient,
   memoryStorage,
 } from '../../src/runtime/core'
-import type { OAuthChangeEvent } from '../../src/runtime/core'
+import type { OAuthChangeEvent, TokenStorage } from '../../src/runtime/core'
+import { validateIdToken } from '../../src/runtime/core/jwt'
 import { ISSUER, REDIRECT, json, jwt, metadata, setup, signIn, tokens } from './helpers'
 
 const PENDING = 'oauth:app_1:pending'
 const TOKENS = 'oauth:app_1:tokens'
+
+/** The stored pending authorization of `state`. */
+const pendingOf = async (storage: TokenStorage, state: string | null) => JSON.parse((await storage.get(PENDING))!)[state!]
 
 /** A response that only arrives once released. */
 function deferred() {
@@ -38,7 +42,7 @@ describe('startAuthorization', () => {
       code_challenge_method: 'S256',
     })
 
-    const pending = JSON.parse((await storage.get(PENDING))!)
+    const pending = await pendingOf(storage, p.get('state'))
     expect(pending.state).toBe(p.get('state'))
     expect(await challengeFor(pending.verifier)).toBe(p.get('code_challenge'))
     expect(pending.verifier.length).toBeGreaterThanOrEqual(43)
@@ -63,7 +67,7 @@ describe('startAuthorization', () => {
     expect(p.get('ui_locales')).toBe('da')
     expect(p.get('code_challenge_method')).toBe('S256')
     expect(p.get('state')).not.toBe('forced')
-    expect(p.get('nonce')).toBe(JSON.parse((await storage.get(PENDING))!).nonce)
+    expect(p.get('nonce')).toBe((await pendingOf(storage, p.get('state'))).nonce)
   })
 })
 
@@ -89,12 +93,36 @@ describe('handleCallback', () => {
     expect(ctx.requests()[0]!.body.get('client_secret')).toBe('dev-secret')
   })
 
-  it('rejects a state mismatch and burns the pending authorization', async () => {
+  it('rejects a forged state without cancelling the sign-in in progress', async () => {
     const ctx = setup(() => tokens(1))
-    await ctx.client.startAuthorization()
+    const { state } = await ctx.client.startAuthorization()
     await expect(ctx.client.handleCallback(`${REDIRECT}?code=abc&state=forged`)).rejects.toMatchObject({ code: 'invalid_state' })
+    expect(await ctx.client.matchesPendingAuthorization(`${REDIRECT}?code=abc&state=forged`)).toBe(false)
     expect(ctx.requests()).toHaveLength(0)
-    await expect(ctx.client.handleCallback(`${REDIRECT}?code=abc&state=forged`)).rejects.toMatchObject({ code: 'no_pending_authorization' })
+
+    expect(await ctx.client.matchesPendingAuthorization(`${REDIRECT}?code=abc&state=${state}`)).toBe(true)
+    await ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${state}`)
+    expect(await ctx.client.isAuthenticated()).toBe(true)
+    // Single use: the same callback again is refused.
+    await expect(ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${state}`)).rejects.toMatchObject({ code: 'no_pending_authorization' })
+  })
+
+  it('keeps sign-ins started in two tabs apart (pending authorizations by state)', async () => {
+    const ctx = setup(() => tokens(1))
+    const first = await ctx.client.startAuthorization({ returnTo: '/a' })
+    const second = await ctx.client.startAuthorization({ returnTo: '/b' })
+    const result = await ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${first.state}`)
+    expect(result.returnTo).toBe('/a')
+    expect(await ctx.client.matchesPendingAuthorization(`${REDIRECT}?code=x&state=${second.state}`)).toBe(true)
+  })
+
+  it('requires iss when the server says it always sends it (RFC 9207)', async () => {
+    const ctx = setup(() => tokens(1), { metadataHandler: () => json(metadata({ authorization_response_iss_parameter_supported: true })) })
+    const { state } = await ctx.client.startAuthorization()
+    await expect(ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${state}`)).rejects.toMatchObject({ code: 'issuer_missing' })
+    const again = await ctx.client.startAuthorization()
+    await ctx.client.handleCallback(`${REDIRECT}?code=abc&state=${again.state}&iss=${encodeURIComponent(ISSUER)}`)
+    expect(await ctx.client.isAuthenticated()).toBe(true)
   })
 
   it('surfaces an authorization error from the server', async () => {
@@ -158,12 +186,62 @@ describe('id_token', () => {
     ['another issuer', (claims: Record<string, unknown>) => ({ ...claims, iss: 'https://evil.test' })],
     ['another audience', (claims: Record<string, unknown>) => ({ ...claims, aud: 'other-app' })],
     ['another authorized party', (claims: Record<string, unknown>) => ({ ...claims, aud: ['app_1', 'api'], azp: 'other-app' })],
-    ['an expired token', (claims: Record<string, unknown>) => ({ ...claims, exp: 1_000_000_000 - 3600 })],
     ['a replayed nonce', (claims: Record<string, unknown>) => ({ ...claims, nonce: 'old' })],
   ])('rejects %s', async (_name, change) => {
     const { ctx, run } = withIdToken(nonce => change(valid(nonce, 1_000_000_000_000)))
     await expect(run()).rejects.toMatchObject({ code: 'invalid_id_token' })
     expect(await ctx.client.isAuthenticated()).toBe(false)
+  })
+
+  it('does not fail a sign-in on a device clock that is off by hours', async () => {
+    // Issued two hours "before" the device's clock: expired by the device's reckoning, fine by the issuer's.
+    const { ctx, run } = withIdToken(nonce => valid(nonce, 1_000_000_000_000 - 7_200_000))
+    await run()
+    expect(await ctx.client.isAuthenticated()).toBe(true)
+  })
+
+  it('still offers an expiry check for tokens from elsewhere', () => {
+    const token = jwt({ iss: ISSUER, aud: 'app_1', sub: '1', exp: 1000 })
+    expect(() => validateIdToken(token, { issuer: ISSUER, clientId: 'app_1', now: 2_000_000 })).toThrow(/expired/)
+    expect(validateIdToken(token, { issuer: ISSUER, clientId: 'app_1' }).sub).toBe('1')
+  })
+
+  describe('on refresh', () => {
+    const idToken = (claims: Record<string, unknown>) => jwt({ iss: ISSUER, aud: 'app_1', sub: '42', exp: 2_000_000_000, ...claims })
+    const refreshing = (refreshed: Record<string, unknown>) => {
+      const warnings: string[] = []
+      let n = 1
+      const ctx = setup(({ body }) => body.get('grant_type') === 'refresh_token'
+        ? tokens(++n, { id_token: idToken(refreshed) })
+        : tokens(1, { id_token: idToken({ name: 'Ada' }) }), { onWarning: message => void warnings.push(message) })
+      return { ctx, warnings }
+    }
+
+    it('takes the claims of a valid refreshed id_token', async () => {
+      const { ctx, warnings } = refreshing({ name: 'Ada L.' })
+      await signIn(ctx)
+      ctx.advance(3600 * 1000)
+      expect(await ctx.client.getAccessToken()).toBe('access-2')
+      expect(await ctx.client.getClaims()).toMatchObject({ name: 'Ada L.' })
+      expect(warnings).toEqual([])
+    })
+
+    it.each([
+      ['another audience', { aud: 'other-app' }],
+      ['another user', { sub: '43' }],
+    ])('keeps the rotated tokens and the previous claims when the refreshed id_token names %s', async (_name, refreshed) => {
+      const { ctx, warnings } = refreshing(refreshed)
+      await signIn(ctx)
+      ctx.advance(3600 * 1000)
+      expect(await ctx.client.getAccessToken()).toBe('access-2')
+      expect((await ctx.client.getTokens())!.refreshToken).toBe('refresh-2')
+      expect(await ctx.client.getClaims()).toMatchObject({ sub: '42', name: 'Ada' })
+      expect(warnings).toHaveLength(1)
+      // The next refresh uses the rotated token, never the spent one.
+      ctx.advance(3600 * 1000)
+      await ctx.client.getAccessToken()
+      expect(ctx.grants('refresh_token').map(call => call.body.get('refresh_token'))).toEqual(['refresh-1', 'refresh-2'])
+    })
   })
 })
 
@@ -235,6 +313,38 @@ describe('getAccessToken', () => {
     expect(events).toContain('refresh-failed')
     fail = false
     expect(await ctx.client.getAccessToken()).toBe('access-2')
+  })
+
+  it.each([
+    ['a WAF\'s HTML 403', () => new Response('<html>Forbidden</html>', { status: 403, headers: { 'content-type': 'text/html' } }), OAuthTransientError],
+    ['a proxy\'s 404', () => new Response('Not Found', { status: 404 }), OAuthTransientError],
+    ['an unknown OAuth error', () => json({ error: 'something_new' }, 400), OAuthConfigError],
+  ])('keeps the session on %s', async (_name, failure, kind) => {
+    const ctx = setup(({ body }) => (body.get('grant_type') === 'refresh_token' ? failure() : tokens(1)))
+    await signIn(ctx)
+    ctx.advance(3600 * 1000)
+    await expect(ctx.client.getAccessToken()).rejects.toBeInstanceOf(kind)
+    expect(await ctx.client.isAuthenticated()).toBe(true)
+  })
+
+  it('times out a hanging token request and releases the lock', async () => {
+    let hang = true
+    const storage = memoryStorage()
+    const client = createOAuthClient({
+      issuer: ISSUER,
+      clientId: 'app_1',
+      redirectUri: REDIRECT,
+      discovery: false,
+      storage,
+      requestTimeoutSeconds: 0.05,
+      fetch: (_input, init) => hang
+        ? new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason)))
+        : Promise.resolve(tokens(2)),
+    })
+    await storage.set(TOKENS, JSON.stringify({ accessToken: 'access-1', refreshToken: 'refresh-1', idToken: null, tokenType: 'Bearer', expiresAt: 0, scope: '' }))
+    await expect(client.getAccessToken()).rejects.toMatchObject({ code: 'timeout', kind: 'transient' })
+    hang = false
+    expect(await client.getAccessToken()).toBe('access-2')
   })
 
   it('reports a misconfigured client (invalid_client) without signing out', async () => {
@@ -363,20 +473,38 @@ describe('isCallbackUrl', () => {
 })
 
 describe('fetch', () => {
-  it('sends the bearer token, and refreshes and retries once on 401', async () => {
-    let n = 1
-    const api: string[] = []
+  const withApi = (refresh: () => Response = () => tokens(2)) => {
+    const api: (string | null)[] = []
     const ctx = setup(({ url, body, headers }) => {
-      if (url.startsWith('https://api.test')) {
-        api.push(headers.get('authorization')!)
+      if (url.startsWith('https://api.test') || url.startsWith('https://other.test')) {
+        api.push(headers.get('authorization'))
         return new Response(null, { status: headers.get('authorization') === 'Bearer access-1' ? 401 : 200 })
       }
-      return body.get('grant_type') === 'refresh_token' ? tokens(++n) : tokens(1)
-    })
+      return body.get('grant_type') === 'refresh_token' ? refresh() : tokens(1)
+    }, { attachTo: ['https://api.test'] })
+    return { ctx, api }
+  }
+
+  it('sends the bearer token, and refreshes and retries once on 401', async () => {
+    const { ctx, api } = withApi()
     await signIn(ctx)
     const response = await ctx.client.fetch('https://api.test/me')
     expect(response.status).toBe(200)
     expect(api).toEqual(['Bearer access-1', 'Bearer access-2'])
+  })
+
+  it('sends no token to origins outside attachTo', async () => {
+    const { ctx, api } = withApi()
+    await signIn(ctx)
+    await ctx.client.fetch('https://other.test/collect')
+    expect(api).toEqual([null])
+  })
+
+  it('rejects, keeping the session, when the refresh after a 401 fails transiently', async () => {
+    const { ctx } = withApi(() => json({}, 503))
+    await signIn(ctx)
+    await expect(ctx.client.fetch('https://api.test/me')).rejects.toBeInstanceOf(OAuthTransientError)
+    expect(await ctx.client.isAuthenticated()).toBe(true)
   })
 })
 

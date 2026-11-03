@@ -38,3 +38,22 @@ export function isCallbackUrlFor(redirectUri: string, url: string): boolean {
   const params = new URL(url).searchParams
   return params.has('state') && (params.has('code') || params.has('error'))
 }
+
+/** Whether a request to `url` (relative ones resolved against `baseURL`) may carry the bearer token: only to `attachTo` origins. */
+export function shouldAttachToken(url: string, baseURL: string | undefined, attachTo: string[]): boolean {
+  let origin: string
+  try {
+    origin = new URL(url, baseURL || undefined).origin
+  }
+  catch {
+    return false
+  }
+  return attachTo.some((allowed) => {
+    try {
+      return new URL(allowed).origin === origin
+    }
+    catch {
+      return false
+    }
+  })
+}

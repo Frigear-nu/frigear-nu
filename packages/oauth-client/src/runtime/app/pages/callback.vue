@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { navigateTo, onMounted, ref, useModuleT, useOAuth, useRuntimeConfig } from '#imports'
+import { OAuthError } from '../../core/errors'
 
 defineOptions({ name: 'OAuthClientCallbackPage' })
 
@@ -16,7 +17,14 @@ onMounted(async () => {
     await navigateTo(returnTo ?? config.redirect.afterLogin, { replace: true })
   }
   catch (error) {
-    failure.value = error instanceof Error ? error.message : String(error)
+    // The error text of a redirect is whatever the URL says: never show it, only what we know it means.
+    const code = error instanceof OAuthError ? error.code : undefined
+    failure.value = code === 'access_denied'
+      ? t('callback.denied', 'The sign-in was cancelled.')
+      : error instanceof OAuthError && error.kind === 'transient'
+        ? t('callback.offline', 'The sign-in server could not be reached. Check the connection and try again.')
+        : t('callback.generic', 'The sign-in could not be completed.')
+    if (import.meta.dev) console.error('[@frigear-nu/oauth-client] Sign-in failed:', error)
   }
 })
 </script>

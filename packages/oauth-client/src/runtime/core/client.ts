@@ -10,10 +10,11 @@ import {
 } from './errors'
 import { decodeJwtPayload, validateIdToken } from './jwt'
 import { createDefaultLock } from './lock'
-import { isCallbackUrlFor } from './urls'
+import { isCallbackUrlFor, shouldAttachToken } from './urls'
 import { createPkcePair, randomString } from './pkce'
 import { defaultStorageKeyPrefix, memoryStorage, storageKeys } from './storage'
 import type {
+  AuthorizationServerMetadata,
   AuthorizationUserAgent,
   IdTokenClaims,
   OAuthChangeEvent,
@@ -50,6 +51,12 @@ export const redirectUserAgent = (): AuthorizationUserAgent => ({
   },
 })
 
+/** Started authorizations by `state`, so sign-ins started in two tabs do not replace each other. */
+type PendingMap = Record<string, Pending>
+
+/** At most this many authorizations wait at once; the oldest are dropped. */
+const MAX_PENDING = 5
+
 const toScope = (scope: OAuthClientOptions['scope']) =>
   (Array.isArray(scope) ? scope.join(' ') : scope ?? 'openid').split(/\s+/).filter(Boolean).join(' ')
 
@@ -79,10 +86,21 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   const lock = options.lock ?? createDefaultLock()
   const userAgent = options.userAgent ?? redirectUserAgent()
   const skewMs = (options.refreshSkewSeconds ?? 30) * 1000
-  const toleranceSeconds = options.clockToleranceSeconds ?? 120
   const pendingTtlMs = (options.pendingTtlSeconds ?? 3600) * 1000
   const lockName = `oauth-client:${issuer}:${clientId}:refresh`
+  const pendingLockName = `oauth-client:${issuer}:${clientId}:pending`
   const sameIssuer = (value: string) => rewriteUrl(normalizeIssuer(value))
+  const timeoutMs = options.requestTimeoutSeconds === undefined ? 15_000 : options.requestTimeoutSeconds * 1000
+  const warn = options.onWarning ?? ((message: string, error?: unknown) => console.warn(`[oauth-client] ${message}`, error ?? ''))
+  const attachTo = options.attachTo ?? [issuer]
+
+  /** Every request to the authorization server gives up after `requestTimeoutSeconds`, so no lock is held forever. */
+  const serverFetch: typeof fetch = (input, init = {}) => {
+    const timeout = timeoutMs > 0 && typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined
+    return doFetch(input, timeout && !init.signal ? { ...init, signal: timeout } : init)
+  }
 
   const listeners = new Set<(event: OAuthChangeEvent) => void>()
   const emit = (event: OAuthChangeEvent) => {
@@ -97,9 +115,10 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   }
 
   let endpoints: Promise<OAuthEndpoints> | null = null
+  let metadata: AuthorizationServerMetadata | null = null
   const getEndpoints = () => {
     endpoints ??= (async () => {
-      const metadata = options.discovery === false ? null : await discover({ issuer, fetch: doFetch, rewriteUrl })
+      metadata = options.discovery === false ? null : await discover({ issuer, fetch: serverFetch, rewriteUrl })
       const resolved = endpointsFrom(issuer, metadata, options.endpoints)
       return Object.fromEntries(Object.entries(resolved).map(([key, url]) => [key, rewriteUrl(url)])) as unknown as OAuthEndpoints
     })().catch((error) => {
@@ -121,6 +140,23 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
     }
   }
   const readTokens = () => readJson<OAuthTokens>(storage, keys.tokens)
+  const readPending = async (): Promise<PendingMap> => {
+    const map = await readJson<PendingMap | Pending>(transient, keys.pending)
+    if (!map || typeof map !== 'object') return {}
+    // A single entry, as 0.1.0 stored it.
+    if (typeof (map as Pending).state === 'string') return { [(map as Pending).state]: map as Pending }
+    return map as PendingMap
+  }
+  /** Changes the pending authorizations under a lock, dropping expired and surplus ones. */
+  const updatePending = (change: (map: PendingMap) => PendingMap) => lock(pendingLockName, async () => {
+    const map = change(await readPending())
+    const live = Object.values(map)
+      .filter(entry => now() - entry.createdAt <= pendingTtlMs)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, MAX_PENDING)
+    if (live.length) await transient.set(keys.pending, JSON.stringify(Object.fromEntries(live.map(entry => [entry.state, entry]))))
+    else await transient.remove(keys.pending)
+  })
   const writeTokens = (tokens: OAuthTokens) => storage.set(keys.tokens, JSON.stringify(tokens))
   const isFresh = (tokens: OAuthTokens) => tokens.expiresAt - now() > skewMs
 
@@ -128,7 +164,7 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
     const body = new URLSearchParams({ client_id: clientId, ...params })
     if (clientSecret) body.set('client_secret', clientSecret)
     try {
-      return await doFetch(url, {
+      return await serverFetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded', 'accept': 'application/json' },
         body,
@@ -142,13 +178,32 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   async function tokenRequest(params: Record<string, string>, previous: OAuthTokens | null, nonce?: string): Promise<OAuthTokens> {
     const { token } = await getEndpoints()
     const response = await post(token, params)
-    const json = await response.json().catch(() => ({})) as TokenResponse & { error?: unknown, error_description?: unknown }
+    let json: TokenResponse & { error?: unknown, error_description?: unknown }
+    try {
+      json = await response.json()
+    }
+    catch {
+      json = {}
+    }
     if (!response.ok) throw classifyTokenError(response.status, json)
-    if (!json.access_token) throw new OAuthConfigError('invalid_token_response', 'The token response has no access_token.', { status: response.status })
+    if (!json.access_token) throw new OAuthTransientError('invalid_token_response', 'The token response has no access_token.', { status: response.status })
 
-    const idToken = json.id_token ?? null
-    if (idToken) {
-      validateIdToken(idToken, { issuer, clientId, now: now(), toleranceSeconds, nonce, normalizeIssuer: sameIssuer })
+    let idToken = json.id_token ?? null
+    if (idToken && !previous) {
+      // Sign-in: the id_token must be for us and answer our nonce. Not checked against the clock, which may be off.
+      validateIdToken(idToken, { issuer, clientId, nonce, normalizeIssuer: sameIssuer })
+    }
+    else if (idToken && previous) {
+      // Refresh: the new tokens are stored whatever happens (the old refresh token is spent); a bad id_token only
+      // means the previous claims are kept.
+      try {
+        const subject = previous.idToken ? decodeJwtPayload<IdTokenClaims>(previous.idToken).sub : undefined
+        validateIdToken(idToken, { issuer, clientId, subject, normalizeIssuer: sameIssuer })
+      }
+      catch (error) {
+        warn('The refreshed id_token was not accepted; keeping the previous claims.', error)
+        idToken = null
+      }
     }
     const expiresIn = Number(json.expires_in)
     return {
@@ -165,7 +220,6 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   async function clear(reason: SignOutReason): Promise<OAuthTokens | null> {
     const tokens = await readTokens()
     await storage.remove(keys.tokens)
-    await transient.remove(keys.pending)
     if (tokens) emit({ type: 'signed-out', tokens: null, reason })
     return tokens
   }
@@ -200,6 +254,27 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
 
   let refreshing: Promise<OAuthTokens | null> | null = null
 
+  /** `fetch` with the bearer token (when `attach`), one forced refresh and retry on 401. */
+  async function authorizedFetch(input: string | URL, init: RequestInit, attach: boolean, send$: typeof fetch): Promise<Response> {
+    const token = attach ? await client.getAccessToken() : null
+    const send = async (accessToken: string | null) => {
+      const headers = new Headers(init.headers)
+      if (accessToken) headers.set('authorization', `Bearer ${accessToken}`)
+      try {
+        return await send$(input, { ...init, headers })
+      }
+      catch (cause) {
+        throw networkError(String(input), cause)
+      }
+    }
+    const response = await send(token)
+    if (response.status !== 401 || !token) return response
+    // A failed refresh (offline, server error) surfaces as its error; an ended session as the 401 itself.
+    const next = await client.getAccessToken({ forceRefresh: true, ifCurrent: token })
+    if (!next || next === token) return response
+    return send(next)
+  }
+
   const client: OAuthClient = {
     clientId,
     redirectUri,
@@ -211,7 +286,7 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
       const state = randomString(24)
       const nonce = scope.split(' ').includes('openid') ? randomString(24) : undefined
       const pending: Pending = { state, verifier, nonce, redirectUri, returnTo: returnTo ?? null, createdAt: now() }
-      await transient.set(keys.pending, JSON.stringify(pending))
+      await updatePending(map => ({ ...map, [state]: pending }))
 
       const url = new URL(authorization)
       // Extra parameters first, so they can never replace the ones the security of the flow depends on.
@@ -238,6 +313,13 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
 
     isCallbackUrl: url => isCallbackUrlFor(redirectUri, url),
 
+    async matchesPendingAuthorization(url) {
+      if (!isCallbackUrlFor(redirectUri, url)) return false
+      const state = new URL(url).searchParams.get('state')
+      const entry = state ? (await readPending())[state] : undefined
+      return !!entry && now() - entry.createdAt <= pendingTtlMs
+    },
+
     async handleCallback(callbackUrl) {
       let params: URLSearchParams
       try {
@@ -247,16 +329,28 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
         throw new OAuthAuthorizationError('invalid_callback', 'The redirect URL is not valid.')
       }
 
-      const pending = await readJson<Pending>(transient, keys.pending)
-      if (!pending) throw new OAuthAuthorizationError('no_pending_authorization', 'No sign-in is in progress.')
-      // Single use: a replayed or forged callback can never reuse this verifier.
-      await transient.remove(keys.pending)
+      // A URL whose state matches no started sign-in is ignored without touching the ones in progress, so a forged
+      // callback cannot cancel a real sign-in.
+      const waiting = await readPending()
+      const state = params.get('state')
+      const pending = state ? waiting[state] : undefined
+      if (!pending) {
+        throw Object.keys(waiting).length
+          ? new OAuthAuthorizationError('invalid_state', 'The state parameter does not match.')
+          : new OAuthAuthorizationError('no_pending_authorization', 'No sign-in is in progress.')
+      }
+      // Single use: a replayed callback can never reuse this verifier.
+      await updatePending(map => Object.fromEntries(Object.entries(map).filter(([key]) => key !== pending.state)))
 
-      if (params.get('state') !== pending.state) throw new OAuthAuthorizationError('invalid_state', 'The state parameter does not match.')
       if (now() - pending.createdAt > pendingTtlMs) throw new OAuthAuthorizationError('expired_authorization', 'The sign-in took too long. Start again.')
-      // RFC 9207: a server that names itself must be the one we sent the user to.
+      // RFC 9207: a server that names itself must be the one we sent the user to, and one that says it always does
+      // must have.
+      await getEndpoints()
       const iss = params.get('iss')
       if (iss && sameIssuer(iss) !== sameIssuer(issuer)) throw new OAuthAuthorizationError('issuer_mismatch', `The response came from "${iss}", not "${issuer}".`)
+      if (!iss && metadata?.authorization_response_iss_parameter_supported === true) {
+        throw new OAuthAuthorizationError('issuer_missing', 'The authorization response has no iss parameter.')
+      }
 
       const error = params.get('error')
       if (error) throw new OAuthAuthorizationError(error, params.get('error_description') ?? 'The sign-in was not completed.')
@@ -315,30 +409,19 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
     async fetchUserInfo(): Promise<UserInfo> {
       const { userinfo } = await getEndpoints()
       if (!userinfo) throw new OAuthConfigError('no_userinfo_endpoint', `${issuer} has no userinfo endpoint.`)
-      const response = await client.fetch(userinfo, { headers: { accept: 'application/json' } })
+      const response = await authorizedFetch(userinfo, { headers: { accept: 'application/json' } }, true, serverFetch)
       if (response.status === 401) throw new OAuthSessionError('invalid_token', 'The access token was refused.', { status: 401 })
       if (response.status === 429 || response.status >= 500) throw new OAuthTransientError('server_error', `userinfo failed (${response.status}).`, { status: response.status })
       if (!response.ok) throw new OAuthConfigError('userinfo_failed', `userinfo failed (${response.status}).`, { status: response.status })
       return await response.json() as UserInfo
     },
 
-    async fetch(input, init = {}) {
-      const token = await client.getAccessToken()
-      const send = (accessToken: string | null) => {
-        const headers = new Headers(init.headers)
-        if (accessToken) headers.set('authorization', `Bearer ${accessToken}`)
-        return doFetch(input, { ...init, headers })
-      }
-      const response = await send(token)
-      if (response.status !== 401 || !token) return response
-      const next = await client.getAccessToken({ forceRefresh: true, ifCurrent: token }).catch(() => null)
-      if (!next || next === token) return response
-      return send(next)
-    },
+    fetch: (input, init = {}) => authorizedFetch(input, init, shouldAttachToken(String(input), globalThis.location?.href, attachTo.map(rewriteUrl)), doFetch),
 
     async logout() {
       // Under the lock, so a refresh in flight cannot write tokens back after we cleared them.
       const tokens = await lock(lockName, () => clear('logout'))
+      await transient.remove(keys.pending)
       if (!tokens?.refreshToken) return
       try {
         const { revocation } = await getEndpoints()

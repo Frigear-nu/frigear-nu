@@ -10,7 +10,10 @@
     "callback": {
       "pending": "Signing you in…",
       "failed": "Sign-in failed",
-      "retry": "Try signing in again"
+      "retry": "Try signing in again",
+      "denied": "The sign-in was cancelled.",
+      "offline": "The sign-in server could not be reached. Check the connection and try again.",
+      "generic": "The sign-in could not be completed."
     }
   }
 }
