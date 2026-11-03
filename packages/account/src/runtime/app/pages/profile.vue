@@ -112,7 +112,7 @@ async function onChangeEmail() {
           <UInput
             v-model="state.name"
             autocomplete="name"
-            class="w-full sm:max-w-sm"
+            class="w-full"
           />
         </FormRow>
         <FormRow
@@ -120,20 +120,21 @@ async function onChangeEmail() {
           :label="t('avatar.label', 'Avatar')"
           :description="t('avatar.description', 'Link to a square image.')"
         >
-          <div class="flex items-center gap-3 sm:max-w-sm">
-            <UAvatar
-              :src="state.avatar || undefined"
-              :alt="state.name"
-              size="lg"
-            />
-            <UInput
-              v-model="state.avatar"
-              type="url"
-              placeholder="https://"
-              :aria-label="t('avatar.url', 'Avatar URL')"
-              class="min-w-0 flex-1"
-            />
-          </div>
+          <UInput
+            v-model="state.avatar"
+            type="url"
+            placeholder="https://"
+            :aria-label="t('avatar.url', 'Avatar URL')"
+            class="w-full"
+          >
+            <template #leading>
+              <UAvatar
+                :src="state.avatar || undefined"
+                :alt="state.name"
+                size="3xs"
+              />
+            </template>
+          </UInput>
         </FormRow>
       </UForm>
       <template #footer>
@@ -149,19 +150,20 @@ async function onChangeEmail() {
       </template>
     </SectionCard>
 
-    <SectionCard :title="t('email.label', 'Email')">
-      <FormRow
-        :label="t('email.address', 'Address')"
-        :description="t('email.description', 'Where we send messages and how you sign in.')"
-      >
-        <div class="flex flex-wrap items-center gap-2 sm:max-w-lg">
-          <UInput
-            :model-value="user?.email ?? ''"
-            type="email"
-            readonly
-            disabled
-            class="min-w-48 flex-1"
-          />
+    <SectionCard
+      :title="t('email.label', 'Email')"
+      :description="t('email.description', 'Where we send messages and how you sign in.')"
+    >
+      <FormRow :label="t('email.address', 'Address')">
+        <UInput
+          :model-value="user?.email ?? ''"
+          type="email"
+          readonly
+          class="w-full"
+        />
+      </FormRow>
+      <template #footer>
+        <div class="flex justify-end gap-2">
           <UButton
             color="neutral"
             variant="outline"
@@ -170,7 +172,7 @@ async function onChangeEmail() {
             @click="onChangeEmail"
           />
         </div>
-      </FormRow>
+      </template>
     </SectionCard>
   </div>
 </template>

@@ -5,7 +5,8 @@ import { computed, useAttrs } from '#imports'
  * `orientation="horizontal"`, the label and its `description` in a left column and the control on the right, stacked
  * below `sm`. Takes every `UFormField` prop and slot (a `ui` is merged over the row's). Put rows in a parent with
  * `divide-y divide-default` (usually the `UForm`); give short controls `class="w-full sm:max-w-sm"` and long ones
- * (textareas, editors) `class="w-full"`.
+ * (textareas, editors) `class="w-full"`. In the account area, whose column is narrow, every control takes `class="w-full"`
+ * so it ends where the section's footer actions do.
  */
 defineOptions({ inheritAttrs: false })
 

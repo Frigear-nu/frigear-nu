@@ -126,7 +126,7 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             v-model="passwordState.currentPassword"
             type="password"
             autocomplete="current-password"
-            class="w-full sm:max-w-sm"
+            class="w-full"
           />
         </FormRow>
         <FormRow
@@ -138,7 +138,7 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             v-model="passwordState.newPassword"
             type="password"
             autocomplete="new-password"
-            class="w-full sm:max-w-sm"
+            class="w-full"
           />
         </FormRow>
         <FormRow
@@ -150,7 +150,7 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
             v-model="passwordState.confirmNewPassword"
             type="password"
             autocomplete="new-password"
-            class="w-full sm:max-w-sm"
+            class="w-full"
           />
         </FormRow>
       </UForm>
