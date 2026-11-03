@@ -528,6 +528,21 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(rotate.status).toBe(400)
     })
 
+    it('registers a native app without a website, which then signs in with its redirect URIs only', async () => {
+      const app = await publicApp({ websiteUrl: null })
+      expect(app).toMatchObject({ clientType: 'public', websiteUrl: null, callbackUrl: null })
+      expect((await signIn(app, NATIVE)).token_type).toBe('Bearer')
+
+      const post = (body: Json) => json(staff.cookie, 'POST', oauthServerApi.admin.applications, { name: 'x', ...body })
+      expect((await post({ clientType: 'public', websiteUrl: '' })).status).toBe(400) // nothing to redirect to
+      expect((await post({ clientType: 'confidential', websiteUrl: '', redirectUris: ['https://app.example.com/cb'] })).status).toBe(400)
+      // Clearing the website of a public client keeps working as long as it has redirect URIs.
+      const pub = await publicApp()
+      const patch = (body: Json) => json(staff.cookie, 'PATCH', oauthServerApi.admin.application(pub.id), body)
+      expect(await ok(await patch({ websiteUrl: '' }))).toMatchObject({ websiteUrl: null, callbackUrl: null })
+      expect((await patch({ redirectUris: [] })).status).toBe(400)
+    })
+
     it('defaults to confidential, with a secret, and keeps the type fixed', async () => {
       const confidential = await createApp()
       expect(confidential).toMatchObject({ clientType: 'confidential' })
@@ -1005,6 +1020,20 @@ describe('oauth-server (authenticated, database-backed)', async () => {
   })
 
   describe('user helpers', () => {
+    it('leaves unlisted applications out of the user\'s list, but they still sign in', async () => {
+      const unlisted = await createApp({ name: 'Unlisted', allowedRoles: [], isListed: false })
+      expect(unlisted).toMatchObject({ isListed: false })
+      const { challenge } = pkce()
+      expect(await authorizeCode(staff, unlisted.clientId, challenge)).toBeTruthy()
+      const mine = await ok(await json(staff.cookie, 'GET', oauthServerApi.me.applications)) as unknown as Json[]
+      expect(mine.map(application => application.id)).not.toContain(unlisted.id)
+
+      const listed = await ok(await json(staff.cookie, 'PATCH', oauthServerApi.admin.application(unlisted.id), { isListed: true }))
+      expect(listed).toMatchObject({ isListed: true })
+      const after = await ok(await json(staff.cookie, 'GET', oauthServerApi.me.applications)) as unknown as Json[]
+      expect(after.map(application => application.id)).toContain(unlisted.id)
+    })
+
     it('lists the applications a user may sign in to', async () => {
       const staffOnly = await createApp({ name: 'Staff only', allowedRoles: ['staff'], priority: 1 })
       const members = await createApp({ name: 'For members', allowedRoles: ['member'], loginUrl: 'https://app.example.com/start', priority: 9 })

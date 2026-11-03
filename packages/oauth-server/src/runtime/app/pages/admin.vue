@@ -98,7 +98,7 @@ watch(() => route.query.application, openFromQuery)
           <template #name-cell="{ row }">
             <TableIdentity
               :title="row.original.name"
-              :description="row.original.websiteUrl"
+              :description="row.original.websiteUrl ?? row.original.redirectUris[0]"
               :avatar="{ icon: row.original.icon || 'i-lucide-globe' }"
             >
               <template #badges>
@@ -116,6 +116,14 @@ watch(() => route.query.application, openFromQuery)
                   size="sm"
                   icon="i-lucide-file-cog"
                   :label="t('admin.managed', 'Managed in nuxt.config')"
+                />
+                <UBadge
+                  v-if="!row.original.isListed"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                  icon="i-lucide-eye-off"
+                  :label="t('admin.unlisted', 'Unlisted')"
                 />
                 <UBadge
                   v-if="!row.original.isActive"

@@ -141,6 +141,13 @@
       "when": 1793008440383,
       "tag": "0019_add_oauth_client_type",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793706351201,
+      "tag": "0020_add_oauth_is_listed",
+      "breakpoints": true
     }
   ]
 }
