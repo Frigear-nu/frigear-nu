@@ -15,7 +15,7 @@ nuxt.config.ts            modules, tabs (`mobile.tabs`), sign-in (`authenticatio
 .env.example              NUXT_PUBLIC_AUTHENTICATION_CLIENT_* : the issuer and API the app talks to
 app/app.vue               <UApp :toaster="useMobileToaster()">
 app/app.config.ts         branding of the /login page
-app/pages/index.vue       Home tab: the ID token claims and a sample call to /api/me
+app/pages/index.vue       Home tab: the signed-in user (useUserSession) and a sample call to /api/me
 app/pages/account.vue     Account tab: the profile and sign-out
 ios/, android/            native projects, created by `pnpm mobile:native` (not in the starter)
 ```

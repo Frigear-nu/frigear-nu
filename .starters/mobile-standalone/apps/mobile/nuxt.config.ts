@@ -48,8 +48,9 @@ export default defineNuxtConfig({
     appId,
     appName,
     tabs: [
-      { id: 'home', to: '/', label: 'Home', icon: 'i-lucide-house', sfSymbol: 'house', sfSymbolActive: 'house.fill' },
-      // Hidden while signed out.
+      // Both hidden while signed out, like every page behind the `'/**'` rule (so /login shows no tab bar or back
+      // button). Drop `requiresAuth` from Home together with that rule for a public home screen.
+      { id: 'home', to: '/', label: 'Home', icon: 'i-lucide-house', sfSymbol: 'house', sfSymbolActive: 'house.fill', requiresAuth: true },
       { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', sfSymbolActive: 'person.crop.circle.fill', requiresAuth: true },
     ],
   },
