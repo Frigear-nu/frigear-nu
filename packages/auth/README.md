@@ -50,8 +50,7 @@ export default defineNuxtConfig({
 
 - `useUserSession()` as in server mode (`loggedIn`, `user`, with `user.id` the issuer's `sub`), plus `useAuth()`
   (`login`, `completeLogin`, `logout`, `getAccessToken`, `signingIn`, ...) and `$api` / `useApi()`, which send the
-  bearer token to `client.apiBase` and `client.apiOrigins` only. (Server mode gets `useAuth()`, `$api` and `useApi()`
-  in a later release.)
+  bearer token to `client.apiBase` and `client.apiOrigins` only.
 - `scopes` must contain `openid`: the user comes from the id_token, and a sign-in without one fails.
 - The user is `{ id: sub, sub, name, email, avatar, role }` from the claims. `client.userinfo: true` merges `/userinfo`;
   `client.mapUser: './app/auth/map-user'` maps it yourself (`({ claims, userinfo, api }) => user`, may be async). Until
