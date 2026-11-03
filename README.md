@@ -26,7 +26,7 @@ pnpm dev
 Open http://localhost:3000, create an account with the email in `NUXT_ACL_ADMINS`, then visit `/account` and `/admin`.
 The full walkthrough, including how to add more modules, is the
 [Workspace starter guide](./apps/docs/content/2.guides/1.workspace-starter.md) in the docs. For an iOS and Android app,
-use one of the mobile starters below.
+use one of the mobile starters below. Not sure which? The [Quick start](./apps/docs/content/1.getting-started/3.quick-start.md) compares the three.
 
 To work on this repository itself, see [Local development](./apps/docs/content/1.getting-started/4.local-development.md).
 

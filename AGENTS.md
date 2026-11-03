@@ -80,7 +80,8 @@ root `postinstall`.
 ### Starters (`.starters/**`)
 
 The starters are templates for a **new project outside this repo**, each a pnpm workspace copied with
-`pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/<starter> <dir>` and documented by a guide:
+`pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/<starter> <dir>` and documented by a guide (new users begin at the quick start,
+`apps/docs/content/1.getting-started/3.quick-start.md`, which compares the starters and links to each guide):
 
 | Starter | What it is | Guide |
 | --- | --- | --- |

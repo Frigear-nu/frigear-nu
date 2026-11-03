@@ -6,11 +6,6 @@ export default defineNuxtConfig({
     // nuxt-llms skips `/llms.txt`. Previews keep the production canonical; override with NUXT_SITE_URL.
     url: process.env.NUXT_SITE_URL || "https://docs.frigear.dev",
   },
-  routeRules: {
-    // The quick start became the workspace starter guide.
-    "/getting-started/quick-start": { redirect: { to: "/guides/workspace-starter", statusCode: 301 } },
-    "/raw/getting-started/quick-start.md": { redirect: { to: "/raw/guides/workspace-starter.md", statusCode: 301 } },
-  },
   content: {
     experimental: {
       sqliteConnector: "native",
