@@ -11,7 +11,8 @@ A Capacitor app shell for Nuxt. It turns a Nuxt app into an iOS / Android app wi
   and a status bar that follows the colour mode
 - `useNative()`: haptics, action sheets, confirms and sharing with web fallbacks
 - deep links (custom schemes, universal links) routed into the app, the Android back button
-- sign-in through [`@frigear-nu/oauth-client`](../oauth-client) (installed for you when `oauthClient` is configured)
+- sign-in through [`@frigear-nu/auth`](../auth) in client mode (installed for you when `authentication` is configured);
+  the app picks its guards with [`@frigear-nu/authorization`](../authorization): nothing is protected by default
 - the `frigear-mobile` CLI: adds the iOS / Android projects and registers the URL schemes in them; `doctor` checks them
 
 It builds on [`nuxt-capacitor`](https://github.com/hareland/nuxt-capacitor), which writes `capacitor.config.json` from
@@ -43,15 +44,18 @@ export default defineNuxtConfig({
     tabs: [
       { id: 'home', to: '/', label: 'Upcoming', icon: 'i-lucide-calendar-clock', sfSymbol: 'calendar.badge.clock' },
       { id: 'bills', to: '/bills', label: 'Bills', icon: 'i-lucide-receipt-text', sfSymbol: 'list.bullet.rectangle' },
-      { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle' },
+      { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', requiresAuth: true },
     ],
   },
-  // Optional: sign in. Mobile installs @frigear-nu/oauth-client with `protect: 'all'` and `native.scheme: appId`.
-  oauthClient: {
-    issuer: 'https://frigear.nu',
-    clientId: 'bills',
-    scopes: ['openid', 'profile', 'offline_access'],
+  // Optional: sign in. Mobile installs @frigear-nu/auth and fills in `client.native.scheme` (from appId); the mode is
+  // the app's to set. `@frigear-nu/oauth-client` / `oauthClient` is refused (see the client mode migration).
+  authentication: {
+    mode: 'client',
+    client: { issuer: 'https://frigear.nu', clientId: 'bills', scopes: ['openid', 'profile', 'offline_access'] },
   },
+  // Guards are the app's: add `@frigear-nu/authorization` to `modules`, then for example signed in everywhere
+  // (the login and callback pages stay open):
+  routeRules: { '/**': { authenticated: true } },
 })
 ```
 
@@ -83,7 +87,7 @@ Suggested scripts: `"ios:run": "frigear-mobile native --if-missing && nuxt gener
 | `appId` | `capacitor.config.appId` | reverse-DNS id; `capacitor.config.appId`, and the OAuth redirect scheme (lowercase, `_` as `-`) |
 | `appName` | `capacitor.config.appName`, else `appId` | `capacitor.config.appName` and the fallback title |
 | `tabs` | `[]` | see [Tabs](#tabs) |
-| `auth` | on when `@frigear-nu/oauth-client` is installed | tabs with `requiresAuth` show signed in only |
+| `auth` | on when `@frigear-nu/auth` runs in client mode | tabs with `requiresAuth` show signed in only |
 | `spa` | `true` | `ssr: false`: Capacitor serves a static build |
 | `layout` | `'mobile'` | the shell layout's name (also `default` when the app has none); `false` for none. An app layout of that name wins |
 | `nativeChrome` | `'ios'` | native navbar and tab bar on `ios`, on `all` platforms, or `false`; needs `@capgo/capacitor-native-navigation` |
@@ -118,7 +122,7 @@ interface MobileTabDefinition {
   sfSymbol?: string     // native iOS tab
   sfSymbolActive?: string
   androidIcon?: string  // drawable, with nativeChrome: 'all'
-  requiresAuth?: boolean // default: mobile.auth
+  requiresAuth?: boolean // default: false (hidden while signed out when true)
   match?: string | string[] // default: to and to/** ('/' only itself)
   largeTitle?: boolean  // default true
   order?: number        // lower first; without it, registration order after the ordered ones
@@ -190,7 +194,7 @@ Running it again changes nothing. `--if-missing` returns right away when every p
 ## Device development
 
 - **Live reload** (`nuxt dev --host 0.0.0.0`, `cap run ios --live-reload`): nuxt-capacitor points the app at the dev
-  server and `@frigear-nu/oauth-client` rewrites a `localhost` issuer / API base to that host.
+  server and `@frigear-nu/auth` (client mode) rewrites a `localhost` issuer / API base to that host.
 - **A build on a phone against a server on this machine**: `MOBILE_LAN=1 nuxt generate` rewrites `localhost` to this
   machine's LAN address (`MOBILE_LAN=192.168.1.20` to choose it). It never applies in `nuxt dev`, and fails with
   `MOBILE_RELEASE=1`, so a LAN address never ships.

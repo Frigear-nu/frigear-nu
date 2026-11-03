@@ -1,8 +1,9 @@
 import type { H3Event } from 'h3'
+import { isSafeRedirect } from '../../utils/redirect'
 
-/** Only same-origin absolute paths are followed after sign in; never `//host`, `/\host` or full URLs. */
+/** Only same-origin absolute paths are followed after sign in (`isSafeRedirect`). */
 export function isInternalPath(value: unknown): value is string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')
+  return isSafeRedirect(value)
 }
 
 const REDIRECT_COOKIE = 'auth-redirect'

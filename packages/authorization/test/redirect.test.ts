@@ -14,6 +14,9 @@ describe('loginRedirect', () => {
     expect(loginRedirect('/sign-in', '//evil.example/x')).toBe('/sign-in')
     expect(loginRedirect('/sign-in', '/\\evil.example')).toBe('/sign-in')
     expect(loginRedirect('/sign-in', 'https://evil.example')).toBe('/sign-in')
+    // The shared `isSafeRedirect` of `@frigear-nu/auth/mode`: any backslash and control characters too.
+    expect(loginRedirect('/sign-in', '/a\\b')).toBe('/sign-in')
+    expect(loginRedirect('/sign-in', '/\t/evil.example')).toBe('/sign-in')
   })
 
   it('does not point the sign-in page back at itself', () => {

@@ -27,15 +27,17 @@ describe('matchesPath', () => {
 
 describe('normalizeTabs', () => {
   it('keeps registration order, sorts by order and resolves match / requiresAuth', () => {
-    const { tabs, errors, warnings } = normalizeTabs([bills, home, { ...home, id: 'first', to: '/first', order: 1 }], { auth: true })
+    const { tabs, errors, warnings } = normalizeTabs([{ ...bills, requiresAuth: true }, home, { ...home, id: 'first', to: '/first', order: 1 }])
     expect(errors).toEqual([])
     expect(warnings).toEqual([])
     expect(tabs.map(tab => tab.id)).toEqual(['first', 'bills', 'home'])
     expect(tabs[1]).toMatchObject({ match: ['/bills', '/bills/**'], requiresAuth: true })
+    // Public unless a tab says otherwise: which pages need a user is the app's route rules.
+    expect(tabs[2]).toMatchObject({ requiresAuth: false })
   })
 
   it('lets a later definition with the same id replace fields in place', () => {
-    const { tabs } = normalizeTabs([home, bills, { id: 'home', label: 'Start' } as MobileTabDefinition], { auth: false })
+    const { tabs } = normalizeTabs([home, bills, { id: 'home', label: 'Start' } as MobileTabDefinition])
     expect(tabs.map(tab => [tab.id, tab.label, tab.to])).toEqual([['home', 'Start', '/'], ['bills', 'Bills', '/bills']])
     expect(tabs[0]!.requiresAuth).toBe(false)
   })
@@ -45,7 +47,7 @@ describe('normalizeTabs', () => {
       { id: 'bad id!', to: '/', label: 'x', icon: 'i' },
       { id: 'nopath', to: 'bills', label: 'x', icon: 'i' },
       { id: 'noicon', to: '/x', label: 'x' } as MobileTabDefinition,
-    ], { auth: false })
+    ])
     expect(errors).toHaveLength(3)
     expect(errors.join('\n')).toMatch(/invalid id/)
     expect(errors.join('\n')).toMatch(/"nopath" needs a `to`/)
@@ -54,7 +56,7 @@ describe('normalizeTabs', () => {
 
   it('warns about more than 5 tabs, duplicate paths and native tabs without an SF Symbol', () => {
     const many = Array.from({ length: 6 }, (_, index) => ({ id: `t${index}`, to: `/t${index}`, label: `T${index}`, icon: 'i' }))
-    const { warnings } = normalizeTabs([...many, { id: 'dup', to: '/t0', label: 'Dup', icon: 'i', sfSymbol: 's' }], { auth: false, nativeIcons: true })
+    const { warnings } = normalizeTabs([...many, { id: 'dup', to: '/t0', label: 'Dup', icon: 'i', sfSymbol: 's' }], { nativeIcons: true })
     expect(warnings.some(warning => warning.includes('7 tabs'))).toBe(true)
     expect(warnings.some(warning => warning.includes('"t0" and "dup" both open /t0'))).toBe(true)
     expect(warnings.some(warning => warning.includes('"t1" has no `sfSymbol`'))).toBe(true)
@@ -62,7 +64,7 @@ describe('normalizeTabs', () => {
 })
 
 describe('findActiveTab', () => {
-  const { tabs } = normalizeTabs([home, bills, { id: 'new', to: '/bills/new', label: 'New', icon: 'i' }], { auth: false })
+  const { tabs } = normalizeTabs([home, bills, { id: 'new', to: '/bills/new', label: 'New', icon: 'i' }])
   it('picks the most specific match', () => {
     expect(findActiveTab(tabs, '/')?.id).toBe('home')
     expect(findActiveTab(tabs, '/bills/12')?.id).toBe('bills')

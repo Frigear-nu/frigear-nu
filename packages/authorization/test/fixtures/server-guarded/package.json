@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "name": "authorization-server-guarded",
+  "type": "module"
+}

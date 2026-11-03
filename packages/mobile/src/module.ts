@@ -22,6 +22,7 @@ import {
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
 import { defu } from 'defu'
+import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import type {
   MobileBackButtonContext,
   MobileDeepLinkContext,
@@ -108,7 +109,9 @@ export default defineNuxtModule<ModuleOptions>({
       ?? (nuxt.options as { capacitor?: { config?: { appName?: string } } }).capacitor?.config?.appName
       ?? appId
     const lanHost = lanHostOf(nuxt)
-    const oauthConfigured = (nuxt.options as { oauthClient?: unknown }).oauthClient !== undefined
+    // Auth when the app configures it. Never its mode: that is the app's own `authentication.mode` (a default would
+    // arrive after Nuxt picked the dependencies), and setup checks it is `client`.
+    const authConfigured = (nuxt.options as { authentication?: unknown }).authentication !== undefined
     // `nu.my_company.App` → `nu.my-company.app`: a URL scheme has no `_` and the OAuth client rejects one.
     const scheme = appIdScheme(appId)
     return {
@@ -129,15 +132,16 @@ export default defineNuxtModule<ModuleOptions>({
           },
         },
       },
-      ...(oauthConfigured
+      ...(authConfigured
         ? {
-            '@frigear-nu/oauth-client': {
-              version: '>=0.1.0',
-              // Scalars only: array defaults would be appended to the app's own (defu).
+            '@frigear-nu/auth': {
+              version: '>=0.0.1',
+              // Scalars only: array defaults would be appended to the app's own (defu). Read in Auth's setup.
               defaults: {
-                protect: 'all' as const,
-                ...(scheme ? { native: { scheme } } : {}),
-                ...(lanHost ? { dev: { rewriteLoopback: lanHost } } : {}),
+                client: {
+                  ...(scheme ? { native: { scheme } } : {}),
+                  ...(lanHost ? { dev: { rewriteLoopback: lanHost } } : {}),
+                },
               },
             },
           }
@@ -152,6 +156,29 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     const prepare = !!nuxt.options._prepare
+
+    // `@frigear-nu/oauth-client` is replaced by Auth's client mode, which protects nothing by default.
+    if ((nuxt.options as { oauthClient?: unknown }).oauthClient !== undefined) {
+      throw new Error(
+        `[${MODULE_NAME}] \`oauthClient\` is configured, but Mobile now signs in with \`@frigear-nu/auth\` in client mode:\n`
+        + '1. Rename `oauthClient` to `authentication: { mode: \'client\', client: { ... } }` and `api.attachTo` to `client.apiOrigins`.\n'
+        + '2. Rename the env vars `NUXT_PUBLIC_OAUTH_CLIENT_*` to `NUXT_PUBLIC_AUTHENTICATION_CLIENT_*`, and add `openid` to the scopes.\n'
+        + '3. Use `useUserSession().user` instead of `useOAuth().claims`, and `useAuth()` for the other `useOAuth()` calls.\n'
+        + '4. Nothing is protected by default any more: install `@frigear-nu/authorization` and add `routeRules: { \'/**\': { authenticated: true } }` to stay signed in everywhere.\n'
+        + 'Or stay on @frigear-nu/mobile 0.1. See https://docs.frigear.dev/modules/identity/auth/client-mode.',
+      )
+    }
+    // A Capacitor app cannot carry a same-origin session cookie to the API: Auth has to run as an OAuth client.
+    // Checked once every module is installed (Auth may be installed after this module, as its dependency); the hooks
+    // below that read `clientAuth` are registered after this one.
+    let clientAuth = false
+    nuxt.hook('modules:done', () => {
+      if (!hasNuxtModule('@frigear-nu/auth', nuxt)) return
+      if (resolveAuthMode(nuxt) !== 'client') {
+        throw new Error(`[${MODULE_NAME}] \`@frigear-nu/auth\` runs in server mode, which needs a same-origin session cookie a Capacitor app cannot send: set \`authentication.mode: 'client'\` in the app's config.`)
+      }
+      clientAuth = true
+    })
 
     const configuredAppId = appIdOf(nuxt)
     if (!configuredAppId && !prepare) logger.warn(`\`mobile.appId\` is not set: using "${FALLBACK_APP_ID}". Set your app's reverse-DNS id.`)
@@ -187,7 +214,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     const deepLinks = resolveDeepLinks({ appId, schemes: options.deepLinks?.schemes, hosts: options.deepLinks?.hosts })
     if (deepLinks.errors.length) throw new Error(`[${MODULE_NAME}] Invalid deep links:\n- ${deepLinks.errors.join('\n- ')}`)
-    if (!appIdScheme(appId) && options.deepLinks?.schemes === undefined && !prepare) logger.warn(`The app id "${appId}" makes no URL scheme: set \`deepLinks.schemes\` (and \`oauthClient.native.scheme\`).`)
+    if (!appIdScheme(appId) && options.deepLinks?.schemes === undefined && !prepare) logger.warn(`The app id "${appId}" makes no URL scheme: set \`deepLinks.schemes\` (and \`authentication.client.native.scheme\`).`)
     const deepLinkSchemes = deepLinks.schemes
     const publicDefaults: MobilePublicConfig = {
       appId,
@@ -234,7 +261,7 @@ declare module '#mobile/tabs' {
 
     // Optional modules' composables, with stand-ins when they are not installed.
     addOptionalImports(nuxt, '#mobile/optional', [
-      { name: 'useOAuth', available: () => hasNuxtModule('@frigear-nu/oauth-client', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => { authenticated: import('vue').Ref<boolean>, isCallbackUrl: (url: string) => boolean })` },
+      { name: 'useAuth', available: () => clientAuth, fallback: 'undefined', fallbackType: `undefined | (() => { authenticated: import('vue').Ref<boolean>, isCallbackUrl: (url: string) => boolean })` },
       { name: 'useConfirmDialog', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => (options: { title: string, description?: string, confirmText?: string, cancelText?: string, destructive?: boolean }) => Promise<boolean>)` },
       { name: 'useMenu', available: () => hasNuxtModule('@frigear-nu/menu', nuxt), fallback: 'undefined', fallbackType: `undefined | ((path: string) => { data: import('vue').Ref<import(${JSON.stringify(resolver.resolve('./runtime/shared/menu'))}).MenuItemLike[] | null | undefined> })` },
     ])
@@ -242,10 +269,11 @@ declare module '#mobile/tabs' {
     // One tab registry: the app's `mobile.tabs`, then what modules added with `extendMobileTabs()`.
     let tabs: MobileTab[] = []
     nuxt.hook('modules:done', () => {
-      const auth = options.auth ?? hasNuxtModule('@frigear-nu/oauth-client', nuxt)
+      // Follows the sign-in state of Auth in client mode; it no longer decides which tabs need a user.
+      const auth = (options.auth ?? true) && clientAuth
       publicConfig.mobile!.auth = auth
       const nativeIcons = options.nativeChrome !== false && plugins.nativeNavigation
-      const result = normalizeTabs([...(mobileOptionsOf(nuxt)?.tabs ?? []), ...(mobileOptionsOf(nuxt)?._tabs ?? [])], { auth, nativeIcons })
+      const result = normalizeTabs([...(mobileOptionsOf(nuxt)?.tabs ?? []), ...(mobileOptionsOf(nuxt)?._tabs ?? [])], { nativeIcons })
       if (result.errors.length) throw new Error(`[${MODULE_NAME}] Invalid tabs:\n- ${result.errors.join('\n- ')}`)
       if (!prepare) for (const warning of result.warnings) logger.warn(warning)
       tabs = result.tabs
@@ -255,6 +283,21 @@ declare module '#mobile/tabs' {
       alias: '#mobile/tabs',
       collect: () => tabs,
       contents: tabsTemplate,
+    })
+    // A mobile app is public unless it adds rules: say so when Auth signs it in but nothing is guarded.
+    nuxt.hook('pages:resolved', (pages) => {
+      if (prepare || !clientAuth) return
+      const guards = ['authenticated', 'roles', 'ability']
+      const isGuard = (rule: unknown) => !!rule && typeof rule === 'object' && guards.some(key => key in rule && (rule as Record<string, unknown>)[key] !== false)
+      const ruled = Object.values({ ...nuxt.options.routeRules, ...nuxt.options.nitro?.routeRules }).some(isGuard)
+      const walk = (list: NuxtPage[]): boolean => list.some((page) => {
+        const authorize = (page.meta as { authorize?: unknown } | undefined)?.authorize
+        return (authorize !== undefined && authorize !== false && (typeof authorize !== 'object' || isGuard(authorize))) || walk(page.children ?? [])
+      })
+      if (!ruled && !walk(pages)) {
+        // Page meta is only seen when it is a literal (`@frigear-nu/authorization` extracts `authorize`).
+        logger.warn('Auth signs the app in, but no route rule or page requires a user: every page is public. Add `routeRules: { \'/**\': { authenticated: true } }` (with `@frigear-nu/authorization`) to stay signed in everywhere. (Pages that guard themselves with an ability object in `definePageMeta` are not seen here.)')
+      }
     })
     nuxt.hook('pages:resolved', (pages) => {
       if (prepare || !tabs.length) return
@@ -303,8 +346,8 @@ declare module '#mobile/tabs' {
 
     // What the `frigear-mobile` CLI needs, and the doctor's checks on dev / build start.
     const manifest = (): MobileNativeManifest => {
-      const oauth = (nuxt.options.runtimeConfig.public as { oauthClient?: { nativeRedirectUri?: string } }).oauthClient
-      const redirectUri = oauth?.nativeRedirectUri ?? ''
+      const client = (nuxt.options.runtimeConfig.public as { authentication?: { client?: { nativeRedirectUri?: string } } }).authentication?.client
+      const redirectUri = client?.nativeRedirectUri ?? ''
       return {
         appId,
         appName,
@@ -316,7 +359,7 @@ declare module '#mobile/tabs' {
           nativeChrome: options.nativeChrome !== false,
           statusBar: options.native?.statusBar !== false,
           keyboardAccessoryBar: options.native?.keyboardAccessoryBar !== false,
-          oauth: hasNuxtModule('@frigear-nu/oauth-client', nuxt),
+          oauth: clientAuth,
         }),
       }
     }

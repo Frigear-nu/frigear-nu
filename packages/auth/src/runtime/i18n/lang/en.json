@@ -118,6 +118,23 @@
         "label": "Logout",
         "description": "Sign out of your account."
       }
+    },
+    "client": {
+      "signIn": "Sign in",
+      "login": {
+        "title": "Sign in",
+        "description": "Sign in with your account to continue.",
+        "failed": "Sign-in failed",
+        "failedDescription": "The sign-in was not completed. Try again."
+      },
+      "callback": {
+        "pending": "Signing you in…",
+        "failed": "Sign-in failed",
+        "retry": "Try signing in again",
+        "denied": "The sign-in was cancelled.",
+        "offline": "The sign-in server could not be reached. Check the connection and try again.",
+        "generic": "The sign-in could not be completed."
+      }
     }
   }
 }

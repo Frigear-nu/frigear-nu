@@ -4,10 +4,11 @@ import { createNativeNavigationController } from '../../src/runtime/shared/nativ
 import type { NativeNavigationPluginLike } from '../../src/runtime/shared/native'
 import { normalizeTabs } from '../../src/runtime/shared/tabs'
 
+// Both tabs need a user, so signed out there is no tab bar.
 const { tabs } = normalizeTabs([
-  { id: 'home', to: '/', label: 'Home', icon: 'i', sfSymbol: 'house', sfSymbolActive: 'house.fill' },
-  { id: 'bills', to: '/bills', label: 'Bills', icon: 'i', sfSymbol: 'list.bullet' },
-], { auth: true })
+  { id: 'home', to: '/', label: 'Home', icon: 'i', sfSymbol: 'house', sfSymbolActive: 'house.fill', requiresAuth: true },
+  { id: 'bills', to: '/bills', label: 'Bills', icon: 'i', sfSymbol: 'list.bullet', requiresAuth: true },
+])
 
 const chrome = (overrides: Partial<ChromeInput> = {}) => resolveChrome({
   platform: 'ios', nativeChrome: 'ios', nativeNavigation: true, tabs, path: '/', authenticated: true,
