@@ -45,4 +45,17 @@ describe('login/register pages (opt-in)', async () => {
   it('ships none of the client mode to the browser', () => {
     expect(filesContaining(outputDir('public'), /auth-client:|Signing you in…|AuthClientLoginPage/)).toEqual([])
   })
+
+  it('sends the caller\'s credentials through `$api` / `useApi` to this app only', async () => {
+    const html = await $fetch<string>('/api-check', { headers: { cookie: 'probe=1', authorization: 'Bearer probe' } })
+    const json = /<pre id="result">([\s\S]*?)<\/pre>/.exec(html)?.[1]?.replaceAll('&quot;', '"')
+    const result = JSON.parse(json!)
+    const forwarded = { cookie: expect.stringContaining('probe=1'), authorization: 'Bearer probe' }
+    expect(result.own).toEqual(forwarded)
+    expect(result.ownUrl).toEqual(forwarded)
+    expect(result.other).toEqual({ cookie: null, authorization: null })
+    expect(result.otherBase).toEqual({ cookie: null, authorization: null })
+    expect(result.useApi.cookie).toContain('probe=1')
+    expect(result.status).toBe('signed-out')
+  })
 })

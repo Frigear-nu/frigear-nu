@@ -25,6 +25,10 @@ const owner = await requireAuth(event, { sessionOnly: true })
 - Any nuxt-auth-utils OAuth provider (Auth0, Okta, Keycloak, `oidc`, ...) signs in at `/api/auth/<provider>` once its
   `NUXT_OAUTH_<PROVIDER>_*` credentials are set; `settings.oauth.<provider>` only overrides its label, icon and sign-up.
 - The config key is `authentication` (`auth` belongs to nuxt-auth-utils).
+- The same client API as client mode: `useUserSession()`, `useAuth()` (`login` goes to the login page with
+  `?redirect=`, `logout` ends the session) and `$api` / `useApi()`. `$api` sends the caller's credentials (the incoming
+  Cookie and Authorization headers during a server render) only to this app's own paths and origin, never to another
+  URL or a foreign `baseURL`.
 
 ## Client mode
 

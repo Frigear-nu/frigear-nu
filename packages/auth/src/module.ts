@@ -457,7 +457,11 @@ export {}
     'useRegistration',
     'useAuthPages',
     'useAfterLogin',
+    // The client API both modes share (client mode registers its own).
+    'useAuth',
+    'useApi',
   ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
+  addPlugin(resolver.resolve('./runtime/app/plugins/api'))
 
   // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
   // default, since they require `@nuxt/ui` to be installed in the consuming app.
