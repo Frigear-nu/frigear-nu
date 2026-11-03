@@ -80,7 +80,7 @@ Suggested scripts: `"ios:run": "frigear-mobile native --if-missing && nuxt gener
 
 | Option | Default | |
 |---|---|---|
-| `appId` | `capacitor.config.appId` | reverse-DNS id; `capacitor.config.appId`, and the OAuth redirect scheme (lowercase) |
+| `appId` | `capacitor.config.appId` | reverse-DNS id; `capacitor.config.appId`, and the OAuth redirect scheme (lowercase, `_` as `-`) |
 | `appName` | `capacitor.config.appName`, else `appId` | `capacitor.config.appName` and the fallback title |
 | `tabs` | `[]` | see [Tabs](#tabs) |
 | `auth` | on when `@frigear-nu/oauth-client` is installed | tabs with `requiresAuth` show signed in only |
