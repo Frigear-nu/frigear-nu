@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/payments",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "One-time payments (Stripe Checkout, refunds and payment lifecycle hooks) for the frigear ecosystem, built on @frigear-nu/stripe.",
   "homepage": "https://docs.frigear.dev/modules/payments",
   "repository": {
