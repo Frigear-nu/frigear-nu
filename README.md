@@ -19,19 +19,25 @@ cd my-project
 git init
 corepack enable
 pnpm install
-pnpm prepare:env   # then set NUXT_SESSION_PASSWORD and NUXT_ACL_ADMINS (your email) in apps/web/.env
+pnpm prepare:env   # creates apps/web/.env with a session password; set NUXT_ACL_ADMINS (your email) there
 pnpm dev
 ```
 
 Open http://localhost:3000, create an account with the email in `NUXT_ACL_ADMINS`, then visit `/account` and `/admin`.
 The full walkthrough, including how to add more modules, is the
-[Quick start guide](./apps/docs/content/1.getting-started/3.quick-start.md) in the docs.
+[Workspace starter guide](./apps/docs/content/2.guides/1.workspace-starter.md) in the docs. For an iOS and Android app,
+use one of the mobile starters below. Not sure which? The [Quick start](./apps/docs/content/1.getting-started/3.quick-start.md) compares the three.
 
 To work on this repository itself, see [Local development](./apps/docs/content/1.getting-started/4.local-development.md).
 
 ## Starters
 
-- [.starters/workspace](./.starters/workspace) - pnpm monorepo + Nuxt 4 app wired to users, auth, authorization, account and admin. Not part of this workspace: it uses the published versions.
+Templates for new projects, copied with `pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/<starter> <dir>`. They
+are not part of this workspace: they use the published versions.
+
+- [.starters/workspace](./.starters/workspace) - pnpm monorepo + Nuxt 4 app wired to users, auth, authorization, account and admin ([guide](./apps/docs/content/2.guides/1.workspace-starter.md))
+- [.starters/mobile](./.starters/mobile) - pnpm monorepo + Capacitor app on `@frigear-nu/mobile` that signs in at frigear.nu or any OpenID Connect issuer ([guide](./apps/docs/content/2.guides/2.mobile-starter.md))
+- [.starters/mobile-standalone](./.starters/mobile-standalone) - the workspace starter plus the mobile app, with `apps/web` as its OAuth server and API ([guide](./apps/docs/content/2.guides/3.mobile-standalone-starter.md))
 
 
 ## Apps

@@ -3,7 +3,7 @@
 A **Nuxt 4** app on the published `@frigear-nu` modules. Run every command from the repository root
 (`pnpm --filter ./apps/web <command>`), never from this folder. Module docs: https://docs.frigear.dev, also as
 Markdown at `https://docs.frigear.dev/raw/<path>.md` (start with
-https://docs.frigear.dev/raw/getting-started/quick-start.md). The source is
+https://docs.frigear.dev/raw/guides/workspace-starter.md). The source is
 https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content.
 
 ## Layout
@@ -17,6 +17,7 @@ server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for 
 server/utils/map-session-user.ts   session mapper (authentication.settings.session.mapper)
 server/plugins/users-policy.ts     host policy for the users admin
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
+modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
 ```
 
 - Nuxt 4 directory structure: app code lives under `app/`. Never create Nuxt 3 style top-level `components/`, `pages/`.

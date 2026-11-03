@@ -8,6 +8,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 /apps/web         Nuxt 4 application on the @frigear-nu modules (the product)
 /apps/**          Other apps - could be any language or deployment target
 /packages/**      Shared workspace packages (config, types, utils, ...)
+/scripts          Workspace scripts (prepare-env.mjs)
 ```
 
 This is a pnpm workspace monorepo. Packages under `packages/**` are consumed by `apps/web` (and each other) via
@@ -35,7 +36,7 @@ fetch than the HTML:
 - Module index: https://docs.frigear.dev/raw/modules.md
 - One module: `https://docs.frigear.dev/raw/modules/<module>.md` (for example
   https://docs.frigear.dev/raw/modules/users.md)
-- Quick start: https://docs.frigear.dev/raw/getting-started/quick-start.md
+- This starter: https://docs.frigear.dev/raw/guides/workspace-starter.md
 - UX patterns: https://docs.frigear.dev/raw/getting-started/ux-patterns.md
 
 The docs describe the latest releases; check the version installed in `apps/web/package.json` if something differs.
@@ -48,7 +49,7 @@ The source of the docs and modules is https://github.com/Frigear-nu/frigear-nu (
 ```bash
 corepack enable
 pnpm install          # installs all workspaces from the repo root
-pnpm prepare:env      # creates apps/web/.env from .env.example
+pnpm prepare:env      # creates apps/web/.env from .env.example and generates NUXT_SESSION_PASSWORD
 ```
 
 ## Common commands

@@ -6,7 +6,7 @@
     "dev": "pnpm --filter ./apps/web dev",
     "build": "pnpm -r build",
     "preview": "pnpm --filter ./apps/web preview",
-    "prepare:env": "pnpm -r run prepare:env",
+    "prepare:env": "node scripts/prepare-env.mjs",
     "db:generate": "pnpm --filter ./apps/web db:generate",
     "db:migrate": "pnpm --filter ./apps/web db:migrate",
     "test": "pnpm -r --parallel test",

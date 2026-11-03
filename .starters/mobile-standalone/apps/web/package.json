@@ -1,0 +1,40 @@
+{
+  "name": "@workspace/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "db:generate": "nuxt db generate",
+    "db:migrate": "NODE_ENV=development nuxt db migrate"
+  },
+  "dependencies": {
+    "@frigear-nu/account": "^0.2.2",
+    "@frigear-nu/admin": "^0.2.1",
+    "@frigear-nu/auth": "^0.2.2",
+    "@frigear-nu/authorization": "^0.2.1",
+    "@frigear-nu/menu": "^0.2.1",
+    "@frigear-nu/oauth-server": "^0.4.0",
+    "@frigear-nu/users": "^1.2.2",
+    "@frigear-nu/widget": "^0.2.1",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/ui": "^4.12.0",
+    "@nuxthub/core": "^0.10.8",
+    "@workspace/mobile": "workspace:*",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "nuxt": "^4.6.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.17.0",
+    "eslint": "^10.12.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.11"
+  }
+}

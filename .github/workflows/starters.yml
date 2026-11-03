@@ -1,7 +1,8 @@
 name: Starters
 
-# Builds .starters/workspace against the published @frigear-nu versions, the way `giget` users get it, and fails when
-# its committed migrations no longer match the modules' schemas (regenerate them, see AGENTS.md "Starters").
+# Builds each starter in .starters/ against the published @frigear-nu versions, the way `giget` users get it, fails
+# when committed migrations no longer match the modules' schemas (regenerate them, see AGENTS.md "Starters"), smoke
+# tests the standalone mobile starter's OAuth server, and fails when the files the starters share drift apart.
 on:
   pull_request:
     paths:
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - '.starters/**'
+      - '.github/workflows/starters.yml'
   schedule:
     # Weekly, to catch module releases that change a schema.
     - cron: '0 6 * * 1'
@@ -20,43 +22,103 @@ permissions:
   contents: read
 
 jobs:
-  workspace:
-    name: Workspace starter
+  starter:
+    name: ${{ matrix.starter }} starter
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        starter: [workspace, mobile, mobile-standalone]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Copy the starter out of this workspace
-        run: cp -R .starters/workspace "$RUNNER_TEMP/starter"
+        run: cp -R ".starters/${{ matrix.starter }}" "$RUNNER_TEMP/starter"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          package_json_file: .starters/workspace/package.json
+          package_json_file: .starters/${{ matrix.starter }}/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version-file: ${{ runner.temp }}/starter/.nvmrc
+          node-version-file: .starters/${{ matrix.starter }}/.nvmrc
+
+      # Release gate. A starter may depend on @frigear-nu versions that are not on npm yet: a module added, or a
+      # feature it needs, in the same PR as the starter change. Until they are released, a pull request skips the
+      # build (with a warning naming the missing versions) instead of failing; on main, the schedule and manual runs
+      # it fails, because main must only reference released versions. The drift job below always runs.
+      - name: Published @frigear-nu versions
+        id: gate
+        working-directory: ${{ runner.temp }}/starter
+        run: |
+          missing=()
+          while read -r spec; do
+            [ -z "$spec" ] && continue
+            if [ -z "$(npm view "$spec" version 2>/dev/null)" ]; then missing+=("$spec"); fi
+          done < <(node -e '
+            const fs = require("node:fs"), path = require("node:path")
+            const files = ["package.json"]
+            for (const group of ["apps", "packages"]) {
+              if (!fs.existsSync(group)) continue
+              for (const dir of fs.readdirSync(group)) {
+                const file = path.join(group, dir, "package.json")
+                if (fs.existsSync(file)) files.push(file)
+              }
+            }
+            const specs = new Set()
+            for (const file of files) {
+              const pkg = JSON.parse(fs.readFileSync(file, "utf8"))
+              for (const deps of [pkg.dependencies, pkg.devDependencies]) {
+                for (const [name, range] of Object.entries(deps ?? {})) {
+                  if (name.startsWith("@frigear-nu/")) specs.add(`${name}@${range}`)
+                }
+              }
+            }
+            console.log([...specs].join("\n"))
+          ')
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "published=false" >> "$GITHUB_OUTPUT"
+          message="Not on npm yet: ${missing[*]}. Release them, then rerun this job."
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::warning title=${{ matrix.starter }} starter skipped::$message"
+          else
+            echo "::error title=${{ matrix.starter }} starter::$message"
+            exit 1
+          fi
 
       - name: Install
+        if: steps.gate.outputs.published == 'true'
         working-directory: ${{ runner.temp }}/starter
         run: pnpm install --no-frozen-lockfile
 
+      - name: Prepare env
+        if: steps.gate.outputs.published == 'true'
+        working-directory: ${{ runner.temp }}/starter
+        run: pnpm prepare:env
+
       - name: Lint
+        if: steps.gate.outputs.published == 'true'
         working-directory: ${{ runner.temp }}/starter
         run: pnpm lint
 
       - name: Typecheck
+        if: steps.gate.outputs.published == 'true'
         working-directory: ${{ runner.temp }}/starter
         run: pnpm typecheck
 
       - name: Build
+        if: steps.gate.outputs.published == 'true'
         working-directory: ${{ runner.temp }}/starter
         run: pnpm build
 
       - name: Migrations are up to date
+        if: steps.gate.outputs.published == 'true' && matrix.starter != 'mobile'
         working-directory: ${{ runner.temp }}/starter
         run: |
           git init -q && git add -A apps/web/server/db/migrations
@@ -64,6 +126,58 @@ jobs:
           pnpm db:generate
           if [ -n "$(git status --porcelain apps/web/server/db/migrations)" ]; then
             git status --porcelain apps/web/server/db/migrations
-            echo "::error::.starters/workspace migrations are stale: regenerate them (see AGENTS.md, Starters)"
+            echo "::error::.starters/${{ matrix.starter }} migrations are stale: regenerate them (see AGENTS.md, Starters)"
             exit 1
           fi
+
+      # The built server answers what apps/mobile needs: discovery, the configured `mobile` client (302 to the login
+      # page) and bearer CORS for /api/ from the iOS webview's origin.
+      - name: OAuth smoke test
+        if: steps.gate.outputs.published == 'true' && matrix.starter == 'mobile-standalone'
+        working-directory: ${{ runner.temp }}/starter/apps/web
+        run: |
+          PORT=3000 node --env-file=.env .output/server/index.mjs > server.log 2>&1 &
+          server=$!
+          # Print the server's output whenever the step fails, and stop it either way.
+          trap 'rc=$?; [ $rc -eq 0 ] || { echo "--- server.log"; cat server.log; }; kill $server 2>/dev/null || true; exit $rc' EXIT
+          base=http://localhost:3000
+          check() { # <name> <expected status> <curl args...>
+            name=$1 expected=$2; shift 2
+            status=$(curl -s -o /dev/null -w '%{http_code}' "$@")
+            echo "$name: $status"
+            [ "$status" = "$expected" ] || { echo "::error::$name answered $status, expected $expected"; exit 1; }
+          }
+          curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 1 "$base/.well-known/openid-configuration" \
+            || { echo "::error::the server did not start"; exit 1; }
+          check discovery 200 "$base/.well-known/openid-configuration"
+          check authorize 302 "$base/oauth/authorize?client_id=mobile&response_type=code&redirect_uri=com.example.mobile:/auth/callback&scope=openid&state=ci-smoke-state-0001&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
+          check 'api preflight' 204 -X OPTIONS -H 'Origin: capacitor://localhost' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization' "$base/api/me"
+
+  drift:
+    name: Shared files are identical
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Keep in step with AGENTS.md "Starters". Change a shared file in every starter in the same commit.
+      - name: Compare the starters
+        run: |
+          failed=0
+          compare() { # <a> <b> [diff options...]
+            a=$1 b=$2; shift 2
+            if ! diff -r "$@" "$a" "$b"; then
+              echo "::error::$a and $b differ: change both in the same commit"
+              failed=1
+            fi
+          }
+          for starter in mobile mobile-standalone; do
+            for shared in .github .nvmrc .gitignore pnpm-workspace.yaml scripts packages; do
+              compare ".starters/workspace/$shared" ".starters/$starter/$shared"
+            done
+          done
+          compare .starters/mobile/apps/mobile .starters/mobile-standalone/apps/mobile
+          # apps/web of the standalone starter is the workspace one plus the OAuth server: only these files differ.
+          compare .starters/workspace/apps/web .starters/mobile-standalone/apps/web \
+            -x nuxt.config.ts -x package.json -x .env.example -x AGENTS.md -x migrations -x api -x oauth-policy.ts
+          exit $failed

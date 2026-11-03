@@ -1,0 +1,27 @@
+{
+  "name": "frigear-mobile-standalone-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.10.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/web --filter ./apps/mobile dev",
+    "dev:web": "pnpm --filter ./apps/web dev",
+    "dev:mobile": "pnpm --filter ./apps/mobile dev",
+    "dev:lan": "pnpm --filter ./apps/web dev --host 0.0.0.0",
+    "build": "pnpm -r build",
+    "preview": "pnpm --filter ./apps/web preview",
+    "prepare:env": "node scripts/prepare-env.mjs",
+    "db:generate": "pnpm --filter ./apps/web db:generate",
+    "db:migrate": "pnpm --filter ./apps/web db:migrate",
+    "mobile:native": "pnpm --filter ./apps/mobile run native",
+    "mobile:doctor": "pnpm --filter ./apps/mobile run doctor",
+    "mobile:sync": "pnpm --filter ./apps/mobile run cap:sync",
+    "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
+    "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",
+    "mobile:android": "pnpm --filter ./apps/mobile run android:run",
+    "test": "pnpm -r --parallel test",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "lint:fix": "pnpm -r --parallel lint:fix",
+    "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules .data"
+  }
+}

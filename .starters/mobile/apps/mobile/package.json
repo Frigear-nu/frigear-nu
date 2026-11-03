@@ -1,0 +1,52 @@
+{
+  "name": "@workspace/mobile",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./identity": "./identity.ts"
+  },
+  "scripts": {
+    "build": "nuxt generate",
+    "dev": "nuxt dev --port 3001",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "native": "frigear-mobile native",
+    "doctor": "frigear-mobile doctor",
+    "cap:sync": "nuxt generate && cap sync",
+    "ios:run": "frigear-mobile native --if-missing && nuxt generate && cap sync ios && cap run ios",
+    "ios:device": "frigear-mobile native --if-missing && MOBILE_LAN=1 nuxt generate && cap sync ios && cap open ios",
+    "android:run": "frigear-mobile native --if-missing && nuxt generate && cap sync android && cap run android"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/action-sheet": "^8.1.1",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/dialog": "^8.0.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.4",
+    "@capgo/capacitor-native-navigation": "^8.16.0",
+    "@frigear-nu/mobile": "^0.1.0",
+    "@frigear-nu/oauth-client": "^0.1.0",
+    "@iconify-json/lucide": "^1.2.150",
+    "@nuxt/ui": "^4.12.0",
+    "nuxt": "^4.6.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@nuxt/eslint": "^1.17.0",
+    "eslint": "^10.12.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.11"
+  }
+}
