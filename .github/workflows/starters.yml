@@ -136,16 +136,19 @@ jobs:
         if: steps.gate.outputs.published == 'true' && matrix.starter == 'mobile-standalone'
         working-directory: ${{ runner.temp }}/starter/apps/web
         run: |
-          # The libsql native binding is not traced into .output under pnpm; resolve it from the install.
-          NODE_PATH="$PWD/../../node_modules/.pnpm/node_modules" PORT=3000 node --env-file=.env .output/server/index.mjs > server.log 2>&1 &
+          PORT=3000 node --env-file=.env .output/server/index.mjs > server.log 2>&1 &
+          server=$!
+          # Print the server's output whenever the step fails, and stop it either way.
+          trap 'rc=$?; [ $rc -eq 0 ] || { echo "--- server.log"; cat server.log; }; kill $server 2>/dev/null || true; exit $rc' EXIT
           base=http://localhost:3000
           check() { # <name> <expected status> <curl args...>
             name=$1 expected=$2; shift 2
             status=$(curl -s -o /dev/null -w '%{http_code}' "$@")
             echo "$name: $status"
-            [ "$status" = "$expected" ] || { echo "::error::$name answered $status, expected $expected"; cat server.log; exit 1; }
+            [ "$status" = "$expected" ] || { echo "::error::$name answered $status, expected $expected"; exit 1; }
           }
-          curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 1 "$base/.well-known/openid-configuration"
+          curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 1 "$base/.well-known/openid-configuration" \
+            || { echo "::error::the server did not start"; exit 1; }
           check discovery 200 "$base/.well-known/openid-configuration"
           check authorize 302 "$base/oauth/authorize?client_id=mobile&response_type=code&redirect_uri=com.example.mobile:/auth/callback&scope=openid&state=ci-smoke-state-0001&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
           check 'api preflight' 204 -X OPTIONS -H 'Origin: capacitor://localhost' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization' "$base/api/me"

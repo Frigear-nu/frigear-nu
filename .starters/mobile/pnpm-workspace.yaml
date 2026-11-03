@@ -10,3 +10,8 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   vue-demi: true
+overrides:
+  # One copy of module-kit for every @frigear-nu module: the modules share build-time state through it, and a second
+  # copy (modules released against different minors) leaves a module's server code without its auto-imports, so the
+  # built server crashes on start (`definePolicyGate is not defined`). Raise it with the modules' own range.
+  '@frigear-nu/module-kit': ^1.3.0

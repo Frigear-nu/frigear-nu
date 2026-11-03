@@ -20,6 +20,7 @@ server/plugins/users-policy.ts     host policy for the users admin
 server/plugins/oauth-policy.ts     host policy of the OAuth server: OAuth admins and the roles of a user
 server/api/me.get.ts               GET /api/me, the sample route apps/mobile calls with its access token
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
+modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
 ```
 
 - Nuxt 4 directory structure: app code lives under `app/`. Never create Nuxt 3 style top-level `components/`, `pages/`.
