@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/oauth-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OAuth 2.1 / OpenID Connect public client with PKCE for Nuxt SPAs and Capacitor apps: discovery, rotating refresh tokens, secure storage, an authorized $api and drop-in sign-in pages. The core works without Nuxt.",
   "homepage": "https://docs.frigear.dev/modules/oauth-client",
   "repository": {
