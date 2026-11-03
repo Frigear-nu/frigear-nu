@@ -430,7 +430,7 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
       }
     },
 
-    async fetchUserInfo(): Promise<UserInfo> {
+    async fetchUserInfo({ subject } = {}): Promise<UserInfo> {
       const { userinfo } = await getEndpoints()
       if (!userinfo) throw new OAuthConfigError('no_userinfo_endpoint', `${issuer} has no userinfo endpoint.`)
       const response = await authorizedFetch(userinfo, { headers: { accept: 'application/json' } }, true, serverFetch)
@@ -442,11 +442,13 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
         info = await response.json() as UserInfo
       }
       catch {
-        throw new OAuthTransientError('invalid_userinfo', 'The userinfo response is not JSON.', { status: response.status })
+        // An HTML fallback page or a signed (`application/jwt`) response: the endpoint or client is misconfigured.
+        throw new OAuthConfigError('invalid_userinfo', 'The userinfo response is not JSON.', { status: response.status })
       }
-      // OpenID Connect Core §5.3.4: a response about another user than the id_token's must not be used.
-      const claims = await client.getClaims()
-      if (!info || typeof info.sub !== 'string' || (claims && info.sub !== claims.sub)) {
+      // OpenID Connect Core §5.3.4: a response about another user than the id_token's must not be used. Without an
+      // expected subject (or stored claims) there is nobody it could be about.
+      const expected = subject ?? (await client.getClaims())?.sub
+      if (!info || typeof info.sub !== 'string' || info.sub !== expected) {
         throw new OAuthAuthorizationError('userinfo_subject_mismatch', 'The userinfo response is about another user than the id_token.')
       }
       return info

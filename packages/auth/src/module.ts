@@ -738,7 +738,10 @@ declare module '#app' {
     'auth:signed-out': (ctx: { reason: SignOutReason }) => void | Promise<void>
     /** When a refresh failed but the session was kept (offline, server error, client misconfigured). */
     'auth:refresh-failed': (ctx: { error: OAuthError }) => void | Promise<void>
-    /** When the user could not be read: a stored session without identity (cleared). */
+    /**
+     * When the user could not be read: a stored session without identity (cleared), or a failed \`mapUser\` /
+     * userinfo mapping (\`user\` is then the claims mapping).
+     */
     'auth:user-failed': (ctx: { error: unknown }) => void | Promise<void>
   }
 }

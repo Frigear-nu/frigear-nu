@@ -3,7 +3,9 @@ import { listenForCallbacks } from '../../capacitor/adapters'
 import { safeReturnTo } from '../../utils'
 import { mapUser, userinfo } from '#auth/client-user'
 import { createSessionMapper, setSessionMapper } from '../utils/session'
-import type { AuthApi } from './api'
+import type { SessionMapperOptions } from '../utils/session'
+import { OAuthSessionError } from '../../core/errors'
+import { useAuthApiOf } from '../utils/api'
 import { handleUnauthorized } from '../utils/unauthorized'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
@@ -29,7 +31,10 @@ export default defineNuxtPlugin({
       return
     }
     const { client } = runtime
-    const report = (error: unknown) => console.error('[@frigear-nu/auth] Mapping the signed-in user failed:', error)
+    // A refused token was already handled (`onUnauthorized`); anything else is logged.
+    const report = (error: unknown) => {
+      if (!(error instanceof OAuthSessionError) && (error as { statusCode?: number })?.statusCode !== 401) console.error('[@frigear-nu/auth] Mapping the signed-in user failed:', error)
+    }
     const mapper = createSessionMapper({
       state,
       hooks: nuxtApp,
@@ -37,14 +42,14 @@ export default defineNuxtPlugin({
       expected: runtime.identity,
       mapUser,
       userinfo,
-      // `$api` is provided by the next plugin; it is only called once a mapping runs.
-      api: (request, options) => (nuxtApp.$api as AuthApi)(request, options),
+      // The same `$api` the next plugin provides, usable already by the mapping of a restored session.
+      api: useAuthApiOf(nuxtApp) as SessionMapperOptions['api'],
       onUnauthorized: () => handleUnauthorized(nuxtApp, client, config),
       // In the background a mapping error is logged; `useUserSession().fetch()` rejects with it.
       onError: report,
     })
     setSessionMapper(nuxtApp, mapper)
-    const apply = (tokens: Parameters<typeof mapper.apply>[0], wait = false) => mapper.apply(tokens, { wait })
+    const apply = (tokens: Parameters<typeof mapper.apply>[0]) => mapper.apply(tokens)
 
     // A restored session is not a sign-in: no `auth:signed-in`.
     await apply(await client.getTokens().catch(() => null))
@@ -54,12 +59,16 @@ export default defineNuxtPlugin({
         void nuxtApp.callHook('auth:refresh-failed', { error: event.error })
         return
       }
-      // `auth:signed-in` gets the mapped user (the claims mapping when mapping failed).
-      void apply(event.tokens, event.type === 'signed-in').catch(report).then(() => {
-        if (event.type === 'signed-in' && state.session.value?.user && state.claims.value) {
-          void nuxtApp.callHook('auth:signed-in', { user: state.session.value.user, claims: state.claims.value })
+      // `auth:signed-in` gets the mapped user (the claims mapping when mapping failed), only while this sign-in is
+      // still the current one.
+      // A new sign-in always maps again (new consent may unlock more userinfo).
+      const signedIn = event.type === 'signed-in'
+      void mapper.apply(event.tokens, { wait: signedIn, force: signedIn }).then((sessionId) => {
+        const { session } = state
+        if (event.type === 'signed-in' && sessionId && session.value?.id === sessionId && session.value.user && state.claims.value) {
+          void nuxtApp.callHook('auth:signed-in', { user: session.value.user, claims: state.claims.value })
         }
-      })
+      }, report)
       if (event.type === 'signed-out') void nuxtApp.callHook('auth:signed-out', { reason: event.reason })
     })
 

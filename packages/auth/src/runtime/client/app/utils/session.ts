@@ -31,15 +31,18 @@ export interface SessionMapperOptions {
   onUnauthorized: () => Promise<void> | void
   /** A mapping that runs in the background failed for a reason that must surface. */
   onError: (error: unknown) => void
+  /** A mapping that takes longer fails as transient. Default 15 seconds. */
+  timeoutMs?: number
 }
 
 export interface SessionMapper {
   /**
-   * Puts stored tokens into the shared state and resolves; the mapping runs in the background. `force` maps the user
-   * again and drops the cached userinfo (`useUserSession().fetch()`). `wait` resolves once the user is mapped and
-   * rejects when the mapping failed for a reason other than being offline or signed out.
+   * Puts stored tokens into the shared state and resolves with the session id it applied (`null` signed out); the
+   * mapping runs in the background. `force` maps the user again and drops the cached userinfo
+   * (`useUserSession().fetch()`). `wait` resolves once the user of this sign-in is mapped (following any newer run of
+   * the same sign-in) and rejects when the mapping failed for a reason other than being offline or signed out.
    */
-  apply: (tokens: OAuthTokens | null, options?: { force?: boolean, wait?: boolean }) => Promise<void>
+  apply: (tokens: OAuthTokens | null, options?: { force?: boolean, wait?: boolean }) => Promise<string | null>
 }
 
 // Claims every refreshed id_token renews: a change in them alone is not new claims.
@@ -51,6 +54,21 @@ const claimsKey = (claims: IdTokenClaims) => JSON.stringify(Object.keys(claims).
 const defaultMapUser = (withUserinfo: boolean): AuthClientMapUser | null => withUserinfo
   ? async ({ claims, userinfo }) => mapClaimsToUser({ ...claims, ...(await userinfo()), sub: claims.sub }) as unknown as Record<string, unknown>
   : null
+
+type Failure = 'transient' | 'unauthorized' | 'handled' | 'surface'
+
+/** How a failed mapping is handled. `$api` errors are `FetchError`s: it already ran `onUnauthorized` on a 401. */
+function classify(error: unknown): Failure {
+  if (error instanceof OAuthTransientError) return 'transient'
+  if (error instanceof OAuthSessionError) return 'unauthorized'
+  if (error instanceof Error && error.name === 'FetchError') {
+    const status = (error as { statusCode?: number, response?: { status?: number } }).statusCode
+      ?? (error as { response?: { status?: number } }).response?.status
+    if (status === undefined || status === 429 || status >= 500) return 'transient'
+    if (status === 401) return 'handled'
+  }
+  return 'surface'
+}
 
 /**
  * The signed-in user of client mode. A session without id_token claims of this issuer and client (a corrupt store, a
@@ -66,40 +84,63 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
   const mapUser = options.mapUser ?? defaultMapUser(options.userinfo)
   let version = 0
   let key: string | null = null
+  /** The run of the current version, so `wait` can follow a newer run of the same sign-in. */
+  let latest: Promise<void> = Promise.resolve()
 
   const fail = (error: unknown) => void hooks.callHook('auth:user-failed', { error })
+  /** Waits for the current run, and for any run that replaced it meanwhile; rejects with the last one's error. */
+  async function settled() {
+    for (let seen: Promise<void> | undefined; seen !== latest;) {
+      seen = latest
+      await seen
+    }
+  }
+  const setUser = (mapped: Record<string, unknown>, claims: IdTokenClaims) => {
+    // The issuer's subject is the identity, whatever the mapper returned.
+    const user = { ...mapped, id: claims.sub, sub: claims.sub } as unknown as User
+    state.session.value = { ...state.session.value!, user }
+  }
 
   async function run(current: number, claims: IdTokenClaims): Promise<void> {
     if (!mapUser) return
     let cached: Promise<UserInfo> | undefined
     const context: AuthClientUserContext = {
       claims,
-      userinfo: () => (cached ??= client.fetchUserInfo()),
+      // Bound to this sign-in's subject, whatever is stored by the time the response arrives.
+      userinfo: () => (cached ??= client.fetchUserInfo({ subject: claims.sub })),
       api: options.api,
     }
     let mapped: Record<string, unknown>
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new OAuthTransientError('mapping_timeout', 'Mapping the signed-in user timed out.')), options.timeoutMs ?? 15_000)
+    })
     try {
-      mapped = await mapUser(context)
+      mapped = await Promise.race([Promise.resolve().then(() => mapUser(context)), timeout])
       if (!mapped || typeof mapped !== 'object') throw new TypeError('`authentication.client.mapUser` must return an object.')
     }
     catch (error) {
       if (current !== version) return
-      // Offline or a server error: the claims mapping stays.
-      if (error instanceof OAuthTransientError) return fail(error)
-      // The API refused the tokens: handled like a 401 of `$api`.
-      if (error instanceof OAuthSessionError) {
-        fail(error)
-        await options.onUnauthorized()
+      const failure = classify(error)
+      fail(error)
+      // Whatever failed, the user is the claims mapping of these claims, never a previous mapping's (a revoked role).
+      setUser(mapClaimsToUser(claims) as unknown as Record<string, unknown>, claims)
+      // Offline or a server error: the next refresh with these claims maps again.
+      if (failure === 'transient') {
+        key = null
         return
       }
-      // A configuration error, a userinfo response about another user or a failing mapper: surface it.
-      fail(error)
+      // The tokens were refused: handled like a 401 of `$api` (which already did, for its own requests).
+      if (failure === 'unauthorized') await options.onUnauthorized()
+      // A refusal, a configuration error, a userinfo response about another user or a failing mapper: surface it.
       throw error
     }
-    // Signed out, another user or newer claims meanwhile: this result is stale.
+    finally {
+      clearTimeout(timer)
+    }
+    // Signed out, another sign-in or newer claims meanwhile: this result is stale.
     if (current !== version || !state.session.value) return
-    const user = { id: claims.sub, sub: claims.sub, ...mapped } as unknown as User
-    state.session.value = { ...state.session.value, user }
+    setUser(mapped, claims)
   }
 
   return {
@@ -108,6 +149,7 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
       if (!tokens || !claims) {
         version++
         key = null
+        latest = Promise.resolve()
         state.status.value = 'signed-out'
         state.claims.value = null
         state.session.value = null
@@ -115,26 +157,34 @@ export function createSessionMapper(options: SessionMapperOptions): SessionMappe
           await client.signOutLocally('no_identity').catch(() => undefined)
           fail(new OAuthAuthorizationError('no_identity', 'The stored session has no id_token claims of this issuer and client.'))
         }
-        return
+        return null
       }
       const sessionId = sessionIdOf(tokens, claims)
       const previous = state.session.value
-      const sameUser = !!previous && state.claims.value?.sub === claims.sub
+      // The same sign-in of the same user; a new sign-in always maps again, with a fresh userinfo.
+      const sameSession = !!previous && previous.id === sessionId && state.claims.value?.sub === claims.sub
       // A refresh that kept the claims changes nothing about the user (and keeps the cached userinfo).
-      if (!force && sameUser && claimsKey(claims) === key) {
+      if (!force && sameSession && claimsKey(claims) === key) {
         state.claims.value = claims
-        if (previous.id !== sessionId) state.session.value = { ...previous, id: sessionId }
-        return
+        if (wait) await settled()
+        return sessionId
       }
       const current = ++version
       key = claimsKey(claims)
       state.claims.value = claims
-      // The same user keeps the mapped user until the new mapping finishes; a new one starts from the claims.
-      state.session.value = { id: sessionId, user: sameUser && mapUser ? previous.user : mapClaimsToUser(claims) }
+      // The same sign-in keeps the mapped user until the new mapping finishes; a new one starts from the claims.
+      state.session.value = { id: sessionId, user: sameSession && mapUser ? previous.user : mapClaimsToUser(claims) }
       state.status.value = 'signed-in'
       const mapped = run(current, claims)
-      if (wait) return mapped
-      mapped.catch(options.onError)
+      latest = mapped
+      if (!wait) {
+        mapped.catch(options.onError)
+        return sessionId
+      }
+      await mapped
+      // A refresh during the mapping (from its own requests) started a newer run of this sign-in: wait for it too.
+      if (state.session.value?.id === sessionId) await settled()
+      return sessionId
     },
   }
 }

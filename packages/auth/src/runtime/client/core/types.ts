@@ -207,10 +207,10 @@ export interface OAuthClient {
   /** The claims of the stored id_token (validated when it was received), or `null`. */
   getClaims(): Promise<IdTokenClaims | null>
   /**
-   * `GET` the userinfo endpoint with the access token. Rejects a response whose `sub` is not the stored id_token's
-   * (`userinfo_subject_mismatch`).
+   * `GET` the userinfo endpoint with the access token. Rejects a response whose `sub` is not `subject` (default: the
+   * stored id_token's, read when the response arrives) with `userinfo_subject_mismatch`.
    */
-  fetchUserInfo(): Promise<UserInfo>
+  fetchUserInfo(options?: { subject?: string }): Promise<UserInfo>
   /**
    * `fetch` with the bearer token for `attachTo` origins only; a 401 refreshes once and retries. A refresh that fails
    * transiently rejects with its `OAuthTransientError`; an ended session returns the 401 response.

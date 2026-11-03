@@ -601,7 +601,22 @@ describe('fetchUserInfo', () => {
     await expect(ctx.client.fetchUserInfo()).rejects.toMatchObject({ code: 'userinfo_subject_mismatch' })
   })
 
-  it('classifies failures: 401 ends the session, 5xx is transient', async () => {
+  it('checks the subject it is given, and has nobody to match once signed out', async () => {
+    const ctx = userinfo({ sub: '42' })
+    await signIn(ctx)
+    await expect(ctx.client.fetchUserInfo({ subject: '43' })).rejects.toMatchObject({ code: 'userinfo_subject_mismatch' })
+    expect(await ctx.client.fetchUserInfo({ subject: '42' })).toEqual({ sub: '42' })
+    await ctx.client.logout()
+    await expect(ctx.client.fetchUserInfo()).rejects.toMatchObject({ code: 'userinfo_subject_mismatch' })
+  })
+
+  it('treats a body that is not JSON as a configuration error', async () => {
+    const ctx = setup(({ url }) => url.endsWith('/oauth/userinfo') ? new Response('<html>', { status: 200 }) : tokens(1, { id_token: idToken }))
+    await signIn(ctx)
+    await expect(ctx.client.fetchUserInfo()).rejects.toMatchObject({ kind: 'config', code: 'invalid_userinfo' })
+  })
+
+  it('classifies failures: a refused token is a session error, 5xx is transient', async () => {
     const refused = userinfo({}, 401)
     await signIn(refused)
     await expect(refused.client.fetchUserInfo()).rejects.toBeInstanceOf(OAuthError)

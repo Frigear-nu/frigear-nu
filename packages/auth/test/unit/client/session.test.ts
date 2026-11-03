@@ -132,11 +132,48 @@ describe('the session (async mapping)', () => {
     expect(ctx.onUnauthorized).not.toHaveBeenCalled()
   })
 
-  it('handles a refused token (401) like `$api` does', async () => {
+  it('handles a refused token (401) like `$api` does, and lets `wait` reject', async () => {
     const ctx = setup({ userinfo: true })
-    ctx.client.fetchUserInfo.mockRejectedValue(new OAuthSessionError('invalid_token', 'refused', { status: 401 }))
-    await ctx.mapper.apply(stored(claims()), { wait: true })
+    const error = new OAuthSessionError('invalid_token', 'refused', { status: 401 })
+    ctx.client.fetchUserInfo.mockRejectedValue(error)
+    await expect(ctx.mapper.apply(stored(claims()), { wait: true })).rejects.toBe(error)
     expect(ctx.onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
+  it('maps again on the next refresh after a transient failure', async () => {
+    const ctx = setup({ userinfo: true })
+    ctx.client.fetchUserInfo.mockRejectedValueOnce(new OAuthTransientError('network_error', 'offline'))
+    await ctx.mapper.apply(stored(claims({ iat: 1 })), { wait: true })
+    expect(ctx.user()).not.toHaveProperty('role')
+    await ctx.mapper.apply(stored(claims({ iat: 2 })), { wait: true })
+    expect(ctx.user()).toMatchObject({ role: 'admin' })
+  })
+
+  it('times out a hanging mapping as transient', async () => {
+    const ctx = setup({ mapUser: () => new Promise(() => {}), timeoutMs: 5 })
+    await ctx.mapper.apply(stored(claims()), { wait: true })
+    expect(ctx.hooks.callHook).toHaveBeenCalledWith('auth:user-failed', { error: expect.objectContaining({ code: 'mapping_timeout' }) })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada' })
+  })
+
+  it('falls back to the claims mapping when re-mapping the same user fails for any reason', async () => {
+    const ctx = setup({ userinfo: true })
+    await ctx.mapper.apply(stored(claims()), { wait: true })
+    ctx.client.fetchUserInfo.mockRejectedValue(new OAuthConfigError('userinfo_failed', 'forbidden', { status: 403 }))
+    await expect(ctx.mapper.apply(stored(claims({ name: 'Ada L.' })), { wait: true })).rejects.toThrow('forbidden')
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada L.' })
+  })
+
+  it('swallows the failure of a stale run', async () => {
+    const first = deferred<Record<string, unknown>>()
+    let n = 0
+    const ctx = setup({ mapUser: () => (n++ === 0 ? first.promise : Promise.resolve({ role: 'member' })) })
+    const waiting = ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
+    await ctx.mapper.apply(stored(claims(), 's2'), { wait: true })
+    first.reject(new TypeError('stale'))
+    await expect(waiting).resolves.toBe('s1')
+    expect(ctx.onError).not.toHaveBeenCalled()
+    expect(ctx.user()).toMatchObject({ role: 'member' })
   })
 
   it.each([
@@ -192,5 +229,84 @@ describe('the session (async mapping)', () => {
       next.resolve({ sub: '42', role: 'owner' })
       await vi.waitFor(() => expect(ctx.user()).toMatchObject({ role: 'owner', name: 'Ada L.' }))
     })
+  })
+
+  it('maps a new sign-in of the same user again, with a fresh userinfo', async () => {
+    const ctx = setup({ userinfo: true })
+    await ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
+    await ctx.mapper.apply(null)
+    await ctx.mapper.apply(stored(claims(), 's2'), { wait: true })
+    expect(ctx.client.fetchUserInfo).toHaveBeenCalledTimes(2)
+    // Without a logout in between too: another sign-in id is another sign-in.
+    await ctx.mapper.apply(stored(claims(), 's3'), { wait: true })
+    expect(ctx.client.fetchUserInfo).toHaveBeenCalledTimes(3)
+  })
+
+  it('never lets a result of an earlier sign-in land on a later one, and says which sign-in it applied', async () => {
+    const runs = [deferred<Record<string, unknown>>(), deferred<Record<string, unknown>>()]
+    let n = 0
+    const ctx = setup({ mapUser: () => runs[n++]!.promise })
+    const first = ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
+    await ctx.mapper.apply(stored(claims(), 's2'))
+    runs[0]!.resolve({ role: 'admin' })
+    // The plugin only fires `auth:signed-in` when the returned id is still the session's.
+    expect(await first).toBe('s1')
+    expect(ctx.state.session.value!.id).toBe('s2')
+    expect(ctx.user()).not.toHaveProperty('role')
+    runs[1]!.resolve({ role: 'member' })
+    await vi.waitFor(() => expect(ctx.user()).toMatchObject({ role: 'member' }))
+  })
+
+  it('makes `wait` follow a newer run of the same sign-in and reject with its error', async () => {
+    const error = new TypeError('second run failed')
+    const runs = [deferred<Record<string, unknown>>(), deferred<Record<string, unknown>>()]
+    let n = 0
+    const ctx = setup({ mapUser: () => runs[n++]!.promise })
+    const waiting = ctx.mapper.apply(stored(claims(), 's1'), { wait: true })
+    // A refresh with new claims while the first mapping still runs (e.g. caused by its own request).
+    await ctx.mapper.apply(stored(claims({ name: 'Ada L.' }), 's1'))
+    runs[0]!.resolve({ role: 'admin' })
+    let settled = false
+    void waiting.then(() => (settled = true), () => (settled = true))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+    runs[1]!.reject(error)
+    await expect(waiting).rejects.toBe(error)
+  })
+
+  it('treats `$api` network errors and 5xx as transient, and its 401 as already handled', async () => {
+    const fetchError = (statusCode?: number) => Object.assign(new Error('fetch failed'), { name: 'FetchError', statusCode })
+    for (const error of [fetchError(), fetchError(503), fetchError(429)]) {
+      const ctx = setup({ mapUser: async ({ api }) => api('/api/me'), api: async () => Promise.reject(error) })
+      await ctx.mapper.apply(stored(claims()), { wait: true })
+      expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada' })
+      expect(ctx.hooks.callHook).toHaveBeenCalledWith('auth:user-failed', { error })
+    }
+    const refused = setup({ mapUser: async ({ api }) => api('/api/me'), api: async () => Promise.reject(fetchError(401)) })
+    await expect(refused.mapper.apply(stored(claims()), { wait: true })).rejects.toThrow('fetch failed')
+    expect(refused.onUnauthorized).not.toHaveBeenCalled()
+    const forbidden = setup({ mapUser: async ({ api }) => api('/api/me'), api: async () => Promise.reject(fetchError(403)) })
+    await expect(forbidden.mapper.apply(stored(claims()), { wait: true })).rejects.toThrow('fetch failed')
+  })
+
+  it('falls back to the claims mapping (not a previous mapped role) when re-mapping fails transiently', async () => {
+    const ctx = setup({ userinfo: true })
+    await ctx.mapper.apply(stored(claims()), { wait: true })
+    expect(ctx.user()).toMatchObject({ role: 'admin' })
+    ctx.client.fetchUserInfo.mockRejectedValue(new OAuthTransientError('network_error', 'offline'))
+    await ctx.mapper.apply(stored(claims({ role: 'member' })), { wait: true })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada', role: 'member' })
+  })
+
+  it('binds userinfo to the subject of the sign-in it maps', async () => {
+    const ctx = setup({ userinfo: true })
+    await ctx.mapper.apply(stored(claims()), { wait: true })
+    expect(ctx.client.fetchUserInfo).toHaveBeenCalledWith({ subject: '42' })
+  })
+
+  it('keeps the issuer\'s subject as the identity whatever the mapper returns', async () => {
+    const ctx = setup({ mapUser: async () => ({ id: 123, sub: 'someone-else', name: 'X' }) })
+    await ctx.mapper.apply(stored(claims()), { wait: true })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'X' })
   })
 })
