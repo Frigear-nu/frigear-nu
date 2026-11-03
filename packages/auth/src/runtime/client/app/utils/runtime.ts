@@ -9,6 +9,8 @@ import { browserUserAgent, isNativePlatform, preferencesStorage, secureStorage, 
 import type { AppPluginLike } from '../../capacitor/adapters'
 import { loopbackRewriter, resolveRedirectUri } from '../../utils'
 import type { AuthClientPublicConfig } from '../../types'
+import { normalizeIssuer } from '../../core/discovery'
+import type { ExpectedIdentity } from './user'
 
 export interface AuthClientRuntime {
   client: OAuthClient
@@ -21,6 +23,8 @@ export interface AuthClientRuntime {
   apiBase: string
   /** Applied to `apiBase` too, so a device in development reaches the dev machine. */
   rewriteUrl: (url: string) => string
+  /** Who stored tokens must be about. */
+  identity: ExpectedIdentity
 }
 
 let runtime: Promise<AuthClientRuntime> | undefined
@@ -125,5 +129,7 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
     tokensKey: keys.tokens,
     apiBase: rewriteUrl(config.apiBase || config.issuer),
     rewriteUrl,
+    // As the core compares issuers when it validates an id_token.
+    identity: { issuer: config.issuer, clientId: config.clientId, normalizeIssuer: value => rewriteUrl(normalizeIssuer(value)) },
   }
 }

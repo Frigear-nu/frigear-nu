@@ -19,7 +19,7 @@ export function filesContaining(dir: string, needle: string | RegExp): string[] 
         walk(path)
         continue
       }
-      if (!/\.(m?js|cjs|html|json|css)$/.test(name) || name.endsWith('.map')) continue
+      if (!/\.(?:m?js|cjs|html|json|css)$/.test(name) || name.endsWith('.map')) continue
       const text = readFileSync(path, 'utf8')
       if (typeof needle === 'string' ? text.includes(needle) : needle.test(text)) found.push(relative(dir, path))
     }

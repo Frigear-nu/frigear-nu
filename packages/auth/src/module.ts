@@ -3,12 +3,14 @@ import {
   addImports,
   addPlugin,
   addServerHandler,
+  addTemplate,
   addServerImportsDir,
   addServerTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  tryResolveModule,
   useLogger,
 } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
@@ -30,7 +32,7 @@ import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { Nitro } from 'nitropack'
 import { lowerFirst } from 'scule'
 import { isAbsolute, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
   AuthScopeAvailabilityContext,
@@ -135,9 +137,11 @@ const MODULE_NAME = '@frigear-nu/auth'
 const dependencyModes = new WeakMap<Nuxt, AuthMode>()
 
 // Server mode needs NuxtHub (an optional peer, since client mode does not): say so before Nuxt fails to load it.
-function assertNuxtHubInstalled(nuxt: Nuxt) {
-  const dirs = [nuxt.options.rootDir, fileURLToPath(new URL('.', import.meta.url))]
-  if (dirs.some(dir => isPackageInstalled('@nuxthub/core', dir, nuxt.options.modulesDir))) return
+async function assertNuxtHubInstalled(nuxt: Nuxt) {
+  // Resolved the way Nuxt resolves module dependencies: from the app, its modules dirs, and Auth itself.
+  const from = [nuxt.options.rootDir, ...nuxt.options.modulesDir].map(dir => pathToFileURL(`${dir.replace(/\/$/, '')}/`).href)
+  from.push(import.meta.url)
+  if (await tryResolveModule('@nuxthub/core', from)) return
   throw new Error(`[${MODULE_NAME}] Server mode needs \`@nuxthub/core\` (the database): install it, or set \`authentication.mode: 'client'\` for an app without a server.`)
 }
 
@@ -153,11 +157,11 @@ export default defineNuxtModule<ModuleOptions>({
     },
   },
   // The mode comes from the app's own config only (`resolveAuthMode`): client mode needs no server modules.
-  moduleDependencies: (nuxt) => {
+  moduleDependencies: async (nuxt) => {
     const mode = resolveAuthMode(nuxt)
     dependencyModes.set(nuxt, mode)
     if (mode === 'client') return { '@frigear-nu/module-kit': { version: '>=0.0.1' } }
-    if (!nuxt.options._prepare) assertNuxtHubInstalled(nuxt)
+    if (!nuxt.options._prepare) await assertNuxtHubInstalled(nuxt)
     return serverDependencies(nuxt)
   },
   setup(options, nuxt) {
@@ -172,7 +176,7 @@ export default defineNuxtModule<ModuleOptions>({
     })
     const mode = dependencyModes.get(nuxt) ?? resolveAuthMode(nuxt)
     if ((options.mode ?? 'server') !== mode) {
-      throw new Error(`[${MODULE_NAME}] \`authentication.mode\` came from a module default (${JSON.stringify(options.mode)}): set it in the app's own config, so every module sees the same mode.`)
+      throw new Error(`[${MODULE_NAME}] \`authentication.mode\` ${JSON.stringify(options.mode)} did not come from the app's config: set it under the \`authentication\` key of nuxt.config, not as inline module options or another module's default, so every module sees the same mode.`)
     }
     if (mode === 'client') return setupClientMode(options, nuxt, resolver)
     return setupServerMode(options, nuxt, resolver)
@@ -582,6 +586,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   const settings = options.settings ?? {}
   const prepare = !!nuxt.options._prepare
   inlineModuleRuntime(nuxt, resolver)
+  registerTailwindSource(nuxt, resolver.resolve('./runtime/client/app'))
 
   // A server render would always be signed out and never match the hydrated page.
   if (nuxt.options._layers.some(layer => (layer.config as { ssr?: unknown }).ssr === true)) {
@@ -629,6 +634,12 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   if (secretAllowed) defaults.clientSecret = ''
   const host = (nuxt.options.runtimeConfig.public as { authentication?: { client?: Partial<AuthClientPublicConfig> } }).authentication?.client
   const clientConfig = mergeClientPublicConfig(host, defaults)
+  // Undeclared even when the host's own config declares it empty, or a runtime env var would still fill it in.
+  if (!secretAllowed && clientConfig.clientSecret === '') delete clientConfig.clientSecret
+  // The host's runtime config can replace the scope too (an env override is checked again when the client starts).
+  if (!clientConfig.scope.split(/\s+/).includes('openid')) {
+    throw new Error(`[${MODULE_NAME}] \`runtimeConfig.public.authentication.client.scope\` must contain \`openid\`: the signed-in user comes from the id_token.`)
+  }
 
   assertNoClientSecretInBundle({
     dev: nuxt.options.dev,
@@ -683,20 +694,24 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // nuxt-auth-utils is not installed, so `#auth-utils` is the stand-in with the same session types.
   nuxt.options.alias['#auth-utils'] = resolver.resolve('./runtime/client/auth-utils')
   const clientTypes = (file: string) => JSON.stringify(resolver.resolve(`./runtime/client/${file}`))
+  // Next to the generated module, so TypeScript reads these types instead of inferring them from the JavaScript.
+  addTemplate({
+    filename: 'auth/native.d.mts',
+    write: true,
+    getContents: () => `import type { AppPluginLike, BrowserPluginLike, PreferencesPluginLike, SecureStoragePluginLike } from ${clientTypes('capacitor/adapters')}
+import type { TokenStorage } from ${clientTypes('core/types')}
+export declare const plugins: {
+  app: (() => Promise<AppPluginLike>) | null
+  browser: (() => Promise<BrowserPluginLike>) | null
+  preferences: (() => Promise<PreferencesPluginLike>) | null
+  secureStorage: (() => Promise<SecureStoragePluginLike>) | null
+}
+export declare const customStorage: (() => Promise<TokenStorage | (() => TokenStorage | Promise<TokenStorage>)>) | null
+`,
+  })
   addTypeTemplate({
     filename: 'types/auth-client.d.ts',
-    getContents: () => `import type { AppPluginLike, BrowserPluginLike, PreferencesPluginLike, SecureStoragePluginLike } from ${clientTypes('capacitor/adapters')}
-import type { IdTokenClaims, OAuthError, SignOutReason, TokenStorage } from ${clientTypes('core/index')}
-
-declare module '#auth/native' {
-  export const plugins: {
-    app: (() => Promise<AppPluginLike>) | null
-    browser: (() => Promise<BrowserPluginLike>) | null
-    preferences: (() => Promise<PreferencesPluginLike>) | null
-    secureStorage: (() => Promise<SecureStoragePluginLike>) | null
-  }
-  export const customStorage: (() => Promise<TokenStorage | (() => TokenStorage | Promise<TokenStorage>)>) | null
-}
+    getContents: () => `import type { IdTokenClaims, OAuthError, SignOutReason } from ${clientTypes('core/index')}
 
 // In client mode \`user.id\` is the issuer's \`sub\`. Module code that runs in both modes treats \`id\` as opaque.
 declare module '#auth-utils' {

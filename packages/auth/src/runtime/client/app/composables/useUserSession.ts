@@ -21,8 +21,8 @@ export function useUserSession(): UserSessionComposable {
     /** Re-reads the stored tokens and maps the user again. */
     async fetch() {
       if (import.meta.server) return
-      const { client } = await getAuthClientRuntime()
-      applySession(nuxtApp, client, await client.getTokens().catch(() => null))
+      const runtime = await getAuthClientRuntime()
+      await applySession(state, nuxtApp, runtime.client, await runtime.client.getTokens().catch(() => null), runtime.identity)
     },
     /** Signs out without navigating (`useAuth().logout({ redirect: false })`). */
     clear: () => logout({ redirect: false }),

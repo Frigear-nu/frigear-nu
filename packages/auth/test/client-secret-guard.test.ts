@@ -10,7 +10,7 @@ const clientConfig = (nuxt: Awaited<ReturnType<typeof loadNuxt>>) =>
 // The module setup runs while Nuxt loads, before anything is bundled, so a production build stops right there.
 describe('client mode: secret guard', () => {
   afterEach(() => {
-    for (const name of SECRET_ENV_NAMES) delete process.env[name]
+    for (const name of SECRET_ENV_NAMES) Reflect.deleteProperty(process.env, name)
   })
 
   it.each(SECRET_ENV_NAMES)('fails a production build when %s is set', async (name) => {

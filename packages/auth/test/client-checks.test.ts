@@ -30,6 +30,11 @@ describe('client mode: setup', () => {
     await expect(load({ authentication: { client: { scopes: ['profile'] } } })).rejects.toThrow(/must contain `openid`/)
   })
 
+  it('refuses a scope without openid from the host\'s runtime config', async () => {
+    await expect(load({ runtimeConfig: { public: { authentication: { client: { scope: 'profile' } } } } as never }))
+      .rejects.toThrow(/client\.scope` must contain `openid`/)
+  })
+
   it('refuses nuxt-auth-utils, naming who installs it', async () => {
     await expect(load({ modules: ['nuxt-auth-utils'] })).rejects.toThrow(/`nuxt-auth-utils` is installed \(by the app\), but client mode has no server/)
   })
@@ -41,7 +46,7 @@ describe('client mode: setup', () => {
 
   it('refuses a mode that comes from another module\'s defaults', async () => {
     const cwd = fileURLToPath(new URL('./fixtures/client-module-default', import.meta.url))
-    await expect(loadNuxt({ cwd, dev: false, ready: true })).rejects.toThrow(/came from a module default \("client"\)/)
+    await expect(loadNuxt({ cwd, dev: false, ready: true })).rejects.toThrow(/"client" did not come from the app's config/)
   })
 
   it('warns when route rules guard pages but Authorization is not installed', async () => {

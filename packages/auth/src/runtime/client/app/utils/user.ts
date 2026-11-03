@@ -2,16 +2,35 @@ import type { User } from '#auth-utils'
 import type { IdTokenClaims, OAuthTokens } from '../../core/types'
 import { decodeJwtPayload } from '../../core/jwt'
 
-/** The claims of the stored id_token (validated when it was received), or `null` when there is none or it is unreadable. */
-export const claimsOf = (tokens: OAuthTokens | null): IdTokenClaims | null => {
+/** Who a stored session must be about: tokens of another issuer or client (the config changed) are not ours. */
+export interface ExpectedIdentity {
+  issuer: string
+  clientId: string
+  /** Compares issuers after this on both sides (the loopback rewrite on a device). */
+  normalizeIssuer?: (issuer: string) => string
+}
+
+/**
+ * The claims of the stored id_token (validated when it was received), or `null` when there is none, it is unreadable,
+ * has no subject, or names another issuer or audience than `expected`.
+ */
+export const claimsOf = (tokens: OAuthTokens | null, expected?: ExpectedIdentity): IdTokenClaims | null => {
   if (!tokens?.idToken) return null
+  let claims: IdTokenClaims
   try {
-    const claims = decodeJwtPayload<IdTokenClaims>(tokens.idToken)
-    return typeof claims.sub === 'string' && claims.sub ? claims : null
+    claims = decodeJwtPayload<IdTokenClaims>(tokens.idToken)
   }
   catch {
     return null
   }
+  if (typeof claims.sub !== 'string' || !claims.sub) return null
+  if (expected) {
+    const normalize = expected.normalizeIssuer ?? ((issuer: string) => issuer.replace(/\/+$/, ''))
+    if (typeof claims.iss !== 'string' || normalize(claims.iss) !== normalize(expected.issuer)) return null
+    const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud]
+    if (!audiences.includes(expected.clientId)) return null
+  }
+  return claims
 }
 
 /**

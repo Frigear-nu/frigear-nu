@@ -26,20 +26,21 @@ export default defineNuxtPlugin({
       return
     }
     const { client } = runtime
-    const apply = (tokens: Parameters<typeof applySession>[2]) => applySession(nuxtApp, client, tokens)
+    const apply = (tokens: Parameters<typeof applySession>[3]) => applySession(state, nuxtApp, client, tokens, runtime.identity)
 
     // A restored session is not a sign-in: no `auth:signed-in`.
-    apply(await client.getTokens().catch(() => null))
+    await apply(await client.getTokens().catch(() => null))
 
     client.onChange((event) => {
       if (event.type === 'refresh-failed') {
         void nuxtApp.callHook('auth:refresh-failed', { error: event.error })
         return
       }
-      apply(event.tokens)
-      if (event.type === 'signed-in' && state.session.value?.user && state.claims.value) {
-        void nuxtApp.callHook('auth:signed-in', { user: state.session.value.user, claims: state.claims.value })
-      }
+      void apply(event.tokens).then(() => {
+        if (event.type === 'signed-in' && state.session.value?.user && state.claims.value) {
+          void nuxtApp.callHook('auth:signed-in', { user: state.session.value.user, claims: state.claims.value })
+        }
+      })
       if (event.type === 'signed-out') void nuxtApp.callHook('auth:signed-out', { reason: event.reason })
     })
 
