@@ -28,6 +28,8 @@ export type AuthorizationRouteRules = Omit<RouteRule, 'args' | 'ability'> & { ab
 export interface PublicModuleOptions {
   /** The authorization keys of `routeRules`, collected at build time. */
   routes?: Record<string, AuthorizationRouteRules>
+  /** Auth's anonymous entry points (`public.authentication.publicPaths`): less specific guards stop there. */
+  exempt?: string[]
   redirectTo?: string
 }
 

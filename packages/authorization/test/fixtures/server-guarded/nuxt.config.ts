@@ -1,6 +1,6 @@
 import MyModule from '../../../src/module'
 
-// A server-mode app signed in everywhere, with the API for admins only: Auth's anonymous entry points stay open.
+// A server-mode app signed in everywhere: Auth's anonymous entry points stay open, an app rule below them still holds.
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@frigear-nu/users', MyModule],
   runtimeConfig: {
@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/**': { authenticated: true },
-    '/api/**': { roles: ['admin'] },
+    '/api/auth/me/tokens': { roles: ['admin'] },
   },
   hub: {
     db: { dialect: 'sqlite', driver: 'libsql', applyMigrationsDuringBuild: false },

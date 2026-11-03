@@ -15,13 +15,14 @@ describe('client mode: guards', () => {
     expect(installed).toEqual(expect.arrayContaining(['@frigear-nu/auth', '@frigear-nu/authorization']))
     expect(nuxt.options.serverHandlers.map(handler => String(handler.handler))).not.toEqual(expect.arrayContaining([expect.stringContaining('authorization')]))
 
-    const routes = (nuxt.options.runtimeConfig.public.authorization as { routes: Record<string, RouteRule> }).routes
-    expect(routes['/login']).toEqual({ authenticated: false })
-    expect(routes['/auth/callback']).toEqual({ authenticated: false })
-    expect(resolveRule(routes, '/login')).toBeUndefined()
-    expect(resolveRule(routes, '/auth/callback')).toBeUndefined()
-    expect(resolveRule(routes, '/')).toEqual({ authenticated: true })
-    expect(resolveRule(routes, '/admin/users')).toEqual({ authenticated: true, roles: ['admin'] })
+    const { routes, exempt } = nuxt.options.runtimeConfig.public.authorization as { routes: Record<string, RouteRule>, exempt: string[] }
+    expect(exempt).toEqual(['/login', '/auth/callback'])
+    expect(resolveRule(routes, '/login', exempt)).toBeUndefined()
+    expect(resolveRule(routes, '/auth/callback', exempt)).toBeUndefined()
+    expect(resolveRule(routes, '/', exempt)).toEqual({ authenticated: true })
+    expect(resolveRule(routes, '/admin/users', exempt)).toEqual({ authenticated: true, roles: ['admin'] })
+    // `definePageMeta({ authorize })` reaches `pages:resolved` (Mobile's no-guard warning reads it).
+    expect(nuxt.options.experimental.extraPageMetaExtractionKeys).toContain('authorize')
     await nuxt.close()
   })
 
@@ -32,9 +33,9 @@ describe('client mode: guards', () => {
       ready: true,
       overrides: { routeRules: { '/auth/callback': { roles: ['admin'] } as never } },
     })
-    const routes = (nuxt.options.runtimeConfig.public.authorization as { routes: Record<string, RouteRule> }).routes
-    expect(routes['/auth/callback']).toEqual({ roles: ['admin'] })
-    expect(routes['/login']).toEqual({ authenticated: false })
+    const { routes, exempt } = nuxt.options.runtimeConfig.public.authorization as { routes: Record<string, RouteRule>, exempt: string[] }
+    expect(resolveRule(routes, '/auth/callback', exempt)).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, '/login', exempt)).toBeUndefined()
     await nuxt.close()
   })
 })

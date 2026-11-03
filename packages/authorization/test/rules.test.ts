@@ -103,3 +103,31 @@ describe('rule evaluation', () => {
     expect(normalizeAuthorizeMeta(false)).toBeUndefined()
   })
 })
+
+describe('resolveRule with exempt patterns (Auth\'s anonymous entry points)', () => {
+  const exempt = ['/login', '/auth/callback', '/api/auth/**']
+
+  it('stops less specific guards at an exempt pattern', () => {
+    const routes = { '/**': { authenticated: true }, '/api/**': { roles: ['admin'] } }
+    expect(resolveRule(routes, '/login', exempt)).toBeUndefined()
+    expect(resolveRule(routes, '/api/auth/login', exempt)).toBeUndefined()
+    expect(resolveRule(routes, '/api/auth/magic-link/confirm', exempt)).toBeUndefined()
+    expect(resolveRule(routes, '/account', exempt)).toEqual({ authenticated: true })
+    expect(resolveRule(routes, '/api/members', exempt)).toEqual({ authenticated: true, roles: ['admin'] })
+  })
+
+  it('keeps an app rule more specific than the exemption', () => {
+    const routes = { '/**': { authenticated: true }, '/api/auth/me/tokens': { roles: ['admin'] } }
+    expect(resolveRule(routes, '/api/auth/me/tokens', exempt)).toEqual({ roles: ['admin'] })
+  })
+
+  it('lets an app rule for the same pattern win', () => {
+    const routes = { '/**': { authenticated: true }, '/login': { guest: true, ability: 'isGuest' } }
+    expect(resolveRule(routes, '/login', exempt)).toEqual({ guest: true, ability: 'isGuest' })
+    expect(resolveRule({ '/auth/callback': { roles: ['admin'] } }, '/auth/callback', exempt)).toEqual({ roles: ['admin'] })
+  })
+
+  it('changes nothing without exempt patterns', () => {
+    expect(resolveRule({ '/**': { authenticated: true } }, '/login')).toEqual({ authenticated: true })
+  })
+})

@@ -8,7 +8,7 @@ import { abortNavigation, createError, defineNuxtRouteMiddleware, navigateTo, us
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig().public.authorization
   const meta = to.meta.authorize
-  const rule = meta !== undefined ? normalizeAuthorizeMeta(meta) : resolveRule(config?.routes, to.path)
+  const rule = meta !== undefined ? normalizeAuthorizeMeta(meta) : resolveRule(config?.routes, to.path, config?.exempt)
   if (!rule) return
 
   const user = await resolveClientUser()

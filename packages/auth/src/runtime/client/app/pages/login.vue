@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { computed, definePageMeta, navigateTo, onMounted, ref, useAppConfig, useAuth, useModuleT, useRoute } from '#imports'
+import { computed, navigateTo, onMounted, ref, useAppConfig, useAuth, useModuleT, useRoute } from '#imports'
 import type { AuthAppConfig } from '../../types'
 import { safeReturnTo } from '../../utils'
 import { useAuthClientConfig } from '../utils/runtime'
 
 defineOptions({ name: 'AuthClientLoginPage' })
-// Reachable signed out under any guard of `@frigear-nu/authorization` (`'/**': { authenticated: true }`).
-definePageMeta({ authorize: false })
 
 const t = useModuleT('auth.client')
 const route = useRoute()

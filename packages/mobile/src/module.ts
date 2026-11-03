@@ -295,7 +295,8 @@ declare module '#mobile/tabs' {
         return (authorize !== undefined && authorize !== false && (typeof authorize !== 'object' || isGuard(authorize))) || walk(page.children ?? [])
       })
       if (!ruled && !walk(pages)) {
-        logger.warn('Auth signs the app in, but no route rule or page requires a user: every page is public. Add `routeRules: { \'/**\': { authenticated: true } }` (with `@frigear-nu/authorization`) to stay signed in everywhere.')
+        // Page meta is only seen when it is a literal (`@frigear-nu/authorization` extracts `authorize`).
+        logger.warn('Auth signs the app in, but no route rule or page requires a user: every page is public. Add `routeRules: { \'/**\': { authenticated: true } }` (with `@frigear-nu/authorization`) to stay signed in everywhere. (Pages that guard themselves with an ability object in `definePageMeta` are not seen here.)')
       }
     })
     nuxt.hook('pages:resolved', (pages) => {

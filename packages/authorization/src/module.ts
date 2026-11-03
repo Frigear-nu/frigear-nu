@@ -64,8 +64,11 @@ export default defineNuxtModule<ModuleOptions>({
 
     nuxt.options.runtimeConfig.public.authorization = {
       routes: {},
+      exempt: [],
       redirectTo: options.redirectTo,
     }
+    // `definePageMeta({ authorize })` in `pages:resolved` too (`@frigear-nu/mobile` checks that something is guarded).
+    nuxt.options.experimental.extraPageMetaExtractionKeys = [...new Set([...(nuxt.options.experimental.extraPageMetaExtractionKeys ?? []), 'authorize'])]
 
     // Rules are keys on the native `routeRules` (`'/admin/**': { roles: ['admin'] }`). Nuxt's app-side route
     // rules matcher only keeps known keys, so they are collected here (once every module has had its say)
@@ -73,21 +76,17 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.hook('modules:done', () => {
       const routes: Record<string, AuthorizationRouteRules> = {}
       const sources = [nuxt.options.routeRules, nuxt.options.nitro?.routeRules]
-      const configured = new Set<string>()
       for (const [pattern, rule] of sources.flatMap(source => Object.entries(source ?? {}))) {
-        configured.add(pattern)
         const picked = Object.fromEntries(ROUTE_RULE_KEYS
           .filter(key => (rule as Record<string, unknown>)[key] !== undefined)
           .map(key => [key, (rule as Record<string, unknown>)[key]]))
         if (Object.keys(picked).length) routes[pattern] = { ...routes[pattern], ...picked }
       }
       // The anonymous entry points of Auth (sign-in pages, the callback, `/api/auth/**`) stay reachable under any
-      // guard (`'/**': { authenticated: true }`), pages and API alike, unless the app has a rule for that exact pattern.
-      const publicPaths = (nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? []
-      for (const pattern of publicPaths) {
-        if (!configured.has(pattern)) routes[pattern] = { authenticated: false }
-      }
-      nuxt.options.runtimeConfig.public.authorization = { routes, redirectTo: options.redirectTo }
+      // less specific guard (`'/**': { authenticated: true }`), pages and API alike. App rules for the same or a more
+      // specific pattern still apply (`resolveRule`).
+      const exempt = [...new Set((nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? [])]
+      nuxt.options.runtimeConfig.public.authorization = { routes, exempt, redirectTo: options.redirectTo }
     })
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.

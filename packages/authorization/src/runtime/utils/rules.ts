@@ -34,15 +34,22 @@ function specificity(pattern: string): number {
  * Resolve the rule for a path from `routeRules`-style entries. Like Nitro's route rules, every matching pattern
  * contributes and keys of more specific patterns override less specific ones. Returns `undefined` when nothing
  * applies, including when the merged result says `authenticated: false`.
+ *
+ * `exempt` patterns (Auth's anonymous entry points) reset the rule: guards of less specific patterns
+ * (`'/**': { authenticated: true }`) stop there, while an app rule more specific than the exemption still applies.
  */
-export function resolveRule(routes: Record<string, RouteRule> | undefined, path: string): RouteRule | undefined {
-  const matches = Object.entries(routes ?? {})
+export function resolveRule(routes: Record<string, RouteRule> | undefined, path: string, exempt: string[] = []): RouteRule | undefined {
+  const matches: [string, RouteRule | null][] = [
+    ...Object.entries(routes ?? {}),
+    // Same specificity as an app pattern: the app's entry sorts after the reset and wins.
+    ...exempt.map(pattern => [pattern, null] as [string, null]),
+  ]
+  const sorted = matches
     .filter(([pattern]) => matchRoute(pattern, path))
-    .sort(([a], [b]) => specificity(a) - specificity(b))
-  if (!matches.length) return undefined
-
-  const rule: RouteRule = Object.assign({}, ...matches.map(([, entry]) => entry))
-  return rule.authenticated === false ? undefined : rule
+    .sort(([a, x], [b, y]) => specificity(a) - specificity(b) || (x === null ? -1 : 0) - (y === null ? -1 : 0))
+  let rule: RouteRule | undefined
+  for (const [, entry] of sorted) rule = entry === null ? undefined : { ...rule, ...entry }
+  return !rule || rule.authenticated === false ? undefined : rule
 }
 
 /** The rule of `definePageMeta({ authorize })`; `false` is no rule at all (the page is open). */
