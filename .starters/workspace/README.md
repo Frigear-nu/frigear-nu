@@ -17,12 +17,8 @@ pnpm install
 pnpm prepare:env
 ```
 
-Set the two variables in `apps/web/.env`:
-
-| Variable | What it is |
-| --- | --- |
-| `NUXT_SESSION_PASSWORD` | Encrypts the session cookie, at least 32 characters (`openssl rand -base64 32`). |
-| `NUXT_ACL_ADMINS` | Comma separated emails that are always admins. Put your email here. |
+`pnpm prepare:env` creates `apps/web/.env` and generates `NUXT_SESSION_PASSWORD` (it never overwrites a value). Put
+your email in `NUXT_ACL_ADMINS` there: comma separated emails that are always admins.
 
 ```bash
 pnpm dev
@@ -33,8 +29,8 @@ Open http://localhost:3000, choose **Create account** and register with the emai
 in the terminal until you configure a [Notify](https://github.com/Frigear-nu/frigear-nu/tree/main/packages/notify) driver.
 
 The full guide, including how to add more modules, is the
-[Quick start](https://github.com/Frigear-nu/frigear-nu/blob/main/apps/docs/content/1.getting-started/3.quick-start.md)
-in the Frigear docs.
+[Workspace starter guide](https://docs.frigear.dev/guides/workspace-starter) in the Frigear docs. For a mobile app next to
+this one, see the [Standalone mobile starter](https://docs.frigear.dev/guides/mobile-standalone-starter).
 
 ## Apps
 
@@ -52,6 +48,7 @@ Run everything from the repository root:
 
 | Command | What it does |
 | --- | --- |
+| `pnpm prepare:env` | Create each app's `.env` from `.env.example` and fill in empty secrets |
 | `pnpm dev` | Start `apps/web` on http://localhost:3000 |
 | `pnpm build` | Build every app and package |
 | `pnpm lint` / `pnpm lint:fix` | ESLint everywhere |

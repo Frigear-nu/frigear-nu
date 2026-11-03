@@ -3,7 +3,7 @@
 A **Nuxt 4** app on the published `@frigear-nu` modules. Run every command from the repository root
 (`pnpm --filter ./apps/web <command>`), never from this folder. Module docs: https://docs.frigear.dev, also as
 Markdown at `https://docs.frigear.dev/raw/<path>.md` (start with
-https://docs.frigear.dev/raw/getting-started/quick-start.md). The source is
+https://docs.frigear.dev/raw/guides/workspace-starter.md). The source is
 https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content.
 
 ## Layout
