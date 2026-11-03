@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/events",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Events with ticket types, addons, capacity, membership requirements, Stripe payments and QR check-in for the frigear ecosystem, built on @frigear-nu/payments.",
   "homepage": "https://docs.frigear.dev/modules/events",
   "repository": {
