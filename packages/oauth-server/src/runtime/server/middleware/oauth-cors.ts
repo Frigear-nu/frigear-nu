@@ -19,7 +19,22 @@ const API_CORS = {
   exposeHeaders: ['www-authenticate'],
 }
 
-export default defineEventHandler((event) => {
+/**
+ * `cors.origins` plus the configured clients' origins. The clients are created first, so an id taken by a confidential
+ * application adds none. When they cannot be read (an invalid `NUXT_OAUTH_SERVER_CLIENTS`, the database down) only
+ * `cors.origins` apply: CORS never turns a request into an error, the route answers for itself.
+ */
+async function corsOrigins(): Promise<string[]> {
+  try {
+    await ensureOAuthConfiguredApplications()
+    return getOAuthCorsOrigins()
+  }
+  catch {
+    return getOAuthStaticCorsOrigins()
+  }
+}
+
+export default defineEventHandler(async (event) => {
   const pathname = getRequestURL(event).pathname
   const methods = METHODS[pathname]
   // Never the authorization endpoint, even when a configured prefix covers it.
@@ -27,6 +42,10 @@ export default defineEventHandler((event) => {
   if (!methods && !api) return
 
   // `Vary: Origin` always: the response differs per origin, so caches must key on it (discovery is `public`).
-  const preflight = applyBearerCors(event, { origins: getOAuthCorsOrigins(), ...(methods ? { methods } : API_CORS) })
+  if (!getRequestHeader(event, 'origin')) {
+    appendResponseHeader(event, 'Vary', 'Origin')
+    return
+  }
+  const preflight = applyBearerCors(event, { origins: await corsOrigins(), ...(methods ? { methods } : API_CORS) })
   if (preflight) return ''
 })

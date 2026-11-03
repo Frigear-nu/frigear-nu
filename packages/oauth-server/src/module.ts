@@ -165,17 +165,14 @@ export default defineNuxtModule<ModuleOptions>({
       if (!path.startsWith('/') || path.startsWith('//')) throw new Error(`[${MODULE_NAME}] cors.paths must be path prefixes such as "/api/", got "${path}".`)
     }
 
-    // Configured clients: validated now (and again at runtime, where `NUXT_OAUTH_SERVER_CLIENTS` may replace them).
+    // Configured clients: validated now, and read at runtime, where `NUXT_OAUTH_SERVER_CLIENTS` may replace them (their
+    // CORS origins are added there too, so a client removed by the override takes its origins with it).
     const callbackPath = options.callbackPath ?? '/auth/frigear'
-    let clients: ReturnType<typeof normalizeConfiguredClients>
     try {
-      clients = normalizeConfiguredClients(options.clients ?? [], { dev: nuxt.options.dev, callbackPath })
+      normalizeConfiguredClients(options.clients ?? [], { dev: nuxt.options.dev, callbackPath })
     }
     catch (error) {
       throw new Error(`[${MODULE_NAME}] oauthServer.clients: ${(error as Error).message}`, { cause: error })
-    }
-    for (const client of clients) {
-      for (const origin of client.corsOrigins) if (!corsOrigins.includes(origin)) corsOrigins.push(origin)
     }
 
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).

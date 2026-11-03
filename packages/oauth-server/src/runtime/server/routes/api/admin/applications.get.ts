@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { count, or } from 'drizzle-orm'
 import { likeContains, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
-import { toApplication, toAdminApplicationDto } from '../../../utils/oauth-applications'
+import { toApplication, toAdminApplicationDto, withOAuthConfiguredValues } from '../../../utils/oauth-applications'
 
 const querySchema = pageQuery({ sort: ['createdAt', 'name', 'priority'] })
 
@@ -24,6 +24,6 @@ export default defineEventHandler(async (event) => {
   return paginate({
     total: totals?.total ?? 0,
     query,
-    items: rows.map(row => toAdminApplicationDto(toApplication(row), grants[row.id] ?? 0)),
+    items: rows.map(row => toAdminApplicationDto(toApplication(withOAuthConfiguredValues(row)), grants[row.id] ?? 0)),
   })
 })

@@ -17,36 +17,54 @@ export function getOAuthCorsOrigins(): string[] {
   return [...new Set(origins)].filter(origin => origin !== '*')
 }
 
+/** `cors.origins` alone, without the configured clients: the fallback when those cannot be read. */
+export function getOAuthStaticCorsOrigins(): string[] {
+  return parseList(useOAuthConfig().corsOrigins).filter(origin => origin !== '*')
+}
+
 /** The host API path prefixes open to the CORS origins (`cors.paths`). */
 export function getOAuthCorsPaths(): string[] {
   return parseList(useOAuthConfig().corsPaths)
 }
 
-let configuredClients: { source: unknown, clients: OAuthNormalizedClient[] } | undefined
+let configuredClients: { source: unknown, clients: OAuthNormalizedClient[], error?: Error } | undefined
+/** Configured ids that belong to a confidential application in the database: config is ignored for them. */
+const conflictingClientIds = new Set<string>()
 
 /**
  * The clients of `oauthServer.clients` (or `NUXT_OAUTH_SERVER_CLIENTS`), validated. An invalid list is a deployment
- * error: every OAuth request answers 500 `not_configured` until it is fixed.
+ * error: every application lookup answers 500 `not_configured` until it is fixed (logged once per value). Ids that
+ * turned out to belong to a confidential application are left out.
  */
 export function getOAuthConfiguredClients(): OAuthNormalizedClient[] {
   const config = useOAuthConfig()
   const source = config.clients
-  if (configuredClients && configuredClients.source === source) return configuredClients.clients
-  let clients: OAuthNormalizedClient[]
-  try {
-    clients = normalizeConfiguredClients(source, { dev: import.meta.dev, callbackPath: config.callbackPath })
+  if (!configuredClients || configuredClients.source !== source) {
+    try {
+      configuredClients = { source, clients: normalizeConfiguredClients(source, { dev: import.meta.dev, callbackPath: config.callbackPath }) }
+    }
+    catch (error) {
+      console.error(`[oauth-server] oauthServer.clients is invalid: ${(error as Error).message}`)
+      configuredClients = { source, clients: [], error: error as Error }
+    }
   }
-  catch (error) {
-    console.error(`[oauth-server] oauthServer.clients is invalid: ${(error as Error).message}`)
-    throw apiError(500, 'not_configured', 'The configured OAuth clients are invalid.')
-  }
-  configuredClients = { source, clients }
-  return clients
+  if (configuredClients.error) throw apiError(500, 'not_configured', 'The configured OAuth clients are invalid.')
+  return conflictingClientIds.size ? configuredClients.clients.filter(client => !conflictingClientIds.has(client.id)) : configuredClients.clients
 }
 
-/** Whether the application is defined in `oauthServer.clients` (and so managed by config, not the admin UI). */
+/** Marks a configured id as taken by a confidential application, so config no longer applies to it (see the sync). */
+export function excludeOAuthConfiguredClient(id: string): void {
+  conflictingClientIds.add(id)
+}
+
+/** The configured client with this id, if any. */
+export function findOAuthConfiguredClient(id: string): OAuthNormalizedClient | undefined {
+  return getOAuthConfiguredClients().find(client => client.id === id)
+}
+
+/** Whether the id is defined in `oauthServer.clients`. Managed by config only when its row is public too. */
 export function isOAuthConfiguredClient(id: string): boolean {
-  return getOAuthConfiguredClients().some(client => client.id === id)
+  return !!findOAuthConfiguredClient(id)
 }
 
 /** The `aud` of access tokens: the configured shared audience, or `undefined` for the application's `client_id`. */

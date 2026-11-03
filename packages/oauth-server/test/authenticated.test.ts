@@ -841,6 +841,10 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(call.headers.get('access-control-expose-headers')).toBe('www-authenticate')
 
       expect((await preflight('/api/test/whoami', 'https://evil.example.com', 'GET')).headers.get('access-control-allow-origin')).toBeNull()
+      // Same-origin calls (no Origin) only get `Vary`.
+      const sameOrigin = await fetch('/api/test/whoami')
+      expect(sameOrigin.headers.get('access-control-allow-origin')).toBeNull()
+      expect(sameOrigin.headers.get('vary')).toContain('Origin')
       // Outside the configured prefixes the API is untouched.
       for (const path of [oauthServerApi.consent, oauthServerApi.me.applications, '/api/testing']) {
         const other = await preflight(path, ALLOWED, 'GET')
@@ -924,6 +928,45 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(disabled.status).toBe(400)
       expect(await api.json<Json>('PATCH', path, { isActive: true })).toMatchObject({ isActive: true })
       expect((await signIn(member, NATIVE)).status).toBe(200)
+    })
+
+    it('reads the config-owned fields from config, whatever the row holds', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      // Another deploy (or a dev server on the same database) wrote its own values.
+      await ok(await json(undefined, 'POST', '/api/test/tamper-application', {
+        id: CLIENT_ID,
+        set: { name: 'Tampered', redirectUris: ['com.evil.app:/cb'], allowedRoles: ['nobody'] },
+      }))
+
+      const member = await user('Mobile')
+      expect((await signIn(member, NATIVE)).status).toBe(200)
+      const { challenge } = pkce()
+      const evil = await json(member.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(authorizeQuery(CLIENT_ID, challenge, { redirect_uri: 'com.evil.app:/cb' })), approved: true })
+      expect(evil.status).toBe(400)
+
+      const api = apiClient({ cookie: staff.cookie })
+      expect(await api.json<Json>('GET', oauthServerApi.admin.application(CLIENT_ID))).toMatchObject({ name: 'Test mobile', redirectUris: [NATIVE, DEV], allowedRoles: [] })
+      const listed = (await api.json<Json>('GET', `${oauthServerApi.admin.applications}?q=${CLIENT_ID}`)).items[0]
+      expect(listed).toMatchObject({ name: 'Test mobile', redirectUris: [NATIVE, DEV] })
+      const mine = await ok(await json(member.cookie, 'GET', oauthServerApi.me.applications)) as unknown as Json[]
+      expect(mine.find(application => application.id === CLIENT_ID)).toMatchObject({ name: 'Test mobile', loginUrl: 'http://localhost:3001' })
+    })
+
+    it('leaves native-only clients out of the user\'s applications list', async () => {
+      const member = await user('Mobile')
+      const ids = (await ok(await json(member.cookie, 'GET', oauthServerApi.me.applications)) as unknown as Json[]).map(application => application.id)
+      expect(ids).toContain(CLIENT_ID)
+      expect(ids).not.toContain('test-native')
+    })
+
+    it('ignores config for an id that belongs to a confidential application', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      await ok(await json(undefined, 'POST', '/api/test/tamper-application', { id: 'test-conflict', set: { clientType: 'confidential', name: 'Someone else' } }))
+      const api = apiClient({ cookie: staff.cookie })
+      const path = oauthServerApi.admin.application('test-conflict')
+      expect(await api.json<Json>('GET', path)).toMatchObject({ name: 'Someone else', clientType: 'confidential', managed: false })
+      expect(await api.json<Json>('PATCH', path, { name: 'Renamed' })).toMatchObject({ name: 'Renamed', managed: false })
+      expect((await api.fetch('DELETE', path)).status).toBe(204)
     })
   })
 

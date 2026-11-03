@@ -48,6 +48,16 @@ export default defineNuxtConfig({
       redirectUris: ['com.example.test:/auth/callback'],
       devRedirectUris: ['http://localhost:3001/auth/callback'],
       tags: ['mobile'],
+    }, {
+      // Native only: nothing to open from the user's applications list.
+      id: 'test-native',
+      name: 'Test native',
+      redirectUris: ['com.example.native:/auth/callback'],
+    }, {
+      // The test turns its row confidential, as if the id had been taken by an application created earlier.
+      id: 'test-conflict',
+      name: 'Test conflict',
+      redirectUris: ['com.example.conflict:/auth/callback'],
     }],
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
