@@ -12,7 +12,7 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 The modules are **Nuxt 4** modules (Nuxt `^4.6`, `app/` directory structure); Nuxt 3 is not supported.
 [`.starters/workspace`](./.starters/workspace) is a ready pnpm workspace with one Nuxt 4 app (`apps/web`) that has
 register/login, `/account` pages and an `/admin` user admin. Create a project from it with the CLI
-(`pnpm create frigear-app my-app --starter workspace`), or copy it with [giget](https://github.com/unjs/giget):
+(`pnpm create frigear-app my-app --platform web`), or copy it with [giget](https://github.com/unjs/giget):
 
 ```bash
 pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-app

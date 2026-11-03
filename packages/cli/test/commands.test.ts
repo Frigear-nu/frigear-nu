@@ -56,6 +56,31 @@ describe('init', () => {
     await expect(run('init', ['taken', '--starter', 'workspace', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
   })
 
+  it('picks the starter from --platform', async () => {
+    await run('init', ['both', '--platform', 'web,mobile', '--no-install', '--cwd', cwd])
+    expect(existsSync(join(cwd, 'both/apps/web/nuxt.config.ts'))).toBe(true)
+    expect(existsSync(join(cwd, 'both/apps/mobile/package.json'))).toBe(true)
+  })
+
+  it('takes a starter name, also as --starter', async () => {
+    await run('init', ['named', '--starter', 'mobile-standalone', '--no-install', '--cwd', cwd])
+    expect(existsSync(join(cwd, 'named/apps/mobile/package.json'))).toBe(true)
+  })
+
+  it('copies a raw giget source with -t', async () => {
+    await run('init', ['raw', '-t', 'gh:Frigear-nu/frigear-nu/.starters/mobile', '--no-install', '--cwd', cwd])
+    expect((await readJson(join(cwd, 'raw/package.json'))).name).toBe('raw')
+    expect(existsSync(join(cwd, 'raw/apps/mobile/package.json'))).toBe(true)
+  })
+
+  it('rejects --template together with --platform', async () => {
+    await expect(run('init', ['x', '-t', 'gh:a/b', '--platform', 'web', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
+  })
+
+  it('rejects an unknown platform', async () => {
+    await expect(run('init', ['x', '--platform', 'desktop', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
+  })
+
   it('rejects an unknown starter', async () => {
     await expect(run('init', ['x', '--starter', 'nope', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
   })
