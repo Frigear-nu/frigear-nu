@@ -39,7 +39,7 @@ export default defineNitroPlugin((nitro) => {
 })
 ```
 
-Full documentation with examples: `apps/docs/content/5.modules/12.oauth-server.md`.
+Full documentation with examples: `apps/docs/content/3.modules/1.identity/6.oauth-server/index.md`.
 
 ## Development
 

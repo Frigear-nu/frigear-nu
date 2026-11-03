@@ -1,6 +1,6 @@
 // A Nuxt 4 app on the @frigear-nu modules: register/login, /account and /admin with user management, and the OAuth
 // server and API that apps/mobile signs in at and calls.
-// Every module option is documented in https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content/5.modules
+// Every module option is documented in https://docs.frigear.dev/modules
 import { appName, clientId, devRedirectUri, nativeRedirectUri } from '@workspace/mobile/identity'
 
 export default defineNuxtConfig({

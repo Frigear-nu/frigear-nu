@@ -19,7 +19,7 @@ import { registerModule, registerLocales, registerDatabaseTable } from '@frigear
 
 ## Documentation
 
-- [Module Kit reference](https://docs.frigear.dev/modules/module-kit): every helper, the database registration rules and
+- [Module Kit reference](https://docs.frigear.dev/modules/platform/module-kit): every helper, the database registration rules and
   the migration workflow.
-- [Writing a module](https://docs.frigear.dev/getting-started/writing-a-module): from `pnpm cli module:create` to a
+- [Writing a module](https://docs.frigear.dev/contribute/writing-a-module/scaffold): from `pnpm cli module:create` to a
   released module.

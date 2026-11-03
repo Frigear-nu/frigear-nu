@@ -2,13 +2,13 @@
   "name": "@frigear-nu/oauth-server",
   "version": "0.4.1",
   "description": "OAuth 2.0 / OpenID Connect server for the frigear ecosystem: register applications that users with certain roles may sign in to.",
-  "url": "https://docs.frigear.dev/modules/oauth-server",
+  "url": "https://docs.frigear.dev/modules/identity/oauth-server",
   "author": {
     "name": "Frigear",
     "email": "kontakt@frigear.nu",
     "url": "https://frigear.nu"
   },
-  "homepage": "https://docs.frigear.dev/modules/oauth-server",
+  "homepage": "https://docs.frigear.dev/modules/identity/oauth-server",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

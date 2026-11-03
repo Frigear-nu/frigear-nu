@@ -3,7 +3,7 @@
 A **Capacitor** app: a static Nuxt 4 SPA (`ssr: false`, `nuxt generate` → `.output/public`) on the published
 `@frigear-nu/mobile` and `@frigear-nu/oauth-client` modules, wrapped in native iOS and Android projects. Run every
 command from the repository root (`pnpm --filter ./apps/mobile <command>`, or the root `mobile:*` scripts), never from
-this folder. Docs: https://docs.frigear.dev/modules/mobile and https://docs.frigear.dev/modules/oauth-client, also as
+this folder. Docs: https://docs.frigear.dev/modules/interface/mobile and https://docs.frigear.dev/modules/oauth-client, also as
 Markdown at `https://docs.frigear.dev/raw/<path>.md`.
 
 ## Layout
