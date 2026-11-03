@@ -2,7 +2,7 @@
   "name": "@frigear-nu/admin",
   "version": "0.2.2",
   "description": "Generic admin area: shell layout, guarded dashboard and navigation that other modules contribute to through @frigear-nu/menu and @frigear-nu/widget.",
-  "homepage": "https://docs.frigear.dev/modules/admin",
+  "homepage": "https://docs.frigear.dev/modules/interface/admin",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frigear-nu/frigear-nu.git",

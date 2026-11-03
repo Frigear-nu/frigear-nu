@@ -15,4 +15,4 @@ export default definePreferences({
 ```
 
 `useUserPreferences()` on the client and `getUserPreference(user, key)` on the server are typed from those schemas.
-See the [documentation](https://docs.frigear.dev/modules/preferences).
+See the [documentation](https://docs.frigear.dev/modules/identity/preferences).

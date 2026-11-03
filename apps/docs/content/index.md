@@ -9,171 +9,110 @@ seo:
 Build on the Frigear Nuxt ecosystem
 
 #description
-Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shared base layer, and the tooling to add your own. This is the developer documentation for everything in the `@frigear-nu` workspace.
+Composable Nuxt 4 modules for sign-in, users, payments, events and forms, a shared base layer, and the tooling to add your own.
 
 #links
   :::u-button
   ---
-  color: neutral
   size: xl
-  to: /guides/workspace-starter
+  to: /get-started/introduction
   trailing-icon: i-lucide-arrow-right
   ---
-  Get started
+  Build an app
   :::
 
   :::u-button
   ---
   color: neutral
   size: xl
-  to: /modules
+  to: /contribute/overview
   variant: outline
-  icon: i-lucide-boxes
+  icon: i-lucide-git-pull-request
   ---
-  Browse modules
+  Contribute
   :::
 ::
 
 ::u-page-section
 #title
-Start with what you want to do
+Two ways in
 
 #features
   :::u-page-feature
   ---
   icon: i-lucide-rocket
-  to: /guides/workspace-starter
+  to: /get-started/introduction
   ---
   #title
-  Start a new app
+  Build an app
 
   #description
-  Copy the starter: a Nuxt 4 workspace with sign-in, account pages and a user admin, ready in minutes.
+  Start from a starter, sign users in, add modules and deploy. You use the published `@frigear-nu` packages.
   :::
 
   :::u-page-feature
   ---
-  icon: i-lucide-terminal
-  to: /getting-started/local-development
+  icon: i-lucide-git-pull-request
+  to: /contribute/overview
   ---
   #title
-  Run the workspace
+  Contribute
 
   #description
-  Install dependencies, start the website and docs, and run the checks.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-puzzle
-  to: /modules/module-kit
-  ---
-  #title
-  Write a module
-
-  #description
-  Scaffold a Nuxt module and extend database tables with Module Kit.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-log-in
-  to: /modules/auth
-  ---
-  #title
-  Protect a route
-
-  #description
-  Sign users in and call `requireAuth` for cookie sessions, API tokens and OAuth.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-credit-card
-  to: /modules/subscriptions
-  ---
-  #title
-  Take payments
-
-  #description
-  Stripe subscriptions, one-time payments and ticketed events.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-layers-3
-  to: /layers/base
-  ---
-  #title
-  Start a website
-
-  #description
-  Extend the base layer for UI defaults, content and localized routing.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-package
-  to: /getting-started/publishing
-  ---
-  #title
-  Release a package
-
-  #description
-  Version, tag and publish workspace packages to npm.
+  Work in this monorepo: run it locally, write a module, keep the starters in step and release packages.
   :::
 ::
 
 ::u-page-section
 #title
-Modules by area
+Find your way around
 
 #features
   :::u-page-feature
   ---
-  icon: i-lucide-shield-check
-  to: /modules
+  icon: i-lucide-rocket
+  to: /get-started/introduction
   ---
   #title
-  Identity and access
+  Get Started
 
   #description
-  [Auth](/modules/auth), [Users](/modules/users), [Authorization](/modules/authorization), [Account](/modules/account), [Preferences](/modules/preferences), [OAuth Server](/modules/oauth-server) and [MCP](/modules/mcp).
+  Installation, project structure, configuration, authentication, database and deployment, in order.
   :::
 
   :::u-page-feature
   ---
-  icon: i-lucide-wallet
-  to: /modules
+  icon: i-lucide-book-open
+  to: /guide/concepts/architecture
   ---
   #title
-  Commerce
+  Guide
 
   #description
-  [Stripe](/modules/stripe), [Subscriptions](/modules/subscriptions), [Payments](/modules/payments) and [Events](/modules/events).
+  How the pieces fit: concepts, UX patterns, best practices and deeper topics such as your own OAuth server.
   :::
 
   :::u-page-feature
   ---
-  icon: i-lucide-layout-dashboard
+  icon: i-lucide-boxes
   to: /modules
   ---
   #title
-  Interface and content
+  Modules
 
   #description
-  [Forms](/modules/forms), [Cookie Consent](/modules/cookie-consent), [UI](/modules/ui), [Menu](/modules/menu), [Widget](/modules/widget) and [Admin](/modules/admin). New screens follow the [UX patterns](/getting-started/ux-patterns).
+  Reference for every module, grouped into identity and access, commerce, features, interface and platform.
   :::
 
   :::u-page-feature
   ---
-  icon: i-lucide-wrench
-  to: /modules
+  icon: i-lucide-code-xml
+  to: /examples/starters/workspace
   ---
   #title
-  Building blocks
+  Examples
 
   #description
-  [Module Kit](/modules/module-kit) and [Notify](/modules/notify).
+  The web and mobile starters, the frigear.nu website, and short task examples you can copy.
   :::
 ::

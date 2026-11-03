@@ -77,7 +77,7 @@ await changePassword({ currentPassword: 'old', newPassword: 'new-password', conf
 ## Translations
 
 Strings live under the `account.*` namespace in `da`/`en` locale files and can be overridden in your app's
-`i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/account#translations).
+`i18n/locales/<code>.json`. See the [documentation](https://docs.frigear.dev/modules/identity/account#translations).
 
 ## Overriding parts
 

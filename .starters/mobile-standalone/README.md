@@ -4,8 +4,8 @@ A pnpm workspace with two apps that work together out of the box:
 
 - **`apps/web`**, a Nuxt 4 app on the [`@frigear-nu`](https://github.com/Frigear-nu/frigear-nu) modules: registration
   and login, `/account` pages, an `/admin` area with user management, and an
-  [OAuth server](https://docs.frigear.dev/modules/oauth-server) with the API the mobile app calls.
-- **`apps/mobile`**, a **Capacitor** app on [`@frigear-nu/mobile`](https://docs.frigear.dev/modules/mobile) that signs
+  [OAuth server](https://docs.frigear.dev/modules/identity/oauth-server) with the API the mobile app calls.
+- **`apps/mobile`**, a **Capacitor** app on [`@frigear-nu/mobile`](https://docs.frigear.dev/modules/interface/mobile) that signs
   in at `apps/web` and calls `/api/me` with its access token.
 
 The OAuth client of the app is registered from `apps/mobile/identity.ts`, so there is nothing to set up by hand.
@@ -37,7 +37,7 @@ pnpm dev
 
 Rename the app (app id, name, client id, scopes) in `apps/mobile/identity.ts`. The full guide, with devices, Android
 and a production checklist, is the
-[Standalone mobile starter guide](https://docs.frigear.dev/guides/mobile-standalone-starter).
+[Standalone mobile starter guide](https://docs.frigear.dev/examples/starters/mobile-standalone).
 
 ## Apps
 
