@@ -24,9 +24,10 @@ Both modes give the app the same client API: `useUserSession()` (who is signed i
 
 ::note
 In server mode, **requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) (sign-in emails),
-[`@frigear-nu/menu`](/modules/interface/menu) (logout item) and `nuxt-auth-utils`. All are installed automatically. Passkeys
-need the optional peers `@simplewebauthn/browser` and `@simplewebauthn/server`; the shipped pages need `@nuxt/ui`.
-`@nuxthub/core` is an optional peer (client mode does not use it): server mode fails with a clear message without it.
+[`@frigear-nu/menu`](/modules/interface/menu) (logout item) and `nuxt-auth-utils`. Nuxt installs them as modules, but
+`@nuxthub/core` is an optional peer (client mode does not use it): a server-mode app adds it itself
+(`pnpm add @nuxthub/core`), and fails with a clear message without it. Passkeys need the optional peers
+`@simplewebauthn/browser` and `@simplewebauthn/server`; the shipped pages need `@nuxt/ui`.
 
 The config key is `authentication`, not `auth` (that belongs to nuxt-auth-utils).
 ::

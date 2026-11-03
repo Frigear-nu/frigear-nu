@@ -28,7 +28,7 @@ const redirects: Record<string, string> = {
   "/modules/authorization": "/modules/identity/authorization",
   "/modules/preferences": "/modules/identity/preferences",
   "/modules/oauth-server": "/modules/identity/oauth-server",
-  "/modules/oauth-client": "/modules/identity/auth/client-mode",
+  "/modules/oauth-client": "/modules/identity/oauth-client",
   "/modules/frigear-resource": "/modules/identity/frigear-resource",
   "/modules/stripe": "/modules/commerce/stripe",
   "/modules/payments": "/modules/commerce/payments",
@@ -45,8 +45,6 @@ const redirects: Record<string, string> = {
   "/modules/module-kit": "/modules/platform/module-kit",
   "/modules/notify": "/modules/platform/notify",
   "/modules/email-templates": "/modules/platform/email-templates",
-  // `@frigear-nu/oauth-client` is deprecated: Auth's client mode replaces it.
-  "/modules/identity/oauth-client": "/modules/identity/auth/client-mode",
 };
 
 export default defineNuxtConfig({
