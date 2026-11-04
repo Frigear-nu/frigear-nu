@@ -37,12 +37,7 @@ Copy a starter and you have a Nuxt 4 app with sign-in, account pages and an admi
 
 #default
 ```bash [Terminal]
-pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-app
-cd my-app
-corepack enable
-pnpm install
-pnpm prepare:env
-pnpm dev
+pnpm create frigear-app my-app --platform web,mobile && cd my-app
 ```
 ::
 
@@ -60,10 +55,10 @@ Three steps, no outside services. You need Node.js `24`.
   to: /get-started/installation#create-the-project
   ---
   #title
-  Copy the starter
+  Create the app
 
   #description
-  Copy the workspace starter with giget and install it with pnpm.
+  Run `pnpm create frigear-app`: it copies a starter, installs it and fills in `.env`.
   :::
 
   :::u-page-feature
@@ -75,7 +70,7 @@ Three steps, no outside services. You need Node.js `24`.
   Run it
 
   #description
-  Run `pnpm prepare:env`, put your email in `NUXT_ACL_ADMINS` in `apps/web/.env`, then run `pnpm dev`.
+  Put your email in `NUXT_ACL_ADMINS` in `apps/web/.env`, then run `pnpm dev`.
   :::
 
   :::u-page-feature

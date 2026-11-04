@@ -15,8 +15,11 @@ export interface ModuleOptions {
     /** `() => User | null | Promise<User | null>` - runs in the app (client and SSR). */
     client?: string
   }
-  /** Where to send unauthenticated visitors on page navigation. Omit to show a 401 error instead. */
-  redirectTo?: string
+  /**
+   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
+   * server mode, or set `false` in client mode, to show a 401 error instead.
+   */
+  redirectTo?: string | false
 }
 
 /**

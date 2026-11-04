@@ -47,7 +47,7 @@ describe('assertNoClientSecretInBundle', () => {
   })
 
   it('allows dev, prepare, an explicit opt-in and builds without a secret', () => {
-    const env = { NUXT_PUBLIC_OAUTH_CLIENT_SECRET: 's' }
+    const env = { NUXT_PUBLIC_AUTHENTICATION_CLIENT_SECRET: 's' }
     expect(() => assertNoClientSecretInBundle({ ...base, env, dev: true })).not.toThrow()
     expect(() => assertNoClientSecretInBundle({ ...base, env, prepare: true })).not.toThrow()
     expect(() => assertNoClientSecretInBundle({ ...base, env, allow: true })).not.toThrow()

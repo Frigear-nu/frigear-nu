@@ -168,12 +168,6 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
-    // Both would register `$api` and `useApi`, and two OAuth clients would fight over the same tokens.
-    nuxt.hook('modules:done', () => {
-      if (hasNuxtModule('@frigear-nu/oauth-client', nuxt)) {
-        throw new Error(`[${MODULE_NAME}] \`@frigear-nu/oauth-client\` is installed: it is replaced by \`authentication: { mode: 'client', client: { ... } }\`. Remove it (see the migration guide: https://docs.frigear.dev/modules/identity/auth/client-mode).`)
-      }
-    })
     const mode = dependencyModes.get(nuxt) ?? resolveAuthMode(nuxt)
     if ((options.mode ?? 'server') !== mode) {
       throw new Error(`[${MODULE_NAME}] \`authentication.mode\` ${JSON.stringify(options.mode)} did not come from the app's config: set it under the \`authentication\` key of nuxt.config, not as inline module options or another module's default, so every module sees the same mode.`)

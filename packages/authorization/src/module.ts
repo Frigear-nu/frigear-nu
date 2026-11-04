@@ -66,7 +66,7 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.authorization = {
       routes: {},
       exempt: [],
-      redirectTo: options.redirectTo,
+      redirectTo: options.redirectTo || undefined,
     }
     // `definePageMeta({ authorize })` in `pages:resolved` too (`@frigear-nu/mobile` checks that something is guarded).
     nuxt.options.experimental.extraPageMetaExtractionKeys = [...new Set([...(nuxt.options.experimental.extraPageMetaExtractionKeys ?? []), 'authorize'])]
@@ -90,11 +90,14 @@ export default defineNuxtModule<ModuleOptions>({
       const prefixes = ['', ...((nuxt.options as { i18n?: { locales?: (string | { code: string })[] } }).i18n?.locales ?? [])
         .map(locale => typeof locale === 'string' ? locale : locale.code)
         .map(code => `/${code}`)]
-      const publicPaths = (nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[] } }).authentication?.publicPaths ?? []
+      const authentication = (nuxt.options.runtimeConfig.public as { authentication?: { publicPaths?: string[], client?: { redirect?: { login?: string } } } }).authentication
+      const publicPaths = authentication?.publicPaths ?? []
       const exempt = [...new Set(publicPaths.flatMap(pattern => pattern.startsWith('/api/')
         ? [pattern]
         : prefixes.map(prefix => pattern === '/' ? (prefix || '/') : `${prefix}${pattern}`)))]
-      nuxt.options.runtimeConfig.public.authorization = { routes, exempt, redirectTo: options.redirectTo }
+      // Client mode sends guests to Auth's login path by default (`false` shows the 401 error instead).
+      const redirectTo = options.redirectTo ?? (server ? undefined : authentication?.client?.redirect?.login)
+      nuxt.options.runtimeConfig.public.authorization = { routes, exempt, redirectTo: redirectTo || undefined }
     })
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.

@@ -26,6 +26,19 @@ describe('client mode: guards', () => {
     await nuxt.close()
   })
 
+  it('sends guests to the login path by default, unless redirectTo says otherwise', async () => {
+    const redirectTo = async (overrides: Record<string, unknown> = {}) => {
+      const nuxt = await loadNuxt({ cwd: fixture, dev: false, ready: true, overrides })
+      const value = (nuxt.options.runtimeConfig.public.authorization as { redirectTo?: string }).redirectTo
+      await nuxt.close()
+      return value
+    }
+    expect(await redirectTo()).toBe('/login')
+    expect(await redirectTo({ authentication: { client: { redirect: { login: '/signin' } } } })).toBe('/signin')
+    expect(await redirectTo({ authorization: { redirectTo: '/welcome' } })).toBe('/welcome')
+    expect(await redirectTo({ authorization: { redirectTo: false } })).toBeUndefined()
+  })
+
   it('exempts the sign-in pages under every i18n locale prefix too', async () => {
     const nuxt = await loadNuxt({ cwd: fixture, dev: false, ready: true, overrides: { i18n: { locales: ['da', { code: 'en' }] } } as never })
     const { exempt } = nuxt.options.runtimeConfig.public.authorization as { exempt: string[] }

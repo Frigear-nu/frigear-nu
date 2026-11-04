@@ -57,7 +57,6 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens, a scope registry for every service
 - [@frigear-nu/oauth-resource](./packages/oauth-resource) - OAuth resource server (defaults to frigear.nu): accepts the issuer's `at+jwt` access tokens (JWKS, audience, scopes), provisions users and allows the mobile app's bearer CORS
-- [@frigear-nu/oauth-client](./packages/oauth-client) - **Deprecated**, frozen: use `@frigear-nu/auth` in client mode. OAuth 2.1 / OpenID Connect public client with PKCE for Nuxt SPAs and Capacitor apps
 - [@frigear-nu/mobile](./packages/mobile) - Capacitor app shell for Nuxt: one tab registry for native and web tab bars, page titles, safe areas, haptics, deep links, the Android back button and the `frigear-mobile` CLI
 - [@frigear-nu/auth](./packages/auth) - Authentication: sign-in flows (password, magic link, OAuth, passkeys), user API tokens and one `requireAuth` for cookie sessions, tokens and OAuth access tokens, with scopes; or, in client mode, a public PKCE client for SPAs and Capacitor apps
 - [@frigear-nu/mcp](./packages/mcp) - Scoped, PII-safe MCP tools contributed by modules on top of `@nuxtjs/mcp-toolkit`
