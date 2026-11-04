@@ -8,6 +8,7 @@
     "cli": "node ./packages/cli/bin/cli.mjs",
     "build": "turbo run build --concurrency=4",
     "test": "turbo run test --concurrency=4",
+    "test:shard": "node scripts/ci-test-shard.mjs",
     "typecheck": "turbo run typecheck --concurrency=4",
     "lint": "turbo run lint --concurrency=4",
     "lint:fix": "pnpm -r --parallel lint:fix",

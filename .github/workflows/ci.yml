@@ -1,9 +1,18 @@
 name: CI
 
+# Pull requests only: the PR already checks the merge commit, and deploy-production.yml builds main. Not built here:
+# deploy-preview.yml builds every collaborator PR.
+#
+# Almost all test time is @nuxt/test-utils e2e files, each building and booting a Nuxt fixture (15-130 s on a 2 vCPU
+# runner). scripts/ci-test-shard.mjs spreads the test files of the affected packages over the `test` matrix, weighted
+# by scripts/ci-test-timings.json, and runs two packages at a time (more thrashes the 2 cores). Target: every job
+# under ~7 minutes with everything affected. A new e2e fixture costs CI time on every PR that affects its package:
+# reuse an existing fixture when you can. See AGENTS.md "CI".
 on:
-  push:
-    branches: [main]
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,63 +21,24 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Changed packages plus their dependents, against the PR merge commit's first parent (the base branch tip).
+  TURBO_SCM_BASE: HEAD^1
+  TURBO_SCM_HEAD: HEAD
+  AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+  TURBO_TELEMETRY_DISABLED: 1
+  NUXT_TELEMETRY_DISABLED: 1
+
 jobs:
-  changes:
-    name: Detect changed workspace projects
-    runs-on: ubuntu-latest
-    outputs:
-      filter: ${{ steps.filter.outputs.filter }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Determine pnpm --filter argument
-        id: filter
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          # Turbo filter syntax. Only scope the run to changed apps/** & packages/** projects (and
-          # anything that depends on them) for pull requests and ordinary
-          # pushes with known history. Fall back to running against the
-          # whole workspace whenever we can't safely compute a diff (e.g.
-          # first push of a branch, force-pushes, or manual dispatch).
-          ref=""
-
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
-            if git cat-file -e "$BASE_SHA" 2>/dev/null; then
-              ref="$BASE_SHA"
-            fi
-          elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-            if git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
-              ref="$BEFORE_SHA"
-            fi
-          fi
-
-          if [ -n "$ref" ]; then
-            echo "Scoping run to projects changed since $ref"
-            # Exclude the workspace root ("!//") so root-level file changes
-            # (lockfile, workspace config, this workflow, ...) don't trigger
-            # the root package's own aggregate scripts on top of the
-            # per-project ones selected below.
-            echo "filter=--filter=...[$ref] --filter=!//" >> "$GITHUB_OUTPUT"
-          else
-            echo "Running against the whole workspace"
-            echo "filter=" >> "$GITHUB_OUTPUT"
-          fi
-
   lint:
     name: Lint
-    needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -91,19 +61,21 @@ jobs:
             turbo-lint-${{ runner.os }}-
 
       - name: Lint
-        env:
-          TURBO_TELEMETRY_DISABLED: 1
-        run: pnpm exec turbo run lint ${{ needs.changes.outputs.filter }} --concurrency=4 --cache-dir=.turbo
+        run: pnpm exec turbo run lint $AFFECTED --filter='!//' --concurrency=2 --cache-dir=.turbo
 
   test:
-    name: Test
-    needs: changes
+    name: Test (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -117,16 +89,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore turbo cache
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-test-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-test-${{ runner.os }}-
-
       - name: Test
-        env:
-          TURBO_TELEMETRY_DISABLED: 1
-        run: pnpm exec turbo run test ${{ needs.changes.outputs.filter }} --concurrency=4 --cache-dir=.turbo
-
+        run: node scripts/ci-test-shard.mjs ${{ matrix.shard }} 4 $AFFECTED

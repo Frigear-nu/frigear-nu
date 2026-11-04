@@ -1,0 +1,209 @@
+{
+  "@frigear-nu/account": {
+    "test/basic.test.ts": 35,
+    "test/documents.test.ts": 1,
+    "test/guarded.test.ts": 62,
+    "test/host-layout.test.ts": 33,
+    "test/pages-enabled.test.ts": 66,
+    "test/pages-without-menus.test.ts": 44,
+    "test/route-middleware.test.ts": 1,
+    "test/shell.test.ts": 37
+  },
+  "@frigear-nu/admin": {
+    "test/admin.test.ts": 28,
+    "test/host-layout.test.ts": 35
+  },
+  "@frigear-nu/auth": {
+    "test/api-tokens-custom.test.ts": 27,
+    "test/api-tokens-disabled.test.ts": 30,
+    "test/auth-email.test.ts": 1,
+    "test/client-basic.test.ts": 15,
+    "test/client-checks.test.ts": 4,
+    "test/client-host-pages.test.ts": 15,
+    "test/client-secret-guard.test.ts": 3,
+    "test/frigear-color-mode.test.ts": 1,
+    "test/frigear-sso-off.test.ts": 20,
+    "test/frigear-sso-preview.test.ts": 30,
+    "test/frigear-user.test.ts": 1,
+    "test/magic-link.test.ts": 32,
+    "test/oauth-providers.test.ts": 19,
+    "test/oauth-tokens-unit.test.ts": 1,
+    "test/oauth-tokens.test.ts": 31,
+    "test/pages-enabled.test.ts": 44,
+    "test/password-disabled.test.ts": 29,
+    "test/password-enabled.test.ts": 33,
+    "test/password-reset-notification.test.ts": 1,
+    "test/schema-parity.test.ts": 1,
+    "test/schema.test.ts": 1,
+    "test/tokens.test.ts": 44,
+    "test/unit/after-login.test.ts": 1,
+    "test/unit/client/api.test.ts": 1,
+    "test/unit/client/build.test.ts": 1,
+    "test/unit/client/capacitor.test.ts": 1,
+    "test/unit/client/client.test.ts": 1,
+    "test/unit/client/identity.test.ts": 1,
+    "test/unit/client/integration.test.ts": 1,
+    "test/unit/client/pkce.test.ts": 1,
+    "test/unit/client/session.test.ts": 1,
+    "test/unit/client/user.test.ts": 1,
+    "test/unit/client/utils.test.ts": 1,
+    "test/unit/exports.test.ts": 1,
+    "test/unit/forward.test.ts": 1,
+    "test/unit/policy.test.ts": 1,
+    "test/unit/redirect.test.ts": 1,
+    "test/unit/scopes.test.ts": 1,
+    "test/unit/tokens.test.ts": 1,
+    "test/webauthn-credentials.test.ts": 1
+  },
+  "@frigear-nu/authorization": {
+    "test/authenticated.test.ts": 37,
+    "test/client-guards.test.ts": 2,
+    "test/redirect.test.ts": 1,
+    "test/roles.test.ts": 1,
+    "test/rules.test.ts": 1,
+    "test/schema-parity.test.ts": 1,
+    "test/schema.test.ts": 1,
+    "test/server-api-guards.test.ts": 22,
+    "test/server-guards.test.ts": 34
+  },
+  "@frigear-nu/cli": {
+    "test/commands.test.ts": 1,
+    "test/workspace.test.ts": 1
+  },
+  "@frigear-nu/cookie-consent": {
+    "test/authenticated.test.ts": 33,
+    "test/basic.test.ts": 19,
+    "test/consent.test.ts": 1,
+    "test/customized.test.ts": 20,
+    "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/email-templates": {
+    "test/email-templates.test.ts": 24
+  },
+  "@frigear-nu/events": {
+    "test/authenticated.test.ts": 93,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/links.test.ts": 1,
+    "test/unit/translate.test.ts": 1
+  },
+  "@frigear-nu/forms": {
+    "test/authenticated.test.ts": 58,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/builder.test.ts": 1,
+    "test/unit/crypto.test.ts": 1,
+    "test/unit/embed.test.ts": 1,
+    "test/unit/preview.test.ts": 1,
+    "test/unit/schedule.test.ts": 1,
+    "test/unit/template.test.ts": 1,
+    "test/unit/utils.test.ts": 1
+  },
+  "@frigear-nu/mcp": {
+    "test/access.test.ts": 1,
+    "test/mcp.test.ts": 29,
+    "test/money.test.ts": 1
+  },
+  "@frigear-nu/menu": {
+    "test/basic.test.ts": 19,
+    "test/menu.test.ts": 1,
+    "test/state.test.ts": 1,
+    "test/with-items.test.ts": 19
+  },
+  "@frigear-nu/mobile": {
+    "test/auth-modules.test.ts": 10,
+    "test/basic.test.ts": 24,
+    "test/spa.test.ts": 11,
+    "test/unit/back-button.test.ts": 1,
+    "test/unit/build.test.ts": 1,
+    "test/unit/chrome.test.ts": 1,
+    "test/unit/cli.test.ts": 1,
+    "test/unit/deep-links.test.ts": 1,
+    "test/unit/doctor.test.ts": 1,
+    "test/unit/manifest.test.ts": 1,
+    "test/unit/native-navigation.test.ts": 1,
+    "test/unit/plist.test.ts": 1,
+    "test/unit/tabs.test.ts": 1,
+    "test/with-module-tabs.test.ts": 34
+  },
+  "@frigear-nu/module-kit": {
+    "test/basic.test.ts": 15,
+    "test/bootstrap.test.ts": 1,
+    "test/cors.test.ts": 1,
+    "test/helpers.test.ts": 1,
+    "test/inline-runtime.test.ts": 1,
+    "test/optional-imports.test.ts": 1,
+    "test/regular-table.test.ts": 1,
+    "test/runtime-specifiers.test.ts": 1,
+    "test/schema-parity.test.ts": 1,
+    "test/server-toolkit.test.ts": 1,
+    "test/server.test.ts": 1,
+    "test/template-comments.test.ts": 1,
+    "test/template-imports.test.ts": 1,
+    "test/testing-api.test.ts": 1
+  },
+  "@frigear-nu/notify": {
+    "test/email-drivers.test.ts": 1
+  },
+  "@frigear-nu/oauth-resource": {
+    "test/resource.test.ts": 34,
+    "test/users.test.ts": 1,
+    "test/utils.test.ts": 1
+  },
+  "@frigear-nu/oauth-server": {
+    "test/authenticated.test.ts": 82,
+    "test/configured-clients.test.ts": 1,
+    "test/schema-parity.test.ts": 1,
+    "test/utils.test.ts": 1
+  },
+  "@frigear-nu/payments": {
+    "test/authenticated.test.ts": 54,
+    "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/preferences": {
+    "test/basic.test.ts": 34,
+    "test/oauth.test.ts": 44,
+    "test/registry.test.ts": 1,
+    "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/stripe": {
+    "test/authenticated.test.ts": 21,
+    "test/basic.test.ts": 22,
+    "test/custom-path.test.ts": 22,
+    "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/subscriptions": {
+    "test/authenticated.test.ts": 72,
+    "test/plans.test.ts": 1,
+    "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/ui": {
+    "test/patterns.test.ts": 37,
+    "test/unit/cached-fetch.test.ts": 1,
+    "test/unit/money.test.ts": 1,
+    "test/unit/patterns.test.ts": 1,
+    "test/unit/translated.test.ts": 1
+  },
+  "@frigear-nu/users": {
+    "test/admin.test.ts": 76,
+    "test/basic.test.ts": 30,
+    "test/magic-link-flow.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/schema.test.ts": 1,
+    "test/self-service.test.ts": 36,
+    "test/user-store.postgresql.test.ts": 4,
+    "test/verified-email-change.test.ts": 48
+  },
+  "@frigear-nu/website": {
+    "test/id-code.test.ts": 1,
+    "test/locales.test.ts": 1,
+    "test/typewriter.test.ts": 1,
+    "test/users-policy.test.ts": 1
+  },
+  "@frigear-nu/widget": {
+    "test/basic.test.ts": 14,
+    "test/widget.test.ts": 1,
+    "test/with-widgets.test.ts": 13
+  },
+  "create-frigear-app": {
+    "test/create.test.ts": 1
+  }
+}
