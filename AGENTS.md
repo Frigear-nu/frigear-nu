@@ -371,6 +371,21 @@ live in `packages/ui` (reference: `apps/docs/content/3.modules/4.interface/1.ui/
 Don't skip the workspace-wide typecheck/build even for small changes — a package's type or export change can silently
 break `apps/website`.
 
+### CI
+
+`.github/workflows/ci.yml` runs on pull requests only, for the packages Turbo considers affected (changed packages
+plus their dependents): one `Lint` job and four `Test (n/4)` jobs, each with a 10 minute ceiling. It does not run
+typecheck or build; the deploy preview builds collaborator PRs. Almost all test time is `@nuxt/test-utils/e2e` files,
+each building and booting a fixture (15–130 s on CI), so:
+
+- Reuse an existing fixture of the package when you can; a new fixture adds its boot time to every PR that affects
+  the package. Tests that need no Nuxt server go under `test/unit/`.
+- `scripts/ci-test-shard.mjs` spreads the test files over the shards, weighted by `scripts/ci-test-timings.json`.
+  Check the split with `node scripts/ci-test-shard.mjs all 4 --print`; when the shards drift apart, merge the
+  "Measured file times" each CI shard prints at the end into the timings file.
+- Root-only changes (workflows, `scripts/`) affect no package. To test everything, run the workflow by hand
+  (`gh workflow run ci.yml --ref <branch>`).
+
 **Never commit generated or dependency files.** The following are always excluded via `.gitignore` and must never be
 staged or committed e.g:
 
