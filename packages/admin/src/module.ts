@@ -51,7 +51,7 @@ export default defineNuxtModule<ModuleOptions>({
       ? undefined
       : typeof settings.dashboard === 'string' ? settings.dashboard : base
 
-    nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath }
+    nuxt.options.runtimeConfig.public.admin = { base, dashboard: dashboardPath, backTo: settings.backTo ?? '/' }
 
     // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
     const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])

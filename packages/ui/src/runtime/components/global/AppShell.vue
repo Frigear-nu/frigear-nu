@@ -50,6 +50,9 @@ const section = computed(() => {
 // The eyebrow's second part, unless it would repeat the title.
 const crumb = computed(() => section.value && section.value !== props.title ? section.value : undefined)
 
+// An absolute URL (another host) is used as is; a path gets the locale prefix.
+const isAbsoluteUrl = (to: string) => /^[a-z][a-z\d+.-]*:\/\//i.test(to)
+
 const isWide = computed(() => props.wide || route.meta.wide === true)
 
 // A default only: a page's own `useHead` title wins.
@@ -124,7 +127,8 @@ useHead({ title: () => section.value ?? props.title }, { tagPriority: 'low' })
       >
         <UButton
           v-if="backTo"
-          :to="localize(backTo.to)"
+          :to="isAbsoluteUrl(backTo.to) ? backTo.to : localize(backTo.to)"
+          :external="isAbsoluteUrl(backTo.to)"
           color="neutral"
           variant="ghost"
           :icon="backTo.icon ?? 'i-lucide-arrow-left'"

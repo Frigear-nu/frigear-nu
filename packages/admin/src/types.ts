@@ -18,10 +18,17 @@ export type ModuleOptions = {
      * registers no layout and sets no layout rule. Defaults to `true`.
      */
     layout?: boolean
+    /**
+     * Target of the "Back to the site" link in the sidebar footer: a path (localised) or an absolute URL (another
+     * host, opened as is). Defaults to `/`. `false` hides the link. Can be set per deploy with
+     * `NUXT_PUBLIC_ADMIN_BACK_TO`.
+     */
+    backTo?: string | false
   }
 }
 
 export type PublicModuleOptions = {
   base: string
   dashboard?: string
+  backTo?: string | false
 }
