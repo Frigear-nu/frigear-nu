@@ -11,5 +11,4 @@ export default defineNuxtConfig({
     mode: 'client',
     client: { issuer: 'https://id.example.test', clientId: 'fixture-app', storage: 'local' },
   },
-  authorization: { redirectTo: '/login' },
 })

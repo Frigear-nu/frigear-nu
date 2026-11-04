@@ -69,17 +69,6 @@ describe('client mode: setup', () => {
     await nuxt.close()
   })
 
-  it('refuses @frigear-nu/oauth-client next to it in server mode too', async () => {
-    const cwd = fileURLToPath(new URL('./fixtures/password-disabled', import.meta.url))
-    await expect(loadNuxt({ cwd, dev: false, ready: true, overrides: { modules: [fileURLToPath(new URL('../../oauth-client/src/module', import.meta.url))] } }))
-      .rejects.toThrow(/`@frigear-nu\/oauth-client` is installed: it is replaced by/)
-  })
-
-  it('refuses @frigear-nu/oauth-client next to it', async () => {
-    await expect(load({ modules: [fileURLToPath(new URL('../../oauth-client/src/module', import.meta.url))] }))
-      .rejects.toThrow(/`@frigear-nu\/oauth-client` is installed: it is replaced by/)
-  })
-
   it('refuses a mode that comes from another module\'s defaults', async () => {
     const cwd = fileURLToPath(new URL('./fixtures/client-module-default', import.meta.url))
     await expect(loadNuxt({ cwd, dev: false, ready: true })).rejects.toThrow(/"client" did not come from the app's config/)

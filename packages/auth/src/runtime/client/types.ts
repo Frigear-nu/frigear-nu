@@ -91,9 +91,8 @@ export interface ClientModuleOptions {
   }
   /**
    * A production build fails when a client secret would be embedded in the bundle
-   * (`NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_SECRET`, `NUXT_PUBLIC_AUTHENTICATION_CLIENT_SECRET`, or the old
-   * `NUXT_PUBLIC_OAUTH_CLIENT_SECRET` / `NUXT_PUBLIC_OAUTH_CLIENT_CLIENT_SECRET`). `true` allows it (throwaway local
-   * builds against a confidential client only).
+   * (`NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_SECRET` or `NUXT_PUBLIC_AUTHENTICATION_CLIENT_SECRET`). `true` allows it
+   * (throwaway local builds against a confidential client only).
    */
   allowClientSecretInBundle?: boolean
 }

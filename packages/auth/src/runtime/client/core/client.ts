@@ -87,8 +87,8 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   const userAgent = options.userAgent ?? redirectUserAgent()
   const skewMs = (options.refreshSkewSeconds ?? 30) * 1000
   const pendingTtlMs = (options.pendingTtlSeconds ?? 3600) * 1000
-  const lockName = `oauth-client:${issuer}:${clientId}:refresh`
-  const pendingLockName = `oauth-client:${issuer}:${clientId}:pending`
+  const lockName = `auth:${issuer}:${clientId}:refresh`
+  const pendingLockName = `auth:${issuer}:${clientId}:pending`
   const sameIssuer = (value: string) => rewriteUrl(normalizeIssuer(value))
   const timeoutMs = options.requestTimeoutSeconds === undefined ? 15_000 : options.requestTimeoutSeconds * 1000
   const warn = options.onWarning ?? ((message: string, error?: unknown) => console.warn(`[@frigear-nu/auth] ${message}`, error ?? ''))

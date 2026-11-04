@@ -80,6 +80,7 @@ export const withInstallMarker = (
   storage: TokenStorage,
   options: { marker: TokenStorage, keys: string[], markerKey?: string },
 ): TokenStorage => {
+  // The key is stored on devices: renaming it would sign every installed app out once.
   const markerKey = options.markerKey ?? 'oauth-client:installed'
   let ready: Promise<void> | undefined
   const ensure = () => (ready ??= (async () => {

@@ -42,15 +42,10 @@ export function resolveNativeRedirectUri(input: { scheme?: string, redirectUri?:
   return `${scheme}:/${input.callbackPath.replace(/^\/+/, '')}`
 }
 
-/**
- * Every env var that carries a client secret: the two Auth reads and the old `@frigear-nu/oauth-client` names, so a
- * variable forgotten in CI after the migration still fails the build.
- */
+/** Every env var that carries a client secret: the two Auth reads. */
 export const SECRET_ENV_NAMES = [
   'NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_SECRET',
   'NUXT_PUBLIC_AUTHENTICATION_CLIENT_SECRET',
-  'NUXT_PUBLIC_OAUTH_CLIENT_SECRET',
-  'NUXT_PUBLIC_OAUTH_CLIENT_CLIENT_SECRET',
 ] as const
 
 /**

@@ -96,8 +96,6 @@ Mobile signs in with [Auth in client mode](/modules/identity/auth/client-mode). 
 - **Tabs.** A tab with `requiresAuth: true` is hidden while signed out. Tabs default to `requiresAuth: false`.
 - **Server mode fails.** With Auth in server mode the build fails: a Capacitor app cannot send a same-origin session
   cookie to the API.
-- **`oauthClient` fails.** Mobile 0.2 refuses an `oauthClient` block (`@frigear-nu/oauth-client` is deprecated) and
-  prints the migration steps. See [Migrating from `@frigear-nu/oauth-client`](/modules/identity/auth/client-mode#migrating-from-frigear-nuoauth-client).
 
 The guards only decide what the app shows. The API decides what is allowed.
 

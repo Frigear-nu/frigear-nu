@@ -34,8 +34,8 @@ const owner = await requireAuth(event, { sessionOnly: true })
 ## Client mode
 
 `authentication.mode: 'client'` turns Auth into a public OAuth 2.1 / OpenID Connect client (PKCE) for SPAs and
-Capacitor apps that sign in at an issuer: no server, no database, no nuxt-auth-utils, and `ssr: false`. It replaces
-`@frigear-nu/oauth-client`, which must not be installed next to it. Set the mode in the app's own config.
+Capacitor apps that sign in at an issuer: no server, no database, no nuxt-auth-utils, and `ssr: false`. Set the mode
+in the app's own config.
 
 ```ts
 export default defineNuxtConfig({
