@@ -52,7 +52,7 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/ui](./packages/ui) - Shared UI components
 - [@frigear-nu/base](./packages/base-layer) - Nuxt layer with the shared config, UI defaults and content-driven pages that websites extend
 - [@frigear-nu/cli](./packages/cli) - CLI for new projects, apps and modules (`pnpx @frigear-nu/cli init`, `app:create`, `module:create`, `add`)
-- [create-frigear-app](./packages/create-frigear-app) - `pnpm create frigear-app`: the CLI's `init` under its own name
+- [create-frigear-app](./packages/create-frigear-app) - `pnpm create frigear-app`: runs the latest CLI's `init`
 - [@frigear-nu/eslint-config](./packages/eslint-config)
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens, a scope registry for every service
