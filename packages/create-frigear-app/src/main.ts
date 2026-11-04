@@ -1,17 +1,32 @@
-import { initCmd } from '@frigear-nu/cli'
-import { defineCommand, runMain } from 'citty'
-import pkg from '../package.json' with { type: 'json' }
+import { spawnSync } from 'node:child_process'
 
-// `npm create frigear-app` / `pnpm create frigear-app`: the `init` command of @frigear-nu/cli under its own name.
-export const createCmd = defineCommand({
-  ...initCmd,
-  meta: {
-    name: 'create-frigear-app',
-    version: pkg.version,
-    description: 'Create a new project from a Frigear starter',
-  },
-})
+// `pnpm create frigear-app` / `npm create frigear-app`: runs `init` of the latest @frigear-nu/cli through the package
+// manager that started it. No dependencies, so a CLI release reaches it without releasing this package.
 
-export default async function main() {
-  await runMain(createCmd)
+/** The CLI to run: `@frigear-nu/cli@latest`, or `FRIGEAR_CLI` (a version like `@frigear-nu/cli@0.1.0`, or a tarball). */
+export const cliSpec = (env: NodeJS.ProcessEnv = process.env) => env.FRIGEAR_CLI || '@frigear-nu/cli@latest'
+
+/** The command that runs `spec init ...args` with the package manager named in `npm_config_user_agent`. */
+export const dlxCommand = (userAgent: string, spec: string, args: string[]): [string, string[]] => {
+  const [name = '', version = ''] = userAgent.split(' ')[0]!.split('/')
+  const rest = [spec, 'init', ...args]
+  if (name === 'pnpm')
+    return ['pnpm', ['dlx', ...rest]]
+  // Yarn 1 has no dlx.
+  if (name === 'yarn' && !version.startsWith('1.'))
+    return ['yarn', ['dlx', ...rest]]
+  if (name === 'bun')
+    return ['bunx', rest]
+  // --package also takes a tarball or folder, which npx would try to run as a file.
+  return ['npx', ['--yes', '--package', spec, '--', 'frigear-nu', 'init', ...args]]
+}
+
+export default function main(args = process.argv.slice(2)) {
+  const [command, commandArgs] = dlxCommand(process.env.npm_config_user_agent ?? '', cliSpec(), args)
+  const { status, error } = spawnSync(command, commandArgs, { stdio: 'inherit', shell: process.platform === 'win32' })
+  if (error) {
+    console.error(`Could not run ${command}: ${error.message}`)
+    process.exit(1)
+  }
+  process.exit(status ?? 1)
 }
