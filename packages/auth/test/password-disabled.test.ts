@@ -1,13 +1,14 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
-import { setup, $fetch } from '@nuxt/test-utils/e2e'
+import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
 import { authApi } from '../src/runtime/utils/api'
 
-describe('password auth (disabled)', async () => {
-  await setup({
-    rootDir: fileURLToPath(new URL('./fixtures/password-disabled', import.meta.url)),
-  })
+// One build for every suite below.
+await setup({
+  rootDir: fileURLToPath(new URL('./fixtures/password-disabled', import.meta.url)),
+})
 
+describe('password auth (disabled)', () => {
   it('disables password reset in the public runtime config', async () => {
     const html = await $fetch('/')
     expect(html).toContain('passwordReset:false')
@@ -45,5 +46,29 @@ describe('password auth (disabled)', async () => {
       body: { code: 'abc', password: 'password123', confirmPassword: 'password123' },
     })
     expect(html).toContain('<!DOCTYPE html')
+  })
+})
+
+describe('user API tokens (disabled)', () => {
+  it('reports them off in the public runtime config', async () => {
+    expect(await $fetch('/')).toContain('apiTokens:false')
+  })
+
+  it('does not register the token routes', async () => {
+    // No route at all, so both fall through to the app's SSR fallback.
+    expect(await (await fetch(authApi.me.tokens)).text()).toContain('<!DOCTYPE html')
+    const created = await fetch(authApi.me.tokens, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"name":"CI","scopes":[]}' })
+    expect(await created.text()).toContain('<!DOCTYPE html')
+  })
+})
+
+describe('frigear.nu sso (not a preview, no credentials)', () => {
+  it('does not expose the login button', async () => {
+    expect(await $fetch('/')).toContain('frigearSso:false')
+  })
+
+  it('answers 404 from the route', async () => {
+    const response = await fetch('/auth/frigear', { redirect: 'manual' })
+    expect(response.status).toBe(404)
   })
 })

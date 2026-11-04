@@ -24,7 +24,9 @@ export default defineNuxtConfig({
   },
   account: {
     settings: {
-      pages: { index: true, profile: true, security: true },
+      // Every shipped page, so the 'opt-in' suite of `shell.test.ts` shares this fixture.
+      pages: { index: true, profile: true, security: true, documents: true, apiTokens: true },
+      documents: [{ id: 'handbook', label: { en: 'Volunteer Handbook' }, path: '/assets/handbook.docx' }],
     },
   },
 })
