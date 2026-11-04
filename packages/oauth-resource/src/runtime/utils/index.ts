@@ -1,4 +1,4 @@
-// Pure helpers: safe to import from Nitro, the module and tests (`@frigear-nu/frigear-resource/utils`).
+// Pure helpers: safe to import from Nitro, the module and tests (`@frigear-nu/oauth-resource/utils`).
 
 export const DEFAULT_ISSUER = 'https://frigear.nu'
 export const DEFAULT_AUDIENCE = 'frigear-services'

@@ -1,7 +1,7 @@
 export type ModuleOptions = {
-  /** The token issuer (`iss`), i.e. the frigear.nu OAuth server. Defaults to `https://frigear.nu`. */
+  /** The token issuer (`iss`), e.g. an `@frigear-nu/oauth-server` instance. Defaults to `https://frigear.nu`. */
   issuer?: string
-  /** The `aud` access tokens must carry: the shared audience of the Frigear services. Defaults to `frigear-services`. */
+  /** The `aud` access tokens must carry: typically one audience shared by every service. Defaults to `frigear-services`. */
   audience?: string | string[]
   /** Where the issuer publishes its signing keys. Defaults to `<issuer>/.well-known/jwks.json`. */
   jwksUrl?: string
@@ -15,7 +15,7 @@ export type ModuleOptions = {
   /** Path prefixes the CORS headers apply to. Defaults to `/api/`. */
   corsPaths?: string[]
   /**
-   * Use the frigear.nu user id (`sub`) as the local `users.id`. Defaults to `runtimeConfig.frigear.forceId` (the
+   * Use the issuer's user id (`sub`) as the local `users.id`. Defaults to `runtimeConfig.frigear.forceId` (the
    * setting of "Log in with frigear.nu"), so tokens and logins find the same users. Without it users are matched by email.
    */
   forceId?: boolean
@@ -23,8 +23,8 @@ export type ModuleOptions = {
   jwksCacheTtl?: number
 }
 
-/** `runtimeConfig.frigearResource`: every key can be set through `NUXT_FRIGEAR_RESOURCE_*`. */
-export type FrigearResourceRuntimeConfig = {
+/** `runtimeConfig.oauthResource`: every key can be set through `NUXT_OAUTH_RESOURCE_*`. */
+export type OAuthResourceRuntimeConfig = {
   issuer: string
   /** Comma separated through env. */
   audience: string[] | string
@@ -38,8 +38,8 @@ export type FrigearResourceRuntimeConfig = {
   jwksCacheTtl: number
 }
 
-/** The claims of a verified frigear.nu access token (RFC 9068). */
-export type FrigearAccessToken = {
+/** The claims of a verified access token (RFC 9068). */
+export type OAuthResourceAccessToken = {
   iss: string
   sub: string
   aud: string | string[]
@@ -51,7 +51,7 @@ export type FrigearAccessToken = {
 } & Record<string, unknown>
 
 /** What the issuer's userinfo endpoint tells about an unknown user. */
-export type FrigearUserinfo = {
+export type OAuthResourceUserinfo = {
   sub: string
   email?: string
   email_verified?: boolean
