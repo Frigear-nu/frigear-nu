@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commitMessage": "chore(release): create-frigear-app@${version}",
+    "tagName": "create-frigear-app@${version}",
+    "tagAnnotation": "create-frigear-app@${version}",
+    "push": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "create-frigear-app@${version}"
+  },
+  "npm": {
+    "publish": false
+  },
+  "hooks": {
+    "after:bump": "pnpm run build --if-present",
+    "after:release": "bash ../../scripts/npm-publish.sh"
+  }
+}
