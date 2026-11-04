@@ -11,11 +11,12 @@ The purpose of this repo is to provide a base for building a modular nuxt applic
 
 The modules are **Nuxt 4** modules (Nuxt `^4.6`, `app/` directory structure); Nuxt 3 is not supported.
 [`.starters/workspace`](./.starters/workspace) is a ready pnpm workspace with one Nuxt 4 app (`apps/web`) that has
-register/login, `/account` pages and an `/admin` user admin. Copy it with [giget](https://github.com/unjs/giget):
+register/login, `/account` pages and an `/admin` user admin. Create a project from it with the CLI
+(`pnpm create frigear-app my-app --platform web`), or copy it with [giget](https://github.com/unjs/giget):
 
 ```bash
-pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-project
-cd my-project
+pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/workspace my-app
+cd my-app
 git init
 corepack enable
 pnpm install
@@ -50,11 +51,12 @@ are not part of this workspace: they use the published versions.
 
 - [@frigear-nu/ui](./packages/ui) - Shared UI components
 - [@frigear-nu/base](./packages/base-layer) - Nuxt layer with the shared config, UI defaults and content-driven pages that websites extend
-- [@frigear-nu/cli](./packages/cli) - Private scaffolder (`pnpm cli module:create`) for new modules
+- [@frigear-nu/cli](./packages/cli) - CLI for new projects, apps and modules (`pnpx @frigear-nu/cli init`, `app:create`, `module:create`, `add`)
+- [create-frigear-app](./packages/create-frigear-app) - `pnpm create frigear-app`: the CLI's `init` under its own name
 - [@frigear-nu/eslint-config](./packages/eslint-config)
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens, a scope registry for every service
-- [@frigear-nu/frigear-resource](./packages/frigear-resource) - Resource server for frigear.nu: accepts its `at+jwt` access tokens (JWKS, audience, scopes), provisions users and allows the mobile app's bearer CORS
+- [@frigear-nu/oauth-resource](./packages/oauth-resource) - OAuth resource server (defaults to frigear.nu): accepts the issuer's `at+jwt` access tokens (JWKS, audience, scopes), provisions users and allows the mobile app's bearer CORS
 - [@frigear-nu/mobile](./packages/mobile) - Capacitor app shell for Nuxt: one tab registry for native and web tab bars, page titles, safe areas, haptics, deep links, the Android back button and the `frigear-mobile` CLI
 - [@frigear-nu/auth](./packages/auth) - Authentication: sign-in flows (password, magic link, OAuth, passkeys), user API tokens and one `requireAuth` for cookie sessions, tokens and OAuth access tokens, with scopes; or, in client mode, a public PKCE client for SPAs and Capacitor apps
 - [@frigear-nu/mcp](./packages/mcp) - Scoped, PII-safe MCP tools contributed by modules on top of `@nuxtjs/mcp-toolkit`

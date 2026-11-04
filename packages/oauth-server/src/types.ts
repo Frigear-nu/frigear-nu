@@ -39,7 +39,7 @@ export type ModuleOptions = {
   accessTokenTtl?: number
   /**
    * The `aud` of every access token, e.g. `frigear-services`: the services that accept tokens of this server (resource
-   * servers such as `@frigear-nu/frigear-resource`) check it. Defaults to the application's `client_id`.
+   * servers such as `@frigear-nu/oauth-resource`) check it. Defaults to the application's `client_id`.
    * `NUXT_OAUTH_SERVER_ACCESS_TOKEN_AUDIENCE` takes a comma separated list.
    */
   accessTokenAudience?: string | string[]

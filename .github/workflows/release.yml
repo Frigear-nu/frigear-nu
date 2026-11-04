@@ -26,11 +26,13 @@ on:
           - auth
           - authorization
           - base-layer
+          - cli
+          - create-frigear-app
           - cookie-consent
           - eslint-config
           - events
           - forms
-          - frigear-resource
+          - oauth-resource
           - mcp
           - menu
           - mobile
@@ -77,7 +79,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","frigear-resource","mobile","eslint-config"]'
+            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","oauth-resource","mobile","eslint-config","cli","create-frigear-app"]'
           else
             packages="[\"$PACKAGE\"]"
           fi

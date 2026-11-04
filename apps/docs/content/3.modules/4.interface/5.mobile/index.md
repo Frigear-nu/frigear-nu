@@ -233,5 +233,5 @@ command registers them in the native projects.
 
 - [Auth client mode](/modules/identity/auth/client-mode): sign-in, tokens and `$api`.
 - [Authorization](/modules/identity/authorization): the guards.
-- [Frigear Resource](/modules/identity/frigear-resource): lets each service the app calls accept the access token.
+- [OAuth Resource](/modules/identity/oauth-resource): lets each service the app calls accept the access token.
 - [Use your own OAuth server](/guide/going-further/own-oauth-server).

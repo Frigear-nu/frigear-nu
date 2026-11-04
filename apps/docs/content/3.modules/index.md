@@ -27,7 +27,7 @@ Who the users are, how they sign in and what they may do.
 | [Preferences](/modules/identity/preferences) | Typed per-user preferences, optionally forwarded as OAuth claims. | ✓ | ✓ |  |
 | [OAuth Server](/modules/identity/oauth-server) | An OAuth 2.0 / OpenID Connect server for applications your users sign in to. | ✓ | ✓ |  |
 | OAuth Client | Deprecated: replaced by [Auth client mode](/modules/identity/auth/client-mode). |  | ✓ | ✓ |
-| [Frigear Resource](/modules/identity/frigear-resource) | Accept frigear.nu access tokens in a service, so one mobile app signs in once and calls every service. | ✓ |  |  |
+| [OAuth Resource](/modules/identity/oauth-resource) | Accept an OAuth issuer's access tokens (frigear.nu by default) in a service, so one mobile app signs in once and calls every service. | ✓ |  |  |
 
 ## Commerce
 
@@ -82,7 +82,7 @@ directly. The main chains:
   `oauth-server` build on `users` and `auth`.
 - **Mobile apps:** `mobile` installs `auth` when `authentication` is configured, and the app sets
   `authentication.mode: 'client'`. It picks its guards with `authorization`. The app signs in at an issuer such as
-  `oauth-server`, and each service it calls verifies the token with `frigear-resource`. See
+  `oauth-server`, and each service it calls verifies the token with `oauth-resource`. See
   [Identity](/guide/concepts/identity) for how the OAuth modules relate.
 - **Commerce:** `subscriptions`, `payments` and `events` build on `stripe` and `auth`. `events` can read memberships from
   `subscriptions`.

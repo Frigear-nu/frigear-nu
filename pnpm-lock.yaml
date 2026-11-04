@@ -833,6 +833,15 @@ importers:
       giget:
         specifier: ^3.3.1
         version: 3.3.1
+      magicast:
+        specifier: ^0.5.5
+        version: 0.5.5
+      nypm:
+        specifier: ^0.6.10
+        version: 0.6.10
+      pkg-types:
+        specifier: ^2.4.0
+        version: 2.4.0
       scule:
         specifier: ^1.3.0
         version: 1.3.0
@@ -849,6 +858,15 @@ importers:
       jiti:
         specifier: ^2.7.0
         version: 2.7.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unbuild:
+        specifier: ^3.6.1
+        version: 3.6.1(typescript@6.0.3)(vue-sfc-transformer@0.2.5(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.43)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.11)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3)))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/cookie-consent:
     dependencies:
@@ -925,6 +943,37 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
+
+  packages/create-frigear-app:
+    dependencies:
+      '@frigear-nu/cli':
+        specifier: workspace:^
+        version: link:../cli
+      citty:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@frigear-nu/eslint-config':
+        specifier: workspace:^
+        version: link:../eslint-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      eslint:
+        specifier: 'catalog:'
+        version: 10.12.0(jiti@2.7.0)(supports-color@10.2.2)
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unbuild:
+        specifier: ^3.6.1
+        version: 3.6.1(typescript@6.0.3)(vue-sfc-transformer@0.2.5(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.43)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.11)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3)))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/email-templates:
     dependencies:
@@ -1180,73 +1229,6 @@ importers:
       nuxt:
         specifier: 'catalog:'
         version: 4.6.1(bfc1b6c71e6b3e97dc8e8e19ea2eff16)
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-      vitest:
-        specifier: 'catalog:'
-        version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
-      vue-tsc:
-        specifier: 'catalog:'
-        version: 3.3.11(typescript@6.0.3)
-
-  packages/frigear-resource:
-    dependencies:
-      '@frigear-nu/auth':
-        specifier: workspace:^
-        version: link:../auth
-      '@frigear-nu/module-kit':
-        specifier: workspace:^
-        version: link:../module-kit
-      '@frigear-nu/users':
-        specifier: workspace:^
-        version: link:../users
-      '@nuxt/kit':
-        specifier: 'catalog:'
-        version: 4.6.1(@nuxt/schema@4.6.1)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
-      h3:
-        specifier: ^1.15.11
-        version: 1.15.11
-      jose:
-        specifier: ^6.1.0
-        version: 6.2.12
-    devDependencies:
-      '@libsql/client':
-        specifier: ^0.18.0
-        version: 0.18.0
-      '@nuxt/devtools':
-        specifier: 'catalog:'
-        version: 3.4.2(@capacitor/preferences@8.0.1(@capacitor/core@8.6.0))(@nuxt/schema@4.6.1)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
-      '@nuxt/eslint-config':
-        specifier: 'catalog:'
-        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.12.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.12.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-      '@nuxt/module-builder':
-        specifier: 'catalog:'
-        version: 1.0.3(@nuxt/cli@3.37.0(@nuxt/schema@4.6.1)(cac@6.7.14)(magicast@0.5.5)(supports-color@10.2.2))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.43)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
-      '@nuxt/schema':
-        specifier: 'catalog:'
-        version: 4.6.1
-      '@nuxt/test-utils':
-        specifier: 'catalog:'
-        version: 4.3.2(esbuild@0.28.2)(magicast@0.5.5)(rolldown@1.2.11)(rollup@4.63.5)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
-      '@nuxthub/core':
-        specifier: 'catalog:'
-        version: 0.10.8(patch_hash=c5120d13f8742b8d6a08e0f6a68534282bd66fbf70bdaea201d8efa4462c410f)(@capacitor/preferences@8.0.1(@capacitor/core@8.6.0))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.1)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.3)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vue-tsc@3.3.11(typescript@6.0.3))
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 0.31.11
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.3(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.9)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
-      eslint:
-        specifier: 'catalog:'
-        version: 10.12.0(jiti@2.7.0)(supports-color@10.2.2)
-      nuxt:
-        specifier: 'catalog:'
-        version: 4.6.1(f923eb433d88106a2ad8e3b7dc0457a8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1585,6 +1567,73 @@ importers:
       nuxt:
         specifier: 'catalog:'
         version: 4.6.1(bfc1b6c71e6b3e97dc8e8e19ea2eff16)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.11(typescript@6.0.3)
+
+  packages/oauth-resource:
+    dependencies:
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.3(@nuxt/schema@4.6.1)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
+      h3:
+        specifier: ^1.15.11
+        version: 1.15.11
+      jose:
+        specifier: ^6.1.0
+        version: 6.2.12
+    devDependencies:
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 3.4.2(@capacitor/preferences@8.0.1(@capacitor/core@8.6.0))(@nuxt/schema@4.6.1)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.12.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.43)(eslint@10.12.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.3(@nuxt/cli@3.37.0(@nuxt/schema@4.6.1)(cac@6.7.14)(magicast@0.5.5)(supports-color@10.2.2))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.43)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.1
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.3.2(esbuild@0.28.2)(magicast@0.5.5)(rolldown@1.2.11)(rollup@4.63.5)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.2(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.8(patch_hash=c5120d13f8742b8d6a08e0f6a68534282bd66fbf70bdaea201d8efa4462c410f)(@capacitor/preferences@8.0.1(@capacitor/core@8.6.0))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.1)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.3)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.153.0)(rolldown@1.2.11)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.2(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(vue-tsc@3.3.11(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.3(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.9)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.12.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.1(f923eb433d88106a2ad8e3b7dc0457a8)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
