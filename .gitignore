@@ -67,7 +67,6 @@ Temporary Items
 .claude/.cc-writes
 .claude/settings.local.json
 packages/account/test/fixtures/basic/.data
-packages/account/test/fixtures/pages-enabled/.data
 packages/account/test/fixtures/pages-without-menus/.data
 packages/cookie-consent/test/fixtures/authenticated/.data
 packages/events/test/fixtures/authenticated/.data
@@ -75,10 +74,8 @@ packages/forms/test/fixtures/authenticated/.data
 packages/oauth-server/test/fixtures/authenticated/.data
 packages/payments/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/authenticated/.data
-packages/stripe/test/fixtures/basic/.data
 packages/stripe/test/fixtures/custom-path/.data
 packages/subscriptions/test/fixtures/authenticated/.data
-packages/users/test/fixtures/basic/.data
 packages/users/test/fixtures/pages-enabled/.data
 packages/users/test/fixtures/password-disabled/.data
 packages/users/test/fixtures/password-enabled/.data

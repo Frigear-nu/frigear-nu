@@ -2,9 +2,10 @@ import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { setup, $fetch } from '@nuxt/test-utils/e2e'
 
-describe('cookie-consent (cookie only)', async () => {
-  await setup({ rootDir: fileURLToPath(new URL('./fixtures/basic', import.meta.url)) })
+// One build for both suites below: the fixture also carries the app's customizations.
+await setup({ rootDir: fileURLToPath(new URL('./fixtures/basic', import.meta.url)) })
 
+describe('cookie-consent (cookie only)', () => {
   it('renders the index page', async () => {
     expect(await $fetch('/')).toContain('<div>basic</div>')
   })
@@ -36,5 +37,25 @@ describe('cookie-consent (cookie only)', async () => {
     const stale = encodeURIComponent(JSON.stringify({ v: 'old', ts: 1, categories: { analytics: true } }))
     expect((await $fetch<{ analytics: boolean }>('/api/consent', { headers: { cookie: `cookie-consent=${stale}` } })).analytics).toBe(false)
     expect((await $fetch<{ analytics: boolean }>('/api/consent', { headers: { cookie: 'cookie-consent=accepted' } })).analytics).toBe(true)
+  })
+})
+
+describe('cookie-consent (customized by the app)', () => {
+  it('uses a component of the same name from the app instead of the module default', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('custom manage button')
+    expect(html).not.toContain('Manage cookies')
+  })
+
+  it('lets the app replace only the banner button row', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toContain('custom actions')
+    expect(html).not.toContain('cookie-consent-accept')
+  })
+
+  it('resolves the localized policy url and label for the current locale', async () => {
+    const html = await $fetch<string>('/')
+    expect(html).toMatch(/data-testid="policy-url">\s*\/legal\/cookies\s*</)
+    expect(html).toMatch(/data-testid="policy-label">\s*Read our cookie policy\s*</)
   })
 })

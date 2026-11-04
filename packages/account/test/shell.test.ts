@@ -7,13 +7,14 @@ const h1Count = (html: string) => html.match(/<h1[\s>]/g)?.length ?? 0
 const navOf = (html: string) => html.slice(html.indexOf('aria-label="Account navigation"'))
 const linkTo = (html: string, path: string) => new RegExp(`<a[^>]*href="${path}"[^>]*>`).exec(navOf(html))?.[0]
 
-describe('account shell', async () => {
-  await setup({
-    rootDir: fileURLToPath(new URL('./fixtures/shell', import.meta.url)),
-    // Cold builds on shared CI runners can take longer than vitest's 120s default.
-    setupTimeout: 240_000,
-  })
+// One build for both suites below: the shell fixture opts into every shipped page.
+await setup({
+  rootDir: fileURLToPath(new URL('./fixtures/shell', import.meta.url)),
+  // Cold builds on shared CI runners can take longer than vitest's 120s default.
+  setupTimeout: 240_000,
+})
 
+describe('account shell', () => {
   it('renders a page another module adds under /account inside the site layout, with its own heading', async () => {
     const html = await $fetch<string>('/account/extra')
     // The site layout (header) wraps the account area: it is a settings page of the site, not a dashboard.
@@ -80,5 +81,41 @@ describe('account shell', async () => {
     expect(html).toContain('home page')
     expect(html).toContain('site header')
     expect(html).not.toContain('Account navigation')
+  })
+})
+
+describe('account pages (opt-in, with menus installed)', () => {
+  it('renders the profile page at the default path', async () => {
+    const html = await $fetch('/account/profile')
+    expect(html).toContain('Profile')
+  })
+
+  it('renders the security page at the default path', async () => {
+    const html = await $fetch('/account/security')
+    expect(html).toContain('Change password')
+  })
+
+  it('renders the overview page with Profile/Security shortcuts', async () => {
+    const html = await $fetch('/account')
+    expect(html).toContain('Profile')
+    expect(html).toContain('Security')
+  })
+
+  it('renders the documents page listing unrestricted documents', async () => {
+    const html = await $fetch('/account/documents')
+    expect(html).toContain('Volunteer Handbook')
+    expect(html).toContain('/assets/handbook.docx')
+  })
+
+  it('renders the API tokens page and lists it on the overview', async () => {
+    const html = await $fetch('/account/api-tokens')
+    expect(html).toContain('Create API token')
+    expect(html).toContain('Your tokens')
+    expect(html).toContain('You have not created any tokens yet.')
+    expect(await $fetch('/account')).toContain('API tokens')
+  })
+
+  it('shows a Documents shortcut on the overview', async () => {
+    expect(await $fetch('/account')).toContain('Documents')
   })
 })

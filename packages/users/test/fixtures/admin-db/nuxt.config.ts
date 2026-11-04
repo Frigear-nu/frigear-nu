@@ -1,6 +1,7 @@
 import { addAuthScope } from '@frigear-nu/auth/utils'
 import MyModule from '../../../src/module'
 
+// The users module with its admin area and MCP tools on, shared by every suite of `admin.test.ts`.
 export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
@@ -31,6 +32,6 @@ export default defineNuxtConfig({
     email: { driver: './server/utils/mail-driver' },
   },
   users: {
-    settings: { admin: true },
+    settings: { admin: true, mcp: true },
   },
 })
