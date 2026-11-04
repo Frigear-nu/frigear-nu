@@ -13,6 +13,11 @@ const optional = (component: unknown) => typeof component === 'string' ? undefin
 
 const home = config?.dashboard ?? config?.base ?? '/admin'
 
+// `settings.backTo`: a path or absolute URL, `false` hides the link. An empty env override also hides it.
+const backTo = config?.backTo === false || config?.backTo === ''
+  ? undefined
+  : { to: config?.backTo ?? '/', label: t('backToSite', 'Back to the site') }
+
 // One read of every group (`admin.nav`, `admin.nav.overview`, `admin.nav.settings`); each item carries its group.
 const { data: items } = await useMenu('admin.nav.*')
 type GroupName = 'overview' | 'manage' | 'settings'
@@ -54,7 +59,7 @@ const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(grou
     :navigation="navigation"
     :nav-label="t('nav.label', 'Admin navigation')"
     :search-groups="searchGroups"
-    :back-to="{ to: '/', label: t('backToSite', 'Back to the site') }"
+    :back-to="backTo"
   >
     <template #sidebar-footer="{ collapsed }">
       <component

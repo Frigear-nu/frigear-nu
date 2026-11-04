@@ -41,6 +41,7 @@ export interface ActionOptions {
 
 /** The sidebar footer link of `AppShell` (e.g. "Back to the site"). `to` is a raw path; the shell localises it. */
 export interface AppShellBackTo {
+  /** A path (localised) or an absolute URL (used as is). */
   to: string
   label: string
   /** Defaults to `i-lucide-arrow-left`. */
