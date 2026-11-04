@@ -92,8 +92,9 @@ describe('isPackageInstalled', () => {
 
 describe('nativeLoaderTemplate', () => {
   it('imports only the installed plugins', () => {
-    const source = nativeLoaderTemplate({ installed: { app: true, browser: false, preferences: true, secureStorage: false }, customStorage: '/abs/storage.ts' })
-    expect(source).toContain('app: () => import("@capacitor/app").then(m => m.App)')
+    const source = nativeLoaderTemplate({ installed: { app: true, browser: false, preferences: true, secureStorage: false }, customStorage: '/abs/storage.ts', helper: '/abs/adapters' })
+    expect(source).toContain('import { withoutThen } from "/abs/adapters"')
+    expect(source).toContain('app: () => import("@capacitor/app").then(m => withoutThen(m.App))')
     expect(source).toContain('browser: null')
     expect(source).toContain('secureStorage: null')
     expect(source).not.toContain('@capacitor/browser')
