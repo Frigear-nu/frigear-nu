@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@frigear-nu/account": "^0.2.4",
-    "@frigear-nu/admin": "^0.2.2",
+    "@frigear-nu/admin": "^0.2.5",
     "@frigear-nu/auth": "^0.3.3",
     "@frigear-nu/authorization": "^0.3.0",
     "@frigear-nu/menu": "^0.2.2",
