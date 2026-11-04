@@ -1,0 +1,52 @@
+{
+  "name": "create-frigear-app",
+  "version": "0.1.1",
+  "type": "module",
+  "private": false,
+  "description": "Create a Frigear project from a starter: pnpm create frigear-app. Runs the latest @frigear-nu/cli.",
+  "author": {
+    "name": "Frigear",
+    "email": "kontakt@frigear.nu",
+    "url": "https://frigear.nu"
+  },
+  "homepage": "https://docs.frigear.dev/contribute/tooling/cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "directory": "packages/create-frigear-app"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.17.0"
+  },
+  "bin": {
+    "create-frigear-app": "./bin/create.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "bin": {
+      "create-frigear-app": "./dist/cli.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "node bin/create.mjs",
+    "build": "unbuild",
+    "prepack": "unbuild",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@frigear-nu/eslint-config": "workspace:^",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "jiti": "^2.7.0",
+    "typescript": "catalog:",
+    "unbuild": "^3.6.1",
+    "vitest": "catalog:"
+  }
+}

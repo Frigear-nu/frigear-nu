@@ -4,9 +4,9 @@ import { normalizeTabs } from '../../src/runtime/shared/tabs'
 
 const { tabs } = normalizeTabs([
   { id: 'home', to: '/', label: 'Home', icon: 'i' },
-  { id: 'bills', to: '/bills', label: 'Bills', title: 'Your bills', icon: 'i' },
-  { id: 'about', to: '/about', label: 'About', icon: 'i', requiresAuth: false },
-], { auth: true })
+  { id: 'bills', to: '/bills', label: 'Bills', title: 'Your bills', icon: 'i', requiresAuth: true },
+  { id: 'about', to: '/about', label: 'About', icon: 'i' },
+])
 
 const input = (overrides: Partial<ChromeInput> = {}): ChromeInput => ({
   platform: 'web',
@@ -70,7 +70,7 @@ describe('resolveChrome', () => {
 
   it('leaves out signed-in tabs while signed out', () => {
     const state = resolveChrome(input({ authenticated: false, path: '/bills' }))
-    expect(state.tabs.map(tab => tab.id)).toEqual(['about'])
+    expect(state.tabs.map(tab => tab.id)).toEqual(['home', 'about'])
     expect(state.activeTab).toBeNull()
     expect(state.header.title).toBe('Bills app')
     expect(resolveChrome(input({ authenticated: null })).tabs).toHaveLength(3)

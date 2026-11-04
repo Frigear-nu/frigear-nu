@@ -8,14 +8,14 @@ export interface DeepLinkOptions {
   schemes: string[]
   /** `https` hosts of universal links / app links. */
   hosts: string[]
-  /** Whether the URL is an OAuth redirect, which `@frigear-nu/oauth-client` completes. */
+  /** Whether the URL is an OAuth redirect, which `@frigear-nu/auth` (client mode) completes. */
   isCallbackUrl?: (url: string) => boolean
 }
 
 /**
  * What a URL the OS opened the app with means:
  *
- * - an OAuth callback: left to `@frigear-nu/oauth-client`;
+ * - an OAuth callback: left to `@frigear-nu/auth`;
  * - `<scheme>:/bills/1`, `<scheme>://bills/1` (the host is the first segment) or `https://<host>/bills/1`: the app path;
  * - anything else: ignored.
  */

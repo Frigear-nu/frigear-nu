@@ -15,8 +15,11 @@ export interface ModuleOptions {
     /** `() => User | null | Promise<User | null>` - runs in the app (client and SSR). */
     client?: string
   }
-  /** Where to send unauthenticated visitors on page navigation. Omit to show a 401 error instead. */
-  redirectTo?: string
+  /**
+   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
+   * server mode, or set `false` in client mode, to show a 401 error instead.
+   */
+  redirectTo?: string | false
 }
 
 /**
@@ -28,6 +31,8 @@ export type AuthorizationRouteRules = Omit<RouteRule, 'args' | 'ability'> & { ab
 export interface PublicModuleOptions {
   /** The authorization keys of `routeRules`, collected at build time. */
   routes?: Record<string, AuthorizationRouteRules>
+  /** Auth's anonymous entry points (`public.authentication.publicPaths`): less specific guards stop there. */
+  exempt?: string[]
   redirectTo?: string
 }
 

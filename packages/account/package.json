@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/account",
-  "version": "0.2.3",
+  "version": "0.2.6",
   "description": "A module for managing the account area (profile, email, password, security) in the main frigear app.",
   "homepage": "https://docs.frigear.dev/modules/identity/account",
   "repository": {

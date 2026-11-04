@@ -1,12 +1,17 @@
 import { defineCommand, runMain } from 'citty'
+import pkg from '../package.json' with { type: 'json' }
 
-const mainCmd = defineCommand({
+export const mainCmd = defineCommand({
   meta: {
-    name: 'frigear-nu-cli',
-    version: '0.0.1',
+    name: 'frigear-nu',
+    version: pkg.version,
+    description: 'Scaffold Frigear projects, apps and modules',
   },
   subCommands: {
-    'module:create': import('./module/create.ts').then(module => module.default),
+    'init': () => import('./commands/init.ts').then(module => module.default),
+    'app:create': () => import('./commands/app-create.ts').then(module => module.default),
+    'module:create': () => import('./commands/module-create.ts').then(module => module.default),
+    'add': () => import('./commands/add.ts').then(module => module.default),
   },
 })
 

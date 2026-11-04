@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/eslint-config",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "Shared ESLint flat config for Frigear packages and Nuxt apps.",
   "homepage": "https://docs.frigear.dev/contribute/tooling/eslint-config",
   "repository": {

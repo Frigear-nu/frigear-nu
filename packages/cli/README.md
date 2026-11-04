@@ -1,31 +1,28 @@
 # @frigear-nu/cli
 
-This is a package for executing certain commands within this stack/repository.
-**It is not intended to be used outside of this repo.**
-
-It is private and is not built or published: `bin/cli.mjs` loads `src/cli.ts` at runtime through
-[jiti](https://github.com/unjs/jiti).
-
-To see available commands, run from the repository root:
+Create Frigear projects from the starters, add apps and modules to a pnpm workspace, and install Frigear modules in a
+Nuxt app.
 
 ```bash
-pnpm cli --help
+pnpx @frigear-nu/cli --help
 ```
 
-## Commands
+| Command | What it does |
+| --- | --- |
+| `init [dir] --platform <web\|mobile\|web,mobile>` | New project from a starter (or `-t <giget source>`), then `pnpm install` and `pnpm prepare:env`. |
+| `app:create <name> --template <web\|web-standalone\|mobile>` | Adds a starter's app to `apps/<name>`. |
+| `module:create <name> [--scope @acme]` | Scaffolds a Nuxt module in `packages/<name>`. |
+| `add <module...> [--app <app>]` | `pnpm add` in the app and adds the modules to its `nuxt.config`. |
 
-### `module:create`
+Starters are downloaded from `Frigear-nu/frigear-nu` with [giget](https://github.com/unjs/giget) (`--ref` picks a branch
+or tag). While that repository is not public, set `GIGET_AUTH` to a GitHub token that can read it.
 
-Scaffolds a new module under `packages/<name>` from a template and renames it to `@frigear-nu/<name>`.
+`pnpm create frigear-app` ([create-frigear-app](../create-frigear-app)) runs `init` of the latest CLI.
 
-```bash
-pnpm cli module:create <name> [--template <template>] [--cwd <path>]
-```
+Full reference: [docs.frigear.dev/contribute/tooling/cli](https://docs.frigear.dev/contribute/tooling/cli).
 
-| Argument     | Description                                                                           |
-| ------------ | ------------------------------------------------------------------------------------- |
-| `<name>`     | Name of the new module, e.g. `my-module` (kebab-cased for the directory and package). |
-| `--template` | [giget](https://github.com/unjs/giget) template. Defaults to `gh:nuxt/starter#module`. |
-| `--cwd`      | Repository root to create the module in. Defaults to the directory `pnpm` was run in.  |
+## In this repository
 
-The command fails if `packages/<name>` already contains a package.
+`pnpm cli <command>` from the root runs `bin/cli.mjs`, which loads `src/cli.ts` through
+[jiti](https://github.com/unjs/jiti), so there is no build step. The published package is built with unbuild into
+`dist/` (`publishConfig.bin`).

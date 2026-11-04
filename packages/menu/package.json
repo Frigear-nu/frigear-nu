@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/menu",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "Named, shareable navigation menus - modules contribute items (extendMenu / a runtime/menus.ts source) and/or Nuxt Content, consumers read them via useMenu and render them however they like.",
   "homepage": "https://docs.frigear.dev/modules/interface/menu",
   "repository": {

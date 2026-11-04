@@ -1,6 +1,6 @@
 ---
 title: Auth
-description: Sign-in (password, magic link, OAuth, passkeys), user API tokens and one requireAuth for cookie sessions, tokens and OAuth access tokens, with scopes.
+description: Sign-in (password, magic link, OAuth, passkeys), user API tokens and one requireAuth for cookie sessions, tokens and OAuth access tokens, with scopes; or, in client mode, a public PKCE client for SPAs and Capacitor apps.
 navigation:
   title: Overview
 ---
@@ -10,12 +10,24 @@ every server route, who is calling and how. [Users](/modules/identity/users), [A
 [OAuth Server](/modules/identity/oauth-server) and the feature modules build on it; it depends on none of them and knows users
 only through the `AuthUserStore` that Users provides.
 
-:module-runtime{server client}
+Auth has two modes, set with `authentication.mode` in the app's own config:
+
+| Mode | For | Who is signed in |
+| --- | --- | --- |
+| `server` (default) | A Nuxt app with a server: everything on this page. | A sealed cookie session on this app's server. |
+| `client` | A browser SPA or a Capacitor app without a server. See [Client mode](/modules/identity/auth/client-mode). | Tokens from an issuer, kept in the browser or the Keychain. |
+
+Both modes give the app the same client API: `useUserSession()` (who is signed in), `useAuth()` (the actions) and
+`$api` / `useApi()` (calls to the API). Guards come from [Authorization](/modules/identity/authorization) in both.
+
+:module-runtime{server client mobile}
 
 ::note
-**Requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) (sign-in emails),
-[`@frigear-nu/menu`](/modules/interface/menu) (logout item) and `nuxt-auth-utils`. All are installed automatically. Passkeys
-need the optional peers `@simplewebauthn/browser` and `@simplewebauthn/server`; the shipped pages need `@nuxt/ui`.
+In server mode, **requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) (sign-in emails),
+[`@frigear-nu/menu`](/modules/interface/menu) (logout item) and `nuxt-auth-utils`. Nuxt installs them as modules, but
+`@nuxthub/core` is an optional peer (client mode does not use it): a server-mode app adds it itself
+(`pnpm add @nuxthub/core`), and fails with a clear message without it. Passkeys need the optional peers
+`@simplewebauthn/browser` and `@simplewebauthn/server`; the shipped pages need `@nuxt/ui`.
 
 The config key is `authentication`, not `auth` (that belongs to nuxt-auth-utils).
 ::
@@ -58,6 +70,8 @@ generate and commit a migration in your app and in every fixture that includes t
 
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
+| `mode` | `'server' \| 'client'` | `'server'` | Set it in the app's own `nuxt.config` only: a mode from inline module options or another module's default fails the build. `client` is described in [Client mode](/modules/identity/auth/client-mode). |
+| `client` | `ClientModuleOptions` | | Client mode only: the issuer and how the app talks to it. |
 | `apiTokens` | `boolean \| { prefix?: string }` | `true` | User API tokens. `false` turns them off; `prefix` (default `fnu_`) is what new tokens start with. See [User API tokens](/modules/identity/auth/server#user-api-tokens). |
 | `tokenTtlDays` | `number \| null` | `null` | Default lifetime for new user tokens; `null` = never expire. |
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
@@ -76,6 +90,7 @@ generate and commit a migration in your app and in every fixture that includes t
 | `cleanup` | `string \| false` | `'0 3 * * *'` | Cron for the `auth:clear-expired-tokens` task (expired magic links and resets); `false` schedules nothing, the task stays registered. |
 | `pages.login` | `string \| boolean` | off | Login page. `true` = `/login`. |
 | `pages.register` | `string \| boolean` | off | Register page. `true` = `/register`. May be an absolute URL: the login page links to it and no local page is added. |
+| `pages.callback` | `boolean` | `true` | Client mode only: the callback page. |
 | `afterLogin` | `string` | `'/'` | Where users land after signing in (password, passkey, magic link, OAuth/SSO) when no `?redirect=` was requested. Must be an absolute path on this site. A `?redirect=` on the login page or on `/api/auth/<provider>` takes precedence. |
 | `session.mapper` | `string` | pass-through | Path to a default-export function mapping the stored user to the session user shape. |
 | `oauth` | `Record<provider, boolean \| { label?, icon?, signUp?, config?, keepTokens? }>` | `{}` | Overrides per OAuth provider, `false` keeps one off. Providers turn on through their credentials, see [OAuth providers](#oauth-providers). |
@@ -222,3 +237,5 @@ const users = await $fetch('https://frigear.nu/api/admin/users', { headers: { Au
 
 - [Server API](/modules/identity/auth/server): `requireAuth`, policy gates and staff guards, scopes, user API tokens, OAuth access tokens and auth emails.
 - [Reference](/modules/identity/auth/reference): composables, hooks, routes, database tables and translations.
+- [Client mode](/modules/identity/auth/client-mode): `authentication.mode: 'client'`, the public PKCE client for SPAs and
+  Capacitor apps.

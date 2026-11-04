@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/stripe",
-  "version": "0.2.2",
+  "version": "0.2.5",
   "description": "Core Stripe plumbing for the frigear ecosystem: SDK access, customer linking, and a verified, idempotent webhook that other modules can subscribe to.",
   "homepage": "https://docs.frigear.dev/modules/commerce/stripe",
   "repository": {

@@ -1,6 +1,4 @@
-/** A same-site absolute path: never `//host`, `/\host` or a full URL. */
-const isInternalPath = (value: unknown): value is string =>
-  typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')
+import { isSafeRedirect } from '@frigear-nu/auth/mode'
 
 /**
  * Where a guest goes from a page that requires sign in: `redirectTo` with `?redirect=<the page>`, so the sign-in page
@@ -8,7 +6,7 @@ const isInternalPath = (value: unknown): value is string =>
  * `redirectTo` URL is returned as configured.
  */
 export function loginRedirect(redirectTo: string, fullPath: string): string | { path: string, query: { redirect: string } } {
-  if (!isInternalPath(redirectTo) || !isInternalPath(fullPath)) return redirectTo
+  if (!isSafeRedirect(redirectTo) || !isSafeRedirect(fullPath)) return redirectTo
   // Already on the sign-in page: no `?redirect=` pointing back to itself.
   if (fullPath.split(/[?#]/)[0] === redirectTo) return redirectTo
   return { path: redirectTo, query: { redirect: fullPath } }

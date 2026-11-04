@@ -5,11 +5,12 @@
 # walkthrough (including npm Trusted Publishing / OIDC setup, and how to add a
 # new package to the `package` choices below).
 #
-# Choosing `all` releases every package with the same increment. Each package is built and tested on its
+# Choosing `all` releases every package with the same increment, and `packages` (a comma or space separated list)
+# releases just those, in dependency order. Each package is built and tested on its
 # own runner in parallel (`verify`). Then, in one job (`release`), the packages that passed are versioned
 # one after another (each release pushes a commit and tag to the branch), built once, and published to npm
 # in parallel. A failure in one package does not stop the others, but fails the run. Keep the
-# `all` list in the `prepare` job in sync with the `package` choices.
+# `ALL` list in the `prepare` job in sync with the `package` choices.
 name: Release
 
 on:
@@ -26,17 +27,18 @@ on:
           - auth
           - authorization
           - base-layer
+          - cli
+          - create-frigear-app
           - cookie-consent
           - eslint-config
           - events
           - forms
-          - frigear-resource
+          - oauth-resource
           - mcp
           - menu
           - mobile
           - module-kit
           - notify
-          - oauth-client
           - oauth-server
           - payments
           - preferences
@@ -45,6 +47,11 @@ on:
           - ui
           - users
           - widget
+      packages:
+        description: Or a set of packages, comma or space separated (e.g. "cli, create-frigear-app"); overrides package
+        type: string
+        required: false
+        default: ''
       increment:
         description: Version increment (passed to release-it)
         type: choice
@@ -76,12 +83,25 @@ jobs:
       - id: packages
         env:
           PACKAGE: ${{ inputs.package }}
+          PACKAGES: ${{ inputs.packages }}
+          # Every releasable package, in dependency order. Keep in sync with the `package` choices.
+          ALL: '["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","oauth-resource","mobile","eslint-config","cli","create-frigear-app"]'
         run: |
-          if [ "$PACKAGE" = "all" ]; then
-            packages='["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","frigear-resource","oauth-client","mobile","eslint-config"]'
+          if [ -n "${PACKAGES//[ ,]/}" ]; then
+            # A set: the named packages in the order of ALL, failing on a name that is not in it.
+            wanted=$(jq -cn --arg s "$PACKAGES" '$s | [splits("[ ,]+") | select(. != "")] | unique')
+            unknown=$(jq -cn --argjson w "$wanted" --argjson all "$ALL" '$w - $all')
+            if [ "$unknown" != "[]" ]; then
+              echo "::error::Unknown packages: $unknown"
+              exit 1
+            fi
+            packages=$(jq -cn --argjson w "$wanted" --argjson all "$ALL" '[$all[] | select(IN($w[]))]')
+          elif [ "$PACKAGE" = "all" ]; then
+            packages=$ALL
           else
             packages="[\"$PACKAGE\"]"
           fi
+          echo "Releasing $packages"
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
   # Builds and tests every package in parallel. Nothing is pushed or published here.
