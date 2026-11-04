@@ -243,7 +243,7 @@ export default defineNuxtModule<ModuleOptions>({
       filename: 'mobile/native.mjs',
       alias: '#mobile/native',
       collect: () => plugins,
-      contents: nativeLoaderTemplate,
+      contents: installed => nativeLoaderTemplate(installed, resolver.resolve('./runtime/shared/native')),
     })
     const shared = (file: string) => JSON.stringify(resolver.resolve(`./runtime/shared/${file}`))
     addTypeTemplate({

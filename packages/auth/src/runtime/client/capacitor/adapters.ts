@@ -167,3 +167,14 @@ export async function listenForCallbacks(app: AppPluginLike, handlers: AppUrlHan
   }
   return () => listeners.forEach(listener => void listener.remove())
 }
+
+/**
+ * The plugin as a promise can resolve to. A Capacitor plugin is a proxy with a method for every property, `then`
+ * included, so a promise resolved with it calls the native `then()`, which rejects as not implemented, and never
+ * settles: the app would wait for it forever. The generated loaders wrap every plugin in this.
+ */
+export function withoutThen<T extends object>(plugin: T): T {
+  return new Proxy(plugin, {
+    get: (target, key, receiver) => (key === 'then' ? undefined : Reflect.get(target, key, receiver)),
+  })
+}

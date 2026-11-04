@@ -700,7 +700,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   defineVirtualRegistry(nuxt, {
     filename: 'auth/native.mjs',
     alias: '#auth/native',
-    collect: () => ({ installed: plugins, customStorage }),
+    collect: () => ({ installed: plugins, customStorage, helper: resolver.resolve('./runtime/client/capacitor/adapters') }),
     contents: nativeLoaderTemplate,
   })
 

@@ -160,7 +160,7 @@ export default defineNuxtModule<ModuleOptions>({
     defineVirtualRegistry(nuxt, {
       filename: 'oauth-client/native.mjs',
       alias: '#oauth-client/native',
-      collect: () => ({ installed: plugins, customStorage }),
+      collect: () => ({ installed: plugins, customStorage, helper: resolver.resolve('./runtime/capacitor/adapters') }),
       contents: nativeLoaderTemplate,
     })
     // Next to the generated module, so TypeScript reads these types instead of inferring them from the JavaScript.

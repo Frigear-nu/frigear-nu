@@ -25,10 +25,11 @@ describe('LAN host', () => {
 
 describe('templates', () => {
   it('imports only installed native plugins', () => {
-    const source = nativeLoaderTemplate({ app: true, haptics: false, actionSheet: false, dialog: false, share: false, statusBar: false, keyboard: false, nativeNavigation: true })
-    expect(source).toContain('app: () => import("@capacitor/app").then(m => m.App),')
+    const source = nativeLoaderTemplate({ app: true, haptics: false, actionSheet: false, dialog: false, share: false, statusBar: false, keyboard: false, nativeNavigation: true }, '/abs/native')
+    expect(source).toContain('import { withoutThen } from "/abs/native"')
+    expect(source).toContain('app: () => import("@capacitor/app").then(m => withoutThen(m.App)),')
     expect(source).toContain('haptics: null,')
-    expect(source).toContain('nativeNavigation: () => import("@capgo/capacitor-native-navigation").then(m => m.NativeNavigation),')
+    expect(source).toContain('nativeNavigation: () => import("@capgo/capacitor-native-navigation").then(m => withoutThen(m.NativeNavigation)),')
   })
 
   it('serializes the tabs', () => {

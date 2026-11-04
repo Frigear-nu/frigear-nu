@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSignInFlow, memoryStorage } from '../../src/runtime/core'
-import { browserUserAgent, listenForCallbacks, withInstallMarker } from '../../src/runtime/capacitor/adapters'
+import { browserUserAgent, listenForCallbacks, withInstallMarker, withoutThen } from '../../src/runtime/capacitor/adapters'
 import { json, setup } from './helpers'
 
 // A native platform with the in-app browser: `Browser.open` resolves once it is shown; the user closing it fires
@@ -228,5 +228,25 @@ describe('createCapacitorOAuthClient', () => {
     // The tokens read back as tokens: the session survives the first use.
     expect(await client.getAccessToken()).toBe('access-1')
     expect(await client.isAuthenticated()).toBe(true)
+  })
+})
+
+describe('withoutThen', () => {
+  it('lets a promise resolve to a Capacitor plugin', async () => {
+    // Like `registerPlugin()` of @capacitor/core: a method for every property, `then` included.
+    const plugin = () => new Proxy({}, {
+      get: (_, key) => (...args: unknown[]) => key === 'get'
+        ? Promise.resolve({ value: args[0] })
+        // The native call of an unknown method rejects; it settles nothing it was handed (here: resolve and reject).
+        : new Promise(() => {}),
+    }) as { get: (key: string) => Promise<{ value: string }> }
+    const pending = Promise.race([
+      Promise.resolve().then(plugin).then(() => 'settled', () => 'settled'),
+      new Promise(resolve => setTimeout(resolve, 50, 'pending')),
+    ])
+    expect(await pending).toBe('pending')
+
+    const loaded = await Promise.resolve().then(() => withoutThen(plugin()))
+    expect(await loaded.get('tokens')).toEqual({ value: 'tokens' })
   })
 })
