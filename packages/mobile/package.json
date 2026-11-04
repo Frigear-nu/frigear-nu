@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/mobile",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Capacitor app shell for Nuxt: one tab registry for native (iOS) and web tab bars, page titles, safe areas, haptics, action sheets, deep links, the Android back button and a CLI that sets up the iOS / Android projects. Signs in with @frigear-nu/auth in client mode.",
   "homepage": "https://docs.frigear.dev/modules/interface/mobile",
   "repository": {
