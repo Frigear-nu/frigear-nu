@@ -1,0 +1,110 @@
+{
+  "@frigear-nu/account": {
+    "test/basic.test.ts": 84,
+    "test/guarded.test.ts": 129,
+    "test/host-layout.test.ts": 104,
+    "test/pages-enabled.test.ts": 120,
+    "test/pages-without-menus.test.ts": 104,
+    "test/shell.test.ts": 125
+  },
+  "@frigear-nu/admin": {
+    "test/admin.test.ts": 89,
+    "test/host-layout.test.ts": 68
+  },
+  "@frigear-nu/auth": {
+    "test/api-tokens-custom.test.ts": 27,
+    "test/api-tokens-disabled.test.ts": 16,
+    "test/client-basic.test.ts": 20,
+    "test/client-checks.test.ts": 10,
+    "test/client-host-pages.test.ts": 8,
+    "test/client-secret-guard.test.ts": 2,
+    "test/frigear-sso-off.test.ts": 16,
+    "test/frigear-sso-preview.test.ts": 16,
+    "test/magic-link.test.ts": 16,
+    "test/oauth-providers.test.ts": 16,
+    "test/oauth-tokens.test.ts": 58,
+    "test/pages-enabled.test.ts": 93,
+    "test/password-disabled.test.ts": 16,
+    "test/password-enabled.test.ts": 27,
+    "test/tokens.test.ts": 69
+  },
+  "@frigear-nu/authorization": {
+    "test/authenticated.test.ts": 69,
+    "test/client-guards.test.ts": 7,
+    "test/server-api-guards.test.ts": 31,
+    "test/server-guards.test.ts": 37
+  },
+  "@frigear-nu/cookie-consent": {
+    "test/authenticated.test.ts": 66,
+    "test/basic.test.ts": 41,
+    "test/customized.test.ts": 35
+  },
+  "@frigear-nu/email-templates": {
+    "test/email-templates.test.ts": 37
+  },
+  "@frigear-nu/events": {
+    "test/authenticated.test.ts": 193
+  },
+  "@frigear-nu/forms": {
+    "test/authenticated.test.ts": 168,
+    "test/unit/crypto.test.ts": 2,
+    "test/unit/schedule.test.ts": 1
+  },
+  "@frigear-nu/frigear-resource": {
+    "test/resource.test.ts": 73
+  },
+  "@frigear-nu/mcp": {
+    "test/mcp.test.ts": 64
+  },
+  "@frigear-nu/menu": {
+    "test/basic.test.ts": 43,
+    "test/with-items.test.ts": 42
+  },
+  "@frigear-nu/mobile": {
+    "test/auth-modules.test.ts": 25,
+    "test/basic.test.ts": 67,
+    "test/spa.test.ts": 29,
+    "test/with-module-tabs.test.ts": 72
+  },
+  "@frigear-nu/module-kit": {
+    "test/basic.test.ts": 36
+  },
+  "@frigear-nu/oauth-client": {
+    "test/basic.test.ts": 18,
+    "test/host-pages.test.ts": 17,
+    "test/secret-guard.test.ts": 2
+  },
+  "@frigear-nu/oauth-server": {
+    "test/authenticated.test.ts": 151
+  },
+  "@frigear-nu/payments": {
+    "test/authenticated.test.ts": 110
+  },
+  "@frigear-nu/preferences": {
+    "test/basic.test.ts": 66,
+    "test/oauth.test.ts": 88
+  },
+  "@frigear-nu/stripe": {
+    "test/authenticated.test.ts": 66,
+    "test/basic.test.ts": 70,
+    "test/custom-path.test.ts": 75
+  },
+  "@frigear-nu/subscriptions": {
+    "test/authenticated.test.ts": 148
+  },
+  "@frigear-nu/ui": {
+    "test/patterns.test.ts": 82
+  },
+  "@frigear-nu/users": {
+    "test/admin.test.ts": 147,
+    "test/basic.test.ts": 62,
+    "test/magic-link-flow.test.ts": 71,
+    "test/self-service.test.ts": 72,
+    "test/user-store.postgresql.test.ts": 9,
+    "test/verified-email-change.test.ts": 101
+  },
+  "@frigear-nu/widget": {
+    "test/basic.test.ts": 42,
+    "test/with-widgets.test.ts": 43
+  }
+}
