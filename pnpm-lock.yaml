@@ -945,13 +945,6 @@ importers:
         version: 3.3.11(typescript@6.0.3)
 
   packages/create-frigear-app:
-    dependencies:
-      '@frigear-nu/cli':
-        specifier: workspace:^
-        version: link:../cli
-      citty:
-        specifier: ^0.2.2
-        version: 0.2.2
     devDependencies:
       '@frigear-nu/eslint-config':
         specifier: workspace:^

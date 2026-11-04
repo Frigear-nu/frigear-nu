@@ -17,7 +17,7 @@ pnpx @frigear-nu/cli --help
 Starters are downloaded from `Frigear-nu/frigear-nu` with [giget](https://github.com/unjs/giget) (`--ref` picks a branch
 or tag). While that repository is not public, set `GIGET_AUTH` to a GitHub token that can read it.
 
-`pnpm create frigear-app` ([create-frigear-app](../create-frigear-app)) is `init` under its own name.
+`pnpm create frigear-app` ([create-frigear-app](../create-frigear-app)) runs `init` of the latest CLI.
 
 Full reference: [docs.frigear.dev/contribute/tooling/cli](https://docs.frigear.dev/contribute/tooling/cli).
 
