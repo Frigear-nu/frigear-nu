@@ -179,6 +179,13 @@ for (const [route, { file, lines }] of pages) {
     const found = []
     if (kind === 'prose') for (const m of line.matchAll(MD_LINK)) found.push(m[2])
     for (const re of PROP_PATTERNS) for (const m of line.matchAll(re)) found.push(m[1])
+    // placeholder targets such as ](…), ](...) or ]() render as links the crawler then 404s on
+    if (kind === 'prose') {
+      for (const m of line.matchAll(/\]\(\s*(…|\.{3}|)\s*\)/g)) {
+        linkCount++
+        report(rel(file), n, m[0], 'placeholder link target', true)
+      }
+    }
     for (const target of found) {
       if (!target.startsWith('/') && !target.startsWith('#')) continue
       linkCount++
