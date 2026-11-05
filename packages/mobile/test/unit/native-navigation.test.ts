@@ -187,6 +187,26 @@ describe('native navigation controller', () => {
       expect(ctx.calls[1]![1]).toEqual(expect.objectContaining({ selectedId: 'home' }))
     })
 
+    it('runs quick taps one at a time, and only the last waiting one', async () => {
+      const app: { controller?: Awaited<ReturnType<typeof started>>['controller'] } = {}
+      const visited: string[] = []
+      const ctx = await started(async (tab) => {
+        visited.push(tab.id)
+        await new Promise(resolve => setTimeout(resolve, 5))
+        await app.controller!.apply(chrome({ path: tab.id === 'home' ? '/' : '/bills' }), colors)
+      })
+      app.controller = ctx.controller
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      ctx.listeners.tabSelect!({ id: 'home' })
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      ctx.listeners.tabSelect!({ id: 'home' })
+      await vi.waitFor(() => expect(visited).toEqual(['bills', 'home']))
+      await vi.waitFor(() => expect(ctx.calls.filter(([name]) => name === 'finishTransition')).toHaveLength(2))
+      // Every transition finishes before the next one begins.
+      const transitions = ctx.calls.map(([name]) => name).filter(name => name.endsWith('Transition'))
+      expect(transitions).toEqual(['beginTransition', 'finishTransition', 'beginTransition', 'finishTransition'])
+    })
+
     it('skips the crossfade for the selected tab, and without plugin support', async () => {
       const onSelectTab = vi.fn(async () => {})
       const same = await started(onSelectTab)

@@ -140,14 +140,33 @@ export function createNativeNavigationController(options: NativeNavigationContro
     }
   }
 
+  // One tab switch at a time: a transition begun while another is fading out leaves its snapshot over the WebView
+  // (the plugin's cleanup forgets the newer snapshot). Taps during a switch wait for it, and only the last one runs.
+  let switching = false
+  let requested: MobileTab | undefined
+  const requestTab = async (tab: MobileTab) => {
+    requested = tab
+    if (switching) return
+    switching = true
+    try {
+      while (requested) {
+        const next: MobileTab = requested
+        requested = undefined
+        nativeSelected = next.id
+        await selectTab(next).catch(() => {})
+      }
+    }
+    finally {
+      switching = false
+    }
+  }
+
   return {
     async start() {
       await plugin.configure({ contentInsetMode: 'css' })
       listeners.push(await plugin.addListener('tabSelect', ({ id }) => {
         const tab = tabs.find(candidate => candidate.id === id)
-        if (!tab) return
-        nativeSelected = id
-        void selectTab(tab).catch(() => {})
+        if (tab) void requestTab(tab)
       }))
       listeners.push(await plugin.addListener('navbarBack', () => void options.onBack()))
     },
