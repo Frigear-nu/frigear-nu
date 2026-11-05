@@ -401,15 +401,20 @@ export type OAuthScopeGroup = {
   scopes: OAuthScopeDefinition[]
 }
 
-/** One sign-in of the caller in an application (a live refresh-token family), for the Signed-in apps list. */
+/**
+ * An application the caller is signed in to, for the Signed-in apps list: every live sign-in (refresh-token family)
+ * of the application, on any device, grouped into one entry.
+ */
 export type OAuthSessionDto = {
-  /** The refresh-token family: what `DELETE /api/oauth-server/me/sessions/:id` ends. */
+  /** The application id: what `DELETE /api/oauth-server/me/sessions/:id` signs out of, on every device. */
   id: string
   application: { id: string, name: string, icon: string | null }
-  /** When the user signed in to the application. */
+  /** When the user first signed in to the application, of the sign-ins still live. */
   signedInAt: string
-  /** When the application last refreshed its tokens (or signed in). */
+  /** When the application last refreshed its tokens (or signed in), on any device. */
   lastActiveAt: string
-  /** When the sign-in ends unless the application refreshes before. */
+  /** When the last of its sign-ins ends unless the application refreshes before. */
   expiresAt: string
+  /** How many live sign-ins (devices, browsers or app installs) the application has. */
+  sessions: number
 }

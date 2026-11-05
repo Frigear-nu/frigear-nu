@@ -138,12 +138,13 @@
       },
       "signedInApps": {
         "title": "Signed-in apps",
-        "description": "Applications that signed in with your account. Changing your password or email signs them all out.",
+        "description": "Apps you signed in to with your account. Signing out of an app ends its access on every device. Changing your password or email signs them all out.",
         "activity": "Signed in {signedIn} · last active {lastActive}",
+        "activityMany": "Signed in {signedIn} · last active {lastActive} · {count} active sign-ins",
         "signOut": "Sign out of app",
         "signOutConfirm": {
           "title": "Sign out of {name}?",
-          "description": "The application has to ask you to sign in again. Your account and its data are not affected."
+          "description": "{name} is signed out on every device and has to ask you to sign in again. Your account and its data are not affected."
         },
         "signedOut": "Signed out.",
         "signOutError": "Could not sign out of the application.",

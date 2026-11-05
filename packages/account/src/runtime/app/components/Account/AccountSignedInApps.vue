@@ -26,7 +26,7 @@ const sessions = computed(() => data.value ?? [])
 async function signOut(session: AccountSignedInApp) {
   const confirmed = await confirm({
     title: t('signOutConfirm.title', 'Sign out of {name}?', { name: session.application.name }),
-    description: t('signOutConfirm.description', 'The application has to ask you to sign in again. Your account and its data are not affected.'),
+    description: t('signOutConfirm.description', '{name} is signed out on every device and has to ask you to sign in again. Your account and its data are not affected.', { name: session.application.name }),
     confirmText: t('signOut', 'Sign out of app'),
     destructive: true,
   })
@@ -59,6 +59,13 @@ async function signOutAll() {
   }
 }
 
+function activity(session: AccountSignedInApp) {
+  const params = { signedIn: format.date(session.signedInAt), lastActive: format.dateTime(session.lastActiveAt), count: session.sessions }
+  return session.sessions > 1
+    ? t('activityMany', 'Signed in {signedIn} · last active {lastActive} · {count} active sign-ins', params)
+    : t('activity', 'Signed in {signedIn} · last active {lastActive}', params)
+}
+
 const menu = (session: AccountSignedInApp): DropdownMenuItem[][] => [[
   { label: t('signOut', 'Sign out of app'), icon: 'i-lucide-log-out', color: 'error', onSelect: () => signOut(session) },
 ]]
@@ -67,7 +74,7 @@ const menu = (session: AccountSignedInApp): DropdownMenuItem[][] => [[
 <template>
   <SectionCard
     :title="t('title', 'Signed-in apps')"
-    :description="t('description', 'Applications that signed in with your account. Changing your password or email signs them all out.')"
+    :description="t('description', 'Apps you signed in to with your account. Signing out of an app ends its access on every device. Changing your password or email signs them all out.')"
     :loading="loading"
     flush
   >
@@ -101,7 +108,7 @@ const menu = (session: AccountSignedInApp): DropdownMenuItem[][] => [[
             {{ session.application.name }}
           </p>
           <p class="text-sm text-muted">
-            {{ t('activity', 'Signed in {signedIn} · last active {lastActive}', { signedIn: format.date(session.signedInAt), lastActive: format.dateTime(session.lastActiveAt) }) }}
+            {{ activity(session) }}
           </p>
         </div>
         <RowMenu

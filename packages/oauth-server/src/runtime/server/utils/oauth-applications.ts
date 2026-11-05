@@ -412,8 +412,11 @@ export async function countActiveGrants(applicationIds: string[]): Promise<Recor
 }
 
 /**
- * The user's live sign-ins (refresh-token families), newest activity first. Each refresh writes a new row and retires
- * the old one, so a family's only live row is its newest: its `createdAt` is when the application was last active.
+ * The applications the user is signed in to, most recently active first: one entry per application, however many
+ * live sign-ins (refresh-token families) it has. An application that signs in again without revoking its old token
+ * (a local sign-out, cleared storage, a reinstall) leaves the old family live until it expires, so a list per family
+ * would show the same application several times with nothing to tell the entries apart. Each refresh writes a new row
+ * and retires the old one, so a family's only live row is its newest: its `createdAt` is when it was last active.
  */
 export async function listUserOAuthSessions(userId: number): Promise<OAuthSessionDto[]> {
   await ensureOAuthConfiguredApplications()
@@ -429,31 +432,47 @@ export async function listUserOAuthSessions(userId: number): Promise<OAuthSessio
     .innerJoin(schema.oauthApplications, eq(schema.oauthApplications.id, t.applicationId))
     .where(and(eq(t.userId, userId), isNull(t.revokedAt), gt(t.expiresAt, new Date())))
     .orderBy(desc(t.createdAt))
-  const seen = new Set<string>()
-  const sessions: OAuthSessionDto[] = []
+  const families = new Set<string>()
+  const byApplication = new Map<string, { row: typeof rows[number], signedInAt: Date, expiresAt: Date, sessions: number }>()
   for (const row of rows) {
-    // A family has one live row; a second would only be a lost rotation race. Show the family once.
-    if (seen.has(row.familyId)) continue
-    seen.add(row.familyId)
-    const application = withOAuthConfiguredValues(row.application)
-    sessions.push({
-      id: row.familyId,
-      application: { id: application.id, name: application.name, icon: application.icon },
-      signedInAt: isoDate(row.authTime),
-      lastActiveAt: isoDate(row.createdAt),
-      expiresAt: isoDate(row.expiresAt),
-    })
+    // A family has one live row; a second would only be a lost rotation race. Count the family once.
+    if (families.has(row.familyId)) continue
+    families.add(row.familyId)
+    const entry = byApplication.get(row.application.id)
+    // Rows come newest first, so the first row of an application carries its last activity.
+    if (!entry) {
+      byApplication.set(row.application.id, { row, signedInAt: row.authTime, expiresAt: row.expiresAt, sessions: 1 })
+      continue
+    }
+    entry.sessions++
+    if (row.authTime < entry.signedInAt) entry.signedInAt = row.authTime
+    if (row.expiresAt > entry.expiresAt) entry.expiresAt = row.expiresAt
   }
-  return sessions
+  return [...byApplication.values()].map(({ row, signedInAt, expiresAt, sessions }) => {
+    const application = withOAuthConfiguredValues(row.application)
+    return {
+      id: application.id,
+      application: { id: application.id, name: application.name, icon: application.icon },
+      signedInAt: isoDate(signedInAt),
+      lastActiveAt: isoDate(row.createdAt),
+      expiresAt: isoDate(expiresAt),
+      sessions,
+    }
+  })
 }
 
-/** Ends one of the user's sign-ins (a refresh-token family). Returns `false` when it is not theirs or already ended. */
-export async function revokeUserOAuthSession(userId: number, familyId: string): Promise<boolean> {
+/**
+ * Signs the user out of one application on every device: revokes its live refresh tokens and drops its pending
+ * authorization codes. Returns `false` when the user had no live sign-in in it.
+ */
+export async function revokeUserOAuthApplication(userId: number, applicationId: string): Promise<boolean> {
   const t = schema.oauthRefreshTokens
   const revoked = await db.update(t).set({ revokedAt: new Date() })
-    .where(and(eq(t.familyId, familyId), eq(t.userId, userId), isNull(t.revokedAt)))
+    .where(and(eq(t.applicationId, applicationId), eq(t.userId, userId), isNull(t.revokedAt), gt(t.expiresAt, new Date())))
     .returning({ applicationId: t.applicationId })
   if (!revoked.length) return false
-  await useNitroApp().hooks.callHook('oauth:token:revoked', { applicationId: revoked[0]!.applicationId, userId, reason: 'signed_out' })
+  await useNitroApp().hooks.callHook('oauth:token:revoked', { applicationId, userId, reason: 'signed_out' })
+  await db.delete(schema.oauthAuthorizationCodes)
+    .where(and(eq(schema.oauthAuthorizationCodes.userId, userId), eq(schema.oauthAuthorizationCodes.applicationId, applicationId)))
   return true
 }
