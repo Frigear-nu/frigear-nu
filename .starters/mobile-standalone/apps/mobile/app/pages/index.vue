@@ -7,7 +7,10 @@ interface Me {
 }
 
 const { user } = useUserSession()
-const { data: me, status, error, refresh } = useApi<Me>('/api/me')
+// Awaited, so a tab switch reveals this page with its data instead of a skeleton. The page stays alive between tab
+// switches (`keepTabsAlive`), and `onTabEnter` refreshes it in the background when the user comes back.
+const { data: me, status, error, refresh } = await useApi<Me>('/api/me')
+onTabEnter(() => refresh())
 
 // The standalone starter's apps/web has /api/me. Another API may not: point NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE
 // at yours.
@@ -43,7 +46,7 @@ const userRows = computed(() => Object.entries(user.value ?? {}).map(([name, val
       </template>
 
       <USkeleton
-        v-if="status === 'pending' || status === 'idle'"
+        v-if="!me && (status === 'pending' || status === 'idle')"
         class="h-10 w-full"
       />
       <UAlert

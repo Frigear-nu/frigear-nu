@@ -1,5 +1,6 @@
-import { defineNuxtPlugin, navigateTo, nextTick, useColorMode, watch } from '#imports'
+import { defineNuxtPlugin, navigateTo, nextTick, useColorMode, useRouter, useRuntimeConfig, watch } from '#imports'
 import { createNativeNavigationController } from '../../shared/native-navigation'
+import { navigateWhenReady, type PageReadyContext } from '../../shared/page-ready'
 import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useMobileTabs } from '../composables/useMobileTabs'
@@ -23,14 +24,19 @@ export default defineNuxtPlugin({
     const colorMode = useColorMode()
     const { label } = useMobileTabs()
     const back = useMobileBack(() => state.value)
+    const router = useRouter()
+    const page: PageReadyContext = {
+      onPageLoaded: listener => nuxtApp.hook('page:loading:end', listener),
+      currentPath: () => router.currentRoute.value.fullPath,
+      // The route watchers (chrome state, scroll restore) run, then the browser paints.
+      settle: () => nextTick().then(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))),
+    }
     const controller = createNativeNavigationController({
       plugin,
       label,
-      onSelectTab: async (tab) => {
-        await nuxtApp.runWithContext(() => navigateTo(tab.to))
-        // Let the route watcher below apply the new state first.
-        await nextTick()
-      },
+      tabTransitionDuration: useRuntimeConfig().public.mobile.tabTransitionDuration,
+      // Resolves once the new page has rendered with its data, so the crossfade never shows a half-built tab.
+      onSelectTab: tab => navigateWhenReady(page, () => nuxtApp.runWithContext(() => navigateTo(tab.to))),
       onBack: async () => {
         await nuxtApp.runWithContext(() => back())
       },

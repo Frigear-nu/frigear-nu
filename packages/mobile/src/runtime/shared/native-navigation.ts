@@ -10,6 +10,8 @@ export interface NativeNavigationControllerOptions {
   onBack: () => void | Promise<void>
   /** Translates a tab label. */
   label?: (tab: MobileTab) => string
+  /** Length of the crossfade between two tabs, in ms. `0` switches without one. Default 180. */
+  tabTransitionDuration?: number
 }
 
 export interface NativeNavigationController {
@@ -17,6 +19,8 @@ export interface NativeNavigationController {
   start: () => Promise<void>
   /** Brings the native bars in line with `state`. Calls the plugin only for what changed. */
   apply: (state: ChromeState, colors: { foreground: string }) => Promise<void>
+  /** Resolves once every queued bar update has run. */
+  idle: () => Promise<void>
   stop: () => Promise<void>
 }
 
@@ -37,6 +41,9 @@ export function toNativeTab(tab: MobileTab, title: string): NativeNavigationTabL
  * Drives `@capgo/capacitor-native-navigation` from the chrome state. Routing stays in Nuxt: a native tap only calls
  * `onSelectTab`, and the bars follow the route. Calls are serialized (the plugin animates) and skipped when the bar
  * would not change.
+ *
+ * A tap on another tab runs under a snapshot of the WebView (`beginTransition`): `onSelectTab` resolves once the new
+ * page is ready, the bars are updated, then the snapshot crossfades away. The page and the bars change in one step.
  */
 export function createNativeNavigationController(options: NativeNavigationControllerOptions): NativeNavigationController {
   const { plugin } = options
@@ -49,7 +56,12 @@ export function createNativeNavigationController(options: NativeNavigationContro
   let shown: { tabs: NativeNavigationTabLike[], selectedId?: string } | undefined
   let softHidden = false
   let latest: { state: ChromeState, colors: { foreground: string } } | undefined
+  /** The tab last tapped in the native bar, which already shows it selected. */
+  let nativeSelected: string | undefined
+  /** The visible tab bar last sent, without its selection. */
+  let lastTabsKey: string | undefined
   let queue: Promise<void> = Promise.resolve()
+  const duration = options.tabTransitionDuration ?? 180
 
   const run = (task: () => Promise<void>) => {
     queue = queue.then(task, task)
@@ -89,12 +101,44 @@ export function createNativeNavigationController(options: NativeNavigationContro
       lastNavbar = navbarKey
     }
     if (visible && tabbarKey !== lastTabbar) {
-      await plugin.setTabbar(softHidden ? { ...visible, animated: true } : visible)
+      const tabsKey = JSON.stringify({ ...visible, selectedId: undefined })
+      // Only the selection moved, to the tab the user just tapped: UIKit already shows it, and sending every item
+      // again redraws the bar.
+      const alreadyShown = !softHidden && tabsKey === lastTabsKey && visible.selectedId === nativeSelected
+      if (!alreadyShown) await plugin.setTabbar(softHidden ? { ...visible, animated: true } : visible)
       lastTabbar = tabbarKey
+      lastTabsKey = tabsKey
       shown = { tabs: visible.tabs, selectedId: visible.selectedId }
       softHidden = false
     }
+    if (!visible) lastTabsKey = undefined
   })
+
+  /** Navigates to `tab`, under a crossfade when the plugin has transitions and the tab changes. */
+  const selectTab = async (tab: MobileTab) => {
+    const switching = duration > 0 && latest?.state.activeTab?.id !== tab.id && typeof plugin.beginTransition === 'function'
+    let transition: { id: string } | undefined
+    if (switching) {
+      try {
+        transition = await plugin.beginTransition!({ direction: 'tab', duration })
+      }
+      catch {
+        transition = undefined
+      }
+    }
+    try {
+      await options.onSelectTab(tab)
+    }
+    finally {
+      // The native bar selected the tapped tab on its own. When the navigation did not land on it (a guard, a
+      // redirect), the chrome state may not have changed: send the tab bar again so it shows the route's tab.
+      if (latest && latest.state.activeTab?.id !== tab.id) void update(latest.state, latest.colors, true).catch(() => {})
+      await queue.catch(() => {})
+      nativeSelected = undefined
+      // Never leave the snapshot up, whatever happened to the navigation.
+      if (transition) await plugin.finishTransition?.({ id: transition.id, direction: 'tab', duration }).catch(() => {})
+    }
+  }
 
   return {
     async start() {
@@ -102,17 +146,8 @@ export function createNativeNavigationController(options: NativeNavigationContro
       listeners.push(await plugin.addListener('tabSelect', ({ id }) => {
         const tab = tabs.find(candidate => candidate.id === id)
         if (!tab) return
-        // The native bar selects the tapped tab on its own. When the navigation does not land on it (a guard, a
-        // redirect), the chrome state may not change: send the tab bar again so it shows the route's tab.
-        const resync = () => (latest ? update(latest.state, latest.colors, true) : undefined)
-        let navigation: Promise<void>
-        try {
-          navigation = Promise.resolve(options.onSelectTab(tab))
-        }
-        catch (error) {
-          navigation = Promise.reject(error)
-        }
-        void navigation.catch(() => {}).then(resync).catch(() => {})
+        nativeSelected = id
+        void selectTab(tab).catch(() => {})
       }))
       listeners.push(await plugin.addListener('navbarBack', () => void options.onBack()))
     },
@@ -121,6 +156,8 @@ export function createNativeNavigationController(options: NativeNavigationContro
       latest = { state, colors }
       return update(state, colors)
     },
+
+    idle: () => queue.catch(() => {}),
 
     async stop() {
       await Promise.all(listeners.splice(0).map(listener => listener.remove()))

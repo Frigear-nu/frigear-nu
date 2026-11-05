@@ -86,6 +86,13 @@ export interface ModuleOptions {
    * `all` on iOS and Android, `false` never. Without the plugin installed the web chrome is used.
    */
   nativeChrome?: NativeChromeOption
+  /**
+   * Tab switches keep each tab's own page as it was left (mounted, scrolled), like a native tab bar. Pages below a tab
+   * still remount. A page opts out with `definePageMeta({ keepalive: false })`. Default `true`.
+   */
+  keepTabsAlive?: boolean
+  /** Length of the crossfade between tabs with the native tab bar, in ms. `0` switches without one. Default `180`. */
+  tabTransitionDuration?: number
   native?: {
     /** Status bar text follows the app's colour mode. Default `true`. */
     statusBar?: boolean
@@ -135,6 +142,8 @@ export interface MobilePublicConfig {
   auth: boolean
   nativeChrome: NativeChromeOption
   layout: string | false
+  keepTabsAlive: boolean
+  tabTransitionDuration: number
   toasterOffset: boolean
   native: { statusBar: boolean, keyboardAccessoryBar: boolean, switchHaptics: boolean, backButton: boolean }
   deepLinks: { hosts: string[], schemes: string[] }
