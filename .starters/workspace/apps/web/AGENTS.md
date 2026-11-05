@@ -35,7 +35,7 @@ Each module's page is `https://docs.frigear.dev/modules/<module>` (Markdown:
 
 | Module | Owns |
 | --- | --- |
-| `@frigear-nu/auth` (config key `authentication`) | Sign-in (pages `/login`, `/register`), sessions, API tokens, `requireAuth` |
+| `@frigear-nu/auth` (config key `authentication`) | Sign-in with password or passkey (pages `/login`, `/register`), sessions, API tokens, `requireAuth` |
 | `@frigear-nu/users` | The `users` table, self-service profile/email/password, `/admin/users` |
 | `@frigear-nu/authorization` | `users.role`, `roles` / `authenticated` route rules, `<Can>` |
 | `@frigear-nu/account` | `/account/**` pages |

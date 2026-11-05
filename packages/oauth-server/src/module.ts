@@ -2,6 +2,7 @@ import {
   addImports,
   addServerHandler,
   addServerImportsDir,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -24,7 +25,7 @@ import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
-import { isExactOrigin, mergeScopeDefinitions, normalizeConfiguredClients, parseList } from './runtime/utils'
+import { configuredClientWarnings, isExactOrigin, mergeScopeDefinitions, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions } from './runtime/utils'
 import { loadOrCreateDevSigningKey } from './dev-key'
 import type {
   ApplicationAccessContext,
@@ -101,7 +102,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     keyId: 'key-1',
     accessTokenTtl: 900,
-    refreshTokenTtl: 60 * 60 * 24 * 30,
+    // `refreshToken` has no default here: the deprecated `refreshTokenTtl` must still win over it (see below).
+    revokeOnCredentialChange: true,
     codeTtl: 600,
     callbackPath: '/auth/frigear',
     scopes: [],
@@ -153,6 +155,17 @@ export default defineNuxtModule<ModuleOptions>({
       useLogger(MODULE_NAME).warn(`Access tokens for "${accessTokenAudience.join(', ')}" live ${accessTokenTtl}s; keep them at 5 to 15 minutes, other services cannot revoke them.`)
     }
 
+    let refreshToken
+    try {
+      refreshToken = resolveRefreshTokenOptions(options)
+    }
+    catch (error) {
+      throw new Error(`[${MODULE_NAME}] ${(error as Error).message}`, { cause: error })
+    }
+    if (options.refreshTokenTtl !== undefined && options.refreshToken?.idleTtl === undefined) {
+      useLogger(MODULE_NAME).warn('`oauthServer.refreshTokenTtl` is deprecated: use `refreshToken: { idleTtl }`.')
+    }
+
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
       // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
@@ -169,7 +182,8 @@ export default defineNuxtModule<ModuleOptions>({
     // CORS origins are added there too, so a client removed by the override takes its origins with it).
     const callbackPath = options.callbackPath ?? '/auth/frigear'
     try {
-      normalizeConfiguredClients(options.clients ?? [], { dev: nuxt.options.dev, callbackPath })
+      const clients = normalizeConfiguredClients(options.clients ?? [], { dev: nuxt.options.dev, callbackPath })
+      for (const warning of configuredClientWarnings(clients, refreshToken)) useLogger(MODULE_NAME).warn(`oauthServer.clients: ${warning}`)
     }
     catch (error) {
       throw new Error(`[${MODULE_NAME}] oauthServer.clients: ${(error as Error).message}`, { cause: error })
@@ -190,7 +204,8 @@ export default defineNuxtModule<ModuleOptions>({
       keyId: options.keyId ?? 'key-1',
       accessTokenTtl,
       accessTokenAudience,
-      refreshTokenTtl: options.refreshTokenTtl ?? 60 * 60 * 24 * 30,
+      refreshToken,
+      revokeOnCredentialChange: options.revokeOnCredentialChange !== false,
       codeTtl: options.codeTtl ?? 600,
       callbackPath,
       // Filled in once every module had the chance to `addOAuthScope` (below).
@@ -241,6 +256,10 @@ export default defineNuxtModule<ModuleOptions>({
     addModuleRoutes(resolver, [
       { method: 'get', path: 'consent', file: 'api/consent.get' },
       { method: 'get', path: 'me/applications', file: 'api/me-applications.get' },
+      // The caller's sign-ins in applications (Signed-in apps on the account's Security page).
+      { method: 'get', path: 'me/sessions', file: 'api/me-sessions.get' },
+      { method: 'delete', path: 'me/sessions', file: 'api/me-sessions.delete' },
+      { method: 'delete', path: 'me/sessions/:id', file: 'api/me-session.delete' },
     ], { base: '/api/oauth-server' })
     // The account area loads them together with the other modules' data (`useMyApplications()` reads the same key).
     registerBootstrapProvider(nuxt, {
@@ -261,6 +280,7 @@ export default defineNuxtModule<ModuleOptions>({
     ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/credentials-changed'))
     inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
