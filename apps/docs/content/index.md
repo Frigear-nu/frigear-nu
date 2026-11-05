@@ -12,13 +12,14 @@ orientation: horizontal
 Build on the Frigear Nuxt ecosystem
 
 #description
-Copy a starter and you have a Nuxt 4 app with sign-in, account pages and an admin area. Then add the modules you need.
+Every app needs sign-in, account pages and an admin area before it can do its real job. Copy a starter and those
+already work in a Nuxt 4 app. Then add only the modules you need.
 
 #links
   :::u-button
   ---
   size: xl
-  to: /get-started/installation#create-the-project
+  to: /get-started/installation#_1-create-the-project
   trailing-icon: i-lucide-arrow-right
   ---
   Create an app
@@ -37,7 +38,7 @@ Copy a starter and you have a Nuxt 4 app with sign-in, account pages and an admi
 
 #default
 ```bash [Terminal]
-pnpm create frigear-app my-app --platform web,mobile && cd my-app
+pnpm create frigear-app my-app --platform web && cd my-app
 ```
 ::
 
@@ -46,43 +47,43 @@ pnpm create frigear-app my-app --platform web,mobile && cd my-app
 From zero to signed in
 
 #description
-Three steps, no outside services. You need Node.js `24`.
+Three steps and no outside services. You need Node.js `24`.
 
 #features
   :::u-page-feature
   ---
   icon: i-lucide-copy
-  to: /get-started/installation#create-the-project
+  to: /get-started/installation#_1-create-the-project
   ---
   #title
   Create the app
 
   #description
-  Run `pnpm create frigear-app`: it copies a starter, installs it and fills in `.env`.
+  Run `pnpm create frigear-app`. It copies a starter, installs it and fills in `.env`.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-play
-  to: /get-started/installation#run-it-for-the-first-time
+  to: /get-started/installation#_2-run-it-for-the-first-time
   ---
   #title
   Run it
 
   #description
-  Put your email in `NUXT_ACL_ADMINS` in `apps/web/.env`, then run `pnpm dev`.
+  Put your email in `NUXT_ACL_ADMINS` in `apps/web/.env`. Then run `pnpm dev`.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-log-in
-  to: /get-started/installation#sign-in
+  to: /get-started/installation#_3-sign-in
   ---
   #title
   Sign in
 
   #description
-  Register with that email. You land on `/account`, and `/admin` is yours.
+  Sign up with that email. You land on `/account`, and the admin area at `/admin` is open to you.
   :::
 ::
 
@@ -91,43 +92,43 @@ Three steps, no outside services. You need Node.js `24`.
 Pick a starter
 
 #description
-Each starter is a pnpm workspace you copy and run on the published `@frigear-nu` packages.
+Each starter is a ready-made project you copy. It runs on the published `@frigear-nu` modules.
 
 #features
   :::u-page-feature
   ---
   icon: i-lucide-rocket
-  to: /examples/starters/workspace#create-the-project
+  to: /examples/starters/workspace#_1-create-the-project
   ---
   #title
   Workspace
 
   #description
-  For a website: one Nuxt app with registration, sign-in, account pages and a user admin. Start here if unsure.
+  For a website: one Nuxt app with sign-up, sign-in, account pages and user management. Start here if unsure.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-smartphone
-  to: /examples/starters/mobile#create-the-project
+  to: /examples/starters/mobile#_1-create-the-project
   ---
   #title
   Mobile
 
   #description
-  For an iOS and Android app that signs in at a server you already have, such as frigear.nu.
+  For an iOS and Android app that signs in at an issuer you already have, such as frigear.nu.
   :::
 
   :::u-page-feature
   ---
   icon: i-lucide-tablet-smartphone
-  to: /examples/starters/mobile-standalone#create-the-project
+  to: /examples/starters/mobile-standalone#_1-create-the-project
   ---
   #title
   Mobile standalone
 
   #description
-  For an app with its own users and API: the workspace starter plus a mobile app that signs in at it.
+  For an app with its own users and API. It is the workspace starter plus a mobile app that signs in at it.
   :::
 ::
 
@@ -136,7 +137,8 @@ Each starter is a pnpm workspace you copy and run on the published `@frigear-nu`
 Then add what you need
 
 #description
-Modules install what they depend on, so you add only the ones you want. [Adding modules](/get-started/adding-modules) shows how.
+Each module installs the modules it depends on, so you add only the ones you want.
+[Adding modules](/get-started/adding-modules) shows how.
 
 #features
   :::u-page-feature
@@ -172,7 +174,7 @@ Modules install what they depend on, so you add only the ones you want. [Adding 
   Features
 
   #description
-  Events with tickets, forms, cookie consent and MCP tools.
+  Events with tickets, forms, cookie consent and Model Context Protocol (MCP) tools for AI agents.
   :::
 
   :::u-page-feature
@@ -184,7 +186,7 @@ Modules install what they depend on, so you add only the ones you want. [Adding 
   Interface
 
   #description
-  Shared components, the admin shell, menus, widgets and the mobile shell.
+  Shared components, the admin area, menus, widgets and the mobile shell.
   :::
 
   :::u-page-feature
@@ -205,7 +207,7 @@ Modules install what they depend on, so you add only the ones you want. [Adding 
 Common tasks
 
 #description
-Short walkthroughs you can copy into your app. For the ideas behind them, read the [Guide](/guide/concepts/architecture).
+Short walkthroughs you can copy into your app. The [Guide](/guide/concepts/architecture) explains the ideas behind them.
 
 #features
   :::u-page-feature
@@ -217,7 +219,7 @@ Short walkthroughs you can copy into your app. For the ideas behind them, read t
   Protect a route
 
   #description
-  Require a signed-in user, limit by scope, restrict to cookie sessions.
+  Require a signed-in user, limit a route by scope, or allow only cookie sessions.
   :::
 
   :::u-page-feature
@@ -271,19 +273,54 @@ Short walkthroughs you can copy into your app. For the ideas behind them, read t
 
 ::u-page-section
 #title
-Contribute to Frigear
+Next steps
 
-#description
-Change a module, the layer or these docs in the monorepo, keep the starters in step and release packages.
-
-#links
-  :::u-button
+#features
+  :::u-page-feature
   ---
-  color: neutral
-  to: /contribute/overview
-  variant: outline
+  icon: i-lucide-book-a
+  to: /guide/concepts/glossary
+  ---
+  #title
+  Glossary
+
+  #description
+  Learn the one word these docs use for each idea, such as host app, issuer and staff.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-house
+  to: /get-started/introduction
+  ---
+  #title
+  Introduction
+
+  #description
+  Read what Frigear gives you before you install anything.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-blocks
+  to: /modules
+  ---
+  #title
+  Modules
+
+  #description
+  Find the module for the feature you want to add.
+  :::
+
+  :::u-page-feature
+  ---
   icon: i-lucide-git-pull-request
+  to: /contribute/overview
   ---
-  Contributor guide
+  #title
+  Contribute
+
+  #description
+  Change a module, a starter or these docs in the Frigear repository.
   :::
 ::
