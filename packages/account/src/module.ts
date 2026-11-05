@@ -109,7 +109,12 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.account = {
       pages: { index: indexPath, profile: profilePath, security: securityPath, documents: documentsPath, apiTokens: apiTokensPath },
       documents: settings.documents ?? [],
+      signedInApps: false,
     }
+    // Known once every module is installed, whatever their order.
+    nuxt.hook('modules:done', () => {
+      nuxt.options.runtimeConfig.public.account!.signedInApps = hasNuxtModule('@frigear-nu/oauth-server', nuxt)
+    })
 
     addModulePages('@frigear-nu/account', resolver, [
       { name: 'account-index', path: indexPath, file: './runtime/app/pages/index.vue' },

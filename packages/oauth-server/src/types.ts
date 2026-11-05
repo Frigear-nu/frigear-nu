@@ -3,6 +3,21 @@ import type { H3Event } from 'h3'
 /** `confidential` applications authenticate with a client secret; `public` ones (native apps, SPAs) rely on PKCE alone. */
 export type ClientType = 'confidential' | 'public'
 
+/**
+ * What kind of client an application is, for the session-length guardrails: `confidential` (a server holds the tokens),
+ * `browser` (public, with a web redirect URI: tokens live in the browser) or `native` (public, only custom-scheme or
+ * loopback redirect URIs: tokens live in the device keychain).
+ */
+export type OAuthClientKind = 'confidential' | 'browser' | 'native'
+
+/** How long refresh tokens live, in seconds. */
+export type RefreshTokenPolicy = {
+  /** How long a refresh token lives unused. Every refresh starts a new window. */
+  idleTtl: number
+  /** How long a sign-in lives in total, counted from when the user signed in. `null` = no cap. */
+  maxAge: number | null
+}
+
 /** How a scope is presented on the consent screen. Everything but `name` is optional. */
 export type OAuthScopeDefinition = {
   name: string
@@ -43,8 +58,19 @@ export type ModuleOptions = {
    * `NUXT_OAUTH_SERVER_ACCESS_TOKEN_AUDIENCE` takes a comma separated list.
    */
   accessTokenAudience?: string | string[]
-  /** Refresh token lifetime in seconds. Defaults to 30 days. */
+  /**
+   * The default refresh-token policy, in seconds: `idleTtl` (unused lifetime, renewed on every refresh, default 30 days)
+   * and `maxAge` (the whole sign-in, counted from when the user signed in; default `null`, no cap). Both at most two
+   * years. An application's own session length (admin UI) or a configured client's `refreshToken` overrides it.
+   */
+  refreshToken?: Partial<RefreshTokenPolicy>
+  /** @deprecated Use `refreshToken.idleTtl`. Refresh token lifetime in seconds. Defaults to 30 days. */
   refreshTokenTtl?: number
+  /**
+   * End every OAuth sign-in of a user when their password is changed or reset, or their email changes (the
+   * `auth:credentials:changed` hook of `@frigear-nu/auth`). Defaults to `true`.
+   */
+  revokeOnCredentialChange?: boolean
   /** Authorization code lifetime in seconds. Defaults to `600`. */
   codeTtl?: number
   /** Path appended to an application's `websiteUrl` to form its redirect URI. Defaults to `/auth/frigear`. */
@@ -124,6 +150,17 @@ export type OAuthConfiguredClient = {
    * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`); `false` adds none.
    */
   corsOrigins?: string[] | false
+  /**
+   * How long this client's refresh tokens live, in seconds, instead of the global `refreshToken`: `idleTtl` (unused)
+   * and `maxAge` (the whole sign-in). E.g. `{ idleTtl: 60 * 60 * 24 * 180 }` keeps a native app signed in while it is
+   * opened at least every six months. At most two years each.
+   */
+  refreshToken?: { idleTtl?: number | null, maxAge?: number | null }
+  /**
+   * A browser client (one with a web redirect URI) above 7 days idle logs a warning, since its refresh tokens are
+   * readable by any XSS. `true` says it is deliberate and silences it.
+   */
+  allowLongBrowserSessions?: boolean
 }
 
 /** A configured client after validation (`normalizeConfiguredClients`): what is written to the database. */
@@ -141,6 +178,9 @@ export type OAuthNormalizedClient = {
   tags: string[]
   /** Origins this client adds to the CORS origins. */
   corsOrigins: string[]
+  /** Its own refresh-token lifetimes; `null` = the global policy. */
+  refreshToken: { idleTtl: number | null, maxAge: number | null }
+  allowLongBrowserSessions: boolean
 }
 
 /** Private runtime config (`runtimeConfig.oauthServer`). Keys are PEM strings, set them through env. */
@@ -160,7 +200,9 @@ export type OAuthServerRuntimeConfig = {
   accessTokenTtl: number
   /** The shared `aud` of access tokens; empty = the application's `client_id`. */
   accessTokenAudience: string[] | string
-  refreshTokenTtl: number
+  /** The global refresh-token policy (`NUXT_OAUTH_SERVER_REFRESH_TOKEN_IDLE_TTL` / `..._MAX_AGE`). */
+  refreshToken: { idleTtl: number, maxAge: number | null }
+  revokeOnCredentialChange: boolean
   codeTtl: number
   callbackPath: string
   scopes: string[]
@@ -211,6 +253,10 @@ export type OAuthApplication = {
   isActive: boolean
   /** Shown in the users' application list. Unlisted applications still sign in; users open them themselves. */
   isListed: boolean
+  /** Refresh tokens live this long unused, in seconds. `null` = the configured client's value or the global one. */
+  refreshIdleTtl: number | null
+  /** A sign-in lives this long in total, in seconds. `null` = the configured client's value or the global one. */
+  refreshMaxAge: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -236,6 +282,10 @@ export type ApplicationInput = {
   tags?: string[]
   isActive?: boolean
   isListed?: boolean
+  /** Session length: refresh tokens live this long unused, in seconds (at most two years). `null` = the default. */
+  refreshIdleTtl?: number | null
+  /** Sign in again after this long, in seconds (at most two years). `null` = the default. */
+  refreshMaxAge?: number | null
 }
 
 export type TokenType = 'id_token' | 'access_token' | 'userinfo'
@@ -294,7 +344,12 @@ export type TokenIssuedContext = {
 export type TokenRevokedContext = {
   applicationId: string
   userId: number | null
-  reason: 'revoked' | 'reuse_detected' | 'user_grants_revoked'
+  /**
+   * `revoked` (by the application or staff), `reuse_detected` (a rotated token was replayed), `user_grants_revoked`
+   * (`revokeUserGrants`), `signed_out` (the user ended it under Signed-in apps) or `credentials_changed` (password or
+   * email changed).
+   */
+  reason: 'revoked' | 'reuse_detected' | 'user_grants_revoked' | 'signed_out' | 'credentials_changed'
 }
 
 /** What the admin API returns (dates are ISO strings over the wire). */
@@ -310,6 +365,8 @@ export type AdminApplicationDto = Omit<OAuthApplication, 'createdAt' | 'updatedA
    * edited or deleted here (409 `managed_by_config`). It can still be disabled.
    */
   managed: boolean
+  /** `confidential`, `browser` or `native`: decides whether a long session length is warned about. */
+  kind: OAuthClientKind
 }
 
 /** One page of `GET /api/admin/oauth-server/applications` (the shape `useTableQuery` speaks). */
@@ -342,4 +399,17 @@ export type OAuthScopeGroup = {
   /** `null` for this server's own scopes (the account). */
   service: string | null
   scopes: OAuthScopeDefinition[]
+}
+
+/** One sign-in of the caller in an application (a live refresh-token family), for the Signed-in apps list. */
+export type OAuthSessionDto = {
+  /** The refresh-token family: what `DELETE /api/oauth-server/me/sessions/:id` ends. */
+  id: string
+  application: { id: string, name: string, icon: string | null }
+  /** When the user signed in to the application. */
+  signedInAt: string
+  /** When the application last refreshed its tokens (or signed in). */
+  lastActiveAt: string
+  /** When the sign-in ends unless the application refreshes before. */
+  expiresAt: string
 }

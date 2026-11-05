@@ -48,6 +48,8 @@ export default defineNuxtConfig({
       redirectUris: ['com.example.test:/auth/callback'],
       devRedirectUris: ['http://localhost:3001/auth/callback'],
       tags: ['mobile'],
+      // Native: kept signed in for six months unused, never longer than a year in all.
+      refreshToken: { idleTtl: 60 * 60 * 24 * 180, maxAge: 60 * 60 * 24 * 365 },
     }, {
       // Native only: nothing to open from the user's applications list.
       id: 'test-native',
@@ -59,6 +61,7 @@ export default defineNuxtConfig({
       name: 'Test conflict',
       redirectUris: ['com.example.conflict:/auth/callback'],
     }],
+    // The global refresh-token policy is left at its default (30 days idle, no cap).
     settings: { pages: { authorize: false, admin: true }, mcp: true },
   },
   // The users admin registers the staff-only `users:read` scope.
