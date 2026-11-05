@@ -10,6 +10,7 @@
     "test": "turbo run test --concurrency=4",
     "test:shard": "node scripts/ci-test-shard.mjs",
     "typecheck": "turbo run typecheck --concurrency=4",
+    "docs:check": "node scripts/docs-check-links.mjs",
     "lint": "turbo run lint --concurrency=4",
     "lint:fix": "pnpm -r --parallel lint:fix",
     "build:packages": "turbo run build --filter='./packages/**' --filter='!./packages/base-layer' --concurrency=3",
