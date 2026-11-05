@@ -1,91 +1,126 @@
 ---
 title: Base Layer
-description: The shared Nuxt layer for Frigear websites - bundled modules, content collections, layouts, routing and composables.
+description: Start a content website with the modules, styling, layouts and SEO already set up, by extending one layer.
 seo:
   title: Base Layer
 navigation:
   title: Overview
 ---
 
-`@frigear-nu/base` is a [Nuxt layer](https://nuxt.com/docs/4.x/guide/going-further/layers), not a module: you add it with
-`extends`, and it bundles and configures the modules for you. It centralizes the module wiring, styling, UI defaults and
-content-driven page conventions of Frigear websites, so applications do not repeat the same setup.
-[`apps/website`](/examples/apps/frigear-nu-website) extends it.
+A content website needs the same setup every time: Nuxt UI, content pages, SEO, a header and a footer. The base layer
+is that setup, ready to extend, and your app adds its content. If your app has no public content pages, install the
+[modules](/modules) you need instead.
+
+The package is `@frigear-nu/base`, a [Nuxt layer](https://nuxt.com/docs/4.x/guide/going-further/layers) rather than a
+module. You add it with `extends`. The [Frigear website app](/examples/apps/frigear-nu-website) extends it.
+
+## What you get
+
+All on by default:
+
+- **Pages.** A landing page at `/`, and a page for every Markdown file under `content/pages`.
+- **Composables and helpers.** `useConfig`, `useCurrentPage`, `useNavigation` and locale helpers.
+- **Layouts and components.** Two layouts, and a header and footer you can replace.
+- **SEO.** Titles, Open Graph tags, a sitemap, robots rules and hreflang links.
 
 :module-runtime{client}
 
 ::note
-**Requires** Nuxt 4 (`^4.6`) and its app layout (`app/`); Nuxt 3 is not supported. It bundles every module listed under
-[Bundled modules](#bundled-modules), including [`@frigear-nu/menu`](/modules/interface/menu). `@nuxtjs/i18n` is
-installed, but localization stays opt-in until the app sets `i18n.locales`.
+**Installed for you:** the modules under [Bundled modules](#bundled-modules), including [Menu](/modules/interface/menu).
+**You add:** `nuxt` `^4.6` as a peer dependency, and [Cookie Consent](/modules/features/cookie-consent) or a
+`CookieConsentBanner` component of your own.
+**Optional:** `i18n.locales`, to localize the site.
 ::
 
 ## Quick setup
 
-Install the layer and `nuxt` (a peer dependency), then extend it:
+::steps
+
+### Install the layer
 
 ```bash
 pnpm add @frigear-nu/base nuxt
 ```
 
-Inside this monorepo use the workspace protocol instead (`"@frigear-nu/base": "workspace:*"`).
+:::tip
+Inside the [Frigear repository](/guide/concepts/glossary), use `"@frigear-nu/base": "workspace:*"` instead.
+:::
 
-```ts
+### Extend it in `nuxt.config.ts`
+
+```ts [nuxt.config.ts]
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
 })
 ```
 
-Put the site content under `content/` in the app (see [Content collections](/modules/platform/base-layer/content-collections)).
+### Add content
+
+Put the site config in `content/config.yaml` and the pages under `content/pages/`. Both are described in
+[Content collections](/modules/platform/base-layer/content-collections).
+
+::
+
+::callout{color="success" icon="i-lucide-check"}
+**What you should see:** `/` shows the landing page with the site header and footer, and `/about` renders
+`content/pages/about.md`.
+::
 
 ## Options
 
-The layer has no options of its own. It sets the defaults below, which an app overrides in its own
-`nuxt.config.ts` or `app.config.ts`.
+The layer has no options. It sets these defaults, which your app overrides in its own `nuxt.config.ts` or
+`app.config.ts`.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `i18n.strategy` | `'prefix_except_default'` | The default locale is unprefixed, the others get a prefix. |
-| `i18n.detectBrowserLanguage` | `false` | No automatic locale redirect. |
-| `runtimeConfig.public.i18n.baseUrl` | `site.url` | Only when neither `i18n.baseUrl` nor this key is set. `useLocaleHead()` warns on every render without it. |
-| `menus.content.main` | `true` | Builds the `main` menu from content (see [Menu](/modules/interface/menu)); the header reads it with `useMenu('main')`. |
-| `robots.disallow` | `['/admin', '/api', '/auth', '/account']` | Keeps app, API and auth routes out of search results. Whether the site is indexable at all comes from `site.indexable`, set by the host. |
+| `i18n.strategy` | `'prefix_except_default'` | The default locale has no prefix, the others do. |
+| `i18n.detectBrowserLanguage` | `false` | No automatic redirect to another locale. |
+| `runtimeConfig.public.i18n.baseUrl` | `site.url` | Stops `useLocaleHead()` warning. Set only when neither this key nor `i18n.baseUrl` is. |
+| `menus.content.main` | `true` | Builds the `main` menu from content. The header reads it with `useMenu('main')`. |
+| `robots.disallow` | `['/admin', '/api', '/auth', '/account']` | Keeps app, API and auth routes out of search results. |
 | `content.build.markdown.highlight` | `false` | Code highlighting is off. |
-| `content.experimental.sqliteConnector` | `'native'` | Native SQLite connector for Nuxt Content. |
-| `sourcemap.server` | `false` | Skips server source maps to halve production build time; client source maps are kept. |
+| `content.experimental.sqliteConnector` | `'native'` | The native SQLite connector for Nuxt Content. |
+| `sourcemap.server` | `false` | No server source maps, which halves production build time. Client source maps stay. |
 | `features.inlineStyles` | `true` | Inlines critical styles. |
 | `experimental.defaults.nuxtLink.prefetchOn` | `{ interaction: true, visibility: false }` | Links prefetch on interaction only. |
 | `app.config` `ui.colors` | `{ primary: 'green', neutral: 'slate' }` | Nuxt UI colours. |
 | `app.config` `header.icon` | `{ desktop: false, mobile: true }` | Whether navigation icons show in the desktop and mobile header. |
-| `app.config` `header.colorMode` | `true` | Whether the header shows the colour mode button. Turn it off when the account menu (`@frigear-nu/account`) offers Appearance instead. |
-| `app.config` `seo.localeAlternates` | `true` | Whether pages get hreflang and `og:locale:alternate` tags on sites with more than one locale (see [Languages and hreflang](/modules/platform/base-layer/content-collections#languages-and-hreflang)). |
+| `app.config` `header.colorMode` | `true` | The colour mode button. Turn it off when the account menu offers it. |
+| `app.config` `seo.localeAlternates` | `true` | Whether pages get [hreflang tags](/modules/platform/base-layer/content-collections#languages-and-hreflang) on multi-locale sites. |
 | `eslint.config.stylistic` | `commaDangle: 'always-multiline'`, `braceStyle: '1tbs'` | Lint style. |
+
+**`robots.disallow`** hides routes. Your app's `site.indexable` decides whether the site is indexed at all.
 
 `app.config` also accepts `socials` (`Record<string, string>`) and `github.url`, typed in `app/app.d.ts`.
 
 ## Bundled modules
 
-`nuxt.config.ts` registers these modules, so apps do not list them again:
+The layer registers these modules, so your app does not list them again.
 
 | Group | Modules |
 | --- | --- |
-| Layer-internal | `modules/config` (a no-op placeholder), `modules/routing` (see [Routing](/modules/platform/base-layer/layouts-and-routing#routing)) |
+| Layer | `modules/config` (the i18n `baseUrl` default) and `modules/routing` (see [Routing](/modules/platform/base-layer/layouts-and-routing#routing)) |
 | Nuxt | `@nuxt/eslint`, `@nuxt/icon`, `@nuxt/image`, `@nuxt/fonts`, `@nuxt/hints`, `@nuxt/ui`, `@nuxt/content`, `@nuxtjs/device`, `@nuxtjs/i18n` |
 | SEO | `@nuxtjs/sitemap`, `@nuxtjs/robots`, `nuxt-og-image`, `nuxt-seo-utils` |
 | Content | `@comark/nuxt` |
 | Frigear | `@frigear-nu/menu` |
 
-It also adds `app/assets/css/main.css` (Tailwind, Nuxt UI, the green and brand colour scales and the `Public Sans`
-font) to `css` unless the app already has a `main.css`. An app with its own `main.css` replaces the layer's, so it must
-start with `@import "@frigear-nu/base/app/assets/css/main.css";` to keep the font and the colour scales (that file
-already imports Tailwind and Nuxt UI, so the app's file does not repeat them).
+The layer also adds `app/assets/css/main.css`: Tailwind, Nuxt UI, the colour scales and the `Public Sans` font.
 
-`app/app.vue` renders `<CookieConsentBanner />`, which comes from
-[Cookie Consent](/modules/features/cookie-consent). That module is not bundled, so an app that extends the layer without it
-needs to provide the component.
+::warning
+A `main.css` in your app replaces the layer's. Start it with `@import "@frigear-nu/base/app/assets/css/main.css";`, or
+the font and colour scales are lost. That file already imports Tailwind and Nuxt UI.
+::
 
-## On this module
+## Module pages
 
-- [Content collections](/modules/platform/base-layer/content-collections): `config` and `pages` collections, localization, SEO and hreflang.
-- [Layouts and routing](/modules/platform/base-layer/layouts-and-routing): layouts, overridable components and the catch-all content routes.
-- [Composables and utils](/modules/platform/base-layer/composables-and-utils): `useConfig`, `useCurrentPage`, `useNavigation`, locale helpers and content utils.
+| Page | What it covers | For |
+| --- | --- | --- |
+| [Content collections](/modules/platform/base-layer/content-collections) | The `config` and `pages` collections, localization, SEO and hreflang. | App developers |
+| [Layouts and routing](/modules/platform/base-layer/layouts-and-routing) | Layouts, replaceable components and the content routes. | App developers |
+| [Composables and utils](/modules/platform/base-layer/composables-and-utils) | `useConfig`, `useCurrentPage`, `useNavigation`, locale helpers and content utils. | App developers |
+
+## Next steps
+
+- [Content collections](/modules/platform/base-layer/content-collections) – write the site config and the first page.
+- [Layouts and routing](/modules/platform/base-layer/layouts-and-routing) – replace the header or footer.

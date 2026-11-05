@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "generate": "nuxt generate"
+    "generate": "nuxt generate",
+    "lint": "node ../../scripts/docs-check-links.mjs"
   },
   "dependencies": {
     "docus": "latest",

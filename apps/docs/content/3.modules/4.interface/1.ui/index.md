@@ -1,49 +1,72 @@
 ---
 title: UI
-description: Shared Vue components and composables for Frigear Nuxt applications, built on Nuxt UI.
+description: Gives every module's screens the same headings, cards, tables, forms and toasts, on top of Nuxt UI.
 navigation:
   title: Overview
 ---
 
-The shared building blocks for Frigear screens: the page components every admin and account page is made of, form inputs,
-a confirmation dialog, and composables and helpers for toasts, formatting, links and translated text. Use it for any
-screen built on Nuxt UI; it requires `@nuxt/ui` and [`@frigear-nu/module-kit`](/modules/platform/module-kit). The module
-auto-imports its components (lazily, by name), composables and helpers. How the pieces fit together is described in
-[UX patterns](/guide/ux-patterns/layouts-and-navigation).
+UI makes screens from different modules look like one app. It has the headings, cards, tables, inputs and toasts
+of every admin and account page. Admin, Account and the feature modules install it for you.
+
+The package is `@frigear-nu/ui`. Its components and composables are auto-imported.
+
+## What you get
+
+- **Components** (on by default): page components, the App shell and form inputs.
+- **Composables and helpers** (on by default): confirmations, toasts, data loading, formatting and tables.
+- **Translations** (opt-in, with `@nuxtjs/i18n`): shared `da` and `en` strings that every module reuses.
 
 :module-runtime{client}
 
 ::note
-**Requires** `@nuxt/ui` and [`@frigear-nu/module-kit`](/modules/platform/module-kit), both installed automatically as module
-dependencies.
-**Optional** `nuxt-monaco-editor` (only `MonacoCodeEditor` needs it) and `@nuxtjs/i18n`: when installed, the module
-contributes shared `da` and `en` strings and the locale composables follow the active locale.
+**Installed for you:** [`@frigear-nu/module-kit`](/modules/platform/module-kit).
+
+**You add:** `@nuxt/ui`.
+
+**Optional:** `@nuxtjs/i18n` and `nuxt-monaco-editor` (for `MonacoCodeEditor`).
 ::
 
 ## Quick setup
 
-Admin, Account and the feature modules install UI for you. Add it yourself when you use it on its own:
+::steps
+
+### Install UI
+
+Skip this when another module installs UI.
 
 ```bash
 pnpm add @frigear-nu/ui @nuxt/ui
 ```
 
-```ts
+### Add it to nuxt.config.ts
+
+```ts [nuxt.config.ts]
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@frigear-nu/ui'],
 })
 ```
 
+::
+
+::callout{color="success" icon="i-lucide-check"}
+**What you should see:** `<PageHeading title="Orders" />` renders a heading without an import.
+::
+
 ## Options
 
-None. The module registers its own `runtime` folder as a Tailwind source, so the classes its components use are
-generated without configuration in the host. Its playground at `packages/ui/playground` is for developing and
-previewing components.
+The module has no options.
 
-## On this module
+## Module pages
 
-- [Page components](/modules/interface/ui/page-components): headings, tabs, cards, tables, row menus, stat cards and per-entity actions.
-- [App shell](/modules/interface/ui/app-shell): the dashboard layout of the admin area.
-- [Form inputs](/modules/interface/ui/form-inputs): currency, tag, translated and markdown inputs and more.
-- [Composables and helpers](/modules/interface/ui/composables): confirmations, errors, data loading, formatting, tables and locale.
-- [Reference](/modules/interface/ui/reference): subpath exports, translated and money helpers, translation keys.
+| Page | What it covers | For |
+| --- | --- | --- |
+| [Page components](/modules/interface/ui/page-components) | Headings, tabs, cards, tables and forms. | Page authors |
+| [App shell](/modules/interface/ui/app-shell) | The admin dashboard layout. | Module authors |
+| [Form inputs](/modules/interface/ui/form-inputs) | Money, date, tag and translated inputs. | Page authors |
+| [Composables and helpers](/modules/interface/ui/composables) | Confirmations, data loading, formatting and tables. | Page authors |
+| [UI reference](/modules/interface/ui/reference) | Import paths, helpers and translation keys. | Page authors |
+
+## Next steps
+
+- [Pages](/guide/ux-patterns/pages) – see how a list and a detail page combine the components.
+- [Admin](/modules/interface/admin) – add the admin area these components are built for.

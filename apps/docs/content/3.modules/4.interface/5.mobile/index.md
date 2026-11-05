@@ -1,25 +1,53 @@
 ---
 title: Mobile
-description: A Capacitor app shell for Nuxt - one tab registry for native and web tab bars, page titles, safe areas, haptics, deep links, the Android back button and a CLI for the iOS and Android projects.
+description: Turns a Nuxt app into an iOS and Android app with native tab bars, deep links and sign-in.
 navigation:
   title: Overview
 ---
 
-This [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) turns a Nuxt app into an iOS / Android app with one config
-block. Use it for a Capacitor app on a static `nuxt generate` build with no server of its own. Tabs are registered once (`mobile.tabs`, plus tabs other modules add) and feed the native iOS tab bar, the web tab
-bar and the page titles. It builds on [`nuxt-capacitor`](https://github.com/hareland/nuxt-capacitor), which writes
-`capacitor.config.json` from your Nuxt config, and signs users in through [Auth in client mode](/modules/identity/auth/client-mode).
+Mobile turns a Nuxt app into an iOS and Android app. You list your tabs once, and the app gets a native tab bar on
+iOS, a web tab bar elsewhere, page titles, safe areas, haptics and deep links. Use it for a Capacitor app that ships
+as a static build, with no server of its own. To start a new app, copy the
+[Mobile starter](/examples/starters/mobile) instead of setting this up by hand.
+
+The package is `@frigear-nu/mobile`. It builds on [`nuxt-capacitor`](https://github.com/hareland/nuxt-capacitor),
+which writes `capacitor.config.json` from your Nuxt config. Users sign in through
+[Auth in client mode](/modules/identity/auth/client-mode).
+
+## What you get
+
+- **Tabs** (on by default): one tab list for the native iOS tab bar, the web tab bar and the page titles. Other modules
+  can add tabs.
+- **Layout** (on by default): the `mobile` layout, with a header, the page and a tab bar.
+- **Composables and helpers** (on by default): `useCapacitor()`, `useNative()` for haptics, sheets, dialogs and
+  sharing, and `useMobileChrome()`.
+- **Native behaviour** (on by default): safe areas, the iOS type scale, the Android back button and deep links.
+- **Sign-in** (opt-in): through Auth in client mode. See [Sign-in](#sign-in).
+- **CLI**: `frigear-mobile` adds the iOS and Android projects and checks your plugins.
 
 :module-runtime{client mobile}
 
 ::note
-**Requires** [`@frigear-nu/module-kit`](/modules/platform/module-kit), `@nuxt/ui` (`>=4`) and `nuxt-capacitor`, all installed
-automatically, and `@capacitor/core` in the app. When `authentication` is configured, [`@frigear-nu/auth`](/modules/identity/auth)
-is installed too; the app sets `authentication.mode: 'client'` itself. Optional: [`@frigear-nu/ui`](/modules/interface/ui) (native confirm dialogs fall back to its
-`useConfirmDialog`) and [`@frigear-nu/menu`](/modules/interface/menu) (the `mobile.tabs` menu adds tabs).
+**Installed for you:** [`@frigear-nu/module-kit`](/modules/platform/module-kit), `nuxt-capacitor`, and
+[`@frigear-nu/auth`](/modules/identity/auth) when `authentication` is configured.
+
+**You add:** `@nuxt/ui` (4 or later), `@capacitor/core` and the Capacitor plugins your features use.
+
+**Optional:** [`@frigear-nu/ui`](/modules/interface/ui) (its `useConfirmDialog` is the browser fallback for native
+dialogs) and [`@frigear-nu/menu`](/modules/interface/menu) (the `mobile.tabs` menu adds tabs).
 ::
 
 ## Quick setup
+
+::steps
+
+### Install Mobile and Capacitor
+
+:::warning
+Install the plugins in the app itself, not only in a package it depends on. Capacitor links the native code of the
+app's own dependencies only. [`frigear-mobile doctor`](/modules/interface/mobile/cli-and-devices#cli) lists the
+missing ones.
+:::
 
 ```bash
 pnpm add @frigear-nu/mobile @nuxt/ui @capacitor/core @capacitor/app @capacitor/ios
@@ -31,8 +59,7 @@ pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action
 pnpm add @frigear-nu/authorization @capacitor/browser @capacitor/preferences @aparajita/capacitor-secure-storage
 ```
 
-Capacitor links the native code of **the app's own dependencies** only, so install the plugins in the app, not just in a
-package it depends on. [`frigear-mobile doctor`](/modules/interface/mobile/cli-and-devices#cli) lists the missing ones.
+### Add it to nuxt.config.ts
 
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
@@ -47,8 +74,7 @@ export default defineNuxtConfig({
       { id: 'account', to: '/account', label: 'Account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', requiresAuth: true },
     ],
   },
-  // Optional sign-in. Mobile installs @frigear-nu/auth and fills in `client.native.scheme` (from appId); the mode is
-  // the app's to set.
+  // Optional sign-in, in client mode. See Sign-in below.
   authentication: {
     mode: 'client',
     client: { issuer: 'https://frigear.nu', clientId: 'bills', scopes: ['openid', 'profile', 'offline_access'] },
@@ -61,6 +87,11 @@ export default defineNuxtConfig({
 })
 ```
 
+The module sets these `nuxt-capacitor` defaults, and yours win: `capacitor.autoSync: false`, `capacitor.config.appId`
+and `appName`, and the Keyboard plugin's `resize: 'native'`.
+
+### Wrap the app
+
 ```vue [app/app.vue]
 <template>
   <UApp :toaster="useMobileToaster()">
@@ -71,61 +102,85 @@ export default defineNuxtConfig({
 </template>
 ```
 
-Build the static app, add the native projects and run it:
+### Build and run it
 
 ```bash
 nuxt generate                  # the static SPA in .output/public
 npx frigear-mobile native      # npx cap add ios / android, URL schemes in Info.plist / AndroidManifest.xml
+npx frigear-mobile doctor      # lists missing plugins and URL schemes
 npx cap sync && npx cap run ios
 ```
 
 A script for the loop: `"ios:run": "frigear-mobile native --if-missing && nuxt generate && cap sync ios && cap run ios"`.
 
-The module sets these `nuxt-capacitor` defaults (yours win): `capacitor.autoSync: false`, `capacitor.config.appId` and
-`appName`, and the Keyboard plugin's `resize: 'native'`.
+::
 
-## Sign-in
-
-Mobile signs in with [Auth in client mode](/modules/identity/auth/client-mode). When the app configures
-`authentication`, Mobile installs Auth and fills in `client.native.scheme` (from `appId`) and, for `MOBILE_LAN` builds,
-`client.dev.rewriteLoopback`. It never sets the mode: the app sets `authentication.mode: 'client'` itself.
-
-- **Nothing is protected by default.** Which pages need a user is the app's choice, with
-  [Authorization](/modules/identity/authorization) rules such as `'/**': { authenticated: true }`. When Auth signs the
-  app in but no route rule or page requires a user, the build warns that every page is public.
-- **Tabs.** A tab with `requiresAuth: true` is hidden while signed out. Tabs default to `requiresAuth: false`.
-- **Server mode fails.** With Auth in server mode the build fails: a Capacitor app cannot send a same-origin session
-  cookie to the API.
-
-The guards only decide what the app shows. The API decides what is allowed.
+::callout{color="success" icon="i-lucide-check"}
+**What you should see:** `frigear-mobile doctor` reports no missing plugins, and the app opens in the iOS Simulator.
+::
 
 ## Options
 
-Configured under `mobile`.
+Options go under the `mobile` key.
 
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `appId` | `string` | `capacitor.config.appId` | Reverse-DNS id. Becomes `capacitor.config.appId` and, lowercased with `_` turned into `-`, the OAuth redirect and deep-link scheme. Without one the build warns and uses `com.example.app`. |
+| `appId` | `string` | `capacitor.config.appId` | The reverse-DNS app id. It also gives the redirect and deep-link scheme. |
 | `appName` | `string` | `capacitor.config.appName`, else `appId` | `capacitor.config.appName` and the fallback page title. |
 | `tabs` | `MobileTabDefinition[]` | `[]` | See [Tabs](#tabs). |
-| `auth` | `boolean` | on when `@frigear-nu/auth` runs in client mode | The shell follows Auth's sign-in state: tabs with `requiresAuth` show signed in only. It does not decide which pages need a user. |
-| `spa` | `boolean` | `true` | Sets `ssr: false`: Capacitor serves a static build. |
-| `layout` | `string \| false` | `'mobile'` | Name of the shell layout (also registered as `default` when the app has none). `false` for none. A layout of the app with that name wins. |
-| `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Native navbar and tab bar on iOS, on all platforms, or never. Needs `@capgo/capacitor-native-navigation`; without it the web chrome is used. |
-| `native.statusBar` | `boolean` | `true` | Status bar text follows the colour mode. |
+| `auth` | `boolean` | on when Auth runs in client mode | Tabs with `requiresAuth` show only while signed in. |
+| `spa` | `boolean` | `true` | Sets `ssr: false`, because Capacitor serves a static build. |
+| `layout` | `string \| false` | `'mobile'` | The name of the shell layout. `false` for none. |
+| `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
+| `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
 | `native.switchHaptics` | `boolean` | `true` | A tick when a `role="switch"` is tapped. |
-| `native.backButton` | `boolean` | `true` | Android back button: close an overlay, go back, go to the first tab, minimize. |
+| `native.backButton` | `boolean` | `true` | Handles the [Android back button](/modules/interface/mobile/cli-and-devices#android). |
 | `appearance.iosTypeScale` | `boolean` | `true` | iOS text sizes (17pt body). |
 | `appearance.tapHighlight` | `boolean` | `true` | No grey tap flash, and `:active` states on iOS. |
 | `appearance.toasterOffset` | `boolean` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar. |
 | `deepLinks.schemes` | `string[] \| false` | `[appId]` | Custom schemes routed into the app. `false` for none. |
-| `deepLinks.hosts` | `string[]` | `[]` | `https` hosts of universal links and app links. |
-| `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. See [Device development](/modules/interface/mobile/cli-and-devices#device-development). |
-| `ios.allowLocalNetworking` | `boolean` | `true` | `NSAllowsLocalNetworking` in Info.plist (plain http to the LAN). |
-| `doctor` | `boolean` | `true` | Warnings about native projects and missing plugins when dev or build starts. |
+| `deepLinks.hosts` | `string[]` | `[]` | The `https` hosts of universal links and app links. |
+| `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. |
+| `ios.allowLocalNetworking` | `boolean` | `true` | Sets `NSAllowsLocalNetworking` in Info.plist, for plain http to the LAN. |
+| `doctor` | `boolean` | `true` | Warns about native projects and missing plugins when dev or build starts. |
 
-## Tabs
+**`appId`.** In lowercase, with `_` turned into `-`, it becomes the OAuth redirect and deep-link scheme. Without one,
+the build warns and uses `com.example.app`.
+
+**`auth`.** It follows Auth's sign-in state. It does not decide which pages need a user.
+
+**`layout`.** The layout is also registered as `default` when the app has none. A layout of the app with the same name
+wins.
+
+**`nativeChrome`.** Native chrome needs `@capgo/capacitor-native-navigation`. Without it, the web chrome is used.
+
+**`dev.lanHost`.** See [Device development](/modules/interface/mobile/cli-and-devices#device-development).
+
+## App
+
+The app side of Mobile: sign-in, tabs, page titles, and the composables and components.
+
+### Sign-in
+
+When the app configures `authentication`, Mobile installs Auth and fills in `client.native.scheme` from `appId`. For
+`MOBILE_LAN` builds it also fills in `client.dev.rewriteLoopback`. It never sets the mode: the app sets
+`authentication.mode: 'client'` itself.
+
+::warning
+With Auth in server mode the build fails. A Capacitor app cannot send a same-origin session cookie to the API.
+::
+
+- **Nothing is protected by default.** Which pages need a user is the app's choice, with
+  [Authorization](/modules/identity/authorization) rules such as `'/**': { authenticated: true }`. When Auth signs the
+  app in but no rule requires a user, the build warns that every page is public.
+- **Tabs** default to `requiresAuth: false`. A tab with `requiresAuth: true` is hidden while signed out.
+
+The guards only decide what the app shows. The API decides what is allowed.
+
+### Tabs
+
+A tab definition feeds the native tab bar, the web tab bar and the navbar title.
 
 ```ts
 interface MobileTabDefinition {
@@ -147,7 +202,7 @@ interface MobileTabDefinition {
 }
 ```
 
-A module adds its tabs from `setup()`. A tab with an existing id replaces its fields, so a host can relabel one:
+A module adds its tabs from `setup()`. A later tab with the same id replaces its fields, so a host can relabel one:
 
 ```ts
 import { extendMobileTabs } from '@frigear-nu/mobile/utils'
@@ -156,14 +211,16 @@ extendMobileTabs(nuxt, { id: 'events', to: '/events', label: 'Events', icon: 'i-
 ```
 
 `@frigear-nu/mobile/utils` also exports `defineMobileTab`, `normalizeTabs`, `findActiveTab` and `matchesPath`. With
-[Menu](/modules/interface/menu), the items of the `mobile.tabs` menu are added as tabs (tab fields such as `sfSymbol` go in `meta`).
+[Menu](/modules/interface/menu), the items of the `mobile.tabs` menu are added as tabs and replace tabs with the same
+id. Tab fields such as `sfSymbol` go in the item's `meta`.
 
-The build fails on invalid tabs (duplicate or malformed ids, no `to`, no icon). It warns about more than five tabs, a `to`
-that is not a page and, with native chrome, tabs without an `sfSymbol`.
+The build fails on an invalid id, or a tab without `to`, `label` or `icon`. It warns about more than five tabs, two
+tabs with the same `to`, a `to` that is not a page and, with native chrome, a tab without an `sfSymbol`.
 
-## Pages
+### Pages
 
-Titles come from page meta, else the selected tab, else `appName`:
+A page sets its title and chrome in `definePageMeta`. The title comes from page meta, else the selected tab, else
+`appName`.
 
 ```ts
 definePageMeta({
@@ -178,33 +235,38 @@ definePageMeta({
 })
 ```
 
-## App
+### Composables and components
+
+The composables and components below are auto-imported.
 
 | Name | What it is |
 | --- | --- |
-| `useCapacitor()` | `platform` (`ios`, `android` or `web`, synchronous), `isNative`, `isIos`, `isAndroid`, `has(plugin)`, `load(plugin)`. |
-| `useMobileTabs()` | `tabs`, `label(tab)`, `title(tab)`. |
-| `useMobileChrome()` | `state` (mode, visible tabs, active tab, tab bar, header), `native`, and `suppress()` to hide the tab bar for an overlay of your own (call the returned function to release). Nuxt UI dialogs, slideovers and drawers hide it on their own. |
+| `useCapacitor()` | `platform` (`ios`, `android` or `web`), `isNative`, `isIos`, `isAndroid`, `has(plugin)` and `load(plugin)`. |
+| `useMobileTabs()` | `tabs`, `label(tab)` and `title(tab)`. |
+| `useMobileChrome()` | `state`, `native` and `suppress()`, which hides the tab bar until you call the function it returns. |
 | `useNative()` | See [Native features](#native-features). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
-| `MobileHeader` | The web header. Slots `leading` and `trailing`. |
+| `MobileHeader` | The web header, with `leading` and `trailing` slots. |
 | `MobileTabBar` | The web tab bar. |
-| `MobileFab` | A floating action button: `label`, `icon`, `to`, or `items` (an action sheet on a device, a dropdown in a browser). |
-| `mobile` layout | Header, page, tab bar. Override it with your own `layouts/mobile.vue`. |
+| `MobileFab` | A floating action button: `label`, `icon`, `to`, or `items` for an action sheet on a device. |
+| `mobile` layout | Header, page and tab bar. Your own `layouts/mobile.vue` replaces it. |
 
-CSS variables: `--mobile-inset-top`, `--mobile-inset-bottom` and `--mobile-tabbar-height`, the same for native and web
-chrome. `<html>` gets `mobile-platform-<platform>`, `mobile-chrome-native` or `mobile-chrome-web`, and `mobile-has-tabbar`.
+Nuxt UI dialogs, slideovers and drawers hide the tab bar on their own; `suppress()` is for an overlay of your own. In a
+browser, `MobileFab` with `items` opens a dropdown instead of an action sheet.
+
+The CSS variables `--mobile-inset-top`, `--mobile-inset-bottom` and `--mobile-tabbar-height` are the same for native
+and web chrome. `<html>` gets the classes `mobile-platform-<platform>`, `mobile-chrome-native` or `mobile-chrome-web`,
+and `mobile-has-tabbar`.
 
 ### Native chrome
 
 On iOS, with `@capgo/capacitor-native-navigation` installed, the navbar and the tab bar are native. In a browser and on
-Android the module renders `MobileHeader` and `MobileTabBar` instead (`nativeChrome: 'all'` also uses the native ones on
-Android, with `androidIcon` drawables). The shell also applies safe areas, the iOS type scale, `:active` states, no tap
-highlight, switch haptics, the keyboard accessory bar and a status bar that follows the colour mode.
+Android the module draws `MobileHeader` and `MobileTabBar` instead. `nativeChrome: 'all'` uses the native ones on
+Android too, with `androidIcon` drawables.
 
 ### Native features
 
-`useNative()` wraps Capacitor plugins and falls back on the web:
+`useNative()` wraps Capacitor plugins and falls back in a browser:
 
 | Method | Plugin | In a browser |
 | --- | --- | --- |
@@ -215,23 +277,28 @@ highlight, switch haptics, the keyboard accessory bar and a status bar that foll
 
 ## Hooks
 
-Runtime hooks, called with `useNuxtApp().hook(...)`:
+Your app answers these runtime [hooks](/guide/concepts/glossary) with `useNuxtApp().hook(...)`.
 
 | Hook | Payload | When |
 | --- | --- | --- |
-| `mobile:deep-link` | `{ url, path, preventDefault }` | A custom scheme or universal link opened the app. Change `path` to route elsewhere, or `preventDefault()` to handle it yourself. OAuth callbacks never reach it. |
-| `mobile:back-button` | `{ canGoBack, preventDefault }` | The Android back button, before the module acts. Call `preventDefault()` when you handled it. |
+| `mobile:deep-link` | `{ url, path, preventDefault }` | A custom scheme or universal link opened the app. OAuth callbacks never reach it. |
+| `mobile:back-button` | `{ canGoBack, preventDefault }` | The Android back button was pressed, before the module acts. |
 
-Deep links need `@capacitor/app` and a scheme in `deepLinks.schemes` or a host in `deepLinks.hosts`. The `native`
-command registers them in the native projects.
+**`mobile:deep-link`.** Change `path` to route elsewhere, or call `preventDefault()` to handle the link yourself. Deep
+links need `@capacitor/app` and a scheme in `deepLinks.schemes` or a host in `deepLinks.hosts`. The `native` command
+registers them in the native projects.
 
-## On this module
+**`mobile:back-button`.** Call `preventDefault()` when you handled the button.
 
-- [CLI and devices](/modules/interface/mobile/cli-and-devices): the `frigear-mobile` command, device development, Android and the release checklist.
+## Module pages
 
-## Related
+| Page | What it covers | For |
+| --- | --- | --- |
+| [CLI and devices](/modules/interface/mobile/cli-and-devices) | The `frigear-mobile` command, testing on a phone, Android and the release checklist. | App developers |
 
-- [Auth client mode](/modules/identity/auth/client-mode): sign-in, tokens and `$api`.
-- [Authorization](/modules/identity/authorization): the guards.
-- [OAuth Resource](/modules/identity/oauth-resource): lets each service the app calls accept the access token.
-- [Use your own OAuth server](/guide/going-further/own-oauth-server).
+## Next steps
+
+- [Mobile CLI and devices](/modules/interface/mobile/cli-and-devices) – run the app on a phone and prepare a release.
+- [Use your own OAuth server](/guide/going-further/own-oauth-server) – point the app at an issuer you run.
+- [Authorization](/modules/identity/authorization) – choose which pages need a signed-in user.
+- [OAuth Resource](/modules/identity/oauth-resource) – let each service the app calls accept its access token.
