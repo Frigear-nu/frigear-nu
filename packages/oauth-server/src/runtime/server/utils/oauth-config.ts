@@ -1,8 +1,8 @@
 import type { H3Event } from 'h3'
 import { apiError } from '@frigear-nu/module-kit/server'
-import type { OAuthNormalizedClient, OAuthScopeDefinition } from '../../../types'
+import type { OAuthNormalizedClient, OAuthScopeDefinition, RefreshTokenPolicy } from '../../../types'
 import { scopes as apiScopes } from '#auth/scopes'
-import { normalizeConfiguredClients, parseList } from '../../utils'
+import { configuredClientWarnings, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions } from '../../utils'
 
 export function useOAuthConfig() {
   return useRuntimeConfig().oauthServer
@@ -27,6 +27,29 @@ export function getOAuthCorsPaths(): string[] {
   return parseList(useOAuthConfig().corsPaths)
 }
 
+let refreshPolicy: { source: unknown, policy: RefreshTokenPolicy } | undefined
+
+/**
+ * The global refresh-token policy (`refreshToken`, which env may override: `NUXT_OAUTH_SERVER_REFRESH_TOKEN_IDLE_TTL`,
+ * `..._MAX_AGE`). An invalid value is a deployment error: 500 `not_configured` until it is fixed.
+ */
+export function getOAuthRefreshTokenPolicy(): RefreshTokenPolicy {
+  const source = useOAuthConfig().refreshToken
+  if (!refreshPolicy || refreshPolicy.source !== source) {
+    try {
+      const value = source as { idleTtl?: number | string, maxAge?: number | string | null } | undefined
+      // Env values arrive as strings; an empty one means "not set".
+      const maxAge = value?.maxAge === '' ? null : value?.maxAge
+      refreshPolicy = { source, policy: resolveRefreshTokenOptions({ refreshToken: { idleTtl: value?.idleTtl as number | undefined, maxAge: maxAge as number | null | undefined } }) }
+    }
+    catch (error) {
+      console.error(`[oauth-server] oauthServer.refreshToken is invalid: ${(error as Error).message}`)
+      throw apiError(500, 'not_configured', 'The refresh token policy is invalid.')
+    }
+  }
+  return refreshPolicy.policy
+}
+
 let configuredClients: { source: unknown, clients: OAuthNormalizedClient[], error?: Error } | undefined
 /** Configured ids that belong to a confidential application in the database: config is ignored for them. */
 const conflictingClientIds = new Set<string>()
@@ -42,6 +65,10 @@ export function getOAuthConfiguredClients(): OAuthNormalizedClient[] {
   if (!configuredClients || configuredClients.source !== source) {
     try {
       configuredClients = { source, clients: normalizeConfiguredClients(source, { dev: import.meta.dev, callbackPath: config.callbackPath }) }
+      // Build time warned about the configured list already; this covers a list replaced through env.
+      if (typeof source === 'string') {
+        for (const warning of configuredClientWarnings(configuredClients.clients, getOAuthRefreshTokenPolicy())) console.warn(`[oauth-server] oauthServer.clients: ${warning}`)
+      }
     }
     catch (error) {
       console.error(`[oauth-server] oauthServer.clients is invalid: ${(error as Error).message}`)

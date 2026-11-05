@@ -136,7 +136,10 @@ Options go under the `oauthServer` key.
 | `keyId` | `string` | `'key-1'` | The `kid` of the signing key in the JWKS. |
 | `accessTokenTtl` | `number` | `900` | Lifetime of access tokens and ID tokens, in seconds. |
 | `accessTokenAudience` | `string \| string[]` | the `client_id` | The `aud` of every access token, such as `frigear-services`. |
-| `refreshTokenTtl` | `number` | 30 days | Lifetime of refresh tokens, in seconds. |
+| `refreshToken.idleTtl` | `number` | 30 days | How long a refresh token lives unused, in seconds. At most two years. |
+| `refreshToken.maxAge` | `number \| null` | `null` | How long a sign-in lives in total, in seconds. `null` means no cap. |
+| `refreshTokenTtl` | `number` | 30 days | Deprecated alias of `refreshToken.idleTtl`; warns at build time. |
+| `revokeOnCredentialChange` | `boolean` | `true` | Ends a user's sign-ins when their password or email changes. |
 | `codeTtl` | `number` | `600` | Lifetime of authorization codes, in seconds. |
 | `callbackPath` | `string` | `'/auth/frigear'` | Added to an application's website URL to form its redirect URI. |
 | `scopes` | `Array<string \| OAuthScopeDefinition>` | `[]` | Extra [scopes](/guide/concepts/glossary) next to `openid profile email`. |
@@ -156,6 +159,9 @@ Options go under the `oauthServer` key.
 **`accessTokenTtl`** should stay at 5 to 15 minutes when other services accept the tokens. Those services cannot revoke
 a token. They can only stop a refresh. The module warns at startup when an audience is set and the lifetime is over
 900 seconds.
+
+**`refreshToken`** is the default for applications without their own session length. Each application can set
+its own in the admin area ([Session lifetimes](/modules/identity/oauth-server/routes-and-clients#session-lifetimes)).
 
 **`accessTokenAudience`** is for tokens that
 [other services](/modules/identity/oauth-server/server#one-app-for-every-service) accept. ID tokens keep the
@@ -189,6 +195,8 @@ Keys are secrets, so they are set through runtime config, not module options.
 | `oauthServer.accessTokenAudience` | `NUXT_OAUTH_SERVER_ACCESS_TOKEN_AUDIENCE` | The shared audience of access tokens, comma separated. |
 | `oauthServer.corsOrigins` | `NUXT_OAUTH_SERVER_CORS_ORIGINS` | The CORS origins, comma separated. |
 | `oauthServer.corsPaths` | `NUXT_OAUTH_SERVER_CORS_PATHS` | `cors.paths`, comma separated. |
+| `oauthServer.refreshToken.idleTtl` | `NUXT_OAUTH_SERVER_REFRESH_TOKEN_IDLE_TTL` | `refreshToken.idleTtl` per environment, in seconds. |
+| `oauthServer.refreshToken.maxAge` | `NUXT_OAUTH_SERVER_REFRESH_TOKEN_MAX_AGE` | `refreshToken.maxAge` per environment, in seconds. Empty means no cap. |
 | `oauthServer.clients` | `NUXT_OAUTH_SERVER_CLIENTS` | Replaces `clients` with a JSON array of the same shape. |
 | `oauthServer.previousPublicKeys` | `NUXT_OAUTH_SERVER_PREVIOUS_PUBLIC_KEYS` | Public keys of retired keys during a rotation. |
 

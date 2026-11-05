@@ -36,6 +36,10 @@ export const oauthApplications = sqliteTable('oauth_applications', {
   isActive: integer({ mode: 'boolean' }).notNull().default(true),
   /** Shown in the users' application list. Unlisted applications still sign in. */
   isListed: integer({ mode: 'boolean' }).notNull().default(true),
+  /** Refresh tokens live this long unused, in seconds. `null` = the configured client's or the global policy. */
+  refreshIdleTtl: integer(),
+  /** A sign-in lives this long in total (from `authTime`), in seconds. `null` = the configured client's or the global policy. */
+  refreshMaxAge: integer(),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 }, t => [
