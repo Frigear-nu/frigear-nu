@@ -9,6 +9,10 @@ export const oauthServerApi = {
   me: {
     /** `GET`: the applications the signed-in user may sign in to. */
     applications: '/api/oauth-server/me/applications',
+    /** `GET`: the caller's sign-ins in applications; `DELETE` (204) signs out of all of them. */
+    sessions: '/api/oauth-server/me/sessions',
+    /** `DELETE` (204): signs out of one sign-in. */
+    session: (id: string) => `/api/oauth-server/me/sessions/${enc(id)}`,
   },
   admin: {
     /** `GET` (paginated) and `POST` (create, 201). */

@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
     throw notFound('User not found.')
   }
 
+  await notifyAuthCredentialsChanged({ userId: user.id, reason: 'password-reset', event })
   await setUserSession(event, { user: mapUserToSession(user) })
 
   return { id: user.id }

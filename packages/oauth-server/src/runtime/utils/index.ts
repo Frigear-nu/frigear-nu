@@ -1,5 +1,5 @@
 // Pure helpers: safe to import from the app, Nitro and tests (`@frigear-nu/oauth-server/utils`).
-import type { OAuthConfiguredClient, OAuthNormalizedClient, OAuthScopeDefinition, OAuthScopeGroup } from '../../types'
+import type { ClientType, OAuthClientKind, OAuthConfiguredClient, OAuthNormalizedClient, OAuthScopeDefinition, OAuthScopeGroup, RefreshTokenPolicy } from '../../types'
 
 export type * from '../../types'
 export { oauthServerApi, oidc } from './api'
@@ -9,6 +9,14 @@ export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'
 /** `confidential` clients hold a secret; `public` clients (native and single-page apps) cannot and rely on PKCE alone. */
 export const CLIENT_TYPES = ['confidential', 'public'] as const
+
+const DAY = 60 * 60 * 24
+/** The default refresh-token policy: 30 days idle, no cap on the whole sign-in. */
+export const DEFAULT_REFRESH_TOKEN_POLICY: RefreshTokenPolicy = { idleTtl: 30 * DAY, maxAge: null }
+/** No refresh-token lifetime may exceed two years: a forgotten device stops working by itself. */
+export const MAX_REFRESH_TOKEN_LIFETIME = 2 * 365 * DAY
+/** Browser clients keep refresh tokens where scripts can read them: above this idle lifetime they get a warning. */
+export const BROWSER_SESSION_WARN_AFTER = 7 * DAY
 
 /** Schemes that can never be a native app redirect: they are web schemes, or can run or leak content. */
 const NON_NATIVE_SCHEMES = new Set([
@@ -283,6 +291,11 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
     const badOrigin = corsOrigins.find(origin => !isExactOrigin(origin))
     if (badOrigin) throw new Error(`${label}: corsOrigins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${badOrigin}".`)
 
+    const refreshToken = normalizeClientRefreshToken(client.refreshToken, label)
+    if (client.allowLongBrowserSessions !== undefined && typeof client.allowLongBrowserSessions !== 'boolean') {
+      throw new Error(`${label}: allowLongBrowserSessions must be true or false.`)
+    }
+
     const names = (what: 'allowedRoles' | 'tags') => stringList(client[what], `${label}: ${what}`, 50, 64)
     return {
       id,
@@ -296,6 +309,99 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
       allowedRoles: names('allowedRoles').sort(),
       tags: names('tags'),
       corsOrigins: [...new Set(corsOrigins)],
+      refreshToken,
+      allowLongBrowserSessions: client.allowLongBrowserSessions ?? false,
     }
   })
+}
+
+function normalizeClientRefreshToken(value: unknown, label: string): { idleTtl: number | null, maxAge: number | null } {
+  if (value === undefined || value === null) return { idleTtl: null, maxAge: null }
+  if (!isRecord(value)) throw new Error(`${label}: refreshToken must be an object such as { idleTtl: 15552000 }.`)
+  const read = (key: 'idleTtl' | 'maxAge') => {
+    const raw = value[key]
+    if (raw === undefined || raw === null) return null
+    try {
+      return assertRefreshLifetime(raw, `refreshToken.${key}`)
+    }
+    catch (error) {
+      throw new Error(`${label}: ${(error as Error).message}`, { cause: error })
+    }
+  }
+  return { idleTtl: read('idleTtl'), maxAge: read('maxAge') }
+}
+
+/** A refresh-token lifetime in seconds: a positive integer of at most two years. Throws naming `what` otherwise. */
+export function assertRefreshLifetime(value: unknown, what: string): number {
+  const seconds = typeof value === 'string' && value.trim() ? Number(value) : value
+  if (typeof seconds !== 'number' || !Number.isSafeInteger(seconds) || seconds <= 0) {
+    throw new Error(`${what} must be a positive whole number of seconds, got "${String(value)}".`)
+  }
+  if (seconds > MAX_REFRESH_TOKEN_LIFETIME) {
+    throw new Error(`${what} may be at most two years (${MAX_REFRESH_TOKEN_LIFETIME} seconds), got ${seconds}.`)
+  }
+  return seconds
+}
+
+/**
+ * The global refresh-token policy from the module options: `refreshToken.idleTtl` (or the deprecated `refreshTokenTtl`),
+ * default 30 days, and `refreshToken.maxAge`, default `null` (no cap). Throws on a value that is not allowed.
+ */
+export function resolveRefreshTokenOptions(options: { refreshToken?: Partial<RefreshTokenPolicy> | null, refreshTokenTtl?: number | null }): RefreshTokenPolicy {
+  const idle = options.refreshToken?.idleTtl ?? options.refreshTokenTtl ?? DEFAULT_REFRESH_TOKEN_POLICY.idleTtl
+  const maxAge = options.refreshToken?.maxAge ?? null
+  return {
+    idleTtl: assertRefreshLifetime(idle, 'refreshToken.idleTtl'),
+    maxAge: maxAge === null ? null : assertRefreshLifetime(maxAge, 'refreshToken.maxAge'),
+  }
+}
+
+/**
+ * The policy a refresh token of this application gets: the application's own values (`null` = inherit), else the global
+ * ones. Configured clients carry their `refreshToken` in these columns (config owns them).
+ */
+export function resolveRefreshTokenPolicy(
+  application: { refreshIdleTtl?: number | null, refreshMaxAge?: number | null },
+  global: RefreshTokenPolicy,
+): RefreshTokenPolicy {
+  return {
+    idleTtl: application.refreshIdleTtl ?? global.idleTtl,
+    maxAge: application.refreshMaxAge ?? global.maxAge,
+  }
+}
+
+/** When a new refresh token expires: `min(now + idleTtl, authTime + maxAge)`. */
+export function refreshTokenExpiresAt(policy: RefreshTokenPolicy, authTime: Date, now = new Date()): Date {
+  const idle = now.getTime() + policy.idleTtl * 1000
+  const cap = policy.maxAge === null ? Number.POSITIVE_INFINITY : authTime.getTime() + policy.maxAge * 1000
+  return new Date(Math.min(idle, cap))
+}
+
+/**
+ * What kind of client this is, for the session-length guardrails: `confidential` (a server holds the tokens),
+ * `browser` (a public client with a web redirect: the tokens live in the browser, readable by any XSS) or `native` (a
+ * public client whose redirect URIs are all custom-scheme or loopback: the tokens live in the keychain).
+ */
+export function oauthClientKind(client: { clientType: ClientType, websiteUrl?: string | null, redirectUris?: readonly string[] | null }): OAuthClientKind {
+  if (client.clientType === 'confidential') return 'confidential'
+  const uris = [...(client.websiteUrl ? [client.websiteUrl] : []), ...(client.redirectUris ?? [])]
+  const web = uris.some((uri) => {
+    if (!URL.canParse(uri)) return false
+    const url = new URL(uri)
+    if (url.protocol === 'https:') return true
+    return url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  })
+  return web ? 'browser' : 'native'
+}
+
+/** Whether a browser client's idle lifetime is long enough to warn about (above 7 days). */
+export function isLongBrowserSession(client: { clientType: ClientType, websiteUrl?: string | null, redirectUris?: readonly string[] | null }, idleTtl: number | null | undefined): boolean {
+  return !!idleTtl && idleTtl > BROWSER_SESSION_WARN_AFTER && oauthClientKind(client) === 'browser'
+}
+
+/** The warning for a configured browser client with a long session, unless it set `allowLongBrowserSessions`. */
+export function configuredClientWarnings(clients: readonly OAuthNormalizedClient[], global: RefreshTokenPolicy): string[] {
+  return clients
+    .filter(client => !client.allowLongBrowserSessions && isLongBrowserSession(client, client.refreshToken.idleTtl ?? global.idleTtl))
+    .map(client => `Client "${client.id}" is a browser client (it has a web redirect URI) whose refresh tokens live ${Math.round((client.refreshToken.idleTtl ?? global.idleTtl) / DAY)} days unused. Browsers keep them where any XSS can read them; keep it at 7 days or less, or set allowLongBrowserSessions: true.`)
 }

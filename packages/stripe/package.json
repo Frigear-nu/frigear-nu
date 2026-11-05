@@ -5,7 +5,7 @@
   "homepage": "https://docs.frigear.dev/modules/commerce/stripe",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/frigear-nu/frigear-nu.git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
     "directory": "packages/stripe"
   },
   "license": "MIT",

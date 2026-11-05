@@ -135,6 +135,28 @@
         "removeError": "Kunne ikke fjerne passkey.",
         "loadError": "Kunne ikke hente dine passkeys.",
         "tryAgain": "Prøv igen"
+      },
+      "signedInApps": {
+        "title": "Apps, der er logget ind",
+        "description": "Applikationer, der er logget ind med din konto. Når du ændrer adgangskode eller e-mail, logges de alle ud.",
+        "activity": "Logget ind {signedIn} · sidst aktiv {lastActive}",
+        "signOut": "Log ud af app",
+        "signOutConfirm": {
+          "title": "Log ud af {name}?",
+          "description": "Applikationen skal bede dig logge ind igen. Din konto og dens data påvirkes ikke."
+        },
+        "signedOut": "Logget ud.",
+        "signOutError": "Kunne ikke logge ud af applikationen.",
+        "signOutAll": "Log ud af alle apps",
+        "signOutAllConfirm": {
+          "title": "Log ud af alle apps?",
+          "description": "Alle applikationer på listen, på alle enheder, skal bede dig logge ind igen. Du forbliver logget ind på dette website."
+        },
+        "signedOutAll": "Logget ud af alle apps.",
+        "signOutAllError": "Kunne ikke logge ud af applikationerne.",
+        "loadError": "Kunne ikke hente dine apps.",
+        "tryAgain": "Prøv igen",
+        "empty": "Ingen applikationer er logget ind med din konto."
       }
     },
     "apiTokens": {
@@ -165,10 +187,10 @@
         "required": "Vælg mindst én rettighed."
       },
       "expiry": {
-        "label": "Udløber",
         "30": "30 dage",
         "90": "90 dage",
         "365": "1 år",
+        "label": "Udløber",
         "never": "Udløber aldrig"
       },
       "reveal": {

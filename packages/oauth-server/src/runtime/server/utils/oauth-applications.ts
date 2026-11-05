@@ -1,10 +1,10 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import type { H3Event } from 'h3'
 import { apiError, badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
-import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, OAuthNormalizedClient, UserApplicationDto } from '../../../types'
-import { CLIENT_TYPES, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl } from '../../utils'
+import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, OAuthNormalizedClient, OAuthSessionDto, TokenRevokedContext, UserApplicationDto } from '../../../types'
+import { CLIENT_TYPES, MAX_REFRESH_TOKEN_LIFETIME, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl, oauthClientKind } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
 
@@ -32,6 +32,9 @@ const redirectUri = z.string().trim().max(2048).refine((value) => {
 
 const names = z.array(z.string().trim().min(1).max(64)).max(50)
 
+/** A refresh-token lifetime in seconds: at most two years. `null` = inherit. */
+const lifetime = z.number().int().positive().max(MAX_REFRESH_TOKEN_LIFETIME, 'At most two years.')
+
 /** Validation shared by the admin API and `createApplication` / `updateApplication`. */
 export const applicationInputSchema = z.object({
   clientType: z.enum(CLIENT_TYPES).optional(),
@@ -47,6 +50,8 @@ export const applicationInputSchema = z.object({
   tags: names.optional(),
   isActive: z.boolean().optional(),
   isListed: z.boolean().optional(),
+  refreshIdleTtl: lifetime.nullish(),
+  refreshMaxAge: lifetime.nullish(),
 })
 
 export const applicationPatchSchema = applicationInputSchema.partial()
@@ -83,11 +88,14 @@ export function toAdminApplicationDto(application: OAuthApplication, activeGrant
     ownerId: application.ownerId,
     isActive: application.isActive,
     isListed: application.isListed,
+    refreshIdleTtl: application.refreshIdleTtl,
+    refreshMaxAge: application.refreshMaxAge,
     createdAt: isoDate(application.createdAt),
     updatedAt: isoDate(application.updatedAt),
     ...(activeGrants === undefined ? {} : { activeGrants }),
     callbackUrl: applicationCallbackUrl(application),
     managed: isOAuthManagedApplication(application),
+    kind: oauthClientKind(application),
   }
 }
 
@@ -133,7 +141,7 @@ function assertWebsite(websiteUrl: string | null | undefined, redirectUris: read
 }
 
 /** The fields of a configured client that come from config: staff cannot change them (409 `managed_by_config`). */
-const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern', 'isListed'] as const
+const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern', 'isListed', 'refreshIdleTtl', 'refreshMaxAge'] as const
 
 const managedByConfig = () => apiError(409, 'managed_by_config', 'This application is managed in nuxt.config (oauthServer.clients).')
 
@@ -152,6 +160,8 @@ function configuredValues(client: OAuthNormalizedClient) {
     allowedRoles: client.allowedRoles,
     tags: client.tags,
     previewUrlPattern: null,
+    refreshIdleTtl: client.refreshToken.idleTtl,
+    refreshMaxAge: client.refreshToken.maxAge,
   } satisfies Partial<ApplicationRow>
 }
 
@@ -344,7 +354,7 @@ export async function revokeApplicationGrants(applicationId: string): Promise<vo
  * Revokes a user's refresh tokens, for one application or all of them. Call it when a user is
  * deactivated or loses a role; already issued access tokens stay valid until they expire.
  */
-export async function revokeUserGrants(userId: number, applicationId?: string): Promise<void> {
+export async function revokeUserGrants(userId: number, applicationId?: string, reason: TokenRevokedContext['reason'] = 'user_grants_revoked'): Promise<void> {
   const where = applicationId
     ? and(eq(schema.oauthRefreshTokens.userId, userId), eq(schema.oauthRefreshTokens.applicationId, applicationId))
     : eq(schema.oauthRefreshTokens.userId, userId)
@@ -352,7 +362,7 @@ export async function revokeUserGrants(userId: number, applicationId?: string): 
     .returning({ applicationId: schema.oauthRefreshTokens.applicationId })
   const hooks = useNitroApp().hooks
   for (const id of new Set(revoked.map(row => row.applicationId))) {
-    await hooks.callHook('oauth:token:revoked', { applicationId: id, userId, reason: 'user_grants_revoked' })
+    await hooks.callHook('oauth:token:revoked', { applicationId: id, userId, reason })
   }
   await db.delete(schema.oauthAuthorizationCodes).where(applicationId
     ? and(eq(schema.oauthAuthorizationCodes.userId, userId), eq(schema.oauthAuthorizationCodes.applicationId, applicationId))
@@ -399,4 +409,51 @@ export async function countActiveGrants(applicationIds: string[]): Promise<Recor
     if (!row.revokedAt && row.expiresAt.getTime() > now) counts[row.applicationId] = (counts[row.applicationId] ?? 0) + 1
   }
   return counts
+}
+
+/**
+ * The user's live sign-ins (refresh-token families), newest activity first. Each refresh writes a new row and retires
+ * the old one, so a family's only live row is its newest: its `createdAt` is when the application was last active.
+ */
+export async function listUserOAuthSessions(userId: number): Promise<OAuthSessionDto[]> {
+  await ensureOAuthConfiguredApplications()
+  const t = schema.oauthRefreshTokens
+  const rows = await db.select({
+    familyId: t.familyId,
+    authTime: t.authTime,
+    createdAt: t.createdAt,
+    expiresAt: t.expiresAt,
+    application: schema.oauthApplications,
+  })
+    .from(t)
+    .innerJoin(schema.oauthApplications, eq(schema.oauthApplications.id, t.applicationId))
+    .where(and(eq(t.userId, userId), isNull(t.revokedAt), gt(t.expiresAt, new Date())))
+    .orderBy(desc(t.createdAt))
+  const seen = new Set<string>()
+  const sessions: OAuthSessionDto[] = []
+  for (const row of rows) {
+    // A family has one live row; a second would only be a lost rotation race. Show the family once.
+    if (seen.has(row.familyId)) continue
+    seen.add(row.familyId)
+    const application = withOAuthConfiguredValues(row.application)
+    sessions.push({
+      id: row.familyId,
+      application: { id: application.id, name: application.name, icon: application.icon },
+      signedInAt: isoDate(row.authTime),
+      lastActiveAt: isoDate(row.createdAt),
+      expiresAt: isoDate(row.expiresAt),
+    })
+  }
+  return sessions
+}
+
+/** Ends one of the user's sign-ins (a refresh-token family). Returns `false` when it is not theirs or already ended. */
+export async function revokeUserOAuthSession(userId: number, familyId: string): Promise<boolean> {
+  const t = schema.oauthRefreshTokens
+  const revoked = await db.update(t).set({ revokedAt: new Date() })
+    .where(and(eq(t.familyId, familyId), eq(t.userId, userId), isNull(t.revokedAt)))
+    .returning({ applicationId: t.applicationId })
+  if (!revoked.length) return false
+  await useNitroApp().hooks.callHook('oauth:token:revoked', { applicationId: revoked[0]!.applicationId, userId, reason: 'signed_out' })
+  return true
 }

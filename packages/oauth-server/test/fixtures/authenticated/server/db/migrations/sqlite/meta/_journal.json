@@ -43,6 +43,13 @@
       "when": 1793706263800,
       "tag": "0005_add_oauth_is_listed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793882181906,
+      "tag": "0006_add_oauth_refresh_lifetimes",
+      "breakpoints": true
     }
   ]
 }
