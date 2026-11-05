@@ -2,7 +2,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AdminApplicationDto, ApplicationInput, ClientType, CreatedApplicationDto } from '../../../types'
-import { isNativeRedirectUri, isSecureOrigin } from '../../utils'
+import { isLongBrowserSession, isNativeRedirectUri, isSecureOrigin } from '../../utils'
 import { computed, reactive, ref, useAction, useModuleT } from '#imports'
 
 type Saved = AdminApplicationDto | CreatedApplicationDto
@@ -50,6 +50,9 @@ const schema = z.object({
   allowedRoles: z.array(z.string()),
   tags: z.array(z.string()),
   isListed: z.boolean(),
+  // Seconds; 0 = the default (inherit).
+  refreshIdleTtl: z.number(),
+  refreshMaxAge: z.number(),
 })
 
 type FormState = z.infer<typeof schema>
@@ -67,6 +70,8 @@ const state = reactive<FormState>({
   allowedRoles: [...(props.application?.allowedRoles ?? [])],
   tags: [...(props.application?.tags ?? [])],
   isListed: props.application?.isListed ?? true,
+  refreshIdleTtl: props.application?.refreshIdleTtl ?? 0,
+  refreshMaxAge: props.application?.refreshMaxAge ?? 0,
 })
 
 const formId = 'oauth-application-form'
@@ -88,6 +93,32 @@ const clientTypeDetail = computed(() => state.clientType === 'public'
       title: t('form.clientTypeConfidentialTitle', 'Server-side app'),
       description: t('form.clientTypeConfidentialDetail', 'Runs on a server that keeps the client secret. You get the secret once, after adding the application.'),
     })
+
+const DAY = 60 * 60 * 24
+/** Session length presets (seconds). A value set elsewhere (config, API) is kept as its own item. */
+const lifetimeItems = (none: string, current: number) => {
+  const items = [
+    { label: none, value: 0 },
+    { label: t('form.lifetime.day', '1 day'), value: DAY },
+    { label: t('form.lifetime.week', '7 days'), value: 7 * DAY },
+    { label: t('form.lifetime.month', '30 days'), value: 30 * DAY },
+    { label: t('form.lifetime.quarter', '90 days'), value: 90 * DAY },
+    { label: t('form.lifetime.halfYear', '6 months'), value: 180 * DAY },
+    { label: t('form.lifetime.year', '1 year'), value: 365 * DAY },
+  ]
+  if (current && !items.some(item => item.value === current)) {
+    items.push({ label: t('form.lifetime.days', '{days} days', { days: Math.round(current / DAY) }), value: current })
+  }
+  return items
+}
+const idleItems = computed(() => lifetimeItems(t('form.lifetime.default', 'Default'), state.refreshIdleTtl))
+const maxAgeItems = computed(() => lifetimeItems(t('form.lifetime.never', 'Default (no limit unless configured)'), state.refreshMaxAge))
+
+/** A browser app (public, web redirect) keeps its refresh token where any script on the page can read it. */
+const longBrowserSession = computed(() => isLongBrowserSession(
+  { clientType: state.clientType, websiteUrl: state.websiteUrl || null, redirectUris: state.redirectUris },
+  state.refreshIdleTtl,
+))
 
 // Cross-field rules (they depend on the client type), so they run next to the schema. The server checks them again.
 const redirectUriError = computed(() => state.redirectUris.find(uri => !isAllowedRedirect(uri, state.clientType)))
@@ -115,6 +146,8 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
     allowedRoles: value.allowedRoles,
     tags: value.tags,
     isListed: value.isListed,
+    refreshIdleTtl: value.refreshIdleTtl || null,
+    refreshMaxAge: value.refreshMaxAge || null,
   }))
   if (saved) emit('close', saved)
 }
@@ -142,7 +175,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
         variant="subtle"
         icon="i-lucide-file-cog"
         :title="t('form.managedTitle', 'Managed in nuxt.config')"
-        :description="t('form.managedDescription', 'This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles and tags there; only the login URL and priority can be edited here.')"
+        :description="t('form.managedDescription', 'This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles, tags, listing and session length there; only the login URL and priority can be edited here.')"
       />
       <UFormField
         name="clientType"
@@ -262,6 +295,38 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
           v-model="state.isListed"
           :disabled="managed"
           :label="t('form.isListed', 'Show in the users\' application list')"
+        />
+      </UFormField>
+      <UFormField
+        name="refreshIdleTtl"
+        :label="t('form.sessionLength', 'Session length')"
+        :description="t('form.sessionLengthHint', 'How long users stay signed in without opening the application. Every use starts the period again.')"
+      >
+        <USelect
+          v-model="state.refreshIdleTtl"
+          :items="idleItems"
+          :disabled="managed"
+          class="w-full"
+        />
+      </UFormField>
+      <UAlert
+        v-if="longBrowserSession"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('form.longBrowserSessionTitle', 'Long session for a browser app')"
+        :description="t('form.longBrowserSessionDescription', 'This public client signs in on a website, where the refresh token is stored in the browser and any cross-site scripting (XSS) flaw can read it. Keep browser apps at 7 days or less.')"
+      />
+      <UFormField
+        name="refreshMaxAge"
+        :label="t('form.signInAgainAfter', 'Sign in again after')"
+        :description="t('form.signInAgainAfterHint', 'Optional: users must sign in again this long after they signed in, however often they use the application.')"
+      >
+        <USelect
+          v-model="state.refreshMaxAge"
+          :items="maxAgeItems"
+          :disabled="managed"
+          class="w-full"
         />
       </UFormField>
       <div class="grid grid-cols-2 gap-4">

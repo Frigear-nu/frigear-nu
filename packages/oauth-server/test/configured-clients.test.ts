@@ -3,7 +3,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { importPKCS8 } from 'jose'
-import { isExactOrigin, normalizeConfiguredClients } from '../src/runtime/utils'
+import {
+  DEFAULT_REFRESH_TOKEN_POLICY,
+  configuredClientWarnings,
+  isExactOrigin,
+  isLongBrowserSession,
+  normalizeConfiguredClients,
+  oauthClientKind,
+  refreshTokenExpiresAt,
+  resolveRefreshTokenOptions,
+  resolveRefreshTokenPolicy,
+} from '../src/runtime/utils'
 import { loadOrCreateDevSigningKey } from '../src/dev-key'
 
 const mobile = { id: 'mobile', name: 'Mobile', redirectUris: ['com.example.app:/auth/callback'] }
@@ -22,6 +32,8 @@ describe('normalizeConfiguredClients', () => {
       allowedRoles: [],
       tags: [],
       corsOrigins: [],
+      refreshToken: { idleTtl: null, maxAge: null },
+      allowLongBrowserSessions: false,
     }])
   })
 
@@ -104,6 +116,79 @@ describe('normalizeConfiguredClients', () => {
   it('cleans up names and texts', () => {
     const [client] = normalizeConfiguredClients([{ ...mobile, allowedRoles: ['staff', 'member', 'staff'], tags: ['b', 'a', 'a'], description: '  Hi ', icon: '' }])
     expect(client).toMatchObject({ allowedRoles: ['member', 'staff'], tags: ['b', 'a'], description: 'Hi', icon: null })
+  })
+})
+
+const DAY = 60 * 60 * 24
+
+describe('refresh-token policy', () => {
+  it('defaults to 30 days idle without a cap, and the deprecated refreshTokenTtl alone still decides the idle time', () => {
+    expect(resolveRefreshTokenOptions({})).toEqual({ idleTtl: 30 * DAY, maxAge: null })
+    expect(DEFAULT_REFRESH_TOKEN_POLICY).toEqual({ idleTtl: 30 * DAY, maxAge: null })
+    expect(resolveRefreshTokenOptions({ refreshTokenTtl: 30 * DAY })).toEqual({ idleTtl: 30 * DAY, maxAge: null })
+    expect(resolveRefreshTokenOptions({ refreshTokenTtl: 7 * DAY })).toEqual({ idleTtl: 7 * DAY, maxAge: null })
+    // `refreshToken.idleTtl` wins over the alias.
+    expect(resolveRefreshTokenOptions({ refreshTokenTtl: 7 * DAY, refreshToken: { idleTtl: DAY, maxAge: 90 * DAY } })).toEqual({ idleTtl: DAY, maxAge: 90 * DAY })
+    // Env values arrive as strings.
+    expect(resolveRefreshTokenOptions({ refreshToken: { idleTtl: '3600' as unknown as number } })).toEqual({ idleTtl: 3600, maxAge: null })
+  })
+
+  it('refuses lifetimes that are not positive whole seconds, or above two years', () => {
+    expect(() => resolveRefreshTokenOptions({ refreshToken: { idleTtl: 0 } })).toThrow(/positive whole number/)
+    expect(() => resolveRefreshTokenOptions({ refreshToken: { idleTtl: 1.5 } })).toThrow(/positive whole number/)
+    expect(() => resolveRefreshTokenOptions({ refreshToken: { idleTtl: 731 * DAY } })).toThrow(/two years/)
+    expect(() => resolveRefreshTokenOptions({ refreshToken: { maxAge: 731 * DAY } })).toThrow(/refreshToken.maxAge may be at most two years/)
+    expect(resolveRefreshTokenOptions({ refreshToken: { idleTtl: 730 * DAY } }).idleTtl).toBe(730 * DAY)
+  })
+
+  it('takes the application\'s values first, then the global ones', () => {
+    const global = { idleTtl: 30 * DAY, maxAge: null }
+    expect(resolveRefreshTokenPolicy({ refreshIdleTtl: null, refreshMaxAge: null }, global)).toEqual(global)
+    expect(resolveRefreshTokenPolicy({ refreshIdleTtl: 180 * DAY, refreshMaxAge: null }, global)).toEqual({ idleTtl: 180 * DAY, maxAge: null })
+    expect(resolveRefreshTokenPolicy({ refreshIdleTtl: null, refreshMaxAge: 7 * DAY }, { idleTtl: DAY, maxAge: 30 * DAY })).toEqual({ idleTtl: DAY, maxAge: 7 * DAY })
+  })
+
+  it('expires a token at now + idleTtl, capped at authTime + maxAge', () => {
+    const now = new Date('2026-01-31T00:00:00Z')
+    const authTime = new Date('2026-01-01T00:00:00Z')
+    expect(refreshTokenExpiresAt({ idleTtl: 30 * DAY, maxAge: null }, authTime, now)).toEqual(new Date('2026-03-02T00:00:00Z'))
+    // The sliding window would reach March, the cap ends the sign-in on 1 February.
+    expect(refreshTokenExpiresAt({ idleTtl: 30 * DAY, maxAge: 31 * DAY }, authTime, now)).toEqual(new Date('2026-02-01T00:00:00Z'))
+    // Past the cap the token is born expired.
+    expect(refreshTokenExpiresAt({ idleTtl: 30 * DAY, maxAge: 10 * DAY }, authTime, now).getTime()).toBeLessThan(now.getTime())
+  })
+
+  it('tells native, browser and confidential clients apart', () => {
+    expect(oauthClientKind({ clientType: 'confidential', websiteUrl: 'https://app.example.com' })).toBe('confidential')
+    expect(oauthClientKind({ clientType: 'public', redirectUris: ['com.example.app:/cb', 'http://localhost:3000/cb'] })).toBe('native')
+    expect(oauthClientKind({ clientType: 'public', redirectUris: ['capacitor://localhost/cb'] })).toBe('native')
+    expect(oauthClientKind({ clientType: 'public', redirectUris: ['com.example.app:/cb', 'https://app.example.com/cb'] })).toBe('browser')
+    expect(oauthClientKind({ clientType: 'public', websiteUrl: 'https://app.example.com', redirectUris: [] })).toBe('browser')
+    expect(isLongBrowserSession({ clientType: 'public', redirectUris: ['https://app.example.com/cb'] }, 8 * DAY)).toBe(true)
+    expect(isLongBrowserSession({ clientType: 'public', redirectUris: ['https://app.example.com/cb'] }, 7 * DAY)).toBe(false)
+    expect(isLongBrowserSession({ clientType: 'public', redirectUris: ['com.example.app:/cb'] }, 365 * DAY)).toBe(false)
+    expect(isLongBrowserSession({ clientType: 'confidential', websiteUrl: 'https://app.example.com' }, 365 * DAY)).toBe(false)
+  })
+
+  it('reads a configured client\'s refreshToken, warns about long browser sessions unless allowed, and refuses above two years', () => {
+    const [native] = normalizeConfiguredClients([{ ...mobile, refreshToken: { idleTtl: 180 * DAY } }])
+    expect(native!.refreshToken).toEqual({ idleTtl: 180 * DAY, maxAge: null })
+    expect(configuredClientWarnings([native!], DEFAULT_REFRESH_TOKEN_POLICY)).toEqual([])
+
+    const spa = { id: 'spa', name: 'SPA', redirectUris: ['https://spa.example.com/auth/callback'] }
+    const [long] = normalizeConfiguredClients([{ ...spa, refreshToken: { idleTtl: 30 * DAY } }])
+    expect(configuredClientWarnings([long!], DEFAULT_REFRESH_TOKEN_POLICY)).toEqual([expect.stringMatching(/"spa" is a browser client .* 30 days .*XSS/)])
+    // The global default counts too: 30 days is long for a browser.
+    const [inherits] = normalizeConfiguredClients([spa])
+    expect(configuredClientWarnings([inherits!], DEFAULT_REFRESH_TOKEN_POLICY)).toHaveLength(1)
+    expect(configuredClientWarnings([inherits!], { idleTtl: DAY, maxAge: null })).toEqual([])
+    const [allowed] = normalizeConfiguredClients([{ ...spa, refreshToken: { idleTtl: 30 * DAY }, allowLongBrowserSessions: true }])
+    expect(configuredClientWarnings([allowed!], DEFAULT_REFRESH_TOKEN_POLICY)).toEqual([])
+
+    expect(() => normalizeConfiguredClients([{ ...mobile, refreshToken: { idleTtl: 3 * 365 * DAY } }])).toThrow(/Client "mobile": refreshToken.idleTtl may be at most two years/)
+    expect(() => normalizeConfiguredClients([{ ...mobile, refreshToken: { maxAge: -1 } }])).toThrow(/refreshToken.maxAge must be a positive/)
+    expect(() => normalizeConfiguredClients([{ ...mobile, refreshToken: 5 as never }])).toThrow(/refreshToken must be an object/)
+    expect(() => normalizeConfiguredClients([{ ...mobile, allowLongBrowserSessions: 'yes' as never }])).toThrow(/allowLongBrowserSessions/)
   })
 })
 

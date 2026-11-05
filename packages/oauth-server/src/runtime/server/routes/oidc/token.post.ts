@@ -38,6 +38,7 @@ export default defineEventHandler(async (event) => {
 
   let grant
   let refreshToken: string
+  let refreshExpiresAt: Date
   if (grantType === 'authorization_code') {
     const { code, redirect_uri: redirectUri, code_verifier: codeVerifier } = body
     if (!code || !redirectUri || !codeVerifier) {
@@ -46,7 +47,9 @@ export default defineEventHandler(async (event) => {
     const result = await exchangeAuthorizationCode({ code, application, redirectUri, codeVerifier })
     if ('error' in result) return oauthError(event, 400, 'invalid_grant', result.error)
     grant = result.grant
-    refreshToken = (await createRefreshToken({ applicationId: application.id, ...grant })).token
+    const created = await createRefreshToken({ application, ...grant })
+    refreshToken = created.token
+    refreshExpiresAt = created.expiresAt
   }
   else if (grantType === 'refresh_token') {
     if (!body.refresh_token) return oauthError(event, 400, 'invalid_request', 'refresh_token is required.')
@@ -54,6 +57,7 @@ export default defineEventHandler(async (event) => {
     if ('error' in result) return oauthError(event, 400, 'invalid_grant', result.error)
     grant = result.grant
     refreshToken = result.token
+    refreshExpiresAt = result.expiresAt
   }
   else {
     return oauthError(event, 400, 'unsupported_grant_type', 'Supported grants: authorization_code, refresh_token.')
@@ -73,6 +77,8 @@ export default defineEventHandler(async (event) => {
     token_type: 'Bearer',
     expires_in: useOAuthConfig().accessTokenTtl,
     refresh_token: refreshToken,
+    // Not in RFC 6749, but common: seconds until the refresh token expires, so a client can warn before a forced sign-in.
+    refresh_token_expires_in: Math.max(0, Math.floor((refreshExpiresAt.getTime() - Date.now()) / 1000)),
     scope: scope.join(' '),
   }
   if (scope.includes('openid')) {

@@ -44,6 +44,7 @@ import type {
 import type { AuthUserStoreRegistration } from './runtime/utils/build'
 import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
+import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
 import { resolveAuthMode } from './runtime/mode'
 import type { AuthMode } from './runtime/mode'
@@ -80,6 +81,7 @@ export type {
   OAuthProviderOptions,
   PublicModuleOptions,
 } from './types'
+export type { AuthCredentialsChangedContext, AuthCredentialsChangeReason } from './runtime/server/utils/credentials'
 
 // Only same-site paths are followed after sign in (`isSafeRedirect`, as on the server).
 function resolveAfterLogin(path: string | undefined) {
@@ -126,6 +128,11 @@ declare module 'nitropack' {
     'auth:scope-available': (ctx: AuthScopeAvailabilityContext) => void | Promise<void>
     /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
+    /**
+     * A user's password was changed or reset, or their email changed (`notifyAuthCredentialsChanged`). Fired after the
+     * change is stored; end sessions the old credentials opened here.
+     */
+    'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
   }
 }
 

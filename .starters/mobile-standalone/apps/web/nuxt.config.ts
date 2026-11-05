@@ -52,9 +52,11 @@ export default defineNuxtConfig({
     },
   },
 
-  // @frigear-nu/auth: sign-in. Email/password is on by default.
+  // @frigear-nu/auth: sign-in with email/password (on by default) and passkeys, which users add on
+  // /account/security. Passkeys are bound to the domain the site runs on: choose the production domain before launch.
   authentication: {
     settings: {
+      webAuthn: true,
       afterLogin: '/account',
       pages: { login: true, register: true },
       session: { mapper: '~~/server/utils/map-session-user' },

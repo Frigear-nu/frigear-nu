@@ -4,6 +4,7 @@ import type { DropdownMenuItem, FormSubmitEvent } from '@nuxt/ui'
 import { authApi } from '@frigear-nu/auth/api'
 import type { AuthPasskeyDto } from '@frigear-nu/auth/utils'
 import AccountPasskeySlideover from '../components/Account/AccountPasskeySlideover.vue'
+import AccountSignedInApps from '../components/Account/AccountSignedInApps.vue'
 import { computed, errorMessage, reactive, useAccount, useAction, useCachedFetch, useConfirmDialog, useErrorToast, useFormat, useModuleT, useOverlay, usePasskeys, useRuntimeConfig, useToast, useUserSession } from '#imports'
 
 defineOptions({ name: 'AccountSecurityPage' })
@@ -19,6 +20,8 @@ const { changePassword } = useAccount()
 // internally, which isn't available when WebAuthn is disabled (the default).
 const webAuthnEnabled = useRuntimeConfig().public.authentication?.webAuthn === true
 const passkeys = webAuthnEnabled ? usePasskeys() : undefined
+// The applications signed in with this account, when `@frigear-nu/oauth-server` is installed.
+const signedInApps = useRuntimeConfig().public.account?.signedInApps === true
 
 // --- Change password -------------------------------------------------------------------------------------------
 const passwordSchema = z.object({
@@ -223,5 +226,7 @@ const passkeyMenu = (passkey: Passkey): DropdownMenuItem[][] => [[
         :actions="[{ label: t('passkeys.add', 'Add passkey'), icon: 'i-lucide-plus', onClick: onAddPasskey }]"
       />
     </SectionCard>
+
+    <AccountSignedInApps v-if="signedInApps" />
   </div>
 </template>
