@@ -31,6 +31,8 @@ export default defineEventHandler(async (event) => {
 
   if (!updated) throw notFound('User not found.')
 
+  // Ends what the old password signed in elsewhere (OAuth sign-ins of applications).
+  await notifyAuthCredentialsChanged({ userId: updated.id, reason: 'password', event })
   await setUserSession(event, { user: mapUserToSession(updated) })
 
   // A failing mail must not undo a password change that already happened.

@@ -24,6 +24,17 @@ export type PublicModuleOptions = {
     apiTokens?: string
   }
   documents: AccountDocument[]
+  /** `@frigear-nu/oauth-server` is installed: the Security page lists the applications the user is signed in to. */
+  signedInApps?: boolean
+}
+
+/** One sign-in in an application, as `GET /api/oauth-server/me/sessions` of `@frigear-nu/oauth-server` answers it. */
+export type AccountSignedInApp = {
+  id: string
+  application: { id: string, name: string, icon: string | null }
+  signedInAt: string
+  lastActiveAt: string
+  expiresAt: string
 }
 
 export type ModuleOptions = {

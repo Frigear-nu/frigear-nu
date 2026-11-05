@@ -59,7 +59,7 @@
       "createDescription": "Register an application that users can sign in to.",
       "editDescription": "Change how the application is registered.",
       "managedTitle": "Managed in nuxt.config",
-      "managedDescription": "This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles, tags and listing there; only the login URL and priority can be edited here.",
+      "managedDescription": "This application is defined in oauthServer.clients. Change its name, website, redirect URIs, roles, tags, listing and session length there; only the login URL and priority can be edited here.",
       "create": "Add application",
       "save": "Save application",
       "name": "Name",
@@ -92,7 +92,24 @@
       "websiteUrlRequired": "Enter the website URL.",
       "websiteUrlOrRedirect": "Enter a website URL or at least one redirect URI.",
       "isListed": "Show in the users' application list",
-      "isListedHint": "Turn off for apps users only open themselves, such as a mobile app. Sign-in keeps working."
+      "isListedHint": "Turn off for apps users only open themselves, such as a mobile app. Sign-in keeps working.",
+      "sessionLength": "Session length",
+      "sessionLengthHint": "How long users stay signed in without opening the application. Every use starts the period again.",
+      "signInAgainAfter": "Sign in again after",
+      "signInAgainAfterHint": "Optional: users must sign in again this long after they signed in, however often they use the application.",
+      "longBrowserSessionTitle": "Long session for a browser app",
+      "longBrowserSessionDescription": "This public client signs in on a website, where the refresh token is stored in the browser and any cross-site scripting (XSS) flaw can read it. Keep browser apps at 7 days or less.",
+      "lifetime": {
+        "default": "Default",
+        "never": "Default (no limit unless configured)",
+        "day": "1 day",
+        "week": "7 days",
+        "month": "30 days",
+        "quarter": "90 days",
+        "halfYear": "6 months",
+        "year": "1 year",
+        "days": "{days} days"
+      }
     },
     "credentials": {
       "title": "Credentials for {name}",
