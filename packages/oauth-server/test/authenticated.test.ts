@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { SignJWT, createLocalJWKSet, decodeProtectedHeader, decodeJwt, importPKCS8, jwtVerify } from 'jose'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { usersApi } from '@frigear-nu/users/api'
 import { oauthServerApi, oidc } from '../src/runtime/utils/api'
 import { CALLBACK, authorizeQuery, basic, form, json, ok, pkce, registerUser } from './helpers'
 import type { Json, Session } from './helpers'
@@ -1143,6 +1144,200 @@ describe('oauth-server (authenticated, database-backed)', async () => {
     it('never falls back to the session behind an invalid token', async () => {
       const response = await fetch('/api/test/whoami', { headers: { cookie: staff.cookie, authorization: 'Bearer aaa.bbb.ccc' } })
       expect(response.status).toBe(401)
+    })
+  })
+
+  describe('session lifetimes per application', () => {
+    const DAY = 60 * 60 * 24
+    /** `refresh_token_expires_in` is whole seconds, counted a moment after the token was stored. */
+    const expectLifetime = (tokens: Json, seconds: number) => {
+      expect(tokens.refresh_token_expires_in).toBeLessThanOrEqual(seconds)
+      expect(tokens.refresh_token_expires_in).toBeGreaterThan(seconds - 60)
+    }
+    let member: Session
+    const memberApp = (overrides: Json = {}) => createApp({ allowedRoles: [], ...overrides })
+
+    async function signIn(app: Json) {
+      member ??= await user('Lifetime')
+      const { verifier, challenge } = pkce()
+      const code = await authorizeCode(member, app.clientId, challenge)
+      return ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier }))
+    }
+    const refresh = (app: Json, token: string) => tokenRequest(app, { grant_type: 'refresh_token', refresh_token: token })
+    /** Pretends the member signed in to the application `seconds` ago (test route). */
+    const ageSignIn = async (app: Json, seconds: number) => ok(await json(undefined, 'POST', '/api/test/age-sign-in', { userId: member.id, applicationId: app.clientId, seconds }))
+
+    it('gives an application without its own policy the global default: 30 days idle', async () => {
+      const app = await memberApp()
+      expect(app).toMatchObject({ refreshIdleTtl: null, refreshMaxAge: null, kind: 'confidential' })
+      expectLifetime(await signIn(app), 30 * DAY)
+    })
+
+    it('uses the application\'s own session length, and a changed one from the next refresh on', async () => {
+      const app = await memberApp({ refreshIdleTtl: DAY })
+      expect(app.refreshIdleTtl).toBe(DAY)
+      const first = await signIn(app)
+      expectLifetime(first, DAY)
+
+      await ok(await json(staff.cookie, 'PATCH', oauthServerApi.admin.application(app.id), { refreshIdleTtl: 90 * DAY }))
+      const second = await ok(await refresh(app, first.refresh_token))
+      expectLifetime(second, 90 * DAY)
+      // Back to the default.
+      await ok(await json(staff.cookie, 'PATCH', oauthServerApi.admin.application(app.id), { refreshIdleTtl: null }))
+      expectLifetime(await ok(await refresh(app, second.refresh_token)), 30 * DAY)
+    })
+
+    it('caps a sliding window at authTime + maxAge, and refuses a sign-in past it even right after a rotation', async () => {
+      const app = await memberApp({ refreshIdleTtl: 30 * DAY, refreshMaxAge: 7 * DAY })
+      const first = await signIn(app)
+      expectLifetime(first, 7 * DAY)
+
+      // Signed in six days ago: a refresh now only reaches the end of day seven.
+      await ageSignIn(app, 6 * DAY)
+      const second = await ok(await refresh(app, first.refresh_token))
+      expectLifetime(second, DAY)
+
+      // Eight days ago: the token was rotated a moment ago and is not expired, but the sign-in is.
+      await ageSignIn(app, 8 * DAY)
+      const refused = await refresh(app, second.refresh_token)
+      expect(refused.status).toBe(400)
+      expect(await refused.json()).toMatchObject({ error: 'invalid_grant' })
+    })
+
+    it('validates session lengths: at most two years', async () => {
+      const post = (body: Json) => json(staff.cookie, 'POST', oauthServerApi.admin.applications, { name: 'x', websiteUrl: 'https://app.example.com', ...body })
+      expect((await post({ refreshIdleTtl: 731 * DAY })).status).toBe(400)
+      expect((await post({ refreshMaxAge: 0 })).status).toBe(400)
+      expect((await post({ refreshIdleTtl: 1.5 })).status).toBe(400)
+      expect((await post({ refreshIdleTtl: 730 * DAY })).status).toBe(201)
+    })
+
+    it('tells browser and native public clients apart for the admin form', async () => {
+      expect((await memberApp({ clientType: 'public', websiteUrl: null, redirectUris: ['com.example.kind:/cb'] })).kind).toBe('native')
+      expect((await memberApp({ clientType: 'public' })).kind).toBe('browser')
+    })
+
+    it('takes a configured client\'s refreshToken from config, which staff cannot change', async () => {
+      const configured = await ok(await json(staff.cookie, 'GET', oauthServerApi.admin.application('test-mobile')))
+      expect(configured).toMatchObject({ managed: true, kind: 'native', refreshIdleTtl: 180 * DAY, refreshMaxAge: 365 * DAY })
+      await expectApiError(apiClient({ cookie: staff.cookie }).json('PATCH', oauthServerApi.admin.application('test-mobile'), { refreshIdleTtl: DAY }), 409, 'managed_by_config')
+      // Sending the configured value back (the slideover sends every field) is fine.
+      await ok(await json(staff.cookie, 'PATCH', oauthServerApi.admin.application('test-mobile'), { refreshIdleTtl: 180 * DAY, refreshMaxAge: 365 * DAY }))
+
+      member ??= await user('Lifetime')
+      const { verifier, challenge } = pkce()
+      const redirectUri = 'com.example.test:/auth/callback'
+      const query = authorizeQuery('test-mobile', challenge, { redirect_uri: redirectUri })
+      const decision = await ok(await json(member.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(query), approved: true }))
+      const code = new URL(decision.redirectUrl).searchParams.get('code')!
+      const tokens = await ok(await form(oidc.token, { client_id: 'test-mobile', grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier }))
+      expectLifetime(tokens, 180 * DAY)
+    })
+  })
+
+  describe('signed-in apps (the user\'s own sessions)', () => {
+    async function signIn(session: Session, app: Json) {
+      const { verifier, challenge } = pkce()
+      const code = await authorizeCode(session, app.clientId, challenge)
+      return ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier }))
+    }
+    const refresh = (app: Json, token: string) => tokenRequest(app, { grant_type: 'refresh_token', refresh_token: token })
+    const revokedFor = async (userId: number) => (await $fetch<Json[]>('/api/test/revoked')).filter(entry => entry.userId === userId)
+
+    it('lists only the caller\'s live sign-ins, one per sign-in', async () => {
+      const owner = await user('Owner')
+      const other = await user('Other')
+      const first = await createApp({ allowedRoles: [], icon: 'i-lucide-receipt' })
+      const second = await createApp({ allowedRoles: [] })
+      const tokens = await signIn(owner, first)
+      await signIn(owner, second)
+      await signIn(other, first)
+      // A refresh keeps the sign-in (same family): still one entry for the application.
+      await ok(await refresh(first, tokens.refresh_token))
+
+      const sessions = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
+      // Newest activity first, but SQLite keeps whole seconds, so the order of two sign-ins in one second is open.
+      expect(sessions.map(s => s.application.id).sort()).toEqual([first.id, second.id].sort())
+      expect(sessions.find(s => s.application.id === first.id)).toMatchObject({ application: { name: first.name, icon: 'i-lucide-receipt' } })
+      for (const session of sessions) {
+        expect(session.id).toMatch(/^rtf_/)
+        expect(Date.parse(session.lastActiveAt)).toBeGreaterThanOrEqual(Date.parse(session.signedInAt))
+        expect(Date.parse(session.expiresAt)).toBeGreaterThan(Date.now())
+      }
+      const others = await ok(await json(other.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
+      expect(others.map(s => s.application.id)).toEqual([first.id])
+    })
+
+    it('is for the browser session only: anonymous 401, an access token cannot see or end sessions', async () => {
+      expect((await json(undefined, 'GET', oauthServerApi.me.sessions)).status).toBe(401)
+      const owner = await user('Bearer')
+      const app = await createApp({ allowedRoles: [] })
+      const tokens = await signIn(owner, app)
+      const bearer = { authorization: `Bearer ${tokens.access_token}` }
+      expect((await fetch(oauthServerApi.me.sessions, { headers: bearer })).status).toBe(403)
+      expect((await fetch(oauthServerApi.me.sessions, { method: 'DELETE', headers: bearer })).status).toBe(403)
+    })
+
+    it('signs out of one app, which fires oauth:token:revoked, and never of someone else\'s', async () => {
+      const owner = await user('One')
+      const other = await user('Two')
+      const app = await createApp({ allowedRoles: [] })
+      const keep = await createApp({ allowedRoles: [] })
+      const ended = await signIn(owner, app)
+      const kept = await signIn(owner, keep)
+      const [session] = (await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]).filter(s => s.application.id === app.id)
+
+      // Another user cannot end it (404, as for an unknown id).
+      await expectApiError(apiClient({ cookie: other.cookie }).json('DELETE', oauthServerApi.me.session(session!.id)), 404)
+      expect((await refresh(app, ended.refresh_token)).status).toBe(200)
+      const current = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
+      const live = current.find(s => s.application.id === app.id)!
+      expect(live.id).toBe(session!.id)
+
+      expect((await json(owner.cookie, 'DELETE', oauthServerApi.me.session(session!.id))).status).toBe(204)
+      expect(await revokedFor(owner.id)).toContainEqual({ applicationId: app.id, userId: owner.id, reason: 'signed_out' })
+      const remaining = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
+      expect(remaining.map(s => s.application.id)).toEqual([keep.id])
+      expect((await refresh(keep, kept.refresh_token)).status).toBe(200)
+      await expectApiError(apiClient({ cookie: owner.cookie }).json('DELETE', oauthServerApi.me.session(session!.id)), 404)
+    })
+
+    it('signs out of every app at once', async () => {
+      const owner = await user('All')
+      const other = await user('Bystander')
+      const a = await createApp({ allowedRoles: [] })
+      const b = await createApp({ allowedRoles: [] })
+      const ta = await signIn(owner, a)
+      const tb = await signIn(owner, b)
+      const theirs = await signIn(other, a)
+
+      expect((await json(owner.cookie, 'DELETE', oauthServerApi.me.sessions)).status).toBe(204)
+      expect(await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions))).toEqual([])
+      expect((await refresh(a, ta.refresh_token)).status).toBe(400)
+      expect((await refresh(b, tb.refresh_token)).status).toBe(400)
+      expect((await refresh(a, theirs.refresh_token)).status).toBe(200)
+      const revoked = await revokedFor(owner.id)
+      expect(revoked).toContainEqual({ applicationId: a.id, userId: owner.id, reason: 'signed_out' })
+      expect(revoked).toContainEqual({ applicationId: b.id, userId: owner.id, reason: 'signed_out' })
+    })
+
+    it('ends every sign-in of a user whose password or email changes, and nobody else\'s', async () => {
+      const owner = await user('Changer')
+      const other = await user('Unaffected')
+      const app = await createApp({ allowedRoles: [] })
+      const mine = await signIn(owner, app)
+      const theirs = await signIn(other, app)
+
+      await ok(await json(owner.cookie, 'PUT', usersApi.me.password, { currentPassword: 'supersecret123', newPassword: 'evenmoresecret456', confirmNewPassword: 'evenmoresecret456' }))
+      expect((await refresh(app, mine.refresh_token)).status).toBe(400)
+      expect(await revokedFor(owner.id)).toContainEqual({ applicationId: app.id, userId: owner.id, reason: 'credentials_changed' })
+      const kept = await ok(await refresh(app, theirs.refresh_token))
+
+      // An email change does the same (the fixture changes it without a confirmation link).
+      const again = await signIn(owner, app)
+      await ok(await json(owner.cookie, 'PUT', usersApi.me.email, { email: `changed${++counter}@member.test` }))
+      expect((await refresh(app, again.refresh_token)).status).toBe(400)
+      expect((await refresh(app, kept.refresh_token)).status).toBe(200)
     })
   })
 

@@ -59,7 +59,7 @@
       "createDescription": "Registrér en applikation, som brugere kan logge ind på.",
       "editDescription": "Ændr hvordan applikationen er registreret.",
       "managedTitle": "Styres i nuxt.config",
-      "managedDescription": "Applikationen er defineret i oauthServer.clients. Ændr navn, website, redirect-URI'er, roller, tags og visning dér; kun login-URL og prioritet kan redigeres her.",
+      "managedDescription": "Applikationen er defineret i oauthServer.clients. Ændr navn, website, redirect-URI'er, roller, tags, visning og sessionslængde dér; kun login-URL og prioritet kan redigeres her.",
       "create": "Tilføj applikation",
       "save": "Gem applikation",
       "name": "Navn",
@@ -92,7 +92,24 @@
       "websiteUrlRequired": "Angiv website-URL'en.",
       "websiteUrlOrRedirect": "Angiv en website-URL eller mindst én redirect-URI.",
       "isListed": "Vis i brugernes liste over applikationer",
-      "isListedHint": "Slå fra for apps, som brugerne selv åbner, fx en mobilapp. Login virker stadig."
+      "isListedHint": "Slå fra for apps, som brugerne selv åbner, fx en mobilapp. Login virker stadig.",
+      "sessionLength": "Sessionslængde",
+      "sessionLengthHint": "Hvor længe brugerne forbliver logget ind uden at åbne applikationen. Hver brug starter perioden forfra.",
+      "signInAgainAfter": "Log ind igen efter",
+      "signInAgainAfterHint": "Valgfrit: brugerne skal logge ind igen så længe efter, de loggede ind, uanset hvor ofte de bruger applikationen.",
+      "longBrowserSessionTitle": "Lang session for en browserapp",
+      "longBrowserSessionDescription": "Denne offentlige klient logger ind på et website, hvor refresh-tokenet gemmes i browseren og kan læses gennem enhver cross-site scripting-fejl (XSS). Hold browserapps på 7 dage eller mindre.",
+      "lifetime": {
+        "default": "Standard",
+        "never": "Standard (ingen grænse, medmindre den er konfigureret)",
+        "day": "1 dag",
+        "week": "7 dage",
+        "month": "30 dage",
+        "quarter": "90 dage",
+        "halfYear": "6 måneder",
+        "year": "1 år",
+        "days": "{days} dage"
+      }
     },
     "credentials": {
       "title": "Legitimationsoplysninger for {name}",
