@@ -45,6 +45,7 @@ export default defineEventHandler(async (event) => {
 
   if (!updated) throw notFound('User not found.')
 
+  await notifyAuthCredentialsChanged({ userId: updated.id, reason: 'email', event })
   await setUserSession(event, { user: mapUserToSession(updated) })
 
   const revertUrl = new URL(`/auth/revert-email-change?code=${claimed.revertCode}`, getRequestURL(event).origin).toString()

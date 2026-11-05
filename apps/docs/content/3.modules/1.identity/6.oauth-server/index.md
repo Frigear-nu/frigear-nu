@@ -55,7 +55,10 @@ For a walkthrough of registering an application and choosing its type, see [Crea
 | `keyId` | `string` | `key-1` | `kid` of the signing key published in the JWKS. |
 | `accessTokenTtl` | `number` | `900` | Access and ID token lifetime in seconds. Keep it at 5 to 15 minutes when other services accept the tokens: they cannot be revoked, only not refreshed. |
 | `accessTokenAudience` | `string \| string[]` | the `client_id` | The `aud` of every access token, e.g. `frigear-services`. Set it when [other services](/modules/identity/oauth-server/server#one-app-for-every-service) accept the tokens. ID tokens keep the `client_id`. |
-| `refreshTokenTtl` | `number` | 30 days | Refresh token lifetime in seconds. |
+| `refreshToken.idleTtl` | `number` | 30 days | How long a refresh token lives unused, in seconds; every refresh starts it again. The default for applications without their own [session length](/modules/identity/oauth-server/routes-and-clients#session-lifetimes). At most two years. |
+| `refreshToken.maxAge` | `number \| null` | `null` | How long a sign-in lives in total, counted from when the user signed in, however often it is refreshed. `null` = no cap. At most two years. |
+| `refreshTokenTtl` | `number` | 30 days | Deprecated alias of `refreshToken.idleTtl` (warns at build time). |
+| `revokeOnCredentialChange` | `boolean` | `true` | End every sign-in of a user whose password is changed or reset, or whose email changes (the `auth:credentials:changed` hook of [Auth](/modules/identity/auth/reference#hooks)). |
 | `codeTtl` | `number` | `600` | Authorization code lifetime in seconds. |
 | `callbackPath` | `string` | `/auth/frigear` | Appended to an application's website URL to form its redirect URI. |
 | `scopes` | `Array<string \| OAuthScopeDefinition>` | `[]` | The [scope registry](/modules/identity/oauth-server/server#one-app-for-every-service): extra scopes next to `openid profile email`; enrich their claims with `oauth:claims`. Pass `{ name, label?, description?, icon?, service?, staffOnly? }` to describe one on the consent screen, group it under its service and keep it for staff. Modules add theirs with `addOAuthScope`. |
@@ -79,6 +82,8 @@ The keys are secrets and are set through runtime config, not module options.
 | `oauthServer.accessTokenAudience` | `NUXT_OAUTH_SERVER_ACCESS_TOKEN_AUDIENCE` | The shared audience of access tokens, comma separated. |
 | `oauthServer.corsOrigins` | `NUXT_OAUTH_SERVER_CORS_ORIGINS` | The CORS origins as a comma separated list, when they differ per environment (for example the dev server of a mobile app). |
 | `oauthServer.corsPaths` | `NUXT_OAUTH_SERVER_CORS_PATHS` | `cors.paths` as a comma separated list. |
+| `oauthServer.refreshToken.idleTtl` | `NUXT_OAUTH_SERVER_REFRESH_TOKEN_IDLE_TTL` | `refreshToken.idleTtl` per environment, in seconds. |
+| `oauthServer.refreshToken.maxAge` | `NUXT_OAUTH_SERVER_REFRESH_TOKEN_MAX_AGE` | `refreshToken.maxAge` per environment, in seconds (empty = no cap). |
 | `oauthServer.clients` | `NUXT_OAUTH_SERVER_CLIENTS` | Replaces `clients` with a JSON array of the same shape. Validated when the first OAuth request needs it; an invalid list answers `500 not_configured`. |
 | `oauthServer.previousPublicKeys` | `NUXT_OAUTH_SERVER_PREVIOUS_PUBLIC_KEYS` | Public keys of retired keys during a rotation: `{ "<kid>": "<SPKI PEM>" }`, or the same as a JSON string. |
 
