@@ -1,56 +1,76 @@
 ---
 title: Auth
-description: Sign-in (password, magic link, OAuth, passkeys), user API tokens and one requireAuth for cookie sessions, tokens and OAuth access tokens, with scopes; or, in client mode, a public PKCE client for SPAs and Capacitor apps.
+description: Lets people sign in to your app and tells every server route who is calling and what they may do.
 navigation:
   title: Overview
 ---
 
-The [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) that owns **authentication**: how people sign in, and for
-every server route, who is calling and how. [Users](/modules/identity/users), [Authorization](/modules/identity/authorization),
-[OAuth Server](/modules/identity/oauth-server) and the feature modules build on it; it depends on none of them and knows users
-only through the `AuthUserStore` that Users provides.
+Auth lets people sign in to your app with a password, an emailed link, a passkey or an account at GitHub, Google or
+another provider. It also tells every server route who is calling, whether that is a browser, a script or another app.
+Install it when your app has users; [Users](/modules/identity/users) installs it for you. To let other apps sign in
+through yours, add [OAuth Server](/modules/identity/oauth-server) as well.
 
-Auth has two modes, set with `authentication.mode` in the app's own config:
+The package is `@frigear-nu/auth`. It runs in [server mode](/guide/concepts/glossary) by default: people sign in on your
+app's own server and stay signed in through a cookie [session](/guide/concepts/glossary). An app without a server of
+its own, such as a single-page application (SPA) or a Capacitor app, uses
+[client mode](/modules/identity/auth/client-mode).
 
-| Mode | For | Who is signed in |
-| --- | --- | --- |
-| `server` (default) | A Nuxt app with a server: everything on this page. | A sealed cookie session on this app's server. |
-| `client` | A browser SPA or a Capacitor app without a server. See [Client mode](/modules/identity/auth/client-mode). | Tokens from an issuer, kept in the browser or the Keychain. |
+## What you get
 
-Both modes give the app the same client API: `useUserSession()` (who is signed in), `useAuth()` (the actions) and
-`$api` / `useApi()` (calls to the API). Guards come from [Authorization](/modules/identity/authorization) in both.
+- **Pages** (opt-in, need `@nuxt/ui`): a sign-in page (`/login`), a sign-up page (`/register`), `/forgot-password` and
+  `/reset-password`, and `/auth/magic-link` for emailed links.
+- **Server routes** under `/api/auth`: password sign-in and sign-up (on by default), password reset (on with
+  passwords), emailed sign-in links and passkeys (opt-in), and sign-in through an
+  [OAuth provider](/guide/concepts/glossary) (on once its credentials are set). See
+  [Routes](/modules/identity/auth/reference#routes).
+- **API tokens** (on by default): users create long-lived [API tokens](/guide/concepts/glossary) for scripts and
+  agents, on the [Account](/modules/identity/account) page or through the API.
+- **Composables and helpers**: on the server, `requireAuth` and `getAuth` tell a route who is calling (see
+  [Server API](/modules/identity/auth/server)). In the app, `useUserSession()` says who is signed in, `useAuth()` holds
+  the sign-in and sign-out actions, and `$api` / `useApi()` call your API. The same names work in both modes. Guards
+  come from [Authorization](/modules/identity/authorization) in both.
+- **Emails**: the emailed sign-in link, address verification and password reset, sent through
+  [Notify](/modules/platform/notify) when those flows are on.
 
 :module-runtime{server client mobile}
 
 ::note
-In server mode, **requires** `@nuxthub/core`, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) (sign-in emails),
-[`@frigear-nu/menu`](/modules/interface/menu) (logout item) and `nuxt-auth-utils`. Nuxt installs them as modules, but
-`@nuxthub/core` is an optional peer (client mode does not use it): a server-mode app adds it itself
-(`pnpm add @nuxthub/core`), and fails with a clear message without it. Passkeys need the optional peers
-`@simplewebauthn/browser` and `@simplewebauthn/server`; the shipped pages need `@nuxt/ui`.
+**Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) and
+`nuxt-auth-utils`; in client mode, `@frigear-nu/module-kit` only.
 
-The config key is `authentication`, not `auth` (that belongs to nuxt-auth-utils).
+**You add:** `@nuxthub/core` in server mode.
+
+**Optional:** [`@frigear-nu/menu`](/modules/interface/menu) (the sign-out item), `@nuxt/ui` (the shipped pages),
+`@simplewebauthn/browser` and `@simplewebauthn/server` (passkeys), and
+[`@frigear-nu/email-templates`](/modules/platform/email-templates) (rendered emails).
 ::
-
-A caller is one of three kinds, all resolved into the same `AuthPrincipal`:
-
-| `kind` | Credential | Scopes |
-| --- | --- | --- |
-| `session` | Sealed cookie from [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) | Everything (`*`) |
-| `user-token` | `Authorization: Bearer fnu_…` (prefix configurable), a static token the user created | The scopes chosen at creation |
-| `oauth` | `Authorization: Bearer <JWT>`, an access token issued to an application | The scopes the user granted |
 
 ## Quick setup
 
-[Users](/modules/identity/users) installs Auth for you. Add it yourself when you use it on its own:
+::steps
+
+### Install Auth
+
+[Users](/modules/identity/users) installs Auth for you. Add it yourself only when you use it without Users:
 
 ```bash
 pnpm add @frigear-nu/auth @nuxthub/core
 ```
 
-```ts
+### Add it to nuxt.config.ts
+
+:::warning
+The config key is `authentication`, not `auth`. The `auth` key belongs to nuxt-auth-utils.
+:::
+
+This turns on password sign-in with a sign-in page at `/login` and a sign-up page at `/sign-up`:
+
+```ts [nuxt.config.ts]
 export default defineNuxtConfig({
-  modules: ['@nuxthub/core', '@frigear-nu/auth'],
+  modules: [
+    '@nuxthub/core',
+    '@frigear-nu/auth', // omit when Users is installed
+  ],
   authentication: {
     settings: {
       password: true,
@@ -60,182 +80,113 @@ export default defineNuxtConfig({
 })
 ```
 
-::warning
-The module extends the `users` table (see [Database](/modules/identity/auth/reference#database)). That only changes the generated Drizzle schema, so
-generate and commit a migration in your app and in every fixture that includes the module. See
-[Module Kit](/modules/platform/module-kit).
+### Generate the migration
+
+:::warning
+Without a [migration](/guide/concepts/glossary), sign-up and API tokens fail, because the database lacks Auth's columns
+and tables.
+:::
+
+Auth adds its own tables and adds sign-in columns to the `users` table of Users (see
+[Database](/modules/identity/auth/reference#database)). That only changes the generated Drizzle schema, so generate a
+migration and commit it:
+
+```bash
+pnpm db:generate
+```
+
+Module authors do the same in every [test fixture](/guide/concepts/glossary) that installs Auth. See
+[Database](/get-started/database#migrations) and [Module Kit](/modules/platform/module-kit).
+
+::
+
+::callout{color="success" icon="i-lucide-check"}
+**What you should see:** `/login` shows an email and password form. After you create an account at `/sign-up`, you are
+signed in.
 ::
 
 ## Options
 
+Options go under the `authentication` key.
+
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `mode` | `'server' \| 'client'` | `'server'` | Set it in the app's own `nuxt.config` only: a mode from inline module options or another module's default fails the build. `client` is described in [Client mode](/modules/identity/auth/client-mode). |
-| `client` | `ClientModuleOptions` | | Client mode only: the issuer and how the app talks to it. |
-| `apiTokens` | `boolean \| { prefix?: string }` | `true` | User API tokens. `false` turns them off; `prefix` (default `fnu_`) is what new tokens start with. See [User API tokens](/modules/identity/auth/server#user-api-tokens). |
-| `tokenTtlDays` | `number \| null` | `null` | Default lifetime for new user tokens; `null` = never expire. |
+| `mode` | `'server' \| 'client'` | `'server'` | Server mode or [client mode](/modules/identity/auth/client-mode). |
+| `client` | `ClientModuleOptions` | – | Client mode only: the issuer and how the app talks to it. |
+| `apiTokens` | `boolean \| { prefix?: string }` | `true` | API tokens. `false` turns them off. |
+| `apiTokens.prefix` | `string` | `'fnu_'` | What new API tokens start with. See [API tokens](/modules/identity/auth/server#user-api-tokens). |
+| `tokenTtlDays` | `number \| null` | `null` | Default lifetime of new API tokens. `null` means they never expire. |
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
-| `scopes` | `AuthScopeDefinition[]` | `[]` | Extra scopes users can pick for tokens. |
-| `settings` | `AuthSettings` | see below | The sign-in flows. |
+| `scopes` | `AuthScopeDefinition[]` | `[]` | Extra [scopes](/guide/concepts/glossary) users can pick for API tokens. |
+| `settings.password` | `boolean` | `true` | Email and password sign-in and sign-up: routes, composables and pages. |
+| `settings.passwordReset` | `boolean` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
+| `settings.webAuthn` | `boolean` | `false` | Passkeys: routes, composables and a table. |
+| `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address. |
+| `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
+| `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
+| `settings.verifyEmail` | `boolean` | `false` | Users who sign up with a password verify their address before they can sign in. |
+| `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
+| `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
+| `settings.pages.register` | `string \| boolean` | off | The sign-up page. `true` means `/register`. May be an absolute URL. |
+| `settings.pages.callback` | `boolean` | `true` | Client mode only: the callback page. |
+| `settings.afterLogin` | `string` | `'/'` | Where users land after signing in. |
+| `settings.session.mapper` | `string` | pass-through | Path to a default-export function that maps the stored user to the session user. |
+| `settings.oauth` | `Record<provider, boolean \| { … }>` | `{}` | Changes per OAuth provider. `false` keeps one off. |
 
-### `settings`
+**`mode`.** Set it in your app's own `nuxt.config`. A mode from inline module options or from another module's
+default fails the build.
 
-| Option | Type | Default | Purpose |
-| --- | --- | --- | --- |
-| `password` | `boolean` | `true` | Email/password login and register routes, composables and pages. |
-| `passwordReset` | `boolean` | `true` with `password` | Forgot/reset-password routes. Needs `password`. |
-| `webAuthn` | `boolean` | `false` | Passkey routes, composables and table. |
-| `magicLink` | `boolean \| { signUp?, cooldown? }` | off | Emailed single-use sign-in link. Following it verifies the address. `signUp: true` creates accounts for unknown addresses; `cooldown` = minimum seconds between two links for one user (default `60`). |
-| `verifyEmail` | `boolean` | `false` | Users who register with a password must verify their address (emailed link) before they can log in; registration creates no session. |
-| `cleanup` | `string \| false` | `'0 3 * * *'` | Cron for the `auth:clear-expired-tokens` task (expired magic links and resets); `false` schedules nothing, the task stays registered. |
-| `pages.login` | `string \| boolean` | off | Login page. `true` = `/login`. |
-| `pages.register` | `string \| boolean` | off | Register page. `true` = `/register`. May be an absolute URL: the login page links to it and no local page is added. |
-| `pages.callback` | `boolean` | `true` | Client mode only: the callback page. |
-| `afterLogin` | `string` | `'/'` | Where users land after signing in (password, passkey, magic link, OAuth/SSO) when no `?redirect=` was requested. Must be an absolute path on this site. A `?redirect=` on the login page or on `/api/auth/<provider>` takes precedence. |
-| `session.mapper` | `string` | pass-through | Path to a default-export function mapping the stored user to the session user shape. |
-| `oauth` | `Record<provider, boolean \| { label?, icon?, signUp?, config?, keepTokens? }>` | `{}` | Overrides per OAuth provider, `false` keeps one off. Providers turn on through their credentials, see [OAuth providers](#oauth-providers). |
+**`settings.verifyEmail`.** The address is verified through an emailed link. Signing up creates no session.
 
-The login and register pages are enabled per path. With `pages.login` the module also registers `/forgot-password` and
-`/reset-password` (when `passwordReset` is on). The login page renders the password form, passkey and magic link
-controls and OAuth buttons that are actually enabled. When it was opened with `?redirect=` (for example by
-[Authorization](/modules/identity/authorization)'s `redirectTo`), it shows an alert that you have to sign in to continue and
-returns there after signing in. A page can say why with `?reason=<namespace>`: the alert then reads the i18n keys
-`<namespace>.signInReason.title` and `<namespace>.signInReason.description`, so each module words its own reason
-(for example `?reason=users.emailChange`). Unknown reasons show the generic `auth.signInReason` text.
+**`settings.cleanup`.** `false` schedules nothing. The task stays registered, so you can run it yourself.
 
-With `magicLink` or `verifyEmail`, the module also registers the `/auth/magic-link` page that the emailed links open
-(whenever `@nuxt/ui` is installed, with or without `pages.login`). Opening it changes nothing, because mail scanners
-and link previews follow links too. Its **Continue signing in** button posts the code to
-`/api/auth/magic-link/confirm`, then goes to the link's `redirect` or `afterLogin`. A used or expired link shows an
-error on the page. Without `@nuxt/ui`, add your own page at that path that posts the `code`.
+**`settings.pages.login`.** With it, the module also registers `/forgot-password` and `/reset-password` (when
+`passwordReset` is on). The sign-in page shows only the controls that are on: the password form, passkeys, the emailed
+link and OAuth buttons.
 
-### OAuth providers
+**`settings.pages.register`.** An absolute URL adds no local page. The sign-in page links to that URL instead.
 
-Every [nuxt-auth-utils provider](https://github.com/atinux/nuxt-auth-utils#supported-oauth-providers) (GitHub,
-Google, Auth0, Okta, Keycloak, Microsoft, ... and `oidc` for any other OpenID Connect provider) signs in at
-`GET /api/auth/<provider>`. It is off by default and turns on, **per request**, once nuxt-auth-utils has its credentials.
-These are the env vars that nuxt-auth-utils documents for the provider:
+**`settings.afterLogin`.** It applies after every kind of sign-in: password, passkey, emailed link and OAuth provider.
+It must be an absolute path on this site. A `?redirect=` on the sign-in page or on `/api/auth/<provider>` takes
+precedence.
 
-```bash
-NUXT_OAUTH_AUTH0_CLIENT_ID=...
-NUXT_OAUTH_AUTH0_CLIENT_SECRET=...
-NUXT_OAUTH_AUTH0_DOMAIN=example.eu.auth0.com
+**`settings.oauth`.** Providers, Sign in with frigear.nu and keeping provider tokens are on
+[OAuth providers](/modules/identity/auth/oauth-providers).
 
-# Any OpenID Connect provider
-NUXT_OAUTH_OIDC_CLIENT_ID=...
-NUXT_OAUTH_OIDC_CLIENT_SECRET=...
-NUXT_OAUTH_OIDC_OPENID_CONFIG=https://sso.example.com/.well-known/openid-configuration
-```
+### Why the sign-in page opened
 
-Without credentials the route answers `404` and the login page shows no button. Register
-`<origin>/api/auth/<provider>` as the callback URL at the provider.
+The sign-in page may be opened with `?redirect=`, for example by the `redirectTo` option of
+[Authorization](/modules/identity/authorization). It then shows an alert that you have to sign in to continue. After
+sign-in it returns to that page.
 
-List a provider in `oauth` only to change it:
+A page can say why with `?reason=<namespace>`. The alert then reads the i18n keys `<namespace>.signInReason.title` and
+`<namespace>.signInReason.description`, so each module words its own reason. An example is
+`?reason=users.emailChange`. An unknown reason shows the generic `auth.signInReason` text.
 
-```ts
-authentication: {
-  settings: {
-    oauth: {
-      auth0: {
-        label: 'Company SSO', // button label (default: the provider's name, translatable as `auth.oauth.<provider>.label`)
-        icon: 'i-simple-icons-auth0', // iconify name
-        signUp: false, // only sign in existing users; unknown emails go back to the login page
-        config: { scope: ['openid', 'profile', 'email'] }, // passed to the nuxt-auth-utils handler
-        keepTokens: true, // keep its access and refresh tokens, see "Keeping provider tokens"
-      },
-      github: false, // off, even with credentials
-    },
-  },
-}
-```
+### Emailed links
 
-- Users are matched by email, and an account is created for an unknown email unless `signUp` is `false`. A provider
-  that reports `email_verified: false` is refused.
-- With `oauth.frigear` on, the `NUXT_OAUTH_OIDC_*` credentials belong to "Log in with frigear.nu" (below). The plain
-  `oidc` provider then needs listing too, e.g. `oidc: { label: 'Company SSO' }`.
-- `GET /api/auth/providers` returns the buttons for the request, `[{ key, to, label?, icon?, external? }]`.
-  `useLogin().oauthProviders` fills in the default labels and icons.
+With `magicLink` or `verifyEmail`, the module also registers the `/auth/magic-link` page that the emailed links open.
+It does so whenever `@nuxt/ui` is installed, with or without `pages.login`.
 
-### Keeping provider tokens
+- Opening the page changes nothing, because mail scanners and link previews follow links too.
+- Its **Continue signing in** button posts the code to `/api/auth/magic-link/confirm`.
+- It then goes to the link's `redirect`, or to `afterLogin`.
+- A used or expired link shows an error on the page.
 
-By default a login keeps nothing of the provider's tokens. Set `keepTokens: true` on a provider (`oauth.frigear` too)
-to keep its access token, refresh token, expiry and granted scopes, so the app can call the provider as the user: also
-from a scheduled task or a bearer request, where there is no session.
+Without `@nuxt/ui`, add your own page at that path that posts the `code`.
 
-- They live in the `auth_oauth_tokens` table (one row per user and provider), which `keepTokens` on any provider adds.
-  Generate a migration for it. Every login with the provider replaces the row (a step-up login replaces the plain one).
-- The token columns are encrypted with AES-GCM (WebCrypto), bound to the provider. The key is derived from
-  `NUXT_AUTH_TOKENS_KEY` (`runtimeConfig.authTokensKey`), else from the session password. Changing it makes the kept
-  tokens unreadable: users log in again.
-- `deleteUserAuthData` removes them with the user; a re-keyed user (`forceId`) keeps them.
+## Module pages
 
-```ts
-// The caller's tokens (event), or a user's by id (a task syncing with an admin's token). `null` when none are kept.
-const tokens = await getOAuthTokens(event, 'frigear') // { accessToken, refreshToken?, tokenType?, expiresAt, scopes }
-
-// A usable access token: refreshed first when it expired, `null` when there is none, it lacks one of `scopes`,
-// or it cannot be refreshed.
-const token = await getOAuthAccessToken(adminId, 'frigear', { scopes: ['users:read'] })
-
-await revokeOAuthTokens(userId, 'frigear') // forget them ("disconnect")
-```
-
-An expired token is refreshed with its refresh token at the provider's token endpoint, found through OIDC discovery:
-frigear.nu's, or the `openidConfig` of an `oidc`-style provider (`NUXT_OAUTH_<PROVIDER>_OPENID_CONFIG`). Other
-providers' tokens are used until they expire. One refresh runs at a time per user and provider, because providers
-rotate refresh tokens and treat a replayed one as theft.
-
-### Log in with frigear.nu
-
-`oauth.frigear` registers `GET /auth/frigear`, an OIDC login against frigear.nu for PR previews and local development.
-It is decided **per request**: active when `runtimeConfig.previewDeployment` is `true` or `runtimeConfig.frigear.sso`
-has a client id and secret; otherwise the route answers `404` and the button is hidden. Register `<origin>/auth/frigear`
-as the callback on frigear.nu.
-
-| Runtime config | Env var | Purpose |
+| Page | What it covers | For |
 | --- | --- | --- |
-| `previewDeployment` | `NUXT_PREVIEW_DEPLOYMENT` | Enables the login without credentials (set it yourself, e.g. from a CI marker). |
-| `frigear.sso.url` | `NUXT_FRIGEAR_SSO_URL` | Identity provider origin (defaults to the frigear.nu origin). |
-| `frigear.sso.clientId` | `NUXT_FRIGEAR_SSO_CLIENT_ID` | OAuth client id. |
-| `frigear.sso.clientSecret` | `NUXT_FRIGEAR_SSO_CLIENT_SECRET` | OAuth client secret. |
-| `frigear.sso.scopes` | `NUXT_FRIGEAR_SSO_SCOPES` | Scopes every login asks for, space separated (default `openid profile email`; `openid` is always added). |
-| `frigear.sso.stepUpScopes` | `NUXT_FRIGEAR_SSO_STEP_UP_SCOPES` | Extra scopes a login may ask for with `/auth/frigear?scope=...`, space separated (default none). |
-| `frigear.forceId` | `NUXT_FRIGEAR_FORCE_ID` | Make the local `users.id` equal the frigear.nu id (default `false`). |
-| `frigear.syncRole` | - | Apply the role claim at every login (default `true`). Declare it in your `runtimeConfig` to override. |
-| `frigear.keepTokens` | `NUXT_FRIGEAR_KEEP_TOKENS` | Keep the frigear.nu tokens ([Keeping provider tokens](#keeping-provider-tokens)). Defaults to `oauth.frigear.keepTokens`, which also adds the table; turning it on at runtime only works with the table. |
-| `public.authentication.frigearSso` | `NUXT_PUBLIC_AUTHENTICATION_FRIGEAR_SSO` | Whether the build saw the credentials. The button follows the route (`GET /api/auth/providers`). |
+| [Server API](/modules/identity/auth/server) | Protecting routes, scopes, policy hooks, staff guards, API tokens, access tokens and auth emails. | App developers and module authors, server mode |
+| [Reference](/modules/identity/auth/reference) | Composables, hooks, routes, database tables and translations. | App developers, server mode |
+| [OAuth providers](/modules/identity/auth/oauth-providers) | Sign-in through GitHub, Google, frigear.nu or any OpenID Connect provider, and kept provider tokens. | App developers, server mode |
+| [Client mode](/modules/identity/auth/client-mode) | Sign-in for an SPA or a Capacitor app at an issuer, with tokens instead of a session. | App developers, client mode |
 
-Instead of `frigear.sso`, the credentials can come from nuxt-auth-utils' `NUXT_OAUTH_OIDC_CLIENT_ID`,
-`NUXT_OAUTH_OIDC_CLIENT_SECRET` and `NUXT_OAUTH_OIDC_OPENID_CONFIG`.
+## Next steps
 
-- The `id_token` is verified against the provider's `jwks_uri` (cached for an hour), including issuer and audience.
-  Users are matched by email; a verified `email_verified` claim verifies the address.
-- `forceId` updates a user with that id, re-keys an existing user with the same email (rows referencing `users.id`
-  follow; a different user holding the id moves to the next free id), or creates a user with that id.
-- The `role` claim, else the namespaced `https://frigear.nu/claims/role`, else the first of `roles`, is applied to the
-  local `role` at **every login**. Without a claim the stored role is left alone. It needs the `role` column of
-  [Authorization](/modules/identity/authorization). These claim names follow the current frigear.nu and will change when this
-  app becomes frigear.nu. The provider side is the host's: add the claim in the `oauth:claims` hook of
-  [OAuth Server](/modules/identity/oauth-server).
-- The optional `color_mode` claim (`light`, `dark`, `system`) is kept on the session as `frigear.colorMode` and applied
-  once per login.
-- **Step-up.** A login asks for `frigear.sso.scopes`. To ask for more only when it is needed (an admin connecting for
-  sync, not everyone at every login), allow the scope in `stepUpScopes` and send the user to
-  `/auth/frigear?scope=users:read` (combine with `&redirect=/admin/sync`). Requested scopes outside the allowlist are
-  ignored. frigear.nu decides what it grants: a staff-only scope such as `users:read` is dropped for anyone else, so
-  check the kept `scopes` rather than assuming the step-up worked. With `keepTokens`, the step-up login's tokens
-  replace the ones kept before.
-
-```ts
-// oauth: { frigear: { keepTokens: true } }, NUXT_FRIGEAR_SSO_STEP_UP_SCOPES=users:read
-const token = await getOAuthAccessToken(event, 'frigear', { scopes: ['users:read'] })
-if (!token) throw apiError(403, 'frigear_not_connected', 'Connect frigear.nu for sync: /auth/frigear?scope=users:read')
-const users = await $fetch('https://frigear.nu/api/admin/users', { headers: { Authorization: `Bearer ${token}` } })
-```
-
-## On this module
-
-- [Server API](/modules/identity/auth/server): `requireAuth`, policy gates and staff guards, scopes, user API tokens, OAuth access tokens and auth emails.
-- [Reference](/modules/identity/auth/reference): composables, hooks, routes, database tables and translations.
-- [Client mode](/modules/identity/auth/client-mode): `authentication.mode: 'client'`, the public PKCE client for SPAs and
-  Capacitor apps.
+- [Protect a route](/examples/tasks/protect-a-route) – require a signed-in user on a route of your own.
+- [Server API](/modules/identity/auth/server) – look up `requireAuth`, scopes and staff guards.
+- [Auth and scopes](/guide/concepts/auth-and-scopes) – how sessions, API tokens and access tokens differ.
+- [OAuth providers](/modules/identity/auth/oauth-providers) – add GitHub, Google or Sign in with frigear.nu.

@@ -10,4 +10,4 @@ consequences and the alternatives that were turned down. Write one when a change
 request description holds, and keep it once the change ships: the module pages describe how things work, the record
 why.
 
-- [Session lifetimes per OAuth client](/contribute/decisions/oauth-token-lifetimes)
+- [Session lifetimes per OAuth application](/contribute/decisions/oauth-token-lifetimes)

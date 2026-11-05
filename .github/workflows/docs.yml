@@ -1,0 +1,38 @@
+name: Docs
+
+# CI skips markdown (ci.yml paths-ignore), so docs changes get their own cheap check: internal links, anchors,
+# redirects and https://docs.frigear.dev URLs in the repo. Plain Node, no install.
+on:
+  pull_request:
+    paths:
+      - 'apps/docs/**'
+      - 'scripts/docs-check-links.mjs'
+      - 'packages/*/package.json'
+      - 'packages/*/README.md'
+      - '.starters/**/AGENTS.md'
+      - 'README.md'
+      - 'AGENTS.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  links:
+    name: Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check docs links
+        run: node scripts/docs-check-links.mjs
