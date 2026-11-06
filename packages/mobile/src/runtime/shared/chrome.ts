@@ -20,6 +20,8 @@ export interface ChromeInput {
   overlays: number
   /** Open `suppress()` calls. */
   suppressed: number
+  /** The splash screen is up: no navbar or tab bar (the native ones draw above the WebView). */
+  splash?: boolean
   appName: string
   /** Translates an i18n key, returning `fallback` when there is none. */
   translate?: (key: string | undefined, fallback: string) => string
@@ -61,9 +63,9 @@ export function resolveChrome(input: ChromeInput): ChromeState {
     mode: usesNativeChrome(input.platform, input.nativeChrome, input.nativeNavigation) ? 'native' : 'web',
     tabs,
     activeTab,
-    tabBar: { visible: wantsTabBar && tabs.length > 0 && input.overlays === 0 && input.suppressed === 0 },
+    tabBar: { visible: wantsTabBar && tabs.length > 0 && input.overlays === 0 && input.suppressed === 0 && !input.splash },
     header: {
-      visible: page.navbar !== false,
+      visible: page.navbar !== false && !input.splash,
       title,
       largeTitle: page.largeTitle ?? (root && (activeTab?.largeTitle ?? true)),
       back: page.back ?? (activeTab ? !root : tabs.length > 0),

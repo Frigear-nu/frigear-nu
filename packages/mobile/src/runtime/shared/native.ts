@@ -42,6 +42,10 @@ export interface KeyboardPluginLike {
   setAccessoryBarVisible(options: { isVisible: boolean }): Promise<void>
 }
 
+export interface SplashScreenPluginLike {
+  hide(options?: { fadeOutDuration?: number }): Promise<void>
+}
+
 export interface NativeNavigationIconLike {
   ios?: { sfSymbol?: string }
   android?: { resource?: string }
@@ -92,7 +96,7 @@ export interface NativeNavigationPluginLike {
 }
 
 export type NativePluginName
-  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation'
+  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation' | 'splashScreen'
 
 export interface NativePlugins {
   app: AppPluginLike
@@ -103,6 +107,7 @@ export interface NativePlugins {
   statusBar: StatusBarPluginLike
   keyboard: KeyboardPluginLike
   nativeNavigation: NativeNavigationPluginLike
+  splashScreen: SplashScreenPluginLike
 }
 
 /** Package and export of each native plugin. */
@@ -115,6 +120,7 @@ export const NATIVE_PLUGINS: Record<NativePluginName, { pkg: string, name: strin
   statusBar: { pkg: '@capacitor/status-bar', name: 'StatusBar', feature: 'status bar colour mode (native.statusBar)' },
   keyboard: { pkg: '@capacitor/keyboard', name: 'Keyboard', feature: 'the keyboard accessory bar (native.keyboardAccessoryBar)' },
   nativeNavigation: { pkg: '@capgo/capacitor-native-navigation', name: 'NativeNavigation', feature: 'the native navbar and tab bar (nativeChrome)' },
+  splashScreen: { pkg: '@capacitor/splash-screen', name: 'SplashScreen', feature: 'the native launch screen, handed over to the splash screen (splashScreen.native)' },
 }
 
 /** Capacitor's platform, synchronously (the native bridge defines `window.Capacitor` before the app runs). */

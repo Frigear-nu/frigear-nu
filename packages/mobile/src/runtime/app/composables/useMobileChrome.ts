@@ -3,7 +3,7 @@ import { useAuth } from '#mobile/optional'
 import { plugins } from '#mobile/native'
 import type { MobilePageMeta } from '../../../types'
 import { resolveChrome, type ChromeState } from '../../shared/chrome'
-import { useOverlayCount, useSuppressCount } from '../utils/state'
+import { useOverlayCount, useSplashVisible, useSuppressCount } from '../utils/state'
 import { useMobileTranslate } from '../utils/translate'
 import { useCapacitor } from './useCapacitor'
 import { useMobileTabs } from './useMobileTabs'
@@ -23,6 +23,7 @@ export function useMobileChrome() {
   const translate = useMobileTranslate()
   const overlays = useOverlayCount()
   const suppressed = useSuppressCount()
+  const splash = useSplashVisible()
   const auth = config.auth && typeof useAuth === 'function' ? useAuth() : undefined
 
   const state = computed<ChromeState>(() => resolveChrome({
@@ -36,6 +37,7 @@ export function useMobileChrome() {
     authenticated: auth ? auth.authenticated.value : null,
     overlays: overlays.value,
     suppressed: suppressed.value,
+    splash: splash.value,
     appName: config.appName,
     translate,
   }))

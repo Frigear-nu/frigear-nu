@@ -86,3 +86,12 @@ describe('resolveChrome', () => {
     expect(resolveChrome(input({ platform: 'ios' })).mode).toBe('native')
   })
 })
+
+describe('splash screen', () => {
+  it('hides the navbar and tab bar while it is up', () => {
+    const state = resolveChrome(input({ splash: true }))
+    expect(state.header.visible).toBe(false)
+    expect(state.tabBar.visible).toBe(false)
+    expect(resolveChrome(input({ splash: false })).tabBar.visible).toBe(true)
+  })
+})
