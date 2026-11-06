@@ -124,7 +124,7 @@ Options go under the `authentication` key.
 | `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address. |
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
-| `settings.verifyEmail` | `boolean` | `false` | Users who sign up with a password verify their address before they can sign in. |
+| `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |
 | `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
 | `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
 | `settings.pages.register` | `string \| boolean` | off | The sign-up page. `true` means `/register`. May be an absolute URL. |
@@ -136,7 +136,10 @@ Options go under the `authentication` key.
 **`mode`.** Set it in your app's own `nuxt.config`. A mode from inline module options or from another module's
 default fails the build.
 
-**`settings.verifyEmail`.** The address is verified through an emailed link. Signing up creates no session.
+**`settings.verifyEmail`.** The address is verified through an emailed link. Signing up creates no session. Passkey
+sign-in to an unverified account answers `403 email_not_verified`, like password sign-in. A passkey proves nothing
+about the address, so signing up with one is refused (`403 email_verification_required`): sign up with a password or an
+emailed link first, then add the passkey from the account.
 
 **`settings.cleanup`.** `false` schedules nothing. The task stays registered, so you can run it yourself.
 

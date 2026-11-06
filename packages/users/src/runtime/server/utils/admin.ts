@@ -14,8 +14,11 @@ export type UsersAdminContext = {
   action: UsersAdminAction
   /** `create`/`update`: the values being written (`role` only when an authorization module added the column). */
   input?: { role?: string, email?: string, name?: string }
-  /** `update`/`delete`: the user being changed, as stored. */
-  target?: { id: number, email: string, role?: string }
+  /**
+   * `update`/`delete`: the user being changed, as stored. `emailVerifiedAt` is there so a host that grants roles by
+   * email (an allowlist) can require a verified address, as it does at sign-in.
+   */
+  target?: { id: number, email: string, role?: string, emailVerifiedAt?: Date | null }
   /** Set to `true` to allow. Denied by default. */
   allowed: boolean
 }
@@ -116,10 +119,11 @@ export async function latestSubscriptions(userIds: number[]) {
 }
 
 /** The policy view of a stored user: what the `users:admin:authorize` hook sees as `target`. */
-export const usersAdminTargetInfo = (user: { id: number, email: string }) => ({
+export const usersAdminTargetInfo = (user: { id: number, email: string, emailVerifiedAt?: Date | null }) => ({
   id: user.id,
   email: user.email,
   role: usersHaveRoles() ? (user as { role?: string }).role : undefined,
+  emailVerifiedAt: user.emailVerifiedAt ?? null,
 })
 
 /**

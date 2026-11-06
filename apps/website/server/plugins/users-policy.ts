@@ -9,8 +9,8 @@ export default defineNitroPlugin((nitro) => {
 
     ctx.allowed = canAdministerUsers(effectiveRole(actor), ctx.action, {
       input: ctx.input,
-      // The target's allow-listed admin status counts too, not just the stored role.
-      target: ctx.target && { role: effectiveRole({ email: ctx.target.email, role: ctx.target.role }) },
+      // The target's allow-listed admin status counts too, not just the stored role (`target` carries `emailVerifiedAt`).
+      target: ctx.target && { role: effectiveRole(ctx.target) },
     })
   })
 
