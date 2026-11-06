@@ -118,6 +118,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com/path' })).status).toBe(400)
       expect((await post({ name: '', websiteUrl: 'https://app.example.com' })).status).toBe(400)
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'http://*.x.dev' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.x.dev?.evil.com' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.dev' })).status).toBe(400)
     })
 
     it('creates, lists, edits and deletes without leaking secrets', async () => {
