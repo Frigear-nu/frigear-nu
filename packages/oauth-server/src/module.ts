@@ -256,7 +256,7 @@ export default defineNuxtModule<ModuleOptions>({
     addModuleRoutes(resolver, [
       { method: 'get', path: 'consent', file: 'api/consent.get' },
       { method: 'get', path: 'me/applications', file: 'api/me-applications.get' },
-      // The caller's sign-ins in applications (Signed-in apps on the account's Security page).
+      // The applications the caller is signed in to, one entry each (Signed-in apps on the account's Security page).
       { method: 'get', path: 'me/sessions', file: 'api/me-sessions.get' },
       { method: 'delete', path: 'me/sessions', file: 'api/me-sessions.delete' },
       { method: 'delete', path: 'me/sessions/:id', file: 'api/me-session.delete' },

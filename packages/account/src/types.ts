@@ -28,13 +28,18 @@ export type PublicModuleOptions = {
   signedInApps?: boolean
 }
 
-/** One sign-in in an application, as `GET /api/oauth-server/me/sessions` of `@frigear-nu/oauth-server` answers it. */
+/**
+ * An application the user is signed in to (all its live sign-ins, on every device), as `GET /api/oauth-server/me/sessions`
+ * of `@frigear-nu/oauth-server` answers it. `id` is the application id.
+ */
 export type AccountSignedInApp = {
   id: string
   application: { id: string, name: string, icon: string | null }
   signedInAt: string
   lastActiveAt: string
   expiresAt: string
+  /** How many live sign-ins (devices, browsers or app installs) the application has. */
+  sessions: number
 }
 
 export type ModuleOptions = {

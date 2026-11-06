@@ -138,12 +138,13 @@
       },
       "signedInApps": {
         "title": "Apps, der er logget ind",
-        "description": "Applikationer, der er logget ind med din konto. Når du ændrer adgangskode eller e-mail, logges de alle ud.",
+        "description": "Apps, du er logget ind i med din konto. Når du logger ud af en app, mister den adgangen på alle enheder. Når du ændrer adgangskode eller e-mail, logges de alle ud.",
         "activity": "Logget ind {signedIn} · sidst aktiv {lastActive}",
+        "activityMany": "Logget ind {signedIn} · sidst aktiv {lastActive} · {count} aktive logins",
         "signOut": "Log ud af app",
         "signOutConfirm": {
           "title": "Log ud af {name}?",
-          "description": "Applikationen skal bede dig logge ind igen. Din konto og dens data påvirkes ikke."
+          "description": "{name} logges ud på alle enheder og skal bede dig logge ind igen. Din konto og dens data påvirkes ikke."
         },
         "signedOut": "Logget ud.",
         "signOutError": "Kunne ikke logge ud af applikationen.",

@@ -1244,23 +1244,25 @@ describe('oauth-server (authenticated, database-backed)', async () => {
     const refresh = (app: Json, token: string) => tokenRequest(app, { grant_type: 'refresh_token', refresh_token: token })
     const revokedFor = async (userId: number) => (await $fetch<Json[]>('/api/test/revoked')).filter(entry => entry.userId === userId)
 
-    it('lists only the caller\'s live sign-ins, one per sign-in', async () => {
+    it('lists only the caller\'s live sign-ins, one entry per application', async () => {
       const owner = await user('Owner')
       const other = await user('Other')
       const first = await createApp({ allowedRoles: [], icon: 'i-lucide-receipt' })
       const second = await createApp({ allowedRoles: [] })
       const tokens = await signIn(owner, first)
+      // Signing in again (another device, or the app lost its token) is a second sign-in of the same application.
+      await signIn(owner, first)
       await signIn(owner, second)
       await signIn(other, first)
-      // A refresh keeps the sign-in (same family): still one entry for the application.
+      // A refresh keeps the sign-in (same family): it is not counted again.
       await ok(await refresh(first, tokens.refresh_token))
 
       const sessions = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
       // Newest activity first, but SQLite keeps whole seconds, so the order of two sign-ins in one second is open.
       expect(sessions.map(s => s.application.id).sort()).toEqual([first.id, second.id].sort())
-      expect(sessions.find(s => s.application.id === first.id)).toMatchObject({ application: { name: first.name, icon: 'i-lucide-receipt' } })
+      expect(sessions.find(s => s.application.id === first.id)).toMatchObject({ id: first.id, sessions: 2, application: { name: first.name, icon: 'i-lucide-receipt' } })
+      expect(sessions.find(s => s.application.id === second.id)).toMatchObject({ id: second.id, sessions: 1 })
       for (const session of sessions) {
-        expect(session.id).toMatch(/^rtf_/)
         expect(Date.parse(session.lastActiveAt)).toBeGreaterThanOrEqual(Date.parse(session.signedInAt))
         expect(Date.parse(session.expiresAt)).toBeGreaterThan(Date.now())
       }
@@ -1278,17 +1280,20 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await fetch(oauthServerApi.me.sessions, { method: 'DELETE', headers: bearer })).status).toBe(403)
     })
 
-    it('signs out of one app, which fires oauth:token:revoked, and never of someone else\'s', async () => {
+    it('signs out of one app on every device, which fires oauth:token:revoked, and never of someone else\'s', async () => {
       const owner = await user('One')
       const other = await user('Two')
       const app = await createApp({ allowedRoles: [] })
       const keep = await createApp({ allowedRoles: [] })
       const ended = await signIn(owner, app)
+      const alsoEnded = await signIn(owner, app)
+      const theirs = await signIn(other, app)
       const kept = await signIn(owner, keep)
       const [session] = (await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]).filter(s => s.application.id === app.id)
 
-      // Another user cannot end it (404, as for an unknown id).
-      await expectApiError(apiClient({ cookie: other.cookie }).json('DELETE', oauthServerApi.me.session(session!.id)), 404)
+      // The id is the application's: another user only ever signs themself out, and of an application they are not
+      // signed in to there is nothing to end (404, as for an unknown id).
+      await expectApiError(apiClient({ cookie: other.cookie }).json('DELETE', oauthServerApi.me.session(keep.id)), 404)
       expect((await refresh(app, ended.refresh_token)).status).toBe(200)
       const current = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
       const live = current.find(s => s.application.id === app.id)!
@@ -1298,6 +1303,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(await revokedFor(owner.id)).toContainEqual({ applicationId: app.id, userId: owner.id, reason: 'signed_out' })
       const remaining = await ok(await json(owner.cookie, 'GET', oauthServerApi.me.sessions)) as unknown as Json[]
       expect(remaining.map(s => s.application.id)).toEqual([keep.id])
+      expect((await refresh(app, alsoEnded.refresh_token)).status).toBe(400)
+      expect((await refresh(app, theirs.refresh_token)).status).toBe(200)
       expect((await refresh(keep, kept.refresh_token)).status).toBe(200)
       await expectApiError(apiClient({ cookie: owner.cookie }).json('DELETE', oauthServerApi.me.session(session!.id)), 404)
     })
