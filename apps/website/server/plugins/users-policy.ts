@@ -7,8 +7,11 @@ export default defineNitroPlugin((nitro) => {
     const actor = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, ctx.userId) })
     if (!actor) return
 
+    const { admins, oauthAdmins, formsAdmins } = staffAllowlists()
     ctx.allowed = canAdministerUsers(effectiveRole(actor), ctx.action, {
       input: ctx.input,
+      // The address being written counts too: an allowlisted one would turn the account into staff.
+      staffEmails: [...admins, ...oauthAdmins, ...formsAdmins],
       // The target's allow-listed admin status counts too, not just the stored role (`target` carries `emailVerifiedAt`).
       target: ctx.target && { role: effectiveRole(ctx.target) },
     })

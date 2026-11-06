@@ -10,7 +10,9 @@ type Action = 'view' | 'create' | 'update' | 'delete'
  * - staff roles (`admin`, `manager`, `coordinator`) may list users;
  * - `admin` and `manager` may create, edit and delete them;
  * - nobody may hand out, or change a user holding, a role above their own - only strictly lower roles, except that an
- *   admin may manage other admins.
+ *   admin may manage other admins;
+ * - the role is judged as it will be after the change too: writing an address on a staff allowlist (`staffEmails`)
+ *   makes the account admin-level once the address is verified (and staff can mark it verified), so only admins may.
  */
 /** The roles `role` may hand out: strictly lower ones, plus their own for admins. */
 export function assignableUserRoles(role: string): string[] {
@@ -21,7 +23,12 @@ export function assignableUserRoles(role: string): string[] {
 export function canAdministerUsers(
   role: string,
   action: Action,
-  details: { input?: { role?: string }, target?: { role?: string } } = {},
+  details: {
+    input?: { role?: string, email?: string }
+    target?: { role?: string }
+    /** Lowercase addresses that grant staff access: `NUXT_ACL_ADMINS`, `NUXT_OAUTH_ADMIN_EMAILS`, `NUXT_FORMS_ADMIN_EMAILS`. */
+    staffEmails?: readonly string[]
+  } = {},
 ): boolean {
   if (action === 'view') return (adminAreaRoles as readonly string[]).includes(role)
   if (!(userManagerRoles as readonly string[]).includes(role)) return false
@@ -29,5 +36,7 @@ export function canAdministerUsers(
   const equal = { equalAllowedFor: ['admin'] }
   const assigns = details.input?.role === undefined || canManageRole(userRoles, role, details.input.role, equal)
   const touches = details.target?.role === undefined || canManageRole(userRoles, role, details.target.role, equal)
-  return assigns && touches
+  const email = details.input?.email?.trim().toLowerCase()
+  const writesStaffEmail = !!email && !!details.staffEmails?.includes(email)
+  return assigns && touches && (!writesStaffEmail || role === 'admin')
 }
