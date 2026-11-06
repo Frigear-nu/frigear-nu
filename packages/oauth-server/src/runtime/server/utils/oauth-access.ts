@@ -84,7 +84,11 @@ export async function buildClaims(input: {
       claims.name = input.user.name
       if (input.user.avatar) claims.picture = input.user.avatar
     }
-    if (input.scope.includes('email')) claims.email = input.user.email
+    if (input.scope.includes('email')) {
+      claims.email = input.user.email
+      // Relying parties link accounts by email only when the address is proven (`emailVerifiedAt`).
+      claims.email_verified = !!input.user.emailVerifiedAt
+    }
   }
   const ctx: ClaimsContext = { ...input, claims }
   await useNitroApp().hooks.callHook('oauth:claims', ctx)
