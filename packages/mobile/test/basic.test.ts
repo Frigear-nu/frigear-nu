@@ -32,6 +32,17 @@ describe('basic (SSR shell)', async () => {
     expect(html).not.toContain('data-mobile-tabbar')
   })
 
+  it('shows a page\'s navbar actions in the header on that page only', async () => {
+    const header = (html: string) => /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? ''
+    // `definePageMeta` actions: an icon button named by its label.
+    expect(header(await $fetch<string>('/'))).toContain('aria-label="Settings"')
+    expect(header(await $fetch<string>('/bills'))).not.toContain('aria-label="Settings"')
+    expect(header(await $fetch<string>('/bills/7'))).not.toContain('aria-label="Settings"')
+    // `useMobileNavbarActions()` registers in the page's setup, after the layout rendered the header: on the server
+    // it is not in the HTML (it shows once the page is set up in the browser), and the page still renders.
+    expect(await $fetch<string>('/bills')).toContain('bills-page')
+  })
+
   it('sets the mobile head defaults', async () => {
     const html = await $fetch<string>('/')
     expect(html).toContain('viewport-fit=cover')

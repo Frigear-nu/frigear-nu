@@ -7,6 +7,7 @@ A Capacitor app shell for Nuxt. It turns a Nuxt app into an iOS / Android app wi
 - the native navbar and tab bar on iOS, a web header and tab bar in a browser and on Android, the same
   `--mobile-inset-*` CSS variables for both
 - page titles from `definePageMeta({ mobile: { title } })`, else the selected tab, else the app name
+- navbar actions (a settings gear, a Save button) per page: native navbar buttons on iOS, header buttons elsewhere
 - safe areas, an iOS type scale, `:active` states on iOS, no tap highlight, switch haptics, the keyboard accessory bar
   and a status bar that follows the colour mode
 - an opt-in splash screen (`splashScreen: true`) from the native launch image (`@capacitor/splash-screen`) to the
@@ -158,9 +159,16 @@ definePageMeta({
     navbar: false,      // no navbar / header
     tab: 'bills',       // select this tab
     back: true,         // back button (default: below a tab's root page)
+    actions: [          // navbar buttons on this page (placement: 'right' by default, or 'left')
+      { id: 'settings', label: 'Settings', icon: 'i-lucide-settings', sfSymbol: 'gearshape', to: '/settings' },
+    ],
   },
 })
 ```
+
+Actions that change or call into the page: `useMobileNavbarActions(() => [{ id, label, icon, sfSymbol, disabled,
+onSelect }])` in `<script setup>` (added in setup, removed on unmount and while a kept-alive page is in the
+background).
 
 ## Runtime
 
@@ -170,6 +178,7 @@ definePageMeta({
 - `useMobileChrome()`: `state` (mode, visible tabs, active tab, tab bar, header), `native`, `suppress()` (hide the tab
   bar for an overlay of your own; call the returned function to release). Nuxt UI dialogs, slideovers and drawers hide
   it on their own.
+- `useMobileNavbarActions(actions)`: navbar buttons of the calling page, from a ref or a getter.
 - `useNative()`: `haptic('light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection')`,
   `actionSheet({ actions })` (`null` in a browser: show a menu then), `confirm({ title, description, destructive })`
   (native alert / action sheet; `useConfirmDialog` of `@frigear-nu/ui` or a small modal in a browser),

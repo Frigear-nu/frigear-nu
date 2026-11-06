@@ -328,6 +328,7 @@ declare module '#mobile/tabs' {
       { name: 'useCapacitor', from: resolver.resolve('./runtime/app/composables/useCapacitor') },
       { name: 'useMobileTabs', from: resolver.resolve('./runtime/app/composables/useMobileTabs') },
       { name: 'useMobileChrome', from: resolver.resolve('./runtime/app/composables/useMobileChrome') },
+      { name: 'useMobileNavbarActions', from: resolver.resolve('./runtime/app/composables/useMobileNavbarActions') },
       { name: 'useMobileToaster', from: resolver.resolve('./runtime/app/composables/useMobileToaster') },
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
       { name: 'onTabEnter', from: resolver.resolve('./runtime/app/composables/onTabEnter') },

@@ -5,11 +5,13 @@ import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useMobileTabs } from '../composables/useMobileTabs'
 import { useMobileBack } from '../utils/back'
+import { runNavbarAction } from '../utils/navbar-actions'
 
 /**
  * On iOS (and Android with `nativeChrome: 'all'`) the native navbar and tab bar of `@capgo/capacitor-native-navigation`
  * replace `MobileHeader` / `MobileTabBar`. Routing stays in Nuxt: a native tap navigates, and the bars follow the
- * route, the sign-in state, open overlays and the colour mode (the bars follow the system appearance otherwise).
+ * route, the sign-in state, open overlays and the colour mode (the bars follow the system appearance otherwise). A tap on
+ * a navbar action runs the page's `onSelect` / `to`.
  */
 export default defineNuxtPlugin({
   name: 'mobile:native-navigation',
@@ -40,6 +42,7 @@ export default defineNuxtPlugin({
       onBack: async () => {
         await nuxtApp.runWithContext(() => back())
       },
+      onAction: action => runNavbarAction(action, to => router.push(to)),
     })
     try {
       await controller.start()

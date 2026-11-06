@@ -1,4 +1,4 @@
-import type { MobilePageMeta, MobileTab, NativeChromeOption } from '../../types'
+import type { MobileNavbarAction, MobilePageMeta, MobileTab, NativeChromeOption } from '../../types'
 import { findActiveTab, isTabRoot } from './tabs'
 
 /** Overlays Nuxt UI renders open: modals, slideovers, drawers (dropdown menus and popovers are not dialogs). */
@@ -14,6 +14,8 @@ export interface ChromeInput {
   tabs: MobileTab[]
   path: string
   page?: MobilePageMeta
+  /** Navbar actions the page set with `useMobileNavbarActions()`, after `page.actions`. */
+  actions?: MobileNavbarAction[]
   /** `null` when the app has no sign-in. */
   authenticated: boolean | null
   /** Open dialogs, slideovers, drawers. */
@@ -27,6 +29,11 @@ export interface ChromeInput {
   translate?: (key: string | undefined, fallback: string) => string
 }
 
+/** A navbar action as shown: label translated, side decided. */
+export interface ChromeAction extends MobileNavbarAction {
+  placement: 'left' | 'right'
+}
+
 export interface ChromeState {
   /** `native`: the plugin draws the navbar and tab bar; `web`: `MobileHeader` / `MobileTabBar` do. */
   mode: 'native' | 'web'
@@ -34,7 +41,7 @@ export interface ChromeState {
   tabs: MobileTab[]
   activeTab: MobileTab | null
   tabBar: { visible: boolean }
-  header: { visible: boolean, title: string, largeTitle: boolean, back: boolean }
+  header: { visible: boolean, title: string, largeTitle: boolean, back: boolean, actions: ChromeAction[] }
 }
 
 /** Whether the native bars draw the chrome on this platform. */
@@ -44,9 +51,25 @@ export function usesNativeChrome(platform: MobilePlatform, option: NativeChromeO
 }
 
 /**
+ * The page's navbar actions: `definePageMeta` ones, then `useMobileNavbarActions()` ones. A later action with the same
+ * id replaces an earlier one in its place.
+ */
+export function resolveNavbarActions(
+  actions: (MobileNavbarAction[] | undefined)[],
+  translate: (key: string | undefined, fallback: string) => string = (_key, fallback) => fallback,
+): ChromeAction[] {
+  const byId = new Map<string, ChromeAction>()
+  for (const action of actions.flat()) {
+    if (!action?.id) continue
+    byId.set(action.id, { ...action, label: translate(action.labelKey, action.label), placement: action.placement ?? 'right' })
+  }
+  return [...byId.values()]
+}
+
+/**
  * Everything the shell shows for a route: which chrome (native or web), the tabs, the selected one, whether the tab
  * bar shows (not while an overlay is open: on iOS 26 it floats over the WebView and would cover a sheet's actions) and
- * the title (page meta, else the selected tab, else the app name).
+ * the title (page meta, else the selected tab, else the app name) and the navbar actions of the page.
  */
 export function resolveChrome(input: ChromeInput): ChromeState {
   const translate = input.translate ?? ((_key: string | undefined, fallback: string) => fallback)
@@ -69,6 +92,7 @@ export function resolveChrome(input: ChromeInput): ChromeState {
       title,
       largeTitle: page.largeTitle ?? (root && (activeTab?.largeTitle ?? true)),
       back: page.back ?? (activeTab ? !root : tabs.length > 0),
+      actions: resolveNavbarActions([page.actions, input.actions], translate),
     },
   }
 }

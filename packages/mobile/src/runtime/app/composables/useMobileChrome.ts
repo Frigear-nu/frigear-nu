@@ -3,14 +3,14 @@ import { useAuth } from '#mobile/optional'
 import { plugins } from '#mobile/native'
 import type { MobilePageMeta } from '../../../types'
 import { resolveChrome, type ChromeState } from '../../shared/chrome'
-import { useOverlayCount, useSplashVisible, useSuppressCount } from '../utils/state'
+import { useNavbarActionRegistry, useOverlayCount, useSplashVisible, useSuppressCount } from '../utils/state'
 import { useMobileTranslate } from '../utils/translate'
 import { useCapacitor } from './useCapacitor'
 import { useMobileTabs } from './useMobileTabs'
 
 /**
  * What the shell shows on the current route: native or web chrome, the visible tabs, the selected one, whether the
- * tab bar shows and the title. `MobileHeader`, `MobileTabBar` and the native bars all read it.
+ * tab bar shows, the title and the navbar actions. `MobileHeader`, `MobileTabBar` and the native bars all read it.
  *
  * The tab bar hides while a dialog, slideover or drawer is open; `suppress()` hides it for overlays of your own
  * (call the returned function to release).
@@ -24,6 +24,7 @@ export function useMobileChrome() {
   const overlays = useOverlayCount()
   const suppressed = useSuppressCount()
   const splash = useSplashVisible()
+  const navbarActions = useNavbarActionRegistry()
   const auth = config.auth && typeof useAuth === 'function' ? useAuth() : undefined
 
   const state = computed<ChromeState>(() => resolveChrome({
@@ -33,6 +34,7 @@ export function useMobileChrome() {
     tabs: tabs.value,
     path: route.path,
     page: route.meta.mobile as MobilePageMeta | undefined,
+    actions: [...navbarActions.values()].filter(entry => entry.path() === route.path).flatMap(entry => entry.actions()),
     // Unknown (still restoring the session) counts as signed out, so signed-in tabs never flash.
     authenticated: auth ? auth.authenticated.value : null,
     overlays: overlays.value,
