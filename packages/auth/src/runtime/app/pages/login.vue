@@ -13,6 +13,8 @@ const magicLinkSent = ref(false)
 const linkFailed = computed(() => route.query.error === 'magic-link')
 // An OAuth provider with `signUp: false` sends an email without an account back here with `?error=oauth-signup`.
 const noAccount = computed(() => route.query.error === 'oauth-signup')
+// A provider (or frigear.nu) that has not verified the email sends the user back with `?error=oauth-unverified`.
+const unverifiedEmail = computed(() => route.query.error === 'oauth-unverified')
 const passkeys = passkeyLoginEnabled.value ? usePasskeys() : undefined
 const passkeyPending = ref(false)
 
@@ -113,6 +115,12 @@ async function onPasskeyLogin() {
       color="error"
       variant="subtle"
       :title="t('errors.signIn.noAccount', 'There is no account for this email. Ask for an invitation, or sign in another way.')"
+    />
+    <UAlert
+      v-else-if="unverifiedEmail"
+      color="error"
+      variant="subtle"
+      :title="t('errors.signIn.unverifiedEmail', 'The account you signed in with has not verified this email address. Verify it there, or sign in another way.')"
     />
     <UAlert
       v-else-if="requestedRedirect"

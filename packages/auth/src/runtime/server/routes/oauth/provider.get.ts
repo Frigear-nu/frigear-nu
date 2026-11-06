@@ -21,6 +21,7 @@ export default eventHandler(async (event) => {
     async onSuccess(event: H3Event, { user, tokens }: { user: Record<string, unknown>, tokens?: Record<string, unknown> }) {
       return handleOAuthUser(event, provider.key, user, {
         signUp: provider.options.signUp,
+        trustEmail: provider.options.trustEmail,
         tokens: provider.options.keepTokens ? tokens : undefined,
       })
     },

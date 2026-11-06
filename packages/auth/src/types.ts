@@ -55,6 +55,13 @@ export interface OAuthProviderOptions {
   icon?: string
   /** Create an account for an email without one. `false` only signs in existing users (invite-only apps). Defaults to `true`. */
   signUp?: boolean
+  /**
+   * Treat the email this provider returns as verified even though it sends no verification flag (Facebook, Microsoft,
+   * Spotify, ...). Only for providers that never hand out an address its user does not own: a sign-in links to the
+   * local account with that email. Defaults to `false`: without a positive flag (`email_verified`, Discord's
+   * `verified`) the sign-in is refused.
+   */
+  trustEmail?: boolean
   /** Passed to the nuxt-auth-utils handler (`scope`, `authorizationParams`, ...). Keep secrets in env vars. */
   config?: Record<string, unknown>
   /**
