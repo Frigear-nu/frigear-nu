@@ -14,16 +14,19 @@ vi.stubGlobal('useRuntimeConfig', () => ({
 vi.stubGlobal('$fetch', async (_url: string, options: { headers: { authorization: string } }) => {
   userinfoCalls++
   const sub = options.headers.authorization.replace('Bearer token-', '')
-  return { sub, email: `person${sub}@frigear.test`, name: `Person ${sub}` }
+  // `66` is a user whose address the issuer has not verified.
+  return { sub, email: `person${sub}@frigear.test`, name: `Person ${sub}`, email_verified: sub !== '66' }
 })
 vi.stubGlobal('loadAuthUser', async (id: number) => rows.find(row => row.id === Number(id)) ?? null)
 vi.stubGlobal('useAuthUserStore', () => ({
   findById: async (id: number) => rows.find(row => row.id === id) ?? null,
   findByEmail: async (email: string) => rows.find(row => row.email === email) ?? null,
 }))
-vi.stubGlobal('syncFrigearUser', async (profile: { id?: number, email: string, name?: string }) => {
+vi.stubGlobal('syncFrigearUser', async (profile: { id?: number, email: string, name?: string, emailVerified?: boolean }) => {
   const email = profile.email.toLowerCase()
   const existing = rows.find(row => row.email === email)
+  // Like the real one: an existing user is never matched by an unverified email.
+  if (existing && profile.emailVerified !== true) throw Object.assign(new Error('unverified'), { statusCode: 403 })
   if (existing) return existing
   const row = { id: profile.id ?? rows.length + 1, email, name: profile.name ?? email }
   rows.push(row)
@@ -47,6 +50,12 @@ describe('resolveOAuthResourceUser without forceId', () => {
 
   it('creates an unknown user with a local id', async () => {
     expect(await resolveOAuthResourceUser('token-5', payload('5'))).toMatchObject({ id: 2, email: 'person5@frigear.test' })
+  })
+
+  it('does not resolve an existing user from an unverified email, also not through the race fallback', async () => {
+    rows.push({ id: 2, email: 'person66@frigear.test', name: 'Victim' })
+    vi.spyOn(console, 'warn').mockImplementationOnce(() => {})
+    expect(await resolveOAuthResourceUser('token-66', payload('66'))).toBeNull()
   })
 
   it('uses sub as the id with forceId', async () => {

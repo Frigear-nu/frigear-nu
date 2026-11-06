@@ -19,13 +19,17 @@ const store = {
   },
   changeId: vi.fn(),
 }
+const clearUnverifiedAuthCredentials = vi.fn()
 vi.stubGlobal('useAuthUserStore', () => store)
+vi.stubGlobal('clearUnverifiedAuthCredentials', clearUnverifiedAuthCredentials)
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
 
 const { syncFrigearUser } = await import('../src/runtime/server/utils/frigear-user')
 
 beforeEach(() => {
   rows = []
+  store.changeId.mockClear()
+  clearUnverifiedAuthCredentials.mockClear()
 })
 
 describe('parseRoleClaim', () => {
@@ -39,7 +43,7 @@ describe('parseRoleClaim', () => {
 })
 
 describe('syncFrigearUser roles', () => {
-  const profile = { email: 'ada@example.com', name: 'Ada' }
+  const profile = { email: 'ada@example.com', name: 'Ada', emailVerified: true }
 
   it('creates a new user with the role frigear.nu reports', async () => {
     const user = await syncFrigearUser({ ...profile, role: 'admin' }, { forceId: false })
@@ -55,5 +59,52 @@ describe('syncFrigearUser roles', () => {
   it('leaves the stored role alone when no role is reported', async () => {
     rows.push({ id: 1, email: profile.email, name: 'Ada', role: 'manager' })
     expect((await syncFrigearUser(profile, { forceId: false })).role).toBe('manager')
+  })
+})
+
+describe('syncFrigearUser email verification', () => {
+  const profile = { email: 'ada@example.com', name: 'Ada' }
+
+  it('never links an existing user to an address frigear.nu has not verified', async () => {
+    rows.push({ id: 1, email: profile.email, name: 'Ada', role: 'user', emailVerifiedAt: new Date() })
+    await expect(syncFrigearUser({ ...profile, role: 'admin' }, { forceId: false })).rejects.toMatchObject({ statusCode: 403, data: { code: 'frigear_email_unverified' } })
+    await expect(syncFrigearUser({ ...profile, emailVerified: false, id: 9 }, { forceId: true })).rejects.toMatchObject({ statusCode: 403 })
+    expect(store.changeId).not.toHaveBeenCalled()
+    expect(rows[0]).toMatchObject({ id: 1, role: 'user' })
+  })
+
+  it('creates a user for a free address, verified only when frigear.nu says so', async () => {
+    expect((await syncFrigearUser(profile, { forceId: false })).emailVerifiedAt).toBeUndefined()
+    expect((await syncFrigearUser({ email: 'bob@example.com', emailVerified: true }, { forceId: false })).emailVerifiedAt).toBeInstanceOf(Date)
+  })
+
+  it('clears what was set on an unverified account before marking it verified', async () => {
+    rows.push({ id: 1, email: profile.email, name: 'Ada', emailVerifiedAt: null })
+    const user = await syncFrigearUser({ ...profile, emailVerified: true }, { forceId: false })
+    expect(clearUnverifiedAuthCredentials).toHaveBeenCalledWith(1)
+    expect(user.emailVerifiedAt).toBeInstanceOf(Date)
+
+    clearUnverifiedAuthCredentials.mockClear()
+    await syncFrigearUser({ ...profile, emailVerified: true }, { forceId: false })
+    expect(clearUnverifiedAuthCredentials).not.toHaveBeenCalled()
+  })
+})
+
+describe('syncFrigearUser with forceId', () => {
+  it('does not take over a local user holding the id under another address', async () => {
+    rows.push({ id: 42, email: 'l@example.com', name: 'Local' })
+    await expect(syncFrigearUser({ id: 42, email: 'r@example.com', name: 'Remote', emailVerified: true }, { forceId: true }))
+      .rejects.toMatchObject({ statusCode: 409 })
+    expect(rows).toEqual([{ id: 42, email: 'l@example.com', name: 'Local' }])
+  })
+
+  it('re-keys a user matched by a verified email, and updates the user with the same id and email', async () => {
+    rows.push({ id: 9, email: 'ada@example.com', name: 'Ada', emailVerifiedAt: new Date() })
+    store.changeId.mockImplementationOnce(async (from: number, to: number) => {
+      rows.find(row => row.id === from)!.id = to
+    })
+    expect(await syncFrigearUser({ id: 42, email: 'ada@example.com', emailVerified: true }, { forceId: true })).toMatchObject({ id: 42 })
+    expect(store.changeId).toHaveBeenCalledWith(9, 42)
+    expect(await syncFrigearUser({ id: 42, email: 'ada@example.com' }, { forceId: true })).toMatchObject({ id: 42 })
   })
 })

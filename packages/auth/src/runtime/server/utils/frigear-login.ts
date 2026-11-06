@@ -20,14 +20,22 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   const picture = claims.picture
   // frigear.nu is the source of truth for roles: an admin there is an admin here.
   const role = sso.syncRole ? parseRoleClaim(claims) : undefined
-  const user = await syncFrigearUser({
-    id: Number(claims.sub),
-    email,
-    name: typeof claims.name === 'string' ? claims.name : undefined,
-    picture: typeof picture === 'string' ? picture : undefined,
-    emailVerified: claims.email_verified === true,
-    role,
-  }, { forceId: sso.forceId })
+  let user
+  try {
+    user = await syncFrigearUser({
+      id: Number(claims.sub),
+      email,
+      name: typeof claims.name === 'string' ? claims.name : undefined,
+      picture: typeof picture === 'string' ? picture : undefined,
+      emailVerified: claims.email_verified === true,
+      role,
+    }, { forceId: sso.forceId })
+  }
+  catch (error) {
+    // An unverified address that belongs to an account here: back to the login page, which explains it.
+    if ((error as { data?: { code?: string } }).data?.code !== 'frigear_email_unverified') throw error
+    return authLoginErrorRedirect(event, 'oauth-unverified')
+  }
 
   await setUserSession(event, {
     user: mapUserToSession(user),
