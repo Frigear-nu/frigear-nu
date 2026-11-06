@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultTabMatch, findActiveTab, findTabsWithoutPage, isTabRoot, matchesPath, normalizeTabs } from '../../src/runtime/shared/tabs'
+import { defaultTabMatch, findActiveTab, findTabsWithoutPage, isTabRoot, matchesPath, normalizeTabs, tabRootAt } from '../../src/runtime/shared/tabs'
 import { menuItemsToTabs } from '../../src/runtime/shared/menu'
 import { extendMobileTabs } from '../../src/runtime/utils'
 import type { MobileTabDefinition } from '../../src/types'
@@ -78,6 +78,15 @@ describe('findActiveTab', () => {
   it('knows a tab root', () => {
     expect(isTabRoot(tabs[1], '/bills')).toBe(true)
     expect(isTabRoot(tabs[1], '/bills/1')).toBe(false)
+  })
+  it('finds the tab whose own page a path is', () => {
+    expect(tabRootAt(tabs, '/')?.id).toBe('home')
+    expect(tabRootAt(tabs, '/bills/')?.id).toBe('bills')
+    expect(tabRootAt(tabs, '/bills/new')?.id).toBe('new')
+    expect(tabRootAt(tabs, '/bills/12')).toBeUndefined()
+    expect(tabRootAt(tabs, '/elsewhere')).toBeUndefined()
+    // A page that names a tab is not that tab's root.
+    expect(tabRootAt(tabs, '/elsewhere', 'bills')).toBeUndefined()
   })
 })
 

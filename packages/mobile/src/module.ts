@@ -97,6 +97,8 @@ export default defineNuxtModule<ModuleOptions>({
     spa: true,
     layout: 'mobile',
     nativeChrome: 'ios',
+    keepTabsAlive: true,
+    tabTransitionDuration: 180,
     native: { statusBar: true, keyboardAccessoryBar: true, switchHaptics: true, backButton: true },
     appearance: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
     dev: { lanHost: true },
@@ -211,6 +213,8 @@ export default defineNuxtModule<ModuleOptions>({
       auth: false,
       nativeChrome: options.nativeChrome ?? 'ios',
       layout: options.layout ?? 'mobile',
+      keepTabsAlive: options.keepTabsAlive !== false,
+      tabTransitionDuration: Math.max(0, options.tabTransitionDuration ?? 180),
       toasterOffset: options.appearance?.toasterOffset !== false,
       native: {
         statusBar: options.native?.statusBar !== false,
@@ -308,6 +312,7 @@ declare module '#mobile/tabs' {
       { name: 'useMobileChrome', from: resolver.resolve('./runtime/app/composables/useMobileChrome') },
       { name: 'useMobileToaster', from: resolver.resolve('./runtime/app/composables/useMobileToaster') },
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
+      { name: 'onTabEnter', from: resolver.resolve('./runtime/app/composables/onTabEnter') },
     ])
     for (const name of ['MobileTabBar', 'MobileHeader', 'MobileFab']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
