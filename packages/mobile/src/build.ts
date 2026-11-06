@@ -79,12 +79,14 @@ export function usedPlugins(input: {
   nativeChrome: boolean
   statusBar: boolean
   keyboardAccessoryBar: boolean
+  splashScreen?: boolean
   oauth: boolean
 }): { name: string, required: boolean, feature: string }[] {
   const keys: NativePluginName[] = ['app', 'haptics', 'actionSheet', 'dialog', 'share']
   if (input.statusBar) keys.push('statusBar')
   if (input.keyboardAccessoryBar) keys.push('keyboard')
   if (input.nativeChrome) keys.push('nativeNavigation')
+  if (input.splashScreen) keys.push('splashScreen')
   const plugins = [
     { name: '@capacitor/core', required: true, feature: 'Capacitor' },
     ...keys.map(key => ({ name: NATIVE_PLUGINS[key].pkg, required: !!NATIVE_PLUGINS[key].required, feature: NATIVE_PLUGINS[key].feature })),

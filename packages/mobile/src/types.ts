@@ -62,6 +62,28 @@ export interface MobilePageMeta {
 
 export type NativeChromeOption = 'ios' | 'all' | false
 
+/** `mobile.splashScreen` as an object. */
+export interface SplashScreenOptions {
+  /**
+   * The component shown, by name. Default `MobileSplashScreen`: the app's own (`app/components/Mobile/SplashScreen.vue`)
+   * when it has one, else the module's.
+   */
+  component?: string
+  /** Logo of the default splash screen, a public path or URL. Default: the app name's first letter in a tile. */
+  logo?: string
+  /** Background of the default splash screen. Default: the `theme-color` values, `#ffffff` and `#0a0a0a`. */
+  background?: { light?: string, dark?: string }
+  /** Milliseconds the splash screen stays up at least, so a fast start does not flash it. Default `400`. */
+  minDuration?: number
+  /** Milliseconds after which it hides even when the app still holds it. Default `10000`; `0` for no limit. */
+  maxDuration?: number
+  /**
+   * Keep Capacitor's native launch screen (`@capacitor/splash-screen`) up until the splash screen has painted, then
+   * hide it at once. Default `true` (when the plugin is installed); `false` leaves it to the app's Capacitor config.
+   */
+  native?: boolean
+}
+
 export interface ModuleOptions {
   /**
    * Reverse-DNS app id, e.g. `nu.frigear.app`. Becomes `capacitor.config.appId` and, lowercased, the URL scheme of the
@@ -104,6 +126,11 @@ export interface ModuleOptions {
     /** Toasts at the top, below the navbar, as iOS banners. Default `true`. */
     toasterOffset?: boolean
   }
+  /**
+   * A splash screen over the app until its first page has rendered (and whatever the app holds it for, with
+   * `useMobileSplash()`). `true` (default): `MobileSplashScreen`; a string: a component by name; `false`: none.
+   */
+  splashScreen?: boolean | string | SplashScreenOptions
   /** Deep links routed into the app (OAuth callbacks are always left to `@frigear-nu/auth`). */
   deepLinks?: {
     /** `https` hosts of universal links / app links, e.g. `['app.example.com']`. Default none. */
@@ -138,8 +165,19 @@ export interface MobilePublicConfig {
   toasterOffset: boolean
   native: { statusBar: boolean, keyboardAccessoryBar: boolean, switchHaptics: boolean, backButton: boolean }
   deepLinks: { hosts: string[], schemes: string[] }
+  splashScreen: MobileSplashConfig
   /** Set on `MOBILE_LAN` builds only. */
   lanHost: string
+}
+
+/** `runtimeConfig.public.mobile.splashScreen`: the timing can be changed per environment. */
+export interface MobileSplashConfig {
+  enabled: boolean
+  logo: string
+  background: { light: string, dark: string }
+  minDuration: number
+  maxDuration: number
+  native: boolean
 }
 
 /** What the module writes to `.nuxt/mobile/native.json` for the `frigear-mobile` CLI. */

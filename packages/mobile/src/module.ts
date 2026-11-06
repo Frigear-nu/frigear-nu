@@ -37,6 +37,7 @@ import { appIdScheme, isPackageInstalled, nativeLoaderTemplate, resolveDeepLinks
 import { NATIVE_PLUGINS, type NativePluginName } from './runtime/shared/native'
 import { findTabsWithoutPage, normalizeTabs } from './runtime/shared/tabs'
 import { runDoctor } from './runtime/cli/doctor'
+import { resolveSplashScreen } from './runtime/shared/splash'
 
 export type * from './types'
 
@@ -114,6 +115,8 @@ export default defineNuxtModule<ModuleOptions>({
     const authConfigured = (nuxt.options as { authentication?: unknown }).authentication !== undefined
     // `nu.my_company.App` → `nu.my-company.app`: a URL scheme has no `_` and the OAuth client rejects one.
     const scheme = appIdScheme(appId)
+    // The native launch screen stays up until the splash screen has painted (the splash plugin hides it).
+    const { splash } = resolveSplashScreen(mobileOptionsOf(nuxt)?.splashScreen)
     return {
       '@frigear-nu/module-kit': { version: '>=0.0.1' },
       '@nuxt/ui': { version: '>=4.0.0' },
@@ -128,6 +131,7 @@ export default defineNuxtModule<ModuleOptions>({
             plugins: {
               // The WebView shrinks above the keyboard, so a sheet's dvh-based height keeps its actions in view.
               Keyboard: { resize: 'native', resizeOnFullScreen: true },
+              ...(splash.native ? { SplashScreen: { launchAutoHide: false, launchFadeOutDuration: 0 } } : {}),
             },
           },
         },
@@ -205,6 +209,8 @@ export default defineNuxtModule<ModuleOptions>({
     if (deepLinks.errors.length) throw new Error(`[${MODULE_NAME}] Invalid deep links:\n- ${deepLinks.errors.join('\n- ')}`)
     if (!appIdScheme(appId) && options.deepLinks?.schemes === undefined && !prepare) logger.warn(`The app id "${appId}" makes no URL scheme: set \`deepLinks.schemes\` (and \`authentication.client.native.scheme\`).`)
     const deepLinkSchemes = deepLinks.schemes
+    const { splash, errors: splashErrors } = resolveSplashScreen(options.splashScreen)
+    if (splashErrors.length) throw new Error(`[${MODULE_NAME}] Invalid splash screen:\n- ${splashErrors.join('\n- ')}`)
     const publicDefaults: MobilePublicConfig = {
       appId,
       appName,
@@ -219,6 +225,14 @@ export default defineNuxtModule<ModuleOptions>({
         backButton: options.native?.backButton !== false,
       },
       deepLinks: { hosts: deepLinks.hosts, schemes: deepLinkSchemes },
+      splashScreen: {
+        enabled: splash.enabled,
+        logo: splash.logo,
+        background: splash.background,
+        minDuration: splash.minDuration,
+        maxDuration: splash.maxDuration,
+        native: splash.native,
+      },
       lanHost: lanHost ?? '',
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
@@ -240,6 +254,10 @@ export default defineNuxtModule<ModuleOptions>({
       getContents: () => `declare module '#mobile/native' {
   import type { NativePlugins } from ${shared('native')}
   export const plugins: { [K in keyof NativePlugins]: (() => Promise<NativePlugins[K]>) | null }
+}
+declare module '#mobile/splash' {
+  const component: import('vue').Component
+  export default component
 }
 declare module '#mobile/tabs' {
   import type { MobileTab } from ${JSON.stringify(resolver.resolve('./types'))}
@@ -308,11 +326,29 @@ declare module '#mobile/tabs' {
       { name: 'useMobileChrome', from: resolver.resolve('./runtime/app/composables/useMobileChrome') },
       { name: 'useMobileToaster', from: resolver.resolve('./runtime/app/composables/useMobileToaster') },
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
+      { name: 'useMobileSplash', from: resolver.resolve('./runtime/app/composables/useMobileSplash') },
     ])
     for (const name of ['MobileTabBar', 'MobileHeader', 'MobileFab']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
     }
 
+    // The splash screen: the app's `MobileSplashScreen` (app/components/Mobile/SplashScreen.vue) wins over this one.
+    addComponent({ name: 'MobileSplashScreen', filePath: resolver.resolve('./runtime/app/components/MobileSplashScreen.vue'), priority: -1 })
+    if (splash.enabled) {
+      nuxt.options.css.push(resolver.resolve('./runtime/app/assets/splash.css'))
+      // By name through `#components`, so an app's component of that name is the one mounted.
+      const template = addTemplate({
+        filename: 'mobile/splash.mjs',
+        getContents: () => `import { ${splash.component} } from '#components'\nexport default ${splash.component}\n`,
+      })
+      nuxt.options.alias['#mobile/splash'] = template.dst
+      nuxt.hook('components:extend', (components) => {
+        if (!components.some(component => component.pascalName === splash.component)) {
+          throw new Error(`[${MODULE_NAME}] \`splashScreen.component\` is "${splash.component}", but the app has no component of that name.`)
+        }
+      })
+      addPlugin({ src: resolver.resolve('./runtime/app/plugins/splash.client'), mode: 'client' })
+    }
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/mobile.client'), mode: 'client' })
     if (options.nativeChrome !== false && plugins.nativeNavigation) {
       addPlugin({ src: resolver.resolve('./runtime/app/plugins/native-navigation.client'), mode: 'client' })
@@ -348,6 +384,7 @@ declare module '#mobile/tabs' {
           nativeChrome: options.nativeChrome !== false,
           statusBar: options.native?.statusBar !== false,
           keyboardAccessoryBar: options.native?.keyboardAccessoryBar !== false,
+          splashScreen: splash.native,
           oauth: clientAuth,
         }),
       }

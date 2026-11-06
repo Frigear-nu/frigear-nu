@@ -21,6 +21,8 @@ which writes `capacitor.config.json` from your Nuxt config. Users sign in throug
 - **Layout** (on by default): the `mobile` layout, with a header, the page and a tab bar.
 - **Composables and helpers** (on by default): `useCapacitor()`, `useNative()` for haptics, sheets, dialogs and
   sharing, and `useMobileChrome()`.
+- **Splash screen** (on by default): from the native launch image to the first page. Replace it with your own
+  component, or turn it off. See [Splash screen](/modules/interface/mobile/splash-screen).
 - **Native behaviour** (on by default): safe areas, the iOS type scale, the Android back button and deep links.
 - **Sign-in** (opt-in): through Auth in client mode. See [Sign-in](#sign-in).
 - **CLI**: `frigear-mobile` adds the iOS and Android projects and checks your plugins.
@@ -54,7 +56,7 @@ pnpm add @frigear-nu/mobile @nuxt/ui @capacitor/core @capacitor/app @capacitor/i
 pnpm add -D @capacitor/cli
 # optional, for the features that use them:
 pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action-sheet @capacitor/dialog \
-  @capacitor/share @capacitor/status-bar @capacitor/keyboard
+  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen
 # with sign-in, and guards:
 pnpm add @frigear-nu/authorization @capacitor/browser @capacitor/preferences @aparajita/capacitor-secure-storage
 ```
@@ -139,6 +141,7 @@ Options go under the `mobile` key.
 | `appearance.iosTypeScale` | `boolean` | `true` | iOS text sizes (17pt body). |
 | `appearance.tapHighlight` | `boolean` | `true` | No grey tap flash, and `:active` states on iOS. |
 | `appearance.toasterOffset` | `boolean` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar. |
+| `splashScreen` | `boolean \| string \| SplashScreenOptions` | `true` | The [splash screen](/modules/interface/mobile/splash-screen): `false` for none, or a component name. |
 | `deepLinks.schemes` | `string[] \| false` | `[appId]` | Custom schemes routed into the app. `false` for none. |
 | `deepLinks.hosts` | `string[]` | `[]` | The `https` hosts of universal links and app links. |
 | `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. |
@@ -246,8 +249,10 @@ The composables and components below are auto-imported.
 | `useMobileChrome()` | `state`, `native` and `suppress()`, which hides the tab bar until you call the function it returns. |
 | `useNative()` | See [Native features](#native-features). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
+| `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
 | `MobileHeader` | The web header, with `leading` and `trailing` slots. |
 | `MobileTabBar` | The web tab bar. |
+| `MobileSplashScreen` | The default splash screen. Your own `components/Mobile/SplashScreen.vue` replaces it. |
 | `MobileFab` | A floating action button: `label`, `icon`, `to`, or `items` for an action sheet on a device. |
 | `mobile` layout | Header, page and tab bar. Your own `layouts/mobile.vue` replaces it. |
 
@@ -295,6 +300,7 @@ registers them in the native projects.
 | Page | What it covers | For |
 | --- | --- | --- |
 | [CLI and devices](/modules/interface/mobile/cli-and-devices) | The `frigear-mobile` command, testing on a phone, Android and the release checklist. | App developers |
+| [Splash screen](/modules/interface/mobile/splash-screen) | The splash screen from the native launch image to the first page: replace it, turn it off, keep it up. | App developers |
 
 ## Next steps
 

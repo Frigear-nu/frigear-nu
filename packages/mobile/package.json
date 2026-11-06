@@ -97,6 +97,7 @@
     "@capacitor/haptics": ">=8.0.0",
     "@capacitor/keyboard": ">=8.0.0",
     "@capacitor/share": ">=8.0.0",
+    "@capacitor/splash-screen": ">=8.0.0",
     "@capacitor/status-bar": ">=8.0.0",
     "@capgo/capacitor-native-navigation": ">=8.0.0",
     "@frigear-nu/menu": "workspace:^",
@@ -117,6 +118,9 @@
       "optional": true
     },
     "@capacitor/share": {
+      "optional": true
+    },
+    "@capacitor/splash-screen": {
       "optional": true
     },
     "@capacitor/status-bar": {
@@ -141,6 +145,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4",
     "@capgo/capacitor-native-navigation": "^8.16.0",
     "@frigear-nu/authorization": "workspace:^",
