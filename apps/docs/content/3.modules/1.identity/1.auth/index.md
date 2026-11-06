@@ -121,7 +121,7 @@ Options go under the `authentication` key.
 | `settings.password` | `boolean` | `true` | Email and password sign-in and sign-up: routes, composables and pages. |
 | `settings.passwordReset` | `boolean` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
 | `settings.webAuthn` | `boolean` | `false` | Passkeys: routes, composables and a table. |
-| `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address. |
+| `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address, and clears what was set on an unverified account. |
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
 | `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |

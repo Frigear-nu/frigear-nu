@@ -14,9 +14,20 @@ export default defineEventHandler(async (event) => {
     throw invalidLink()
   }
 
+  const users = useAuthUserStore()
+  const before = await users.findById(link.userId)
+  if (!before) {
+    throw invalidLink()
+  }
+  // A sign-in link to an account that was never verified: whoever registered it may not own the address, so the
+  // password, passkeys and tokens they set go before the owner gets in. The account's own verification link keeps them.
+  if (!before.emailVerifiedAt && !isVerificationMagicLinkCode(link.code)) {
+    await clearUnverifiedAuthCredentials(before.id, event)
+  }
+
   const now = new Date()
   // Receiving the link proves control of the address.
-  const user = await useAuthUserStore().update(link.userId, { lastLoginAt: now, emailVerifiedAt: now })
+  const user = await users.update(link.userId, { lastLoginAt: now, emailVerifiedAt: now })
 
   if (!user) {
     throw invalidLink()

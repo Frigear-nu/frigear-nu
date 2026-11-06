@@ -1,3 +1,4 @@
+import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 import store from '#auth/user-store'
@@ -37,4 +38,20 @@ export async function deleteUserAuthData(userId: number) {
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
   if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+}
+
+/**
+ * Clears the credentials of an account whose address was never verified, before it is verified by someone proving
+ * control of the address another way (a sign-in link, frigear.nu, a social login): its password, passkeys, API tokens
+ * and kept OAuth tokens. Whoever created the account may not own the address, so nothing they set may survive the
+ * owner's first sign-in. Fires `auth:credentials:changed` (`unverified-account`), which ends the user's OAuth sign-ins.
+ * Not for the account's own sign-up verification link: that one proves whoever registered owns the address.
+ */
+export async function clearUnverifiedAuthCredentials(userId: number, event?: H3Event) {
+  await store.update(userId, { password: null })
+  await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
+  // Each of these tables only exists when the feature owning it is enabled.
+  if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
+  if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+  await notifyAuthCredentialsChanged({ userId, reason: 'unverified-account', event })
 }

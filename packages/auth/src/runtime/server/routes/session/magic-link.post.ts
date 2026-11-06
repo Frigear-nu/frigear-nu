@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (user) {
-    const link = await createMagicLink(event, { userId: user.id, redirectUrl: redirect })
+    const link = await createMagicLink(event, { userId: user.id, redirectUrl: redirect, purpose: created ? 'verify' : 'sign-in' })
     if (link) {
       await dispatchAuthEmail(created ? 'verify-email' : 'magic-link', user.email, { name: user.name, url: link.url })
     }
