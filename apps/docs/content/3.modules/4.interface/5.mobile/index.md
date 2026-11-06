@@ -240,6 +240,44 @@ definePageMeta({
 })
 ```
 
+#### Navbar actions
+
+A page adds buttons to the navbar with `actions`, such as a settings gear on the home page. On iOS they are native
+navbar buttons (`sfSymbol`), elsewhere icon buttons in `MobileHeader` (`icon`). They show on that page only.
+
+```ts
+definePageMeta({
+  mobile: {
+    actions: [
+      { id: 'settings', label: 'Settings', icon: 'i-lucide-settings', sfSymbol: 'gearshape', to: '/settings' },
+    ],
+  },
+})
+```
+
+| Field | What it is |
+| --- | --- |
+| `id` | Stable id. |
+| `label` / `labelKey` | Accessible name, and the button text when the platform has no icon for it. |
+| `icon` | Nuxt UI icon in `MobileHeader`, e.g. `i-lucide-settings`. |
+| `sfSymbol` | SF Symbol of the native iOS button, e.g. `gearshape`. |
+| `androidIcon` | Android drawable of the native button (with `nativeChrome: 'all'`). |
+| `placement` | `right` (default) or `left`. Left actions sit after the back button. |
+| `onSelect` | Called on a tap. |
+| `to` | Navigated to on a tap, after `onSelect`. |
+| `disabled` | Greyed out and not tappable. |
+
+For actions that change, or that call into the page, use `useMobileNavbarActions()` in the page's `<script setup>`
+with a ref or a getter. The actions are added in setup and removed on unmount, and while a kept-alive page is in the
+background. They follow the `definePageMeta` ones; one with the same `id` replaces it.
+
+```ts
+const saving = ref(false)
+useMobileNavbarActions(() => [
+  { id: 'save', label: 'Save', sfSymbol: 'checkmark', icon: 'i-lucide-check', disabled: saving.value, onSelect: save },
+])
+```
+
 ### Composables and components
 
 The composables and components below are auto-imported.
@@ -249,11 +287,12 @@ The composables and components below are auto-imported.
 | `useCapacitor()` | `platform` (`ios`, `android` or `web`), `isNative`, `isIos`, `isAndroid`, `has(plugin)` and `load(plugin)`. |
 | `useMobileTabs()` | `tabs`, `label(tab)` and `title(tab)`. |
 | `useMobileChrome()` | `state`, `native` and `suppress()`, which hides the tab bar until you call the function it returns. |
+| `useMobileNavbarActions(actions)` | Navbar buttons of the calling page, from a ref or a getter. See [Navbar actions](#navbar-actions). |
 | `useNative()` | See [Native features](#native-features). |
 | `onTabEnter(fn)` | Runs `fn` when the user comes back to a page kept alive. See [Tab switching](#tab-switching). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
 | `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
-| `MobileHeader` | The web header, with `leading` and `trailing` slots. |
+| `MobileHeader` | The web header, with the page's navbar actions and `leading` and `trailing` slots. |
 | `MobileTabBar` | The web tab bar. |
 | `MobileSplashScreen` | The default splash screen. Your own `components/Mobile/SplashScreen.vue` replaces it. |
 | `MobileFab` | A floating action button: `label`, `icon`, `to`, or `items` for an action sheet on a device. |

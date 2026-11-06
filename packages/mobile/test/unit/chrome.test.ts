@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveChrome, usesNativeChrome, type ChromeInput } from '../../src/runtime/shared/chrome'
+import { resolveChrome, resolveNavbarActions, usesNativeChrome, type ChromeInput } from '../../src/runtime/shared/chrome'
 import { normalizeTabs } from '../../src/runtime/shared/tabs'
 
 const { tabs } = normalizeTabs([
@@ -38,7 +38,7 @@ describe('resolveChrome', () => {
     expect(state.mode).toBe('web')
     expect(state.activeTab?.id).toBe('bills')
     expect(state.tabBar.visible).toBe(true)
-    expect(state.header).toEqual({ visible: true, title: 'Your bills', largeTitle: true, back: false })
+    expect(state.header).toEqual({ visible: true, title: 'Your bills', largeTitle: true, back: false, actions: [] })
   })
 
   it('shows a back button and a small title below a tab root', () => {
@@ -84,6 +84,36 @@ describe('resolveChrome', () => {
 
   it('picks native mode on iOS', () => {
     expect(resolveChrome(input({ platform: 'ios' })).mode).toBe('native')
+  })
+})
+
+describe('navbar actions', () => {
+  const settings = { id: 'settings', label: 'Settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', sfSymbol: 'gearshape', to: '/settings' }
+
+  it('folds page meta actions into the header, translated and placed right by default', () => {
+    const state = resolveChrome(input({
+      page: { actions: [settings, { id: 'help', label: 'Help', placement: 'left' }] },
+      translate: (key, fallback) => (key === 'nav.settings' ? 'Indstillinger' : fallback),
+    }))
+    expect(state.header.actions).toEqual([
+      { ...settings, label: 'Indstillinger', placement: 'right' },
+      { id: 'help', label: 'Help', placement: 'left' },
+    ])
+  })
+
+  it('adds composable actions after the page meta ones, a repeated id replacing the earlier one in place', () => {
+    const onSelect = () => {}
+    const state = resolveChrome(input({
+      page: { actions: [settings, { id: 'share', label: 'Share' }] },
+      actions: [{ id: 'settings', label: 'Preferences', onSelect }, { id: 'add', label: 'Add' }],
+    }))
+    expect(state.header.actions.map(action => [action.id, action.label])).toEqual([['settings', 'Preferences'], ['share', 'Share'], ['add', 'Add']])
+    expect(state.header.actions[0]!.onSelect).toBe(onSelect)
+  })
+
+  it('has none when the page sets none, and skips actions without an id', () => {
+    expect(resolveChrome(input()).header.actions).toEqual([])
+    expect(resolveNavbarActions([undefined, [{ id: '', label: 'Nameless' }]])).toEqual([])
   })
 })
 

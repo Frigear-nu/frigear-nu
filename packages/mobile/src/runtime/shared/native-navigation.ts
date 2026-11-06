@@ -1,6 +1,13 @@
 import type { MobileTab } from '../../types'
-import type { ChromeState } from './chrome'
-import type { ListenerHandle, NativeNavigationPluginLike, NativeNavigationTabbarLike, NativeNavigationTabLike } from './native'
+import type { ChromeAction, ChromeState } from './chrome'
+import type {
+  ListenerHandle,
+  NativeNavigationBarButtonLike,
+  NativeNavigationNavbarLike,
+  NativeNavigationPluginLike,
+  NativeNavigationTabbarLike,
+  NativeNavigationTabLike,
+} from './native'
 
 export interface NativeNavigationControllerOptions {
   plugin: NativeNavigationPluginLike
@@ -8,6 +15,8 @@ export interface NativeNavigationControllerOptions {
   onSelectTab: (tab: MobileTab) => void | Promise<void>
   /** The native back button was tapped. */
   onBack: () => void | Promise<void>
+  /** A native navbar action was tapped (only enabled actions of the current page). */
+  onAction?: (action: ChromeAction) => unknown
   /** Translates a tab label. */
   label?: (tab: MobileTab) => string
   /** Length of the crossfade between two tabs, in ms. `0` switches without one. Default 180. */
@@ -35,6 +44,36 @@ export function toNativeTab(tab: MobileTab, title: string): NativeNavigationTabL
   if (normal) native.icon = normal
   if (tab.sfSymbolActive) native.selectedIcon = icon(tab.sfSymbolActive, tab.androidIcon)
   return native
+}
+
+/** The native navbar button of an action: an icon when it has one for the platform, else its label as text. */
+export function toNativeBarButton(action: ChromeAction): NativeNavigationBarButtonLike {
+  const native: NativeNavigationBarButtonLike = { id: action.id, accessibilityLabel: action.label }
+  const symbol = icon(action.sfSymbol, action.androidIcon)
+  if (symbol) native.icon = symbol
+  else native.title = action.label
+  if (action.disabled) native.enabled = false
+  return native
+}
+
+/**
+ * The visible navbar of a chrome state. The items are always sent, empty included, so a page without actions clears
+ * the last page's (the iOS plugin resets them on every `setNavbar` anyway) and the dedupe key follows the actions.
+ */
+export function toNativeNavbar(state: ChromeState, colors: { foreground: string }): NativeNavigationNavbarLike {
+  const actions = state.header.actions ?? []
+  const leftItems = actions.filter(action => action.placement === 'left').map(toNativeBarButton)
+  const rightItems = actions.filter(action => action.placement !== 'left').map(toNativeBarButton)
+  return {
+    hidden: false,
+    title: state.header.title,
+    large: state.header.largeTitle,
+    // Without `supplements` the back button hides the left items on Android.
+    backButton: state.header.back && leftItems.length ? { visible: true, supplements: true } : { visible: state.header.back },
+    colors: { foreground: colors.foreground },
+    leftItems,
+    rightItems,
+  }
 }
 
 /**
@@ -78,15 +117,7 @@ export function createNativeNavigationController(options: NativeNavigationContro
     // `hidden: true` tears the iOS tab controller down.
     const tabbar: NativeNavigationTabbarLike = visible
       ?? (shown ? { hidden: true, animated: true, tabs: shown.tabs, selectedId: shown.selectedId } : { hidden: true })
-    const navbar = state.header.visible
-      ? {
-          hidden: false,
-          title: state.header.title,
-          large: state.header.largeTitle,
-          backButton: { visible: state.header.back },
-          colors: { foreground: colors.foreground },
-        }
-      : { hidden: true }
+    const navbar: NativeNavigationNavbarLike = state.header.visible ? toNativeNavbar(state, colors) : { hidden: true }
 
     // Hide the tab bar first and show it last, so it never covers an opening sheet.
     const tabbarKey = JSON.stringify(visible ?? { hidden: true })
@@ -169,6 +200,14 @@ export function createNativeNavigationController(options: NativeNavigationContro
         if (tab) void requestTab(tab)
       }))
       listeners.push(await plugin.addListener('navbarBack', () => void options.onBack()))
+      listeners.push(await plugin.addListener('navbarItemTap', ({ id }) => {
+        // The bar shows the actions last sent, which are the latest state's once the queue has run.
+        const action = latest?.state.header.visible ? latest.state.header.actions?.find(candidate => candidate.id === id) : undefined
+        if (!action || action.disabled || !options.onAction) return
+        void Promise.resolve()
+          .then(() => options.onAction!(action))
+          .catch(error => console.error('[@frigear-nu/mobile] Navbar action failed:', error))
+      }))
     },
 
     apply(state, colors) {

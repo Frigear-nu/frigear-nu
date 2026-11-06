@@ -70,7 +70,7 @@ describe('native navigation controller', () => {
     const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
     await controller.apply(chrome(), colors)
     expect(calls).toEqual([
-      ['setNavbar', { hidden: false, title: 'Home', large: true, backButton: { visible: false }, colors }],
+      ['setNavbar', { hidden: false, title: 'Home', large: true, backButton: { visible: false }, colors, leftItems: [], rightItems: [] }],
       ['setTabbar', {
         hidden: false,
         selectedId: 'home',
@@ -126,7 +126,7 @@ describe('native navigation controller', () => {
     await controller.apply(chrome({ authenticated: false, path: '/login' }), colors)
     expect(calls).toEqual([
       ['setTabbar', { hidden: true }],
-      ['setNavbar', { hidden: false, title: 'App', large: false, backButton: { visible: false }, colors }],
+      ['setNavbar', { hidden: false, title: 'App', large: false, backButton: { visible: false }, colors, leftItems: [], rightItems: [] }],
     ])
     calls.length = 0
     await controller.apply(chrome({ authenticated: false, path: '/login' }), { foreground: '#FFFFFF' })
@@ -231,6 +231,83 @@ describe('native navigation controller', () => {
       await vi.waitFor(() => expect(onSelectTab).toHaveBeenCalled())
       await controller.idle()
       expect(calls.some(([name]) => name === 'beginTransition')).toBe(false)
+    })
+  })
+
+  describe('navbar actions', () => {
+    const settings = { id: 'settings', label: 'Settings', sfSymbol: 'gearshape', to: '/settings' }
+
+    it('sends the actions as navbar items: icons when they have one, else text', async () => {
+      const { plugin, calls } = mockPlugin()
+      const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+      await controller.apply(chrome({ page: { actions: [settings, { id: 'edit', label: 'Edit', disabled: true }] } }), colors)
+      expect(calls[0]).toEqual(['setNavbar', expect.objectContaining({
+        leftItems: [],
+        rightItems: [
+          { id: 'settings', accessibilityLabel: 'Settings', icon: { ios: { sfSymbol: 'gearshape' } } },
+          { id: 'edit', accessibilityLabel: 'Edit', title: 'Edit', enabled: false },
+        ],
+      })])
+    })
+
+    it('keeps left items beside the back button', async () => {
+      const { plugin, calls } = mockPlugin()
+      const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+      await controller.apply(chrome({ path: '/bills/3', page: { actions: [{ ...settings, placement: 'left', androidIcon: 'ic_settings' }] } }), colors)
+      expect(calls[0]).toEqual(['setNavbar', expect.objectContaining({
+        backButton: { visible: true, supplements: true },
+        leftItems: [{ id: 'settings', accessibilityLabel: 'Settings', icon: { ios: { sfSymbol: 'gearshape' }, android: { resource: 'ic_settings' } } }],
+        rightItems: [],
+      })])
+    })
+
+    it('sets the navbar again when the actions change, and clears them on a page without any', async () => {
+      const { plugin, calls } = mockPlugin()
+      const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn() })
+      await controller.apply(chrome({ page: { actions: [settings] } }), colors)
+      await controller.apply(chrome({ page: { actions: [settings] } }), colors)
+      await controller.apply(chrome({ page: { actions: [{ ...settings, disabled: true }] } }), colors)
+      await controller.apply(chrome({ path: '/bills' }), colors)
+      const navbars = calls.filter(([name]) => name === 'setNavbar').map(([, options]) => (options as { rightItems: unknown[] }).rightItems)
+      expect(navbars).toEqual([
+        [{ id: 'settings', accessibilityLabel: 'Settings', icon: { ios: { sfSymbol: 'gearshape' } } }],
+        [{ id: 'settings', accessibilityLabel: 'Settings', icon: { ios: { sfSymbol: 'gearshape' } }, enabled: false }],
+        [],
+      ])
+    })
+
+    it('routes a navbar item tap to the current page action, ignoring unknown and disabled ones', async () => {
+      const { plugin, listeners } = mockPlugin()
+      const onAction = vi.fn()
+      const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn(), onAction })
+      await controller.start()
+      await controller.apply(chrome({ page: { actions: [settings, { id: 'edit', label: 'Edit', disabled: true }] } }), colors)
+      listeners.navbarItemTap!({ id: 'settings' })
+      listeners.navbarItemTap!({ id: 'edit' })
+      listeners.navbarItemTap!({ id: 'unknown' })
+      await vi.waitFor(() => expect(onAction).toHaveBeenCalledTimes(1))
+      expect(onAction.mock.calls[0]![0]).toMatchObject({ id: 'settings', to: '/settings' })
+
+      // On another page the gear is gone, so a late tap does nothing.
+      await controller.apply(chrome({ path: '/bills' }), colors)
+      listeners.navbarItemTap!({ id: 'settings' })
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(onAction).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs a failing action instead of rejecting', async () => {
+      const { plugin, listeners } = mockPlugin()
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const controller = createNativeNavigationController({
+        plugin, onSelectTab: vi.fn(), onBack: vi.fn(), onAction: () => {
+          throw new Error('boom')
+        },
+      })
+      await controller.start()
+      await controller.apply(chrome({ page: { actions: [settings] } }), colors)
+      listeners.navbarItemTap!({ id: 'settings' })
+      await vi.waitFor(() => expect(error).toHaveBeenCalled())
+      error.mockRestore()
     })
   })
 })

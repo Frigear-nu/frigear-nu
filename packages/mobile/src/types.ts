@@ -43,6 +43,33 @@ export interface MobileTab extends Omit<MobileTabDefinition, 'match' | 'requires
   requiresAuth: boolean
 }
 
+/**
+ * A button in the navbar: the native one on iOS (and Android with `nativeChrome: 'all'`), `MobileHeader` elsewhere. Set
+ * with `definePageMeta({ mobile: { actions } })` or `useMobileNavbarActions()`; it shows on that page only.
+ */
+export interface MobileNavbarAction {
+  /** Stable id: what a native tap reports and the `:key` in `MobileHeader`. */
+  id: string
+  /** Accessible name; shown as text when the platform has no icon for it. */
+  label: string
+  /** i18n key of the label (used when `@nuxtjs/i18n` has it). */
+  labelKey?: string
+  /** Nuxt UI icon in `MobileHeader`, e.g. `i-lucide-settings`. */
+  icon?: string
+  /** SF Symbol of the native iOS button, e.g. `gearshape`. */
+  sfSymbol?: string
+  /** Android drawable resource name of the native button (with `nativeChrome: 'all'`). */
+  androidIcon?: string
+  /** Side of the navbar. Default `right`. */
+  placement?: 'left' | 'right'
+  /** Greyed out and not tappable. */
+  disabled?: boolean
+  /** Called on a tap. */
+  onSelect?: () => unknown
+  /** Navigated to on a tap (after `onSelect`, when both are set). */
+  to?: string
+}
+
 /** `definePageMeta({ mobile: { ... } })`. */
 export interface MobilePageMeta {
   /** Navbar / header title of this page. Default: the selected tab's title, else `appName`. */
@@ -58,6 +85,8 @@ export interface MobilePageMeta {
   tab?: string
   /** A back button in the navbar / header. Default: on pages that are not a tab's root page. */
   back?: boolean
+  /** Navbar buttons on this page, e.g. a settings gear. Reactive ones: `useMobileNavbarActions()`. */
+  actions?: MobileNavbarAction[]
 }
 
 export type NativeChromeOption = 'ios' | 'all' | false

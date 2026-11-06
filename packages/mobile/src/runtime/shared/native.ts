@@ -63,13 +63,25 @@ export interface NativeNavigationColorsLike {
   tint?: string
 }
 
+export interface NativeNavigationBarButtonLike {
+  /** Reported back in `navbarItemTap`. */
+  id: string
+  /** Drawn as text (leave it out for an icon-only button). */
+  title?: string
+  accessibilityLabel?: string
+  icon?: NativeNavigationIconLike
+  enabled?: boolean
+}
+
 export interface NativeNavigationNavbarLike {
   hidden?: boolean
   title?: string
   large?: boolean
   colors?: NativeNavigationColorsLike
-  backButton?: { visible?: boolean }
-  rightItems?: unknown[]
+  /** `supplements`: keep `leftItems` beside the back button. */
+  backButton?: { visible?: boolean, supplements?: boolean }
+  leftItems?: NativeNavigationBarButtonLike[]
+  rightItems?: NativeNavigationBarButtonLike[]
 }
 
 export interface NativeNavigationTabbarLike {
@@ -93,6 +105,7 @@ export interface NativeNavigationPluginLike {
   finishTransition?(options: { id?: string, direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<unknown>
   addListener(event: 'tabSelect', listener: (event: { id: string }) => void): Promise<ListenerHandle>
   addListener(event: 'navbarBack', listener: (event: unknown) => void): Promise<ListenerHandle>
+  addListener(event: 'navbarItemTap', listener: (event: { id: string, placement?: 'left' | 'right' }) => void): Promise<ListenerHandle>
 }
 
 export type NativePluginName
