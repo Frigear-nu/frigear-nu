@@ -15,7 +15,7 @@ const chrome = (overrides: Partial<ChromeInput> = {}) => resolveChrome({
   overlays: 0, suppressed: 0, appName: 'App', ...overrides,
 })
 
-function mockPlugin() {
+function mockPlugin(options: { transitions?: boolean } = {}) {
   const calls: [string, unknown][] = []
   const listeners: Record<string, (event: { id: string }) => void> = {}
   const plugin: NativeNavigationPluginLike = {
@@ -32,6 +32,15 @@ function mockPlugin() {
       listeners[event] = listener
       return { remove: vi.fn(async () => {}) }
     }) as NativeNavigationPluginLike['addListener'],
+  }
+  if (options.transitions) {
+    plugin.beginTransition = vi.fn(async (options) => {
+      calls.push(['beginTransition', options])
+      return { id: 't1' }
+    })
+    plugin.finishTransition = vi.fn(async (options) => {
+      calls.push(['finishTransition', options])
+    })
   }
   return { plugin, calls, listeners }
 }
@@ -131,5 +140,97 @@ describe('native navigation controller', () => {
     await expect(controller.apply(chrome(), colors)).rejects.toThrow('busy')
     await controller.apply(chrome(), colors)
     expect(calls.map(([name]) => name)).toEqual(['setNavbar', 'setTabbar'])
+  })
+
+  describe('tab switches', () => {
+    // Starts on home with the bars shown, then lets each test tap a tab.
+    async function started(onSelectTab: (tab: { id: string }) => unknown, options: { transitions?: boolean } = { transitions: true }) {
+      const mock = mockPlugin(options)
+      const controller = createNativeNavigationController({ plugin: mock.plugin, onSelectTab: tab => onSelectTab(tab) as Promise<void>, onBack: vi.fn() })
+      await controller.start()
+      await controller.apply(chrome(), colors)
+      mock.calls.length = 0
+      return { ...mock, controller }
+    }
+
+    it('crossfades: snapshot first, then the route and bars, then the fade', async () => {
+      const app: { controller?: Awaited<ReturnType<typeof started>>['controller'] } = {}
+      const ctx = await started(async () => {
+        // The route changes while the snapshot covers the WebView.
+        await app.controller!.apply(chrome({ path: '/bills' }), colors)
+      })
+      app.controller = ctx.controller
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      await vi.waitFor(() => expect(ctx.calls.at(-1)?.[0]).toBe('finishTransition'))
+      expect(ctx.calls.map(([name]) => name)).toEqual(['beginTransition', 'setNavbar', 'finishTransition'])
+      expect(ctx.calls[0]![1]).toEqual({ direction: 'tab', duration: 180 })
+      expect(ctx.calls.at(-1)![1]).toEqual({ id: 't1', direction: 'tab', duration: 180 })
+    })
+
+    it('does not send the tab bar again for the tab the user tapped', async () => {
+      const app: { controller?: Awaited<ReturnType<typeof started>>['controller'] } = {}
+      const ctx = await started(() => app.controller!.apply(chrome({ path: '/bills' }), colors))
+      app.controller = ctx.controller
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      await vi.waitFor(() => expect(ctx.calls.at(-1)?.[0]).toBe('finishTransition'))
+      expect(ctx.calls.some(([name]) => name === 'setTabbar')).toBe(false)
+      // A later change of selection that was not a tap is sent.
+      await ctx.controller.apply(chrome(), colors)
+      expect(ctx.calls.at(-1)).toEqual(['setTabbar', expect.objectContaining({ selectedId: 'home' })])
+    })
+
+    it('removes the snapshot and resyncs the tab bar when the navigation fails', async () => {
+      const ctx = await started(() => Promise.reject(new Error('guard')))
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      await vi.waitFor(() => expect(ctx.calls.at(-1)?.[0]).toBe('finishTransition'))
+      expect(ctx.calls.map(([name]) => name)).toEqual(['beginTransition', 'setTabbar', 'finishTransition'])
+      expect(ctx.calls[1]![1]).toEqual(expect.objectContaining({ selectedId: 'home' }))
+    })
+
+    it('runs quick taps one at a time, and only the last waiting one', async () => {
+      const app: { controller?: Awaited<ReturnType<typeof started>>['controller'] } = {}
+      const visited: string[] = []
+      const ctx = await started(async (tab) => {
+        visited.push(tab.id)
+        await new Promise(resolve => setTimeout(resolve, 5))
+        await app.controller!.apply(chrome({ path: tab.id === 'home' ? '/' : '/bills' }), colors)
+      })
+      app.controller = ctx.controller
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      ctx.listeners.tabSelect!({ id: 'home' })
+      ctx.listeners.tabSelect!({ id: 'bills' })
+      ctx.listeners.tabSelect!({ id: 'home' })
+      await vi.waitFor(() => expect(visited).toEqual(['bills', 'home']))
+      await vi.waitFor(() => expect(ctx.calls.filter(([name]) => name === 'finishTransition')).toHaveLength(2))
+      // Every transition finishes before the next one begins.
+      const transitions = ctx.calls.map(([name]) => name).filter(name => name.endsWith('Transition'))
+      expect(transitions).toEqual(['beginTransition', 'finishTransition', 'beginTransition', 'finishTransition'])
+    })
+
+    it('skips the crossfade for the selected tab, and without plugin support', async () => {
+      const onSelectTab = vi.fn(async () => {})
+      const same = await started(onSelectTab)
+      same.listeners.tabSelect!({ id: 'home' })
+      await vi.waitFor(() => expect(onSelectTab).toHaveBeenCalledTimes(1))
+      await same.controller.idle()
+      expect(same.calls).toEqual([])
+
+      const old = await started(onSelectTab, { transitions: false })
+      old.listeners.tabSelect!({ id: 'bills' })
+      await vi.waitFor(() => expect(onSelectTab).toHaveBeenCalledTimes(2))
+      await vi.waitFor(() => expect(old.calls.map(([name]) => name)).toEqual(['setTabbar']))
+    })
+
+    it('switches without a crossfade when the duration is 0', async () => {
+      const { plugin, calls, listeners } = mockPlugin({ transitions: true })
+      const onSelectTab = vi.fn(async () => {})
+      const controller = createNativeNavigationController({ plugin, onSelectTab, onBack: vi.fn(), tabTransitionDuration: 0 })
+      await controller.start()
+      await controller.apply(chrome(), colors)
+      listeners.tabSelect!({ id: 'bills' })
+      await vi.waitFor(() => expect(onSelectTab).toHaveBeenCalled())
+      await controller.idle()
+      expect(calls.some(([name]) => name === 'beginTransition')).toBe(false)
+    })
   })
 })

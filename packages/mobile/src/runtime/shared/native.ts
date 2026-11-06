@@ -81,10 +81,16 @@ export interface NativeNavigationTabbarLike {
   animated?: boolean
 }
 
+export type NativeNavigationTransitionDirection = 'forward' | 'back' | 'root' | 'tab' | 'none'
+
 export interface NativeNavigationPluginLike {
   configure(options: { contentInsetMode?: 'css' | 'none' }): Promise<unknown>
   setNavbar(options: NativeNavigationNavbarLike): Promise<unknown>
   setTabbar(options: NativeNavigationTabbarLike): Promise<unknown>
+  /** Covers the WebView with a snapshot of it until `finishTransition` (missing in older plugin versions). */
+  beginTransition?(options: { direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<{ id: string }>
+  /** Animates the snapshot away: a crossfade for `tab`. */
+  finishTransition?(options: { id?: string, direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<unknown>
   addListener(event: 'tabSelect', listener: (event: { id: string }) => void): Promise<ListenerHandle>
   addListener(event: 'navbarBack', listener: (event: unknown) => void): Promise<ListenerHandle>
 }

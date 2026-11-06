@@ -114,6 +114,12 @@ export function isTabRoot(tab: Pick<MobileTab, 'to'> | undefined, path: string):
   return !!tab && matchesPath(tab.to.split(/[?#]/)[0] || '/', path)
 }
 
+/** The tab whose own page `path` is (the page kept alive between tab switches), if any. */
+export function tabRootAt<T extends Pick<MobileTab, 'id' | 'match' | 'to'>>(tabs: T[], path: string, preferredId?: string): T | undefined {
+  const tab = findActiveTab(tabs, path, preferredId)
+  return tab && isTabRoot(tab, path) ? tab : undefined
+}
+
 /** Whether every tab's `to` is a page of the app. Returns the tabs that are not. */
 export function findTabsWithoutPage(tabs: Pick<MobileTab, 'id' | 'to'>[], pagePaths: string[]): string[] {
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

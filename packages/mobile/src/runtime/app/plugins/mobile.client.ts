@@ -1,5 +1,7 @@
-import { defineNuxtPlugin, useColorMode, useRuntimeConfig, watch } from '#imports'
+import { defineNuxtPlugin, onNuxtReady, preloadRouteComponents, useColorMode, useRouter, useRuntimeConfig, watch } from '#imports'
+import type { MobilePageMeta } from '../../../types'
 import { OPEN_OVERLAY_SELECTOR } from '../../shared/chrome'
+import { tabRootAt } from '../../shared/tabs'
 import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useNative } from '../composables/useNative'
@@ -7,11 +9,12 @@ import { useOverlayCount } from '../utils/state'
 
 /**
  * The shell's client side: classes on `<html>` for the insets CSS, the open-overlay count, `:active` states on iOS,
- * switch haptics, the keyboard accessory bar and a status bar that follows the colour mode.
+ * tab pages kept alive and preloaded, switch haptics, the keyboard accessory bar and a status bar that follows the
+ * colour mode.
  */
 export default defineNuxtPlugin({
   name: 'mobile',
-  setup() {
+  setup(nuxtApp) {
     const config = useRuntimeConfig().public.mobile
     const capacitor = useCapacitor()
     const { state } = useMobileChrome()
@@ -24,6 +27,40 @@ export default defineNuxtPlugin({
       root.classList.toggle('mobile-chrome-web', mode === 'web')
       root.classList.toggle('mobile-has-tabbar', tabBar)
     }, { immediate: true })
+
+    const router = useRouter()
+    const tabRoot = (path: string, meta: { mobile?: unknown }) => tabRootAt(state.value.tabs, path, (meta.mobile as MobilePageMeta | undefined)?.tab)
+
+    if (config.keepTabsAlive) {
+      // Like a native tab bar: each tab's own page stays mounted and scrolled where it was left. `NuxtPage` keeps a
+      // page alive when its route meta says so; a page's own `keepalive: false` wins.
+      const scroll = new Map<string, number>()
+      let restore: number | undefined
+      router.beforeEach((to, from) => {
+        if (tabRoot(from.path, from.meta)) scroll.set(from.path, window.scrollY)
+        restore = undefined
+        if (!tabRoot(to.path, to.meta)) return
+        to.meta.keepalive ??= true
+        const saved = scroll.get(to.path)
+        if (to.meta.keepalive && saved !== undefined && to.path !== from.path) {
+          to.meta.scrollToTop = false
+          restore = saved
+        }
+      })
+      // Before the page shows (and under the native crossfade), so the page never jumps.
+      nuxtApp.hook('page:loading:end', () => {
+        if (restore === undefined) return
+        window.scrollTo({ top: restore, behavior: 'instant' })
+        restore = undefined
+      })
+    }
+
+    // Load every tab's page code up front, so switching never waits for a chunk.
+    onNuxtReady(() => {
+      watch(() => state.value.tabs.map(tab => tab.to).join('\n'), (paths) => {
+        for (const path of paths.split('\n').filter(Boolean)) void preloadRouteComponents(path).catch(() => {})
+      }, { immediate: true })
+    })
 
     // Nuxt UI portals overlays into <body> and flips `data-state` as they open and close.
     const count = () => {

@@ -37,7 +37,7 @@
     "@capgo/capacitor-native-navigation": "^8.16.0",
     "@frigear-nu/auth": "^0.3.3",
     "@frigear-nu/authorization": "^0.3.2",
-    "@frigear-nu/mobile": "^0.2.3",
+    "@frigear-nu/mobile": "^0.3.0",
     "@iconify-json/lucide": "^1.2.150",
     "@nuxt/ui": "^4.12.0",
     "nuxt": "^4.6.1",

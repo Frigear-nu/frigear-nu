@@ -134,6 +134,8 @@ Options go under the `mobile` key.
 | `spa` | `boolean` | `true` | Sets `ssr: false`, because Capacitor serves a static build. |
 | `layout` | `string \| false` | `'mobile'` | The name of the shell layout. `false` for none. |
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
+| `keepTabsAlive` | `boolean` | `true` | Each tab's own page stays as it was left between tab switches. See [Tab switching](#tab-switching). |
+| `tabTransitionDuration` | `number` | `180` | The crossfade between tabs with the native tab bar, in ms. `0` for none. |
 | `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
 | `native.switchHaptics` | `boolean` | `true` | A tick when a `role="switch"` is tapped. |
@@ -248,6 +250,7 @@ The composables and components below are auto-imported.
 | `useMobileTabs()` | `tabs`, `label(tab)` and `title(tab)`. |
 | `useMobileChrome()` | `state`, `native` and `suppress()`, which hides the tab bar until you call the function it returns. |
 | `useNative()` | See [Native features](#native-features). |
+| `onTabEnter(fn)` | Runs `fn` when the user comes back to a page kept alive. See [Tab switching](#tab-switching). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
 | `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
 | `MobileHeader` | The web header, with `leading` and `trailing` slots. |
@@ -268,6 +271,39 @@ and `mobile-has-tabbar`.
 On iOS, with `@capgo/capacitor-native-navigation` installed, the navbar and the tab bar are native. In a browser and on
 Android the module draws `MobileHeader` and `MobileTabBar` instead. `nativeChrome: 'all'` uses the native ones on
 Android too, with `androidIcon` drawables.
+
+### Tab switching
+
+Switching tabs works like a native tab bar. The page you leave stays as it was, and the page you open appears only once
+it is ready.
+
+- **Tab pages stay alive.** A tab's own page (its `to`) stays mounted, with its scroll position and data, when you
+  switch to another tab. Pages below a tab still remount. A page opts out with `definePageMeta({ keepalive: false })`,
+  and `keepTabsAlive: false` turns this off for the app.
+- **Tab pages load up front.** The code of every tab's page is preloaded once the app is ready.
+- **No half-built pages with native chrome.** A tap in the native tab bar covers the WebView with a snapshot of the old
+  page. The new page renders under it, the navbar title changes, and then the snapshot crossfades away.
+
+The crossfade waits for every async `setup` of the new page, up to one second. Await a tab page's first request, so the
+page is revealed with its data and not with a skeleton. Then refresh it in the background with `onTabEnter`, which runs
+each time the user comes back to the page, but not on the first visit:
+
+```vue
+<script setup lang="ts">
+const { data: me, status, refresh } = await useApi<Me>('/api/me')
+onTabEnter(() => refresh())
+</script>
+
+<template>
+  <!-- A skeleton only while there is no data yet, not during a background refresh. -->
+  <USkeleton v-if="!me && status === 'pending'" class="h-10 w-full" />
+</template>
+```
+
+::note
+The crossfade uses the plugin's `beginTransition`, which the starters' version (8.16) has. A plugin version without
+it switches tabs without a crossfade.
+::
 
 ### Native features
 
