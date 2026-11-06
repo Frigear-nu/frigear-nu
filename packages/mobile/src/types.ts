@@ -135,7 +135,7 @@ export interface ModuleOptions {
   }
   /**
    * A splash screen over the app until its first page has rendered (and whatever the app holds it for, with
-   * `useMobileSplash()`). `true` (default): `MobileSplashScreen`; a string: a component by name; `false`: none.
+   * `useMobileSplash()`). Off by default. `true`: `MobileSplashScreen`; a string: a component by name; an object: options.
    */
   splashScreen?: boolean | string | SplashScreenOptions
   /** Deep links routed into the app (OAuth callbacks are always left to `@frigear-nu/auth`). */

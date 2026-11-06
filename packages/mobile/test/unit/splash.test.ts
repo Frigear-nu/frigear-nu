@@ -2,15 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { createSplashController, resolveSplashScreen, type SplashTimers } from '../../src/runtime/shared/splash'
 
 describe('resolveSplashScreen', () => {
-  it('defaults to MobileSplashScreen, with the native launch screen handed over', () => {
-    const { splash, errors } = resolveSplashScreen(undefined)
-    expect(errors).toEqual([])
-    expect(splash).toMatchObject({ enabled: true, component: 'MobileSplashScreen', native: true, minDuration: 400, maxDuration: 10_000 })
-    expect(resolveSplashScreen(true).splash).toEqual(splash)
+  it('is off unless configured', () => {
+    expect(resolveSplashScreen(undefined).splash).toMatchObject({ enabled: false, component: '', native: false })
+    expect(resolveSplashScreen(false).splash).toEqual(resolveSplashScreen(undefined).splash)
   })
 
-  it('turns off with false', () => {
-    expect(resolveSplashScreen(false).splash).toMatchObject({ enabled: false, component: '', native: false })
+  it('turns on with true: MobileSplashScreen, with the native launch screen handed over', () => {
+    const { splash, errors } = resolveSplashScreen(true)
+    expect(errors).toEqual([])
+    expect(splash).toMatchObject({ enabled: true, component: 'MobileSplashScreen', native: true, minDuration: 400, maxDuration: 10_000 })
+    expect(resolveSplashScreen({}).splash).toEqual(splash)
   })
 
   it('takes a component name or options', () => {

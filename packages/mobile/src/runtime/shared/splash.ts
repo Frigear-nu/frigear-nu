@@ -12,11 +12,11 @@ export interface ResolvedSplashScreen extends MobileSplashConfig {
   component: string
 }
 
-/** `mobile.splashScreen` (`true`, `false`, a component name or options) as one shape. */
+/** `mobile.splashScreen` (`true`, `false`, a component name or options) as one shape. Off unless configured. */
 export function resolveSplashScreen(option: boolean | string | SplashScreenOptions | undefined): { splash: ResolvedSplashScreen, errors: string[] } {
   const errors: string[] = []
-  const options: SplashScreenOptions = option === false ? {} : typeof option === 'string' ? { component: option } : option === true || option === undefined ? {} : option
-  const enabled = option !== false
+  const options: SplashScreenOptions = typeof option === 'string' ? { component: option } : typeof option === 'object' ? option : {}
+  const enabled = option !== undefined && option !== false
   const component = enabled ? (options.component || DEFAULT_SPLASH_COMPONENT) : ''
   if (component && !/^[A-Z][\dA-Za-z]*$/.test(component)) errors.push(`\`splashScreen.component\` "${component}" is not a PascalCase component name.`)
   const duration = (key: 'minDuration' | 'maxDuration') => {

@@ -9,8 +9,9 @@ A Capacitor app shell for Nuxt. It turns a Nuxt app into an iOS / Android app wi
 - page titles from `definePageMeta({ mobile: { title } })`, else the selected tab, else the app name
 - safe areas, an iOS type scale, `:active` states on iOS, no tap highlight, switch haptics, the keyboard accessory bar
   and a status bar that follows the colour mode
-- a splash screen from the native launch image (`@capacitor/splash-screen`) to the first page: `MobileSplashScreen`,
-  replaced by the app's `components/Mobile/SplashScreen.vue`, held with `useMobileSplash()`
+- an opt-in splash screen (`splashScreen: true`) from the native launch image (`@capacitor/splash-screen`) to the
+  first page: `MobileSplashScreen`, replaced by the app's `components/Mobile/SplashScreen.vue`, held with
+  `useMobileSplash()`
 - `useNative()`: haptics, action sheets, confirms and sharing with web fallbacks
 - deep links (custom schemes, universal links) routed into the app, the Android back button
 - sign-in through [`@frigear-nu/auth`](../auth) in client mode (installed for you when `authentication` is configured);
@@ -100,7 +101,7 @@ Suggested scripts: `"ios:run": "frigear-mobile native --if-missing && nuxt gener
 | `appearance.iosTypeScale` | `true` | iOS text sizes (17pt body) |
 | `appearance.tapHighlight` | `true` | no grey tap flash |
 | `appearance.toasterOffset` | `true` | `useMobileToaster()` puts toasts at the top, below the navbar |
-| `splashScreen` | `true` | the splash screen; `false` for none, a component name, or `{ component, logo, background, minDuration, maxDuration, native }` |
+| `splashScreen` | `false` | the splash screen: `true`, a component name, or `{ component, logo, background, minDuration, maxDuration, native }` |
 | `deepLinks.schemes` | `[appId]` | custom schemes routed into the app; `false` for none |
 | `deepLinks.hosts` | `[]` | `https` hosts of universal links / app links |
 | `dev.lanHost` | `true` | for `MOBILE_LAN` builds, see [Device development](#device-development) |
