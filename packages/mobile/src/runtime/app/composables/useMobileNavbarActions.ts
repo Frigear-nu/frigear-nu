@@ -6,8 +6,9 @@ import { useNavbarActionRegistry } from '../utils/state'
 /**
  * Navbar buttons of the calling page, in the native navbar on iOS and in `MobileHeader` elsewhere. Pass a ref or a
  * getter for actions that change (a disabled Save, a count in the label). They show while the page is the current
- * one: added in setup (so server rendering has them), removed on unmount and while a kept-alive page is in the
- * background.
+ * one: added in setup, removed on unmount and while a kept-alive page is in the background. With server rendering
+ * the header renders before the page, so these show once the page is set up in the browser; `definePageMeta`
+ * actions are in the server HTML too.
  *
  * ```ts
  * useMobileNavbarActions([

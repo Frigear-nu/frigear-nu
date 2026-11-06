@@ -269,7 +269,8 @@ definePageMeta({
 
 For actions that change, or that call into the page, use `useMobileNavbarActions()` in the page's `<script setup>`
 with a ref or a getter. The actions are added in setup and removed on unmount, and while a kept-alive page is in the
-background. They follow the `definePageMeta` ones; one with the same `id` replaces it.
+background. They follow the `definePageMeta` ones; one with the same `id` replaces it. With `spa: false` they show
+once the page is set up in the browser, not in the server HTML: put actions that must be there in `definePageMeta`.
 
 ```ts
 const saving = ref(false)
