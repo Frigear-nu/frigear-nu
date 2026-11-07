@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   const updated = await users.update(user.id, { lastLoginAt: new Date() })
 
-  await setUserSession(event, { user: mapUserToSession(updated ?? user) })
+  await replaceUserSession(event, { user: mapUserToSession(updated ?? user) })
 
   return { id: user.id }
 })

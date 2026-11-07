@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await notifyAuthCredentialsChanged({ userId: user.id, reason: 'password-reset', event })
-  await setUserSession(event, { user: mapUserToSession(user) })
+  await replaceUserSession(event, { user: mapUserToSession(user) })
 
   return { id: user.id }
 })

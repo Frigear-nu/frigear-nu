@@ -51,7 +51,7 @@ export default defineWebAuthnAuthenticateEventHandler({
       throw apiError(403, 'email_not_verified', 'Please verify your email address before logging in.')
     }
 
-    await setUserSession(event, { user: mapUserToSession(dbUser) })
+    await replaceUserSession(event, { user: mapUserToSession(dbUser) })
   },
   // A failed verification (nuxt-auth-utils' bare 400, or a 500 for a malformed response) is the same generic 401;
   // the toolkit errors above pass through as they are.

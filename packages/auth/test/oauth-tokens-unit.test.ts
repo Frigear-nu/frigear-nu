@@ -64,7 +64,11 @@ describe('handleFrigearLogin', async () => {
   vi.stubGlobal('parseRoleClaim', () => undefined)
   vi.stubGlobal('parseColorModeClaim', () => undefined)
   vi.stubGlobal('mapUserToSession', (user: unknown) => user)
-  vi.stubGlobal('setUserSession', async () => ({}))
+  const replaceUserSession = vi.fn(async () => ({}))
+  vi.stubGlobal('setUserSession', async () => {
+    throw new Error('A frigear.nu sign-in must replace the session, not merge into it.')
+  })
+  vi.stubGlobal('replaceUserSession', replaceUserSession)
   vi.stubGlobal('consumeLoginRedirect', () => '/')
   vi.stubGlobal('sendRedirect', async () => undefined)
   const { handleFrigearLogin } = await import('../src/runtime/server/utils/frigear-login')
@@ -76,6 +80,7 @@ describe('handleFrigearLogin', async () => {
     storeOAuthTokens.mockClear()
     await handleFrigearLogin({} as never, sso, { email: 'ada@example.com' }, response)
     expect(storeOAuthTokens).toHaveBeenCalledWith(7, 'frigear', expect.objectContaining({ accessToken: 'access', refreshToken: 'refresh', scopes: ['openid', 'users:read'] }))
+    expect(replaceUserSession).toHaveBeenCalled()
   })
 
   it('keeps nothing without it', async () => {

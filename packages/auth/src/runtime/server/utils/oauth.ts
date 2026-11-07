@@ -122,7 +122,7 @@ export async function handleOAuthUser(event: H3Event, provider: string, profile:
   const updated = await users.update(user.id, { lastLoginAt: now, ...(!user.emailVerifiedAt && { emailVerifiedAt: now }) })
   if (options.tokens) await storeOAuthTokens(user.id, provider, parseOAuthTokenResponse(options.tokens, requestedScopes(provider)))
 
-  await setUserSession(event, { user: mapUserToSession(updated ?? user) })
+  await replaceUserSession(event, { user: mapUserToSession(updated ?? user) })
 
   return sendRedirect(event, consumeLoginRedirect(event))
 }

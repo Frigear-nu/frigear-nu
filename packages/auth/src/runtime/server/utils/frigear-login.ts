@@ -37,7 +37,7 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
     return authLoginErrorRedirect(event, 'oauth-unverified')
   }
 
-  await setUserSession(event, {
+  await replaceUserSession(event, {
     user: mapUserToSession(user),
     frigear: {
       id: String(claims.sub),
