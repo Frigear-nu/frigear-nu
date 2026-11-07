@@ -22,10 +22,10 @@ export default defineEventHandler(async (event) => {
 
   const code = createOneTimeCode()
   const expiresAt = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000)
+  // Built before the code is stored: without a site URL nothing is stored.
+  const resetUrl = authSiteUrl(event, `/reset-password?code=${code}`)
 
   await db.insert(schema.passwordResets).values({ userId: user.id, code, expiresAt })
-
-  const resetUrl = new URL(`/reset-password?code=${code}`, getRequestURL(event).origin).toString()
 
   await dispatchPasswordResetEmail({ to: user.email, resetUrl })
 

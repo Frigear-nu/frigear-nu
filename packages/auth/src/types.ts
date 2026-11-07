@@ -170,6 +170,18 @@ export interface AuthSettings {
     callback?: boolean
   }
   /**
+   * The public URL of the site, which emailed links (password reset, magic links, email verification and changes)
+   * point at. Becomes `runtimeConfig.public.siteUrl`, which `NUXT_PUBLIC_SITE_URL` sets at runtime; defaults to
+   * `NUXT_SITE_URL` at build time. Required in production unless `trustRequestOrigin` is on.
+   */
+  siteUrl?: string
+  /**
+   * Without a site URL, build emailed links from the request's origin in production too. Only for platforms that
+   * route requests by host, so a request for another host never reaches the app (Cloudflare Workers). Defaults to
+   * `false`: without a site URL those emails fail with a 500 (`nuxt dev` always uses the request origin).
+   */
+  trustRequestOrigin?: boolean
+  /**
    * Where users go after signing in (password, passkey, magic link, OAuth/SSO) when no `redirect` was requested.
    * Must be an absolute path on this site. Defaults to `/`.
    */

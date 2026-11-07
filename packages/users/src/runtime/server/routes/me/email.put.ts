@@ -19,6 +19,8 @@ export default defineEventHandler(async (event) => {
   // The new address only takes effect once its owner confirms it (see verify-email-change).
   if (useRuntimeConfig(event).users?.verifyEmailChange) {
     const code = createOneTimeCode()
+    // Built before the change is stored: without a configured site URL nothing is stored.
+    const url = authSiteUrl(event, `/auth/verify-email-change?code=${code}`)
     await db.insert(schema.accountEmailChanges).values({
       userId: user.id,
       oldEmail: user.email,
@@ -28,7 +30,6 @@ export default defineEventHandler(async (event) => {
       expiresAt: new Date(Date.now() + VERIFY_TTL_HOURS * 60 * 60 * 1000),
     })
 
-    const url = new URL(`/auth/verify-email-change?code=${code}`, getRequestURL(event).origin).toString()
     await dispatchEmailNotification(buildVerifyEmailChangeNotification({ to: email, name: user.name, url }))
 
     // The address is unchanged until confirmed; answer the stored row, not the session snapshot.

@@ -5,6 +5,7 @@ import {
   addServerHandler,
   addTemplate,
   addServerImportsDir,
+  addServerPlugin,
   addServerTemplate,
   addTypeTemplate,
   createResolver,
@@ -94,7 +95,14 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    authentication?: { tokenTtlDays: number | null, apiTokenPrefix: string, magicLinkSignUp: boolean, magicLinkCooldown: number }
+    authentication?: {
+      tokenTtlDays: number | null
+      apiTokenPrefix: string
+      magicLinkSignUp: boolean
+      magicLinkCooldown: number
+      // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
+      trustRequestOrigin: boolean
+    }
     // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); falls back to a key derived from the session password.
     authTokensKey?: string
     // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
@@ -120,6 +128,8 @@ declare module 'nuxt/schema' {
 
   interface PublicRuntimeConfig {
     authentication?: PublicModuleOptions
+    // The public URL of the site (`NUXT_PUBLIC_SITE_URL`); emailed links point here (`authSiteOrigin`).
+    siteUrl?: string
   }
 
   interface AppConfigInput {
@@ -271,7 +281,12 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     apiTokenPrefix,
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    trustRequestOrigin: settings.trustRequestOrigin === true,
   }
+  // Where emailed links point (`authSiteOrigin`); `NUXT_PUBLIC_SITE_URL` sets it at runtime.
+  const publicConfig = nuxt.options.runtimeConfig.public as { siteUrl?: string }
+  publicConfig.siteUrl ||= settings.siteUrl || process.env.NUXT_SITE_URL || ''
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/site-url'))
 
   // Bearer resolvers: the built-in user-token one plus whatever other modules register.
   addServerTemplate({

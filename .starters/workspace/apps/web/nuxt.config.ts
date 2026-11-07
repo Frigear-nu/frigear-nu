@@ -20,6 +20,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // NUXT_ACL_ADMINS: comma separated emails that are always admins (see server/utils/acl.ts).
     aclAdmins: '',
+    public: {
+      // NUXT_PUBLIC_SITE_URL: the public URL of the site. Emailed links (password reset, sign-in, verification) point
+      // here; in production they fail until it is set.
+      siteUrl: '',
+    },
   },
 
   compatibilityDate: '2026-06-30',

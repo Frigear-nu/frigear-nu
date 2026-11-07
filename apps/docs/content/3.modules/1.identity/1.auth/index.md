@@ -130,8 +130,16 @@ Options go under the `authentication` key.
 | `settings.pages.register` | `string \| boolean` | off | The sign-up page. `true` means `/register`. May be an absolute URL. |
 | `settings.pages.callback` | `boolean` | `true` | Client mode only: the callback page. |
 | `settings.afterLogin` | `string` | `'/'` | Where users land after signing in. |
+| `settings.siteUrl` | `string` | `NUXT_SITE_URL` | The public URL emailed links point at. Becomes `runtimeConfig.public.siteUrl` (`NUXT_PUBLIC_SITE_URL`). |
+| `settings.trustRequestOrigin` | `boolean` | `false` | Without a site URL, build emailed links from the request's origin in production too. |
 | `settings.session.mapper` | `string` | pass-through | Path to a default-export function that maps the stored user to the session user. |
 | `settings.oauth` | `Record<provider, boolean \| { … }>` | `{}` | Changes per OAuth provider. `false` keeps one off. |
+
+**`settings.siteUrl`.** Password reset, magic link and verification emails (and the email change emails of
+[Users](/modules/identity/users)) link to this URL, never to the request's `Host` header, which the client chooses.
+Set `NUXT_PUBLIC_SITE_URL` in production. Without it those emails fail with `500 site_url_missing`, and the server warns
+at startup. `nuxt dev` uses the request's origin. Turn on `settings.trustRequestOrigin` only on a platform that routes
+by host, so a request for another host never reaches the app, such as Cloudflare Workers.
 
 **`mode`.** Set it in your app's own `nuxt.config`. A mode from inline module options or from another module's
 default fails the build.

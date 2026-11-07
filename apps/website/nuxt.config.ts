@@ -228,6 +228,11 @@ export default defineNuxtConfig({
   },
   authentication: {
     settings: {
+      // Emailed links (password reset, sign-in, verification) point at the known public URL (NUXT_PUBLIC_SITE_URL
+      // overrides). PR previews have no fixed URL: there, and whenever none is known, they use the request's origin,
+      // which Cloudflare fixes by routing (a request for another host never reaches this Worker).
+      siteUrl: process.env.PR_NUMBER ? undefined : knownSiteUrl,
+      trustRequestOrigin: true,
       afterLogin: '/account',
       // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
       pages: {
