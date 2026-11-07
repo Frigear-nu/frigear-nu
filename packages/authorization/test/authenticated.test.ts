@@ -134,23 +134,44 @@ describe('authorization (authenticated)', async () => {
   })
 
   describe('bearer tokens (via @frigear-nu/auth)', () => {
-    async function createToken(cookie: string) {
+    async function createToken(cookie: string, scopes: string[] = ['*']) {
       const response = await fetch(authApi.me.tokens, {
         method: 'POST',
         headers: { 'content-type': 'application/json', cookie },
-        body: JSON.stringify({ name: 'test', scopes: ['*'] }),
+        body: JSON.stringify({ name: 'test', scopes }),
       })
       expect(response.status, await response.clone().text()).toBe(201)
       return (await response.json() as { token: string }).token
     }
 
-    it('applies route rules to API tokens, as the owner with their role', async () => {
+    it('applies route rules to API tokens, as the owner (a role rule is session-only by default)', async () => {
       const userToken = await createToken(userCookie)
       const adminToken = await createToken(adminCookie)
 
       await expect($fetch('/api/members', { headers: { authorization: `Bearer ${userToken}` } })).resolves.toEqual({ members: true })
       await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${userToken}` } })).rejects.toMatchObject({ statusCode: 403 })
-      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${adminToken}` } })).resolves.toEqual({ secret: 42 })
+      // Even a full-access token of an admin does not pass a plain role rule: the rule is session-only.
+      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${adminToken}` } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch('/api/admin/stats', { headers: { cookie: adminCookie } })).resolves.toEqual({ secret: 42 })
+    })
+
+    it('lets a rule opt bearer credentials in, with the scopes it lists', async () => {
+      const full = await createToken(adminCookie)
+      const reports = await createToken(adminCookie, ['reports:read'])
+      const other = await createToken(adminCookie, ['reports:write'])
+      const userReports = await createToken(userCookie, ['reports:read'])
+      const bearer = (token: string) => ({ headers: { authorization: `Bearer ${token}` } })
+
+      await expect($fetch('/api/reports', bearer(reports))).resolves.toEqual({ reports: true })
+      await expect($fetch('/api/reports', bearer(full))).resolves.toEqual({ reports: true })
+      await expect($fetch('/api/reports', bearer(other))).rejects.toMatchObject({ statusCode: 403 })
+      // The role still applies.
+      await expect($fetch('/api/reports', bearer(userReports))).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch('/api/reports', { headers: { cookie: adminCookie } })).resolves.toEqual({ reports: true })
+
+      // `sessionOnly: false` accepts any scopes.
+      await expect($fetch('/api/open-admin', bearer(other))).resolves.toEqual({ open: true })
+      await expect($fetch('/api/open-admin', bearer(userReports))).rejects.toMatchObject({ statusCode: 403 })
     })
 
     it('treats an invalid token as unauthenticated, even next to a valid session', async () => {
@@ -161,11 +182,11 @@ describe('authorization (authenticated)', async () => {
     it('reads the role fresh, while the session keeps the role from login', async () => {
       const linus = await register({ name: 'Linus', email: 'linus@example.com', password })
       const token = await createToken(linus.cookie)
-      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
 
       await $fetch('/api/test/make-admin', { method: 'POST', body: { email: 'linus@example.com' } })
 
-      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ secret: 42 })
+      await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ open: true })
       // The session snapshot is stale until the next login.
       await expect($fetch('/api/admin/stats', { headers: { cookie: linus.cookie } })).rejects.toMatchObject({ statusCode: 403 })
     })

@@ -1,5 +1,5 @@
 import { defineEventHandler, createError } from 'h3'
-import { evaluateRule, normalizeRequestPath, resolveRule } from '../../utils'
+import { evaluateRule, normalizeRequestPath, resolveRule, splitResolvedUser } from '../../utils'
 import { abilities } from '#authorization/abilities'
 import resolveServerUser from '#authorization/server-resolver'
 import { useRuntimeConfig } from '#imports'
@@ -22,7 +22,8 @@ export default defineEventHandler(async (event) => {
   const rule = resolveRule(config?.routes, pathname, config?.exempt)
   if (!rule) return
 
-  const response = await evaluateRule(rule, await resolveServerUser(event), abilities)
+  const { user, credential } = splitResolvedUser(await resolveServerUser(event))
+  const response = await evaluateRule(rule, user, abilities, credential)
   if (!response.authorized) {
     throw createError({ statusCode: response.statusCode ?? 403, message: response.message })
   }
