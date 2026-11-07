@@ -200,7 +200,8 @@ export default defineNuxtModule<ModuleOptions>({
       previousPublicKeys: '',
       ...existing,
       ...(devPrivateKey ? { privateKey: devPrivateKey } : {}),
-      issuer: options.issuer,
+      // `''` rather than `undefined`: an undefined key is dropped from runtimeConfig, so `NUXT_OAUTH_SERVER_ISSUER` could not set it.
+      issuer: options.issuer ?? '',
       keyId: options.keyId ?? 'key-1',
       accessTokenTtl,
       accessTokenAudience,
