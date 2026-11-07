@@ -1,8 +1,7 @@
 import type { H3Event } from 'h3'
 import type { CallToolResult, McpResolvedConfig } from '@nuxtjs/mcp-toolkit/server'
 import { defineNitroPlugin } from 'nitropack/runtime'
-import { z } from 'zod'
-import { SCOPED_META_KEY } from '../../utils/access'
+import { filterMcpConfig } from '../../utils/access'
 
 // The toolkit's own runtime hook types are only augmented when its module types are loaded.
 declare module 'nitropack' {
@@ -18,24 +17,9 @@ declare module 'nitropack' {
  * - audit: who called which tool, never the arguments or the result.
  */
 export default defineNitroPlugin((nitroApp) => {
+  // Fails closed: if the filter throws, the toolkit only logs it and would keep every definition listed.
   nitroApp.hooks.hook('mcp:config:resolved', ({ config }) => {
-    const scoped = <T extends { _meta?: Record<string, unknown> }>(definition: T) => definition._meta?.[SCOPED_META_KEY] === true
-    // One tool whose input cannot be described as JSON Schema (zod transforms, coerced dates, ...)
-    // would otherwise make `tools/list` fail for every caller, so it is dropped and logged.
-    const serializable = (tool: { name?: string, inputSchema?: unknown }) => {
-      if (!tool.inputSchema) return true
-      try {
-        z.toJSONSchema(z.object(tool.inputSchema as z.ZodRawShape), { io: 'input' })
-        return true
-      }
-      catch (error) {
-        console.error(`[mcp] dropping tool "${tool.name}": its input schema is not JSON Schema compatible`, error)
-        return false
-      }
-    }
-    config.tools = config.tools.filter(scoped).filter(serializable)
-    config.resources = config.resources.filter(scoped)
-    config.prompts = config.prompts.filter(scoped)
+    filterMcpConfig(config)
   })
 
   nitroApp.hooks.hook('mcp:tool:called', ({ name, result, durationMs, event }) => {
