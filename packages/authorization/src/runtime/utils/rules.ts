@@ -140,3 +140,28 @@ export function splitResolvedUser(resolved: unknown): { user: { role?: string } 
   }
   return { user: resolved as { role?: string }, credential: null }
 }
+
+/**
+ * The route rule patterns that neither match a page nor sit under `/api/`. Only pages (the app route middleware) and
+ * `/api/**` (the Nitro middleware) are enforced: a rule for a server route such as `/mcp` or `/oauth/**` would
+ * silently do nothing on the server. `pagePaths` are the vue-router paths of the app (`/users/:id()`, `/:all(.*)*`);
+ * `localePrefixes` are the `/<locale>` prefixes pages may also be served under. `/**` is a catch-all and never listed.
+ */
+export function findUnenforcedPatterns(patterns: string[], pagePaths: string[], localePrefixes: string[] = []): string[] {
+  // A catch-all page (`/docs/:slug(.*)*`) serves everything below its base.
+  const catchAllBases = pagePaths.filter(path => /\/:[^/]*\(\.\*\)\*/.test(path)).map(path => path.slice(0, path.search(/\/:[^/]*\(\.\*\)\*/)))
+  const concrete = pagePaths.map(path => path
+    .replace(/\/:[^/]*\(\.\*\)\*/g, '/x/x')
+    .replace(/\/:[^/]*/g, '/x')
+    .replace(/\/{2,}/g, '/') || '/')
+  const variants = concrete.flatMap(path => [path, ...localePrefixes
+    .filter(prefix => path === prefix || path.startsWith(`${prefix}/`))
+    .map(prefix => path.slice(prefix.length) || '/')])
+  return patterns.filter((pattern) => {
+    if (pattern === '/**' || pattern.startsWith('/api/') || pattern === '/api') return false
+    // The literal part of the pattern, before its first wildcard segment.
+    const literal = pattern.split(/\/\*\*?(?:\/|$)/, 1)[0]!
+    if (catchAllBases.some(base => literal === base || literal.startsWith(`${base}/`))) return false
+    return !variants.some(path => matchRoute(pattern, path))
+  })
+}

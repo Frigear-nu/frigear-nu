@@ -8,6 +8,7 @@ import {
   deny,
   denies,
   evaluateRule,
+  findUnenforcedPatterns,
   matchRoute,
   normalizeRequestPath,
   resolveRule,
@@ -196,5 +197,22 @@ describe('route rules and the credential kind', () => {
     expect(splitResolvedUser(null)).toEqual({ user: null, credential: null })
     expect(splitResolvedUser({ id: 1, role: 'admin' })).toEqual({ user: { id: 1, role: 'admin' }, credential: null })
     expect(splitResolvedUser({ kind: 'oauth', user: { id: 1 }, scopes: ['openid'] })).toEqual({ user: { id: 1 }, credential: { kind: 'oauth', scopes: ['openid'] } })
+  })
+})
+
+describe('findUnenforcedPatterns', () => {
+  const pages = ['/', '/admin', '/admin/units', '/posts/:id()', '/de/pricing']
+
+  it('lists patterns that match no page and are not under /api/', () => {
+    const patterns = ['/admin/**', '/posts/*', '/api/admin/**', '/mcp', '/oauth/**', '/**', '/pricing']
+    expect(findUnenforcedPatterns(patterns, pages, ['/de'])).toEqual(['/mcp', '/oauth/**'])
+  })
+
+  it('treats a catch-all page as matching everything below it', () => {
+    expect(findUnenforcedPatterns(['/docs/guide'], ['/docs/:slug(.*)*'])).toEqual([])
+  })
+
+  it('lists every non-API pattern when the app has no pages', () => {
+    expect(findUnenforcedPatterns(['/admin/**', '/api/x'], [])).toEqual(['/admin/**'])
   })
 })

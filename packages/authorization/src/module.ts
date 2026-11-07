@@ -12,11 +12,13 @@ import {
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
+  useLogger,
 } from '@nuxt/kit'
 import type { ModuleDependencyMeta, Nuxt } from '@nuxt/schema'
 import { extendDatabaseTable, registerModule, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { ROUTE_RULE_KEYS } from './runtime/utils/types'
+import { findUnenforcedPatterns } from './runtime/utils/rules'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
 export type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
@@ -99,6 +101,37 @@ export default defineNuxtModule<ModuleOptions>({
       const redirectTo = options.redirectTo ?? (server ? undefined : authentication?.client?.redirect?.login)
       nuxt.options.runtimeConfig.public.authorization = { routes, exempt, redirectTo: redirectTo || undefined }
     })
+
+    // Only pages and `/api/**` are enforced. A rule for another server route (`/mcp`, `/oauth/**`) would do nothing
+    // on the server, so say so once the pages are known (`build:before` covers an app without pages).
+    let checkedUnenforced = false
+    const warnUnenforced = (pagePaths: string[]) => {
+      if (checkedUnenforced) return
+      checkedUnenforced = true
+      const configured = nuxt.options.runtimeConfig.public.authorization?.routes ?? {}
+      const locales = ((nuxt.options as { i18n?: { locales?: (string | { code: string })[] } }).i18n?.locales ?? [])
+        .map(locale => `/${typeof locale === 'string' ? locale : locale.code}`)
+      const unenforced = findUnenforcedPatterns(Object.keys(configured), pagePaths, locales)
+      if (unenforced.length) {
+        useLogger('@frigear-nu/authorization').warn(
+          `Route rules for ${unenforced.map(pattern => `"${pattern}"`).join(', ')} match no page and are not under /api/, so they are not enforced on the server. `
+          + 'Guard those routes in their handler (requireAuth).',
+        )
+      }
+    }
+    nuxt.hook('pages:resolved', (pages) => {
+      const paths: string[] = []
+      const collect = (list: { path: string, children?: unknown[] }[], base = '') => {
+        for (const page of list) {
+          const path = page.path.startsWith('/') ? page.path : `${base}/${page.path}`
+          paths.push(path)
+          collect((page.children ?? []) as { path: string, children?: unknown[] }[], path)
+        }
+      }
+      collect(pages as { path: string, children?: unknown[] }[])
+      warnUnenforced(paths)
+    })
+    nuxt.hook('build:before', () => warnUnenforced([]))
 
     // `users.role` (default 'user'). Host apps must generate and commit their own migration.
     if (server) {
