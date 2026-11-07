@@ -8,9 +8,11 @@ import {
   deny,
   denies,
   evaluateRule,
+  findUnenforcedPatterns,
   matchRoute,
   normalizeRequestPath,
   resolveRule,
+  splitResolvedUser,
   normalizeAuthorizeMeta,
 } from '../src/runtime/utils'
 
@@ -156,5 +158,61 @@ describe('normalizeRequestPath', () => {
     expect(resolveRule(routes, decoded('/api/%61dmin/users'))).toEqual({ roles: ['admin'] })
     expect(resolveRule(routes, decoded('/%61pi/admin/users'))).toEqual({ roles: ['admin'] })
     expect(resolveRule(routes, decoded('/api/admin/%75nits'))).toEqual({ roles: ['owner'] })
+  })
+})
+
+describe('route rules and the credential kind', () => {
+  const session = { kind: 'session', scopes: ['*'] }
+  const token = (...scopes: string[]) => ({ kind: 'user-token', scopes })
+
+  it('refuses bearer credentials on a roles or ability rule by default', async () => {
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, token('*'))).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, { kind: 'oauth', scopes: ['*'] })).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ ability: editPost, args: [{ userId: 2 }] }, admin, {}, token('*'))).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, session)).toEqual({ authorized: true })
+    expect(await evaluateRule({ roles: ['admin'] }, admin)).toEqual({ authorized: true })
+  })
+
+  it('accepts any credential on a rule that only asks for a user', async () => {
+    expect(await evaluateRule({ authenticated: true }, owner, {}, token('profile:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule({ authenticated: true, sessionOnly: true }, owner, {}, token('*'))).toMatchObject({ statusCode: 403 })
+  })
+
+  it('lets `scopes` or `sessionOnly: false` opt bearer credentials in', async () => {
+    const rule = { roles: ['admin'], scopes: ['reports:read'] }
+    expect(await evaluateRule(rule, admin, {}, token('reports:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule(rule, admin, {}, token('reports:*'))).toEqual({ authorized: true })
+    expect(await evaluateRule(rule, admin, {}, token('profile:read'))).toMatchObject({ statusCode: 403 })
+    expect(await evaluateRule(rule, owner, {}, token('reports:read'))).toMatchObject({ statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'], sessionOnly: false }, admin, {}, token('profile:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule({ roles: ['admin'], scopes: ['reports:read'], sessionOnly: true }, admin, {}, token('reports:read'))).toMatchObject({ statusCode: 403 })
+  })
+
+  it('merges scopes and sessionOnly like the other keys', () => {
+    const routes = { '/api/**': { roles: ['admin'] }, '/api/reports': { scopes: ['reports:read'] } }
+    expect(resolveRule(routes, '/api/reports')).toEqual({ roles: ['admin'], scopes: ['reports:read'] })
+  })
+
+  it('splits a resolver result into user and credential', () => {
+    expect(splitResolvedUser(null)).toEqual({ user: null, credential: null })
+    expect(splitResolvedUser({ id: 1, role: 'admin' })).toEqual({ user: { id: 1, role: 'admin' }, credential: null })
+    expect(splitResolvedUser({ kind: 'oauth', user: { id: 1 }, scopes: ['openid'] })).toEqual({ user: { id: 1 }, credential: { kind: 'oauth', scopes: ['openid'] } })
+  })
+})
+
+describe('findUnenforcedPatterns', () => {
+  const pages = ['/', '/admin', '/admin/units', '/posts/:id()', '/de/pricing']
+
+  it('lists patterns that match no page and are not under /api/', () => {
+    const patterns = ['/admin/**', '/posts/*', '/api/admin/**', '/mcp', '/oauth/**', '/**', '/pricing']
+    expect(findUnenforcedPatterns(patterns, pages, ['/de'])).toEqual(['/mcp', '/oauth/**'])
+  })
+
+  it('treats a catch-all page as matching everything below it', () => {
+    expect(findUnenforcedPatterns(['/docs/guide'], ['/docs/:slug(.*)*'])).toEqual([])
+  })
+
+  it('lists every non-API pattern when the app has no pages', () => {
+    expect(findUnenforcedPatterns(['/admin/**', '/api/x'], [])).toEqual(['/admin/**'])
   })
 })

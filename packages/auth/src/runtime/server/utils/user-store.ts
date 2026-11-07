@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import store from '#auth/user-store'
 import type { AuthUser } from '../../types'
 
@@ -38,6 +38,21 @@ export async function deleteUserAuthData(userId: number) {
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
   if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+}
+
+/**
+ * Deletes the user's unused password reset codes and emailed sign-in (and verification) links. Call it when the user's
+ * email changes or a change is undone: they went to the previous address, and whoever reads that inbox must not be able
+ * to use them any more.
+ */
+export async function deleteUnusedAuthEmailCodes(userId: number) {
+  // Each of these tables only exists when the feature owning it is enabled.
+  if (schema.passwordResets) {
+    await db.delete(schema.passwordResets).where(and(eq(schema.passwordResets.userId, userId), isNull(schema.passwordResets.usedAt)))
+  }
+  if (schema.magicLinks) {
+    await db.delete(schema.magicLinks).where(and(eq(schema.magicLinks.userId, userId), isNull(schema.magicLinks.usedAt)))
+  }
 }
 
 /**

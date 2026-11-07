@@ -7,7 +7,7 @@ export type FrigearProfile = {
   emailVerified?: boolean
   // The frigear.nu user id (`sub`); only used when `forceId` is on.
   id?: number
-  /** The role frigear.nu says the user has; only set when role syncing is on and the claim is present. */
+  /** The local role from frigear.nu's role claim (`mapRoleClaim`); only set when role syncing is on. */
   role?: string
 }
 

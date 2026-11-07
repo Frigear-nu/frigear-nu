@@ -105,10 +105,19 @@ export function getOAuthScopeRegistry(): OAuthScopeDefinition[] {
   return useOAuthConfig().scopeDetails ?? []
 }
 
-/** The configured issuer, or the origin the request came in on (honouring `x-forwarded-*`). */
+let warnedIssuer = false
+
+/**
+ * The configured issuer, or the origin of the request itself. `x-forwarded-host` / `x-forwarded-proto` are never trusted
+ * for it (a client could pick the `iss` and the discovery endpoints), so set `oauthServer.issuer` in production.
+ */
 export function getOAuthIssuer(event: H3Event): string {
   const configured = useOAuthConfig().issuer
-  const issuer = configured || getRequestURL(event, { xForwardedHost: true, xForwardedProto: true }).origin
+  if (!configured && !import.meta.dev && !warnedIssuer) {
+    warnedIssuer = true
+    console.warn('[oauth-server] oauthServer.issuer is not set: the issuer is taken from the request URL. Set it (or NUXT_OAUTH_SERVER_ISSUER) to the public origin of this server.')
+  }
+  const issuer = configured || getRequestURL(event).origin
   return issuer.replace(/\/+$/, '')
 }
 

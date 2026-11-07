@@ -6,4 +6,6 @@ export const users = sqliteTable('users', {
   password: text(),
   emailVerifiedAt: integer({ mode: 'timestamp' }),
   lastLoginAt: integer({ mode: 'timestamp' }),
+  // Bumped to end every session of the user (a password or email change); sessions are stamped with it at sign-in.
+  sessionVersion: integer().notNull().default(0),
 })

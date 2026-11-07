@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { parseRoleClaim } from '../src/runtime/server/utils/frigear-role'
+import { mapRoleClaim, parseRoleClaim } from '../src/runtime/server/utils/frigear-role'
 
 type Row = { id: number, email: string, name: string, role?: string, emailVerifiedAt?: Date | null }
 let rows: Row[] = []
@@ -24,7 +24,10 @@ vi.stubGlobal('useAuthUserStore', () => store)
 vi.stubGlobal('clearUnverifiedAuthCredentials', clearUnverifiedAuthCredentials)
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
 
+vi.stubGlobal('cachedFunction', (fn: unknown) => fn)
+
 const { syncFrigearUser } = await import('../src/runtime/server/utils/frigear-user')
+const { parseRoleMap } = await import('../src/runtime/server/utils/frigear-sso')
 
 beforeEach(() => {
   rows = []
@@ -39,6 +42,32 @@ describe('parseRoleClaim', () => {
     expect(parseRoleClaim({ role: 1, roles: 'admin' })).toBeUndefined()
     expect(parseRoleClaim({ 'https://frigear.nu/claims/role': 'admin' })).toBe('admin')
     expect(parseRoleClaim({})).toBeUndefined()
+  })
+})
+
+describe('mapRoleClaim', () => {
+  const roleMap = { 'admin': 'admin', 'frigear-staff': 'manager' }
+
+  it('maps the first claimed role the map lists', () => {
+    expect(mapRoleClaim({ role: 'admin' }, roleMap, 'user')).toBe('admin')
+    expect(mapRoleClaim({ roles: ['volunteer', 'frigear-staff'] }, roleMap, 'user')).toBe('manager')
+    expect(mapRoleClaim({ 'https://frigear.nu/claims/role': 'admin' }, roleMap, 'user')).toBe('admin')
+  })
+
+  it('falls back to the default role for an unknown role or no claim, never keeping one', () => {
+    expect(mapRoleClaim({ role: 'superadmin' }, roleMap, 'user')).toBe('user')
+    expect(mapRoleClaim({ role: 'constructor' }, roleMap, 'user')).toBe('user')
+    expect(mapRoleClaim({}, roleMap, 'member')).toBe('member')
+    expect(mapRoleClaim({ role: 'admin' }, {}, 'user')).toBe('user')
+  })
+})
+
+describe('parseRoleMap', () => {
+  it('reads an object or JSON and drops entries that are not role names', () => {
+    expect(parseRoleMap({ 'admin': 'admin', 'bad': 1, '': 'x' })).toEqual({ admin: 'admin' })
+    expect(parseRoleMap('{"staff":"manager"}')).toEqual({ staff: 'manager' })
+    expect(parseRoleMap('not json')).toEqual({})
+    expect(parseRoleMap(undefined)).toEqual({})
   })
 })
 

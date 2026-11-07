@@ -25,6 +25,9 @@ async function linkTo(to: string, pattern: RegExp) {
   return new URL(url).pathname + new URL(url).search
 }
 
+// The `name=value` of the session cookie a response set.
+const sessionOf = (response: Response) => response.headers.get('set-cookie')!.split(';')[0]!
+
 const post = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('POST', path, body)
 const put = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('PUT', path, body)
 
@@ -101,8 +104,8 @@ describe('verified email change', async () => {
 
     expect((await login('ada-new@example.com')).status).toBe(200)
 
-    // The link can't be used twice.
-    expect((await post(usersApi.emailChangeConfirm, { code }, cookie)).status).toBe(400)
+    // The link can't be used twice (from the session the confirmation re-issued with the new address).
+    expect((await post(usersApi.emailChangeConfirm, { code }, sessionOf(confirm))).status).toBe(400)
     expect(await preview(`${usersApi.emailChange}?code=${code}`)).toMatchObject({ status: 'confirmed' })
     // A used link says so on the page, without asking to sign in.
     expect((await fetch(verifyPath, { redirect: 'manual' })).status).toBe(200)
@@ -127,6 +130,20 @@ describe('verified email change', async () => {
     expect(await preview(`${usersApi.emailChangeRevert}?code=${revertCode}`)).toMatchObject({ status: 'reverted' })
   })
 
+  it('only confirms the latest requested change', async () => {
+    const cookie = sessionOf(await post(authApi.register, { name: 'Edsger', email: 'edsger@example.com', password: 'supersecret123' }))
+    expect((await put(usersApi.me.email, { email: 'edsger-first@example.com' }, cookie)).status).toBe(200)
+    const first = codeOf(await linkTo('edsger-first@example.com', /verify-email-change/))
+    expect((await put(usersApi.me.email, { email: 'edsger-second@example.com' }, cookie)).status).toBe(200)
+    const second = codeOf(await linkTo('edsger-second@example.com', /verify-email-change/))
+
+    expect(await preview(`${usersApi.emailChange}?code=${first}`)).toMatchObject({ status: 'expired' })
+    expect((await post(usersApi.emailChangeConfirm, { code: first }, cookie)).status).toBe(400)
+    const confirm = await post(usersApi.emailChangeConfirm, { code: second }, cookie)
+    expect(confirm.status, await confirm.clone().text()).toBe(200)
+    expect(await confirm.json()).toMatchObject({ email: 'edsger-second@example.com' })
+  })
+
   it('rejects unknown codes', async () => {
     expect((await fetch(`${usersApi.emailChange}?code=nope`)).status).toBe(404)
     expect((await fetch(`${usersApi.emailChangeRevert}?code=nope`)).status).toBe(404)
@@ -144,5 +161,91 @@ describe('verified email change', async () => {
 
     const mails = await sentMails()
     expect(mails.some(mail => mail.to === 'grace@example.com' && mail.subject === 'Your password was changed')).toBe(true)
+  })
+
+  describe('ending sessions on a credential change', () => {
+    const tokens = (cookie: string) => apiClient({ cookie }).fetch('GET', authApi.me.tokens)
+    const signedInAs = async (cookie: string) => (await tokens(cookie)).status
+
+    it('ends the other sessions when the password changes, and keeps the one that changed it', async () => {
+      const changer = sessionOf(await post(authApi.register, { name: 'Hedy', email: 'hedy@example.com', password: 'supersecret123' }))
+      const elsewhere = sessionOf(await login('hedy@example.com'))
+      expect(await signedInAs(elsewhere)).toBe(200)
+
+      const response = await put(usersApi.me.password, {
+        currentPassword: 'supersecret123', newPassword: 'new-password123', confirmNewPassword: 'new-password123',
+      }, changer)
+      expect(response.status, await response.clone().text()).toBe(200)
+
+      expect(await signedInAs(sessionOf(response))).toBe(200)
+      expect(await signedInAs(elsewhere)).toBe(401)
+      // Signing in again works as usual.
+      expect(await signedInAs(sessionOf(await post(authApi.login, { email: 'hedy@example.com', password: 'new-password123' })))).toBe(200)
+    })
+
+    it('gives the account back when the owner undoes an email change made from another session', async () => {
+      const owner = sessionOf(await post(authApi.register, { name: 'Mary', email: 'mary@example.com', password: 'supersecret123' }))
+      // A second session of the account, in someone else's hands.
+      const other = sessionOf(await login('mary@example.com'))
+      const kept = await apiClient({ cookie: other }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'kept', scopes: ['*'] })
+      const bootstrap = () => apiClient({ bearer: kept.token }).fetch('GET', `${authApi.bootstrap}?scope=account`)
+
+      expect((await put(usersApi.me.email, { email: 'mary-other@example.com' }, other)).status).toBe(200)
+      const confirm = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('mary-other@example.com', /verify-email-change/)) }, other)
+      expect(confirm.status, await confirm.clone().text()).toBe(200)
+      const changed = sessionOf(confirm)
+      // The change ended the owner's session.
+      expect(await signedInAs(owner)).toBe(401)
+
+      // The owner undoes it from the old address: every session that came from the change ends, its tokens too.
+      const revertCode = codeOf(await linkTo('mary@example.com', /revert-email-change/))
+      expect((await post(usersApi.emailChangeRevert, { code: revertCode })).status).toBe(200)
+      expect(await signedInAs(changed)).toBe(401)
+      expect((await put(usersApi.me.email, { email: 'mary-again@example.com' }, changed)).status).toBe(401)
+      expect((await bootstrap()).status).toBe(401)
+
+      // The owner signs in again. A new change names the stored address as the old one, and tells that address.
+      const back = sessionOf(await login('mary@example.com'))
+      expect((await put(usersApi.me.email, { email: 'mary-new@example.com' }, back)).status).toBe(200)
+      const confirmed = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('mary-new@example.com', /verify-email-change/)) }, back)
+      expect(confirmed.status, await confirmed.clone().text()).toBe(200)
+      expect(codeOf(await linkTo('mary@example.com', /revert-email-change/))).not.toBe(revertCode)
+      expect((await sentMails()).some(mail => mail.to === 'mary-other@example.com' && /revert-email-change/.test(mail.text))).toBe(false)
+    })
+
+    it('voids reset codes sent to an address the account no longer uses', async () => {
+      const cookie = sessionOf(await post(authApi.register, { name: 'Alan', email: 'alan@example.com', password: 'supersecret123' }))
+      const reset = (code: string) => post(authApi.resetPassword, { code, password: 'new-password123', confirmPassword: 'new-password123' })
+
+      expect((await post(authApi.forgotPassword, { email: 'alan@example.com' })).status).toBe(200)
+      const oldAddressCode = codeOf(await linkTo('alan@example.com', /reset-password/))
+
+      expect((await put(usersApi.me.email, { email: 'alan-new@example.com' }, cookie)).status).toBe(200)
+      const confirm = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('alan-new@example.com', /verify-email-change/)) }, cookie)
+      expect(confirm.status, await confirm.clone().text()).toBe(200)
+      expect((await reset(oldAddressCode)).status).toBe(400)
+
+      // Undoing the change voids what was sent to the address being undone.
+      expect((await post(authApi.forgotPassword, { email: 'alan-new@example.com' })).status).toBe(200)
+      const newAddressCode = codeOf(await linkTo('alan-new@example.com', /reset-password/))
+      expect((await post(usersApi.emailChangeRevert, { code: codeOf(await linkTo('alan@example.com', /revert-email-change/)) })).status).toBe(200)
+      expect((await reset(newAddressCode)).status).toBe(400)
+    })
+
+    it('ends every session and revokes the API tokens when the password is reset', async () => {
+      const cookie = sessionOf(await post(authApi.register, { name: 'Katherine', email: 'katherine@example.com', password: 'supersecret123' }))
+      const created = await apiClient({ cookie }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'CI', scopes: ['*'] })
+      const bootstrap = () => apiClient({ bearer: created.token }).fetch('GET', `${authApi.bootstrap}?scope=account`)
+      expect((await bootstrap()).status).not.toBe(401)
+
+      expect((await post(authApi.forgotPassword, { email: 'katherine@example.com' })).status).toBe(200)
+      const code = codeOf(await linkTo('katherine@example.com', /reset-password/))
+      const reset = await post(authApi.resetPassword, { code, password: 'new-password123', confirmPassword: 'new-password123' })
+      expect(reset.status, await reset.clone().text()).toBe(200)
+
+      expect(await signedInAs(sessionOf(reset))).toBe(200)
+      expect(await signedInAs(cookie)).toBe(401)
+      expect((await bootstrap()).status).toBe(401)
+    })
   })
 })

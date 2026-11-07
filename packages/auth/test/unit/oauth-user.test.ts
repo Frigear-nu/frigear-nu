@@ -28,10 +28,19 @@ vi.stubGlobal('sendRedirect', (_event: unknown, to: string) => {
   redirects.push(to)
   return to
 })
+// A sign-in replaces the session; merging (`setUserSession`) would keep the previous user's fields.
 vi.stubGlobal('setUserSession', async (_event: unknown, data: unknown) => {
+  sessions.push({ merged: data })
+})
+vi.stubGlobal('replaceUserSession', async (_event: unknown, data: unknown) => {
   sessions.push(data)
 })
 vi.stubGlobal('mapUserToSession', (user: Row) => ({ id: user.id, email: user.email }))
+// `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
+vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<string, unknown> = {}) => {
+  const globals = globalThis as unknown as { replaceUserSession: (event: unknown, data: unknown) => unknown, mapUserToSession: (user: unknown) => unknown }
+  return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
+})
 vi.stubGlobal('consumeLoginRedirect', () => '/')
 
 const { handleOAuthUser, isOAuthEmailVerified } = await import('../../src/runtime/server/utils/oauth')
@@ -78,6 +87,11 @@ describe('handleOAuthUser', () => {
 
   it('links a flag-less provider with trustEmail', async () => {
     await handleOAuthUser(event, 'facebook', { email: 'victim@example.com' }, { trustEmail: true })
+    expect(sessions).toEqual([{ user: { id: 1, email: 'victim@example.com' } }])
+  })
+
+  it('starts a fresh session instead of merging into the previous one', async () => {
+    await handleOAuthUser(event, 'google', { email: 'victim@example.com', email_verified: true })
     expect(sessions).toEqual([{ user: { id: 1, email: 'victim@example.com' } }])
   })
 

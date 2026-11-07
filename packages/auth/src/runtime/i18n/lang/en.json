@@ -103,7 +103,8 @@
         "noPassword": "You have not set a password, please reset your password or sign in with magic link.",
         "failed": "Sign in failed, are you sure you have an account or this is the correct password?",
         "noAccount": "There is no account for this email. Ask for an invitation, or sign in another way.",
-        "unverifiedEmail": "The account you signed in with has not verified this email address. Verify it there, or sign in another way."
+        "unverifiedEmail": "The account you signed in with has not verified this email address. Verify it there, or sign in another way.",
+        "oauthState": "The sign-in could not be completed. Start it again from this page."
       },
       "signUp": {
         "failed": "Sign up failed, are you sure you don't have an account with this e-mail?"

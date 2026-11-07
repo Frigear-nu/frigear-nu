@@ -9,6 +9,8 @@ const bodySchema = z.object({
 
 // `POST /api/auth/register`: creates an account (201). Signs in at once unless `verifyEmail` is on.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
+  await enforceAuthRateLimit(event, 'register')
   const { name, email, password } = await readValidatedBody(event, bodySchema.parse)
   const users = useAuthUserStore()
 
@@ -24,7 +26,7 @@ export default defineEventHandler(async (event) => {
     return created(event, { id: user.id, verificationRequired: true })
   }
 
-  await setUserSession(event, { user: mapUserToSession(user) })
+  await startAuthSession(event, user)
 
   return created(event, { id: user.id, verificationRequired: false })
 })

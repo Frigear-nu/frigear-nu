@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isPrincipalAllowed, pick, redactPii, scopeTags } from '../src/runtime/utils/access'
+import { describe, expect, it, vi } from 'vitest'
+import { SCOPED_META_KEY, filterMcpConfig, isPrincipalAllowed, pick, redactPii, scopeTags } from '../src/runtime/utils/access'
 
 const principal = (kind: 'session' | 'user-token', scopes: string[]) => ({ kind, user: { id: 1 }, scopes }) as never
 
@@ -35,5 +35,36 @@ describe('redaction', () => {
 
   it('tags definitions with their scopes', () => {
     expect(scopeTags({ scopes: ['a:read'], sessionOnly: true })).toEqual(['scope:a:read', 'session-only'])
+  })
+})
+
+describe('filterMcpConfig', () => {
+  const marked = { name: 'ok', _meta: { [SCOPED_META_KEY]: true } }
+
+  it('keeps scoped definitions and drops the rest', () => {
+    const config = { tools: [marked, { name: 'plain' }], resources: [{ _meta: {} }], prompts: [marked] }
+    filterMcpConfig(config)
+    expect(config.tools).toEqual([marked])
+    expect(config.resources).toEqual([])
+    expect(config.prompts).toEqual([marked])
+  })
+
+  it('tolerates a missing list instead of throwing', () => {
+    const config = { tools: [marked, { name: 'plain' }] }
+    filterMcpConfig(config)
+    expect(config).toMatchObject({ tools: [marked], resources: [], prompts: [] })
+  })
+
+  it('empties every list when the filtering throws', () => {
+    const throwing = {
+      name: 'bad',
+      get _meta(): never {
+        throw new Error('boom')
+      },
+    }
+    const config = { tools: [marked, throwing], resources: [marked], prompts: [marked] }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    filterMcpConfig(config)
+    expect(config).toEqual({ tools: [], resources: [], prompts: [] })
   })
 })

@@ -5,9 +5,11 @@ import { handleFrigearLogin } from '../../utils/frigear-login'
 // Active when `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` is configured; the configuration
 // is resolved per request, so it can differ between deployments of one build.
 export default eventHandler(async (event) => {
-  rememberLoginRedirect(event)
   const sso = resolveFrigearSso(event)
   if (!sso.enabled) throw notFound()
+  // A callback must carry the state this browser was sent off with (nuxt-auth-utils accepts one with neither).
+  if (!isOAuthCallbackStateValid(event)) return rejectOAuthCallbackState(event)
+  rememberLoginRedirect(event)
   // Step-up (`?scope=users:read`) only shapes the authorization request; the callback carries no `scope`.
   const scope = frigearLoginScopes(sso, getQuery(event).scope)
 

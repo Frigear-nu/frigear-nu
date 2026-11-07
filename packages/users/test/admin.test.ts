@@ -158,6 +158,12 @@ describe('users admin', () => {
   it('marks a staff-changed email as unverified', async () => {
     const edited = await staff.json<Row>('PATCH', usersApi.admin.user(memberId), { email: 'Member2@Example.com' })
     expect(edited).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
+
+    // The member's session named the old address, so it ended; they sign in with the new one.
+    await expectApiError(member.json('GET', usersApi.admin.roles), 401)
+    const login = await apiClient().fetch('POST', authApi.login, { email: 'member2@example.com', password: 'supersecret123' })
+    expect(login.status, await login.clone().text()).toBe(200)
+    member = apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
   })
 
   it('paginates, searches, filters and sorts through the API', async () => {

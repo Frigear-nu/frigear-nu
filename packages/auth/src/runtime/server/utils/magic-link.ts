@@ -24,6 +24,8 @@ export function isVerificationMagicLinkCode(code: string) {
  * (see cooldown), in which case nothing should be sent.
  */
 export async function createMagicLink(event: H3Event, { userId, redirectUrl, purpose = 'sign-in' }: { userId: number, redirectUrl?: string, purpose?: MagicLinkPurpose }) {
+  // Resolved first: without a site URL nothing is stored (and no cooldown starts).
+  const origin = authSiteOrigin(event)
   // A link requested again within the cooldown is not re-sent, so the endpoint can't be used to flood an inbox.
   const cooldownSeconds = useRuntimeConfig(event).authentication?.magicLinkCooldown ?? 60
   const [latest] = await db.select({ createdAt: schema.magicLinks.createdAt })
@@ -44,7 +46,7 @@ export async function createMagicLink(event: H3Event, { userId, redirectUrl, pur
     expiresAt: new Date(Date.now() + MAGIC_LINK_TTL_MINUTES * 60 * 1000),
   })
 
-  return { code, url: new URL(`/auth/magic-link?code=${code}`, getRequestURL(event).origin).toString() }
+  return { code, url: new URL(`/auth/magic-link?code=${code}`, origin).toString() }
 }
 
 /** Atomically marks a valid link as used (so it can't be replayed) and returns it. */

@@ -201,6 +201,8 @@ export type RedirectUriRules = {
   callbackPath?: string
   /** Public clients only: also accept the native redirect URIs listed in `redirectUris`. */
   allowNativeRedirects?: boolean
+  /** A public client never matches a preview pattern, even one stored before the admin API refused it. */
+  clientType?: ClientType
 }
 
 /**
@@ -220,7 +222,7 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
   if (rules.websiteUrl && redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
-  if (rules.previewUrlPattern) return matchesPreviewUrlPattern(redirectUri, rules.previewUrlPattern, callbackPath)
+  if (rules.previewUrlPattern && rules.clientType !== 'public') return matchesPreviewUrlPattern(redirectUri, rules.previewUrlPattern, callbackPath)
   return false
 }
 

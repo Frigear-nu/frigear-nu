@@ -14,6 +14,7 @@ const bodySchema = z.object({
 
 // `POST /api/auth/reset-password`: sets a new password with an emailed code and signs in.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
   const { code, password } = await readValidatedBody(event, bodySchema.parse)
 
   const [passwordReset] = await db.update(schema.passwordResets)
@@ -36,7 +37,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await notifyAuthCredentialsChanged({ userId: user.id, reason: 'password-reset', event })
-  await setUserSession(event, { user: mapUserToSession(user) })
+  await startAuthSession(event, user)
 
   return { id: user.id }
 })

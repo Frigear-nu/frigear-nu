@@ -106,6 +106,16 @@ export default defineNuxtConfig({
       },
       // Use the frigear.nu user id as the local user id (NUXT_FRIGEAR_FORCE_ID).
       forceId: false,
+      // frigear.nu decides the role here: these roles carry over as they are, any other (or none) becomes `user`
+      // (NUXT_FRIGEAR_ROLE_MAP, JSON, is merged in).
+      roleMap: {
+        admin: 'admin',
+        manager: 'manager',
+        coordinator: 'coordinator',
+        eventmanager: 'eventmanager',
+        barmanager: 'barmanager',
+        crew: 'crew',
+      },
     },
   },
 
@@ -218,6 +228,11 @@ export default defineNuxtConfig({
   },
   authentication: {
     settings: {
+      // Emailed links (password reset, sign-in, verification) point at the known public URL (NUXT_PUBLIC_SITE_URL
+      // overrides). PR previews have no fixed URL: there, and whenever none is known, they use the request's origin,
+      // which Cloudflare fixes by routing (a request for another host never reaches this Worker).
+      siteUrl: process.env.PR_NUMBER ? undefined : knownSiteUrl,
+      trustRequestOrigin: true,
       afterLogin: '/account',
       // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
       pages: {

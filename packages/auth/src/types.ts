@@ -138,8 +138,11 @@ export type PublicModuleOptions = {
 export interface AuthSettings {
   /** Email/password login and register routes, composables and pages. `false` disables password authentication. Defaults to `true`. */
   password?: boolean
-  /** Password reset routes when password authentication is enabled. Defaults to `true`. */
-  passwordReset?: boolean
+  /**
+   * Password reset routes when password authentication is enabled. Defaults to `true`. `cooldown` is the minimum number
+   * of seconds between two reset emails for the same user (default 60).
+   */
+  passwordReset?: boolean | { cooldown?: number }
   /**
    * Passwordless sign-in by emailed link (`POST /api/auth/magic-link`). The link opens the `/auth/magic-link` page, whose
    * button signs in (`POST /api/auth/magic-link/confirm`); this also verifies the email address. `signUp: true` creates an account for unknown addresses; `cooldown` is the minimum
@@ -151,6 +154,28 @@ export interface AuthSettings {
    * log in. No session is created at registration. Defaults to `false`.
    */
   verifyEmail?: boolean
+  /**
+   * Throttling of the anonymous sign-in routes, counted in NuxtHub KV (`hub.kv`; without it nothing is throttled and the
+   * build warns). Past a limit a route answers `429 rate_limited` with `retry-after`. `0` turns one limit off, `false`
+   * all of them. Off under `nuxt dev`.
+   */
+  rateLimit?: false | {
+    /** Length of the fixed window, in seconds. Defaults to 900 (15 minutes). */
+    windowSeconds?: number
+    /** Failed password sign-ins per client IP and account. Defaults to 10. */
+    login?: number
+    /** Failed password sign-ins per client IP, for any account. Defaults to 100. */
+    loginIp?: number
+    /** Requests per client IP to each of register, forgot-password, magic-link and the passkey routes. Defaults to 30. */
+    requests?: number
+    /**
+     * Request header holding the client IP set by the platform in front of the app. Defaults to `cf-connecting-ip` on
+     * the Cloudflare presets, else none (the socket address).
+     */
+    ipHeader?: string
+    /** Read the client IP from `X-Forwarded-For`, which any client can set. Only behind a proxy that overwrites it. Defaults to `false`. */
+    xForwardedFor?: boolean
+  }
   /** WebAuthn (passkey) routes, composables and DB table. */
   webAuthn?: boolean
   /**
@@ -170,6 +195,18 @@ export interface AuthSettings {
     callback?: boolean
   }
   /**
+   * The public URL of the site, which emailed links (password reset, magic links, email verification and changes)
+   * point at. Becomes `runtimeConfig.public.siteUrl`, which `NUXT_PUBLIC_SITE_URL` sets at runtime; defaults to
+   * `NUXT_SITE_URL` at build time. Required in production unless `trustRequestOrigin` is on.
+   */
+  siteUrl?: string
+  /**
+   * Without a site URL, build emailed links from the request's origin in production too. Only for platforms that
+   * route requests by host, so a request for another host never reaches the app (Cloudflare Workers). Defaults to
+   * `false`: without a site URL those emails fail with a 500 (`nuxt dev` always uses the request origin).
+   */
+  trustRequestOrigin?: boolean
+  /**
    * Where users go after signing in (password, passkey, magic link, OAuth/SSO) when no `redirect` was requested.
    * Must be an absolute path on this site. Defaults to `/`.
    */
@@ -177,6 +214,12 @@ export interface AuthSettings {
   session?: {
     /** Path to a function (default export) mapping the stored user to the session user shape. */
     mapper?: string
+    /**
+     * How long a cookie session lasts, in seconds from sign-in: the cookie expires and the server refuses the session
+     * after it. Defaults to 30 days. `false` turns the limit off. `runtimeConfig.session.maxAge` (nuxt-auth-utils,
+     * `NUXT_SESSION_MAX_AGE`) wins over it.
+     */
+    maxAge?: number | false
   }
   /**
    * OAuth sign-in through nuxt-auth-utils (`GET /api/auth/<provider>`). A provider is on when its credentials are set
@@ -204,6 +247,12 @@ export interface ModuleOptions {
   apiTokens?: boolean | {
     /** What every new token starts with (letters, digits, `_` and `-`). Changing it invalidates issued tokens. Defaults to `fnu_`. */
     prefix?: string
+    /**
+     * Revoke all of a user's tokens when their password is reset by email or an email change is undone from the old
+     * address: both mean the account may have been in someone else's hands. Defaults to `true`; `false` keeps them
+     * (integrations then keep working, and so would tokens someone else minted).
+     */
+    revokeOnReset?: boolean
   }
   /** Default lifetime in days for new user tokens; `null`/omitted means they never expire. */
   tokenTtlDays?: number | null

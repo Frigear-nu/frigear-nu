@@ -7,10 +7,20 @@ import type { FrigearSsoConfig } from './frigear-sso'
  */
 export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}) {
   const tokens = response as Record<string, unknown>
-  // The verified id token decides who the user is (`sub`); userinfo fills in the profile.
+  // The verified id token decides who the user is (`sub`); userinfo only fills in the profile, and only when it is
+  // about the same user. Without an id token nothing binds the login to this client, so it is refused.
   const idToken = typeof tokens.id_token === 'string' ? tokens.id_token : undefined
-  const verified = idToken ? await verifyFrigearIdToken(sso, idToken) : undefined
-  const claims: Record<string, unknown> = { ...verified, ...userinfo, ...(verified?.sub && { sub: verified.sub }) }
+  if (!idToken) {
+    throw createError({ statusCode: 401, statusMessage: 'frigear.nu returned no identity token.' })
+  }
+  const verified = await verifyFrigearIdToken(sso, idToken)
+  if (typeof verified.sub !== 'string' || !verified.sub) {
+    throw createError({ statusCode: 401, statusMessage: 'The frigear.nu identity token names no user.' })
+  }
+  if (Object.keys(userinfo).length && String(userinfo.sub) !== verified.sub) {
+    throw createError({ statusCode: 401, statusMessage: 'The frigear.nu profile is not about the signed-in user.' })
+  }
+  const claims: Record<string, unknown> = { ...verified, ...userinfo, sub: verified.sub }
 
   const email = claims.email
   if (typeof email !== 'string' || !email) {
@@ -18,8 +28,9 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   }
 
   const picture = claims.picture
-  // frigear.nu is the source of truth for roles: an admin there is an admin here.
-  const role = sso.syncRole ? parseRoleClaim(claims) : undefined
+  // With a role map, frigear.nu decides the role: only from the signed id token (never userinfo), only roles the map
+  // lists, and a missing or unlisted role is the default role.
+  const role = sso.syncRole ? mapRoleClaim(verified, sso.roleMap, sso.defaultRole) : undefined
   let user
   try {
     user = await syncFrigearUser({
@@ -37,8 +48,7 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
     return authLoginErrorRedirect(event, 'oauth-unverified')
   }
 
-  await setUserSession(event, {
-    user: mapUserToSession(user),
+  await startAuthSession(event, user, {
     frigear: {
       id: String(claims.sub),
       colorMode: parseColorModeClaim(claims.color_mode),

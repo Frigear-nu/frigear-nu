@@ -35,10 +35,27 @@ export interface RouteRule {
   guest?: boolean
   /** `true`: require a logged-in user. `false`: no authorization at all (opens a sub-route of a protected pattern). */
   authenticated?: boolean
+  /**
+   * Scopes a bearer credential (user API token, OAuth access token) must carry. Sessions carry every scope. A rule
+   * that lists scopes lets bearer credentials through (they still have to match `roles`/`ability`).
+   */
+  scopes?: string[]
+  /**
+   * `true`: only cookie sessions pass, bearer credentials get a 403. Defaults to `true` for a rule with `roles` or
+   * `ability` and no `scopes`, and to `false` otherwise (a plain `authenticated: true` accepts any credential).
+   * Set `false` on a `roles`/`ability` rule to let bearer credentials with any scopes through.
+   */
+  sessionOnly?: boolean
+}
+
+/** Who presented the credential: what `getAuth` from `@frigear-nu/auth` reports. Absent means a cookie session. */
+export interface RuleCredential {
+  kind: string
+  scopes: readonly string[]
 }
 
 /** The authorization keys that go directly on a `routeRules` entry. */
-export const ROUTE_RULE_KEYS = ['roles', 'ability', 'guest', 'authenticated'] as const
+export const ROUTE_RULE_KEYS = ['roles', 'ability', 'guest', 'authenticated', 'scopes', 'sessionOnly'] as const
 
 /** What `definePageMeta({ authorize })` accepts. `false` opens the page, whatever `routeRules` say. */
 export type AuthorizeMeta = string | Ability | RouteRule | false

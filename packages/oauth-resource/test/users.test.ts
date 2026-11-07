@@ -41,6 +41,35 @@ beforeEach(() => {
   userinfoCalls = 0
 })
 
+describe('resolveOAuthResourceUser with forceId and a local row holding the id', () => {
+  const withForceId = async (run: () => Promise<void>) => {
+    config.forceId = true
+    try {
+      await run()
+    }
+    finally {
+      config.forceId = false
+    }
+  }
+
+  it('does not return a local row with id == sub and another email', () => withForceId(async () => {
+    rows.push({ id: 31, email: 'someone-else@frigear.test', name: 'Someone else' })
+    vi.spyOn(console, 'warn').mockImplementationOnce(() => {})
+    expect(await resolveOAuthResourceUser('token-31', payload('31'))).toBeNull()
+    // Not remembered as a binding either.
+    vi.spyOn(console, 'warn').mockImplementationOnce(() => {})
+    expect(await resolveOAuthResourceUser('token-31', payload('31'))).toBeNull()
+  }))
+
+  it('returns the row when the email matches (case-insensitive) and remembers the binding', () => withForceId(async () => {
+    rows.push({ id: 32, email: 'Person32@Frigear.test', name: 'Same person' })
+    expect(await resolveOAuthResourceUser('token-32', payload('32'))).toMatchObject({ id: 32 })
+    const calls = userinfoCalls
+    expect(await resolveOAuthResourceUser('token-32', payload('32'))).toMatchObject({ id: 32 })
+    expect(userinfoCalls).toBe(calls)
+  }))
+})
+
 describe('resolveOAuthResourceUser without forceId', () => {
   it('matches an existing user by email, once, then remembers the frigear.nu id', async () => {
     expect(await resolveOAuthResourceUser('token-77', payload('77'))).toMatchObject({ id: 1, name: 'Existing' })

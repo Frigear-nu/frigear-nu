@@ -132,6 +132,11 @@ function assertRedirectUris(uris: readonly string[] | undefined, clientType: Cli
   if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw badRequest('Only public clients may use custom-scheme redirect URIs.')
 }
 
+/** A preview pattern would let any matching host receive a public client's code (no secret to stop a redeem): refuse it. */
+function assertPreviewUrlPattern(pattern: string | null | undefined, clientType: ClientType) {
+  if (pattern && clientType === 'public') throw badRequest('A public client cannot use a preview URL pattern: list its redirect URIs instead.')
+}
+
 /**
  * A confidential client needs a website: its secret is for a server, and the callback is derived from the website. A
  * public client without one (a native app) needs at least one redirect URI to sign in with.
@@ -258,6 +263,7 @@ export async function createApplication(input: ApplicationInput, ownerId?: numbe
   const data = normalizeInput(applicationInputSchema.parse(input))
   const clientType = data.clientType ?? 'confidential'
   assertRedirectUris(data.redirectUris, clientType)
+  assertPreviewUrlPattern(data.previewUrlPattern, clientType)
   assertWebsite(data.websiteUrl, data.redirectUris, clientType)
   const secret = clientType === 'public' ? null : generateSecret()
   const [row] = await db.insert(schema.oauthApplications).values({
@@ -289,6 +295,7 @@ export async function updateApplication(id: string, patch: Partial<ApplicationIn
   // A secret cannot be created or dropped by editing: register a new application instead.
   if (clientType && clientType !== existing.clientType) throw badRequest('The client type cannot be changed.')
   assertRedirectUris(data.redirectUris, existing.clientType)
+  assertPreviewUrlPattern(data.previewUrlPattern, existing.clientType)
   if (data.websiteUrl !== undefined || data.redirectUris) {
     assertWebsite(data.websiteUrl ?? existing.websiteUrl, data.redirectUris ?? existing.redirectUris, existing.clientType)
   }

@@ -21,10 +21,14 @@ export default defineNuxtConfig({
       driver: 'libsql',
       applyMigrationsDuringBuild: false,
     },
+    // Counters of the sign-in throttling; in memory so a rerun starts fresh.
+    kv: { driver: 'memory' },
   },
   authentication: {
     settings: {
       magicLink: { signUp: true },
+      // Low enough for `password-enabled.test.ts` to reach it.
+      rateLimit: { login: 3 },
       verifyEmail: true,
       oauth: {
         auth0: { label: 'Company SSO', icon: 'i-simple-icons-auth0', signUp: false },
