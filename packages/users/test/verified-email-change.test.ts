@@ -130,6 +130,20 @@ describe('verified email change', async () => {
     expect(await preview(`${usersApi.emailChangeRevert}?code=${revertCode}`)).toMatchObject({ status: 'reverted' })
   })
 
+  it('only confirms the latest requested change', async () => {
+    const cookie = sessionOf(await post(authApi.register, { name: 'Edsger', email: 'edsger@example.com', password: 'supersecret123' }))
+    expect((await put(usersApi.me.email, { email: 'edsger-first@example.com' }, cookie)).status).toBe(200)
+    const first = codeOf(await linkTo('edsger-first@example.com', /verify-email-change/))
+    expect((await put(usersApi.me.email, { email: 'edsger-second@example.com' }, cookie)).status).toBe(200)
+    const second = codeOf(await linkTo('edsger-second@example.com', /verify-email-change/))
+
+    expect(await preview(`${usersApi.emailChange}?code=${first}`)).toMatchObject({ status: 'expired' })
+    expect((await post(usersApi.emailChangeConfirm, { code: first }, cookie)).status).toBe(400)
+    const confirm = await post(usersApi.emailChangeConfirm, { code: second }, cookie)
+    expect(confirm.status, await confirm.clone().text()).toBe(200)
+    expect(await confirm.json()).toMatchObject({ email: 'edsger-second@example.com' })
+  })
+
   it('rejects unknown codes', async () => {
     expect((await fetch(`${usersApi.emailChange}?code=nope`)).status).toBe(404)
     expect((await fetch(`${usersApi.emailChangeRevert}?code=nope`)).status).toBe(404)
