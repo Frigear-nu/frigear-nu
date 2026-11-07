@@ -14,8 +14,8 @@ vi.stubGlobal('mapUserToSession', (user: unknown) => user)
 vi.stubGlobal('replaceUserSession', replaceUserSession)
 vi.stubGlobal('consumeLoginRedirect', () => '/')
 vi.stubGlobal('sendRedirect', async () => undefined)
-const { parseRoleClaim } = await import('../../src/runtime/server/utils/frigear-role')
-vi.stubGlobal('parseRoleClaim', parseRoleClaim)
+const { mapRoleClaim } = await import('../../src/runtime/server/utils/frigear-role')
+vi.stubGlobal('mapRoleClaim', mapRoleClaim)
 
 const { handleFrigearLogin } = await import('../../src/runtime/server/utils/frigear-login')
 
@@ -53,5 +53,35 @@ describe('handleFrigearLogin', () => {
     await expect(handleFrigearLogin(event, sso, { email: 'eve@example.com', email_verified: true }, { id_token: 'id' }))
       .rejects.toMatchObject({ statusCode: 401 })
     expect(syncFrigearUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('handleFrigearLogin roles', () => {
+  const syncing = { ...sso, syncRole: true, roleMap: { admin: 'admin', staff: 'manager' }, defaultRole: 'user' } as FrigearSsoConfig
+  const roleOf = () => syncFrigearUser.mock.calls.at(-1)![0].role
+
+  it('maps the role of the verified id token through the role map', async () => {
+    verified.roles = ['staff']
+    await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
+    expect(roleOf()).toBe('manager')
+  })
+
+  it('never takes the role from userinfo', async () => {
+    await handleFrigearLogin(event, syncing, { sub: '7', role: 'admin' }, { id_token: 'id' })
+    expect(roleOf()).toBe('user')
+  })
+
+  it('demotes to the default role when the claim is missing or not in the map', async () => {
+    await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
+    expect(roleOf()).toBe('user')
+    verified.role = 'superuser'
+    await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
+    expect(roleOf()).toBe('user')
+  })
+
+  it('syncs no role when role syncing is off', async () => {
+    verified.role = 'admin'
+    await handleFrigearLogin(event, sso, {}, { id_token: 'id' })
+    expect(roleOf()).toBeUndefined()
   })
 })

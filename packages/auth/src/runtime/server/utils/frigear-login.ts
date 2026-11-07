@@ -28,8 +28,9 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   }
 
   const picture = claims.picture
-  // frigear.nu is the source of truth for roles: an admin there is an admin here.
-  const role = sso.syncRole ? parseRoleClaim(claims) : undefined
+  // With a role map, frigear.nu decides the role: only from the signed id token (never userinfo), only roles the map
+  // lists, and a missing or unlisted role is the default role.
+  const role = sso.syncRole ? mapRoleClaim(verified, sso.roleMap, sso.defaultRole) : undefined
   let user
   try {
     user = await syncFrigearUser({

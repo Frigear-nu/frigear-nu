@@ -61,7 +61,7 @@ describe('handleFrigearLogin', async () => {
   vi.stubGlobal('parseOAuthTokenResponse', parseOAuthTokenResponse)
   vi.stubGlobal('verifyFrigearIdToken', async () => ({ sub: '7' }))
   vi.stubGlobal('syncFrigearUser', async (profile: { id: number, email: string }) => ({ id: profile.id, email: profile.email, name: 'Ada' }))
-  vi.stubGlobal('parseRoleClaim', () => undefined)
+  vi.stubGlobal('mapRoleClaim', () => 'user')
   vi.stubGlobal('parseColorModeClaim', () => undefined)
   vi.stubGlobal('mapUserToSession', (user: unknown) => user)
   const replaceUserSession = vi.fn(async () => ({}))

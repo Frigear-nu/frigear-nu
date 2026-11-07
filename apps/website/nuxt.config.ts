@@ -106,6 +106,16 @@ export default defineNuxtConfig({
       },
       // Use the frigear.nu user id as the local user id (NUXT_FRIGEAR_FORCE_ID).
       forceId: false,
+      // frigear.nu decides the role here: these roles carry over as they are, any other (or none) becomes `user`
+      // (NUXT_FRIGEAR_ROLE_MAP, JSON, is merged in).
+      roleMap: {
+        admin: 'admin',
+        manager: 'manager',
+        coordinator: 'coordinator',
+        eventmanager: 'eventmanager',
+        barmanager: 'barmanager',
+        crew: 'crew',
+      },
     },
   },
 

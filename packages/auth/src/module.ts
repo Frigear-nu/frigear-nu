@@ -106,8 +106,13 @@ declare module 'nuxt/schema' {
       sso?: { url?: string, clientId?: string, clientSecret?: string, scopes?: string, stepUpScopes?: string }
       // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
       forceId?: boolean
-      // Apply the `role` claim of frigear.nu to the local user at every login (an admin there is an admin here). Defaults to true.
+      // Apply the role claim of frigear.nu to the local user at every login, through `roleMap`. Only on when `roleMap`
+      // maps a role; `false` turns it off.
       syncRole?: boolean
+      // frigear.nu role -> local role (`NUXT_FRIGEAR_ROLE_MAP`, JSON). A missing or unlisted role becomes `defaultRole`.
+      roleMap?: Record<string, string> | string
+      // The role of a user whose claim is missing or not in `roleMap`. Defaults to `user`.
+      defaultRole?: string
       // Keep the frigear.nu tokens in `auth_oauth_tokens` (`getOAuthAccessToken`). Defaults to `oauth.frigear.keepTokens`.
       keepTokens?: boolean
     }
@@ -506,6 +511,8 @@ export {}
   runtimeConfig.frigear = {
     forceId: false,
     keepTokens: keepsTokens('frigear'),
+    roleMap: {},
+    defaultRole: 'user',
     ...runtimeConfig.frigear,
     sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
   }
@@ -514,6 +521,10 @@ export {}
     && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
   if (oauthProviders.includes('frigear')) {
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
+    const roleMap = runtimeConfig.frigear.roleMap
+    if (runtimeConfig.frigear.syncRole === true && !(typeof roleMap === 'string' ? roleMap.trim() : Object.keys(roleMap ?? {}).length)) {
+      useLogger('auth').warn('`runtimeConfig.frigear.syncRole` is on, but `frigear.roleMap` maps no role: no role is synced from frigear.nu. Map the frigear.nu roles to local ones (`NUXT_FRIGEAR_ROLE_MAP`).')
+    }
   }
 
   // Housekeeping for the single-use tokens (`auth:clear-expired-tokens`); the cron is opt-out.
