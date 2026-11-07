@@ -214,6 +214,12 @@ export interface AuthSettings {
   session?: {
     /** Path to a function (default export) mapping the stored user to the session user shape. */
     mapper?: string
+    /**
+     * How long a cookie session lasts, in seconds from sign-in: the cookie expires and the server refuses the session
+     * after it. Defaults to 30 days. `false` turns the limit off. `runtimeConfig.session.maxAge` (nuxt-auth-utils,
+     * `NUXT_SESSION_MAX_AGE`) wins over it.
+     */
+    maxAge?: number | false
   }
   /**
    * OAuth sign-in through nuxt-auth-utils (`GET /api/auth/<provider>`). A provider is on when its credentials are set

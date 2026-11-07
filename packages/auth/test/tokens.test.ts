@@ -3,10 +3,14 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { sealSession } from 'h3'
 import { authApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/auth-db', import.meta.url))
 const dataDir = `${fixture}/.data`
+// The fixture's `runtimeConfig.session`: nuxt-auth-utils' cookie name and the test-only password.
+const SESSION_NAME = 'nuxt-session'
+const SESSION_PASSWORD = 'a-test-only-session-password-at-least-32-chars'
 
 async function call(method: string, path: string, options: { body?: unknown, cookie?: string, bearer?: string } = {}) {
   return fetch(path, {
@@ -256,6 +260,25 @@ describe('auth tokens', async () => {
       const cookie = await login(1)
       // `GET /api/auth/logout` falls through to the OAuth `:provider` route, which knows no provider `logout`.
       await expectApiError(apiClient({ cookie }).json('GET', authApi.logout), 404)
+    })
+  })
+
+  describe('session lifetime', () => {
+    it('gives the session cookie an expiry 30 days out by default', async () => {
+      const response = await call('POST', '/api/test/login', { body: { id: 1 } })
+      const expires = /expires=([^;]+)/i.exec(response.headers.get('set-cookie') ?? '')?.[1]
+      expect(expires, 'the session cookie has an expiry').toBeTruthy()
+      const days = (new Date(expires!).getTime() - Date.now()) / 86_400_000
+      expect(days).toBeGreaterThan(29.9)
+      expect(days).toBeLessThanOrEqual(30)
+    })
+
+    it('refuses a session sealed longer ago than the lifetime', async () => {
+      // A validly sealed session that started 31 days ago, as a cookie kept from back then would be.
+      const startedAt = Date.now() - 31 * 86_400_000
+      const event = { context: { sessions: { [SESSION_NAME]: { id: 'old-session', createdAt: startedAt, data: { user: { id: 1, name: 'Ada', role: 'user' } } } } } }
+      const sealed = await sealSession(event as never, { name: SESSION_NAME, password: SESSION_PASSWORD })
+      await expectApiError(apiClient({ cookie: `${SESSION_NAME}=${sealed}` }).json('GET', '/api/test/me'), 401, 'unauthorized')
     })
   })
 

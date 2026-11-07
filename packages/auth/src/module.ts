@@ -242,6 +242,9 @@ function resolveRateLimit(option: AuthSettings['rateLimit'], dev: boolean) {
   }
 }
 
+/** How long a cookie session lasts by default, in seconds (`settings.session.maxAge`): 30 days. */
+const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60
+
 // Today's Auth: sign-in on this app's server, a nuxt-auth-utils cookie session, the database tables and routes.
 function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
   const settings = options.settings ?? {}
@@ -295,6 +298,12 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     resolver,
     file: dialect => `./runtime/db/users.${dialect}`,
   })
+
+  // Cookie sessions end `maxAge` seconds after sign-in: h3 sets the cookie's expiry and refuses an older sealed session.
+  // The host's own `runtimeConfig.session.maxAge` wins; nuxt-auth-utils merges its defaults over what is set here.
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number } }
+  const sessionConfig = withSession.session ??= {}
+  sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {

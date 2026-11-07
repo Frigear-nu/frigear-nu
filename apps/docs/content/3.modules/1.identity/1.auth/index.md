@@ -135,6 +135,7 @@ Options go under the `authentication` key.
 | `settings.siteUrl` | `string` | `NUXT_SITE_URL` | The public URL emailed links point at. Becomes `runtimeConfig.public.siteUrl` (`NUXT_PUBLIC_SITE_URL`). |
 | `settings.trustRequestOrigin` | `boolean` | `false` | Without a site URL, build emailed links from the request's origin in production too. |
 | `settings.session.mapper` | `string` | pass-through | Path to a default-export function that maps the stored user to the session user. |
+| `settings.session.maxAge` | `number \| false` | `2592000` (30 days) | How long a session lasts, in seconds from sign-in. `false` turns the limit off. |
 | `settings.oauth` | `Record<provider, boolean \| { … }>` | `{}` | Changes per OAuth provider. `false` keeps one off. |
 
 **`settings.siteUrl`.** Password reset, magic link and verification emails (and the email change emails of
@@ -146,6 +147,10 @@ by host, so a request for another host never reaches the app, such as Cloudflare
 Sign-in, sign-up, sign-out, the magic link confirmation and the password reset refuse requests that another site made
 the browser send: `Sec-Fetch-Site: cross-site`, or an `Origin` other than the request's host or the site URL. They
 answer `403 cross_site_request`. Clients that send neither header, such as native apps and servers, are not affected.
+
+**`settings.session.maxAge`.** A session ends this long after sign-in, however active the user is: the cookie expires,
+and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
+`runtimeConfig.session.maxAge` (`NUXT_SESSION_MAX_AGE`) wins over this setting.
 
 **`settings.rateLimit`.** Past a limit the route answers `429 rate_limited` with a `retry-after` header. The counters
 live in NuxtHub KV: without `hub.kv` nothing is throttled and the build warns. Throttling is off under `nuxt dev`. `0`
