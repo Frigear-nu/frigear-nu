@@ -83,6 +83,18 @@ export async function verifyOAuthResourceToken(token: string): Promise<OAuthReso
 // remembered per instance.
 const localIds = new Map<string, number>()
 const LOCAL_ID_CACHE_SIZE = 5000
+// With `forceId`: the subs whose local row (id == sub) was confirmed to be the same person, per instance.
+const boundIds = new Set<string>()
+
+function bindSub(sub: string, id?: number) {
+  if (id !== undefined) {
+    if (localIds.size >= LOCAL_ID_CACHE_SIZE) localIds.delete(localIds.keys().next().value!)
+    localIds.set(sub, id)
+    return
+  }
+  if (boundIds.size >= LOCAL_ID_CACHE_SIZE) boundIds.delete(boundIds.values().next().value!)
+  boundIds.add(sub)
+}
 
 /**
  * The local user behind a verified token. With `forceId` the local id is `sub`; otherwise the user with the email
@@ -94,7 +106,18 @@ export async function resolveOAuthResourceUser(token: string, payload: OAuthReso
   if (forceId) {
     const id = Number(payload.sub)
     if (!Number.isSafeInteger(id) || id <= 0) return null
-    return await loadAuthUser(id) ?? await provisionOAuthResourceUser(token, payload, true)
+    const local = await loadAuthUser(id)
+    if (!local) return provisionOAuthResourceUser(token, payload, true)
+    if (boundIds.has(payload.sub)) return local
+    // A local row with this id may be someone else (a local sign-up, a user from before `forceId`). On first sight
+    // the issuer's email for `sub` has to be the row's email; the binding is then remembered.
+    const profile = await fetchOAuthResourceUserinfo(token)
+    if (!profile?.email || profile.sub !== payload.sub || profile.email.trim().toLowerCase() !== String(local.email ?? '').trim().toLowerCase()) {
+      console.warn('[oauth-resource] user not resolved: the local account with this id has another email')
+      return null
+    }
+    bindSub(payload.sub)
+    return local
   }
   const known = localIds.get(payload.sub)
   const user = known !== undefined ? await loadAuthUser(known) : null
@@ -133,10 +156,7 @@ async function provisionOAuthResourceUser(token: string, payload: OAuthResourceA
     }
   }
 
-  if (!forceId) {
-    if (localIds.size >= LOCAL_ID_CACHE_SIZE) localIds.delete(localIds.keys().next().value!)
-    localIds.set(payload.sub, stored.id)
-  }
+  bindSub(payload.sub, forceId ? undefined : stored.id)
   return loadAuthUser(stored.id)
 }
 
