@@ -80,7 +80,7 @@ export function isOAuthEmailVerified(provider: string, profile: OAuthProfile, op
 }
 
 /** Sends a failed sign-in back to the login page with `?error=<code>`, which explains it. */
-export function authLoginErrorRedirect(event: H3Event, error: 'oauth-signup' | 'oauth-unverified') {
+export function authLoginErrorRedirect(event: H3Event, error: 'oauth-signup' | 'oauth-unverified' | 'oauth-state') {
   const loginPath = useRuntimeConfig(event).public.authentication?.pages?.login
   return sendRedirect(event, `${isInternalPath(loginPath) ? loginPath : '/'}?error=${error}`)
 }

@@ -14,6 +14,9 @@ export default eventHandler(async (event) => {
   const provider = resolveOAuthProvider(event, name)
   if (!provider) throw notFound()
 
+  // A callback must carry the state this browser was sent off with (nuxt-auth-utils accepts one with neither).
+  if (!isOAuthCallbackStateValid(event)) return rejectOAuthCallbackState(event)
+
   rememberLoginRedirect(event)
   const defineHandler = await provider.load()
   return defineHandler({

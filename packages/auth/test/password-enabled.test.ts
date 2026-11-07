@@ -113,6 +113,21 @@ describe('oauth providers (any nuxt-auth-utils provider, on through its credenti
     expect(response.status).not.toBe(404)
   })
 
+  it('refuses a provider callback whose state is missing or does not match the state cookie', async () => {
+    const callbacks: Array<[string, Record<string, string>]> = [
+      [`${authApi.provider('auth0')}?code=provider-code`, {}],
+      [`${authApi.provider('auth0')}?code=provider-code&state=from-the-link`, {}],
+      [`${authApi.provider('auth0')}?code=provider-code`, { cookie: 'nuxt-auth-state=in-this-browser' }],
+      [`${authApi.provider('auth0')}?code=provider-code&state=from-the-link`, { cookie: 'nuxt-auth-state=in-this-browser' }],
+    ]
+    for (const [url, headers] of callbacks) {
+      const response = await fetch(url, { redirect: 'manual', headers })
+      expect(response.status, url).toBe(302)
+      expect(response.headers.get('location'), url).toBe('/?error=oauth-state')
+      expect(response.headers.get('set-cookie'), url).not.toMatch(/nuxt-session=/)
+    }
+  })
+
   it('sends an email without an account back to the login page when sign-up is off', async () => {
     const response = await fetch('/test/oauth-user?email=new@example.com', { redirect: 'manual' })
     expect(response.status).toBe(302)
