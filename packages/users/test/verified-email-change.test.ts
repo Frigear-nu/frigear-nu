@@ -25,6 +25,9 @@ async function linkTo(to: string, pattern: RegExp) {
   return new URL(url).pathname + new URL(url).search
 }
 
+// The `name=value` of the session cookie a response set.
+const sessionOf = (response: Response) => response.headers.get('set-cookie')!.split(';')[0]!
+
 const post = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('POST', path, body)
 const put = (path: string, body: unknown, cookie?: string) => apiClient({ cookie }).fetch('PUT', path, body)
 
@@ -101,8 +104,8 @@ describe('verified email change', async () => {
 
     expect((await login('ada-new@example.com')).status).toBe(200)
 
-    // The link can't be used twice.
-    expect((await post(usersApi.emailChangeConfirm, { code }, cookie)).status).toBe(400)
+    // The link can't be used twice (from the session the confirmation re-issued with the new address).
+    expect((await post(usersApi.emailChangeConfirm, { code }, sessionOf(confirm))).status).toBe(400)
     expect(await preview(`${usersApi.emailChange}?code=${code}`)).toMatchObject({ status: 'confirmed' })
     // A used link says so on the page, without asking to sign in.
     expect((await fetch(verifyPath, { redirect: 'manual' })).status).toBe(200)

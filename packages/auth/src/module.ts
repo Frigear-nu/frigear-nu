@@ -329,6 +329,8 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   const publicConfig = nuxt.options.runtimeConfig.public as { siteUrl?: string }
   publicConfig.siteUrl ||= settings.siteUrl || process.env.NUXT_SITE_URL || ''
   addServerPlugin(resolver.resolve('./runtime/server/plugins/site-url'))
+  // `/api/_auth/session` answers the user as `getAuth` sees them: fresh from the store, or signed out.
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/session-fetch'))
 
   // Bearer resolvers: the built-in user-token one plus whatever other modules register.
   addServerTemplate({
@@ -370,9 +372,10 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       const path = options.userStore
         ? await resolver.resolvePath(options.userStore, { cwd: nuxt.options.rootDir })
         : registration.path
-      if (path) return `export { default } from ${JSON.stringify(path)}`
+      // `configured`: without a store there is nothing to check a session against, so `getAuth` keeps its snapshot.
+      if (path) return `export { default } from ${JSON.stringify(path)}\nexport const configured = true`
       const missing = `() => { throw new Error('[auth] No user store: install @frigear-nu/users or set authentication.userStore.') }`
-      return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing}, changeId: ${missing} }`
+      return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing}, changeId: ${missing} }\nexport const configured = false`
     },
   })
 
@@ -403,6 +406,8 @@ declare module '#auth/scopes' {
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore
   export default store
+  /** \`false\` when no store is registered (neither \`@frigear-nu/users\` nor \`authentication.userStore\`). */
+  export const configured: boolean
 }
 declare module '#auth/rate-limit-kv' {
   export const kv: {

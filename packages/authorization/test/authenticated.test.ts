@@ -179,7 +179,7 @@ describe('authorization (authenticated)', async () => {
       await expect($fetch('/api/members', { headers: { authorization: 'Bearer fnu_invalid', cookie: userCookie } })).rejects.toMatchObject({ statusCode: 401 })
     })
 
-    it('reads the role fresh, while the session keeps the role from login', async () => {
+    it('reads the role fresh, for tokens and sessions alike', async () => {
       const linus = await register({ name: 'Linus', email: 'linus@example.com', password })
       const token = await createToken(linus.cookie)
       await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
@@ -187,8 +187,8 @@ describe('authorization (authenticated)', async () => {
       await $fetch('/api/test/make-admin', { method: 'POST', body: { email: 'linus@example.com' } })
 
       await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ open: true })
-      // The session snapshot is stale until the next login.
-      await expect($fetch('/api/admin/stats', { headers: { cookie: linus.cookie } })).rejects.toMatchObject({ statusCode: 403 })
+      // The session reads the user again too: the role rule sees the promotion without a new sign-in.
+      await expect($fetch('/api/admin/stats', { headers: { cookie: linus.cookie } })).resolves.toEqual({ secret: 42 })
     })
 
     it('keeps token management session-only', async () => {

@@ -282,6 +282,50 @@ describe('auth tokens', async () => {
     })
   })
 
+  describe('session principal', () => {
+    it('reads the user fresh: a role change applies to the next request of the session', async () => {
+      const cookie = await login(1)
+      const scopes = async () => (await (await call('GET', authApi.scopes, { cookie })).json() as Array<{ name: string }>).map(scope => scope.name)
+      expect((await call('GET', '/api/test/role', { cookie })).status).toBe(403)
+      expect(await scopes()).not.toContain('events:admin')
+
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'admin' } } })
+      expect((await call('GET', '/api/test/role', { cookie })).status).toBe(200)
+      expect(await scopes()).toContain('events:admin')
+
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'user' } } })
+      expect((await call('GET', '/api/test/role', { cookie })).status).toBe(403)
+      expect(await scopes()).not.toContain('events:admin')
+    })
+
+    it('ends the session when its user is gone', async () => {
+      const cookie = await login(3)
+      expect((await call('GET', '/api/test/me', { cookie })).status).toBe(200)
+
+      await call('PATCH', '/api/test/user', { body: { id: 3, remove: true } })
+      const response = await call('GET', authApi.me.tokens, { cookie })
+      expect(response.status).toBe(401)
+      expect(response.headers.get('set-cookie')).toMatch(new RegExp(`^${SESSION_NAME}=;`))
+      // The client's view of the session agrees.
+      expect(await (await call('GET', '/api/_auth/session', { cookie })).json()).not.toHaveProperty('user')
+    })
+
+    it('ends the session when its id now belongs to an account with another email', async () => {
+      const cookie = await login(4)
+      expect((await call('GET', '/api/test/me', { cookie })).status).toBe(200)
+
+      await call('PATCH', '/api/test/user', { body: { id: 4, patch: { email: 'someone-else@example.com' } } })
+      expect((await call('GET', '/api/test/me', { cookie })).status).toBe(401)
+    })
+
+    it('answers the fresh user on the session endpoint', async () => {
+      const cookie = await login(1)
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'editor' } } })
+      expect(await (await call('GET', '/api/_auth/session', { cookie })).json()).toMatchObject({ user: { id: 1, role: 'editor' } })
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'user' } } })
+    })
+  })
+
   describe('GET /api/auth/bootstrap', () => {
     it('requires a signed-in caller', async () => {
       await expectApiError(apiClient().json('GET', `${authApi.bootstrap}?scope=account`), 401, 'unauthorized')
