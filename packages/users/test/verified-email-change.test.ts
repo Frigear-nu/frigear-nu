@@ -169,6 +169,36 @@ describe('verified email change', async () => {
       expect(await signedInAs(sessionOf(await post(authApi.login, { email: 'hedy@example.com', password: 'new-password123' })))).toBe(200)
     })
 
+    it('gives the account back when the owner undoes an email change made from another session', async () => {
+      const owner = sessionOf(await post(authApi.register, { name: 'Mary', email: 'mary@example.com', password: 'supersecret123' }))
+      // A second session of the account, in someone else's hands.
+      const other = sessionOf(await login('mary@example.com'))
+      const kept = await apiClient({ cookie: other }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'kept', scopes: ['*'] })
+      const bootstrap = () => apiClient({ bearer: kept.token }).fetch('GET', `${authApi.bootstrap}?scope=account`)
+
+      expect((await put(usersApi.me.email, { email: 'mary-other@example.com' }, other)).status).toBe(200)
+      const confirm = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('mary-other@example.com', /verify-email-change/)) }, other)
+      expect(confirm.status, await confirm.clone().text()).toBe(200)
+      const changed = sessionOf(confirm)
+      // The change ended the owner's session.
+      expect(await signedInAs(owner)).toBe(401)
+
+      // The owner undoes it from the old address: every session that came from the change ends, its tokens too.
+      const revertCode = codeOf(await linkTo('mary@example.com', /revert-email-change/))
+      expect((await post(usersApi.emailChangeRevert, { code: revertCode })).status).toBe(200)
+      expect(await signedInAs(changed)).toBe(401)
+      expect((await put(usersApi.me.email, { email: 'mary-again@example.com' }, changed)).status).toBe(401)
+      expect((await bootstrap()).status).toBe(401)
+
+      // The owner signs in again. A new change names the stored address as the old one, and tells that address.
+      const back = sessionOf(await login('mary@example.com'))
+      expect((await put(usersApi.me.email, { email: 'mary-new@example.com' }, back)).status).toBe(200)
+      const confirmed = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('mary-new@example.com', /verify-email-change/)) }, back)
+      expect(confirmed.status, await confirmed.clone().text()).toBe(200)
+      expect(codeOf(await linkTo('mary@example.com', /revert-email-change/))).not.toBe(revertCode)
+      expect((await sentMails()).some(mail => mail.to === 'mary-other@example.com' && /revert-email-change/.test(mail.text))).toBe(false)
+    })
+
     it('ends every session and revokes the API tokens when the password is reset', async () => {
       const cookie = sessionOf(await post(authApi.register, { name: 'Katherine', email: 'katherine@example.com', password: 'supersecret123' }))
       const created = await apiClient({ cookie }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'CI', scopes: ['*'] })

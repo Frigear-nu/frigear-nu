@@ -11,10 +11,14 @@ const bodySchema = z.object({
 const VERIFY_TTL_HOURS = 24
 
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { sessionOnly: true })
+  const { id } = await requireUser(event, { sessionOnly: true })
   const { email } = await readValidatedBody(event, bodySchema.parse)
 
-  await assertEmailAvailable(email, { exceptUserId: user.id as number })
+  // The stored row, not the session's user: the address being replaced is the one in the database.
+  const user = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id as number) })
+  if (!user) throw notFound('User not found.')
+
+  await assertEmailAvailable(email, { exceptUserId: user.id })
 
   // The new address only takes effect once its owner confirms it (see verify-email-change).
   if (useRuntimeConfig(event).users?.verifyEmailChange) {
@@ -32,10 +36,8 @@ export default defineEventHandler(async (event) => {
 
     await dispatchEmailNotification(buildVerifyEmailChangeNotification({ to: email, name: user.name, url }))
 
-    // The address is unchanged until confirmed; answer the stored row, not the session snapshot.
-    const current = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, user.id as number) })
-    if (!current) throw notFound('User not found.')
-    return { ...toProfileDto(current), verificationRequired: true }
+    // The address is unchanged until confirmed.
+    return { ...toProfileDto(user), verificationRequired: true }
   }
 
   const [updated] = await db.update(schema.users)
