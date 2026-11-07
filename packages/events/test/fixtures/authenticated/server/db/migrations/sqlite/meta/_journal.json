@@ -71,6 +71,13 @@
       "when": 1791901582911,
       "tag": "0009_payments_invoice_id",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794017478232,
+      "tag": "0010_add_users_session_version",
+      "breakpoints": true
     }
   ]
 }

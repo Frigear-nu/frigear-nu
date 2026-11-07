@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
     throw invalidLink()
   }
 
-  await replaceUserSession(event, { user: mapUserToSession(user) })
+  await startAuthSession(event, user)
 
   return { redirect: isInternalPath(link.redirectUrl) ? link.redirectUrl : getAfterLoginPath(event) }
 })

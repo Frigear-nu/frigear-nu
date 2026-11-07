@@ -55,6 +55,11 @@ vi.stubGlobal('replaceUserSession', replaceUserSession)
 let verifyEmail = false
 vi.stubGlobal('useRuntimeConfig', () => ({ public: { authentication: { verifyEmail } } }))
 vi.stubGlobal('mapUserToSession', (user: { id: number, email: string }) => ({ id: user.id, email: user.email }))
+// `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
+vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<string, unknown> = {}) => {
+  const globals = globalThis as unknown as { replaceUserSession: (event: unknown, data: unknown) => unknown, mapUserToSession: (user: unknown) => unknown }
+  return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
+})
 vi.stubGlobal('getValidatedRouterParams', async (event: { params: Record<string, string> }, parse: (value: unknown) => unknown) => parse(event.params))
 vi.stubGlobal('toPasskeyDto', (await import('../src/runtime/server/utils/passkeys')).toPasskeyDto)
 

@@ -50,6 +50,13 @@
       "when": 1793882181906,
       "tag": "0006_add_oauth_refresh_lifetimes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794017490211,
+      "tag": "0007_add_users_session_version",
+      "breakpoints": true
     }
   ]
 }

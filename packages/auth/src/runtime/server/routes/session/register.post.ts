@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     return created(event, { id: user.id, verificationRequired: true })
   }
 
-  await replaceUserSession(event, { user: mapUserToSession(user) })
+  await startAuthSession(event, user)
 
   return created(event, { id: user.id, verificationRequired: false })
 })

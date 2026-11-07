@@ -71,7 +71,7 @@ export default defineWebAuthnRegisterEventHandler({
     }
 
     // A passkey sign-up starts a fresh session; adding a passkey refreshes the signed-in user's own one.
-    if (createdUserId !== null) await replaceUserSession(event, { user: mapUserToSession(dbUser) })
+    if (createdUserId !== null) await startAuthSession(event, dbUser)
     else await setUserSession(event, { user: mapUserToSession(dbUser) })
   },
 })

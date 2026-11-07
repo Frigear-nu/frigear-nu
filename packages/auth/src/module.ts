@@ -99,6 +99,8 @@ declare module 'nuxt/schema' {
     authentication?: {
       tokenTtlDays: number | null
       apiTokenPrefix: string
+      // Revoke a user's API tokens on a password reset or a reverted email change (`apiTokens.revokeOnReset`).
+      revokeTokensOnReset: boolean
       magicLinkSignUp: boolean
       magicLinkCooldown: number
       // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
@@ -150,7 +152,8 @@ declare module 'nitropack' {
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
     /**
      * A user's password was changed or reset, or their email changed (`notifyAuthCredentialsChanged`). Fired after the
-     * change is stored; end sessions the old credentials opened here.
+     * change is stored, and after the user's other cookie sessions were ended; end other sessions the old credentials
+     * opened here.
      */
     'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
   }
@@ -309,6 +312,7 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   nuxt.options.runtimeConfig.authentication = {
     tokenTtlDays: options.tokenTtlDays ?? null,
     apiTokenPrefix,
+    revokeTokensOnReset: (typeof options.apiTokens === 'object' ? options.apiTokens.revokeOnReset : undefined) !== false,
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
     trustRequestOrigin: settings.trustRequestOrigin === true,

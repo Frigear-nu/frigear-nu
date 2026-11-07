@@ -40,6 +40,8 @@ export interface AuthStoredUser {
   password?: string | null
   emailVerifiedAt?: Date | null
   lastLoginAt?: Date | null
+  /** Bumped to end every session of the user (`endAuthSessions`); a session is stamped with it at sign-in. */
+  sessionVersion?: number
   [key: string]: unknown
 }
 
@@ -55,7 +57,7 @@ export interface AuthUserCreate {
   role?: string
 }
 
-export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'avatar' | 'password' | 'emailVerifiedAt' | 'lastLoginAt'>> & { role?: string }
+export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'avatar' | 'password' | 'emailVerifiedAt' | 'lastLoginAt' | 'sessionVersion'>> & { role?: string }
 
 /**
  * Where the sign-in flows read and write users. `@frigear-nu/users` provides it (`setAuthUserStore`); a host without

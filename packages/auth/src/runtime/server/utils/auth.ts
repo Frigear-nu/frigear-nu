@@ -61,7 +61,8 @@ const sameEmail = (a: unknown, b: unknown) =>
 /**
  * The cookie session as a principal, with the user read fresh from the store: a role change applies to the next
  * request. A session whose user is gone, or whose id now belongs to someone with another email (an id re-keyed by
- * `changeId`), is cleared and answers `null`. Without a user store the session's snapshot is used as is.
+ * `changeId`), or whose sessions were ended since it started (`endAuthSessions`), is cleared and answers `null`.
+ * Without a user store the session's snapshot is used as is.
  */
 export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal | null> {
   const session = await getUserSession(event)
@@ -69,7 +70,8 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
   if (!storeConfigured) return { kind: 'session', user: session.user, scopes: [ALL_SCOPES] }
 
   const stored = await useAuthUserStore().findById(session.user.id as string | number)
-  if (!stored || !sameEmail(stored.email, (session.user as { email?: unknown }).email)) {
+  // A session from before the user's sessions were ended (`endAuthSessions`, e.g. a password change) is over too.
+  if (!stored || !sameEmail(stored.email, (session.user as { email?: unknown }).email) || authSessionVersionOf(stored) !== authSessionVersionOf(session)) {
     await clearUserSession(event)
     return null
   }

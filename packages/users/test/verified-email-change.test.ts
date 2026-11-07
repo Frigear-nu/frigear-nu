@@ -148,4 +148,41 @@ describe('verified email change', async () => {
     const mails = await sentMails()
     expect(mails.some(mail => mail.to === 'grace@example.com' && mail.subject === 'Your password was changed')).toBe(true)
   })
+
+  describe('ending sessions on a credential change', () => {
+    const tokens = (cookie: string) => apiClient({ cookie }).fetch('GET', authApi.me.tokens)
+    const signedInAs = async (cookie: string) => (await tokens(cookie)).status
+
+    it('ends the other sessions when the password changes, and keeps the one that changed it', async () => {
+      const changer = sessionOf(await post(authApi.register, { name: 'Hedy', email: 'hedy@example.com', password: 'supersecret123' }))
+      const elsewhere = sessionOf(await login('hedy@example.com'))
+      expect(await signedInAs(elsewhere)).toBe(200)
+
+      const response = await put(usersApi.me.password, {
+        currentPassword: 'supersecret123', newPassword: 'new-password123', confirmNewPassword: 'new-password123',
+      }, changer)
+      expect(response.status, await response.clone().text()).toBe(200)
+
+      expect(await signedInAs(sessionOf(response))).toBe(200)
+      expect(await signedInAs(elsewhere)).toBe(401)
+      // Signing in again works as usual.
+      expect(await signedInAs(sessionOf(await post(authApi.login, { email: 'hedy@example.com', password: 'new-password123' })))).toBe(200)
+    })
+
+    it('ends every session and revokes the API tokens when the password is reset', async () => {
+      const cookie = sessionOf(await post(authApi.register, { name: 'Katherine', email: 'katherine@example.com', password: 'supersecret123' }))
+      const created = await apiClient({ cookie }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'CI', scopes: ['*'] })
+      const bootstrap = () => apiClient({ bearer: created.token }).fetch('GET', `${authApi.bootstrap}?scope=account`)
+      expect((await bootstrap()).status).not.toBe(401)
+
+      expect((await post(authApi.forgotPassword, { email: 'katherine@example.com' })).status).toBe(200)
+      const code = codeOf(await linkTo('katherine@example.com', /reset-password/))
+      const reset = await post(authApi.resetPassword, { code, password: 'new-password123', confirmPassword: 'new-password123' })
+      expect(reset.status, await reset.clone().text()).toBe(200)
+
+      expect(await signedInAs(sessionOf(reset))).toBe(200)
+      expect(await signedInAs(cookie)).toBe(401)
+      expect((await bootstrap()).status).toBe(401)
+    })
+  })
 })

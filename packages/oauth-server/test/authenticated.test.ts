@@ -1363,7 +1363,10 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const mine = await signIn(owner, app)
       const theirs = await signIn(other, app)
 
-      await ok(await json(owner.cookie, 'PUT', usersApi.me.password, { currentPassword: 'supersecret123', newPassword: 'evenmoresecret456', confirmNewPassword: 'evenmoresecret456' }))
+      const changed = await json(owner.cookie, 'PUT', usersApi.me.password, { currentPassword: 'supersecret123', newPassword: 'evenmoresecret456', confirmNewPassword: 'evenmoresecret456' })
+      await ok(changed.clone())
+      // The change ends the user's other cookie sessions too and re-issues the one that made it.
+      owner.cookie = changed.headers.get('set-cookie')!
       expect((await refresh(app, mine.refresh_token)).status).toBe(400)
       expect(await revokedFor(owner.id)).toContainEqual({ applicationId: app.id, userId: owner.id, reason: 'credentials_changed' })
       const kept = await ok(await refresh(app, theirs.refresh_token))

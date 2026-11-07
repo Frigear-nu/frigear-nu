@@ -69,6 +69,11 @@ describe('handleFrigearLogin', async () => {
     throw new Error('A frigear.nu sign-in must replace the session, not merge into it.')
   })
   vi.stubGlobal('replaceUserSession', replaceUserSession)
+  // `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
+  vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<string, unknown> = {}) => {
+    const globals = globalThis as unknown as { replaceUserSession: (event: unknown, data: unknown) => unknown, mapUserToSession: (user: unknown) => unknown }
+    return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
+  })
   vi.stubGlobal('consumeLoginRedirect', () => '/')
   vi.stubGlobal('sendRedirect', async () => undefined)
   const { handleFrigearLogin } = await import('../src/runtime/server/utils/frigear-login')

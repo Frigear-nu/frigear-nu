@@ -115,6 +115,7 @@ Options go under the `authentication` key.
 | `client` | `ClientModuleOptions` | – | Client mode only: the issuer and how the app talks to it. |
 | `apiTokens` | `boolean \| { prefix?: string }` | `true` | API tokens. `false` turns them off. |
 | `apiTokens.prefix` | `string` | `'fnu_'` | What new API tokens start with. See [API tokens](/modules/identity/auth/server#user-api-tokens). |
+| `apiTokens.revokeOnReset` | `boolean` | `true` | Revoke a user's API tokens when their password is reset by email or an email change is undone. |
 | `tokenTtlDays` | `number \| null` | `null` | Default lifetime of new API tokens. `null` means they never expire. |
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
 | `scopes` | `AuthScopeDefinition[]` | `[]` | Extra [scopes](/guide/concepts/glossary) users can pick for API tokens. |
@@ -151,6 +152,12 @@ answer `403 cross_site_request`. Clients that send neither header, such as nativ
 **`settings.session.maxAge`.** A session ends this long after sign-in, however active the user is: the cookie expires,
 and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
 `runtimeConfig.session.maxAge` (`NUXT_SESSION_MAX_AGE`) wins over this setting.
+
+**Ending sessions.** A password change or reset, an email change or its revert, and clearing an unverified account's
+credentials end every other session of the user: the module bumps the user's `sessionVersion` column, and a session
+signed in before that is refused. The session that made the change stays signed in. A password reset and an undone email
+change also revoke the user's API tokens, since the account may have been in someone else's hands. Set
+`apiTokens.revokeOnReset: false` to keep them, for example when integrations must not break.
 
 **`settings.rateLimit`.** Past a limit the route answers `429 rate_limited` with a `retry-after` header. The counters
 live in NuxtHub KV: without `hub.kv` nothing is throttled and the build warns. Throttling is off under `nuxt dev`. `0`

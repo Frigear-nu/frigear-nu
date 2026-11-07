@@ -247,6 +247,12 @@ export interface ModuleOptions {
   apiTokens?: boolean | {
     /** What every new token starts with (letters, digits, `_` and `-`). Changing it invalidates issued tokens. Defaults to `fnu_`. */
     prefix?: string
+    /**
+     * Revoke all of a user's tokens when their password is reset by email or an email change is undone from the old
+     * address: both mean the account may have been in someone else's hands. Defaults to `true`; `false` keeps them
+     * (integrations then keep working, and so would tokens someone else minted).
+     */
+    revokeOnReset?: boolean
   }
   /** Default lifetime in days for new user tokens; `null`/omitted means they never expire. */
   tokenTtlDays?: number | null
