@@ -78,14 +78,14 @@ describe('handleFrigearLogin', async () => {
 
   it('keeps the tokens of the login with keepTokens', async () => {
     storeOAuthTokens.mockClear()
-    await handleFrigearLogin({} as never, sso, { email: 'ada@example.com' }, response)
+    await handleFrigearLogin({} as never, sso, { sub: '7', email: 'ada@example.com' }, response)
     expect(storeOAuthTokens).toHaveBeenCalledWith(7, 'frigear', expect.objectContaining({ accessToken: 'access', refreshToken: 'refresh', scopes: ['openid', 'users:read'] }))
     expect(replaceUserSession).toHaveBeenCalled()
   })
 
   it('keeps nothing without it', async () => {
     storeOAuthTokens.mockClear()
-    await handleFrigearLogin({} as never, { ...sso, keepTokens: false }, { email: 'ada@example.com' }, response)
+    await handleFrigearLogin({} as never, { ...sso, keepTokens: false }, { sub: '7', email: 'ada@example.com' }, response)
     expect(storeOAuthTokens).not.toHaveBeenCalled()
   })
 })
