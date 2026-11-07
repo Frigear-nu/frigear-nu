@@ -116,9 +116,17 @@ async function provisionOAuthResourceUser(token: string, payload: OAuthResourceA
     }, { forceId })
   }
   catch (error) {
-    // Two first requests of the same user race to create them: the loser finds the winner's row.
+    // A refusal (an unverified email of an existing user, an id held by someone else) stays one.
+    if ((error as { statusCode?: number }).statusCode) {
+      console.warn('[oauth-resource] user not provisioned:', (error as { statusMessage?: string }).statusMessage)
+      return null
+    }
+    // Two first requests of the same user race to create them: the loser finds the winner's row, which has to be
+    // this user (same email), and is found by email only when the issuer verified it.
     const users = useAuthUserStore()
-    stored = forceId ? await users.findById(Number(payload.sub)) : await users.findByEmail(profile.email.trim().toLowerCase())
+    const email = profile.email.trim().toLowerCase()
+    const found = forceId ? await users.findById(Number(payload.sub)) : profile.email_verified === true ? await users.findByEmail(email) : null
+    stored = found && found.email.trim().toLowerCase() === email ? found : null
     if (!stored) {
       console.error('[oauth-resource] could not provision the user', error)
       return null

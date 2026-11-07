@@ -24,8 +24,9 @@ your email in `NUXT_ACL_ADMINS` there: comma separated emails that are always ad
 pnpm dev
 ```
 
-Open http://localhost:3000, choose **Create account** and register with the email from `NUXT_ACL_ADMINS`. You land on
-`/account`; `/admin` is the admin dashboard and `/admin/users` the user admin. Emails (password reset, ...) are printed
+Open http://localhost:3000, choose **Create account** and register with the email from `NUXT_ACL_ADMINS`. Then open the
+verification link printed in the terminal and press **Continue** (the list only counts for a verified address). You land
+on `/account`; `/admin` is the admin dashboard and `/admin/users` the user admin. Emails (password reset, ...) are printed
 in the terminal until you configure a [Notify](https://github.com/Frigear-nu/frigear-nu/tree/main/packages/notify) driver.
 
 The full guide, including how to add more modules, is the

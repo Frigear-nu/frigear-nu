@@ -118,6 +118,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com/path' })).status).toBe(400)
       expect((await post({ name: '', websiteUrl: 'https://app.example.com' })).status).toBe(400)
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'http://*.x.dev' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.x.dev?.evil.com' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.dev' })).status).toBe(400)
     })
 
     it('creates, lists, edits and deletes without leaking secrets', async () => {
@@ -359,6 +361,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
         'nonce': 'nonce-1',
         'name': expect.stringMatching(/^Staff/),
         'email': expect.stringMatching(/@staff\.test$/),
+        // Registered without a confirmed address.
+        'email_verified': false,
         'role': 'staff',
         'https://frigear.test/claims/role': 'staff',
         'groups': ['staff', 'member'],
@@ -386,7 +390,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const tokens = await (await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })).json() as Json
 
       const userinfo = await $fetch<Json>(oidc.userinfo, { headers: { authorization: `Bearer ${tokens.access_token}` } })
-      expect(userinfo).toMatchObject({ sub: String(staff.id), email: expect.stringMatching(/@staff\.test$/), role: 'staff' })
+      expect(userinfo).toMatchObject({ sub: String(staff.id), email: expect.stringMatching(/@staff\.test$/), email_verified: false, role: 'staff' })
       expect(userinfo.name).toBeUndefined()
 
       expect((await fetch(oidc.userinfo)).status).toBe(401)

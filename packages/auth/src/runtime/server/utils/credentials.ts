@@ -1,7 +1,10 @@
 import type { H3Event } from 'h3'
 
-/** Why a user's credentials changed: a password change, a password reset (by email), or a new (or restored) email. */
-export type AuthCredentialsChangeReason = 'password' | 'password-reset' | 'email'
+/**
+ * Why a user's credentials changed: a password change, a password reset (by email), a new (or restored) email, or an
+ * unverified account's credentials cleared when its address was first verified another way (`unverified-account`).
+ */
+export type AuthCredentialsChangeReason = 'password' | 'password-reset' | 'email' | 'unverified-account'
 
 /** `auth:credentials:changed`: a user's password or email changed. Listeners end what the old credentials signed in. */
 export type AuthCredentialsChangedContext = {

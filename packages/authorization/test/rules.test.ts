@@ -9,6 +9,7 @@ import {
   denies,
   evaluateRule,
   matchRoute,
+  normalizeRequestPath,
   resolveRule,
   normalizeAuthorizeMeta,
 } from '../src/runtime/utils'
@@ -129,5 +130,31 @@ describe('resolveRule with exempt patterns (Auth\'s anonymous entry points)', ()
 
   it('changes nothing without exempt patterns', () => {
     expect(resolveRule({ '/**': { authenticated: true } }, '/login')).toEqual({ authenticated: true })
+  })
+})
+
+describe('normalizeRequestPath', () => {
+  it('returns the path the router dispatches on, without the query', () => {
+    expect(normalizeRequestPath('/api/admin/users?x=1')).toBe('/api/admin/users')
+    expect(normalizeRequestPath('/api//admin///users')).toBe('/api/admin/users')
+    expect(normalizeRequestPath('/')).toBe('/')
+    expect(normalizeRequestPath('')).toBe('/')
+  })
+
+  it('refuses encoded slashes, backslashes and dot segments', () => {
+    for (const path of ['/api/admin%2Fusers', '/api/admin%2fusers', '/api/admin%5Cusers', '/api/admin\\users', '/api/x/../admin/users', '/api/./admin', '/api/%2e%2e/admin', '/api/%2E/admin', '/api/admin/..']) {
+      expect(normalizeRequestPath(path), path).toBeNull()
+    }
+    expect(normalizeRequestPath('/api/admin/users.json')).toBe('/api/admin/users.json')
+    expect(normalizeRequestPath('/api/admin/...')).toBe('/api/admin/...')
+  })
+
+  it('makes decoded paths hit their rules (h3 decodes `event.path` before routing)', () => {
+    const routes = { '/api/admin/**': { roles: ['admin'] }, '/api/admin/units': { roles: ['owner'] } }
+    // What h3 hands the router for `/api/%61dmin/users` and `/api/admin/%75nits`.
+    const decoded = (raw: string) => normalizeRequestPath(decodeURI(raw))!
+    expect(resolveRule(routes, decoded('/api/%61dmin/users'))).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, decoded('/%61pi/admin/users'))).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, decoded('/api/admin/%75nits'))).toEqual({ roles: ['owner'] })
   })
 })

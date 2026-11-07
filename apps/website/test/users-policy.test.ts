@@ -30,6 +30,15 @@ describe('canAdministerUsers', () => {
     expect(canAdministerUsers('admin', 'create', { input: { role: 'root' } })).toBe(false)
     expect(canAdministerUsers('root', 'view')).toBe(false)
   })
+  it('does not let a manager move an account onto an allowlisted staff address', () => {
+    const staffEmails = ['boss@example.com', 'forms@example.com']
+    expect(canAdministerUsers('manager', 'update', { input: { email: 'Boss@Example.com' }, target: { role: 'user' }, staffEmails })).toBe(false)
+    expect(canAdministerUsers('manager', 'update', { input: { email: 'forms@example.com' }, target: { role: 'member' }, staffEmails })).toBe(false)
+    expect(canAdministerUsers('manager', 'create', { input: { email: 'boss@example.com', role: 'user' }, staffEmails })).toBe(false)
+    expect(canAdministerUsers('manager', 'update', { input: { email: 'someone@example.com' }, target: { role: 'user' }, staffEmails })).toBe(true)
+    expect(canAdministerUsers('admin', 'update', { input: { email: 'boss@example.com' }, target: { role: 'user' }, staffEmails })).toBe(true)
+  })
+
   it('lets managers and admins delete users below their rank only', () => {
     expect(canAdministerUsers('manager', 'delete', { target: { role: 'member' } })).toBe(true)
     expect(canAdministerUsers('manager', 'delete', { target: { role: 'admin' } })).toBe(false)

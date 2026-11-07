@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { H3Event } from 'h3'
 import { apiError, badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
 import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, OAuthNormalizedClient, OAuthSessionDto, TokenRevokedContext, UserApplicationDto } from '../../../types'
-import { CLIENT_TYPES, MAX_REFRESH_TOKEN_LIFETIME, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl, oauthClientKind } from '../../utils'
+import { CLIENT_TYPES, MAX_REFRESH_TOKEN_LIFETIME, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl, oauthClientKind, parsePreviewUrlPattern } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
 
@@ -44,7 +44,9 @@ export const applicationInputSchema = z.object({
   icon: z.string().trim().max(120).nullish(),
   priority: z.number().int().min(-1000).max(1000).optional(),
   loginUrl: httpsUrl.nullish(),
-  previewUrlPattern: z.string().trim().max(2048).startsWith('https://').nullish(),
+  previewUrlPattern: z.string().trim().max(2048)
+    .refine(value => !!parsePreviewUrlPattern(value), 'Must look like https://*.vercel.app: https, one `*` in the first host label, then at least two more labels.')
+    .nullish(),
   redirectUris: z.array(redirectUri).max(20).optional(),
   allowedRoles: names.optional(),
   tags: names.optional(),

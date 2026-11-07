@@ -23,6 +23,19 @@ export function matchRoute(pattern: string, path: string): boolean {
     && patternSegments.every((segment, index) => segment === '*' || segment === pathSegments[index])
 }
 
+/**
+ * The request path that route rules are matched against: h3's `event.path` (what the router dispatches on, already
+ * percent-decoded except for `%2F`) without the query, with repeated slashes collapsed. Returns `null` for a path that
+ * no rule can be trusted to match: one holding an encoded `/` (`%2F`), a `\` (or `%5C`), or a `.`/`..` segment
+ * (also when still encoded as `%2E`). Callers refuse those with a 400.
+ */
+export function normalizeRequestPath(path: string): string | null {
+  const pathname = path.split('?', 1)[0] ?? ''
+  if (/%2f|%5c|\\/i.test(pathname)) return null
+  if (pathname.split('/').some(segment => /^(?:\.|%2e){1,2}$/i.test(segment))) return null
+  return pathname.replace(/\/{2,}/g, '/') || '/'
+}
+
 /** How specific a pattern is - more literal segments win, and an exact pattern beats a trailing `/**`. */
 function specificity(pattern: string): number {
   const segments = pattern.split('/').filter(Boolean)

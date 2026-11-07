@@ -13,7 +13,7 @@ nuxt.config.ts                     modules and their options - the source of tru
 app/                               Nuxt 4 app code: pages, components, composables, layouts, middleware, utils
 app/assets/css/main.css            Tailwind + Nuxt UI
 server/                            Nitro: api routes, plugins, utils
-server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for emails in NUXT_ACL_ADMINS
+server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for verified emails in NUXT_ACL_ADMINS
 server/utils/map-session-user.ts   session mapper (authentication.settings.session.mapper)
 server/plugins/users-policy.ts     host policy for the users admin
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`

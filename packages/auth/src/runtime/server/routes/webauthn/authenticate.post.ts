@@ -46,6 +46,10 @@ export default defineWebAuthnAuthenticateEventHandler({
 
     const dbUser = await useAuthUserStore().findById(credential.userId)
     if (!dbUser) throw invalidCredentials()
+    // Same rule as password sign-in (`login.post.ts`).
+    if (useRuntimeConfig(event).public.authentication?.verifyEmail && !dbUser.emailVerifiedAt) {
+      throw apiError(403, 'email_not_verified', 'Please verify your email address before logging in.')
+    }
 
     await setUserSession(event, { user: mapUserToSession(dbUser) })
   },

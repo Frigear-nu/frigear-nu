@@ -120,13 +120,75 @@ export function normalizeWebsiteUrl(value: string): string {
   return url.origin
 }
 
-/** `https://*.vercel.app` -> a regex matching one host label in place of `*`. Everything else is matched literally. */
+/**
+ * A parsed preview URL pattern: `https://` + a host whose first label holds one `*` (with an optional literal prefix or
+ * suffix) followed by at least two literal labels, an optional port and an optional path prefix. Lower-case ASCII only,
+ * never a query, fragment, userinfo, `%` or `\`.
+ */
+export type PreviewUrlPattern = {
+  /** Matches `URL.hostname`: the `*` stands for one DNS label of `[a-z0-9-]`. */
+  host: RegExp
+  /** `URL.port`: `''` for the default port. */
+  port: string
+  /** The path prefix before the callback path, without a trailing `/` (`''` for none). */
+  path: string
+}
+
+const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+const PREVIEW_URL_PATTERN = new RegExp(
+  `^https://([a-z0-9-]*)\\*([a-z0-9-]*)((?:\\.${LABEL}){2,})(?::(\\d{1,5}))?((?:/[\\w~-][\\w.~-]*)*)/*$`,
+)
+
+/**
+ * Parse an admin-entered preview URL pattern such as `https://*.vercel.app` or `https://myapp-*.vercel.app`, or `null`
+ * when it is not one. Used to validate the pattern on save and to match redirect URIs against it.
+ */
+export function parsePreviewUrlPattern(pattern: string): PreviewUrlPattern | null {
+  const match = PREVIEW_URL_PATTERN.exec(pattern.trim())
+  if (!match) return null
+  const [, prefix = '', suffix = '', rest = '', port = '', path = ''] = match
+  if (port && (Number(port) < 1 || Number(port) > 65535 || port === '443' || port.startsWith('0'))) return null
+  const literal = (text: string) => text.replace(/[.-]/g, '\\$&')
+  return {
+    // The lookahead keeps the whole first label a valid DNS label (1-63 chars, no leading or trailing `-`).
+    host: new RegExp(`^(?=${LABEL}\\.)${literal(prefix)}[a-z0-9-]+${literal(suffix)}${literal(rest)}$`),
+    port,
+    path,
+  }
+}
+
+/**
+ * Whether `redirectUri` is the callback of a preview deployment matching `pattern`. Compared on the parsed URL, never the
+ * raw string: the URI must be plain printable ASCII without `%`, `\`, `@`, `?` or `#`, must serialise back to itself
+ * (`new URL(uri).href === uri`), and its scheme, port and path must equal the pattern's. Only the `*` label varies.
+ */
+export function matchesPreviewUrlPattern(redirectUri: string, pattern: string, callbackPath: string): boolean {
+  const parsed = parsePreviewUrlPattern(pattern)
+  if (!parsed) return false
+  if (!/^[\x21-\x7E]+$/.test(redirectUri) || /[%\\@?#]/.test(redirectUri)) return false
+  let url: URL
+  try {
+    url = new URL(redirectUri)
+  }
+  catch {
+    return false
+  }
+  if (url.href !== redirectUri) return false
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return false
+  if (url.port !== parsed.port || url.pathname !== `${parsed.path}${callbackPath}`) return false
+  return parsed.host.test(url.hostname)
+}
+
+/**
+ * @deprecated Matching a regex against the raw redirect URI is unsafe: `%2e`, `\`, `?` and U+3002 make the browser go to
+ * another host than the one the regex saw. Use `matchesPreviewUrlPattern`, which compares the parsed URL.
+ */
 export function previewPatternToRegExp(pattern: string, callbackPath: string): RegExp {
   const escaped = pattern
     .replace(/\/+$/, '')
     .split('*')
     .map(part => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-    .join('[^/.]+')
+    .join('[a-z0-9-]+')
   const callback = callbackPath.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
   return new RegExp(`^${escaped}${callback}$`)
 }
@@ -158,7 +220,7 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
   if (rules.websiteUrl && redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
-  if (rules.previewUrlPattern) return previewPatternToRegExp(rules.previewUrlPattern, callbackPath).test(redirectUri)
+  if (rules.previewUrlPattern) return matchesPreviewUrlPattern(redirectUri, rules.previewUrlPattern, callbackPath)
   return false
 }
 

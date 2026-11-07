@@ -119,8 +119,10 @@ describe('oauth providers (any nuxt-auth-utils provider, on through its credenti
     expect(response.headers.get('location')).toBe('/?error=oauth-signup')
   })
 
-  it('refuses an unverified email address', async () => {
+  it('sends an unverified email address back to the login page, linking nothing', async () => {
     const response = await fetch('/test/oauth-user?email=new@example.com&verified=false', { redirect: 'manual' })
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('/?error=oauth-unverified')
+    expect(response.headers.get('set-cookie')).toBeNull()
   })
 })

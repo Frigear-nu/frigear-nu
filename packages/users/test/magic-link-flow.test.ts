@@ -65,6 +65,19 @@ describe('magic links & email verification (database)', async () => {
     expect(verified.status, await verified.clone().text()).toBe(200)
   })
 
+  it('a sign-in link to an account never verified clears the password set at registration', async () => {
+    // Someone registers an address they do not own; its owner later signs in with a link they asked for themselves.
+    const squatted = { name: 'Squatter', email: 'owner@example.com', password: 'squatterpass123' }
+    expect((await post(authApi.register, squatted)).status).toBe(201)
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
+    expect((await post(authApi.magicLink, { email: squatted.email })).status).toBe(200)
+    const confirmed = await post(authApi.magicLinkConfirm, { code: (await latestLink(squatted.email)).code })
+    expect(confirmed.status, await confirmed.clone().text()).toBe(200)
+
+    const login = await post(authApi.login, { email: squatted.email, password: squatted.password })
+    expect(login.status).toBe(401)
+  })
+
   it('a link works once', async () => {
     const { code } = await latestLink(credentials.email)
     const replay = await post(authApi.magicLinkConfirm, { code })
