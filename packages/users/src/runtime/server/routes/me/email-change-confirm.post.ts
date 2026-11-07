@@ -47,6 +47,8 @@ export default defineEventHandler(async (event) => {
 
   if (!updated) throw notFound('User not found.')
 
+  // Reset codes and sign-in links went to the old address.
+  await deleteUnusedAuthEmailCodes(updated.id)
   await notifyAuthCredentialsChanged({ userId: updated.id, reason: 'email', event })
   await setUserSession(event, { user: mapUserToSession(updated) })
 

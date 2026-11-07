@@ -199,6 +199,25 @@ describe('verified email change', async () => {
       expect((await sentMails()).some(mail => mail.to === 'mary-other@example.com' && /revert-email-change/.test(mail.text))).toBe(false)
     })
 
+    it('voids reset codes sent to an address the account no longer uses', async () => {
+      const cookie = sessionOf(await post(authApi.register, { name: 'Alan', email: 'alan@example.com', password: 'supersecret123' }))
+      const reset = (code: string) => post(authApi.resetPassword, { code, password: 'new-password123', confirmPassword: 'new-password123' })
+
+      expect((await post(authApi.forgotPassword, { email: 'alan@example.com' })).status).toBe(200)
+      const oldAddressCode = codeOf(await linkTo('alan@example.com', /reset-password/))
+
+      expect((await put(usersApi.me.email, { email: 'alan-new@example.com' }, cookie)).status).toBe(200)
+      const confirm = await post(usersApi.emailChangeConfirm, { code: codeOf(await linkTo('alan-new@example.com', /verify-email-change/)) }, cookie)
+      expect(confirm.status, await confirm.clone().text()).toBe(200)
+      expect((await reset(oldAddressCode)).status).toBe(400)
+
+      // Undoing the change voids what was sent to the address being undone.
+      expect((await post(authApi.forgotPassword, { email: 'alan-new@example.com' })).status).toBe(200)
+      const newAddressCode = codeOf(await linkTo('alan-new@example.com', /reset-password/))
+      expect((await post(usersApi.emailChangeRevert, { code: codeOf(await linkTo('alan@example.com', /revert-email-change/)) })).status).toBe(200)
+      expect((await reset(newAddressCode)).status).toBe(400)
+    })
+
     it('ends every session and revokes the API tokens when the password is reset', async () => {
       const cookie = sessionOf(await post(authApi.register, { name: 'Katherine', email: 'katherine@example.com', password: 'supersecret123' }))
       const created = await apiClient({ cookie }).json<{ token: string }>('POST', authApi.me.tokens, { name: 'CI', scopes: ['*'] })
