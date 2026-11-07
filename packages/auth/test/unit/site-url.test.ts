@@ -21,6 +21,7 @@ vi.stubGlobal('useRuntimeConfig', () => config)
 // What h3's `getRequestURL` makes of the `Host` header.
 vi.stubGlobal('getRequestURL', (event: { headers: Record<string, string> }) => new URL(`https://${event.headers.host}/api/auth/x`))
 vi.stubGlobal('createOneTimeCode', () => 'the-code')
+vi.stubGlobal('enforceAuthRateLimit', async () => {})
 vi.stubGlobal('isInternalPath', () => false)
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('readValidatedBody', async (_event: unknown, parse: (body: unknown) => unknown) => parse({ email: 'ada@example.com' }))

@@ -9,6 +9,7 @@ const bodySchema = z.object({
 
 // `POST /api/auth/register`: creates an account (201). Signs in at once unless `verifyEmail` is on.
 export default defineEventHandler(async (event) => {
+  await enforceAuthRateLimit(event, 'register')
   const { name, email, password } = await readValidatedBody(event, bodySchema.parse)
   const users = useAuthUserStore()
 

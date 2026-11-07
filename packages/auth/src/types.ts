@@ -138,8 +138,11 @@ export type PublicModuleOptions = {
 export interface AuthSettings {
   /** Email/password login and register routes, composables and pages. `false` disables password authentication. Defaults to `true`. */
   password?: boolean
-  /** Password reset routes when password authentication is enabled. Defaults to `true`. */
-  passwordReset?: boolean
+  /**
+   * Password reset routes when password authentication is enabled. Defaults to `true`. `cooldown` is the minimum number
+   * of seconds between two reset emails for the same user (default 60).
+   */
+  passwordReset?: boolean | { cooldown?: number }
   /**
    * Passwordless sign-in by emailed link (`POST /api/auth/magic-link`). The link opens the `/auth/magic-link` page, whose
    * button signs in (`POST /api/auth/magic-link/confirm`); this also verifies the email address. `signUp: true` creates an account for unknown addresses; `cooldown` is the minimum
@@ -151,6 +154,28 @@ export interface AuthSettings {
    * log in. No session is created at registration. Defaults to `false`.
    */
   verifyEmail?: boolean
+  /**
+   * Throttling of the anonymous sign-in routes, counted in NuxtHub KV (`hub.kv`; without it nothing is throttled and the
+   * build warns). Past a limit a route answers `429 rate_limited` with `retry-after`. `0` turns one limit off, `false`
+   * all of them. Off under `nuxt dev`.
+   */
+  rateLimit?: false | {
+    /** Length of the fixed window, in seconds. Defaults to 900 (15 minutes). */
+    windowSeconds?: number
+    /** Failed password sign-ins per client IP and account. Defaults to 10. */
+    login?: number
+    /** Failed password sign-ins per client IP, for any account. Defaults to 100. */
+    loginIp?: number
+    /** Requests per client IP to each of register, forgot-password, magic-link and the passkey routes. Defaults to 30. */
+    requests?: number
+    /**
+     * Request header holding the client IP set by the platform in front of the app. Defaults to `cf-connecting-ip` on
+     * the Cloudflare presets, else none (the socket address).
+     */
+    ipHeader?: string
+    /** Read the client IP from `X-Forwarded-For`, which any client can set. Only behind a proxy that overwrites it. Defaults to `false`. */
+    xForwardedFor?: boolean
+  }
   /** WebAuthn (passkey) routes, composables and DB table. */
   webAuthn?: boolean
   /**

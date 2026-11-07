@@ -49,6 +49,23 @@ describe('password auth (enabled by default)', () => {
     })).rejects.toMatchObject({ statusCode: 400 })
   })
 
+  it('throttles failed sign-ins per client and account with 429 and retry-after', async () => {
+    const attempt = (email: string) => fetch(authApi.login, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password: 'wrong-password' }),
+    })
+    for (let index = 0; index < 3; index++) {
+      expect((await attempt('target@example.com')).status).toBe(401)
+    }
+    const refused = await attempt('target@example.com')
+    expect(refused.status).toBe(429)
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0)
+    expect((await refused.json()).data).toMatchObject({ code: 'rate_limited' })
+    // Another account from the same client still gets its own attempts.
+    expect((await attempt('someone-else@example.com')).status).toBe(401)
+  })
+
   it('validates that reset-password passwords match', async () => {
     await expect($fetch(authApi.resetPassword, {
       method: 'POST',

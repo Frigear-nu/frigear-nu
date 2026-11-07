@@ -1,4 +1,5 @@
 import { db, schema } from '@nuxthub/db'
+import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -7,9 +8,11 @@ const bodySchema = z.object({
 
 const RESET_CODE_TTL_MINUTES = 30
 
-// `POST /api/auth/forgot-password`: emails a reset link to a registered address.
-// TODO(owner): no cooldown per address or client yet (unlike magic links); decide on throttling.
+// `POST /api/auth/forgot-password`: emails a reset link to a registered address. Throttled per client
+// (`rateLimit.requests`), and a link asked for again within the cooldown (`passwordReset.cooldown`) is not re-sent, so
+// the route can't be used to flood an inbox.
 export default defineEventHandler(async (event) => {
+  await enforceAuthRateLimit(event, 'forgot-password')
   const { email } = await readValidatedBody(event, bodySchema.parse)
 
   const user = await useAuthUserStore().findByEmail(email)
@@ -17,6 +20,16 @@ export default defineEventHandler(async (event) => {
   // Always respond the same way whether or not the email is registered, so this endpoint can't
   // be used to enumerate accounts.
   if (!user) {
+    return { ok: true }
+  }
+
+  const cooldownSeconds = useRuntimeConfig(event).authentication?.passwordResetCooldown ?? 60
+  const [latest] = await db.select({ createdAt: schema.passwordResets.createdAt })
+    .from(schema.passwordResets)
+    .where(eq(schema.passwordResets.userId, user.id))
+    .orderBy(desc(schema.passwordResets.createdAt))
+    .limit(1)
+  if (latest && Date.now() - latest.createdAt.getTime() < cooldownSeconds * 1000) {
     return { ok: true }
   }
 

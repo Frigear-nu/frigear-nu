@@ -8,9 +8,11 @@ import { apiError } from '@frigear-nu/module-kit/server'
 // TODO(owner): real protection needs discoverable (usernameless) passkeys, with no `allowCredentials` by address.
 const invalidCredentials = () => apiError(401, 'invalid_credentials', 'Passkey sign-in failed.')
 
-// `POST /api/auth/webauthn/authenticate`: passkey sign-in (nuxt-auth-utils' two-step WebAuthn flow).
+// `POST /api/auth/webauthn/authenticate`: passkey sign-in (nuxt-auth-utils' two-step WebAuthn flow). Asking for the
+// options (step one, the only one that stores a challenge) is throttled per client (`rateLimit.requests`).
 export default defineWebAuthnAuthenticateEventHandler({
-  async storeChallenge(_event, challenge, attemptId) {
+  async storeChallenge(event, challenge, attemptId) {
+    await enforceAuthRateLimit(event, 'webauthn')
     await useStorage().setItem(`attempt:${attemptId}`, challenge)
   },
   async getChallenge(_event, attemptId) {

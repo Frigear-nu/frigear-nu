@@ -4,9 +4,11 @@ import { apiError, forbidden } from '@frigear-nu/module-kit/server'
 
 // `POST /api/auth/webauthn/register`: adds a passkey to the signed-in account, or signs up with one. With `verifyEmail`
 // on, signing up with a passkey is refused: a passkey proves nothing about the address, so the account is created
-// through a verified channel first (register, magic link) and the passkey added from it.
+// through a verified channel first (register, magic link) and the passkey added from it. Asking for the options (step
+// one, the only one that stores a challenge) is throttled per client (`rateLimit.requests`).
 export default defineWebAuthnRegisterEventHandler({
-  async storeChallenge(_event, challenge, attemptId) {
+  async storeChallenge(event, challenge, attemptId) {
+    await enforceAuthRateLimit(event, 'webauthn')
     await useStorage().setItem(`webauthn:registration:${attemptId}`, challenge)
   },
   async getChallenge(_event, attemptId) {

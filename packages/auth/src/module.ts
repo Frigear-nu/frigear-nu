@@ -36,6 +36,7 @@ import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
+  AuthSettings,
   AuthScopeAvailabilityContext,
   AuthScopeDefinition,
   ModuleOptions,
@@ -102,6 +103,10 @@ declare module 'nuxt/schema' {
       magicLinkCooldown: number
       // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
       trustRequestOrigin: boolean
+      // Minimum seconds between two password reset emails for one user (`settings.passwordReset.cooldown`).
+      passwordResetCooldown: number
+      // Throttling of the sign-in routes (`settings.rateLimit`); `enabled` is false under `nuxt dev`.
+      rateLimit: { enabled: boolean, windowSeconds: number, login: number, loginIp: number, requests: number, ipHeader: string, xForwardedFor: boolean }
     }
     // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); falls back to a key derived from the session password.
     authTokensKey?: string
@@ -221,6 +226,22 @@ const serverDependencies = (nuxt: Nuxt) => ({
   },
 })
 
+const hasHubKv = (nuxt: Nuxt) => !!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv
+
+// Defaults of `settings.rateLimit`; `0` turns one limit off, `false` all of them. Off under `nuxt dev`.
+function resolveRateLimit(option: AuthSettings['rateLimit'], dev: boolean) {
+  const limits = typeof option === 'object' ? option : {}
+  return {
+    enabled: option !== false && !dev,
+    windowSeconds: limits.windowSeconds ?? 900,
+    login: limits.login ?? 10,
+    loginIp: limits.loginIp ?? 100,
+    requests: limits.requests ?? 30,
+    ipHeader: limits.ipHeader ?? '',
+    xForwardedFor: limits.xForwardedFor === true,
+  }
+}
+
 // Today's Auth: sign-in on this app's server, a nuxt-auth-utils cookie session, the database tables and routes.
 function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
   const settings = options.settings ?? {}
@@ -282,7 +303,19 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
     trustRequestOrigin: settings.trustRequestOrigin === true,
+    passwordResetCooldown: (typeof settings.passwordReset === 'object' ? settings.passwordReset.cooldown : undefined) ?? 60,
+    rateLimit: resolveRateLimit(settings.rateLimit, nuxt.options.dev),
   }
+  // The limits count in KV (NuxtHub `hub.kv`); without it they are off, which the host should know about.
+  addServerTemplate({
+    filename: '#auth/rate-limit-kv',
+    getContents: () => hasHubKv(nuxt) ? `export { kv } from '@nuxthub/kv'` : 'export const kv = undefined',
+  })
+  nuxt.hook('modules:done', () => {
+    if (settings.rateLimit !== false && !nuxt.options.dev && !nuxt.options._prepare && !hasHubKv(nuxt)) {
+      useLogger('auth').warn('Sign-in throttling (`authentication.settings.rateLimit`) needs NuxtHub KV: set `hub.kv` to turn it on, or `rateLimit: false` to silence this.')
+    }
+  })
   // Where emailed links point (`authSiteOrigin`); `NUXT_PUBLIC_SITE_URL` sets it at runtime.
   const publicConfig = nuxt.options.runtimeConfig.public as { siteUrl?: string }
   publicConfig.siteUrl ||= settings.siteUrl || process.env.NUXT_SITE_URL || ''
@@ -361,6 +394,12 @@ declare module '#auth/scopes' {
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore
   export default store
+}
+declare module '#auth/rate-limit-kv' {
+  export const kv: {
+    get<T>(key: string): Promise<T | null>
+    set(key: string, value: unknown, options?: { ttl?: number }): Promise<void>
+  } | undefined
 }
 declare module '#auth/session-mapper' {
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>

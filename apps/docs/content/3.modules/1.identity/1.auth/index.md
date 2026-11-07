@@ -119,12 +119,14 @@ Options go under the `authentication` key.
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
 | `scopes` | `AuthScopeDefinition[]` | `[]` | Extra [scopes](/guide/concepts/glossary) users can pick for API tokens. |
 | `settings.password` | `boolean` | `true` | Email and password sign-in and sign-up: routes, composables and pages. |
-| `settings.passwordReset` | `boolean` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
+| `settings.passwordReset` | `boolean \| { cooldown? }` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
+| `settings.passwordReset.cooldown` | `number` | `60` | Minimum seconds between two reset emails for one user. |
 | `settings.webAuthn` | `boolean` | `false` | Passkeys: routes, composables and a table. |
 | `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address, and clears what was set on an unverified account. |
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
 | `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |
+| `settings.rateLimit` | `false \| { … }` | on | Throttles the anonymous sign-in routes, counted in NuxtHub KV. See below. |
 | `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
 | `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
 | `settings.pages.register` | `string \| boolean` | off | The sign-up page. `true` means `/register`. May be an absolute URL. |
@@ -140,6 +142,21 @@ Options go under the `authentication` key.
 Set `NUXT_PUBLIC_SITE_URL` in production. Without it those emails fail with `500 site_url_missing`, and the server warns
 at startup. `nuxt dev` uses the request's origin. Turn on `settings.trustRequestOrigin` only on a platform that routes
 by host, so a request for another host never reaches the app, such as Cloudflare Workers.
+
+**`settings.rateLimit`.** Past a limit the route answers `429 rate_limited` with a `retry-after` header. The counters
+live in NuxtHub KV: without `hub.kv` nothing is throttled and the build warns. Throttling is off under `nuxt dev`. `0`
+turns one limit off, `false` all of them.
+
+| Option | Default | Counts |
+| --- | --- | --- |
+| `windowSeconds` | `900` | The length of the fixed window. |
+| `login` | `10` | Failed password sign-ins per client IP and account. |
+| `loginIp` | `100` | Failed password sign-ins per client IP, for any account. |
+| `requests` | `30` | Requests per client IP to each of register, forgot password, magic link and the passkey options. |
+| `ipHeader` | `cf-connecting-ip` on Cloudflare | The header holding the client IP. Otherwise the socket address is used. |
+| `xForwardedFor` | `false` | Read the client IP from `X-Forwarded-For`. Only behind a proxy that overwrites it. |
+
+A sign-in for an unknown account checks a password all the same, so it answers as slowly as a wrong password.
 
 **`mode`.** Set it in your app's own `nuxt.config`. A mode from inline module options or from another module's
 default fails the build.
