@@ -143,6 +143,10 @@ Set `NUXT_PUBLIC_SITE_URL` in production. Without it those emails fail with `500
 at startup. `nuxt dev` uses the request's origin. Turn on `settings.trustRequestOrigin` only on a platform that routes
 by host, so a request for another host never reaches the app, such as Cloudflare Workers.
 
+Sign-in, sign-up, sign-out, the magic link confirmation and the password reset refuse requests that another site made
+the browser send: `Sec-Fetch-Site: cross-site`, or an `Origin` other than the request's host or the site URL. They
+answer `403 cross_site_request`. Clients that send neither header, such as native apps and servers, are not affected.
+
 **`settings.rateLimit`.** Past a limit the route answers `429 rate_limited` with a `retry-after` header. The counters
 live in NuxtHub KV: without `hub.kv` nothing is throttled and the build warns. Throttling is off under `nuxt dev`. `0`
 turns one limit off, `false` all of them.

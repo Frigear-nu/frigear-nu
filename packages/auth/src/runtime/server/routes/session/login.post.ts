@@ -12,6 +12,7 @@ const dummyPasswordHash = () => dummyHash ??= hashPassword(createOneTimeCode())
 
 // `POST /api/auth/login`: signs in with email and password. Failed attempts are throttled per client and account.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
   const { email, password } = await readValidatedBody(event, bodySchema.parse)
   await assertAuthLoginAttemptsLeft(event, email)
   const users = useAuthUserStore()

@@ -14,6 +14,7 @@ const bodySchema = z.object({
 
 // `POST /api/auth/reset-password`: sets a new password with an emailed code and signs in.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
   const { code, password } = await readValidatedBody(event, bodySchema.parse)
 
   const [passwordReset] = await db.update(schema.passwordResets)

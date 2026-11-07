@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
-import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
+import { setup, $fetch, fetch, url } from '@nuxt/test-utils/e2e'
 import { authApi } from '../src/runtime/utils/api'
 
 // One build for every suite below.
@@ -64,6 +64,26 @@ describe('password auth (enabled by default)', () => {
     expect((await refused.json()).data).toMatchObject({ code: 'rate_limited' })
     // Another account from the same client still gets its own attempts.
     expect((await attempt('someone-else@example.com')).status).toBe(401)
+  })
+
+  it('refuses sign-in, sign-up and sign-out requests sent from another site', async () => {
+    const post = (path: string, headers: Record<string, string>, body: unknown = {}) => fetch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    })
+    const login = { email: 'csrf@example.com', password: 'wrong-password' }
+    const crossSite: Array<Record<string, string>> = [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }, { origin: 'null' }]
+    for (const headers of crossSite) {
+      for (const [path, body] of [[authApi.login, login], [authApi.logout, {}], [authApi.register, {}], [authApi.magicLinkConfirm, {}], [authApi.resetPassword, {}]] as const) {
+        const response = await post(path, headers, body)
+        expect(response.status, `${path} ${JSON.stringify(headers)}`).toBe(403)
+        expect((await response.json()).data, path).toMatchObject({ code: 'cross_site_request' })
+      }
+    }
+    // The site's own pages (same origin) and clients that send neither header still get through.
+    expect((await post(authApi.login, { 'origin': new URL(url('/')).origin, 'sec-fetch-site': 'same-origin' }, login)).status).toBe(401)
+    expect((await post(authApi.logout, {})).status).not.toBe(403)
   })
 
   it('validates that reset-password passwords match', async () => {

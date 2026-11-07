@@ -37,3 +37,20 @@ export function authSiteOrigin(event: H3Event): string {
 export function authSiteUrl(event: H3Event, path: string): string {
   return new URL(path, authSiteOrigin(event)).toString()
 }
+
+/**
+ * Refuses (`403 cross_site_request`) a request a page on another site made the browser send: `Sec-Fetch-Site:
+ * cross-site`, or an `Origin` that is neither this request's host nor the configured site. A plain form post needs no
+ * CORS preflight, so without this another site could sign a visitor in to an account of its choosing, or out. Requests
+ * without these headers (native apps, servers, tests) pass.
+ */
+export function assertAuthSameOrigin(event: H3Event) {
+  const refuse = () => apiError(403, 'cross_site_request', 'Cross-site requests are not accepted here.')
+  if (getRequestHeader(event, 'sec-fetch-site')?.toLowerCase() === 'cross-site') throw refuse()
+  const origin = getRequestHeader(event, 'origin')
+  if (origin === undefined) return
+  const parsed = originOf(origin)
+  if (!parsed) throw refuse()
+  if (parsed === configuredAuthSiteOrigin(event) || new URL(parsed).host === getRequestHost(event)) return
+  throw refuse()
+}

@@ -7,6 +7,7 @@ const invalidLink = () => apiError(400, 'invalid_link', 'This sign-in link is in
 // signs in, through this POST. A GET never uses the link up, so mail scanners and link previews that open it leave it
 // working.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
   const { code } = await readValidatedBody(event, z.object({ code: z.string().min(1) }).parse)
 
   const link = await consumeMagicLink(code)
