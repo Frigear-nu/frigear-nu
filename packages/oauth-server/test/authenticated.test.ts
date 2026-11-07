@@ -548,6 +548,17 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await patch({ redirectUris: [] })).status).toBe(400)
     })
 
+    it('refuses a preview URL pattern on a public client', async () => {
+      const post = (body: Json) => json(staff.cookie, 'POST', oauthServerApi.admin.applications, { name: 'x', ...body })
+      expect((await post({ clientType: 'public', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.x.dev' })).status).toBe(400)
+      const pub = await publicApp()
+      const patch = (id: string, body: Json) => json(staff.cookie, 'PATCH', oauthServerApi.admin.application(id), body)
+      expect((await patch(pub.id, { previewUrlPattern: 'https://*.x.dev' })).status).toBe(400)
+      expect(await ok(await patch(pub.id, { previewUrlPattern: null }))).toMatchObject({ previewUrlPattern: null })
+      const confidential = await createApp()
+      expect(await ok(await patch(confidential.id, { previewUrlPattern: 'https://*.x.dev' }))).toMatchObject({ previewUrlPattern: 'https://*.x.dev' })
+    })
+
     it('defaults to confidential, with a secret, and keeps the type fixed', async () => {
       const confidential = await createApp()
       expect(confidential).toMatchObject({ clientType: 'confidential' })

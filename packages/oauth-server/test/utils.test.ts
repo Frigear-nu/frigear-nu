@@ -164,6 +164,12 @@ describe('preview URL patterns', () => {
     expect(validateRedirectUri('https://пример.myapp.com/auth/frigear', rules)).toBe(false)
   })
 
+  it('ignores the pattern for public clients', () => {
+    expect(validateRedirectUri('https://pr-12.myapp.com/auth/frigear', { ...rules, clientType: 'confidential' })).toBe(true)
+    expect(validateRedirectUri('https://pr-12.myapp.com/auth/frigear', { ...rules, clientType: 'public' })).toBe(false)
+    expect(validateRedirectUri('https://app.example.com/auth/frigear', { ...rules, clientType: 'public' })).toBe(true)
+  })
+
   it('never matches a malformed pattern', () => {
     for (const pattern of ['https://*', 'https://*.com', 'https://evil.com?.*.myapp.com', 'https://*.myapp.com?x', 'https://*.*.myapp.com', 'https://a.*.myapp.com', 'https://u@*.myapp.com', 'http://*.myapp.com', 'https://*.my%61pp.com']) {
       expect(parsePreviewUrlPattern(pattern), pattern).toBeNull()
