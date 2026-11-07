@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { apiError } from '@frigear-nu/module-kit/server'
 import { authorizeRequestSchema } from '../../utils/oauth-authorize'
 
 const bodySchema = authorizeRequestSchema.extend({ approved: z.boolean() })
@@ -7,6 +8,10 @@ const bodySchema = authorizeRequestSchema.extend({ approved: z.boolean() })
 // callback with `code` + `state`, or `error=access_denied`).
 export default defineEventHandler(async (event) => {
   const userId = await requireSessionUserId(event)
+  // JSON only: a form or `text/plain` body is what a cross-site page can send with the user's cookie.
+  if (!/^application\/json\s*(?:;|$)/i.test(getRequestHeader(event, 'content-type') ?? '')) {
+    throw apiError(415, 'unsupported_media_type', 'The consent decision must be sent as application/json.')
+  }
   const { approved, ...params } = await readValidatedBody(event, bodySchema.parse)
   const { request, application, scope } = await validateAuthorizeRequest(params)
 

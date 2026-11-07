@@ -243,6 +243,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     // --- OAuth / OIDC endpoints (standard paths, absolute) -----------------------------------
     addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/oauth-cors') })
+    addServerHandler({ middleware: true, handler: resolver.resolve('./runtime/server/middleware/oauth-frame-protection') })
     addModuleRoutes(resolver, [
       { method: 'get', path: oidc.configuration, file: 'oidc/openid-configuration.get' },
       { method: 'get', path: oidc.jwks, file: 'oidc/jwks.get' },

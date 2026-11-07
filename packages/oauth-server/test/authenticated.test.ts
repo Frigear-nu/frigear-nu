@@ -208,6 +208,26 @@ describe('oauth-server (authenticated, database-backed)', async () => {
   })
 
   describe('authorization code flow with PKCE', () => {
+    it('refuses framing and only takes the consent decision as JSON', async () => {
+      const app = await createApp()
+      const query = authorizeQuery(app.clientId, pkce().challenge)
+      // (The fixture has no consent page: the middleware covers its path the same way.)
+      for (const path of [oidc.authorize]) {
+        const response = await fetch(`${path}?${query}`, { headers: { cookie: staff.cookie }, redirect: 'manual' })
+        expect(response.headers.get('content-security-policy'), path).toBe('frame-ancestors \'none\'')
+        expect(response.headers.get('x-frame-options'), path).toBe('DENY')
+      }
+      expect((await fetch(oidc.jwks)).headers.get('x-frame-options')).toBeNull()
+
+      const body = { ...Object.fromEntries(query), approved: true }
+      for (const type of ['text/plain', 'application/x-www-form-urlencoded', undefined]) {
+        const response = await fetch(oidc.authorize, { method: 'POST', headers: { cookie: staff.cookie, ...(type ? { 'content-type': type } : {}) }, body: JSON.stringify(body) })
+        expect(response.status, String(type)).toBe(415)
+        expect((await response.json() as Json).data.code).toBe('unsupported_media_type')
+      }
+      await ok(await json(staff.cookie, 'POST', oidc.authorize, body))
+    })
+
     it('rejects invalid requests before anything is redirected', async () => {
       const app = await createApp()
       const { challenge } = pkce()
