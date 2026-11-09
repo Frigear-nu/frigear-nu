@@ -82,7 +82,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Restore turbo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-build-v3-${{ runner.os }}-${{ inputs.environment }}-${{ github.sha }}
@@ -136,7 +136,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: inputs.environment == 'preview'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ inputs.pr-number }}
           PREVIEW_URL: ${{ steps.preview-url.outputs.url }}
