@@ -72,7 +72,7 @@
     "@frigear-nu/ui": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/kit": "catalog:",
-    "nuxt-auth-utils": "^0.5.30"
+    "nuxt-auth-utils": "^0.6.1"
   },
   "devDependencies": {
     "@nuxt/devtools": "catalog:",

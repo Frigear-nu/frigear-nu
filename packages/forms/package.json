@@ -90,8 +90,8 @@
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "h3": "^1.15.11",
-    "unstorage": "^1.17.5",
-    "zod": "^4.6.5"
+    "unstorage": "^1.17.6",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/menu": "workspace:^",
