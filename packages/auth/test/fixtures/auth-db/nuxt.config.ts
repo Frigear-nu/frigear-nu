@@ -17,9 +17,8 @@ export default defineNuxtConfig({
     },
   ],
   runtimeConfig: {
-    session: {
-      password: 'a-test-only-session-password-at-least-32-chars',
-    },
+    // Seals the session cookie; `tokens.test.ts` derives the same key to seal a session of its own.
+    appSecret: 'a-test-only-app-secret-at-least-32-characters',
   },
   hub: {
     db: {

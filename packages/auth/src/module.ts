@@ -276,6 +276,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     nuxt.options.auth ||= {}
     nuxt.options.auth.webAuthn = false
   }
+  else {
+    // `@simplewebauthn/server` 13 loads `@peculiar/x509`, whose tsyringe throws at import without the
+    // `reflect-metadata` polyfill. x509 imports it for its side effect only, and Nitro tree-shakes side effects of
+    // modules not listed in `moduleSideEffects`, so the server bundle would crash on startup (Cloudflare Workers).
+    nuxt.options.nitro.moduleSideEffects ||= []
+    if (!nuxt.options.nitro.moduleSideEffects.includes('reflect-metadata/')) {
+      nuxt.options.nitro.moduleSideEffects.push('reflect-metadata/')
+    }
+  }
 
   // Each table exists only when the feature owning it is enabled. Verification emails are magic links too.
   const tables = ['authUserTokens']

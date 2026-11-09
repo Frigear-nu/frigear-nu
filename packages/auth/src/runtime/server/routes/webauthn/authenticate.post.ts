@@ -59,7 +59,7 @@ export default defineWebAuthnAuthenticateEventHandler({
   // the toolkit errors above pass through as they are.
   async onError(_event, error) {
     if ((error.data as { code?: unknown } | undefined)?.code) throw error
-    if (error.statusCode >= 500) console.error('[auth] passkey sign-in failed:', error)
+    if ((error.statusCode ?? 500) >= 500) console.error('[auth] passkey sign-in failed:', error)
     throw invalidCredentials()
   },
 })

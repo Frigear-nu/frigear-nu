@@ -3,14 +3,29 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
-import { sealSession } from 'h3'
+import { defaults as ironDefaults, seal } from 'iron-webcrypto'
 import { authApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/auth-db', import.meta.url))
 const dataDir = `${fixture}/.data`
-// The fixture's `runtimeConfig.session`: nuxt-auth-utils' cookie name and the test-only password.
-const SESSION_NAME = 'nuxt-session'
-const SESSION_PASSWORD = 'a-test-only-session-password-at-least-32-chars'
+// nuxt-auth-utils' cookie name and the fixture's `appSecret`.
+const SESSION_NAME = 'nuxt-auth-session'
+const APP_SECRET = 'a-test-only-app-secret-at-least-32-characters'
+const DAY_MS = 86_400_000
+
+/**
+ * A session cookie sealed the way Nuxt's `useSession` seals it (`nuxt/server`): iron with a key derived from
+ * `appSecret` (HKDF-SHA256, salt `nuxt`, info `nuxt-session:<name>`), the lifetime as the seal's ttl.
+ * `ageMs` moves the seal's clock back, as for a cookie kept from back then.
+ */
+async function sealedSession(data: Record<string, unknown>, ageMs = 0) {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', encoder.encode(APP_SECRET), 'HKDF', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('nuxt'), info: encoder.encode(`nuxt-session:${SESSION_NAME}`) }, key, 256)
+  const password = [...new Uint8Array(bits)].map(byte => byte.toString(16).padStart(2, '0')).join('')
+  const sealed = await seal({ nuxt: 1, id: crypto.randomUUID(), data }, password, { ...ironDefaults, ttl: 30 * DAY_MS, localtimeOffsetMsec: -ageMs })
+  return `${SESSION_NAME}=${sealed}`
+}
 
 async function call(method: string, path: string, options: { body?: unknown, cookie?: string, bearer?: string } = {}) {
   return fetch(path, {
@@ -266,19 +281,18 @@ describe('auth tokens', async () => {
   describe('session lifetime', () => {
     it('gives the session cookie an expiry 30 days out by default', async () => {
       const response = await call('POST', '/api/test/login', { body: { id: 1 } })
-      const expires = /expires=([^;]+)/i.exec(response.headers.get('set-cookie') ?? '')?.[1]
-      expect(expires, 'the session cookie has an expiry').toBeTruthy()
-      const days = (new Date(expires!).getTime() - Date.now()) / 86_400_000
-      expect(days).toBeGreaterThan(29.9)
-      expect(days).toBeLessThanOrEqual(30)
+      // Nuxt's session cookie carries its lifetime as `Max-Age` (seconds), not `Expires`.
+      const maxAge = /max-age=(\d+)/i.exec(response.headers.get('set-cookie') ?? '')?.[1]
+      expect(maxAge, 'the session cookie has a lifetime').toBeTruthy()
+      expect(Number(maxAge) / 86_400).toBe(30)
     })
 
     it('refuses a session sealed longer ago than the lifetime', async () => {
-      // A validly sealed session that started 31 days ago, as a cookie kept from back then would be.
-      const startedAt = Date.now() - 31 * 86_400_000
-      const event = { context: { sessions: { [SESSION_NAME]: { id: 'old-session', createdAt: startedAt, data: { user: { id: 1, name: 'Ada', role: 'user' } } } } } }
-      const sealed = await sealSession(event as never, { name: SESSION_NAME, password: SESSION_PASSWORD })
-      await expectApiError(apiClient({ cookie: `${SESSION_NAME}=${sealed}` }).json('GET', '/api/test/me'), 401, 'unauthorized')
+      const data = { user: { id: 1, name: 'Ada', role: 'user' }, sessionVersion: 0 }
+      // Sealed now, the same session is accepted: the cookie is forged the way the app seals it.
+      expect((await call('GET', '/api/test/me', { cookie: await sealedSession(data) })).status).toBe(200)
+      // A validly sealed session from 31 days ago, as a cookie kept from back then would be.
+      await expectApiError(apiClient({ cookie: await sealedSession(data, 31 * DAY_MS) }).json('GET', '/api/test/me'), 401, 'unauthorized')
     })
   })
 

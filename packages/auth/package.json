@@ -166,6 +166,7 @@
     "@nuxthub/core": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "iron-webcrypto": "^2.0.0",
     "nuxt": "catalog:",
     "typescript": "catalog:",
     "unstorage": "^1.17.5",

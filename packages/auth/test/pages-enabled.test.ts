@@ -107,6 +107,6 @@ describe('login/register pages (opt-in)', async () => {
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toBe('/login?redirect=/refuse-check')
     // The session cookie is cleared in the same response.
-    expect(response.headers.get('set-cookie')).toMatch(/nuxt-session=;|Max-Age=0|Expires=Thu, 01 Jan 1970/)
+    expect(response.headers.get('set-cookie')).toMatch(/nuxt-auth-session=;|Max-Age=0|Expires=Thu, 01 Jan 1970/)
   })
 })
