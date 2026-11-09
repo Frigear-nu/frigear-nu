@@ -11,6 +11,7 @@ const users = sqliteTable('users', {
   id: integer().primaryKey({ autoIncrement: true }),
   name: text().notNull(),
   email: text().notNull().unique(),
+  emailVerifiedAt: integer({ mode: 'timestamp' }),
 })
 const schema = { ...authSchema, users }
 
@@ -21,7 +22,11 @@ vi.mock('@nuxthub/db', () => ({ db, schema }))
 
 // Nitro/nuxt-auth-utils auto-imports, stubbed so the handlers can run outside Nuxt.
 let session: { user?: { id: number, email: string } } = {}
+// `setUserSession` merges into the session; a sign-in has to replace it (`replaceUserSession`).
 const setUserSession = vi.fn(async (_event: unknown, data: { user: unknown }) => {
+  session = { ...session, user: data.user as { id: number, email: string } }
+})
+const replaceUserSession = vi.fn(async (_event: unknown, data: { user: unknown }) => {
   session = { user: data.user as { id: number, email: string } }
 })
 vi.stubGlobal('defineWebAuthnRegisterEventHandler', (options: unknown) => options)
@@ -46,7 +51,15 @@ vi.stubGlobal('useAuthUserStore', () => ({
   remove: async (id: number) => { await db.delete(users).where(eq(users.id, id)) },
 }))
 vi.stubGlobal('setUserSession', setUserSession)
+vi.stubGlobal('replaceUserSession', replaceUserSession)
+let verifyEmail = false
+vi.stubGlobal('useRuntimeConfig', () => ({ public: { authentication: { verifyEmail } } }))
 vi.stubGlobal('mapUserToSession', (user: { id: number, email: string }) => ({ id: user.id, email: user.email }))
+// `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
+vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<string, unknown> = {}) => {
+  const globals = globalThis as unknown as { replaceUserSession: (event: unknown, data: unknown) => unknown, mapUserToSession: (user: unknown) => unknown }
+  return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
+})
 vi.stubGlobal('getValidatedRouterParams', async (event: { params: Record<string, string> }, parse: (value: unknown) => unknown) => parse(event.params))
 vi.stubGlobal('toPasskeyDto', (await import('../src/runtime/server/utils/passkeys')).toPasskeyDto)
 
@@ -67,7 +80,7 @@ describe('webauthn credential routes', () => {
 
   beforeAll(async () => {
     await client.execute('PRAGMA foreign_keys = ON')
-    await client.execute(`CREATE TABLE users (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, email text NOT NULL UNIQUE)`)
+    await client.execute(`CREATE TABLE users (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, email text NOT NULL UNIQUE, emailVerifiedAt integer)`)
     await client.execute(`CREATE TABLE user_credentials (id text PRIMARY KEY NOT NULL, userId integer NOT NULL, publicKey text NOT NULL, counter integer DEFAULT 0 NOT NULL, backedUp integer DEFAULT false NOT NULL, transports text, name text, createdAt integer NOT NULL)`)
     register = (await import('../src/runtime/server/routes/webauthn/register.post')).default as unknown as RegisterHandler
     list = (await import('../src/runtime/server/routes/me/passkeys.get')).default as never
@@ -76,6 +89,9 @@ describe('webauthn credential routes', () => {
 
   beforeEach(async () => {
     session = {}
+    verifyEmail = false
+    setUserSession.mockClear()
+    replaceUserSession.mockClear()
     await client.execute('DELETE FROM user_credentials')
     await client.execute('DELETE FROM users')
   })
@@ -88,6 +104,29 @@ describe('webauthn credential routes', () => {
     const stored = await db.query.userCredentials.findMany()
     expect(stored).toMatchObject([{ id: 'cred-1', userId: users[0]!.id, name: 'Laptop', backedUp: true, transports: ['internal'] }])
     expect(session.user?.email).toBe('new@example.com')
+    // Signing up starts a fresh session.
+    expect(replaceUserSession).toHaveBeenCalledOnce()
+    expect(setUserSession).not.toHaveBeenCalled()
+  })
+
+  it('refuses to sign up an unknown address with a passkey when verifyEmail is on', async () => {
+    verifyEmail = true
+    await expect(register.onSuccess({}, { credential: credential('cred-1'), user: { userName: 'boss@example.com' } }))
+      .rejects.toMatchObject({ statusCode: 403, data: { code: 'email_verification_required' } })
+
+    expect(await db.query.users.findMany()).toHaveLength(0)
+    expect(await db.query.userCredentials.findMany()).toHaveLength(0)
+    expect(setUserSession).not.toHaveBeenCalled()
+    expect(replaceUserSession).not.toHaveBeenCalled()
+  })
+
+  it('still adds a passkey to the signed-in account when verifyEmail is on', async () => {
+    verifyEmail = true
+    const [a] = await db.insert(schema.users).values({ name: 'A', email: 'a@example.com', emailVerifiedAt: new Date() }).returning()
+    session = { user: { id: a!.id, email: a!.email } }
+
+    await register.onSuccess({}, { credential: credential('a-1'), user: { userName: 'a@example.com' } })
+    expect(await db.query.userCredentials.findMany()).toMatchObject([{ id: 'a-1', userId: a!.id }])
   })
 
   it('does not leave an orphan user behind when storing the passkey fails', async () => {
@@ -151,6 +190,7 @@ describe('webauthn credential routes', () => {
 })
 
 interface AuthenticateHandler {
+  onSuccess: (event: unknown, args: { credential: { id: string, userId: number }, authenticationInfo: { newCounter: number } }) => Promise<void>
   allowCredentials: (event: unknown, userName: string) => Promise<Array<{ id: string }>>
   getCredential: (event: unknown, id: string) => Promise<unknown>
   onError: (event: unknown, error: unknown) => Promise<void>
@@ -164,6 +204,10 @@ describe('webauthn authenticate route', () => {
   })
 
   beforeEach(async () => {
+    session = {}
+    verifyEmail = false
+    setUserSession.mockClear()
+    replaceUserSession.mockClear()
     await client.execute('DELETE FROM user_credentials')
     await client.execute('DELETE FROM users')
   })
@@ -193,5 +237,22 @@ describe('webauthn authenticate route', () => {
     await expect(authenticate.onError({}, createError({ statusCode: 400, message: 'Failed to verify registration response' }))).rejects.toMatchObject(invalid)
     const expired = createError({ statusCode: 400, statusMessage: 'Challenge expired.', data: { code: 'challenge_expired' } })
     await expect(authenticate.onError({}, expired)).rejects.toBe(expired)
+  })
+
+  it('refuses passkey sign-in to an unverified account when verifyEmail is on, like password login', async () => {
+    const [a] = await db.insert(schema.users).values({ name: 'A', email: 'a@example.com' }).returning()
+    await db.insert(schema.userCredentials).values({ ...credential('a-1'), userId: a!.id })
+    const signIn = () => authenticate.onSuccess({}, { credential: { id: 'a-1', userId: a!.id }, authenticationInfo: { newCounter: 1 } })
+
+    verifyEmail = true
+    await expect(signIn()).rejects.toMatchObject({ statusCode: 403, data: { code: 'email_not_verified' } })
+    expect(setUserSession).not.toHaveBeenCalled()
+    expect(replaceUserSession).not.toHaveBeenCalled()
+
+    await db.update(schema.users).set({ emailVerifiedAt: new Date() }).where(eq(schema.users.id, a!.id))
+    await signIn()
+    expect(session.user?.email).toBe('a@example.com')
+    expect(replaceUserSession).toHaveBeenCalledOnce()
+    expect(setUserSession).not.toHaveBeenCalled()
   })
 })

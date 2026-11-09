@@ -115,28 +115,72 @@ Options go under the `authentication` key.
 | `client` | `ClientModuleOptions` | – | Client mode only: the issuer and how the app talks to it. |
 | `apiTokens` | `boolean \| { prefix?: string }` | `true` | API tokens. `false` turns them off. |
 | `apiTokens.prefix` | `string` | `'fnu_'` | What new API tokens start with. See [API tokens](/modules/identity/auth/server#user-api-tokens). |
+| `apiTokens.revokeOnReset` | `boolean` | `true` | Revoke a user's API tokens when their password is reset by email or an email change is undone. |
 | `tokenTtlDays` | `number \| null` | `null` | Default lifetime of new API tokens. `null` means they never expire. |
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
 | `scopes` | `AuthScopeDefinition[]` | `[]` | Extra [scopes](/guide/concepts/glossary) users can pick for API tokens. |
 | `settings.password` | `boolean` | `true` | Email and password sign-in and sign-up: routes, composables and pages. |
-| `settings.passwordReset` | `boolean` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
+| `settings.passwordReset` | `boolean \| { cooldown? }` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
+| `settings.passwordReset.cooldown` | `number` | `60` | Minimum seconds between two reset emails for one user. |
 | `settings.webAuthn` | `boolean` | `false` | Passkeys: routes, composables and a table. |
-| `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address. |
+| `settings.magicLink` | `boolean \| { signUp?, cooldown? }` | off | An emailed single-use sign-in link. Following it verifies the address, and clears what was set on an unverified account. |
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
-| `settings.verifyEmail` | `boolean` | `false` | Users who sign up with a password verify their address before they can sign in. |
+| `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |
+| `settings.rateLimit` | `false \| { … }` | on | Throttles the anonymous sign-in routes, counted in NuxtHub KV. See below. |
 | `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
 | `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
 | `settings.pages.register` | `string \| boolean` | off | The sign-up page. `true` means `/register`. May be an absolute URL. |
 | `settings.pages.callback` | `boolean` | `true` | Client mode only: the callback page. |
 | `settings.afterLogin` | `string` | `'/'` | Where users land after signing in. |
+| `settings.siteUrl` | `string` | `NUXT_SITE_URL` | The public URL emailed links point at. Becomes `runtimeConfig.public.siteUrl` (`NUXT_PUBLIC_SITE_URL`). |
+| `settings.trustRequestOrigin` | `boolean` | `false` | Without a site URL, build emailed links from the request's origin in production too. |
 | `settings.session.mapper` | `string` | pass-through | Path to a default-export function that maps the stored user to the session user. |
+| `settings.session.maxAge` | `number \| false` | `2592000` (30 days) | How long a session lasts, in seconds from sign-in. `false` turns the limit off. |
 | `settings.oauth` | `Record<provider, boolean \| { … }>` | `{}` | Changes per OAuth provider. `false` keeps one off. |
+
+**`settings.siteUrl`.** Password reset, magic link and verification emails (and the email change emails of
+[Users](/modules/identity/users)) link to this URL, never to the request's `Host` header, which the client chooses.
+Set `NUXT_PUBLIC_SITE_URL` in production. Without it those emails fail with `500 site_url_missing`, and the server warns
+at startup. `nuxt dev` uses the request's origin. Turn on `settings.trustRequestOrigin` only on a platform that routes
+by host, so a request for another host never reaches the app, such as Cloudflare Workers.
+
+Sign-in, sign-up, sign-out, the magic link confirmation and the password reset refuse requests that another site made
+the browser send: `Sec-Fetch-Site: cross-site`, or an `Origin` other than the request's host or the site URL. They
+answer `403 cross_site_request`. Clients that send neither header, such as native apps and servers, are not affected.
+
+**`settings.session.maxAge`.** A session ends this long after sign-in, however active the user is: the cookie expires,
+and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
+`runtimeConfig.session.maxAge` (`NUXT_SESSION_MAX_AGE`) wins over this setting.
+
+**Ending sessions.** A password change or reset, an email change or its revert, and clearing an unverified account's
+credentials end every other session of the user: the module bumps the user's `sessionVersion` column, and a session
+signed in before that is refused. The session that made the change stays signed in. A password reset and an undone email
+change also revoke the user's API tokens, since the account may have been in someone else's hands. Set
+`apiTokens.revokeOnReset: false` to keep them, for example when integrations must not break.
+
+**`settings.rateLimit`.** Past a limit the route answers `429 rate_limited` with a `retry-after` header. The counters
+live in NuxtHub KV: without `hub.kv` nothing is throttled and the build warns. Throttling is off under `nuxt dev`. `0`
+turns one limit off, `false` all of them.
+
+| Option | Default | Counts |
+| --- | --- | --- |
+| `windowSeconds` | `900` | The length of the fixed window. |
+| `login` | `10` | Failed password sign-ins per client IP and account. |
+| `loginIp` | `100` | Failed password sign-ins per client IP, for any account. |
+| `requests` | `30` | Requests per client IP to each of register, forgot password, magic link and the passkey options. |
+| `ipHeader` | `cf-connecting-ip` on Cloudflare | The header holding the client IP. Otherwise the socket address is used. |
+| `xForwardedFor` | `false` | Read the client IP from `X-Forwarded-For`. Only behind a proxy that overwrites it. |
+
+A sign-in for an unknown account checks a password all the same, so it answers as slowly as a wrong password.
 
 **`mode`.** Set it in your app's own `nuxt.config`. A mode from inline module options or from another module's
 default fails the build.
 
-**`settings.verifyEmail`.** The address is verified through an emailed link. Signing up creates no session.
+**`settings.verifyEmail`.** The address is verified through an emailed link. Signing up creates no session. Passkey
+sign-in to an unverified account answers `403 email_not_verified`, like password sign-in. A passkey proves nothing
+about the address, so signing up with one is refused (`403 email_verification_required`): sign up with a password or an
+emailed link first, then add the passkey from the account.
 
 **`settings.cleanup`.** `false` schedules nothing. The task stays registered, so you can run it yourself.
 

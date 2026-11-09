@@ -118,6 +118,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com/path' })).status).toBe(400)
       expect((await post({ name: '', websiteUrl: 'https://app.example.com' })).status).toBe(400)
       expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'http://*.x.dev' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.x.dev?.evil.com' })).status).toBe(400)
+      expect((await post({ name: 'x', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.dev' })).status).toBe(400)
     })
 
     it('creates, lists, edits and deletes without leaking secrets', async () => {
@@ -206,6 +208,26 @@ describe('oauth-server (authenticated, database-backed)', async () => {
   })
 
   describe('authorization code flow with PKCE', () => {
+    it('refuses framing and only takes the consent decision as JSON', async () => {
+      const app = await createApp()
+      const query = authorizeQuery(app.clientId, pkce().challenge)
+      // (The fixture has no consent page: the middleware covers its path the same way.)
+      for (const path of [oidc.authorize]) {
+        const response = await fetch(`${path}?${query}`, { headers: { cookie: staff.cookie }, redirect: 'manual' })
+        expect(response.headers.get('content-security-policy'), path).toBe('frame-ancestors \'none\'')
+        expect(response.headers.get('x-frame-options'), path).toBe('DENY')
+      }
+      expect((await fetch(oidc.jwks)).headers.get('x-frame-options')).toBeNull()
+
+      const body = { ...Object.fromEntries(query), approved: true }
+      for (const type of ['text/plain', 'application/x-www-form-urlencoded', undefined]) {
+        const response = await fetch(oidc.authorize, { method: 'POST', headers: { cookie: staff.cookie, ...(type ? { 'content-type': type } : {}) }, body: JSON.stringify(body) })
+        expect(response.status, String(type)).toBe(415)
+        expect((await response.json() as Json).data.code).toBe('unsupported_media_type')
+      }
+      await ok(await json(staff.cookie, 'POST', oidc.authorize, body))
+    })
+
     it('rejects invalid requests before anything is redirected', async () => {
       const app = await createApp()
       const { challenge } = pkce()
@@ -359,6 +381,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
         'nonce': 'nonce-1',
         'name': expect.stringMatching(/^Staff/),
         'email': expect.stringMatching(/@staff\.test$/),
+        // Registered without a confirmed address.
+        'email_verified': false,
         'role': 'staff',
         'https://frigear.test/claims/role': 'staff',
         'groups': ['staff', 'member'],
@@ -386,7 +410,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const tokens = await (await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier })).json() as Json
 
       const userinfo = await $fetch<Json>(oidc.userinfo, { headers: { authorization: `Bearer ${tokens.access_token}` } })
-      expect(userinfo).toMatchObject({ sub: String(staff.id), email: expect.stringMatching(/@staff\.test$/), role: 'staff' })
+      expect(userinfo).toMatchObject({ sub: String(staff.id), email: expect.stringMatching(/@staff\.test$/), email_verified: false, role: 'staff' })
       expect(userinfo.name).toBeUndefined()
 
       expect((await fetch(oidc.userinfo)).status).toBe(401)
@@ -542,6 +566,17 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const patch = (body: Json) => json(staff.cookie, 'PATCH', oauthServerApi.admin.application(pub.id), body)
       expect(await ok(await patch({ websiteUrl: '' }))).toMatchObject({ websiteUrl: null, callbackUrl: null })
       expect((await patch({ redirectUris: [] })).status).toBe(400)
+    })
+
+    it('refuses a preview URL pattern on a public client', async () => {
+      const post = (body: Json) => json(staff.cookie, 'POST', oauthServerApi.admin.applications, { name: 'x', ...body })
+      expect((await post({ clientType: 'public', websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.x.dev' })).status).toBe(400)
+      const pub = await publicApp()
+      const patch = (id: string, body: Json) => json(staff.cookie, 'PATCH', oauthServerApi.admin.application(id), body)
+      expect((await patch(pub.id, { previewUrlPattern: 'https://*.x.dev' })).status).toBe(400)
+      expect(await ok(await patch(pub.id, { previewUrlPattern: null }))).toMatchObject({ previewUrlPattern: null })
+      const confidential = await createApp()
+      expect(await ok(await patch(confidential.id, { previewUrlPattern: 'https://*.x.dev' }))).toMatchObject({ previewUrlPattern: 'https://*.x.dev' })
     })
 
     it('defaults to confidential, with a secret, and keeps the type fixed', async () => {
@@ -1335,7 +1370,10 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const mine = await signIn(owner, app)
       const theirs = await signIn(other, app)
 
-      await ok(await json(owner.cookie, 'PUT', usersApi.me.password, { currentPassword: 'supersecret123', newPassword: 'evenmoresecret456', confirmNewPassword: 'evenmoresecret456' }))
+      const changed = await json(owner.cookie, 'PUT', usersApi.me.password, { currentPassword: 'supersecret123', newPassword: 'evenmoresecret456', confirmNewPassword: 'evenmoresecret456' })
+      await ok(changed.clone())
+      // The change ends the user's other cookie sessions too and re-issues the one that made it.
+      owner.cookie = changed.headers.get('set-cookie')!
       expect((await refresh(app, mine.refresh_token)).status).toBe(400)
       expect(await revokedFor(owner.id)).toContainEqual({ applicationId: app.id, userId: owner.id, reason: 'credentials_changed' })
       const kept = await ok(await refresh(app, theirs.refresh_token))

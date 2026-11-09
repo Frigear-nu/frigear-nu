@@ -12,7 +12,7 @@ const dialects = [
 
 describe.each(dialects)('auth schema ($dialect)', ({ userCredentials, passwordResets, magicLinks, userColumns }) => {
   it('adds the credential columns to users', () => {
-    expect(Object.keys(getTableColumns(userColumns))).toEqual(['password', 'emailVerifiedAt', 'lastLoginAt'])
+    expect(Object.keys(getTableColumns(userColumns))).toEqual(['password', 'emailVerifiedAt', 'lastLoginAt', 'sessionVersion'])
   })
 
   it('exports the password reset columns in order', () => {

@@ -9,6 +9,7 @@ const bodySchema = z.object({
 
 // `POST /api/auth/magic-link`: emails a sign-in link. Always answers the same way, whether or not the address is registered, so it can't be used to enumerate accounts.
 export default defineEventHandler(async (event) => {
+  await enforceAuthRateLimit(event, 'magic-link')
   const { email, name, redirect } = await readValidatedBody(event, bodySchema.parse)
   const signUp = useRuntimeConfig(event).authentication?.magicLinkSignUp === true
   const users = useAuthUserStore()
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (user) {
-    const link = await createMagicLink(event, { userId: user.id, redirectUrl: redirect })
+    const link = await createMagicLink(event, { userId: user.id, redirectUrl: redirect, purpose: created ? 'verify' : 'sign-in' })
     if (link) {
       await dispatchAuthEmail(created ? 'verify-email' : 'magic-link', user.email, { name: user.name, url: link.url })
     }

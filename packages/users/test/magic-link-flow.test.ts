@@ -3,6 +3,7 @@ import { readFile, rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { authApi } from '@frigear-nu/auth/api'
+import { usersApi } from '../src/runtime/utils/api'
 
 const fixture = fileURLToPath(new URL('./fixtures/magic-link-db', import.meta.url))
 const dataDir = `${fixture}/.data`
@@ -63,6 +64,42 @@ describe('magic links & email verification (database)', async () => {
 
     const verified = await post(authApi.login, { email: credentials.email, password: credentials.password })
     expect(verified.status, await verified.clone().text()).toBe(200)
+  })
+
+  it('a sign-in link to an account never verified clears the password set at registration', async () => {
+    // Someone registers an address they do not own; its owner later signs in with a link they asked for themselves.
+    const squatted = { name: 'Squatter', email: 'owner@example.com', password: 'squatterpass123' }
+    expect((await post(authApi.register, squatted)).status).toBe(201)
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
+    expect((await post(authApi.magicLink, { email: squatted.email })).status).toBe(200)
+    const confirmed = await post(authApi.magicLinkConfirm, { code: (await latestLink(squatted.email)).code })
+    expect(confirmed.status, await confirmed.clone().text()).toBe(200)
+
+    const login = await post(authApi.login, { email: squatted.email, password: squatted.password })
+    expect(login.status).toBe(401)
+  })
+
+  it('voids a sign-in link sent to the old address when the email changes', async () => {
+    expect((await post(authApi.register, { name: 'Grace', email: 'grace@example.com', password: 'supersecret123' })).status).toBe(201)
+    const verified = await post(authApi.magicLinkConfirm, { code: (await latestLink('grace@example.com')).code })
+    expect(verified.status, await verified.clone().text()).toBe(200)
+    const cookie = verified.headers.get('set-cookie')!.split(';')[0]!
+
+    await new Promise(resolve => setTimeout(resolve, cooldownMs))
+    expect((await post(authApi.magicLink, { email: 'grace@example.com' })).status).toBe(200)
+    const { code } = await latestLink('grace@example.com')
+
+    const changed = await fetch(usersApi.me.email, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ email: 'grace-new@example.com' }),
+    })
+    expect(changed.status, await changed.clone().text()).toBe(200)
+    expect(await changed.json()).toMatchObject({ verificationRequired: false })
+
+    const used = await post(authApi.magicLinkConfirm, { code })
+    expect(used.status).toBe(400)
+    expect(used.headers.get('set-cookie')).toBeNull()
   })
 
   it('a link works once', async () => {

@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
   }
 
   await assertEmailAvailable(change.newEmail, { exceptUserId: change.userId })
+  // Built before anything changes: without a configured site URL this fails, and the change must not half-apply.
+  const revertUrl = authSiteUrl(event, `/auth/revert-email-change?code=${change.revertCode}`)
 
   // Used up atomically, so two concurrent confirmations apply (and notify) once.
   const [claimed] = await db.update(schema.accountEmailChanges)
@@ -45,10 +47,11 @@ export default defineEventHandler(async (event) => {
 
   if (!updated) throw notFound('User not found.')
 
+  // Reset codes and sign-in links went to the old address.
+  await deleteUnusedAuthEmailCodes(updated.id)
   await notifyAuthCredentialsChanged({ userId: updated.id, reason: 'email', event })
   await setUserSession(event, { user: mapUserToSession(updated) })
 
-  const revertUrl = new URL(`/auth/revert-email-change?code=${claimed.revertCode}`, getRequestURL(event).origin).toString()
   // The change already happened: a failing mail must not turn it into an error for the user.
   await dispatchEmailNotification(buildEmailChangedNotification({
     to: claimed.oldEmail,

@@ -42,7 +42,8 @@ export type OAuthScopeDefinition = {
 export type ModuleOptions = {
   /**
    * The `iss` claim and the discovery issuer, e.g. `https://id.example.com`. Defaults to the origin of the
-   * incoming request, which is fine in development but should be set explicitly behind proxies.
+   * incoming request (`x-forwarded-*` headers are ignored), which is fine in development; set it in production
+   * (a warning is logged once when it is not), also as `NUXT_OAUTH_SERVER_ISSUER`.
    */
   issuer?: string
   /** `kid` of the signing key (published in the JWKS). Defaults to `key-1`; change it when rotating keys. */

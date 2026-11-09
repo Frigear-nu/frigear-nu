@@ -18,12 +18,20 @@ export default defineNuxtConfig({
     '/admin/public': { authenticated: false },
     '/ability-rule': { ability: 'isAdmin' },
     '/api/members': { authenticated: true },
+    // A role rule is session-only by default; these two opt bearer credentials in.
+    '/api/reports': { roles: ['admin'], scopes: ['reports:read'] },
+    '/api/open-admin': { roles: ['admin'], sessionOnly: false },
   },
   hub: {
     db: {
       dialect: 'sqlite',
       driver: 'libsql',
       applyMigrationsDuringBuild: false,
+    },
+  },
+  hooks: {
+    'auth:scopes': (list: { name: string }[]) => {
+      list.push({ name: 'reports:read' }, { name: 'reports:write' })
     },
   },
 })

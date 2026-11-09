@@ -58,37 +58,71 @@ export function listOAuthProviders(event: H3Event): OAuthProviderButton[] {
 }
 
 /**
- * Shared find-or-create logic for the nuxt-auth-utils OAuth providers (`GET /api/auth/<provider>`). An existing user is
- * matched by email; with `signUp: false` an unknown email is sent back to the login page instead of getting an account.
- * `tokens` (the token response, for providers with `keepTokens`) are kept for the user.
+ * Whether the provider vouches that the profile's email belongs to whoever signed in: only a positive flag counts.
+ * Google and OIDC providers send `email_verified` (Cognito and Apple as the string `'true'`), Google's older endpoint
+ * `verified_email`, Discord `verified`. GitHub only shows verified addresses as the public email, and nuxt-auth-utils
+ * sets `email_verified` when it reads the primary address instead. Providers without a flag (Facebook, Microsoft,
+ * Spotify, ...) are not trusted unless the host sets `trustEmail` for them.
  */
-export async function handleOAuthUser(event: H3Event, provider: string, profile: OAuthProfile, options: { signUp?: boolean, tokens?: Record<string, unknown> } = {}) {
+export function isOAuthEmailVerified(provider: string, profile: OAuthProfile, options: { trustEmail?: boolean } = {}): boolean {
+  if (options.trustEmail === true) return true
+  const flag = (value: unknown) => value === true || value === 'true'
+  switch (provider.toLowerCase()) {
+    case 'discord':
+      return flag(profile.verified)
+    case 'google':
+      return flag(profile.email_verified) || flag(profile.verified_email)
+    case 'github':
+      return profile.email_verified === undefined ? typeof profile.email === 'string' : flag(profile.email_verified)
+    default:
+      return flag(profile.email_verified)
+  }
+}
+
+/** Sends a failed sign-in back to the login page with `?error=<code>`, which explains it. */
+export function authLoginErrorRedirect(event: H3Event, error: 'oauth-signup' | 'oauth-unverified' | 'oauth-state') {
+  const loginPath = useRuntimeConfig(event).public.authentication?.pages?.login
+  return sendRedirect(event, `${isInternalPath(loginPath) ? loginPath : '/'}?error=${error}`)
+}
+
+/**
+ * Shared find-or-create logic for the nuxt-auth-utils OAuth providers (`GET /api/auth/<provider>`). An existing user is
+ * matched by email, and only when the provider vouches for the address (`isOAuthEmailVerified`); otherwise the user is
+ * sent back to the login page with `?error=oauth-unverified` and nothing is linked or created. A new account gets the
+ * address as verified. An account that was never verified loses the credentials set before (whoever registered it may
+ * not own the address). With `signUp: false` an unknown email is sent back to the login page instead of getting an
+ * account. `tokens` (the token response, for providers with `keepTokens`) are kept for the user.
+ */
+export async function handleOAuthUser(event: H3Event, provider: string, profile: OAuthProfile, options: { signUp?: boolean, trustEmail?: boolean, tokens?: Record<string, unknown> } = {}) {
   const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() || undefined : undefined
 
   if (!email) {
     throw apiError(400, 'email_missing', `No email returned from the ${provider} OAuth provider.`)
   }
-  // Matching an unverified address would sign in to the account that owns it.
-  if (profile.email_verified === false) {
-    throw apiError(403, 'email_not_verified', `The ${provider} account's email address is not verified.`)
+  // Matching (or claiming) an address the provider has not verified would sign in to the account that owns it.
+  if (!isOAuthEmailVerified(provider, profile, { trustEmail: options.trustEmail })) {
+    return authLoginErrorRedirect(event, 'oauth-unverified')
   }
 
   const users = useAuthUserStore()
 
   const existing = await users.findByEmail(email)
   if (!existing && options.signUp === false) {
-    const loginPath = useRuntimeConfig(event).public.authentication?.pages?.login
-    return sendRedirect(event, `${isInternalPath(loginPath) ? loginPath : '/'}?error=oauth-signup`)
+    return authLoginErrorRedirect(event, 'oauth-signup')
   }
+  if (existing && !existing.emailVerifiedAt) await clearUnverifiedAuthCredentials(existing.id, event)
+
+  const now = new Date()
   const user = existing ?? await users.create({
     name: (profile.name ?? profile.login ?? email) as string,
     email,
     avatar: avatarOf(profile),
+    emailVerifiedAt: now,
   })
-  const updated = await users.update(user.id, { lastLoginAt: new Date() })
+  const updated = await users.update(user.id, { lastLoginAt: now, ...(!user.emailVerifiedAt && { emailVerifiedAt: now }) })
   if (options.tokens) await storeOAuthTokens(user.id, provider, parseOAuthTokenResponse(options.tokens, requestedScopes(provider)))
 
-  await setUserSession(event, { user: mapUserToSession(updated ?? user) })
+  await startAuthSession(event, updated ?? user)
 
   return sendRedirect(event, consumeLoginRedirect(event))
 }

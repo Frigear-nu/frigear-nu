@@ -5,6 +5,7 @@ import {
   addServerHandler,
   addTemplate,
   addServerImportsDir,
+  addServerPlugin,
   addServerTemplate,
   addTypeTemplate,
   createResolver,
@@ -35,6 +36,7 @@ import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
+  AuthSettings,
   AuthScopeAvailabilityContext,
   AuthScopeDefinition,
   ModuleOptions,
@@ -94,7 +96,20 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    authentication?: { tokenTtlDays: number | null, apiTokenPrefix: string, magicLinkSignUp: boolean, magicLinkCooldown: number }
+    authentication?: {
+      tokenTtlDays: number | null
+      apiTokenPrefix: string
+      // Revoke a user's API tokens on a password reset or a reverted email change (`apiTokens.revokeOnReset`).
+      revokeTokensOnReset: boolean
+      magicLinkSignUp: boolean
+      magicLinkCooldown: number
+      // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
+      trustRequestOrigin: boolean
+      // Minimum seconds between two password reset emails for one user (`settings.passwordReset.cooldown`).
+      passwordResetCooldown: number
+      // Throttling of the sign-in routes (`settings.rateLimit`); `enabled` is false under `nuxt dev`.
+      rateLimit: { enabled: boolean, windowSeconds: number, login: number, loginIp: number, requests: number, ipHeader: string, xForwardedFor: boolean }
+    }
     // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); falls back to a key derived from the session password.
     authTokensKey?: string
     // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
@@ -106,8 +121,13 @@ declare module 'nuxt/schema' {
       sso?: { url?: string, clientId?: string, clientSecret?: string, scopes?: string, stepUpScopes?: string }
       // Use the frigear.nu user id as the local `users.id` (existing users matched by email are re-keyed).
       forceId?: boolean
-      // Apply the `role` claim of frigear.nu to the local user at every login (an admin there is an admin here). Defaults to true.
+      // Apply the role claim of frigear.nu to the local user at every login, through `roleMap`. Only on when `roleMap`
+      // maps a role; `false` turns it off.
       syncRole?: boolean
+      // frigear.nu role -> local role (`NUXT_FRIGEAR_ROLE_MAP`, JSON). A missing or unlisted role becomes `defaultRole`.
+      roleMap?: Record<string, string> | string
+      // The role of a user whose claim is missing or not in `roleMap`. Defaults to `user`.
+      defaultRole?: string
       // Keep the frigear.nu tokens in `auth_oauth_tokens` (`getOAuthAccessToken`). Defaults to `oauth.frigear.keepTokens`.
       keepTokens?: boolean
     }
@@ -115,6 +135,8 @@ declare module 'nuxt/schema' {
 
   interface PublicRuntimeConfig {
     authentication?: PublicModuleOptions
+    // The public URL of the site (`NUXT_PUBLIC_SITE_URL`); emailed links point here (`authSiteOrigin`).
+    siteUrl?: string
   }
 
   interface AppConfigInput {
@@ -130,7 +152,8 @@ declare module 'nitropack' {
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
     /**
      * A user's password was changed or reset, or their email changed (`notifyAuthCredentialsChanged`). Fired after the
-     * change is stored; end sessions the old credentials opened here.
+     * change is stored, and after the user's other cookie sessions were ended; end other sessions the old credentials
+     * opened here.
      */
     'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
   }
@@ -206,6 +229,25 @@ const serverDependencies = (nuxt: Nuxt) => ({
   },
 })
 
+const hasHubKv = (nuxt: Nuxt) => !!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv
+
+// Defaults of `settings.rateLimit`; `0` turns one limit off, `false` all of them. Off under `nuxt dev`.
+function resolveRateLimit(option: AuthSettings['rateLimit'], dev: boolean) {
+  const limits = typeof option === 'object' ? option : {}
+  return {
+    enabled: option !== false && !dev,
+    windowSeconds: limits.windowSeconds ?? 900,
+    login: limits.login ?? 10,
+    loginIp: limits.loginIp ?? 100,
+    requests: limits.requests ?? 30,
+    ipHeader: limits.ipHeader ?? '',
+    xForwardedFor: limits.xForwardedFor === true,
+  }
+}
+
+/** How long a cookie session lasts by default, in seconds (`settings.session.maxAge`): 30 days. */
+const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60
+
 // Today's Auth: sign-in on this app's server, a nuxt-auth-utils cookie session, the database tables and routes.
 function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
   const settings = options.settings ?? {}
@@ -260,13 +302,39 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     file: dialect => `./runtime/db/users.${dialect}`,
   })
 
+  // Cookie sessions end `maxAge` seconds after sign-in: h3 sets the cookie's expiry and refuses an older sealed session.
+  // The host's own `runtimeConfig.session.maxAge` wins; nuxt-auth-utils merges its defaults over what is set here.
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number } }
+  const sessionConfig = withSession.session ??= {}
+  sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
+
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {
     tokenTtlDays: options.tokenTtlDays ?? null,
     apiTokenPrefix,
+    revokeTokensOnReset: (typeof options.apiTokens === 'object' ? options.apiTokens.revokeOnReset : undefined) !== false,
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    trustRequestOrigin: settings.trustRequestOrigin === true,
+    passwordResetCooldown: (typeof settings.passwordReset === 'object' ? settings.passwordReset.cooldown : undefined) ?? 60,
+    rateLimit: resolveRateLimit(settings.rateLimit, nuxt.options.dev),
   }
+  // The limits count in KV (NuxtHub `hub.kv`); without it they are off, which the host should know about.
+  addServerTemplate({
+    filename: '#auth/rate-limit-kv',
+    getContents: () => hasHubKv(nuxt) ? `export { kv } from '@nuxthub/kv'` : 'export const kv = undefined',
+  })
+  nuxt.hook('modules:done', () => {
+    if (settings.rateLimit !== false && !nuxt.options.dev && !nuxt.options._prepare && !hasHubKv(nuxt)) {
+      useLogger('auth').warn('Sign-in throttling (`authentication.settings.rateLimit`) needs NuxtHub KV: set `hub.kv` to turn it on, or `rateLimit: false` to silence this.')
+    }
+  })
+  // Where emailed links point (`authSiteOrigin`); `NUXT_PUBLIC_SITE_URL` sets it at runtime.
+  const publicConfig = nuxt.options.runtimeConfig.public as { siteUrl?: string }
+  publicConfig.siteUrl ||= settings.siteUrl || process.env.NUXT_SITE_URL || ''
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/site-url'))
+  // `/api/_auth/session` answers the user as `getAuth` sees them: fresh from the store, or signed out.
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/session-fetch'))
 
   // Bearer resolvers: the built-in user-token one plus whatever other modules register.
   addServerTemplate({
@@ -308,9 +376,10 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       const path = options.userStore
         ? await resolver.resolvePath(options.userStore, { cwd: nuxt.options.rootDir })
         : registration.path
-      if (path) return `export { default } from ${JSON.stringify(path)}`
+      // `configured`: without a store there is nothing to check a session against, so `getAuth` keeps its snapshot.
+      if (path) return `export { default } from ${JSON.stringify(path)}\nexport const configured = true`
       const missing = `() => { throw new Error('[auth] No user store: install @frigear-nu/users or set authentication.userStore.') }`
-      return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing}, changeId: ${missing} }`
+      return `export default { findById: async () => null, findByEmail: async () => null, create: ${missing}, update: ${missing}, remove: ${missing}, changeId: ${missing} }\nexport const configured = false`
     },
   })
 
@@ -341,6 +410,14 @@ declare module '#auth/scopes' {
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore
   export default store
+  /** \`false\` when no store is registered (neither \`@frigear-nu/users\` nor \`authentication.userStore\`). */
+  export const configured: boolean
+}
+declare module '#auth/rate-limit-kv' {
+  export const kv: {
+    get<T>(key: string): Promise<T | null>
+    set(key: string, value: unknown, options?: { ttl?: number }): Promise<void>
+  } | undefined
 }
 declare module '#auth/session-mapper' {
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
@@ -506,6 +583,8 @@ export {}
   runtimeConfig.frigear = {
     forceId: false,
     keepTokens: keepsTokens('frigear'),
+    roleMap: {},
+    defaultRole: 'user',
     ...runtimeConfig.frigear,
     sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
   }
@@ -514,6 +593,10 @@ export {}
     && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
   if (oauthProviders.includes('frigear')) {
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
+    const roleMap = runtimeConfig.frigear.roleMap
+    if (runtimeConfig.frigear.syncRole === true && !(typeof roleMap === 'string' ? roleMap.trim() : Object.keys(roleMap ?? {}).length)) {
+      useLogger('auth').warn('`runtimeConfig.frigear.syncRole` is on, but `frigear.roleMap` maps no role: no role is synced from frigear.nu. Map the frigear.nu roles to local ones (`NUXT_FRIGEAR_ROLE_MAP`).')
+    }
   }
 
   // Housekeeping for the single-use tokens (`auth:clear-expired-tokens`); the cron is opt-out.

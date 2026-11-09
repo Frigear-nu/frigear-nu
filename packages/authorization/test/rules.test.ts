@@ -8,8 +8,11 @@ import {
   deny,
   denies,
   evaluateRule,
+  findUnenforcedPatterns,
   matchRoute,
+  normalizeRequestPath,
   resolveRule,
+  splitResolvedUser,
   normalizeAuthorizeMeta,
 } from '../src/runtime/utils'
 
@@ -129,5 +132,87 @@ describe('resolveRule with exempt patterns (Auth\'s anonymous entry points)', ()
 
   it('changes nothing without exempt patterns', () => {
     expect(resolveRule({ '/**': { authenticated: true } }, '/login')).toEqual({ authenticated: true })
+  })
+})
+
+describe('normalizeRequestPath', () => {
+  it('returns the path the router dispatches on, without the query', () => {
+    expect(normalizeRequestPath('/api/admin/users?x=1')).toBe('/api/admin/users')
+    expect(normalizeRequestPath('/api//admin///users')).toBe('/api/admin/users')
+    expect(normalizeRequestPath('/')).toBe('/')
+    expect(normalizeRequestPath('')).toBe('/')
+  })
+
+  it('refuses encoded slashes, backslashes and dot segments', () => {
+    for (const path of ['/api/admin%2Fusers', '/api/admin%2fusers', '/api/admin%5Cusers', '/api/admin\\users', '/api/x/../admin/users', '/api/./admin', '/api/%2e%2e/admin', '/api/%2E/admin', '/api/admin/..']) {
+      expect(normalizeRequestPath(path), path).toBeNull()
+    }
+    expect(normalizeRequestPath('/api/admin/users.json')).toBe('/api/admin/users.json')
+    expect(normalizeRequestPath('/api/admin/...')).toBe('/api/admin/...')
+  })
+
+  it('makes decoded paths hit their rules (h3 decodes `event.path` before routing)', () => {
+    const routes = { '/api/admin/**': { roles: ['admin'] }, '/api/admin/units': { roles: ['owner'] } }
+    // What h3 hands the router for `/api/%61dmin/users` and `/api/admin/%75nits`.
+    const decoded = (raw: string) => normalizeRequestPath(decodeURI(raw))!
+    expect(resolveRule(routes, decoded('/api/%61dmin/users'))).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, decoded('/%61pi/admin/users'))).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, decoded('/api/admin/%75nits'))).toEqual({ roles: ['owner'] })
+  })
+})
+
+describe('route rules and the credential kind', () => {
+  const session = { kind: 'session', scopes: ['*'] }
+  const token = (...scopes: string[]) => ({ kind: 'user-token', scopes })
+
+  it('refuses bearer credentials on a roles or ability rule by default', async () => {
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, token('*'))).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, { kind: 'oauth', scopes: ['*'] })).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ ability: editPost, args: [{ userId: 2 }] }, admin, {}, token('*'))).toMatchObject({ authorized: false, statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'] }, admin, {}, session)).toEqual({ authorized: true })
+    expect(await evaluateRule({ roles: ['admin'] }, admin)).toEqual({ authorized: true })
+  })
+
+  it('accepts any credential on a rule that only asks for a user', async () => {
+    expect(await evaluateRule({ authenticated: true }, owner, {}, token('profile:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule({ authenticated: true, sessionOnly: true }, owner, {}, token('*'))).toMatchObject({ statusCode: 403 })
+  })
+
+  it('lets `scopes` or `sessionOnly: false` opt bearer credentials in', async () => {
+    const rule = { roles: ['admin'], scopes: ['reports:read'] }
+    expect(await evaluateRule(rule, admin, {}, token('reports:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule(rule, admin, {}, token('reports:*'))).toEqual({ authorized: true })
+    expect(await evaluateRule(rule, admin, {}, token('profile:read'))).toMatchObject({ statusCode: 403 })
+    expect(await evaluateRule(rule, owner, {}, token('reports:read'))).toMatchObject({ statusCode: 403 })
+    expect(await evaluateRule({ roles: ['admin'], sessionOnly: false }, admin, {}, token('profile:read'))).toEqual({ authorized: true })
+    expect(await evaluateRule({ roles: ['admin'], scopes: ['reports:read'], sessionOnly: true }, admin, {}, token('reports:read'))).toMatchObject({ statusCode: 403 })
+  })
+
+  it('merges scopes and sessionOnly like the other keys', () => {
+    const routes = { '/api/**': { roles: ['admin'] }, '/api/reports': { scopes: ['reports:read'] } }
+    expect(resolveRule(routes, '/api/reports')).toEqual({ roles: ['admin'], scopes: ['reports:read'] })
+  })
+
+  it('splits a resolver result into user and credential', () => {
+    expect(splitResolvedUser(null)).toEqual({ user: null, credential: null })
+    expect(splitResolvedUser({ id: 1, role: 'admin' })).toEqual({ user: { id: 1, role: 'admin' }, credential: null })
+    expect(splitResolvedUser({ kind: 'oauth', user: { id: 1 }, scopes: ['openid'] })).toEqual({ user: { id: 1 }, credential: { kind: 'oauth', scopes: ['openid'] } })
+  })
+})
+
+describe('findUnenforcedPatterns', () => {
+  const pages = ['/', '/admin', '/admin/units', '/posts/:id()', '/de/pricing']
+
+  it('lists patterns that match no page and are not under /api/', () => {
+    const patterns = ['/admin/**', '/posts/*', '/api/admin/**', '/mcp', '/oauth/**', '/**', '/pricing']
+    expect(findUnenforcedPatterns(patterns, pages, ['/de'])).toEqual(['/mcp', '/oauth/**'])
+  })
+
+  it('treats a catch-all page as matching everything below it', () => {
+    expect(findUnenforcedPatterns(['/docs/guide'], ['/docs/:slug(.*)*'])).toEqual([])
+  })
+
+  it('lists every non-API pattern when the app has no pages', () => {
+    expect(findUnenforcedPatterns(['/admin/**', '/api/x'], [])).toEqual(['/admin/**'])
   })
 })

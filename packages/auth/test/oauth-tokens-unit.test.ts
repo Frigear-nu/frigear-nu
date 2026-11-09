@@ -61,10 +61,19 @@ describe('handleFrigearLogin', async () => {
   vi.stubGlobal('parseOAuthTokenResponse', parseOAuthTokenResponse)
   vi.stubGlobal('verifyFrigearIdToken', async () => ({ sub: '7' }))
   vi.stubGlobal('syncFrigearUser', async (profile: { id: number, email: string }) => ({ id: profile.id, email: profile.email, name: 'Ada' }))
-  vi.stubGlobal('parseRoleClaim', () => undefined)
+  vi.stubGlobal('mapRoleClaim', () => 'user')
   vi.stubGlobal('parseColorModeClaim', () => undefined)
   vi.stubGlobal('mapUserToSession', (user: unknown) => user)
-  vi.stubGlobal('setUserSession', async () => ({}))
+  const replaceUserSession = vi.fn(async () => ({}))
+  vi.stubGlobal('setUserSession', async () => {
+    throw new Error('A frigear.nu sign-in must replace the session, not merge into it.')
+  })
+  vi.stubGlobal('replaceUserSession', replaceUserSession)
+  // `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
+  vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<string, unknown> = {}) => {
+    const globals = globalThis as unknown as { replaceUserSession: (event: unknown, data: unknown) => unknown, mapUserToSession: (user: unknown) => unknown }
+    return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
+  })
   vi.stubGlobal('consumeLoginRedirect', () => '/')
   vi.stubGlobal('sendRedirect', async () => undefined)
   const { handleFrigearLogin } = await import('../src/runtime/server/utils/frigear-login')
@@ -74,13 +83,14 @@ describe('handleFrigearLogin', async () => {
 
   it('keeps the tokens of the login with keepTokens', async () => {
     storeOAuthTokens.mockClear()
-    await handleFrigearLogin({} as never, sso, { email: 'ada@example.com' }, response)
+    await handleFrigearLogin({} as never, sso, { sub: '7', email: 'ada@example.com' }, response)
     expect(storeOAuthTokens).toHaveBeenCalledWith(7, 'frigear', expect.objectContaining({ accessToken: 'access', refreshToken: 'refresh', scopes: ['openid', 'users:read'] }))
+    expect(replaceUserSession).toHaveBeenCalled()
   })
 
   it('keeps nothing without it', async () => {
     storeOAuthTokens.mockClear()
-    await handleFrigearLogin({} as never, { ...sso, keepTokens: false }, { email: 'ada@example.com' }, response)
+    await handleFrigearLogin({} as never, { ...sso, keepTokens: false }, { sub: '7', email: 'ada@example.com' }, response)
     expect(storeOAuthTokens).not.toHaveBeenCalled()
   })
 })

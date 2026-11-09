@@ -2,9 +2,13 @@ import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import { apiError, forbidden } from '@frigear-nu/module-kit/server'
 
-// `POST /api/auth/webauthn/register`: adds a passkey to the signed-in account, or signs up with one.
+// `POST /api/auth/webauthn/register`: adds a passkey to the signed-in account, or signs up with one. With `verifyEmail`
+// on, signing up with a passkey is refused: a passkey proves nothing about the address, so the account is created
+// through a verified channel first (register, magic link) and the passkey added from it. Asking for the options (step
+// one, the only one that stores a challenge) is throttled per client (`rateLimit.requests`).
 export default defineWebAuthnRegisterEventHandler({
-  async storeChallenge(_event, challenge, attemptId) {
+  async storeChallenge(event, challenge, attemptId) {
+    await enforceAuthRateLimit(event, 'webauthn')
     await useStorage().setItem(`webauthn:registration:${attemptId}`, challenge)
   },
   async getChallenge(_event, attemptId) {
@@ -42,7 +46,9 @@ export default defineWebAuthnRegisterEventHandler({
       }
     }
     else {
-      // TODO(owner): this signs up an unverified account even when `verifyEmail` is on; decide whether it should.
+      if (useRuntimeConfig(event).public.authentication?.verifyEmail) {
+        throw apiError(403, 'email_verification_required', 'Sign up and verify your email address before adding a passkey.')
+      }
       dbUser = await users.create({ name: user.userName, email: user.userName })
       createdUserId = dbUser.id
     }
@@ -64,6 +70,8 @@ export default defineWebAuthnRegisterEventHandler({
       throw error
     }
 
-    await setUserSession(event, { user: mapUserToSession(dbUser) })
+    // A passkey sign-up starts a fresh session; adding a passkey refreshes the signed-in user's own one.
+    if (createdUserId !== null) await startAuthSession(event, dbUser)
+    else await setUserSession(event, { user: mapUserToSession(dbUser) })
   },
 })

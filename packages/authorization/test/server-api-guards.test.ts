@@ -24,6 +24,14 @@ describe('server mode: an `/api/**` guard', async () => {
 
   it('still guards the rest of the API, and leaves pages alone', async () => {
     expect((await fetch('/api/test/private')).status).toBe(401)
+    // Percent-encoded paths are routed decoded, so the guard must match the decoded path too.
+    expect((await fetch('/api/%74est/private')).status).toBe(401)
+    expect((await fetch('/%61pi/test/private')).status).toBe(401)
+    expect((await fetch('/api/test/%70rivate')).status).toBe(401)
+    // Paths no rule can be trusted to match are refused.
+    expect((await fetch('/api/test%2Fprivate')).status).toBe(400)
+    expect((await fetch('/api/test%5Cprivate')).status).toBe(400)
+    // Dot segments (`..`, `%2e%2e`) are resolved by the fetch client before sending; `rules.test.ts` covers them.
     expect((await fetch('/')).status).toBe(200)
   })
 })

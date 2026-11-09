@@ -1,7 +1,8 @@
 import type { H3Event } from 'h3'
 import { apiError } from '@frigear-nu/module-kit/server'
 import { resolvers } from '#auth/resolvers'
-import type { AuthPrincipal, RequireUserOptions } from '../../types'
+import { configured as storeConfigured } from '#auth/user-store'
+import type { AuthPrincipal, AuthUser, RequireUserOptions } from '../../types'
 import { ALL_SCOPES, hasScopes } from '../../utils/scopes'
 import { looksLikeJwt, parseBearer } from '../../utils/tokens'
 
@@ -37,7 +38,10 @@ export async function resolveBearer(event: H3Event): Promise<void> {
   event.context.authRejected = true
 }
 
-/** The caller as a principal, or `null`. Bearer credentials first, then the cookie session. */
+/**
+ * The caller as a principal, or `null`. Bearer credentials first, then the cookie session (see `resolveAuthSession`).
+ * Resolved once per request and kept on `event.context.auth`.
+ */
 export async function getAuth(event: H3Event): Promise<AuthPrincipal | null> {
   if (event.context.auth) return event.context.auth
   if (event.context.authRejected) return null
@@ -46,11 +50,32 @@ export async function getAuth(event: H3Event): Promise<AuthPrincipal | null> {
   if (event.context.auth) return event.context.auth
   if (event.context.authRejected) return null
 
+  const principal = await resolveAuthSession(event)
+  if (principal) event.context.auth = principal
+  return principal
+}
+
+const sameEmail = (a: unknown, b: unknown) =>
+  typeof a !== 'string' || typeof b !== 'string' || a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/**
+ * The cookie session as a principal, with the user read fresh from the store: a role change applies to the next
+ * request. A session whose user is gone, or whose id now belongs to someone with another email (an id re-keyed by
+ * `changeId`), or whose sessions were ended since it started (`endAuthSessions`), is cleared and answers `null`.
+ * Without a user store the session's snapshot is used as is.
+ */
+export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal | null> {
   const session = await getUserSession(event)
   if (!session.user) return null
-  const principal: AuthPrincipal = { kind: 'session', user: session.user, scopes: [ALL_SCOPES] }
-  event.context.auth = principal
-  return principal
+  if (!storeConfigured) return { kind: 'session', user: session.user, scopes: [ALL_SCOPES] }
+
+  const stored = await useAuthUserStore().findById(session.user.id as string | number)
+  // A session from before the user's sessions were ended (`endAuthSessions`, e.g. a password change) is over too.
+  if (!stored || !sameEmail(stored.email, (session.user as { email?: unknown }).email) || authSessionVersionOf(stored) !== authSessionVersionOf(session)) {
+    await clearUserSession(event)
+    return null
+  }
+  return { kind: 'session', user: mapUserToSession(stored) as AuthUser, scopes: [ALL_SCOPES] }
 }
 
 /**

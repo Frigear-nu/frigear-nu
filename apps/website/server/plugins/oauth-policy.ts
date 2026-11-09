@@ -2,7 +2,10 @@
 // everything below is decided here.
 //
 // There is no role model in this app yet, so admins are an email allowlist and nobody has a role
-// (applications with `allowedRoles` stay closed until `oauth:user:roles` is implemented).
+// (applications with `allowedRoles` stay closed until `oauth:user:roles` is implemented). Allowlists count only for
+// verified addresses (`isAllowlisted`).
+import { isAllowlisted } from '#shared/acl'
+
 export default defineNitroPlugin((nitro) => {
   // Applications that sign people in with frigear.nu (the other Frigear apps) map this to their own users, so an admin
   // here is an admin there. Identity claims only: access tokens stay bare.
@@ -11,8 +14,7 @@ export default defineNitroPlugin((nitro) => {
   })
 
   nitro.hooks.hook('oauth:authorize', async (ctx) => {
-    const admins = useRuntimeConfig().oauthAdminEmails.split(',').map(email => email.trim().toLowerCase()).filter(Boolean)
     const user = await getOAuthUser(ctx.userId)
-    ctx.allowed = !!user && (admins.includes(user.email.toLowerCase()) || effectiveRole(user) === 'admin')
+    ctx.allowed = !!user && (isAllowlisted(user, staffAllowlists().oauthAdmins) || effectiveRole(user) === 'admin')
   })
 })

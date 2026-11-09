@@ -4,7 +4,9 @@ import {
   isNativeRedirectUri,
   mergeScopeDefinitions,
   matchesAllowedRoles,
+  matchesPreviewUrlPattern,
   normalizeWebsiteUrl,
+  parsePreviewUrlPattern,
   parseList,
   parseScope,
   resolveScope,
@@ -121,6 +123,60 @@ describe('validateRedirectUri', () => {
 
   it('honours a custom callback path', () => {
     expect(validateRedirectUri('https://app.example.com/cb', { websiteUrl: 'https://app.example.com', callbackPath: '/cb' })).toBe(true)
+  })
+})
+
+describe('preview URL patterns', () => {
+  const rules = { websiteUrl: 'https://app.example.com', previewUrlPattern: 'https://*.myapp.com' }
+
+  it('still accepts legitimate preview deployments', () => {
+    expect(validateRedirectUri('https://pr-12.myapp.com/auth/frigear', rules)).toBe(true)
+    expect(validateRedirectUri('https://a.myapp.com/auth/frigear', rules)).toBe(true)
+    expect(validateRedirectUri('https://myapp-git-feat-team.vercel.app/auth/frigear', { ...rules, previewUrlPattern: 'https://myapp-*.vercel.app' })).toBe(true)
+    expect(validateRedirectUri('https://pr-1.x.dev:8443/auth/frigear', { ...rules, previewUrlPattern: 'https://*.x.dev:8443' })).toBe(true)
+    expect(validateRedirectUri('https://pr-1.x.dev/app/auth/frigear', { ...rules, previewUrlPattern: 'https://*.x.dev/app/' })).toBe(true)
+    expect(validateRedirectUri('https://pr-1.myapp.com/cb', { ...rules, callbackPath: '/cb' })).toBe(true)
+  })
+
+  it('refuses parser-differential bypasses that resolve to another host', () => {
+    // Each of these passed the old raw-string regex, but `new URL()` sends the browser to evil.com.
+    expect(new URL('https://evil%2ecom\\.myapp.com/auth/frigear').hostname).toBe('evil.com')
+    expect(validateRedirectUri('https://evil%2ecom\\.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://evil%2ecom?.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://evil\u3002com\\.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://evil.com%5C.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://evil.com@x.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com@evil.com/auth/frigear', rules)).toBe(false)
+  })
+
+  it('matches scheme, port, path and query exactly', () => {
+    expect(validateRedirectUri('https://x.myapp.com:8443/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com/auth/frigear?next=1', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com/auth/frigear?', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com/auth/frigear/', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com/auth/../auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://X.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.y.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://x_y.myapp.com/auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://x.myapp.com./auth/frigear', rules)).toBe(false)
+    expect(validateRedirectUri('https://xn--e1afmkfd.myapp.com/auth/frigear', rules)).toBe(true)
+    expect(validateRedirectUri('https://пример.myapp.com/auth/frigear', rules)).toBe(false)
+  })
+
+  it('ignores the pattern for public clients', () => {
+    expect(validateRedirectUri('https://pr-12.myapp.com/auth/frigear', { ...rules, clientType: 'confidential' })).toBe(true)
+    expect(validateRedirectUri('https://pr-12.myapp.com/auth/frigear', { ...rules, clientType: 'public' })).toBe(false)
+    expect(validateRedirectUri('https://app.example.com/auth/frigear', { ...rules, clientType: 'public' })).toBe(true)
+  })
+
+  it('never matches a malformed pattern', () => {
+    for (const pattern of ['https://*', 'https://*.com', 'https://evil.com?.*.myapp.com', 'https://*.myapp.com?x', 'https://*.*.myapp.com', 'https://a.*.myapp.com', 'https://u@*.myapp.com', 'http://*.myapp.com', 'https://*.my%61pp.com']) {
+      expect(parsePreviewUrlPattern(pattern), pattern).toBeNull()
+      expect(matchesPreviewUrlPattern('https://x.myapp.com/auth/frigear', pattern, '/auth/frigear'), pattern).toBe(false)
+    }
+    expect(parsePreviewUrlPattern('https://*.vercel.app')).not.toBeNull()
+    expect(parsePreviewUrlPattern('https://*.vercel.app/')).not.toBeNull()
   })
 })
 

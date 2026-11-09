@@ -1,6 +1,6 @@
 import { isAbility } from './ability'
 import { normalizeResponse } from './bouncer'
-import type { Ability, AuthorizationResponse, AuthorizeMeta, RouteRule } from './types'
+import type { Ability, AuthorizationResponse, AuthorizeMeta, RouteRule, RuleCredential } from './types'
 
 export type AbilityRegistry = Record<string, unknown>
 
@@ -21,6 +21,19 @@ export function matchRoute(pattern: string, path: string): boolean {
   const pathSegments = s.split('/')
   return patternSegments.length === pathSegments.length
     && patternSegments.every((segment, index) => segment === '*' || segment === pathSegments[index])
+}
+
+/**
+ * The request path that route rules are matched against: h3's `event.path` (what the router dispatches on, already
+ * percent-decoded except for `%2F`) without the query, with repeated slashes collapsed. Returns `null` for a path that
+ * no rule can be trusted to match: one holding an encoded `/` (`%2F`), a `\` (or `%5C`), or a `.`/`..` segment
+ * (also when still encoded as `%2E`). Callers refuse those with a 400.
+ */
+export function normalizeRequestPath(path: string): string | null {
+  const pathname = path.split('?', 1)[0] ?? ''
+  if (/%2f|%5c|\\/i.test(pathname)) return null
+  if (pathname.split('/').some(segment => /^(?:\.|%2e){1,2}$/i.test(segment))) return null
+  return pathname.replace(/\/{2,}/g, '/') || '/'
 }
 
 /** How specific a pattern is - more literal segments win, and an exact pattern beats a trailing `/**`. */
@@ -60,19 +73,43 @@ export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule | undefin
   return meta
 }
 
+/** Same semantics as `hasScopes` of `@frigear-nu/auth` (`*`, `resource:*`, personal-data scopes by name only). */
+function holdsScopes(granted: readonly string[], required: readonly string[]): boolean {
+  return required.every((scope) => {
+    if (scope.endsWith(':pii')) return granted.includes(scope)
+    if (granted.includes('*') || granted.includes(scope)) return true
+    const separator = scope.indexOf(':')
+    return separator > 0 && granted.includes(`${scope.slice(0, separator)}:*`)
+  })
+}
+
 /**
  * Evaluate a declarative route rule for an already-resolved user.
  * Unauthenticated visitors get 401 (unless `guest` is set), role/ability mismatches get 403.
+ *
+ * `credential` is how the caller authenticated (server middleware only; omit it for a cookie session). A bearer
+ * credential (kind other than `session`) is refused with 403 when the rule is session-only: `sessionOnly: true`, or
+ * by default a rule with `roles` or `ability` that lists no `scopes`. A rule with `scopes` requires the credential to
+ * carry them.
  */
 export async function evaluateRule(
   rule: RouteRule,
   user: { role?: string } | null,
   abilities: AbilityRegistry = {},
+  credential?: RuleCredential | null,
 ): Promise<AuthorizationResponse> {
   if (rule.authenticated === false) return { authorized: true }
 
   if (!user && !rule.guest) {
     return { authorized: false, statusCode: 401, message: 'Authentication required' }
+  }
+
+  if (user && credential && credential.kind !== 'session') {
+    const sessionOnly = rule.sessionOnly ?? (!rule.scopes?.length && !!(rule.roles?.length || rule.ability))
+    if (sessionOnly) return { authorized: false, statusCode: 403, message: 'Forbidden' }
+    if (rule.scopes?.length && !holdsScopes(credential.scopes, rule.scopes)) {
+      return { authorized: false, statusCode: 403, message: 'Forbidden' }
+    }
   }
 
   if (rule.roles?.length && (!user?.role || !rule.roles.includes(user.role))) {
@@ -89,4 +126,42 @@ export async function evaluateRule(
   }
 
   return { authorized: true }
+}
+
+// A resolver returns a principal (`{ kind, user, scopes }`) or a plain user (a cookie session).
+export function splitResolvedUser(resolved: unknown): { user: { role?: string } | null, credential: RuleCredential | null } {
+  if (!resolved || typeof resolved !== 'object') return { user: null, credential: null }
+  const candidate = resolved as { kind?: unknown, user?: unknown, scopes?: unknown }
+  if (typeof candidate.kind === 'string' && candidate.user && typeof candidate.user === 'object') {
+    return {
+      user: candidate.user as { role?: string },
+      credential: { kind: candidate.kind, scopes: Array.isArray(candidate.scopes) ? candidate.scopes as string[] : [] },
+    }
+  }
+  return { user: resolved as { role?: string }, credential: null }
+}
+
+/**
+ * The route rule patterns that neither match a page nor sit under `/api/`. Only pages (the app route middleware) and
+ * `/api/**` (the Nitro middleware) are enforced: a rule for a server route such as `/mcp` or `/oauth/**` would
+ * silently do nothing on the server. `pagePaths` are the vue-router paths of the app (`/users/:id()`, `/:all(.*)*`);
+ * `localePrefixes` are the `/<locale>` prefixes pages may also be served under. `/**` is a catch-all and never listed.
+ */
+export function findUnenforcedPatterns(patterns: string[], pagePaths: string[], localePrefixes: string[] = []): string[] {
+  // A catch-all page (`/docs/:slug(.*)*`) serves everything below its base.
+  const catchAllBases = pagePaths.filter(path => /\/:[^/]*\(\.\*\)\*/.test(path)).map(path => path.slice(0, path.search(/\/:[^/]*\(\.\*\)\*/)))
+  const concrete = pagePaths.map(path => path
+    .replace(/\/:[^/]*\(\.\*\)\*/g, '/x/x')
+    .replace(/\/:[^/]*/g, '/x')
+    .replace(/\/{2,}/g, '/') || '/')
+  const variants = concrete.flatMap(path => [path, ...localePrefixes
+    .filter(prefix => path === prefix || path.startsWith(`${prefix}/`))
+    .map(prefix => path.slice(prefix.length) || '/')])
+  return patterns.filter((pattern) => {
+    if (pattern === '/**' || pattern.startsWith('/api/') || pattern === '/api') return false
+    // The literal part of the pattern, before its first wildcard segment.
+    const literal = pattern.split(/\/\*\*?(?:\/|$)/, 1)[0]!
+    if (catchAllBases.some(base => literal === base || literal.startsWith(`${base}/`))) return false
+    return !variants.some(path => matchRoute(pattern, path))
+  })
 }

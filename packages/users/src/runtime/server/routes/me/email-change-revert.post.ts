@@ -32,8 +32,11 @@ export default defineEventHandler(async (event) => {
   }
 
   await db.update(schema.users).set({ email: normalizeUserEmail(claimed.oldEmail) }).where(eq(schema.users.id, claimed.userId))
-  // A revert usually means the change was not the owner's: end whatever the account signed in to since.
-  await notifyAuthCredentialsChanged({ userId: claimed.userId, reason: 'email', event })
+  // Reset codes and sign-in links sent to the address being undone must not work any more.
+  await deleteUnusedAuthEmailCodes(claimed.userId)
+  // A revert usually means the change was not the owner's: end whatever the account signed in to since (every
+  // session, OAuth sign-ins and, unless `apiTokens.revokeOnReset` is off, its API tokens).
+  await notifyAuthCredentialsChanged({ userId: claimed.userId, reason: 'email-revert', event })
 
   // A session of this account still carries the new address: sign it out so the next sign-in reflects the revert.
   const session = await getUserSession(event)

@@ -7,8 +7,15 @@ const DEFAULT_SCOPES = ['openid', 'profile', 'email']
 export type FrigearSsoConfig = {
   enabled: boolean
   forceId: boolean
-  /** Apply the `role` claim of frigear.nu to the local user at every login. */
+  /**
+   * Apply the role claim of frigear.nu to the local user at every login, through `roleMap`. On only when `roleMap`
+   * maps at least one role and `frigear.syncRole` is not `false`.
+   */
   syncRole: boolean
+  /** frigear.nu role -> local role (`frigear.roleMap`). Roles it does not list become `defaultRole`. */
+  roleMap: Record<string, string>
+  /** The local role of a user whose role claim is missing or not in `roleMap` (`frigear.defaultRole`, `user`). */
+  defaultRole: string
   /** Keep the frigear.nu tokens at login (`auth_oauth_tokens`, read with `getOAuthAccessToken(event, 'frigear')`). */
   keepTokens: boolean
   /** Scopes every login asks for (`frigear.sso.scopes`); always includes `openid`. */
@@ -36,10 +43,14 @@ export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
   const clientId = sso?.clientId || oidc?.clientId || ''
   const clientSecret = sso?.clientSecret || oidc?.clientSecret || ''
 
+  const roleMap = parseRoleMap(config.frigear?.roleMap)
+
   return {
     enabled: config.previewDeployment === true || !!(sso?.clientId && sso?.clientSecret),
     forceId: config.frigear?.forceId === true,
-    syncRole: config.frigear?.syncRole !== false,
+    syncRole: Object.keys(roleMap).length > 0 && config.frigear?.syncRole !== false,
+    roleMap,
+    defaultRole: typeof config.frigear?.defaultRole === 'string' && config.frigear.defaultRole.trim() ? config.frigear.defaultRole.trim() : 'user',
     keepTokens: config.frigear?.keepTokens === true,
     scopes: [...new Set(['openid', ...(parseScopeList(sso?.scopes) ?? DEFAULT_SCOPES)])],
     stepUpScopes: parseScopeList(sso?.stepUpScopes) ?? [],
@@ -48,6 +59,23 @@ export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
     clientSecret,
     openidConfig: sso?.url || !oidcConfig ? `${url}/.well-known/openid-configuration` : oidcConfig,
   }
+}
+
+/** `frigear.roleMap`: an object, or JSON from an env var. Entries that are not non-empty strings are dropped. */
+export function parseRoleMap(value: unknown): Record<string, string> {
+  let map = value
+  if (typeof map === 'string') {
+    try {
+      map = map.trim() ? JSON.parse(map) : {}
+    }
+    catch {
+      map = {}
+    }
+  }
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return {}
+  return Object.fromEntries(Object.entries(map as Record<string, unknown>)
+    .filter((entry): entry is [string, string] => !!entry[0].trim() && typeof entry[1] === 'string' && !!entry[1].trim())
+    .map(([remote, local]) => [remote.trim(), local.trim()]))
 }
 
 /** A scope list from config or a query: space or comma separated, or an array (env vars may hold JSON). */

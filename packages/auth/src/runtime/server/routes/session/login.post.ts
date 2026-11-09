@@ -6,14 +6,24 @@ const bodySchema = z.object({
   password: z.string().min(1),
 })
 
-// `POST /api/auth/login`: signs in with email and password.
+// Checked against for an unknown or password-less account, so the answer takes as long as a wrong password.
+let dummyHash: Promise<string> | undefined
+const dummyPasswordHash = () => dummyHash ??= hashPassword(createOneTimeCode())
+
+// `POST /api/auth/login`: signs in with email and password. Failed attempts are throttled per client and account.
 export default defineEventHandler(async (event) => {
+  assertAuthSameOrigin(event)
   const { email, password } = await readValidatedBody(event, bodySchema.parse)
+  await assertAuthLoginAttemptsLeft(event, email)
   const users = useAuthUserStore()
 
   const user = await users.findByEmail(email)
+  const valid = user?.password
+    ? await verifyPassword(user.password, password)
+    : (await verifyPassword(await dummyPasswordHash(), password), false)
 
-  if (!user?.password || !(await verifyPassword(user.password, password))) {
+  if (!user || !valid) {
+    await recordAuthLoginFailure(event, email)
     throw apiError(401, 'invalid_credentials', 'Invalid email or password.')
   }
 
@@ -23,7 +33,7 @@ export default defineEventHandler(async (event) => {
 
   const updated = await users.update(user.id, { lastLoginAt: new Date() })
 
-  await setUserSession(event, { user: mapUserToSession(updated ?? user) })
+  await startAuthSession(event, updated ?? user)
 
   return { id: user.id }
 })

@@ -24,6 +24,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // NUXT_ACL_ADMINS: comma separated emails that are always admins (see server/utils/acl.ts).
     aclAdmins: '',
+    public: {
+      // NUXT_PUBLIC_SITE_URL: the public URL of the site. Emailed links (password reset, sign-in, verification) point
+      // here; in production they fail until it is set.
+      siteUrl: '',
+    },
   },
 
   compatibilityDate: '2026-06-30',
@@ -54,9 +59,12 @@ export default defineNuxtConfig({
 
   // @frigear-nu/auth: sign-in with email/password (on by default) and passkeys, which users add on
   // /account/security. Passkeys are bound to the domain the site runs on: choose the production domain before launch.
+  // `verifyEmail`: a new account signs in through the emailed link, which proves the address (NUXT_ACL_ADMINS counts
+  // only for verified addresses).
   authentication: {
     settings: {
       webAuthn: true,
+      verifyEmail: true,
       afterLogin: '/account',
       pages: { login: true, register: true },
       session: { mapper: '~~/server/utils/map-session-user' },
@@ -108,6 +116,8 @@ export default defineNuxtConfig({
     settings: {
       admin: true,
       profilePath: '/account/profile',
+      // A new email address takes effect once its owner confirms it from the emailed link.
+      verifyEmailChange: true,
     },
   },
 })

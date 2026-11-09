@@ -8,9 +8,11 @@ import { apiError } from '@frigear-nu/module-kit/server'
 // TODO(owner): real protection needs discoverable (usernameless) passkeys, with no `allowCredentials` by address.
 const invalidCredentials = () => apiError(401, 'invalid_credentials', 'Passkey sign-in failed.')
 
-// `POST /api/auth/webauthn/authenticate`: passkey sign-in (nuxt-auth-utils' two-step WebAuthn flow).
+// `POST /api/auth/webauthn/authenticate`: passkey sign-in (nuxt-auth-utils' two-step WebAuthn flow). Asking for the
+// options (step one, the only one that stores a challenge) is throttled per client (`rateLimit.requests`).
 export default defineWebAuthnAuthenticateEventHandler({
-  async storeChallenge(_event, challenge, attemptId) {
+  async storeChallenge(event, challenge, attemptId) {
+    await enforceAuthRateLimit(event, 'webauthn')
     await useStorage().setItem(`attempt:${attemptId}`, challenge)
   },
   async getChallenge(_event, attemptId) {
@@ -46,8 +48,12 @@ export default defineWebAuthnAuthenticateEventHandler({
 
     const dbUser = await useAuthUserStore().findById(credential.userId)
     if (!dbUser) throw invalidCredentials()
+    // Same rule as password sign-in (`login.post.ts`).
+    if (useRuntimeConfig(event).public.authentication?.verifyEmail && !dbUser.emailVerifiedAt) {
+      throw apiError(403, 'email_not_verified', 'Please verify your email address before logging in.')
+    }
 
-    await setUserSession(event, { user: mapUserToSession(dbUser) })
+    await startAuthSession(event, dbUser)
   },
   // A failed verification (nuxt-auth-utils' bare 400, or a 500 for a malformed response) is the same generic 401;
   // the toolkit errors above pass through as they are.

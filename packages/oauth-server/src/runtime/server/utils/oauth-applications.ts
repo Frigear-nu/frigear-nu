@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { H3Event } from 'h3'
 import { apiError, badRequest, isoDate, notFound } from '@frigear-nu/module-kit/server'
 import type { AdminApplicationDto, ApplicationInput, ClientType, OAuthApplication, OAuthNormalizedClient, OAuthSessionDto, TokenRevokedContext, UserApplicationDto } from '../../../types'
-import { CLIENT_TYPES, MAX_REFRESH_TOKEN_LIFETIME, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl, oauthClientKind } from '../../utils'
+import { CLIENT_TYPES, MAX_REFRESH_TOKEN_LIFETIME, isNativeRedirectUri, isSecureOrigin, matchesAllowedRoles, newId, normalizeWebsiteUrl, oauthClientKind, parsePreviewUrlPattern } from '../../utils'
 
 type ApplicationRow = typeof schema.oauthApplications.$inferSelect
 
@@ -44,7 +44,9 @@ export const applicationInputSchema = z.object({
   icon: z.string().trim().max(120).nullish(),
   priority: z.number().int().min(-1000).max(1000).optional(),
   loginUrl: httpsUrl.nullish(),
-  previewUrlPattern: z.string().trim().max(2048).startsWith('https://').nullish(),
+  previewUrlPattern: z.string().trim().max(2048)
+    .refine(value => !!parsePreviewUrlPattern(value), 'Must look like https://*.vercel.app: https, one `*` in the first host label, then at least two more labels.')
+    .nullish(),
   redirectUris: z.array(redirectUri).max(20).optional(),
   allowedRoles: names.optional(),
   tags: names.optional(),
@@ -128,6 +130,11 @@ function normalizeInput<T extends Partial<ApplicationInput>>(input: T): T {
 function assertRedirectUris(uris: readonly string[] | undefined, clientType: ClientType) {
   if (clientType === 'public' || !uris) return
   if (uris.some(uri => !isSecureOrigin(new URL(uri)))) throw badRequest('Only public clients may use custom-scheme redirect URIs.')
+}
+
+/** A preview pattern would let any matching host receive a public client's code (no secret to stop a redeem): refuse it. */
+function assertPreviewUrlPattern(pattern: string | null | undefined, clientType: ClientType) {
+  if (pattern && clientType === 'public') throw badRequest('A public client cannot use a preview URL pattern: list its redirect URIs instead.')
 }
 
 /**
@@ -256,6 +263,7 @@ export async function createApplication(input: ApplicationInput, ownerId?: numbe
   const data = normalizeInput(applicationInputSchema.parse(input))
   const clientType = data.clientType ?? 'confidential'
   assertRedirectUris(data.redirectUris, clientType)
+  assertPreviewUrlPattern(data.previewUrlPattern, clientType)
   assertWebsite(data.websiteUrl, data.redirectUris, clientType)
   const secret = clientType === 'public' ? null : generateSecret()
   const [row] = await db.insert(schema.oauthApplications).values({
@@ -287,6 +295,7 @@ export async function updateApplication(id: string, patch: Partial<ApplicationIn
   // A secret cannot be created or dropped by editing: register a new application instead.
   if (clientType && clientType !== existing.clientType) throw badRequest('The client type cannot be changed.')
   assertRedirectUris(data.redirectUris, existing.clientType)
+  assertPreviewUrlPattern(data.previewUrlPattern, existing.clientType)
   if (data.websiteUrl !== undefined || data.redirectUris) {
     assertWebsite(data.websiteUrl ?? existing.websiteUrl, data.redirectUris ?? existing.redirectUris, existing.clientType)
   }
