@@ -311,11 +311,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     file: dialect => `./runtime/db/users.${dialect}`,
   })
 
-  // Cookie sessions end `maxAge` seconds after sign-in: h3 sets the cookie's expiry and refuses an older sealed session.
-  // The host's own `runtimeConfig.session.maxAge` wins; nuxt-auth-utils merges its defaults over what is set here.
-  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number } }
+  // Cookie sessions end `maxAge` seconds after they were last sealed (sign-in, or any later write to the session): the
+  // cookie gets that `Max-Age` and an older seal is refused. The host's own `runtimeConfig.session.maxAge` wins;
+  // nuxt-auth-utils merges its defaults over what is set here.
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string } }
   const sessionConfig = withSession.session ??= {}
   sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
+  // nuxt-auth-utils 0.6 seals sessions with `appSecret` and no longer declares `session.password`. Kept OAuth tokens
+  // still fall back to it, and Nuxt only lets `NUXT_SESSION_PASSWORD` override a key declared at build time.
+  sessionConfig.password ??= ''
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {

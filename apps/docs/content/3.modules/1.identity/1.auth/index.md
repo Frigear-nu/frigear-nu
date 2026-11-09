@@ -136,7 +136,7 @@ Options go under the `authentication` key.
 | `settings.siteUrl` | `string` | `NUXT_SITE_URL` | The public URL emailed links point at. Becomes `runtimeConfig.public.siteUrl` (`NUXT_PUBLIC_SITE_URL`). |
 | `settings.trustRequestOrigin` | `boolean` | `false` | Without a site URL, build emailed links from the request's origin in production too. |
 | `settings.session.mapper` | `string` | pass-through | Path to a default-export function that maps the stored user to the session user. |
-| `settings.session.maxAge` | `number \| false` | `2592000` (30 days) | How long a session lasts, in seconds from sign-in. `false` turns the limit off. |
+| `settings.session.maxAge` | `number \| false` | `2592000` (30 days) | How long a session lasts, in seconds from sign-in or its last update. `false` turns the limit off. |
 | `settings.oauth` | `Record<provider, boolean \| { … }>` | `{}` | Changes per OAuth provider. `false` keeps one off. |
 
 **`settings.siteUrl`.** Password reset, magic link and verification emails (and the email change emails of
@@ -149,8 +149,9 @@ Sign-in, sign-up, sign-out, the magic link confirmation and the password reset r
 the browser send: `Sec-Fetch-Site: cross-site`, or an `Origin` other than the request's host or the site URL. They
 answer `403 cross_site_request`. Clients that send neither header, such as native apps and servers, are not affected.
 
-**`settings.session.maxAge`.** A session ends this long after sign-in, however active the user is: the cookie expires,
-and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
+**`settings.session.maxAge`.** A session ends this long after it was last sealed: at sign-in, or when the server
+later writes to the session (saving the profile or a preference, for example). Browsing does not extend it. The cookie
+expires, and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
 `runtimeConfig.session.maxAge` (`NUXT_SESSION_MAX_AGE`) wins over this setting.
 
 **Ending sessions.** A password change or reset, an email change or its revert, and clearing an unverified account's
