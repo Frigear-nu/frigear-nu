@@ -1,0 +1,47 @@
+# Dependabot bundles upgrades into a few grouped PRs a week instead of one PR per package.
+version: 2
+updates:
+  # pnpm workspace: reads pnpm-lock.yaml and the catalog in pnpm-workspace.yaml.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      # Pinned by patches/@nuxthub__core@0.10.8.patch: bump it by hand together with the patch.
+      - dependency-name: '@nuxthub/core'
+    groups:
+      # The Nuxt toolchain (the catalog) moves together.
+      nuxt:
+        patterns:
+          - 'nuxt'
+          - '@nuxt/*'
+          - '@nuxtjs/*'
+          - '@nuxthub/*'
+          - 'nuxt-*'
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+      major:
+        update-types:
+          - major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - '*'
