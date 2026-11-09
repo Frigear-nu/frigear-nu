@@ -61,8 +61,8 @@
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@nuxt/kit": "catalog:",
-    "h3": "^1.15.11",
-    "jose": "^6.1.0"
+    "h3": "catalog:",
+    "jose": "^6.2.15"
   },
   "peerDependencies": {
     "@nuxthub/core": "catalog:"

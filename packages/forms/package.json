@@ -79,19 +79,19 @@
   },
   "dependencies": {
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/mcp": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
-    "@frigear-nu/auth": "workspace:^",
-    "@frigear-nu/mcp": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "h3": "^1.15.11",
+    "h3": "catalog:",
     "unstorage": "^1.17.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/menu": "workspace:^",

@@ -82,7 +82,7 @@
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/oauth-server": ">=0.0.1",

@@ -28,8 +28,10 @@
     "frigear-nu": "./packages/cli/bin/cli.mjs"
   },
   "devDependencies": {
-    "release-it": "^21.1.0",
-    "turbo": "^2.11.7",
-    "wrangler": "^4.148.0"
+    "h3": "catalog:",
+    "oxc-parser": "catalog:",
+    "release-it": "^21.1.2",
+    "turbo": "^2.11.10",
+    "wrangler": "^4.158.0"
   }
 }

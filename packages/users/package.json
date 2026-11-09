@@ -84,7 +84,7 @@
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "scule": "^1.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/admin": ">=0.0.0",
@@ -112,7 +112,7 @@
     }
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.9",
+    "@electric-sql/pglite": "^0.5.15",
     "@frigear-nu/admin": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
