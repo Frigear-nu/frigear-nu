@@ -15,7 +15,7 @@ app/assets/css/main.css            Tailwind + Nuxt UI
 server/                            Nitro: api routes, plugins, utils
 server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for verified emails in NUXT_ACL_ADMINS
 server/utils/map-session-user.ts   session mapper (authentication.settings.session.mapper)
-server/plugins/users-policy.ts     host policy for the users admin
+server/plugins/authorization-role.ts the role a user acts as (NUXT_ACL_ADMINS)
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
 modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
 ```
