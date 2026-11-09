@@ -58,22 +58,22 @@ patchedDependencies:
 # One Nuxt toolchain for the whole workspace: every app and package references these as `catalog:`, so pnpm
 # resolves a single copy of each (instead of one per package with its own peer set).
 catalog:
-  nuxt: ^4.6.1
-  '@nuxt/kit': ^4.6.1
-  '@nuxt/schema': ^4.6.1
+  nuxt: ^4.6.4
+  '@nuxt/kit': ^4.6.4
+  '@nuxt/schema': ^4.6.4
   '@nuxt/ui': ^4.12.0
   '@nuxthub/core': ^0.10.8
   '@nuxt/module-builder': ^1.0.3
-  '@nuxt/test-utils': ^4.3.2
+  '@nuxt/test-utils': ^4.3.4
   '@nuxt/devtools': ^3.4.2
   '@nuxt/eslint-config': ^1.17.0
   '@nuxt/eslint': ^1.17.0
-  '@nuxt/content': ^3.16.1
+  '@nuxt/content': ^3.16.2
   '@nuxtjs/i18n': ^10.6.0
-  vitest: ^5.0.2
-  vue-tsc: ^3.3.11
+  vitest: ^5.1.0
+  vue-tsc: ^3.3.14
   typescript: ^6.0.3
-  eslint: ^10.12.0
-  drizzle-orm: ^0.45.3
+  eslint: ^10.14.0
+  drizzle-orm: ^0.45.4
   drizzle-kit: ^0.31.11
-  '@types/node': ^26.6.5
+  '@types/node': ^26.6.6

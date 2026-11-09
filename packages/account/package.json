@@ -65,7 +65,7 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/authorization": "workspace:^",
