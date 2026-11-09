@@ -9,7 +9,7 @@ import type {
   McpToolDefinition,
   StandardMcpResourceDefinition,
 } from '@nuxtjs/mcp-toolkit/server'
-import { hasScopes } from '@frigear-nu/auth/utils'
+import { principalHasScopes } from '@frigear-nu/auth/utils'
 import type { AuthPrincipal, AuthUser } from '@frigear-nu/auth/utils'
 import { SCOPED_META_KEY, isPrincipalAllowed, scopeTags } from '../../utils/access'
 import type { ScopedAccess } from '../../utils/access'
@@ -21,7 +21,7 @@ export interface ScopedMcpContext {
   principal: AuthPrincipal
   /** The authenticated user. "My …" tools must use this and never take a user id as an argument. */
   user: AuthUser
-  /** Whether the credential carries `scope` (e.g. an opt-in `*:pii` scope). */
+  /** Whether the credential carries `scope` (e.g. an opt-in `*:pii` scope), within its user's permissions. */
   hasScope: (scope: string) => boolean
 }
 
@@ -55,7 +55,7 @@ function toContext(event: H3Event, principal: AuthPrincipal): ScopedMcpContext {
     event,
     principal,
     user: principal.user,
-    hasScope: scope => hasScopes(principal.scopes, [scope]),
+    hasScope: scope => principalHasScopes(principal, [scope]),
   }
 }
 
@@ -70,7 +70,7 @@ export async function authorizeMcp(options: ScopedOptions): Promise<ScopedMcpCon
   if (options.sessionOnly && principal.kind !== 'session') {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'session_required' } })
   }
-  if (!hasScopes(principal.scopes, options.scopes)) {
+  if (!principalHasScopes(principal, options.scopes)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'insufficient_scope', scopes: options.scopes } })
   }
   if (options.gate && !(await options.gate(event, principal))) {

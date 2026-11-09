@@ -1,0 +1,70 @@
+{
+  "authorization": {
+    "admin": {
+      "nav": {
+        "label": "Roller og rettigheder",
+        "description": "Rollerne og hvad hver af dem må."
+      },
+      "tabs": {
+        "roles": "Roller",
+        "matrix": "Rettighedsmatrix",
+        "permissions": "Rettigheder",
+        "users": "Brugere"
+      },
+      "title": "Roller og rettigheder",
+      "description": "Hvad hver rolle må. Højere roller har alt, hvad rollerne under dem har.",
+      "forbidden": "Du har ikke adgang til roller",
+      "loadFailed": "Rollerne kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
+      "role": "Rolle",
+      "sourceHeader": "Kilde",
+      "inherits": "Arver",
+      "users": "Brugere",
+      "permissions": "Rettigheder",
+      "open": "Åbn",
+      "default": "Standard",
+      "source": {
+        "builtIn": "Indbygget",
+        "module": "Modul",
+        "app": "App"
+      },
+      "grant": {
+        "direct": "Direkte",
+        "inherited": "Arvet fra {role}",
+        "aggregated": "Tildelt af modul",
+        "granted": "Tildelt af appen",
+        "all": "Alle rettigheder"
+      },
+      "permission": "Rettighed",
+      "pii": "Persondata",
+      "notHeld": "Ikke tildelt",
+      "noPermissions": "Ingen rettigheder er registreret",
+      "noPermissionsHint": "Moduler registrerer rettigheder, når de installeres.",
+      "wildcardAll": "Alle rettigheder undtagen persondata",
+      "wildcardResource": "Alle {resource}-rettigheder undtagen persondata",
+      "why": "Hvorfor",
+      "held": "Tildelte rettigheder ({count})",
+      "noneHeld": "Rollen har ingen rettigheder",
+      "notHeldTitle": "Ikke tildelt ({count})",
+      "user": "Bruger",
+      "usersLoadFailed": "Brugerne kunne ikke indlæses",
+      "usersWithRole": "Brugere med denne rolle",
+      "searchUsers": "Søg på navn eller e-mail...",
+      "noUsersMatch": "Ingen brugere matcher",
+      "noUsers": "Ingen brugere har denne rolle",
+      "clearSearch": "Ryd søgning",
+      "detail": {
+        "loadFailed": "Rollen kunne ikke indlæses",
+        "notFound": "Rollen findes ikke",
+        "notFoundHint": "Roller kommer fra appens konfiguration og dens moduler."
+      },
+      "allRoles": "Alle roller",
+      "inheritsFrom": "Arver fra",
+      "tab": {
+        "role": "Rolle",
+        "openRole": "Åbn rolle",
+        "unknownRole": "Den gemte rolle \"{role}\" findes ikke, så brugeren har rollen {fallback}."
+      }
+    }
+  }
+}

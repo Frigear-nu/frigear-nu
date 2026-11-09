@@ -1,16 +1,20 @@
 <script lang="ts" setup generic="A extends Ability">
 import type { Ability, AbilityArgs } from '../../utils'
-import { allows } from '../composables/useAuthorization'
+import { allows, can as holds } from '../composables/useAuthorization'
 import { ref, watchEffect } from '#imports'
 
 const props = defineProps<{
   /** One ability, or several that must all pass. */
-  ability: A | A[]
+  ability?: A | A[]
   /** Arguments for the ability (an array of argument arrays when `ability` is an array). */
   args?: AbilityArgs<A> | AbilityArgs<A>[]
+  /** Permissions the user's role must hold (role-based access control), checked with `ability` when both are set. */
+  permission?: string | string[]
 }>()
 
 async function resolve() {
+  if (props.permission !== undefined && !(await holds(props.permission))) return false
+  if (props.ability === undefined) return props.permission !== undefined
   if (Array.isArray(props.ability)) {
     const results = await Promise.all(props.ability.map((ability, index) => allows(ability, ...((props.args as unknown[][] | undefined)?.[index] ?? []) as AbilityArgs<A>)))
     return results.every(Boolean)

@@ -74,7 +74,7 @@ export function normalizeAuthorizeMeta(meta: AuthorizeMeta): RouteRule | undefin
 }
 
 /** Same semantics as `hasScopes` of `@frigear-nu/auth` (`*`, `resource:*`, personal-data scopes by name only). */
-function holdsScopes(granted: readonly string[], required: readonly string[]): boolean {
+export function holdsScopes(granted: readonly string[], required: readonly string[]): boolean {
   return required.every((scope) => {
     if (scope.endsWith(':pii')) return granted.includes(scope)
     if (granted.includes('*') || granted.includes(scope)) return true
@@ -107,7 +107,11 @@ export async function evaluateRule(
   if (user && credential && credential.kind !== 'session') {
     const sessionOnly = rule.sessionOnly ?? (!rule.scopes?.length && !!(rule.roles?.length || rule.ability))
     if (sessionOnly) return { authorized: false, statusCode: 403, message: 'Forbidden' }
-    if (rule.scopes?.length && !holdsScopes(credential.scopes, rule.scopes)) {
+  }
+  // Any credential, a session too: it must carry the scopes, within its user's permissions (role-based access
+  // control). A session without access control carries every scope.
+  if (user && credential && rule.scopes?.length) {
+    if (!holdsScopes(credential.scopes, rule.scopes) || (credential.ceiling && !holdsScopes(credential.ceiling, rule.scopes))) {
       return { authorized: false, statusCode: 403, message: 'Forbidden' }
     }
   }
@@ -131,11 +135,15 @@ export async function evaluateRule(
 // A resolver returns a principal (`{ kind, user, scopes }`) or a plain user (a cookie session).
 export function splitResolvedUser(resolved: unknown): { user: { role?: string } | null, credential: RuleCredential | null } {
   if (!resolved || typeof resolved !== 'object') return { user: null, credential: null }
-  const candidate = resolved as { kind?: unknown, user?: unknown, scopes?: unknown }
+  const candidate = resolved as { kind?: unknown, user?: unknown, scopes?: unknown, ceiling?: unknown }
   if (typeof candidate.kind === 'string' && candidate.user && typeof candidate.user === 'object') {
     return {
       user: candidate.user as { role?: string },
-      credential: { kind: candidate.kind, scopes: Array.isArray(candidate.scopes) ? candidate.scopes as string[] : [] },
+      credential: {
+        kind: candidate.kind,
+        scopes: Array.isArray(candidate.scopes) ? candidate.scopes as string[] : [],
+        ...(Array.isArray(candidate.ceiling) ? { ceiling: candidate.ceiling as string[] } : {}),
+      },
     }
   }
   return { user: resolved as { role?: string }, credential: null }

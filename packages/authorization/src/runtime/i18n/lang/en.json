@@ -1,0 +1,70 @@
+{
+  "authorization": {
+    "admin": {
+      "nav": {
+        "label": "Roles & permissions",
+        "description": "The roles and what each may do."
+      },
+      "tabs": {
+        "roles": "Roles",
+        "matrix": "Permission matrix",
+        "permissions": "Permissions",
+        "users": "Users"
+      },
+      "title": "Roles & permissions",
+      "description": "What each role may do. Senior roles hold everything their juniors hold.",
+      "forbidden": "You do not have access to roles",
+      "loadFailed": "Roles could not be loaded",
+      "tryAgain": "Try again",
+      "role": "Role",
+      "sourceHeader": "Source",
+      "inherits": "Inherits",
+      "users": "Users",
+      "permissions": "Permissions",
+      "open": "Open",
+      "default": "Default",
+      "source": {
+        "builtIn": "Built-in",
+        "module": "Module",
+        "app": "App"
+      },
+      "grant": {
+        "direct": "Direct",
+        "inherited": "Inherited from {role}",
+        "aggregated": "Aggregated by module",
+        "granted": "Granted by app",
+        "all": "All permissions"
+      },
+      "permission": "Permission",
+      "pii": "Personal data",
+      "notHeld": "Not held",
+      "noPermissions": "No permissions are registered",
+      "noPermissionsHint": "Modules register permissions as they are installed.",
+      "wildcardAll": "Every permission except personal data",
+      "wildcardResource": "Every {resource} permission except personal data",
+      "why": "Why",
+      "held": "Held permissions ({count})",
+      "noneHeld": "This role holds no permissions",
+      "notHeldTitle": "Not held ({count})",
+      "user": "User",
+      "usersLoadFailed": "The users could not be loaded",
+      "usersWithRole": "Users with this role",
+      "searchUsers": "Search name or email...",
+      "noUsersMatch": "No users match",
+      "noUsers": "No users have this role",
+      "clearSearch": "Clear search",
+      "detail": {
+        "loadFailed": "The role could not be loaded",
+        "notFound": "Role not found",
+        "notFoundHint": "Roles come from the app configuration and its modules."
+      },
+      "allRoles": "All roles",
+      "inheritsFrom": "Inherits from",
+      "tab": {
+        "role": "Role",
+        "openRole": "Open role",
+        "unknownRole": "The stored role \"{role}\" does not exist, so this user acts as {fallback}."
+      }
+    }
+  }
+}
