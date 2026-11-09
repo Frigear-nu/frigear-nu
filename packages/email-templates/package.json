@@ -74,7 +74,7 @@
     "@frigear-nu/notify": "workspace:^",
     "@nuxt/kit": "catalog:",
     "defu": "^6.1.7",
-    "nuxt-email-renderer": "^2.11.2"
+    "nuxt-email-renderer": "^3.0.0"
   },
   "devDependencies": {
     "@nuxt/devtools": "catalog:",

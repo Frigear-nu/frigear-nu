@@ -67,9 +67,10 @@
   "dependencies": {
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/kit": "catalog:",
     "@nuxtjs/mcp-toolkit": "^0.24.3",
-    "agents": "^0.28.0",
+    "agents": "^0.33.0",
     "h3": "catalog:",
     "zod": "^4.6.7"
   },
@@ -86,7 +87,7 @@
     "drizzle-orm": "catalog:",
     "eslint": "catalog:",
     "nuxt": "catalog:",
-    "nuxt-auth-utils": "^0.5.30",
+    "nuxt-auth-utils": "^0.6.2",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
