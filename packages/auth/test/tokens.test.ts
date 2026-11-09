@@ -137,7 +137,9 @@ describe('auth tokens', async () => {
   })
 
   it('only offers and accepts role-restricted scopes to users with that role', async () => {
-    expect((await call('POST', authApi.me.tokens, { cookie: ada, body: { name: 'x', scopes: ['events:admin'] } })).status).toBe(400)
+    const refused = await call('POST', authApi.me.tokens, { cookie: ada, body: { name: 'x', scopes: ['events:admin'] } })
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ data: { code: 'insufficient_permission', scopes: ['events:admin'] } })
 
     await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
     const admin = await login(2)

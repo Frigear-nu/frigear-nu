@@ -31,7 +31,16 @@ export default defineNuxtConfig({
   },
   hooks: {
     'auth:scopes': (list: { name: string }[]) => {
-      list.push({ name: 'reports:read' }, { name: 'reports:write' })
+      list.push({ name: 'reports:read', aggregateTo: ['user'] } as { name: string }, { name: 'reports:write' })
+    },
+  },
+  // Role-based access control: admin > editor > user. `reports:read` goes to every user, `reports:write` to editors.
+  authorization: {
+    rbac: true,
+    roles: {
+      hierarchy: ['admin', 'editor', 'user'],
+      grant: { editor: ['reports:write'] },
+      labels: { editor: 'Editor' },
     },
   },
 })

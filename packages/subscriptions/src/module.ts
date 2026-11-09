@@ -119,7 +119,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
-      { name: 'subscriptions:read', description: 'Read your subscription and plans' },
+      { name: 'subscriptions:read', description: 'Read your subscription and plans', aggregateTo: ['user'] },
     )
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))

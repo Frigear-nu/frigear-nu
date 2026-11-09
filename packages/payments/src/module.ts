@@ -95,8 +95,8 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
-      { name: 'payments:read', description: 'Read your payments' },
-      { name: 'payments:write', description: 'Resume your payments' },
+      { name: 'payments:read', description: 'Read your payments', aggregateTo: ['user'] },
+      { name: 'payments:write', description: 'Resume your payments', aggregateTo: ['user'] },
       { name: 'payments:manage', description: 'See recent payments and revenue (staff)' },
     )
     const resolver = createResolver(import.meta.url)

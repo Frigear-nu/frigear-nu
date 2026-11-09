@@ -20,7 +20,7 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addAuthRole, addAuthScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   AuthorizeContext,
@@ -97,11 +97,14 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
-      { name: 'events:manage', description: 'Manage events, tickets and check-in (staff)' },
-      { name: 'tickets:read', description: 'Read your tickets and event details' },
-      { name: 'tickets:write', description: 'Buy tickets and pay for them' },
-      { name: 'events:pii', description: 'See attendee names and emails through MCP tools (also needs events:manage)' },
+      { name: 'events:manage', description: 'Manage events, tickets and check-in (staff)', aggregateTo: ['eventmanager'] },
+      { name: 'tickets:read', description: 'Read your tickets and event details', aggregateTo: ['user'] },
+      { name: 'tickets:write', description: 'Buy tickets and pay for them', aggregateTo: ['user'] },
+      { name: 'events:pii', description: 'See attendee names and emails through MCP tools (also needs events:manage)', aggregateTo: ['eventmanager'] },
     )
+    if (options.settings?.roles) {
+      addAuthRole(nuxt, { name: 'eventmanager', label: 'Event manager', description: 'Manages events, tickets and check-in.', inherits: ['user'], inheritedBy: ['admin'] })
+    }
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

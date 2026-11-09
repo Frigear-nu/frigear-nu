@@ -756,7 +756,7 @@ describe('forms (authenticated, database-backed)', async () => {
       expect(await scopesFor(nobody.cookie)).not.toContain('forms:manage')
       expect(await scopesFor(nobody.cookie)).toContain('forms:submit')
       expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['forms:manage', 'forms:pii']))
-      expect(await tokenStatus(nobody.cookie, ['forms:manage'])).toBe(400)
+      expect(await tokenStatus(nobody.cookie, ['forms:manage'])).toBe(403)
     })
 
     it('does not mistake per-form tokens for credentials', async () => {
@@ -900,7 +900,7 @@ describe('forms (authenticated, database-backed)', async () => {
       const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
       const guest = await registerUser('Guest', 'mcp-guest@example.com')
 
-      expect(await tokenStatus(guest.cookie, ['forms:manage'])).toBe(400)
+      expect(await tokenStatus(guest.cookie, ['forms:manage'])).toBe(403)
       const guestAll = await mcpToken(guest.cookie, ['forms:submit'])
       expect(await mcpNames(guestAll)).toEqual(['get-form', 'list-forms', 'submit-form'])
 

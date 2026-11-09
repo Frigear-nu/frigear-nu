@@ -290,8 +290,8 @@ describe('users admin', () => {
 
     it('is staff only: a user the policy does not allow cannot obtain it', async () => {
       const response = await createToken(member, ['users:read'])
-      expect(response.status).toBe(400)
-      expect((await response.json() as { data: { code: string } }).data.code).toBe('unknown_scope')
+      expect(response.status).toBe(403)
+      expect((await response.json() as { data: { code: string } }).data.code).toBe('insufficient_permission')
       const scopes = await member.json<{ name: string }[]>('GET', authApi.scopes)
       expect(scopes.map(scope => scope.name)).not.toContain('users:read')
     })

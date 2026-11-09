@@ -11,11 +11,12 @@ import type {
 import { matchesAllowedRoles } from '../../utils'
 
 /**
- * Gate for the admin routes. The host decides through the `oauth:authorize` Nitro hook. Denied by default:
+ * Gate for the admin routes: users whose role holds `oauth:manage` (role-based access control), and whoever the host
+ * allows through the `oauth:authorize` Nitro hook. Without access control, denied by default:
  *
  *     nitroApp.hooks.hook('oauth:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
  */
-const adminGate = definePolicyGate('oauth:authorize')
+const adminGate = definePolicyGate('oauth:authorize', { permission: 'oauth:manage' })
 
 export async function requireOAuthAdmin(event: H3Event): Promise<{ userId: number }> {
   const userId = await requireSessionUserId(event)

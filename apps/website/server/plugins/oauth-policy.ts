@@ -1,9 +1,6 @@
-// Host policy for `@frigear-nu/oauth-server`. The module itself knows nothing about roles or admins:
-// everything below is decided here.
-//
-// There is no role model in this app yet, so admins are an email allowlist and nobody has a role
-// (applications with `allowedRoles` stay closed until `oauth:user:roles` is implemented). Allowlists count only for
-// verified addresses (`isAllowlisted`).
+// Host conditions for `@frigear-nu/oauth-server`. The role decides who manages applications (`oauth:manage`: admins,
+// see `authorization.roles`); a verified email on the NUXT_OAUTH_ADMIN_EMAILS allowlist may too (`isAllowlisted`).
+// Applications with `allowedRoles` stay closed until `oauth:user:roles` is implemented.
 import { isAllowlisted } from '#shared/acl'
 
 export default defineNitroPlugin((nitro) => {
@@ -14,7 +11,8 @@ export default defineNitroPlugin((nitro) => {
   })
 
   nitro.hooks.hook('oauth:authorize', async (ctx) => {
+    if (ctx.allowed) return
     const user = await getOAuthUser(ctx.userId)
-    ctx.allowed = !!user && (isAllowlisted(user, staffAllowlists().oauthAdmins) || effectiveRole(user) === 'admin')
+    ctx.allowed = !!user && isAllowlisted(user, staffAllowlists().oauthAdmins)
   })
 })

@@ -11,11 +11,11 @@ export type {
   AuthUserUpdate,
   RequireUserOptions,
 } from '../types'
-export type { AuthResolverDefinition, AuthScopeDefinition } from '../../types'
+export type { AuthResolverDefinition, AuthRoleDefinition, AuthScopeDefinition, AuthUserPermissionsContext } from '../../types'
 export type { AuthCreatedTokenDto, AuthPasskeyDto, AuthTokenDto } from '../../types'
-export { addAuthResolver, addAuthScope, setAuthUserStore } from './build'
+export { addAuthResolver, addAuthRole, addAuthScope, setAuthUserStore } from './build'
 export { authApi } from './api'
-export { ALL_SCOPES, hasScope, hasScopes, isGrantableScope, isPiiScope, parseScopeString } from './scopes'
+export { ALL_SCOPES, hasScope, hasScopes, isGrantableScope, isPiiScope, parseScopeString, principalHasScopes } from './scopes'
 export {
   USER_TOKEN_PREFIX,
   generateUserToken,

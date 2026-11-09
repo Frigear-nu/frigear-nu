@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { hasScopes, type RequireUserOptions } from '@frigear-nu/auth/utils'
+import { principalHasScopes, type RequireUserOptions } from '@frigear-nu/auth/utils'
 
 /**
  * The signed-in user, or a thrown 401/403 (see `requireAuth` for the credential rules: `scopes`, `sessionOnly`).
@@ -16,5 +16,5 @@ export async function requireUser(event: H3Event, options: RequireUserOptions = 
 export async function getUser(event: H3Event, options: Pick<RequireUserOptions, 'scopes'> = {}) {
   const principal = await getAuth(event)
   if (!principal) return null
-  return !options.scopes?.length || hasScopes(principal.scopes, options.scopes) ? principal.user : null
+  return !options.scopes?.length || principalHasScopes(principal, options.scopes) ? principal.user : null
 }

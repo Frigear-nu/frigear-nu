@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasScope, hasScopes, isGrantableScope, parseScopeString } from '../../src/runtime/utils/scopes'
+import { hasScope, hasScopes, isGrantableScope, parseScopeString, principalHasScopes } from '../../src/runtime/utils/scopes'
 
 describe('hasScope', () => {
   it('matches exact scopes', () => {
@@ -66,5 +66,24 @@ describe('isGrantableScope', () => {
   it('rejects unknown scopes', () => {
     expect(isGrantableScope('events:delete', registered)).toBe(false)
     expect(isGrantableScope('', registered)).toBe(false)
+  })
+})
+
+describe('principalHasScopes', () => {
+  it('needs only the scopes without a ceiling (no access control)', () => {
+    expect(principalHasScopes({ scopes: ['*'] }, ['events:manage'])).toBe(true)
+  })
+
+  it('caps a credential at its user\'s current permissions', () => {
+    const token = { scopes: ['events:*'], ceiling: ['tickets:read'] }
+    expect(principalHasScopes(token, ['events:manage'])).toBe(false)
+    expect(principalHasScopes({ ...token, ceiling: ['events:*'] }, ['events:manage'])).toBe(true)
+    expect(principalHasScopes({ scopes: ['*'], ceiling: ['tickets:read'] }, ['tickets:read'])).toBe(true)
+    expect(principalHasScopes({ scopes: ['*'], ceiling: ['tickets:read'] }, ['tickets:write'])).toBe(false)
+  })
+
+  it('keeps :pii out of wildcards on both sides', () => {
+    expect(principalHasScopes({ scopes: ['events:pii'], ceiling: ['*'] }, ['events:pii'])).toBe(false)
+    expect(principalHasScopes({ scopes: ['events:pii'], ceiling: ['events:pii'] }, ['events:pii'])).toBe(true)
   })
 })

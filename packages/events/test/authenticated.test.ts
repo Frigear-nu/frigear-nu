@@ -698,7 +698,7 @@ describe('events (authenticated, database-backed)', async () => {
       expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
       expect(await scopesFor(nobody.cookie)).toContain('tickets:read')
       expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['events:manage', 'events:pii']))
-      expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(400)
+      expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(403)
     })
   })
 
@@ -707,8 +707,8 @@ describe('events (authenticated, database-backed)', async () => {
       const staff = await registerUser('McpStaff', 'mcp-staff@staff.test')
       const guest = await registerUser('Guest', 'mcp-guest@example.com')
 
-      expect(await tokenStatus(guest.cookie, ['events:manage'])).toBe(400)
-      expect(await tokenStatus(guest.cookie, ['events:pii'])).toBe(400)
+      expect(await tokenStatus(guest.cookie, ['events:manage'])).toBe(403)
+      expect(await tokenStatus(guest.cookie, ['events:pii'])).toBe(403)
       const guestAll = await mcpToken(guest.cookie, ['tickets:read'])
       expect(await mcpNames(guestAll)).toEqual(['get-event', 'list-events', 'my-tickets'])
 

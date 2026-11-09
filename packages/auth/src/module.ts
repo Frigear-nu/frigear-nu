@@ -39,6 +39,7 @@ import type {
   AuthSettings,
   AuthScopeAvailabilityContext,
   AuthScopeDefinition,
+  AuthUserPermissionsContext,
   ModuleOptions,
   OAuthProvider,
   PublicModuleOptions,
@@ -73,9 +74,11 @@ export type {
   AuthCreatedTokenDto,
   AuthPasskeyDto,
   AuthResolverDefinition,
+  AuthRoleDefinition,
   AuthScopeAvailabilityContext,
   AuthScopeDefinition,
   AuthSettings,
+  AuthUserPermissionsContext,
   AuthTokenDto,
   ModuleOptions,
   OAuthProvider,
@@ -148,6 +151,11 @@ declare module 'nitropack' {
   interface NitroRuntimeHooks {
     /** Decides per user whether a registered scope may be picked for a token: set `ctx.available = false` to hide it. */
     'auth:scope-available': (ctx: AuthScopeAvailabilityContext) => void | Promise<void>
+    /**
+     * The access-control decision point: set `ctx.permissions` to what the user may do. Answered by
+     * `@frigear-nu/authorization` from the user's role; unanswered (`null`), every user may do everything.
+     */
+    'auth:user-permissions': (ctx: AuthUserPermissionsContext) => void | Promise<void>
     /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
     /**
@@ -363,7 +371,11 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       const registered: AuthScopeDefinition[] = [...(options.scopes ?? [])]
       await nuxt.callHook('auth:scopes', registered)
       const unique = [...new Map(registered.map(scope => [scope.name, scope])).values()]
-      return `export const scopes = ${JSON.stringify(unique)}`
+      // `scopes`: what a credential can be given. `permissions`: everything, session-only permissions included.
+      return [
+        `export const permissions = ${JSON.stringify(unique)}`,
+        `export const scopes = ${JSON.stringify(unique.filter(scope => !scope.sessionOnly))}`,
+      ].join('\n')
     },
   })
 
@@ -405,7 +417,11 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   }>
 }
 declare module '#auth/scopes' {
-  export const scopes: Array<{ name: string, description?: string, roles?: string[] }>
+  type Scope = { name: string, description?: string, aggregateTo?: string[], roles?: string[], sessionOnly?: boolean }
+  /** What API tokens and OAuth clients can be given. */
+  export const scopes: Scope[]
+  /** Every registered permission, session-only ones included. */
+  export const permissions: Scope[]
 }
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore

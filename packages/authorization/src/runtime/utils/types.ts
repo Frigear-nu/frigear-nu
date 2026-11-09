@@ -52,6 +52,8 @@ export interface RouteRule {
 export interface RuleCredential {
   kind: string
   scopes: readonly string[]
+  /** The user's current permissions, when role-based access control is on (`@frigear-nu/auth`'s principal). */
+  ceiling?: readonly string[]
 }
 
 /** The authorization keys that go directly on a `routeRules` entry. */

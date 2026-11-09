@@ -16,10 +16,16 @@ vi.stubGlobal('useNitroApp', () => ({
   },
 }))
 
+// `null`: no access control installed (the default before roles).
+let permissions: Record<number, string[] | null> = {}
+vi.stubGlobal('setResponseHeader', () => {})
+vi.stubGlobal('getAuthUserPermissions', async (_event: H3Event, userId: number) => permissions[userId] ?? null)
+
 const { definePolicyGate, defineStaffGuard } = await import('../../src/runtime/server/utils/policy')
 const event = {} as H3Event
 
 beforeEach(() => {
+  permissions = {}
   seen.length = 0
   decide = () => {}
   requireAuth.mockReset()
@@ -62,10 +68,10 @@ describe('defineStaffGuard', () => {
       ctx.allowed = ctx.userId === 7
     }
     expect(await guard.require(event)).toEqual({ userId: 7, principal })
-    expect(requireAuth).toHaveBeenCalledWith(event, { scopes: ['events:admin'], sessionOnly: undefined })
+    expect(requireAuth).toHaveBeenCalledWith(event, { sessionOnly: undefined })
 
     await guard.require(event, { sessionOnly: true })
-    expect(requireAuth).toHaveBeenLastCalledWith(event, { scopes: ['events:admin'], sessionOnly: true })
+    expect(requireAuth).toHaveBeenLastCalledWith(event, { sessionOnly: true })
   })
 
   it('throws the guard message when the host denies', async () => {
@@ -85,5 +91,61 @@ describe('defineStaffGuard', () => {
       ctx.allowed = true
     }
     expect(await guard.can(event, 1)).toBe(true)
+  })
+})
+
+describe('defineStaffGuard scope checks', () => {
+  const guard = defineStaffGuard({ hook: 'forms:authorize', scope: 'forms:manage' })
+
+  it('lets a host condition admit a session whose role lacks the permission (an allowlist)', async () => {
+    permissions = { 5: ['forms:submit'] }
+    requireAuth.mockResolvedValue({ kind: 'session', user: { id: 5 }, scopes: ['forms:submit'] })
+    decide = (ctx) => {
+      ctx.allowed ||= ctx.userId === 5
+    }
+    await expect(guard.require(event)).resolves.toMatchObject({ userId: 5 })
+  })
+
+  it('refuses a bearer credential without the scope before asking the gate', async () => {
+    requireAuth.mockResolvedValue({ kind: 'user-token', user: { id: 5 }, scopes: ['tickets:read'] })
+    decide = (ctx) => {
+      ctx.allowed = true
+    }
+    await expect(guard.require(event)).rejects.toMatchObject({ statusCode: 403, data: { code: 'insufficient_scope' } })
+    expect(seen).toHaveLength(0)
+  })
+})
+
+describe('role-based default (access control on)', () => {
+  const guard = defineStaffGuard({ hook: 'events:authorize', scope: 'events:manage' })
+
+  it('allows a user whose role holds the permission, with no host listener', async () => {
+    permissions = { 1: ['events:*'], 2: ['tickets:read'] }
+    expect(await guard.can(event, 1)).toBe(true)
+    expect(await guard.can(event, 2)).toBe(false)
+    expect(seen[0]!.ctx).toMatchObject({ userId: 1, allowed: true })
+  })
+
+  it('lets a host listener add a condition either way', async () => {
+    permissions = { 1: ['events:manage'], 2: [] }
+    decide = (ctx) => {
+      if (ctx.userId === 1) ctx.allowed = false
+      if (ctx.userId === 2) ctx.allowed = true
+    }
+    expect(await guard.can(event, 1)).toBe(false)
+    expect(await guard.can(event, 2)).toBe(true)
+  })
+
+  it('never lets a wildcard cover a :pii permission', async () => {
+    permissions = { 1: ['*', 'events:*'] }
+    const pii = definePolicyGate('events:authorize', { permission: 'events:pii' })
+    expect(await pii.isAllowed(event, 1)).toBe(false)
+    permissions = { 1: ['events:pii'] }
+    expect(await pii.isAllowed(event, 1)).toBe(true)
+  })
+
+  it('a gate without a permission stays denied by default', async () => {
+    permissions = { 1: ['*'] }
+    expect(await definePolicyGate('x:authorize').isAllowed(event, 1)).toBe(false)
   })
 })

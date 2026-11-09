@@ -129,7 +129,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     if (settings.mcp === true) {
       const { addMcpDefinitions } = await import('@frigear-nu/mcp/utils')
-      addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name, email and role (MCP)' })
+      addAuthScope(nuxt, { name: 'profile:read', description: 'Read your own name, email and role (MCP)', aggregateTo: ['user'] })
       addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     }
 
@@ -150,7 +150,10 @@ export default defineNuxtModule<ModuleOptions>({
     if (withAdmin) {
       // Lets API tokens and OAuth access tokens read the user directory (`GET /api/admin/users`, `/:id`). Only staff
       // (the `users:admin:authorize` policy, action `view`) may hold it: the plugin hides it from everyone else.
-      addAuthScope(nuxt, { name: 'users:read', description: 'Read the user directory (staff only)' })
+      addAuthScope(nuxt,
+        { name: 'users:read', description: 'Read the user directory (staff only)' },
+        { name: 'users:manage', description: 'Create, change and delete users (staff only)', sessionOnly: true },
+      )
       addServerPlugin(resolver.resolve('./runtime/server/plugins/users-read-scope'))
 
       // Static segments (`new`, `stats`, `roles`) win over `:id` in the router.

@@ -1,4 +1,4 @@
-/** Full access: what a session carries. */
+/** Full access: what a session carries without access control (`auth:user-permissions`). */
 export const ALL_SCOPES = '*'
 
 /** Suffix of scopes that expose personal data of other people. They are never covered by a wildcard. */
@@ -23,6 +23,14 @@ export function hasScope(granted: readonly string[], required: string): boolean 
 
 export function hasScopes(granted: readonly string[], required: readonly string[]): boolean {
   return required.every(scope => hasScope(granted, scope))
+}
+
+/**
+ * Whether a credential covers `required`: its `scopes` must, and so must its user's permissions (`ceiling`) when access
+ * control is on. A token granted `events:*` by an admin who is now a plain user covers nothing of `events` any more.
+ */
+export function principalHasScopes(principal: { scopes: readonly string[], ceiling?: readonly string[] }, required: readonly string[]): boolean {
+  return hasScopes(principal.scopes, required) && (!principal.ceiling || hasScopes(principal.ceiling, required))
 }
 
 /** Splits an OAuth `scope` string into unique, non-empty scopes. */

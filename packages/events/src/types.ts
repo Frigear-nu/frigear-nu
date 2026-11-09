@@ -13,6 +13,11 @@ export type TicketStatus = 'pending' | 'paid' | 'cancelled' | 'refunded' | 'expi
 
 export type ModuleOptions = {
   settings?: {
+    /**
+     * Ship an `eventmanager` role (role-based access control, `@frigear-nu/authorization`): every user's permissions
+     * plus `events:manage` and `events:pii`, just below `admin`. Defaults to `false`.
+     */
+    roles?: boolean
     // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
     mcp?: boolean
     pages?: {
