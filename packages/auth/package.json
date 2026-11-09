@@ -169,7 +169,7 @@
     "iron-webcrypto": "^2.0.0",
     "nuxt": "catalog:",
     "typescript": "catalog:",
-    "unstorage": "^1.17.5",
+    "unstorage": "^2.0.0-beta.0",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   },
