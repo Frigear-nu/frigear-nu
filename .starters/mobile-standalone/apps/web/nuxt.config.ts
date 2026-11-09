@@ -71,8 +71,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // @frigear-nu/authorization: guests on a guarded page (/account/**, /admin/**) go to the login page.
+  // @frigear-nu/authorization: guests on a guarded page (/account/**, /admin/**) go to the login page. `rbac`: roles
+  // decide who may do what (built in: `admin` above `user`; `server/plugins/authorization-role.ts` picks the role).
   authorization: {
+    rbac: true,
     redirectTo: '/login',
   },
 
@@ -111,7 +113,7 @@ export default defineNuxtConfig({
     },
   },
 
-  // @frigear-nu/users: /admin/users; who may do what is decided in server/plugins/users-policy.ts.
+  // @frigear-nu/users: /admin/users; who may do what is decided by the roles (`authorization.rbac`).
   users: {
     settings: {
       admin: true,
