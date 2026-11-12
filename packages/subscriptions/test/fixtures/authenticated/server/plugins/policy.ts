@@ -1,8 +1,10 @@
 // Test-only policy hooks driven by request headers / query.
 export default defineNitroPlugin((nitro) => {
-  // Staff gate of the users admin (also guards the membership routes): driven by a request header.
-  nitro.hooks.hook('users:admin:authorize', (ctx) => {
-    ctx.allowed = !!getHeader(ctx.event, 'x-staff')
+  // Staff: a request with the `x-staff` header may do anything its credential allows (users admin, membership routes),
+  // except `test:insider`, which needs the `x-insider` header too.
+  nitro.hooks.hook('authorization:before', (ctx) => {
+    if (!getHeader(ctx.event, 'x-staff')) return
+    if (ctx.permission !== 'test:insider' || getHeader(ctx.event, 'x-insider')) ctx.allow()
   })
 
   nitro.hooks.hook('subscriptions:plans:filter', (ctx) => {

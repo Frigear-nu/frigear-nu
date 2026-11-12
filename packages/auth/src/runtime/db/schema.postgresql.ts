@@ -14,6 +14,8 @@ export const authUserTokens = pgTable('auth_user_tokens', {
   prefix: text().notNull(),
   last4: text().notNull(),
   scopes: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
+  /** The permissions the scopes stood for, within its user's, frozen when it was minted. `null`: minted before. */
+  permissions: jsonb().$type<string[]>(),
   expiresAt: timestamp({ withTimezone: true }),
   lastUsedAt: timestamp({ withTimezone: true }),
   revokedAt: timestamp({ withTimezone: true }),

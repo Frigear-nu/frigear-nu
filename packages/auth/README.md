@@ -3,22 +3,23 @@
 Authentication for the frigear ecosystem. **Signing in**: email/password, password reset, magic links, email
 verification, passkeys and OAuth providers (including "Log in with frigear.nu"), with opt-in login/register pages.
 **Identifying callers**: one `requireAuth` for every way a caller can authenticate: the cookie session, a static
-**user API token** (`fnu_…` by default, `authentication.apiTokens.prefix`; `apiTokens: false` turns them off) and an **OAuth access token** issued to an application. Scopes narrow what a token may do,
-and the owner's current role still applies.
+**user API token** (`fnu_…` by default, `authentication.apiTokens.prefix`; `apiTokens: false` turns them off) and an **OAuth access token** issued to an application.
+**Access control**: one `authorize(event, permission, record?)` for every caller. Scopes narrow what a token may do,
+and the owner's current roles still apply.
 
 ```ts
 // server/api/tickets.get.ts
-const { user } = await requireAuth(event, { scopes: ['tickets:read'] })
+const { user } = await authorize(event, 'tickets:read')
 
 // Account-level routes never accept bearer credentials:
 const owner = await requireAuth(event, { sessionOnly: true })
 ```
 
 - `requireAuth`, `getAuth` are auto-imported in server code; `@frigear-nu/users` adds `requireUser` / `getUser` for the user alone.
-- Modules register scopes with `addAuthScope` and credential types with `addAuthResolver` (`@frigear-nu/auth/utils`);
-  staff access with `defineStaffGuard({ hook, scope, message })` (`require(event, { sessionOnly? })`, `can(event, userId)`),
-  built on `definePolicyGate` (`isAllowed(event, userId, extra?)`, `assert(event, userId, message?, extra?)`), and
-  staff scopes with `defineStaffScopes`.
+- Modules register permissions with `addPermission`, named scopes with `addScope`, default roles with `addRole`,
+  policies with `addPolicies` and credential types with `addAuthResolver` (`@frigear-nu/auth/utils`). Server code
+  checks access with `authorize` / `allows` (auto-imported), refines it per record with `definePolicy`, and the host
+  overrides it in the `authorization:before` hook.
 - Auth knows users only through an `AuthUserStore`, which `@frigear-nu/users` registers (`setAuthUserStore`);
   `@frigear-nu/oauth-server` supplies the access-token resolver.
 - Sign-in is configured under `authentication.settings` (`password`, `magicLink`, `webAuthn`, `oauth`, `pages`, ...).
@@ -52,7 +53,9 @@ export default defineNuxtConfig({
   (`login`, `completeLogin`, `logout`, `getAccessToken`, `signingIn`, ...) and `$api` / `useApi()`, which send the
   bearer token to `client.apiBase` and `client.apiOrigins` only.
 - `scopes` must contain `openid`: the user comes from the id_token, and a sign-in without one fails.
-- The user is `{ id: sub, sub, name, email, avatar, role }` from the claims. `client.userinfo: true` merges `/userinfo`;
+- The user is `{ id: sub, sub, name, email, avatar }` from the claims (roles are not read from tokens: with
+  `@frigear-nu/authorization`, `useAuthorization()` asks the issuer's `/api/auth/me/access` with the bearer token, or
+  falls back to the access token's `permissions` claim; UI only, the API decides). `client.userinfo: true` merges `/userinfo`;
   `client.mapUser: './app/auth/map-user'` maps it yourself (`({ claims, userinfo, api }) => user`, may be async). Until
   an async mapping finishes, and when it fails offline, `user` is the claims mapping.
 - Login and callback pages (with `@nuxt/ui`) at `settings.pages.login` and `client.callbackPath`; branding through

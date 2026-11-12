@@ -23,25 +23,17 @@ const overviewWidgets = typeof OverviewWidgets === 'string' ? undefined : Overvi
 const schema = z.object({
   name: z.string().trim().min(1, t('admin.nameRequired', 'Enter a name.')).max(120),
   email: z.string().trim().email(t('admin.emailInvalid', 'Enter a valid email address.')),
-  role: z.string(),
   emailVerified: z.boolean(),
 })
 type Schema = z.output<typeof schema>
 
-const form = reactive<Schema>({ name: '', email: '', role: '', emailVerified: false })
+const form = reactive<Schema>({ name: '', email: '', emailVerified: false })
 function fill(value: UserDetail) {
-  Object.assign(form, { name: value.name, email: value.email, role: value.role ?? '', emailVerified: !!value.emailVerifiedAt })
+  Object.assign(form, { name: value.name, email: value.email, emailVerified: !!value.emailVerifiedAt })
 }
 fill(props.user)
 watch(() => props.user, fill)
 
-const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
-// The user's current role stays selectable even when the acting user could not assign it.
-const roleItems = computed(() => {
-  const roles = new Set(props.user.roles ?? [])
-  if (props.user.role) roles.add(props.user.role)
-  return [...roles].map(value => ({ label: roleLabel(value), value }))
-})
 const accountFacts = computed(() => [
   { key: 'created', label: t('admin.created', 'Created'), value: format.dateTime(props.user.createdAt) },
   { key: 'lastLogin', label: t('admin.lastLogin', 'Last sign-in'), value: format.dateTime(props.user.lastLoginAt) || t('admin.detail.never', 'Never') },
@@ -51,22 +43,21 @@ const accountFacts = computed(() => [
 const dirty = computed(() => (
   form.name !== props.user.name
   || form.email !== props.user.email
-  || (props.user.hasRoles && form.role !== (props.user.role ?? ''))
   || form.emailVerified !== !!props.user.emailVerifiedAt
 ))
 
 async function save(event: FormSubmitEvent<Schema>) {
-  const { name, email, role, emailVerified } = event.data
+  const { name, email, emailVerified } = event.data
   const emailChanged = email !== props.user.email
   const saved = await run(
     () => $fetch(usersApi.admin.user(props.user.id), {
       method: 'PATCH',
       body: {
         name,
-        email,
-        ...(props.user.hasRoles && role ? { role } : {}),
-        // An unchanged address keeps its state unless staff toggled it; a changed one is verified by email.
-        ...(emailChanged ? {} : { emailVerified }),
+        ...(emailChanged ? { email } : {}),
+        // An unchanged address keeps its state unless staff toggled it; a changed one is verified by email. Both
+        // need `users:manage`, so they are only sent when they change.
+        ...(!emailChanged && emailVerified !== !!props.user.emailVerifiedAt ? { emailVerified } : {}),
       },
     }).then(() => true),
     { success: emailChanged ? t('admin.detail.savedEmail', 'Saved. A verification email was sent to the new address.') : t('admin.detail.saved', 'Saved.') },
@@ -114,20 +105,7 @@ async function save(event: FormSubmitEvent<Schema>) {
               v-model="form.email"
               type="email"
               class="w-full sm:max-w-sm"
-              :disabled="!user.can.update"
-            />
-          </FormRow>
-          <FormRow
-            v-if="user.hasRoles"
-            name="role"
-            :label="t('admin.role', 'Role')"
-          >
-            <USelect
-              v-model="form.role"
-              :items="roleItems"
-              class="w-full sm:max-w-sm"
-              :placeholder="t('admin.rolePlaceholder', 'Select a role')"
-              :disabled="!user.can.update"
+              :disabled="!user.can.manage"
             />
           </FormRow>
           <FormRow
@@ -137,7 +115,7 @@ async function save(event: FormSubmitEvent<Schema>) {
             <UCheckbox
               v-model="form.emailVerified"
               :label="t('admin.emailVerified', 'Mark the email address as verified')"
-              :disabled="!user.can.update || form.email !== user.email"
+              :disabled="!user.can.manage || form.email !== user.email"
             />
           </FormRow>
         </UForm>

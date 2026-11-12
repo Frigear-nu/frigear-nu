@@ -4,7 +4,8 @@ import { parseScopeString } from '@frigear-nu/auth/utils'
 
 /**
  * Lets an application call the API as the user who signed in to it: resolves an OAuth access
- * token (`at+jwt`) into a principal carrying the application (`client_id`) and the granted scopes.
+ * token (`at+jwt`) into a principal carrying the application (`client_id`), the granted scopes and the permissions
+ * frozen in the token.
  *
  * The token's audience is the application, so it is deliberately not matched against this server:
  * the application is the one holding the token. Everything else is re-checked on every request
@@ -25,5 +26,12 @@ export default async function resolveAccessToken(event: H3Event, token: string):
   const user = await loadAuthUser(oauthUser.id)
   if (!user) return null
 
-  return { kind: 'oauth', user, scopes: parseScopeString(payload.scope), client: { id: application.id } }
+  return {
+    kind: 'oauth',
+    user,
+    scopes: parseScopeString(payload.scope),
+    // Frozen at issue (step 4 checks it); tokens from before get theirs from their scopes (`resolveBearer`).
+    ...(Array.isArray(payload.permissions) && { permissions: payload.permissions }),
+    client: { id: application.id },
+  }
 }

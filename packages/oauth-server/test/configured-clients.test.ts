@@ -31,6 +31,7 @@ describe('normalizeConfiguredClients', () => {
       icon: null,
       allowedRoles: [],
       tags: [],
+      wildcardScopes: false,
       corsOrigins: [],
       refreshToken: { idleTtl: null, maxAge: null },
       allowLongBrowserSessions: false,

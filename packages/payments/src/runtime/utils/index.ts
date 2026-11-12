@@ -4,7 +4,6 @@ import type { PaymentItem } from '../../types'
 export * from './api'
 
 export type {
-  AuthorizeContext,
   CheckoutBeforeContext,
   CreatePaymentInput,
   CreatePaymentResult,

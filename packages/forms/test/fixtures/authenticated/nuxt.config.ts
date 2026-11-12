@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
 import FormsModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -7,6 +9,12 @@ export default defineNuxtConfig({
     '@frigear-nu/users',
     '@frigear-nu/admin',
     FormsModule,
+    // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
+    (_options, nuxt) => {
+      addRole(nuxt, { name: 'formsmanager', label: 'Forms manager', grant: ['forms:manage', 'forms:credentials', 'forms:pii'] })
+      addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['forms:*'] })
+      setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+    },
   ],
   runtimeConfig: {
     session: {

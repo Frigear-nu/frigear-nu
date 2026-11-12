@@ -19,8 +19,8 @@ The package is `@frigear-nu/forms`. Each form is a definition stored in the data
 - **Admin area** (opt-in, with [Admin](/modules/interface/admin)): the form list at `/admin/forms`, a visual builder for
   each form, and its submissions.
 - **Server routes** (on by default): read and submit a published form, and a staff API for forms, submissions and
-  access. The staff API stays closed until your app answers the `forms:authorize`
-  [policy hook](/guide/concepts/glossary).
+  access. The staff API is guarded by the `forms:manage` and `forms:credentials`
+  [permissions](#permissions), which the `admin` role holds.
 - **Composables and helpers** (on by default): `defineForm()` to write a form in code, and a hook that receives every
   submission.
 - **MCP tools** (opt-in): list and submit forms, and manage them as staff, through [MCP](/modules/features/mcp).
@@ -73,25 +73,25 @@ Forms adds six tables. Generate the migration and commit it:
 pnpm db:generate
 ```
 
-### Answer the policy hook
+### Decide who manages forms
 
 :::warning
-Without this hook nobody can manage forms. Staff access is denied until your app allows it.
+Staff routes check permissions through [Authorization](/modules/identity/authorization). Without a role that holds
+`forms:manage`, nobody can manage forms. The `admin` role holds it by default.
 :::
 
-```ts [server/plugins/forms-policy.ts]
-// Loads the module's hook types: Nitro's server tsconfig does not include module types.
-import type {} from '@frigear-nu/forms'
+To let another role manage forms, grant the permissions in your config. `forms:*` covers `forms:manage`,
+`forms:credentials` and `forms:submit`, but not `forms:pii`, which you grant by name:
 
-export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('forms:authorize', async (ctx) => {
-    ctx.allowed = false // replace with your own staff check on ctx.userId
-  })
+```ts [nuxt.config.ts]
+export default defineNuxtConfig({
+  authorization: {
+    roles: {
+      manager: { label: 'Coordinator', grant: ['forms:*', 'users:read', 'users:list'], inherit: ['user'] },
+    },
+  },
 })
 ```
-
-With `authorization: { rbac: true }`, as in the starters, the role decides instead: a role holding `forms:manage`
-may manage forms. [Decide who manages it](/get-started/adding-modules#decide-who-manages-it) shows how to grant it.
 
 ::
 
@@ -139,6 +139,27 @@ off.
 | `NUXT_FORMS_CAPTCHA_TURNSTILE_SECRET_KEY`, `…_RECAPTCHA_SECRET_KEY`, `…_HCAPTCHA_SECRET_KEY` | `captcha.<provider>.secretKey` |
 | `NUXT_PUBLIC_FORMS_CAPTCHA_DEFAULT_PROVIDER` | `captcha.defaultProvider` |
 | `NUXT_FORMS_ENCRYPTION_KEY` | `encryptionKey` |
+
+## Permissions
+
+Forms registers these permissions with [Authorization](/modules/identity/authorization). A staff route calls
+`authorize(event, 'forms:manage')`.
+
+| Permission | Flags | Held by default | What it allows |
+| --- | --- | --- | --- |
+| `forms:manage` | | `admin` | Create and edit forms, read their submissions and files, and deliver them again. |
+| `forms:credentials` | sessionOnly | `admin` | Create and remove form access tokens, passwords and secrets. Cookie sessions only. |
+| `forms:pii` | sensitive | `admin` | Sensitive (MCP only): gates submission answers and file names in MCP tool output. The admin HTTP API, submissions included, is gated by `forms:manage`. A `*` or `forms:*` grant never covers it. |
+| `forms:submit` | implicit | every signed-in user | Submit forms as you, and read forms that need a signed-in user. |
+
+- **Scope:** `forms` (label "Submit forms") expands to `forms:submit`. A token or OAuth client with it can submit as the
+  user, and nothing else.
+- **Roles, requirements and policies:** the module ships none. The `admin` role receives the staff permissions through
+  the module's default grants. If you replace the `admin` role with `replace: true`, grant them again yourself.
+- **Why `forms:credentials` is separate:** minting or removing a way into a form is a credential change, so it is session
+  only. A role that grants `forms:manage` by name must grant `forms:credentials` too.
+
+See [roles and requirements](/modules/identity/authorization/roles-and-requirements) for how roles are built and merged.
 
 ## Module pages
 

@@ -35,14 +35,14 @@ export const claimsOf = (tokens: OAuthTokens | null, expected?: ExpectedIdentity
 
 /**
  * The default user of client mode, from the id_token claims only, so it needs no request (a cold start offline still
- * knows who is signed in). `role` only when the token carries a string `role` claim.
+ * knows who is signed in). Roles are not read from the token: what the user may do comes from the issuer's
+ * `/api/auth/me/access` (or the access token's `permissions` claim).
  */
 export function mapClaimsToUser(claims: IdTokenClaims): User {
   const user: Record<string, unknown> = { id: claims.sub, sub: claims.sub }
   if (typeof claims.name === 'string') user.name = claims.name
   if (typeof claims.email === 'string') user.email = claims.email
   if (typeof claims.picture === 'string') user.avatar = claims.picture
-  if (typeof claims.role === 'string') user.role = claims.role
   return user as User
 }
 

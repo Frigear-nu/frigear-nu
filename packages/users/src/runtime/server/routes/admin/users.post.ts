@@ -6,18 +6,17 @@ import { emailField, nameField } from '../../schemas'
 const bodySchema = z.object({
   name: nameField(),
   email: emailField(),
-  role: z.string().trim().min(1).max(60).optional(),
   // Verified accounts are signed in by the emailed link below; leave unverified to let the user verify themselves.
   emailVerified: z.boolean().default(false),
   sendWelcomeEmail: z.boolean().default(true),
 })
 
 export default defineEventHandler(async (event) => {
-  // Staff only, before the body is read; then the host decides on the values (e.g. the role handed out).
+  // `users:create` before the body is read. Roles are assigned afterwards, through `@frigear-nu/authorization`.
   await authorizeUsersAdmin(event, 'create')
   const input = await readValidatedBody(event, bodySchema.parse)
-  const withRole = usersHaveRoles()
-  await authorizeUsersAdmin(event, 'create', { input: { role: withRole ? input.role : undefined, email: input.email, name: input.name } })
+  // Vouching for an address nobody confirmed is `users:manage` (session only).
+  if (input.emailVerified) await authorize(event, USERS_MANAGE_PERMISSION)
 
   await assertEmailAvailable(input.email)
 
@@ -25,7 +24,6 @@ export default defineEventHandler(async (event) => {
     name: input.name,
     email: input.email,
     emailVerifiedAt: input.emailVerified ? new Date() : null,
-    ...(withRole && input.role ? { role: input.role } : {}),
   } as typeof schema.users.$inferInsert).returning()
 
   if (!user) {

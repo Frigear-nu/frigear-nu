@@ -3,7 +3,7 @@
 // `role` is absent when the host app has no roles.
 export default defineScopedMcpTool({
   description: 'Get your own profile (id, name, email and role).',
-  scopes: ['profile:read'],
+  permission: 'profile:read',
   annotations: { readOnlyHint: true },
   handler: (_args, { user }) => pick(user as { id: number, name: string, email: string, role?: string }, ['id', 'name', 'email', 'role']),
 })

@@ -5,6 +5,7 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { addPermission } from '@frigear-nu/auth/utils'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import { ADMIN_NAV_GROUPS } from './runtime/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -21,6 +22,9 @@ declare module 'nuxt/schema' {
   }
 }
 
+/** The permission that opens the admin area (`admin.settings.permission`). */
+const ADMIN_ACCESS_PERMISSION = 'admin:access'
+
 const trimSlash = (path: string) => path.length > 1 ? path.replace(/\/+$/, '') : path
 
 export default defineNuxtModule<ModuleOptions>({
@@ -36,6 +40,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/widget': { version: '>=0.0.0' },
     // Page pattern components (`PageHeading`, `SectionCard`, ...) and `useNavLinks`.
     '@frigear-nu/ui': { version: '>=0.0.0' },
+    '@frigear-nu/auth': { version: '>=0.0.0', optional: true },
     '@frigear-nu/authorization': { version: '>=0.0.0', optional: true },
   },
   setup(options, nuxt) {
@@ -59,17 +64,34 @@ export default defineNuxtModule<ModuleOptions>({
       .map(code => `/${code}`)]
     const bases = prefixes.map(prefix => `${prefix}${base}`)
 
-    // The admin area is only reachable by the configured roles. Route rules are enforced by
-    // @frigear-nu/authorization (also on the server); without it nothing guards the pages.
-    if (settings.roles !== false) {
-      if (hasNuxtModule('@frigear-nu/authorization')) {
+    // The admin area is only reachable by users holding `settings.permission` (default `admin:access`, granted to the
+    // `admin` role). Route rules are enforced by @frigear-nu/auth on `/api/**` and by @frigear-nu/authorization on
+    // pages; without authorization nothing guards the pages.
+    const permission = settings.permission === false ? undefined : settings.permission ?? ADMIN_ACCESS_PERMISSION
+    if ((settings as { roles?: unknown }).roles !== undefined) {
+      throw new Error('[@frigear-nu/admin] `admin.settings.roles` was removed: use `admin.settings.permission` (a `resource:action` string, default `admin:access`) and give it to roles in `authorization.roles`.')
+    }
+    const guarded = !!permission && hasNuxtModule('@frigear-nu/authorization')
+    if (permission) {
+      if (guarded) {
+        if (permission === ADMIN_ACCESS_PERMISSION) {
+          addPermission(nuxt, {
+            name: ADMIN_ACCESS_PERMISSION,
+            label: 'Access the admin area',
+            labelKey: 'admin.permissions.access',
+            descriptionKey: 'admin.permissions.accessDescription',
+            description: 'Open the pages under the admin area. The data behind them checks its own permissions.',
+            group: 'admin',
+            grantTo: ['admin'],
+          })
+        }
         const rules = nuxt.options.routeRules ||= {}
         for (const pattern of bases.map(prefixed => `${prefixed}/**`)) {
-          rules[pattern] = { roles: settings.roles ?? ['admin'], ...rules[pattern] } as (typeof rules)[string]
+          rules[pattern] = { permission, ...rules[pattern] } as (typeof rules)[string]
         }
       }
       else {
-        console.warn('[@frigear-nu/admin] @frigear-nu/authorization is not installed: the admin pages are not guarded on the client. Install it or set `admin.settings.roles: false` and guard the area yourself.')
+        console.warn('[@frigear-nu/admin] @frigear-nu/authorization is not installed: the admin pages are not guarded. Install it or set `admin.settings.permission: false` and guard the area yourself.')
       }
     }
 
@@ -92,8 +114,8 @@ export default defineNuxtModule<ModuleOptions>({
       }
     }
 
-    // An "Admin" entry in the account dropdown, shown by the dropdown only to users holding one of the roles.
-    if (dashboardPath && settings.roles !== false) {
+    // An "Admin" entry in the account dropdown, hidden by `menus:filter` (authorization) from users without the permission.
+    if (dashboardPath && guarded) {
       extendMenu(nuxt, 'account.dropdown', {
         id: 'admin',
         label: 'Admin',
@@ -103,7 +125,7 @@ export default defineNuxtModule<ModuleOptions>({
         icon: 'i-lucide-shield-check',
         to: dashboardPath,
         order: 90,
-        meta: { roles: settings.roles ?? ['admin'] },
+        permission,
       })
     }
 

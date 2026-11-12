@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/authorization",
   "version": "0.4.0",
-  "description": "Policy-based authorization (abilities, resolvers, route rules, <Can>) for the frigear ecosystem, built on @frigear-nu/users.",
+  "description": "Roles, role assignment, the roles admin and the client side of access control (useAuthorization, <Can>, page rules) for the frigear ecosystem, built on @frigear-nu/auth.",
   "homepage": "https://docs.frigear.dev/modules/identity/authorization",
   "repository": {
     "type": "git",
@@ -82,7 +82,8 @@
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "h3": "catalog:"
+    "h3": "catalog:",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/admin": ">=0.0.0",

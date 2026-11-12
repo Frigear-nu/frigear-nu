@@ -7,8 +7,11 @@ export type FrigearProfile = {
   emailVerified?: boolean
   // The frigear.nu user id (`sub`); only used when `forceId` is on.
   id?: number
-  /** The local role from frigear.nu's role claim (`mapRoleClaim`); only set when role syncing is on. */
-  role?: string
+  /**
+   * The local roles from frigear.nu's role claims (`mapRoleClaims`); only set when role syncing is on. They replace the
+   * user's single sign-on roles (`setRoles` with source `sso`) and never touch roles assigned here.
+   */
+  roles?: string[]
 }
 
 /**
@@ -23,6 +26,12 @@ export type FrigearProfile = {
  * the credentials set before (`clearUnverifiedAuthCredentials`) and is marked verified.
  */
 export async function syncFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
+  const user = await findOrCreateFrigearUser(profile, options)
+  if (profile.roles) await setAuthUserRoles(user.id, profile.roles, { source: 'sso' })
+  return user
+}
+
+async function findOrCreateFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
   const users = useAuthUserStore()
   // Stored lowercased; lookups are case-insensitive, so accounts stored mixed-case still match.
   const email = profile.email.trim().toLowerCase()
@@ -33,7 +42,6 @@ export async function syncFrigearUser(profile: FrigearProfile, options: { forceI
     email,
     avatar: profile.picture,
     lastLoginAt: now,
-    ...(profile.role && { role: profile.role }),
   }
   const refuseUnverified = () => createError({
     statusCode: 403,
@@ -72,12 +80,12 @@ export async function syncFrigearUser(profile: FrigearProfile, options: { forceI
         data: { code: 'frigear_id_conflict' },
       })
     }
-    return users.create({ id, name: fields.name, email, avatar: fields.avatar, role: fields.role, emailVerifiedAt: verified ? now : undefined })
+    return users.create({ id, name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
   }
 
   const user = await users.findByEmail(email)
-  if (!user) return users.create({ name: fields.name, email, avatar: fields.avatar, role: fields.role, emailVerifiedAt: verified ? now : undefined })
+  if (!user) return users.create({ name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
   if (!verified) throw refuseUnverified()
 
-  return await users.update(user.id, { lastLoginAt: now, role: fields.role, ...await verifyExisting(user) }) ?? user
+  return await users.update(user.id, { lastLoginAt: now, ...await verifyExisting(user) }) ?? user
 }

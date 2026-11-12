@@ -38,11 +38,15 @@ const issuerUrl = `http://127.0.0.1:${(issuer.address() as AddressInfo).port}`
 process.env.NUXT_OAUTH_RESOURCE_JWKS_URL = `${issuerUrl}/.well-known/jwks.json`
 process.env.NUXT_OAUTH_RESOURCE_USERINFO_URL = `${issuerUrl}/oauth/userinfo`
 
-type TokenOptions = { sub?: string, scope?: string, aud?: string | string[], iss?: string, typ?: string, exp?: string | number, kid?: string, key?: string, clientId?: string }
+type TokenOptions = { sub?: string, scope?: string, permissions?: unknown, aud?: string | string[], iss?: string, typ?: string, exp?: string | number, kid?: string, key?: string, clientId?: string }
 
 /** A token as frigear.nu issues it (`at+jwt`, shared audience, 10 minutes); every part can be overridden. */
 async function accessToken(options: TokenOptions = {}) {
-  return new SignJWT({ scope: options.scope ?? 'openid email vouchers:read', client_id: options.clientId ?? 'app_mobile' })
+  return new SignJWT({
+    scope: options.scope ?? 'openid email vouchers:read',
+    client_id: options.clientId ?? 'app_mobile',
+    ...(options.permissions !== undefined && { permissions: options.permissions }),
+  })
     .setProtectedHeader({ alg: 'RS256', typ: options.typ ?? 'at+jwt', kid: options.kid ?? 'key-1' })
     .setIssuer(options.iss ?? ISSUER)
     .setSubject(options.sub ?? '1001')
@@ -84,6 +88,9 @@ describe('oauth-resource (a service accepting frigear.nu tokens)', async () => {
         name: 'User 1001',
         clientId: 'app_mobile',
         scopes: ['openid', 'email', 'vouchers:read'],
+        // Without a `permissions` claim (an older issuer): its scopes, against this service's permissions.
+        permissions: ['vouchers:read'],
+        foreign: true,
       })
       expect((await counters()).userinfo).toBe(before.userinfo + 1)
     })
@@ -127,6 +134,18 @@ describe('oauth-resource (a service accepting frigear.nu tokens)', async () => {
       expect(response.status).toBe(403)
       expect(response.headers.get('www-authenticate')).toBe('Bearer error="insufficient_scope", scope="vouchers:read"')
       expect(await response.json()).toMatchObject({ data: { code: 'insufficient_scope' } })
+    })
+
+    it('takes what a token may do from its permissions claim, not from the scopes or this service\'s roles', async () => {
+      const claimed = await (await asBearer({ sub: '1003', scope: 'openid email', permissions: ['vouchers:read'] })).json<Json>('GET', vouchers)
+      expect(claimed).toMatchObject({ kind: 'oauth', userId: 1003, permissions: ['vouchers:read'], foreign: true })
+
+      // The claim wins over the scope: an issuer that froze nothing gave nothing.
+      const empty = await fetch(vouchers, { headers: { authorization: `Bearer ${await accessToken({ sub: '1003', permissions: [] })}` } })
+      expect(empty.status).toBe(403)
+      expect(await empty.json()).toMatchObject({ data: { code: 'insufficient_scope' } })
+      // A malformed claim is refused outright.
+      await expectApiError((await asBearer({ sub: '1003', permissions: 'vouchers:read' })).json('GET', vouchers), 401, 'unauthorized')
     })
 
     it('refuses a token whose user cannot be provisioned (no email from the issuer)', async () => {

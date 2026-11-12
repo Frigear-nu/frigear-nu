@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { OAuthApplication, OAuthUser } from '../src/types'
 
-// `buildClaims` without a server: the hook is a no-op and the admin gate is never asked.
-vi.stubGlobal('definePolicyGate', () => ({ isAllowed: async () => false }))
+// `buildClaims` without a server: the hook is a no-op.
 vi.stubGlobal('useNitroApp', () => ({ hooks: { callHook: async () => {} } }))
 
 const { buildClaims } = await import('../src/runtime/server/utils/oauth-access')

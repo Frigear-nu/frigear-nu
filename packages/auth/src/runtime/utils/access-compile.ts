@@ -1,0 +1,103 @@
+import {
+  compileRoles,
+  createPermissionRegistry,
+  isKnownPermission,
+  validateNamedScopes,
+} from './permissions'
+import type {
+  NamedScopes,
+  PermissionDefinition,
+  PermissionRegistry,
+  RoleContribution,
+  RoleTable,
+  ScopeDefinition,
+} from './permissions'
+
+// The build-time compile step of access control, framework-free so it is unit tested on its own. `module.ts` collects
+// the registrations (`addPermission`, `addRole`, ...) at `modules:done` and hands them here; any error fails the build.
+
+/**
+ * A role as registered with `addRole`: a module's definition, or the host's (`source: 'host'`, or the equivalent
+ * `override: true`), which merges into the module definitions unless `replace: true`.
+ */
+export interface RoleRegistration extends RoleContribution {
+  /** Same as `source: 'host'`. */
+  override?: boolean
+}
+
+export interface CompileAccessInput {
+  permissions: readonly PermissionDefinition[]
+  roles?: readonly RoleRegistration[]
+  defaultRoles?: readonly string[]
+  requirementNames?: readonly string[]
+  namedScopes?: readonly ScopeDefinition[]
+  /** Permissions named by route rules (`routeRules[pattern].permission`), by pattern. */
+  routePermissions?: Readonly<Record<string, string>>
+}
+
+export interface CompiledAccess {
+  registry: PermissionRegistry
+  roles: RoleTable
+  namedScopes: NamedScopes
+  /** Notes worth a warning (`grantTo` into a missing role), never errors. */
+  warnings: string[]
+  errors: string[]
+}
+
+const unique = <T>(values: Iterable<T>) => [...new Set(values)]
+
+/**
+ * Builds the permission registry, the role table and the named scopes from every registration, and reports every
+ * configuration error at once (`module.ts` throws on them).
+ */
+export function compileAccess(input: CompileAccessInput): CompiledAccess {
+  const warnings: string[] = []
+  const { value: registry, errors } = createPermissionRegistry(input.permissions)
+  const contributions: RoleContribution[] = (input.roles ?? []).map(({ override, ...role }) => ({
+    ...role,
+    source: override ? 'host' : (role.source ?? 'module'),
+  }))
+
+  const compiled = compileRoles({ contributions, defaultRoles: input.defaultRoles, registry, requirementNames: input.requirementNames })
+  errors.push(...compiled.errors)
+  warnings.push(...(compiled.warnings ?? []))
+
+  const namedScopes: Record<string, ScopeDefinition> = {}
+  for (const scope of input.namedScopes ?? []) {
+    if (Object.hasOwn(namedScopes, scope.name)) {
+      const previous = namedScopes[scope.name]!
+      namedScopes[scope.name] = { ...previous, ...scope, permissions: unique([...(previous.permissions ?? []), ...(scope.permissions ?? [])]) }
+      continue
+    }
+    namedScopes[scope.name] = { ...scope }
+  }
+  for (const name of Object.keys(namedScopes)) {
+    if (isKnownPermission(name, registry)) errors.push(`Scope "${name}" has the name of a registered permission.`)
+  }
+  errors.push(...validateNamedScopes(namedScopes, registry))
+
+  for (const [pattern, permission] of Object.entries(input.routePermissions ?? {})) {
+    if (!isKnownPermission(permission, registry)) errors.push(`Route rule "${pattern}" requires "${permission}", which is not a registered permission.`)
+  }
+
+  return { registry, roles: compiled.value, namedScopes, warnings, errors }
+}
+
+/** The `permission` of every route rule that has one (keys `permission`, `authenticated`, `guest`). */
+export function routeRulePermissions(routeRules: Readonly<Record<string, unknown>> | undefined): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [pattern, rule] of Object.entries(routeRules ?? {})) {
+    const permission = rule && typeof rule === 'object' ? (rule as { permission?: unknown }).permission : undefined
+    if (permission === undefined || permission === false) continue
+    result[pattern] = typeof permission === 'string' ? permission : String(permission)
+  }
+  return result
+}
+
+/** Imports a shared policy file must not have: it is also bundled into the client and resource servers. */
+export function sharedPolicyImportErrors(path: string, source: string): string[] {
+  const forbidden = ['#imports', '@nuxthub/db', '#auth/', 'h3']
+  return forbidden
+    .filter(name => new RegExp(`(?:from|import)\\s*\\(?\\s*['"]${name.replace(/[/#]/g, '\\$&')}`).test(source))
+    .map(name => `The shared policy file ${path} imports "${name}": shared policies must stay framework-free (import from @frigear-nu/auth/policies only).`)
+}

@@ -4,25 +4,22 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
+    // Widgets and tabs with a `permission` (`modules/access.ts`, rendered by `app/pages/widgets.vue`).
+    '@frigear-nu/widget',
     MyModule,
   ],
   runtimeConfig: {
-    session: {
-      password: 'a-test-only-session-password-at-least-32-chars',
-    },
+    appSecret: 'a-test-only-app-secret-at-least-32-characters',
   },
+  // Auth's server middleware enforces these for `/api/**`, the page middleware for pages. The roles admin API has no
+  // rule: its own `roles:read` / `roles:assign` checks decide.
   routeRules: {
-    '/admin/**': { roles: ['admin'] },
-    '/api/admin/**': { roles: ['admin'] },
-    // The roles admin API only requires a signed-in user here, so its own `roles:read` guard is what decides.
-    '/api/admin/authorization/**': { roles: [], authenticated: true },
+    '/admin/**': { permission: 'admin:access' },
     // A more specific pattern overrides `/admin/**`, so this page is open again.
     '/admin/public': { authenticated: false },
-    '/ability-rule': { ability: 'isAdmin' },
+    '/api/admin/stats': { permission: 'admin:access' },
     '/api/members': { authenticated: true },
-    // A role rule is session-only by default; these two opt bearer credentials in.
-    '/api/reports': { roles: ['admin'], scopes: ['reports:read'] },
-    '/api/open-admin': { roles: ['admin'], sessionOnly: false },
+    '/api/reports': { permission: 'reports:read' },
   },
   hub: {
     db: {
@@ -31,23 +28,17 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  hooks: {
-    'auth:scopes': (list: { name: string }[]) => {
-      list.push({ name: 'reports:read', aggregateTo: ['user'] } as { name: string }, { name: 'reports:write' })
-    },
-  },
-  // The session user shows the editor role as a label: permissions still follow the stored role, for tokens too.
-  authentication: {
-    settings: { session: { mapper: './server/session-mapper.ts' } },
-  },
-  // Role-based access control: admin > editor > user. `reports:read` goes to every user, `reports:write` and
-  // `roles:read` (the roles admin) to editors.
+  // The fixture's permissions and the `verified` requirement come from `modules/access.ts`. Admins hold everything,
+  // editors may see and assign roles (only those strictly below their own: `writer`, not `editor`), members are `auto` (emails at
+  // `member.test`).
   authorization: {
-    rbac: true,
+    defaultRoles: ['user'],
     roles: {
-      hierarchy: ['admin', 'editor', 'user'],
-      grant: { editor: ['reports:write', 'roles:read'] },
-      labels: { editor: 'Editor' },
+      admin: { label: 'Admin', grant: ['*'] },
+      editor: { label: 'Editor', grant: ['reports:write', 'roles:read', 'roles:assign'], inherit: ['user'] },
+      writer: { label: 'Writer', grant: ['reports:write'], inherit: ['user'] },
+      member: { label: 'Member', grant: ['member-area:view'], requirements: { verified: true }, auto: true },
+      user: { label: 'User', grant: ['reports:read'] },
     },
   },
 })

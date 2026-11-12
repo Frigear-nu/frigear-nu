@@ -20,10 +20,9 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addPermission, addScope } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
-  AuthorizeContext,
   CaptchaVerifyContext,
   DeliveredContext,
   FormsRuntimeConfig,
@@ -50,8 +49,6 @@ declare module '@nuxt/schema' {
 
 declare module 'nitropack' {
   interface NitroRuntimeHooks {
-    /** Staff gate (definitions, submissions, files): set `ctx.allowed = true` to let the user in. Denied by default. */
-    'forms:authorize': (ctx: AuthorizeContext) => void | Promise<void>
     /**
      * A valid submission was received (and stored, unless the form has `storage: 'none'`). Deliver it
      * here (webhooks, CRM, ...); set `ctx.delivered = true` once done. Throwing marks delivery failed.
@@ -92,11 +89,40 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addAuthScope(nuxt,
-      { name: 'forms:manage', description: 'Manage forms and submissions (staff)' },
-      { name: 'forms:submit', description: 'Submit forms as you', aggregateTo: ['user'] },
-      { name: 'forms:pii', description: 'See submission answers and file names through MCP tools (also needs forms:manage)' },
+    addPermission(nuxt,
+      { name: 'forms:manage', label: 'Manage forms', labelKey: 'forms.permissions.manage', description: 'Create and edit forms, read their submissions and files, and redeliver them.', descriptionKey: 'forms.permissions.manageDescription', group: 'forms', grantTo: ['admin'] },
+      {
+        name: 'forms:pii',
+        label: 'See submission answers',
+        labelKey: 'forms.permissions.pii',
+        description: 'See submission answers and file names (MCP tools). Never covered by a wildcard.',
+        descriptionKey: 'forms.permissions.piiDescription',
+        group: 'forms',
+        sensitive: true,
+        grantTo: ['admin'],
+      },
+      {
+        // Minting or removing access credentials (form tokens, passwords, secrets): only a signed-in session, never an
+        // API or OAuth token. Roles that grant `forms:manage` by name need to grant this too (`forms:*` covers it).
+        name: 'forms:credentials',
+        label: 'Manage form access credentials',
+        labelKey: 'forms.permissions.credentials',
+        description: 'Create and remove form access tokens, passwords and secrets. Cookie sessions only.',
+        descriptionKey: 'forms.permissions.credentialsDescription',
+        group: 'forms',
+        sessionOnly: true,
+        grantTo: ['admin'],
+      },
+      { name: 'forms:submit', label: 'Submit forms', labelKey: 'forms.permissions.submit', description: 'Submit forms as you.', descriptionKey: 'forms.permissions.submitDescription', group: 'forms', implicit: true },
     )
+    addScope(nuxt, {
+      name: 'forms',
+      label: 'Submit forms',
+      labelKey: 'forms.scopes.forms',
+      description: 'Submit forms as you.',
+      icon: 'i-lucide-clipboard-list',
+      permissions: ['forms:submit'],
+    })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
@@ -187,7 +213,6 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
     addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 

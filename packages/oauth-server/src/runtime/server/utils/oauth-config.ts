@@ -1,7 +1,8 @@
 import type { H3Event } from 'h3'
 import { apiError } from '@frigear-nu/module-kit/server'
 import type { OAuthNormalizedClient, OAuthScopeDefinition, RefreshTokenPolicy } from '../../../types'
-import { scopes as apiScopes } from '#auth/scopes'
+import { registry } from '#auth/permissions'
+import type { OAuthScopeCatalog } from './oauth-scopes'
 import { configuredClientWarnings, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions } from '../../utils'
 
 export function useOAuthConfig() {
@@ -100,7 +101,7 @@ export function getAccessTokenAudience(): string | string[] | undefined {
   return audience.length > 1 ? audience : audience[0]
 }
 
-/** The scope registry: every scope the host configured or a module added with `addOAuthScope`. */
+/** How `oauthServer.scopes` presents scopes on the consent screen: named scopes and permission scopes. */
 export function getOAuthScopeRegistry(): OAuthScopeDefinition[] {
   return useOAuthConfig().scopeDetails ?? []
 }
@@ -122,33 +123,27 @@ export function getOAuthIssuer(event: H3Event): string {
 }
 
 /**
- * Scopes this server accepts: the OIDC defaults, whatever the host configured, and the API scopes
- * modules register with `@frigear-nu/auth` (what an access token may do against the API).
+ * How to present each scope on the consent screen: the details of `oauthServer.scopes`, else the named scope's own
+ * (config, module or database scope), else the label or description of the permission it names. Scopes nobody
+ * described are just their name.
  */
-export function getSupportedScopes(): string[] {
-  return [...new Set(['openid', 'profile', 'email', ...useOAuthConfig().scopes, ...apiScopes.map(scope => scope.name)])]
-}
-
-/**
- * How to present each scope on the consent screen: the details the host configured, else the description the scope
- * was registered with through `@frigear-nu/auth` (as its label). Scopes nobody described are just their name.
- */
-export function getOAuthScopeDetails(scope: string[]): OAuthScopeDefinition[] {
+export function getOAuthScopeDetails(scope: string[], catalog: OAuthScopeCatalog): OAuthScopeDefinition[] {
   const configured = new Map(getOAuthScopeRegistry().map(details => [details.name, details]))
-  const registered = new Map(apiScopes.map(definition => [definition.name, definition.description]))
   return scope.map((name) => {
-    // The consent screen needs no staff flag: a scope the user may not hold never reaches it.
-    const { staffOnly: _staffOnly, ...details } = configured.get(name) ?? { name }
-    const description = registered.get(name)
-    if (!details.label && description) details.label = description
-    return { ...details, name }
+    const named = Object.hasOwn(catalog.named, name) ? catalog.named[name] : undefined
+    const permission = Object.hasOwn(registry.permissions, name) ? registry.permissions[name] : undefined
+    const base: OAuthScopeDefinition = named
+      ? { name, label: named.label, labelKey: named.labelKey, description: named.description, icon: named.icon, service: named.service }
+      : { name, label: permission?.label ?? permission?.description, labelKey: permission?.labelKey }
+    const { permissions: _permissions, ...details } = { ...base, ...configured.get(name) }
+    return Object.fromEntries(Object.entries({ ...details, name }).filter(([, value]) => value !== undefined && value !== null)) as OAuthScopeDefinition
   })
 }
 
 /** The signed-in user's numeric id (the `users` table uses integer ids). Responds 401 when nobody is signed in. */
 export async function requireSessionUserId(event: H3Event): Promise<number> {
-  const user = await requireUser(event, { sessionOnly: true })
-  return Number((user as { id: number | string }).id)
+  const principal = await requireAuth(event, { sessionOnly: true })
+  return Number(principal.user.id)
 }
 
 /**

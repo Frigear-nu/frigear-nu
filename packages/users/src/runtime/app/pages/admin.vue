@@ -29,9 +29,10 @@ const hasRoles = computed(() => data.value?.hasRoles ?? false)
 const hasSubscriptions = computed(() => data.value?.hasSubscriptions ?? false)
 const roles = computed(() => data.value?.roles ?? [])
 const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
-const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
-const roleItems = computed(() => roles.value.map(value => ({ label: roleLabel(value), value })))
-const roleFilterItems = computed(() => [{ label: t('admin.filters.allRoles', 'All roles'), value: 'all' }, ...roleItems.value])
+// Roles belong to `@frigear-nu/authorization`, which names them; a stored role no longer configured shows its name.
+const roleLabels = computed(() => new Map(roles.value.map(role => [role.value, role.label])))
+const roleLabel = (value: string) => roleLabels.value.get(value) ?? value
+const roleFilterItems = computed(() => [{ label: t('admin.filters.allRoles', 'All roles'), value: 'all' }, ...roles.value.map(({ value, label }) => ({ value, label }))])
 const pending = computed(() => status.value === 'pending')
 // The previous page stays on screen (dimmed) while the next one loads; skeletons only on the very first load.
 const loading = computed(() => pending.value && !data.value)
@@ -60,9 +61,9 @@ const columns = computed<TableColumn<UserRow>[]>(() => [
   },
   ...(hasRoles.value
     ? [{
-        accessorKey: 'role',
-        header: sort.header('role', t('admin.role', 'Role')),
-        cell: ({ row }: Cell) => row.original.role ? roleLabel(row.original.role) : emptyCell(),
+        id: 'role',
+        header: sort.header('role', t('admin.roles', 'Roles')),
+        cell: ({ row }: Cell) => row.original.roles?.length ? row.original.roles.map(roleLabel).join(', ') : emptyCell(),
       }]
     : []),
   ...(hasSubscriptions.value
@@ -111,7 +112,7 @@ function openUser(_event: Event, row: { original: UserRow }) {
 }
 
 // The composable opens the form and navigates to the new user's page.
-const addUser = () => actions.create({ roles: hasRoles.value ? roles.value : [] })
+const addUser = () => actions.create()
 </script>
 
 <template>
@@ -141,7 +142,7 @@ const addUser = () => actions.create({ roles: hasRoles.value ? roles.value : [] 
           class="w-full max-w-sm"
           icon="i-lucide-search"
           :loading="pending"
-          :placeholder="t('admin.search', 'Search name, email or role...')"
+          :placeholder="t('admin.search', 'Search name or email...')"
         />
         <USelect
           v-model="filters.verified"

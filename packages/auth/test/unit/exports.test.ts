@@ -17,7 +17,7 @@ describe('package exports', () => {
   it('publishes every subpath it exports in development', () => {
     expect(Object.keys(pkg.publishConfig.exports).sort()).toEqual(Object.keys(pkg.exports).sort())
     // Older TypeScript resolution reads `typesVersions`; the client mode's subpaths ship one.
-    for (const subpath of ['./mode', './client-core', './capacitor', './client-types']) {
+    for (const subpath of ['./mode', './policies', './client-core', './capacitor', './client-types']) {
       expect(pkg.publishConfig.typesVersions['*']).toHaveProperty(subpath.slice(2))
     }
   })
@@ -40,5 +40,12 @@ describe('package exports', () => {
     expect(source).not.toMatch(/from '@nuxt\/kit'|from 'nuxt|from '#/)
     const mode = await import('../../src/runtime/mode')
     expect(Object.keys(mode).sort()).toEqual(['isSafeRedirect', 'resolveAuthMode'])
+  })
+
+  it('keeps `@frigear-nu/auth/policies` framework-free, so shared policies load in the client and on resource servers', async () => {
+    const source = readFileSync(`${root}/src/runtime/policies.ts`, 'utf8') + readFileSync(`${root}/src/runtime/utils/permissions.ts`, 'utf8')
+    expect(source).not.toMatch(/from '(@nuxt\/|nuxt|#|h3|vue)/)
+    const policies = await import('../../src/runtime/policies')
+    expect(Object.keys(policies).sort()).toEqual(['combinePolicies', 'defineSharedPolicy', 'hasPolicyRecord', 'runSharedPolicies'])
   })
 })

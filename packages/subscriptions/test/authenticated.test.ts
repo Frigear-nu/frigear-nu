@@ -312,6 +312,8 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     })
     const entitled = async (userId: number) =>
       (await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${userId}`)).has
+    // The fixture's `member` role is `auto` with `requirements: { subscription: '*' }`.
+    const roles = async (cookie: string) => (await $fetch<{ roles?: string[] }>(authApi.me.access, { headers: { cookie } })).roles
 
     it('requires a signed-in staff member', async () => {
       const target = await registerUser('Target Auth', 'target-auth@example.com')
@@ -329,6 +331,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const target = await registerUser('Free Member', 'free@example.com')
       const url = subscriptionsApi.admin.membership(target.id)
       const headers = staffHeaders(staff.cookie)
+      expect(await roles(target.cookie)).not.toContain('member')
 
       const before = await $fetch<{ plans: Array<{ key: string }>, current: unknown }>(url, { headers })
       expect(before.current).toBeNull()
@@ -344,6 +347,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(granted.id).toMatch(/^manual_/)
       expect(await row(granted.id)).toMatchObject({ userId: target.id, planKey: 'member', status: 'active', source: 'manual', priceId: '', endedAt: null })
       expect(await entitled(target.id)).toBe(true)
+      expect(await roles(target.cookie)).toContain('member')
 
       const me = await $fetch<{ activePlan: string | null, subscriptions: Array<{ source: string }> }>(subscriptionsApi.me.subscriptions, { headers: { cookie: target.cookie } })
       expect(me).toMatchObject({ activePlan: 'member', subscriptions: [{ source: 'manual' }] })
@@ -359,6 +363,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(revoked.status).toBe(204)
       expect(await revoked.text()).toBe('')
       expect(await entitled(target.id)).toBe(false)
+      expect(await roles(target.cookie)).not.toContain('member')
       expect(await row(replaced.id)).toMatchObject({ status: 'canceled' })
       await expectApiError(staffFetch(staff.cookie, 'DELETE', url), 404, 'not_found')
 
@@ -412,9 +417,38 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       })
 
       // Staff can offer plans that the public plan filter hides; unknown ones are rejected.
-      expect(await $fetch(url, { method: 'POST', headers, body: { planKey: 'secret', email: true } })).toMatchObject({ emailed: true })
+      expect(await $fetch(url, { method: 'POST', headers: { ...headers, 'x-insider': '1' }, body: { planKey: 'secret', email: true } })).toMatchObject({ emailed: true })
       await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'nope' } })).rejects.toMatchObject({ statusCode: 400 })
       await expect($fetch(url, { method: 'POST', headers, body: {} })).rejects.toMatchObject({ statusCode: 400 })
+    })
+  })
+
+  describe('admin membership: what staff may confer', () => {
+    const headers = (cookie: string, extra: Record<string, string> = {}) => ({ 'cookie': cookie, 'x-staff': '1', 'content-type': 'application/json', ...extra })
+    const post = (cookie: string, path: string, body: unknown, extra?: Record<string, string>) =>
+      fetch(path, { method: 'POST', headers: headers(cookie, extra), body: JSON.stringify(body) })
+
+    it('refuses a membership or a payment link for oneself (403 forbidden)', async () => {
+      const staff = await registerUser('Staff Self', 'staff-self@example.com')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.membership(staff.id), { planKey: 'member' }), 403, 'forbidden')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.paymentLink(staff.id), { planKey: 'patron' }), 403, 'forbidden')
+      expect((await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${staff.id}`)).has).toBe(false)
+    })
+
+    it('refuses a plan whose roles hold a permission the staff member lacks, until they hold it', async () => {
+      const staff = await registerUser('Staff Insider', 'staff-insider@example.com')
+      const target = await registerUser('Insider Target', 'insider-target@example.com')
+      // `secret` satisfies `insider` (grants `test:insider`), which this staff member does not hold.
+      const denied = post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'secret' })
+      const body = await expectApiError(denied, 403, 'forbidden')
+      expect(JSON.stringify(body)).toContain('test:insider')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.paymentLink(target.id), { planKey: 'secret' }), 403, 'forbidden')
+      expect((await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${target.id}`)).has).toBe(false)
+
+      // `member` satisfies only the `member` role, whose permissions the staff member holds.
+      expect((await post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'member' })).status).toBe(201)
+      // Holding `test:insider`, they may grant `secret` too.
+      expect((await post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'secret' }, { 'x-insider': '1' })).status).toBe(201)
     })
   })
 
@@ -457,9 +491,12 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const user = await registerUser('Token', 'token@example.com')
       const read = await createToken(user.cookie, ['subscriptions:read'])
       expect((await fetch(subscriptionsApi.me.subscriptions, { headers: bearer(read) })).status).toBe(200)
+      // A token given only `profile:read` may not read subscriptions.
+      const other = await createToken(user.cookie, ['profile:read'])
+      await expectApiError(apiClient({ bearer: other }).json('GET', subscriptionsApi.me.subscriptions), 403, 'insufficient_scope')
 
-      // The billing portal is session-only: even full access cannot use it.
-      const full = await createToken(user.cookie, ['*'])
+      // The billing portal is session-only: no token can use it, whatever it may do (a plain user cannot mint `*`).
+      const full = await createToken(user.cookie, ['subscriptions:read', 'profile:read', 'profile:write'])
       await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.portal, {}), 403, 'session_required')
       // So is the checkout (billing).
       await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.checkout, { planKey: 'patron' }), 403, 'session_required')

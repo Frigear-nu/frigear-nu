@@ -3,7 +3,6 @@ import type { ClientType, OAuthClientKind, OAuthConfiguredClient, OAuthNormalize
 
 export type * from '../../types'
 export { oauthServerApi, oidc } from './api'
-export { addOAuthScope } from './build'
 
 export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'
@@ -23,7 +22,7 @@ const NON_NATIVE_SCHEMES = new Set([
   'http:', 'https:', 'ws:', 'wss:', 'ftp:', 'file:', 'javascript:', 'data:', 'blob:', 'vbscript:', 'about:', 'mailto:', 'tel:', 'sms:', 'chrome:', 'view-source:',
 ])
 
-/** Whether a user holding `roles` may use an application restricted to `allowedRoles`. Empty = everyone. */
+/** Whether a user holding (effective) `roles` may use an application restricted to `allowedRoles`. Empty = everyone. */
 export function matchesAllowedRoles(allowedRoles: readonly string[] | null | undefined, roles: readonly string[]): boolean {
   if (!allowedRoles || allowedRoles.length === 0) return true
   return allowedRoles.some(role => roles.includes(role))
@@ -34,11 +33,47 @@ export function parseScope(scope: string | null | undefined): string[] {
   return [...new Set((scope ?? '').split(/\s+/).filter(Boolean))]
 }
 
-/** The requested scopes that the server supports; falls back to the defaults when none were requested. */
-export function resolveScope(requested: string | null | undefined, supported: readonly string[]): string[] {
+/**
+ * The requested scopes (the defaults when none were requested), split into the ones `isKnown` accepts and the
+ * `unknown` rest: an authorization request with unknown scopes is refused with `invalid_scope` (RFC 6749 §4.1.2.1).
+ */
+export function resolveScope(requested: string | null | undefined, isKnown: (scope: string) => boolean): { scope: string[], unknown: string[] } {
   const asked = parseScope(requested)
-  if (asked.length === 0) return [...DEFAULT_SCOPES]
-  return asked.filter(scope => supported.includes(scope))
+  if (asked.length === 0) return { scope: [...DEFAULT_SCOPES], unknown: [] }
+  return { scope: asked.filter(scope => isKnown(scope)), unknown: asked.filter(scope => !isKnown(scope)) }
+}
+
+/** The OIDC scopes: they stand for no permission, only for claims (`offline_access` is accepted, refresh tokens are always issued). */
+export const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
+
+/**
+ * Splits `oauthServer.scopes` into named scopes (a single word: registered with `addScope`) and permission scope
+ * details (a permission or wildcard: only how it is presented). Throws on an invalid entry.
+ */
+export function splitConfiguredScopes(definitions: readonly (string | OAuthScopeDefinition)[]): { named: OAuthScopeDefinition[], details: OAuthScopeDefinition[] } {
+  const merged = mergeScopeDefinitions(definitions)
+  const named: OAuthScopeDefinition[] = []
+  const details: OAuthScopeDefinition[] = []
+  for (const definition of merged) {
+    if (definition.name.includes(':') || definition.name === '*') {
+      if (definition.permissions?.length) throw new Error(`"${definition.name}" is a permission scope: only a named scope (a single word) has \`permissions\`.`)
+      details.push(definition)
+    }
+    else if ((OIDC_SCOPES as readonly string[]).includes(definition.name)) {
+      if (definition.permissions?.length) throw new Error(`"${definition.name}" is an OpenID Connect scope and cannot have \`permissions\`.`)
+      details.push(definition)
+    }
+    else named.push(definition)
+  }
+  return { named, details }
+}
+
+/**
+ * The scopes of `scope` whose database scope is newer than when the user consented (`versions`, by name): they need
+ * consent again. A scope without a recorded version was consented to before versions were kept: version 1.
+ */
+export function outdatedScopes(scope: readonly string[], versions: Readonly<Record<string, number>> | null | undefined, current: Readonly<Record<string, number>>): string[] {
+  return scope.filter(name => Object.hasOwn(current, name) && current[name]! > (versions?.[name] ?? 1))
 }
 
 /** A list from config or env: an array, or a comma separated string (`NUXT_*` env vars). Trimmed, no blanks. */
@@ -48,8 +83,8 @@ export function parseList(value: readonly string[] | string | null | undefined):
 }
 
 /**
- * Merges scope definitions by name (a later definition adds to an earlier one), so a module's `addOAuthScope` and the
- * host's `scopes` can describe the same scope. Order of first appearance is kept.
+ * Merges scope definitions by name (a later definition adds to an earlier one), so a scope can be described twice.
+ * Order of first appearance is kept.
  */
 export function mergeScopeDefinitions(definitions: readonly (string | OAuthScopeDefinition)[]): OAuthScopeDefinition[] {
   const merged = new Map<string, OAuthScopeDefinition>()
@@ -359,6 +394,7 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
     if (client.allowLongBrowserSessions !== undefined && typeof client.allowLongBrowserSessions !== 'boolean') {
       throw new Error(`${label}: allowLongBrowserSessions must be true or false.`)
     }
+    if (client.wildcardScopes !== undefined && typeof client.wildcardScopes !== 'boolean') throw new Error(`${label}: wildcardScopes must be true or false.`)
 
     const names = (what: 'allowedRoles' | 'tags') => stringList(client[what], `${label}: ${what}`, 50, 64)
     return {
@@ -372,6 +408,7 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
       icon: optionalText(client.icon, `${label}: icon`, 120),
       allowedRoles: names('allowedRoles').sort(),
       tags: names('tags'),
+      wildcardScopes: client.wildcardScopes ?? false,
       corsOrigins: [...new Set(corsOrigins)],
       refreshToken,
       allowLongBrowserSessions: client.allowLongBrowserSessions ?? false,

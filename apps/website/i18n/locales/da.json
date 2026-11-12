@@ -215,5 +215,20 @@
       "refresh": "Opdater",
       "error": "Kunne ikke oprette dit Frigear ID."
     }
+  },
+  "roles": {
+    "admin": "Administrator",
+    "manager": "Manager",
+    "coordinator": "Koordinator",
+    "eventmanager": "Eventmanager",
+    "barmanager": "Barmanager",
+    "crew": "Crew",
+    "member": "Medlem",
+    "supplier": "Leverandør",
+    "partner": "Partner",
+    "user": "Bruger"
+  },
+  "permissions": {
+    "documentsCrew": "Læse crew-dokumenter"
   }
 }

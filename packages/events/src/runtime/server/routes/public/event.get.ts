@@ -10,6 +10,7 @@ export default defineEventHandler(async (event): Promise<EventDetailDto> => {
   if (!row) throw notFound('Event not found.')
 
   // Personalised (membership / limits) only when somebody is signed in.
-  const user = await getUser(event, { scopes: ['tickets:read'] })
-  return getEventDetail(row, user?.id)
+  // A token without `tickets:read` sees the anonymous view.
+  const principal = await allows(event, 'tickets:read') ? await getAuth(event) : null
+  return getEventDetail(row, principal?.user.id)
 })

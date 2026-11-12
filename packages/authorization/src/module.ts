@@ -3,13 +3,10 @@ import { join } from 'node:path'
 import {
   addComponentsDir,
   addImports,
+  addPlugin,
   addRouteMiddleware,
-  addServerHandler,
-  addServerImports,
   addServerImportsDir,
   addServerPlugin,
-  addServerTemplate,
-  addTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
@@ -17,18 +14,44 @@ import {
   useLogger,
 } from '@nuxt/kit'
 import type { ModuleDependencyMeta, Nuxt } from '@nuxt/schema'
-import { addModulePages, addModuleRoutes, addOptionalMenuSource, extendDatabaseTable, registerLocales, registerModule, registerTailwindSource, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
-import { addAuthScope } from '@frigear-nu/auth/utils'
-import type { AuthRoleDefinition, AuthScopeDefinition } from '@frigear-nu/auth/utils'
+import {
+  addModulePages,
+  addModuleRoutes,
+  addOptionalMenuSource,
+  extendDatabaseTable,
+  inlineModuleRuntime,
+  registerDatabaseTable,
+  registerLocales,
+  registerModule,
+  registerTailwindSource,
+} from '@frigear-nu/module-kit/utils'
+import { addPermission, addPolicies, addRole, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import type { PermissionRegistry } from '@frigear-nu/auth/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
-import { ROUTE_RULE_KEYS } from './runtime/utils/types'
-import { findUnenforcedPatterns } from './runtime/utils/rules'
-import { AUTHORIZATION_ROLES_READ_SCOPE, compileRbac } from './runtime/utils/rbac'
-import type { RbacTable } from './runtime/utils/rbac'
+import { AUTHORIZATION_ROLES_ASSIGN, AUTHORIZATION_ROLES_READ, ROUTE_RULE_KEYS } from './runtime/utils/types'
+import { findUnenforcedPatterns, normalizeAuthorizeMeta } from './runtime/utils/rules'
+import type { AuthorizeMeta } from './runtime/utils/types'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
-export type { AuthorizationAuthorizeContext, AuthorizationPermissionMatrixDto, AuthorizationPermissionsDto, AuthorizationRoleContext, AuthorizationRoleDto, AuthorizationRolePermissionDto, AuthorizationRoleSummaryDto, AuthorizationRoleUserDto, AuthorizationRoleUsersPageDto, AuthorizationRouteRules, ModuleOptions, PublicModuleOptions, PublicRbacTable, RbacConfig, RbacGrant, RbacRole, RbacRoleInput, RbacRoleSource, RbacTable } from './types'
-export type { Ability, AbilityArgs, AuthorizeMeta, RouteRule, AuthorizationResponse } from './runtime/utils/types'
+export type {
+  AuthorizationAssignedRoleDto,
+  AuthorizationPermissionGrant,
+  AuthorizationPermissionSource,
+  AuthorizationRoleOptions,
+  AuthorizationResponse,
+  AuthorizationRoleDto,
+  AuthorizationRolePermissionDto,
+  AuthorizationRoleSummaryDto,
+  AuthorizationRoleUserDto,
+  AuthorizationRoleUsersPageDto,
+  AuthorizationRouteRules,
+  AuthorizationUserRolesDto,
+  AuthorizationUserRolesInput,
+  AuthorizeMeta,
+  ModuleOptions,
+  PublicModuleOptions,
+  RouteRule,
+} from './types'
 
 declare module 'nuxt/schema' {
   interface NuxtConfig {
@@ -40,10 +63,17 @@ declare module 'nuxt/schema' {
   }
 }
 
+/** The host's policy file for `kind`: the configured path, or the conventional one when it exists. */
+function policyFile(nuxt: Nuxt, configured: string | false | undefined, conventional: string): string | undefined {
+  if (configured === false) return undefined
+  if (configured) return join(nuxt.options.rootDir, configured)
+  return ['ts', 'js', 'mjs'].map(extension => join(nuxt.options.rootDir, `${conventional}.${extension}`)).find(existsSync)
+}
+
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: '@frigear-nu/authorization', configKey: 'authorization' },
   defaults: {
-    resolvers: {},
+    roles: {},
   },
   // The mode is the app's own `authentication.mode` (`resolveAuthMode`). Client mode has no server: the rules only
   // decide what the app shows, the API decides what is allowed.
@@ -53,19 +83,11 @@ export default defineNuxtModule<ModuleOptions>({
         '@frigear-nu/auth': { version: '>=0.0.1' },
       }
     : {
-        '@nuxthub/core': {
-          version: '>=0.10',
-        },
-        '@frigear-nu/module-kit': {
-          version: '>=0.0.1',
-        },
-        '@frigear-nu/auth': {
-          version: '>=0.0.1',
-        },
-        '@frigear-nu/users': {
-          version: '>=0.0.1',
-        },
-        // The roles admin (`rbac`): pages in the admin shell, its sidebar entry and a tab on the user page.
+        '@nuxthub/core': { version: '>=0.10' },
+        '@frigear-nu/module-kit': { version: '>=0.0.1' },
+        '@frigear-nu/auth': { version: '>=0.0.1' },
+        '@frigear-nu/users': { version: '>=0.0.1' },
+        // The roles admin: pages in the admin shell, its sidebar entry and a tab on the user page.
         '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
         '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
         '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
@@ -74,18 +96,20 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule('@frigear-nu/authorization', nuxt)
     const resolver = createResolver(import.meta.url)
     const server = resolveAuthMode(nuxt) === 'server'
+    const logger = useLogger('@frigear-nu/authorization')
 
     nuxt.options.runtimeConfig.public.authorization = {
       routes: {},
       exempt: [],
       redirectTo: options.redirectTo || undefined,
+      client: !server || undefined,
     }
     // `definePageMeta({ authorize })` in `pages:resolved` too (`@frigear-nu/mobile` checks that something is guarded).
     nuxt.options.experimental.extraPageMetaExtractionKeys = [...new Set([...(nuxt.options.experimental.extraPageMetaExtractionKeys ?? []), 'authorize'])]
 
-    // Rules are keys on the native `routeRules` (`'/admin/**': { roles: ['admin'] }`). Nuxt's app-side route
-    // rules matcher only keeps known keys, so they are collected here (once every module has had its say)
-    // and shipped through public runtime config.
+    // Rules are keys on the native `routeRules` (`'/admin/**': { permission: 'admin:access' }`). Auth's server
+    // middleware enforces them for `/api/**`; the app's route rules matcher only keeps known keys, so the page
+    // middleware gets them collected here (once every module has had its say) through public runtime config.
     nuxt.hook('modules:done', () => {
       const routes: Record<string, AuthorizationRouteRules> = {}
       const sources = [nuxt.options.routeRules, nuxt.options.nitro?.routeRules]
@@ -95,10 +119,9 @@ export default defineNuxtModule<ModuleOptions>({
           .map(key => [key, (rule as Record<string, unknown>)[key]]))
         if (Object.keys(picked).length) routes[pattern] = { ...routes[pattern], ...picked }
       }
-      // The anonymous entry points of Auth (sign-in pages, the callback, `/api/auth/**`) stay reachable under any
-      // less specific guard (`'/**': { authenticated: true }`), pages and API alike. App rules for the same or a more
-      // specific pattern still apply (`resolveRule`).
-      // With @nuxtjs/i18n every page also exists under `/<locale>/...` (the API does not).
+      // The anonymous entry points of Auth (sign-in pages, the callback) stay reachable under any less specific guard
+      // (`'/**': { authenticated: true }`). App rules for the same or a more specific pattern still apply (`resolveRule`).
+      // With @nuxtjs/i18n every page also exists under `/<locale>/...`.
       const prefixes = ['', ...((nuxt.options as { i18n?: { locales?: (string | { code: string })[] } }).i18n?.locales ?? [])
         .map(locale => typeof locale === 'string' ? locale : locale.code)
         .map(code => `/${code}`)]
@@ -123,76 +146,75 @@ export default defineNuxtModule<ModuleOptions>({
         .map(locale => `/${typeof locale === 'string' ? locale : locale.code}`)
       const unenforced = findUnenforcedPatterns(Object.keys(configured), pagePaths, locales)
       if (unenforced.length) {
-        useLogger('@frigear-nu/authorization').warn(
+        logger.warn(
           `Route rules for ${unenforced.map(pattern => `"${pattern}"`).join(', ')} match no page and are not under /api/, so they are not enforced on the server. `
-          + 'Guard those routes in their handler (requireAuth).',
+          + 'Guard those routes in their handler (authorize).',
         )
       }
     }
+
+    // `definePageMeta({ authorize })` must name a registered permission: auth compiles the registry at `modules:done`
+    // (`auth:access-compiled`), before the pages are resolved. Client mode has no registry (the issuer has it).
+    let registry: PermissionRegistry | undefined
+    nuxt.hook('auth:access-compiled', (access) => {
+      registry = access.registry
+    })
     nuxt.hook('pages:resolved', (pages) => {
       const paths: string[] = []
-      const collect = (list: { path: string, children?: unknown[] }[], base = '') => {
+      const unknown: string[] = []
+      const collect = (list: { path: string, file?: string, meta?: Record<string, unknown>, children?: unknown[] }[], base = '') => {
         for (const page of list) {
           const path = page.path.startsWith('/') ? page.path : `${base}/${page.path}`
           paths.push(path)
-          collect((page.children ?? []) as { path: string, children?: unknown[] }[], path)
+          const meta = page.meta?.authorize as AuthorizeMeta | undefined
+          const permission = meta === undefined ? undefined : normalizeAuthorizeMeta(meta)?.permission
+          if (registry && permission && !Object.hasOwn(registry.permissions, permission)) unknown.push(`${page.file ?? path}: "${permission}"`)
+          collect((page.children ?? []) as typeof list, path)
         }
       }
-      collect(pages as { path: string, children?: unknown[] }[])
+      collect(pages as Parameters<typeof collect>[0])
+      if (unknown.length) {
+        throw new Error(`[@frigear-nu/authorization] \`definePageMeta({ authorize })\` names permissions that are not registered:\n- ${unknown.join('\n- ')}`)
+      }
       warnUnenforced(paths)
     })
     nuxt.hook('build:before', () => warnUnenforced([]))
 
-    // `users.role` (default 'user'). Host apps must generate and commit their own migration.
     if (server) {
+      // The module's own permissions. Role changes alter what someone may do, so assigning is session only.
+      addPermission(nuxt,
+        { name: AUTHORIZATION_ROLES_READ, label: 'See roles', labelKey: 'authorization.permissions.rolesRead', description: 'See the roles, what each may do and who has them.', group: 'roles' },
+        { name: AUTHORIZATION_ROLES_ASSIGN, label: 'Assign roles', labelKey: 'authorization.permissions.rolesAssign', description: 'Give users roles and take them away (only roles within your own permissions).', group: 'roles', sessionOnly: true },
+      )
+      // The host's roles merge into a module's role of the same name (`replace: true` drops the module's); auth compiles
+      // them and fails the build on errors.
+      addRole(nuxt, ...Object.entries(options.roles ?? {}).map(([name, role]) => ({ ...role, name, source: 'host' as const, replace: role.replace ?? false })))
+      if (options.defaultRoles?.length) setDefaultRoles(nuxt, options.defaultRoles)
+      setRoleProvider(nuxt, { path: resolver.resolve('./runtime/server/role-provider') })
+
+      const shared = policyFile(nuxt, options.policies?.shared, 'shared/policies')
+      const serverPolicies = policyFile(nuxt, options.policies?.server, 'server/policies')
+      if (shared) addPolicies(nuxt, { path: shared, host: true, shared: true })
+      if (serverPolicies) addPolicies(nuxt, { path: serverPolicies, host: true })
+
+      // `authorization_user_roles` and `authorization_meta`; `users.role` stays this release for the migration only.
+      // Host apps must generate and commit their own migration.
+      registerDatabaseTable(nuxt, {
+        resolver,
+        schema: dialect => `./runtime/server/db/schema.${dialect}`,
+      })
       extendDatabaseTable(nuxt, {
         resolver,
-        file: dialect => `./runtime/server/db/schema.${dialect}`,
+        file: dialect => `./runtime/server/db/users.${dialect}`,
       })
-    }
+      addServerPlugin(resolver.resolve('./runtime/server/plugins/role-migration'))
 
-    // Role-based access control: compile the built-in roles, the roles and permission mappings modules registered with
-    // `@frigear-nu/auth` (`addAuthRole`, `aggregateTo`) and the host's `roles` into one table, once every module ran.
-    const rbac = server && options.rbac === true
-    if (options.rbac && !server) {
-      useLogger('@frigear-nu/authorization').warn('`rbac` needs server mode: the API of a client-mode app decides what is allowed.')
-    }
-    let rbacTable: RbacTable | null = null
-    if (rbac) {
-      nuxt.hook('modules:done', async () => {
-        const authentication = (nuxt.options as { authentication?: { scopes?: AuthScopeDefinition[] } }).authentication
-        const scopes: AuthScopeDefinition[] = [...(authentication?.scopes ?? [])]
-        await nuxt.callHook('auth:scopes', scopes)
-        const moduleRoles: AuthRoleDefinition[] = []
-        await nuxt.callHook('auth:roles', moduleRoles)
-        const result = compileRbac({ scopes, moduleRoles, config: options.roles })
-        if (result.errors.length) {
-          throw new Error(`[@frigear-nu/authorization] Invalid roles:\n- ${result.errors.join('\n- ')}`)
-        }
-        const logger = useLogger('@frigear-nu/authorization')
-        for (const warning of result.warnings) logger.info(warning)
-        rbacTable = result.table
-        nuxt.options.runtimeConfig.public.authorization = {
-          ...nuxt.options.runtimeConfig.public.authorization,
-          rbac: {
-            defaultRole: result.table.defaultRole,
-            roles: result.table.roles.map(role => ({ name: role.name, label: role.label, permissions: role.permissions })),
-          },
-        }
-      })
-      addServerTemplate({
-        filename: '#authorization/rbac',
-        getContents: () => `export const rbac = ${JSON.stringify(rbacTable)}`,
-      })
-      addServerPlugin(resolver.resolve('./runtime/server/plugins/rbac'))
-
-      // The roles admin: read-only views of the table, for staff holding `roles:read` (admin only unless granted).
-      addAuthScope(nuxt, { name: AUTHORIZATION_ROLES_READ_SCOPE, description: 'See the roles and what each may do (staff)' })
       addModuleRoutes(resolver, [
         { method: 'get', path: 'roles', file: 'admin/roles.get' },
         { method: 'get', path: 'roles/:name', file: 'admin/role.get' },
         { method: 'get', path: 'roles/:name/users', file: 'admin/role-users.get' },
-        { method: 'get', path: 'permissions', file: 'admin/permissions.get' },
+        { method: 'get', path: 'users/:id/roles', file: 'admin/user-roles.get' },
+        { method: 'put', path: 'users/:id/roles', file: 'admin/user-roles.put' },
       ], { base: '/api/admin/authorization' })
 
       // Its pages live in the admin shell of `@frigear-nu/admin` (which brings `@frigear-nu/ui`), so they only exist with it.
@@ -207,116 +229,32 @@ export default defineNuxtModule<ModuleOptions>({
         ])
         nuxt.options.runtimeConfig.public.authorization = { ...nuxt.options.runtimeConfig.public.authorization, pages: { roles: rolesPath } }
         addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/admin-menus'), menu: 'admin' })
-        // A "Permissions" tab on the users admin's user page (the `admin.users` tab area).
+        // A "Roles and permissions" tab on the users admin's user page (the `admin.users` tab area).
         if (hasNuxtModule('@frigear-nu/widget', nuxt)) {
           const { extendTabs } = await import('@frigear-nu/widget/utils')
           extendTabs(nuxt, 'admin.users', {
-            id: 'permissions',
-            component: resolver.resolve('./runtime/app/tabs/UserPermissions.vue'),
+            id: 'roles',
+            component: resolver.resolve('./runtime/app/tabs/UserRoles.vue'),
             order: 50,
-            label: 'Permissions',
-            labelKey: 'authorization.admin.tabs.permissions',
+            label: 'Roles and permissions',
+            labelKey: 'authorization.admin.tabs.userRoles',
             icon: 'i-lucide-shield-check',
+            permission: AUTHORIZATION_ROLES_READ,
           })
         }
       }
     }
-    if (server) {
-      if (!rbac) addServerTemplate({ filename: '#authorization/rbac', getContents: () => 'export const rbac = null' })
-      addModuleRoutes(resolver, [
-        { method: 'get', path: 'me/permissions', file: 'me/permissions.get' },
-      ], { base: '/api/authorization' })
-    }
 
-    // Resolvers: the configured function (or the nuxt-auth-utils session user) is re-exported through
-    // virtual modules so the runtime can import it statically, like `#users/session-mapper`.
-    const resolverSource = async (configured: string | undefined, fallback: string) => {
-      const target = configured
-        ? await resolver.resolvePath(configured, { cwd: nuxt.options.rootDir })
-        : resolver.resolve(fallback)
-      return `export { default } from ${JSON.stringify(target)}`
-    }
-
-    // Abilities registry: lets `routes` and `definePageMeta({ authorize: 'name' })` refer to abilities by name.
-    const abilitiesFile = options.abilities
-      ? await resolver.resolvePath(options.abilities, { cwd: nuxt.options.rootDir })
-      : ['shared/utils/abilities.ts', 'shared/abilities.ts'].map(file => join(nuxt.options.rootDir, file)).find(existsSync)
-    const abilitiesSource = abilitiesFile
-      ? `import * as abilities from ${JSON.stringify(abilitiesFile)}\nexport { abilities }`
-      : 'export const abilities = {}'
-
-    if (server) {
-      addServerTemplate({
-        filename: '#authorization/server-resolver',
-        getContents: () => resolverSource(options.resolvers?.server, './runtime/server/resolver'),
-      })
-      addServerTemplate({
-        filename: '#authorization/abilities',
-        getContents: () => abilitiesSource,
-      })
-    }
-    addTemplate({
-      filename: 'authorization/client-resolver.mjs',
-      write: true,
-      getContents: () => resolverSource(options.resolvers?.client, './runtime/app/resolver'),
-    })
-    addTemplate({
-      filename: 'authorization/abilities.mjs',
-      write: true,
-      getContents: () => abilitiesSource,
-    })
-
-    // Types: virtual modules + the `role` column on the session user.
-    addTypeTemplate({
-      filename: 'types/authorization-virtual.d.ts',
-      getContents: () => `declare module '#authorization/server-resolver' {
-  const resolveServerUser: (event: import('h3').H3Event) => unknown | Promise<unknown>
-  export default resolveServerUser
-}
-declare module '#authorization/abilities' {
-  export const abilities: Record<string, unknown>
-}
-declare module '#authorization/rbac' {
-  export const rbac: import(${JSON.stringify(resolver.resolve('./runtime/utils/rbac'))}).RbacTable | null
-}
-declare module '#build/authorization/client-resolver.mjs' {
-  const resolveClientUser: () => unknown | Promise<unknown>
-  export default resolveClientUser
-}
-declare module '#build/authorization/abilities.mjs' {
-  export const abilities: Record<string, unknown>
-}
-`,
-    }, { nitro: true, nuxt: true })
-    // Server mode: the `users.role` column (always set). Client mode: the id_token's `role` claim, when there is one.
-    addTypeTemplate({
-      filename: 'types/authorization-user.d.ts',
-      getContents: () => `declare module '#auth-utils' {
-  interface User {
-    role${server ? '' : '?'}: string
-  }
-}
-export {}
-`,
-    }, { nitro: true, nuxt: true })
-
-    // Shared policy helpers (client + server).
-    const abilityImports = ['defineAbility', 'allow', 'deny'].map(name => ({
-      name,
-      from: resolver.resolve('./runtime/utils/ability'),
-    }))
-    addImports(abilityImports)
-    if (server) addServerImports(abilityImports)
-
-    // Client: `allows`, `denies`, `authorize`, `useAuthorization`.
-    addImports(['allows', 'denies', 'authorize', 'useAuthorization'].map(name => ({
-      name,
-      from: resolver.resolve('./runtime/app/composables/useAuthorization'),
-    })))
+    // Client: `useAuthorization()` ({ access, can, cannot, authorize, refresh }), `<Can>` / `<Cannot>`.
+    addImports({ name: 'useAuthorization', from: resolver.resolve('./runtime/app/composables/useAuthorization') })
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
+    addPlugin(resolver.resolve('./runtime/app/plugins/access'))
+    // Menu items with a `permission` are hidden from viewers without it (`menus:filter` of `@frigear-nu/menu`).
+    if (hasNuxtModule('@frigear-nu/menu', nuxt)) addPlugin(resolver.resolve('./runtime/app/plugins/menu-filter'))
+    // Widgets and tabs with a `permission` likewise (`widgets:filter` / `tabs:filter` of `@frigear-nu/widget`).
+    if (hasNuxtModule('@frigear-nu/widget', nuxt)) addPlugin(resolver.resolve('./runtime/app/plugins/widget-filter'))
 
-    // Server: `allows(event, ...)`, `denies(event, ...)`, `authorize(event, ...)`.
-    // Transpiles the app runtime too, so it runs in both modes.
+    // Transpiles the runtime (app and server), so server utils may rely on auto-imports.
     inlineModuleRuntime(nuxt, resolver)
     if (server) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
 
@@ -326,12 +264,18 @@ export {}
       global: true,
     })
 
-    // Cheap when no `routeRules` carry an `authorization` entry: only `/api/**` requests are inspected.
-    if (server) {
-      addServerHandler({
-        middleware: true,
-        handler: resolver.resolve('./runtime/server/middleware/authorization'),
-      })
-    }
+    // @deprecated `users.role` (server mode) / the id_token's `role` claim (client mode): removed with the column in the
+    // next release. Access control reads roles from `authorization_user_roles`, never from here.
+    addTypeTemplate({
+      filename: 'types/authorization-user.d.ts',
+      getContents: () => `declare module '#auth-utils' {
+  interface User {
+    /** @deprecated Not read by access control; use \`useAuthorization().access.roles\`. */
+    role${server ? '' : '?'}: string
+  }
+}
+export {}
+`,
+    }, { nitro: true, nuxt: true })
   },
 })

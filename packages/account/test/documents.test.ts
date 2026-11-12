@@ -3,7 +3,7 @@ import { documentLabel, visibleDocuments } from '../src/runtime/app/utils/docume
 
 const docs = [
   { id: 'handbook', label: { da: 'Håndbog', en: 'Handbook' }, path: '/a.docx' },
-  { id: 'crew', label: 'Crew plan', path: '/b.pdf', roles: ['admin', 'crew'] },
+  { id: 'crew', label: 'Crew plan', path: '/b.pdf', permission: 'crew:read' },
 ]
 
 describe('documentLabel', () => {
@@ -16,9 +16,12 @@ describe('documentLabel', () => {
 })
 
 describe('visibleDocuments', () => {
-  it('shows unrestricted documents to everyone and restricted ones only to matching roles', () => {
+  it('shows unrestricted documents to everyone and gated ones only to a viewer holding the permission', () => {
+    expect(visibleDocuments(docs, p => p === 'crew:read').map(d => d.id)).toEqual(['handbook', 'crew'])
+    expect(visibleDocuments(docs, () => false).map(d => d.id)).toEqual(['handbook'])
+  })
+
+  it('hides gated documents when nothing can be checked (no authorization module)', () => {
     expect(visibleDocuments(docs, undefined).map(d => d.id)).toEqual(['handbook'])
-    expect(visibleDocuments(docs, 'member').map(d => d.id)).toEqual(['handbook'])
-    expect(visibleDocuments(docs, 'crew').map(d => d.id)).toEqual(['handbook', 'crew'])
   })
 })

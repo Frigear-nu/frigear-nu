@@ -7,7 +7,7 @@ const params = idParams().extend(idParams('fileId').shape)
 
 // Staff-only file download (the old app let any signed-in user fetch any blob path).
 export default defineEventHandler(async (event) => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const { id, fileId } = await getValidatedRouterParams(event, params.parse)
   const [file] = await db.select().from(schema.formSubmissionFiles).where(and(
     eq(schema.formSubmissionFiles.submissionId, id),

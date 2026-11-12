@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   ],
   devtools: { enabled: true },
   routeRules: {
-    '/admin/**': { roles: ['admin'] },
+    '/admin/**': { permission: 'posts:update' },
   },
   compatibilityDate: 'latest',
   hub: {
@@ -15,7 +15,15 @@ export default defineNuxtConfig({
       driver: 'libsql',
     },
   },
+  authentication: {
+    permissions: [{ name: 'posts:update', label: 'Edit posts' }],
+  },
   authorization: {
     redirectTo: '/login',
+    roles: {
+      admin: { label: 'Admin', grant: ['*'] },
+      editor: { label: 'Editor', grant: ['posts:update'], inherit: ['user'] },
+      user: { label: 'User' },
+    },
   },
 })

@@ -15,6 +15,8 @@ export default defineMenuSource(() => {
       icon: 'i-lucide-users',
       to: adminPage,
       order: 10,
+      // Hidden (by `menus:filter`) from staff who may not list users; the routes check it themselves.
+      permission: 'users:list',
     })
   }
 })

@@ -36,6 +36,13 @@
       "when": 1794017471233,
       "tag": "0004_add_users_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794489476823,
+      "tag": "0005_access_control",
+      "breakpoints": true
     }
   ]
 }

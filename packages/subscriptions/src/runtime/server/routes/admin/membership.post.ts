@@ -11,15 +11,19 @@ const bodySchema = z.object({
 })
 
 // Staff grants a membership free of charge: a manual row (no Stripe subscription behind it) that counts as an
-// active subscription until revoked or its optional end date passes. Answers 201 with the new membership.
+// active subscription until revoked or its optional end date passes. Answers 201 with the new membership. Refused
+// (403 `forbidden`) for oneself, and when a role the plan satisfies (`requirements.subscription`) holds a permission the
+// staff member lacks.
 export default defineEventHandler(async (event): Promise<SubscriptionDto> => {
-  const { target } = await loadUsersAdminTarget(event, 'update')
+  const { actor, target } = await loadUsersAdminTarget(event, 'update', { permission: 'subscriptions:manage' })
   const body = await readValidatedBody(event, bodySchema.parse)
 
   const plans = useRuntimeConfig().subscriptions?.plans ?? {}
   if (Object.keys(plans).length && !plans[body.planKey]) {
     throw badRequest('Unknown plan.')
   }
+  // Never to oneself, and never a plan whose roles hold more than the staff member does (403 `forbidden`).
+  await assertSubscriptionsGrantAllowed(event, actor, target.id, body.planKey)
 
   const endsAt = body.endsAt ?? null
 

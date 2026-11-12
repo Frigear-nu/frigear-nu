@@ -1,16 +1,10 @@
-import { db, schema } from '@nuxthub/db'
-import { count } from 'drizzle-orm'
 import type { AuthorizationRoleSummaryDto } from '../../../../types'
+import { sortedRoles, toRoleSummary } from '../../../utils/roles-view'
 
-// `GET /api/admin/authorization/roles`: every role, most senior first, with how many users have it.
+// `GET /api/admin/authorization/roles`: every configured role, with how many users have it assigned.
 export default defineEventHandler(async (event): Promise<AuthorizationRoleSummaryDto[]> => {
-  const table = await requireAuthorizationRolesStaff(event)
-  const counts = await authorizationRoleUserCounts()
-  return table.roles.map((role, rank) => toAuthorizationRoleSummaryDto(table, role, rank, counts.get(role.name) ?? 0))
+  await authorize(event, 'roles:read')
+  const { table, registry } = useAuthorizationAccessTables()
+  const counts = await countAuthorizationRoleUsers()
+  return sortedRoles(table).map(role => toRoleSummary(role, counts.get(role.name) ?? 0, table, registry))
 })
-
-async function authorizationRoleUserCounts(): Promise<Map<string, number>> {
-  const users = schema.users as typeof schema.users & { role: typeof schema.users.name }
-  const rows = await db.select({ role: users.role, total: count() }).from(users).groupBy(users.role)
-  return new Map(rows.map(row => [row.role, row.total]))
-}

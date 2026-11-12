@@ -23,63 +23,23 @@ export interface AuthResolverDefinition {
   order?: number
 }
 
-export interface AuthScopeDefinition {
-  name: string
-  description?: string
-  /**
-   * The junior-most roles this permission belongs to (role-based access control, `@frigear-nu/authorization`): every
-   * role that inherits one of them gets it too. `['user']` gives it to every signed-in user. Omit it and only `admin`
-   * holds the permission (default deny). Like Kubernetes' aggregated roles: a module grants its own permissions without
-   * the host listing them.
-   */
-  aggregateTo?: string[]
-  /**
-   * A permission only a cookie session uses (creating users, managing OAuth applications): roles can hold it, but it
-   * is never offered to API tokens or OAuth clients, nor listed as a supported OAuth scope.
-   */
-  sessionOnly?: boolean
-  /**
-   * Without `@frigear-nu/authorization` roles: only users whose `role` is one of these may pick (or be granted) the
-   * scope. With them, it is read as `aggregateTo` when that is not set.
-   * @deprecated Use `aggregateTo`.
-   */
-  roles?: string[]
-}
-
-/**
- * A role a module ships (`addAuthRole`), merged with the built-in and the host's roles by `@frigear-nu/authorization`.
- */
-export interface AuthRoleDefinition {
-  /** Stored in `users.role`. */
+/** A scope a token can be given, as `GET /api/auth/scopes` lists it. */
+export interface AuthScopeDto {
   name: string
   label?: string
+  labelKey?: string
   description?: string
-  /** Roles whose permissions this role also gets (role hierarchy). Defaults to `['user']`. */
-  inherits?: string[]
-  /** Roles that inherit this one (it slots in below them). Defaults to `['admin']`. */
-  inheritedBy?: string[]
-  /** Permissions granted directly: registered scope names or `resource:*` wildcards. */
-  permissions?: string[]
+  descriptionKey?: string
 }
 
-/** The `auth:user-permissions` Nitro hook: what a user may do, decided by the access-control module. */
-export interface AuthUserPermissionsContext {
-  event: import('h3').H3Event
-  /** The user as stored (with `role` when `@frigear-nu/authorization` adds it). */
-  user: { id: number, role?: string | null, [key: string]: unknown }
-  /**
-   * Starts `null`: no access control, the user may do everything (`*`). A listener sets the user's permissions
-   * (scope names and `resource:*` wildcards); every credential of the user is then capped by them.
-   */
-  permissions: string[] | null
-}
-
-export interface AuthScopeAvailabilityContext {
-  event: import('h3').H3Event
-  user: { id: number, role?: string }
-  scope: AuthScopeDefinition
-  /** Starts `true`; set it to `false` to hide the scope from this user and refuse it on new tokens. */
-  available: boolean
+/** The access route rules auth enforces on `/api/**` (and `@frigear-nu/authorization` on pages). */
+export interface AuthRouteRules {
+  /** The permission the caller must hold (`authorize`). Unknown permissions fail the build. */
+  permission?: string
+  /** Any signed-in caller. */
+  authenticated?: boolean
+  /** Only signed-out callers (an API route answers 403 `guest_only`). */
+  guest?: boolean
 }
 
 /**
@@ -120,6 +80,8 @@ export interface AuthTokenDto {
   prefix: string
   last4: string
   scopes: string[]
+  /** The permissions frozen when it was minted (its scopes within its user's permissions); `null` for older tokens. */
+  permissions: string[] | null
   expiresAt: string | null
   lastUsedAt: string | null
   createdAt: string
@@ -299,7 +261,9 @@ export interface ModuleOptions {
   tokenTtlDays?: number | null
   /** Path to a module whose default export is an `AuthUserStore` (overrides the one registered by `@frigear-nu/users`). */
   userStore?: string
-  /** Scopes registered by the host application. Modules register theirs with `addAuthScope`. */
-  scopes?: AuthScopeDefinition[]
+  /**
+   * Permissions registered by the host application (`resource:action`). Modules register theirs with `addPermission`.
+   */
+  permissions?: import('./runtime/utils/permissions').PermissionDefinition[]
   settings?: AuthSettings
 }

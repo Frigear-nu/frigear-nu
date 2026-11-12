@@ -1,23 +1,26 @@
 import { db, schema } from '@nuxthub/db'
 import { apiError, created } from '@frigear-nu/module-kit/server'
 import type { AuthCreatedTokenDto } from '../../../../types'
-import { isGrantableScope } from '../../../utils/scopes'
+import { isKnownScope } from '../../../utils/permissions'
 import { generateUserToken } from '../../../utils/tokens'
-import { scopes as registeredScopes } from '#auth/scopes'
+import { namedScopes, registry } from '#auth/permissions'
 
 // `POST /api/auth/me/tokens` (session only): creates an API token. 201 with the token, the only time its plaintext exists.
+// Every scope must be one the caller may grant (`canGrantScope`: `authorization:before` and roles, no policies); the
+// permissions they stand for are frozen on the row, so a token never does more than its user could when it was minted.
 export default defineEventHandler(async (event): Promise<AuthCreatedTokenDto> => {
   const { user } = await requireAuth(event, { sessionOnly: true })
   const body = await readValidatedBody(event, createTokenSchema.parse)
+  const scopes = [...new Set(body.scopes)]
 
-  const registered = registeredScopes.map(scope => scope.name)
-  const unknown = body.scopes.filter(scope => !isGrantableScope(scope, registered))
+  const unknown = scopes.filter(scope => !isKnownScope(scope, registry, namedScopes))
   if (unknown.length) {
     throw apiError(400, 'unknown_scope', `Unknown scopes: ${unknown.join(', ')}`, { scopes: unknown })
   }
-  // A token never gets more than its user may do: only the scopes offered to them (`availableScopes`).
-  const offered = (await availableScopes(event, user as { id: number, role?: string })).map(scope => scope.name)
-  const refused = body.scopes.filter(scope => !isGrantableScope(scope, offered))
+  const refused: string[] = []
+  for (const scope of scopes) {
+    if (!(await canGrantScope(event, scope, { wildcardScopes: true }))) refused.push(scope)
+  }
   if (refused.length) {
     throw apiError(403, 'insufficient_permission', `You do not hold these permissions: ${refused.join(', ')}`, { scopes: refused })
   }
@@ -32,7 +35,8 @@ export default defineEventHandler(async (event): Promise<AuthCreatedTokenDto> =>
     tokenHash,
     prefix,
     last4,
-    scopes: [...new Set(body.scopes)],
+    scopes,
+    permissions: await grantedScopePermissions(event, scopes, user),
     expiresAt: days ? new Date(Date.now() + days * 86_400_000) : null,
   }).returning()
 

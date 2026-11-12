@@ -3,12 +3,12 @@ import { authorizationApi } from '../../utils/api'
 import type { AuthorizationRoleDto, AuthorizationRoleSummaryDto } from '../../utils/api'
 import RolePermissions from '../admin/RolePermissions.vue'
 import RoleUsers from '../admin/RoleUsers.vue'
-import { useQueryTab, useRbacLabels } from '../admin/useRbacLabels'
+import { useQueryTab, useRoleLabels } from '../admin/useRoleLabels'
 import { computed, errorMessage, useFetch, useRoute } from '#imports'
 
 defineOptions({ name: 'AuthorizationAdminRolePage' })
 
-const { t, rolesPath, rolePath, sourceLabel, sourceColors } = useRbacLabels()
+const { t, rolesPath, rolePath, roleLabel, kindOf, kindLabel, kindColors } = useRoleLabels()
 const route = useRoute()
 const name = computed(() => route.params.name as string)
 const tab = useQueryTab(['permissions', 'users'] as const)
@@ -18,7 +18,11 @@ const [{ data: role, error, refresh }, { data: roles }] = await Promise.all([
   useFetch<AuthorizationRoleSummaryDto[]>(authorizationApi.admin.roles, { key: 'authorization-admin-roles' }),
 ])
 const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
-const labelOf = (value: string) => roles.value?.find(candidate => candidate.name === value)?.label ?? value
+const labelOf = (value: string) => {
+  const found = roles.value?.find(candidate => candidate.name === value)
+  return found ? roleLabel(found) : value
+}
+const kind = computed(() => role.value ? kindOf(role.value) : 'assignable')
 
 const tabs = computed(() => [
   { value: 'permissions', label: t('admin.tabs.permissions', 'Permissions'), icon: 'i-lucide-shield-check', badge: role.value?.permissionCount },
@@ -44,36 +48,35 @@ const tabs = computed(() => [
     />
     <template v-else>
       <PageHeading
-        :title="role.label"
+        :title="roleLabel(role)"
         :description="role.description ?? role.name"
-        :breadcrumb="[{ label: t('admin.title', 'Roles & permissions'), to: rolesPath }, { label: role.label }]"
+        :breadcrumb="[{ label: t('admin.title', 'Roles & permissions'), to: rolesPath }, { label: roleLabel(role) }]"
       >
         <template #badge>
           <StatusBadge
-            :status="role.source"
-            :colors="sourceColors"
-            :label="sourceLabel(role.source)"
-          />
-          <UBadge
-            v-if="role.isDefault"
-            color="neutral"
-            variant="outline"
-            :label="t('admin.default', 'Default')"
+            :status="kind"
+            :colors="kindColors"
+            :label="kindLabel(kind)"
           />
         </template>
         <div
-          v-if="role.inherits.length"
+          v-if="role.inherit.length || role.requirements.length"
           class="text-muted flex flex-wrap items-center gap-1.5 text-sm"
         >
-          <span>{{ t('admin.inheritsFrom', 'Inherits from') }}</span>
-          <ULink
-            v-for="junior in role.inherits"
-            :key="junior"
-            :to="rolePath(junior)"
-            class="text-highlighted font-medium"
-          >
-            {{ labelOf(junior) }}
-          </ULink>
+          <template v-if="role.inherit.length">
+            <span>{{ t('admin.inheritsFrom', 'Inherits from') }}</span>
+            <ULink
+              v-for="parent in role.inherit"
+              :key="parent"
+              :to="rolePath(parent)"
+              class="text-highlighted font-medium"
+            >
+              {{ labelOf(parent) }}
+            </ULink>
+          </template>
+          <span v-if="role.requirements.length">
+            {{ t('admin.requires', 'Only while: {requirements}', { requirements: role.requirements.join(', ') }) }}
+          </span>
         </div>
       </PageHeading>
 
@@ -89,7 +92,7 @@ const tabs = computed(() => [
       />
       <RoleUsers
         v-else
-        :role="role.name"
+        :role="role"
       />
     </template>
   </div>

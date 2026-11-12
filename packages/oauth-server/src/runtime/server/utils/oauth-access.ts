@@ -1,27 +1,21 @@
 import type { H3Event } from 'h3'
-import { apiError, forbidden } from '@frigear-nu/module-kit/server'
+import { apiError } from '@frigear-nu/module-kit/server'
 import type {
   ApplicationAccessContext,
   ClaimsContext,
   OAuthApplication,
   OAuthUser,
   TokenType,
-  UserRolesContext,
 } from '../../../types'
 import { matchesAllowedRoles } from '../../utils'
 
 /**
- * Gate for the admin routes: users whose role holds `oauth:manage` (role-based access control), and whoever the host
- * allows through the `oauth:authorize` Nitro hook. Without access control, denied by default:
- *
- *     nitroApp.hooks.hook('oauth:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
+ * Gate of the admin routes: the `oauth:manage` permission (session only). 401 `unauthorized`, 403 `forbidden` or
+ * `session_required` otherwise.
  */
-const adminGate = definePolicyGate('oauth:authorize', { permission: 'oauth:manage' })
-
 export async function requireOAuthAdmin(event: H3Event): Promise<{ userId: number }> {
-  const userId = await requireSessionUserId(event)
-  if (!(await adminGate.isAllowed(event, userId))) throw forbidden('You are not allowed to manage OAuth applications.')
-  return { userId }
+  const principal = await authorize(event, 'oauth:manage')
+  return { userId: Number(principal.user.id) }
 }
 
 /** The signed-in user as stored, or 401 `unauthorized` when the account no longer exists. */
@@ -31,11 +25,10 @@ export async function requireOAuthUser(userId: number): Promise<OAuthUser> {
   return user
 }
 
-/** The user's roles as reported by the `oauth:user:roles` hook listeners (none without a listener). */
+/** The user's effective roles (assigned, default, `auto`, `authorization:roles`, inheritance). None for an unknown user. */
 export async function resolveUserRoles(userId: number, event?: H3Event): Promise<string[]> {
-  const ctx: UserRolesContext = { event, userId, roles: [] }
-  await useNitroApp().hooks.callHook('oauth:user:roles', ctx)
-  return [...new Set(ctx.roles)]
+  const user = await loadAuthUser(userId)
+  return user ? getEffectiveRoles(event, user) : []
 }
 
 /** The stored user without the password hash; includes columns the host added to `users`. */
@@ -65,7 +58,7 @@ export async function userCanAccessApplication(userId: number, application: OAut
   return user ? (await checkApplicationAccess(user, application, event)).allowed : false
 }
 
-const RESERVED_CLAIMS = ['iss', 'sub', 'aud', 'exp', 'iat', 'nbf', 'jti', 'nonce', 'auth_time', 'scope', 'client_id']
+const RESERVED_CLAIMS = ['iss', 'sub', 'aud', 'exp', 'iat', 'nbf', 'jti', 'nonce', 'auth_time', 'scope', 'client_id', 'permissions']
 
 /**
  * Builds the claims for a token: standard profile claims by scope, then the `oauth:claims` hook so the

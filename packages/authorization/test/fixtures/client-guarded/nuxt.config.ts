@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: [AuthorizationModule],
   routeRules: {
     '/**': { authenticated: true },
-    '/admin/**': { roles: ['admin'] },
+    '/admin/**': { permission: 'admin:access' },
   },
   authentication: {
     mode: 'client',

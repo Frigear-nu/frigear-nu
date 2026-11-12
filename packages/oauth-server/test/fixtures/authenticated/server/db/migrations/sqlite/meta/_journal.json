@@ -57,6 +57,20 @@
       "when": 1794017490211,
       "tag": "0007_add_users_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794491549699,
+      "tag": "0008_access_control",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794493393758,
+      "tag": "0009_oauth_scope_tombstones",
+      "breakpoints": true
     }
   ]
 }

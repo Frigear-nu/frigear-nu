@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mapRoleClaim, parseRoleClaim } from '../src/runtime/server/utils/frigear-role'
+import { mapRoleClaim, mapRoleClaims, parseRoleClaim } from '../src/runtime/server/utils/frigear-role'
 
 type Row = { id: number, email: string, name: string, role?: string, emailVerifiedAt?: Date | null }
 let rows: Row[] = []
@@ -20,6 +20,8 @@ const store = {
   changeId: vi.fn(),
 }
 const clearUnverifiedAuthCredentials = vi.fn()
+const setAuthUserRoles = vi.fn(async () => {})
+vi.stubGlobal('setAuthUserRoles', setAuthUserRoles)
 vi.stubGlobal('useAuthUserStore', () => store)
 vi.stubGlobal('clearUnverifiedAuthCredentials', clearUnverifiedAuthCredentials)
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
@@ -33,6 +35,7 @@ beforeEach(() => {
   rows = []
   store.changeId.mockClear()
   clearUnverifiedAuthCredentials.mockClear()
+  setAuthUserRoles.mockClear()
 })
 
 describe('parseRoleClaim', () => {
@@ -71,23 +74,38 @@ describe('parseRoleMap', () => {
   })
 })
 
+describe('mapRoleClaims', () => {
+  const roleMap = { 'admin': 'admin', 'frigear-staff': 'manager' }
+
+  it('maps every claimed role the map lists, once', () => {
+    expect(mapRoleClaims({ role: 'admin', roles: ['volunteer', 'frigear-staff', 'admin'] }, roleMap, 'user')).toEqual(['admin', 'manager'])
+  })
+
+  it('falls back to the default role only when it is not `user`', () => {
+    expect(mapRoleClaims({ role: 'superadmin' }, roleMap, 'user')).toEqual([])
+    expect(mapRoleClaims({}, roleMap, 'member')).toEqual(['member'])
+  })
+})
+
 describe('syncFrigearUser roles', () => {
   const profile = { email: 'ada@example.com', name: 'Ada', emailVerified: true }
 
-  it('creates a new user with the role frigear.nu reports', async () => {
-    const user = await syncFrigearUser({ ...profile, role: 'admin' }, { forceId: false })
-    expect(user.role).toBe('admin')
+  it('replaces the single sign-on roles through the role provider, never writing users.role', async () => {
+    const user = await syncFrigearUser({ ...profile, roles: ['admin'] }, { forceId: false })
+    expect(user.role).toBeUndefined()
+    expect(setAuthUserRoles).toHaveBeenCalledWith(user.id, ['admin'], { source: 'sso' })
   })
 
-  it('updates an existing user to the role frigear.nu reports at every login', async () => {
+  it('also clears them when frigear.nu reports none', async () => {
     rows.push({ id: 1, email: profile.email, name: 'Ada', role: 'user' })
-    expect((await syncFrigearUser({ ...profile, role: 'admin' }, { forceId: false })).role).toBe('admin')
-    expect((await syncFrigearUser({ ...profile, role: 'user' }, { forceId: false })).role).toBe('user')
+    await syncFrigearUser({ ...profile, roles: [] }, { forceId: false })
+    expect(setAuthUserRoles).toHaveBeenCalledWith(1, [], { source: 'sso' })
+    expect(rows[0]!.role).toBe('user')
   })
 
-  it('leaves the stored role alone when no role is reported', async () => {
-    rows.push({ id: 1, email: profile.email, name: 'Ada', role: 'manager' })
-    expect((await syncFrigearUser(profile, { forceId: false })).role).toBe('manager')
+  it('leaves the roles alone when role syncing is off', async () => {
+    await syncFrigearUser(profile, { forceId: false })
+    expect(setAuthUserRoles).not.toHaveBeenCalled()
   })
 })
 
@@ -96,7 +114,7 @@ describe('syncFrigearUser email verification', () => {
 
   it('never links an existing user to an address frigear.nu has not verified', async () => {
     rows.push({ id: 1, email: profile.email, name: 'Ada', role: 'user', emailVerifiedAt: new Date() })
-    await expect(syncFrigearUser({ ...profile, role: 'admin' }, { forceId: false })).rejects.toMatchObject({ statusCode: 403, data: { code: 'frigear_email_unverified' } })
+    await expect(syncFrigearUser({ ...profile, roles: ['admin'] }, { forceId: false })).rejects.toMatchObject({ statusCode: 403, data: { code: 'frigear_email_unverified' } })
     await expect(syncFrigearUser({ ...profile, emailVerified: false, id: 9 }, { forceId: true })).rejects.toMatchObject({ statusCode: 403 })
     expect(store.changeId).not.toHaveBeenCalled()
     expect(rows[0]).toMatchObject({ id: 1, role: 'user' })

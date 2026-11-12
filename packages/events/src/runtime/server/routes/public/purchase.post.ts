@@ -12,7 +12,7 @@ const bodySchema = z.object({
 }) satisfies z.ZodType<PurchaseBody>
 
 export default defineEventHandler(async (event): Promise<PurchaseResponse> => {
-  const user = await requireUser(event, { scopes: ['tickets:write'] })
+  const { user } = await authorize(event, 'tickets:write')
   const { slug } = await getValidatedRouterParams(event, paramsSchema.parse)
   const body = await readValidatedBody(event, bodySchema.parse)
   return purchaseTicket(event, user.id, slug, body)

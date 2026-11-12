@@ -131,6 +131,10 @@
       "label": "Membership",
       "none": "No active membership",
       "manage": "Manage membership"
+    },
+    "permissions": {
+      "read": "Read your membership",
+      "manage": "Manage memberships"
     }
   }
 }

@@ -9,9 +9,8 @@ import type {
   McpToolDefinition,
   StandardMcpResourceDefinition,
 } from '@nuxtjs/mcp-toolkit/server'
-import { principalHasScopes } from '@frigear-nu/auth/utils'
 import type { AuthPrincipal, AuthUser } from '@frigear-nu/auth/utils'
-import { SCOPED_META_KEY, isPrincipalAllowed, scopeTags } from '../../utils/access'
+import { SCOPED_META_KEY, permissionTags } from '../../utils/access'
 import type { ScopedAccess } from '../../utils/access'
 
 type ShapeOutput<Shape extends ZodRawShape> = z.output<z.ZodObject<Shape>>
@@ -21,32 +20,32 @@ export interface ScopedMcpContext {
   principal: AuthPrincipal
   /** The authenticated user. "My …" tools must use this and never take a user id as an argument. */
   user: AuthUser
-  /** Whether the credential carries `scope` (e.g. an opt-in `*:pii` scope), within its user's permissions. */
-  hasScope: (scope: string) => boolean
+  /**
+   * Whether the caller (this credential, within its user's current permissions) is allowed `permission`, for example
+   * an opt-in `*:pii` permission, optionally for a `record` (policies). Backed by `allows`; it never answers for
+   * another user.
+   */
+  can: (permission: string, record?: unknown) => Promise<boolean>
 }
 
 /**
- * Extra, module-specific check layered on the scopes, typically the module's `*:authorize` policy
- * hook. It runs on every listing and every call, so a caller the host does not allow never sees
- * the definition. Identify the caller from `principal.user.id`, never from the session on `event`.
+ * The one access option of every scoped definition. Besides the toolkit's own options, a definition takes
+ * `permission` and nothing else: `scopes`, `sessionOnly` and `gate` were removed (use a `sessionOnly` permission, a
+ * policy or an `authorization:before` listener).
  */
-export type ScopedGate = (event: H3Event, principal: AuthPrincipal) => boolean | Promise<boolean>
+export type ScopedOptions = ScopedAccess
 
-export interface ScopedOptions extends ScopedAccess {
-  gate?: ScopedGate
-}
-
-async function isAllowed(event: H3Event, options: ScopedOptions): Promise<AuthPrincipal | null> {
-  const principal = await getAuth(event)
-  if (!isPrincipalAllowed(principal, options)) return null
-  if (!options.gate) return principal
-  // A failing policy hook hides the definition (fail closed) instead of breaking the whole listing.
+/**
+ * Whether the caller may see and use the definition. Runs on every listing, so a caller who is not allowed never
+ * sees it. A failing check hides the definition (fail closed) instead of breaking the whole listing.
+ */
+async function isAllowed(event: H3Event, options: ScopedOptions): Promise<boolean> {
   try {
-    return (await options.gate(event, principal)) ? principal : null
+    return await allows(event, options.permission)
   }
   catch (error) {
-    console.error('[mcp] gate failed, hiding definition', error)
-    return null
+    console.error('[mcp] access check failed, hiding definition', error)
+    return false
   }
 }
 
@@ -55,41 +54,32 @@ function toContext(event: H3Event, principal: AuthPrincipal): ScopedMcpContext {
     event,
     principal,
     user: principal.user,
-    hasScope: scope => principalHasScopes(principal, [scope]),
+    can: (permission, record) => allows(event, permission, record),
   }
 }
 
 /**
  * Authorises the in-flight request. Listing-time hiding is not authorisation (sessions freeze the
- * list), so every handler re-checks. Failures are 401/403 errors the toolkit turns into `isError`.
+ * list), so every handler re-checks with `authorize`: 401 `unauthorized`, 403 `session_required`,
+ * `insufficient_scope` or `forbidden`, which the toolkit turns into `isError`.
  */
 export async function authorizeMcp(options: ScopedOptions): Promise<ScopedMcpContext> {
   const event = useEvent()
-  const principal = await getAuth(event)
-  if (!principal) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  if (options.sessionOnly && principal.kind !== 'session') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'session_required' } })
-  }
-  if (!principalHasScopes(principal, options.scopes)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden', data: { error: 'insufficient_scope', scopes: options.scopes } })
-  }
-  if (options.gate && !(await options.gate(event, principal))) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
+  const principal = await authorize(event, options.permission)
   return toContext(event, principal)
 }
 
-function assertScoped(kind: string, options: ScopedOptions) {
-  if (!options.scopes?.length) {
-    throw new Error(`[mcp] A ${kind} must declare at least one scope; unscoped definitions are never exposed.`)
+function assertPermission(kind: string, options: ScopedOptions) {
+  if (typeof options.permission !== 'string' || !options.permission) {
+    throw new Error(`[mcp] A ${kind} must declare a \`permission\`; definitions without one are never exposed.`)
   }
 }
 
 function guarded(options: ScopedOptions, meta?: Record<string, unknown>) {
   return {
-    tags: scopeTags(options),
-    _meta: { ...meta, [SCOPED_META_KEY]: true, 'frigear-nu/scopes': options.scopes },
-    enabled: async (event: H3Event) => (await isAllowed(event, options)) !== null,
+    tags: permissionTags(options),
+    _meta: { ...meta, [SCOPED_META_KEY]: true, 'frigear-nu/permission': options.permission },
+    enabled: (event: H3Event) => isAllowed(event, options),
   }
 }
 
@@ -99,10 +89,10 @@ export type ScopedMcpToolDefinition<Shape extends ZodRawShape = ZodRawShape> = O
   handler: (args: ShapeOutput<Shape>, ctx: ScopedMcpContext, extra: McpRequestExtra) => McpToolCallbackResult | Promise<McpToolCallbackResult>
 }
 
-/** An MCP tool that is listed and callable only within the scopes (and gate) the caller satisfies. */
+/** An MCP tool that is listed and callable only by a caller who is allowed its `permission`. */
 export function defineScopedMcpTool<const Shape extends ZodRawShape = Record<string, never>>(definition: ScopedMcpToolDefinition<Shape>) {
-  assertScoped('tool', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, inputSchema, ...rest } = definition
+  assertPermission('tool', definition)
+  const { permission: _permission, handler, tags, _meta, inputSchema, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpTool({
     ...rest,
@@ -119,8 +109,8 @@ export type ScopedMcpResourceDefinition = Omit<StandardMcpResourceDefinition, 'h
 }
 
 export function defineScopedMcpResource(definition: ScopedMcpResourceDefinition) {
-  assertScoped('resource', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, ...rest } = definition
+  assertPermission('resource', definition)
+  const { permission: _permission, handler, tags, _meta, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpResource({
     ...rest,
@@ -136,8 +126,8 @@ export type ScopedMcpPromptDefinition<Shape extends ZodRawShape | undefined = un
 }
 
 export function defineScopedMcpPrompt<const Shape extends ZodRawShape | undefined = undefined>(definition: ScopedMcpPromptDefinition<Shape>) {
-  assertScoped('prompt', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, ...rest } = definition
+  assertPermission('prompt', definition)
+  const { permission: _permission, handler, tags, _meta, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpPrompt({
     ...rest,

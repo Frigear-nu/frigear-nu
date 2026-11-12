@@ -21,28 +21,23 @@ import {
   registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addAuthResolver, addAuthScope } from '@frigear-nu/auth/utils'
+import { addAuthResolver, addPermission, addScope, isKnownScope, validateRoleScopes } from '@frigear-nu/auth/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
-import { configuredClientWarnings, isExactOrigin, mergeScopeDefinitions, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions } from './runtime/utils'
+import { OIDC_SCOPES, configuredClientWarnings, isExactOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
 import { loadOrCreateDevSigningKey } from './dev-key'
 import type {
   ApplicationAccessContext,
-  AuthorizeContext,
   ClaimsContext,
   ModuleOptions,
   OAuthServerRuntimeConfig,
-  OAuthScopeDefinition,
   PublicModuleOptions,
-  StaffScopeContext,
   TokenIssuedContext,
   TokenRevokedContext,
-  UserRolesContext,
 } from './types'
 
 export type * from './types'
-export { addOAuthScope } from './runtime/utils/build'
 
 declare module '@nuxt/schema' {
   interface NuxtConfig {
@@ -60,12 +55,6 @@ declare module '@nuxt/schema' {
 
 declare module 'nitropack' {
   interface NitroRuntimeHooks {
-    /** Admin gate (manage applications): set `ctx.allowed = true` to let the user in. Denied by default. */
-    'oauth:authorize': (ctx: AuthorizeContext) => void | Promise<void>
-    /** Staff gate of `staffOnly` scopes: set `ctx.allowed = true` to grant `ctx.scope` to `ctx.userId`. Denied by default. */
-    'oauth:scope:staff': (ctx: StaffScopeContext) => void | Promise<void>
-    /** Push the user's roles onto `ctx.roles`. Without a listener nobody has a role. */
-    'oauth:user:roles': (ctx: UserRolesContext) => void | Promise<void>
     /** Extra veto after the role check: set `ctx.allowed = false` (and `ctx.reason`) to deny. */
     'oauth:application:access': (ctx: ApplicationAccessContext) => void | Promise<void>
     /** Enrich ID tokens, access tokens and userinfo: mutate `ctx.claims`. */
@@ -123,9 +112,24 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addAuthScope(nuxt,
-      { name: 'oauth:read', description: 'See which applications you can sign in to (MCP)', aggregateTo: ['user'] },
-      { name: 'oauth:manage', description: 'Manage OAuth applications (staff)', sessionOnly: true },
+    addPermission(nuxt,
+      {
+        name: 'oauth:read',
+        label: 'See which applications you can sign in to',
+        labelKey: 'oauthServer.permissions.read',
+        group: 'oauth',
+        // Self-service: every signed-in user sees their own applications.
+        implicit: true,
+      },
+      {
+        name: 'oauth:manage',
+        label: 'Manage OAuth applications and scopes',
+        labelKey: 'oauthServer.permissions.manage',
+        group: 'oauth',
+        // Client secrets and who may sign in where: a browser session only.
+        sessionOnly: true,
+        grantTo: ['admin'],
+      },
     )
     const resolver = createResolver(import.meta.url)
 
@@ -147,6 +151,10 @@ export default defineNuxtModule<ModuleOptions>({
       : resolvePagePath(settings.pages?.authorize ?? true, '/authorize')!
     // The admin page lives in the shell of `@frigear-nu/admin`, so it only exists with it.
     const adminPath = hasNuxtModule('@frigear-nu/admin') ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'oauth')) : undefined
+    // The scopes admin sits next to the applications admin (`<admin>/scopes`), unless placed elsewhere.
+    const scopesPath = hasNuxtModule('@frigear-nu/admin')
+      ? resolvePagePath(settings.pages?.scopes ?? (adminPath ? `${adminPath.replace(/\/+$/, '')}/scopes` : undefined), adminRoute(nuxt, 'oauth', 'scopes'))
+      : undefined
     const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
 
     const accessTokenTtl = options.accessTokenTtl ?? 900
@@ -192,6 +200,43 @@ export default defineNuxtModule<ModuleOptions>({
       throw new Error(`[${MODULE_NAME}] oauthServer.clients: ${(error as Error).message}`, { cause: error })
     }
 
+    // `scopes`: single words are named scopes (auth's `addScope`), permission names only describe a permission scope.
+    let configuredScopes: ReturnType<typeof splitConfiguredScopes>
+    try {
+      configuredScopes = splitConfiguredScopes(options.scopes ?? [])
+    }
+    catch (error) {
+      throw new Error(`[${MODULE_NAME}] oauthServer.scopes: ${(error as Error).message}`, { cause: error })
+    }
+    if (configuredScopes.named.length) {
+      addScope(nuxt, ...configuredScopes.named.map(scope => ({
+        name: scope.name,
+        label: scope.label,
+        labelKey: scope.labelKey,
+        description: scope.description,
+        icon: scope.icon,
+        service: scope.service,
+        permissions: scope.permissions ?? [],
+      })))
+    }
+    const roleScopes = settings.roleScopes
+    if (roleScopes !== undefined && (typeof roleScopes !== 'object' || roleScopes === null || Object.values(roleScopes).some(list => !Array.isArray(list) || list.some(item => typeof item !== 'string')))) {
+      throw new Error(`[${MODULE_NAME}] settings.roleScopes must map role names to lists of scopes.`)
+    }
+    // Once access control compiled: `roleScopes` names configured roles, and described permission scopes exist.
+    nuxt.hook('auth:access-compiled', (access) => {
+      const errors = roleScopes ? validateRoleScopes(roleScopes, access.roles) : []
+      for (const scope of configuredScopes.details) {
+        if (!(OIDC_SCOPES as readonly string[]).includes(scope.name) && !isKnownScope(scope.name, access.registry, access.namedScopes)) {
+          errors.push(`oauthServer.scopes describes "${scope.name}", which is no permission a token may hold: register it with addPermission (or authentication.permissions).`)
+        }
+      }
+      if (!errors.length) return
+      const message = `[${MODULE_NAME}] ${errors.join('\n- ')}`
+      if (nuxt.options._prepare) useLogger(MODULE_NAME).warn(message)
+      else throw new Error(message)
+    })
+
     // `privateKey` / `publicKey` come from env (`NUXT_OAUTH_SERVER_PRIVATE_KEY` / `..._PUBLIC_KEY`).
     const existing = nuxt.options.runtimeConfig.oauthServer as Partial<OAuthServerRuntimeConfig> | undefined
     const devPrivateKey = nuxt.options.dev && !nuxt.options._prepare && !existing?.privateKey && !process.env.NUXT_OAUTH_SERVER_PRIVATE_KEY
@@ -212,9 +257,9 @@ export default defineNuxtModule<ModuleOptions>({
       revokeOnCredentialChange: options.revokeOnCredentialChange !== false,
       codeTtl: options.codeTtl ?? 600,
       callbackPath,
-      // Filled in once every module had the chance to `addOAuthScope` (below).
-      scopes: [],
-      scopeDetails: [],
+      // How the configured scopes are presented; the named ones are served by auth (`#auth/permissions`).
+      scopeDetails: [...configuredScopes.named, ...configuredScopes.details],
+      roleScopes: roleScopes ?? null,
       corsOrigins,
       corsPaths,
       clients: options.clients ?? [],
@@ -225,18 +270,10 @@ export default defineNuxtModule<ModuleOptions>({
       pages: {
         authorize: settings.pages?.authorize === false ? undefined : authorizePath,
         admin: adminPath,
+        scopes: scopesPath,
         applications: applicationsPath,
       },
     }
-
-    // The scope registry: whatever modules add, then the host's `scopes`, which override the details modules gave.
-    nuxt.hook('modules:done', async () => {
-      const registered: OAuthScopeDefinition[] = []
-      await nuxt.callHook('oauth-server:scopes', registered)
-      const scopes = mergeScopeDefinitions([...registered, ...(options.scopes ?? [])])
-      nuxt.options.runtimeConfig.oauthServer.scopes = scopes.map(scope => scope.name)
-      nuxt.options.runtimeConfig.oauthServer.scopeDetails = scopes
-    })
 
     // --- Database -------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {
@@ -255,6 +292,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: oidc.token, file: 'oidc/token.post' },
       { method: 'post', path: oidc.revoke, file: 'oidc/revoke.post' },
       { method: 'get', path: oidc.userinfo, file: 'oidc/userinfo.get' },
+      { method: 'post', path: oidc.introspect, file: 'oidc/introspect.post' },
     ], { base: '/' })
 
     // --- Module API: the consent data and the caller's own applications ---------------------
@@ -273,7 +311,7 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/bootstrap/my-applications'),
     })
 
-    // --- Staff API (gated by the `oauth:authorize` hook) -----------------------------------
+    // --- Staff API (the `oauth:manage` permission) -----------------------------------------
     addModuleRoutes(resolver, [
       { method: 'get', path: 'applications', file: 'api/admin/applications.get' },
       { method: 'post', path: 'applications', file: 'api/admin/applications.post' },
@@ -282,6 +320,11 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: 'applications/:id', file: 'api/admin/application.delete' },
       { method: 'post', path: 'applications/:id/secret', file: 'api/admin/application-secret.post' },
       { method: 'post', path: 'applications/:id/revoke', file: 'api/admin/application-revoke.post' },
+      { method: 'get', path: 'scopes', file: 'api/admin/scopes.get' },
+      { method: 'post', path: 'scopes', file: 'api/admin/scopes.post' },
+      { method: 'get', path: 'scopes/:name', file: 'api/admin/scope.get' },
+      { method: 'patch', path: 'scopes/:name', file: 'api/admin/scope.patch' },
+      { method: 'delete', path: 'scopes/:name', file: 'api/admin/scope.delete' },
     ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
@@ -294,11 +337,14 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useOAuthApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
       { name: 'useMyApplications', from: resolver.resolve('./runtime/app/composables/useOAuthApplications') },
       { name: 'useOAuthApplicationActions', from: resolver.resolve('./runtime/app/composables/useOAuthApplicationActions') },
+      { name: 'useOAuthScopes', from: resolver.resolve('./runtime/app/composables/useOAuthScopes') },
+      { name: 'useOAuthScopeActions', from: resolver.resolve('./runtime/app/composables/useOAuthScopeActions') },
     ])
 
     addModulePages(MODULE_NAME, resolver, [
       { name: 'oauth-authorize', path: settings.pages?.authorize !== false ? authorizePath : undefined, file: './runtime/app/pages/authorize.vue' },
       { name: 'oauth-admin', path: adminPath, file: './runtime/app/pages/admin.vue' },
+      { name: 'oauth-admin-scopes', path: scopesPath, file: './runtime/app/pages/scopes.vue' },
       { name: 'oauth-applications', path: applicationsPath, file: './runtime/app/pages/applications.vue' },
     ])
 

@@ -1,4 +1,4 @@
-import type { MenuItem, ModuleOptions } from './types'
+import type { MenuFilterContext, MenuItem, ModuleOptions } from './types'
 
 export type ResolvedMenuContentSource = { collection: string, field: string }
 
@@ -36,6 +36,12 @@ declare module '#app' {
   interface RuntimeNuxtHooks {
     /** Called whenever `useMenu` resolves a menu's items, right before they're handed to a view. */
     'menus:visible': (menu: string) => void
+    /**
+     * Called by `useMenu` before `menus:visible`, to drop items the viewer may not see (items with a `permission`).
+     * Listeners mutate `ctx.items`. The menu cache key includes the
+     * `useState<number>('access:version')` counter, which the access layer bumps on sign-in/out, so menus re-filter.
+     */
+    'menus:filter': (ctx: MenuFilterContext) => void | Promise<void>
   }
 }
 

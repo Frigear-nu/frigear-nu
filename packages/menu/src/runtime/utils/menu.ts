@@ -207,3 +207,13 @@ export const registerMenuSource = (nuxt: Nuxt, options: RegisterMenuSourceOption
     sources.push({ menu: options.menu, file: options.file })
   }
 }
+
+/**
+ * Keeps the items for which `keep` returns true, recursing into `children` (a pruned parent takes its children with
+ * it). Returns new arrays/objects; the input is not mutated. Handy for a `menus:filter` listener.
+ */
+export function filterMenuItems<T extends { children?: T[] }>(items: T[], keep: (item: T) => boolean): T[] {
+  return items
+    .filter(keep)
+    .map(item => Array.isArray(item.children) ? { ...item, children: filterMenuItems(item.children, keep) } : item)
+}

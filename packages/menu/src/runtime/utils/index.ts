@@ -3,7 +3,7 @@ import type { MenuItem } from './menu'
 // Framework-agnostic utils, safe to import from anywhere (a Nuxt module's own `setup()`, a
 // `runtime/menus.ts` source file, server routes, tests, ...) - none of these touch Vue or Nuxt's
 // app runtime.
-export { extendMenu, defineMenuSource, registerMenuSource, parseMenuPath, deriveMenuItemId } from './menu'
+export { extendMenu, defineMenuSource, registerMenuSource, parseMenuPath, deriveMenuItemId, filterMenuItems } from './menu'
 export type { MenuItem, MenuSource, RegisterMenuSourceOptions, ParsedMenuPath } from './menu'
 
 // App-runtime util - pushes directly into the client/SSR-rendered reactive menu state (see

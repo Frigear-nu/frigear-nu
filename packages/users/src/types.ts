@@ -12,8 +12,9 @@ export type ModuleOptions = {
   settings?: {
     /**
      * User administration for staff: list/create/edit users (`/api/admin/users`), a "new users" widget and an
-     * admin page. Who may do what is decided by the host in the `users:admin:authorize` Nitro hook (denied by
-     * default). `page` is the admin page path (`true` = `/admin/users`, `false` = no page).
+     * admin page. Who may do what is decided by the permissions `users:read`, `users:list`, `users:create`,
+     * `users:update`, `users:delete` and `users:manage` (grant them to roles). `page` is the admin page path
+     * (`true` = `/admin/users`, `false` = no page).
      */
     admin?: boolean | { page?: string | boolean }
     /**
@@ -35,8 +36,6 @@ export type AdminUserDto = {
   id: number
   name: string
   email: string
-  /** Only when an authorization module added the `role` column. */
-  role?: string
   avatar: string | null
   emailVerifiedAt: string | null
   lastLoginAt: string | null

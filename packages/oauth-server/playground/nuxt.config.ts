@@ -7,6 +7,13 @@ export default defineNuxtConfig({
     '@frigear-nu/menu',
     '@frigear-nu/users',
     '@frigear-nu/oauth-server',
+    // The playground's roles (`server/plugins/policy.ts` hands them out): `admin` gets `oauth:manage` (`grantTo`).
+    // The same as `addRole` of `@frigear-nu/auth/utils`, which the playground does not depend on.
+    (_options, nuxt) => {
+      nuxt.hook('auth:role-definitions', (roles) => {
+        roles.push({ name: 'admin', label: 'Admin', source: 'host' }, { name: 'member', label: 'Member', source: 'host' })
+      })
+    },
   ],
   devtools: { enabled: true },
   compatibilityDate: 'latest',

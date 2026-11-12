@@ -6,6 +6,6 @@ import type { MeResponse } from '../../../types'
  * (the key `useSubscription()` reads), so both always return the same thing.
  */
 export default async function mySubscriptions(event: H3Event): Promise<MeResponse> {
-  const user = await requireUser(event, { scopes: ['subscriptions:read'] })
+  const { user } = await authorize(event, 'subscriptions:read')
   return listUserSubscriptions(user.id)
 }

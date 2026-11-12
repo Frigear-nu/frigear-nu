@@ -1,6 +1,6 @@
 import type { Users } from '@nuxthub/db/schema'
 
-type SessionUser = Pick<Users, 'id' | 'name' | 'email' | 'role' | 'avatarUrl' | 'emailVerifiedAt'>
+type SessionUser = Pick<Users, 'id' | 'name' | 'email' | 'avatarUrl' | 'emailVerifiedAt'>
 
 declare module '#auth-utils' {
   interface User extends SessionUser {

@@ -27,6 +27,17 @@
       "transactions": "{count} transactions",
       "recent": "Recent transactions",
       "viewUsers": "View users"
+    },
+    "permissions": {
+      "read": "Read your payments",
+      "readDescription": "Read your own payments.",
+      "write": "Resume your payments",
+      "writeDescription": "Resume paying for your own unpaid payments.",
+      "manage": "See recent payments",
+      "manageDescription": "See recent payments and revenue on the dashboard."
+    },
+    "scopes": {
+      "payments": "Your payments"
     }
   }
 }

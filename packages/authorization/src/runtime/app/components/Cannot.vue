@@ -1,22 +1,17 @@
-<script lang="ts" setup generic="A extends Ability">
-import type { Ability, AbilityArgs } from '../../utils'
-import { allows } from '../composables/useAuthorization'
-import { ref, watchEffect } from '#imports'
+<script lang="ts" setup generic="R">
+import { useAuthorization } from '../composables/useAuthorization'
+import { computed } from '#imports'
 
+// Renders the default slot when the visitor does not hold `permission` (or a shared policy denies `record`).
 const props = defineProps<{
-  ability: A
-  args?: AbilityArgs<A>
+  permission: string
+  record?: R
 }>()
 
-const resolve = async () => !(await allows(props.ability, ...((props.args ?? []) as AbilityArgs<A>)))
-
-const cannot = ref(await resolve())
-
-watchEffect(async () => {
-  cannot.value = await resolve()
-})
+const { cannot } = useAuthorization()
+const denied = computed(() => cannot(props.permission, props.record))
 </script>
 
 <template>
-  <slot v-if="cannot" />
+  <slot v-if="denied" />
 </template>

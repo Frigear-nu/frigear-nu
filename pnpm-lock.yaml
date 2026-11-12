@@ -511,6 +511,9 @@ importers:
 
   packages/admin:
     dependencies:
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -708,6 +711,9 @@ importers:
       h3:
         specifier: 'catalog:'
         version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@frigear-nu/admin':
         specifier: workspace:^

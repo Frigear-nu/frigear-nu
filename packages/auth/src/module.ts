@@ -11,6 +11,7 @@ import {
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  resolvePath,
   tryResolveModule,
   useLogger,
 } from '@nuxt/kit'
@@ -33,18 +34,27 @@ import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { Nitro } from 'nitropack'
 import { lowerFirst } from 'scule'
 import { isAbsolute, resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
+  AuthRouteRules,
   AuthSettings,
-  AuthScopeAvailabilityContext,
-  AuthScopeDefinition,
-  AuthUserPermissionsContext,
   ModuleOptions,
   OAuthProvider,
   PublicModuleOptions,
 } from './types'
-import type { AuthUserStoreRegistration } from './runtime/utils/build'
+import type {
+  AuthUserStoreRegistration,
+  PolicyFileRegistration,
+  RoleProviderRegistration,
+  RoleRequirementRegistration,
+} from './runtime/utils/build'
+import { compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
+import { pickAccessRouteRules } from './runtime/utils/route-rules'
+import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-compile'
+import type { PermissionDefinition, ScopeDefinition } from './runtime/utils/permissions'
+import type { AuthorizationBeforeContext, AuthorizationRolesContext } from './runtime/types'
 import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
@@ -74,11 +84,9 @@ export type {
   AuthCreatedTokenDto,
   AuthPasskeyDto,
   AuthResolverDefinition,
-  AuthRoleDefinition,
-  AuthScopeAvailabilityContext,
-  AuthScopeDefinition,
+  AuthRouteRules,
+  AuthScopeDto,
   AuthSettings,
-  AuthUserPermissionsContext,
   AuthTokenDto,
   ModuleOptions,
   OAuthProvider,
@@ -148,14 +156,31 @@ declare module 'nuxt/schema' {
 }
 
 declare module 'nitropack' {
+  // The access route rules (`AuthRouteRules`), enforced on `/api/**` by auth and on pages by authorization.
+  interface NitroRouteConfig {
+    permission?: AuthRouteRules['permission']
+    authenticated?: AuthRouteRules['authenticated']
+    guest?: AuthRouteRules['guest']
+  }
+  interface NitroRouteRules {
+    permission?: AuthRouteRules['permission']
+    authenticated?: AuthRouteRules['authenticated']
+    guest?: AuthRouteRules['guest']
+  }
   interface NitroRuntimeHooks {
-    /** Decides per user whether a registered scope may be picked for a token: set `ctx.available = false` to hide it. */
-    'auth:scope-available': (ctx: AuthScopeAvailabilityContext) => void | Promise<void>
     /**
-     * The access-control decision point: set `ctx.permissions` to what the user may do. Answered by
-     * `@frigear-nu/authorization` from the user's role; unanswered (`null`), every user may do everything.
+     * The single host override (≈ Laravel's `Gate::before`), fired by `authorize` / `allows` / `canGrantScope` after the
+     * credential checks. Vote with `ctx.allow()` / `ctx.deny()`: any deny (or a listener that throws) denies, otherwise
+     * any allow allows and skips roles and policies. Identify the caller from `ctx.user`, never from the session.
+     * To look at what the user may do, use `subjectAllowed`, never `allows` / `authorize` on the same permission: those
+     * fire this hook again (endless recursion).
      */
-    'auth:user-permissions': (ctx: AuthUserPermissionsContext) => void | Promise<void>
+    'authorization:before': (ctx: AuthorizationBeforeContext) => void | Promise<void>
+    /**
+     * Fired while a user's roles are resolved (once per request and user): push to or remove from `ctx.roles` (an
+     * environment allowlist, a directory). Requirements and inheritance apply afterwards. A throw leaves no roles.
+     */
+    'authorization:roles': (ctx: AuthorizationRolesContext) => void | Promise<void>
     /** An auth email (magic link, email verification) is about to be sent; replace `ctx.notification`'s subject/body to brand it. */
     'auth:email': (ctx: AuthEmailContext) => void | Promise<void>
     /**
@@ -378,20 +403,8 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     },
   })
 
-  // Scopes user tokens can be granted: the host's plus those modules declare.
-  addServerTemplate({
-    filename: '#auth/scopes',
-    getContents: async () => {
-      const registered: AuthScopeDefinition[] = [...(options.scopes ?? [])]
-      await nuxt.callHook('auth:scopes', registered)
-      const unique = [...new Map(registered.map(scope => [scope.name, scope])).values()]
-      // `scopes`: what a credential can be given. `permissions`: everything, session-only permissions included.
-      return [
-        `export const permissions = ${JSON.stringify(unique)}`,
-        `export const scopes = ${JSON.stringify(unique.filter(scope => !scope.sessionOnly))}`,
-      ].join('\n')
-    },
-  })
+  // Access control: every module's permissions, roles, requirements and policies, compiled once every module ran.
+  setupAccessControl(options, nuxt, resolver)
 
   // Where users are read and written (provided by `@frigear-nu/users`, overridable by the host).
   addServerTemplate({
@@ -430,12 +443,32 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     resolve: import('${resolver.resolve('./types')}').AuthResolverFn
   }>
 }
-declare module '#auth/scopes' {
-  type Scope = { name: string, description?: string, aggregateTo?: string[], roles?: string[], sessionOnly?: boolean }
-  /** What API tokens and OAuth clients can be given. */
-  export const scopes: Scope[]
-  /** Every registered permission, session-only ones included. */
-  export const permissions: Scope[]
+declare module '#auth/route-rules' {
+  /** The access keys of \`routeRules\` (\`permission\`, \`authenticated\`, \`guest\`), by pattern. */
+  export const rules: Record<string, import('${resolver.resolve('./runtime/utils/route-rules')}').AccessRouteRule>
+  /** Auth's own entry points, exempt from less specific rules. */
+  export const exempt: string[]
+}
+declare module '#auth/permissions' {
+  /** Every registered permission (\`addPermission\`), with its aliases. */
+  export const registry: import('${resolver.resolve('./runtime/utils/permissions')}').PermissionRegistry
+  /** Named scopes (\`addScope\`): groups of permissions a credential can be given under one name. */
+  export const namedScopes: import('${resolver.resolve('./runtime/utils/permissions')}').NamedScopes
+}
+declare module '#auth/roles' {
+  /** The compiled roles (\`addRole\`, \`authorization.roles\`), \`defaultRoles\` and \`auto\` roles. */
+  export const table: import('${resolver.resolve('./runtime/utils/permissions')}').RoleTable
+  /** Role requirements by name (\`addRoleRequirement\`). */
+  export const requirements: Record<string, import('${resolver.resolve('./runtime/types')}').AuthRoleRequirement>
+  /** Where assigned roles are stored (\`setRoleProvider\`); a no-op provider when none is registered. */
+  export const provider: import('${resolver.resolve('./runtime/types')}').AuthRoleProvider
+  /** Whether a role provider is registered. */
+  export const hasProvider: boolean
+}
+declare module '#auth/policies' {
+  type Policy = import('${resolver.resolve('./runtime/utils/permissions')}').PolicyDefinition<any, any, any, any> | import('${resolver.resolve('./runtime/utils/permissions')}').SharedPolicyDefinition<any, any>
+  /** Every policy (\`addPolicies\`), module policies before the host's. */
+  export const policies: Policy[]
 }
 declare module '#auth-utils' {
   interface UserSession {
@@ -516,6 +549,7 @@ export {}
     { method: 'post', path: 'logout', file: 'session/logout.post' },
     { method: 'get', path: 'bootstrap', file: 'bootstrap.get' },
     { method: 'get', path: 'scopes', file: 'scopes.get' },
+    { method: 'get', path: 'me/access', file: 'me/access.get' },
   ]
   // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
   if (withApiTokens) {
@@ -670,6 +704,157 @@ export {}
     afterLogin: resolveAfterLogin(settings.afterLogin),
     publicPaths: serverPublicPaths({ loginPath, registerPath: localRegisterPath, withPasswordReset }),
   }
+}
+
+/** Auth's anonymous API entry points: every handler there checks the caller itself. */
+const AUTH_API_EXEMPT = ['/api/auth/**', '/api/_auth/**']
+
+/** Route-rule guard keys of earlier releases (`@frigear-nu/authorization`), replaced by `permission`. */
+const LEGACY_ROUTE_RULE_KEYS = ['roles', 'ability', 'scopes'] as const
+
+/** An access-control registry before (or without) a successful compile: nothing registered, so every check denies. */
+const EMPTY_ACCESS: CompiledAccess = {
+  registry: { permissions: {}, aliases: {} },
+  roles: { roles: {}, defaultRoles: [], autoRoles: [] },
+  namedScopes: {},
+  warnings: [],
+  errors: [],
+}
+
+/**
+ * Collects every registration (`addPermission`, `addRole`, `addRoleRequirement`, `addPolicies`, `setRoleProvider`,
+ * `setDefaultRoles`, `addScope`) at `modules:done`, compiles
+ * them (configuration errors fail the build) and serves the result as `#auth/permissions`, `#auth/roles` and
+ * `#auth/policies` (server) and `#auth/shared-policies` (app).
+ */
+function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
+  const logger = useLogger('auth')
+  let compiled: CompiledAccess = EMPTY_ACCESS
+  let requirementFiles: RoleRequirementRegistration[] = []
+  let policyFiles: PolicyFileRegistration[] = []
+  let providerPath: string | undefined
+
+  nuxt.hook('modules:done', async () => {
+    const permissions: PermissionDefinition[] = [...(options.permissions ?? [])]
+    await nuxt.callHook('auth:permissions', permissions)
+    const roles: RoleRegistration[] = []
+    await nuxt.callHook('auth:role-definitions', roles)
+    const defaultRoles: string[] = []
+    await nuxt.callHook('auth:default-roles', defaultRoles)
+    const namedScopes: ScopeDefinition[] = []
+    await nuxt.callHook('auth:named-scopes', namedScopes)
+    requirementFiles = []
+    await nuxt.callHook('auth:role-requirements', requirementFiles)
+    policyFiles = []
+    await nuxt.callHook('auth:policies', policyFiles)
+    const provider: RoleProviderRegistration = {}
+    await nuxt.callHook('auth:role-provider', provider)
+    providerPath = provider.path
+
+    const result = compileAccess({
+      permissions,
+      roles,
+      defaultRoles,
+      requirementNames: requirementFiles.map(requirement => requirement.name),
+      namedScopes,
+      routePermissions: routeRulePermissions(accessRouteRules()),
+    })
+    // The removed route-rule guard keys are no longer enforced: a rule still using one would leave its routes open.
+    for (const source of [nuxt.options.routeRules, nuxt.options.nitro.routeRules] as Array<Record<string, unknown> | undefined>) {
+      for (const [pattern, rule] of Object.entries(source ?? {})) {
+        const removed = rule && typeof rule === 'object' ? LEGACY_ROUTE_RULE_KEYS.filter(key => key in rule) : []
+        if (removed.length) result.errors.push(`Route rule "${pattern}" uses ${removed.map(key => `\`${key}\``).join(', ')}, which is no longer enforced: use \`permission\`.`)
+      }
+    }
+    const seen = new Set<string>()
+    for (const requirement of requirementFiles) {
+      if (seen.has(requirement.name)) result.errors.push(`The role requirement "${requirement.name}" is registered twice.`)
+      seen.add(requirement.name)
+    }
+    // Shared policies are bundled into the app (and resource servers): they must not pull in server code.
+    for (const file of policyFiles.filter(file => file.shared)) {
+      const path = await resolvePath(file.path)
+      const source = await readFile(path, 'utf8').catch(() => undefined)
+      if (source === undefined) result.errors.push(`The policy file ${file.path} does not exist.`)
+      else result.errors.push(...sharedPolicyImportErrors(file.path, source))
+    }
+    for (const warning of result.warnings) logger.info(warning)
+    if (result.errors.length) {
+      const message = `[${MODULE_NAME}] Access control is misconfigured:\n- ${result.errors.join('\n- ')}`
+      // `nuxi prepare` still generates types, so the errors can be fixed with editor support.
+      if (nuxt.options._prepare) {
+        logger.warn(message)
+        return
+      }
+      throw new Error(message)
+    }
+    compiled = result
+    await nuxt.callHook('auth:access-compiled', compiled)
+  })
+
+  // The access route rules auth enforces on `/api/**`, and auth's own entry points that less specific rules skip.
+  const accessRouteRules = () => pickAccessRouteRules(
+    nuxt.options.nitro.routeRules as Record<string, unknown> | undefined,
+    nuxt.options.routeRules as Record<string, unknown> | undefined,
+  )
+  addServerTemplate({
+    filename: '#auth/route-rules',
+    getContents: () => [
+      `export const rules = ${JSON.stringify(accessRouteRules())}`,
+      `export const exempt = ${JSON.stringify(AUTH_API_EXEMPT)}`,
+    ].join('\n'),
+  })
+
+  addServerTemplate({
+    filename: '#auth/permissions',
+    getContents: () => [
+      `export const registry = ${JSON.stringify(compiled.registry)}`,
+      `export const namedScopes = ${JSON.stringify(compiled.namedScopes)}`,
+    ].join('\n'),
+  })
+  addServerTemplate({
+    filename: '#auth/roles',
+    getContents: () => {
+      const lines = requirementFiles.map((requirement, index) => `import requirement${index} from ${JSON.stringify(requirement.path)}`)
+      if (providerPath) lines.push(`import provider from ${JSON.stringify(providerPath)}`)
+      else lines.push('const provider = { getAssignedRoles: async () => [], setRoles: async () => {} }')
+      lines.push(
+        `export const table = ${JSON.stringify(compiled.roles)}`,
+        `export const requirements = { ${requirementFiles.map((requirement, index) => `${JSON.stringify(requirement.name)}: requirement${index}`).join(', ')} }`,
+        'export { provider }',
+        `export const hasProvider = ${!!providerPath}`,
+      )
+      return lines.join('\n')
+    },
+  })
+  const policyModule = (files: PolicyFileRegistration[]) => {
+    // Module policies run before the host's.
+    const ordered = [...files.filter(file => !file.host), ...files.filter(file => file.host)]
+    return [
+      ...ordered.map((file, index) => `import * as policies${index} from ${JSON.stringify(file.path)}`),
+      'const collect = (exports) => Object.values(exports).flatMap(value => Array.isArray(value) ? value : [value])',
+      '  .filter(value => value && typeof value === \'object\' && typeof value.permission === \'string\' && typeof value.handler === \'function\')',
+      `export const policies = [${ordered.map((_, index) => `...collect(policies${index})`).join(', ')}]`,
+    ].join('\n')
+  }
+  addServerTemplate({ filename: '#auth/policies', getContents: () => policyModule(policyFiles) })
+  // The shared policies alone, for the app's `can()` (`@frigear-nu/authorization`).
+  const sharedPolicies = addTemplate({
+    filename: 'auth/shared-policies.mjs',
+    write: true,
+    getContents: () => policyModule(policyFiles.filter(file => file.shared)),
+  })
+  nuxt.options.alias['#auth/shared-policies'] = sharedPolicies.dst
+  addTemplate({
+    filename: 'auth/shared-policies.d.mts',
+    write: true,
+    getContents: () => `/** The shared policies (\`defineSharedPolicy\`) of every \`addPolicies({ shared: true })\` file. */
+export declare const policies: import(${JSON.stringify(resolver.resolve('./runtime/utils/permissions'))}).SharedPolicyDefinition<any, any>[]
+`,
+  })
+
+  // A listener of a removed hook (`auth:user-permissions`, `events:authorize`, ...) never runs: say so in development.
+  if (nuxt.options.dev) addServerPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))
 }
 
 /**
@@ -916,7 +1101,7 @@ export declare const userinfo: boolean
     }
     const guarded = findGuardRules(nuxt.options.routeRules as Record<string, unknown>)
     if (guarded.length && !hasNuxtModule('@frigear-nu/authorization', nuxt) && !prepare) {
-      logger.warn(`\`routeRules\` guard ${guarded.map(pattern => `\`${pattern}\``).join(', ')} (\`authenticated\`, \`roles\`, \`guest\`, \`ability\`), but \`@frigear-nu/authorization\` is not installed: nothing checks them. Install it.`)
+      logger.warn(`\`routeRules\` guard ${guarded.map(pattern => `\`${pattern}\``).join(', ')} (\`authenticated\`, \`guest\`, \`permission\`), but \`@frigear-nu/authorization\` is not installed: nothing checks them. Install it.`)
     }
 
     // The pages and the button are Nuxt UI components; without it the app brings its own.

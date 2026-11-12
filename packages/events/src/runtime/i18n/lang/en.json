@@ -250,6 +250,22 @@
     "noTicketsTitle": "No tickets yet",
     "ticketsLoadFailed": "Your tickets could not be loaded",
     "tryAgain": "Try again",
-    "browseEvents": "Browse events"
+    "browseEvents": "Browse events",
+    "permissions": {
+      "manage": "Manage events",
+      "manageDescription": "Create and edit events, ticket types and add-ons, and check tickets in.",
+      "pii": "See attendee details",
+      "piiDescription": "See attendee names and emails (MCP tools). Never covered by a wildcard.",
+      "refund": "Refund tickets",
+      "refundDescription": "Refund a paid ticket. Cookie sessions only.",
+      "ticketsRead": "Read your tickets",
+      "ticketsWrite": "Buy tickets"
+    },
+    "scopes": {
+      "tickets": "Your tickets"
+    },
+    "roles": {
+      "eventmanager": "Event manager"
+    }
   }
 }

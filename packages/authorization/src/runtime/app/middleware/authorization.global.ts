@@ -1,18 +1,18 @@
 import { evaluateRule, loginRedirect, normalizeAuthorizeMeta, resolveRule } from '../../utils'
-import { abilities } from '#build/authorization/abilities.mjs'
-import resolveClientUser from '#build/authorization/client-resolver.mjs'
+import { useAuthorization } from '../composables/useAuthorization'
 import { abortNavigation, createError, defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig } from '#imports'
 
-// Runs for every navigation (SSR included). `definePageMeta({ authorize })` replaces the rule from
-// `routeRules[path].authorization`; `authorize: false` opens the page.
+// Runs for every navigation (SSR included). `definePageMeta({ authorize })` replaces the rule from `routeRules`;
+// `authorize: false` opens the page. A `guest` rule is for signed-out visitors only; otherwise a signed-in visitor needs its `permission`.
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig().public.authorization
   const meta = to.meta.authorize
   const rule = meta !== undefined ? normalizeAuthorizeMeta(meta) : resolveRule(config?.routes, to.path, config?.exempt)
   if (!rule) return
 
-  const user = await resolveClientUser()
-  const response = await evaluateRule(rule, user, abilities)
+  const authorization = useAuthorization()
+  const access = await authorization.ensure()
+  const response = evaluateRule(rule, !!access, permission => authorization.can(permission))
   if (response.authorized) return
 
   // Guests go to the sign-in page, which sends them back here (`?redirect=`) once signed in.

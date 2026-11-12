@@ -79,7 +79,18 @@ export default defineNuxtModule<ModuleOptions>({
       available: () => hasNuxtModule('@frigear-nu/menu', nuxt),
       fallback: 'undefined',
       fallbackType: 'undefined',
+    }, {
+      // `@frigear-nu/authorization` is optional: without it nothing can be checked, so permission-gated documents are hidden.
+      name: 'useAuthorization',
+      available: () => hasNuxtModule('@frigear-nu/authorization', nuxt),
+      fallback: 'undefined',
+      fallbackType: 'undefined',
     }])
+    for (const document of settings.documents ?? []) {
+      if ((document as { roles?: unknown }).roles !== undefined) {
+        throw new Error(`[@frigear-nu/account] \`account.settings.documents[].roles\` was removed (document "${document.id}"): use \`permission\` (a \`resource:action\` string) instead.`)
+      }
+    }
 
     addImports([
       { name: 'useAccount', from: resolver.resolve('./runtime/app/composables/useAccount') },

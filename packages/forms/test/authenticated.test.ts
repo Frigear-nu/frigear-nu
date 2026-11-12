@@ -748,15 +748,44 @@ describe('forms (authenticated, database-backed)', async () => {
     }
     const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
 
-    it('lets a staff token manage forms only with the scope, and the policy still decides', async () => {
+    it('lets a staff token manage forms only with the scope, and the role still decides', async () => {
       const manage = await createToken(staff.cookie, ['forms:manage'])
       expect((await fetch(formsApi.admin.forms, { headers: bearer(manage) })).status).toBe(200)
       expect((await fetch(formsApi.admin.forms, { headers: bearer(await createToken(staff.cookie, ['forms:submit'])) })).status).toBe(403)
-      // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
+      // Staff scopes are not even offered to, or accepted from, users whose roles do not hold them.
       expect(await scopesFor(nobody.cookie)).not.toContain('forms:manage')
-      expect(await scopesFor(nobody.cookie)).toContain('forms:submit')
+      expect(await scopesFor(nobody.cookie)).toContain('forms')
       expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['forms:manage', 'forms:pii']))
       expect(await tokenStatus(nobody.cookie, ['forms:manage'])).toBe(403)
+    })
+
+    it('does not cover the sensitive forms:pii with forms:*, only with the permission by name', async () => {
+      const wild = await registerUser('Wild', 'wild@wild.test')
+      // `forms:*` covers forms:manage (and the session-only forms:credentials), not forms:pii.
+      expect(await scopesFor(wild.cookie)).toContain('forms:manage')
+      expect(await scopesFor(wild.cookie)).not.toContain('forms:pii')
+      expect(await tokenStatus(wild.cookie, ['forms:manage'])).toBeLessThan(300)
+      expect(await tokenStatus(wild.cookie, ['forms:pii'])).toBe(403)
+
+      const form = await create('Wild pii', definition)
+      await ok(await submit(form.slug, { secret: 'wild-private-answer' }))
+      const wildToken = await mcpToken(wild.cookie, ['forms:*'])
+      const listed = await mcpCall(wildToken, 'list-submissions', { formId: form.id })
+      expect(listed.result?.isError, mcpText(listed)).toBeFalsy()
+      expect(mcpText(listed)).toContain('forms:pii')
+      expect(mcpText(listed)).not.toContain('wild-private-answer')
+
+      // The formsmanager role holds forms:pii by name.
+      const named = await mcpToken(staff.cookie, ['forms:manage', 'forms:pii'])
+      expect(mcpText(await mcpCall(named, 'list-submissions', { formId: form.id }))).toContain('wild-private-answer')
+    })
+
+    it('keeps a bearer token without forms:submit anonymous on the public routes', async () => {
+      const form = await create('Signed in only', { mode: 'single', storage: 'db', access: { availability: 'api', auth: 'user' }, steps: [{ id: 's', fields: [] }] })
+      const manageOnly = await createToken(staff.cookie, ['forms:manage'])
+      await expectApiError(apiClient({ bearer: manageOnly }).json('POST', formsApi.submit(form.slug), { answers: {}, locale: 'en' }), 401)
+      const submitToken = await createToken(nobody.cookie, ['forms:submit'])
+      expect(await apiClient({ bearer: submitToken }).json('POST', formsApi.submit(form.slug), { answers: {}, locale: 'en' })).toMatchObject({ ok: true })
     })
 
     it('does not mistake per-form tokens for credentials', async () => {
@@ -904,7 +933,7 @@ describe('forms (authenticated, database-backed)', async () => {
       const guestAll = await mcpToken(guest.cookie, ['forms:submit'])
       expect(await mcpNames(guestAll)).toEqual(['get-form', 'list-forms', 'submit-form'])
 
-      expect(await mcpNames(await mcpToken(staff.cookie, ['*']))).toContain('list-all-forms')
+      expect(await mcpNames(await mcpToken(staff.cookie, ['forms:manage', 'forms']))).toContain('list-all-forms')
 
       const staffManage = await mcpToken(staff.cookie, ['forms:manage'])
       expect(await mcpNames(staffManage)).toEqual(['create-form', 'get-form-definition', 'get-submission', 'list-all-forms', 'list-submissions', 'update-form'])

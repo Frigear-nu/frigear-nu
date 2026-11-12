@@ -3,8 +3,7 @@ import { DELIVERY_NOTICE } from '../../schemas'
 
 export default defineScopedMcpTool({
   description: `Get a form including its draft/archived status (staff). Delivery settings are never returned. ${DELIVERY_NOTICE}`,
-  scopes: ['forms:manage'],
-  gate: canManageForms,
+  permission: 'forms:manage',
   annotations: { readOnlyHint: true },
   inputSchema: { id: z.string() },
   handler: async ({ id }) => {

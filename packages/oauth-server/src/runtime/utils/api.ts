@@ -23,6 +23,10 @@ export const oauthServerApi = {
     rotateSecret: (id: string) => `/api/admin/oauth-server/applications/${enc(id)}/secret`,
     /** `POST`: signs everyone out of the application; answers the application. */
     revoke: (id: string) => `/api/admin/oauth-server/applications/${enc(id)}/revoke`,
+    /** `GET` (every scope: database ones and the read-only ones of config and modules) and `POST` (create, 201). */
+    scopes: '/api/admin/oauth-server/scopes',
+    /** `GET`, `PATCH`, `DELETE` (204) of a database scope. */
+    scope: (name: string) => `/api/admin/oauth-server/scopes/${enc(name)}`,
   },
 } as const
 
@@ -34,4 +38,6 @@ export const oidc = {
   token: '/oauth/token',
   revoke: '/oauth/revoke',
   userinfo: '/oauth/userinfo',
+  /** RFC 7662 token introspection, for the client a token was issued to (or its shared audience). */
+  introspect: '/oauth/introspect',
 } as const

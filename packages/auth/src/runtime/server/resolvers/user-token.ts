@@ -17,5 +17,12 @@ export default async function resolveUserToken(_event: H3Event, token: string): 
     await db.update(schema.authUserTokens).set({ lastUsedAt: new Date() }).where(eq(schema.authUserTokens.id, row.id)).catch(() => {})
   }
 
-  return { kind: 'user-token', user, scopes: row.scopes, token: { id: row.id, name: row.name, prefix: row.prefix } }
+  // Tokens minted since permissions are frozen carry them; older ones get theirs computed per request (`resolveBearer`).
+  return {
+    kind: 'user-token',
+    user,
+    scopes: row.scopes,
+    ...(Array.isArray(row.permissions) && { permissions: row.permissions }),
+    token: { id: row.id, name: row.name, prefix: row.prefix },
+  }
 }

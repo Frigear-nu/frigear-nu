@@ -215,5 +215,20 @@
       "refresh": "Refresh",
       "error": "Could not create your Frigear ID."
     }
+  },
+  "roles": {
+    "admin": "Administrator",
+    "manager": "Manager",
+    "coordinator": "Coordinator",
+    "eventmanager": "Event manager",
+    "barmanager": "Bar manager",
+    "crew": "Crew",
+    "member": "Member",
+    "supplier": "Supplier",
+    "partner": "Partner",
+    "user": "User"
+  },
+  "permissions": {
+    "documentsCrew": "Read crew documents"
   }
 }

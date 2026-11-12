@@ -196,22 +196,42 @@ manually — check before assuming plain pnpm scripts are the only path.
 
 ### Authentication in server routes
 
-- Authenticate server routes with `requireAuth(event, { scopes?, sessionOnly? })` from `@frigear-nu/auth` (the
-  principal: `user`, `kind`, `scopes`) or `requireUser(event, options)` from `@frigear-nu/users` (just the user), not
-  with nuxt-auth-utils' `requireUserSession`. Both resolve cookie sessions, user API tokens and OAuth access tokens.
-  `getUserSession` is only for flows that are session by nature (login, logout, OAuth consent).
+Full guide: `apps/docs/content/5.contribute/3.writing-a-module/5.access-control.md`.
+
+- Check access with `await authorize(event, 'resource:action', record?)` (auto-imported from `@frigear-nu/auth`): it
+  authenticates (cookie sessions, user API tokens, OAuth access tokens) and answers `401 unauthorized` or `403`
+  `session_required` / `insufficient_scope` / `forbidden`, and returns the principal (`user`, `kind`, `scopes`,
+  `permissions`). `allows` / `denies` return a boolean, `inspect` the reason. `requireAuth(event, { sessionOnly? })`
+  (`@frigear-nu/auth`) and `requireUser` (`@frigear-nu/users`) only authenticate, for routes every signed-in user may
+  call. Never use nuxt-auth-utils' `requireUserSession`; `getUserSession` is only for flows that are session by nature
+  (login, logout, OAuth consent).
+- **Two-step route.** `authorize(event, permission)` before anything is loaded, then
+  `authorize(event, permission, record)` once it is, so policies see the record and nothing answers 404 before 401/403.
 - Sign-in belongs to `@frigear-nu/auth` (settings under `authentication.settings`); `@frigear-nu/users` owns the user
   entity, the admin and self-service changes. Auth reaches users only through the `AuthUserStore` that users registers.
-- Define staff access with `defineStaffGuard({ hook: '<module>:authorize', scope, message })` (built on
-  `definePolicyGate`, which takes extra hook context: `isAllowed(event, userId, extra?)`) and offer staff scopes with
-  `defineStaffScopes` (all from `@frigear-nu/auth`), not with a hook of your own.
-- Anything that changes who the user is or how they sign in (password, email, passkeys, API tokens, billing portal,
-  admin) must pass `sessionOnly: true`. Register the scopes a module understands with `addAuthScope`.
-- Host policy hooks (`*:authorize`) must identify the caller from `ctx.userId`, never from the session on `ctx.event`:
-  the session is empty for bearer requests.
-- A module that adds routes using `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and `@frigear-nu/users` for
-  `requireUser`) in its `moduleDependencies` and in `package.json`, and every fixture that includes it needs the `auth_user_tokens` migration (see
-  [Database extensions and authenticated test fixtures](#database-extensions-and-authenticated-test-fixtures)).
+- **Register what code checks** in `setup()` with `@frigear-nu/auth/utils`: `addPermission(nuxt, { name, label,
+  labelKey, grantTo?, implicit?, sessionOnly?, sensitive? })`, `addScope` (a named group of permissions for tokens and
+  OAuth), `addRole` (a module role, only when its staff differ from the host's admins), `addRoleRequirement` and
+  `addPolicies`. An unregistered name is a 403 for everyone and fails the build in route rules and page meta.
+  - Staff permissions get `grantTo: ['admin']`; self-service on the user's own data is `implicit` (with a policy so
+    users reach only their own); anything exposing other people's data ends in `:pii` (`sensitive`, never covered by a
+    wildcard).
+  - Anything that changes who the user is or how they sign in (password, email, passkeys, API tokens), moves money or
+    mints credentials is a `sessionOnly` permission of its own. The permission carries the rule, not the call.
+- **Record rules** are policies: `definePolicy(permission, fn, { withoutRecord? })` in `server/policies.ts`, or
+  `defineSharedPolicy` from `@frigear-nu/auth/policies` (synchronous, framework free) to run in the client's `can()`
+  too. A policy only narrows (`false` denies, `undefined` keeps).
+- **Host overrides** go in `authorization:before` (`{ event, principal, user, permission, record, allow(), deny() }`);
+  inside it use `subjectAllowed(event, user, permission)`, never `allows`/`authorize` (they recurse). Roles come from
+  `authorization.roles` and the `authorization:roles` hook (env allowlists). Hooks identify the user from `ctx.user`,
+  never from the session on `ctx.event`: it is empty for bearer requests. There are no `<module>:authorize` hooks.
+- MCP definitions take `{ permission }`; menu, widget, tab and account items take `permission` (display only: the
+  route checks too). `userCan(event, userId, permission)` is for checks on another user only.
+- A module that adds routes using `authorize` / `requireAuth` / `requireUser` needs `@frigear-nu/auth` (and
+  `@frigear-nu/users` for `requireUser`) in its `moduleDependencies` and in `package.json`. Every fixture that includes
+  it needs the `auth_user_tokens` migration with the `permissions` column (tokens freeze their permissions there; a
+  missing column makes every token write fail), see
+  [Database extensions and authenticated test fixtures](#database-extensions-and-authenticated-test-fixtures).
 
 #### HTTP route conventions
 
@@ -244,12 +264,13 @@ Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the t
   imports inside a package stay relative.
 - **Pagination.** Admin lists use `pageQuery({ sort, filters })` + `paginate()` → `{ items, total, page, pageSize }`
   (the query keys of `useTableQuery`). Small bounded lists stay arrays.
-- **Staff guard.** One `defineStaffGuard({ hook, scope, message })` (`@frigear-nu/auth`) per module:
-  `guard.require(event)` for reads and edits, `guard.require(event, { sessionOnly: true })` for credential minting,
-  money and billing, `guard.can(event, userId)` for MCP. It returns `{ userId, principal }`; load the user with
-  `loadAuthUser(userId)` when needed.
+- **Staff access.** `authorize(event, '<module>:manage')` (or a finer `resource:action`), registered with
+  `grantTo: ['admin']`; a `sessionOnly` permission for credential minting, money and billing; `{ permission }` on MCP
+  definitions (`ctx.can(permission)` inside a tool). The returned principal carries the `user`.
 - **Tests.** `apiClient({ cookie?, bearer? })` and `expectApiError(promise, status, code?)` from
-  `@frigear-nu/module-kit/testing`.
+  `@frigear-nu/module-kit/testing`. Fixtures get roles without `@frigear-nu/authorization` through `addRole` and
+  `setRoleProvider`. Cover a cookie session, a token with the permission, one without (`403 insufficient_scope`), a
+  token on a `sessionOnly` permission (`403 session_required`), and that `resource:*` does not reach `:pii`.
 
 ### Database schemas: one file per dialect
 

@@ -24,16 +24,19 @@ async function sign(event: H3Event, userId: number, claims: Record<string, unkno
 }
 
 /**
- * A bare access token (RFC 9068: `sub`, `scope`, `client_id`, `jti`) plus whatever `oauth:claims` adds. Header `typ` is
- * `at+jwt`. Its `aud` is the shared `accessTokenAudience` when one is configured (the services accepting it), else
- * the application.
+ * A bare access token (RFC 9068: `sub`, `scope`, `client_id`, `jti`), its `permissions` (what the granted scopes stand
+ * for, within the user's permissions when it was issued: frozen, the resource servers' and this server's step 4) plus
+ * whatever `oauth:claims` adds. Header `typ` is `at+jwt`. Its `aud` is the shared `accessTokenAudience` when one is
+ * configured (the services accepting it), else the application.
  */
-export async function signAccessToken(input: TokenInput): Promise<string> {
-  const claims = await buildClaims({ ...input, tokenType: 'access_token' })
+export async function signAccessToken(input: TokenInput & { permissions: string[] }): Promise<string> {
+  const { permissions, ...rest } = input
+  const claims = await buildClaims({ ...rest, tokenType: 'access_token' })
   return sign(input.event, input.user.id, {
     ...claims,
     scope: input.scope.join(' '),
     client_id: input.application.id,
+    permissions,
   }, { typ: 'at+jwt', ttl: useOAuthConfig().accessTokenTtl, audience: getAccessTokenAudience() ?? input.application.id })
 }
 
@@ -47,7 +50,17 @@ export async function signIdToken(input: TokenInput & { nonce?: string | null, a
   }, { typ: 'JWT', ttl: useOAuthConfig().accessTokenTtl, audience: input.application.id })
 }
 
-export type AccessTokenPayload = { sub: string, aud: string | string[], scope: string, client_id: string } & Record<string, unknown>
+export type AccessTokenPayload = {
+  sub: string
+  aud: string | string[]
+  scope: string
+  client_id: string
+  exp?: number
+  iat?: number
+  iss?: string
+  /** Frozen at issue; missing in tokens issued before permissions were frozen. */
+  permissions?: string[]
+} & Record<string, unknown>
 
 /** Verifies signature, expiry, issuer and the `at+jwt` type of an access token. Returns `null` when invalid. */
 export async function verifyAccessToken(event: H3Event, token: string): Promise<AccessTokenPayload | null> {
@@ -59,6 +72,7 @@ export async function verifyAccessToken(event: H3Event, token: string): Promise<
       typ: 'at+jwt',
     })
     if (typeof payload.sub !== 'string' || typeof payload.client_id !== 'string') return null
+    if (payload.permissions !== undefined && !(Array.isArray(payload.permissions) && payload.permissions.every(item => typeof item === 'string'))) return null
     return payload as unknown as AccessTokenPayload
   }
   catch {

@@ -6,24 +6,18 @@ import { emailField, nameField } from '../../schemas'
 const bodySchema = z.object({
   name: nameField().optional(),
   email: emailField().optional(),
-  role: z.string().trim().min(1).max(60).optional(),
   emailVerified: z.boolean().optional(),
 })
 
 export default defineEventHandler(async (event) => {
-  // Authorizes `update` (outright, then on the target) before the body is read or the user looked up.
+  // `users:update` (outright, then on the target, with target protection) before the body is read or the user looked up.
   const { target } = await loadUsersAdminTarget(event, 'update')
   const input = await readValidatedBody(event, bodySchema.parse)
-  const withRole = usersHaveRoles()
-
-  // The host decides on the values too (e.g. which roles this staff member may hand out).
-  await authorizeUsersAdmin(event, 'update', {
-    input: { role: withRole ? input.role : undefined, email: input.email, name: input.name },
-    target: usersAdminTargetInfo(target),
-  })
 
   // A legacy mixed-case address resubmitted in lowercase is not a change.
   const emailChanged = !!input.email && !sameUserEmail(input.email, target.email)
+  // The address someone signs in with is theirs: changing or verifying it is `users:manage` (session only).
+  if (emailChanged || input.emailVerified !== undefined) await authorize(event, USERS_MANAGE_PERMISSION, target)
   if (emailChanged) await assertEmailAvailable(input.email!, { exceptUserId: target.id })
 
   const changes = {
@@ -34,7 +28,6 @@ export default defineEventHandler(async (event) => {
     ...(!emailChanged && input.emailVerified !== undefined
       ? { emailVerifiedAt: input.emailVerified ? (target.emailVerifiedAt ?? new Date()) : null }
       : {}),
-    ...(withRole && input.role ? { role: input.role } : {}),
   } as Partial<typeof schema.users.$inferInsert>
   // Nothing to write (e.g. the same address resubmitted in another case): answer the user as stored.
   if (!Object.keys(changes).length) return toAdminUserDto(target)

@@ -18,11 +18,21 @@ export type RefreshTokenPolicy = {
   maxAge: number | null
 }
 
-/** How a scope is presented on the consent screen. Everything but `name` is optional. */
+/**
+ * A scope of `oauthServer.scopes`, also how a scope is presented on the consent screen. Everything but `name` is
+ * optional.
+ *
+ * - A single word (`groups`, `tickets`) is a **named scope**: registered with `addScope` of `@frigear-nu/auth`, it
+ *   stands for its `permissions` (none, like `openid`, is fine). Never sensitive or `sessionOnly` permissions.
+ * - A permission (`vouchers:read`) or wildcard only describes that permission scope on the consent screen; the
+ *   permission itself is registered with `addPermission` (or `authentication.permissions`).
+ */
 export type OAuthScopeDefinition = {
   name: string
   /** Short, human-readable label, e.g. "View your bills". */
   label?: string
+  /** i18n key of the label. */
+  labelKey?: string
   /** One line explaining what the application can do with it. */
   description?: string
   /** Iconify name, e.g. `i-lucide-receipt`. */
@@ -32,11 +42,64 @@ export type OAuthScopeDefinition = {
    * scopes without one belong to this server (the account itself).
    */
   service?: string
-  /**
-   * Only staff may be granted it: the host decides who is staff through the `oauth:scope:staff` hook (denied by
-   * default). Anyone else gets a token without the scope.
-   */
-  staffOnly?: boolean
+  /** Named scopes only: the permissions (or wildcards) it stands for. */
+  permissions?: string[]
+}
+
+/** A named scope stored in the database (`oauth_scopes`), managed by staff. */
+export type OAuthDbScope = {
+  name: string
+  label: string | null
+  description: string | null
+  icon: string | null
+  /** Permissions or wildcards; never sensitive or `sessionOnly` ones. */
+  permissions: string[]
+  /** Bumped whenever the permissions it expands to grow: users are asked to consent again. */
+  version: number
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+/** A scope in the admin API: a database scope, or a read-only one from config or a module (`managed`). */
+export type AdminOAuthScopeDto = {
+  name: string
+  label: string | null
+  description: string | null
+  icon: string | null
+  service: string | null
+  permissions: string[]
+  version: number
+  isActive: boolean
+  /** Defined in `oauthServer.scopes` or by a module (`addScope`): read-only here (409 `managed_by_config`). */
+  managed: boolean
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+/** The body of `POST` / `PATCH /api/admin/oauth-server/scopes`. */
+export type OAuthScopeInput = {
+  name: string
+  label?: string | null
+  description?: string | null
+  icon?: string | null
+  permissions: string[]
+  isActive?: boolean
+}
+
+/** RFC 7662 introspection answer of `POST /oauth/introspect`. Inactive tokens answer `{ active: false }` only. */
+export type OAuthIntrospectionDto = {
+  active: boolean
+  scope?: string
+  client_id?: string
+  sub?: string
+  exp?: number
+  iat?: number
+  iss?: string
+  aud?: string | string[]
+  token_type?: 'Bearer'
+  /** The token's permissions now: its frozen set, within what its user may still do. */
+  permissions?: string[]
 }
 
 export type ModuleOptions = {
@@ -77,11 +140,11 @@ export type ModuleOptions = {
   /** Path appended to an application's `websiteUrl` to form its redirect URI. Defaults to `/auth/frigear`. */
   callbackPath?: string
   /**
-   * The scope registry: extra scopes advertised and accepted next to `openid profile email`, typically the scopes of the
-   * services that accept this server's access tokens (`vouchers:read`). Modules add theirs with `addOAuthScope`.
-   * Give a scope a `label`, `description`, `icon` and `service` to show it nicely on the consent screen (a plain string
-   * shows the description it was registered with through `addAuthScope`, or its name), and `staffOnly` to keep it
-   * from everyone the `oauth:scope:staff` hook does not call staff. Enrich their claims with `oauth:claims`.
+   * Scopes next to the OIDC ones and every permission a token may hold. A single word is a named scope (registered
+   * with `addScope` of `@frigear-nu/auth`, standing for its `permissions`); a permission name (`vouchers:read`) only
+   * gives that permission scope its `label`, `description`, `icon` and `service` on the consent screen. Modules
+   * register named scopes with `addScope`; staff add more in the admin UI (stored in `oauth_scopes`). Enrich claims
+   * with `oauth:claims`.
    */
   scopes?: Array<string | OAuthScopeDefinition>
   /**
@@ -113,11 +176,19 @@ export type ModuleOptions = {
       authorize?: string | boolean
       /** Admin UI for applications. `true` = `/admin/oauth`. Needs `@nuxt/ui`. */
       admin?: string | boolean
+      /** Admin UI for scopes. Defaults to `<admin>/scopes` when the applications admin is on; `false` turns it off. */
+      scopes?: string | boolean
       /** The signed-in user's applications. `true` = `/account/applications`. Needs `@nuxt/ui`. */
       applications?: string | boolean
     }
     /** Where unauthenticated users are sent to sign in. Defaults to the `@frigear-nu/users` login page. */
     signInPath?: string
+    /**
+     * The most each role may grant to a client: scopes, permissions or wildcards per role name. A user's cap is the
+     * union over their effective roles (inheritance included); a role that is not listed contributes nothing. Unset:
+     * no cap beyond the user's permissions. Role names must be configured roles (checked at build time).
+     */
+    roleScopes?: Record<string, string[]>
   }
 }
 
@@ -143,9 +214,11 @@ export type OAuthConfiguredClient = {
   listed?: boolean
   description?: string | null
   icon?: string | null
-  /** Roles allowed to sign in. Empty = every signed-in user. */
+  /** Roles allowed to sign in (effective roles, inheritance included). Empty = every signed-in user. */
   allowedRoles?: string[]
   tags?: string[]
+  /** May receive wildcard scopes (`*`, `resource:*`). Defaults to `false`. */
+  wildcardScopes?: boolean
   /**
    * Origins added to `cors.origins` for this client. Defaults to the origins of its redirect URIs that have one
    * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`); `false` adds none.
@@ -177,6 +250,7 @@ export type OAuthNormalizedClient = {
   icon: string | null
   allowedRoles: string[]
   tags: string[]
+  wildcardScopes: boolean
   /** Origins this client adds to the CORS origins. */
   corsOrigins: string[]
   /** Its own refresh-token lifetimes; `null` = the global policy. */
@@ -206,9 +280,10 @@ export type OAuthServerRuntimeConfig = {
   revokeOnCredentialChange: boolean
   codeTtl: number
   callbackPath: string
-  scopes: string[]
-  /** The scope registry: every configured and registered (`addOAuthScope`) scope with its details. */
+  /** How `oauthServer.scopes` presents its scopes (named scopes and permission scopes) on the consent screen. */
   scopeDetails: OAuthScopeDefinition[]
+  /** `settings.roleScopes`; `null` = no cap. */
+  roleScopes: Record<string, string[]> | null
   /** Allowed CORS origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS` takes a comma separated list). */
   corsOrigins: string[] | string
   /** Host API path prefixes open to the CORS origins (`NUXT_OAUTH_SERVER_CORS_PATHS` takes a comma separated list). */
@@ -220,7 +295,7 @@ export type OAuthServerRuntimeConfig = {
 }
 
 export type PublicModuleOptions = {
-  pages: { authorize?: string, admin?: string, applications?: string }
+  pages: { authorize?: string, admin?: string, scopes?: string, applications?: string }
 }
 
 /** The user as read from the `users` table (including columns the host added through `extend.sqlite.ts`). */
@@ -247,9 +322,11 @@ export type OAuthApplication = {
   previewUrlPattern: string | null
   /** Extra exact redirect URIs next to the derived `websiteUrl + callbackPath`. Public clients may list native (custom scheme) URIs. */
   redirectUris: string[]
-  /** Roles allowed to sign in. Empty = every signed-in user. */
+  /** Roles allowed to sign in (effective roles). Empty = every signed-in user. */
   allowedRoles: string[]
   tags: string[]
+  /** May receive wildcard scopes (`*`, `resource:*`). */
+  wildcardScopes: boolean
   ownerId: number | null
   isActive: boolean
   /** Shown in the users' application list. Unlisted applications still sign in; users open them themselves. */
@@ -281,6 +358,7 @@ export type ApplicationInput = {
   redirectUris?: string[]
   allowedRoles?: string[]
   tags?: string[]
+  wildcardScopes?: boolean
   isActive?: boolean
   isListed?: boolean
   /** Session length: refresh tokens live this long unused, in seconds (at most two years). `null` = the default. */
@@ -291,33 +369,11 @@ export type ApplicationInput = {
 
 export type TokenType = 'id_token' | 'access_token' | 'userinfo'
 
-export type AuthorizeContext = {
-  event: H3Event
-  userId: number
-  allowed: boolean
-}
-
-/** `oauth:scope:staff`: may `userId` be granted the staff-only `scope`? Set `allowed = true` for staff. */
-export type StaffScopeContext = {
-  event: H3Event
-  userId: number
-  /** The staff-only scope being granted. */
-  scope: string
-  allowed: boolean
-}
-
-export type UserRolesContext = {
-  event?: H3Event
-  userId: number
-  /** Push the user's roles here. Several listeners add up. */
-  roles: string[]
-}
-
 export type ApplicationAccessContext = {
   event?: H3Event
   user: OAuthUser
   application: OAuthApplication
-  /** The roles resolved through `oauth:user:roles`. */
+  /** The user's effective roles (`getEffectiveRoles` of `@frigear-nu/auth`). */
   roles: string[]
   /** `true` when the role check passed; set `false` (and optionally `reason`) to veto. */
   allowed: boolean
@@ -329,6 +385,7 @@ export type ClaimsContext = {
   application: OAuthApplication
   /** The granted scopes. */
   scope: string[]
+  /** The user's effective roles. */
   roles: string[]
   tokenType: TokenType
   /** Mutate this to add, change or remove claims. Standard claims (`sub`, `iss`, `aud`, `exp`, `iat`) are set afterwards. */
@@ -387,9 +444,12 @@ export type CreatedApplicationDto = AdminApplicationDto & {
 
 export type ConsentDto = {
   application: Pick<OAuthApplication, 'id' | 'name' | 'description' | 'icon' | 'websiteUrl'>
+  /** The requested scopes the user may grant: what the approval issues. */
   scope: string[]
   /** The requested scopes with whatever the server knows to present them (configured details, registered descriptions). */
   scopes?: OAuthScopeDefinition[]
+  /** Requested scopes this user may not grant (no permission, or beyond their role's cap): left out of the token. */
+  unavailable?: OAuthScopeDefinition[]
   /** `scopes` grouped by `service`, this server's own scopes (`service: null`) first. */
   groups?: OAuthScopeGroup[]
   user: { name: string, email: string, avatar: string | null }

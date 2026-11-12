@@ -21,6 +21,13 @@ export type ModuleOptions = {
   forceId?: boolean
   /** How long the issuer's keys are cached, in seconds. Defaults to `600`. Unknown key ids refetch earlier. */
   jwksCacheTtl?: number
+  /**
+   * Ask the issuer what a token may do now (RFC 7662 introspection) instead of trusting the `permissions` claim frozen
+   * in it. `clientId` / `clientSecret` are a confidential client of the issuer that the tokens are issued to or whose id
+   * is in their audience. `endpoint` defaults to `<issuer>/oauth/introspect`. Answers are cached for `cacheTtl`
+   * seconds (default `30`), never past the token's expiry. Env: `NUXT_OAUTH_RESOURCE_INTROSPECTION_CLIENT_SECRET`, ...
+   */
+  introspection?: { endpoint?: string, clientId?: string, clientSecret?: string, cacheTtl?: number }
 }
 
 /** `runtimeConfig.oauthResource`: every key can be set through `NUXT_OAUTH_RESOURCE_*`. */
@@ -36,6 +43,8 @@ export type OAuthResourceRuntimeConfig = {
   /** `''` = follow `runtimeConfig.frigear.forceId`. */
   forceId: boolean | ''
   jwksCacheTtl: number
+  /** Introspection is on when `clientId` is set. */
+  introspection: { endpoint: string, clientId: string, clientSecret: string, cacheTtl: number }
 }
 
 /** The claims of a verified access token (RFC 9068). */
@@ -48,7 +57,20 @@ export type OAuthResourceAccessToken = {
   jti?: string
   client_id: string
   scope?: string
+  /** What the token may do, frozen by the issuer when it was issued (`@frigear-nu/oauth-server`). */
+  permissions?: string[]
 } & Record<string, unknown>
+
+/** The issuer's RFC 7662 answer, as far as this module reads it. */
+export type OAuthResourceIntrospection = {
+  active: boolean
+  sub?: string
+  client_id?: string
+  scope?: string
+  exp?: number
+  /** The token's permissions now. */
+  permissions?: string[]
+}
 
 /** What the issuer's userinfo endpoint tells about an unknown user. */
 export type OAuthResourceUserinfo = {

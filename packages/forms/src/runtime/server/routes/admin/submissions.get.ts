@@ -16,7 +16,7 @@ const querySchema = pageQuery({
 
 // A form's submissions, newest first. Answers are not searchable (they are JSON); `q` is accepted and ignored.
 export default defineEventHandler(async (event): Promise<FormsPage<SubmissionSummaryDto>> => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const query = await getValidatedQuery(event, querySchema.parse)
   const form = await findFormById(id)

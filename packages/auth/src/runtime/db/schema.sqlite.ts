@@ -14,6 +14,8 @@ export const authUserTokens = sqliteTable('auth_user_tokens', {
   prefix: text().notNull(),
   last4: text().notNull(),
   scopes: text({ mode: 'json' }).$type<string[]>().notNull().$defaultFn(() => []),
+  /** The permissions the scopes stood for, within its user's, frozen when it was minted. `null`: minted before. */
+  permissions: text({ mode: 'json' }).$type<string[]>(),
   expiresAt: integer({ mode: 'timestamp' }),
   lastUsedAt: integer({ mode: 'timestamp' }),
   revokedAt: integer({ mode: 'timestamp' }),

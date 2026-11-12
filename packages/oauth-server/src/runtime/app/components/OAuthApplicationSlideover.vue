@@ -49,6 +49,7 @@ const schema = z.object({
   priority: z.number(),
   allowedRoles: z.array(z.string()),
   tags: z.array(z.string()),
+  wildcardScopes: z.boolean(),
   isListed: z.boolean(),
   // Seconds; 0 = the default (inherit).
   refreshIdleTtl: z.number(),
@@ -69,6 +70,7 @@ const state = reactive<FormState>({
   priority: props.application?.priority ?? 0,
   allowedRoles: [...(props.application?.allowedRoles ?? [])],
   tags: [...(props.application?.tags ?? [])],
+  wildcardScopes: props.application?.wildcardScopes ?? false,
   isListed: props.application?.isListed ?? true,
   refreshIdleTtl: props.application?.refreshIdleTtl ?? 0,
   refreshMaxAge: props.application?.refreshMaxAge ?? 0,
@@ -145,6 +147,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
     priority: Number(value.priority) || 0,
     allowedRoles: value.allowedRoles,
     tags: value.tags,
+    wildcardScopes: value.wildcardScopes,
     isListed: value.isListed,
     refreshIdleTtl: value.refreshIdleTtl || null,
     refreshMaxAge: value.refreshMaxAge || null,
@@ -259,12 +262,22 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
       <UFormField
         name="allowedRoles"
         :label="t('form.allowedRoles', 'Allowed roles')"
-        :description="t('form.allowedRolesHint', 'Leave empty to allow every signed-in user.')"
+        :description="t('form.allowedRolesHint', 'Leave empty to allow every signed-in user. Inherited roles count.')"
       >
         <UInputTags
           v-model="state.allowedRoles"
           :disabled="managed"
           class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        name="wildcardScopes"
+        :description="t('form.wildcardScopesHint', 'Lets the application ask for wildcard scopes such as tickets:* or *. Users still only grant what they may do themselves.')"
+      >
+        <USwitch
+          v-model="state.wildcardScopes"
+          :disabled="managed"
+          :label="t('form.wildcardScopes', 'Allow wildcard scopes')"
         />
       </UFormField>
       <UFormField

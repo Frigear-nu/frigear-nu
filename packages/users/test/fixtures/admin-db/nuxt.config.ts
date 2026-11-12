@@ -1,4 +1,4 @@
-import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addPermission, addRole } from '@frigear-nu/auth/utils'
 import MyModule from '../../../src/module'
 
 // The users module with its admin area and MCP tools on, shared by every suite of `admin.test.ts`.
@@ -8,8 +8,15 @@ export default defineNuxtConfig({
     '@frigear-nu/admin',
     '@frigear-nu/widget',
     MyModule,
-    // A second scope, for a token that lacks `users:read`.
-    (_options, nuxt) => addAuthScope(nuxt, { name: 'test:read', description: 'Test scope' }),
+    // A second permission, for a token that lacks `users:read`. The roles (no `@frigear-nu/authorization` here): the
+    // `server/plugins/roles.ts` plugin hands them out by email through `authorization:roles`.
+    (_options, nuxt) => {
+      addPermission(nuxt, { name: 'test:read', description: 'Test permission' })
+      addRole(nuxt,
+        { name: 'admin', label: 'Admin', grant: ['*'], source: 'host' },
+        { name: 'coordinator', label: 'Coordinator', grant: ['users:*'], source: 'host' },
+      )
+    },
   ],
   runtimeConfig: {
     session: {
@@ -23,8 +30,8 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
   },
-  // The admin area is unguarded here (no authorization module); the users admin API still runs the policy plugin.
-  admin: { settings: { roles: false } },
+  // The admin area is unguarded here (no authorization module); the users admin API still checks permissions.
+  admin: { settings: { permission: false } },
   authentication: {
     settings: { magicLink: true },
   },

@@ -19,6 +19,11 @@ export type WidgetDefinition = {
    * act on to hide the widget. The widget module itself never interprets it.
    */
   requires?: string
+  /**
+   * The permission (`resource:action`) a viewer must hold to see the widget. Only hides it: a `widgets:filter` listener
+   * (`@frigear-nu/authorization`) does the filtering, without one the widget is shown. The data behind it still checks.
+   */
+  permission?: string
   tags?: string[]
   meta?: Record<string, unknown>
 }
@@ -52,6 +57,8 @@ export type TabDefinition = {
   icon?: string
   /** A free-form requirement that a `tabs:filter` listener can act on; the widget module never interprets it. */
   requires?: string
+  /** The permission a viewer must hold to see the tab; filtered by a `tabs:filter` listener, like `permission` of a widget. */
+  permission?: string
   tags?: string[]
   meta?: Record<string, unknown>
 }

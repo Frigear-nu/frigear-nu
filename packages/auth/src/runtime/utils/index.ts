@@ -9,13 +9,32 @@ export type {
   AuthUserCreate,
   AuthUserStore,
   AuthUserUpdate,
+  AuthorizationBeforeContext,
+  AuthorizationRolesContext,
+  AuthRoleProvider,
+  AuthRoleRequirement,
+  AuthRoleRequirementContext,
+  AuthRoleSource,
   RequireUserOptions,
 } from '../types'
-export type { AuthResolverDefinition, AuthRoleDefinition, AuthScopeDefinition, AuthUserPermissionsContext } from '../../types'
+export type { AuthResolverDefinition, AuthRouteRules, AuthScopeDto } from '../../types'
 export type { AuthCreatedTokenDto, AuthPasskeyDto, AuthTokenDto } from '../../types'
-export { addAuthResolver, addAuthRole, addAuthScope, setAuthUserStore } from './build'
+export {
+  addAuthResolver,
+  addPermission,
+  addPolicies,
+  addRole,
+  addRoleRequirement,
+  addScope,
+  setAuthUserStore,
+  setDefaultRoles,
+  setRoleProvider,
+} from './build'
+export type { PolicyFileRegistration, RoleProviderRegistration, RoleRequirementRegistration } from './build'
+export { compileAccess, routeRulePermissions } from './access-compile'
+export type { CompileAccessInput, CompiledAccess, RoleRegistration } from './access-compile'
 export { authApi } from './api'
-export { ALL_SCOPES, hasScope, hasScopes, isGrantableScope, isPiiScope, parseScopeString, principalHasScopes } from './scopes'
+export { parseScopeString } from './scopes'
 export {
   USER_TOKEN_PREFIX,
   generateUserToken,
@@ -27,3 +46,73 @@ export {
   tokenStatus,
 } from './tokens'
 export type { TokenStatus } from './tokens'
+export {
+  ANY_PERMISSION,
+  combineBefore,
+  combinePolicies,
+  compileRoles,
+  createBeforeCollector,
+  createPermissionRegistry,
+  decide,
+  defineSharedPolicy,
+  expandHeld,
+  expandScopes,
+  hasPolicyRecord,
+  holds,
+  implicitPermissions,
+  isKnownPermission,
+  isKnownScope,
+  isWildcard,
+  matches,
+  mergeRoleContributions,
+  permissionResource,
+  precheck,
+  resolveEffectiveRoles,
+  resolvePermission,
+  roleScopeCap,
+  rolePermissions,
+  runSharedPolicies,
+  scopeGrantable,
+  validateGrant,
+  validateNamedScopes,
+  validatePermissionName,
+  validateRoleScopes,
+} from './permissions'
+export type {
+  AccessDto,
+  BeforeVote,
+  BuildResult,
+  CompileRolesInput,
+  CompiledRole,
+  DecideInput,
+  Decision,
+  DecisionCode,
+  DecisionPrincipal,
+  DecisionVia,
+  DefinePolicy,
+  EffectiveRoles,
+  EffectiveRolesInput,
+  NamedScopes,
+  PermissionDefinition,
+  PermissionRegistry,
+  PolicyContext,
+  PolicyDefinition,
+  PolicyFn,
+  PolicyOptions,
+  PolicyOutcome,
+  PolicyResult,
+  PrincipalKind,
+  ResolvedPermission,
+  RoleContribution,
+  RoleDefinition,
+  RoleGrantOrigin,
+  RoleGrantVia,
+  RoleTable,
+  ScopeDefinition,
+  ScopeGrantContext,
+  SharedPolicyContext,
+  SharedPolicyDefinition,
+  SharedPolicyFn,
+} from './permissions'
+export { matchRoute, normalizeRequestPath, pickAccessRouteRules, resolveAccessRouteRule } from './route-rules'
+export type { AccessRouteRule } from './route-rules'

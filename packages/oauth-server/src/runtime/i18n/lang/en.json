@@ -8,6 +8,10 @@
       "admin": {
         "label": "OAuth applications",
         "description": "Manage the applications users can sign in to."
+      },
+      "scopes": {
+        "label": "OAuth scopes",
+        "description": "What applications may ask users for."
       }
     },
     "admin": {
@@ -72,7 +76,7 @@
       "previewUrlPattern": "Preview URL pattern",
       "previewUrlPatternHint": "Optional, e.g. https://*.vercel.app, for preview deployments.",
       "allowedRoles": "Allowed roles",
-      "allowedRolesHint": "Leave empty to allow every signed-in user.",
+      "allowedRolesHint": "Leave empty to allow every signed-in user. Inherited roles count.",
       "tags": "Tags",
       "description": "Description",
       "icon": "Icon",
@@ -109,7 +113,9 @@
         "halfYear": "6 months",
         "year": "1 year",
         "days": "{days} days"
-      }
+      },
+      "wildcardScopes": "Allow wildcard scopes",
+      "wildcardScopesHint": "Lets the application ask for wildcard scopes such as tickets:* or *. Users still only grant what they may do themselves."
     },
     "credentials": {
       "title": "Credentials for {name}",
@@ -156,7 +162,58 @@
         "profile": "See your public profile",
         "email": "See the email address of your account"
       },
-      "accountGroup": "Your account"
+      "accountGroup": "Your account",
+      "unavailable": "Not available to your account",
+      "unavailableHint": "The application will not get these."
+    },
+    "permissions": {
+      "read": "See which applications you can sign in to",
+      "manage": "Manage OAuth applications and scopes"
+    },
+    "scopes": {
+      "title": "OAuth scopes",
+      "description": "Names applications can ask for, each standing for a set of permissions.",
+      "new": "Add scope",
+      "scope": "Scope",
+      "permissions": "Permissions",
+      "forbiddenTitle": "You are not allowed to manage OAuth scopes",
+      "loadFailed": "OAuth scopes could not be loaded",
+      "emptyTitle": "No scopes yet",
+      "emptyDescription": "Add a scope to let applications ask for a set of permissions under one name.",
+      "created": "Scope created",
+      "updated": "Scope updated",
+      "deleted": "Scope deleted",
+      "enabled": "Scope enabled",
+      "disabledToast": "Scope disabled",
+      "open": "Open scope",
+      "edit": "Edit scope",
+      "enable": "Enable scope",
+      "disable": "Disable scope",
+      "delete": "Delete scope",
+      "deleteTitle": "Delete the scope {name}?",
+      "deleteDescription": "Applications asking for it are refused, and signed-in applications lose it at their next refresh. This cannot be undone.",
+      "form": {
+        "createTitle": "Add scope",
+        "createDescription": "A name applications can ask for, standing for a set of permissions.",
+        "editDescription": "What applications get when a user grants this scope.",
+        "save": "Save scope",
+        "create": "Add scope",
+        "managedTitle": "Managed in nuxt.config",
+        "managedDescription": "This scope is defined in oauthServer.scopes or by a module and cannot be changed here.",
+        "name": "Name",
+        "nameHint": "What applications ask for, e.g. tickets. Cannot be changed later.",
+        "nameInvalid": "One lower-case word: letters, digits, \".\", \"_\" or \"-\".",
+        "permissions": "Permissions",
+        "permissionsHint": "Permissions or wildcards such as tickets:read or tickets:*. Never sensitive or session-only ones. Adding permissions asks users to consent again.",
+        "permissionsRequired": "Add at least one permission.",
+        "label": "Label",
+        "labelHint": "Shown on the consent screen, e.g. “Your tickets”.",
+        "description": "Description",
+        "icon": "Icon",
+        "isActive": "Active",
+        "isActiveHint": "A disabled scope is unknown to applications until it is enabled again.",
+        "version": "Version {version}"
+      }
     }
   }
 }

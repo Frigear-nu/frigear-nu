@@ -5,7 +5,7 @@ import type { SubmissionDeliveryDto, SubmittedContext } from '../../../../types'
 
 // Runs the `forms:submitted` hooks again for a stored submission (e.g. after a failed email).
 export default defineEventHandler(async (event): Promise<SubmissionDeliveryDto> => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const row = await findSubmissionById(id)
   const files = await db.select().from(schema.formSubmissionFiles).where(eq(schema.formSubmissionFiles.submissionId, row.id))

@@ -1,10 +1,13 @@
 import { computed, unref } from 'vue'
-import { useAsyncData, useNuxtApp, useRuntimeConfig } from '#imports'
+import { useAsyncData, useNuxtApp, useRuntimeConfig, useState } from '#imports'
 import { queryCollection } from '#menu/optional'
 import { type MenuTranslator, type ParsedMenuPath, collectMenuItems, matchesMenuGroup, parseMenuPath, sortByOrder, translateMenuItem } from '../../utils/menu'
 import { getAppMenuStore } from '../utils/state'
-import type { MenuItem } from '../../../types'
+import type { MenuFilterContext, MenuItem } from '../../../types'
 import type { AsyncData, NuxtError } from 'nuxt/app'
+
+/** The `useState` key holding the access version (a number), see `useMenu`. */
+export const ACCESS_VERSION_KEY = 'access:version'
 
 // `@nuxtjs/i18n` is optional, so we avoid a hard dependency on its types/composables and instead
 // duck-type the `$i18n` plugin it injects when the consuming app installs and configures it -
@@ -70,19 +73,26 @@ export const useMenu = (path: string): AsyncData<MenuItem[], NuxtError<unknown> 
   const { menu } = parsed
   const locale = useMenuLocale()
   const nuxtApp = useNuxtApp() as LocaleAwareNuxtApp
+  // Bumped by whoever knows what the viewer may do (`@frigear-nu/authorization`) whenever that changes (sign-in,
+  // sign-out, a role change), so filtered menus are resolved again. Shared through `useState`, so this module has no
+  // dependency on the access layer; without one it stays `0`.
+  const accessVersion = useState<number>(ACCESS_VERSION_KEY, () => 0)
 
   return useAsyncData(
-    () => `menu:${path}:${locale.value ?? ''}`,
+    () => `menu:${path}:${locale.value ?? ''}:${accessVersion.value}`,
     async () => {
       const i18n = nuxtApp.$i18n?.t && nuxtApp.$i18n.te ? (nuxtApp.$i18n as MenuTranslator) : undefined
       const registered = collectMenuItems(getAppMenuStore(nuxtApp)[menu], parsed).map(item => translateMenuItem(item, i18n))
       const content = await loadContentItems(menu, parsed, unref(locale))
-      const result = sortByOrder([...content, ...registered])
+      // `menus:filter` listeners drop the items the viewer may not see (`item.permission`), children included.
+      const ctx: MenuFilterContext = { menu, path, items: sortByOrder([...content, ...registered]) }
+      await nuxtApp.callHook('menus:filter', ctx)
+      const result = ctx.items
       // Fired once a menu's items have been resolved and are about to be handed to a view -
       // useful for analytics/telemetry hooking into when a menu actually becomes visible.
       await nuxtApp.callHook('menus:visible', menu)
       return result
     },
-    { watch: [locale] },
+    { watch: [locale, accessVersion] },
   )
 }

@@ -1,8 +1,8 @@
 import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
 import { useRuntimeConfig } from '#imports'
 
-// The Settings entry of the roles admin (see `module.ts`; only registered with `rbac` and `@frigear-nu/admin`). The
-// entry is only a link: the menu cannot be filtered per user, so the page and API stay gated by `roles:read`.
+// The Settings entry of the roles admin (see `module.ts`; only registered with `@frigear-nu/admin`). Hidden from
+// viewers without `roles:read`; the page and API check it themselves.
 export default defineMenuSource(() => {
   const rolesPage = useRuntimeConfig().public.authorization?.pages?.roles
   if (rolesPage) {
@@ -15,6 +15,7 @@ export default defineMenuSource(() => {
       icon: 'i-lucide-shield-check',
       to: rolesPage,
       order: 20,
+      permission: 'roles:read',
     }))
   }
 })

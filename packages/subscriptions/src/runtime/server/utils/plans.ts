@@ -103,7 +103,8 @@ export async function getAvailablePlans(event?: H3Event): Promise<ResolvedPlan[]
 
 async function isSubscriber(event?: H3Event) {
   if (!event) return false
-  const user = await getUser(event, { scopes: ['subscriptions:read'] }).catch(() => null)
+  // A credential that may not read subscriptions is treated as a new subscriber.
+  const user = await allows(event, 'subscriptions:read').then(allowed => allowed ? getUser(event) : null).catch(() => null)
   const userId = user?.id
   if (userId === undefined || userId === null) return false
   return !!(await getUserSubscription(Number(userId)))

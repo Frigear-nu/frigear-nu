@@ -8,10 +8,12 @@ export type ModuleOptions = {
      */
     dashboard?: boolean | string
     /**
-     * Roles allowed into the admin area, applied as an `@frigear-nu/authorization` route rule on `<base>/**`
-     * (only when that module is installed). Defaults to `['admin']`. Pass `false` to set no rule and guard the area yourself.
+     * The permission (`resource:action`) needed to enter the admin area, applied as an access route rule on `<base>/**`
+     * (only when `@frigear-nu/authorization` is installed) and carried by the "Admin" account-menu entry. Defaults to
+     * `admin:access`, which this module registers and grants to the `admin` role. A custom permission must be registered
+     * by the host. Pass `false` to set no rule and guard the area yourself. Replaces the removed `roles` setting.
      */
-    roles?: string[] | false
+    permission?: string | false
     /**
      * Applies the `admin` layout to every page under `base` that has no layout of its own. An `admin` layout of the
      * app (`app/layouts/admin.vue`) or a layer replaces the module's and the area still renders in it. `false`

@@ -23,7 +23,7 @@ function setup(options: Partial<SessionMapperOptions> = {}) {
   // Plain boxes stand in for the `useState` refs.
   const state = { status: { value: 'unknown' }, claims: { value: null }, session: { value: null } } as unknown as SessionState
   const hooks = { callHook: vi.fn() }
-  const client = { signOutLocally: vi.fn(async () => {}), fetchUserInfo: vi.fn(async (): Promise<UserInfo> => ({ sub: '42', role: 'admin' })) }
+  const client = { signOutLocally: vi.fn(async () => {}), fetchUserInfo: vi.fn(async (): Promise<UserInfo> => ({ sub: '42', email: 'admin@example.test' })) }
   const onUnauthorized = vi.fn()
   const onError = vi.fn()
   const mapper = createSessionMapper({
@@ -81,20 +81,20 @@ describe('the session (async mapping)', () => {
     const api = vi.fn(async () => ({ team: 'blue' }))
     const mapUser: AuthClientMapUser = async ({ claims, userinfo, api }) => {
       const [a, b] = await Promise.all([userinfo(), userinfo()])
-      return { id: claims.sub, role: a.role, same: a === b, team: (await api<{ team: string }>('/api/me')).team }
+      return { id: claims.sub, email: a.email, same: a === b, team: (await api<{ team: string }>('/api/me')).team }
     }
     const ctx = setup({ mapUser, api })
     await ctx.mapper.apply(stored(claims()), { wait: true })
-    expect(ctx.user()).toEqual({ id: '42', sub: '42', role: 'admin', same: true, team: 'blue' })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', email: 'admin@example.test', same: true, team: 'blue' })
     expect(ctx.client.fetchUserInfo).toHaveBeenCalledTimes(1)
     expect(api).toHaveBeenCalledWith('/api/me')
   })
 
   it('merges userinfo into the default mapping with `userinfo: true`, the id_token\'s subject winning', async () => {
     const ctx = setup({ userinfo: true })
-    ctx.client.fetchUserInfo.mockResolvedValue({ sub: '42', email: 'ada@example.test', picture: 'https://img.test/a.png', role: 'admin' })
+    ctx.client.fetchUserInfo.mockResolvedValue({ sub: '42', email: 'ada@example.test', picture: 'https://img.test/a.png' })
     await ctx.mapper.apply(stored(claims()), { wait: true })
-    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada', email: 'ada@example.test', avatar: 'https://img.test/a.png', role: 'admin' })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada', email: 'ada@example.test', avatar: 'https://img.test/a.png' })
   })
 
   it('drops a result that finishes after logout', async () => {
@@ -179,9 +179,9 @@ describe('the session (async mapping)', () => {
     const ctx = setup({ userinfo: true })
     ctx.client.fetchUserInfo.mockRejectedValueOnce(new OAuthTransientError('network_error', 'offline'))
     await ctx.mapper.apply(stored(claims({ iat: 1 })), { wait: true })
-    expect(ctx.user()).not.toHaveProperty('role')
+    expect(ctx.user()).not.toHaveProperty('email')
     await ctx.mapper.apply(stored(claims({ iat: 2 })), { wait: true })
-    expect(ctx.user()).toMatchObject({ role: 'admin' })
+    expect(ctx.user()).toMatchObject({ email: 'admin@example.test' })
   })
 
   it('times out a hanging mapping as transient', async () => {
@@ -260,9 +260,9 @@ describe('the session (async mapping)', () => {
       const next = deferred<UserInfo>()
       ctx.client.fetchUserInfo.mockReturnValue(next.promise)
       await ctx.mapper.apply(stored(claims({ name: 'Ada L.' })))
-      expect(ctx.user()).toMatchObject({ role: 'admin', name: 'Ada' })
-      next.resolve({ sub: '42', role: 'owner' })
-      await vi.waitFor(() => expect(ctx.user()).toMatchObject({ role: 'owner', name: 'Ada L.' }))
+      expect(ctx.user()).toMatchObject({ email: 'admin@example.test', name: 'Ada' })
+      next.resolve({ sub: '42', email: 'owner@example.test' })
+      await vi.waitFor(() => expect(ctx.user()).toMatchObject({ email: 'owner@example.test', name: 'Ada L.' }))
     })
   })
 
@@ -324,13 +324,13 @@ describe('the session (async mapping)', () => {
     await expect(forbidden.mapper.apply(stored(claims()), { wait: true })).rejects.toThrow('fetch failed')
   })
 
-  it('falls back to the claims mapping (not a previous mapped role) when re-mapping fails transiently', async () => {
+  it('falls back to the claims mapping (not a previously mapped profile) when re-mapping fails transiently', async () => {
     const ctx = setup({ userinfo: true })
     await ctx.mapper.apply(stored(claims()), { wait: true })
-    expect(ctx.user()).toMatchObject({ role: 'admin' })
+    expect(ctx.user()).toMatchObject({ email: 'admin@example.test' })
     ctx.client.fetchUserInfo.mockRejectedValue(new OAuthTransientError('network_error', 'offline'))
-    await ctx.mapper.apply(stored(claims({ role: 'member' })), { wait: true })
-    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada', role: 'member' })
+    await ctx.mapper.apply(stored(claims({ email: 'member@example.test' })), { wait: true })
+    expect(ctx.user()).toEqual({ id: '42', sub: '42', name: 'Ada', email: 'member@example.test' })
   })
 
   it('binds userinfo to the subject of the sign-in it maps', async () => {

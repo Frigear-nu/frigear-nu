@@ -250,6 +250,22 @@
     "noTicketsTitle": "Ingen billetter endnu",
     "ticketsLoadFailed": "Dine billetter kunne ikke indlæses",
     "tryAgain": "Prøv igen",
-    "browseEvents": "Se arrangementer"
+    "browseEvents": "Se arrangementer",
+    "permissions": {
+      "manage": "Administrer begivenheder",
+      "manageDescription": "Opret og redigér begivenheder, billettyper og tilvalg, og tjek billetter ind.",
+      "pii": "Se deltageroplysninger",
+      "piiDescription": "Se deltageres navne og e-mails (MCP-værktøjer). Dækkes aldrig af jokertegn.",
+      "refund": "Refundér billetter",
+      "refundDescription": "Refundér en betalt billet. Kun cookie-sessioner.",
+      "ticketsRead": "Læs dine billetter",
+      "ticketsWrite": "Køb billetter"
+    },
+    "scopes": {
+      "tickets": "Dine billetter"
+    },
+    "roles": {
+      "eventmanager": "Eventansvarlig"
+    }
   }
 }

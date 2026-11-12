@@ -54,18 +54,22 @@ const scopeItems = computed<ScopeItem[]>(() => {
   }
   // Older servers only send `scope`; every entry falls back to the scope's name.
   const details = new Map((consent.value?.scopes ?? []).map((scope: OAuthScopeDefinition) => [scope.name, scope]))
-  return (consent.value?.scope ?? []).map((name) => {
-    const scope = details.get(name)
-    if (known[name] && !scope?.label) return { name, ...known[name] }
-    // A registry scope often only has a description: it is the best title there is.
-    return {
-      name,
-      label: scope?.label || scope?.description || name,
-      description: scope?.label ? scope.description : undefined,
-      icon: scope?.icon || 'i-lucide-key-round',
-    }
-  })
+  return (consent.value?.scope ?? []).map(name => toItem(name, details.get(name), known))
 })
+
+function toItem(name: string, scope: OAuthScopeDefinition | undefined, known: Record<string, Omit<ScopeItem, 'name'>> = {}): ScopeItem {
+  if (known[name] && !scope?.label) return { name, ...known[name]! }
+  // A registry scope often only has a description: it is the best title there is.
+  return {
+    name,
+    label: scope?.label || scope?.description || name,
+    description: scope?.label ? scope.description : undefined,
+    icon: scope?.icon || 'i-lucide-key-round',
+  }
+}
+
+// Requested scopes this account may not grant: shown, so nobody wonders why the application lacks them.
+const unavailableItems = computed<ScopeItem[]>(() => (consent.value?.unavailable ?? []).map(scope => toItem(scope.name, scope)))
 
 // One consent for every service: the scopes grouped by the service they belong to, the account itself first. Without
 // any service (or from an older server) it is one list without headings.
@@ -276,6 +280,37 @@ async function switchAccount() {
                     class="text-xs break-words text-muted"
                   >
                     {{ scope.description }}
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </section>
+          <section
+            v-if="unavailableItems.length"
+            class="flex flex-col gap-2"
+            :aria-label="t('authorize.unavailable', 'Not available to your account')"
+          >
+            <h2 class="text-xs font-medium tracking-wide text-muted uppercase">
+              {{ t('authorize.unavailable', 'Not available to your account') }}
+            </h2>
+            <p class="text-xs text-muted">
+              {{ t('authorize.unavailableHint', 'The application will not get these.') }}
+            </p>
+            <ul class="flex flex-col divide-y divide-default overflow-hidden rounded-lg border border-dashed border-default">
+              <li
+                v-for="scope in unavailableItems"
+                :key="scope.name"
+                class="flex items-start gap-3 p-3 opacity-60"
+              >
+                <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-elevated text-muted">
+                  <UIcon
+                    name="i-lucide-ban"
+                    class="size-4"
+                  />
+                </div>
+                <div class="min-w-0 flex-1 pt-0.5">
+                  <p class="text-sm font-medium break-words text-muted line-through">
+                    {{ scope.label }}
                   </p>
                 </div>
               </li>

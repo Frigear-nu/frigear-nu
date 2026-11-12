@@ -1,33 +1,47 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { authorizationApi } from '../../utils/api'
-import type { AuthorizationRoleUserDto, AuthorizationRoleUsersPageDto } from '../../utils/api'
-import { useRbacLabels } from './useRbacLabels'
-import { computed, errorMessage, h, navigateTo, resolveComponent, tableUi, useFetch, useTableQuery, useTableSort } from '#imports'
+import type { AuthorizationRoleSummaryDto, AuthorizationRoleUserDto, AuthorizationRoleUsersPageDto } from '../../utils/api'
+import { useRoleLabels } from './useRoleLabels'
+import { computed, errorMessage, h, navigateTo, resolveComponent, tableUi, useFetch, useFormat, useTableQuery, useTableSort } from '#imports'
 
 defineOptions({ name: 'AuthorizationRoleUsers' })
 
-// The users whose stored role is `role`, paginated; rows open the users admin when it is installed.
-const props = defineProps<{ role: string }>()
+// The users with an assigned row for `role`, paginated; rows open the users admin when it is installed. Default and
+// `auto` roles are never stored: everyone (meeting the requirements) holds them, so there is no list.
+const props = defineProps<{ role: AuthorizationRoleSummaryDto }>()
 
-const { t, userPath } = useRbacLabels()
+const { t, userPath, sourceLabel, sourceColors } = useRoleLabels()
+const format = useFormat()
+const stored = computed(() => !props.role.default && !props.role.auto)
 const { page, pageSize, search, sort: sortState, query, filtered, reset } = useTableQuery({ sort: { id: 'name', desc: false } })
 const sort = useTableSort(null, sortState)
 const { sorting } = sort
 
-const { data, status, error, refresh } = useFetch<AuthorizationRoleUsersPageDto>(() => authorizationApi.admin.roleUsers(props.role), { query })
+const { data, status, error, refresh } = useFetch<AuthorizationRoleUsersPageDto>(() => authorizationApi.admin.roleUsers(props.role.name), { query, immediate: stored.value })
 const pending = computed(() => status.value === 'pending')
 const loading = computed(() => pending.value && !data.value)
 const refreshing = computed(() => pending.value && !!data.value)
 const linked = computed(() => userPath(0) !== undefined)
 
 const TableIdentity = resolveComponent('TableIdentity')
+const StatusBadge = resolveComponent('StatusBadge')
 
 const columns = computed<TableColumn<AuthorizationRoleUserDto>[]>(() => [
   {
     accessorKey: 'name',
     header: sort.header('name', t('admin.user', 'User')),
     cell: ({ row }) => h(TableIdentity, { title: row.original.name, description: row.original.email, avatar: { alt: row.original.name } }),
+  },
+  {
+    accessorKey: 'source',
+    header: t('admin.sourceHeader', 'Source'),
+    cell: ({ row }) => h(StatusBadge, { status: row.original.source, colors: sourceColors, label: sourceLabel(row.original.source) }),
+  },
+  {
+    accessorKey: 'assignedAt',
+    header: sort.header('assignedAt', t('admin.assignedAt', 'Assigned')),
+    cell: ({ row }) => format.date(row.original.assignedAt),
   },
   {
     accessorKey: 'id',
@@ -44,7 +58,15 @@ function openUser(_event: Event, row: { original: AuthorizationRoleUserDto }) {
 
 <template>
   <UEmpty
-    v-if="error && !data"
+    v-if="!stored"
+    :icon="role.auto ? 'i-lucide-sparkles' : 'i-lucide-users'"
+    :title="role.auto ? t('admin.autoRole', 'Held automatically') : t('admin.defaultRole', 'Held by every signed-in user')"
+    :description="role.auto
+      ? t('admin.autoRoleHint', 'Everyone who meets its requirements holds this role. It cannot be assigned.')
+      : t('admin.defaultRoleHint', 'This is a default role. It cannot be assigned.')"
+  />
+  <UEmpty
+    v-else-if="error && !data"
     icon="i-lucide-circle-alert"
     :title="t('admin.usersLoadFailed', 'The users could not be loaded')"
     :description="errorMessage(error, '')"

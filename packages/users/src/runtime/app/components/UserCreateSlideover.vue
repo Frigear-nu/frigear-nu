@@ -3,12 +3,12 @@ import { usersApi } from '../../utils/api'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserRow } from '../utils/admin-user'
-import { $fetch, computed, reactive, useAction, useModuleT } from '#imports'
+import { $fetch, reactive, useAction, useModuleT } from '#imports'
 
 defineOptions({ name: 'UsersUserCreateSlideover' })
 
 // The "Add user" form, opened by `useUserActions().create()`: closes with the created user, or `false` when cancelled.
-const props = defineProps<{ roles?: string[] }>()
+// Roles are given afterwards, on the user's "Roles and permissions" tab (`@frigear-nu/authorization`).
 const emit = defineEmits<{ close: [created: UserRow | false] }>()
 
 const t = useModuleT('users')
@@ -17,21 +17,18 @@ const { busy, run } = useAction()
 const schema = z.object({
   name: z.string().trim().min(1, t('admin.nameRequired', 'Enter a name.')).max(120),
   email: z.string().trim().email(t('admin.emailInvalid', 'Enter a valid email address.')),
-  role: z.string().optional(),
   emailVerified: z.boolean(),
   sendWelcomeEmail: z.boolean(),
 })
 type Schema = z.output<typeof schema>
 
-const state = reactive<Schema>({ name: '', email: '', role: undefined, emailVerified: false, sendWelcomeEmail: true })
-const roleLabel = (value: string) => t(`admin.roleNames.${value}`, value.charAt(0).toUpperCase() + value.slice(1))
-const roleItems = computed(() => (props.roles ?? []).map(value => ({ label: roleLabel(value), value })))
+const state = reactive<Schema>({ name: '', email: '', emailVerified: false, sendWelcomeEmail: true })
 
 async function save(event: FormSubmitEvent<Schema>) {
   const created = await run(
     () => $fetch<UserRow>(usersApi.admin.users, {
       method: 'POST',
-      body: { ...event.data, role: roleItems.value.length && event.data.role ? event.data.role : undefined },
+      body: event.data,
     }),
     { success: t('admin.createdOk', 'User created.') },
   )
@@ -74,18 +71,6 @@ async function save(event: FormSubmitEvent<Schema>) {
           v-model="state.email"
           type="email"
           class="w-full"
-        />
-      </UFormField>
-      <UFormField
-        v-if="roleItems.length"
-        name="role"
-        :label="t('admin.role', 'Role')"
-      >
-        <USelect
-          v-model="state.role"
-          :items="roleItems"
-          class="w-full"
-          :placeholder="t('admin.rolePlaceholder', 'Select a role')"
         />
       </UFormField>
       <UCheckbox

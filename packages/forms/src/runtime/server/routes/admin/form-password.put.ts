@@ -7,7 +7,7 @@ const input = z.object({ password: z.string().min(6).max(200) })
 
 // Sets (or replaces) the shared password. A credential, so only from a signed-in session.
 export default defineEventHandler(async (event): Promise<FormPasswordStatusDto> => {
-  await formsStaff.require(event, { sessionOnly: true })
+  await authorize(event, 'forms:credentials')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const { password } = await readValidatedBody(event, input.parse)
   const form = await findFormById(id)

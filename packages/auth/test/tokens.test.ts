@@ -66,7 +66,8 @@ describe('auth tokens', async () => {
 
     const me = await call('GET', '/api/test/me', { cookie: ada })
     expect(me.status, await me.clone().text()).toBe(200)
-    expect(await me.json()).toMatchObject({ kind: 'session', user: { id: 1 }, scopes: ['*'] })
+    // A session is no delegated credential: it carries no scopes (its user's roles apply).
+    expect(await me.json()).toMatchObject({ kind: 'session', user: { id: 1 }, scopes: [] })
 
     const anonymous = await call('GET', '/api/test/me')
     expect(anonymous.status).toBe(401)
@@ -113,15 +114,22 @@ describe('auth tokens', async () => {
     expect(response.headers.get('www-authenticate')).toContain('insufficient_scope')
   })
 
-  it('honours resource wildcards and full access', async () => {
-    const wildcard = await createToken(ada, { scopes: ['events:*'] })
+  it('only gives wildcards to users who may delegate everything they cover', async () => {
+    const api = apiClient({ cookie: ada })
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: ['events:*'] }), 403, 'insufficient_permission')
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: ['*'] }), 403, 'insufficient_permission')
+
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
+    const admin = await login(2)
+    const wildcard = await createToken(admin, { scopes: ['events:*'] })
     expect((await call('GET', '/api/test/events', { bearer: wildcard.token })).status).toBe(200)
-    const full = await createToken(ada, { scopes: ['*'] })
-    expect((await call('GET', '/api/test/events', { bearer: full.token })).status).toBe(200)
+    const full = await createToken(admin, { scopes: ['*'] })
+    expect((await call('GET', '/api/test/admin', { bearer: full.token })).status).toBe(200)
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'user' } } })
   })
 
   it('keeps session-only routes closed to every bearer token', async () => {
-    const { token } = await createToken(ada, { scopes: ['*'] })
+    const { token } = await createToken(ada, { scopes: ['events:read', 'events:write'] })
     const account = await call('POST', '/api/test/account', { bearer: token })
     expect(account.status).toBe(403)
     expect((await account.json()).data).toMatchObject({ error: 'session_required', code: 'session_required' })
@@ -130,7 +138,7 @@ describe('auth tokens', async () => {
   })
 
   it('does not let a token manage tokens', async () => {
-    const { token } = await createToken(ada, { scopes: ['*'] })
+    const { token } = await createToken(ada, { scopes: ['events:read'] })
     const bearer = apiClient({ bearer: token })
     await expectApiError(bearer.json('GET', authApi.me.tokens), 403, 'session_required')
     await expectApiError(bearer.json('POST', authApi.me.tokens, { name: 'x', scopes: ['*'] }), 403, 'session_required')
@@ -144,11 +152,14 @@ describe('auth tokens', async () => {
     expect(unknown.data).toMatchObject({ scopes: ['nope:read'] })
     await expectApiError(api.json('POST', authApi.me.tokens, { name: '', scopes: ['events:read'] }), 400)
     await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: [] }), 400)
+    // At most 50 scopes per token.
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: Array.from({ length: 51 }, () => 'events:read') }), 400)
   })
 
   it('lists the grantable scopes', async () => {
     const scopes = await (await call('GET', authApi.scopes, { cookie: ada })).json() as Array<{ name: string }>
-    expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write'])
+    // Not `*`: Ada may not delegate `events:admin`, which it covers.
+    expect(scopes.map(scope => scope.name)).toEqual(['events:read', 'events:write'])
   })
 
   it('only offers and accepts role-restricted scopes to users with that role', async () => {
@@ -239,7 +250,7 @@ describe('auth tokens', async () => {
   })
 
   it('reads the user fresh: a role change applies to the next token request', async () => {
-    const { token } = await createToken(bo, { scopes: ['*'] })
+    const { token } = await createToken(bo, { scopes: ['events:read'] })
     expect((await call('GET', '/api/test/role', { bearer: token })).status).toBe(403)
 
     await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
@@ -260,18 +271,117 @@ describe('auth tokens', async () => {
   })
 
   it('caps a host resolver\'s bearer by the stored user\'s role, and refuses one whose user is not stored', async () => {
-    // The `ghost_` resolver maps every token to an admin with `*`; the fixture lets admins do everything, others only
-    // read events. Ada is stored as a user, so the mapped role must not count.
+    // The `ghost_` resolver maps every token to an admin with `*` and no frozen permissions: its scopes count within
+    // the stored user's permissions, computed per request. Ada is stored as a user, so the mapped role must not count.
     expect((await call('GET', '/api/test/events', { bearer: 'ghost_1' })).status).toBe(200)
-    await expectApiError(apiClient({ bearer: 'ghost_1' }).json('POST', '/api/test/events'), 403, 'insufficient_scope')
+    await expectApiError(apiClient({ bearer: 'ghost_1' }).json('GET', '/api/test/admin'), 403, 'insufficient_scope')
 
     await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'admin' } } })
-    expect((await call('POST', '/api/test/events', { bearer: 'ghost_1' })).status).toBe(200)
+    expect((await call('GET', '/api/test/admin', { bearer: 'ghost_1' })).status).toBe(200)
     await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'user' } } })
 
     // No stored user: refused, never capped by the mapped "admin" and never falling back to the session.
     expect((await call('GET', '/api/test/me', { bearer: 'ghost_999' })).status).toBe(401)
     expect((await call('GET', '/api/test/me', { bearer: 'ghost_999', cookie: ada })).status).toBe(401)
+  })
+
+  describe('access control', () => {
+    const authorizeUrl = (permission: string) => `/api/test/authorize?permission=${encodeURIComponent(permission)}`
+
+    it('answers what the caller may do on GET /api/auth/me/access', async () => {
+      await expectApiError(apiClient().json('GET', authApi.me.access), 401, 'unauthorized')
+      expect(await apiClient({ cookie: ada }).json('GET', authApi.me.access))
+        .toEqual({ kind: 'session', scopes: [], permissions: ['events:read', 'events:write'], roles: [] })
+
+      const { token } = await createToken(ada, { scopes: ['events:read'] })
+      // A token without the `profile` scope gets no roles.
+      expect(await apiClient({ bearer: token }).json('GET', authApi.me.access))
+        .toEqual({ kind: 'user-token', scopes: ['events:read'], permissions: ['events:read'] })
+
+      // Root is an admin through `authorization:roles` only.
+      const root = await login(6)
+      const access = await apiClient({ cookie: root }).json<{ permissions: string[], roles: string[] }>('GET', authApi.me.access)
+      expect(access.roles).toEqual(['admin'])
+      expect(access.permissions).toEqual(['account:delete', 'events:admin', 'events:read', 'events:write'])
+    })
+
+    it('answers authorize with 401, session_required, insufficient_scope and forbidden', async () => {
+      await expectApiError(apiClient().json('GET', authorizeUrl('events:read')), 401, 'unauthorized')
+      expect(await apiClient({ cookie: ada }).json('GET', authorizeUrl('events:read'))).toEqual({ ok: true, via: 'role' })
+      await expectApiError(apiClient({ cookie: ada }).json('GET', authorizeUrl('events:admin')), 403, 'forbidden')
+      // Unknown permissions fail closed.
+      await expectApiError(apiClient({ cookie: ada }).json('GET', authorizeUrl('events:nope')), 403, 'forbidden')
+
+      const { token } = await createToken(ada, { scopes: ['events:read'] })
+      const bearer = apiClient({ bearer: token })
+      await expectApiError(bearer.json('GET', authorizeUrl('account:delete')), 403, 'session_required')
+      const scope = await call('GET', authorizeUrl('events:write'), { bearer: token })
+      expect(scope.status).toBe(403)
+      expect(scope.headers.get('www-authenticate')).toContain('insufficient_scope')
+      expect((await scope.json()).data).toMatchObject({ code: 'insufficient_scope', scopes: ['events:write'] })
+    })
+
+    it('lets authorization:before allow and deny, and denies when a listener throws', async () => {
+      const eve = await login(5)
+      expect(await apiClient({ cookie: eve }).json('GET', authorizeUrl('events:admin'))).toEqual({ ok: true, via: 'before' })
+
+      const vote = (value: string) => fetch(authorizeUrl('events:read'), { headers: { 'cookie': ada, 'x-before': value } })
+      expect((await vote('allow')).status).toBe(200)
+      const denied = await vote('deny')
+      expect(denied.status).toBe(403)
+      expect((await denied.json()).data).toMatchObject({ code: 'forbidden' })
+      expect((await vote('throw')).status).toBe(403)
+
+      // `before` never widens a credential: a token without the permission stays refused.
+      const { token } = await createToken(ada, { scopes: ['events:read'] })
+      const widened = await fetch(authorizeUrl('events:admin'), { headers: { 'authorization': `Bearer ${token}`, 'x-before': 'allow' } })
+      expect(widened.status).toBe(403)
+      expect((await widened.json()).data).toMatchObject({ code: 'insufficient_scope' })
+    })
+
+    it('lets a user allowed only by authorization:before mint, and use, a token for it', async () => {
+      const eve = await login(5)
+      const scopes = await apiClient({ cookie: eve }).json<Array<{ name: string }>>('GET', authApi.scopes)
+      expect(scopes.map(scope => scope.name)).toEqual(['*', 'events:read', 'events:write', 'events:admin'])
+      const created = await createToken(eve, { scopes: ['events:admin'] }) as { token: string, permissions?: string[] }
+      expect(created.permissions).toEqual(['events:admin'])
+      expect((await call('GET', '/api/test/admin', { bearer: created.token })).status).toBe(200)
+    })
+
+    it('freezes a token\'s permissions, still within its user\'s current ones', async () => {
+      // Bo is gone by now (an earlier test removed him): Di plays the admin.
+      await call('PATCH', '/api/test/user', { body: { id: 4, patch: { role: 'admin' } } })
+      const admin = await login(4)
+      const created = await createToken(admin, { scopes: ['*'] }) as { token: string, permissions: string[] }
+      expect(created.permissions).toEqual(['events:admin', 'events:read', 'events:write'])
+      expect((await call('GET', authorizeUrl('events:admin'), { bearer: created.token })).status).toBe(200)
+      // Demoted: the frozen set still names it, the roles no longer hold it.
+      await call('PATCH', '/api/test/user', { body: { id: 4, patch: { role: 'user' } } })
+      await expectApiError(apiClient({ bearer: created.token }).json('GET', authorizeUrl('events:admin')), 403, 'forbidden')
+    })
+
+    it('computes the permissions of a token minted before they were frozen, per request', async () => {
+      const { token } = await (await call('POST', '/api/test/legacy-token', { body: { userId: 1, scopes: ['*'] } })).json() as { token: string }
+      expect(await apiClient({ bearer: token }).json('GET', authApi.me.access))
+        .toMatchObject({ kind: 'user-token', scopes: ['*'], permissions: ['events:read', 'events:write'] })
+      await expectApiError(apiClient({ bearer: token }).json('GET', authorizeUrl('events:admin')), 403, 'insufficient_scope')
+
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'admin' } } })
+      expect((await call('GET', authorizeUrl('events:admin'), { bearer: token })).status).toBe(200)
+      await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'user' } } })
+    })
+
+    it('enforces the access route rules of /api', async () => {
+      await expectApiError(apiClient().json('GET', '/api/test/admin-only'), 401, 'unauthorized')
+      await expectApiError(apiClient({ cookie: ada }).json('GET', '/api/test/admin-only'), 403, 'forbidden')
+      expect(await apiClient({ cookie: await login(6) }).json('GET', '/api/test/admin-only')).toEqual({ ok: true })
+      await expectApiError(apiClient().json('GET', '/api/test/signed-in'), 401, 'unauthorized')
+      expect(await apiClient({ cookie: ada }).json('GET', '/api/test/signed-in')).toEqual({ ok: true })
+      // A path no rule can be trusted to match is refused before any handler.
+      // (fetch resolves dot segments itself, so they are covered by the unit tests.)
+      expect((await call('GET', '/api/test%5Cadmin-only', { cookie: ada })).status).toBe(400)
+      expect((await call('GET', '/api/test%2Fadmin-only', { cookie: ada })).status).toBe(400)
+    })
   })
 
   describe('POST /api/auth/logout', () => {

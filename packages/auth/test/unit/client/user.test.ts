@@ -28,8 +28,8 @@ describe('mapClaimsToUser', () => {
       .toEqual({ id: '42', sub: '42', name: 'Ada', email: 'ada@example.test', avatar: 'https://img.test/a.png' })
   })
 
-  it('sets a role only from a string role claim', () => {
-    expect(mapClaimsToUser({ ...base, role: 'admin' })).toEqual({ id: '42', sub: '42', role: 'admin' })
+  it('never reads a role claim', () => {
+    expect(mapClaimsToUser({ ...base, role: 'admin' })).toEqual({ id: '42', sub: '42' })
     expect(mapClaimsToUser({ ...base, role: ['admin'] })).toEqual({ id: '42', sub: '42' })
     expect(mapClaimsToUser(base)).toEqual({ id: '42', sub: '42' })
   })

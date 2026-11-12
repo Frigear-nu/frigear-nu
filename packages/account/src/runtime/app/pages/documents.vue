@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { documentLabel, visibleDocuments } from '../utils/documents'
-import { computed, useModuleT, useNuxtApp, useRuntimeConfig, useUserSession } from '#imports'
+import { computed, useModuleT, useNuxtApp, useRuntimeConfig } from '#imports'
+import { useAuthorization } from '#account/optional'
 
 defineOptions({ name: 'AccountDocumentsPage' })
 
 const t = useModuleT('account.documents')
-const { user } = useUserSession()
+// `@frigear-nu/authorization` is optional: without it documents with a `permission` are not listed.
+const authorization = typeof useAuthorization === 'function' ? useAuthorization() : undefined
 const nuxtApp = useNuxtApp() as { $i18n?: { locale?: { value?: string } } }
 const locale = computed(() => nuxtApp.$i18n?.locale?.value ?? 'en')
 
 const documents = computed(() =>
-  visibleDocuments(useRuntimeConfig().public.account?.documents ?? [], (user.value as { role?: string } | null)?.role))
+  visibleDocuments(useRuntimeConfig().public.account?.documents ?? [], authorization ? permission => authorization.can(permission) : undefined))
 </script>
 
 <template>

@@ -42,8 +42,8 @@ const NAME = /^[\w.:-]+$/
  * })
  * ```
  *
- * The handler runs on the bootstrap request's event after the caller is authenticated; check scopes there as your
- * route does (`requireUser(event, { scopes })`). A handler that throws is left out of the response and the
+ * The handler runs on the bootstrap request's event after the caller is authenticated; check the permission there as your
+ * route does (`authorize(event, 'tickets:read')`). A handler that throws is left out of the response and the
  * composable fetches the data from your endpoint instead.
  */
 export function registerBootstrapProvider(nuxt: Nuxt, provider: BootstrapProvider): void {

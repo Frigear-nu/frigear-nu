@@ -3,32 +3,43 @@ import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { authApi } from '@frigear-nu/auth/api'
+import type { AccessDto } from '@frigear-nu/auth/policies'
 import { authorizationApi } from '../src/runtime/utils/api'
-import type { AuthorizationPermissionMatrixDto, AuthorizationRoleDto, AuthorizationRoleSummaryDto, AuthorizationRoleUsersPageDto } from '../src/runtime/utils/api'
+import type { AuthorizationRoleDto, AuthorizationRoleSummaryDto, AuthorizationRoleUsersPageDto, AuthorizationUserRolesDto } from '../src/runtime/utils/api'
 
-async function register(payload: { name: string, email: string, password: string }) {
+const password = 'supersecret123'
+
+async function register(name: string, email: string) {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ name, email, password }),
   })
   const body = await response.text()
   expect(response.status, body).toBe(201)
   const cookie = response.headers.get('set-cookie')
   if (!cookie) throw new Error('Expected a session cookie after registering.')
-  return { cookie, user: JSON.parse(body) as { id: number, role?: string } }
+  return { cookie, id: (JSON.parse(body) as { id: number }).id }
 }
 
-async function login(email: string, password: string) {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+const as = (cookie?: string) => ({ headers: cookie ? { cookie } : {} })
+const seedRoles = (email: string, roles: string[], source: 'manual' | 'sso' | 'migrated' = 'manual') =>
+  $fetch('/api/test/roles', { method: 'POST', body: { email, roles, source } })
+const access = (cookie: string) => $fetch<AccessDto>(authApi.me.access, as(cookie))
+
+async function putRoles(cookie: string, id: number, roles: string[]) {
+  return fetch(authorizationApi.admin.userRoles(id), {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ roles }),
   })
-  expect(response.status, await response.text()).toBe(200)
-  const cookie = response.headers.get('set-cookie')
-  if (!cookie) throw new Error('Expected a session cookie after logging in.')
-  return cookie
+}
+
+async function expectError(response: Response, status: number, code?: string) {
+  const body = await response.text()
+  expect(response.status, body).toBe(status)
+  if (code) expect(JSON.parse(body)).toMatchObject({ data: { code } })
+  return body
 }
 
 describe('authorization (authenticated)', async () => {
@@ -42,63 +53,40 @@ describe('authorization (authenticated)', async () => {
     dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 
-  const password = 'supersecret123'
-  let userCookie: string
-  let userId: number
-  let adminCookie: string
+  let ada: { cookie: string, id: number }
+  let grace: { cookie: string, id: number }
 
-  it('registers users with the default "user" role', async () => {
-    const registered = await register({ name: 'Ada', email: 'ada@example.com', password })
-    userCookie = registered.cookie
-    userId = registered.user.id
-    expect(await $fetch('/api/_auth/session', { headers: { cookie: userCookie } })).toMatchObject({ user: { role: 'user' } })
+  it('gives new users the default role, and an admin through the role provider', async () => {
+    ada = await register('Ada', 'ada@example.com')
+    grace = await register('Grace', 'grace@example.com')
+    await seedRoles('grace@example.com', ['admin'])
 
-    await register({ name: 'Grace', email: 'grace@example.com', password })
-    await $fetch('/api/test/make-admin', { method: 'POST', body: { email: 'grace@example.com' } })
-    // The role is stored in the session at login time, so log in again to pick it up.
-    adminCookie = await login('grace@example.com', password)
-    expect(await $fetch('/api/_auth/session', { headers: { cookie: adminCookie } })).toMatchObject({ user: { role: 'admin' } })
+    const mine = await access(ada.cookie)
+    expect(mine).toMatchObject({ kind: 'session', roles: ['user'] })
+    expect(mine.permissions).toContain('reports:read')
+    expect(mine.permissions).not.toContain('reports:write')
+
+    // Roles are read fresh: no new sign-in needed.
+    const admin = await access(grace.cookie)
+    expect(admin.roles).toEqual(expect.arrayContaining(['admin', 'user']))
+    expect(admin.permissions).toEqual(expect.arrayContaining(['admin:access', 'reports:write', 'roles:assign', 'roles:read']))
   })
 
-  describe('server helpers', () => {
-    it('rejects guests with 403 from an ability (guests are denied by default)', async () => {
-      await expect($fetch('/api/test/post', { method: 'POST', body: { userId: 1 } }))
-        .rejects.toMatchObject({ statusCode: 403 })
-    })
-
-    it('injects the user into the policy and surfaces deny() details', async () => {
-      await expect($fetch('/api/test/post', { method: 'POST', headers: { cookie: userCookie }, body: { userId: userId + 100 } }))
-        .rejects.toMatchObject({ statusCode: 403, statusMessage: expect.anything() })
-      await expect($fetch('/api/test/post', { method: 'POST', headers: { cookie: userCookie }, body: { userId } }))
-        .resolves.toEqual({ ok: true, allowed: true })
-    })
-
-    it('lets an admin pass the ownership policy', async () => {
-      await expect($fetch('/api/test/post', { method: 'POST', headers: { cookie: adminCookie }, body: { userId: userId + 100 } }))
-        .resolves.toEqual({ ok: true, allowed: true })
-    })
+  it('gives `auto` roles to everyone meeting their requirements', async () => {
+    const member = await register('Meg', 'meg@member.test')
+    const mine = await access(member.cookie)
+    expect(mine.roles).toEqual(expect.arrayContaining(['member', 'user']))
+    expect(mine.permissions).toContain('member-area:view')
+    expect((await access(ada.cookie)).permissions).not.toContain('member-area:view')
   })
 
-  describe('route rules (api)', () => {
-    it('returns 401 for guests and 403 for the wrong role', async () => {
-      await expect($fetch('/api/admin/stats')).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch('/api/admin/stats', { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
-      await expect($fetch('/api/admin/stats', { headers: { cookie: adminCookie } })).resolves.toEqual({ secret: 42 })
-    })
+  describe('route rules', () => {
+    const page = (path: string, cookie?: string) => fetch(path, as(cookie))
 
-    it('an empty rule just requires a logged-in user', async () => {
-      await expect($fetch('/api/members')).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch('/api/members', { headers: { cookie: userCookie } })).resolves.toEqual({ members: true })
-    })
-  })
-
-  describe('route rules (pages)', () => {
-    const page = (path: string, cookie?: string) => fetch(path, { headers: cookie ? { cookie } : {} })
-
-    it('gates pages from config rules, including during SSR', async () => {
+    it('gates pages by permission, including during SSR', async () => {
       expect((await page('/admin')).status).toBe(401)
-      expect((await page('/admin', userCookie)).status).toBe(403)
-      const ok = await page('/admin', adminCookie)
+      expect((await page('/admin', ada.cookie)).status).toBe(403)
+      const ok = await page('/admin', grace.cookie)
       expect(ok.status).toBe(200)
       expect(await ok.text()).toContain('admin-area')
     })
@@ -109,230 +97,201 @@ describe('authorization (authenticated)', async () => {
       expect(await response.text()).toContain('admin-public-page')
     })
 
-    it('resolves abilities by name from the abilities file', async () => {
-      expect((await page('/ability-rule', userCookie)).status).toBe(403)
-      expect((await page('/ability-rule', adminCookie)).status).toBe(200)
-    })
-
     it('lets definePageMeta({ authorize }) replace config rules', async () => {
       expect((await page('/meta-override')).status).toBe(200)
-      expect((await page('/admin-meta', userCookie)).status).toBe(403)
-      expect((await page('/admin-meta', adminCookie)).status).toBe(200)
+      expect((await page('/editor-meta')).status).toBe(401)
+      expect((await page('/editor-meta', ada.cookie)).status).toBe(403)
+      expect((await page('/editor-meta', grace.cookie)).status).toBe(200)
+    })
+
+    it('gates the API by permission (auth\'s server middleware)', async () => {
+      await expect($fetch('/api/admin/stats')).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch('/api/admin/stats', as(ada.cookie))).rejects.toMatchObject({ statusCode: 403 })
+      await expect($fetch('/api/admin/stats', as(grace.cookie))).resolves.toEqual({ secret: 42 })
+      await expect($fetch('/api/members')).rejects.toMatchObject({ statusCode: 401 })
+      await expect($fetch('/api/members', as(ada.cookie))).resolves.toEqual({ members: true })
     })
   })
 
-  describe('<Can>', () => {
-    it('renders the slot or the fallback based on the resolved user', async () => {
+  describe('<Can> / <Cannot>', () => {
+    it('renders from the access fetched during SSR, with shared policies on records', async () => {
       const guest = await $fetch<string>('/')
-      expect(guest).toContain('cannot-edit')
+      expect(guest).toContain('cannot-write')
+      expect(guest).not.toContain('can-read-own')
+      expect(guest).toContain('not-a-member')
 
-      const owner = await $fetch<string>('/', { headers: { cookie: userCookie } })
-      // post.userId is 1, the first registered user.
-      expect(owner).toContain(userId === 1 ? 'can-edit' : 'cannot-edit')
+      const user = await $fetch<string>('/', as(ada.cookie))
+      expect(user).toContain('cannot-write')
+      // `shared/policies.ts`: reports are readable by their owner only.
+      expect(user).toContain('can-read-own')
+      expect(user).not.toContain('can-read-other')
 
-      const admin = await $fetch<string>('/', { headers: { cookie: adminCookie } })
-      expect(admin).toContain('can-edit')
+      expect(await $fetch<string>('/', as(grace.cookie))).toContain('can-write')
     })
   })
 
-  async function createToken(cookie: string, scopes: string[] = ['*']) {
-    const response = await fetch(authApi.me.tokens, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', cookie },
-      body: JSON.stringify({ name: 'test', scopes }),
-    })
-    expect(response.status, await response.clone().text()).toBe(201)
-    return (await response.json() as { token: string }).token
-  }
+  describe('widgets and tabs', () => {
+    it('hides those whose permission the viewer lacks, after bumping the access version', async () => {
+      const user = await $fetch<string>('/widgets', as(ada.cookie))
+      expect(user).toContain('widget:open-widget')
+      expect(user).toContain('tab:open-tab')
+      expect(user).not.toContain('widget:writer-widget')
+      expect(user).not.toContain('tab:writer-tab')
+      // `refresh()` bumps `useState('access:version')`, which menus, widgets and tabs are keyed on.
+      expect(user).toMatch(/access-version:[1-9]/)
 
-  describe('bearer tokens (via @frigear-nu/auth)', () => {
-    it('applies route rules to API tokens, as the owner (a role rule is session-only by default)', async () => {
-      const userToken = await createToken(userCookie)
-      const adminToken = await createToken(adminCookie)
-
-      await expect($fetch('/api/members', { headers: { authorization: `Bearer ${userToken}` } })).resolves.toEqual({ members: true })
-      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${userToken}` } })).rejects.toMatchObject({ statusCode: 403 })
-      // Even a full-access token of an admin does not pass a plain role rule: the rule is session-only.
-      await expect($fetch('/api/admin/stats', { headers: { authorization: `Bearer ${adminToken}` } })).rejects.toMatchObject({ statusCode: 403 })
-      await expect($fetch('/api/admin/stats', { headers: { cookie: adminCookie } })).resolves.toEqual({ secret: 42 })
-    })
-
-    it('lets a rule opt bearer credentials in, with the scopes it lists', async () => {
-      const full = await createToken(adminCookie)
-      const reports = await createToken(adminCookie, ['reports:read'])
-      const other = await createToken(adminCookie, ['reports:write'])
-      const userReports = await createToken(userCookie, ['reports:read'])
-      const bearer = (token: string) => ({ headers: { authorization: `Bearer ${token}` } })
-
-      await expect($fetch('/api/reports', bearer(reports))).resolves.toEqual({ reports: true })
-      await expect($fetch('/api/reports', bearer(full))).resolves.toEqual({ reports: true })
-      await expect($fetch('/api/reports', bearer(other))).rejects.toMatchObject({ statusCode: 403 })
-      // The role still applies.
-      await expect($fetch('/api/reports', bearer(userReports))).rejects.toMatchObject({ statusCode: 403 })
-      await expect($fetch('/api/reports', { headers: { cookie: adminCookie } })).resolves.toEqual({ reports: true })
-
-      // `sessionOnly: false` accepts any scopes.
-      await expect($fetch('/api/open-admin', bearer(other))).resolves.toEqual({ open: true })
-      await expect($fetch('/api/open-admin', bearer(userReports))).rejects.toMatchObject({ statusCode: 403 })
-    })
-
-    it('treats an invalid token as unauthenticated, even next to a valid session', async () => {
-      await expect($fetch('/api/members', { headers: { authorization: 'Bearer fnu_invalid' } })).rejects.toMatchObject({ statusCode: 401 })
-      await expect($fetch('/api/members', { headers: { authorization: 'Bearer fnu_invalid', cookie: userCookie } })).rejects.toMatchObject({ statusCode: 401 })
-    })
-
-    it('reads the role fresh, for tokens and sessions alike', async () => {
-      const linus = await register({ name: 'Linus', email: 'linus@example.com', password })
-      const token = await createToken(linus.cookie)
-      await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
-
-      await $fetch('/api/test/make-admin', { method: 'POST', body: { email: 'linus@example.com' } })
-
-      await expect($fetch('/api/open-admin', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ open: true })
-      // The session reads the user again too: the role rule sees the promotion without a new sign-in.
-      await expect($fetch('/api/admin/stats', { headers: { cookie: linus.cookie } })).resolves.toEqual({ secret: 42 })
-    })
-
-    it('keeps token management session-only', async () => {
-      const token = await createToken(userCookie)
-      await expect($fetch(authApi.me.tokens, { headers: { authorization: `Bearer ${token}` } })).rejects.toMatchObject({ statusCode: 403 })
+      const admin = await $fetch<string>('/widgets', as(grace.cookie))
+      expect(admin).toContain('widget:writer-widget')
+      expect(admin).toContain('tab:writer-tab')
     })
   })
 
-  describe('role-based access control (rbac: true, no host policy listener)', () => {
-    const setRole = (email: string, role: string) => $fetch('/api/test/set-role', { method: 'POST', body: { email, role } })
-    const scopeNames = async (cookie: string) => (await $fetch<{ name: string }[]>(authApi.scopes, { headers: { cookie } })).map(scope => scope.name)
-
-    it('reports the role and its permissions', async () => {
-      const mine = await $fetch<{ role: { name: string }, permissions: string[] }>('/api/authorization/me/permissions', { headers: { cookie: userCookie } })
-      expect(mine.role.name).toBe('user')
-      expect(mine.permissions).toEqual(['reports:read'])
-      const admin = await $fetch<{ permissions: string[] }>('/api/authorization/me/permissions', { headers: { cookie: adminCookie } })
-      expect(admin.permissions).toContain('*')
-    })
-
-    it('lets the role decide a staff guard, and reads it fresh', async () => {
-      const ada = await register({ name: 'Edith', email: 'edith@example.com', password })
-      await expect($fetch('/api/test/staff', { headers: { cookie: ada.cookie } })).rejects.toMatchObject({ statusCode: 403 })
-      await setRole('edith@example.com', 'editor')
-      await expect($fetch('/api/test/staff', { headers: { cookie: ada.cookie } })).resolves.toEqual({ staff: true })
-      await expect($fetch('/api/test/staff', { headers: { cookie: adminCookie } })).resolves.toEqual({ staff: true })
-    })
-
-    it('only shows and grants the scopes the user holds', async () => {
-      expect(await scopeNames(userCookie)).toEqual(['*', 'reports:read'])
-      expect(await scopeNames(adminCookie)).toEqual(expect.arrayContaining(['reports:read', 'reports:write']))
-      const refused = await fetch(authApi.me.tokens, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'cookie': userCookie },
-        body: JSON.stringify({ name: 'x', scopes: ['reports:write'] }),
-      })
-      expect(refused.status).toBe(403)
-      expect(await refused.json()).toMatchObject({ data: { code: 'insufficient_permission' } })
-    })
-
-    it('caps a token at its user\'s current role', async () => {
-      const editor = await register({ name: 'Ed', email: 'ed@example.com', password })
-      await setRole('ed@example.com', 'editor')
-      const token = await createToken(editor.cookie, ['reports:write'])
-      const bearer = { headers: { authorization: `Bearer ${token}` } }
-      await expect($fetch('/api/test/staff', bearer)).resolves.toEqual({ staff: true })
-      await setRole('ed@example.com', 'user')
-      await expect($fetch('/api/test/staff', bearer)).rejects.toMatchObject({ statusCode: 403 })
-    })
-
-    it('caps a token by the stored role, not the role the session mapper shows', async () => {
-      const editor = await register({ name: 'Mapped', email: 'mapped@example.com', password })
-      await setRole('mapped@example.com', 'editor')
-      const cookie = await login('mapped@example.com', password)
-      // The fixture's mapper shows editors as "Editor", a role that does not exist (it would act as `user`).
-      expect(await $fetch('/api/_auth/session', { headers: { cookie } })).toMatchObject({ user: { role: 'Editor' } })
-      const token = await createToken(editor.cookie, ['reports:write'])
-      await expect($fetch('/api/test/staff', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ staff: true })
-      await expect($fetch('/api/test/staff', { headers: { cookie } })).resolves.toEqual({ staff: true })
-      await setRole('mapped@example.com', 'user')
-    })
-
-    it('treats an unknown stored role as the default role', async () => {
-      await setRole('edith@example.com', 'retired')
-      const mine = await $fetch<{ role: { name: string } }>('/api/authorization/me/permissions', { headers: { cookie: (await login('edith@example.com', password)) } })
-      expect(mine.role.name).toBe('user')
-    })
-
-    // The roles admin API (`roles:read`, registered by the module itself: no `aggregateTo`, so admin only unless granted;
-    // the fixture grants it to editors). Route rules only require a signed-in user there: the guard decides.
-    describe('roles admin API', () => {
-      const asAdmin = () => ({ headers: { cookie: adminCookie } })
-
-      it('is for staff holding roles:read only', async () => {
-        await setRole('ed@example.com', 'editor')
-        const editorCookie = await login('ed@example.com', password)
-        const routes = [authorizationApi.admin.roles, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('user'), authorizationApi.admin.permissions]
-        for (const route of routes) {
-          await expect($fetch(route)).rejects.toMatchObject({ statusCode: 401 })
-          await expect($fetch(route, { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
-          expect((await fetch(route, { headers: { cookie: editorCookie } })).status, route).toBe(200)
-        }
-        expect(await scopeNames(adminCookie)).toContain('roles:read')
-        expect(await scopeNames(editorCookie)).toContain('roles:read')
-        expect(await scopeNames(userCookie)).not.toContain('roles:read')
-      })
-
-      it('lists the roles most senior first, with their users', async () => {
-        await setRole('ed@example.com', 'editor')
-        const roles = await $fetch<AuthorizationRoleSummaryDto[]>(authorizationApi.admin.roles, { headers: { cookie: adminCookie } })
-        expect(roles.map(role => role.name)).toEqual(['admin', 'editor', 'user'])
-        expect(roles.map(role => role.rank)).toEqual([0, 1, 2])
-        const [admin, editor, user] = roles
-        expect(admin).toMatchObject({ label: 'Administrator', source: 'built-in', inherits: ['editor'], userCount: 2, isDefault: false })
-        expect(editor).toMatchObject({ label: 'Editor', source: 'app', inherits: ['user'], userCount: 1, permissionCount: 3 })
-        expect(user).toMatchObject({ isDefault: true, permissionCount: 1 })
-        expect(user!.userCount).toBeGreaterThanOrEqual(1)
-        expect(admin!.permissionCount).toBeGreaterThanOrEqual(3)
-      })
-
-      it('says why a role holds each permission', async () => {
-        const editor = await $fetch<AuthorizationRoleDto>(authorizationApi.admin.role('editor'), asAdmin())
-        const grant = (role: AuthorizationRoleDto, name: string) => role.permissions.find(permission => permission.name === name)?.grant
-        expect(grant(editor, 'reports:write')).toEqual({ via: 'granted' })
-        expect(grant(editor, 'reports:read')).toEqual({ via: 'inherited', from: 'user' })
-        expect(grant(editor, 'roles:read')).toEqual({ via: 'granted' })
-
-        const admin = await $fetch<AuthorizationRoleDto>(authorizationApi.admin.role('admin'), asAdmin())
-        expect(grant(admin, 'reports:write')).toEqual({ via: 'inherited', from: 'editor' })
-        expect(grant(admin, 'roles:read')).toEqual({ via: 'inherited', from: 'editor' })
-        expect(admin.permissions.find(permission => permission.name === '*')).toMatchObject({ wildcard: true, grant: { via: 'all' } })
-      })
-
-      it('answers 404 for an unknown role', async () => {
-        await expectStatus(authorizationApi.admin.role('nope'), 404)
-        await expectStatus(authorizationApi.admin.roleUsers('nope'), 404)
-      })
-
-      it('lists the users of a role, paginated', async () => {
-        const page = await $fetch<AuthorizationRoleUsersPageDto>(authorizationApi.admin.roleUsers('admin'), { ...asAdmin(), query: { pageSize: 1 } })
-        expect(page).toMatchObject({ total: 2, page: 1, pageSize: 1 })
-        expect(page.items).toHaveLength(1)
-        expect(Object.keys(page.items[0]!).sort()).toEqual(['email', 'id', 'name'])
-        const editors = await $fetch<AuthorizationRoleUsersPageDto>(authorizationApi.admin.roleUsers('editor'), asAdmin())
-        expect(editors.items.map(user => user.email)).toEqual(['ed@example.com'])
-      })
-
-      it('builds the permission matrix', async () => {
-        const matrix = await $fetch<AuthorizationPermissionMatrixDto>(authorizationApi.admin.permissions, asAdmin())
-        expect(matrix.roles.map(role => role.name)).toEqual(['admin', 'editor', 'user'])
-        const holders = (name: string) => matrix.permissions.find(permission => permission.name === name)?.holders
-        expect(holders('reports:write')).toEqual({ admin: { via: 'inherited', from: 'editor' }, editor: { via: 'granted' }, user: null })
-        expect(holders('reports:read')).toEqual({ admin: { via: 'inherited', from: 'user' }, editor: { via: 'inherited', from: 'user' }, user: { via: 'aggregated' } })
-        expect(holders('roles:read')).toEqual({ admin: { via: 'inherited', from: 'editor' }, editor: { via: 'granted' }, user: null })
-        expect(matrix.permissions.find(permission => permission.name === 'reports:read')).toMatchObject({ resource: 'reports', pii: false })
-      })
-
-      async function expectStatus(path: string, status: number) {
-        const response = await fetch(path, { headers: { cookie: adminCookie } })
-        expect(response.status).toBe(status)
-        if (status === 404) expect(await response.json()).toMatchObject({ data: { code: 'not_found' } })
+  describe('roles admin API', () => {
+    it('is for staff holding roles:read only', async () => {
+      for (const route of [authorizationApi.admin.roles, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('admin'), authorizationApi.admin.userRoles(ada.id)]) {
+        await expectError(await fetch(route), 401, 'unauthorized')
+        await expectError(await fetch(route, as(ada.cookie)), 403, 'forbidden')
+        expect((await fetch(route, as(grace.cookie))).status, route).toBe(200)
       }
+    })
+
+    it('lists the configured roles and how each is held', async () => {
+      const roles = await $fetch<AuthorizationRoleSummaryDto[]>(authorizationApi.admin.roles, as(grace.cookie))
+      const byName = Object.fromEntries(roles.map(role => [role.name, role]))
+      expect(Object.keys(byName).sort()).toEqual(['admin', 'editor', 'member', 'user', 'writer'])
+      expect(byName.admin).toMatchObject({ label: 'Admin', assignable: true, default: false, auto: false })
+      expect(byName.user).toMatchObject({ default: true, assignable: false, userCount: 0 })
+      expect(byName.member).toMatchObject({ auto: true, assignable: false, requirements: ['verified'] })
+      // Held permissions, as the role detail lists them: the 4 granted or inherited plus the 2 implicit ones.
+      expect(byName.editor).toMatchObject({ inherit: ['user'], inherited: ['user'], permissionCount: 6 })
+      expect(byName.admin!.userCount).toBeGreaterThanOrEqual(1)
+    })
+
+    it('says why a role holds each permission, and 404s an unknown role', async () => {
+      const editor = await $fetch<AuthorizationRoleDto>(authorizationApi.admin.role('editor'), as(grace.cookie))
+      const grant = (name: string) => editor.permissions.find(permission => permission.name === name)?.grant
+      expect(grant('reports:write')).toEqual({ via: 'granted', by: 'reports:write' })
+      expect(grant('reports:read')).toEqual({ via: 'inherited', from: 'user', by: 'reports:read' })
+      expect(grant('admin:access')).toBeNull()
+      expect(editor.permissions.find(permission => permission.name === 'roles:assign')).toMatchObject({ sessionOnly: true })
+
+      await expectError(await fetch(authorizationApi.admin.role('nope'), as(grace.cookie)), 404, 'not_found')
+      await expectError(await fetch(authorizationApi.admin.roleUsers('nope'), as(grace.cookie)), 404, 'not_found')
+    })
+
+    it('lists the users a role is assigned to', async () => {
+      const page = await $fetch<AuthorizationRoleUsersPageDto>(authorizationApi.admin.roleUsers('admin'), { ...as(grace.cookie), query: { pageSize: 1 } })
+      expect(page).toMatchObject({ total: 1, page: 1, pageSize: 1 })
+      expect(page.items[0]).toMatchObject({ email: 'grace@example.com', source: 'manual' })
+      expect(Object.keys(page.items[0]!).sort()).toEqual(['assignedAt', 'email', 'id', 'name', 'source'])
+    })
+  })
+
+  describe('role assignment', () => {
+    let edith: { cookie: string, id: number }
+
+    it('lets an admin assign and remove roles', async () => {
+      edith = await register('Edith', 'edith@example.com')
+      const response = await putRoles(grace.cookie, edith.id, ['editor'])
+      expect(response.status, await response.clone().text()).toBe(200)
+      const roles = await response.json() as AuthorizationUserRolesDto
+      expect(roles.assigned).toEqual([expect.objectContaining({ role: 'editor', source: 'manual', grantedBy: grace.id, known: true })])
+      expect(roles.effective).toEqual(['editor', 'user'])
+      expect(roles.permissions).toEqual(expect.arrayContaining(['reports:write', 'roles:assign']))
+      expect((await access(edith.cookie)).permissions).toContain('reports:write')
+    })
+
+    it('only lets staff assign roles strictly below their own (403)', async () => {
+      const mine = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(ada.id), as(edith.cookie))
+      expect(mine.assignable).toEqual(['writer'])
+      await expectError(await putRoles(edith.cookie, ada.id, ['admin']), 403, 'forbidden')
+      await expectError(await putRoles(edith.cookie, grace.id, []), 403, 'forbidden')
+      // A peer: an editor can neither give nor take away `editor`.
+      const peer = await expectError(await putRoles(edith.cookie, ada.id, ['editor']), 403, 'role_not_below')
+      expect(JSON.parse(peer)).toMatchObject({ data: { role: 'editor' } })
+      expect((await putRoles(edith.cookie, ada.id, ['writer'])).status).toBe(200)
+      expect((await putRoles(edith.cookie, ada.id, [])).status).toBe(200)
+      // Users without `roles:assign` cannot assign at all.
+      await expectError(await putRoles(ada.cookie, ada.id, ['editor']), 403, 'forbidden')
+    })
+
+    it('lets an admin (every permission) assign and remove admin', async () => {
+      const ida = await register('Ida', 'ida@example.com')
+      expect((await putRoles(grace.cookie, ida.id, ['admin'])).status).toBe(200)
+      expect((await access(ida.cookie)).roles).toContain('admin')
+      expect((await putRoles(grace.cookie, ida.id, [])).status).toBe(200)
+    })
+
+    it('answers 409 role_not_assignable for default and auto roles, 400 for unknown ones', async () => {
+      await expectError(await putRoles(grace.cookie, ada.id, ['member']), 409, 'role_not_assignable')
+      await expectError(await putRoles(grace.cookie, ada.id, ['user']), 409, 'role_not_assignable')
+      await expectError(await putRoles(grace.cookie, ada.id, ['ghost']), 400, 'unknown_role')
+      await expectError(await putRoles(grace.cookie, 999_999, []), 404, 'not_found')
+    })
+
+    it('is session only: a bearer token cannot assign roles', async () => {
+      const created = await fetch(authApi.me.tokens, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cookie': grace.cookie },
+        body: JSON.stringify({ name: 'roles', scopes: ['*'] }),
+      })
+      expect(created.status, await created.clone().text()).toBe(201)
+      const { token } = await created.json() as { token: string }
+      const response = await fetch(authorizationApi.admin.userRoles(ada.id), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', 'authorization': `Bearer ${token}` },
+        body: JSON.stringify({ roles: ['editor'] }),
+      })
+      expect(response.status).toBe(403)
+    })
+  })
+
+  describe('single sign-on rows (role provider `setRoles`)', () => {
+    it('replaces only rows of its own source', async () => {
+      const mo = await register('Mo', 'mo@example.com')
+      expect((await putRoles(grace.cookie, mo.id, ['editor'])).status).toBe(200)
+
+      await seedRoles('mo@example.com', ['editor', 'admin'], 'sso')
+      let roles = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(mo.id), as(grace.cookie))
+      expect(roles.assigned.map(row => [row.role, row.source]).sort()).toEqual([['admin', 'sso'], ['editor', 'manual']])
+
+      // Staff edits leave single sign-on rows alone...
+      roles = await (await putRoles(grace.cookie, mo.id, [])).json() as AuthorizationUserRolesDto
+      expect(roles.assigned.map(row => [row.role, row.source])).toEqual([['admin', 'sso']])
+
+      // ...and single sign-on leaves the manual ones alone.
+      expect((await putRoles(grace.cookie, mo.id, ['editor'])).status).toBe(200)
+      await seedRoles('mo@example.com', [], 'sso')
+      roles = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(mo.id), as(grace.cookie))
+      expect(roles.assigned.map(row => [row.role, row.source])).toEqual([['editor', 'manual']])
+    })
+  })
+
+  describe('the users.role migration', () => {
+    it('copies users.role once, and a removed role never comes back', async () => {
+      const linus = await register('Linus', 'linus@example.com')
+      await $fetch('/api/test/legacy-role', { method: 'POST', body: { email: 'linus@example.com', role: 'editor' } })
+      await $fetch('/api/test/legacy-role', { method: 'POST', body: { email: 'ada@example.com', role: 'retired' } })
+      // The first request already ran it (marker set): nothing is read again.
+      expect(await $fetch('/api/test/role-migration', { method: 'POST', body: {} })).toMatchObject({ skipped: true, copied: 0 })
+
+      // As on a database that still holds `users.role`: the copy runs, keeps unknown roles and reports them.
+      const result = await $fetch<{ skipped: boolean, copied: number, unknown: string[] }>('/api/test/role-migration', { method: 'POST', body: { reset: true } })
+      expect(result).toMatchObject({ skipped: false, unknown: ['retired'] })
+      expect(result.copied).toBeGreaterThanOrEqual(2)
+
+      let roles = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(linus.id), as(grace.cookie))
+      expect(roles.assigned).toEqual([expect.objectContaining({ role: 'editor', source: 'migrated', known: true })])
+      expect(roles.effective).toContain('editor')
+      const adas = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(ada.id), as(grace.cookie))
+      expect(adas.assigned).toEqual([expect.objectContaining({ role: 'retired', known: false })])
+      expect(adas.effective).toEqual(['user'])
+
+      expect((await putRoles(grace.cookie, linus.id, [])).status).toBe(200)
+      expect(await $fetch('/api/test/role-migration', { method: 'POST', body: {} })).toMatchObject({ skipped: true })
+      roles = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(linus.id), as(grace.cookie))
+      expect(roles.assigned).toEqual([])
+      expect((await access(linus.cookie)).roles).toEqual(['user'])
     })
   })
 })

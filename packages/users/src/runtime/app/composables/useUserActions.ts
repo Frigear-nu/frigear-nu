@@ -34,8 +34,8 @@ export function useUserActions() {
   const userPath = (id: number) => `${listPath.value}/${id}`
 
   /** Opens the create form, then opens the new user's page; resolves with the created user, or `false` when cancelled. */
-  async function create(options: { roles?: string[] } = {}): Promise<UserRow | false> {
-    const created = await overlay.create(UserCreateSlideover).open({ roles: options.roles ?? [] }) as UserRow | false
+  async function create(): Promise<UserRow | false> {
+    const created = await overlay.create(UserCreateSlideover).open() as UserRow | false
     if (created) await navigateTo(userPath(created.id))
     return created
   }

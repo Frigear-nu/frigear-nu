@@ -1,24 +1,22 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { AuthorizationRolePermissionDto } from '../../utils/api'
-import { useRbacLabels } from './useRbacLabels'
+import { useRoleLabels } from './useRoleLabels'
 import { computed, h, resolveComponent, tableUi } from '#imports'
 
 defineOptions({ name: 'AuthorizationRolePermissions' })
 
-// The permissions of one role: those it holds, with why, then the rest dimmed. Used by the role page and the user tab.
+// The permissions of one role: those it holds, with why, then the rest dimmed.
 const props = defineProps<{
   permissions: AuthorizationRolePermissionDto[]
   /** Turns a role name into its label (for "Inherited from Editor"). */
   roleLabel?: (name: string) => string
-  /** Hides the not-held table (the user tab only lists what the user may do). */
-  heldOnly?: boolean
 }>()
 
-const { t, grantLabel, grantColors } = useRbacLabels()
+const { t, translated, grantLabel, grantColors, provenanceLabel, provenanceColors } = useRoleLabels()
 
 const held = computed(() => props.permissions.filter(permission => permission.grant))
-const notHeld = computed(() => props.permissions.filter(permission => !permission.grant && !permission.wildcard))
+const notHeld = computed(() => props.permissions.filter(permission => !permission.grant))
 
 const TableIdentity = resolveComponent('TableIdentity')
 const StatusBadge = resolveComponent('StatusBadge')
@@ -30,12 +28,13 @@ const nameColumn: TableColumn<AuthorizationRolePermissionDto> = {
   accessorKey: 'name',
   header: t('admin.permission', 'Permission'),
   cell: ({ row }: Cell) => h(TableIdentity, {
-    title: row.original.name,
-    description: row.original.description ?? (row.original.name === '*'
-      ? t('admin.wildcardAll', 'Every permission except personal data')
-      : row.original.wildcard ? t('admin.wildcardResource', 'Every {resource} permission except personal data', { resource: row.original.resource }) : null),
+    title: translated(row.original.labelKey, row.original.label ?? row.original.name),
+    description: row.original.label ? row.original.name : translated(row.original.descriptionKey, row.original.description ?? ''),
   }, {
-    badges: () => row.original.pii ? h(UBadge, { color: 'warning', variant: 'subtle', size: 'sm', label: t('admin.pii', 'Personal data') }) : null,
+    badges: () => [
+      row.original.sensitive ? h(UBadge, { color: 'warning', variant: 'subtle', size: 'sm', label: t('admin.sensitive', 'Sensitive') }) : null,
+      row.original.sessionOnly ? h(UBadge, { color: 'neutral', variant: 'outline', size: 'sm', label: t('admin.sessionOnly', 'Session only') }) : null,
+    ],
   }),
 }
 
@@ -43,11 +42,16 @@ const heldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() =
   nameColumn,
   {
     id: 'grant',
-    header: t('admin.why', 'Why'),
+    header: t('admin.grantedBy', 'Granted by'),
     meta: { class: { th: 'w-0', td: 'w-0 whitespace-nowrap' } },
-    cell: ({ row }: Cell) => row.original.grant
-      ? h(StatusBadge, { status: row.original.grant.via, colors: grantColors, label: grantLabel(row.original.grant, props.roleLabel) })
-      : null,
+    // Auth's provenance when it has one (host config, a module, a module's default grant, an inherited role), else
+    // how the grant reads (granted, inherited, every signed-in user).
+    cell: ({ row }: Cell) => row.original.sources.length
+      ? h('div', { class: 'flex flex-wrap gap-1' }, row.original.sources.map(source =>
+          h(StatusBadge, { status: source.via, colors: provenanceColors, label: provenanceLabel(source, props.roleLabel) })))
+      : row.original.grant
+        ? h(StatusBadge, { status: row.original.grant.via, colors: grantColors, label: grantLabel(row.original.grant, props.roleLabel) })
+        : null,
   },
 ])
 const notHeldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() => [nameColumn])
@@ -71,7 +75,7 @@ const notHeldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>((
       </UTable>
     </TableCard>
     <TableCard
-      v-if="!heldOnly && notHeld.length"
+      v-if="notHeld.length"
       :title="t('admin.notHeldTitle', 'Not held ({count})', { count: notHeld.length })"
     >
       <UTable

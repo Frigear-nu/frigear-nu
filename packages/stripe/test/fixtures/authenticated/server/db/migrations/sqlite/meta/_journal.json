@@ -36,6 +36,13 @@
       "when": 1794017502480,
       "tag": "0004_add_users_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794495866788,
+      "tag": "0005_auth_user_tokens_permissions",
+      "breakpoints": true
     }
   ]
 }

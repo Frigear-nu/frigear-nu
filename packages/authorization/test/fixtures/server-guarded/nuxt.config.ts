@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/**': { authenticated: true },
-    '/api/auth/me/tokens': { roles: ['admin'] },
+    '/api/auth/me/tokens': { permission: 'roles:assign' },
   },
   hub: {
     db: { dialect: 'sqlite', driver: 'libsql', applyMigrationsDuringBuild: false },

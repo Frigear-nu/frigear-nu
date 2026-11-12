@@ -1,3 +1,5 @@
+import type { Nuxt } from '@nuxt/schema'
+import { addPermission } from '@frigear-nu/auth/utils'
 import OAuthResourceModule from '../../../src/module'
 
 // A Frigear service accepting frigear.nu access tokens. The issuer is a stand-in server the test starts: its keys are
@@ -7,6 +9,8 @@ export default defineNuxtConfig({
     '@nuxthub/core',
     '@frigear-nu/users',
     OAuthResourceModule,
+    // The service's own permission; frigear.nu tokens carry it in their `permissions` claim (or their scopes).
+    (_options: unknown, nuxt: Nuxt) => addPermission(nuxt, { name: 'vouchers:read', label: 'See your vouchers', implicit: true }),
   ],
   runtimeConfig: {
     session: {

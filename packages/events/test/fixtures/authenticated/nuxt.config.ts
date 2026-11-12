@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { addPolicies, addRole, setRoleProvider } from '@frigear-nu/auth/utils'
 import EventsModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -9,6 +11,13 @@ export default defineNuxtConfig({
     '@frigear-nu/payments',
     '@frigear-nu/subscriptions',
     EventsModule,
+    // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
+    (_options, nuxt) => {
+      addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['events:*'] })
+      setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+      // A record policy on `events:manage` (`server/policies.ts`): staff on `@scoped.test` manage `scoped-*` events only.
+      addPolicies(nuxt, { path: fileURLToPath(new URL('./server/policies', import.meta.url)), host: true })
+    },
   ],
   pages: true,
   runtimeConfig: {
@@ -32,7 +41,7 @@ export default defineNuxtConfig({
     kv: true,
   },
   events: {
-    settings: { pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true }, mcp: true },
+    settings: { pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true }, mcp: true, roles: true },
   },
   subscriptions: {
     plans: {

@@ -1,6 +1,6 @@
-// A service route: needs a frigear.nu token (or a session) with `vouchers:read`.
+// A service route: needs `vouchers:read`, from a frigear.nu token's permissions (or a session, where it is implicit).
 export default defineEventHandler(async (event) => {
-  const principal = await requireAuth(event, { scopes: ['vouchers:read'] })
+  const principal = await authorize(event, 'vouchers:read')
   return {
     kind: principal.kind,
     userId: principal.user.id,
@@ -8,5 +8,7 @@ export default defineEventHandler(async (event) => {
     name: principal.user.name,
     clientId: principal.kind === 'oauth' ? principal.client.id : null,
     scopes: principal.scopes,
+    permissions: principal.permissions ?? null,
+    foreign: principal.foreign ?? false,
   }
 })
