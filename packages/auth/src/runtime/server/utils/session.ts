@@ -22,11 +22,17 @@ export const authSessionVersionOf = (user: SafeUser | null | undefined) =>
  * Signs `user` (a stored user) in: a new session, replacing whatever the browser had, stamped with the user's current
  * `sessionVersion` so `getAuth` can tell it apart from sessions ended since (`endAuthSessions`). The version is read
  * from the store, as the row passed in may predate a credential change made in the same request. `extra` adds other
- * session fields.
+ * session fields. The session is also stamped with `signedInAt`: its lifetime (`runtimeConfig.session.maxAge`) runs
+ * from sign-in, and later `setUserSession` calls (which merge) keep the stamp.
  */
 export async function startAuthSession(event: H3Event, user: SafeUser & { id: number }, extra: Record<string, unknown> = {}) {
   const current = await useAuthUserStore().findById(user.id)
-  await replaceUserSession(event, { ...extra, user: mapUserToSession(user), sessionVersion: authSessionVersionOf(current ?? user) })
+  await replaceUserSession(event, {
+    ...extra,
+    user: mapUserToSession(user),
+    sessionVersion: authSessionVersionOf(current ?? user),
+    signedInAt: Date.now(),
+  })
 }
 
 /**

@@ -287,12 +287,41 @@ describe('auth tokens', async () => {
       expect(Number(maxAge) / 86_400).toBe(30)
     })
 
+    const user = { id: 1, name: 'Ada', role: 'user' }
+
     it('refuses a session sealed longer ago than the lifetime', async () => {
-      const data = { user: { id: 1, name: 'Ada', role: 'user' }, sessionVersion: 0 }
-      // Sealed now, the same session is accepted: the cookie is forged the way the app seals it.
-      expect((await call('GET', '/api/test/me', { cookie: await sealedSession(data) })).status).toBe(200)
+      const data = { user, sessionVersion: 0, signedInAt: Date.now() - 31 * DAY_MS }
+      // Sealed now, a session signed in recently is accepted: the cookie is forged the way the app seals it.
+      expect((await call('GET', '/api/test/me', { cookie: await sealedSession({ ...data, signedInAt: Date.now() }) })).status).toBe(200)
       // A validly sealed session from 31 days ago, as a cookie kept from back then would be.
       await expectApiError(apiClient({ cookie: await sealedSession(data, 31 * DAY_MS) }).json('GET', '/api/test/me'), 401, 'unauthorized')
+    })
+
+    it('ends a session 30 days after sign-in, however recently it was sealed', async () => {
+      // Every write to the session (saving the profile or a preference) reseals it with a fresh ttl, so the seal alone
+      // would let an active session last forever. The lifetime runs from `signedInAt`, stamped at sign-in.
+      const recent = await sealedSession({ user, sessionVersion: 0, signedInAt: Date.now() - DAY_MS })
+      expect((await call('GET', '/api/test/me', { cookie: recent })).status).toBe(200)
+
+      const signedInLongAgo = await sealedSession({ user, sessionVersion: 0, signedInAt: Date.now() - 31 * DAY_MS })
+      const response = await call('GET', '/api/test/me', { cookie: signedInLongAgo })
+      expect(response.status).toBe(401)
+      // The cookie is cleared too.
+      expect(response.headers.get('set-cookie')).toMatch(new RegExp(`^${SESSION_NAME}=;`))
+    })
+
+    it('refuses a session without a sign-in time', async () => {
+      await expectApiError(apiClient({ cookie: await sealedSession({ user, sessionVersion: 0 }) }).json('GET', '/api/test/me'), 401, 'unauthorized')
+    })
+
+    it('keeps the sign-in time when the session is written to later', async () => {
+      const signedIn = Date.now()
+      const cookie = await login(1)
+      const written = await call('POST', '/api/test/session-write', { cookie })
+      expect(written.status, await written.clone().text()).toBe(200)
+      const { before, after } = await written.json() as { before: number, after: number }
+      expect(before).toBeGreaterThanOrEqual(signedIn)
+      expect(after).toBe(before)
     })
   })
 

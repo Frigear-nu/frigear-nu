@@ -311,8 +311,9 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     file: dialect => `./runtime/db/users.${dialect}`,
   })
 
-  // Cookie sessions end `maxAge` seconds after they were last sealed (sign-in, or any later write to the session): the
-  // cookie gets that `Max-Age` and an older seal is refused. The host's own `runtimeConfig.session.maxAge` wins;
+  // Cookie sessions end `maxAge` seconds after sign-in, however active the user is: the cookie gets that `Max-Age`, and
+  // `resolveAuthSession` refuses a session whose `signedInAt` (stamped by `startAuthSession`) is older, since Nuxt's
+  // `useSession` reseals with a fresh ttl on every write. The host's own `runtimeConfig.session.maxAge` wins;
   // nuxt-auth-utils merges its defaults over what is set here.
   const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string } }
   const sessionConfig = withSession.session ??= {}
@@ -419,6 +420,12 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
 }
 declare module '#auth/scopes' {
   export const scopes: Array<{ name: string, description?: string, roles?: string[] }>
+}
+declare module '#auth-utils' {
+  interface UserSession {
+    /** When the session was signed in (epoch milliseconds, \`startAuthSession\`); its lifetime runs from here. */
+    signedInAt?: number
+  }
 }
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore
