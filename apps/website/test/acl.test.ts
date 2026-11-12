@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { isAllowlisted, parseEmailList, resolveEffectiveRole } from '../shared/acl'
-import { userRoles } from '../shared/roles'
+import { allowsStaffAddressWrite, isAllowlisted, parseEmailList } from '../shared/acl'
 
-describe('email allowlists', () => {
+describe('the admin allowlist', () => {
   const admins = parseEmailList(' Boss@Example.com, ,other@example.com')
 
   it('parses a comma separated list into lowercase addresses', () => {
@@ -10,20 +9,29 @@ describe('email allowlists', () => {
     expect(parseEmailList(undefined)).toEqual([])
   })
 
-  it('does not make an unverified allowlisted address an admin', () => {
-    expect(resolveEffectiveRole({ email: 'boss@example.com', role: 'user', emailVerifiedAt: null }, admins, userRoles)).toBe('user')
-    expect(resolveEffectiveRole({ email: 'boss@example.com', role: 'member' }, admins, userRoles)).toBe('member')
+  it('does not count an unverified address', () => {
+    expect(isAllowlisted({ email: 'boss@example.com', emailVerifiedAt: null }, admins)).toBe(false)
     expect(isAllowlisted({ email: 'boss@example.com' }, admins)).toBe(false)
   })
 
-  it('makes a verified allowlisted address an admin, whatever the case', () => {
-    expect(resolveEffectiveRole({ email: 'BOSS@example.com', role: 'user', emailVerifiedAt: new Date() }, admins, userRoles)).toBe('admin')
+  it('counts a verified address, whatever the case', () => {
+    expect(isAllowlisted({ email: 'BOSS@example.com', emailVerifiedAt: new Date() }, admins)).toBe(true)
     // Sessions hold the date serialized.
     expect(isAllowlisted({ email: 'other@example.com', emailVerifiedAt: '2026-01-01T00:00:00.000Z' }, admins)).toBe(true)
+    expect(isAllowlisted({ email: 'x@example.com', emailVerifiedAt: new Date() }, admins)).toBe(false)
+  })
+})
+
+describe('admin addresses in the users admin', () => {
+  const admins = ['boss@example.com']
+
+  it('lets only admins write an allowlisted address', () => {
+    expect(allowsStaffAddressWrite(false, 'Boss@Example.com', admins)).toBe(false)
+    expect(allowsStaffAddressWrite(true, 'boss@example.com', admins)).toBe(true)
   })
 
-  it('keeps the stored role otherwise, and ignores unknown roles', () => {
-    expect(resolveEffectiveRole({ email: 'x@example.com', role: 'manager', emailVerifiedAt: new Date() }, admins, userRoles)).toBe('manager')
-    expect(resolveEffectiveRole({ email: 'x@example.com', role: 'root', emailVerifiedAt: new Date() }, admins, userRoles)).toBe('user')
+  it('lets staff write any other address, or none', () => {
+    expect(allowsStaffAddressWrite(false, 'someone@example.com', admins)).toBe(true)
+    expect(allowsStaffAddressWrite(false, undefined, admins)).toBe(true)
   })
 })

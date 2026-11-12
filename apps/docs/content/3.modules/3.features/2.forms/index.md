@@ -149,7 +149,7 @@ Forms registers these permissions with [Authorization](/modules/identity/authori
 | --- | --- | --- | --- |
 | `forms:manage` | | `admin` | Create and edit forms, read their submissions and files, and deliver them again. |
 | `forms:credentials` | sessionOnly | `admin` | Create and remove form access tokens, passwords and secrets. Cookie sessions only. |
-| `forms:pii` | sensitive | `admin` | See submission answers and file names in the MCP tools. A `*` or `forms:*` grant never covers it. |
+| `forms:pii` | sensitive | `admin` | Sensitive (MCP only): gates submission answers and file names in MCP tool output. The admin HTTP API, submissions included, is gated by `forms:manage`. A `*` or `forms:*` grant never covers it. |
 | `forms:submit` | implicit | every signed-in user | Submit forms as you, and read forms that need a signed-in user. |
 
 - **Scope:** `forms` (label "Submit forms") expands to `forms:submit`. A token or OAuth client with it can submit as the

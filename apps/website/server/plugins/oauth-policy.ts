@@ -1,18 +1,15 @@
-// Host conditions for `@frigear-nu/oauth-server`. The role decides who manages applications (`oauth:manage`: admins,
-// see `authorization.roles`); a verified email on the NUXT_OAUTH_ADMIN_EMAILS allowlist may too (`isAllowlisted`).
-// Applications with `allowedRoles` stay closed until `oauth:user:roles` is implemented.
-import { isAllowlisted } from '#shared/acl'
+// Host claims for `@frigear-nu/oauth-server`. Who manages applications is a role question (`oauth:manage`: admins).
+
+// Most senior first: `role` is the first of these the user holds, as the other Frigear apps read one role.
+const seniority = ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew', 'member', 'supplier', 'partner', 'user']
 
 export default defineNitroPlugin((nitro) => {
-  // Applications that sign people in with frigear.nu (the other Frigear apps) map this to their own users, so an admin
-  // here is an admin there. Identity claims only: access tokens stay bare.
+  // Applications that sign people in with frigear.nu (the other Frigear apps) map these to their own users, so an admin
+  // here is an admin there. Identity claims only: access tokens stay bare. `ctx.roles` are the effective roles
+  // (assigned, default and allowlisted, closed over `inherit`).
   nitro.hooks.hook('oauth:claims', (ctx) => {
-    if (ctx.tokenType !== 'access_token' && ctx.scope.includes('profile')) ctx.claims.role = effectiveRole(ctx.user)
-  })
-
-  nitro.hooks.hook('oauth:authorize', async (ctx) => {
-    if (ctx.allowed) return
-    const user = await getOAuthUser(ctx.userId)
-    ctx.allowed = !!user && isAllowlisted(user, staffAllowlists().oauthAdmins)
+    if (ctx.tokenType === 'access_token' || !ctx.scope.includes('profile')) return
+    ctx.claims.roles = ctx.roles
+    ctx.claims.role = seniority.find(role => ctx.roles.includes(role)) ?? 'user'
   })
 })

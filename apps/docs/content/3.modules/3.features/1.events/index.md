@@ -149,7 +149,7 @@ Events registers these permissions with [Authorization](/modules/identity/author
 | --- | --- | --- | --- |
 | `events:manage` | | `admin`, and `eventmanager` with `settings.roles` | Create and edit events, ticket types and add-ons, and check tickets in. |
 | `events:refund` | sessionOnly | `admin`, and `eventmanager` | Refund a paid ticket. Cookie sessions only. |
-| `events:pii` | sensitive | `admin`, and `eventmanager` | See attendee names and emails in the MCP tools. A `*` or `events:*` grant never covers it: grant it by name. |
+| `events:pii` | sensitive | `admin`, and `eventmanager` | Sensitive (MCP only): gates attendee names and emails in MCP tool output. The admin HTTP API, attendee lists included, is gated by `events:manage`. A `*` or `events:*` grant never covers it: grant it by name. |
 | `tickets:read` | implicit | every signed-in user | Read your own tickets and event details. |
 | `tickets:write` | implicit | every signed-in user | Buy tickets and pay for them. |
 

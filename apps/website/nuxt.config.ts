@@ -1,7 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 import { contactForm } from './forms/contact'
-import { userRoles } from './shared/roles'
 
 // The public URL, when the build knows it: the deployment host or an explicit NUXT_SITE_URL. Otherwise (PR previews,
 // local builds) `site.url` stays unset and canonical and hreflang URLs come from the request origin.
@@ -90,11 +89,8 @@ export default defineNuxtConfig({
       && !process.env.PR_NUMBER,
   },
   runtimeConfig: {
-    // Comma separated emails allowed to manage OAuth applications (NUXT_OAUTH_ADMIN_EMAILS).
-    oauthAdminEmails: '',
-    // Comma separated emails allowed to manage forms and read submissions (NUXT_FORMS_ADMIN_EMAILS).
-    formsAdminEmails: '',
-    // Comma separated emails that are always admins (NUXT_ACL_ADMINS). Bootstraps the first admin.
+    // Comma separated emails that are always admins once verified (NUXT_ACL_ADMINS). Bootstraps the first admin, who
+    // assigns every other role in the admin (server/plugins/authorization-roles.ts).
     aclAdmins: '',
     // PR previews (NUXT_PREVIEW_DEPLOYMENT overrides). Enables "Log in with frigear.nu" without credentials in config.
     previewDeployment: !!process.env.PR_NUMBER,
@@ -107,7 +103,8 @@ export default defineNuxtConfig({
       },
       // Use the frigear.nu user id as the local user id (NUXT_FRIGEAR_FORCE_ID).
       forceId: false,
-      // frigear.nu decides the role here: these roles carry over as they are, any other (or none) becomes `user`
+      // frigear.nu decides the single sign-on roles here: these roles carry over as they are (stored as `sso` roles;
+      // roles assigned here stay), any other (or none) becomes `user`
       // (NUXT_FRIGEAR_ROLE_MAP, JSON, is merged in).
       roleMap: {
         admin: 'admin',
@@ -211,23 +208,28 @@ export default defineNuxtConfig({
   account: {
     settings: {
       pages: { index: true, profile: true, security: true, documents: true, apiTokens: true },
-      // Ported from the old `account/documents.vue`. `roles` only decides what is listed: the files are static
-      // assets under public/, so anyone with the URL can fetch them (as before).
+      // Ported from the old `account/documents.vue`. `permission` only decides what is listed: the files are static
+      // assets under public/, so anyone with the URL can fetch them (as before). `documents:crew` is held by crew and
+      // every role above it (`authorization.roles`).
       documents: [
         { id: 'handbook', label: { da: 'Frivillig Håndbog', en: 'Volunteer Handbook' }, path: '/assets/files/Frivillig håndbog.docx' },
-        { id: 'ba-folder', label: { da: 'BA-mappe', en: 'BA folder' }, path: '/assets/files/BA-mappe.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
-        { id: 'shift-overview', label: 'Vagtoversigt', path: '/assets/files/Vagtoversigt.pdf', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
-        { id: 'ba-coordinator-meeting', label: { da: 'BA Koordinatormøde 25.03.2026', en: 'BA coordinator meeting 25.03.2026' }, path: '/assets/files/BA-Koordinatormøde-2503-2026.docx', roles: ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew'] },
+        { id: 'ba-folder', label: { da: 'BA-mappe', en: 'BA folder' }, path: '/assets/files/BA-mappe.pdf', permission: 'documents:crew' },
+        { id: 'shift-overview', label: 'Vagtoversigt', path: '/assets/files/Vagtoversigt.pdf', permission: 'documents:crew' },
+        { id: 'ba-coordinator-meeting', label: { da: 'BA Koordinatormøde 25.03.2026', en: 'BA coordinator meeting 25.03.2026' }, path: '/assets/files/BA-Koordinatormøde-2503-2026.docx', permission: 'documents:crew' },
       ],
     },
   },
   admin: {
     settings: {
-      // Same roles as the old `canViewAdminArea` ability.
-      roles: ['admin', 'manager', 'coordinator'],
+      // `admin:access` (the default): coordinator and above, the old `canViewAdminArea` roles (`authorization.roles`).
+      permission: 'admin:access',
     },
   },
   authentication: {
+    // The app's own permissions; roles grant them in `authorization.roles`.
+    permissions: [
+      { name: 'documents:crew', label: 'Read crew documents', labelKey: 'permissions.documentsCrew', description: 'See the crew documents on the account page.', group: 'documents' },
+    ],
     settings: {
       // Emailed links (password reset, sign-in, verification) point at the known public URL (NUXT_PUBLIC_SITE_URL
       // overrides). PR previews have no fixed URL: there, and whenever none is known, they use the request's origin,
@@ -246,7 +248,6 @@ export default defineNuxtConfig({
       // an account (use the register page). Email/password users must verify before logging in.
       magicLink: true,
       verifyEmail: true,
-      session: { mapper: '~~/server/utils/map-session-user' },
       // Facebook (like any other nuxt-auth-utils provider) is offered once its credentials are set at runtime:
       // NUXT_OAUTH_FACEBOOK_CLIENT_ID / NUXT_OAUTH_FACEBOOK_CLIENT_SECRET.
       // frigear: "Log in with frigear.nu", only active on previews or when `runtimeConfig.frigear.sso` is set.
@@ -256,33 +257,42 @@ export default defineNuxtConfig({
   authorization: {
     // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
     redirectTo: '/sign-in',
-    // Role-based access control: each role holds the permissions of the roles below it (`shared/roles.ts`, most
-    // senior first). Modules give their everyday permissions to `user` and events' to `eventmanager`; the grants
-    // below are the staff rights of the old policies. `server/plugins/*-policy.ts` only add the email allowlists.
-    rbac: true,
+    defaultRoles: ['user'],
+    // The old RBAC chain (admin > manager > coordinator > eventmanager > barmanager > crew > member, each holding the
+    // permissions of the next) as `inherit`; supplier and partner are outside groups that only hold what `user` holds.
+    // Self-service (tickets, profile, payments, forms:submit, ...) is `implicit` in the modules, so `user` grants
+    // nothing. Old grant -> new permissions:
+    // - eventmanager `events:manage`, `events:pii` -> + `events:refund` (refunds were part of `events:manage`);
+    // - coordinator `users:read` -> `users:read` + `users:list` (listing is its own permission now); `forms:manage`
+    //   -> + `forms:credentials` (form tokens and secrets were part of it); `forms:pii`, `payments:manage` as they were;
+    //   the admin area (`admin.settings.roles`) -> `admin:access`;
+    // - manager `users:manage` (every user write) -> `users:create`, `users:update`, `users:delete`, `users:manage`,
+    //   `subscriptions:manage` (free memberships and payment links were user writes) and `roles:read` + `roles:assign`
+    //   (setting a user's role was a user write; a manager assigns only roles strictly below manager);
+    // - admin `*` plus every sensitive permission by name (`*` never covers them), so admin holds every registered
+    //   permission and may assign admin. Add new sensitive permissions here when a module registers one.
+    // NUXT_ACL_ADMINS adds `admin` (server/plugins/authorization-roles.ts).
     roles: {
-      hierarchy: [...userRoles],
-      // Suppliers and partners are outside groups: they keep their rank (a manager may assign them) but members and
-      // the roles above do not get their permissions, nor suppliers partners'.
-      inherits: { member: ['user'], supplier: ['user'] },
-      grant: {
-        // The admin area: list users, read forms and submissions, see payments (the old `adminAreaRoles`).
-        coordinator: ['users:read', 'forms:manage', 'forms:pii', 'payments:manage'],
-        // Create, edit and delete users (the old `userManagerRoles`).
-        manager: ['users:manage'],
+      admin: { label: 'Administrator', labelKey: 'roles.admin', grant: ['*', 'events:pii', 'forms:pii'], inherit: ['manager'] },
+      manager: {
+        label: 'Manager',
+        labelKey: 'roles.manager',
+        grant: ['users:create', 'users:update', 'users:delete', 'users:manage', 'subscriptions:manage', 'roles:read', 'roles:assign'],
+        inherit: ['coordinator'],
       },
-      labels: {
-        admin: 'Administrator',
-        manager: 'Manager',
-        coordinator: 'Coordinator',
-        eventmanager: 'Event manager',
-        barmanager: 'Bar manager',
-        crew: 'Crew',
-        member: 'Member',
-        supplier: 'Supplier',
-        partner: 'Partner',
-        user: 'User',
+      coordinator: {
+        label: 'Coordinator',
+        labelKey: 'roles.coordinator',
+        grant: ['admin:access', 'users:read', 'users:list', 'forms:manage', 'forms:credentials', 'forms:pii', 'payments:manage'],
+        inherit: ['eventmanager'],
       },
+      eventmanager: { label: 'Event manager', labelKey: 'roles.eventmanager', grant: ['events:manage', 'events:refund', 'events:pii'], inherit: ['barmanager'] },
+      barmanager: { label: 'Bar manager', labelKey: 'roles.barmanager', inherit: ['crew'] },
+      crew: { label: 'Crew', labelKey: 'roles.crew', grant: ['documents:crew'], inherit: ['member'] },
+      member: { label: 'Member', labelKey: 'roles.member', inherit: ['user'] },
+      supplier: { label: 'Supplier', labelKey: 'roles.supplier', inherit: ['user'] },
+      partner: { label: 'Partner', labelKey: 'roles.partner', inherit: ['user'] },
+      user: { label: 'User', labelKey: 'roles.user' },
     },
   },
   cookieConsent: {
@@ -336,7 +346,7 @@ export default defineNuxtConfig({
       driver: '@nuxt/ui',
     },
   },
-  // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); admins from NUXT_OAUTH_ADMIN_EMAILS.
+  // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); `oauth:manage` is held by admins.
   oauthServer: {
     // The Capacitor webview on iOS (`capacitor://localhost`) and Android (`https://localhost`) calls the token endpoints.
     cors: { origins: ['capacitor://localhost', 'https://localhost'] },
@@ -386,7 +396,7 @@ export default defineNuxtConfig({
   },
   users: {
     settings: {
-      // Staff user administration; the policy lives in server/plugins/users-policy.ts.
+      // Staff user administration; the app's extra rule (NUXT_ACL_ADMINS addresses) lives in server/policies.ts.
       admin: true,
       mcp: true,
       // A new address must be confirmed from its inbox; the old address gets a revert link.

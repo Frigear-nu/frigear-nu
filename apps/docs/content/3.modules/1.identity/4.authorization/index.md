@@ -243,6 +243,9 @@ Routes the module registers, and who may call them. Paths come from `authorizati
 | `roles:read` | | `admin` through `*` | See the roles, what each may do and who has them. |
 | `roles:assign` | `sessionOnly` | `admin` through `*` | Give users roles and take them away, within your own permissions. |
 
+The sensitive permissions of other modules (`events:pii`, `forms:pii`) are sensitive (MCP only): they gate personal data
+in MCP tool output, while the admin HTTP API is gated by `events:manage` and `forms:manage`. Grant them by name.
+
 ## Database
 
 Tables the module adds. Generate and commit a [migration](/get-started/database#migrations) after installing. Both
