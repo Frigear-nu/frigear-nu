@@ -134,6 +134,33 @@ describe('compileRbac: strict validation', () => {
     expect(errorsOf({ hierarchy: ['admin', 'manager', 'user'], inherits: { manager: ['ghost'] } })).toContain('Role "manager" inherits unknown role "ghost"')
   })
 
+  it('stops on a role that inherits admin, directly or through another role', () => {
+    expect(errorsOf({ definitions: [{ name: 'boss', inherits: ['admin'], inheritedBy: [] }] }))
+      .toContain('Role "boss" inherits "admin": admin cannot be inherited')
+    expect(errorsOf({ hierarchy: ['admin', 'manager', 'user'], inherits: { manager: ['admin', 'user'] } }))
+      .toContain('Role "manager" inherits "admin": admin cannot be inherited')
+    const transitive = errorsOf({
+      definitions: [{ name: 'deputy', inherits: ['admin'], inheritedBy: [] }, { name: 'boss', inherits: ['deputy'], inheritedBy: [] }],
+    })
+    expect(transitive).toContain('Role "boss" inherits "admin" through "deputy": admin cannot be inherited')
+    expect(transitive).toContain('Role "deputy" inherits "admin": admin cannot be inherited')
+  })
+
+  it('never lets a role other than admin assign admin', () => {
+    const result = compileRbac({
+      scopes,
+      moduleRoles: [{ name: 'eventmanager' }],
+      config: {
+        hierarchy: ['admin', 'manager', 'crew', 'user'],
+        definitions: [{ name: 'auditor', inheritedBy: [] }, { name: 'lead', inherits: ['eventmanager', 'auditor'], inheritedBy: ['manager'] }],
+      },
+    })
+    expect(result.errors).toEqual([])
+    const others = result.table.roles.map(candidate => candidate.name).filter(name => name !== 'admin')
+    expect(others.length).toBeGreaterThan(4)
+    for (const other of others) expect(canAssignRole(result.table, other, 'admin')).toBe(false)
+  })
+
   it('stops on admin as the default role', () => {
     expect(errorsOf({ defaultRole: 'admin' })).toContain('defaultRole is "admin"')
   })

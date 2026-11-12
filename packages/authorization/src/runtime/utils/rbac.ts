@@ -287,6 +287,14 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
   }
   for (const name of roles.keys()) resolve(name)
 
+  // 7b. Nobody inherits admin: it would hold `*` and outrank admin's peers, so it could demote administrators.
+  for (const [name, below] of juniors) {
+    if (name === ADMIN_ROLE || !below.has(ADMIN_ROLE)) continue
+    const through = [...roles.get(name)!.inherits].find(junior => junior !== ADMIN_ROLE && juniors.get(junior)?.has(ADMIN_ROLE))
+    const how = roles.get(name)!.inherits.has(ADMIN_ROLE) ? '' : ` through "${through}"`
+    errors.push(`Role "${name}" inherits "${ADMIN_ROLE}"${how}: ${ADMIN_ROLE} cannot be inherited. Grant "${name}" the permissions it needs, or place it in authorization.roles.hierarchy.`)
+  }
+
   // 8. Order: admin first, the hierarchy as given, then the rest by seniority (more juniors first), user last.
   const order = [...roles.keys()].sort((a, b) => {
     if (a === ADMIN_ROLE || b === ADMIN_ROLE) return a === ADMIN_ROLE ? -1 : 1
