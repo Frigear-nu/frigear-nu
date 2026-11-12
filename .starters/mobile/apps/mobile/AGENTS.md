@@ -17,7 +17,6 @@ app/app.vue               <UApp :toaster="useMobileToaster()">
 app/app.config.ts         branding of the /login page
 app/pages/index.vue       Home tab: the signed-in user (useUserSession) and a sample call to /api/me
 app/pages/account.vue     Account tab: the profile and sign-out
-modules/shared-policies.ts provides `#auth/shared-policies` that auth 0.5.0 lacks in client mode (useAuthorization needs it)
 ios/, android/            native projects, created by `pnpm mobile:native` (not in the starter)
 ```
 
