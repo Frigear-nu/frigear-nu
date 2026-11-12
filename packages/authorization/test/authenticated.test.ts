@@ -162,7 +162,8 @@ describe('authorization (authenticated)', async () => {
       expect(byName.admin).toMatchObject({ label: 'Admin', assignable: true, default: false, auto: false })
       expect(byName.user).toMatchObject({ default: true, assignable: false, userCount: 0 })
       expect(byName.member).toMatchObject({ auto: true, assignable: false, requirements: ['verified'] })
-      expect(byName.editor).toMatchObject({ inherit: ['user'], inherited: ['user'], permissionCount: 4 })
+      // Held permissions, as the role detail lists them: the 4 granted or inherited plus the 2 implicit ones.
+      expect(byName.editor).toMatchObject({ inherit: ['user'], inherited: ['user'], permissionCount: 6 })
       expect(byName.admin!.userCount).toBeGreaterThanOrEqual(1)
     })
 
