@@ -34,6 +34,10 @@ export default defineNuxtConfig({
       list.push({ name: 'reports:read', aggregateTo: ['user'] } as { name: string }, { name: 'reports:write' })
     },
   },
+  // The session user shows the editor role as a label: permissions still follow the stored role, for tokens too.
+  authentication: {
+    settings: { session: { mapper: './server/session-mapper.ts' } },
+  },
   // Role-based access control: admin > editor > user. `reports:read` goes to every user, `reports:write` to editors.
   authorization: {
     rbac: true,

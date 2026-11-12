@@ -241,6 +241,18 @@ describe('authorization (authenticated)', async () => {
       await expect($fetch('/api/test/staff', bearer)).rejects.toMatchObject({ statusCode: 403 })
     })
 
+    it('caps a token by the stored role, not the role the session mapper shows', async () => {
+      const editor = await register({ name: 'Mapped', email: 'mapped@example.com', password })
+      await setRole('mapped@example.com', 'editor')
+      const cookie = await login('mapped@example.com', password)
+      // The fixture's mapper shows editors as "Editor", a role that does not exist (it would act as `user`).
+      expect(await $fetch('/api/_auth/session', { headers: { cookie } })).toMatchObject({ user: { role: 'Editor' } })
+      const token = await createToken(editor.cookie, ['reports:write'])
+      await expect($fetch('/api/test/staff', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ staff: true })
+      await expect($fetch('/api/test/staff', { headers: { cookie } })).resolves.toEqual({ staff: true })
+      await setRole('mapped@example.com', 'user')
+    })
+
     it('treats an unknown stored role as the default role', async () => {
       await setRole('edith@example.com', 'retired')
       const mine = await $fetch<{ role: { name: string } }>('/api/authorization/me/permissions', { headers: { cookie: (await login('edith@example.com', password)) } })
