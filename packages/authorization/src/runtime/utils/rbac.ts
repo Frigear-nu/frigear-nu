@@ -101,6 +101,13 @@ function isKnownPermission(permission: string, registered: readonly string[]): b
   return resource.length > 0 && registered.some(name => name.startsWith(`${resource}:`))
 }
 
+/** Whether the wildcard `held` (`*` or `resource:*`) gives `permission`; `:pii` permissions are only held by name. */
+function coversPermission(held: string, permission: string): boolean {
+  if (held === permission || isPii(permission)) return false
+  if (held === '*') return true
+  return held.endsWith(':*') && permission.startsWith(held.slice(0, -1))
+}
+
 /** Compiles the role → permission table. Errors are configuration mistakes the build must stop on. */
 export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRoleInput[], config?: RbacConfig }): RbacCompileResult {
   const errors: string[] = []
@@ -130,13 +137,20 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
     ...(input.moduleRoles ?? []).map(role => ({ role, source: 'module' as const })),
     ...(config.definitions ?? []).map(role => ({ role, source: 'app' as const })),
   ]
+  // Every role a name may refer to: the built-in ones, the defined ones and the ones `hierarchy` creates.
+  const declared = new Set([ADMIN_ROLE, USER_ROLE, ...definitions.map(({ role }) => role.name), ...(config.hierarchy ?? [])])
   for (const { role: definition, source } of definitions) {
     const role = ensure(definition.name, roles.has(definition.name) ? roles.get(definition.name)!.source : source)
     role.label = definition.label ?? role.label
     role.description = definition.description ?? role.description
     for (const junior of definition.inherits ?? [USER_ROLE]) if (junior !== role.name) role.inherits.add(junior)
     for (const senior of definition.inheritedBy ?? [ADMIN_ROLE]) {
-      if (senior !== role.name) ensure(senior, 'app').inherits.add(role.name)
+      if (senior === role.name) continue
+      if (!declared.has(senior)) {
+        errors.push(`Role "${role.name}" is inherited by unknown role "${senior}": define "${senior}" (in authorization.roles.definitions or hierarchy) or fix the name in inheritedBy.`)
+        continue
+      }
+      ensure(senior, 'app').inherits.add(role.name)
     }
     for (const permission of definition.permissions ?? []) role.direct.set(permission, { via: 'direct' })
   }
@@ -145,6 +159,9 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
   const hierarchy = config.hierarchy ?? []
   if (hierarchy.length) {
     if (new Set(hierarchy).size !== hierarchy.length) errors.push('authorization.roles.hierarchy lists a role twice.')
+    if (hierarchy[0] !== ADMIN_ROLE) {
+      errors.push(`authorization.roles.hierarchy starts with "${hierarchy[0]}": it must start with "${ADMIN_ROLE}", the most senior role. Put "${ADMIN_ROLE}" first.`)
+    }
     for (const name of hierarchy) ensure(name, 'app')
     hierarchy.forEach((name, index) => {
       const role = roles.get(name)!
@@ -158,7 +175,7 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
   // 3b. Explicit inheritance replaces the chain for the roles it names; the rank stays.
   for (const [name, juniorsOf] of Object.entries(config.inherits ?? {})) {
     if (!roles.has(name)) {
-      errors.push(`authorization.roles.inherits names unknown role "${name}".`)
+      errors.push(`authorization.roles.inherits names unknown role "${name}": define it (in definitions or hierarchy) or fix the name.`)
       continue
     }
     roles.get(name)!.inherits = new Set(juniorsOf.filter(junior => junior !== name))
@@ -179,7 +196,7 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
 
   // 5. The host's grants.
   const checkRole = (name: string, where: string) => {
-    if (!roles.has(name)) errors.push(`authorization.roles.${where} names unknown role "${name}".`)
+    if (!roles.has(name)) errors.push(`authorization.roles.${where} names unknown role "${name}": define it (in definitions or hierarchy) or fix the name.`)
     return roles.has(name)
   }
   const checkPermission = (permission: string, where: string) => {
@@ -207,11 +224,17 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
   }
   for (const role of roles.values()) {
     for (const junior of role.inherits) {
-      if (!roles.has(junior)) errors.push(`Role "${role.name}" inherits unknown role "${junior}".`)
+      if (!roles.has(junior)) errors.push(`Role "${role.name}" inherits unknown role "${junior}": define "${junior}" (in definitions or hierarchy) or fix the name.`)
     }
   }
   const defaultRole = config.defaultRole ?? USER_ROLE
   if (!roles.has(defaultRole)) errors.push(`authorization.roles.defaultRole names unknown role "${defaultRole}".`)
+  if (defaultRole === ADMIN_ROLE) {
+    errors.push(`authorization.roles.defaultRole is "${ADMIN_ROLE}": every new user and every user with an unknown role would be an administrator. Pick a junior role such as "${USER_ROLE}".`)
+  }
+  if (config.revoke?.[ADMIN_ROLE]?.length) {
+    errors.push(`authorization.roles.revoke.${ADMIN_ROLE} has no effect: ${ADMIN_ROLE} holds every permission ("*"). Remove it, and keep the permission from a less senior role instead.`)
+  }
 
   // 6. Admin holds everything, the personal-data permissions included (a wildcard never covers them).
   const admin = roles.get(ADMIN_ROLE)!
@@ -243,7 +266,18 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
       }
     }
     for (const [permission, grant] of role.direct) grants.set(permission, grant)
-    for (const permission of config.revoke?.[name] ?? []) grants.delete(permission)
+    if (name !== ADMIN_ROLE) {
+      for (const permission of config.revoke?.[name] ?? []) {
+        const held = grants.delete(permission)
+        const wildcard = [...grants.keys()].find(candidate => coversPermission(candidate, permission))
+        if (wildcard) {
+          errors.push(`authorization.roles.revoke.${name} takes away "${permission}", but "${name}" still holds it through "${wildcard}". Grant "${name}" the specific permissions it should have instead of "${wildcard}".`)
+        }
+        else if (!held && isKnownPermission(permission, registered)) {
+          errors.push(`authorization.roles.revoke.${name} takes away "${permission}", which "${name}" does not hold. Remove it from revoke.`)
+        }
+      }
+    }
     visiting.delete(name)
     effective.set(name, grants)
     juniors.set(name, below)
@@ -251,8 +285,9 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
   }
   for (const name of roles.keys()) resolve(name)
 
-  // 8. Order: the hierarchy as given, then the rest by seniority (more juniors first), user last.
+  // 8. Order: admin first, the hierarchy as given, then the rest by seniority (more juniors first), user last.
   const order = [...roles.keys()].sort((a, b) => {
+    if (a === ADMIN_ROLE || b === ADMIN_ROLE) return a === ADMIN_ROLE ? -1 : 1
     const ia = hierarchy.indexOf(a)
     const ib = hierarchy.indexOf(b)
     if (ia !== -1 && ib !== -1) return ia - ib
@@ -275,6 +310,8 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
 
   // Rank: below a role are the roles after it in `hierarchy` and every role it inherits (and theirs).
   const outranks = (name: string): string[] => {
+    // Admin outranks every other role, also those it does not inherit (a definition with `inheritedBy: []`).
+    if (name === ADMIN_ROLE) return order.filter(role => role !== ADMIN_ROLE)
     const below = new Set(juniors.get(name) ?? [])
     const index = hierarchy.indexOf(name)
     if (index !== -1) {
