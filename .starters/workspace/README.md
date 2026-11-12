@@ -29,6 +29,11 @@ verification link printed in the terminal and press **Continue** (the list only 
 on `/account`; `/admin` is the admin dashboard and `/admin/users` the user admin. Emails (password reset, ...) are printed
 in the terminal until you configure a [Notify](https://github.com/Frigear-nu/frigear-nu/tree/main/packages/notify) driver.
 
+Who may do what: modules register permissions (`users:update`, `admin:access`, ...) and roles bundle them, in
+`authorization.roles` in `apps/web/nuxt.config.ts` (`admin` holds everything, `user` is every user's). Verified emails in
+`NUXT_ACL_ADMINS` hold `admin` (`apps/web/server/plugins/authorization-roles.ts`); admins assign roles to everyone else
+on the user's page in `/admin/users`.
+
 The full guide, including how to add more modules, is the
 [Workspace starter guide](https://docs.frigear.dev/examples/starters/workspace) in the Frigear docs. For a mobile app next to
 this one, see the [Standalone mobile starter](https://docs.frigear.dev/examples/starters/mobile-standalone).

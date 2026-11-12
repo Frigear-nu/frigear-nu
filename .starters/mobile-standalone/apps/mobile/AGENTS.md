@@ -17,6 +17,7 @@ app/app.vue               <UApp :toaster="useMobileToaster()">
 app/app.config.ts         branding of the /login page
 app/pages/index.vue       Home tab: the signed-in user (useUserSession) and a sample call to /api/me
 app/pages/account.vue     Account tab: the profile and sign-out
+modules/shared-policies.ts provides `#auth/shared-policies` that auth 0.5.0 lacks in client mode (useAuthorization needs it)
 ios/, android/            native projects, created by `pnpm mobile:native` (not in the starter)
 ```
 
@@ -26,6 +27,11 @@ ios/, android/            native projects, created by `pnpm mobile:native` (not 
   `@frigear-nu/authorization`: `routeRules: { '/**': { authenticated: true } }` signs in everywhere, and `/login` and
   `/auth/callback` stay public without a rule. `definePageMeta({ authorize: false })` makes a page public. A tab with
   `requiresAuth: true` hides while signed out. Guards only decide what the app shows: the API decides what is allowed.
+- What the user may do, for what the app shows: `useAuthorization().can('resource:action')` or
+  `<Can permission="resource:action">`. In client mode it loads the issuer's `GET /api/auth/me/access` with the access
+  token (or the token's `permissions` claim when the issuer has no such endpoint). A route rule or page meta can also
+  take `permission` (`'/reports': { permission: 'reports:read' }`, `definePageMeta({ authorize: 'reports:read' })`):
+  name only permissions the issuer registers. Never compare role names; the API still checks every request.
 - Who is signed in: `useUserSession()` (`loggedIn`, `user`, with `user.id` the issuer's `sub`); sign in and out:
   `useAuth()` (`login`, `logout`).
 - Call your API with `useApi(url)` or `useNuxtApp().$api(url)`: they add the bearer token, refresh it on `401` and only

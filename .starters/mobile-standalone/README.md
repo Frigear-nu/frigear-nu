@@ -37,6 +37,11 @@ pnpm dev
    back signed in. The Home tab shows the signed-in user and `/api/me`.
 3. `pnpm mobile:ios` runs it in the iOS simulator against the same server.
 
+Who may do what: modules register permissions (`users:update`, `admin:access`, ...) and roles bundle them, in
+`authorization.roles` in `apps/web/nuxt.config.ts` (`admin` holds everything, `user` is every user's). Verified emails in
+`NUXT_ACL_ADMINS` hold `admin` (`apps/web/server/plugins/authorization-roles.ts`); admins assign roles to everyone else
+on the user's page in `/admin/users`.
+
 Rename the app (app id, name, client id, scopes) in `apps/mobile/identity.ts`. The full guide, with devices, Android
 and a production checklist, is the
 [Standalone mobile starter guide](https://docs.frigear.dev/examples/starters/mobile-standalone).

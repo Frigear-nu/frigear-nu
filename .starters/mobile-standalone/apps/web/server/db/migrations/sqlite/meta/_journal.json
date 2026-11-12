@@ -43,6 +43,13 @@
       "when": 1794451458090,
       "tag": "0005_session_version_refresh_lifetime",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794499007059,
+      "tag": "0006_access_control",
+      "breakpoints": true
     }
   ]
 }

@@ -22,7 +22,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
-    // NUXT_ACL_ADMINS: comma separated emails that are always admins (see server/utils/acl.ts).
+    // NUXT_ACL_ADMINS: comma separated emails that are always admins (see server/plugins/authorization-roles.ts).
     aclAdmins: '',
     public: {
       // NUXT_PUBLIC_SITE_URL: the public URL of the site. Emailed links (password reset, sign-in, verification) point
@@ -50,13 +50,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // @frigear-nu/admin: the /admin area, open to these roles.
-  admin: {
-    settings: {
-      roles: ['admin'],
-    },
-  },
-
   // @frigear-nu/auth: sign-in with email/password (on by default) and passkeys, which users add on
   // /account/security. Passkeys are bound to the domain the site runs on: choose the production domain before launch.
   // `verifyEmail`: a new account signs in through the emailed link, which proves the address (NUXT_ACL_ADMINS counts
@@ -67,15 +60,18 @@ export default defineNuxtConfig({
       verifyEmail: true,
       afterLogin: '/account',
       pages: { login: true, register: true },
-      session: { mapper: '~~/server/utils/map-session-user' },
     },
   },
 
-  // @frigear-nu/authorization: guests on a guarded page (/account/**, /admin/**) go to the login page. `rbac`: roles
-  // decide who may do what (built in: `admin` above `user`; `server/plugins/authorization-role.ts` picks the role).
+  // @frigear-nu/authorization: guests on a guarded page (/account/**, /admin/**) go to the login page. A role is a
+  // bundle of permissions; `server/plugins/authorization-roles.ts` makes verified NUXT_ACL_ADMINS addresses admins.
   authorization: {
-    rbac: true,
     redirectTo: '/login',
+    defaultRoles: ['user'],
+    roles: {
+      admin: { label: 'Admin', grant: ['*'] },
+      user: { label: 'User' },
+    },
   },
 
   eslint: {
@@ -91,7 +87,7 @@ export default defineNuxtConfig({
 
   // @frigear-nu/oauth-server: apps/mobile signs in here (PKCE, no secret) and calls /api/** with the access token.
   // Signing key: NUXT_OAUTH_SERVER_PRIVATE_KEY (`pnpm prepare:env` generates one). /admin/oauth is for roles
-  // holding `oauth:manage` (admins); the roles `allowedRoles` is checked against: server/plugins/oauth-policy.ts.
+  // holding `oauth:manage` (admins). A client's `allowedRoles` is checked against the user's roles (`authorization.roles`).
   oauthServer: {
     cors: {
       // The webviews of the native app: iOS (capacitor://localhost) and Android (https://localhost).
@@ -113,7 +109,7 @@ export default defineNuxtConfig({
     },
   },
 
-  // @frigear-nu/users: /admin/users; who may do what is decided by the roles (`authorization.rbac`).
+  // @frigear-nu/users: /admin/users; who may do what is decided by the roles' permissions (`authorization.roles`).
   users: {
     settings: {
       admin: true,
