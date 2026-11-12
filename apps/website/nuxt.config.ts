@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { defineRoles } from '@frigear-nu/auth/access'
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 import { contactForm } from './forms/contact'
 
@@ -271,8 +272,9 @@ export default defineNuxtConfig({
     //   (setting a user's role was a user write; a manager assigns only roles strictly below manager);
     // - admin `*` plus every sensitive permission by name (`*` never covers them), so admin holds every registered
     //   permission and may assign admin. Add new sensitive permissions here when a module registers one.
-    // NUXT_ACL_ADMINS adds `admin` (server/plugins/authorization-roles.ts).
-    roles: {
+    // NUXT_ACL_ADMINS adds `admin` (server/plugins/authorization-roles.ts). `defineRoles` types the grants and parents
+    // against the registered permissions and roles (`.nuxt/types/auth-access.d.ts`).
+    roles: defineRoles({
       admin: { label: 'Administrator', labelKey: 'roles.admin', grant: ['*', 'events:pii', 'forms:pii'], inherit: ['manager'] },
       manager: {
         label: 'Manager',
@@ -293,7 +295,7 @@ export default defineNuxtConfig({
       supplier: { label: 'Supplier', labelKey: 'roles.supplier', inherit: ['user'] },
       partner: { label: 'Partner', labelKey: 'roles.partner', inherit: ['user'] },
       user: { label: 'User', labelKey: 'roles.user' },
-    },
+    }),
   },
   cookieConsent: {
     policyUrl: '/legal/gdpr',
