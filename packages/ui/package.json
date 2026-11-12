@@ -82,7 +82,7 @@
     "@nuxt/test-utils": "catalog:",
     "@nuxt/ui": "catalog:",
     "eslint": "catalog:",
-    "monaco-editor": "^0.56.0",
+    "monaco-editor": "^0.57.0",
     "nuxt": "catalog:",
     "nuxt-monaco-editor": "^1.4.1",
     "tailwindcss": "^4.3.5",
@@ -92,7 +92,7 @@
   },
   "peerDependencies": {
     "@nuxt/ui": "catalog:",
-    "monaco-editor": "^0.56.0",
+    "monaco-editor": "^0.57.0",
     "nuxt": "catalog:",
     "nuxt-monaco-editor": "^1.4.1",
     "vue": "3.x"

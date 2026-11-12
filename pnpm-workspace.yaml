@@ -30,7 +30,7 @@ catalog:
   '@nuxt/ui': ^4.12.0
   '@nuxthub/core': ^0.10.12
   '@nuxt/module-builder': ^1.0.3
-  '@nuxt/test-utils': ^4.3.4
+  '@nuxt/test-utils': ^4.4.0
   '@nuxt/devtools': ^3.4.2
   '@nuxt/eslint-config': ^1.17.0
   '@nuxt/eslint': ^1.17.0
@@ -46,4 +46,4 @@ catalog:
   # Peers of @nuxt/test-utils (via nuxt): every package must resolve the same copies, or module-kit's test helpers
   # get a different test-utils instance than the test's setup() ("No context is available").
   h3: ^1.15.11
-  oxc-parser: ^0.153.0
+  oxc-parser: ^0.157.0
