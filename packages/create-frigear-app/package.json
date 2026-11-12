@@ -1,6 +1,6 @@
 {
   "name": "create-frigear-app",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "private": false,
   "description": "Create a Frigear project from a starter: pnpm create frigear-app. Runs the latest @frigear-nu/cli.",
