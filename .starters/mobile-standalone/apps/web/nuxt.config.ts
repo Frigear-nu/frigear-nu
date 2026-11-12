@@ -90,8 +90,8 @@ export default defineNuxtConfig({
   },
 
   // @frigear-nu/oauth-server: apps/mobile signs in here (PKCE, no secret) and calls /api/** with the access token.
-  // Signing key: NUXT_OAUTH_SERVER_PRIVATE_KEY (`pnpm prepare:env` generates one); who is an OAuth admin and which
-  // roles a user has: server/plugins/oauth-policy.ts.
+  // Signing key: NUXT_OAUTH_SERVER_PRIVATE_KEY (`pnpm prepare:env` generates one). /admin/oauth is for roles
+  // holding `oauth:manage` (admins); the roles `allowedRoles` is checked against: server/plugins/oauth-policy.ts.
   oauthServer: {
     cors: {
       // The webviews of the native app: iOS (capacitor://localhost) and Android (https://localhost).
