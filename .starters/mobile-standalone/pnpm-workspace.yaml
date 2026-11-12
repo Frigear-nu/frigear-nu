@@ -13,9 +13,9 @@ allowBuilds:
 overrides:
   # Safeguard: keep a single copy of module-kit for every @frigear-nu module, since they share build-time state through
   # it. module-kit 1.3.1 also works with duplicate copies; before that a second copy crashed the built server on start.
-  '@frigear-nu/module-kit': ^1.3.1
-  # Keep a single copy of @frigear-nu/auth. authorization 0.3 asks for users ^1.2.3 and users 1.2.4 for mcp ^0.2.2, but
-  # users 1.2.3 and mcp 0.2.2 still depend on auth 0.2. While pnpm's minimum release age has not passed for any of
-  # them, pnpm picks the lowest matching version and installs auth twice; these floors prevent that.
-  '@frigear-nu/mcp': ^0.2.3
-  '@frigear-nu/users': ^1.2.4
+  '@frigear-nu/module-kit': ^1.3.5
+  # Keep a single copy of @frigear-nu/auth. While pnpm's minimum release age has not passed for the latest releases,
+  # pnpm picks the lowest matching version of a dependency's dependency, and older users and mcp releases still depend
+  # on auth 0.3; these floors (the releases on auth 0.4) prevent that.
+  '@frigear-nu/mcp': ^0.3.0
+  '@frigear-nu/users': ^2.0.0
