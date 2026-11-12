@@ -31,8 +31,21 @@ export async function resolveBearer(event: H3Event): Promise<void> {
   for (const resolver of claimed) {
     const principal = await resolver.resolve(event, token)
     if (principal) {
-      // A bearer credential acts within its user's current permissions (OAuth 2.0 scopes as delegation).
-      const permissions = await getAuthUserPermissions(event, principal.user as { id: number })
+      // A bearer credential acts within its user's current permissions (OAuth 2.0 scopes as delegation). They are
+      // decided from the stored user, as for a cookie session: `principal.user` went through the host's session
+      // mapper, which may rewrite or drop `role`. Without a user store the principal's user is all there is. With one, a
+      // principal whose user the store lacks (a host resolver's mapped or forged user, or one deleted meanwhile) is
+      // refused: capping it by the role on the mapped user would let a stale "admin" act with `*`.
+      let subject: unknown = principal.user
+      if (storeConfigured) {
+        const stored = await useAuthUserStore().findById(principal.user.id as string | number)
+        if (!stored) {
+          event.context.authRejected = true
+          return
+        }
+        subject = stored
+      }
+      const permissions = await getAuthUserPermissions(event, subject as { id: number })
       event.context.auth = permissions ? { ...principal, ceiling: permissions } : principal
       return
     }
@@ -61,14 +74,31 @@ const sameEmail = (a: unknown, b: unknown) =>
   typeof a !== 'string' || typeof b !== 'string' || a.trim().toLowerCase() === b.trim().toLowerCase()
 
 /**
+ * Whether the session outlived its lifetime (`runtimeConfig.session.maxAge`, in seconds; `0` is no limit), counted from
+ * sign-in (`signedInAt`, stamped by `startAuthSession`). Nuxt's `useSession` reseals the cookie with a fresh ttl on
+ * every write, so the seal alone would let a session that keeps being written to last forever. A session without the
+ * stamp counts as expired.
+ */
+function authSessionExpired(event: H3Event, signedInAt: unknown) {
+  const { session } = useRuntimeConfig(event) as { session?: { maxAge?: number | string } }
+  const maxAge = Number(session?.maxAge) || 0
+  if (maxAge <= 0) return false
+  return typeof signedInAt !== 'number' || Date.now() - signedInAt > maxAge * 1000
+}
+
+/**
  * The cookie session as a principal, with the user read fresh from the store: a role change applies to the next
- * request. A session whose user is gone, or whose id now belongs to someone with another email (an id re-keyed by
- * `changeId`), or whose sessions were ended since it started (`endAuthSessions`), is cleared and answers `null`.
- * Without a user store the session's snapshot is used as is.
+ * request. A session past its lifetime (counted from sign-in), whose user is gone, or whose id now belongs to someone
+ * with another email (an id re-keyed by `changeId`), or whose sessions were ended since it started (`endAuthSessions`),
+ * is cleared and answers `null`. Without a user store the session's snapshot is used as is, within its lifetime.
  */
 export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal | null> {
   const session = await getUserSession(event)
   if (!session.user) return null
+  if (authSessionExpired(event, session.signedInAt)) {
+    await clearUserSession(event)
+    return null
+  }
   if (!storeConfigured) {
     const permissions = await getAuthUserPermissions(event, session.user as { id: number })
     return { kind: 'session', user: session.user, scopes: permissions ?? [ALL_SCOPES] }

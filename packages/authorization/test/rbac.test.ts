@@ -102,6 +102,98 @@ describe('compileRbac: validation', () => {
   })
 })
 
+describe('compileRbac: strict validation', () => {
+  const errorsOf = (config: Parameters<typeof compileRbac>[0]['config'], moduleRoles?: Parameters<typeof compileRbac>[0]['moduleRoles']) =>
+    compileRbac({ scopes, moduleRoles, config }).errors.join('\n')
+
+  it('stops on a hierarchy that does not start with admin', () => {
+    expect(errorsOf({ hierarchy: ['manager', 'user'] })).toContain('hierarchy starts with "manager": it must start with "admin"')
+  })
+
+  it('ranks admin above every role without a hierarchy, also roles admin does not inherit', () => {
+    const result = compileRbac({
+      scopes,
+      moduleRoles: [{ name: 'eventmanager' }],
+      config: { definitions: [{ name: 'auditor', inheritedBy: [] }, { name: 'lead', inherits: ['eventmanager', 'auditor'], inheritedBy: [] }] },
+    })
+    expect(result.errors).toEqual([])
+    expect(result.table.roles[0]!.name).toBe('admin')
+    for (const other of ['eventmanager', 'auditor', 'lead', 'user']) {
+      expect(canAssignRole(result.table, 'admin', other)).toBe(true)
+      expect(canAssignRole(result.table, other, 'admin')).toBe(false)
+    }
+  })
+
+  it('stops on an unknown role in inheritedBy, but accepts one created by hierarchy', () => {
+    expect(errorsOf({ definitions: [{ name: 'auditor', inheritedBy: ['mangaer'] }] })).toContain('Role "auditor" is inherited by unknown role "mangaer"')
+    expect(errorsOf({ hierarchy: ['admin', 'manager', 'user'], definitions: [{ name: 'auditor', inheritedBy: ['manager'] }] })).toBe('')
+  })
+
+  it('stops on an unknown role in inherits', () => {
+    expect(errorsOf({ definitions: [{ name: 'auditor', inherits: ['ghost'] }] })).toContain('Role "auditor" inherits unknown role "ghost"')
+    expect(errorsOf({ hierarchy: ['admin', 'manager', 'user'], inherits: { manager: ['ghost'] } })).toContain('Role "manager" inherits unknown role "ghost"')
+  })
+
+  it('stops on a role that inherits admin, directly or through another role', () => {
+    expect(errorsOf({ definitions: [{ name: 'boss', inherits: ['admin'], inheritedBy: [] }] }))
+      .toContain('Role "boss" inherits "admin": admin cannot be inherited')
+    expect(errorsOf({ hierarchy: ['admin', 'manager', 'user'], inherits: { manager: ['admin', 'user'] } }))
+      .toContain('Role "manager" inherits "admin": admin cannot be inherited')
+    const transitive = errorsOf({
+      definitions: [{ name: 'deputy', inherits: ['admin'], inheritedBy: [] }, { name: 'boss', inherits: ['deputy'], inheritedBy: [] }],
+    })
+    expect(transitive).toContain('Role "boss" inherits "admin" through "deputy": admin cannot be inherited')
+    expect(transitive).toContain('Role "deputy" inherits "admin": admin cannot be inherited')
+  })
+
+  it('never lets a role other than admin assign admin', () => {
+    const result = compileRbac({
+      scopes,
+      moduleRoles: [{ name: 'eventmanager' }],
+      config: {
+        hierarchy: ['admin', 'manager', 'crew', 'user'],
+        definitions: [{ name: 'auditor', inheritedBy: [] }, { name: 'lead', inherits: ['eventmanager', 'auditor'], inheritedBy: ['manager'] }],
+      },
+    })
+    expect(result.errors).toEqual([])
+    const others = result.table.roles.map(candidate => candidate.name).filter(name => name !== 'admin')
+    expect(others.length).toBeGreaterThan(4)
+    for (const other of others) expect(canAssignRole(result.table, other, 'admin')).toBe(false)
+  })
+
+  it('stops on admin as the default role', () => {
+    expect(errorsOf({ defaultRole: 'admin' })).toContain('defaultRole is "admin"')
+  })
+
+  it('stops on a revoke a wildcard the role holds would undo', () => {
+    expect(errorsOf({ grant: { user: ['events:*'] }, revoke: { user: ['events:manage'] } }))
+      .toContain('revoke.user takes away "events:manage", but "user" still holds it through "events:*"')
+    expect(errorsOf({ revoke: { admin: ['tickets:read'] } })).toContain('revoke.admin has no effect')
+  })
+
+  it('only warns about a revoke of a permission the role does not hold', () => {
+    const result = compileRbac({ scopes, config: { revoke: { user: ['forms:manage'] } } })
+    expect(result.errors).toEqual([])
+    expect(result.warnings.join('\n')).toContain('revoke.user takes away "forms:manage", which "user" does not hold: it has no effect')
+    expect(role(result, 'user').permissions).not.toContain('forms:manage')
+  })
+
+  it('revokes a permission that arrives through two inheritance paths', () => {
+    const result = compileRbac({
+      scopes,
+      config: {
+        hierarchy: ['admin', 'lead', 'user'],
+        definitions: [{ name: 'crew', permissions: ['forms:manage'], inheritedBy: ['lead'] }, { name: 'host', permissions: ['forms:manage'], inheritedBy: ['lead'] }],
+        revoke: { lead: ['forms:manage'] },
+      },
+    })
+    expect(result.errors).toEqual([])
+    expect(role(result, 'lead').inherits).toEqual(expect.arrayContaining(['crew', 'host']))
+    expect(role(result, 'lead').permissions).not.toContain('forms:manage')
+    expect(role(result, 'crew').permissions).toContain('forms:manage')
+  })
+})
+
 describe('compileRbac: rank without inheritance', () => {
   const result = compileRbac({
     scopes: [...scopes, { name: 'supply:read' }, { name: 'partners:read' }],

@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/cookie-consent",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "GDPR cookie consent banner with categories - modules contribute categories (extendCookieConsent), apps gate scripts on consent, and the choice is stored as proof on the user.",
   "homepage": "https://docs.frigear.dev/modules/features/cookie-consent",
   "repository": {
@@ -83,13 +83,13 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/auth": ">=0.0.1",
     "@frigear-nu/users": ">=0.0.1",
-    "@nuxthub/core": "catalog:",
-    "@nuxt/ui": "catalog:"
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
     "@nuxt/ui": {

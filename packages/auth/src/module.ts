@@ -284,6 +284,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     nuxt.options.auth ||= {}
     nuxt.options.auth.webAuthn = false
   }
+  else {
+    // `@simplewebauthn/server` 13 loads `@peculiar/x509`, whose tsyringe throws at import without the
+    // `reflect-metadata` polyfill. x509 imports it for its side effect only, and Nitro tree-shakes side effects of
+    // modules not listed in `moduleSideEffects`, so the server bundle would crash on startup (Cloudflare Workers).
+    nuxt.options.nitro.moduleSideEffects ||= []
+    if (!nuxt.options.nitro.moduleSideEffects.includes('reflect-metadata/')) {
+      nuxt.options.nitro.moduleSideEffects.push('reflect-metadata/')
+    }
+  }
 
   // Each table exists only when the feature owning it is enabled. Verification emails are magic links too.
   const tables = ['authUserTokens']
@@ -310,11 +319,16 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     file: dialect => `./runtime/db/users.${dialect}`,
   })
 
-  // Cookie sessions end `maxAge` seconds after sign-in: h3 sets the cookie's expiry and refuses an older sealed session.
-  // The host's own `runtimeConfig.session.maxAge` wins; nuxt-auth-utils merges its defaults over what is set here.
-  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number } }
+  // Cookie sessions end `maxAge` seconds after sign-in, however active the user is: the cookie gets that `Max-Age`, and
+  // `resolveAuthSession` refuses a session whose `signedInAt` (stamped by `startAuthSession`) is older, since Nuxt's
+  // `useSession` reseals with a fresh ttl on every write. The host's own `runtimeConfig.session.maxAge` wins;
+  // nuxt-auth-utils merges its defaults over what is set here.
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string } }
   const sessionConfig = withSession.session ??= {}
   sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
+  // nuxt-auth-utils 0.6 seals sessions with `appSecret` and no longer declares `session.password`. Kept OAuth tokens
+  // still fall back to it, and Nuxt only lets `NUXT_SESSION_PASSWORD` override a key declared at build time.
+  sessionConfig.password ??= ''
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {
@@ -422,6 +436,12 @@ declare module '#auth/scopes' {
   export const scopes: Scope[]
   /** Every registered permission, session-only ones included. */
   export const permissions: Scope[]
+}
+declare module '#auth-utils' {
+  interface UserSession {
+    /** When the session was signed in (epoch milliseconds, \`startAuthSession\`); its lifetime runs from here. */
+    signedInAt?: number
+  }
 }
 declare module '#auth/user-store' {
   const store: import('${resolver.resolve('./runtime/types')}').AuthUserStore

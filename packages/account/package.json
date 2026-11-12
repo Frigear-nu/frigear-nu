@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/account",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A module for managing the account area (profile, email, password, security) in the main frigear app.",
   "homepage": "https://docs.frigear.dev/modules/identity/account",
   "repository": {
@@ -56,8 +56,8 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",
@@ -65,7 +65,7 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/authorization": "workspace:^",

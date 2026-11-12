@@ -241,22 +241,40 @@ describe('authorization (authenticated)', async () => {
       await expect($fetch('/api/test/staff', bearer)).rejects.toMatchObject({ statusCode: 403 })
     })
 
+    it('caps a token by the stored role, not the role the session mapper shows', async () => {
+      const editor = await register({ name: 'Mapped', email: 'mapped@example.com', password })
+      await setRole('mapped@example.com', 'editor')
+      const cookie = await login('mapped@example.com', password)
+      // The fixture's mapper shows editors as "Editor", a role that does not exist (it would act as `user`).
+      expect(await $fetch('/api/_auth/session', { headers: { cookie } })).toMatchObject({ user: { role: 'Editor' } })
+      const token = await createToken(editor.cookie, ['reports:write'])
+      await expect($fetch('/api/test/staff', { headers: { authorization: `Bearer ${token}` } })).resolves.toEqual({ staff: true })
+      await expect($fetch('/api/test/staff', { headers: { cookie } })).resolves.toEqual({ staff: true })
+      await setRole('mapped@example.com', 'user')
+    })
+
     it('treats an unknown stored role as the default role', async () => {
       await setRole('edith@example.com', 'retired')
       const mine = await $fetch<{ role: { name: string } }>('/api/authorization/me/permissions', { headers: { cookie: (await login('edith@example.com', password)) } })
       expect(mine.role.name).toBe('user')
     })
 
-    // The roles admin API (`roles:read`, registered by the module itself: no `aggregateTo`, so admin only).
+    // The roles admin API (`roles:read`, registered by the module itself: no `aggregateTo`, so admin only unless granted;
+    // the fixture grants it to editors). Route rules only require a signed-in user there: the guard decides.
     describe('roles admin API', () => {
       const asAdmin = () => ({ headers: { cookie: adminCookie } })
 
       it('is for staff holding roles:read only', async () => {
-        await expect($fetch(authorizationApi.admin.roles)).rejects.toMatchObject({ statusCode: 401 })
-        await expect($fetch(authorizationApi.admin.roles, { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
-        await expect($fetch(authorizationApi.admin.role('user'), { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
-        await expect($fetch(authorizationApi.admin.permissions, { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
+        await setRole('ed@example.com', 'editor')
+        const editorCookie = await login('ed@example.com', password)
+        const routes = [authorizationApi.admin.roles, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('user'), authorizationApi.admin.permissions]
+        for (const route of routes) {
+          await expect($fetch(route)).rejects.toMatchObject({ statusCode: 401 })
+          await expect($fetch(route, { headers: { cookie: userCookie } })).rejects.toMatchObject({ statusCode: 403 })
+          expect((await fetch(route, { headers: { cookie: editorCookie } })).status, route).toBe(200)
+        }
         expect(await scopeNames(adminCookie)).toContain('roles:read')
+        expect(await scopeNames(editorCookie)).toContain('roles:read')
         expect(await scopeNames(userCookie)).not.toContain('roles:read')
       })
 
@@ -267,7 +285,7 @@ describe('authorization (authenticated)', async () => {
         expect(roles.map(role => role.rank)).toEqual([0, 1, 2])
         const [admin, editor, user] = roles
         expect(admin).toMatchObject({ label: 'Administrator', source: 'built-in', inherits: ['editor'], userCount: 2, isDefault: false })
-        expect(editor).toMatchObject({ label: 'Editor', source: 'app', inherits: ['user'], userCount: 1, permissionCount: 2 })
+        expect(editor).toMatchObject({ label: 'Editor', source: 'app', inherits: ['user'], userCount: 1, permissionCount: 3 })
         expect(user).toMatchObject({ isDefault: true, permissionCount: 1 })
         expect(user!.userCount).toBeGreaterThanOrEqual(1)
         expect(admin!.permissionCount).toBeGreaterThanOrEqual(3)
@@ -278,11 +296,11 @@ describe('authorization (authenticated)', async () => {
         const grant = (role: AuthorizationRoleDto, name: string) => role.permissions.find(permission => permission.name === name)?.grant
         expect(grant(editor, 'reports:write')).toEqual({ via: 'granted' })
         expect(grant(editor, 'reports:read')).toEqual({ via: 'inherited', from: 'user' })
-        expect(grant(editor, 'roles:read')).toBeNull()
+        expect(grant(editor, 'roles:read')).toEqual({ via: 'granted' })
 
         const admin = await $fetch<AuthorizationRoleDto>(authorizationApi.admin.role('admin'), asAdmin())
         expect(grant(admin, 'reports:write')).toEqual({ via: 'inherited', from: 'editor' })
-        expect(grant(admin, 'roles:read')).toEqual({ via: 'all' })
+        expect(grant(admin, 'roles:read')).toEqual({ via: 'inherited', from: 'editor' })
         expect(admin.permissions.find(permission => permission.name === '*')).toMatchObject({ wildcard: true, grant: { via: 'all' } })
       })
 
@@ -306,7 +324,7 @@ describe('authorization (authenticated)', async () => {
         const holders = (name: string) => matrix.permissions.find(permission => permission.name === name)?.holders
         expect(holders('reports:write')).toEqual({ admin: { via: 'inherited', from: 'editor' }, editor: { via: 'granted' }, user: null })
         expect(holders('reports:read')).toEqual({ admin: { via: 'inherited', from: 'user' }, editor: { via: 'inherited', from: 'user' }, user: { via: 'aggregated' } })
-        expect(holders('roles:read')).toEqual({ admin: { via: 'all' }, editor: null, user: null })
+        expect(holders('roles:read')).toEqual({ admin: { via: 'inherited', from: 'editor' }, editor: { via: 'granted' }, user: null })
         expect(matrix.permissions.find(permission => permission.name === 'reports:read')).toMatchObject({ resource: 'reports', pii: false })
       })
 

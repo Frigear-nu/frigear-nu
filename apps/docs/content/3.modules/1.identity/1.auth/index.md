@@ -150,7 +150,8 @@ the browser send: `Sec-Fetch-Site: cross-site`, or an `Origin` other than the re
 answer `403 cross_site_request`. Clients that send neither header, such as native apps and servers, are not affected.
 
 **`settings.session.maxAge`.** A session ends this long after sign-in, however active the user is: the cookie expires,
-and the server refuses a session sealed earlier. Signing in again starts a new one. nuxt-auth-utils'
+and the server refuses a session signed in earlier (it is stamped at sign-in, and saving the profile or a preference
+keeps the stamp). Signing in again starts a new one. nuxt-auth-utils'
 `runtimeConfig.session.maxAge` (`NUXT_SESSION_MAX_AGE`) wins over this setting.
 
 **Ending sessions.** A password change or reset, an email change or its revert, and clearing an unverified account's

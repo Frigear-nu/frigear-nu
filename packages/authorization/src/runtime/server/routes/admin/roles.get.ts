@@ -4,7 +4,7 @@ import type { AuthorizationRoleSummaryDto } from '../../../../types'
 
 // `GET /api/admin/authorization/roles`: every role, most senior first, with how many users have it.
 export default defineEventHandler(async (event): Promise<AuthorizationRoleSummaryDto[]> => {
-  const table = await requireRolesStaff(event)
+  const table = await requireAuthorizationRolesStaff(event)
   const counts = await authorizationRoleUserCounts()
   return table.roles.map((role, rank) => toAuthorizationRoleSummaryDto(table, role, rank, counts.get(role.name) ?? 0))
 })

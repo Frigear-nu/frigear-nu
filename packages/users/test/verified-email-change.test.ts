@@ -100,7 +100,7 @@ describe('verified email change', async () => {
     const confirm = await post(usersApi.emailChangeConfirm, { code }, cookie)
     expect(confirm.status, await confirm.clone().text()).toBe(200)
     expect(await confirm.json()).toMatchObject({ email: 'ada-new@example.com' })
-    expect(confirm.headers.get('set-cookie')).toContain('nuxt-session')
+    expect(confirm.headers.get('set-cookie')).toContain('nuxt-auth-session')
 
     expect((await login('ada-new@example.com')).status).toBe(200)
 

@@ -5,7 +5,7 @@ import type { AuthorizationRoleDto } from '../../../../types'
 
 // `GET /api/admin/authorization/roles/:name`: one role with every registered permission and why it holds it.
 export default defineEventHandler(async (event): Promise<AuthorizationRoleDto> => {
-  await requireRolesStaff(event)
+  await requireAuthorizationRolesStaff(event)
   const { name } = await getValidatedRouterParams(event, idParams('name').parse)
   const { table, role, rank } = requireAuthorizationRole(name)
   const users = schema.users as typeof schema.users & { role: typeof schema.users.name }

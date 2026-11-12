@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/payments",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "One-time payments (Stripe Checkout, refunds and payment lifecycle hooks) for the frigear ecosystem, built on @frigear-nu/stripe.",
   "homepage": "https://docs.frigear.dev/modules/commerce/payments",
   "repository": {
@@ -86,10 +86,10 @@
     "@nuxt/kit": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "h3": "^1.15.11",
-    "stripe": "^23.0.0",
+    "h3": "catalog:",
+    "stripe": "^23.1.0",
     "unstorage": "^1.17.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/widget": "workspace:^",

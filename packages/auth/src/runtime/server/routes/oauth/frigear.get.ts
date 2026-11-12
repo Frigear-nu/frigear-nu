@@ -1,3 +1,5 @@
+import type { H3Event } from 'h3'
+import type { RequestEvent } from 'nuxt/server'
 import { notFound } from '@frigear-nu/module-kit/server'
 import { handleFrigearLogin } from '../../utils/frigear-login'
 
@@ -13,6 +15,7 @@ export default eventHandler(async (event) => {
   // Step-up (`?scope=users:read`) only shapes the authorization request; the callback carries no `scope`.
   const scope = frigearLoginScopes(sso, getQuery(event).scope)
 
+  // nuxt-auth-utils 0.6 types its handlers with Nuxt's `RequestEvent`; under Nitro 2 that is this same h3 event.
   return defineOAuthOidcEventHandler({
     config: {
       clientId: sso.clientId,
@@ -20,11 +23,11 @@ export default eventHandler(async (event) => {
       openidConfig: sso.openidConfig,
       scope,
     },
-    async onSuccess(event, { user, tokens }) {
-      return handleFrigearLogin(event, sso, user as Record<string, unknown>, tokens)
+    async onSuccess(oauthEvent, { user, tokens }) {
+      return handleFrigearLogin(oauthEvent as unknown as H3Event, sso, user as Record<string, unknown>, tokens)
     },
-    async onError(event) {
-      return sendRedirect(event, '/?error=frigear')
+    async onError(oauthEvent) {
+      return sendRedirect(oauthEvent as unknown as H3Event, '/?error=frigear')
     },
-  })(event)
+  })(event as unknown as RequestEvent)
 })

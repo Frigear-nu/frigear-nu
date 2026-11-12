@@ -161,7 +161,7 @@ describe('oauth providers (any nuxt-auth-utils provider, on through its credenti
       const response = await fetch(url, { redirect: 'manual', headers })
       expect(response.status, url).toBe(302)
       expect(response.headers.get('location'), url).toBe('/?error=oauth-state')
-      expect(response.headers.get('set-cookie'), url).not.toMatch(/nuxt-session=/)
+      expect(response.headers.get('set-cookie'), url).not.toMatch(/nuxt-auth-session=/)
     }
   })
 

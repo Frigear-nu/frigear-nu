@@ -4,6 +4,7 @@ export default defineEventHandler(async (event) => {
   const { id } = await readBody<{ id: string }>(event)
   const user = getTestUser(String(id))
   if (!user) throw createError({ statusCode: 404 })
-  await setUserSession(event, { user: user as never })
+  // Signs in the way the app does: a new session, stamped with `signedInAt` (refused without it).
+  await startAuthSession(event, user)
   return { ok: true }
 })

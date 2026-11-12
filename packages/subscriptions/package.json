@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/subscriptions",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Recurring subscriptions (plans, checkout, upgrade/downgrade, billing portal and entitlements) for the frigear ecosystem, built on @frigear-nu/stripe.",
   "homepage": "https://docs.frigear.dev/modules/commerce/subscriptions",
   "repository": {
@@ -90,10 +90,10 @@
     "@vueuse/core": "^15.0.0",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
-    "h3": "^1.15.11",
-    "stripe": "^23.0.0",
+    "h3": "catalog:",
+    "stripe": "^23.1.0",
     "unstorage": "^1.17.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@frigear-nu/email-templates": "workspace:^",

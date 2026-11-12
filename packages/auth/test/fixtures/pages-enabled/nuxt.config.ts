@@ -7,7 +7,7 @@ export default defineNuxtConfig({
     MyModule,
   ],
   runtimeConfig: {
-    session: { password: 'a-test-only-session-password-at-least-32-chars' },
+    appSecret: 'a-test-only-app-secret-at-least-32-characters',
   },
   hub: {
     db: {

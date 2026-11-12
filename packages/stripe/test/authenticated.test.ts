@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { readFile, rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { $fetch, fetch, setup, useTestContext } from '@nuxt/test-utils/e2e'
 import { eventId, getCalls, makeEvent, postWebhook, sign } from './helpers'
 
 // One fixture for both suites below: the webhook's own behaviour and the user resolution of the database-backed app.
@@ -19,7 +19,8 @@ await setup({
 
 describe('stripe webhook (authenticated, database-backed)', () => {
   it('extends the generated users schema with stripeCustomerId', async () => {
-    const schema = await readFile(`${rootDir}/.nuxt/hub/db/schema.mjs`, 'utf8')
+    // Test builds use their own build dir (`.nuxt/test/<id>`), not the fixture's `.nuxt`.
+    const schema = await readFile(`${useTestContext().nuxt!.options.buildDir}/hub/db/schema.mjs`, 'utf8')
     expect(schema).toContain('stripe_customer_id')
   })
 

@@ -90,7 +90,8 @@ export default defineNitroPlugin((nitro) => {
 })
 ```
 
-[Answer its policy hook](/get-started/adding-modules#answer-its-policy-hook) shows a check by role.
+With `authorization: { rbac: true }`, as in the starters, the role decides instead: a role holding `forms:manage`
+may manage forms. [Decide who manages it](/get-started/adding-modules#decide-who-manages-it) shows how to grant it.
 
 ::
 
