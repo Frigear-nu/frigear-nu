@@ -68,10 +68,10 @@
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@nuxt/kit": "catalog:",
-    "@nuxtjs/mcp-toolkit": "^0.24.1",
+    "@nuxtjs/mcp-toolkit": "^0.24.3",
     "agents": "^0.28.0",
-    "h3": "^1.15.11",
-    "zod": "^4.6.5"
+    "h3": "catalog:",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@libsql/client": "^0.18.0",

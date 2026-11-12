@@ -85,17 +85,17 @@
     "monaco-editor": "^0.56.0",
     "nuxt": "catalog:",
     "nuxt-monaco-editor": "^1.4.1",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.5",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   },
   "peerDependencies": {
     "@nuxt/ui": "catalog:",
-    "nuxt": "catalog:",
-    "vue": "3.x",
     "monaco-editor": "^0.56.0",
-    "nuxt-monaco-editor": "^1.4.1"
+    "nuxt": "catalog:",
+    "nuxt-monaco-editor": "^1.4.1",
+    "vue": "3.x"
   },
   "peerDependenciesMeta": {
     "monaco-editor": {
