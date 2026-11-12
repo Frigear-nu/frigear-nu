@@ -95,7 +95,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     // Permissions, the `tickets` scope and the opt-in `eventmanager` role (`runtime/access.ts`).
-    registerAccess(nuxt, eventsAccess, { roles: !!options.settings?.roles })
+    registerAccess(nuxt, eventsAccess, { roles: !!options.settings?.roles, from: MODULE_NAME })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
