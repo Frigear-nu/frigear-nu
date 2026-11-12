@@ -5,7 +5,8 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
-import { addPermission } from '@frigear-nu/auth/utils'
+import { registerAccess } from '@frigear-nu/auth/utils'
+import { adminAccess } from './runtime/access'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import { ADMIN_NAV_GROUPS } from './runtime/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -23,7 +24,7 @@ declare module 'nuxt/schema' {
 }
 
 /** The permission that opens the admin area (`admin.settings.permission`). */
-const ADMIN_ACCESS_PERMISSION = 'admin:access'
+const ADMIN_ACCESS_PERMISSION = adminAccess.permissions.access
 
 const trimSlash = (path: string) => path.length > 1 ? path.replace(/\/+$/, '') : path
 
@@ -75,15 +76,7 @@ export default defineNuxtModule<ModuleOptions>({
     if (permission) {
       if (guarded) {
         if (permission === ADMIN_ACCESS_PERMISSION) {
-          addPermission(nuxt, {
-            name: ADMIN_ACCESS_PERMISSION,
-            label: 'Access the admin area',
-            labelKey: 'admin.permissions.access',
-            descriptionKey: 'admin.permissions.accessDescription',
-            description: 'Open the pages under the admin area. The data behind them checks its own permissions.',
-            group: 'admin',
-            grantTo: ['admin'],
-          })
+          registerAccess(nuxt, adminAccess)
         }
         const rules = nuxt.options.routeRules ||= {}
         for (const pattern of bases.map(prefixed => `${prefixed}/**`)) {

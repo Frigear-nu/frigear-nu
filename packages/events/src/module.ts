@@ -20,7 +20,8 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addPermission, addRole, addScope } from '@frigear-nu/auth/utils'
+import { registerAccess } from '@frigear-nu/auth/utils'
+import { eventsAccess } from './runtime/access'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   EventsRuntimeConfig,
@@ -93,48 +94,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    // The admin role (when it exists) holds the staff permissions by default; the `eventmanager` role is opt-in.
-    // Policies on `events:manage` and `events:refund` receive the EVENT row as their record, on every route and MCP tool,
-    // also for actions on a ticket type, add-on or ticket (`authorizeEventsRecord` in `runtime/server/utils/admin.ts`).
-    const staffRoles = options.settings?.roles ? ['admin', 'eventmanager'] : ['admin']
-    addPermission(nuxt,
-      { name: 'events:manage', label: 'Manage events', labelKey: 'events.permissions.manage', description: 'Create and edit events, ticket types and add-ons, and check tickets in.', descriptionKey: 'events.permissions.manageDescription', group: 'events', grantTo: staffRoles },
-      {
-        name: 'events:pii',
-        label: 'See attendee details',
-        labelKey: 'events.permissions.pii',
-        description: 'See attendee names and emails (MCP tools). Never covered by a wildcard.',
-        descriptionKey: 'events.permissions.piiDescription',
-        group: 'events',
-        sensitive: true,
-        grantTo: staffRoles,
-      },
-      {
-        // Money moves: only a signed-in session may refund, never an API or OAuth token (`sessionOnly`). Roles that
-        // grant `events:manage` by name need to grant this too (`events:*` covers it).
-        name: 'events:refund',
-        label: 'Refund tickets',
-        labelKey: 'events.permissions.refund',
-        description: 'Refund a paid ticket. Cookie sessions only.',
-        descriptionKey: 'events.permissions.refundDescription',
-        group: 'events',
-        sessionOnly: true,
-        grantTo: staffRoles,
-      },
-      { name: 'tickets:read', label: 'Read your tickets', labelKey: 'events.permissions.ticketsRead', description: 'Read your tickets and event details.', group: 'tickets', implicit: true },
-      { name: 'tickets:write', label: 'Buy tickets', labelKey: 'events.permissions.ticketsWrite', description: 'Buy tickets and pay for them.', group: 'tickets', implicit: true },
-    )
-    addScope(nuxt, {
-      name: 'tickets',
-      label: 'Your tickets',
-      labelKey: 'events.scopes.tickets',
-      description: 'Read your tickets and event details, and buy tickets.',
-      icon: 'i-lucide-ticket',
-      permissions: ['tickets:read', 'tickets:write'],
-    })
-    if (options.settings?.roles) {
-      addRole(nuxt, { name: 'eventmanager', label: 'Event manager', labelKey: 'events.roles.eventmanager', grant: ['events:manage', 'events:refund', 'events:pii'], from: MODULE_NAME })
-    }
+    // Permissions, the `tickets` scope and the opt-in `eventmanager` role (`runtime/access.ts`).
+    registerAccess(nuxt, eventsAccess, { roles: !!options.settings?.roles })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

@@ -5,7 +5,8 @@ import {
   hasNuxtModule,
 } from '@nuxt/kit'
 import { addModuleRoutes, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
-import { addPermission, setAuthUserStore } from '@frigear-nu/auth/utils'
+import { registerAccess, setAuthUserStore } from '@frigear-nu/auth/utils'
+import { USERS_SELF_SERVICE, usersAccess } from './runtime/access'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -72,16 +73,6 @@ export default defineNuxtModule<ModuleOptions>({
       schema: dialect => `./runtime/db/schema.${dialect}`,
     })
 
-    // Self-service: every signed-in user holds these (also without `@frigear-nu/authorization`), and may delegate them:
-    // an API token or OAuth access token given `profile:write` may change the user's name and avatar (`PATCH /me`).
-    // The email address and password are not part of it: they change only in a session
-    // (`requireUser(event, { sessionOnly: true })`); staff change another user's email with the session-only
-    // `users:manage`.
-    addPermission(nuxt,
-      { name: 'profile:read', label: 'Read your profile', labelKey: 'users.permissions.profileRead', description: 'Read your own name, email and avatar.', group: 'profile', implicit: true },
-      { name: 'profile:write', label: 'Change your profile', labelKey: 'users.permissions.profileWrite', description: 'Change your own name and avatar.', group: 'profile', implicit: true },
-    )
-
     // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
     setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
 
@@ -135,6 +126,8 @@ export default defineNuxtModule<ModuleOptions>({
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin
+    // Self-service `profile:*` always; the staff `users:*` permissions with the admin API (`runtime/access.ts`).
+    registerAccess(nuxt, usersAccess, withAdmin ? {} : { permissions: USERS_SELF_SERVICE })
     const adminOptions = typeof settings.admin === 'object' ? settings.admin : {}
     // The admin pages live in the admin shell of `@frigear-nu/admin`, so they only exist with it.
     const withAdminShell = hasNuxtModule('@frigear-nu/admin')
@@ -146,18 +139,6 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
 
     if (withAdmin) {
-      // Staff permissions, granted through roles (the host's `authorization.roles`; `admin: ['*']` covers them). Reads
-      // also work for API tokens and OAuth access tokens given them. Deleting a user and anything that touches how
-      // someone signs in (their email, sign-in links) is session only. Roles themselves are `@frigear-nu/authorization`'s.
-      addPermission(nuxt,
-        { name: 'users:read', label: 'View users', labelKey: 'users.permissions.read', description: 'See a user\'s profile, sign-in methods and what other modules show on the user page.', group: 'users' },
-        { name: 'users:list', label: 'List users', labelKey: 'users.permissions.list', description: 'Search the user directory and see the sign-up numbers.', group: 'users' },
-        { name: 'users:create', label: 'Add users', labelKey: 'users.permissions.create', description: 'Create users and email them a sign-in link.', group: 'users' },
-        { name: 'users:update', label: 'Edit users', labelKey: 'users.permissions.update', description: 'Change a user\'s name.', group: 'users' },
-        { name: 'users:delete', label: 'Delete users', labelKey: 'users.permissions.delete', description: 'Delete users and their sign-in methods.', group: 'users', sessionOnly: true },
-        { name: 'users:manage', label: 'Manage sign-in of users', labelKey: 'users.permissions.manage', description: 'Change or verify a user\'s email address and email them a sign-in link.', group: 'users', sessionOnly: true },
-      )
-
       // Static segments (`new`, `stats`) win over `:id` in the router.
       addModuleRoutes(resolver, [
         { method: 'get', path: '', file: 'admin/users.get' },

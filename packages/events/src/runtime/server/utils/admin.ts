@@ -6,13 +6,14 @@ import { and, asc, eq } from 'drizzle-orm'
 import { badRequest, conflict, notFound } from '@frigear-nu/module-kit/server'
 import { loadCatalog } from './catalog'
 import { eventInput, ticketTypeInput } from './admin-schemas'
+import { eventsAccess } from '../../access'
 import type { addonGroupInput } from './admin-schemas'
 
 type TicketTypeInput = z.output<typeof ticketTypeInput>
 type AddonGroupInput = z.output<typeof addonGroupInput>
 
 /** The permissions whose record-level policies run on one event. */
-export type EventsRecordPermission = 'events:manage' | 'events:refund'
+export type EventsRecordPermission = typeof eventsAccess.permissions.manage | typeof eventsAccess.permissions.refund
 
 /**
  * Loads the event `eventId` (404 `not_found`) and authorizes `permission` on it. Every record-level check of
@@ -21,7 +22,7 @@ export type EventsRecordPermission = 'events:manage' | 'events:refund'
  * the event it belongs to. Call it after `authorize(event, permission)` without a record, so a caller who may not do the
  * action at all gets 401/403 before any 404. Returns the event row.
  */
-export async function authorizeEventsRecord(event: H3Event, eventId: string, permission: EventsRecordPermission = 'events:manage') {
+export async function authorizeEventsRecord(event: H3Event, eventId: string, permission: EventsRecordPermission = eventsAccess.permissions.manage) {
   const [row] = await db.select().from(schema.events).where(eq(schema.events.id, eventId)).limit(1)
   if (!row) throw notFound('Event not found.')
   await authorize(event, permission, row)

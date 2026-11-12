@@ -1,5 +1,6 @@
 import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/menu/utils'
 import { useRuntimeConfig } from '#imports'
+import { eventsAccess } from './access'
 
 // Only registered when `@frigear-nu/menu` is installed (see `module.ts`).
 export default defineMenuSource(() => {
@@ -28,7 +29,7 @@ export default defineMenuSource(() => {
       descriptionKey: 'events.menu.admin.description',
       icon: 'i-lucide-calendar-days',
       to: config.pages.admin,
-      permission: 'events:manage',
+      permission: eventsAccess.permissions.manage,
       order: 20,
     }))
   }

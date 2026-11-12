@@ -4,6 +4,8 @@ import { desc, inArray } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
 import { forbidden, intIdParams, notFound } from '@frigear-nu/module-kit/server'
 import type { AuthPrincipal, AuthUser } from '@frigear-nu/auth/utils'
+import type { Permission } from '@frigear-nu/auth/access'
+import { usersAccess } from '../../access'
 
 /** What a staff member does in the users admin; each maps to one permission (`USERS_PERMISSIONS`). */
 export type UsersAdminAction = 'view' | 'list' | 'create' | 'update' | 'delete' | 'manage'
@@ -13,12 +15,12 @@ export type UsersAdminAction = 'view' | 'list' | 'create' | 'update' | 'delete' 
  * numbers); `manage` covers what touches someone's sign-in: changing or verifying their email, emailing a sign-in link.
  */
 export const USERS_PERMISSIONS = {
-  view: 'users:read',
-  list: 'users:list',
-  create: 'users:create',
-  update: 'users:update',
-  delete: 'users:delete',
-  manage: 'users:manage',
+  view: usersAccess.permissions.read,
+  list: usersAccess.permissions.list,
+  create: usersAccess.permissions.create,
+  update: usersAccess.permissions.update,
+  delete: usersAccess.permissions.delete,
+  manage: usersAccess.permissions.manage,
 } as const satisfies Record<UsersAdminAction, `users:${string}`>
 
 /** The permission to read one user (`GET /api/admin/users/:id` and the routes other modules add below it). */
@@ -36,7 +38,7 @@ export interface UsersAdminTargetOptions {
    * below `/api/admin/users/:id/` (`subscriptions:manage`). The action still decides whether target protection applies:
    * every action but `view` is a write.
    */
-  permission?: string
+  permission?: Permission
 }
 
 /**

@@ -25,10 +25,11 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
-import { addPermission, addPolicies, addRole, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import { addPolicies, addRole, registerAccess, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import { authorizationAccess } from './runtime/access'
 import type { PermissionRegistry } from '@frigear-nu/auth/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
-import { AUTHORIZATION_ROLES_ASSIGN, AUTHORIZATION_ROLES_READ, ROUTE_RULE_KEYS } from './runtime/utils/types'
+import { AUTHORIZATION_ROLES_READ, ROUTE_RULE_KEYS } from './runtime/utils/types'
 import { findUnenforcedPatterns, normalizeAuthorizeMeta } from './runtime/utils/rules'
 import type { AuthorizeMeta } from './runtime/utils/types'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
@@ -185,11 +186,8 @@ export default defineNuxtModule<ModuleOptions>({
     if (sharedPolicies) addPolicies(nuxt, { path: sharedPolicies, host: true, shared: true })
 
     if (server) {
-      // The module's own permissions. Role changes alter what someone may do, so assigning is session only.
-      addPermission(nuxt,
-        { name: AUTHORIZATION_ROLES_READ, label: 'See roles', labelKey: 'authorization.permissions.rolesRead', description: 'See the roles, what each may do and who has them.', group: 'roles' },
-        { name: AUTHORIZATION_ROLES_ASSIGN, label: 'Assign roles', labelKey: 'authorization.permissions.rolesAssign', description: 'Give users roles and take them away (only roles within your own permissions).', group: 'roles', sessionOnly: true },
-      )
+      // The module's own permissions (`runtime/access.ts`).
+      registerAccess(nuxt, authorizationAccess)
       // The host's roles merge into a module's role of the same name (`replace: true` drops the module's); auth compiles
       // them and fails the build on errors.
       addRole(nuxt, ...Object.entries(options.roles ?? {}).map(([name, role]) => ({ ...role, name, source: 'host' as const, replace: role.replace ?? false })))
