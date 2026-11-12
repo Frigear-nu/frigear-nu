@@ -78,6 +78,8 @@ export default defineNuxtModule<ModuleOptions>({
           addPermission(nuxt, {
             name: ADMIN_ACCESS_PERMISSION,
             label: 'Access the admin area',
+            labelKey: 'admin.permissions.access',
+            descriptionKey: 'admin.permissions.accessDescription',
             description: 'Open the pages under the admin area. The data behind them checks its own permissions.',
             group: 'admin',
             grantTo: ['admin'],

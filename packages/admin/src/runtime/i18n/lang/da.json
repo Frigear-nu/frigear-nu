@@ -21,6 +21,10 @@
     },
     "search": {
       "goTo": "Gå til"
+    },
+    "permissions": {
+      "access": "Adgang til administrationen",
+      "accessDescription": "Åbn siderne i administrationen. Dataene bag dem tjekker deres egne rettigheder."
     }
   }
 }

@@ -133,7 +133,7 @@ export default defineNuxtModule<ModuleOptions>({
       permissions: ['tickets:read', 'tickets:write'],
     })
     if (options.settings?.roles) {
-      addRole(nuxt, { name: 'eventmanager', label: 'Event manager', grant: ['events:manage', 'events:refund', 'events:pii'], from: MODULE_NAME })
+      addRole(nuxt, { name: 'eventmanager', label: 'Event manager', labelKey: 'events.roles.eventmanager', grant: ['events:manage', 'events:refund', 'events:pii'], from: MODULE_NAME })
     }
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))

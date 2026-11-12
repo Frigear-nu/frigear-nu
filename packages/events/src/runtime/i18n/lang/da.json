@@ -263,6 +263,9 @@
     },
     "scopes": {
       "tickets": "Dine billetter"
+    },
+    "roles": {
+      "eventmanager": "Eventansvarlig"
     }
   }
 }

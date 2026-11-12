@@ -21,6 +21,10 @@
     },
     "search": {
       "goTo": "Go to"
+    },
+    "permissions": {
+      "access": "Access the admin area",
+      "accessDescription": "Open the pages under the admin area. The data behind them checks its own permissions."
     }
   }
 }
