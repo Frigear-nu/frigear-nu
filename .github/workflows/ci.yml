@@ -1,7 +1,10 @@
 name: CI
 
-# Pull requests only: the PR already checks the merge commit, and deploy-production.yml builds main. Not built here:
-# deploy-preview.yml builds every collaborator PR.
+# Pull requests only: the PR already checks the merge commit, and deploy-production.yml builds main. The `lint` job
+# also builds the affected packages (and the packages they depend on) with nuxt-module-build, so a build-only error
+# such as module-builder's failOnWarn fails the PR instead of release.yml's verify. It is a step, not a job of its own:
+# every job pays ~1 minute of setup and is billed rounded up. Apps are not built here: deploy-preview.yml builds every
+# collaborator PR.
 #
 # Almost all test time is @nuxt/test-utils e2e files, each building and booting a Nuxt fixture (15-130 s on a 2 vCPU
 # runner). scripts/ci-test-shard.mjs spreads the test files of the affected packages over the `test` matrix, weighted
@@ -31,7 +34,7 @@ env:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint & build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -62,6 +65,12 @@ jobs:
 
       - name: Lint
         run: pnpm exec turbo run lint $AFFECTED --filter='!//' --concurrency=2 --cache-dir=.turbo
+
+      # The filters mirror the root build:packages script. --affected intersects with them, and ^build adds the
+      # packages the affected ones depend on. Runs after a lint failure too, so one push reports both.
+      - name: Build packages
+        if: ${{ !cancelled() }}
+        run: pnpm exec turbo run build $AFFECTED --filter='./packages/**' --filter='!./packages/base-layer' --concurrency=2 --cache-dir=.turbo
 
   test:
     name: Test (${{ matrix.shard }}/4)

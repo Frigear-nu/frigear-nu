@@ -374,8 +374,9 @@ break `apps/website`.
 ### CI
 
 `.github/workflows/ci.yml` runs on pull requests only, for the packages Turbo considers affected (changed packages
-plus their dependents): one `Lint` job and four `Test (n/4)` jobs, each with a 10 minute ceiling. It does not run
-typecheck or build; the deploy preview builds collaborator PRs. Almost all test time is `@nuxt/test-utils/e2e` files,
+plus their dependents): one `Lint & build` job (lint, then a build of the affected packages and their dependencies,
+not the apps) and four `Test (n/4)` jobs, each with a 10 minute ceiling. It does not run typecheck; the deploy preview
+builds the apps of collaborator PRs. Almost all test time is `@nuxt/test-utils/e2e` files,
 each building and booting a fixture (15–130 s on CI), so:
 
 - Reuse an existing fixture of the package when you can; a new fixture adds its boot time to every PR that affects
