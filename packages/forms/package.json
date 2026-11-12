@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/forms",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Dynamic, database-stored forms (single page or stepped) with submissions, file uploads and email delivery for the frigear ecosystem.",
   "homepage": "https://docs.frigear.dev/modules/features/forms",
   "repository": {
@@ -90,7 +90,6 @@
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "h3": "catalog:",
-    "unstorage": "^1.17.5",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
@@ -120,6 +119,7 @@
     "eslint": "catalog:",
     "nuxt": "catalog:",
     "typescript": "catalog:",
+    "unstorage": "^1.17.5",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }

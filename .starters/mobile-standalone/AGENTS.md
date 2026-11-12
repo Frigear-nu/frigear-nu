@@ -50,7 +50,7 @@ The source of the docs and modules is https://github.com/Frigear-nu/frigear-nu (
 ```bash
 corepack enable
 pnpm install          # installs all workspaces from the repo root
-pnpm prepare:env      # creates the apps' .env files, generates the session password and the OAuth signing key
+pnpm prepare:env      # creates the apps' .env files, generates NUXT_APP_SECRET and the OAuth signing key
 ```
 
 ## Common commands
