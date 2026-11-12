@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/authorization",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Roles, role assignment, the roles admin and the client side of access control (useAuthorization, <Can>, page rules) for the frigear ecosystem, built on @frigear-nu/auth.",
   "homepage": "https://docs.frigear.dev/modules/identity/authorization",
   "repository": {
