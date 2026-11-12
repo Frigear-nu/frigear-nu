@@ -1,3 +1,12 @@
+declare global {
+  /** Registered permissions, generated into the app's types by `@frigear-nu/auth` (`Permission`). Empty without it. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface FrigearPermissions {}
+}
+
+/** A registered permission once `@frigear-nu/auth` generated the app's types (`Permission`), else any string. */
+export type MenuPermission = [keyof FrigearPermissions] extends [never] ? string : Extract<keyof FrigearPermissions, string>
+
 /**
  * A single menu entry. Deliberately framework-agnostic (no Vue/Nuxt types) and presentation-free -
  * `description`/`icon` are optional fields a view may use or ignore, but the data never encodes
@@ -44,7 +53,7 @@ export type MenuItem = {
    * use; the route behind the item still checks the permission itself. Filtering is done by a `menus:filter` listener
    * (`@frigear-nu/authorization`); without one, the item is shown.
    */
-  permission?: string
+  permission?: MenuPermission
   meta?: Record<string, unknown>
 }
 

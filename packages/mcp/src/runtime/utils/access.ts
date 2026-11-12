@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Permission } from '@frigear-nu/auth/access'
 
 /** Marker set on every definition created through the scoped definers; anything without it is dropped. */
 export const SCOPED_META_KEY = 'frigear-nu/scoped'
@@ -12,7 +13,7 @@ export interface ScopedAccess {
    * `sessionOnly` permission for money and credential actions. Self-service tools use an `implicit` permission
    * (`tickets:read`, `profile:read`), so every signed-in user, and a token carrying that scope, passes.
    */
-  permission: string
+  permission: Permission
 }
 
 export function permissionTags(access: ScopedAccess): string[] {

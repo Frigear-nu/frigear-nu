@@ -1,4 +1,5 @@
 <script lang="ts" setup generic="R">
+import type { Permission } from '@frigear-nu/auth/access'
 import { useAuthorization } from '../composables/useAuthorization'
 import { computed } from '#imports'
 
@@ -6,7 +7,7 @@ import { computed } from '#imports'
 // `fallback` slot. For what the UI shows: the API decides what is allowed.
 const props = defineProps<{
   /** A registered permission (`events:update`). */
-  permission: string
+  permission: Permission
   /** The record shared policies decide on. */
   record?: R
 }>()

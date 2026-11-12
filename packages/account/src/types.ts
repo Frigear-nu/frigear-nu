@@ -1,3 +1,5 @@
+import type { Permission } from '@frigear-nu/auth/access'
+
 // The subset of settings composables/pages need to read on the client, exposed through
 // `runtimeConfig.public.account`.
 /** A downloadable file listed on the documents page. */
@@ -13,7 +15,7 @@ export type AccountDocument = {
    * signed-in user. Needs `@frigear-nu/authorization`; without it a document with a permission is never listed. This only
    * decides what is *listed*: a file in `public/` can still be fetched by anyone who knows its URL.
    */
-  permission?: string
+  permission?: Permission
 }
 
 export type PublicModuleOptions = {

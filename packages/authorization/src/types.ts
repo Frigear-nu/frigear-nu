@@ -1,13 +1,15 @@
-import type { AuthRoleSource, RoleDefinition } from '@frigear-nu/auth/utils'
+import type { HostRole, RoleName } from '@frigear-nu/auth/access'
+import type { AuthRoleSource } from '@frigear-nu/auth/utils'
 import type { AuthorizeMeta, RouteRule } from './runtime/utils/types'
 
 export type { AuthorizeMeta, AuthorizationResponse, RouteRule } from './runtime/utils/types'
 
-/** A host role (`authorization.roles[name]`). */
-export interface AuthorizationRoleOptions extends RoleDefinition {
-  /** Drop a module's role of the same name (and the module grants into it) instead of merging into it. */
-  replace?: boolean
-}
+/**
+ * A host role (`authorization.roles[name]`): grants are typed against the registered permissions and `inherit` against
+ * the roles once the app's types are generated (`defineRoles` from `@frigear-nu/auth/access` also types `inherit`
+ * against the roles of the same object before that).
+ */
+export type AuthorizationRoleOptions = HostRole
 
 export interface ModuleOptions {
   /**
@@ -18,16 +20,16 @@ export interface ModuleOptions {
    * definition (and the module grants into it) instead.
    *
    * ```ts
-   * roles: {
+   * roles: defineRoles({
    *   admin: { label: 'Admin', grant: ['*'] },
    *   editor: { label: 'Editor', grant: ['posts:*'], inherit: ['user'] },
    *   user: { label: 'User', grant: ['posts:read'] },
-   * }
+   * })
    * ```
    */
   roles?: Record<string, AuthorizationRoleOptions>
   /** Roles every signed-in user holds (never `auto` roles). They cannot be assigned. */
-  defaultRoles?: string[]
+  defaultRoles?: RoleName[]
   /**
    * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
    * server mode, or set `false` in client mode, to show a 401 error instead.

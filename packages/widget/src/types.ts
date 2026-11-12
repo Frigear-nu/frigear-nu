@@ -1,3 +1,12 @@
+declare global {
+  /** Registered permissions, generated into the app's types by `@frigear-nu/auth` (`Permission`). Empty without it. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface FrigearPermissions {}
+}
+
+/** A registered permission once `@frigear-nu/auth` generated the app's types (`Permission`), else any string. */
+export type WidgetPermission = [keyof FrigearPermissions] extends [never] ? string : Extract<keyof FrigearPermissions, string>
+
 /**
  * A widget: a Vue component a module contributes to a named area (e.g. `admin.dashboard`). The data is
  * presentation-free - the host decides how an area is laid out - and serializable, so the registry can be
@@ -23,7 +32,7 @@ export type WidgetDefinition = {
    * The permission (`resource:action`) a viewer must hold to see the widget. Only hides it: a `widgets:filter` listener
    * (`@frigear-nu/authorization`) does the filtering, without one the widget is shown. The data behind it still checks.
    */
-  permission?: string
+  permission?: WidgetPermission
   tags?: string[]
   meta?: Record<string, unknown>
 }
@@ -58,7 +67,7 @@ export type TabDefinition = {
   /** A free-form requirement that a `tabs:filter` listener can act on; the widget module never interprets it. */
   requires?: string
   /** The permission a viewer must hold to see the tab; filtered by a `tabs:filter` listener, like `permission` of a widget. */
-  permission?: string
+  permission?: WidgetPermission
   tags?: string[]
   meta?: Record<string, unknown>
 }

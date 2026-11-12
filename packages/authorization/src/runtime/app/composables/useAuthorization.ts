@@ -1,3 +1,4 @@
+import type { Permission } from '@frigear-nu/auth/access'
 import type { AccessDto, SharedPolicyDefinition } from '@frigear-nu/auth/policies'
 import { authApi } from '@frigear-nu/auth/api'
 import { accessAllows } from '../../utils/access'
@@ -65,7 +66,7 @@ export function useAuthorization() {
     return refresh()
   }
 
-  function can<R = unknown>(permission: string, record?: R): boolean {
+  function can<R = unknown>(permission: Permission, record?: R): boolean {
     return accessAllows(access.value, permission, {
       record,
       user: session.user.value ?? null,
@@ -73,11 +74,11 @@ export function useAuthorization() {
     })
   }
 
-  function cannot<R = unknown>(permission: string, record?: R): boolean {
+  function cannot<R = unknown>(permission: Permission, record?: R): boolean {
     return !can(permission, record)
   }
 
-  function authorize<R = unknown>(permission: string, record?: R): void {
+  function authorize<R = unknown>(permission: Permission, record?: R): void {
     if (can(permission, record)) return
     throw createError(access.value
       ? { statusCode: 403, statusMessage: 'Forbidden', message: 'You are not allowed to do that.' }
