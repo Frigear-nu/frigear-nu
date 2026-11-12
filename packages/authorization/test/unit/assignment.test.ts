@@ -112,5 +112,7 @@ describe('roles admin view', () => {
     expect(detail.permissions.map(row => row.name)).toHaveLength(Object.keys(registry.permissions).length)
     expect(detail.permissions.find(row => row.name === 'member-area:view')?.grant).toEqual({ via: 'granted', by: 'member-area:view' })
     expect(detail.permissions.every(row => Array.isArray(row.sources))).toBe(true)
+    // The tab badge and the "Held" card count the same rows, implicit permissions included.
+    expect(detail.permissionCount).toBe(detail.permissions.filter(row => row.grant).length)
   })
 })

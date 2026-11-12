@@ -88,7 +88,7 @@ export interface AuthorizationRoleSummaryDto {
   assignable: boolean
   /** Users with an assigned row (default and `auto` roles are never stored: 0). */
   userCount: number
-  /** Registered permissions it holds, inheritance included. */
+  /** Registered permissions it holds: granted, inherited and implicit (the role detail's held rows). */
   permissionCount: number
 }
 

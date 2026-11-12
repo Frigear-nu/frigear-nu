@@ -39,7 +39,12 @@ export function sortedRoles(table: RoleTable): CompiledRole[] {
   return Object.values(table.roles).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label) || a.name.localeCompare(b.name))
 }
 
-export function toRoleSummary(role: CompiledRole, userCount: number): AuthorizationRoleSummaryDto {
+/** How many registered permissions `role` holds: its own and inherited grants plus the implicit ones (the "Held" rows of the role detail). */
+export function heldPermissionCount(role: CompiledRole, table: RoleTable, registry: PermissionRegistry): number {
+  return Object.values(registry.permissions).filter(permission => permissionGrant(role, permission, table, registry)).length
+}
+
+export function toRoleSummary(role: CompiledRole, userCount: number, table: RoleTable, registry: PermissionRegistry): AuthorizationRoleSummaryDto {
   return {
     name: role.name,
     label: role.label,
@@ -53,7 +58,7 @@ export function toRoleSummary(role: CompiledRole, userCount: number): Authorizat
     default: role.default,
     assignable: role.assignable,
     userCount,
-    permissionCount: role.permissions.length,
+    permissionCount: heldPermissionCount(role, table, registry),
   }
 }
 
@@ -81,7 +86,7 @@ export function toRolePermission(role: CompiledRole, permission: ResolvedPermiss
 
 export function toRoleDetail(role: CompiledRole, userCount: number, table: RoleTable, registry: PermissionRegistry): AuthorizationRoleDto {
   return {
-    ...toRoleSummary(role, userCount),
+    ...toRoleSummary(role, userCount, table, registry),
     grant: [...role.grant],
     permissions: sortedPermissions(registry).map(permission => toRolePermission(role, permission, table, registry)),
   }
