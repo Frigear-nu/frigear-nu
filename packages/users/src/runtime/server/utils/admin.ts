@@ -3,7 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { desc, getTableColumns, inArray } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
 import { intIdParams, notFound } from '@frigear-nu/module-kit/server'
-import { hasScopes } from '@frigear-nu/auth/utils'
+import { principalHasScopes } from '@frigear-nu/auth/utils'
 
 export type UsersAdminAction = 'view' | 'create' | 'update' | 'delete'
 
@@ -35,6 +35,9 @@ export type UsersAdminCallerOptions = {
 /** The scope that lets an API token or OAuth access token read the user directory. Staff only (see the module). */
 export const USERS_READ_SCOPE = 'users:read'
 
+/** The permission to create, change and delete users (role-based access control). Sessions only. */
+export const USERS_MANAGE_PERMISSION = 'users:manage'
+
 export type UsersAdminRolesContext = {
   event: H3Event
   /** The signed-in user making the request. */
@@ -46,8 +49,18 @@ export type UsersAdminRolesContext = {
 /** Whether another module added a `role` column to `users` (`@frigear-nu/authorization`). */
 export const usersHaveRoles = () => 'role' in getTableColumns(schema.users)
 
-// The host's staff gate (`users:admin:authorize`); `action`, `input` and `target` are merged into the hook context.
-const usersAdminGate = definePolicyGate<Pick<UsersAdminContext, 'action' | 'input' | 'target'>>('users:admin:authorize')
+type UsersAdminGateExtra = Pick<UsersAdminContext, 'action' | 'input' | 'target'>
+
+// The staff gate (`users:admin:authorize`): the role's permission decides by default (`users:read` to view,
+// `users:manage` to change), the host adds conditions. `action`, `input` and `target` are merged into the hook context.
+const usersViewGate = definePolicyGate<UsersAdminGateExtra>('users:admin:authorize', { permission: USERS_READ_SCOPE })
+const usersManageGate = definePolicyGate<UsersAdminGateExtra>('users:admin:authorize', { permission: USERS_MANAGE_PERMISSION })
+const usersAdminGate = {
+  isAllowed: (event: H3Event, userId: number, extra: UsersAdminGateExtra) =>
+    (extra.action === 'view' ? usersViewGate : usersManageGate).isAllowed(event, userId, extra),
+  assert: (event: H3Event, userId: number, message: string, extra: UsersAdminGateExtra) =>
+    (extra.action === 'view' ? usersViewGate : usersManageGate).assert(event, userId, message, extra),
+}
 
 const USERS_ADMIN_DENIED = 'You are not allowed to manage users.'
 
@@ -65,7 +78,7 @@ const requireUsersAdminCaller = (event: H3Event, action: UsersAdminAction, optio
 export async function isUsersAdminAllowed(event: H3Event, action: UsersAdminAction, details: Pick<UsersAdminContext, 'input' | 'target'> = {}, options: UsersAdminCallerOptions = {}) {
   const principal = await requireAuth(event)
   const user = principal.user
-  const bearerAllowed = action === 'view' && !!options.scopes?.length && hasScopes(principal.scopes, options.scopes)
+  const bearerAllowed = action === 'view' && !!options.scopes?.length && principalHasScopes(principal, options.scopes)
   if (principal.kind !== 'session' && !bearerAllowed) return { allowed: false, user }
   const allowed = await usersAdminGate.isAllowed(event, user.id as number, { action, ...details })
   return { allowed, user }

@@ -118,6 +118,7 @@ Options go under the `events` key.
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `settings.reservationMinutes` | `number` | `30` | How long an unpaid ticket keeps its seat. |
+| `settings.roles` | `boolean` | `false` | Ships the `eventmanager` role, just below `admin`. |
 | `settings.mcp` | `boolean` | `false` | Adds the module's [MCP tools](/modules/features/events/server#mcp-tools). |
 | `settings.pages.events` | `string \| boolean` | off | The event list. `true` is `/events`. |
 | `settings.pages.event` | `string \| boolean` | off | The event page. `true` is `/events/:slug`. |
@@ -128,6 +129,10 @@ Options go under the `events` key.
 **`settings.reservationMinutes`** is also the lifetime of the Stripe Checkout session.
 
 **`settings.pages.*`** paths keep the parameters of the default, such as `:slug`.
+
+**`settings.roles`.** For apps with [roles and permissions](/modules/identity/authorization#roles-and-permissions)
+(`authorization.rbac`). The `eventmanager` role holds every permission of `user`, plus `events:manage` and
+`events:pii`. Without it, those two permissions go to `admin` only, unless your app grants them.
 
 ## Module pages
 

@@ -123,7 +123,10 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addAuthScope(nuxt, { name: 'oauth:read', description: 'See which applications you can sign in to (MCP)' })
+    addAuthScope(nuxt,
+      { name: 'oauth:read', description: 'See which applications you can sign in to (MCP)', aggregateTo: ['user'] },
+      { name: 'oauth:manage', description: 'Manage OAuth applications (staff)', sessionOnly: true },
+    )
     const resolver = createResolver(import.meta.url)
 
     // Access tokens of signed-in applications authenticate API calls as the user (see the resolver).

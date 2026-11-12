@@ -13,16 +13,27 @@ export interface AuthTokenInfo {
   prefix: string
 }
 
+interface AuthPrincipalBase {
+  user: AuthUser
+  /** What this credential may do. A session holds all of its user's permissions; a token the scopes it was given. */
+  scopes: string[]
+  /**
+   * The user's current permissions, when access control is on (`auth:user-permissions`). A bearer credential only
+   * acts within them, so a token keeps no right its user has since lost. `undefined`: no cap.
+   */
+  ceiling?: string[]
+}
+
 /** Who is calling, and how. Set on `event.context.auth` by `getAuth`. */
 export type AuthPrincipal
-  = | { kind: 'session', user: AuthUser, scopes: string[] }
-    | { kind: 'user-token', user: AuthUser, scopes: string[], token: AuthTokenInfo }
-    | { kind: 'oauth', user: AuthUser, scopes: string[], client: { id: string } }
+  = | (AuthPrincipalBase & { kind: 'session' })
+    | (AuthPrincipalBase & { kind: 'user-token', token: AuthTokenInfo })
+    | (AuthPrincipalBase & { kind: 'oauth', client: { id: string } })
 
 export type AuthPrincipalKind = AuthPrincipal['kind']
 
 export interface RequireUserOptions {
-  /** Scopes the credential must carry. Sessions carry every scope. */
+  /** Scopes the credential must carry (within its user's permissions, when access control is on). */
   scopes?: string[]
   /** Reject bearer credentials (user tokens, OAuth access tokens). Use for account-level actions. */
   sessionOnly?: boolean

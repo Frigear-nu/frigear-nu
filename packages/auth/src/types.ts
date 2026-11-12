@@ -27,10 +27,51 @@ export interface AuthScopeDefinition {
   name: string
   description?: string
   /**
-   * Only users whose `role` is one of these may pick (or be granted) the scope. Omit for every user.
-   * Policy that is not role based (a host `*:authorize` hook) uses the `auth:scope-available` Nitro hook instead.
+   * The junior-most roles this permission belongs to (role-based access control, `@frigear-nu/authorization`): every
+   * role that inherits one of them gets it too. `['user']` gives it to every signed-in user. Omit it and only `admin`
+   * holds the permission (default deny). Like Kubernetes' aggregated roles: a module grants its own permissions without
+   * the host listing them.
+   */
+  aggregateTo?: string[]
+  /**
+   * A permission only a cookie session uses (creating users, managing OAuth applications): roles can hold it, but it
+   * is never offered to API tokens or OAuth clients, nor listed as a supported OAuth scope.
+   */
+  sessionOnly?: boolean
+  /**
+   * Without `@frigear-nu/authorization` roles: only users whose `role` is one of these may pick (or be granted) the
+   * scope. With them, it is read as `aggregateTo` when that is not set.
+   * @deprecated Use `aggregateTo`.
    */
   roles?: string[]
+}
+
+/**
+ * A role a module ships (`addAuthRole`), merged with the built-in and the host's roles by `@frigear-nu/authorization`.
+ */
+export interface AuthRoleDefinition {
+  /** Stored in `users.role`. */
+  name: string
+  label?: string
+  description?: string
+  /** Roles whose permissions this role also gets (role hierarchy). Defaults to `['user']`. */
+  inherits?: string[]
+  /** Roles that inherit this one (it slots in below them). Defaults to `['admin']`. */
+  inheritedBy?: string[]
+  /** Permissions granted directly: registered scope names or `resource:*` wildcards. */
+  permissions?: string[]
+}
+
+/** The `auth:user-permissions` Nitro hook: what a user may do, decided by the access-control module. */
+export interface AuthUserPermissionsContext {
+  event: import('h3').H3Event
+  /** The user as stored (with `role` when `@frigear-nu/authorization` adds it). */
+  user: { id: number, role?: string | null, [key: string]: unknown }
+  /**
+   * Starts `null`: no access control, the user may do everything (`*`). A listener sets the user's permissions
+   * (scope names and `resource:*` wildcards); every credential of the user is then capped by them.
+   */
+  permissions: string[] | null
 }
 
 export interface AuthScopeAvailabilityContext {

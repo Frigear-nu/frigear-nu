@@ -1,4 +1,4 @@
-import { hasScopes } from '@frigear-nu/auth/utils'
+import { principalHasScopes } from '@frigear-nu/auth/utils'
 import type { AuthPrincipal } from '@frigear-nu/auth/utils'
 import { z } from 'zod'
 
@@ -13,14 +13,14 @@ export interface ScopedAccess {
 }
 
 /**
- * Pure part of the access decision: is there a principal, does it carry the scopes, is the
- * credential kind allowed. Module-specific gates (e.g. `events:authorize`) layer on top.
+ * Pure part of the access decision: is there a principal, does it carry the scopes (within its
+ * user's permissions), is the credential kind allowed. Module-specific gates (e.g. `events:authorize`) layer on top.
  */
 export function isPrincipalAllowed(principal: AuthPrincipal | null | undefined, access: ScopedAccess): principal is AuthPrincipal {
   if (!principal) return false
   if (!access.scopes.length) return false
   if (access.sessionOnly && principal.kind !== 'session') return false
-  return hasScopes(principal.scopes, access.scopes)
+  return principalHasScopes(principal, access.scopes)
 }
 
 export function scopeTags(access: ScopedAccess): string[] {

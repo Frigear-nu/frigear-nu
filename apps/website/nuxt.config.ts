@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { boardMemberApplicationForm, projectApplicationForm } from './forms'
 import { contactForm } from './forms/contact'
+import { userRoles } from './shared/roles'
 
 // The public URL, when the build knows it: the deployment host or an explicit NUXT_SITE_URL. Otherwise (PR previews,
 // local builds) `site.url` stays unset and canonical and hreflang URLs come from the request origin.
@@ -255,6 +256,34 @@ export default defineNuxtConfig({
   authorization: {
     // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
     redirectTo: '/sign-in',
+    // Role-based access control: each role holds the permissions of the roles below it (`shared/roles.ts`, most
+    // senior first). Modules give their everyday permissions to `user` and events' to `eventmanager`; the grants
+    // below are the staff rights of the old policies. `server/plugins/*-policy.ts` only add the email allowlists.
+    rbac: true,
+    roles: {
+      hierarchy: [...userRoles],
+      // Suppliers and partners are outside groups: they keep their rank (a manager may assign them) but members and
+      // the roles above do not get their permissions, nor suppliers partners'.
+      inherits: { member: ['user'], supplier: ['user'] },
+      grant: {
+        // The admin area: list users, read forms and submissions, see payments (the old `adminAreaRoles`).
+        coordinator: ['users:read', 'forms:manage', 'forms:pii', 'payments:manage'],
+        // Create, edit and delete users (the old `userManagerRoles`).
+        manager: ['users:manage'],
+      },
+      labels: {
+        admin: 'Administrator',
+        manager: 'Manager',
+        coordinator: 'Coordinator',
+        eventmanager: 'Event manager',
+        barmanager: 'Bar manager',
+        crew: 'Crew',
+        member: 'Member',
+        supplier: 'Supplier',
+        partner: 'Partner',
+        user: 'User',
+      },
+    },
   },
   cookieConsent: {
     policyUrl: '/legal/gdpr',

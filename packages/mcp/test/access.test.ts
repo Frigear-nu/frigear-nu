@@ -15,6 +15,12 @@ describe('isPrincipalAllowed', () => {
     expect(isPrincipalAllowed(principal('user-token', ['b:read']), { scopes: ['a:read'] })).toBe(false)
   })
 
+  it('hides tools beyond the user\'s current permissions (ceiling)', () => {
+    const token = { kind: 'user-token', user: { id: 1 }, scopes: ['*'], ceiling: ['tickets:read'] } as never
+    expect(isPrincipalAllowed(token, { scopes: ['tickets:read'] })).toBe(true)
+    expect(isPrincipalAllowed(token, { scopes: ['events:manage'] })).toBe(false)
+  })
+
   it('refuses bearer credentials for session-only definitions', () => {
     expect(isPrincipalAllowed(principal('user-token', ['*']), { scopes: ['a:read'], sessionOnly: true })).toBe(false)
     expect(isPrincipalAllowed(principal('session', ['*']), { scopes: ['a:read'], sessionOnly: true })).toBe(true)

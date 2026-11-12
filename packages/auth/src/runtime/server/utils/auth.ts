@@ -3,7 +3,7 @@ import { apiError } from '@frigear-nu/module-kit/server'
 import { resolvers } from '#auth/resolvers'
 import { configured as storeConfigured } from '#auth/user-store'
 import type { AuthPrincipal, AuthUser, RequireUserOptions } from '../../types'
-import { ALL_SCOPES, hasScopes } from '../../utils/scopes'
+import { ALL_SCOPES, principalHasScopes } from '../../utils/scopes'
 import { looksLikeJwt, parseBearer } from '../../utils/tokens'
 
 declare module 'h3' {
@@ -31,7 +31,22 @@ export async function resolveBearer(event: H3Event): Promise<void> {
   for (const resolver of claimed) {
     const principal = await resolver.resolve(event, token)
     if (principal) {
-      event.context.auth = principal
+      // A bearer credential acts within its user's current permissions (OAuth 2.0 scopes as delegation). They are
+      // decided from the stored user, as for a cookie session: `principal.user` went through the host's session
+      // mapper, which may rewrite or drop `role`. Without a user store the principal's user is all there is. With one, a
+      // principal whose user the store lacks (a host resolver's mapped or forged user, or one deleted meanwhile) is
+      // refused: capping it by the role on the mapped user would let a stale "admin" act with `*`.
+      let subject: unknown = principal.user
+      if (storeConfigured) {
+        const stored = await useAuthUserStore().findById(principal.user.id as string | number)
+        if (!stored) {
+          event.context.authRejected = true
+          return
+        }
+        subject = stored
+      }
+      const permissions = await getAuthUserPermissions(event, subject as { id: number })
+      event.context.auth = permissions ? { ...principal, ceiling: permissions } : principal
       return
     }
   }
@@ -84,7 +99,10 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
     await clearUserSession(event)
     return null
   }
-  if (!storeConfigured) return { kind: 'session', user: session.user, scopes: [ALL_SCOPES] }
+  if (!storeConfigured) {
+    const permissions = await getAuthUserPermissions(event, session.user as { id: number })
+    return { kind: 'session', user: session.user, scopes: permissions ?? [ALL_SCOPES] }
+  }
 
   const stored = await useAuthUserStore().findById(session.user.id as string | number)
   // A session from before the user's sessions were ended (`endAuthSessions`, e.g. a password change) is over too.
@@ -92,13 +110,16 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
     await clearUserSession(event)
     return null
   }
-  return { kind: 'session', user: mapUserToSession(stored) as AuthUser, scopes: [ALL_SCOPES] }
+  // A session holds all of its user's permissions; without access control that is everything.
+  const permissions = await getAuthUserPermissions(event, stored)
+  return { kind: 'session', user: mapUserToSession(stored) as AuthUser, scopes: permissions ?? [ALL_SCOPES] }
 }
 
 /**
  * The route entry point for "who is calling". Returns the caller's principal, or throws:
  * 401 `unauthorized` without a valid credential, 403 `session_required` for bearer credentials when
- * `sessionOnly` is set, 403 `insufficient_scope` when a required scope is missing. The code is in `data.code`
+ * `sessionOnly` is set, 403 `insufficient_scope` when a required scope is missing (from the credential, or from its
+ * user's permissions when access control is on). The code is in `data.code`
  * (and, for the 403s, also in `data.error`, kept for existing clients).
  */
 export async function requireAuth(event: H3Event, options: RequireUserOptions = {}): Promise<AuthPrincipal> {
@@ -110,7 +131,7 @@ export async function requireAuth(event: H3Event, options: RequireUserOptions = 
   if (options.sessionOnly && principal.kind !== 'session') {
     throw apiError(403, 'session_required', 'Forbidden', { error: 'session_required' })
   }
-  if (options.scopes?.length && !hasScopes(principal.scopes, options.scopes)) {
+  if (options.scopes?.length && !principalHasScopes(principal, options.scopes)) {
     setResponseHeader(event, 'www-authenticate', `Bearer error="insufficient_scope", scope="${options.scopes.join(' ')}"`)
     throw apiError(403, 'insufficient_scope', 'Forbidden', { error: 'insufficient_scope', scopes: options.scopes })
   }

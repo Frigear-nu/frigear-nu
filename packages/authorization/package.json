@@ -21,6 +21,11 @@
       "types": "./src/runtime/utils/index.ts",
       "import": "./src/runtime/utils/index.ts",
       "default": "./src/runtime/utils/index.ts"
+    },
+    "./api": {
+      "types": "./src/runtime/utils/api.ts",
+      "import": "./src/runtime/utils/api.ts",
+      "default": "./src/runtime/utils/api.ts"
     }
   },
   "publishConfig": {
@@ -34,6 +39,11 @@
         "types": "./dist/runtime/utils/index.d.ts",
         "import": "./dist/runtime/utils/index.js",
         "default": "./dist/runtime/utils/index.js"
+      },
+      "./api": {
+        "types": "./dist/runtime/utils/api.d.ts",
+        "import": "./dist/runtime/utils/api.js",
+        "default": "./dist/runtime/utils/api.js"
       }
     },
     "main": "./dist/module.mjs",
@@ -74,14 +84,22 @@
     "drizzle-orm": "catalog:"
   },
   "peerDependencies": {
+    "@frigear-nu/admin": ">=0.0.0",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
+    "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "devDependencies": {
+    "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",
     "@nuxt/schema": "catalog:",
     "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
@@ -91,6 +109,18 @@
     "vue-tsc": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/menu": {
+      "optional": true
+    },
+    "@frigear-nu/widget": {
+      "optional": true
+    },
+    "@nuxt/ui": {
+      "optional": true
+    },
     "@nuxthub/core": {
       "optional": true
     }

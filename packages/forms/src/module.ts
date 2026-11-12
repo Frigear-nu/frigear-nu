@@ -94,7 +94,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerModule(MODULE_NAME, nuxt)
     addAuthScope(nuxt,
       { name: 'forms:manage', description: 'Manage forms and submissions (staff)' },
-      { name: 'forms:submit', description: 'Submit forms as you' },
+      { name: 'forms:submit', description: 'Submit forms as you', aggregateTo: ['user'] },
       { name: 'forms:pii', description: 'See submission answers and file names through MCP tools (also needs forms:manage)' },
     )
     const resolver = createResolver(import.meta.url)

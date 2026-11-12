@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { H3Event } from 'h3'
 import { badRequest, forbidden } from '@frigear-nu/module-kit/server'
+import { hasScope } from '@frigear-nu/auth/utils'
 import type { OAuthApplication, OAuthUser } from '../../../types'
 import { resolveScope, validateRedirectUri } from '../../utils'
 import { scopes as apiScopes } from '#auth/scopes'
@@ -48,10 +49,12 @@ export async function validateAuthorizeRequest(request: AuthorizeRequest): Promi
 const staffScopeGate = definePolicyGate<{ scope: string }>('oauth:scope:staff')
 
 /**
- * The scopes of `scope` the user may be granted. An API scope a module registered with `@frigear-nu/auth` is kept
- * only when the user may hold it (its `roles`, the `auth:scope-available` hook: e.g. `users:read` is staff only);
- * a `staffOnly` scope of the registry only when the `oauth:scope:staff` hook allows the user. OIDC and other
- * registry scopes pass. A plain user asking for a staff scope gets a token without it.
+ * The scopes of `scope` the user may be granted: what the client asked for, intersected with what the user may do.
+ * An API scope a module registered with `@frigear-nu/auth` is kept only when the user may hold it (their permissions
+ * under role-based access control, else its `roles` and the `auth:scope-available` hook). A `staffOnly` scope of the
+ * registry is kept when the user's permissions cover it, or, without access control, when the `oauth:scope:staff`
+ * hook allows the user. OIDC and other registry scopes pass. A plain user asking for a staff scope gets a token
+ * without it.
  */
 export async function filterGrantableScopes(event: H3Event, user: OAuthUser, scope: string[]): Promise<string[]> {
   const registered = new Set(apiScopes.map(definition => definition.name))
@@ -59,11 +62,15 @@ export async function filterGrantableScopes(event: H3Event, user: OAuthUser, sco
   const available = scope.some(name => registered.has(name))
     ? new Set((await availableScopes(event, user as OAuthUser & { role?: string })).map(definition => definition.name))
     : new Set<string>()
+  const permissions = scope.some(name => staffOnly.has(name)) ? await getAuthUserPermissions(event, user.id) : null
 
   const granted: string[] = []
   for (const name of scope) {
     if (registered.has(name) && !available.has(name)) continue
-    if (staffOnly.has(name) && !(await staffScopeGate.isAllowed(event, user.id, { scope: name }))) continue
+    if (staffOnly.has(name)) {
+      const allowed = permissions ? hasScope(permissions, name) : await staffScopeGate.isAllowed(event, user.id, { scope: name })
+      if (!allowed) continue
+    }
     granted.push(name)
   }
   return granted
