@@ -1,7 +1,9 @@
 import type { AuthMode } from './runtime/mode'
 import type { AuthClientPublicConfig, ClientModuleOptions } from './runtime/client/types'
+import type { Permission } from './runtime/utils/access'
 
 export type { AuthMode } from './runtime/mode'
+export type { Permission, PermissionGrant, RoleName } from './runtime/utils/access'
 export type {
   AuthAppConfig,
   AuthClientPublicConfig,
@@ -34,8 +36,8 @@ export interface AuthScopeDto {
 
 /** The access route rules auth enforces on `/api/**` (and `@frigear-nu/authorization` on pages). */
 export interface AuthRouteRules {
-  /** The permission the caller must hold (`authorize`). Unknown permissions fail the build. */
-  permission?: string
+  /** The permission the caller must hold (`authorize`). Unknown permissions fail the build (and typecheck). */
+  permission?: Permission
   /** Any signed-in caller. */
   authenticated?: boolean
   /** Only signed-out callers (an API route answers 403 `guest_only`). */

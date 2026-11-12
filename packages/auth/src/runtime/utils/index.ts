@@ -26,11 +26,14 @@ export {
   addRole,
   addRoleRequirement,
   addScope,
+  registerAccess,
   setAuthUserStore,
   setDefaultRoles,
   setRoleProvider,
 } from './build'
-export type { PolicyFileRegistration, RoleProviderRegistration, RoleRequirementRegistration } from './build'
+export type { PolicyFileRegistration, RegisterAccessOptions, RoleProviderRegistration, RoleRequirementRegistration } from './build'
+export { defineAccess, defineRoles } from './access'
+export type { Access, AccessInput, AccessPermission, AccessPermissionName, AccessRole, AccessScope, HostRole, Permission, PermissionGrant, RoleName } from './access'
 export { compileAccess, routeRulePermissions } from './access-compile'
 export type { CompileAccessInput, CompiledAccess, RoleRegistration } from './access-compile'
 export { authApi } from './api'

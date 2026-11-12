@@ -37,6 +37,11 @@
       "import": "./src/runtime/policies.ts",
       "default": "./src/runtime/policies.ts"
     },
+    "./access": {
+      "types": "./src/runtime/access.ts",
+      "import": "./src/runtime/access.ts",
+      "default": "./src/runtime/access.ts"
+    },
     "./client-core": {
       "types": "./src/runtime/client/core/index.ts",
       "import": "./src/runtime/client/core/index.ts",
@@ -78,6 +83,11 @@
         "import": "./dist/runtime/policies.js",
         "default": "./dist/runtime/policies.js"
       },
+      "./access": {
+        "types": "./dist/runtime/access.d.ts",
+        "import": "./dist/runtime/access.js",
+        "default": "./dist/runtime/access.js"
+      },
       "./client-core": {
         "types": "./dist/runtime/client/core/index.d.ts",
         "import": "./dist/runtime/client/core/index.js",
@@ -103,6 +113,9 @@
         ],
         "policies": [
           "./dist/runtime/policies.d.ts"
+        ],
+        "access": [
+          "./dist/runtime/access.d.ts"
         ],
         "client-core": [
           "./dist/runtime/client/core/index.d.ts"

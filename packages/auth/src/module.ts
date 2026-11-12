@@ -50,7 +50,7 @@ import type {
   RoleProviderRegistration,
   RoleRequirementRegistration,
 } from './runtime/utils/build'
-import { compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
+import { accessTypes, compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
 import { pickAccessRouteRules } from './runtime/utils/route-rules'
 import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-compile'
 import type { PermissionDefinition, ScopeDefinition } from './runtime/utils/permissions'
@@ -776,6 +776,7 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
   let requirementFiles: RoleRequirementRegistration[] = []
   let policyFiles: PolicyFileRegistration[] = []
   let providerPath: string | undefined
+  let typedNames: { permissions: string[], roles: string[] } = { permissions: [], roles: [] }
 
   nuxt.hook('modules:done', async () => {
     const permissions: PermissionDefinition[] = [...(options.permissions ?? [])]
@@ -802,6 +803,11 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
       namedScopes,
       routePermissions: routeRulePermissions(accessRouteRules()),
     })
+    // The generated types name what was registered, also when the build fails below (`nuxi prepare` keeps going).
+    typedNames = {
+      permissions: Object.keys(result.registry.permissions).sort(),
+      roles: [...new Set([...roles.map(role => role.name), ...Object.keys(result.roles.roles)])].filter(Boolean).sort(),
+    }
     // The removed route-rule guard keys are no longer enforced: a rule still using one would leave its routes open.
     for (const source of [nuxt.options.routeRules, nuxt.options.nitro.routeRules] as Array<Record<string, unknown> | undefined>) {
       for (const [pattern, rule] of Object.entries(source ?? {})) {
@@ -867,6 +873,13 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
   })
   addServerTemplate({ filename: '#auth/policies', getContents: () => policyModule(policyFiles) })
   addSharedPoliciesTemplate(nuxt, resolver, () => policyFiles)
+
+  // `Permission` and `RoleName` (`@frigear-nu/auth/access`) become the registered names in the app, the server and
+  // `nuxt.config.ts`, so a misspelled permission fails typecheck. Global interfaces, so every copy of the packages sees them.
+  addTypeTemplate({
+    filename: 'types/auth-access.d.ts',
+    getContents: () => accessTypes(typedNames),
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   // A listener of a removed hook (`auth:user-permissions`, `events:authorize`, ...) never runs: say so in development.
   if (nuxt.options.dev) addServerPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))

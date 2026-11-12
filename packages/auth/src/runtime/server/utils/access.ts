@@ -38,6 +38,7 @@ import type {
   PolicyOutcome,
   SharedPolicyDefinition,
 } from '../../utils/permissions'
+import type { Permission } from '../../utils/access'
 import { getAuth } from './auth'
 
 // The server side of access control: resolves the inputs of the pure `decide` (roles, the `authorization:before`
@@ -343,18 +344,18 @@ async function evaluate(event: H3Event, principal: AuthPrincipal | null, permiss
  * The full decision for the caller, with which step decided (`via`). Never throws on denial. A check without a record
  * is cached per request; one with a record runs the policies every time.
  */
-export async function inspect(event: H3Event, permission: string, record?: unknown): Promise<Decision> {
+export async function inspect(event: H3Event, permission: Permission, record?: unknown): Promise<Decision> {
   if (hasPolicyRecord(record)) return evaluate(event, await getAuth(event), permission, record, { policies: true })
   return memo(cacheOf(event).decisions, permission, async () => evaluate(event, await getAuth(event), permission, undefined, { policies: true }))
 }
 
 /** Whether the caller may do `permission` (to `record`). */
-export async function allows(event: H3Event, permission: string, record?: unknown): Promise<boolean> {
+export async function allows(event: H3Event, permission: Permission, record?: unknown): Promise<boolean> {
   return (await inspect(event, permission, record)).allowed
 }
 
 /** Whether the caller may not do `permission` (to `record`). */
-export async function denies(event: H3Event, permission: string, record?: unknown): Promise<boolean> {
+export async function denies(event: H3Event, permission: Permission, record?: unknown): Promise<boolean> {
   return !(await allows(event, permission, record))
 }
 
@@ -381,7 +382,7 @@ export function authAccessError(event: H3Event, decision: Decision & { allowed: 
  *     const ev = await loadEvent(id)
  *     await authorize(event, 'events:update', ev)
  */
-export async function authorize(event: H3Event, permission: string, record?: unknown): Promise<AuthPrincipal> {
+export async function authorize(event: H3Event, permission: Permission, record?: unknown): Promise<AuthPrincipal> {
   const decision = await inspect(event, permission, record)
   if (!decision.allowed) throw authAccessError(event, decision, permission)
   return (await getAuth(event))!
@@ -391,7 +392,7 @@ export async function authorize(event: H3Event, permission: string, record?: unk
  * Whether ANOTHER user (`userId`) holds `permission`: their roles and the `authorization:before` hook (as their own
  * session), no policies. For role assignment and target protection only; check the caller with `allows`.
  */
-export async function userCan(event: H3Event, userId: number | string, permission: string): Promise<boolean> {
+export async function userCan(event: H3Event, userId: number | string, permission: Permission): Promise<boolean> {
   if (!Object.hasOwn(registry.permissions, permission)) return false
   const user = await loadAuthUser(userId)
   return !!user && subjectAllowed(event, user, permission)
@@ -468,7 +469,7 @@ export async function getAccess(event: H3Event): Promise<AccessDto | null> {
   if (!principal) return null
   const permissions: string[] = []
   for (const name of Object.keys(registry.permissions).sort()) {
-    if (await allows(event, name)) permissions.push(name)
+    if (await allows(event, name as Permission)) permissions.push(name)
   }
   const dto: AccessDto = { kind: principal.kind, scopes: principal.kind === 'session' ? [] : [...principal.scopes], permissions }
   if (!principal.foreign && (principal.kind === 'session' || principal.scopes.includes('profile'))) dto.roles = await getEffectiveRoles(event, principal.user)
@@ -482,7 +483,7 @@ export async function getAccess(event: H3Event): Promise<AccessDto | null> {
  * `withoutRecord`. Export it from a file registered with `addPolicies` (the host's `server/policies.ts`).
  */
 export function definePolicy<R = unknown>(
-  permission: string,
+  permission: Permission,
   handler: PolicyFn<R, H3Event, AuthUser, AuthPrincipal>,
   options: PolicyOptions = {},
 ): PolicyDefinition<R, H3Event, AuthUser, AuthPrincipal> {
