@@ -62,7 +62,7 @@
     "@frigear-nu/users": "workspace:^",
     "@nuxt/kit": "catalog:",
     "h3": "catalog:",
-    "jose": "^6.2.15"
+    "jose": "^6.2.16"
   },
   "peerDependencies": {
     "@nuxthub/core": "catalog:"
