@@ -21,7 +21,8 @@ import {
   registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addAuthResolver, addPermission, addScope, isKnownScope, validateRoleScopes } from '@frigear-nu/auth/utils'
+import { addAuthResolver, addScope, isKnownScope, registerAccess, validateRoleScopes } from '@frigear-nu/auth/utils'
+import { oauthAccess } from './runtime/access'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
@@ -112,25 +113,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addPermission(nuxt,
-      {
-        name: 'oauth:read',
-        label: 'See which applications you can sign in to',
-        labelKey: 'oauthServer.permissions.read',
-        group: 'oauth',
-        // Self-service: every signed-in user sees their own applications.
-        implicit: true,
-      },
-      {
-        name: 'oauth:manage',
-        label: 'Manage OAuth applications and scopes',
-        labelKey: 'oauthServer.permissions.manage',
-        group: 'oauth',
-        // Client secrets and who may sign in where: a browser session only.
-        sessionOnly: true,
-        grantTo: ['admin'],
-      },
-    )
+    // `oauth:read` (self-service) and `oauth:manage` (`runtime/access.ts`).
+    registerAccess(nuxt, oauthAccess)
     const resolver = createResolver(import.meta.url)
 
     // Access tokens of signed-in applications authenticate API calls as the user (see the resolver).

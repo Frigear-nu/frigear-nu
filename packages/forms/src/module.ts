@@ -20,7 +20,8 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
-import { addPermission, addScope } from '@frigear-nu/auth/utils'
+import { registerAccess } from '@frigear-nu/auth/utils'
+import { formsAccess } from './runtime/access'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import type {
   CaptchaVerifyContext,
@@ -89,40 +90,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addPermission(nuxt,
-      { name: 'forms:manage', label: 'Manage forms', labelKey: 'forms.permissions.manage', description: 'Create and edit forms, read their submissions and files, and redeliver them.', descriptionKey: 'forms.permissions.manageDescription', group: 'forms', grantTo: ['admin'] },
-      {
-        name: 'forms:pii',
-        label: 'See submission answers',
-        labelKey: 'forms.permissions.pii',
-        description: 'See submission answers and file names (MCP tools). Never covered by a wildcard.',
-        descriptionKey: 'forms.permissions.piiDescription',
-        group: 'forms',
-        sensitive: true,
-        grantTo: ['admin'],
-      },
-      {
-        // Minting or removing access credentials (form tokens, passwords, secrets): only a signed-in session, never an
-        // API or OAuth token. Roles that grant `forms:manage` by name need to grant this too (`forms:*` covers it).
-        name: 'forms:credentials',
-        label: 'Manage form access credentials',
-        labelKey: 'forms.permissions.credentials',
-        description: 'Create and remove form access tokens, passwords and secrets. Cookie sessions only.',
-        descriptionKey: 'forms.permissions.credentialsDescription',
-        group: 'forms',
-        sessionOnly: true,
-        grantTo: ['admin'],
-      },
-      { name: 'forms:submit', label: 'Submit forms', labelKey: 'forms.permissions.submit', description: 'Submit forms as you.', descriptionKey: 'forms.permissions.submitDescription', group: 'forms', implicit: true },
-    )
-    addScope(nuxt, {
-      name: 'forms',
-      label: 'Submit forms',
-      labelKey: 'forms.scopes.forms',
-      description: 'Submit forms as you.',
-      icon: 'i-lucide-clipboard-list',
-      permissions: ['forms:submit'],
-    })
+    // Permissions and the `forms` scope (`runtime/access.ts`).
+    registerAccess(nuxt, formsAccess)
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 

@@ -12,6 +12,8 @@
  * roles, the policies) and hands them to `decide`.
  */
 
+import type { Permission } from './access'
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Permissions
 // ---------------------------------------------------------------------------------------------------------------------
@@ -887,7 +889,7 @@ export interface PolicyDefinition<R = unknown, TEvent = unknown, TUser = unknown
 
 /** The server `definePolicy` (wired in by the server runtime). */
 export type DefinePolicy<TEvent = unknown, TUser = unknown, TPrincipal = unknown> = <R = unknown>(
-  permission: string,
+  permission: Permission,
   handler: PolicyFn<R, TEvent, TUser, TPrincipal>,
   options?: PolicyOptions,
 ) => PolicyDefinition<R, TEvent, TUser, TPrincipal>
@@ -911,7 +913,7 @@ export interface SharedPolicyDefinition<R = unknown, TUser = unknown> extends Po
 
 /** Defines a policy that runs on the server and in the client. Throws on an invalid permission name. */
 export function defineSharedPolicy<R = unknown, TUser = unknown>(
-  permission: string,
+  permission: Permission,
   handler: SharedPolicyFn<R, TUser>,
   options: PolicyOptions = {},
 ): SharedPolicyDefinition<R, TUser> {

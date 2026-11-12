@@ -6,6 +6,7 @@ import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { eventsApi } from '../src/runtime/utils/api'
+import { eventsAccess } from '../src/runtime/access'
 import { eventId, getStripeCalls, makeEvent, postWebhook, registerUser, sendEvent } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
@@ -737,15 +738,16 @@ describe('events (authenticated, database-backed)', async () => {
     it('keeps the role in charge: the scope is necessary, not sufficient', async () => {
       staff ??= await registerUser('Staff', 'staff@staff.test')
       const nobody = await user('Nobody')
+      const manage = eventsAccess.permissions.manage
 
-      const staffToken = await createToken(staff.cookie, ['events:manage'])
+      const staffToken = await createToken(staff.cookie, [manage])
       expect((await fetch(eventsApi.admin.events, { headers: bearer(staffToken) })).status).toBe(200)
-      expect((await fetch(eventsApi.admin.events, { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
+      expect((await fetch(eventsApi.admin.events, { headers: bearer(await createToken(staff.cookie, [eventsAccess.permissions['tickets:read']])) })).status).toBe(403)
       // Staff scopes are not even offered to, or accepted from, users whose roles do not hold them.
-      expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
-      expect(await scopesFor(nobody.cookie)).toContain('tickets')
-      expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['events:manage', 'events:pii']))
-      expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(403)
+      expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining([manage]))
+      expect(await scopesFor(nobody.cookie)).toContain(eventsAccess.scopes.tickets)
+      expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining([manage, eventsAccess.permissions.pii]))
+      expect(await tokenStatus(nobody.cookie, [manage])).toBe(403)
     })
 
     it('lets a tickets token read the own tickets but not the staff routes, even for staff', async () => {

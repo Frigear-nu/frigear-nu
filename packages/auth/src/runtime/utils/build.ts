@@ -1,5 +1,6 @@
 import type { Nuxt } from '@nuxt/schema'
 import type { AuthResolverDefinition } from '../../types'
+import type { Access } from './access'
 import type { CompiledAccess, RoleRegistration } from './access-compile'
 import type { PermissionDefinition, ScopeDefinition } from './permissions'
 
@@ -110,6 +111,62 @@ export function addPolicies(nuxt: Nuxt, file: PolicyFileRegistration) {
   nuxt.hook('auth:policies', (list) => {
     list.push(file)
   })
+}
+
+/** What `registerAccess` registers of an `Access`: everything unless narrowed (keys of the `defineAccess` input). */
+export interface RegisterAccessOptions<P extends string = string, S extends string = string, R extends string = string> {
+  /** Only these permissions (by key). Defaults to all. */
+  permissions?: readonly P[]
+  /** `false` registers none of the scopes, a list only these. Defaults to all. */
+  scopes?: boolean | readonly S[]
+  /**
+   * `false` registers none of the roles, a list only these. Defaults to all. A `grantTo` naming one of the access's own
+   * roles that is not registered is dropped, so an opt-in role needs no second permission list.
+   */
+  roles?: boolean | readonly R[]
+  /** The roles' provenance (`from`), shown on the roles admin pages. Defaults to the resource. */
+  from?: string
+}
+
+function pick<T>(table: Readonly<Record<string, T>>, only: boolean | readonly string[] | undefined): Array<[string, T]> {
+  const entries = Object.entries(table)
+  if (only === false) return []
+  if (only === undefined || only === true) return entries
+  for (const key of only) {
+    if (!Object.hasOwn(table, key)) throw new Error(`[auth] registerAccess: "${key}" is not defined.`)
+  }
+  return entries.filter(([key]) => only.includes(key))
+}
+
+/**
+ * Registers an `Access` (`defineAccess` from `@frigear-nu/auth/access`): its permissions (`addPermission`), named
+ * scopes (`addScope`) and roles (`addRole`, with `from` set). Call it from a module's `setup()`:
+ *
+ *     registerAccess(nuxt, eventsAccess, { roles: settings.roles ? true : false })
+ */
+export function registerAccess<P extends string, S extends string, R extends string>(
+  nuxt: Nuxt,
+  access: Access<string, P, S, R>,
+  options: RegisterAccessOptions<NoInfer<P>, NoInfer<S>, NoInfer<R>> = {},
+) {
+  const { permissions, scopes, roles } = access.definitions as unknown as {
+    permissions: Record<string, PermissionDefinition>
+    scopes: Record<string, ScopeDefinition>
+    roles: Record<string, RoleRegistration>
+  }
+  const registeredRoles = pick(roles, options.roles)
+  const skippedRoles = new Set(Object.keys(roles).filter(name => !registeredRoles.some(([key]) => key === name)))
+  const from = options.from ?? access.resource
+
+  const permissionList = pick(permissions, options.permissions).map(([, definition]) => (
+    definition.grantTo?.some(role => skippedRoles.has(role))
+      ? { ...definition, grantTo: definition.grantTo.filter(role => !skippedRoles.has(role)) }
+      : definition
+  ))
+  if (permissionList.length) addPermission(nuxt, ...permissionList)
+  const scopeList = pick(scopes, options.scopes).map(([, definition]) => definition)
+  if (scopeList.length) addScope(nuxt, ...scopeList)
+  if (registeredRoles.length) addRole(nuxt, ...registeredRoles.map(([, role]) => ({ ...role, from: role.from ?? from })))
 }
 
 /** Provide where the users' assigned roles are stored (`@frigear-nu/authorization`). First registration wins. */

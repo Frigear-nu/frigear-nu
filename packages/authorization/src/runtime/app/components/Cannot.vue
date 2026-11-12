@@ -1,10 +1,11 @@
 <script lang="ts" setup generic="R">
+import type { Permission } from '@frigear-nu/auth/access'
 import { useAuthorization } from '../composables/useAuthorization'
 import { computed } from '#imports'
 
 // Renders the default slot when the visitor does not hold `permission` (or a shared policy denies `record`).
 const props = defineProps<{
-  permission: string
+  permission: Permission
   record?: R
 }>()
 

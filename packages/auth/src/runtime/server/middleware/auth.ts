@@ -3,6 +3,7 @@ import { exempt, rules } from '#auth/route-rules'
 import { normalizeRequestPath, resolveAccessRouteRule } from '../../utils/route-rules'
 import { resolveBearer, requireAuth, getAuth } from '../utils/auth'
 import { authorize } from '../utils/access'
+import type { Permission } from '../../utils/access'
 
 // Resolves bearer credentials early so `event.context.auth` is set for every handler, including other modules'
 // middleware. Cookie sessions are resolved lazily by `getAuth`. Then enforces the access route rules of `/api/**`
@@ -27,7 +28,8 @@ export default defineEventHandler(async (event) => {
     return
   }
   if (typeof rule.permission === 'string') {
-    await authorize(event, rule.permission)
+    // Checked against the registry at build time (an unknown permission fails the build).
+    await authorize(event, rule.permission as Permission)
     return
   }
   if (rule.authenticated) await requireAuth(event)

@@ -9,7 +9,7 @@ import type {
   McpToolDefinition,
   StandardMcpResourceDefinition,
 } from '@nuxtjs/mcp-toolkit/server'
-import type { AuthPrincipal, AuthUser } from '@frigear-nu/auth/utils'
+import type { AuthPrincipal, AuthUser, Permission } from '@frigear-nu/auth/utils'
 import { SCOPED_META_KEY, permissionTags } from '../../utils/access'
 import type { ScopedAccess } from '../../utils/access'
 
@@ -25,7 +25,7 @@ export interface ScopedMcpContext {
    * an opt-in `*:pii` permission, optionally for a `record` (policies). Backed by `allows`; it never answers for
    * another user.
    */
-  can: (permission: string, record?: unknown) => Promise<boolean>
+  can: (permission: Permission, record?: unknown) => Promise<boolean>
 }
 
 /**

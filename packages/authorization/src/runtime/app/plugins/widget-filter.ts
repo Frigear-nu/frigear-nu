@@ -1,3 +1,4 @@
+import type { Permission } from '@frigear-nu/auth/access'
 import { useAuthorization } from '../composables/useAuthorization'
 import { defineNuxtPlugin } from '#imports'
 
@@ -6,7 +7,7 @@ import { defineNuxtPlugin } from '#imports'
 export default defineNuxtPlugin({
   name: 'authorization:widget-filter',
   setup(nuxtApp) {
-    type Entry = { permission?: string }
+    type Entry = { permission?: Permission }
     type Hooks = {
       hook: ((name: 'widgets:filter', fn: (ctx: { widgets: Entry[] }) => void) => void)
         & ((name: 'tabs:filter', fn: (ctx: { tabs: Entry[] }) => void) => void)

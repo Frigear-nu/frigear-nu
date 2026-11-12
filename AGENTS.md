@@ -209,10 +209,16 @@ Full guide: `apps/docs/content/5.contribute/3.writing-a-module/5.access-control.
   `authorize(event, permission, record)` once it is, so policies see the record and nothing answers 404 before 401/403.
 - Sign-in belongs to `@frigear-nu/auth` (settings under `authentication.settings`); `@frigear-nu/users` owns the user
   entity, the admin and self-service changes. Auth reaches users only through the `AuthUserStore` that users registers.
-- **Register what code checks** in `setup()` with `@frigear-nu/auth/utils`: `addPermission(nuxt, { name, label,
-  labelKey, grantTo?, implicit?, sessionOnly?, sensitive? })`, `addScope` (a named group of permissions for tokens and
-  OAuth), `addRole` (a module role, only when its staff differ from the host's admins), `addRoleRequirement` and
-  `addPolicies`. An unregistered name is a 403 for everyone and fails the build in route rules and page meta.
+- **Declare what code checks** in `src/runtime/access.ts` with `defineAccess(resource, { permissions, scopes?, roles? })`
+  from `@frigear-nu/auth/access` (keys become `<resource>:<key>`, a key with a colon is a full name; i18n keys
+  `<resource>.permissions.<key>` are derived), and register it in `setup()` with `registerAccess(nuxt, access, options?)`
+  from `@frigear-nu/auth/utils` (`roles: false` for an opt-in role, `permissions: [...]` to narrow). Name permissions
+  through it in routes and tests (`eventsAccess.permissions.manage`) rather than string literals. `addPermission`,
+  `addScope`, `addRole` are the low-level calls underneath (dynamic scopes, fixtures); `addRoleRequirement` and
+  `addPolicies` stay as they are. An unregistered name is a 403 for everyone and fails the build in route rules and page
+  meta. Auth generates the `Permission` type from the registry, so permission parameters are typed in apps; in a
+  package's own build it is `string`, and a name built at runtime needs `as Permission`. Hosts type their roles with
+  `defineRoles` (`@frigear-nu/auth/access`).
   - Staff permissions get `grantTo: ['admin']`; self-service on the user's own data is `implicit` (with a policy so
     users reach only their own); anything exposing other people's data ends in `:pii` (`sensitive`, never covered by a
     wildcard).

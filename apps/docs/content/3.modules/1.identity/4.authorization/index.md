@@ -65,6 +65,8 @@ Modules register their permissions. You decide which role holds which. This clos
 the `admin:access` permission, and sends visitors to the sign-in page:
 
 ```ts [nuxt.config.ts]
+import { defineRoles } from '@frigear-nu/auth/access'
+
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@frigear-nu/users', '@frigear-nu/authorization'],
   routeRules: {
@@ -73,14 +75,19 @@ export default defineNuxtConfig({
   },
   authorization: {
     defaultRoles: ['user'], // every signed-in user holds these
-    roles: {
+    roles: defineRoles({
       admin: { label: 'Admin', grant: ['*'] },
       user: { label: 'User', grant: ['events:read'] },
-    },
+    }),
     redirectTo: '/login', // unauthenticated page visits; client mode defaults to the login path
   },
 })
 ```
+
+`defineRoles` returns the roles unchanged and types them: once `nuxi prepare` has generated the app's types, a grant
+that names no registered permission (`'events:raed'`) or an unknown parent role fails typecheck, right in
+`nuxt.config.ts`. The build checks the same at `modules:done`. See
+[Roles and requirements](/modules/identity/authorization/roles-and-requirements#type-your-roles).
 
 ### Generate the migration
 

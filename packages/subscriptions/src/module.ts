@@ -19,7 +19,8 @@ import {
   inlineModuleRuntime,
   registerBootstrapProvider,
 } from '@frigear-nu/module-kit/utils'
-import { addPermission, addRoleRequirement } from '@frigear-nu/auth/utils'
+import { addRoleRequirement, registerAccess } from '@frigear-nu/auth/utils'
+import { subscriptionsAccess } from './runtime/access'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
@@ -119,13 +120,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
-    // `subscriptions:read` is self-service (every signed-in user). Granting a free membership or creating a payment link
-    // for someone gives away paid access or starts a payment, so it is its own session-only staff permission; staff
-    // read a user's membership with `users:read`, like the rest of the admin user page.
-    addPermission(nuxt,
-      { name: 'subscriptions:read', label: 'Read your membership', labelKey: 'subscriptions.permissions.read', description: 'Read your own subscriptions and the plans.', group: 'subscriptions', implicit: true },
-      { name: 'subscriptions:manage', label: 'Manage memberships', labelKey: 'subscriptions.permissions.manage', description: 'Grant and revoke free memberships and send payment links to users.', group: 'subscriptions', sessionOnly: true },
-    )
+    registerAccess(nuxt, subscriptionsAccess)
     // Roles can require a membership: `requirements: { subscription: '*' }` (any plan) or a plan key / plan keys.
     addRoleRequirement(nuxt, { name: 'subscription', path: resolver.resolve('./runtime/server/requirements/subscription') })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))

@@ -14,7 +14,8 @@ import {
   registerTailwindSource,
   inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
-import { addPermission, addScope } from '@frigear-nu/auth/utils'
+import { registerAccess } from '@frigear-nu/auth/utils'
+import { paymentsAccess } from './runtime/access'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
@@ -90,20 +91,8 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    // Self-service permissions every signed-in user holds (`implicit`); `payments:manage` is staff only (the admin role).
-    addPermission(nuxt,
-      { name: 'payments:read', label: 'Read your payments', labelKey: 'payments.permissions.read', description: 'Read your own payments.', descriptionKey: 'payments.permissions.readDescription', group: 'payments', implicit: true },
-      { name: 'payments:write', label: 'Resume your payments', labelKey: 'payments.permissions.write', description: 'Resume paying for your own unpaid payments.', descriptionKey: 'payments.permissions.writeDescription', group: 'payments', implicit: true },
-      { name: 'payments:manage', label: 'See recent payments', labelKey: 'payments.permissions.manage', description: 'See recent payments and revenue on the dashboard.', descriptionKey: 'payments.permissions.manageDescription', group: 'payments', grantTo: ['admin'] },
-    )
-    addScope(nuxt, {
-      name: 'payments',
-      label: 'Your payments',
-      labelKey: 'payments.scopes.payments',
-      description: 'Read your payments and resume unpaid ones.',
-      icon: 'i-lucide-credit-card',
-      permissions: ['payments:read', 'payments:write'],
-    })
+    // Permissions and the `payments` scope (`runtime/access.ts`).
+    registerAccess(nuxt, paymentsAccess)
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))

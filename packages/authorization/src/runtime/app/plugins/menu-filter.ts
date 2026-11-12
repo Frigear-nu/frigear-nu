@@ -1,4 +1,5 @@
 import { filterMenuItems } from '@frigear-nu/menu/utils'
+import type { Permission } from '@frigear-nu/auth/access'
 import { useAuthorization } from '../composables/useAuthorization'
 import { defineNuxtPlugin } from '#imports'
 
@@ -7,7 +8,7 @@ import { defineNuxtPlugin } from '#imports'
 export default defineNuxtPlugin({
   name: 'authorization:menu-filter',
   setup(nuxtApp) {
-    type MenuItem = { permission?: string, children?: MenuItem[] }
+    type MenuItem = { permission?: Permission, children?: MenuItem[] }
     type MenuFilterContext = { items: MenuItem[] }
     const { can } = useAuthorization()
     const hooks = nuxtApp.hooks as unknown as { hook: (name: 'menus:filter', fn: (ctx: MenuFilterContext) => void) => void }
