@@ -369,6 +369,9 @@ describe('payments (authenticated, database-backed)', async () => {
 
       // Only the configured staff account passes the test policy.
       await expectApiError(apiClient({ cookie: staff.cookie }).json('GET', paymentsApi.admin.userPayments(user.id)), 403)
+      // Seeing users (`users:read`) is not enough: a user's payments need `payments:manage`.
+      const reader = await registerUser('Reader', 'reader@example.com')
+      await expectApiError(apiClient({ cookie: reader.cookie }).json('GET', paymentsApi.admin.userPayments(user.id)), 403, 'forbidden')
 
       const admin = apiClient({ cookie: await registerStaff() })
       const list = await admin.json<{ id: string, userId: number }[]>('GET', paymentsApi.admin.userPayments(user.id))

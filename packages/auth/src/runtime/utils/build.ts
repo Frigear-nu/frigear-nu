@@ -1,5 +1,5 @@
 import type { Nuxt } from '@nuxt/schema'
-import type { AuthResolverDefinition, AuthRoleDefinition, AuthScopeDefinition } from '../../types'
+import type { AuthResolverDefinition } from '../../types'
 import type { CompiledAccess, RoleRegistration } from './access-compile'
 import type { PermissionDefinition, ScopeDefinition } from './permissions'
 
@@ -38,10 +38,6 @@ export interface RoleProviderRegistration {
 declare module '@nuxt/schema' {
   interface NuxtHooks {
     'auth:resolvers': (resolvers: AuthResolverDefinition[]) => void | Promise<void>
-    /** @deprecated — removed in phase 2: the old `addAuthScope` registrations. */
-    'auth:scopes': (scopes: AuthScopeDefinition[]) => void | Promise<void>
-    /** @deprecated — removed in phase 2: the old `addAuthRole` registrations. */
-    'auth:roles': (roles: AuthRoleDefinition[]) => void | Promise<void>
     'auth:user-store': (registration: AuthUserStoreRegistration) => void | Promise<void>
     'auth:permissions': (permissions: PermissionDefinition[]) => void | Promise<void>
     'auth:named-scopes': (scopes: ScopeDefinition[]) => void | Promise<void>
@@ -137,5 +133,4 @@ export function setAuthUserStore(nuxt: Nuxt, path: string) {
   })
 }
 
-export { addAuthRole, addAuthScope } from './legacy-build'
 export type { RoleRegistration } from './access-compile'

@@ -66,8 +66,8 @@ describe('auth tokens', async () => {
 
     const me = await call('GET', '/api/test/me', { cookie: ada })
     expect(me.status, await me.clone().text()).toBe(200)
-    // A session carries its user's grants: here only the implicit permissions.
-    expect(await me.json()).toMatchObject({ kind: 'session', user: { id: 1 }, scopes: ['events:read', 'events:write'] })
+    // A session is no delegated credential: it carries no scopes (its user's roles apply).
+    expect(await me.json()).toMatchObject({ kind: 'session', user: { id: 1 }, scopes: [] })
 
     const anonymous = await call('GET', '/api/test/me')
     expect(anonymous.status).toBe(401)

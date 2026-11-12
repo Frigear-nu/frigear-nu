@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
-import { apiError, badRequest, conflict, isoDate, notFound } from '@frigear-nu/module-kit/server'
+import { apiError, badRequest, conflict, isoDate, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { expandScopes, isKnownScope, scopeGrantable, validateNamedScopes } from '@frigear-nu/auth/utils'
 import type { AuthUser, NamedScopes, ScopeDefinition } from '@frigear-nu/auth/utils'
 import { namedScopes, registry } from '#auth/permissions'
@@ -186,8 +186,16 @@ export function isManagedOAuthScope(name: string): boolean {
   return isOidcScope(name) || Object.hasOwn(namedScopes, name)
 }
 
-/** 400 unless `permissions` is a valid scope body: registered, never sensitive or `sessionOnly`. */
+/**
+ * 400 unless `permissions` is a valid scope body: registered permissions by name, never sensitive or `sessionOnly`.
+ * Wildcards (`*`, `resource:*`) are refused (`validation_failed`): what they cover grows with every deploy that registers
+ * a permission, without bumping the scope's version, so users would never be asked to consent to the wider scope.
+ */
 function assertScopePermissions(name: string, permissions: string[]) {
+  const wildcards = permissions.flatMap((permission, index) => permission === '*' || permission.endsWith(':*')
+    ? [{ path: ['permissions', index], message: `"${permission}" is a wildcard: list the permissions by name.` }]
+    : [])
+  if (wildcards.length) throw validationError(wildcards, 'A database scope cannot contain wildcards.')
   const errors = validateNamedScopes({ [name]: { name, permissions } }, registry)
   if (errors.length) throw badRequest(errors.join(' '))
 }

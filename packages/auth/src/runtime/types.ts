@@ -15,10 +15,7 @@ export interface AuthTokenInfo {
 
 interface AuthPrincipalBase {
   user: AuthUser
-  /**
-   * A bearer credential's scopes, as granted. A session carries its user's held grants here (roles and `implicit`
-   * permissions, wildcards included) for the deprecated scope checks; new code calls `authorize` / `allows`.
-   */
+  /** A bearer credential's scopes, as granted. Always empty for a session: check access with `authorize` / `allows`. */
   scopes: string[]
   /**
    * A bearer credential's permissions: frozen when it was issued (the `permissions` of a user token row or an access
@@ -42,11 +39,6 @@ export type AuthPrincipal
 export type AuthPrincipalKind = AuthPrincipal['kind']
 
 export interface RequireUserOptions {
-  /**
-   * Permissions the caller must hold (checked like `allows`, codes as before).
-   * @deprecated — removed in phase 2. Call `authorize(event, permission)`.
-   */
-  scopes?: string[]
   /** Reject bearer credentials (user tokens, OAuth access tokens). Use for account-level actions. */
   sessionOnly?: boolean
 }

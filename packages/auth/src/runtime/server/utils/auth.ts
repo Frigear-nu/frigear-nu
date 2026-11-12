@@ -4,8 +4,7 @@ import { resolvers } from '#auth/resolvers'
 import { configured as storeConfigured } from '#auth/user-store'
 import type { AuthPrincipal, AuthUser, RequireUserOptions } from '../../types'
 import { looksLikeJwt, parseBearer } from '../../utils/tokens'
-import { getUserGrants, resolveCredentialPermissions } from './access'
-import { requireLegacyScopes } from './legacy'
+import { resolveCredentialPermissions } from './access'
 
 declare module 'h3' {
   interface H3EventContext {
@@ -102,7 +101,7 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
   }
   if (!storeConfigured) {
     const user = session.user as AuthUser
-    return { kind: 'session', user, scopes: await getUserGrants(event, user) }
+    return { kind: 'session', user, scopes: [] }
   }
 
   const stored = await useAuthUserStore().findById(session.user.id as string | number)
@@ -111,9 +110,8 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
     await clearUserSession(event)
     return null
   }
-  // A session holds all of its user's permissions; `scopes` carries their grants for the deprecated scope checks.
-  const user = mapUserToSession(stored) as AuthUser
-  return { kind: 'session', user, scopes: await getUserGrants(event, user) }
+  // A session is no delegated credential: it has no scopes, and `authorize` checks its user's roles.
+  return { kind: 'session', user: mapUserToSession(stored) as AuthUser, scopes: [] }
 }
 
 /**
@@ -131,6 +129,5 @@ export async function requireAuth(event: H3Event, options: RequireUserOptions = 
   if (options.sessionOnly && principal.kind !== 'session') {
     throw apiError(403, 'session_required', 'Forbidden', { error: 'session_required' })
   }
-  if (options.scopes?.length) await requireLegacyScopes(event, principal, options.scopes)
   return principal
 }

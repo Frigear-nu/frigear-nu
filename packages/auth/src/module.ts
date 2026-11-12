@@ -38,10 +38,8 @@ import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
-  AuthRoleDefinition,
   AuthRouteRules,
   AuthSettings,
-  AuthScopeDefinition,
   ModuleOptions,
   OAuthProvider,
   PublicModuleOptions,
@@ -55,7 +53,6 @@ import type {
 import { compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
 import { pickAccessRouteRules } from './runtime/utils/route-rules'
 import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-compile'
-import { convertLegacyAccess } from './runtime/utils/legacy-build'
 import type { PermissionDefinition, ScopeDefinition } from './runtime/utils/permissions'
 import type { AuthorizationBeforeContext, AuthorizationRolesContext } from './runtime/types'
 import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
@@ -87,9 +84,7 @@ export type {
   AuthCreatedTokenDto,
   AuthPasskeyDto,
   AuthResolverDefinition,
-  AuthRoleDefinition,
   AuthRouteRules,
-  AuthScopeDefinition,
   AuthScopeDto,
   AuthSettings,
   AuthTokenDto,
@@ -448,13 +443,6 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     resolve: import('${resolver.resolve('./types')}').AuthResolverFn
   }>
 }
-declare module '#auth/scopes' {
-  type Scope = { name: string, description?: string, sessionOnly?: boolean }
-  /** @deprecated — removed in phase 2. The registered permissions a credential can hold; use \`#auth/permissions\`. */
-  export const scopes: Scope[]
-  /** @deprecated — removed in phase 2. Every registered permission; use \`#auth/permissions\`. */
-  export const permissions: Scope[]
-}
 declare module '#auth/route-rules' {
   /** The access keys of \`routeRules\` (\`permission\`, \`authenticated\`, \`guest\`), by pattern. */
   export const rules: Record<string, import('${resolver.resolve('./runtime/utils/route-rules')}').AccessRouteRule>
@@ -735,7 +723,7 @@ const EMPTY_ACCESS: CompiledAccess = {
 
 /**
  * Collects every registration (`addPermission`, `addRole`, `addRoleRequirement`, `addPolicies`, `setRoleProvider`,
- * `setDefaultRoles`, `addScope`, and the deprecated `addAuthScope` / `addAuthRole`) at `modules:done`, compiles
+ * `setDefaultRoles`, `addScope`) at `modules:done`, compiles
  * them (configuration errors fail the build) and serves the result as `#auth/permissions`, `#auth/roles` and
  * `#auth/policies` (server) and `#auth/shared-policies` (app).
  */
@@ -749,11 +737,6 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
   nuxt.hook('modules:done', async () => {
     const permissions: PermissionDefinition[] = [...(options.permissions ?? [])]
     await nuxt.callHook('auth:permissions', permissions)
-    const legacyScopes: AuthScopeDefinition[] = [...(options.scopes ?? [])]
-    await nuxt.callHook('auth:scopes', legacyScopes)
-    const legacyRoles: AuthRoleDefinition[] = []
-    await nuxt.callHook('auth:roles', legacyRoles)
-    const legacy = convertLegacyAccess(legacyScopes, legacyRoles)
     const roles: RoleRegistration[] = []
     await nuxt.callHook('auth:role-definitions', roles)
     const defaultRoles: string[] = []
@@ -769,9 +752,8 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
     providerPath = provider.path
 
     const result = compileAccess({
-      permissions: [...permissions, ...legacy.permissions],
-      roles: [...legacy.roles, ...roles],
-      extensions: legacy.extensions,
+      permissions,
+      roles,
       defaultRoles,
       requirementNames: requirementFiles.map(requirement => requirement.name),
       namedScopes,
@@ -829,17 +811,6 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
       `export const registry = ${JSON.stringify(compiled.registry)}`,
       `export const namedScopes = ${JSON.stringify(compiled.namedScopes)}`,
     ].join('\n'),
-  })
-  // @deprecated — removed in phase 2: the old shape, for modules that still read it.
-  addServerTemplate({
-    filename: '#auth/scopes',
-    getContents: () => {
-      const all = Object.values(compiled.registry.permissions).map(p => ({ name: p.name, description: p.description, sessionOnly: p.sessionOnly }))
-      return [
-        `export const permissions = ${JSON.stringify(all)}`,
-        `export const scopes = ${JSON.stringify(all.filter(p => !p.sessionOnly))}`,
-      ].join('\n')
-    },
   })
   addServerTemplate({
     filename: '#auth/roles',

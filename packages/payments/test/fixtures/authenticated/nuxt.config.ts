@@ -11,6 +11,8 @@ export default defineNuxtConfig({
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
     (_options, nuxt) => {
       addRole(nuxt, { name: 'staff', label: 'Staff', grant: ['payments:manage', 'users:read'] })
+      // May see users but not their payments (the user payments route needs `payments:manage`).
+      addRole(nuxt, { name: 'reader', label: 'Reader', grant: ['users:read'] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
     },
   ],

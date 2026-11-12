@@ -17,7 +17,7 @@ export type {
   AuthRoleSource,
   RequireUserOptions,
 } from '../types'
-export type { AuthResolverDefinition, AuthRoleDefinition, AuthRouteRules, AuthScopeDefinition, AuthScopeDto } from '../../types'
+export type { AuthResolverDefinition, AuthRouteRules, AuthScopeDto } from '../../types'
 export type { AuthCreatedTokenDto, AuthPasskeyDto, AuthTokenDto } from '../../types'
 export {
   addAuthResolver,
@@ -31,12 +31,10 @@ export {
   setRoleProvider,
 } from './build'
 export type { PolicyFileRegistration, RoleProviderRegistration, RoleRequirementRegistration } from './build'
-/** @deprecated — removed in phase 2. */
-export { addAuthRole, addAuthScope } from './legacy-build'
 export { compileAccess, routeRulePermissions } from './access-compile'
 export type { CompileAccessInput, CompiledAccess, RoleRegistration } from './access-compile'
 export { authApi } from './api'
-export { ALL_SCOPES, hasScope, hasScopes, isGrantableScope, isPiiScope, parseScopeString, principalHasScopes } from './scopes'
+export { parseScopeString } from './scopes'
 export {
   USER_TOKEN_PREFIX,
   generateUserToken,

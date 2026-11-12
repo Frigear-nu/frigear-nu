@@ -11,9 +11,7 @@ export type RequireUserAuthOptions = {
  * who is calling: authorize what they do with `authorize(event, permission)`, which also returns the principal.
  */
 export async function requireUser(event: H3Event, options: RequireUserAuthOptions = {}) {
-  // `options` goes through as given, so a caller not yet migrated off the removed `scopes` keeps its check (it is a type
-  // error here) for as long as `requireAuth` still runs it.
-  return (await requireAuth(event, options)).user
+  return (await requireAuth(event, { sessionOnly: options.sessionOnly })).user
 }
 
 /**

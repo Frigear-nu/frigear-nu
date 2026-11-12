@@ -1,14 +1,15 @@
 <script setup lang="ts">
 const { user } = useUserSession()
+const { access } = useAuthorization()
 const post = { userId: 1 }
 </script>
 
 <template>
   <div>
-    <p>User: {{ user?.email ?? 'guest' }} ({{ user?.role }})</p>
+    <p>User: {{ user?.email ?? 'guest' }} ({{ access?.roles?.join(', ') || 'no roles' }})</p>
     <Can
-      :ability="editPost"
-      :args="[post]"
+      permission="posts:update"
+      :record="post"
     >
       <button>Edit post</button>
       <template #fallback>

@@ -1464,6 +1464,10 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       for (const permissions of [['inventory:pii'], ['inventory:manage'], ['nope:read'], []]) {
         expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: `bad${++counter}`, permissions })).status, permissions.join()).toBe(400)
       }
+      // Wildcards would widen silently with every deploy that registers a permission, without a version bump.
+      for (const permissions of [['*'], ['inventory:read', 'inventory:*']]) {
+        await expectApiError(admin().json('POST', oauthServerApi.admin.scopes, { name: `wild${++counter}`, permissions }), 400, 'validation_failed')
+      }
       expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: 'Bad Name', permissions: ['inventory:read'] })).status).toBe(400)
       expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: 'inventory:read', permissions: ['inventory:read'] })).status).toBe(400)
 
@@ -1472,6 +1476,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       // Shrinking needs no new consent.
       expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:write'] })).toMatchObject({ version: 2 })
       await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:pii'] }), 400)
+      await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:*'] }), 400, 'validation_failed')
       await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope('groups'), { label: 'x' }), 409, 'managed_by_config')
       await expectApiError(admin().json('DELETE', oauthServerApi.admin.scope('groups')), 409, 'managed_by_config')
       expect(await admin().json<Json>('GET', oauthServerApi.admin.scope(name))).toMatchObject({ name, permissions: ['inventory:write'] })

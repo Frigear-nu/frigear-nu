@@ -23,47 +23,6 @@ export interface AuthResolverDefinition {
   order?: number
 }
 
-/** @deprecated — removed in phase 2. Use `PermissionDefinition` (`addPermission`). */
-export interface AuthScopeDefinition {
-  name: string
-  description?: string
-  /**
-   * The junior-most roles this permission belongs to (role-based access control, `@frigear-nu/authorization`): every
-   * role that inherits one of them gets it too. `['user']` gives it to every signed-in user. Omit it and only `admin`
-   * holds the permission (default deny). Like Kubernetes' aggregated roles: a module grants its own permissions without
-   * the host listing them.
-   */
-  aggregateTo?: string[]
-  /**
-   * A permission only a cookie session uses (creating users, managing OAuth applications): roles can hold it, but it
-   * is never offered to API tokens or OAuth clients, nor listed as a supported OAuth scope.
-   */
-  sessionOnly?: boolean
-  /**
-   * Without `@frigear-nu/authorization` roles: only users whose `role` is one of these may pick (or be granted) the
-   * scope. With them, it is read as `aggregateTo` when that is not set.
-   * @deprecated Use `aggregateTo`.
-   */
-  roles?: string[]
-}
-
-/**
- * A role a module ships (`addAuthRole`).
- * @deprecated — removed in phase 2. Use `addRole` with a `RoleDefinition`.
- */
-export interface AuthRoleDefinition {
-  /** Stored in `users.role`. */
-  name: string
-  label?: string
-  description?: string
-  /** Roles whose permissions this role also gets (role hierarchy). Defaults to `['user']`. */
-  inherits?: string[]
-  /** Roles that inherit this one (it slots in below them). Defaults to `['admin']`. */
-  inheritedBy?: string[]
-  /** Permissions granted directly: registered scope names or `resource:*` wildcards. */
-  permissions?: string[]
-}
-
 /** A scope a token can be given, as `GET /api/auth/scopes` lists it. */
 export interface AuthScopeDto {
   name: string
@@ -306,7 +265,5 @@ export interface ModuleOptions {
    * Permissions registered by the host application (`resource:action`). Modules register theirs with `addPermission`.
    */
   permissions?: import('./runtime/utils/permissions').PermissionDefinition[]
-  /** @deprecated — removed in phase 2. Use `permissions`. */
-  scopes?: AuthScopeDefinition[]
   settings?: AuthSettings
 }

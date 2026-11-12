@@ -2,7 +2,6 @@ import {
   compileRoles,
   createPermissionRegistry,
   isKnownPermission,
-  validateGrant,
   validateNamedScopes,
 } from './permissions'
 import type {
@@ -24,23 +23,11 @@ import type {
 export interface RoleRegistration extends RoleContribution {
   /** Same as `source: 'host'`. */
   override?: boolean
-  /**
-   * Internal: a role converted from the deprecated `addAuthRole`: grants and parents that do not exist are dropped
-   * instead of failing the build, as the old role table did.
-   */
-  legacy?: boolean
-}
-
-/** Internal: parents added to a role only when it exists (the deprecated `inheritedBy`). */
-export interface RoleExtension {
-  role: string
-  inherit: string[]
 }
 
 export interface CompileAccessInput {
   permissions: readonly PermissionDefinition[]
   roles?: readonly RoleRegistration[]
-  extensions?: readonly RoleExtension[]
   defaultRoles?: readonly string[]
   requirementNames?: readonly string[]
   namedScopes?: readonly ScopeDefinition[]
@@ -52,7 +39,7 @@ export interface CompiledAccess {
   registry: PermissionRegistry
   roles: RoleTable
   namedScopes: NamedScopes
-  /** Notes worth a warning (dropped legacy grants, `grantTo` into a missing role), never errors. */
+  /** Notes worth a warning (`grantTo` into a missing role), never errors. */
   warnings: string[]
   errors: string[]
 }
@@ -66,26 +53,10 @@ const unique = <T>(values: Iterable<T>) => [...new Set(values)]
 export function compileAccess(input: CompileAccessInput): CompiledAccess {
   const warnings: string[] = []
   const { value: registry, errors } = createPermissionRegistry(input.permissions)
-  const registrations = input.roles ?? []
-  const names = new Set(registrations.filter(role => !role.legacy).map(role => role.name))
-  for (const role of registrations) if (role.legacy) names.add(role.name)
-  const grantable = (grant: string) => validateGrant(grant) === null
-    && (grant === '*' || grant.endsWith(':*') ? Object.values(registry.permissions).some(p => grant === '*' || p.resource === grant.slice(0, -2)) : isKnownPermission(grant, registry) || Object.hasOwn(registry.aliases, grant))
-
-  const contributions: RoleContribution[] = registrations.map((registration) => {
-    const { override, legacy, ...role } = registration
-    const contribution: RoleContribution = { ...role, source: override ? 'host' : (role.source ?? 'module') }
-    if (!legacy) return contribution
-    // Legacy roles (`addAuthRole`) keep the old leniency: a missing parent or an unregistered grant is dropped.
-    const dropped = [...(role.inherit ?? []).filter(parent => !names.has(parent)), ...(role.grant ?? []).filter(grant => !grantable(grant))]
-    if (dropped.length) warnings.push(`Role "${role.name}" (\`addAuthRole\`) refers to ${dropped.map(item => `"${item}"`).join(', ')}, which does not exist: ignored.`)
-    return { ...contribution, inherit: (role.inherit ?? []).filter(parent => names.has(parent)), grant: (role.grant ?? []).filter(grantable) }
-  })
-  for (const extension of input.extensions ?? []) {
-    if (!names.has(extension.role)) continue
-    const inherit = extension.inherit.filter(parent => names.has(parent) && parent !== extension.role)
-    if (inherit.length) contributions.push({ name: extension.role, inherit, from: 'legacy' })
-  }
+  const contributions: RoleContribution[] = (input.roles ?? []).map(({ override, ...role }) => ({
+    ...role,
+    source: override ? 'host' : (role.source ?? 'module'),
+  }))
 
   const compiled = compileRoles({ contributions, defaultRoles: input.defaultRoles, registry, requirementNames: input.requirementNames })
   errors.push(...compiled.errors)

@@ -138,7 +138,7 @@ export default defineNuxtModule<ModuleOptions>({
     ], { base: '/api/payments' })
 
     // Staff view of a user's payments plus a "Payments" tab and a "Last payment" card on the admin user page of
-    // `@frigear-nu/users`, authorized with the users admin permission to read a user (`users:read`).
+    // `@frigear-nu/users`, authorized with `payments:manage`.
     await extendUsersAdmin(nuxt, {
       routes: [{ method: 'get', path: 'payments', handler: resolver.resolve('./runtime/server/routes/admin/user-payments.get') }],
       tab: {
@@ -148,12 +148,14 @@ export default defineNuxtModule<ModuleOptions>({
         label: 'Payments',
         labelKey: 'payments.admin.tab',
         icon: 'i-lucide-credit-card',
+        permission: 'payments:manage',
       },
       widget: {
         id: 'payments-last',
         component: resolver.resolve('./runtime/app/widgets/AdminLastPayment.vue'),
         order: 20,
         span: 2,
+        permission: 'payments:manage',
       },
     })
 
