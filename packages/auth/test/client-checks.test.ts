@@ -35,6 +35,30 @@ describe('client mode: setup', () => {
     await custom.close()
   })
 
+  // `useAuthorization()` (@frigear-nu/authorization) imports it in both modes: without it `nuxt generate` failed.
+  it('provides `#auth/shared-policies` with the shared policy files only', async () => {
+    const template = async (nuxt: Awaited<ReturnType<typeof load>>) => {
+      const found = nuxt.options.build.templates.find(entry => entry.filename === 'auth/shared-policies.mjs')
+      return found?.getContents?.({ nuxt, app: {} as never, options: {} } as never)
+    }
+    const plain = await load()
+    expect(plain.options.alias['#auth/shared-policies']).toMatch(/auth\/shared-policies\.mjs$/)
+    expect(await template(plain)).toMatch(/export const policies = \[\]$/)
+    await plain.close()
+
+    const withPolicies = await load({ modules: ['./local/policies'] })
+    const contents = await template(withPolicies)
+    expect(contents).toMatch(/import \* as policies0 from ".*\/local\/shared-policies\.ts"/)
+    expect(contents).not.toContain('server-policies')
+    expect(contents).toMatch(/export const policies = \[\.\.\.collect\(policies0\)\]$/)
+    await withPolicies.close()
+  })
+
+  it('refuses a shared policy file that imports server code', async () => {
+    await expect(load({ modules: ['./local/policies'], modulePolicies: { broken: true } } as NuxtConfig))
+      .rejects.toThrow(/Access control is misconfigured:[\s\S]*server-shared-policies\.ts/)
+  })
+
   it('refuses `ssr: true` in the app\'s config', async () => {
     const cwd = fileURLToPath(new URL('./fixtures/client-ssr', import.meta.url))
     await expect(loadNuxt({ cwd, dev: false, ready: true })).rejects.toThrow(/Client mode renders on the client only: remove `ssr: true`/)

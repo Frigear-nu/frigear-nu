@@ -721,6 +721,49 @@ const EMPTY_ACCESS: CompiledAccess = {
   errors: [],
 }
 
+/** `import * as` every policy file and export their policy definitions as `policies`, module policies before the host's. */
+function policyModule(files: PolicyFileRegistration[]) {
+  const ordered = [...files.filter(file => !file.host), ...files.filter(file => file.host)]
+  return [
+    ...ordered.map((file, index) => `import * as policies${index} from ${JSON.stringify(file.path)}`),
+    'const collect = (exports) => Object.values(exports).flatMap(value => Array.isArray(value) ? value : [value])',
+    '  .filter(value => value && typeof value === \'object\' && typeof value.permission === \'string\' && typeof value.handler === \'function\')',
+    `export const policies = [${ordered.map((_, index) => `...collect(policies${index})`).join(', ')}]`,
+  ].join('\n')
+}
+
+/** The errors of shared policy files that do not exist or import server code (they are bundled into the app). */
+async function sharedPolicyErrors(files: PolicyFileRegistration[]) {
+  const errors: string[] = []
+  for (const file of files.filter(file => file.shared)) {
+    const path = await resolvePath(file.path)
+    const source = await readFile(path, 'utf8').catch(() => undefined)
+    if (source === undefined) errors.push(`The policy file ${file.path} does not exist.`)
+    else errors.push(...sharedPolicyImportErrors(file.path, source))
+  }
+  return errors
+}
+
+/**
+ * `#auth/shared-policies`: the shared policies (`addPolicies({ shared: true })`) alone, for the app's `can()`
+ * (`@frigear-nu/authorization`). Both modes provide it.
+ */
+function addSharedPoliciesTemplate(nuxt: Nuxt, resolver: ReturnType<typeof createResolver>, files: () => PolicyFileRegistration[]) {
+  const sharedPolicies = addTemplate({
+    filename: 'auth/shared-policies.mjs',
+    write: true,
+    getContents: () => policyModule(files().filter(file => file.shared)),
+  })
+  nuxt.options.alias['#auth/shared-policies'] = sharedPolicies.dst
+  addTemplate({
+    filename: 'auth/shared-policies.d.mts',
+    write: true,
+    getContents: () => `/** The shared policies (\`defineSharedPolicy\`) of every \`addPolicies({ shared: true })\` file. */
+export declare const policies: import(${JSON.stringify(resolver.resolve('./runtime/utils/permissions'))}).SharedPolicyDefinition<any, any>[]
+`,
+  })
+}
+
 /**
  * Collects every registration (`addPermission`, `addRole`, `addRoleRequirement`, `addPolicies`, `setRoleProvider`,
  * `setDefaultRoles`, `addScope`) at `modules:done`, compiles
@@ -772,12 +815,7 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
       seen.add(requirement.name)
     }
     // Shared policies are bundled into the app (and resource servers): they must not pull in server code.
-    for (const file of policyFiles.filter(file => file.shared)) {
-      const path = await resolvePath(file.path)
-      const source = await readFile(path, 'utf8').catch(() => undefined)
-      if (source === undefined) result.errors.push(`The policy file ${file.path} does not exist.`)
-      else result.errors.push(...sharedPolicyImportErrors(file.path, source))
-    }
+    result.errors.push(...await sharedPolicyErrors(policyFiles))
     for (const warning of result.warnings) logger.info(warning)
     if (result.errors.length) {
       const message = `[${MODULE_NAME}] Access control is misconfigured:\n- ${result.errors.join('\n- ')}`
@@ -827,31 +865,8 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
       return lines.join('\n')
     },
   })
-  const policyModule = (files: PolicyFileRegistration[]) => {
-    // Module policies run before the host's.
-    const ordered = [...files.filter(file => !file.host), ...files.filter(file => file.host)]
-    return [
-      ...ordered.map((file, index) => `import * as policies${index} from ${JSON.stringify(file.path)}`),
-      'const collect = (exports) => Object.values(exports).flatMap(value => Array.isArray(value) ? value : [value])',
-      '  .filter(value => value && typeof value === \'object\' && typeof value.permission === \'string\' && typeof value.handler === \'function\')',
-      `export const policies = [${ordered.map((_, index) => `...collect(policies${index})`).join(', ')}]`,
-    ].join('\n')
-  }
   addServerTemplate({ filename: '#auth/policies', getContents: () => policyModule(policyFiles) })
-  // The shared policies alone, for the app's `can()` (`@frigear-nu/authorization`).
-  const sharedPolicies = addTemplate({
-    filename: 'auth/shared-policies.mjs',
-    write: true,
-    getContents: () => policyModule(policyFiles.filter(file => file.shared)),
-  })
-  nuxt.options.alias['#auth/shared-policies'] = sharedPolicies.dst
-  addTemplate({
-    filename: 'auth/shared-policies.d.mts',
-    write: true,
-    getContents: () => `/** The shared policies (\`defineSharedPolicy\`) of every \`addPolicies({ shared: true })\` file. */
-export declare const policies: import(${JSON.stringify(resolver.resolve('./runtime/utils/permissions'))}).SharedPolicyDefinition<any, any>[]
-`,
-  })
+  addSharedPoliciesTemplate(nuxt, resolver, () => policyFiles)
 
   // A listener of a removed hook (`auth:user-permissions`, `events:authorize`, ...) never runs: say so in development.
   if (nuxt.options.dev) addServerPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))
@@ -1058,6 +1073,22 @@ declare module '#app' {
 export {}
 `,
   }, { nuxt: true })
+
+  // The shared policies (`addPolicies({ shared: true })`: the host's `shared/policies.ts`, modules' own) for the app's
+  // `can()` (`@frigear-nu/authorization`). Client mode has no registry or server policies: the issuer's API decides.
+  let sharedPolicyFiles: PolicyFileRegistration[] = []
+  nuxt.hook('modules:done', async () => {
+    const files: PolicyFileRegistration[] = []
+    await nuxt.callHook('auth:policies', files)
+    const errors = await sharedPolicyErrors(files)
+    if (errors.length) {
+      const message = `[${MODULE_NAME}] Access control is misconfigured:\n- ${errors.join('\n- ')}`
+      if (!prepare) throw new Error(message)
+      logger.warn(message)
+    }
+    sharedPolicyFiles = files.filter(file => file.shared)
+  })
+  addSharedPoliciesTemplate(nuxt, resolver, () => sharedPolicyFiles)
 
   // The user mapping (`client.mapUser` / `client.userinfo`), imported statically by the client plugin.
   const clientUser = addTemplate({
