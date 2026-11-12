@@ -14,6 +14,8 @@ export default defineNuxtConfig({
   routeRules: {
     '/admin/**': { roles: ['admin'] },
     '/api/admin/**': { roles: ['admin'] },
+    // The roles admin API only requires a signed-in user here, so its own `roles:read` guard is what decides.
+    '/api/admin/authorization/**': { roles: [], authenticated: true },
     // A more specific pattern overrides `/admin/**`, so this page is open again.
     '/admin/public': { authenticated: false },
     '/ability-rule': { ability: 'isAdmin' },
@@ -38,12 +40,13 @@ export default defineNuxtConfig({
   authentication: {
     settings: { session: { mapper: './server/session-mapper.ts' } },
   },
-  // Role-based access control: admin > editor > user. `reports:read` goes to every user, `reports:write` to editors.
+  // Role-based access control: admin > editor > user. `reports:read` goes to every user, `reports:write` and
+  // `roles:read` (the roles admin) to editors.
   authorization: {
     rbac: true,
     roles: {
       hierarchy: ['admin', 'editor', 'user'],
-      grant: { editor: ['reports:write'] },
+      grant: { editor: ['reports:write', 'roles:read'] },
       labels: { editor: 'Editor' },
     },
   },
