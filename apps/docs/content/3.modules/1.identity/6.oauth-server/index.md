@@ -11,8 +11,9 @@ The other apps send people here to sign in and get tokens back, and your app dec
 need people to sign in to this app itself, use [Auth](/modules/identity/auth) instead.
 
 The module is `@frigear-nu/oauth-server`, a [Nuxt module](https://nuxt.com/docs/4.x/guide/modules) that speaks OAuth 2.0
-and OpenID Connect (OIDC). It has no role model of its own. Your app tells it who is [staff](/guide/concepts/glossary),
-which roles a user holds and what goes into a token, through [policy hooks](/guide/concepts/glossary).
+and OpenID Connect (OIDC). It has no role model of its own. It follows the [permissions and roles](/guide/concepts/auth-and-scopes)
+of [Auth](/modules/identity/auth) and [Authorization](/modules/identity/authorization): who may manage applications,
+which roles may sign in where and which scopes a user may hand to an application are all decided there.
 
 ## What you get
 
@@ -20,15 +21,18 @@ which roles a user holds and what goes into a token, through [policy hooks](/gui
   - The consent screen at `/authorize`, where a person allows an app to sign them in. On by default.
   - The signed-in user's applications at `/account/applications`. Opt-in.
 - **Admin area.**
-  - An **OAuth applications** screen at `/admin/oauth` to create, edit and disable applications. Opt-in, and only with
-    [Admin](/modules/interface/admin).
+  - An **OAuth applications** screen at `/admin/oauth` to create, edit and disable applications, and an **OAuth
+    scopes** screen at `/admin/oauth/scopes` to define scopes. Opt-in, and only with [Admin](/modules/interface/admin).
   - Menu items in the account menu and the admin sidebar, with [Menu](/modules/interface/menu). On when Menu is
     installed.
 - **Server routes.**
   - The standard OAuth and OIDC endpoints: discovery, signing keys, authorize, token, revoke and userinfo. On by
     default.
   - Your own API accepts the [access tokens](/guide/concepts/glossary) these endpoints issue. On by default.
-  - A staff API to manage applications. On by default, and closed until your app answers the `oauth:authorize` hook.
+  - A staff API to manage applications and scopes. On by default. It needs the session-only `oauth:manage`
+    [permission](/modules/identity/authorization), which the `admin` role gets by default.
+  - Token introspection at `POST /oauth/introspect` (RFC 7662), for services that must ask the issuer what a token may
+    do now. On by default.
   - A `my-oauth-applications` tool for [MCP](/modules/features/mcp). Opt-in.
 - **Composables and helpers.** Composables for the admin screen and the user's applications, and server helpers to
   create applications from code. See [Helpers](/modules/identity/oauth-server/server).
@@ -40,9 +44,9 @@ which roles a user holds and what goes into a token, through [policy hooks](/gui
 **Installed for you:** [Auth](/modules/identity/auth), [Users](/modules/identity/users), [MCP](/modules/features/mcp),
 [UI](/modules/interface/ui) and Module Kit.
 **You add:** `@nuxthub/core`, and `@nuxt/ui` for the consent, admin and applications pages.
-**Optional:** [Admin](/modules/interface/admin) for the admin screen (it brings [Menu](/modules/interface/menu) for the
-menu items), and [Authorization](/modules/identity/authorization) for a `role` column the hooks can read (Quick setup
-uses both).
+**Optional:** [Admin](/modules/interface/admin) for the admin screens (it brings [Menu](/modules/interface/menu) for the
+menu items), and [Authorization](/modules/identity/authorization) for roles. Without roles nobody holds `oauth:manage`
+and every `allowedRoles` list locks everybody out. Quick setup uses both.
 ::
 
 ## Quick setup
@@ -57,11 +61,17 @@ pnpm add @frigear-nu/oauth-server @frigear-nu/admin @frigear-nu/authorization @n
 
 ### Configure it in `nuxt.config.ts`
 
-This setup adds Admin for the admin screen and Authorization for the `role` column that the hooks below read.
+This setup adds Admin for the admin screens and Authorization for roles. The `admin` role holds everything, including
+`oauth:manage`, which lets its users manage applications and scopes.
 
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@frigear-nu/admin', '@frigear-nu/authorization', '@frigear-nu/oauth-server'],
+  authorization: {
+    roles: {
+      admin: { label: 'Admin', grant: ['*'] },
+    },
+  },
   oauthServer: {
     issuer: 'https://id.example.com',
     settings: {
@@ -87,38 +97,27 @@ Without a migration the module's tables do not exist, and every OAuth request fa
 
 ### Generate a migration
 
-The module adds three tables: `oauth_applications`, `oauth_authorization_codes` and `oauth_refresh_tokens`. It does not
-change `users`. Generate and commit a [migration](/get-started/database#migrations) for them.
+The module adds four tables: `oauth_applications`, `oauth_scopes`, `oauth_authorization_codes` and
+`oauth_refresh_tokens`. It does not change `users`. Generate and commit a [migration](/get-started/database#migrations)
+for them.
+
+### Give someone the admin role
 
 :::warning
-Without these hooks nobody can manage OAuth applications, and nobody has a role.
+Nobody can manage OAuth applications until a user holds a role with `oauth:manage`. Assign the `admin` role to your
+first user in the [Authorization admin](/modules/identity/authorization/admin), or from `authorization:roles`. See
+[Roles and requirements](/modules/identity/authorization/roles-and-requirements).
 :::
 
-### Answer the policy hooks
-
-Your app says who may manage applications (`oauth:authorize`) and which roles each user holds (`oauth:user:roles`).
-This plugin reads the `role` column that Authorization adds to users:
-
-```ts [server/plugins/oauth-server.ts]
-export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('oauth:authorize', async (ctx) => {
-    const user = await getOAuthUser(ctx.userId)
-    ctx.allowed = user?.role === 'admin'
-  })
-  nitro.hooks.hook('oauth:user:roles', async (ctx) => {
-    const user = await getOAuthUser(ctx.userId)
-    if (user?.role) ctx.roles.push(String(user.role))
-  })
-})
-```
-
-[Hooks](/modules/identity/oauth-server/hooks) has the other hooks and more ways to resolve roles.
+Which roles may sign in to an application is set per application, in `allowedRoles`. The module reads the user's
+[effective roles](/modules/identity/authorization/roles-and-requirements) from Authorization, so you need no code for
+it. [Hooks](/modules/identity/oauth-server/hooks) has the hooks that are left.
 
 ::
 
 ::callout{color="success" icon="i-lucide-check"}
 **What you should see:** `/.well-known/openid-configuration` answers with your `issuer` and the endpoint URLs. Signed
-in as an admin, `/admin/oauth` lists your OAuth applications.
+in as an admin, `/admin/oauth` lists your OAuth applications and `/admin/oauth/scopes` your scopes.
 ::
 
 ::tip
@@ -142,7 +141,7 @@ Options go under the `oauthServer` key.
 | `revokeOnCredentialChange` | `boolean` | `true` | Ends a user's sign-ins when their password or email changes. |
 | `codeTtl` | `number` | `600` | Lifetime of authorization codes, in seconds. |
 | `callbackPath` | `string` | `'/auth/frigear'` | Added to an application's website URL to form its redirect URI. |
-| `scopes` | `Array<string \| OAuthScopeDefinition>` | `[]` | Extra [scopes](/guide/concepts/glossary) next to `openid profile email`. |
+| `scopes` | `Array<string \| OAuthScopeDefinition>` | `[]` | Named [scopes](/guide/concepts/glossary) next to `openid profile email`, and how permission scopes read on the consent screen. |
 | `cors.origins` | `string[]` | `[]` | Exact browser origins that may call the token, revoke, userinfo and discovery endpoints. |
 | `cors.paths` | `string[]` | `[]` | Path prefixes of your own API that the same origins may call with an access token. |
 | `clients` | `OAuthConfiguredClient[]` | `[]` | [Configured clients](/guide/concepts/glossary): public OAuth applications with a fixed `client_id`. |
@@ -150,7 +149,9 @@ Options go under the `oauthServer` key.
 | `settings.pages.admin` | `string \| boolean` | off | The admin screen for OAuth applications. `true` is `/admin/oauth`. |
 | `settings.pages.applications` | `string \| boolean` | off | The signed-in user's applications. `true` is `/account/applications`. |
 | `settings.signInPath` | `string` | the Auth login page | Where signed-out people are sent to sign in. |
-| `settings.mcp` | `boolean` | `false` | Adds the `my-oauth-applications` MCP tool, with the scope `oauth:read`. |
+| `settings.pages.scopes` | `string \| boolean` | `<admin>/scopes` | The admin screen for scopes. On when the applications screen is. `false` turns it off. |
+| `settings.roleScopes` | `Record<string, string[]>` | unset | The most each role may grant to an application. Unset means no cap. |
+| `settings.mcp` | `boolean` | `false` | Adds the `my-oauth-applications` MCP tool, with the permission `oauth:read`. |
 
 **`issuer`** must be set explicitly behind a proxy.
 
@@ -167,11 +168,16 @@ its own in the admin area ([Session lifetimes](/modules/identity/oauth-server/ro
 [other services](/modules/identity/oauth-server/server#one-app-for-every-service) accept. ID tokens keep the
 `client_id` as their audience.
 
-**`scopes`** is the scope registry. Pass a string, or an object
-`{ name, label?, description?, icon?, service?, staffOnly? }`. The object describes the scope on the consent screen,
-groups it under its service and can keep it for staff. Modules add theirs with `addOAuthScope`. Add claims for a scope
-with the `oauth:claims` hook. See
-[One app for every service](/modules/identity/oauth-server/server#one-app-for-every-service).
+**`scopes`** is where you name scopes. Pass a string, or an object
+`{ name, label?, description?, icon?, service?, permissions? }`. A single word such as `tickets` is a named scope that
+stands for its `permissions`. A permission such as `vouchers:read` only describes that permission on the consent screen
+and groups it under its `service`. Modules add named scopes with `addScope` from `@frigear-nu/auth/utils`, and staff
+add more in the admin area. Add claims for a scope with the `oauth:claims` hook. See
+[Scopes](/modules/identity/oauth-server/server#scopes).
+
+**`settings.roleScopes`** caps what each role may hand to an application, as scopes, permissions or wildcards. A user's
+cap is the union over all their effective roles. A role that is not listed adds nothing. Role names are checked at build
+time. See [Capping scopes by role](/modules/identity/oauth-server/server#capping-scopes-by-role).
 
 **`cors.origins`** never takes `*`. The origins of configured clients are added for you. See
 [Public applications](/modules/identity/oauth-server/routes-and-clients#public-applications).
@@ -222,13 +228,16 @@ answering `500 not_configured`.
 
 | Page | What it covers | For |
 | --- | --- | --- |
-| [Helpers](/modules/identity/oauth-server/server) | Server helpers, calling your API with an access token, one app for every service, and the composables. | App developers and module authors |
-| [Hooks](/modules/identity/oauth-server/hooks) | Who is staff, which roles a user holds, what goes into tokens, and vetoes. | App developers |
-| [Routes and clients](/modules/identity/oauth-server/routes-and-clients) | Endpoints, how a sign-in works, public and configured applications, database and translations. | App developers and anyone connecting an app |
+| [Helpers](/modules/identity/oauth-server/server) | Server helpers, scopes, calling your API with an access token, one app for every service, and the composables. | App developers and module authors |
+| [Hooks](/modules/identity/oauth-server/hooks) | Who may manage applications, how roles decide who signs in, what goes into tokens, vetoes, and the removed hooks. | App developers |
+| [Routes and clients](/modules/identity/oauth-server/routes-and-clients) | Endpoints, introspection, how a sign-in works, public and configured applications, database and translations. | App developers and anyone connecting an app |
 
 ## Next steps
 
 - [Create an OAuth application](/guide/going-further/oauth-application) – register the first app that signs in here.
-- [Hooks](/modules/identity/oauth-server/hooks) – decide who may sign in to which application.
+- [Scopes](/modules/identity/oauth-server/server#scopes) – decide what applications may ask users for.
+- [Hooks](/modules/identity/oauth-server/hooks) – add claims, veto access and audit tokens.
+- [Authorization](/modules/identity/authorization) – roles and permissions, which decide who manages applications and what
+  users may grant.
 - [Identity](/guide/concepts/identity) – see where OAuth Server sits next to Auth, Mobile and OAuth Resource.
 - [OAuth Resource](/modules/identity/oauth-resource) – let a separate service accept this issuer's access tokens.

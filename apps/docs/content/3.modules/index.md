@@ -25,7 +25,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Let people sign in with a password, an emailed link, a passkey or GitHub/Google | [Users](/modules/identity/users) | Auth, Notify |
 | Protect your own server routes and accept API tokens | [Auth](/modules/identity/auth) | Notify (server mode) |
 | Give signed-in users profile, security and API token pages | [Account](/modules/identity/account) | Auth, Users, UI |
-| Decide who may open a page or call a route, by role or ability | [Authorization](/modules/identity/authorization) | Auth, Users (server mode) |
+| Decide who may open a page or call a route, by permission and role | [Authorization](/modules/identity/authorization) | Auth, Users (server mode) |
 | Store typed settings per user | [Preferences](/modules/identity/preferences) | Auth, Users |
 | Let users sign in to your other apps through this one, as an [issuer](/guide/concepts/glossary) | [OAuth Server](/modules/identity/oauth-server) | Auth, Users, MCP, UI |
 | Accept an issuer's access tokens in a separate service | [OAuth Resource](/modules/identity/oauth-resource) | Auth, Users |
@@ -62,7 +62,7 @@ Who your users are, how they sign in and what they may do.
 | [Auth](/modules/identity/auth) | Signs people in and tells every server route who is calling. In [client mode](/modules/identity/auth/client-mode) it signs in at an issuer instead, for single-page apps (SPAs) and Capacitor apps. | ✓ | ✓ | ✓ |
 | [Users](/modules/identity/users) | The users table, staff administration of users, and self-service profile, email and password changes. | ✓ | ✓ |  |
 | [Account](/modules/identity/account) | Profile, security, documents and API token pages for signed-in users. |  | ✓ |  |
-| [Authorization](/modules/identity/authorization) | Abilities, policies, route rules, `<Can>` and a role on users. Works in both Auth modes. | ✓ | ✓ | ✓ |
+| [Authorization](/modules/identity/authorization) | Roles, permissions, policies, route rules and `<Can>`. Works in both Auth modes. | ✓ | ✓ | ✓ |
 | [Preferences](/modules/identity/preferences) | Typed per-user preferences, optionally sent to OAuth applications as claims. | ✓ | ✓ |  |
 | [OAuth Server](/modules/identity/oauth-server) | Makes your app an OAuth 2.0 / OpenID Connect issuer that your other apps sign in through. | ✓ | ✓ |  |
 | [OAuth Resource](/modules/identity/oauth-resource) | Lets a service accept an issuer's access tokens, so one mobile app signs in once and calls every service. | ✓ |  |  |

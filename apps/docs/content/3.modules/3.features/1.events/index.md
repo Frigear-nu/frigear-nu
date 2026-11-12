@@ -20,8 +20,8 @@ The package is `@frigear-nu/events`. Money goes through [Payments](/modules/comm
   with Details, Tickets and Attendees tabs. With [Widget](/modules/interface/widget), upcoming events also appear on the
   admin dashboard.
 - **Server routes** (on by default): browsing events, buying and paying for tickets, and a staff API for events,
-  attendees, refunds and check-in. The staff API stays closed until your app answers the `events:authorize`
-  [policy hook](/guide/concepts/glossary).
+  attendees, refunds and check-in. The staff API is guarded by the `events:manage` and `events:refund`
+  [permissions](#permissions), which the `admin` role holds.
 - **Composables and helpers** (on by default): `useEvents`, `useEvent` and `useMyTickets`.
 - **Emails.** None built in. Send a confirmation from the `events:ticket:paid` hook, which runs when a ticket is paid.
 - **MCP tools** (opt-in): browse events and tickets, and manage events as staff, through [MCP](/modules/features/mcp).
@@ -85,24 +85,29 @@ Events, Payments and Stripe add tables. Generate the migration and commit it:
 pnpm db:generate
 ```
 
-### Answer the policy hook
+### Decide who manages events
 
 :::warning
-Without this hook nobody can manage events. Staff access is denied until your app allows it.
+Staff routes check permissions through [Authorization](/modules/identity/authorization). Without a role that holds
+`events:manage`, nobody can manage events. The `admin` role holds it by default.
 :::
 
-```ts [server/plugins/events-policy.ts]
-// Loads the module's hook types: Nitro's server tsconfig does not include module types.
-import type {} from '@frigear-nu/events'
+Give the permissions to the people who run events with a role of your own, or turn on `settings.roles` for the ready-made
+`eventmanager` role:
 
-export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('events:authorize', async (ctx) => {
-    ctx.allowed = false // replace with your own staff check on ctx.userId
-  })
+```ts [nuxt.config.ts]
+export default defineNuxtConfig({
+  events: { settings: { roles: true } }, // ships the `eventmanager` role
+  authorization: {
+    roles: {
+      // Roles are built from permissions. `events:*` covers events:manage and events:refund, but not events:pii.
+      organiser: { label: 'Organiser', grant: ['events:*', 'events:pii'], inherit: ['user'] },
+    },
+  },
 })
 ```
 
-[Let staff manage events](/examples/tasks/sell-event-tickets#_3-let-staff-manage-events) shows a check by role.
+[Let staff manage events](/modules/features/events/server#let-staff-manage-events) shows how a route checks them.
 
 ::
 
@@ -118,7 +123,7 @@ Options go under the `events` key.
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `settings.reservationMinutes` | `number` | `30` | How long an unpaid ticket keeps its seat. |
-| `settings.roles` | `boolean` | `false` | Ships the `eventmanager` role, just below `admin`. |
+| `settings.roles` | `boolean` | `false` | Ships the `eventmanager` role. |
 | `settings.mcp` | `boolean` | `false` | Adds the module's [MCP tools](/modules/features/events/server#mcp-tools). |
 | `settings.pages.events` | `string \| boolean` | off | The event list. `true` is `/events`. |
 | `settings.pages.event` | `string \| boolean` | off | The event page. `true` is `/events/:slug`. |
@@ -130,9 +135,33 @@ Options go under the `events` key.
 
 **`settings.pages.*`** paths keep the parameters of the default, such as `:slug`.
 
-**`settings.roles`.** For apps with [roles and permissions](/modules/identity/authorization#roles-and-permissions)
-(`authorization.rbac`). The `eventmanager` role holds every permission of `user`, plus `events:manage` and
-`events:pii`. Without it, those two permissions go to `admin` only, unless your app grants them.
+**`settings.roles`.** Registers the `eventmanager` [role](/modules/identity/authorization/roles-and-requirements)
+with `events:manage`, `events:refund` and `events:pii`, and also puts those three into `admin`. Without it, only `admin`
+holds them, unless your app grants them to a role of its own. Your own `authorization.roles.eventmanager` merges into
+the module's role: your label wins, and `grant` and `inherit` are added together.
+
+## Permissions
+
+Events registers these permissions with [Authorization](/modules/identity/authorization). A staff route calls
+`authorize(event, 'events:manage')`; self-service routes call `authorize(event, 'tickets:write')`.
+
+| Permission | Flags | Held by default | What it allows |
+| --- | --- | --- | --- |
+| `events:manage` | | `admin`, and `eventmanager` with `settings.roles` | Create and edit events, ticket types and add-ons, and check tickets in. |
+| `events:refund` | sessionOnly | `admin`, and `eventmanager` | Refund a paid ticket. Cookie sessions only. |
+| `events:pii` | sensitive | `admin`, and `eventmanager` | See attendee names and emails in the MCP tools. A `*` or `events:*` grant never covers it: grant it by name. |
+| `tickets:read` | implicit | every signed-in user | Read your own tickets and event details. |
+| `tickets:write` | implicit | every signed-in user | Buy tickets and pay for them. |
+
+- **Scope:** `tickets` (label "Your tickets") expands to `tickets:read` and `tickets:write`. A token or OAuth client
+  with it can read and buy the user's own tickets, and is refused every staff route.
+- **Roles:** `eventmanager`, shipped only with `settings.roles: true`.
+- **Requirements and policies:** none. The module registers no requirement and no policy of its own. Add one with
+  [`definePolicy`](/modules/identity/authorization/policies) when, say, an organiser may only edit their own events.
+- **Why `events:refund` is separate:** money moves, so it is session only, and a token can never refund. A role that
+  grants `events:manage` by name must grant `events:refund` too (`events:*` covers both).
+
+See [roles and requirements](/modules/identity/authorization/roles-and-requirements) for how roles are built and merged.
 
 ## Module pages
 

@@ -25,10 +25,10 @@ its own, such as a single-page application (SPA) or a Capacitor app, uses
   [Routes](/modules/identity/auth/reference#routes).
 - **API tokens** (on by default): users create long-lived [API tokens](/guide/concepts/glossary) for scripts and
   agents, on the [Account](/modules/identity/account) page or through the API.
-- **Composables and helpers**: on the server, `requireAuth` and `getAuth` tell a route who is calling (see
+- **Composables and helpers**: on the server, `authorize` decides whether the caller may do something and `getAuth` tells a route who is calling (see
   [Server API](/modules/identity/auth/server)). In the app, `useUserSession()` says who is signed in, `useAuth()` holds
-  the sign-in and sign-out actions, and `$api` / `useApi()` call your API. The same names work in both modes. Guards
-  come from [Authorization](/modules/identity/authorization) in both.
+  the sign-in and sign-out actions, and `$api` / `useApi()` call your API. The same names work in both modes. Roles
+  and the guards of the interface come from [Authorization](/modules/identity/authorization) in both.
 - **Emails**: the emailed sign-in link, address verification and password reset, sent through
   [Notify](/modules/platform/notify) when those flows are on.
 
@@ -118,7 +118,6 @@ Options go under the `authentication` key.
 | `apiTokens.revokeOnReset` | `boolean` | `true` | Revoke a user's API tokens when their password is reset by email or an email change is undone. |
 | `tokenTtlDays` | `number \| null` | `null` | Default lifetime of new API tokens. `null` means they never expire. |
 | `userStore` | `string` | the one from Users | Path to a module whose default export is an `AuthUserStore`. |
-| `scopes` | `AuthScopeDefinition[]` | `[]` | Extra [scopes](/guide/concepts/glossary) users can pick for API tokens. |
 | `settings.password` | `boolean` | `true` | Email and password sign-in and sign-up: routes, composables and pages. |
 | `settings.passwordReset` | `boolean \| { cooldown? }` | `true` with `password` | Forgot and reset password routes. Needs `password`. |
 | `settings.passwordReset.cooldown` | `number` | `60` | Minimum seconds between two reset emails for one user. |
@@ -224,7 +223,7 @@ Without `@nuxt/ui`, add your own page at that path that posts the `code`.
 
 | Page | What it covers | For |
 | --- | --- | --- |
-| [Server API](/modules/identity/auth/server) | Protecting routes, scopes, policy hooks, staff guards, API tokens, access tokens and auth emails. | App developers and module authors, server mode |
+| [Server API](/modules/identity/auth/server) | Authorizing routes, defining permissions, roles and scopes, the before hook, API tokens, access tokens and auth emails. | App developers and module authors, server mode |
 | [Reference](/modules/identity/auth/reference) | Composables, hooks, routes, database tables and translations. | App developers, server mode |
 | [OAuth providers](/modules/identity/auth/oauth-providers) | Sign-in through GitHub, Google, frigear.nu or any OpenID Connect provider, and kept provider tokens. | App developers, server mode |
 | [Client mode](/modules/identity/auth/client-mode) | Sign-in for an SPA or a Capacitor app at an issuer, with tokens instead of a session. | App developers, client mode |
@@ -232,6 +231,6 @@ Without `@nuxt/ui`, add your own page at that path that posts the `code`.
 ## Next steps
 
 - [Protect a route](/examples/tasks/protect-a-route) – require a signed-in user on a route of your own.
-- [Server API](/modules/identity/auth/server) – look up `requireAuth`, scopes and staff guards.
+- [Server API](/modules/identity/auth/server) – look up `authorize`, the build APIs and tokens.
 - [Auth and scopes](/guide/concepts/auth-and-scopes) – how sessions, API tokens and access tokens differ.
 - [OAuth providers](/modules/identity/auth/oauth-providers) – add GitHub, Google or Sign in with frigear.nu.

@@ -10,7 +10,8 @@ config. The module handles checkout, upgrades, downgrades and the Stripe billing
 question: does this user hold plan X? For a one-time charge, use [Payments](/modules/commerce/payments).
 
 The package is `@frigear-nu/subscriptions`. Stripe owns the products and prices. A plan is not a role: access follows
-what the user pays for, and "membership" is only the name the pages use.
+what the user pays for, and "membership" is only the name the pages use. To give a [role](/modules/identity/authorization/roles-and-requirements)
+to paying users only, put the `subscription` requirement on it (see [Permissions](#permissions)).
 
 ## What you get
 
@@ -18,7 +19,7 @@ what the user pays for, and "membership" is only the name the pages use.
 - **Admin area** (with [Admin](/modules/interface/admin) and [Widget](/modules/interface/widget)): a Membership tab
   where [staff](/guide/concepts/glossary) grant a free membership or send a payment link.
 - **Server routes** (on by default): plans with live prices, the user's subscription, checkout and the billing portal.
-  Staff routes follow the `users:admin:authorize` hook of [Users](/modules/identity/users).
+  Staff routes need `users:read` from [Users](/modules/identity/users), and `subscriptions:manage` to change anything.
 - **Composables and helpers** (on by default): `useSubscription()`, `usePlans()` and a `subscription` route middleware
   in the app, and `hasActiveSubscription` on the server.
 
@@ -143,6 +144,47 @@ rows get `planKey = null`.
 ### Runtime config
 
 `public.subscriptions` exposes the page paths, the plans without prices and `allowChangeInPortal`.
+
+## Permissions
+
+The module registers these permissions with [Authorization](/modules/identity/authorization).
+
+| Permission | Flags | Held by default | What it allows |
+| --- | --- | --- | --- |
+| `subscriptions:read` | implicit | every signed-in user | Read your own subscriptions and the plans. |
+| `subscriptions:manage` | sessionOnly | nobody | Grant and revoke free memberships, and send payment links. |
+
+- **Nobody holds `subscriptions:manage` by default.** Granting a free membership gives away paid access, so you grant it
+  by name to the roles that may. `*` does not cover it for a token, because it is session only.
+- **Staff reads** of a user's membership use `users:read`, like the rest of the admin user page.
+- **Requirement:** the module registers the `subscription` [role requirement](/modules/identity/authorization/roles-and-requirements).
+  A role with `requirements: { subscription: '*' }` counts only while the user holds an active or trialing subscription
+  on any plan (free grants count). Use a plan key, or a list of keys, to name plans.
+- **Scope and policies:** the module registers no named scope, role or policy. A token can carry the
+  `subscriptions:read` permission directly.
+
+```ts [nuxt.config.ts]
+export default defineNuxtConfig({
+  authorization: {
+    defaultRoles: ['user'],
+    roles: {
+      member: {
+        label: 'Member',
+        grant: ['member-area:view'],
+        requirements: { subscription: ['member', 'patron'] }, // plan keys, or '*' for any plan
+        auto: true, // held by everyone who meets the requirement; not assignable by hand
+        inherit: ['user'],
+      },
+      coordinator: { label: 'Coordinator', grant: ['subscriptions:manage', 'users:read', 'users:list'] },
+    },
+  },
+})
+```
+
+::note
+A role with `auto: true` cannot be assigned or removed by hand, and it drops away as soon as the requirement stops
+holding, for example when a subscription ends.
+::
 
 ## Module pages
 

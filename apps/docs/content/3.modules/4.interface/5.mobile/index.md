@@ -177,11 +177,38 @@ With Auth in server mode the build fails. A Capacitor app cannot send a same-ori
 ::
 
 - **Nothing is protected by default.** Which pages need a user is the app's choice, with
-  [Authorization](/modules/identity/authorization) rules such as `'/**': { authenticated: true }`. When Auth signs the
+  [Authorization](/modules/identity/authorization) rules such as `'/**': { authenticated: true }`, or `'/staff/**': { permission: 'bills:manage' }` for a page that needs a permission. When Auth signs the
   app in but no rule requires a user, the build warns that every page is public.
 - **Tabs** default to `requiresAuth: false`. A tab with `requiresAuth: true` is hidden while signed out.
 
 The guards only decide what the app shows. The API decides what is allowed.
+
+### What the user may do
+
+The app has no server of its own, so `useAuthorization()` from [Authorization](/modules/identity/authorization/client)
+runs in client mode. It loads the user's access from the issuer with the bearer access token:
+
+1. It calls `GET /api/auth/me/access` on the issuer. The answer lists the user's permissions, scopes and, with the
+   `profile` scope, roles.
+2. When the issuer has no such endpoint (a `404`, or the device is offline), it decodes the `permissions` claim of the
+   access token instead. This is the case for an issuer such as `https://frigear.nu`. The claim is read without
+   verifying it, so it only drives what the app shows.
+
+The access is kept in `useState`, and it loads again on sign-in and sign-out. Menus, widgets and tabs filter again
+when it does.
+
+```vue [app/pages/bills/[id].vue]
+<script setup lang="ts">
+const { can } = useAuthorization()
+</script>
+
+<template>
+  <UButton v-if="can('bills:update')" label="Edit bill" />
+</template>
+```
+
+`can()` is synchronous and only decides what to show. The token carries only the permissions its scopes covered when it
+was issued, so ask for the scopes the app needs in `client.scopes`. The API still checks every call.
 
 ### Tabs
 
