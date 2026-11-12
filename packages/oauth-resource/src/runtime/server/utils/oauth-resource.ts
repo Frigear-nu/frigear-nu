@@ -38,9 +38,18 @@ const introspected = new Map<string, { permissions: string[] | null, until: numb
 const INTROSPECTION_CACHE_SIZE = 5000
 
 /**
+ * The fallback for a token without a `permissions` claim: its scopes expanded against this service's permissions,
+ * exact permission names (and aliases) and named scopes only. A wildcard scope (`*`, `resource:*`) expands to nothing:
+ * what it covers here was never shown to the user at consent, and it grows with every permission this service adds.
+ */
+function expandForeignScopes(scopes: readonly string[]): string[] {
+  return expandScopes(scopes.filter(scope => scope !== '*' && !scope.endsWith(':*')), registry, namedScopes)
+}
+
+/**
  * What a foreign token may do: with `introspection` configured, the issuer's live answer (`null` when it says the
  * token is no longer active); otherwise the `permissions` claim the issuer froze in it; for a token without one (an
- * older issuer), its scopes expanded against this service's permissions.
+ * older issuer), its scopes expanded against this service's permissions, never through a wildcard scope.
  */
 export async function resolveOAuthResourcePermissions(token: string, payload: OAuthResourceAccessToken, scopes: string[]): Promise<string[] | null> {
   // A malformed claim is no claim to fall back from: refuse the token.
@@ -67,14 +76,14 @@ export async function resolveOAuthResourcePermissions(token: string, payload: OA
       return null
     }
     const permissions = answer?.active === true && answer.sub === payload.sub
-      ? (isStringList(answer.permissions) ? answer.permissions : expandScopes(scopes, registry, namedScopes))
+      ? (isStringList(answer.permissions) ? answer.permissions : expandForeignScopes(scopes))
       : null
     if (introspected.size >= INTROSPECTION_CACHE_SIZE) introspected.delete(introspected.keys().next().value!)
     introspected.set(key, { permissions, until: Math.min(Date.now() + introspection.cacheTtl * 1000, payload.exp * 1000) })
     return permissions
   }
   if (isStringList(payload.permissions)) return payload.permissions
-  return expandScopes(scopes, registry, namedScopes)
+  return expandForeignScopes(scopes)
 }
 
 // The issuer's keys, shared by every request of this instance. A token with an unknown `kid` (the issuer rotated its

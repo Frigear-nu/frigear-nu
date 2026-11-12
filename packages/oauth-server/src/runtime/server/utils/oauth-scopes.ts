@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import { apiError, badRequest, conflict, isoDate, notFound, validationError } from '@frigear-nu/module-kit/server'
@@ -20,12 +20,13 @@ const NAME = /^[a-z0-9][a-z0-9._-]*$/
 const isOidcScope = (scope: string) => (OIDC_SCOPES as readonly string[]).includes(scope)
 
 export function toOAuthDbScope(row: ScopeRow): OAuthDbScope {
-  return { ...row, permissions: row.permissions ?? [] }
+  const { deletedAt: _deletedAt, ...scope } = row
+  return { ...scope, permissions: row.permissions ?? [] }
 }
 
-/** Every database scope, active or not, by name. */
+/** Every database scope, active or not, by name; never a deleted one (a tombstone). */
 export async function listOAuthDbScopes(): Promise<OAuthDbScope[]> {
-  const rows = await db.select().from(schema.oauthScopes).orderBy(schema.oauthScopes.name)
+  const rows = await db.select().from(schema.oauthScopes).where(isNull(schema.oauthScopes.deletedAt)).orderBy(schema.oauthScopes.name)
   return rows.map(toOAuthDbScope)
 }
 
@@ -233,8 +234,9 @@ export function listManagedOAuthScopes(): AdminOAuthScopeDto[] {
   }))
 }
 
+/** A database scope by name, or `null` (also for a deleted one). */
 export async function getOAuthDbScope(name: string): Promise<OAuthDbScope | null> {
-  const [row] = await db.select().from(schema.oauthScopes).where(eq(schema.oauthScopes.name, name)).limit(1)
+  const [row] = await db.select().from(schema.oauthScopes).where(and(eq(schema.oauthScopes.name, name), isNull(schema.oauthScopes.deletedAt))).limit(1)
   return row ? toOAuthDbScope(row) : null
 }
 
@@ -247,20 +249,32 @@ export async function requireOAuthScope(name: string): Promise<AdminOAuthScopeDt
   return toAdminOAuthScopeDto(scope)
 }
 
+/**
+ * Creates a database scope. A name that was deleted before is revived from its tombstone with the next `version`, never
+ * version 1 again: grants that consented to the old scope must not silently receive what the new one stands for.
+ */
 export async function createOAuthScope(input: OAuthScopeInput): Promise<OAuthDbScope> {
   if (isManagedOAuthScope(input.name)) throw managedByConfig()
   assertScopePermissions(input.name, input.permissions)
-  const [row] = await db.insert(schema.oauthScopes).values({
-    name: input.name,
+  const values = {
     label: input.label ?? null,
     description: input.description ?? null,
     icon: input.icon ?? null,
     permissions: [...new Set(input.permissions)],
-    version: 1,
     isActive: input.isActive ?? true,
-  }).onConflictDoNothing({ target: schema.oauthScopes.name }).returning()
-  if (!row) throw conflict('A scope with this name exists already.')
-  return toOAuthDbScope(row)
+  }
+  const [row] = await db.insert(schema.oauthScopes).values({ name: input.name, ...values, version: 1 })
+    .onConflictDoNothing({ target: schema.oauthScopes.name }).returning()
+  if (row) return toOAuthDbScope(row)
+
+  const [tombstone] = await db.select().from(schema.oauthScopes).where(eq(schema.oauthScopes.name, input.name)).limit(1)
+  if (!tombstone?.deletedAt) throw conflict('A scope with this name exists already.')
+  // Conditional on the tombstone's version, so two concurrent revivals cannot both succeed.
+  const [revived] = await db.update(schema.oauthScopes).set({ ...values, version: tombstone.version + 1, deletedAt: null, createdAt: new Date() })
+    .where(and(eq(schema.oauthScopes.name, input.name), eq(schema.oauthScopes.version, tombstone.version), isNotNull(schema.oauthScopes.deletedAt)))
+    .returning()
+  if (!revived) throw conflict('A scope with this name exists already.')
+  return toOAuthDbScope(revived)
 }
 
 /**
@@ -286,14 +300,20 @@ export async function updateOAuthScope(name: string, patch: Partial<Omit<OAuthSc
     ...(patch.isActive !== undefined && { isActive: patch.isActive }),
     permissions,
     version,
-  }).where(eq(schema.oauthScopes.name, name)).returning()
+  }).where(and(eq(schema.oauthScopes.name, name), isNull(schema.oauthScopes.deletedAt))).returning()
   if (!row) throw scopeNotFound()
   return toOAuthDbScope(row)
 }
 
-/** Deletes a database scope: clients asking for it get `invalid_scope`, existing grants lose it at their next refresh. */
+/**
+ * Deletes a database scope: clients asking for it get `invalid_scope`, existing grants lose it at their next refresh.
+ * The row stays as a tombstone (`deletedAt`, hidden everywhere) so the name keeps its version: recreating it bumps the
+ * version, and grants that consented to the deleted scope must consent again.
+ */
 export async function deleteOAuthScope(name: string): Promise<void> {
   if (isManagedOAuthScope(name)) throw managedByConfig()
-  const deleted = await db.delete(schema.oauthScopes).where(eq(schema.oauthScopes.name, name)).returning({ name: schema.oauthScopes.name })
+  const deleted = await db.update(schema.oauthScopes).set({ deletedAt: new Date(), isActive: false })
+    .where(and(eq(schema.oauthScopes.name, name), isNull(schema.oauthScopes.deletedAt)))
+    .returning({ name: schema.oauthScopes.name })
   if (!deleted.length) throw scopeNotFound()
 }

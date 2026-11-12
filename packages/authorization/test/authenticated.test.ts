@@ -158,7 +158,7 @@ describe('authorization (authenticated)', async () => {
     it('lists the configured roles and how each is held', async () => {
       const roles = await $fetch<AuthorizationRoleSummaryDto[]>(authorizationApi.admin.roles, as(grace.cookie))
       const byName = Object.fromEntries(roles.map(role => [role.name, role]))
-      expect(Object.keys(byName).sort()).toEqual(['admin', 'editor', 'member', 'user'])
+      expect(Object.keys(byName).sort()).toEqual(['admin', 'editor', 'member', 'user', 'writer'])
       expect(byName.admin).toMatchObject({ label: 'Admin', assignable: true, default: false, auto: false })
       expect(byName.user).toMatchObject({ default: true, assignable: false, userCount: 0 })
       expect(byName.member).toMatchObject({ auto: true, assignable: false, requirements: ['verified'] })
@@ -200,15 +200,25 @@ describe('authorization (authenticated)', async () => {
       expect((await access(edith.cookie)).permissions).toContain('reports:write')
     })
 
-    it('only lets staff assign roles within their own permissions (403)', async () => {
+    it('only lets staff assign roles strictly below their own (403)', async () => {
       const mine = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(ada.id), as(edith.cookie))
-      expect(mine.assignable).toEqual(['editor'])
+      expect(mine.assignable).toEqual(['writer'])
       await expectError(await putRoles(edith.cookie, ada.id, ['admin']), 403, 'forbidden')
       await expectError(await putRoles(edith.cookie, grace.id, []), 403, 'forbidden')
-      expect((await putRoles(edith.cookie, ada.id, ['editor'])).status).toBe(200)
+      // A peer: an editor can neither give nor take away `editor`.
+      const peer = await expectError(await putRoles(edith.cookie, ada.id, ['editor']), 403, 'role_not_below')
+      expect(JSON.parse(peer)).toMatchObject({ data: { role: 'editor' } })
+      expect((await putRoles(edith.cookie, ada.id, ['writer'])).status).toBe(200)
       expect((await putRoles(edith.cookie, ada.id, [])).status).toBe(200)
       // Users without `roles:assign` cannot assign at all.
       await expectError(await putRoles(ada.cookie, ada.id, ['editor']), 403, 'forbidden')
+    })
+
+    it('lets an admin (every permission) assign and remove admin', async () => {
+      const ida = await register('Ida', 'ida@example.com')
+      expect((await putRoles(grace.cookie, ida.id, ['admin'])).status).toBe(200)
+      expect((await access(ida.cookie)).roles).toContain('admin')
+      expect((await putRoles(grace.cookie, ida.id, [])).status).toBe(200)
     })
 
     it('answers 409 role_not_assignable for default and auto roles, 400 for unknown ones', async () => {

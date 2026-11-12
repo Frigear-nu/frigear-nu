@@ -11,6 +11,8 @@ export default defineEventHandler(async (event): Promise<AuthorizationUserRolesD
   const target = await loadAuthUser(id)
   if (!target) throw notFound('User not found.')
   const { table, registry } = useAuthorizationAccessTables()
-  const assignable = canAssign ? assignableRoles(table, registry, await getUserGrants(event, principal.user)) : []
+  // Nothing is assignable when the caller's roles cannot be resolved (fail closed, as the PUT refuses then).
+  const resolved = canAssign && await getEffectiveRoles(event, principal.user, { strict: true }).then(() => true, () => false)
+  const assignable = resolved ? assignableRoles(table, registry, await getUserGrants(event, principal.user)) : []
   return toAuthorizationUserRolesDto(event, target, assignable)
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { compileRoles, createPermissionRegistry, rolePermissions } from '@frigear-nu/auth/utils'
-import { assignableRoles, canManageRole, missingForRole, planRoleAssignment } from '../../src/runtime/utils/assignment'
+import { assignableRoles, canManageRole, isRoleBelowActor, missingForRole, planRoleAssignment } from '../../src/runtime/utils/assignment'
 import type { StoredRole } from '../../src/runtime/utils/assignment'
 import { permissionGrant, toRoleDetail } from '../../src/runtime/utils/roles-view'
 
@@ -38,10 +38,18 @@ describe('role assignment escalation', () => {
     expect(errors).toEqual([])
   })
 
-  it('lets an actor manage only roles whose every permission they hold, sensitive ones by name', () => {
+  it('lets an actor manage only roles strictly below them: every permission held (sensitive ones by name), and more', () => {
     const manager = held('manager', 'eventmanager', 'user')
     expect(canManageRole('eventmanager', table, registry, manager)).toBe(true)
-    expect(canManageRole('manager', table, registry, manager)).toBe(true)
+    // Their own role is not below them: a manager cannot hand out or take away `manager`.
+    expect(missingForRole('manager', table, registry, manager)).toEqual([])
+    expect(isRoleBelowActor('manager', table, registry, manager)).toBe(false)
+    expect(canManageRole('manager', table, registry, manager)).toBe(false)
+    // The implicit permissions everyone holds do not make a peer "above" a role.
+    expect(isRoleBelowActor('eventmanager', table, registry, held('eventmanager', 'user'))).toBe(false)
+    // A super-admin (every registered permission, sensitive ones too) may manage their own role; `*` alone is not one.
+    expect(isRoleBelowActor('admin', table, registry, held('admin'))).toBe(true)
+    expect(isRoleBelowActor('admin', table, registry, ['*'])).toBe(false)
     expect(missingForRole('admin', table, registry, manager)).toContain('member-area:view')
     // `*` never covers a sensitive permission: an admin without `users:pii` by name could not manage a role holding it.
     expect(missingForRole('admin', table, registry, ['*'])).toEqual(['users:pii'])
@@ -50,7 +58,7 @@ describe('role assignment escalation', () => {
 
   it('lists the assignable roles: never auto, default or `assignable: false`', () => {
     expect(assignableRoles(table, registry, held('admin'))).toEqual(['admin', 'eventmanager', 'manager'])
-    expect(assignableRoles(table, registry, held('manager', 'eventmanager', 'user'))).toEqual(['eventmanager', 'manager'])
+    expect(assignableRoles(table, registry, held('manager', 'eventmanager', 'user'))).toEqual(['eventmanager'])
     expect(assignableRoles(table, registry, held('user'))).toEqual([])
   })
 
@@ -64,6 +72,13 @@ describe('role assignment escalation', () => {
     expect(plan(manager, [], ['admin'])).toMatchObject({ ok: false, status: 403, code: 'forbidden', role: 'admin' })
     expect(plan(manager, [{ role: 'admin', source: 'manual' }], [])).toMatchObject({ ok: false, status: 403, role: 'admin' })
     expect(plan(manager, [], ['eventmanager'])).toMatchObject({ ok: true, add: ['eventmanager'] })
+  })
+
+  it('refuses a peer their own role, to add or remove (403 role_not_below); a super-admin may', () => {
+    const manager = ['manager', 'eventmanager', 'user']
+    expect(plan(manager, [], ['manager'])).toMatchObject({ ok: false, status: 403, code: 'role_not_below', role: 'manager' })
+    expect(plan(manager, [{ role: 'manager', source: 'manual' }], [])).toMatchObject({ ok: false, status: 403, code: 'role_not_below', role: 'manager' })
+    expect(plan(['admin'], [], ['admin'])).toMatchObject({ ok: true, add: ['admin'] })
   })
 
   it('answers 409 role_not_assignable for auto, default and non-assignable roles, 400 for unknown ones', () => {

@@ -166,9 +166,19 @@ export async function unknownAuthorizationRoles(): Promise<string[]> {
 let migration: Promise<void> | undefined
 
 /**
+ * Whether `error` says the database is not there yet (no binding while prerendering or building, a connection that
+ * is not set up), rather than that the migration failed.
+ */
+export function isAuthorizationDatabaseUnavailable(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? '')}` : String(error)
+  return /binding not found|no database|database is not (?:configured|available)/i.test(message)
+}
+
+/**
  * Runs the `users.role` migration once per process (the marker makes later processes skip it) and warns about stored
  * roles that are not configured. A failure is logged and retried on the next call; until then users hold only what
- * is already stored (fail closed).
+ * is already stored (fail closed). When the database is not available yet (`isAuthorizationDatabaseUnavailable`),
+ * nothing is logged and the next call tries again.
  */
 export function ensureAuthorizationRoleMigration(): Promise<void> {
   migration ??= (async () => {
@@ -180,6 +190,7 @@ export function ensureAuthorizationRoleMigration(): Promise<void> {
     }
   })().catch((error: unknown) => {
     migration = undefined
+    if (isAuthorizationDatabaseUnavailable(error)) return
     console.error('[authorization] the users.role migration failed; it is retried on the next request', error)
   })
   return migration

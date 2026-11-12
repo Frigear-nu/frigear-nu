@@ -94,6 +94,8 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     // The admin role (when it exists) holds the staff permissions by default; the `eventmanager` role is opt-in.
+    // Policies on `events:manage` and `events:refund` receive the EVENT row as their record, on every route and MCP tool,
+    // also for actions on a ticket type, add-on or ticket (`authorizeEventsRecord` in `runtime/server/utils/admin.ts`).
     const staffRoles = options.settings?.roles ? ['admin', 'eventmanager'] : ['admin']
     addPermission(nuxt,
       { name: 'events:manage', label: 'Manage events', labelKey: 'events.permissions.manage', description: 'Create and edit events, ticket types and add-ons, and check tickets in.', descriptionKey: 'events.permissions.manageDescription', group: 'events', grantTo: staffRoles },

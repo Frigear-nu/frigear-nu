@@ -51,12 +51,21 @@ export async function authorizeUsersAdmin(event: H3Event, action: UsersAdminActi
  * The permissions `targetId` holds that `actor` does not (empty when the actor holds them all, or acts on themselves).
  * The target's permissions are their roles' (assigned, default, `auto` and `authorization:roles`) plus `implicit`, as
  * `getUserPermissions` resolves them; sensitive ones count by name. The actor holds a permission through their roles or
- * the `authorization:before` hook. An unknown target holds nothing.
+ * the `authorization:before` hook. An unknown target holds nothing. Throws 403 `forbidden` when the target's roles
+ * cannot be resolved (the role provider, an `authorization:roles` listener or a requirement threw): fail closed.
  */
 export async function usersAdminTargetMissing(event: H3Event, actor: AuthUser, targetId: number): Promise<string[]> {
   if (String(actor.id) === String(targetId)) return []
   const target = await loadAuthUser(targetId)
   if (!target) return []
+  // Fail closed: a target whose roles cannot be resolved would otherwise look like one who holds nothing.
+  try {
+    await getEffectiveRoles(event, target, { strict: true })
+  }
+  catch (error) {
+    console.error(`[users] the roles of user ${targetId} could not be resolved, refusing to act on them`, error)
+    throw forbidden('You cannot change this user right now: their roles could not be checked.')
+  }
   const [targetHeld, actorHeld] = await Promise.all([
     getUserPermissions(event, target),
     getUserPermissions(event, actor),
@@ -110,7 +119,13 @@ export async function loadUsersAdminTarget(
 export async function canUsersAdminTarget(event: H3Event, action: Exclude<UsersAdminAction, 'view' | 'list' | 'create'>, target: UsersAdminTarget): Promise<boolean> {
   const principal = await getAuth(event)
   if (!principal || !(await allows(event, USERS_PERMISSIONS[action], target))) return false
-  return !(await usersAdminTargetMissing(event, principal.user, target.id)).length
+  try {
+    return !(await usersAdminTargetMissing(event, principal.user, target.id)).length
+  }
+  catch {
+    // The target's roles could not be resolved: the write would be refused.
+    return false
+  }
 }
 
 /** Latest subscription per user, when a subscriptions table is installed (`@frigear-nu/subscriptions`); else empty. */

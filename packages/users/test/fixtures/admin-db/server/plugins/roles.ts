@@ -6,6 +6,9 @@ const ROLES: Record<string, string[]> = {
 
 export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('authorization:roles', (ctx) => {
-    ctx.roles.push(...ROLES[String(ctx.user.email).toLowerCase()] ?? [])
+    const email = String(ctx.user.email).toLowerCase()
+    // A user whose roles cannot be resolved (a broken role source): target protection must fail closed on them.
+    if (email.startsWith('broken-roles')) throw new Error('role source unavailable')
+    ctx.roles.push(...ROLES[email] ?? [])
   })
 })

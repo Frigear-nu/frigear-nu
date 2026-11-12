@@ -72,8 +72,11 @@ export default defineNuxtModule<ModuleOptions>({
       schema: dialect => `./runtime/db/schema.${dialect}`,
     })
 
-    // Self-service: every signed-in user holds these (also without `@frigear-nu/authorization`). Email and password
-    // changes are session only through `requireUser(event, { sessionOnly: true })`, not a permission.
+    // Self-service: every signed-in user holds these (also without `@frigear-nu/authorization`), and may delegate them:
+    // an API token or OAuth access token given `profile:write` may change the user's name and avatar (`PATCH /me`).
+    // The email address and password are not part of it: they change only in a session
+    // (`requireUser(event, { sessionOnly: true })`); staff change another user's email with the session-only
+    // `users:manage`.
     addPermission(nuxt,
       { name: 'profile:read', label: 'Read your profile', labelKey: 'users.permissions.profileRead', description: 'Read your own name, email and avatar.', group: 'profile', implicit: true },
       { name: 'profile:write', label: 'Change your profile', labelKey: 'users.permissions.profileWrite', description: 'Change your own name and avatar.', group: 'profile', implicit: true },

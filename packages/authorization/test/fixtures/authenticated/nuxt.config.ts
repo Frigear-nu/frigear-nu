@@ -29,13 +29,14 @@ export default defineNuxtConfig({
     },
   },
   // The fixture's permissions and the `verified` requirement come from `modules/access.ts`. Admins hold everything,
-  // editors may see and assign roles (only those within their own permissions), members are `auto` (emails at
+  // editors may see and assign roles (only those strictly below their own: `writer`, not `editor`), members are `auto` (emails at
   // `member.test`).
   authorization: {
     defaultRoles: ['user'],
     roles: {
       admin: { label: 'Admin', grant: ['*'] },
       editor: { label: 'Editor', grant: ['reports:write', 'roles:read', 'roles:assign'], inherit: ['user'] },
+      writer: { label: 'Writer', grant: ['reports:write'], inherit: ['user'] },
       member: { label: 'Member', grant: ['member-area:view'], requirements: { verified: true }, auto: true },
       user: { label: 'User', grant: ['reports:read'] },
     },

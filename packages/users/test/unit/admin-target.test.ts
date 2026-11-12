@@ -24,6 +24,12 @@ const subjectAllowed = vi.fn(async (_event: unknown, user: { id: number }, permi
 vi.stubGlobal('loadAuthUser', async (id: number) => users[id] ?? null)
 vi.stubGlobal('getUserPermissions', async (_event: unknown, user: { id: number }) => permissions[user.id] ?? [])
 vi.stubGlobal('subjectAllowed', subjectAllowed)
+/** Users whose roles cannot be resolved (`getEffectiveRoles(..., { strict: true })` throws). */
+const brokenRoles = new Set<number>()
+vi.stubGlobal('getEffectiveRoles', async (_event: unknown, user: { id: number }, options?: { strict?: boolean }) => {
+  if (brokenRoles.has(user.id) && options?.strict) throw new Error('roles unavailable')
+  return []
+})
 
 const { usersAdminTargetMissing } = await import('../../src/runtime/server/utils/admin')
 
@@ -33,6 +39,7 @@ describe('usersAdminTargetMissing (target protection)', () => {
   beforeEach(() => {
     subjectAllowed.mockClear()
     before.clear()
+    brokenRoles.clear()
   })
 
   it('refuses a coordinator a user holding more than they do (an admin)', async () => {
@@ -51,6 +58,12 @@ describe('usersAdminTargetMissing (target protection)', () => {
   it('counts what the `authorization:before` hook allows the actor', async () => {
     before.set(2, ['events:read', 'forms:manage'])
     expect(await usersAdminTargetMissing(event, users[2]!, 1)).toEqual([])
+  })
+
+  it('fails closed (403) when the target\'s roles cannot be resolved', async () => {
+    brokenRoles.add(3)
+    vi.spyOn(console, 'error').mockImplementationOnce(() => {})
+    await expect(usersAdminTargetMissing(event, users[1]!, 3)).rejects.toMatchObject({ statusCode: 403 })
   })
 
   it('is empty for yourself and for an unknown user, without checking anything', async () => {

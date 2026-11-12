@@ -28,6 +28,19 @@ export default defineNuxtConfig({
 })
 ```
 
+Policies on `events:manage` and `events:refund` (`definePolicy`) receive the event row (`typeof schema.events.$inferSelect`)
+as their `record`, on every route and MCP tool: also when the action is on a ticket type, add-on group, add-on or ticket,
+the policy gets the event it belongs to (never the child row). Checks without a record (listing, creating an event) run
+the policy only with `withoutRecord`.
+
+```ts
+// server/policies.ts: youth coordinators manage the `youth-*` events only
+export default [
+  definePolicy<typeof schema.events.$inferSelect>('events:manage', async ({ event, user, record }) =>
+    (await getEffectiveRoles(event, user)).includes('youth') ? record?.slug.startsWith('youth-') : undefined),
+]
+```
+
 Tickets (`tickets:read`, `tickets:write`) are self-service: every signed-in user holds them. The named scope `tickets`
 offers both to API tokens and OAuth clients.
 

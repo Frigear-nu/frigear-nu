@@ -23,7 +23,7 @@ export default defineEventHandler(async (event): Promise<Page<AttendeeDto>> => {
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const query = await getValidatedQuery(event, querySchema.parse)
 
-  const [parent] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.id, id)).limit(1)
+  const [parent] = await db.select().from(schema.events).where(eq(schema.events.id, id)).limit(1)
   if (!parent) throw notFound('Event not found.')
   await authorize(event, 'events:manage', parent)
 

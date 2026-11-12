@@ -1,0 +1,1 @@
+ALTER TABLE `oauth_scopes` ADD `deletedAt` integer;

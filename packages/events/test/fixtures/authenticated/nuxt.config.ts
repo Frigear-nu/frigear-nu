@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
+import { addPolicies, addRole, setRoleProvider } from '@frigear-nu/auth/utils'
 import EventsModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -15,6 +15,8 @@ export default defineNuxtConfig({
     (_options, nuxt) => {
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['events:*'] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+      // A record policy on `events:manage` (`server/policies.ts`): staff on `@scoped.test` manage `scoped-*` events only.
+      addPolicies(nuxt, { path: fileURLToPath(new URL('./server/policies', import.meta.url)), host: true })
     },
   ],
   pages: true,

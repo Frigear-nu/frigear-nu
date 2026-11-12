@@ -15,7 +15,7 @@ const escapeHtml = (value: string) =>
 // Staff creates a Stripe Checkout session for the user (same shape as the self-service checkout) and gets the
 // URL back, optionally emailed to the user through @frigear-nu/notify. Checkout sessions expire after 24 hours.
 export default defineEventHandler(async (event): Promise<PaymentLinkResponse> => {
-  const { target } = await loadUsersAdminTarget(event, 'update', { permission: 'subscriptions:manage' })
+  const { actor, target } = await loadUsersAdminTarget(event, 'update', { permission: 'subscriptions:manage' })
   const body = await readValidatedBody(event, bodySchema.parse)
   const origin = getRequestURL(event).origin
   const pages = useRuntimeConfig().public.subscriptions?.pages ?? {}
@@ -28,6 +28,8 @@ export default defineEventHandler(async (event): Promise<PaymentLinkResponse> =>
 
   // Staff may pick any configured plan, so the per-request plan filter hook is not applied here.
   const { priceId, planKey } = await resolveCheckoutTarget(stripe, await getResolvedPlans(), body)
+  // Paying the link confers the plan's roles: never to oneself, never more than the staff member holds (403 `forbidden`).
+  await assertSubscriptionsGrantAllowed(event, actor, target.id, planKey)
 
   const customer = await ensureStripeCustomer(target.id)
   const session = await stripe.checkout.sessions.create({

@@ -1,3 +1,4 @@
+import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import type { z } from 'zod'
 import { newId } from '../../utils'
@@ -9,6 +10,49 @@ import type { addonGroupInput } from './admin-schemas'
 
 type TicketTypeInput = z.output<typeof ticketTypeInput>
 type AddonGroupInput = z.output<typeof addonGroupInput>
+
+/** The permissions whose record-level policies run on one event. */
+export type EventsRecordPermission = 'events:manage' | 'events:refund'
+
+/**
+ * Loads the event `eventId` (404 `not_found`) and authorizes `permission` on it. Every record-level check of
+ * `events:manage` and `events:refund` goes through here, so their policies always receive the stored EVENT row
+ * (`typeof schema.events.$inferSelect`), never a ticket type, addon or ticket: a route acting on a child record passes
+ * the event it belongs to. Call it after `authorize(event, permission)` without a record, so a caller who may not do the
+ * action at all gets 401/403 before any 404. Returns the event row.
+ */
+export async function authorizeEventsRecord(event: H3Event, eventId: string, permission: EventsRecordPermission = 'events:manage') {
+  const [row] = await db.select().from(schema.events).where(eq(schema.events.id, eventId)).limit(1)
+  if (!row) throw notFound('Event not found.')
+  await authorize(event, permission, row)
+  return row
+}
+
+/** The event a ticket type belongs to (404 `not_found` for an unknown ticket type). */
+export async function eventsIdOfTicketType(ticketTypeId: string): Promise<string> {
+  const [row] = await db.select({ eventId: schema.eventTicketTypes.eventId }).from(schema.eventTicketTypes).where(eq(schema.eventTicketTypes.id, ticketTypeId)).limit(1)
+  if (!row) throw notFound('Ticket type not found.')
+  return row.eventId
+}
+
+/** The event an addon group belongs to, through its ticket type (404 `not_found` for an unknown addon group). */
+export async function eventsIdOfAddonGroup(groupId: string): Promise<string> {
+  const [row] = await db.select({ eventId: schema.eventTicketTypes.eventId }).from(schema.eventAddonGroups)
+    .innerJoin(schema.eventTicketTypes, eq(schema.eventAddonGroups.ticketTypeId, schema.eventTicketTypes.id))
+    .where(eq(schema.eventAddonGroups.id, groupId)).limit(1)
+  if (!row) throw notFound('Addon group not found.')
+  return row.eventId
+}
+
+/** The event an addon belongs to, through its group and ticket type (404 `not_found` for an unknown addon). */
+export async function eventsIdOfAddon(addonId: string): Promise<string> {
+  const [row] = await db.select({ eventId: schema.eventTicketTypes.eventId }).from(schema.eventAddons)
+    .innerJoin(schema.eventAddonGroups, eq(schema.eventAddons.groupId, schema.eventAddonGroups.id))
+    .innerJoin(schema.eventTicketTypes, eq(schema.eventAddonGroups.ticketTypeId, schema.eventTicketTypes.id))
+    .where(eq(schema.eventAddons.id, addonId)).limit(1)
+  if (!row) throw notFound('Addon not found.')
+  return row.eventId
+}
 
 export async function insertAddonGroup(ticketTypeId: string, input: AddonGroupInput) {
   const { addons, ...group } = input

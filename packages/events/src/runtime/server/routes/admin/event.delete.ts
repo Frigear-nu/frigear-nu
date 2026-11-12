@@ -6,7 +6,7 @@ import { conflict, idParams, noContent, notFound } from '@frigear-nu/module-kit/
 export default defineEventHandler(async (event) => {
   await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
-  const [existing] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.id, id)).limit(1)
+  const [existing] = await db.select().from(schema.events).where(eq(schema.events.id, id)).limit(1)
   if (!existing) throw notFound('Event not found.')
   await authorize(event, 'events:manage', existing)
   const [sold] = await db.select({ count: sql<number>`count(*)` }).from(schema.eventTickets)

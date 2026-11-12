@@ -417,9 +417,38 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       })
 
       // Staff can offer plans that the public plan filter hides; unknown ones are rejected.
-      expect(await $fetch(url, { method: 'POST', headers, body: { planKey: 'secret', email: true } })).toMatchObject({ emailed: true })
+      expect(await $fetch(url, { method: 'POST', headers: { ...headers, 'x-insider': '1' }, body: { planKey: 'secret', email: true } })).toMatchObject({ emailed: true })
       await expect($fetch(url, { method: 'POST', headers, body: { planKey: 'nope' } })).rejects.toMatchObject({ statusCode: 400 })
       await expect($fetch(url, { method: 'POST', headers, body: {} })).rejects.toMatchObject({ statusCode: 400 })
+    })
+  })
+
+  describe('admin membership: what staff may confer', () => {
+    const headers = (cookie: string, extra: Record<string, string> = {}) => ({ 'cookie': cookie, 'x-staff': '1', 'content-type': 'application/json', ...extra })
+    const post = (cookie: string, path: string, body: unknown, extra?: Record<string, string>) =>
+      fetch(path, { method: 'POST', headers: headers(cookie, extra), body: JSON.stringify(body) })
+
+    it('refuses a membership or a payment link for oneself (403 forbidden)', async () => {
+      const staff = await registerUser('Staff Self', 'staff-self@example.com')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.membership(staff.id), { planKey: 'member' }), 403, 'forbidden')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.paymentLink(staff.id), { planKey: 'patron' }), 403, 'forbidden')
+      expect((await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${staff.id}`)).has).toBe(false)
+    })
+
+    it('refuses a plan whose roles hold a permission the staff member lacks, until they hold it', async () => {
+      const staff = await registerUser('Staff Insider', 'staff-insider@example.com')
+      const target = await registerUser('Insider Target', 'insider-target@example.com')
+      // `secret` satisfies `insider` (grants `test:insider`), which this staff member does not hold.
+      const denied = post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'secret' })
+      const body = await expectApiError(denied, 403, 'forbidden')
+      expect(JSON.stringify(body)).toContain('test:insider')
+      await expectApiError(post(staff.cookie, subscriptionsApi.admin.paymentLink(target.id), { planKey: 'secret' }), 403, 'forbidden')
+      expect((await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${target.id}`)).has).toBe(false)
+
+      // `member` satisfies only the `member` role, whose permissions the staff member holds.
+      expect((await post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'member' })).status).toBe(201)
+      // Holding `test:insider`, they may grant `secret` too.
+      expect((await post(staff.cookie, subscriptionsApi.admin.membership(target.id), { planKey: 'secret' }, { 'x-insider': '1' })).status).toBe(201)
     })
   })
 

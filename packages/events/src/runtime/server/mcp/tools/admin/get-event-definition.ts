@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getEventWithTicketTypes } from '../../../utils/admin'
+import { authorizeEventsRecord, getEventWithTicketTypes } from '../../../utils/admin'
 import { eventToMajor } from '../../money'
 
 export default defineScopedMcpTool({
@@ -7,5 +7,8 @@ export default defineScopedMcpTool({
   permission: 'events:manage',
   annotations: { readOnlyHint: true },
   inputSchema: { id: z.string().describe('The event id.') },
-  handler: async ({ id }) => eventToMajor(await getEventWithTicketTypes(id)),
+  handler: async ({ id }, ctx) => {
+    await authorizeEventsRecord(ctx.event, id)
+    return eventToMajor(await getEventWithTicketTypes(id))
+  },
 })

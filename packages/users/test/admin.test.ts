@@ -300,6 +300,16 @@ describe('users admin', () => {
       expect(await staff.json<Row>('GET', usersApi.admin.user(staffId))).toMatchObject({ name: 'Staff', email: 'staff@example.com' })
     })
 
+    it('fails closed when the target\'s roles cannot be resolved (403 forbidden, nothing changed)', async () => {
+      const broken = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Broken', email: 'broken-roles@example.com', sendWelcomeEmail: false })
+      const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(broken.id))
+      expect(detail.can).toEqual({ update: false, delete: false, manage: false })
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(broken.id), { name: 'Renamed' }), 403, 'forbidden')
+      await expectApiError(coordinator.json('DELETE', usersApi.admin.user(broken.id)), 403, 'forbidden')
+      await expectApiError(staff.json('PATCH', usersApi.admin.user(broken.id), { name: 'Renamed' }), 403, 'forbidden')
+      expect(await staff.json<Row>('GET', usersApi.admin.user(broken.id))).toMatchObject({ name: 'Broken' })
+    })
+
     it('lets an admin change a coordinator', async () => {
       const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=coordinator`)
       const id = items[0]!.id

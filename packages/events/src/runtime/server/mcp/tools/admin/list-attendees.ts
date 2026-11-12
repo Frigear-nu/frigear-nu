@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { db, schema } from '@nuxthub/db'
 import { asc, eq } from 'drizzle-orm'
 import { ticketToMajor } from '../../money'
+import { authorizeEventsRecord } from '../../../utils/admin'
 
 // Staff view of an event's tickets. Names and emails need the separate `events:pii` permission, and the
 // QR code (which would let anyone check a ticket in) is never returned.
@@ -11,6 +12,7 @@ export default defineScopedMcpTool({
   annotations: { readOnlyHint: true },
   inputSchema: { eventId: z.string().describe('The event id.') },
   handler: async ({ eventId }, ctx) => {
+    await authorizeEventsRecord(ctx.event, eventId)
     const rows = await db.select({
       ticket: schema.eventTickets,
       userName: schema.users.name,

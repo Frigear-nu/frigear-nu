@@ -100,9 +100,14 @@ export const oauthScopes = sqliteTable('oauth_scopes', {
   icon: text(),
   /** Permissions or wildcards (`tickets:read`, `tickets:*`). */
   permissions: text({ mode: 'json' }).$type<string[]>().notNull().$defaultFn(() => []),
-  /** Bumped whenever the permissions it expands to grow, so users are asked to consent again. */
+  /**
+   * Bumped whenever the permissions it expands to grow, so users are asked to consent again. Never reset: a deleted
+   * scope stays as a tombstone (`deletedAt`), and recreating the name revives it with the next version.
+   */
   version: integer().notNull().default(1),
   isActive: integer({ mode: 'boolean' }).notNull().default(true),
+  /** Set when staff delete the scope: it is gone everywhere, but its name keeps its version history. */
+  deletedAt: integer({ mode: 'timestamp' }),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 })

@@ -597,6 +597,53 @@ describe('events (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('record policies', () => {
+    // `server/policies.ts`: staff on `@scoped.test` may only manage `scoped-*` events. Every record check of
+    // `events:manage` passes the EVENT row, also for ticket types, addons and tickets.
+    it('hands the event row to every events:manage check: routes on events, ticket types, addons, check-in and MCP', async () => {
+      const scoped = await registerUser('Scoped', 'scoped@scoped.test')
+      const admission = [{ key: 'default', name: 'Admission', price: 0, addonGroups: [food] }]
+      const own = await createEvent({ slug: `scoped-${++counter}` }, admission)
+      const other = await createEvent({}, admission)
+      const ownType = (await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(own.id)))).ticketTypes[0]
+      const otherType = (await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(other.id)))).ticketTypes[0]
+
+      // The event itself.
+      expect((await json(scoped.cookie, 'GET', eventsApi.admin.event(own.id))).status).toBe(200)
+      await expectApiError(json(scoped.cookie, 'GET', eventsApi.admin.event(other.id)), 403, 'forbidden')
+      expect((await json(scoped.cookie, 'PATCH', eventsApi.admin.event(own.id), { image: 'https://example.com/a.png' })).status).toBe(200)
+      await expectApiError(json(scoped.cookie, 'PATCH', eventsApi.admin.event(other.id), { image: 'https://example.com/a.png' }), 403, 'forbidden')
+      await expectApiError(json(scoped.cookie, 'GET', eventsApi.admin.attendees(other.id)), 403, 'forbidden')
+
+      // Its catalogue: the policy sees the event the ticket type, addon group or addon belongs to.
+      expect((await json(scoped.cookie, 'PATCH', eventsApi.admin.ticketType(ownType.id), { capacity: 10 })).status).toBe(200)
+      await expectApiError(json(scoped.cookie, 'PATCH', eventsApi.admin.ticketType(otherType.id), { capacity: 10 }), 403, 'forbidden')
+      await expectApiError(json(scoped.cookie, 'POST', eventsApi.admin.ticketTypes(other.id), { key: 'extra', name: 'Extra', price: 0 }), 403, 'forbidden')
+      await expectApiError(json(scoped.cookie, 'POST', eventsApi.admin.addonGroups(otherType.id), { title: { en: 'Drinks' } }), 403, 'forbidden')
+      await expectApiError(json(scoped.cookie, 'PATCH', eventsApi.admin.addonGroup(otherType.addonGroups[0].id), { required: false }), 403, 'forbidden')
+      await expectApiError(json(scoped.cookie, 'PATCH', eventsApi.admin.addon(otherType.addonGroups[0].addons[0].id), { label: 'Fish' }), 403, 'forbidden')
+      expect((await json(scoped.cookie, 'PATCH', eventsApi.admin.addon(ownType.addonGroups[0].addons[0].id), { label: 'Fish' })).status).toBe(200)
+
+      // Tickets: check-in and cancelling see the ticket's event.
+      const guest = await user('ScopedGuest')
+      const ownTicket = (await ok(await buy(guest.cookie, own.slug, ownType.id, [ownType.addonGroups[0].addons[2].id]))).ticket
+      const otherTicket = (await ok(await buy(guest.cookie, other.slug, otherType.id, [otherType.addonGroups[0].addons[2].id]))).ticket
+      await expectApiError(json(scoped.cookie, 'POST', eventsApi.admin.checkIn, { code: otherTicket.code }), 403, 'forbidden')
+      expect(await ok(await json(scoped.cookie, 'POST', eventsApi.admin.checkIn, { code: ownTicket.code }))).toMatchObject({ ok: true })
+      await expectApiError(json(scoped.cookie, 'POST', eventsApi.admin.cancelTicket(otherTicket.id)), 403, 'forbidden')
+
+      // MCP tools acting on one event.
+      const token = await mcpToken(scoped.cookie, ['events:manage'])
+      expect((await mcpCall(token, 'update-event', { id: other.id, patch: { image: 'https://example.com/b.png' } })).result?.isError).toBe(true)
+      expect((await mcpCall(token, 'update-ticket-type', { id: otherType.id, patch: { capacity: 5 } })).result?.isError).toBe(true)
+      expect((await mcpCall(token, 'get-event-definition', { id: other.id })).result?.isError).toBe(true)
+      expect((await mcpCall(token, 'list-attendees', { eventId: other.id })).result?.isError).toBe(true)
+      const updated = await mcpCall(token, 'update-event', { id: own.id, patch: { image: 'https://example.com/b.png' } })
+      expect(updated.result?.isError, JSON.stringify(updated)).toBeFalsy()
+      expect((await ok(await json(staff.cookie, 'GET', eventsApi.admin.event(other.id)))).image).toBeNull()
+    })
+  })
+
   describe('my tickets', () => {
     it('lists only my tickets', async () => {
       const event = await createEvent({}, [{ key: 'default', name: 'Admission', price: 0, maxPerUser: 3 }])
@@ -802,8 +849,9 @@ describe('events (authenticated, database-backed)', async () => {
       const eventsAsGuest = await mcpCall(guestAll, 'list-events')
       expect(JSON.stringify(eventsAsGuest)).toContain('mcp-party')
 
-      const attendees = await mcpCall(staffManage, 'list-attendees', { eventId: 'does-not-matter' })
-      expect(attendees.result?.isError).toBeFalsy()
+      expect((await mcpCall(staffManage, 'list-attendees', { eventId: 'does-not-exist' })).result?.isError).toBe(true)
+      const attendees = await mcpCall(staffManage, 'list-attendees', { eventId: withTypesId })
+      expect(attendees.result?.isError, JSON.stringify(attendees)).toBeFalsy()
       expect(JSON.stringify(attendees)).not.toMatch(/"code"|userEmail/)
     })
   })

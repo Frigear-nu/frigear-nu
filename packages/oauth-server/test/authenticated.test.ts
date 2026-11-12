@@ -1520,6 +1520,32 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(new URL(entry.headers.get('location')!).searchParams.get('error')).toBe('invalid_scope')
     })
 
+    it('never resets a deleted scope\'s version: recreating the name asks for consent again', async () => {
+      const app = await createApp({ allowedRoles: [] })
+      staff ??= await user('Staff', 'staff.test')
+      const name = `bin${++counter}`
+      await admin().json('POST', oauthServerApi.admin.scopes, { name, permissions: ['inventory:read'] })
+      const first = await signIn(app, staff, `openid ${name}`)
+      expect(decodeJwt(first.tokens.access_token).permissions).toEqual(['inventory:read'])
+
+      // Deleted: gone from the admin list and discovery, a tombstone keeps the name's version.
+      expect((await json(staff.cookie, 'DELETE', oauthServerApi.admin.scope(name))).status).toBe(204)
+      expect((await admin().json<Json[]>('GET', oauthServerApi.admin.scopes)).map(scope => scope.name)).not.toContain(name)
+      await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope(name), { label: 'x' }), 404, 'not_found')
+      await expectApiError(admin().json('DELETE', oauthServerApi.admin.scope(name)), 404, 'not_found')
+
+      // Recreated, wider: the next version, so the old consent does not carry over at refresh.
+      const recreated = await admin().json<Json>('POST', oauthServerApi.admin.scopes, { name, permissions: ['inventory:read', 'inventory:write'] })
+      expect(recreated).toMatchObject({ name, version: 2, isActive: true, permissions: ['inventory:read', 'inventory:write'] })
+      await expectApiError(admin().json('POST', oauthServerApi.admin.scopes, { name, permissions: ['inventory:read'] }), 409)
+      const refreshed = await ok(await refresh(app, first.tokens.refresh_token))
+      expect(refreshed.scope).toBe('openid')
+      expect(decodeJwt(refreshed.access_token).permissions).toEqual([])
+      const again = await signIn(app, staff, `openid ${name}`)
+      expect(decodeJwt(again.tokens.access_token).permissions).toEqual(['inventory:read', 'inventory:write'])
+      expect((await ok(await refresh(app, again.tokens.refresh_token))).scope).toBe(`openid ${name}`)
+    })
+
     it('introspects access tokens for the client they were issued to only (RFC 7662), with live permissions', async () => {
       const app = await createApp()
       const other = await createApp()

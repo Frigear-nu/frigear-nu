@@ -100,9 +100,14 @@ export const oauthScopes = pgTable('oauth_scopes', {
   icon: text(),
   /** Permissions or wildcards (`tickets:read`, `tickets:*`). */
   permissions: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
-  /** Bumped whenever the permissions it expands to grow, so users are asked to consent again. */
+  /**
+   * Bumped whenever the permissions it expands to grow, so users are asked to consent again. Never reset: a deleted
+   * scope stays as a tombstone (`deletedAt`), and recreating the name revives it with the next version.
+   */
   version: integer().notNull().default(1),
   isActive: boolean().notNull().default(true),
+  /** Set when staff delete the scope: it is gone everywhere, but its name keeps its version history. */
+  deletedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 })

@@ -13,7 +13,7 @@ vi.mock('#auth/permissions', () => ({
     },
     aliases: {},
   },
-  namedScopes: {},
+  namedScopes: { wallet: { name: 'wallet', permissions: ['vouchers:read'] } },
 }))
 vi.stubGlobal('useRuntimeConfig', () => ({
   oauthResource: { issuer: 'https://frigear.example.test', audience: 'frigear-services', jwksUrl: '', userinfoUrl: '', corsOrigins: '', corsPaths: '', forceId: false, jwksCacheTtl: 600, introspection },
@@ -43,6 +43,13 @@ describe('resolveOAuthResourcePermissions', () => {
     expect(await resolveOAuthResourcePermissions('t', payload(), ['openid', 'vouchers:read', 'shop:order'])).toEqual(['vouchers:read'])
     expect(await resolveOAuthResourcePermissions('t', payload({ permissions: 'vouchers:read' as unknown as string[] }), [])).toBeNull()
     expect(calls).toEqual([])
+  })
+
+  it('never expands a wildcard scope of a token without a claim: only exact permissions and named scopes', async () => {
+    expect(await resolveOAuthResourcePermissions('t', payload(), ['*'])).toEqual([])
+    expect(await resolveOAuthResourcePermissions('t', payload(), ['vouchers:*'])).toEqual([])
+    expect(await resolveOAuthResourcePermissions('t', payload(), ['openid', '*', 'vouchers:read'])).toEqual(['vouchers:read'])
+    expect(await resolveOAuthResourcePermissions('t', payload(), ['wallet'])).toEqual(['vouchers:read'])
   })
 
   it('asks the issuer with the client credentials when introspection is on, and caches the answer per token', async () => {

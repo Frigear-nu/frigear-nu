@@ -2,7 +2,6 @@ import type { H3Event } from 'h3'
 import { apiError } from '@frigear-nu/module-kit/server'
 import { namedScopes, registry } from '#auth/permissions'
 import { hasProvider, provider, requirements, table } from '#auth/roles'
-import { policies } from '#auth/policies'
 import type {
   AuthorizationBeforeContext,
   AuthorizationRolesContext,
@@ -24,6 +23,10 @@ import {
   scopeGrantable,
   validatePermissionName,
 } from '../../utils/permissions'
+// After `../../utils/permissions`: a policy file (`server/policies.ts`) calls `definePolicy` at import time, which needs
+// those helpers initialised. The policies themselves are indexed lazily (`policiesOf`), so this file also works when a
+// policy file is the first to be loaded and `policies` is not initialised yet while this module evaluates.
+import { policies } from '#auth/policies'
 import type {
   AccessDto,
   CompiledRole,
@@ -42,9 +45,9 @@ import { getAuth } from './auth'
 // policy results never are.
 
 interface AccessCache {
-  roles: Map<string, Promise<string[]>>
+  roles: Map<string, Promise<ResolvedRoles>>
   granted: Map<string, Promise<string[]>>
-  requirements: Map<string, Promise<boolean>>
+  requirements: Map<string, Promise<RequirementResult>>
   /** Decisions without a record for the caller, by permission. */
   decisions: Map<string, Promise<Decision>>
   /** Permissions the caller may delegate (`canGrantScope`), by user id. */
@@ -76,24 +79,39 @@ function memo<T>(map: Map<string, Promise<T>>, key: string, run: () => Promise<T
 const idOf = (user: { id: unknown }) => String(user.id)
 
 type AnyPolicy = (PolicyDefinition | SharedPolicyDefinition) & { permission: string }
-const policiesByPermission = new Map<string, AnyPolicy[]>()
-for (const policy of policies as AnyPolicy[]) {
-  if (!policy || typeof policy.permission !== 'string' || typeof policy.handler !== 'function') continue
-  if (import.meta.dev && !Object.hasOwn(registry.permissions, policy.permission)) {
-    console.error(`[auth] A policy refines "${policy.permission}", which is not a registered permission: it never runs.`)
+let policiesByPermission: Map<string, AnyPolicy[]> | undefined
+
+/** The policies of `permission`, indexed on first use (never at import time: see the `#auth/policies` import). */
+function policiesOf(permission: string): AnyPolicy[] | undefined {
+  if (!policiesByPermission) {
+    const index = new Map<string, AnyPolicy[]>()
+    for (const policy of policies as AnyPolicy[]) {
+      if (!policy || typeof policy.permission !== 'string' || typeof policy.handler !== 'function') continue
+      if (import.meta.dev && !Object.hasOwn(registry.permissions, policy.permission)) {
+        console.error(`[auth] A policy refines "${policy.permission}", which is not a registered permission: it never runs.`)
+      }
+      const list = index.get(policy.permission) ?? []
+      list.push(policy)
+      index.set(policy.permission, list)
+    }
+    policiesByPermission = index
   }
-  const list = policiesByPermission.get(policy.permission) ?? []
-  list.push(policy)
-  policiesByPermission.set(policy.permission, list)
+  return policiesByPermission.get(permission)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Roles
 // ---------------------------------------------------------------------------------------------------------------------
 
-async function requirementMet(event: H3Event | undefined, user: AuthUser, name: string, value: unknown): Promise<boolean> {
+/** A requirement's answer; `failed` when it threw (treated as not met). */
+interface RequirementResult { met: boolean, failed: boolean }
+
+/** A user's roles, and whether resolving them failed (a provider, listener or requirement threw). */
+interface ResolvedRoles { roles: string[], failed: boolean }
+
+async function requirementMet(event: H3Event | undefined, user: AuthUser, name: string, value: unknown): Promise<RequirementResult> {
   const requirement = Object.hasOwn(requirements, name) ? requirements[name] : undefined
-  if (!requirement) return false
+  if (!requirement) return { met: false, failed: false }
   let key: string
   try {
     key = `${idOf(user)}|${name}|${JSON.stringify(value)}`
@@ -103,11 +121,11 @@ async function requirementMet(event: H3Event | undefined, user: AuthUser, name: 
   }
   return memo(cacheOf(event).requirements, key, async () => {
     try {
-      return (await requirement({ event, user, value })) === true
+      return { met: (await requirement({ event, user, value })) === true, failed: false }
     }
     catch (error) {
       console.error(`[auth] role requirement "${name}" failed, treating it as not met`, error)
-      return false
+      return { met: false, failed: true }
     }
   })
 }
@@ -128,13 +146,36 @@ function reachable(names: readonly string[]): CompiledRole[] {
   return result
 }
 
+/** Thrown by `getEffectiveRoles(event, user, { strict: true })` when the user's roles could not be resolved. */
+export class RoleResolutionError extends Error {
+  constructor(userId: string) {
+    super(`[auth] the roles of user ${userId} could not be resolved`)
+    this.name = 'RoleResolutionError'
+  }
+}
+
+export interface EffectiveRolesOptions {
+  /**
+   * Throw `RoleResolutionError` instead of failing closed when the role provider, an `authorization:roles` listener or
+   * a role requirement throws. For checks where fewer roles would wrongly pass, such as comparing against what another
+   * user holds (target protection): there an empty list is not the safe answer.
+   */
+  strict?: boolean
+}
+
 /**
  * The roles `user` holds: assigned (the role provider) ∪ `defaultRoles` ∪ `auto` roles, then the `authorization:roles`
  * hook (listeners may add or remove), without the roles whose requirements fail, closed over `inherit`. Cached per
  * request. A provider or hook that throws leaves the user without roles (fail closed); `implicit` permissions still
- * apply.
+ * apply. With `strict`, any such failure (a requirement that throws too) throws `RoleResolutionError` instead.
  */
-export function getEffectiveRoles(event: H3Event | undefined, user: AuthUser): Promise<string[]> {
+export async function getEffectiveRoles(event: H3Event | undefined, user: AuthUser, options: EffectiveRolesOptions = {}): Promise<string[]> {
+  const { roles, failed } = await resolveRoles(event, user)
+  if (failed && options.strict) throw new RoleResolutionError(idOf(user))
+  return roles
+}
+
+function resolveRoles(event: H3Event | undefined, user: AuthUser): Promise<ResolvedRoles> {
   return memo(cacheOf(event).roles, idOf(user), async () => {
     let assigned: string[] = []
     if (hasProvider) {
@@ -143,7 +184,7 @@ export function getEffectiveRoles(event: H3Event | undefined, user: AuthUser): P
       }
       catch (error) {
         console.error('[auth] the role provider failed, the user holds no assigned roles', error)
-        return []
+        return { roles: [], failed: true }
       }
     }
     const ctx: AuthorizationRolesContext = { event, user, roles: [...new Set([...assigned, ...table.defaultRoles, ...table.autoRoles])] }
@@ -152,16 +193,19 @@ export function getEffectiveRoles(event: H3Event | undefined, user: AuthUser): P
     }
     catch (error) {
       console.error('[auth] an authorization:roles listener failed, the user holds no roles', error)
-      return []
+      return { roles: [], failed: true }
     }
     const candidates = Array.isArray(ctx.roles) ? ctx.roles.filter(role => typeof role === 'string') : []
     const met = new Map<string, boolean>()
+    let failed = false
     for (const role of reachable(candidates)) {
       const entries = Object.entries(role.requirements)
       if (!entries.length) continue
       let ok = true
       for (const [name, value] of entries) {
-        if (!(await requirementMet(event, user, name, value))) {
+        const result = await requirementMet(event, user, name, value)
+        if (result.failed) failed = true
+        if (!result.met) {
           ok = false
           break
         }
@@ -175,7 +219,7 @@ export function getEffectiveRoles(event: H3Event | undefined, user: AuthUser): P
       requirementsMet: role => met.get(role.name) ?? false,
     })
     if (import.meta.dev && unknown.length) console.warn(`[auth] user ${idOf(user)} holds roles that are not configured (ignored): ${unknown.join(', ')}`)
-    return roles
+    return { roles, failed }
   })
 }
 
@@ -238,7 +282,7 @@ async function runBefore(event: H3Event, principal: AuthPrincipal, permission: s
 }
 
 async function runPolicies(event: H3Event, principal: AuthPrincipal, permission: string, record: unknown, withRecord: boolean): Promise<PolicyOutcome[]> {
-  const list = policiesByPermission.get(permission)
+  const list = policiesOf(permission)
   if (!list?.length) return []
   const outcomes: PolicyOutcome[] = []
   for (const policy of list) {
