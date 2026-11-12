@@ -28,6 +28,8 @@ describe('kept OAuth tokens (database)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
   process.env.NUXT_OAUTH_OIDC_OPENID_CONFIG = `http://127.0.0.1:${port}/api/test/idp/openid-configuration`
+  // Only from the environment: the token key falls back to it through the `session.password` key auth declares.
+  process.env.NUXT_SESSION_PASSWORD = 'a-test-only-session-password-at-least-32-chars'
 
   await setup({ rootDir: fixture, dev: true, port, serverStartTimeout: 180_000, setupTimeout: 240_000 })
 

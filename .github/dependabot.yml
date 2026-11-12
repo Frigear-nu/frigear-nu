@@ -14,8 +14,12 @@ updates:
       prefix: chore
       include: scope
     ignore:
-      # Pinned by patches/@nuxthub__core@0.10.8.patch: bump it by hand together with the patch.
-      - dependency-name: '@nuxthub/core'
+      # h3 2 needs Nuxt 5 / Nitro 3.
+      - dependency-name: 'h3'
+        update-types: ['version-update:semver-major']
+      # TypeScript 7 has no JS compiler API, which @nuxt/module-builder and vue-tsc need.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
     groups:
       # The Nuxt toolchain (the catalog) moves together.
       nuxt:

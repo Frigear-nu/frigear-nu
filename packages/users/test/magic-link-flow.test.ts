@@ -60,7 +60,7 @@ describe('magic links & email verification (database)', async () => {
     const confirmed = await post(authApi.magicLinkConfirm, { code })
     expect(confirmed.status, await confirmed.clone().text()).toBe(200)
     expect(await confirmed.json()).toEqual({ redirect: '/' })
-    expect(confirmed.headers.get('set-cookie')).toContain('nuxt-session')
+    expect(confirmed.headers.get('set-cookie')).toContain('nuxt-auth-session')
 
     const verified = await post(authApi.login, { email: credentials.email, password: credentials.password })
     expect(verified.status, await verified.clone().text()).toBe(200)

@@ -37,7 +37,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.1.0' },
     // Keeps Shiki (`ECodeBlock`) out of the server bundle unless the host turns it back on.
-    'nuxt-email-renderer': { version: '>=2.11.0', defaults: { codeHighlighting: false } },
+    'nuxt-email-renderer': { version: '>=3.0.0', defaults: { codeHighlighting: false } },
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/email-templates', nuxt)
