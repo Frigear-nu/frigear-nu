@@ -11,6 +11,7 @@ import type { MenuItem, ModuleOptions } from './types'
 
 export type {
   MenuItem,
+  MenuFilterContext,
   Menu,
   MenuSource,
   MenuContentSourceOptions,

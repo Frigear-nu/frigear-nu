@@ -33,10 +33,7 @@ export function principalHasScopes(principal: { scopes: readonly string[], ceili
   return hasScopes(principal.scopes, required) && (!principal.ceiling || hasScopes(principal.ceiling, required))
 }
 
-/** Splits an OAuth `scope` string into unique, non-empty scopes. */
-export function parseScopeString(scope: string | undefined | null): string[] {
-  return [...new Set((scope ?? '').split(/\s+/).filter(Boolean))]
-}
+export { parseScopeString } from './permissions'
 
 /**
  * Whether a token may be granted `scope`: full access, a registered scope, or the wildcard of a

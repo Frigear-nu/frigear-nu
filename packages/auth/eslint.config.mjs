@@ -35,3 +35,14 @@ export default createConfigForNuxt({
       }],
     },
   })
+  .append({
+    // The permission core and `@frigear-nu/auth/policies` run in the app, on the server and on resource servers.
+    files: ['src/runtime/utils/permissions.ts', 'src/runtime/policies.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['vue', 'vue/*', '@vue/*', 'nuxt', 'nuxt/*', '@nuxt/*', '#*', 'h3', '@nuxthub/*', 'drizzle-orm', 'drizzle-orm/*'], message: 'Permissions are framework-free: no Vue, Nuxt, h3 or database imports.' },
+        ],
+      }],
+    },
+  })

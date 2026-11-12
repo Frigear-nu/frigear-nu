@@ -39,7 +39,23 @@ export type MenuItem = {
    * the path passed to `extendMenu`/`extendMenuItem`, but an explicit value here always wins.
    */
   group?: string
+  /**
+   * The permission (`resource:action`) a viewer must hold to see the item. Menus only hide what the viewer cannot
+   * use; the route behind the item still checks the permission itself. Filtering is done by a `menus:filter` listener
+   * (`@frigear-nu/authorization`); without one, the item is shown.
+   */
+  permission?: string
   meta?: Record<string, unknown>
+}
+
+/** The `menus:filter` runtime hook: remove items from `ctx.items` that the viewer may not see. */
+export type MenuFilterContext = {
+  /** The menu name (`dashboard`). */
+  menu: string
+  /** The path passed to `useMenu` (`dashboard.more`, `dashboard.*`). */
+  path: string
+  /** The resolved, sorted items; replace or splice to filter. */
+  items: MenuItem[]
 }
 
 /** A named collection of `MenuItem`s, keyed by group (`''` for the root group). */

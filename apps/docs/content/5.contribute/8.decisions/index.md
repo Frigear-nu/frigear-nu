@@ -11,3 +11,4 @@ request description holds, and keep it once the change ships: the module pages d
 why.
 
 - [Session lifetimes per OAuth application](/contribute/decisions/oauth-token-lifetimes)
+- [One permission model](/contribute/decisions/permission-model)

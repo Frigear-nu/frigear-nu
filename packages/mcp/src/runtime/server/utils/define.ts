@@ -33,6 +33,7 @@ export interface ScopedMcpContext {
 export type ScopedGate = (event: H3Event, principal: AuthPrincipal) => boolean | Promise<boolean>
 
 export interface ScopedOptions extends ScopedAccess {
+  /** @deprecated Use `permission`, refined by a policy (`definePolicy`) or the `authorization:before` hook. */
   gate?: ScopedGate
 }
 
@@ -102,7 +103,7 @@ export type ScopedMcpToolDefinition<Shape extends ZodRawShape = ZodRawShape> = O
 /** An MCP tool that is listed and callable only within the scopes (and gate) the caller satisfies. */
 export function defineScopedMcpTool<const Shape extends ZodRawShape = Record<string, never>>(definition: ScopedMcpToolDefinition<Shape>) {
   assertScoped('tool', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, inputSchema, ...rest } = definition
+  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, permission: _permission, handler, tags, _meta, inputSchema, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpTool({
     ...rest,
@@ -120,7 +121,7 @@ export type ScopedMcpResourceDefinition = Omit<StandardMcpResourceDefinition, 'h
 
 export function defineScopedMcpResource(definition: ScopedMcpResourceDefinition) {
   assertScoped('resource', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, ...rest } = definition
+  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, permission: _permission, handler, tags, _meta, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpResource({
     ...rest,
@@ -137,7 +138,7 @@ export type ScopedMcpPromptDefinition<Shape extends ZodRawShape | undefined = un
 
 export function defineScopedMcpPrompt<const Shape extends ZodRawShape | undefined = undefined>(definition: ScopedMcpPromptDefinition<Shape>) {
   assertScoped('prompt', definition)
-  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, handler, tags, _meta, ...rest } = definition
+  const { scopes: _scopes, sessionOnly: _sessionOnly, gate: _gate, permission: _permission, handler, tags, _meta, ...rest } = definition
   const base = guarded(definition, _meta)
   return defineMcpPrompt({
     ...rest,

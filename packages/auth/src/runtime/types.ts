@@ -87,3 +87,56 @@ export interface AuthUserStore {
    */
   changeId: (from: number, to: number) => Promise<void>
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Access control contracts (`utils/permissions.ts` holds the vocabulary and the pure decision core).
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** Where a stored role row came from. Single sign-on only ever replaces its own (`sso`) rows. */
+export type AuthRoleSource = 'manual' | 'sso' | 'migrated'
+
+/**
+ * The contract between auth and the module that owns roles (`@frigear-nu/authorization`), served as `#auth/roles`.
+ * Without that module it is a no-op: no roles, `setRoles` does nothing, no `roleScopes` cap.
+ */
+export interface AuthRoleProvider {
+  /**
+   * The user's effective roles: assigned ∪ `defaultRoles` ∪ `auto` ∪ `authorization:roles`, without the roles whose
+   * requirements fail, closed over `inherit`. Cached per request.
+   */
+  getRoles: (event: H3Event, user: AuthUser) => Promise<string[]>
+  /** Replaces the user's roles of one `source` (single sign-on passes `sso` and never touches manual rows). */
+  setRoles: (userId: number | string, roles: readonly string[], options: { source: AuthRoleSource, grantedBy?: number | string | null }) => Promise<void>
+  /**
+   * The scopes the user may give a client: the union of `oauthServer.settings.roleScopes` over their effective roles.
+   * `undefined`: no cap beyond permissions.
+   */
+  getRoleScopes: (event: H3Event, user: AuthUser) => Promise<string[] | undefined>
+}
+
+/**
+ * The `authorization:before` Nitro hook (≈ Laravel's `Gate::before`), the single host override. Listeners vote with
+ * `allow()` or `deny()`; any deny (or a listener that throws) denies, otherwise any allow allows and skips roles and
+ * policies. It runs after the credential checks, so it can never widen a token or a session-only permission.
+ */
+export interface AuthorizationBeforeContext {
+  event: H3Event
+  principal: AuthPrincipal
+  /** The principal's user; identify the caller from this, never from the session on `event` (empty for bearers). */
+  user: AuthUser
+  permission: string
+  /** The record a policy check is about, when there is one. */
+  record: unknown
+  allow: () => void
+  deny: () => void
+}
+
+/**
+ * The `authorization:roles` Nitro hook (`@frigear-nu/authorization`): add roles to `ctx.roles` from outside the
+ * database, such as an environment allowlist. Hook roles still pass their requirements.
+ */
+export interface AuthorizationRolesContext {
+  event: H3Event
+  user: AuthUser
+  roles: string[]
+}

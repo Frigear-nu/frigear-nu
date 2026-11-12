@@ -6,9 +6,20 @@ import { z } from 'zod'
 export const SCOPED_META_KEY = 'frigear-nu/scoped'
 
 export interface ScopedAccess {
-  /** Scopes the caller's credential must carry. Required: a definition without scopes is never exposed. */
+  /**
+   * The permission (`resource:action`) the caller must be allowed, checked with `allows(event, permission)`. Its
+   * definition says whether it is session only. Replaces `scopes`, `sessionOnly` and `gate`.
+   */
+  permission?: string
+  /**
+   * Scopes the caller's credential must carry. Required: a definition without scopes is never exposed.
+   * @deprecated Use `permission`; removed once definitions are checked by permission.
+   */
   scopes: string[]
-  /** Never exposed to bearer credentials (API tokens, OAuth); only to a cookie session. */
+  /**
+   * Never exposed to bearer credentials (API tokens, OAuth); only to a cookie session.
+   * @deprecated Use a `sessionOnly` permission as `permission`.
+   */
   sessionOnly?: boolean
 }
 
