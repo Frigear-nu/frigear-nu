@@ -72,7 +72,7 @@
   "dependencies": {
     "@frigear-nu/module-kit": "workspace:^",
     "@nuxt/kit": "catalog:",
-    "@vueuse/core": "^13.5.0",
+    "@vueuse/core": "^15.0.0",
     "defu": "^6.1.4"
   },
   "devDependencies": {
