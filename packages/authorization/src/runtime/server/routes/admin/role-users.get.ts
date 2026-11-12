@@ -11,7 +11,7 @@ const querySchema = pageQuery({
 
 // `GET /api/admin/authorization/roles/:name/users`: the users whose stored role is `name`, paginated.
 export default defineEventHandler(async (event): Promise<AuthorizationRoleUsersPageDto> => {
-  await requireRolesStaff(event)
+  await requireAuthorizationRolesStaff(event)
   const { name } = await getValidatedRouterParams(event, idParams('name').parse)
   const query = await getValidatedQuery(event, querySchema.parse)
   const { role } = requireAuthorizationRole(name)

@@ -7,19 +7,19 @@ import type {
   AuthorizationRoleSummaryDto,
   AuthorizationRoleUserDto,
 } from '../../../types'
+import { AUTHORIZATION_ROLES_READ_SCOPE } from '../../utils/rbac'
 import type { RbacRole, RbacTable } from '../../utils/rbac'
 import { heldPermissionCount, permissionMatrix, rolePermissionRows } from '../../utils/rbac-view'
 
-/** The permission that opens the roles admin (`GET /api/admin/authorization/**`). Admin only unless granted. */
-export const ROLES_READ_SCOPE = 'roles:read'
+export { AUTHORIZATION_ROLES_READ_SCOPE }
 
 /**
  * The staff gate of the roles admin. The role decides (`roles:read`); the host may add conditions through the
  * `authorization:authorize` Nitro hook.
  */
-export const rolesStaff = defineStaffGuard({
+export const authorizationRolesStaff = defineStaffGuard({
   hook: 'authorization:authorize',
-  scope: ROLES_READ_SCOPE,
+  scope: AUTHORIZATION_ROLES_READ_SCOPE,
   message: 'You are not allowed to see roles.',
 })
 
@@ -68,7 +68,7 @@ export function toAuthorizationRoleUserDto(user: { id: number, name: string, ema
 }
 
 /** Guards a roles admin route: staff check first, then the table (404 without `rbac`). */
-export async function requireRolesStaff(event: H3Event): Promise<RbacTable> {
-  await rolesStaff.require(event)
+export async function requireAuthorizationRolesStaff(event: H3Event): Promise<RbacTable> {
+  await authorizationRolesStaff.require(event)
   return requireAuthorizationRolesTable()
 }

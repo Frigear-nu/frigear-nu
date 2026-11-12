@@ -90,6 +90,8 @@ export interface RbacCompileResult {
 
 export const ADMIN_ROLE = 'admin'
 export const USER_ROLE = 'user'
+/** The permission that opens the roles admin (`GET /api/admin/authorization/**`). Admin only unless granted. */
+export const AUTHORIZATION_ROLES_READ_SCOPE = 'roles:read'
 
 const isPii = (scope: string) => scope.endsWith(':pii')
 

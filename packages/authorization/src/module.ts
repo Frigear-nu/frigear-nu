@@ -23,7 +23,7 @@ import type { AuthRoleDefinition, AuthScopeDefinition } from '@frigear-nu/auth/u
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { ROUTE_RULE_KEYS } from './runtime/utils/types'
 import { findUnenforcedPatterns } from './runtime/utils/rules'
-import { compileRbac } from './runtime/utils/rbac'
+import { AUTHORIZATION_ROLES_READ_SCOPE, compileRbac } from './runtime/utils/rbac'
 import type { RbacTable } from './runtime/utils/rbac'
 import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from './types'
 
@@ -187,7 +187,7 @@ export default defineNuxtModule<ModuleOptions>({
       addServerPlugin(resolver.resolve('./runtime/server/plugins/rbac'))
 
       // The roles admin: read-only views of the table, for staff holding `roles:read` (admin only unless granted).
-      addAuthScope(nuxt, { name: 'roles:read', description: 'See the roles and what each may do (staff)' })
+      addAuthScope(nuxt, { name: AUTHORIZATION_ROLES_READ_SCOPE, description: 'See the roles and what each may do (staff)' })
       addModuleRoutes(resolver, [
         { method: 'get', path: 'roles', file: 'admin/roles.get' },
         { method: 'get', path: 'roles/:name', file: 'admin/role.get' },
