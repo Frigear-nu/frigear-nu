@@ -171,8 +171,11 @@ describe('compileRbac: strict validation', () => {
     expect(errorsOf({ revoke: { admin: ['tickets:read'] } })).toContain('revoke.admin has no effect')
   })
 
-  it('stops on a revoke of a permission the role does not hold', () => {
-    expect(errorsOf({ revoke: { user: ['forms:manage'] } })).toContain('revoke.user takes away "forms:manage", which "user" does not hold')
+  it('only warns about a revoke of a permission the role does not hold', () => {
+    const result = compileRbac({ scopes, config: { revoke: { user: ['forms:manage'] } } })
+    expect(result.errors).toEqual([])
+    expect(result.warnings.join('\n')).toContain('revoke.user takes away "forms:manage", which "user" does not hold: it has no effect')
+    expect(role(result, 'user').permissions).not.toContain('forms:manage')
   })
 
   it('revokes a permission that arrives through two inheritance paths', () => {

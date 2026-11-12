@@ -276,7 +276,8 @@ export function compileRbac(input: { scopes: RbacScope[], moduleRoles?: RbacRole
           errors.push(`authorization.roles.revoke.${name} takes away "${permission}", but "${name}" still holds it through "${wildcard}". Grant "${name}" the specific permissions it should have instead of "${wildcard}".`)
         }
         else if (!held && isKnownPermission(permission, registered)) {
-          errors.push(`authorization.roles.revoke.${name} takes away "${permission}", which "${name}" does not hold. Remove it from revoke.`)
+          // Harmless, and expected for a defensive revoke or a permission only some module options give out.
+          warnings.push(`authorization.roles.revoke.${name} takes away "${permission}", which "${name}" does not hold: it has no effect.`)
         }
       }
     }
