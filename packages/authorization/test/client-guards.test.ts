@@ -20,7 +20,7 @@ describe('client mode: guards', () => {
     expect(resolveRule(routes, '/login', exempt)).toBeUndefined()
     expect(resolveRule(routes, '/auth/callback', exempt)).toBeUndefined()
     expect(resolveRule(routes, '/', exempt)).toEqual({ authenticated: true })
-    expect(resolveRule(routes, '/admin/users', exempt)).toEqual({ authenticated: true, roles: ['admin'] })
+    expect(resolveRule(routes, '/admin/users', exempt)).toEqual({ authenticated: true, permission: 'admin:access' })
     // `definePageMeta({ authorize })` reaches `pages:resolved` (Mobile's no-guard warning reads it).
     expect(nuxt.options.experimental.extraPageMetaExtractionKeys).toContain('authorize')
     await nuxt.close()
@@ -51,10 +51,10 @@ describe('client mode: guards', () => {
       cwd: fixture,
       dev: false,
       ready: true,
-      overrides: { routeRules: { '/auth/callback': { roles: ['admin'] } as never } },
+      overrides: { routeRules: { '/auth/callback': { permission: 'admin:access' } as never } },
     })
     const { routes, exempt } = nuxt.options.runtimeConfig.public.authorization as { routes: Record<string, RouteRule>, exempt: string[] }
-    expect(resolveRule(routes, '/auth/callback', exempt)).toEqual({ roles: ['admin'] })
+    expect(resolveRule(routes, '/auth/callback', exempt)).toEqual({ permission: 'admin:access' })
     expect(resolveRule(routes, '/login', exempt)).toBeUndefined()
     await nuxt.close()
   })

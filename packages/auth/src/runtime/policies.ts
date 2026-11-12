@@ -1,6 +1,6 @@
 // `@frigear-nu/auth/policies`: framework-free, so a `shared/policies.ts` file can import it from the app, the server
 // and a resource server alike. No Nuxt, Vue, h3 or database imports belong here.
-export { defineSharedPolicy, runSharedPolicies } from './utils/permissions'
+export { combinePolicies, defineSharedPolicy, hasPolicyRecord, runSharedPolicies } from './utils/permissions'
 export type {
   AccessDto,
   DefinePolicy,

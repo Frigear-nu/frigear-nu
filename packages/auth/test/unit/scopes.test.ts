@@ -70,20 +70,20 @@ describe('isGrantableScope', () => {
 })
 
 describe('principalHasScopes', () => {
-  it('needs only the scopes without a ceiling (no access control)', () => {
+  it('needs only the scopes without frozen permissions (a session\'s held grants)', () => {
     expect(principalHasScopes({ scopes: ['*'] }, ['events:manage'])).toBe(true)
   })
 
-  it('caps a credential at its user\'s current permissions', () => {
-    const token = { scopes: ['events:*'], ceiling: ['tickets:read'] }
+  it('caps a bearer at its permissions (frozen, or within its user\'s now)', () => {
+    const token = { scopes: ['events:*'], permissions: ['tickets:read'] }
     expect(principalHasScopes(token, ['events:manage'])).toBe(false)
-    expect(principalHasScopes({ ...token, ceiling: ['events:*'] }, ['events:manage'])).toBe(true)
-    expect(principalHasScopes({ scopes: ['*'], ceiling: ['tickets:read'] }, ['tickets:read'])).toBe(true)
-    expect(principalHasScopes({ scopes: ['*'], ceiling: ['tickets:read'] }, ['tickets:write'])).toBe(false)
+    expect(principalHasScopes({ ...token, permissions: ['events:manage'] }, ['events:manage'])).toBe(true)
+    expect(principalHasScopes({ scopes: ['*'], permissions: ['tickets:read'] }, ['tickets:read'])).toBe(true)
+    expect(principalHasScopes({ scopes: ['*'], permissions: ['tickets:read'] }, ['tickets:write'])).toBe(false)
   })
 
-  it('keeps :pii out of wildcards on both sides', () => {
-    expect(principalHasScopes({ scopes: ['events:pii'], ceiling: ['*'] }, ['events:pii'])).toBe(false)
-    expect(principalHasScopes({ scopes: ['events:pii'], ceiling: ['events:pii'] }, ['events:pii'])).toBe(true)
+  it('keeps :pii out of wildcards', () => {
+    expect(principalHasScopes({ scopes: ['*'], permissions: ['events:pii'] }, ['events:pii'])).toBe(false)
+    expect(principalHasScopes({ scopes: ['events:pii'], permissions: ['events:pii'] }, ['events:pii'])).toBe(true)
   })
 })

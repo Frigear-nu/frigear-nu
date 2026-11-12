@@ -1,57 +1,54 @@
+import type { AuthRoleSource, RoleDefinition } from '@frigear-nu/auth/utils'
 import type { AuthorizeMeta, RouteRule } from './runtime/utils/types'
-import type { RbacConfig, RbacGrant, RbacRoleSource } from './runtime/utils/rbac'
 
-export type { Ability, AbilityArgs, AuthorizeMeta, RouteRule, AuthorizationResponse } from './runtime/utils/types'
-export type { RbacConfig, RbacGrant, RbacRole, RbacRoleInput, RbacRoleSource, RbacTable } from './runtime/utils/rbac'
+export type { AuthorizeMeta, AuthorizationResponse, RouteRule } from './runtime/utils/types'
+
+/** A host role (`authorization.roles[name]`). */
+export interface AuthorizationRoleOptions extends RoleDefinition {
+  /** Drop a module's role of the same name (and the module grants into it) instead of merging into it. */
+  replace?: boolean
+}
 
 export interface ModuleOptions {
   /**
-   * Path to the file whose exports are the app's abilities (`defineAbility(...)`). Required to refer to
-   * abilities by name in `routes`/`definePageMeta`. Defaults to `shared/utils/abilities.ts` (auto-imported in app and server) or `shared/abilities.ts`.
+   * The app's roles: what each grants (`grant`, permission names or wildcards; `*` never covers sensitive permissions),
+   * the roles it inherits (`inherit`), `requirements` that must hold for it to count and `auto` (held by everyone who
+   * meets the requirements). A role defined here merges into a module's role of the same name: its label,
+   * description, requirements and `auto` win, `grant` and `inherit` are unioned. `replace: true` drops the module's
+   * definition (and the module grants into it) instead.
+   *
+   * ```ts
+   * roles: {
+   *   admin: { label: 'Admin', grant: ['*'] },
+   *   editor: { label: 'Editor', grant: ['posts:*'], inherit: ['user'] },
+   *   user: { label: 'User', grant: ['posts:read'] },
+   * }
+   * ```
    */
-  abilities?: string
-  /** Override how the user is resolved (paths to default-export functions). Defaults to the session user. */
-  resolvers?: {
-    /** `(event: H3Event) => User | null | Promise<User | null>` */
-    server?: string
-    /** `() => User | null | Promise<User | null>` - runs in the app (client and SSR). */
-    client?: string
-  }
+  roles?: Record<string, AuthorizationRoleOptions>
+  /** Roles every signed-in user holds (never `auto` roles). They cannot be assigned. */
+  defaultRoles?: string[]
   /**
    * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
    * server mode, or set `false` in client mode, to show a 401 error instead.
    */
   redirectTo?: string | false
   /**
-   * Role-based access control: roles hold permissions (the scopes modules register), senior roles inherit their
-   * juniors', and every credential acts within its user's role. Sessions then hold their role's permissions instead
-   * of everything, staff checks follow the role, and users only see the scopes they hold. Built-in roles: `admin`
-   * (everything) above `user`; modules add theirs. Defaults to `false` for now (it will become the default).
+   * The host's policy files. `shared` (`defineSharedPolicy` from `@frigear-nu/auth/policies`) runs on the server and in
+   * the client's `can()`; `server` (`definePolicy`) only on the server. Paths are relative to the app root. Defaults to
+   * `shared/policies.ts` and `server/policies.ts` when they exist; `false` turns a file off.
    */
-  rbac?: boolean
-  /** Shapes the roles (with `rbac`): hierarchy, extra grants, revokes, labels, the default role. */
-  roles?: RbacConfig
-}
-
-/** `GET /api/authorization/me/permissions`. */
-export interface AuthorizationPermissionsDto {
-  /** `null` without `rbac`. */
-  role: { name: string, label: string } | null
-  /** Scope names and `resource:*` wildcards; `['*']` without `rbac`. */
-  permissions: string[]
-}
-
-/** The role → permission table the app sees (`rbac` on), most senior role first. */
-export interface PublicRbacTable {
-  defaultRole: string
-  roles: { name: string, label: string, permissions: string[] }[]
+  policies?: {
+    shared?: string | false
+    server?: string | false
+  }
 }
 
 /**
- * Authorization keys that go directly on a `routeRules` entry. Ability names refer to exports of the abilities
- * file and take no arguments.
+ * Authorization keys that go directly on a `routeRules` entry: `permission`, `authenticated`, `guest`. Auth's server
+ * middleware enforces them for `/api/**`, the page middleware for pages.
  */
-export type AuthorizationRouteRules = Omit<RouteRule, 'args' | 'ability'> & { ability?: string }
+export type AuthorizationRouteRules = RouteRule
 
 export interface PublicModuleOptions {
   /** The authorization keys of `routeRules`, collected at build time. */
@@ -59,47 +56,73 @@ export interface PublicModuleOptions {
   /** Auth's anonymous entry points (`public.authentication.publicPaths`): less specific guards stop there. */
   exempt?: string[]
   redirectTo?: string
-  /** Set with `rbac`: what each role may do, for `can()` and `<Can permission>`. */
-  rbac?: PublicRbacTable
-  /** The admin pages (`rbac` with `@frigear-nu/admin`). */
+  /** Client mode: there is no server here, access comes from the issuer. */
+  client?: boolean
+  /** The admin pages (with `@frigear-nu/admin`). */
   pages?: { roles?: string }
 }
 
-/** One role of `GET /api/admin/authorization/roles`, most senior first. */
+/** Why a role holds a permission (`null` when it does not). */
+export type AuthorizationPermissionGrant
+  = | { via: 'granted', by: string }
+    | { via: 'inherited', from: string, by: string }
+    | { via: 'implicit' }
+
+/** One role of `GET /api/admin/authorization/roles`. */
 export interface AuthorizationRoleSummaryDto {
   name: string
   label: string
+  labelKey: string | null
   description: string | null
-  source: RbacRoleSource
-  /** Direct juniors: the roles whose permissions this one inherits. */
-  inherits: string[]
-  /** Position in the hierarchy, 0 is the most senior. */
-  rank: number
-  /** Whether users with an unknown stored role act as this one. */
-  isDefault: boolean
-  /** Users whose stored role is this one. */
+  descriptionKey: string | null
+  /** Direct parents. */
+  inherit: string[]
+  /** Every role it inherits, transitively. */
+  inherited: string[]
+  /** Names of its requirements (`subscription`). */
+  requirements: string[]
+  /** Held by everyone who meets the requirements; never assigned. */
+  auto: boolean
+  /** Held by every signed-in user (`defaultRoles`); never assigned. */
+  default: boolean
+  assignable: boolean
+  /** Users with an assigned row (default and `auto` roles are never stored: 0). */
   userCount: number
-  /** Registered permissions the role holds (directly, inherited or through a wildcard). */
+  /** Registered permissions it holds, inheritance included. */
   permissionCount: number
 }
 
-/** A permission as one role sees it. */
+/** A registered permission as one role sees it. */
 export interface AuthorizationRolePermissionDto {
-  /** A registered scope, or a wildcard (`*`, `resource:*`) the role holds. */
   name: string
+  label: string | null
+  labelKey: string | null
   description: string | null
-  /** Personal data (`:pii`): never covered by a wildcard. */
-  pii: boolean
-  /** The part before the first `:` (`*` for the full wildcard). */
-  resource: string
-  wildcard: boolean
-  /** Why the role holds it; `null` when it does not. */
-  grant: RbacGrant | null
+  descriptionKey: string | null
+  group: string
+  /** Never covered by a wildcard: only held when granted by name. */
+  sensitive: boolean
+  /** Only a cookie session may use it. */
+  sessionOnly: boolean
+  /** Every signed-in user holds it. */
+  implicit: boolean
+  grant: AuthorizationPermissionGrant | null
+  /** Where the role's grant of it comes from (host config, a module, a module's `grantTo`, an inherited role). */
+  sources: AuthorizationPermissionSource[]
+}
+
+/** Provenance of a role's permission, as auth compiled it. */
+export interface AuthorizationPermissionSource {
+  via: 'host' | 'module' | 'grantTo' | 'inherit'
+  /** The module name (`module`, `grantTo`) or role name (`inherit`). */
+  from?: string
 }
 
 /** `GET /api/admin/authorization/roles/:name`. */
 export interface AuthorizationRoleDto extends AuthorizationRoleSummaryDto {
-  /** Every registered permission (held or not), then the wildcards the role holds. */
+  /** Its own grants, as configured. */
+  grant: string[]
+  /** Every registered permission, held or not. */
   permissions: AuthorizationRolePermissionDto[]
 }
 
@@ -108,6 +131,9 @@ export interface AuthorizationRoleUserDto {
   id: number
   name: string
   email: string
+  source: AuthRoleSource
+  /** ISO date. */
+  assignedAt: string
 }
 
 /** `GET /api/admin/authorization/roles/:name/users`. */
@@ -118,47 +144,38 @@ export interface AuthorizationRoleUsersPageDto {
   pageSize: number
 }
 
-/** `GET /api/admin/authorization/permissions`: every registered permission against every role. */
-export interface AuthorizationPermissionMatrixDto {
-  roles: { name: string, label: string }[]
-  permissions: {
-    name: string
-    description: string | null
-    pii: boolean
-    resource: string
-    /** Per role name: why it holds the permission, or `null`. */
-    holders: Record<string, RbacGrant | null>
-  }[]
+/** A stored role of a user. */
+export interface AuthorizationAssignedRoleDto {
+  role: string
+  source: AuthRoleSource
+  grantedBy: number | null
+  /** ISO date. */
+  assignedAt: string
+  /** `false`: the role is not configured (any more); it is kept and ignored. */
+  known: boolean
 }
 
-/** The `authorization:authorize` Nitro hook: the staff gate of the roles admin (`roles:read`). */
-export interface AuthorizationAuthorizeContext {
-  event: import('h3').H3Event
+/** `GET` / `PUT /api/admin/authorization/users/:id/roles`. */
+export interface AuthorizationUserRolesDto {
   userId: number
-  /** Starts as whether the user's role holds `roles:read`; set it to change the decision. */
-  allowed: boolean
+  /** The stored rows: `manual` and `migrated` ones are the admin's to change, `sso` ones follow single sign-on. */
+  assigned: AuthorizationAssignedRoleDto[]
+  /** Effective roles: assigned, default, `auto` and hook roles whose requirements hold, inheritance included. */
+  effective: string[]
+  /** Registered permissions the effective roles hold (implicit ones included; `authorization:before` not applied). */
+  permissions: string[]
+  /** Roles the caller may assign (they hold every permission of each); empty without `roles:assign`. */
+  assignable: string[]
+}
+
+/** `PUT /api/admin/authorization/users/:id/roles`: the roles the user should hold through assignment. */
+export interface AuthorizationUserRolesInput {
+  roles: string[]
 }
 
 declare module 'nitropack' {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- merges the authorization keys into route rules
   interface NitroRouteConfig extends AuthorizationRouteRules {}
-}
-
-/** The `authorization:role` Nitro hook: the role a user acts as. Change `ctx.role` (e.g. an email allowlist of admins). */
-export interface AuthorizationRoleContext {
-  event: import('h3').H3Event
-  /** The user as stored. */
-  user: { id: number, role?: string | null, email?: string, emailVerifiedAt?: Date | null, [key: string]: unknown }
-  /** Starts as `user.role`; an unknown role acts as the default role. */
-  role: string | null | undefined
-}
-
-declare module 'nitropack' {
-  interface NitroRuntimeHooks {
-    'authorization:role': (ctx: AuthorizationRoleContext) => void | Promise<void>
-    /** Staff gate of the roles admin: starts as whether the user holds `roles:read`. */
-    'authorization:authorize': (ctx: AuthorizationAuthorizeContext) => void | Promise<void>
-  }
 }
 
 declare module 'nitropack/types' {
@@ -168,6 +185,7 @@ declare module 'nitropack/types' {
 
 declare module '#app' {
   interface PageMeta {
+    /** A permission, a rule (`{ permission, authenticated, guest }`) or `false` to open the page. */
     authorize?: AuthorizeMeta
   }
 }

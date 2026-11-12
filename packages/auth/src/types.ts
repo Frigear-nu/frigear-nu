@@ -23,6 +23,7 @@ export interface AuthResolverDefinition {
   order?: number
 }
 
+/** @deprecated — removed in phase 2. Use `PermissionDefinition` (`addPermission`). */
 export interface AuthScopeDefinition {
   name: string
   description?: string
@@ -47,7 +48,8 @@ export interface AuthScopeDefinition {
 }
 
 /**
- * A role a module ships (`addAuthRole`), merged with the built-in and the host's roles by `@frigear-nu/authorization`.
+ * A role a module ships (`addAuthRole`).
+ * @deprecated — removed in phase 2. Use `addRole` with a `RoleDefinition`.
  */
 export interface AuthRoleDefinition {
   /** Stored in `users.role`. */
@@ -62,24 +64,23 @@ export interface AuthRoleDefinition {
   permissions?: string[]
 }
 
-/** The `auth:user-permissions` Nitro hook: what a user may do, decided by the access-control module. */
-export interface AuthUserPermissionsContext {
-  event: import('h3').H3Event
-  /** The user as stored (with `role` when `@frigear-nu/authorization` adds it). */
-  user: { id: number, role?: string | null, [key: string]: unknown }
-  /**
-   * Starts `null`: no access control, the user may do everything (`*`). A listener sets the user's permissions
-   * (scope names and `resource:*` wildcards); every credential of the user is then capped by them.
-   */
-  permissions: string[] | null
+/** A scope a token can be given, as `GET /api/auth/scopes` lists it. */
+export interface AuthScopeDto {
+  name: string
+  label?: string
+  labelKey?: string
+  description?: string
+  descriptionKey?: string
 }
 
-export interface AuthScopeAvailabilityContext {
-  event: import('h3').H3Event
-  user: { id: number, role?: string }
-  scope: AuthScopeDefinition
-  /** Starts `true`; set it to `false` to hide the scope from this user and refuse it on new tokens. */
-  available: boolean
+/** The access route rules auth enforces on `/api/**` (and `@frigear-nu/authorization` on pages). */
+export interface AuthRouteRules {
+  /** The permission the caller must hold (`authorize`). Unknown permissions fail the build. */
+  permission?: string
+  /** Any signed-in caller. */
+  authenticated?: boolean
+  /** Only signed-out callers (an API route answers 403 `guest_only`). */
+  guest?: boolean
 }
 
 /**
@@ -120,6 +121,8 @@ export interface AuthTokenDto {
   prefix: string
   last4: string
   scopes: string[]
+  /** The permissions frozen when it was minted (its scopes within its user's permissions); `null` for older tokens. */
+  permissions: string[] | null
   expiresAt: string | null
   lastUsedAt: string | null
   createdAt: string
@@ -299,7 +302,11 @@ export interface ModuleOptions {
   tokenTtlDays?: number | null
   /** Path to a module whose default export is an `AuthUserStore` (overrides the one registered by `@frigear-nu/users`). */
   userStore?: string
-  /** Scopes registered by the host application. Modules register theirs with `addAuthScope`. */
+  /**
+   * Permissions registered by the host application (`resource:action`). Modules register theirs with `addPermission`.
+   */
+  permissions?: import('./runtime/utils/permissions').PermissionDefinition[]
+  /** @deprecated — removed in phase 2. Use `permissions`. */
   scopes?: AuthScopeDefinition[]
   settings?: AuthSettings
 }

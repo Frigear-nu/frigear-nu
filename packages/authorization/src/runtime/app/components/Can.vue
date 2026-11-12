@@ -1,37 +1,22 @@
-<script lang="ts" setup generic="A extends Ability">
-import type { Ability, AbilityArgs } from '../../utils'
-import { allows, can as holds } from '../composables/useAuthorization'
-import { ref, watchEffect } from '#imports'
+<script lang="ts" setup generic="R">
+import { useAuthorization } from '../composables/useAuthorization'
+import { computed } from '#imports'
 
+// Renders the default slot when the visitor holds `permission` (and the shared policies allow `record`), else the
+// `fallback` slot. For what the UI shows: the API decides what is allowed.
 const props = defineProps<{
-  /** One ability, or several that must all pass. */
-  ability?: A | A[]
-  /** Arguments for the ability (an array of argument arrays when `ability` is an array). */
-  args?: AbilityArgs<A> | AbilityArgs<A>[]
-  /** Permissions the user's role must hold (role-based access control), checked with `ability` when both are set. */
-  permission?: string | string[]
+  /** A registered permission (`events:update`). */
+  permission: string
+  /** The record shared policies decide on. */
+  record?: R
 }>()
 
-async function resolve() {
-  if (props.permission !== undefined && !(await holds(props.permission))) return false
-  if (props.ability === undefined) return props.permission !== undefined
-  if (Array.isArray(props.ability)) {
-    const results = await Promise.all(props.ability.map((ability, index) => allows(ability, ...((props.args as unknown[][] | undefined)?.[index] ?? []) as AbilityArgs<A>)))
-    return results.every(Boolean)
-  }
-  return allows(props.ability, ...((props.args ?? []) as AbilityArgs<A>))
-}
-
-const can = ref(await resolve())
-
-// `watchEffect` does not run on the server, hence the initial value above.
-watchEffect(async () => {
-  can.value = await resolve()
-})
+const { can } = useAuthorization()
+const allowed = computed(() => can(props.permission, props.record))
 </script>
 
 <template>
-  <slot v-if="can" />
+  <slot v-if="allowed" />
   <slot
     v-else
     name="fallback"

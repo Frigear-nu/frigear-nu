@@ -43,6 +43,11 @@ export interface PermissionDefinition {
   implicit?: boolean
   /** Old names that, when held, also hold this permission. Expanded on the held side only. */
   aliases?: string[]
+  /**
+   * Roles a module grants this permission to by default (by name; roles inheriting them get it too). A role that is
+   * not configured is skipped (a build note), as is a host role defined with `replace: true`.
+   */
+  grantTo?: string[]
 }
 
 /** A registered permission with its defaults applied. */
@@ -58,6 +63,8 @@ export interface ResolvedPermission {
   sessionOnly: boolean
   implicit: boolean
   aliases: string[]
+  /** Roles it is granted to by default (`grantTo`), unioned over every registration. */
+  grantTo: string[]
 }
 
 export interface PermissionRegistry {
@@ -71,6 +78,8 @@ export interface BuildResult<T> {
   value: T
   /** Human-readable build errors. A module throws when there are any. */
   errors: string[]
+  /** Notes that are no error (a `grantTo` naming a role that is not configured). */
+  warnings?: string[]
 }
 
 /** An own entry of a lookup table, so runtime strings like `constructor` never resolve to `Object.prototype` members. */
@@ -120,6 +129,7 @@ export function resolvePermission(definition: PermissionDefinition): ResolvedPer
     sessionOnly: definition.sessionOnly ?? false,
     implicit: definition.implicit ?? false,
     aliases: [...new Set(definition.aliases ?? [])],
+    grantTo: [...new Set(definition.grantTo ?? [])],
   }
 }
 
@@ -152,6 +162,7 @@ export function createPermissionRegistry(definitions: readonly PermissionDefinit
         // The resource is only a default group: keep an explicit group unless this definition names one.
         group: definition.group ?? previous.group,
         aliases: [...new Set([...previous.aliases, ...next.aliases])],
+        grantTo: [...new Set([...previous.grantTo, ...next.grantTo])],
       } as ResolvedPermission
       continue
     }
@@ -224,6 +235,8 @@ export interface ScopeDefinition {
   description?: string
   descriptionKey?: string
   icon?: string
+  /** The service (module) the scope belongs to, for grouping on consent and token screens. */
+  service?: string
   /** Permission names or wildcards. Never sensitive or `sessionOnly` permissions. */
   permissions?: string[]
   /** Bumped when `permissions` grows, so users are asked to consent again. */
@@ -318,7 +331,7 @@ export interface CompiledRole {
   labelKey?: string
   description?: string
   descriptionKey?: string
-  /** The role's own grants, as configured. */
+  /** The role's own grants: host and module definitions, plus permissions granted to it (`grantTo`). */
   grant: string[]
   /** Direct parents. */
   inherit: string[]
@@ -331,6 +344,33 @@ export interface CompiledRole {
   /** A default role (`defaultRoles`): every signed-in user holds it. */
   default: boolean
   assignable: boolean
+  /** Where each of `permissions` comes from: one entry per source (a role may get a permission several ways). */
+  provenance: Record<string, RoleGrantOrigin[]>
+}
+
+/** How a role came to hold a permission. */
+export type RoleGrantVia = 'host' | 'module' | 'grantTo' | 'inherit'
+
+export interface RoleGrantOrigin {
+  via: RoleGrantVia
+  /** The module (`module`, and `grantTo` when known) or the inherited role (`inherit`). */
+  from?: string
+}
+
+/**
+ * One definition of a role: from the host (`authorization.roles`) or a module (`addRole`). Module definitions of one
+ * name are merged (grants and parents unioned, the first label wins, differing requirements or `auto` fail the build).
+ * A host definition merges into them (its label, description, requirements, `auto` and `assignable` win; grants and
+ * parents are unioned), unless `replace: true`, which drops the module definitions and the `grantTo` grants.
+ */
+export interface RoleContribution extends RoleDefinition {
+  name: string
+  /** Defaults to `module`. */
+  source?: 'host' | 'module'
+  /** The contributing module's name, shown as provenance. */
+  from?: string
+  /** Host only: replace the module definitions instead of merging into them. */
+  replace?: boolean
 }
 
 export interface RoleTable {
@@ -341,28 +381,125 @@ export interface RoleTable {
 }
 
 export interface CompileRolesInput {
-  roles: Readonly<Record<string, RoleDefinition>>
+  /** Roles as the host defines them (each one a host contribution). */
+  roles?: Readonly<Record<string, RoleDefinition>>
+  /** Host and module definitions to merge (`RoleContribution`). */
+  contributions?: readonly RoleContribution[]
   defaultRoles?: readonly string[]
   registry: PermissionRegistry
   /** Names of the registered role requirements (`addRoleRequirement`). */
   requirementNames?: readonly string[]
 }
 
+interface MergedRoles {
+  roles: Record<string, RoleDefinition>
+  /** Each role's own grants with where they came from. */
+  origins: Record<string, Array<{ grant: string } & RoleGrantOrigin>>
+  /** Roles a host defined with `replace: true`. */
+  replaced: Set<string>
+  errors: string[]
+}
+
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+/** Merges host and module role definitions (see `RoleContribution`). */
+export function mergeRoleContributions(contributions: readonly RoleContribution[]): MergedRoles {
+  const errors: string[] = []
+  const byName = new Map<string, RoleContribution[]>()
+  for (const contribution of contributions) {
+    if (!contribution?.name) {
+      errors.push('A role was defined without a name.')
+      continue
+    }
+    const list = byName.get(contribution.name) ?? []
+    list.push(contribution)
+    byName.set(contribution.name, list)
+  }
+  const roles: Record<string, RoleDefinition> = {}
+  const origins: MergedRoles['origins'] = {}
+  const replaced = new Set<string>()
+  for (const [name, list] of byName) {
+    const hosts = list.filter(c => c.source === 'host')
+    const replacing = hosts.some(c => c.replace)
+    const modules = replacing ? [] : list.filter(c => c.source !== 'host')
+    if (replacing) replaced.add(name)
+    const merged: RoleDefinition = { grant: [], inherit: [] }
+    const own: Array<{ grant: string } & RoleGrantOrigin> = []
+    let requirementsFrom: string | undefined
+    let autoFrom: string | undefined
+    for (const module of modules) {
+      merged.label ??= module.label
+      merged.labelKey ??= module.labelKey
+      merged.description ??= module.description
+      merged.descriptionKey ??= module.descriptionKey
+      merged.assignable ??= module.assignable
+      if (module.requirements !== undefined) {
+        if (merged.requirements !== undefined && !sameValue(merged.requirements, module.requirements)) {
+          errors.push(`Role "${name}" has different requirements from ${requirementsFrom ?? 'a module'} and ${module.from ?? 'another module'}.`)
+        }
+        else {
+          merged.requirements = module.requirements
+          requirementsFrom = module.from
+        }
+      }
+      if (module.auto !== undefined) {
+        if (merged.auto !== undefined && merged.auto !== module.auto) errors.push(`Role "${name}" is \`auto\` in ${autoFrom ?? 'a module'} but not in ${module.from ?? 'another module'}.`)
+        else {
+          merged.auto = module.auto
+          autoFrom = module.from
+        }
+      }
+      merged.inherit!.push(...(module.inherit ?? []))
+      for (const grant of module.grant ?? []) own.push({ grant, via: 'module', ...(module.from && { from: module.from }) })
+    }
+    for (const host of hosts) {
+      for (const key of ['label', 'labelKey', 'description', 'descriptionKey', 'assignable', 'requirements', 'auto'] as const) {
+        if (host[key] !== undefined) (merged as Record<string, unknown>)[key] = host[key]
+      }
+      merged.inherit!.push(...(host.inherit ?? []))
+      for (const grant of host.grant ?? []) own.push({ grant, via: 'host' })
+    }
+    merged.inherit = [...new Set(merged.inherit)]
+    merged.grant = [...new Set(own.map(entry => entry.grant))]
+    roles[name] = merged
+    origins[name] = own
+  }
+  return { roles, origins, replaced, errors }
+}
+
 /** Builds the role table and reports every configuration error at once. */
 export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
   const { registry } = input
-  const errors: string[] = []
+  const merged = mergeRoleContributions([
+    ...(input.contributions ?? []),
+    ...Object.entries(input.roles ?? {}).map(([name, role]) => ({ ...role, name, source: 'host' as const })),
+  ])
+  const errors: string[] = [...merged.errors]
+  const warnings: string[] = []
+  const roles = merged.roles
+  // Default grants of permissions (`grantTo`), into roles that exist and were not replaced by the host.
+  for (const permission of Object.values(registry.permissions)) {
+    for (const role of permission.grantTo ?? []) {
+      if (!Object.hasOwn(roles, role)) {
+        warnings.push(`Permission "${permission.name}" is granted to the role "${role}", which is not configured: skipped.`)
+        continue
+      }
+      if (merged.replaced.has(role)) continue
+      merged.origins[role]!.push({ grant: permission.name, via: 'grantTo' })
+      if (!roles[role]!.grant!.includes(permission.name)) roles[role]!.grant!.push(permission.name)
+    }
+  }
   const requirementNames = new Set(input.requirementNames ?? [])
   const defaultRoles = [...new Set(input.defaultRoles ?? [])]
-  const names = Object.keys(input.roles)
+  const names = Object.keys(roles)
 
   for (const name of defaultRoles) {
-    if (!Object.hasOwn(input.roles, name)) errors.push(`Default role "${name}" is not defined.`)
-    else if (input.roles[name]!.auto) errors.push(`Role "${name}" is \`auto\` and cannot be a default role.`)
+    if (!Object.hasOwn(roles, name)) errors.push(`Default role "${name}" is not defined.`)
+    else if (roles[name]!.auto) errors.push(`Role "${name}" is \`auto\` and cannot be a default role.`)
   }
 
   for (const name of names) {
-    const role = input.roles[name]!
+    const role = roles[name]!
     if (!NAMED_SCOPE_PATTERN.test(name)) errors.push(`Role name "${name}" must be lower case without a colon.`)
     for (const grant of role.grant ?? []) {
       const invalid = validateGrant(grant)
@@ -372,10 +509,14 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
       }
     }
     for (const parent of role.inherit ?? []) {
-      if (!Object.hasOwn(input.roles, parent)) errors.push(`Role "${name}" inherits "${parent}", which is not defined.`)
+      if (!Object.hasOwn(roles, parent)) errors.push(`Role "${name}" inherits "${parent}", which is not defined.`)
     }
     for (const requirement of Object.keys(role.requirements ?? {})) {
       if (!requirementNames.has(requirement)) errors.push(`Role "${name}" has the unknown requirement "${requirement}".`)
+    }
+    // An `auto` role is held by everyone meeting its requirements: without any, it would be held by everyone.
+    if (role.auto && !Object.keys(role.requirements ?? {}).length) {
+      errors.push(`Role "${name}" is \`auto\` but has no requirements: list them, or make it a default role.`)
     }
   }
 
@@ -384,8 +525,8 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
   const reportedCycles = new Set<string>()
   const visit = (name: string, path: string[]): Set<string> => {
     const result = new Set<string>()
-    for (const parent of input.roles[name]?.inherit ?? []) {
-      if (!Object.hasOwn(input.roles, parent)) continue
+    for (const parent of roles[name]?.inherit ?? []) {
+      if (!Object.hasOwn(roles, parent)) continue
       if (parent === path[0] || path.includes(parent)) {
         const cycle = [...path.slice(path.indexOf(parent)), parent]
         const key = [...new Set(cycle)].sort().join(',')
@@ -406,13 +547,13 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
     closures[name] = [...closure].sort()
   }
 
-  const roles: Record<string, CompiledRole> = {}
+  const compiledRoles: Record<string, CompiledRole> = {}
   for (const name of names) {
-    const role = input.roles[name]!
+    const role = roles[name]!
     const isDefault = defaultRoles.includes(name)
     const auto = role.auto ?? false
-    const grants = [name, ...closures[name]!].flatMap(member => input.roles[member]?.grant ?? [])
-    roles[name] = {
+    const grants = [name, ...closures[name]!].flatMap(member => roles[member]?.grant ?? [])
+    compiledRoles[name] = {
       name,
       label: role.label ?? name,
       labelKey: role.labelKey,
@@ -426,16 +567,36 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
       auto,
       default: isDefault,
       assignable: !auto && !isDefault && (role.assignable ?? true),
+      provenance: {},
+    }
+  }
+
+  // Where each permission of a role comes from: its own grants (host, module, grantTo), then the roles it inherits.
+  for (const name of names) {
+    const compiled = compiledRoles[name]!
+    for (const permission of compiled.permissions) {
+      const list: RoleGrantOrigin[] = []
+      const add = (origin: RoleGrantOrigin) => {
+        if (!list.some(entry => entry.via === origin.via && entry.from === origin.from)) list.push(origin)
+      }
+      for (const { grant, ...origin } of merged.origins[name] ?? []) {
+        if (holds([grant], permission, registry)) add(origin)
+      }
+      for (const parent of compiled.inherited) {
+        if (holds(roles[parent]?.grant ?? [], permission, registry)) add({ via: 'inherit', from: parent })
+      }
+      compiled.provenance[permission] = list
     }
   }
 
   return {
     value: {
-      roles,
-      defaultRoles: defaultRoles.filter(name => Object.hasOwn(roles, name)),
-      autoRoles: names.filter(name => roles[name]!.auto),
+      roles: compiledRoles,
+      defaultRoles: defaultRoles.filter(name => Object.hasOwn(compiledRoles, name)),
+      autoRoles: names.filter(name => compiledRoles[name]!.auto),
     },
     errors,
+    warnings,
   }
 }
 
@@ -648,11 +809,17 @@ export function roleScopeCap(roles: readonly string[], roleScopes?: Readonly<Rec
   return [...new Set(roles.flatMap(role => own(roleScopes, role) ?? []))].sort()
 }
 
+/**
+ * Whether `scope` lies within a `roleScopes` cap. Wildcards in the cap match as they do everywhere else: `*` and
+ * `resource:*` never cover a sensitive permission, so a sensitive scope is only within a cap that names it. A named
+ * scope without permissions (`openid`) is within a cap that names it or holds `*`.
+ */
 function withinCap(scope: string, cap: readonly string[], ctx: ScopeGrantContext): boolean {
-  if (cap.includes(scope) || cap.includes(ANY_PERMISSION)) return true
+  if (cap.includes(scope)) return true
   if (own(ctx.namedScopes, scope)) {
     const permissions = expandScopes([scope], ctx.registry, ctx.namedScopes)
-    return permissions.length > 0 && permissions.every(name => holds(cap, name, ctx.registry))
+    if (!permissions.length) return cap.includes(ANY_PERMISSION)
+    return permissions.every(name => holds(cap, name, ctx.registry))
   }
   if (isWildcard(scope)) {
     const permissions = expandScopes([scope], ctx.registry)
@@ -753,19 +920,30 @@ export function defineSharedPolicy<R = unknown, TUser = unknown>(
   return { permission, handler, withoutRecord: options.withoutRecord ?? false, shared: true }
 }
 
+/** Whether a policy check is about a record: `null` counts as no record, like `undefined`. */
+export function hasPolicyRecord(record: unknown): boolean {
+  return record !== undefined && record !== null
+}
+
 /**
  * Runs shared policies synchronously into outcomes for `decide`/`combinePolicies`. A policy that throws or returns a
- * promise (it must be synchronous) counts as `throw`, which denies.
+ * promise (it must be synchronous) counts as `throw`, which denies; a returned promise's rejection is swallowed so it
+ * never surfaces as an unhandled rejection. A `null` record counts as no record.
  */
 export function runSharedPolicies<R, TUser>(
   policies: readonly SharedPolicyDefinition<R, TUser>[],
   ctx: SharedPolicyContext<R, TUser>,
 ): PolicyOutcome[] {
+  const withRecord = hasPolicyRecord(ctx.record)
+  const context = withRecord ? ctx : { ...ctx, record: undefined }
   return policies.map((policy) => {
-    if (ctx.record === undefined && !policy.withoutRecord) return { result: undefined, withoutRecord: false }
+    if (!withRecord && !policy.withoutRecord) return { result: undefined, withoutRecord: false }
     try {
-      const result: unknown = policy.handler(ctx)
+      const result: unknown = policy.handler(context)
       if (result === true || result === false || result === undefined) return { result, withoutRecord: policy.withoutRecord }
+      if (result && typeof (result as { then?: unknown }).then === 'function') {
+        Promise.resolve(result).catch(() => {})
+      }
       return { result: 'throw', withoutRecord: policy.withoutRecord }
     }
     catch {

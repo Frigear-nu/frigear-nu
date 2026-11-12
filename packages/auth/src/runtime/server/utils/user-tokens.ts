@@ -1,11 +1,8 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
-import type { H3Event } from 'h3'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import type { AuthScopeAvailabilityContext, AuthTokenDto } from '../../../types'
-import { scopes as registeredScopes } from '#auth/scopes'
-import { hasScope } from '../../utils/scopes'
+import type { AuthTokenDto } from '../../../types'
 import { tokenStatus } from '../../utils/tokens'
 
 type TokenRow = typeof schema.authUserTokens.$inferSelect
@@ -18,6 +15,7 @@ export function toAuthTokenDto(row: TokenRow): AuthTokenDto {
     prefix: row.prefix,
     last4: row.last4,
     scopes: row.scopes,
+    permissions: row.permissions ?? null,
     expiresAt: isoDate(row.expiresAt),
     lastUsedAt: isoDate(row.lastUsedAt),
     createdAt: isoDate(row.createdAt),
@@ -26,33 +24,6 @@ export function toAuthTokenDto(row: TokenRow): AuthTokenDto {
 }
 
 export const newTokenId = () => `aut_${crypto.randomUUID().replaceAll('-', '')}`
-
-/**
- * The registered scopes this user may pick for a token (or an OAuth client): with access control, only the permissions
- * the user holds (`auth:user-permissions`); without it, those not restricted by `roles` to other roles. Scopes an
- * `auth:scope-available` hook hides are left out too. A failing hook hides the scope.
- */
-export async function availableScopes(event: H3Event, user: { id: number, role?: string }) {
-  const hooks = useNitroApp().hooks
-  const permissions = await getAuthUserPermissions(event, user.id)
-  const result: typeof registeredScopes = []
-  for (const scope of registeredScopes) {
-    if (permissions) {
-      if (!hasScope(permissions, scope.name)) continue
-    }
-    else if (scope.roles?.length && !(user.role && scope.roles.includes(user.role))) continue
-    const ctx: AuthScopeAvailabilityContext = { event, user, scope, available: true }
-    try {
-      await hooks.callHook('auth:scope-available', ctx)
-    }
-    catch (error) {
-      console.error('[auth] scope availability hook failed, hiding scope', scope.name, error)
-      ctx.available = false
-    }
-    if (ctx.available) result.push(scope)
-  }
-  return result
-}
 
 export const createTokenSchema = z.object({
   name: z.string().trim().min(1).max(80),

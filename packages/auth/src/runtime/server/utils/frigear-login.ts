@@ -28,9 +28,9 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   }
 
   const picture = claims.picture
-  // With a role map, frigear.nu decides the role: only from the signed id token (never userinfo), only roles the map
-  // lists, and a missing or unlisted role is the default role.
-  const role = sso.syncRole ? mapRoleClaim(verified, sso.roleMap, sso.defaultRole) : undefined
+  // With a role map, frigear.nu decides the single sign-on roles: only from the signed id token (never userinfo), only
+  // roles the map lists. They replace the user's `sso` role rows; manually assigned roles stay.
+  const roles = sso.syncRole ? mapRoleClaims(verified, sso.roleMap, sso.defaultRole) : undefined
   let user
   try {
     user = await syncFrigearUser({
@@ -39,7 +39,7 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
       name: typeof claims.name === 'string' ? claims.name : undefined,
       picture: typeof picture === 'string' ? picture : undefined,
       emailVerified: claims.email_verified === true,
-      role,
+      roles,
     }, { forceId: sso.forceId })
   }
   catch (error) {

@@ -41,6 +41,10 @@ describe('auth tokens (host prefix)', async () => {
     const me = await call('GET', '/api/test/me', { bearer: created.token })
     expect(me.status, await me.clone().text()).toBe(200)
     expect(await me.json()).toMatchObject({ kind: 'user-token', user: { id: 1 }, scopes: ['events:read'] })
+
+    // Without a role provider, only the implicit permissions count; the token froze them.
+    const access = await call('GET', authApi.me.access, { bearer: created.token })
+    expect(await access.json()).toEqual({ kind: 'user-token', scopes: ['events:read'], permissions: ['events:read'] })
   })
 
   it('no longer claims tokens with the default prefix', async () => {

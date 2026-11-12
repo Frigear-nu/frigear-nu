@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   ],
   devtools: { enabled: true },
   routeRules: {
-    '/admin/**': { roles: ['admin'] },
+    '/admin/**': { authenticated: true },
   },
   compatibilityDate: 'latest',
   hub: {

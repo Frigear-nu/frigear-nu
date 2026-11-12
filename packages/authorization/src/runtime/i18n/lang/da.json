@@ -1,69 +1,103 @@
 {
   "authorization": {
+    "permissions": {
+      "rolesRead": "Se roller",
+      "rolesAssign": "Tildel roller"
+    },
     "admin": {
       "nav": {
         "label": "Roller og rettigheder",
         "description": "Rollerne og hvad hver af dem må."
       },
       "tabs": {
-        "roles": "Roller",
-        "matrix": "Rettighedsmatrix",
         "permissions": "Rettigheder",
-        "users": "Brugere"
+        "users": "Brugere",
+        "userRoles": "Roller og rettigheder"
       },
       "title": "Roller og rettigheder",
-      "description": "Hvad hver rolle må. Højere roller har alt, hvad rollerne under dem har.",
+      "description": "Hvad hver rolle må. Roller kommer fra appens konfiguration; tildel dem på en brugers side.",
       "forbidden": "Du har ikke adgang til roller",
-      "loadFailed": "Rollerne kunne ikke indlæses",
+      "loadFailed": "Rollerne kunne ikke hentes",
       "tryAgain": "Prøv igen",
       "role": "Rolle",
-      "sourceHeader": "Kilde",
+      "kindHeader": "Har den",
       "inherits": "Arver",
       "users": "Brugere",
       "permissions": "Rettigheder",
-      "open": "Åbn",
-      "default": "Standard",
+      "openRole": "Åbn rolle",
+      "noRoles": "Der er ingen roller",
+      "noRolesHint": "Definer dem i `authorization.roles`.",
+      "kind": {
+        "assignable": "Tildelt",
+        "default": "Alle",
+        "auto": "Automatisk",
+        "fixed": "Kan ikke tildeles"
+      },
       "source": {
-        "builtIn": "Indbygget",
-        "module": "Modul",
-        "app": "App"
+        "manual": "Tildelt",
+        "sso": "Single sign-on",
+        "migrated": "Overført"
       },
+      "sourceHeader": "Kilde",
+      "assignedAt": "Tildelt",
       "grant": {
-        "direct": "Direkte",
+        "granted": "Givet",
+        "wildcard": "Givet af {grant}",
         "inherited": "Arvet fra {role}",
-        "aggregated": "Tildelt af modul",
-        "granted": "Tildelt af appen",
-        "all": "Alle rettigheder"
+        "implicit": "Alle loggede ind"
       },
+      "provenance": {
+        "host": "Appens konfiguration",
+        "module": "Modulet {module}",
+        "grantTo": "Standard fra {module}",
+        "inherit": "Arvet fra {role}"
+      },
+      "grantedBy": "Givet af",
       "permission": "Rettighed",
-      "pii": "Persondata",
-      "notHeld": "Ikke tildelt",
-      "noPermissions": "Ingen rettigheder er registreret",
-      "noPermissionsHint": "Moduler registrerer rettigheder, når de installeres.",
-      "wildcardAll": "Alle rettigheder undtagen persondata",
-      "wildcardResource": "Alle {resource}-rettigheder undtagen persondata",
-      "why": "Hvorfor",
-      "held": "Tildelte rettigheder ({count})",
+      "sensitive": "Følsom",
+      "sessionOnly": "Kun session",
+      "held": "Rettigheder ({count})",
       "noneHeld": "Rollen har ingen rettigheder",
-      "notHeldTitle": "Ikke tildelt ({count})",
+      "notHeldTitle": "Ikke givet ({count})",
       "user": "Bruger",
-      "usersLoadFailed": "Brugerne kunne ikke indlæses",
-      "usersWithRole": "Brugere med denne rolle",
-      "searchUsers": "Søg på navn eller e-mail...",
-      "noUsersMatch": "Ingen brugere matcher",
-      "noUsers": "Ingen brugere har denne rolle",
+      "usersLoadFailed": "Brugerne kunne ikke hentes",
+      "usersWithRole": "Brugere med rollen",
+      "searchUsers": "Søg navn eller e-mail...",
+      "noUsersMatch": "Ingen brugere passer",
+      "noUsers": "Ingen brugere har rollen",
       "clearSearch": "Ryd søgning",
+      "autoRole": "Gives automatisk",
+      "autoRoleHint": "Alle der opfylder kravene har rollen. Den kan ikke tildeles.",
+      "defaultRole": "Alle loggede ind har den",
+      "defaultRoleHint": "Det er en standardrolle. Den kan ikke tildeles.",
       "detail": {
-        "loadFailed": "Rollen kunne ikke indlæses",
+        "loadFailed": "Rollen kunne ikke hentes",
         "notFound": "Rollen findes ikke",
         "notFoundHint": "Roller kommer fra appens konfiguration og dens moduler."
       },
       "allRoles": "Alle roller",
       "inheritsFrom": "Arver fra",
-      "tab": {
-        "role": "Rolle",
-        "openRole": "Åbn rolle",
-        "unknownRole": "Den gemte rolle \"{role}\" findes ikke, så brugeren har rollen {fallback}."
+      "requires": "Kun så længe: {requirements}",
+      "userRoles": {
+        "loadFailed": "Rollerne kunne ikke hentes",
+        "assigned": "Tildelte roller",
+        "edit": "Rediger roller",
+        "none": "Ingen tildelte roller",
+        "noneHint": "Brugeren har stadig standardroller og automatiske roller.",
+        "unknown": "\"{role}\" findes ikke i konfigurationen: ignoreres",
+        "effective": "Gældende roller",
+        "effectiveHint": "Tildelte, standard- og automatiske roller hvis krav er opfyldt, og de roller de arver.",
+        "noEffective": "Ingen",
+        "permissions": "Rettigheder ({count})",
+        "noPermissions": "Ingen rettigheder",
+        "editTitle": "Rediger roller for {name}",
+        "editDescription": "Du kan kun give eller fjerne roller hvis rettigheder du selv har.",
+        "save": "Gem roller",
+        "saved": "Roller for {name} gemt",
+        "roles": "Roller",
+        "rolesHint": "Standardroller og automatiske roller vises ikke: brugere har dem uden at få dem tildelt.",
+        "fromSso": "Givet af single sign-on",
+        "locked": "Den har rettigheder du ikke har"
       }
     }
   }

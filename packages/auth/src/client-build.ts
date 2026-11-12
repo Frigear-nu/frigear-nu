@@ -142,9 +142,9 @@ export function nativeLoaderTemplate(input: { installed: Record<'app' | 'browser
   ].join('\n')
 }
 
-const GUARD_KEYS = ['authenticated', 'roles', 'guest', 'ability'] as const
+const GUARD_KEYS = ['authenticated', 'guest', 'permission'] as const
 
-/** The `routeRules` patterns that carry a guard of `@frigear-nu/authorization` (`authenticated`, `roles`, `guest`, `ability`). */
+/** The `routeRules` patterns that carry a guard of `@frigear-nu/authorization` (`authenticated`, `guest`, `permission`). */
 export function findGuardRules(routeRules: Record<string, unknown> | undefined): string[] {
   return Object.entries(routeRules ?? {})
     .filter(([, rule]) => !!rule && typeof rule === 'object' && GUARD_KEYS.some(key => key in rule))

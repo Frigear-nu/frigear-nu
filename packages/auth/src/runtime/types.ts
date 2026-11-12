@@ -15,13 +15,22 @@ export interface AuthTokenInfo {
 
 interface AuthPrincipalBase {
   user: AuthUser
-  /** What this credential may do. A session holds all of its user's permissions; a token the scopes it was given. */
+  /**
+   * A bearer credential's scopes, as granted. A session carries its user's held grants here (roles and `implicit`
+   * permissions, wildcards included) for the deprecated scope checks; new code calls `authorize` / `allows`.
+   */
   scopes: string[]
   /**
-   * The user's current permissions, when access control is on (`auth:user-permissions`). A bearer credential only
-   * acts within them, so a token keeps no right its user has since lost. `undefined`: no cap.
+   * A bearer credential's permissions: frozen when it was issued (the `permissions` of a user token row or an access
+   * token's claim), or for older credentials its expanded scopes intersected with its user's permissions at request
+   * time. Step 4 of `authorize` checks it. Not set on a session.
    */
-  ceiling?: string[]
+  permissions?: string[]
+  /**
+   * A token from a foreign issuer (`@frigear-nu/oauth-resource`): its `permissions` replace the user's roles, since
+   * this app knows nothing about the user.
+   */
+  foreign?: boolean
 }
 
 /** Who is calling, and how. Set on `event.context.auth` by `getAuth`. */
@@ -33,7 +42,10 @@ export type AuthPrincipal
 export type AuthPrincipalKind = AuthPrincipal['kind']
 
 export interface RequireUserOptions {
-  /** Scopes the credential must carry (within its user's permissions, when access control is on). */
+  /**
+   * Permissions the caller must hold (checked like `allows`, codes as before).
+   * @deprecated — removed in phase 2. Call `authorize(event, permission)`.
+   */
   scopes?: string[]
   /** Reject bearer credentials (user tokens, OAuth access tokens). Use for account-level actions. */
   sessionOnly?: boolean
@@ -96,23 +108,27 @@ export interface AuthUserStore {
 export type AuthRoleSource = 'manual' | 'sso' | 'migrated'
 
 /**
- * The contract between auth and the module that owns roles (`@frigear-nu/authorization`), served as `#auth/roles`.
- * Without that module it is a no-op: no roles, `setRoles` does nothing, no `roleScopes` cap.
+ * The contract between auth and the module that stores role assignments (`@frigear-nu/authorization`), registered with
+ * `setRoleProvider` and served as `provider` from `#auth/roles`. Without one, no user has an assigned role: only the
+ * `defaultRoles`, `auto` roles, `authorization:roles` and `implicit` permissions count.
  */
 export interface AuthRoleProvider {
-  /**
-   * The user's effective roles: assigned ∪ `defaultRoles` ∪ `auto` ∪ `authorization:roles`, without the roles whose
-   * requirements fail, closed over `inherit`. Cached per request.
-   */
-  getRoles: (event: H3Event, user: AuthUser) => Promise<string[]>
-  /** Replaces the user's roles of one `source` (single sign-on passes `sso` and never touches manual rows). */
-  setRoles: (userId: number | string, roles: readonly string[], options: { source: AuthRoleSource, grantedBy?: number | string | null }) => Promise<void>
-  /**
-   * The scopes the user may give a client: the union of `oauthServer.settings.roleScopes` over their effective roles.
-   * `undefined`: no cap beyond permissions.
-   */
-  getRoleScopes: (event: H3Event, user: AuthUser) => Promise<string[] | undefined>
+  /** The roles stored for the user (assigned, single sign-on, migrated). Auth adds defaults, `auto` and hook roles. */
+  getAssignedRoles: (event: H3Event | undefined, userId: number) => Promise<string[]>
+  /** Replaces the user's roles of one `source` only (single sign-on passes `sso` and never touches manual rows). */
+  setRoles: (userId: number, roles: string[], options: { source: AuthRoleSource, grantedBy?: number }) => Promise<void>
 }
+
+/** What a role requirement (`addRoleRequirement`) decides on. */
+export interface AuthRoleRequirementContext {
+  event: H3Event | undefined
+  user: AuthUser
+  /** The role's value for this requirement (`requirements: { subscription: '*' }` -> `'*'`). */
+  value: unknown
+}
+
+/** A role requirement: the default export of an `addRoleRequirement` file. Throwing counts as not met. */
+export type AuthRoleRequirement = (ctx: AuthRoleRequirementContext) => boolean | Promise<boolean>
 
 /**
  * The `authorization:before` Nitro hook (≈ Laravel's `Gate::before`), the single host override. Listeners vote with
@@ -132,11 +148,13 @@ export interface AuthorizationBeforeContext {
 }
 
 /**
- * The `authorization:roles` Nitro hook (`@frigear-nu/authorization`): add roles to `ctx.roles` from outside the
+ * The `authorization:roles` Nitro hook, fired by auth while it resolves a user's roles: add roles to `ctx.roles` from outside the
  * database, such as an environment allowlist. Hook roles still pass their requirements.
  */
 export interface AuthorizationRolesContext {
-  event: H3Event
+  /** Missing when roles are resolved outside a request. */
+  event: H3Event | undefined
   user: AuthUser
+  /** Assigned, default and `auto` roles so far: push to add, splice to remove. A listener that throws leaves no roles. */
   roles: string[]
 }

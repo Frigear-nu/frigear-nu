@@ -1,48 +1,61 @@
 {
   "authorization": {
+    "permissions": {
+      "rolesRead": "See roles",
+      "rolesAssign": "Assign roles"
+    },
     "admin": {
       "nav": {
         "label": "Roles & permissions",
         "description": "The roles and what each may do."
       },
       "tabs": {
-        "roles": "Roles",
-        "matrix": "Permission matrix",
         "permissions": "Permissions",
-        "users": "Users"
+        "users": "Users",
+        "userRoles": "Roles and permissions"
       },
       "title": "Roles & permissions",
-      "description": "What each role may do. Senior roles hold everything their juniors hold.",
+      "description": "What each role may do. Roles come from the app configuration; assign them on a user's page.",
       "forbidden": "You do not have access to roles",
       "loadFailed": "Roles could not be loaded",
       "tryAgain": "Try again",
       "role": "Role",
-      "sourceHeader": "Source",
+      "kindHeader": "Held by",
       "inherits": "Inherits",
       "users": "Users",
       "permissions": "Permissions",
-      "open": "Open",
-      "default": "Default",
+      "openRole": "Open role",
+      "noRoles": "No roles are configured",
+      "noRolesHint": "Define them in `authorization.roles`.",
+      "kind": {
+        "assignable": "Assigned",
+        "default": "Everyone",
+        "auto": "Automatic",
+        "fixed": "Not assignable"
+      },
       "source": {
-        "builtIn": "Built-in",
-        "module": "Module",
-        "app": "App"
+        "manual": "Assigned",
+        "sso": "Single sign-on",
+        "migrated": "Migrated"
       },
+      "sourceHeader": "Source",
+      "assignedAt": "Assigned",
       "grant": {
-        "direct": "Direct",
+        "granted": "Granted",
+        "wildcard": "Granted by {grant}",
         "inherited": "Inherited from {role}",
-        "aggregated": "Aggregated by module",
-        "granted": "Granted by app",
-        "all": "All permissions"
+        "implicit": "Every signed-in user"
       },
+      "provenance": {
+        "host": "Host config",
+        "module": "Module {module}",
+        "grantTo": "Default of {module}",
+        "inherit": "Inherited from {role}"
+      },
+      "grantedBy": "Granted by",
       "permission": "Permission",
-      "pii": "Personal data",
-      "notHeld": "Not held",
-      "noPermissions": "No permissions are registered",
-      "noPermissionsHint": "Modules register permissions as they are installed.",
-      "wildcardAll": "Every permission except personal data",
-      "wildcardResource": "Every {resource} permission except personal data",
-      "why": "Why",
+      "sensitive": "Sensitive",
+      "sessionOnly": "Session only",
       "held": "Held permissions ({count})",
       "noneHeld": "This role holds no permissions",
       "notHeldTitle": "Not held ({count})",
@@ -53,6 +66,10 @@
       "noUsersMatch": "No users match",
       "noUsers": "No users have this role",
       "clearSearch": "Clear search",
+      "autoRole": "Held automatically",
+      "autoRoleHint": "Everyone who meets its requirements holds this role. It cannot be assigned.",
+      "defaultRole": "Held by every signed-in user",
+      "defaultRoleHint": "This is a default role. It cannot be assigned.",
       "detail": {
         "loadFailed": "The role could not be loaded",
         "notFound": "Role not found",
@@ -60,10 +77,27 @@
       },
       "allRoles": "All roles",
       "inheritsFrom": "Inherits from",
-      "tab": {
-        "role": "Role",
-        "openRole": "Open role",
-        "unknownRole": "The stored role \"{role}\" does not exist, so this user acts as {fallback}."
+      "requires": "Only while: {requirements}",
+      "userRoles": {
+        "loadFailed": "The roles could not be loaded",
+        "assigned": "Assigned roles",
+        "edit": "Edit roles",
+        "none": "No roles assigned",
+        "noneHint": "The user still holds the default and automatic roles.",
+        "unknown": "\"{role}\" is not configured: ignored",
+        "effective": "Roles in effect",
+        "effectiveHint": "Assigned, default and automatic roles whose requirements hold, and the roles they inherit.",
+        "noEffective": "None",
+        "permissions": "Permissions ({count})",
+        "noPermissions": "No permissions",
+        "editTitle": "Edit roles of {name}",
+        "editDescription": "You can only give or take away roles whose permissions you hold yourself.",
+        "save": "Save roles",
+        "saved": "Roles of {name} saved",
+        "roles": "Roles",
+        "rolesHint": "Default and automatic roles are not listed: users hold them without being assigned.",
+        "fromSso": "Given by single sign-on",
+        "locked": "It holds permissions you do not have"
       }
     }
   }

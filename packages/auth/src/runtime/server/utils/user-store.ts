@@ -21,8 +21,12 @@ export async function loadAuthUser(id: string | number): Promise<AuthUser | null
  * transaction) to build the statements on it instead of on `db`.
  */
 export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeof db, 'update'> = db) {
+  const roles = authorizationUserRoles()
   return [
     executor.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from))),
+    // Assigned roles follow the user: left behind, the next holder of the id (a user moved aside by `changeId`, or a
+    // reused id) would get them.
+    ...(roles ? [executor.update(roles).set({ userId: to }).where(eq(roles.userId, from))] : []),
     ...(schema.userCredentials ? [executor.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
     ...(schema.passwordResets ? [executor.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
     ...(schema.magicLinks ? [executor.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
@@ -38,6 +42,17 @@ export async function deleteUserAuthData(userId: number) {
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
   if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+  const roles = authorizationUserRoles()
+  if (roles) await db.delete(roles).where(eq(roles.userId, userId))
+}
+
+/**
+ * `authorization_user_roles` of `@frigear-nu/authorization` (the role provider's storage), when installed. It has no
+ * foreign key to `users` either, so the user's role rows are re-keyed and removed with the rest of their auth data.
+ * Typed as `userCredentials` (an integer `userId` column), the only column used here.
+ */
+function authorizationUserRoles() {
+  return (schema as unknown as { authorizationUserRoles?: NonNullable<typeof schema.userCredentials> }).authorizationUserRoles
 }
 
 /**

@@ -32,3 +32,16 @@ export function mapRoleClaim(claims: Record<string, unknown>, roleMap: Record<st
   }
   return defaultRole
 }
+
+/**
+ * Every local role the role claims of a verified id token map to through `roleMap` (remote role -> local role), in
+ * claim order. When none maps, `defaultRole` unless it is `user` (every signed-in user's default role, which needs no
+ * stored row): an unknown role or a missing claim never keeps or grants anything.
+ */
+export function mapRoleClaims(claims: Record<string, unknown>, roleMap: Record<string, string>, defaultRole: string): string[] {
+  const mapped = parseRoleClaims(claims)
+    .map(role => Object.hasOwn(roleMap, role) ? roleValue(roleMap[role]) : undefined)
+    .filter((role): role is string => !!role)
+  if (mapped.length) return [...new Set(mapped)]
+  return defaultRole && defaultRole !== 'user' ? [defaultRole] : []
+}

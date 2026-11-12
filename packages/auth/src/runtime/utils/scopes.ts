@@ -26,11 +26,12 @@ export function hasScopes(granted: readonly string[], required: readonly string[
 }
 
 /**
- * Whether a credential covers `required`: its `scopes` must, and so must its user's permissions (`ceiling`) when access
- * control is on. A token granted `events:*` by an admin who is now a plain user covers nothing of `events` any more.
+ * Whether a credential covers `required`: its `scopes` must, and so must a bearer's `permissions` (frozen at issue, or
+ * its scopes within its user's permissions). A session's `scopes` are its user's held grants.
+ * @deprecated — removed in phase 2. Use `allows(event, permission)`, which also runs `authorization:before` and policies.
  */
-export function principalHasScopes(principal: { scopes: readonly string[], ceiling?: readonly string[] }, required: readonly string[]): boolean {
-  return hasScopes(principal.scopes, required) && (!principal.ceiling || hasScopes(principal.ceiling, required))
+export function principalHasScopes(principal: { scopes: readonly string[], permissions?: readonly string[] }, required: readonly string[]): boolean {
+  return hasScopes(principal.scopes, required) && (!principal.permissions || required.every(scope => principal.permissions!.includes(scope)))
 }
 
 export { parseScopeString } from './permissions'

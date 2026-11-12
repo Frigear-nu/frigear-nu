@@ -32,6 +32,8 @@ export const authApi = {
   /** `GET ?scope=<scope>`: an area's user-scoped data in one request. */
   bootstrap: `${base}/bootstrap`,
   me: {
+    /** `GET`: what the caller may do (`AccessDto`: kind, scopes, permissions, roles). Any credential; 401 when signed out. */
+    access: `${base}/me/access`,
     /** `GET` (the caller's tokens) and `POST` (create, 201, the only response carrying the plaintext). Session only. */
     tokens: `${base}/me/tokens`,
     /** `DELETE` (revoke, 204). Session only. */

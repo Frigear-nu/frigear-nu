@@ -23,6 +23,7 @@ export default defineNuxtConfig({
     userStore: './server/utils/user-store',
     settings: { password: false },
     apiTokens: { prefix: 'acme_' },
-    scopes: [{ name: 'events:read', description: 'Read events' }],
+    // The deprecated scope option: `aggregateTo: ['user']` makes it an implicit permission.
+    scopes: [{ name: 'events:read', description: 'Read events', aggregateTo: ['user'] }],
   },
 })

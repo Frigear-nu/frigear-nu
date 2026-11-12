@@ -459,3 +459,91 @@ describe('defineSharedPolicy', () => {
     expect(runSharedPolicies([sneaky], { ...base, record: undefined })[0]!.result).toBe('throw')
   })
 })
+
+describe('Gate 0 follow-ups', () => {
+  it('never lets `*` in a roleScopes cap admit a sensitive scope, but admits OIDC scopes', () => {
+    const roleScopes = { admin: ['*'] }
+    const admin = { registry: reg, namedScopes: named, roles: ['admin'], roleScopes, canGrant: () => true }
+    expect(scopeGrantable('events:pii', admin)).toBe(false)
+    expect(scopeGrantable('events:pii', { ...admin, roleScopes: { admin: ['*', 'events:pii'] } })).toBe(true)
+    expect(scopeGrantable('openid', admin)).toBe(true)
+    expect(scopeGrantable('events:read', admin)).toBe(true)
+  })
+
+  it('refuses an `auto` role without requirements', () => {
+    const { errors } = compileRoles({ roles: { everyone: { auto: true, grant: ['events:read'] } }, registry: reg })
+    expect(errors.join('\n')).toMatch(/`auto` but has no requirements/)
+  })
+
+  it('treats a null record as no record and swallows a rejected promise of a shared policy', async () => {
+    const own = defineSharedPolicy('events:update', () => false)
+    const rejecting = defineSharedPolicy('events:update', (() => Promise.reject(new Error('x'))) as unknown as () => boolean, { withoutRecord: true })
+    const base = { user: null, access: null, granted: true }
+    expect(runSharedPolicies([own], { ...base, record: null as unknown as undefined })).toEqual([{ result: undefined, withoutRecord: false }])
+    expect(runSharedPolicies([rejecting], { ...base, record: undefined })[0]!.result).toBe('throw')
+    await new Promise(resolve => setTimeout(resolve, 0)) // an unhandled rejection would fail the run
+  })
+})
+
+describe('compileRoles contributions', () => {
+  const regWithGrants = registry([
+    ...definitions,
+    { name: 'tickets:scan', grantTo: ['crew', 'ghost'] },
+  ])
+
+  it('unions module definitions, keeps the first label and fails on differing requirements', () => {
+    const { value, errors } = compileRoles({
+      registry: regWithGrants,
+      requirementNames: ['subscription'],
+      contributions: [
+        { name: 'crew', label: 'Crew', grant: ['events:read'], from: 'events' },
+        { name: 'crew', label: 'Other', grant: ['forms:read'], inherit: [], from: 'forms' },
+      ],
+    })
+    expect(errors).toEqual([])
+    expect(value.roles.crew!.label).toBe('Crew')
+    expect(value.roles.crew!.permissions).toEqual(['events:read', 'forms:read', 'tickets:scan'])
+    const conflict = compileRoles({
+      registry: reg,
+      requirementNames: ['subscription'],
+      contributions: [
+        { name: 'paid', requirements: { subscription: 'pro' } },
+        { name: 'paid', requirements: { subscription: '*' } },
+      ],
+    })
+    expect(conflict.errors.join('\n')).toMatch(/different requirements/)
+  })
+
+  it('merges a host role into the module role (host wins its fields), unless it replaces it', () => {
+    const contributions = [
+      { name: 'crew', label: 'Crew', grant: ['events:read'], from: 'events' },
+      { name: 'crew', source: 'host' as const, label: 'Volunteers', grant: ['forms:read'] },
+    ]
+    const merged = compileRoles({ registry: regWithGrants, contributions }).value.roles.crew!
+    expect(merged.label).toBe('Volunteers')
+    expect(merged.permissions).toEqual(['events:read', 'forms:read', 'tickets:scan'])
+    const replaced = compileRoles({ registry: regWithGrants, contributions: [contributions[0]!, { ...contributions[1]!, replace: true }] }).value.roles.crew!
+    expect(replaced.permissions).toEqual(['forms:read'])
+  })
+
+  it('skips grantTo into a missing role with a note', () => {
+    const { warnings } = compileRoles({ registry: regWithGrants, contributions: [{ name: 'crew' }] })
+    expect(warnings).toEqual([expect.stringMatching(/"tickets:scan".*"ghost"/)])
+  })
+
+  it('records where each permission of a role comes from', () => {
+    const { value } = compileRoles({
+      registry: regWithGrants,
+      contributions: [
+        { name: 'crew', grant: ['events:read'], from: 'events' },
+        { name: 'lead', source: 'host', grant: ['events:*'], inherit: ['crew'] },
+      ],
+    })
+    expect(value.roles.crew!.provenance).toEqual({
+      'events:read': [{ via: 'module', from: 'events' }],
+      'tickets:scan': [{ via: 'grantTo' }],
+    })
+    expect(value.roles.lead!.provenance['events:read']).toEqual([{ via: 'host' }, { via: 'inherit', from: 'crew' }])
+    expect(value.roles.lead!.provenance['tickets:scan']).toEqual([{ via: 'inherit', from: 'crew' }])
+  })
+})

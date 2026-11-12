@@ -46,6 +46,6 @@ describe('package exports', () => {
     const source = readFileSync(`${root}/src/runtime/policies.ts`, 'utf8') + readFileSync(`${root}/src/runtime/utils/permissions.ts`, 'utf8')
     expect(source).not.toMatch(/from '(@nuxt\/|nuxt|#|h3|vue)/)
     const policies = await import('../../src/runtime/policies')
-    expect(Object.keys(policies).sort()).toEqual(['defineSharedPolicy', 'runSharedPolicies'])
+    expect(Object.keys(policies).sort()).toEqual(['combinePolicies', 'defineSharedPolicy', 'hasPolicyRecord', 'runSharedPolicies'])
   })
 })

@@ -123,11 +123,12 @@ describe('findGuardRules', () => {
   it('lists the patterns with a guard of @frigear-nu/authorization', () => {
     expect(findGuardRules({
       '/**': { authenticated: true },
-      '/admin/**': { roles: ['admin'] },
+      '/admin/**': { permission: 'admin:access' },
       '/login': { guest: true },
-      '/bills/**': { ability: 'bills.read' },
+      // The removed keys are no guard any more.
+      '/bills/**': { ability: 'bills.read', roles: ['admin'] },
       '/static/**': { prerender: true },
-    })).toEqual(['/**', '/admin/**', '/login', '/bills/**'])
+    })).toEqual(['/**', '/admin/**', '/login'])
     expect(findGuardRules(undefined)).toEqual([])
   })
 })

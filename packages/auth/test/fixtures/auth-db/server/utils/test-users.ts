@@ -9,6 +9,10 @@ const store = (): Map<string, TestUser> => {
     // Signed in, then deleted or given to someone else by `tokens.test.ts`' session suite.
     ['3', { id: 3, name: 'Cy', role: 'user', email: 'cy@example.com' }],
     ['4', { id: 4, name: 'Di', role: 'user', email: 'di@example.com' }],
+    // Allowed `events:admin` by an `authorization:before` listener only (`server/plugins/access.ts`).
+    ['5', { id: 5, name: 'Eve', role: 'user', email: 'eve@example.com' }],
+    // An admin through the `authorization:roles` hook only.
+    ['6', { id: 6, name: 'Root', role: 'user', email: 'root@example.com' }],
   ])
 }
 

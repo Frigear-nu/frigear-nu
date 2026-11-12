@@ -4,7 +4,7 @@ import type { FrigearSsoConfig } from '../../src/runtime/server/utils/frigear-ss
 // `handleFrigearLogin` with the id token verification and the user sync stubbed: what it trusts from the token
 // response and from userinfo.
 let verified: Record<string, unknown> = {}
-const syncFrigearUser = vi.fn(async (profile: { id: number, email: string, role?: string }) => ({ id: profile.id, email: profile.email, name: 'Ada', role: profile.role }))
+const syncFrigearUser = vi.fn(async (profile: { id: number, email: string, roles?: string[] }) => ({ id: profile.id, email: profile.email, name: 'Ada' }))
 const replaceUserSession = vi.fn(async () => ({}))
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
 vi.stubGlobal('verifyFrigearIdToken', async () => verified)
@@ -19,8 +19,8 @@ vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<
 })
 vi.stubGlobal('consumeLoginRedirect', () => '/')
 vi.stubGlobal('sendRedirect', async () => undefined)
-const { mapRoleClaim } = await import('../../src/runtime/server/utils/frigear-role')
-vi.stubGlobal('mapRoleClaim', mapRoleClaim)
+const { mapRoleClaims } = await import('../../src/runtime/server/utils/frigear-role')
+vi.stubGlobal('mapRoleClaims', mapRoleClaims)
 
 const { handleFrigearLogin } = await import('../../src/runtime/server/utils/frigear-login')
 
@@ -63,30 +63,35 @@ describe('handleFrigearLogin', () => {
 
 describe('handleFrigearLogin roles', () => {
   const syncing = { ...sso, syncRole: true, roleMap: { admin: 'admin', staff: 'manager' }, defaultRole: 'user' } as FrigearSsoConfig
-  const roleOf = () => syncFrigearUser.mock.calls.at(-1)![0].role
+  const rolesOf = () => syncFrigearUser.mock.calls.at(-1)![0].roles
 
-  it('maps the role of the verified id token through the role map', async () => {
-    verified.roles = ['staff']
+  it('maps the roles of the verified id token through the role map', async () => {
+    verified.roles = ['staff', 'admin', 'volunteer']
     await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
-    expect(roleOf()).toBe('manager')
+    expect(rolesOf()).toEqual(['manager', 'admin'])
   })
 
-  it('never takes the role from userinfo', async () => {
+  it('never takes a role from userinfo', async () => {
     await handleFrigearLogin(event, syncing, { sub: '7', role: 'admin' }, { id_token: 'id' })
-    expect(roleOf()).toBe('user')
+    expect(rolesOf()).toEqual([])
   })
 
-  it('demotes to the default role when the claim is missing or not in the map', async () => {
+  it('syncs no single sign-on role when the claim is missing or not in the map', async () => {
     await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
-    expect(roleOf()).toBe('user')
+    expect(rolesOf()).toEqual([])
     verified.role = 'superuser'
     await handleFrigearLogin(event, syncing, {}, { id_token: 'id' })
-    expect(roleOf()).toBe('user')
+    expect(rolesOf()).toEqual([])
+  })
+
+  it('falls back to a configured default role other than `user`', async () => {
+    await handleFrigearLogin(event, { ...syncing, defaultRole: 'guest' } as FrigearSsoConfig, {}, { id_token: 'id' })
+    expect(rolesOf()).toEqual(['guest'])
   })
 
   it('syncs no role when role syncing is off', async () => {
     verified.role = 'admin'
     await handleFrigearLogin(event, sso, {}, { id_token: 'id' })
-    expect(roleOf()).toBeUndefined()
+    expect(rolesOf()).toBeUndefined()
   })
 })
