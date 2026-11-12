@@ -11,7 +11,8 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event, { sessionOnly: true })
+  // `profile:write` (implicit): the caller's own name and avatar, also through a token given that scope.
+  const { user, kind } = await authorize(event, 'profile:write')
   const { name, avatar } = await readValidatedBody(event, bodySchema.parse)
 
   const [updated] = await db.update(schema.users)
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
   if (!updated) throw notFound('User not found.')
 
-  await setUserSession(event, { user: mapUserToSession(updated) })
+  if (kind === 'session') await setUserSession(event, { user: mapUserToSession(updated) })
 
   return toProfileDto(updated)
 })

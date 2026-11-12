@@ -5,7 +5,7 @@ import { submissionLocale } from '../../utils/submit'
 // tokens and passwords (which a user token must not be mistaken for) are not available here.
 export default defineScopedMcpTool({
   description: 'Submit a published form as yourself. Use get-form first to see the fields.',
-  scopes: ['forms:submit'],
+  permission: 'forms:submit',
   annotations: { destructiveHint: false, idempotentHint: false },
   inputSchema: {
     slug: z.string(),

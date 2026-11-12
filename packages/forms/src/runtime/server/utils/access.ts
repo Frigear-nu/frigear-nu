@@ -61,6 +61,14 @@ async function verifyFormPassword(event: H3Event, form: FormRow) {
 }
 
 /**
+ * The signed-in submitter, or `null` for an anonymous caller. A bearer credential that may not `forms:submit` counts as
+ * anonymous, so it cannot satisfy a form that needs a signed-in user.
+ */
+async function submitter(event: H3Event) {
+  return (await allows(event, 'forms:submit')) ? await getUser(event) : null
+}
+
+/**
  * The single access gate of the public routes (definition and submit). Resolves the submitter's user id
  * (when signed in) and throws 401 unless the form's `access.auth` is satisfied. API-only forms are
  * still served here: `availability` only removes the public page.
@@ -71,7 +79,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
     const opensAt = nextFormOpening(schedule)
     throw apiError(403, 'form_closed', 'This form is closed.', { closed: true, opensAt: isoDate(opensAt) })
   }
-  const user = await getUser(event, { scopes: ['forms:submit'] })
+  const user = await submitter(event)
 
   if (auth === 'user' && !user) throw unauthorized(event, 'Sign in to use this form.')
   if (auth === 'token') await verifyToken(event, form)
@@ -81,7 +89,7 @@ export async function authorizeFormAccess(event: H3Event, form: FormRow): Promis
 
 /** Public facts the page needs to pick between the form, a gate and "not found". */
 export async function describeFormAccess(event: H3Event, form: FormRow): Promise<FormAccessInfoDto> {
-  const user = await getUser(event, { scopes: ['forms:submit'] })
+  const user = await submitter(event)
   const access = resolveAccess(form.definition)
   const open = isFormOpen(access.schedule)
   return { slug: form.slug, name: form.name, access, signedIn: !!user, open, opensAt: open ? null : nextFormOpening(access.schedule)?.toISOString() ?? null }

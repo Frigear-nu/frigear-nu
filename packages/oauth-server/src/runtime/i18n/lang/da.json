@@ -8,6 +8,10 @@
       "admin": {
         "label": "OAuth-applikationer",
         "description": "Administrer de applikationer, brugere kan logge ind på."
+      },
+      "scopes": {
+        "label": "OAuth-scopes",
+        "description": "Hvad applikationer må bede brugerne om."
       }
     },
     "admin": {
@@ -72,7 +76,7 @@
       "previewUrlPattern": "Mønster for preview-URL",
       "previewUrlPatternHint": "Valgfrit, fx https://*.vercel.app, til preview-udgivelser.",
       "allowedRoles": "Tilladte roller",
-      "allowedRolesHint": "Lad feltet stå tomt for at give alle indloggede brugere adgang.",
+      "allowedRolesHint": "Lad stå tom for at tillade alle indloggede brugere. Nedarvede roller tæller med.",
       "tags": "Tags",
       "description": "Beskrivelse",
       "icon": "Ikon",
@@ -109,7 +113,9 @@
         "halfYear": "6 måneder",
         "year": "1 år",
         "days": "{days} dage"
-      }
+      },
+      "wildcardScopes": "Tillad wildcard-scopes",
+      "wildcardScopesHint": "Lader applikationen bede om wildcard-scopes som tickets:* eller *. Brugerne kan stadig kun give det, de selv må."
     },
     "credentials": {
       "title": "Legitimationsoplysninger for {name}",
@@ -156,7 +162,58 @@
         "profile": "Se din offentlige profil",
         "email": "Se e-mailadressen på din konto"
       },
-      "accountGroup": "Din konto"
+      "accountGroup": "Din konto",
+      "unavailable": "Ikke tilgængeligt for din konto",
+      "unavailableHint": "Applikationen får ikke disse."
+    },
+    "permissions": {
+      "read": "Se hvilke applikationer du kan logge ind på",
+      "manage": "Administrer OAuth-applikationer og scopes"
+    },
+    "scopes": {
+      "title": "OAuth-scopes",
+      "description": "Navne applikationer kan bede om, som hver står for en række tilladelser.",
+      "new": "Tilføj scope",
+      "scope": "Scope",
+      "permissions": "Tilladelser",
+      "forbiddenTitle": "Du må ikke administrere OAuth-scopes",
+      "loadFailed": "OAuth-scopes kunne ikke indlæses",
+      "emptyTitle": "Ingen scopes endnu",
+      "emptyDescription": "Tilføj et scope, så applikationer kan bede om en række tilladelser under ét navn.",
+      "created": "Scope oprettet",
+      "updated": "Scope opdateret",
+      "deleted": "Scope slettet",
+      "enabled": "Scope aktiveret",
+      "disabledToast": "Scope deaktiveret",
+      "open": "Åbn scope",
+      "edit": "Rediger scope",
+      "enable": "Aktiver scope",
+      "disable": "Deaktiver scope",
+      "delete": "Slet scope",
+      "deleteTitle": "Slet scopet {name}?",
+      "deleteDescription": "Applikationer, der beder om det, bliver afvist, og indloggede applikationer mister det ved næste fornyelse. Det kan ikke fortrydes.",
+      "form": {
+        "createTitle": "Tilføj scope",
+        "createDescription": "Et navn applikationer kan bede om, som står for en række tilladelser.",
+        "editDescription": "Hvad applikationer får, når en bruger giver dette scope.",
+        "save": "Gem scope",
+        "create": "Tilføj scope",
+        "managedTitle": "Styret i nuxt.config",
+        "managedDescription": "Dette scope er defineret i oauthServer.scopes eller af et modul og kan ikke ændres her.",
+        "name": "Navn",
+        "nameHint": "Det applikationer beder om, fx tickets. Kan ikke ændres senere.",
+        "nameInvalid": "Ét ord med små bogstaver: bogstaver, tal, \".\", \"_\" eller \"-\".",
+        "permissions": "Tilladelser",
+        "permissionsHint": "Tilladelser eller wildcards som tickets:read eller tickets:*. Aldrig følsomme eller kun-session-tilladelser. Tilføjede tilladelser beder brugerne om samtykke igen.",
+        "permissionsRequired": "Tilføj mindst én tilladelse.",
+        "label": "Etiket",
+        "labelHint": "Vises på samtykkesiden, fx “Dine billetter”.",
+        "description": "Beskrivelse",
+        "icon": "Ikon",
+        "isActive": "Aktiv",
+        "isActiveHint": "Et deaktiveret scope er ukendt for applikationer, indtil det aktiveres igen.",
+        "version": "Version {version}"
+      }
     }
   }
 }

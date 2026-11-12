@@ -9,7 +9,7 @@ type Application = AdminApplicationDto
 /** The `useFetch` key of the admin list; `refreshNuxtData(OAUTH_APPLICATIONS_KEY)` reloads it from anywhere. */
 export const OAUTH_APPLICATIONS_KEY = 'oauth-server:applications'
 
-/** The admin endpoints as plain calls (no refresh). Every call needs the host's `oauth:authorize` hook to allow the user. */
+/** The admin endpoints as plain calls (no refresh). Every call needs the `oauth:manage` permission. */
 export const oauthApplicationsApi = {
   get: (id: string) =>
     $fetch<Application>(oauthServerApi.admin.application(id)),
@@ -55,8 +55,8 @@ export interface OAuthApplicationsState {
 /**
  * Admin CRUD for applications, with one page of the list. Awaitable: `await useOAuthApplications(query)` in a page
  * renders the list on the server; pass `useTableQuery().query` to page, search and sort it. `applications` is `[]`
- * until loaded and after an error: check `loading` and `error` first. Every call needs the host's `oauth:authorize`
- * hook to allow the user.
+ * until loaded and after an error: check `loading` and `error` first. Every call needs the `oauth:manage`
+ * permission.
  */
 export function useOAuthApplications(
   query: MaybeRefOrGetter<OAuthApplicationsQuery> = {},

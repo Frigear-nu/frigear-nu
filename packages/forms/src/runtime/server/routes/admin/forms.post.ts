@@ -3,7 +3,7 @@ import type { FormAdminDto } from '../../../../types'
 import { formInput } from '../../utils/admin-schemas'
 
 export default defineEventHandler(async (event): Promise<FormAdminDto> => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const input = await readValidatedBody(event, formInput.parse)
   return created(event, toAdminForm(await createForm(input)))
 })

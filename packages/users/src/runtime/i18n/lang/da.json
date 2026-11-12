@@ -10,7 +10,6 @@
       "user": "Bruger",
       "name": "Navn",
       "email": "E-mail",
-      "role": "Rolle",
       "verified": "Verificeret",
       "emailVerified": "Markér e-mailadressen som verificeret",
       "sendWelcome": "Send et login-link på e-mail",
@@ -26,7 +25,7 @@
         "description": "Tilmeldt inden for de seneste 30 dage.",
         "empty": "Ingen nye endnu."
       },
-      "search": "Søg på navn, e-mail eller rolle...",
+      "search": "Søg i navn eller e-mail...",
       "empty": "Ingen brugere matcher",
       "total": "{count} brugere",
       "lastLogin": "Seneste login",
@@ -40,7 +39,6 @@
         "allRoles": "Alle roller"
       },
       "subscription": "Medlemskab",
-      "rolePlaceholder": "Vælg en rolle",
       "detail": {
         "profile": "Profil",
         "account": "Konto",
@@ -75,7 +73,8 @@
       "deleteUser": "Slet bruger",
       "deleteTitle": "Slet {name}?",
       "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
-      "deleted": "Brugeren er slettet."
+      "deleted": "Brugeren er slettet.",
+      "roles": "Roller"
     },
     "emailChange": {
       "verify": {
@@ -117,6 +116,16 @@
         "taken": "En anden konto bruger nu din gamle e-mailadresse. Kontakt os for at få din konto tilbage.",
         "failed": "Din e-mailadresse kunne ikke gendannes. Prøv igen."
       }
+    },
+    "permissions": {
+      "profileRead": "Se din profil",
+      "profileWrite": "Ændre din profil",
+      "read": "Se brugere",
+      "list": "Liste over brugere",
+      "create": "Tilføje brugere",
+      "update": "Redigere brugere",
+      "delete": "Slette brugere",
+      "manage": "Administrere brugeres login"
     }
   }
 }

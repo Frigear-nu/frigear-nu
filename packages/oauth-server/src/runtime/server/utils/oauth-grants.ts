@@ -13,7 +13,14 @@ export function getApplicationRefreshPolicy(application: Pick<RefreshPolicySourc
   return resolveRefreshTokenPolicy(application, getOAuthRefreshTokenPolicy())
 }
 
-export type AuthorizationGrant = { userId: number, scope: string[], nonce: string | null, authTime: Date }
+export type AuthorizationGrant = {
+  userId: number
+  scope: string[]
+  /** The versions of the database scopes in `scope` the user consented to (`null`: none, or before versions were kept). */
+  scopeVersions: Record<string, number> | null
+  nonce: string | null
+  authTime: Date
+}
 
 /** Stores a single-use authorization code (only its hash) and returns the plain code for the redirect. */
 export async function createAuthorizationCode(input: {
@@ -21,6 +28,7 @@ export async function createAuthorizationCode(input: {
   userId: number
   redirectUri: string
   scope: string[]
+  scopeVersions?: Record<string, number> | null
   codeChallenge: string
   nonce?: string | null
 }): Promise<string> {
@@ -32,6 +40,7 @@ export async function createAuthorizationCode(input: {
     userId: input.userId,
     redirectUri: input.redirectUri,
     scope: input.scope.join(' '),
+    scopeVersions: input.scopeVersions ?? null,
     codeChallenge: input.codeChallenge,
     nonce: input.nonce ?? null,
     expiresAt: new Date(Date.now() + useOAuthConfig().codeTtl * 1000),
@@ -58,7 +67,7 @@ export async function exchangeAuthorizationCode(input: {
   if (row.expiresAt.getTime() < Date.now()) return { error: 'The authorization code has expired.' }
   if (row.redirectUri !== input.redirectUri) return { error: 'The redirect_uri does not match the authorization request.' }
   if (!(await verifyCodeChallenge(input.codeVerifier, row.codeChallenge))) return { error: 'The code_verifier does not match the code_challenge.' }
-  return { grant: { userId: row.userId, scope: row.scope.split(' ').filter(Boolean), nonce: row.nonce, authTime: row.authTime } }
+  return { grant: { userId: row.userId, scope: row.scope.split(' ').filter(Boolean), scopeVersions: row.scopeVersions ?? null, nonce: row.nonce, authTime: row.authTime } }
 }
 
 /**
@@ -70,6 +79,7 @@ export async function createRefreshToken(input: {
   application: RefreshPolicySource
   userId: number
   scope: string[]
+  scopeVersions?: Record<string, number> | null
   authTime: Date
   familyId?: string
   expiresAt?: Date
@@ -84,6 +94,7 @@ export async function createRefreshToken(input: {
     applicationId: input.application.id,
     userId: input.userId,
     scope: input.scope.join(' '),
+    scopeVersions: input.scopeVersions ?? null,
     familyId,
     authTime: input.authTime,
     expiresAt,
@@ -123,7 +134,8 @@ export async function rotateRefreshToken(input: {
   if (expiresAt.getTime() <= Date.now()) return { error: 'The sign-in has expired; sign in again.' }
 
   const scope = row.scope.split(' ').filter(Boolean)
-  const next = await createRefreshToken({ application: input.application, userId: row.userId, scope, authTime: row.authTime, familyId: row.familyId, expiresAt })
+  const scopeVersions = row.scopeVersions ?? null
+  const next = await createRefreshToken({ application: input.application, userId: row.userId, scope, scopeVersions, authTime: row.authTime, familyId: row.familyId, expiresAt })
   // Only one concurrent request may win the rotation; the loser is a reuse.
   const claimed = await db.update(schema.oauthRefreshTokens)
     .set({ replacedBy: next.id, revokedAt: new Date() })
@@ -133,7 +145,7 @@ export async function rotateRefreshToken(input: {
     await revokeOAuthFamily(row.familyId)
     return { error: 'The refresh token was already used or revoked.' }
   }
-  return { grant: { userId: row.userId, scope, nonce: null, authTime: row.authTime }, token: next.token, expiresAt: next.expiresAt }
+  return { grant: { userId: row.userId, scope, scopeVersions, nonce: null, authTime: row.authTime }, token: next.token, expiresAt: next.expiresAt }
 }
 
 /** Revokes the family of a refresh token (RFC 7009). Unknown tokens are ignored. */

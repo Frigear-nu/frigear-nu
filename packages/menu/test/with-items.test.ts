@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
-import { setup, $fetch } from '@nuxt/test-utils/e2e'
+import { setup, $fetch, fetch } from '@nuxt/test-utils/e2e'
 
 describe('ssr (with registered menu items)', async () => {
   await setup({
@@ -19,6 +19,29 @@ describe('ssr (with registered menu items)', async () => {
   it('renders items extended into a nested group (menu.group addressing)', async () => {
     const html = await $fetch('/')
     expect(html).toContain('Security -&gt; /security')
+  })
+
+  describe('menus:filter', () => {
+    const staff = async (permissions?: string) => {
+      const html = await (await fetch('/', { headers: permissions ? { 'x-test-permissions': permissions } : {} })).text()
+      return html.match(/<ul id="staff">([\s\S]*?)<\/ul>/)?.[1] ?? ''
+    }
+
+    it('hides an item with a permission the viewer does not hold', async () => {
+      const html = await staff()
+      expect(html).toContain('Public')
+      expect(html).not.toContain('Admin area')
+    })
+
+    it('shows it to a viewer who holds the permission', async () => {
+      expect(await staff('admin:access')).toContain('Admin area')
+    })
+
+    it('resolves a menu again when the access version changes (sign-in as admin)', async () => {
+      const html = await $fetch<string>('/?refilter')
+      expect(html).toMatch(/before: Public(?!,)/)
+      expect(html).toContain('after: Public,Admin area')
+    })
   })
 
   describe('server useMenu', () => {

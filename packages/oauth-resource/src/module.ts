@@ -52,6 +52,13 @@ export default defineNuxtModule<ModuleOptions>({
       corsPaths: parseList(options.corsPaths ?? ['/api/']),
       forceId: options.forceId ?? '',
       jwksCacheTtl: options.jwksCacheTtl ?? 600,
+      // `''` rather than `undefined`, so `NUXT_OAUTH_RESOURCE_INTROSPECTION_*` can set them.
+      introspection: {
+        endpoint: options.introspection?.endpoint ?? '',
+        clientId: options.introspection?.clientId ?? '',
+        clientSecret: options.introspection?.clientSecret ?? '',
+        cacheTtl: options.introspection?.cacheTtl ?? 30,
+      },
       ...existing,
     }
 

@@ -16,7 +16,6 @@ export type {
   AdminTicketTypeDto,
   AttendeeDto,
   AddonGroupDto,
-  AuthorizeContext,
   CheckInResponse,
   EventDetailDto,
   EventStatus,

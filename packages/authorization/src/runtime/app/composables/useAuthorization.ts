@@ -6,12 +6,8 @@ import { computed, createError, useNuxtApp, useRequestFetch, useRuntimeConfig, u
 
 type AccessLoad = Promise<AccessDto | null>
 
-/** A signed-in client-mode user's `permissions` claim (the issuer's token), until the issuer's `/me/access` is wired in. */
-function accessFromClaims(user: unknown): AccessDto | null {
-  if (!user || typeof user !== 'object') return null
-  const permissions = (user as { permissions?: unknown }).permissions
-  return { kind: 'oauth', scopes: [], permissions: Array.isArray(permissions) ? permissions.filter(item => typeof item === 'string') : [] }
-}
+/** Client mode's loader, provided by `@frigear-nu/auth` (`$authAccess`): the issuer's `/me/access`, else the token's claim. */
+type AuthClientAccess = () => Promise<AccessDto | null>
 
 /**
  * What the visitor may do, for what the UI shows (the API decides what is allowed):
@@ -21,12 +17,21 @@ function accessFromClaims(user: unknown): AccessDto | null {
  * - `can(permission, record?)`: synchronous. The exact `access.permissions` list, then the shared policies
  *   (`shared/policies.ts`) for the permission, which can only deny. `cannot` is its opposite.
  * - `authorize(permission, record?)`: throws a Nuxt error (401 for guests, 403 otherwise) when `can` is false.
- * - `refresh()`: fetches `access` again; `ensure()` fetches it only when it was never loaded.
+ * - `refresh()`: fetches `access` again (and bumps `useState('access:version')`, so menus, widgets and tabs filter
+ *   again); `ensure()` fetches it only when it was never loaded.
+ *
+ * In client mode (`authentication.mode: 'client'`, such as `@frigear-nu/mobile`) `access` comes from the issuer's
+ * `GET /api/auth/me/access` with the bearer access token, or, when the issuer has no such endpoint (a 404, offline),
+ * from the access token's `permissions` claim, decoded without verification.
+ *
+ * Every check here is UI only (what to show, which page to open): the server enforces the permissions on each request.
  */
 export function useAuthorization() {
   const nuxtApp = useNuxtApp() as ReturnType<typeof useNuxtApp> & { _authorizationAccess?: AccessLoad }
   const access = useState<AccessDto | null>('authorization:access', () => null)
   const loaded = useState<boolean>('authorization:access-loaded', () => false)
+  // Read by `useMenu` (`@frigear-nu/menu`), `useWidgets` and `useTabs` (`@frigear-nu/widget`) in their cache keys.
+  const version = useState<number>('access:version', () => 0)
   const session = useUserSession()
   const client = !!useRuntimeConfig().public.authorization?.client
   // Forwards the request's cookies during SSR; plain `$fetch` in the browser.
@@ -34,27 +39,30 @@ export function useAuthorization() {
 
   function refresh(): AccessLoad {
     nuxtApp._authorizationAccess = (async () => {
-      if (client) {
-        // TODO(phase 2, client mode): ask the issuer's `/api/auth/me/access` with the bearer token, falling back to the claim.
-        access.value = session.loggedIn.value ? accessFromClaims(session.user.value) : null
-      }
-      else {
-        try {
+      try {
+        if (client) {
+          const load = (nuxtApp as unknown as { $authAccess?: AuthClientAccess }).$authAccess
+          access.value = session.loggedIn.value && load ? await load() : null
+        }
+        else {
           access.value = await fetcher<AccessDto>(authApi.me.access)
         }
-        catch {
-          access.value = null
-        }
+      }
+      catch {
+        access.value = null
       }
       loaded.value = true
+      version.value++
       return access.value
     })()
     return nuxtApp._authorizationAccess
   }
 
   function ensure(): AccessLoad {
+    // The latest load (also one still running, such as client mode's first load after hydration), else the state.
+    if (nuxtApp._authorizationAccess) return nuxtApp._authorizationAccess
     if (loaded.value) return Promise.resolve(access.value)
-    return nuxtApp._authorizationAccess ?? refresh()
+    return refresh()
   }
 
   function can<R = unknown>(permission: string, record?: R): boolean {

@@ -6,9 +6,9 @@ const DAYS = 30
 const LIMIT = 8
 
 // Recent transactions and the last 30 days' revenue for the admin dashboard. Not tied to one user, so it has its own
-// staff gate (`payments:authorize`, scope `payments:manage`).
+// permission, `payments:manage`.
 export default defineEventHandler(async (event): Promise<RecentPaymentsDto> => {
-  await paymentsStaff.require(event)
+  await authorize(event, 'payments:manage')
 
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000)
   const settled = inArray(schema.payments.status, ['paid', 'partially_refunded'])

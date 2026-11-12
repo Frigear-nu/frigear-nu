@@ -27,6 +27,17 @@
       "transactions": "{count} transaktioner",
       "recent": "Seneste transaktioner",
       "viewUsers": "Se brugere"
+    },
+    "permissions": {
+      "read": "Se dine betalinger",
+      "readDescription": "Se dine egne betalinger.",
+      "write": "Genoptag dine betalinger",
+      "writeDescription": "Genoptag betaling af dine egne ubetalte betalinger.",
+      "manage": "Se seneste betalinger",
+      "manageDescription": "Se seneste betalinger og omsætning på dashboardet."
+    },
+    "scopes": {
+      "payments": "Dine betalinger"
     }
   }
 }

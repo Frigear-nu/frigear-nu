@@ -70,24 +70,41 @@ describe('scoped MCP tools', async () => {
   it('only lists tools within the token scopes', async () => {
     const readToken = await createToken(ada, ['notes:read'])
     expect(await toolNames({ bearer: readToken })).toEqual(['my-notes'])
-
-    const noScopes = await createToken(ada, ['notes:pii'])
-    expect(await toolNames({ bearer: noScopes })).toEqual([])
   })
 
-  it('hides manager tools unless the host policy allows the caller, even with the scope', async () => {
-    const adaManage = await createToken(ada, ['notes:read', 'notes:manage'])
-    expect(await toolNames({ bearer: adaManage })).toEqual(['my-notes'])
+  it('refuses to mint a token with a scope the user does not hold, and lists admin tools only for admins', async () => {
+    const refused = await fetch(authApi.me.tokens, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cookie': ada },
+      body: JSON.stringify({ name: 'MCP', scopes: ['notes:read', 'notes:manage'] }),
+    })
+    expect(refused.status).toBe(403)
 
     const staffManage = await createToken(staff, ['notes:read', 'notes:manage'])
     expect(await toolNames({ bearer: staffManage })).toEqual(['list-notes', 'my-notes'])
   })
 
-  it('rejects a direct call to a tool the caller cannot see', async () => {
-    const adaManage = await createToken(ada, ['notes:read', 'notes:manage'])
-    const { body } = await rpc({ bearer: adaManage }, 'tools/call', { name: 'list-notes', arguments: {} })
+  it('refuses an admin tool to a token with only the read scope, and hides it', async () => {
+    const staffRead = await createToken(staff, ['notes:read'])
+    expect(await toolNames({ bearer: staffRead })).toEqual(['my-notes'])
+    const { body } = await rpc({ bearer: staffRead }, 'tools/call', { name: 'list-notes', arguments: {} })
     expect(body.error ?? body.result?.isError).toBeTruthy()
-    expect(JSON.stringify(body)).not.toContain('ada@example.test')
+    expect(JSON.stringify(body)).not.toContain('example.test')
+  })
+
+  it('stops honouring an admin token once its user is demoted', async () => {
+    const token = await createToken(staff, ['notes:read', 'notes:manage', 'notes:pii'])
+    expect(await toolNames({ bearer: token })).toContain('list-notes')
+    await fetch('/api/test/role', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: '3', role: 'user' }) })
+    try {
+      expect(await toolNames({ bearer: token })).toEqual(['my-notes'])
+      const { body } = await rpc({ bearer: token }, 'tools/call', { name: 'list-notes', arguments: {} })
+      expect(body.error ?? body.result?.isError).toBeTruthy()
+      expect(JSON.stringify(body)).not.toContain('example.test')
+    }
+    finally {
+      await fetch('/api/test/role', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: '3', role: 'admin' }) })
+    }
   })
 
   it('keeps "my" tools to the caller and redacts PII unless notes:pii is granted', async () => {
@@ -106,10 +123,20 @@ describe('scoped MCP tools', async () => {
     expect(JSON.stringify(full.body)).toContain('bo@example.test')
   })
 
-  it('exposes session-only tools to cookie sessions but never to tokens', async () => {
-    expect(await toolNames({ cookie: ada })).toContain('session-only')
-    const token = await createToken(ada, ['notes:read'])
+  it('shows a session admin every tool its role allows, and a plain user only their own', async () => {
+    expect(await toolNames({ cookie: staff })).toEqual(['list-notes', 'my-notes', 'session-only'])
+    expect(await toolNames({ cookie: ada })).toEqual(['my-notes'])
+    const { body } = await rpc({ cookie: ada }, 'tools/call', { name: 'session-only', arguments: {} })
+    expect(body.error ?? body.result?.isError).toBeTruthy()
+  })
+
+  it('never exposes a sessionOnly permission tool to a bearer credential', async () => {
+    const token = await createToken(staff, ['notes:read', 'notes:manage', 'notes:pii'])
     expect(await toolNames({ bearer: token })).not.toContain('session-only')
+    const { body } = await rpc({ bearer: token }, 'tools/call', { name: 'session-only', arguments: {} })
+    expect(body.error ?? body.result?.isError).toBeTruthy()
+    const session = await rpc({ cookie: staff }, 'tools/call', { name: 'session-only', arguments: {} })
+    expect(session.body.result?.isError).toBeFalsy()
   })
 
   it('gives an invalid bearer token an empty catalog instead of falling back to a session', async () => {

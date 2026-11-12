@@ -4,6 +4,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxthub/core',
     '@frigear-nu/users',
+    // Widgets and tabs with a `permission` (`modules/access.ts`, rendered by `app/pages/widgets.vue`).
+    '@frigear-nu/widget',
     MyModule,
   ],
   runtimeConfig: {

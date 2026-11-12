@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { outdatedScopes } from '../../../utils'
 
 const param = z.string().max(4096).optional()
 
@@ -69,11 +70,18 @@ export default defineEventHandler(async (event) => {
   const access = await checkApplicationAccess(user, application, event)
   if (!access.allowed) return oauthError(event, 400, 'access_denied', access.reason)
 
-  // Scopes are re-checked too: a user who lost a staff scope gets tokens without it (the grant keeps it, unused).
-  const scope = await filterGrantableScopes(event, user, grant.scope)
+  // Scopes are re-checked too, silently (never `invalid_scope` here): a user who lost a permission gets tokens without
+  // the scope (the grant keeps it, unused), and a database scope that grew since the consent waits for a new one.
+  const authUser = await loadAuthUser(user.id)
+  if (!authUser) return oauthError(event, 400, 'invalid_grant', 'The user no longer exists.')
+  const { versions } = await getOAuthScopeCatalog(event)
+  const outdated = new Set(outdatedScopes(grant.scope, grant.scopeVersions, versions))
+  const { granted: scope } = await filterGrantableScopes(event, authUser, grant.scope.filter(name => !outdated.has(name)), { application })
+  // Frozen in the access token: what the granted scopes stand for, within what the user may do now.
+  const permissions = await grantedOAuthPermissions(event, authUser, scope)
   const input = { event, user, application, scope, roles: access.roles }
   const response: Record<string, unknown> = {
-    access_token: await signAccessToken(input),
+    access_token: await signAccessToken({ ...input, permissions }),
     token_type: 'Bearer',
     expires_in: useOAuthConfig().accessTokenTtl,
     refresh_token: refreshToken,

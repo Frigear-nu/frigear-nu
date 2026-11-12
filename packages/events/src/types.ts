@@ -14,8 +14,8 @@ export type TicketStatus = 'pending' | 'paid' | 'cancelled' | 'refunded' | 'expi
 export type ModuleOptions = {
   settings?: {
     /**
-     * Ship an `eventmanager` role (role-based access control, `@frigear-nu/authorization`): every user's permissions
-     * plus `events:manage` and `events:pii`, just below `admin`. Defaults to `false`.
+     * Ship an `eventmanager` role (role-based access control): `events:manage`, `events:refund` and `events:pii`. `admin` holds both
+     * either way. Defaults to `false`.
      */
     roles?: boolean
     // Expose this module's MCP tools, resources and prompts on the MCP endpoint. Defaults to `false`.
@@ -27,7 +27,7 @@ export type ModuleOptions = {
       event?: string | boolean
       /** The signed-in user's tickets. `true` = `/account/tickets`. */
       tickets?: string | boolean
-      /** Staff event list (needs the `events:authorize` hook to allow staff). `true` = `/admin/events`. Off by default. */
+      /** Staff event list (needs the `events:manage` permission). `true` = `/admin/events`. Off by default. */
       admin?: string | boolean
       /** Staff event page (details, ticket types, attendees); must contain an `:id` param. `true` = `/admin/events/:id`. Off by default. */
       adminEvent?: string | boolean
@@ -249,13 +249,6 @@ export type PurchaseBeforeContext = {
   eventId: string
   ticketTypeId: string
   addonIds: string[]
-}
-
-export type AuthorizeContext = {
-  event: H3Event
-  userId: number
-  /** Set `ctx.allowed = true` to let the user manage events / check tickets in. Denied by default. */
-  allowed: boolean
 }
 
 /** A selectable membership (plan) offered by a membership provider. */

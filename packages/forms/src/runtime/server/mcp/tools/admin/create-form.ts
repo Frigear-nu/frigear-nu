@@ -4,8 +4,7 @@ import { DELIVERY_NOTICE, deliveryRefusal, formDefinitionInput, formSlug } from 
 
 export default defineScopedMcpTool({
   description: `Create a form (staff). It starts as a draft unless a status is given. New forms have no delivery settings; ${DELIVERY_NOTICE}`,
-  scopes: ['forms:manage'],
-  gate: canManageForms,
+  permission: 'forms:manage',
   annotations: { destructiveHint: false },
   inputSchema: {
     slug: formSlug,

@@ -5,7 +5,7 @@ const DAYS = 30
 
 // Headline numbers for the admin dashboard: everyone, and who signed up in the last 30 days.
 export default defineEventHandler(async (event) => {
-  await authorizeUsersAdmin(event, 'view')
+  await authorizeUsersAdmin(event, 'list')
 
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000)
   const [[total], [recent]] = await Promise.all([

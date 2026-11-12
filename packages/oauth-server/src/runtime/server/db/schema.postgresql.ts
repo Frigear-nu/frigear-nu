@@ -29,9 +29,11 @@ export const oauthApplications = pgTable('oauth_applications', {
   previewUrlPattern: text(),
   /** Extra exact redirect URIs. */
   redirectUris: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
-  /** Roles allowed to sign in. Empty = every signed-in user. Roles are resolved by the host (`oauth:user:roles`). */
+  /** Roles allowed to sign in (the user's effective roles). Empty = every signed-in user. */
   allowedRoles: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
   tags: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
+  /** May receive wildcard scopes (`*`, `resource:*`). */
+  wildcardScopes: boolean().notNull().default(false),
   ownerId: integer(),
   isActive: boolean().notNull().default(true),
   /** Shown in the users' application list. Unlisted applications still sign in. */
@@ -53,6 +55,8 @@ export const oauthAuthorizationCodes = pgTable('oauth_authorization_codes', {
   userId: integer().notNull(),
   redirectUri: text().notNull(),
   scope: text().notNull(),
+  /** The version of each database scope in `scope` when the user consented: a newer version needs consent again. */
+  scopeVersions: jsonb().$type<Record<string, number>>(),
   codeChallenge: text().notNull(),
   nonce: text(),
   /** When the user signed in / approved; becomes `auth_time` in the ID token. */
@@ -69,6 +73,8 @@ export const oauthRefreshTokens = pgTable('oauth_refresh_tokens', {
   applicationId: text().notNull().references(() => oauthApplications.id, { onDelete: 'cascade' }),
   userId: integer().notNull(),
   scope: text().notNull(),
+  /** The version of each database scope in `scope` when the user consented: a newer version needs consent again. */
+  scopeVersions: jsonb().$type<Record<string, number>>(),
   /** Shared by every token of one authorization, so a reuse can revoke them all. */
   familyId: text().notNull(),
   /** Id of the token that replaced this one when it was rotated. */
@@ -81,3 +87,22 @@ export const oauthRefreshTokens = pgTable('oauth_refresh_tokens', {
   index('oauth_refresh_user_idx').on(t.userId, t.applicationId),
   index('oauth_refresh_family_idx').on(t.familyId),
 ])
+
+/**
+ * Named scopes staff manage in the admin UI, next to the ones of config and modules (`addScope`). A scope stands for
+ * its permissions; it may never contain sensitive or `sessionOnly` ones.
+ */
+export const oauthScopes = pgTable('oauth_scopes', {
+  /** A single lower-case word, e.g. `tickets`. */
+  name: text().primaryKey(),
+  label: text(),
+  description: text(),
+  icon: text(),
+  /** Permissions or wildcards (`tickets:read`, `tickets:*`). */
+  permissions: jsonb().$type<string[]>().notNull().$defaultFn(() => []),
+  /** Bumped whenever the permissions it expands to grow, so users are asked to consent again. */
+  version: integer().notNull().default(1),
+  isActive: boolean().notNull().default(true),
+  createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
+})

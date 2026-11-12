@@ -131,6 +131,10 @@
       "label": "Medlemskab",
       "none": "Intet aktivt medlemskab",
       "manage": "Administrér medlemskab"
+    },
+    "permissions": {
+      "read": "Se dit medlemskab",
+      "manage": "Administrere medlemskaber"
     }
   }
 }

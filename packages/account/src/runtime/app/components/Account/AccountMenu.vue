@@ -69,12 +69,8 @@ const appearance = (label: string, value: 'light' | 'dark' | 'system', icon: str
 })
 
 const items = computed<DropdownMenuItem[][]>(() => {
-  // Items carrying `meta.roles` (e.g. the admin entry) are only for users holding one of those roles.
-  const visible = (dropdown.value ?? []).filter((item) => {
-    const roles = item.meta?.roles as string[] | undefined
-    if (roles?.length && !(role.value && roles.includes(role.value))) return false
-    return !item.to || item.external || item.method || !isHere(item.to)
-  })
+  // Items with a `permission` (e.g. the admin entry) were already dropped by `useMenu`'s `menus:filter` listener.
+  const visible = (dropdown.value ?? []).filter(item => !item.to || item.external || item.method || !isHere(item.to))
   // Sign out (order 99 and up) goes last, below Appearance.
   const last = (item: MenuItem) => (item.order ?? 0) >= 99
 

@@ -7,7 +7,7 @@ const input = z.object({ name: z.string().trim().min(1).max(100) })
 
 // The only response that ever contains the token; only its hash is stored. Minting a credential needs a session.
 export default defineEventHandler(async (event): Promise<CreatedFormAccessTokenDto> => {
-  await formsStaff.require(event, { sessionOnly: true })
+  await authorize(event, 'forms:credentials')
   const { id: formId } = await getValidatedRouterParams(event, idParams().parse)
   const { name } = await readValidatedBody(event, input.parse)
   const form = await findFormById(formId)

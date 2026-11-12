@@ -6,6 +6,6 @@ import type { TicketDto } from '../../../types'
  * (the key `useMyTickets()` reads), so both always return the same thing.
  */
 export default async function myTickets(event: H3Event): Promise<TicketDto[]> {
-  const user = await requireUser(event, { scopes: ['tickets:read'] })
+  const { user } = await authorize(event, 'tickets:read')
   return listUserTickets(user.id)
 }

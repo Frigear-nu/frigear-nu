@@ -1,7 +1,9 @@
 import { createLocalJWKSet, errors, jwtVerify } from 'jose'
 import type { JSONWebKeySet } from 'jose'
 import type { AuthUser } from '@frigear-nu/auth/utils'
-import type { OAuthResourceAccessToken, OAuthResourceRuntimeConfig, OAuthResourceUserinfo } from '../../../types'
+import { expandScopes } from '@frigear-nu/auth/utils'
+import { namedScopes, registry } from '#auth/permissions'
+import type { OAuthResourceAccessToken, OAuthResourceIntrospection, OAuthResourceRuntimeConfig, OAuthResourceUserinfo } from '../../../types'
 import { parseList, resolveIssuerUrls } from '../../utils'
 
 /** `runtimeConfig.oauthResource`, normalised: lists are arrays, `forceId` follows "Log in with frigear.nu" when unset. */
@@ -18,7 +20,61 @@ export function useOAuthResourceConfig() {
     corsPaths: parseList(resource.corsPaths),
     forceId,
     jwksCacheTtl: Number(resource.jwksCacheTtl) || 600,
+    introspection: resource.introspection?.clientId
+      ? {
+          endpoint: resource.introspection.endpoint || `${resolveIssuerUrls(resource).issuer}/oauth/introspect`,
+          clientId: resource.introspection.clientId,
+          clientSecret: resource.introspection.clientSecret ?? '',
+          cacheTtl: Number(resource.introspection.cacheTtl) || 30,
+        }
+      : null,
   }
+}
+
+const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string')
+
+// Introspection answers per token (its `jti`, or the token), until `cacheTtl` or the token's expiry.
+const introspected = new Map<string, { permissions: string[] | null, until: number }>()
+const INTROSPECTION_CACHE_SIZE = 5000
+
+/**
+ * What a foreign token may do: with `introspection` configured, the issuer's live answer (`null` when it says the
+ * token is no longer active); otherwise the `permissions` claim the issuer froze in it; for a token without one (an
+ * older issuer), its scopes expanded against this service's permissions.
+ */
+export async function resolveOAuthResourcePermissions(token: string, payload: OAuthResourceAccessToken, scopes: string[]): Promise<string[] | null> {
+  // A malformed claim is no claim to fall back from: refuse the token.
+  if (payload.permissions !== undefined && !isStringList(payload.permissions)) return null
+  const { introspection } = useOAuthResourceConfig()
+  if (introspection) {
+    const key = typeof payload.jti === 'string' ? payload.jti : token
+    const cached = introspected.get(key)
+    if (cached && cached.until > Date.now()) return cached.permissions
+    let answer: OAuthResourceIntrospection
+    try {
+      answer = await $fetch<OAuthResourceIntrospection>(introspection.endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'authorization': `Basic ${btoa(`${encodeURIComponent(introspection.clientId)}:${encodeURIComponent(introspection.clientSecret)}`)}`,
+        },
+        body: new URLSearchParams({ token, token_type_hint: 'access_token' }).toString(),
+      })
+    }
+    catch (error) {
+      // Fail closed, uncached: the next request asks again.
+      console.error('[oauth-resource] token introspection failed', error)
+      return null
+    }
+    const permissions = answer?.active === true && answer.sub === payload.sub
+      ? (isStringList(answer.permissions) ? answer.permissions : expandScopes(scopes, registry, namedScopes))
+      : null
+    if (introspected.size >= INTROSPECTION_CACHE_SIZE) introspected.delete(introspected.keys().next().value!)
+    introspected.set(key, { permissions, until: Math.min(Date.now() + introspection.cacheTtl * 1000, payload.exp * 1000) })
+    return permissions
+  }
+  if (isStringList(payload.permissions)) return payload.permissions
+  return expandScopes(scopes, registry, namedScopes)
 }
 
 // The issuer's keys, shared by every request of this instance. A token with an unknown `kid` (the issuer rotated its

@@ -7,7 +7,7 @@ import { addonInput } from '../../utils/admin-schemas'
 
 // Adds an addon (one choice) to the addon group `:id`.
 export default defineEventHandler(async (event): Promise<AdminAddonDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const input = await readValidatedBody(event, addonInput.parse)
   const [parent] = await db.select({ id: schema.eventAddonGroups.id }).from(schema.eventAddonGroups).where(eq(schema.eventAddonGroups.id, id)).limit(1)

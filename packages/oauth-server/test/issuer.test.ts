@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { getRequestURL } from 'h3'
 import type { H3Event } from 'h3'
 
-vi.mock('#auth/scopes', () => ({ scopes: [] }))
+vi.mock('#auth/permissions', () => ({ registry: { permissions: {}, aliases: {} }, namedScopes: {} }))
 
 const config = { issuer: '' as string }
 vi.stubGlobal('useRuntimeConfig', () => ({ oauthServer: config }))

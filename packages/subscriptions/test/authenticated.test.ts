@@ -312,6 +312,8 @@ describe('subscriptions (authenticated, database-backed)', async () => {
     })
     const entitled = async (userId: number) =>
       (await $fetch<{ has: boolean }>(`/api/test/entitlement?userId=${userId}`)).has
+    // The fixture's `member` role is `auto` with `requirements: { subscription: '*' }`.
+    const roles = async (cookie: string) => (await $fetch<{ roles?: string[] }>(authApi.me.access, { headers: { cookie } })).roles
 
     it('requires a signed-in staff member', async () => {
       const target = await registerUser('Target Auth', 'target-auth@example.com')
@@ -329,6 +331,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const target = await registerUser('Free Member', 'free@example.com')
       const url = subscriptionsApi.admin.membership(target.id)
       const headers = staffHeaders(staff.cookie)
+      expect(await roles(target.cookie)).not.toContain('member')
 
       const before = await $fetch<{ plans: Array<{ key: string }>, current: unknown }>(url, { headers })
       expect(before.current).toBeNull()
@@ -344,6 +347,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(granted.id).toMatch(/^manual_/)
       expect(await row(granted.id)).toMatchObject({ userId: target.id, planKey: 'member', status: 'active', source: 'manual', priceId: '', endedAt: null })
       expect(await entitled(target.id)).toBe(true)
+      expect(await roles(target.cookie)).toContain('member')
 
       const me = await $fetch<{ activePlan: string | null, subscriptions: Array<{ source: string }> }>(subscriptionsApi.me.subscriptions, { headers: { cookie: target.cookie } })
       expect(me).toMatchObject({ activePlan: 'member', subscriptions: [{ source: 'manual' }] })
@@ -359,6 +363,7 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       expect(revoked.status).toBe(204)
       expect(await revoked.text()).toBe('')
       expect(await entitled(target.id)).toBe(false)
+      expect(await roles(target.cookie)).not.toContain('member')
       expect(await row(replaced.id)).toMatchObject({ status: 'canceled' })
       await expectApiError(staffFetch(staff.cookie, 'DELETE', url), 404, 'not_found')
 
@@ -457,9 +462,12 @@ describe('subscriptions (authenticated, database-backed)', async () => {
       const user = await registerUser('Token', 'token@example.com')
       const read = await createToken(user.cookie, ['subscriptions:read'])
       expect((await fetch(subscriptionsApi.me.subscriptions, { headers: bearer(read) })).status).toBe(200)
+      // A token given only `profile:read` may not read subscriptions.
+      const other = await createToken(user.cookie, ['profile:read'])
+      await expectApiError(apiClient({ bearer: other }).json('GET', subscriptionsApi.me.subscriptions), 403, 'insufficient_scope')
 
-      // The billing portal is session-only: even full access cannot use it.
-      const full = await createToken(user.cookie, ['*'])
+      // The billing portal is session-only: no token can use it, whatever it may do (a plain user cannot mint `*`).
+      const full = await createToken(user.cookie, ['subscriptions:read', 'profile:read', 'profile:write'])
       await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.portal, {}), 403, 'session_required')
       // So is the checkout (billing).
       await expectApiError(apiClient({ bearer: full }).json('POST', subscriptionsApi.me.checkout, { planKey: 'patron' }), 403, 'session_required')

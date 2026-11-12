@@ -66,6 +66,8 @@ describe('mobile with auth and authorization', () => {
     ['no rule or page meta guards anything', fileURLToPath(new URL('./fixtures/spa', import.meta.url)), [], true],
     ['a route rule guards pages', rootDir, [], false],
     ['a page guards itself', fileURLToPath(new URL('./fixtures/spa', import.meta.url)), [{ path: '/account', meta: { authorize: { authenticated: true } } }], false],
+    ['a page names a permission', fileURLToPath(new URL('./fixtures/spa', import.meta.url)), [{ path: '/admin', meta: { authorize: 'admin:access' } }], false],
+    ['a page only takes guests', fileURLToPath(new URL('./fixtures/spa', import.meta.url)), [{ path: '/welcome', meta: { authorize: { guest: true } } }], true],
   ])('warns that every page is public only when %s', async (_name, cwd, pages, warned) => {
     const messages = await warnings(async () => {
       const nuxt = await loadNuxt({ cwd, dev: false, ready: true, overrides: cwd === rootDir ? { modules: [mobile, '@frigear-nu/authorization'] } : {} })

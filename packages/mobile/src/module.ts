@@ -298,7 +298,8 @@ declare module '#mobile/tabs' {
     // A mobile app is public unless it adds rules: say so when Auth signs it in but nothing is guarded.
     nuxt.hook('pages:resolved', (pages) => {
       if (prepare || !clientAuth) return
-      const guards = ['authenticated', 'roles', 'ability']
+      // The access route rule keys that need a user (`guest` is for signed-out visitors).
+      const guards = ['authenticated', 'permission']
       const isGuard = (rule: unknown) => !!rule && typeof rule === 'object' && guards.some(key => key in rule && (rule as Record<string, unknown>)[key] !== false)
       const ruled = Object.values({ ...nuxt.options.routeRules, ...nuxt.options.nitro?.routeRules }).some(isGuard)
       const walk = (list: NuxtPage[]): boolean => list.some((page) => {
@@ -307,7 +308,7 @@ declare module '#mobile/tabs' {
       })
       if (!ruled && !walk(pages)) {
         // Page meta is only seen when it is a literal (`@frigear-nu/authorization` extracts `authorize`).
-        logger.warn('Auth signs the app in, but no route rule or page requires a user: every page is public. Add `routeRules: { \'/**\': { authenticated: true } }` (with `@frigear-nu/authorization`) to stay signed in everywhere. (Pages that guard themselves with an ability object in `definePageMeta` are not seen here.)')
+        logger.warn('Auth signs the app in, but no route rule or page requires a user: every page is public. Add `routeRules: { \'/**\': { authenticated: true } }` (with `@frigear-nu/authorization`) to stay signed in everywhere. (Pages that guard themselves with a computed `definePageMeta({ authorize })` are not seen here.)')
       }
     })
     nuxt.hook('pages:resolved', (pages) => {

@@ -18,7 +18,7 @@ const querySchema = pageQuery({
 
 // `q` searches name and slug; `status` / `archived` filter.
 export default defineEventHandler(async (event): Promise<FormsPage<FormSummaryDto>> => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const query = await getValidatedQuery(event, querySchema.parse)
 
   const conditions: (SQL | undefined)[] = []

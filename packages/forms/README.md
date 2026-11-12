@@ -31,8 +31,7 @@ export default defineNuxtConfig({
 ```
 
 ```ts
-// server/plugins/forms-policy.ts - who may manage forms (denied by default)
-export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('forms:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
-})
+// nuxt.config.ts - who may manage forms: the `admin` role holds `forms:manage`, `forms:pii` and `forms:credentials`
+// by default; give them to another role with `authorization.roles`, e.g. { formsmanager: ['forms:manage'] }
+// (`forms:*` covers `forms:manage` and `forms:credentials`, never the sensitive `forms:pii`).
 ```

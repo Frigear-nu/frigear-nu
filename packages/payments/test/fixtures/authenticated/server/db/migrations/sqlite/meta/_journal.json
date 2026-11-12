@@ -50,6 +50,13 @@
       "when": 1794017493832,
       "tag": "0006_add_users_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794491482762,
+      "tag": "0007_green_mojo",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { addonInput } from '../../utils/admin-schemas'
 const patchSchema = addonInput.partial()
 
 export default defineEventHandler(async (event): Promise<AdminAddonDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const patch = await readValidatedBody(event, patchSchema.parse)
   const [row] = await db.update(schema.eventAddons).set(patch).where(eq(schema.eventAddons.id, id)).returning()

@@ -130,6 +130,22 @@ describe('authorization (authenticated)', async () => {
     })
   })
 
+  describe('widgets and tabs', () => {
+    it('hides those whose permission the viewer lacks, after bumping the access version', async () => {
+      const user = await $fetch<string>('/widgets', as(ada.cookie))
+      expect(user).toContain('widget:open-widget')
+      expect(user).toContain('tab:open-tab')
+      expect(user).not.toContain('widget:writer-widget')
+      expect(user).not.toContain('tab:writer-tab')
+      // `refresh()` bumps `useState('access:version')`, which menus, widgets and tabs are keyed on.
+      expect(user).toMatch(/access-version:[1-9]/)
+
+      const admin = await $fetch<string>('/widgets', as(grace.cookie))
+      expect(admin).toContain('widget:writer-widget')
+      expect(admin).toContain('tab:writer-tab')
+    })
+  })
+
   describe('roles admin API', () => {
     it('is for staff holding roles:read only', async () => {
       for (const route of [authorizationApi.admin.roles, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('admin'), authorizationApi.admin.userRoles(ada.id)]) {

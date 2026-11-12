@@ -6,6 +6,7 @@ import {
   defineMenuSource,
   deriveMenuItemId,
   extendMenu,
+  filterMenuItems,
   matchesMenuGroup,
   parseMenuPath,
   registerMenuSource,
@@ -194,5 +195,33 @@ describe('translateMenuItem', () => {
 
   it('keeps the id derived from the untranslated label', () => {
     expect(translateMenuItem({ label: 'Log out', labelKey: 'x.label' }, i18n).id).toBe('log-out')
+  })
+})
+
+describe('filterMenuItems', () => {
+  type Item = { label: string, permission?: string, children?: Item[] }
+  const allowed = new Set(['a'])
+  const keep = (item: Item) => !item.permission || allowed.has(item.permission)
+
+  it('keeps items without a permission and drops the ones the predicate rejects', () => {
+    const items: Item[] = [{ label: 'open' }, { label: 'ok', permission: 'a' }, { label: 'no', permission: 'b' }]
+    expect(filterMenuItems(items, keep).map(item => item.label)).toEqual(['open', 'ok'])
+  })
+
+  it('recurses into children, and a dropped parent takes its children with it', () => {
+    const items: Item[] = [
+      { label: 'parent', children: [{ label: 'kept', permission: 'a' }, { label: 'dropped', permission: 'b' }, { label: 'deep', children: [{ label: 'gone', permission: 'b' }] }] },
+      { label: 'hidden', permission: 'b', children: [{ label: 'child' }] },
+    ]
+    const result = filterMenuItems(items, keep)
+    expect(result.map(item => item.label)).toEqual(['parent'])
+    expect(result[0]!.children!.map(item => item.label)).toEqual(['kept', 'deep'])
+    expect(result[0]!.children![1]!.children).toEqual([])
+  })
+
+  it('does not mutate its input', () => {
+    const items: Item[] = [{ label: 'x', permission: 'b' }]
+    filterMenuItems(items, keep)
+    expect(items).toHaveLength(1)
   })
 })

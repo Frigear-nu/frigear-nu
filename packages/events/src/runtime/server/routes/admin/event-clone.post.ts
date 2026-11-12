@@ -7,10 +7,11 @@ import { newId } from '../../../utils'
 // Copies an event with its whole catalogue (ticket types, addon groups, addons) into a new draft.
 // Sold tickets are not copied. The start and end stay as they were: staff move them in the editor.
 export default defineEventHandler(async (event): Promise<AdminEventDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const [source] = await db.select().from(schema.events).where(eq(schema.events.id, id)).limit(1)
   if (!source) throw notFound('Event not found.')
+  await authorize(event, 'events:manage', source)
 
   const slug = await uniqueCopySlug(source.slug, async candidate =>
     (await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, candidate)).limit(1)).length > 0)

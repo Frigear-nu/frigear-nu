@@ -3,5 +3,5 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
   compatibilityDate: 'latest',
-  admin: { settings: { roles: false } },
+  admin: { settings: { permission: false } },
 })

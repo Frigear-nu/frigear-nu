@@ -4,7 +4,7 @@ import { idParams, noContent, notFound } from '@frigear-nu/module-kit/server'
 
 // Purchased tickets snapshot their addons, so deleting catalogue rows never changes them.
 export default defineEventHandler(async (event) => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const [row] = await db.delete(schema.eventAddonGroups).where(eq(schema.eventAddonGroups.id, id)).returning({ id: schema.eventAddonGroups.id })
   if (!row) throw notFound('Addon group not found.')

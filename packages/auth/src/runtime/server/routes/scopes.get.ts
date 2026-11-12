@@ -10,7 +10,7 @@ export default defineEventHandler(async (event): Promise<AuthScopeDto[]> => {
   const offer = async (scope: AuthScopeDto) => {
     if (await canGrantScope(event, scope.name, { wildcardScopes: true })) result.push(scope)
   }
-  await offer({ name: ANY_PERMISSION, description: 'Full access: everything you can do, except the sensitive permissions (such as :pii), which must be chosen by name.' })
+  await offer({ name: ANY_PERMISSION, label: 'All permissions you can delegate', description: 'Every permission you hold that a token may carry, as it stands when the token is created. Sensitive permissions (such as :pii) and session-only ones are left out: choose sensitive ones by name.' })
   for (const scope of Object.values(namedScopes)) {
     await offer({ name: scope.name, label: scope.label, labelKey: scope.labelKey, description: scope.description, descriptionKey: scope.descriptionKey })
   }

@@ -6,7 +6,12 @@ export type UserSubscription = { planKey: string | null, status: string }
 /** One row of `GET /api/admin/users` (and `GET /api/admin/users/new`); the create response has no `subscription`. */
 export type UserRow = AdminUserDto & {
   subscription?: UserSubscription | null
+  /** The user's stored roles (`@frigear-nu/authorization`), when it is installed. */
+  roles?: string[]
 }
+
+/** A role the list can be filtered by. */
+export type UserRoleOption = { value: string, label: string, labelKey?: string }
 
 /** `GET /api/admin/users` */
 export type UsersPage = {
@@ -16,7 +21,7 @@ export type UsersPage = {
   pageSize: number
   hasRoles: boolean
   hasSubscriptions: boolean
-  roles: string[]
+  roles: UserRoleOption[]
 }
 
 /** The shape of `GET /api/admin/users/:id`. */
@@ -24,9 +29,8 @@ export type UserDetail = AdminUserDto & {
   hasPassword: boolean
   passkeys: number
   subscription: UserSubscription | null
-  hasRoles: boolean
-  roles: string[]
-  can: { update: boolean, delete: boolean }
+  /** `manage`: change or verify the email address (`users:manage`). */
+  can: { update: boolean, delete: boolean, manage: boolean }
 }
 
 /** What the actions need of a user: the list rows and the detail both satisfy it. */

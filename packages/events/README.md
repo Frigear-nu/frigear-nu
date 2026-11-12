@@ -18,13 +18,18 @@ export default defineNuxtConfig({
 
 Generate and commit a migration for the events tables in your app (see the repository `AGENTS.md`).
 
-Staff routes (event management, check-in) are denied until the host implements the `events:authorize` Nitro hook:
+Staff routes (event management, check-in) need the `events:manage` permission (attendee details over MCP need `events:pii`,
+refunds the session-only `events:refund`). Grant them to a role, either the module's `eventmanager` role
+(`events: { settings: { roles: true } }`) or your own:
 
 ```ts
-export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('events:authorize', (ctx) => { ctx.allowed = isStaff(ctx.userId) })
+export default defineNuxtConfig({
+  authorization: { roles: { coordinator: { label: 'Coordinator', grant: ['events:manage', 'events:refund', 'events:pii'] } } },
 })
 ```
+
+Tickets (`tickets:read`, `tickets:write`) are self-service: every signed-in user holds them. The named scope `tickets`
+offers both to API tokens and OAuth clients.
 
 Full documentation: `apps/docs/content/3.modules/3.features/1.events/index.md`.
 

@@ -38,8 +38,8 @@ declare module '#app' {
     'menus:visible': (menu: string) => void
     /**
      * Called by `useMenu` before `menus:visible`, to drop items the viewer may not see (items with a `permission`).
-     * Listeners mutate `ctx.items`. Not fired yet: the access-control rework wires it in, together with an access
-     * version in the menu cache key so menus re-filter on sign-in and sign-out.
+     * Listeners mutate `ctx.items`. The menu cache key includes the
+     * `useState<number>('access:version')` counter, which the access layer bumps on sign-in/out, so menus re-filter.
      */
     'menus:filter': (ctx: MenuFilterContext) => void | Promise<void>
   }

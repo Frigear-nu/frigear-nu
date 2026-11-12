@@ -7,7 +7,7 @@ const LIMIT = 5
 
 // The next published events and how many there are, for the admin dashboard.
 export default defineEventHandler(async (event): Promise<UpcomingEventsDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
 
   const upcoming = and(eq(schema.events.status, 'published'), gte(schema.events.startsAt, new Date()))
   const [[total], rows] = await Promise.all([

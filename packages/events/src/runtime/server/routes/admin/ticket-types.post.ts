@@ -7,7 +7,7 @@ import { ticketTypeInput } from '../../utils/admin-schemas'
 
 // Adds a ticket type (optionally with its addon groups and addons) to the event `:id`.
 export default defineEventHandler(async (event): Promise<AdminTicketTypeDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const input = await readValidatedBody(event, ticketTypeInput.parse)
   const [parent] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.id, id)).limit(1)

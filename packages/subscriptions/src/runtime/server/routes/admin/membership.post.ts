@@ -13,7 +13,7 @@ const bodySchema = z.object({
 // Staff grants a membership free of charge: a manual row (no Stripe subscription behind it) that counts as an
 // active subscription until revoked or its optional end date passes. Answers 201 with the new membership.
 export default defineEventHandler(async (event): Promise<SubscriptionDto> => {
-  const { target } = await loadUsersAdminTarget(event, 'update')
+  const { target } = await loadUsersAdminTarget(event, 'update', { permission: 'subscriptions:manage' })
   const body = await readValidatedBody(event, bodySchema.parse)
 
   const plans = useRuntimeConfig().subscriptions?.plans ?? {}

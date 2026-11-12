@@ -10,7 +10,6 @@
       "user": "User",
       "name": "Name",
       "email": "Email",
-      "role": "Role",
       "verified": "Verified",
       "emailVerified": "Mark the email address as verified",
       "sendWelcome": "Email a sign-in link",
@@ -26,7 +25,7 @@
         "description": "Signed up in the last 30 days.",
         "empty": "Nobody new yet."
       },
-      "search": "Search name, email or role...",
+      "search": "Search name or email...",
       "empty": "No users match",
       "total": "{count} users",
       "lastLogin": "Last sign-in",
@@ -40,7 +39,6 @@
         "allRoles": "All roles"
       },
       "subscription": "Membership",
-      "rolePlaceholder": "Select a role",
       "detail": {
         "profile": "Profile",
         "account": "Account",
@@ -75,7 +73,8 @@
       "deleteUser": "Delete user",
       "deleteTitle": "Delete {name}?",
       "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
-      "deleted": "User deleted."
+      "deleted": "User deleted.",
+      "roles": "Roles"
     },
     "emailChange": {
       "verify": {
@@ -117,6 +116,16 @@
         "taken": "Another account now uses your old e-mail address. Contact us to get your account back.",
         "failed": "Could not restore your e-mail address. Try again."
       }
+    },
+    "permissions": {
+      "profileRead": "Read your profile",
+      "profileWrite": "Change your profile",
+      "read": "View users",
+      "list": "List users",
+      "create": "Add users",
+      "update": "Edit users",
+      "delete": "Delete users",
+      "manage": "Manage sign-in of users"
     }
   }
 }

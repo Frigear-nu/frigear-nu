@@ -342,6 +342,19 @@
       "translate": "Oversæt",
       "singleLanguage": "Samme tekst på alle sprog",
       "addLanguage": "Tilføj sprog, f.eks. en"
+    },
+    "permissions": {
+      "manage": "Administrer formularer",
+      "manageDescription": "Opret og redigér formularer, læs deres indsendelser og filer, og send dem igen.",
+      "pii": "Se svar på indsendelser",
+      "piiDescription": "Se svar og filnavne på indsendelser (MCP-værktøjer). Dækkes aldrig af et wildcard.",
+      "credentials": "Administrer adgangsoplysninger til formularer",
+      "credentialsDescription": "Opret og fjern adgangstokens, adgangskoder og hemmeligheder til formularer. Kun cookie-sessioner.",
+      "submit": "Indsend formularer",
+      "submitDescription": "Indsend formularer som dig."
+    },
+    "scopes": {
+      "forms": "Indsend formularer"
     }
   }
 }

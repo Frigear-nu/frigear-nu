@@ -152,6 +152,8 @@ describe('auth tokens', async () => {
     expect(unknown.data).toMatchObject({ scopes: ['nope:read'] })
     await expectApiError(api.json('POST', authApi.me.tokens, { name: '', scopes: ['events:read'] }), 400)
     await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: [] }), 400)
+    // At most 50 scopes per token.
+    await expectApiError(api.json('POST', authApi.me.tokens, { name: 'x', scopes: Array.from({ length: 51 }, () => 'events:read') }), 400)
   })
 
   it('lists the grantable scopes', async () => {

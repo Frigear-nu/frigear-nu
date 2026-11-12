@@ -1,3 +1,4 @@
+import { addRole } from '@frigear-nu/auth/utils'
 import SubscriptionsModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -6,6 +7,8 @@ export default defineNuxtConfig({
     '@frigear-nu/users',
     '@frigear-nu/stripe',
     SubscriptionsModule,
+    // `member` is held by everyone with an active subscription on any plan (the `subscription` requirement).
+    (_options, nuxt) => addRole(nuxt, { name: 'member', label: 'Member', grant: ['subscriptions:read'], requirements: { subscription: '*' }, auto: true, source: 'host' }),
   ],
   runtimeConfig: {
     session: {

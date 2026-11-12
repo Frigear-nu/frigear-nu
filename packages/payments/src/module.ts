@@ -14,12 +14,11 @@ import {
   registerTailwindSource,
   inlineModuleRuntime,
 } from '@frigear-nu/module-kit/utils'
-import { addAuthScope } from '@frigear-nu/auth/utils'
+import { addPermission, addScope } from '@frigear-nu/auth/utils'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { registerStripeEventHandler } from '@frigear-nu/stripe/utils'
 import type {
-  AuthorizeContext,
   CheckoutBeforeContext,
   ModuleOptions,
   PaymentHookContext,
@@ -27,7 +26,6 @@ import type {
 } from './types'
 
 export type {
-  AuthorizeContext,
   CheckoutBeforeContext,
   CreatePaymentInput,
   CreatePaymentResult,
@@ -54,8 +52,6 @@ declare module '@nuxt/schema' {
 
 declare module 'nitropack' {
   interface NitroRuntimeHooks {
-    /** Staff gate (the dashboard's recent payments): set `ctx.allowed = true` to let the user in. Denied by default. */
-    'payments:authorize': (ctx: AuthorizeContext) => void | Promise<void>
     /** Policy hook: throw to deny a checkout, or adjust `ctx.params` before it reaches Stripe. */
     'payments:checkout:before': (ctx: CheckoutBeforeContext) => void | Promise<void>
     /** A payment became `paid` (fired once, from the verified Stripe event). */
@@ -94,11 +90,20 @@ export default defineNuxtModule<ModuleOptions>({
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
-    addAuthScope(nuxt,
-      { name: 'payments:read', description: 'Read your payments', aggregateTo: ['user'] },
-      { name: 'payments:write', description: 'Resume your payments', aggregateTo: ['user'] },
-      { name: 'payments:manage', description: 'See recent payments and revenue (staff)' },
+    // Self-service permissions every signed-in user holds (`implicit`); `payments:manage` is staff only (the admin role).
+    addPermission(nuxt,
+      { name: 'payments:read', label: 'Read your payments', labelKey: 'payments.permissions.read', description: 'Read your own payments.', descriptionKey: 'payments.permissions.readDescription', group: 'payments', implicit: true },
+      { name: 'payments:write', label: 'Resume your payments', labelKey: 'payments.permissions.write', description: 'Resume paying for your own unpaid payments.', descriptionKey: 'payments.permissions.writeDescription', group: 'payments', implicit: true },
+      { name: 'payments:manage', label: 'See recent payments', labelKey: 'payments.permissions.manage', description: 'See recent payments and revenue on the dashboard.', descriptionKey: 'payments.permissions.manageDescription', group: 'payments', grantTo: ['admin'] },
     )
+    addScope(nuxt, {
+      name: 'payments',
+      label: 'Your payments',
+      labelKey: 'payments.scopes.payments',
+      description: 'Read your payments and resume unpaid ones.',
+      icon: 'i-lucide-credit-card',
+      permissions: ['payments:read', 'payments:write'],
+    })
     const resolver = createResolver(import.meta.url)
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
@@ -133,7 +138,7 @@ export default defineNuxtModule<ModuleOptions>({
     ], { base: '/api/payments' })
 
     // Staff view of a user's payments plus a "Payments" tab and a "Last payment" card on the admin user page of
-    // `@frigear-nu/users`, authorized through its admin policy (`users:admin:authorize`, `view`).
+    // `@frigear-nu/users`, authorized with the users admin permission to read a user (`users:read`).
     await extendUsersAdmin(nuxt, {
       routes: [{ method: 'get', path: 'payments', handler: resolver.resolve('./runtime/server/routes/admin/user-payments.get') }],
       tab: {
@@ -173,7 +178,6 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     // Stores membership (invoice) payments announced by `@frigear-nu/subscriptions` when that module is installed.
     addServerPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/staff-scopes'))
     if (options.settings?.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     addImports([

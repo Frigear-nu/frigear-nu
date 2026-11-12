@@ -8,7 +8,8 @@ const bodySchema = z.object({ code: z.string().min(1) })
 
 // Idempotent: scanning an already checked-in ticket reports `alreadyCheckedIn` and its first scan time.
 export default defineEventHandler(async (event): Promise<CheckInResponse> => {
-  const { userId } = await eventsStaff.require(event)
+  const { user } = await authorize(event, 'events:manage')
+  const userId = user.id
   const { code } = await readValidatedBody(event, bodySchema.parse)
 
   const [ticket] = await db.select().from(schema.eventTickets).where(eq(schema.eventTickets.code, code)).limit(1)

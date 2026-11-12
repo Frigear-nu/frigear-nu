@@ -15,6 +15,7 @@ export default defineMenuSource(() => {
       descriptionKey: 'forms.menu.admin.description',
       icon: 'i-lucide-clipboard-list',
       to: config.pages.admin,
+      permission: 'forms:manage',
       order: 30,
     }))
   }

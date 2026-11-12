@@ -18,7 +18,7 @@ export default defineMenuSource(() => {
     }))
   }
 
-  // The staff entry of the admin sidebar (`@frigear-nu/admin`); the page and API stay gated by `events:authorize`.
+  // The staff entry of the admin sidebar (`@frigear-nu/admin`); the page and API check `events:manage` themselves.
   if (config?.pages?.admin) {
     extendMenuItem('admin.nav', defineMenuItem({
       id: 'events-admin',
@@ -28,6 +28,7 @@ export default defineMenuSource(() => {
       descriptionKey: 'events.menu.admin.description',
       icon: 'i-lucide-calendar-days',
       to: config.pages.admin,
+      permission: 'events:manage',
       order: 20,
     }))
   }

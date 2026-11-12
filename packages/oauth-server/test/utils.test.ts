@@ -4,6 +4,8 @@ import {
   isNativeRedirectUri,
   mergeScopeDefinitions,
   matchesAllowedRoles,
+  outdatedScopes,
+  splitConfiguredScopes,
   matchesPreviewUrlPattern,
   normalizeWebsiteUrl,
   parsePreviewUrlPattern,
@@ -32,11 +34,38 @@ describe('scopes', () => {
     expect(parseScope(' openid  profile openid ')).toEqual(['openid', 'profile'])
   })
 
-  it('falls back to the defaults and drops unsupported scopes', () => {
-    const supported = ['openid', 'profile', 'email', 'groups']
-    expect(resolveScope(undefined, supported)).toEqual(['openid', 'profile', 'email'])
-    expect(resolveScope('openid groups nope', supported)).toEqual(['openid', 'groups'])
-    expect(resolveScope('nope', supported)).toEqual([])
+  it('falls back to the defaults and reports unknown scopes (for invalid_scope)', () => {
+    const known = (scope: string) => ['openid', 'profile', 'email', 'groups'].includes(scope)
+    expect(resolveScope(undefined, known)).toEqual({ scope: ['openid', 'profile', 'email'], unknown: [] })
+    expect(resolveScope('openid groups nope', known)).toEqual({ scope: ['openid', 'groups'], unknown: ['nope'] })
+    expect(resolveScope('nope', known)).toEqual({ scope: [], unknown: ['nope'] })
+  })
+
+  it('finds the database scopes that grew since the consent', () => {
+    const current = { shelf: 2, stock: 1 }
+    expect(outdatedScopes(['openid', 'shelf', 'stock'], { shelf: 1, stock: 1 }, current)).toEqual(['shelf'])
+    expect(outdatedScopes(['shelf'], { shelf: 2 }, current)).toEqual([])
+    // A consent from before versions were kept counts as version 1.
+    expect(outdatedScopes(['shelf', 'stock'], null, current)).toEqual(['shelf'])
+  })
+})
+
+describe('configured scopes', () => {
+  it('splits named scopes from permission scope details', () => {
+    expect(splitConfiguredScopes([
+      { name: 'tickets', label: 'Your tickets', permissions: ['tickets:read'] },
+      { name: 'vouchers:read', service: 'Vouchers' },
+      'openid',
+      'groups',
+    ])).toEqual({
+      named: [{ name: 'tickets', label: 'Your tickets', permissions: ['tickets:read'] }, { name: 'groups' }],
+      details: [{ name: 'vouchers:read', service: 'Vouchers' }, { name: 'openid' }],
+    })
+  })
+
+  it('refuses permissions on a permission or OIDC scope', () => {
+    expect(() => splitConfiguredScopes([{ name: 'vouchers:read', permissions: ['vouchers:read'] }])).toThrow(/named scope/)
+    expect(() => splitConfiguredScopes([{ name: 'openid', permissions: ['vouchers:read'] }])).toThrow(/OpenID Connect/)
   })
 })
 
@@ -46,11 +75,11 @@ describe('scope registry', () => {
       { name: 'shop:order', description: 'From the module', service: 'Shop', icon: 'i-lucide-cart' },
       'groups',
       { name: 'shop:order', description: 'From the host' },
-      { name: ' inventory:read ', service: 'Inventory', staffOnly: true },
+      { name: ' inventory:read ', service: 'Inventory' },
     ])).toEqual([
       { name: 'shop:order', description: 'From the host', service: 'Shop', icon: 'i-lucide-cart' },
       { name: 'groups' },
-      { name: 'inventory:read', service: 'Inventory', staffOnly: true },
+      { name: 'inventory:read', service: 'Inventory' },
     ])
   })
 

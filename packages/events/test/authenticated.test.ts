@@ -687,18 +687,60 @@ describe('events (authenticated, database-backed)', async () => {
       expect((await $fetch<Json[]>('/api/test/tickets')).find(row => row.id === bought.ticket.id)!.status).toBe('paid')
     })
 
-    it('keeps the staff policy in charge: the scope is necessary, not sufficient', async () => {
+    it('keeps the role in charge: the scope is necessary, not sufficient', async () => {
       staff ??= await registerUser('Staff', 'staff@staff.test')
       const nobody = await user('Nobody')
 
       const staffToken = await createToken(staff.cookie, ['events:manage'])
       expect((await fetch(eventsApi.admin.events, { headers: bearer(staffToken) })).status).toBe(200)
       expect((await fetch(eventsApi.admin.events, { headers: bearer(await createToken(staff.cookie, ['tickets:read'])) })).status).toBe(403)
-      // Staff scopes are not even offered to, or accepted from, users the policy keeps out.
+      // Staff scopes are not even offered to, or accepted from, users whose roles do not hold them.
       expect(await scopesFor(nobody.cookie)).not.toEqual(expect.arrayContaining(['events:manage']))
-      expect(await scopesFor(nobody.cookie)).toContain('tickets:read')
+      expect(await scopesFor(nobody.cookie)).toContain('tickets')
       expect(await scopesFor(staff.cookie)).toEqual(expect.arrayContaining(['events:manage', 'events:pii']))
       expect(await tokenStatus(nobody.cookie, ['events:manage'])).toBe(403)
+    })
+
+    it('lets a tickets token read the own tickets but not the staff routes, even for staff', async () => {
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const event = await createEvent({}, [{ key: 'free', name: 'Free', price: 0 }])
+      const holder = await user('Ticketholder')
+      await ok(await buy(holder.cookie, event.slug, (await detail(event.slug)).ticketTypes[0].id))
+
+      for (const owner of [holder, staff]) {
+        const token = await createToken(owner.cookie, ['tickets'])
+        expect((await fetch(eventsApi.me.tickets, { headers: bearer(token) })).status).toBe(200)
+        expect((await fetch(eventsApi.admin.events, { headers: bearer(token) })).status).toBe(403)
+        expect((await fetch(eventsApi.admin.event(event.id), { headers: bearer(token) })).status).toBe(403)
+      }
+      const mine = await (await fetch(eventsApi.me.tickets, { headers: bearer(await createToken(holder.cookie, ['tickets'])) })).json() as Json[]
+      expect(mine).toHaveLength(1)
+    })
+
+    it('does not cover the sensitive events:pii with events:*, only with the permission by name', async () => {
+      const wild = await registerUser('Wild', 'wild@wild.test')
+      // `events:*` covers events:manage (and the session-only refund), not events:pii.
+      expect(await scopesFor(wild.cookie)).toContain('events:manage')
+      expect(await scopesFor(wild.cookie)).not.toContain('events:pii')
+      expect(await tokenStatus(wild.cookie, ['events:manage'])).toBeLessThan(300)
+      expect(await tokenStatus(wild.cookie, ['events:pii'])).toBe(403)
+
+      const event = await createEvent({}, [{ key: 'free', name: 'Free', price: 0 }])
+      const holder = await user('Piiholder')
+      await ok(await buy(holder.cookie, event.slug, (await detail(event.slug)).ticketTypes[0].id))
+
+      const withWildcard = await mcpToken(wild.cookie, ['events:*'])
+      const wildAttendees = await mcpCall(withWildcard, 'list-attendees', { eventId: event.id })
+      expect(wildAttendees.result?.isError, JSON.stringify(wildAttendees)).toBeFalsy()
+      expect(JSON.stringify(wildAttendees)).toContain('events:pii')
+      expect(JSON.stringify(wildAttendees)).not.toMatch(/piiholder\d+@example\.com/)
+
+      // The eventmanager role holds events:pii by name.
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const named = await mcpToken(staff.cookie, ['events:manage', 'events:pii'])
+      const staffAttendees = await mcpCall(named, 'list-attendees', { eventId: event.id })
+      expect(staffAttendees.result?.isError, JSON.stringify(staffAttendees)).toBeFalsy()
+      expect(JSON.stringify(staffAttendees)).toMatch(/piiholder\d+@example\.com/)
     })
   })
 
@@ -715,7 +757,7 @@ describe('events (authenticated, database-backed)', async () => {
       const staffRead = await mcpToken(staff.cookie, ['tickets:read'])
       expect(await mcpNames(staffRead)).toEqual(['get-event', 'list-events', 'my-tickets'])
 
-      const staffFull = await mcpToken(staff.cookie, ['*'])
+      const staffFull = await mcpToken(staff.cookie, ['events:manage', 'tickets'])
       expect(await mcpNames(staffFull)).toContain('list-all-events')
 
       const staffManage = await mcpToken(staff.cookie, ['events:manage'])

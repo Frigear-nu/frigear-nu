@@ -134,6 +134,9 @@ export type AuthRoleRequirement = (ctx: AuthRoleRequirementContext) => boolean |
  * The `authorization:before` Nitro hook (≈ Laravel's `Gate::before`), the single host override. Listeners vote with
  * `allow()` or `deny()`; any deny (or a listener that throws) denies, otherwise any allow allows and skips roles and
  * policies. It runs after the credential checks, so it can never widen a token or a session-only permission.
+ *
+ * A listener that needs what the user may otherwise do calls `subjectAllowed`, never `allows` / `authorize` on the same
+ * permission: those fire this hook again (endless recursion).
  */
 export interface AuthorizationBeforeContext {
   event: H3Event

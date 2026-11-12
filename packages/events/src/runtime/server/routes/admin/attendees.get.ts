@@ -19,12 +19,13 @@ const querySchema = pageQuery({
 // Every ticket of an event (all statuses) with the holder's name/email, including QR codes for staff check-in.
 // `q` searches the holder's name and email.
 export default defineEventHandler(async (event): Promise<Page<AttendeeDto>> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const query = await getValidatedQuery(event, querySchema.parse)
 
   const [parent] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.id, id)).limit(1)
   if (!parent) throw notFound('Event not found.')
+  await authorize(event, 'events:manage', parent)
 
   const conditions: (SQL | undefined)[] = [eq(schema.eventTickets.eventId, id)]
   if (query.q) conditions.push(or(likeContains(schema.users.name, query.q), likeContains(schema.users.email, query.q)))

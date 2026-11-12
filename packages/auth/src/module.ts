@@ -177,6 +177,8 @@ declare module 'nitropack' {
      * The single host override (≈ Laravel's `Gate::before`), fired by `authorize` / `allows` / `canGrantScope` after the
      * credential checks. Vote with `ctx.allow()` / `ctx.deny()`: any deny (or a listener that throws) denies, otherwise
      * any allow allows and skips roles and policies. Identify the caller from `ctx.user`, never from the session.
+     * To look at what the user may do, use `subjectAllowed`, never `allows` / `authorize` on the same permission: those
+     * fire this hook again (endless recursion).
      */
     'authorization:before': (ctx: AuthorizationBeforeContext) => void | Promise<void>
     /**

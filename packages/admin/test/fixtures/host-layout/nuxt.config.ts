@@ -5,5 +5,5 @@ import AdminModule from '../../../src/module'
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', AdminModule],
   runtimeConfig: { session: { password: 'a-test-only-session-password-at-least-32-chars' } },
-  admin: { settings: { roles: false } },
+  admin: { settings: { permission: false } },
 })

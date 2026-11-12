@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { apiError } from '@frigear-nu/module-kit/server'
-import { authorizeRequestSchema } from '../../utils/oauth-authorize'
+import { authorizeRequestSchema, invalidScopeRedirect } from '../../utils/oauth-authorize'
 
 const bodySchema = authorizeRequestSchema.extend({ approved: z.boolean() })
 
@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
     throw apiError(415, 'unsupported_media_type', 'The consent decision must be sent as application/json.')
   }
   const { approved, ...params } = await readValidatedBody(event, bodySchema.parse)
-  const { request, application, scope } = await validateAuthorizeRequest(params)
+  const { request, application, scope, unknown } = await validateAuthorizeRequest(event, params)
+  if (unknown.length) return { redirectUrl: invalidScopeRedirect(request, unknown) }
 
   const redirect = new URL(request.redirect_uri)
   redirect.searchParams.set('state', request.state)
@@ -25,14 +26,18 @@ export default defineEventHandler(async (event) => {
 
   const user = await requireOAuthUser(userId)
   await assertApplicationAccess(event, user, application)
-  // A scope the user may not hold (e.g. staff only) is dropped, not refused: the application gets a token without it.
-  const granted = await filterGrantableScopes(event, user, scope)
+  // A scope the user may not grant (the consent page showed it as unavailable) is dropped, not refused: the
+  // application gets a token without it.
+  const authUser = await loadAuthUser(userId)
+  if (!authUser) throw apiError(401, 'unauthorized', 'Unknown user.')
+  const { granted } = await filterGrantableScopes(event, authUser, scope, { application })
 
   const code = await createAuthorizationCode({
     application,
     userId,
     redirectUri: request.redirect_uri,
     scope: granted,
+    scopeVersions: await consentedScopeVersions(event, granted),
     codeChallenge: request.code_challenge,
     nonce: request.nonce,
   })

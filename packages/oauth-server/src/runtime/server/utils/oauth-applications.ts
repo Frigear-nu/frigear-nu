@@ -50,6 +50,7 @@ export const applicationInputSchema = z.object({
   redirectUris: z.array(redirectUri).max(20).optional(),
   allowedRoles: names.optional(),
   tags: names.optional(),
+  wildcardScopes: z.boolean().optional(),
   isActive: z.boolean().optional(),
   isListed: z.boolean().optional(),
   refreshIdleTtl: lifetime.nullish(),
@@ -87,6 +88,7 @@ export function toAdminApplicationDto(application: OAuthApplication, activeGrant
     redirectUris: application.redirectUris,
     allowedRoles: application.allowedRoles,
     tags: application.tags,
+    wildcardScopes: application.wildcardScopes,
     ownerId: application.ownerId,
     isActive: application.isActive,
     isListed: application.isListed,
@@ -148,7 +150,7 @@ function assertWebsite(websiteUrl: string | null | undefined, redirectUris: read
 }
 
 /** The fields of a configured client that come from config: staff cannot change them (409 `managed_by_config`). */
-const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'previewUrlPattern', 'isListed', 'refreshIdleTtl', 'refreshMaxAge'] as const
+const CONFIG_OWNED = ['name', 'description', 'icon', 'websiteUrl', 'redirectUris', 'allowedRoles', 'tags', 'wildcardScopes', 'previewUrlPattern', 'isListed', 'refreshIdleTtl', 'refreshMaxAge'] as const
 
 const managedByConfig = () => apiError(409, 'managed_by_config', 'This application is managed in nuxt.config (oauthServer.clients).')
 
@@ -166,6 +168,7 @@ function configuredValues(client: OAuthNormalizedClient) {
     redirectUris: client.redirectUris,
     allowedRoles: client.allowedRoles,
     tags: client.tags,
+    wildcardScopes: client.wildcardScopes,
     previewUrlPattern: null,
     refreshIdleTtl: client.refreshToken.idleTtl,
     refreshMaxAge: client.refreshToken.maxAge,
@@ -379,7 +382,7 @@ export async function revokeUserGrants(userId: number, applicationId?: string, r
 }
 
 /**
- * The active, listed applications a user may sign in to (role check through `oauth:user:roles`), highest
+ * The active, listed applications a user may sign in to (role check on their effective roles), highest
  * priority first. Applications with a `loginUrl` link there, the others to their website. An application without a
  * web link (a native app without a website) is left out: there is nothing to open. Unlisted ones (`isListed: false`)
  * still sign in, users just open them themselves.

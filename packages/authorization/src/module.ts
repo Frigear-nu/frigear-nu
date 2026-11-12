@@ -239,6 +239,7 @@ export default defineNuxtModule<ModuleOptions>({
             label: 'Roles and permissions',
             labelKey: 'authorization.admin.tabs.userRoles',
             icon: 'i-lucide-shield-check',
+            permission: AUTHORIZATION_ROLES_READ,
           })
         }
       }
@@ -250,6 +251,8 @@ export default defineNuxtModule<ModuleOptions>({
     addPlugin(resolver.resolve('./runtime/app/plugins/access'))
     // Menu items with a `permission` are hidden from viewers without it (`menus:filter` of `@frigear-nu/menu`).
     if (hasNuxtModule('@frigear-nu/menu', nuxt)) addPlugin(resolver.resolve('./runtime/app/plugins/menu-filter'))
+    // Widgets and tabs with a `permission` likewise (`widgets:filter` / `tabs:filter` of `@frigear-nu/widget`).
+    if (hasNuxtModule('@frigear-nu/widget', nuxt)) addPlugin(resolver.resolve('./runtime/app/plugins/widget-filter'))
 
     // Transpiles the runtime (app and server), so server utils may rely on auto-imports.
     inlineModuleRuntime(nuxt, resolver)

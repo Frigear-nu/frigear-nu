@@ -342,6 +342,19 @@
       "translate": "Translate",
       "singleLanguage": "Same text in every language",
       "addLanguage": "Add language, e.g. da"
+    },
+    "permissions": {
+      "manage": "Manage forms",
+      "manageDescription": "Create and edit forms, read their submissions and files, and redeliver them.",
+      "pii": "See submission answers",
+      "piiDescription": "See submission answers and file names (MCP tools). Never covered by a wildcard.",
+      "credentials": "Manage form access credentials",
+      "credentialsDescription": "Create and remove form access tokens, passwords and secrets. Cookie sessions only.",
+      "submit": "Submit forms",
+      "submitDescription": "Submit forms as you."
+    },
+    "scopes": {
+      "forms": "Submit forms"
     }
   }
 }

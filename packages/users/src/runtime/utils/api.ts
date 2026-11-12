@@ -11,7 +11,7 @@ const adminBase = '/api/admin/users'
 /** The users API: self-service under `/api/users`, staff under `/api/admin/users`. */
 export const usersApi = {
   me: {
-    /** `PATCH { name, avatar? }`: updates the caller's profile, answers the profile DTO. Session only. */
+    /** `PATCH { name, avatar? }`: updates the caller's profile, answers the profile DTO. `profile:write` (implicit). */
     profile: `${base}/me`,
     /** `PUT { email }`: changes the caller's email (or emails a confirmation link with `verifyEmailChange`). Session only. */
     email: `${base}/me/email`,
@@ -25,7 +25,7 @@ export const usersApi = {
   /** `GET ?code=` (preview) and `POST { code }` (restore the old address). The code is the proof, no sign-in needed. */
   emailChangeRevert: `${base}/email-change/revert`,
   admin: {
-    /** `GET` (paginated list, `useTableQuery` keys plus `role`, `verified`) and `POST` (create, 201). */
+    /** `GET` (paginated list, `users:list`; `useTableQuery` keys plus `role`, `verified`) and `POST` (create, `users:create`, 201). */
     users: adminBase,
     /** `GET` (detail), `PATCH` (edit) and `DELETE` (204). */
     user: (id: number | string) => `${adminBase}/${encodeURIComponent(String(id))}`,
@@ -35,7 +35,5 @@ export const usersApi = {
     new: `${adminBase}/new`,
     /** `GET`: `{ total, newUsers, days }` (dashboard). */
     stats: `${adminBase}/stats`,
-    /** `GET`: `{ roles }` the caller may assign. */
-    roles: `${adminBase}/roles`,
   },
 } as const

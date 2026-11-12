@@ -7,6 +7,7 @@ let rows: Row[] = []
 let userinfoCalls = 0
 const config = { forceId: false }
 
+vi.mock('#auth/permissions', () => ({ registry: { permissions: {}, aliases: {} }, namedScopes: {} }))
 vi.stubGlobal('useRuntimeConfig', () => ({
   frigear: { forceId: false },
   oauthResource: { issuer: 'https://frigear.example.test', audience: 'frigear-services', jwksUrl: '', userinfoUrl: '', corsOrigins: '', corsPaths: '', forceId: config.forceId, jwksCacheTtl: 600 },

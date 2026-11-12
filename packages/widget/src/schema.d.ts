@@ -28,10 +28,10 @@ declare module '#app' {
   interface RuntimeNuxtHooks {
     /**
      * Called whenever an area's widgets are resolved, before they are rendered. Remove entries from
-     * `ctx.widgets` to hide them (e.g. by role, ability or feature flag using `widget.requires`).
+     * `ctx.widgets` to hide them (by `widget.permission`, or a feature flag using `widget.requires`). Re-run when `useState('access:version')` changes.
      */
     'widgets:filter': (ctx: { area: string, widgets: WidgetMeta[], context?: Record<string, unknown> }) => void | Promise<void>
-    /** Same as `widgets:filter`, for the tabs of an area (`tab.requires`). */
+    /** Same as `widgets:filter`, for the tabs of an area (`tab.permission`, `tab.requires`). */
     'tabs:filter': (ctx: { area: string, tabs: TabMeta[], context?: Record<string, unknown> }) => void | Promise<void>
   }
 }

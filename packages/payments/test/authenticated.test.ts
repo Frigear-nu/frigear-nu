@@ -39,7 +39,7 @@ const ticketItems = [
 ]
 
 let staffCookie: string | undefined
-// The test policy (server/plugins/policy.ts) lets only staff@example.com administer users; register it once.
+// The test role provider (server/roles/provider.ts) makes only staff@example.com staff; register it once.
 const registerStaff = async () => (staffCookie ??= (await registerUser('Staff', 'staff@example.com')).cookie)
 
 describe('payments (authenticated, database-backed)', async () => {
@@ -325,6 +325,21 @@ describe('payments (authenticated, database-backed)', async () => {
       expect((await fetch(paymentsApi.me.list, { headers: bearer(read) })).status).toBe(200)
       await expectApiError(apiClient({ bearer: await createToken(user.cookie, ['payments:write']) }).json('GET', paymentsApi.me.list), 403, 'insufficient_scope')
       await expectApiError(apiClient({ bearer: 'fnu_invalid' }).json('GET', paymentsApi.me.list), 401)
+    })
+
+    it('lets a staff token see the dashboard only with payments:manage, and never to a user the role excludes', async () => {
+      await registerStaff()
+      const staffToken = await createToken(staffCookie!, ['payments:manage'])
+      expect((await fetch(paymentsApi.admin.recent, { headers: bearer(staffToken) })).status).toBe(200)
+      // A staff token without the permission is refused, as is a token for a user whose roles lack it.
+      await expectApiError(apiClient({ bearer: await createToken(staffCookie!, ['payments:read']) }).json('GET', paymentsApi.admin.recent), 403, 'insufficient_scope')
+      const member = await registerUser('Token Member', 'token-member@example.com')
+      const response = await fetch(authApi.me.tokens, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cookie': member.cookie },
+        body: JSON.stringify({ name: 'probe', scopes: ['payments:manage'] }),
+      })
+      expect(response.status).toBe(403)
     })
 
     it('resumes a payment with the write scope', async () => {

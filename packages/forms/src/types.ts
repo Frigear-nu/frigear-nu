@@ -221,8 +221,6 @@ export type PublicModuleOptions = {
   captcha: Record<CaptchaProvider, { siteKey: string }> & { defaultProvider: CaptchaProvider }
 }
 
-export type AuthorizeContext = { event: H3Event, userId: number, allowed: boolean }
-
 export type SubmittedFile = {
   fieldKey: string
   filename: string

@@ -81,12 +81,12 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const config = await $fetch<Json>(oidc.configuration)
       expect(config.issuer).toBe('https://id.example.test')
       expect(config.token_endpoint).toBe('https://id.example.test/oauth/token')
-      expect(config.scopes_supported).toEqual([
-        'openid', 'profile', 'email',
-        // The scope registry: what modules added (`addOAuthScope`), then the host's `scopes`.
-        'inventory:write', 'shop:order', 'groups', 'vouchers:read', 'vouchers:write', 'inventory:read',
-        'users:read', 'oauth:read',
-      ])
+      // OIDC, the named scopes, then every permission a token may hold, never session-only ones.
+      expect(config.scopes_supported.slice(0, 3)).toEqual(['openid', 'profile', 'email'])
+      expect(config.scopes_supported).toEqual(expect.arrayContaining(['groups', 'inventory:read', 'inventory:write', 'shop:order', 'vouchers:read', 'oauth:read']))
+      expect(config.scopes_supported).not.toContain('inventory:manage')
+      expect(config.scopes_supported).not.toContain('oauth:manage')
+      expect(config.introspection_endpoint).toBe('https://id.example.test/oauth/introspect')
       expect(config.code_challenge_methods_supported).toEqual(['S256'])
       expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_basic', 'client_secret_post', 'none'])
 
@@ -240,7 +240,24 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const consent = await json(staff.cookie, 'GET', `${oauthServerApi.consent}?${authorizeQuery(app.clientId, challenge, { response_type: 'token' })}`)
       expect(consent.status).toBe(400)
       expect((await consent.json() as Json).statusMessage).toContain('Invalid authorization request: response_type')
-      expect((await get(authorizeQuery(app.clientId, challenge, { scope: 'nope' }))).status).toBe(400)
+    })
+
+    it('answers unknown scopes with an invalid_scope redirect (RFC 6749 §4.1.2.1), signed in or not', async () => {
+      const app = await createApp()
+      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: 'openid nope' })
+      for (const cookie of [undefined, staff.cookie]) {
+        const response = await fetch(`${oidc.authorize}?${query}`, { headers: cookie ? { cookie } : {}, redirect: 'manual' })
+        expect(response.status).toBe(302)
+        const location = new URL(response.headers.get('location')!)
+        expect(`${location.origin}${location.pathname}`).toBe(CALLBACK)
+        expect(location.searchParams.get('error')).toBe('invalid_scope')
+        expect(location.searchParams.get('state')).toBe('state-123')
+        expect(location.searchParams.get('code')).toBeNull()
+      }
+      // The consent data and the approval refuse it too.
+      await expectApiError(apiClient({ cookie: staff.cookie }).json('GET', `${oauthServerApi.consent}?${query}`), 400, 'invalid_scope')
+      const decision = await ok(await json(staff.cookie, 'POST', oidc.authorize, { ...Object.fromEntries(query), approved: true }))
+      expect(new URL(decision.redirectUrl).searchParams.get('error')).toBe('invalid_scope')
     })
 
     it('sends anonymous users to the login page and back', async () => {
@@ -279,12 +296,13 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(await response.text()).toContain('Blocked by policy.')
     })
 
-    it('shows the consent data with only supported scopes', async () => {
+    it('shows the consent data with the requested scopes', async () => {
       const app = await createApp()
-      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: 'openid email unknown' })
+      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: 'openid email' })
       const consent = await ok(await json(staff.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
       expect(consent.application).toMatchObject({ id: app.clientId, name: app.name })
       expect(consent.scope).toEqual(['openid', 'email'])
+      expect(consent.unavailable).toEqual([])
       expect((await json(undefined, 'GET', `${oauthServerApi.consent}?${query}`)).status).toBe(401)
     })
 
@@ -294,47 +312,47 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const consent = await ok(await json(staff.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
       expect(consent.scopes).toEqual([
         { name: 'openid' },
-        // Configured details win; a scope registered with `addAuthScope` shows its description as the label.
+        // A named scope's own details; a permission scope shows the permission's label.
         { name: 'groups', label: 'Your groups', description: 'Which groups you belong to', icon: 'i-lucide-users' },
-        { name: 'oauth:read', label: 'See which applications you can sign in to (MCP)' },
+        { name: 'oauth:read', label: 'See which applications you can sign in to', labelKey: 'oauthServer.permissions.read' },
       ])
     })
 
-    it('grants a staff-only scope to staff and silently drops it for everyone else', async () => {
+    it('grants a staff scope to staff, and shows it as unavailable to everyone else', async () => {
       const app = await createApp({ allowedRoles: [] })
       const member = await user('Plain')
       staff ??= await user('Staff', 'staff.test')
       const tokensFor = async (session: Session) => {
         const { verifier, challenge } = pkce()
-        const query = authorizeQuery(app.clientId, challenge, { scope: 'openid users:read' })
+        const query = authorizeQuery(app.clientId, challenge, { scope: 'openid inventory:read' })
         const consent = await ok(await json(session.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
-        const code = await authorizeCode(session, app.clientId, challenge, { scope: 'openid users:read' })
+        const code = await authorizeCode(session, app.clientId, challenge, { scope: 'openid inventory:read' })
         const tokens = await ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier }))
         return { consent, tokens }
       }
-      const bearer = (token: string) => fetch('/api/admin/users', { headers: { authorization: `Bearer ${token}` } })
+      const bearer = (token: string, method = 'GET') => fetch('/api/test/inventory', { method, headers: { authorization: `Bearer ${token}` } })
 
       const plain = await tokensFor(member)
       expect(plain.consent.scope).toEqual(['openid'])
+      expect(plain.consent.unavailable).toEqual([{ name: 'inventory:read', description: 'See the inventory', service: 'Inventory' }])
       expect(plain.tokens.scope).toBe('openid')
+      expect(decodeJwt(plain.tokens.access_token).permissions).toEqual([])
       const refused = await bearer(plain.tokens.access_token)
       expect(refused.status).toBe(403)
       expect(await refused.json()).toMatchObject({ data: { code: 'insufficient_scope' } })
 
       const granted = await tokensFor(staff)
-      expect(granted.consent.scope).toEqual(['openid', 'users:read'])
-      expect(granted.tokens.scope).toBe('openid users:read')
+      expect(granted.consent.scope).toEqual(['openid', 'inventory:read'])
+      expect(granted.consent.unavailable).toEqual([])
+      expect(granted.tokens.scope).toBe('openid inventory:read')
+      expect(decodeJwt(granted.tokens.access_token).permissions).toEqual(['inventory:read'])
       const list = await bearer(granted.tokens.access_token)
       expect(list.status, await list.clone().text()).toBe(200)
-      expect((await list.json() as Json).items.length).toBeGreaterThan(0)
       // Reading is all the scope opens up: changes still need a session.
-      const patch = await fetch(`/api/admin/users/${member.id}`, {
-        method: 'PATCH',
-        headers: { 'authorization': `Bearer ${granted.tokens.access_token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ name: 'X' }),
-      })
+      const patch = await bearer(granted.tokens.access_token, 'PATCH')
       expect(patch.status).toBe(403)
       expect(await patch.json()).toMatchObject({ data: { code: 'session_required' } })
+      expect((await fetch('/api/test/inventory', { method: 'PATCH', headers: { cookie: staff.cookie } })).status).toBe(200)
     })
 
     it('returns access_denied to the application when the user declines', async () => {
@@ -385,8 +403,11 @@ describe('oauth-server (authenticated, database-backed)', async () => {
         'email_verified': false,
         'role': 'staff',
         'https://frigear.test/claims/role': 'staff',
-        'groups': ['staff', 'member'],
+        // The effective roles: assigned plus inherited and default ones.
+        'groups': ['member', 'staff', 'user'],
       })
+      // Nor `permissions`: the host hook tried.
+      expect(payload.permissions).toBeUndefined()
       expect(payload.auth_time).toBeTypeOf('number')
 
       // Registered claims cannot be overwritten by the host hook.
@@ -396,6 +417,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(decodeProtectedHeader(tokens.access_token).typ).toBe('at+jwt')
       const access = decodeJwt(tokens.access_token)
       expect(access).toMatchObject({ sub: String(staff.id), client_id: app.clientId, scope: 'openid profile email groups' })
+      // What the scopes stand for, frozen; never what the host hook tried to add.
+      expect(access.permissions).toEqual(['groups:read'])
       expect(access.email).toBeUndefined()
       expect(access.name).toBeUndefined()
 
@@ -747,34 +770,34 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       return { consent, tokens }
     }
 
-    it('shows one consent with the scopes grouped by service, staff-only scopes for staff only', async () => {
+    it('shows one consent with the scopes grouped by service, staff scopes for staff only', async () => {
       const app = await mobileApp()
       staff ??= await user('Staff', 'staff.test')
       const member = await user('Member')
 
       const forMember = (await signIn(app, member)).consent
       expect(forMember.scope).toEqual(['openid', 'profile', 'vouchers:read', 'vouchers:write', 'shop:order'])
+      expect(forMember.unavailable.map((scope: Json) => scope.name)).toEqual(['inventory:read', 'inventory:write'])
       expect(forMember.groups).toEqual([
         { service: null, scopes: [{ name: 'openid' }, { name: 'profile' }] },
         { service: 'Vouchers', scopes: [
           { name: 'vouchers:read', description: 'See your vouchers', service: 'Vouchers' },
           { name: 'vouchers:write', description: 'Redeem your vouchers', service: 'Vouchers' },
         ] },
-        // The host's description wins over the module's.
         { service: 'Shop', scopes: [{ name: 'shop:order', description: 'Place orders in the shop', service: 'Shop' }] },
       ])
 
       const forStaff = (await signIn(app, staff)).consent
       expect(forStaff.scope).toEqual(SERVICES.split(' '))
       expect(forStaff.groups.map((group: Json) => group.service)).toEqual([null, 'Vouchers', 'Shop', 'Inventory'])
-      // Registered by a module with `addOAuthScope`; the staff flag stays on the server.
+      expect(forStaff.unavailable).toEqual([])
       expect(forStaff.groups[3].scopes).toEqual([
         { name: 'inventory:read', description: 'See the inventory', service: 'Inventory' },
         { name: 'inventory:write', description: 'Change the inventory', service: 'Inventory' },
       ])
     })
 
-    it('refuses staff-only scopes to everyone else at grant time, and again at every refresh', async () => {
+    it('refuses staff scopes to everyone else at grant time, and again at every refresh', async () => {
       const app = await mobileApp()
       const member = await user('Member')
       const { tokens } = await signIn(app, member)
@@ -1117,6 +1140,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       const me = await $fetch<Json>('/api/test/whoami', { headers: asBearer(tokens.access_token) })
       expect(me).toMatchObject({ kind: 'oauth', userId: staff.id, clientId: app.clientId })
       expect(me.scopes).toEqual(['openid', 'groups'])
+      expect(me.permissions).toEqual(['groups:read'])
     })
 
     it('limits the application to the scopes the user granted', async () => {
@@ -1383,6 +1407,141 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       await ok(await json(owner.cookie, 'PUT', usersApi.me.email, { email: `changed${++counter}@member.test` }))
       expect((await refresh(app, again.refresh_token)).status).toBe(400)
       expect((await refresh(app, kept.refresh_token)).status).toBe(200)
+    })
+  })
+
+  describe('access control: role caps, database scopes, introspection', () => {
+    async function signIn(app: Json, session: Session, scope: string) {
+      const { verifier, challenge } = pkce()
+      const query = authorizeQuery(app.clientId, challenge, { scope })
+      const consent = await ok(await json(session.cookie, 'GET', `${oauthServerApi.consent}?${query}`))
+      const code = await authorizeCode(session, app.clientId, challenge, { scope })
+      const tokens = await ok(await tokenRequest(app, { grant_type: 'authorization_code', code, redirect_uri: CALLBACK, code_verifier: verifier }))
+      return { consent, tokens }
+    }
+    const refresh = (app: Json, token: string) => tokenRequest(app, { grant_type: 'refresh_token', refresh_token: token })
+    const admin = () => apiClient({ cookie: staff.cookie })
+
+    it('caps what a role may grant with roleScopes, beyond what the user may do', async () => {
+      const app = await createApp({ allowedRoles: [] })
+      staff ??= await user('Staff', 'staff.test')
+      const member = await user('Capped')
+      // Every user holds `notes:read`, but only staff may hand it to an application.
+      const capped = await signIn(app, member, 'openid notes:read')
+      expect(capped.consent.scope).toEqual(['openid'])
+      expect(capped.consent.unavailable).toEqual([{ name: 'notes:read', label: 'Read your notes' }])
+      expect(capped.tokens.scope).toBe('openid')
+
+      const allowed = await signIn(app, staff, 'openid notes:read')
+      expect(allowed.tokens.scope).toBe('openid notes:read')
+      expect(decodeJwt(allowed.tokens.access_token).permissions).toEqual(['notes:read'])
+      // A wildcard is only for clients that allow them, even for staff.
+      const wildcard = await signIn(app, staff, 'openid inventory:*')
+      expect(wildcard.consent.unavailable.map((scope: Json) => scope.name)).toEqual(['inventory:*'])
+      const wide = await createApp({ allowedRoles: [], wildcardScopes: true })
+      expect(wide.wildcardScopes).toBe(true)
+      const both = await signIn(wide, staff, 'openid inventory:*')
+      expect(both.tokens.scope).toBe('openid inventory:*')
+      // Never the session-only or the sensitive one: `*` and `resource:*` do not cover them.
+      expect(decodeJwt(both.tokens.access_token).permissions).toEqual(['inventory:read', 'inventory:write'])
+    })
+
+    it('manages database scopes: staff only, validated, config scopes read-only, version bumps when they grow', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      const member = await user('Member')
+      expect((await json(undefined, 'GET', oauthServerApi.admin.scopes)).status).toBe(401)
+      await expectApiError(apiClient({ cookie: member.cookie }).json('GET', oauthServerApi.admin.scopes), 403, 'forbidden')
+      await expectApiError(apiClient({ cookie: member.cookie }).json('POST', oauthServerApi.admin.scopes, { name: 'x', permissions: ['inventory:read'] }), 403, 'forbidden')
+
+      const list = await admin().json<Json[]>('GET', oauthServerApi.admin.scopes)
+      expect(list.find(scope => scope.name === 'groups')).toMatchObject({ managed: true, permissions: ['groups:read'] })
+
+      const name = `stock${++counter}`
+      const created = await admin().json<Json>('POST', oauthServerApi.admin.scopes, { name, label: 'Stock', permissions: ['inventory:read'] })
+      expect(created).toMatchObject({ name, label: 'Stock', permissions: ['inventory:read'], version: 1, isActive: true, managed: false })
+      await expectApiError(admin().json('POST', oauthServerApi.admin.scopes, { name, permissions: ['inventory:read'] }), 409)
+      await expectApiError(admin().json('POST', oauthServerApi.admin.scopes, { name: 'groups', permissions: ['inventory:read'] }), 409, 'managed_by_config')
+      for (const permissions of [['inventory:pii'], ['inventory:manage'], ['nope:read'], []]) {
+        expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: `bad${++counter}`, permissions })).status, permissions.join()).toBe(400)
+      }
+      expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: 'Bad Name', permissions: ['inventory:read'] })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: 'inventory:read', permissions: ['inventory:read'] })).status).toBe(400)
+
+      expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { label: 'Stock levels' })).toMatchObject({ label: 'Stock levels', version: 1 })
+      expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:read', 'inventory:write'] })).toMatchObject({ version: 2 })
+      // Shrinking needs no new consent.
+      expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:write'] })).toMatchObject({ version: 2 })
+      await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:pii'] }), 400)
+      await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope('groups'), { label: 'x' }), 409, 'managed_by_config')
+      await expectApiError(admin().json('DELETE', oauthServerApi.admin.scope('groups')), 409, 'managed_by_config')
+      expect(await admin().json<Json>('GET', oauthServerApi.admin.scope(name))).toMatchObject({ name, permissions: ['inventory:write'] })
+      expect((await $fetch<Json>(oidc.configuration)).scopes_supported).toContain(name)
+
+      expect((await json(staff.cookie, 'DELETE', oauthServerApi.admin.scope(name))).status).toBe(204)
+      await expectApiError(admin().json('GET', oauthServerApi.admin.scope(name)), 404, 'not_found')
+      expect((await $fetch<Json>(oidc.configuration)).scopes_supported).not.toContain(name)
+    })
+
+    it('grants database scopes like any other, asks again when one grew, and drops a removed one silently at refresh', async () => {
+      const app = await createApp({ allowedRoles: [] })
+      staff ??= await user('Staff', 'staff.test')
+      const member = await user('Member')
+      const name = `shelf${++counter}`
+      await admin().json('POST', oauthServerApi.admin.scopes, { name, label: 'Your shelf', permissions: ['inventory:read'] })
+
+      const first = await signIn(app, staff, `openid ${name}`)
+      expect(first.consent.scopes).toContainEqual({ name, label: 'Your shelf' })
+      expect(first.tokens.scope).toBe(`openid ${name}`)
+      expect(decodeJwt(first.tokens.access_token).permissions).toEqual(['inventory:read'])
+      expect((await signIn(app, member, `openid ${name}`)).consent.unavailable.map((scope: Json) => scope.name)).toEqual([name])
+
+      // The scope grows: the sign-in keeps working, without the scope, until the user consents again.
+      await admin().json('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:read', 'inventory:write'] })
+      const refreshed = await ok(await refresh(app, first.tokens.refresh_token))
+      expect(refreshed.scope).toBe('openid')
+      expect(decodeJwt(refreshed.access_token).permissions).toEqual([])
+      const again = await signIn(app, staff, `openid ${name}`)
+      expect(again.tokens.scope).toBe(`openid ${name}`)
+      expect(decodeJwt(again.tokens.access_token).permissions).toEqual(['inventory:read', 'inventory:write'])
+      expect((await ok(await refresh(app, again.tokens.refresh_token))).scope).toBe(`openid ${name}`)
+
+      // Disabled: unknown to new requests (`invalid_scope`), silently gone at refresh, never an error there.
+      const later = await signIn(app, staff, `openid ${name}`)
+      await admin().json('PATCH', oauthServerApi.admin.scope(name), { isActive: false })
+      const after = await ok(await refresh(app, later.tokens.refresh_token))
+      expect(after.scope).toBe('openid')
+      const query = authorizeQuery(app.clientId, pkce().challenge, { scope: `openid ${name}` })
+      const entry = await fetch(`${oidc.authorize}?${query}`, { headers: { cookie: staff.cookie }, redirect: 'manual' })
+      expect(new URL(entry.headers.get('location')!).searchParams.get('error')).toBe('invalid_scope')
+    })
+
+    it('introspects access tokens for the client they were issued to only (RFC 7662), with live permissions', async () => {
+      const app = await createApp()
+      const other = await createApp()
+      const { tokens } = await signIn(app, staff, 'openid inventory:read')
+      const introspect = (client: Json, body: Record<string, string>) => form(oidc.introspect, body, { authorization: basic(client.clientId, client.clientSecret) })
+
+      const active = await ok(await introspect(app, { token: tokens.access_token }))
+      expect(active).toMatchObject({
+        active: true,
+        scope: 'openid inventory:read',
+        client_id: app.clientId,
+        sub: String(staff.id),
+        token_type: 'Bearer',
+        permissions: ['inventory:read'],
+      })
+      expect(active.exp).toBeTypeOf('number')
+
+      // Another client learns nothing, nor does anyone about garbage or a refresh token.
+      expect(await ok(await introspect(other, { token: tokens.access_token }))).toEqual({ active: false })
+      expect(await ok(await introspect(app, { token: 'garbage' }))).toEqual({ active: false })
+      expect(await ok(await introspect(app, { token: tokens.refresh_token }))).toEqual({ active: false })
+      expect((await introspect({ ...app, clientSecret: 'wrong' }, { token: tokens.access_token })).status).toBe(401)
+      expect((await introspect(app, {})).status).toBe(400)
+
+      // Live: the application disabled, the token is no longer active.
+      await ok(await json(staff.cookie, 'PATCH', oauthServerApi.admin.application(app.id), { isActive: false }))
+      expect(await ok(await introspect(app, { token: tokens.access_token }))).toEqual({ active: false })
     })
   })
 

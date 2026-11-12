@@ -4,7 +4,7 @@ import { desc, gte } from 'drizzle-orm'
 const DAYS = 30
 
 export default defineEventHandler(async (event) => {
-  await authorizeUsersAdmin(event, 'view')
+  await authorizeUsersAdmin(event, 'list')
 
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000)
   const rows = await db.select()

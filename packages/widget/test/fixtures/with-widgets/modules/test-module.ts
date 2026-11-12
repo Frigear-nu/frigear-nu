@@ -11,6 +11,7 @@ export default defineNuxtModule({
       { component: resolver.resolve('./runtime/WidgetSecond.vue'), order: 2, props: { label: 'from-props' } },
       { component: resolver.resolve('./runtime/WidgetFirst.vue'), order: 1 },
       { component: resolver.resolve('./runtime/WidgetSecret.vue'), id: 'secret', requires: 'secret' },
+      { component: resolver.resolve('./runtime/WidgetSecret.vue'), id: 'staff-widget', permission: 'staff:view' },
     ])
 
     // Tabs live in their own list: the same area name holds the widgets above and these tabs.
@@ -18,6 +19,7 @@ export default defineNuxtModule({
       { component: resolver.resolve('./runtime/TabSecond.vue'), order: 2, label: 'Second tab', labelKey: 'missing.key' },
       { component: resolver.resolve('./runtime/TabFirst.vue'), order: 1, label: 'First tab' },
       { component: resolver.resolve('./runtime/WidgetSecret.vue'), id: 'secret-tab', label: 'Secret tab', requires: 'secret' },
+      { component: resolver.resolve('./runtime/WidgetSecret.vue'), id: 'staff-tab', label: 'Staff tab', permission: 'staff:view' },
     ])
     // A second module-style registration into the same area, replacing nothing.
     extendTabs(nuxt, 'demo', { component: resolver.resolve('./runtime/TabThird.vue'), order: 3 })

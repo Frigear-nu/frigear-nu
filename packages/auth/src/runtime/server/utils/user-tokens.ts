@@ -27,7 +27,7 @@ export const newTokenId = () => `aut_${crypto.randomUUID().replaceAll('-', '')}`
 
 export const createTokenSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  scopes: z.array(z.string()).min(1),
+  scopes: z.array(z.string().max(200)).min(1).max(50),
   expiresInDays: z.number().int().min(1).max(3650).nullable().optional(),
 })
 

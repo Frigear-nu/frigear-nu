@@ -6,7 +6,7 @@ import { newId } from '../../../utils'
 // Copies a form's name and definition into a new draft. Submissions, tokens, the password and secrets
 // belong to the original and are not copied.
 export default defineEventHandler(async (event): Promise<FormAdminDto> => {
-  await formsStaff.require(event)
+  await authorize(event, 'forms:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const source = await findFormById(id)
 

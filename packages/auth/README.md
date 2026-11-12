@@ -52,7 +52,9 @@ export default defineNuxtConfig({
   (`login`, `completeLogin`, `logout`, `getAccessToken`, `signingIn`, ...) and `$api` / `useApi()`, which send the
   bearer token to `client.apiBase` and `client.apiOrigins` only.
 - `scopes` must contain `openid`: the user comes from the id_token, and a sign-in without one fails.
-- The user is `{ id: sub, sub, name, email, avatar, role }` from the claims. `client.userinfo: true` merges `/userinfo`;
+- The user is `{ id: sub, sub, name, email, avatar }` from the claims (roles are not read from tokens: with
+  `@frigear-nu/authorization`, `useAuthorization()` asks the issuer's `/api/auth/me/access` with the bearer token, or
+  falls back to the access token's `permissions` claim; UI only, the API decides). `client.userinfo: true` merges `/userinfo`;
   `client.mapUser: './app/auth/map-user'` maps it yourself (`({ claims, userinfo, api }) => user`, may be async). Until
   an async mapping finishes, and when it fails offline, `user` is the claims mapping.
 - Login and callback pages (with `@nuxt/ui`) at `settings.pages.login` and `client.callbackPath`; branding through

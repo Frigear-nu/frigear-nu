@@ -4,8 +4,7 @@ import { DELIVERY_NOTICE, deliveryRefusal, formDefinitionInput, formSlug } from 
 
 export default defineScopedMcpTool({
   description: `Update a form (staff). A changed definition creates a new version; earlier submissions keep theirs. Existing delivery settings are kept unchanged. ${DELIVERY_NOTICE}`,
-  scopes: ['forms:manage'],
-  gate: canManageForms,
+  permission: 'forms:manage',
   annotations: { idempotentHint: true },
   inputSchema: {
     id: z.string(),

@@ -11,7 +11,9 @@ import { authorize } from '../utils/access'
 export default defineEventHandler(async (event) => {
   await resolveBearer(event)
   // Match the path the router dispatches on (`event.path`, percent-decoded by h3), never the raw URL, and refuse paths
-  // a rule cannot be trusted to match (`%2F`, `\`, dot segments) under `/api`.
+  // a rule cannot be trusted to match (`%2F`, `\`, dot segments) under `/api`. `event.path` is already relative to
+  // `app.baseURL`: Nitro mounts middleware at `<baseURL>/` and h3 strips that prefix, so it is not stripped again here
+  // (that would let `/<base>/<base>/api/...` match as `/api/...`).
   const pathname = normalizeRequestPath(event.path)
   if (pathname === null) {
     if (/(?:^|\/)api(?:[/\\]|%2f|%5c|$)/i.test(event.path.split('?', 1)[0] ?? '')) throw badRequest('Invalid request path.')

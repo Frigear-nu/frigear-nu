@@ -6,7 +6,7 @@ const input = z.object({ value: z.string().trim().min(1).max(2000) })
 
 // Write-only: the value is encrypted and stored, and is not part of the response.
 export default defineEventHandler(async (event): Promise<FormSecretsDto> => {
-  await formsStaff.require(event, { sessionOnly: true })
+  await authorize(event, 'forms:credentials')
   const { id, key } = await getValidatedRouterParams(event, secretParams.parse)
   const { value } = await readValidatedBody(event, input.parse)
   const form = await findFormById(id)

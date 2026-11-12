@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
 import PaymentsModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -6,6 +8,11 @@ export default defineNuxtConfig({
     '@frigear-nu/users',
     '@frigear-nu/stripe',
     PaymentsModule,
+    // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
+    (_options, nuxt) => {
+      addRole(nuxt, { name: 'staff', label: 'Staff', grant: ['payments:manage', 'users:read'] })
+      setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+    },
   ],
   runtimeConfig: {
     session: {
@@ -26,5 +33,9 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
     kv: true,
+  },
+  // The users admin API (and its `users:read` permission) the payments routes below a user build on.
+  users: {
+    settings: { admin: { page: false } },
   },
 })

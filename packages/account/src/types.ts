@@ -9,10 +9,11 @@ export type AccountDocument = {
   path: string
   icon?: string
   /**
-   * Only shown to users with one of these roles (the `role` of the session user). Omit to show to every signed-in
-   * user. This only decides what is *listed*: a file in `public/` can still be fetched by anyone who knows its URL.
+   * The permission (`resource:action`) a user must hold to see the document listed. Omit to show it to every
+   * signed-in user. Needs `@frigear-nu/authorization`; without it a document with a permission is never listed. This only
+   * decides what is *listed*: a file in `public/` can still be fetched by anyone who knows its URL.
    */
-  roles?: string[]
+  permission?: string
 }
 
 export type PublicModuleOptions = {

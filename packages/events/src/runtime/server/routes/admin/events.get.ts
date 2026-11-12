@@ -30,7 +30,7 @@ const querySchema = pageQuery({
 
 // Every event, whatever its status, newest start first. `q` searches the name (every language) and the slug.
 export default defineEventHandler(async (event): Promise<Page<AdminEventDto>> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const query = await getValidatedQuery(event, querySchema.parse)
 
   const conditions: (SQL | undefined)[] = []

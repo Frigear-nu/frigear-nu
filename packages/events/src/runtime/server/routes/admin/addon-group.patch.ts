@@ -7,7 +7,7 @@ import { addonGroupInput } from '../../utils/admin-schemas'
 const patchSchema = addonGroupInput.omit({ addons: true }).partial()
 
 export default defineEventHandler(async (event): Promise<AdminAddonGroupDto> => {
-  await eventsStaff.require(event)
+  await authorize(event, 'events:manage')
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   const patch = await readValidatedBody(event, patchSchema.parse)
   const [row] = await db.update(schema.eventAddonGroups).set(patch).where(eq(schema.eventAddonGroups.id, id)).returning()

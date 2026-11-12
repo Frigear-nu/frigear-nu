@@ -72,7 +72,7 @@ describe('users admin', () => {
   let member: ReturnType<typeof apiClient>
   let memberId: number
 
-  it('is closed to guests and to users the host policy does not allow', async () => {
+  it('is closed to guests and to users without the permissions', async () => {
     staff = apiClient({ cookie: await register('Staff', 'staff@example.com') })
     member = apiClient({ cookie: await register('Member', 'member@example.com') })
 
@@ -160,7 +160,7 @@ describe('users admin', () => {
     expect(edited).toMatchObject({ email: 'member2@example.com', emailVerifiedAt: null })
 
     // The member's session named the old address, so it ended; they sign in with the new one.
-    await expectApiError(member.json('GET', usersApi.admin.roles), 401)
+    await expectApiError(member.json('GET', usersApi.admin.stats), 401)
     const login = await apiClient().fetch('POST', authApi.login, { email: 'member2@example.com', password: 'supersecret123' })
     expect(login.status, await login.clone().text()).toBe(200)
     member = apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
@@ -194,12 +194,6 @@ describe('users admin', () => {
     await expectApiError(fetchPage('pageSize=1000'), 400)
   })
 
-  it('offers the roles the host policy allows to the acting user', async () => {
-    await expectApiError(anonymous.json('GET', usersApi.admin.roles), 401)
-    await expectApiError(member.json('GET', usersApi.admin.roles), 403)
-    expect(await staff.json('GET', usersApi.admin.roles)).toEqual({ roles: ['manager', 'user'] })
-  })
-
   it('reports the dashboard stats to staff only', async () => {
     await expectApiError(anonymous.json('GET', usersApi.admin.stats), 401)
     await expectApiError(member.json('GET', usersApi.admin.stats), 403)
@@ -218,7 +212,7 @@ describe('users admin', () => {
     expect(detail).toMatchObject({ email: 'staff@example.com', passkeys: 0, hasPassword: true, subscription: null })
     expect(detail).not.toHaveProperty('password')
     // Deleting yourself is never offered.
-    expect(detail.can).toEqual({ update: true, delete: false })
+    expect(detail.can).toEqual({ update: true, delete: false, manage: true })
 
     await expectApiError(member.json('GET', usersApi.admin.user(items[0]!.id)), 403)
     await expectApiError(staff.json('GET', usersApi.admin.user(99999)), 404, 'not_found')
@@ -266,7 +260,7 @@ describe('users admin', () => {
     expect(await page('/admin/users/99999')).toContain('User not found')
   }, 120_000)
 
-  it('deletes users (204) through the policy but never the acting user', async () => {
+  it('deletes users (204) with the permission but never the acting user', async () => {
     const created = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Gone', email: 'gone@example.com', sendWelcomeEmail: false })
     await expectApiError(member.json('DELETE', usersApi.admin.user(created.id)), 403)
     const deleted = await staff.fetch('DELETE', usersApi.admin.user(created.id))
@@ -279,6 +273,41 @@ describe('users admin', () => {
     await expectApiError(staff.json('DELETE', usersApi.admin.user(items[0]!.id)), 400)
   })
 
+  describe('target protection', () => {
+    let coordinator: ReturnType<typeof apiClient>
+    let staffId: number
+
+    it('lets a coordinator (users:* only) manage users who hold nothing more than they do', async () => {
+      coordinator = apiClient({ cookie: await register('Coordinator', 'coordinator@example.com') })
+      const { items } = await coordinator.json<Page>('GET', `${usersApi.admin.users}?pageSize=100`)
+      staffId = items.find(u => u.email === 'staff@example.com')!.id
+
+      const plain = await coordinator.json<Row>('POST', usersApi.admin.users, { name: 'Plain', email: 'plain@example.com', sendWelcomeEmail: false })
+      expect(await coordinator.json<Row>('PATCH', usersApi.admin.user(plain.id), { name: 'Plain Renamed' })).toMatchObject({ name: 'Plain Renamed' })
+      const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(plain.id))
+      expect(detail.can).toEqual({ update: true, delete: true, manage: true })
+      expect((await coordinator.fetch('DELETE', usersApi.admin.user(plain.id))).status).toBe(204)
+    })
+
+    it('refuses a coordinator every write on an admin (403 forbidden), but lets them read', async () => {
+      const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(staffId))
+      expect(detail.can).toEqual({ update: false, delete: false, manage: false })
+
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(staffId), { name: 'Hijacked' }), 403, 'forbidden')
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(staffId), { email: 'mine@example.com' }), 403, 'forbidden')
+      await expectApiError(coordinator.json('DELETE', usersApi.admin.user(staffId)), 403, 'forbidden')
+      await expectApiError(coordinator.json('POST', usersApi.admin.resend(staffId)), 403, 'forbidden')
+      expect(await staff.json<Row>('GET', usersApi.admin.user(staffId))).toMatchObject({ name: 'Staff', email: 'staff@example.com' })
+    })
+
+    it('lets an admin change a coordinator', async () => {
+      const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=coordinator`)
+      const id = items[0]!.id
+      expect(await staff.json<Row>('PATCH', usersApi.admin.user(id), { name: 'Coord' })).toMatchObject({ name: 'Coord' })
+      expect((await staff.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(id))).can).toEqual({ update: true, delete: true, manage: true })
+    })
+  })
+
   describe('API tokens with users:read', () => {
     const createToken = (client: ReturnType<typeof apiClient>, scopes: string[]) =>
       client.fetch('POST', authApi.me.tokens, { name: 'sync', scopes })
@@ -288,7 +317,7 @@ describe('users admin', () => {
       return apiClient({ bearer: (await response.json() as { token: string }).token })
     }
 
-    it('is staff only: a user the policy does not allow cannot obtain it', async () => {
+    it('is staff only: a user without the permission cannot obtain it', async () => {
       const response = await createToken(member, ['users:read'])
       expect(response.status).toBe(403)
       expect((await response.json() as { data: { code: string } }).data.code).toBe('insufficient_permission')
@@ -297,15 +326,25 @@ describe('users admin', () => {
     })
 
     it('lets a staff token read the directory and a user, never change them', async () => {
-      const token = await tokenClient(staff, ['users:read'])
+      const token = await tokenClient(staff, ['users:read', 'users:list'])
       const { items } = await token.json<Page>('GET', usersApi.admin.users)
       expect(items.map(u => u.id)).toContain(memberId)
       const user = await token.json<Row & { can: { update: boolean, delete: boolean } }>('GET', usersApi.admin.user(memberId))
-      expect(user).toMatchObject({ id: memberId, can: { update: false, delete: false } })
+      expect(user).toMatchObject({ id: memberId, can: { update: false, delete: false, manage: false } })
 
-      await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { name: 'X' }), 403, 'session_required')
-      await expectApiError(token.json('POST', usersApi.admin.users, { name: 'X', email: 'x@example.com' }), 403, 'session_required')
+      // Writes need their own permissions, which this token lacks; deleting and `users:manage` are session only.
+      await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { name: 'X' }), 403, 'insufficient_scope')
+      await expectApiError(token.json('POST', usersApi.admin.users, { name: 'X', email: 'x@example.com' }), 403, 'insufficient_scope')
       await expectApiError(token.json('DELETE', usersApi.admin.user(memberId)), 403, 'session_required')
+      await expectApiError(token.json('POST', usersApi.admin.resend(memberId)), 403, 'session_required')
+      // A token that may only read one user cannot list them.
+      await expectApiError((await tokenClient(staff, ['users:read'])).json('GET', usersApi.admin.users), 403, 'insufficient_scope')
+    })
+
+    it('lets a token with users:update rename, but not touch the email (users:manage is session only)', async () => {
+      const token = await tokenClient(staff, ['users:update'])
+      expect(await token.json<Row>('PATCH', usersApi.admin.user(memberId), { name: 'Member Renamed' })).toMatchObject({ name: 'Member Renamed' })
+      await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { email: 'elsewhere@example.com' }), 403, 'session_required')
     })
 
     it('refuses a token without the scope (403 insufficient_scope)', async () => {
@@ -314,10 +353,13 @@ describe('users admin', () => {
       await expectApiError(token.json('GET', usersApi.admin.user(memberId)), 403, 'insufficient_scope')
     })
 
-    it('still runs the policy against the token user', async () => {
-      // A `*` token is grantable to anyone, but the policy denies a member every staff read.
-      const token = await tokenClient(member, ['*'])
-      await expectApiError(token.json('GET', usersApi.admin.users), 403, 'forbidden')
+    it('never gives a token more than its user holds', async () => {
+      // A member cannot mint `*` (they do not hold everything), and a token of theirs never reaches the staff routes.
+      const wildcard = await createToken(member, ['*'])
+      expect(wildcard.status).toBe(403)
+      expect((await wildcard.json() as { data: { code: string } }).data.code).toBe('insufficient_permission')
+      const token = await tokenClient(member, ['profile:read'])
+      await expectApiError(token.json('GET', usersApi.admin.users), 403, 'insufficient_scope')
     })
   })
 })

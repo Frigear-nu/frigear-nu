@@ -1,5 +1,3 @@
-import { principalHasScopes } from '@frigear-nu/auth/utils'
-import type { AuthPrincipal } from '@frigear-nu/auth/utils'
 import { z } from 'zod'
 
 /** Marker set on every definition created through the scoped definers; anything without it is dropped. */
@@ -7,35 +5,18 @@ export const SCOPED_META_KEY = 'frigear-nu/scoped'
 
 export interface ScopedAccess {
   /**
-   * The permission (`resource:action`) the caller must be allowed, checked with `allows(event, permission)`. Its
-   * definition says whether it is session only. Replaces `scopes`, `sessionOnly` and `gate`.
+   * The permission (`resource:action`, registered with `addPermission`) the caller must be allowed, checked with
+   * `allows(event, permission)` on every listing and every call. Required: a definition without a permission is never
+   * exposed (fail closed). The permission's own definition says whether it is session only (never for bearer
+   * credentials) and who holds it (roles); a policy or `authorization:before` listener can refine it. Use a dedicated
+   * `sessionOnly` permission for money and credential actions. Self-service tools use an `implicit` permission
+   * (`tickets:read`, `profile:read`), so every signed-in user, and a token carrying that scope, passes.
    */
-  permission?: string
-  /**
-   * Scopes the caller's credential must carry. Required: a definition without scopes is never exposed.
-   * @deprecated Use `permission`; removed once definitions are checked by permission.
-   */
-  scopes: string[]
-  /**
-   * Never exposed to bearer credentials (API tokens, OAuth); only to a cookie session.
-   * @deprecated Use a `sessionOnly` permission as `permission`.
-   */
-  sessionOnly?: boolean
+  permission: string
 }
 
-/**
- * Pure part of the access decision: is there a principal, does it carry the scopes (within its
- * user's permissions), is the credential kind allowed. Module-specific gates (e.g. `events:authorize`) layer on top.
- */
-export function isPrincipalAllowed(principal: AuthPrincipal | null | undefined, access: ScopedAccess): principal is AuthPrincipal {
-  if (!principal) return false
-  if (!access.scopes.length) return false
-  if (access.sessionOnly && principal.kind !== 'session') return false
-  return principalHasScopes(principal, access.scopes)
-}
-
-export function scopeTags(access: ScopedAccess): string[] {
-  return [...access.scopes.map(scope => `scope:${scope}`), ...(access.sessionOnly ? ['session-only'] : [])]
+export function permissionTags(access: ScopedAccess): string[] {
+  return [`permission:${access.permission}`]
 }
 
 export interface RedactOptions<T extends object> {

@@ -3,8 +3,7 @@ import { db, schema } from '@nuxthub/db'
 
 export default defineScopedMcpTool({
   description: 'List all forms including drafts, with submission counts (staff).',
-  scopes: ['forms:manage'],
-  gate: canManageForms,
+  permission: 'forms:manage',
   annotations: { readOnlyHint: true },
   handler: async () => {
     const rows = await db.select().from(schema.forms).orderBy(desc(schema.forms.updatedAt))

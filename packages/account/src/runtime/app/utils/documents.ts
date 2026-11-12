@@ -6,7 +6,10 @@ export function documentLabel(document: AccountDocument, locale: string): string
   return document.label[locale] ?? document.label.en ?? Object.values(document.label)[0] ?? document.id
 }
 
-/** The documents a user with `role` may see: everything without `roles`, otherwise only matching roles. */
-export function visibleDocuments(documents: AccountDocument[], role: string | undefined): AccountDocument[] {
-  return documents.filter(document => !document.roles?.length || (!!role && document.roles.includes(role)))
+/**
+ * The documents the viewer may see: everything without a `permission`, otherwise only those `can` allows. Without a `can`
+ * (no access layer installed) a document with a permission is hidden.
+ */
+export function visibleDocuments(documents: AccountDocument[], can?: (permission: string) => boolean): AccountDocument[] {
+  return documents.filter(document => !document.permission || !!can?.(document.permission))
 }
