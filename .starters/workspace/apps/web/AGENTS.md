@@ -13,9 +13,7 @@ nuxt.config.ts                     modules and their options - the source of tru
 app/                               Nuxt 4 app code: pages, components, composables, layouts, middleware, utils
 app/assets/css/main.css            Tailwind + Nuxt UI
 server/                            Nitro: api routes, plugins, utils
-server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for verified emails in NUXT_ACL_ADMINS
-server/utils/map-session-user.ts   session mapper (authentication.settings.session.mapper)
-server/plugins/authorization-role.ts the role a user acts as (NUXT_ACL_ADMINS)
+server/plugins/authorization-roles.ts adds the `admin` role to verified emails in NUXT_ACL_ADMINS
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
 modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
 ```
@@ -37,7 +35,7 @@ Each module's page is `https://docs.frigear.dev/modules/<module>` (Markdown:
 | --- | --- |
 | `@frigear-nu/auth` (config key `authentication`) | Sign-in with password or passkey (pages `/login`, `/register`), sessions, API tokens, `requireAuth` |
 | `@frigear-nu/users` | The `users` table, self-service profile/email/password, `/admin/users` |
-| `@frigear-nu/authorization` | `users.role`, `roles` / `authenticated` route rules, `<Can>` |
+| `@frigear-nu/authorization` | Roles and their permissions, role assignment in the admin, `permission` / `authenticated` route rules, `useAuthorization()`, `<Can>` |
 | `@frigear-nu/account` | `/account/**` pages |
 | `@frigear-nu/admin`, `widget`, `menu` | The `/admin` shell and dashboard, widget areas, named menus |
 | `@frigear-nu/notify` | Email/SMS; the `log` driver prints emails to the terminal |
@@ -48,20 +46,27 @@ to `modules`, set its options from its docs page, then generate and commit a mig
 
 ## Authentication and authorization
 
-- Authenticate server routes with `requireAuth(event, { scopes?, sessionOnly? })` (from `@frigear-nu/auth`) or
-  `requireUser(event)` (from `@frigear-nu/users`), not nuxt-auth-utils' `requireUserSession`. Both accept cookie
-  sessions and API tokens. Use `sessionOnly: true` for anything that changes who the user is or how they sign in.
-- Role-based access control is on (`authorization.rbac`): the permissions of a user's role decide every staff check
-  (`/admin/users` needs `users:read` / `users:manage`, `/admin/roles` needs `roles:read`). Built in: `admin` holds
-  everything, `user` (the default) holds no staff permissions. A user's own profile, password and API tokens are not
-  permission-gated. No policy plugin is needed.
-- The role a user acts as: `server/plugins/authorization-role.ts` (`authorization:role` hook) returns `effectiveRole()`
-  from `server/utils/acl.ts`, the stored role or `admin` for verified emails in `NUXT_ACL_ADMINS`. To add a role, list
-  it in `userRoles` there and shape it under `authorization.roles` in `nuxt.config.ts` (`hierarchy`, `grant`,
-  `inherits`). A module's `*:authorize` hook only adds conditions a role cannot express; identify the caller from
-  `ctx.userId`, never from the session on `ctx.event` (it is empty for API token requests).
-- `/admin/**` is open to `admin.settings.roles` in `nuxt.config.ts`.
-- The session mapper runs at sign-in: after changing `NUXT_ACL_ADMINS` or a role, sign in again.
+- Access control is permissions (`resource:action`), which modules register, and roles that bundle them. Roles live in
+  `authorization.roles` in `nuxt.config.ts`: `admin` holds `grant: ['*']` (every permission except sensitive `:pii`
+  ones, which a role names one by one), `user` (`defaultRoles`) holds nothing extra. Self-service (a user's own profile,
+  password, API tokens) is `implicit`: every signed-in user holds it. Admins assign roles on a user's page in the admin
+  (`roles:assign`); add a role with `grant` and `inherit`, for example
+  `support: { label: 'Support', grant: ['admin:access', 'users:read', 'users:list'], inherit: ['user'] }`.
+- Server routes: `requireAuth(event, { sessionOnly? })` (from `@frigear-nu/auth`) or `requireUser(event)` (from
+  `@frigear-nu/users`) authenticate (cookie sessions, API tokens and OAuth access tokens), never nuxt-auth-utils'
+  `requireUserSession`. Check access with `await authorize(event, 'resource:action', record?)` (`allows` for a
+  boolean). Every permission you check must be registered (`addPermission` in a module, or a module that owns it): an
+  unknown one is a `403`. Use `sessionOnly: true` for anything that changes who the user is or how they sign in.
+- Pages and UI: route rules and page meta take `permission` (`'/reports/**': { permission: 'reports:read' }`,
+  `definePageMeta({ authorize: 'reports:read' })`) or `authenticated: true`; in components use
+  `useAuthorization().can('resource:action')` or `<Can permission="...">`. They only decide what is shown: the server
+  checks every request.
+- `server/plugins/authorization-roles.ts` (`authorization:roles` hook) adds `admin` to verified emails in
+  `NUXT_ACL_ADMINS`. Nothing is stored, and it applies on the next request after a restart. Identify the user from
+  `ctx.user`, never from the session on `ctx.event` (it is empty for API token requests).
+- A rule a role cannot express (only admins may give someone a staff address, ...) is a policy in `server/policies.ts`
+  or an `authorization:before` listener. See https://docs.frigear.dev/raw/modules/identity/authorization/policies.md.
+- `/admin/**` needs `admin:access` (`admin.settings.permission`, granted to `admin` through `*`).
 
 ## Database
 

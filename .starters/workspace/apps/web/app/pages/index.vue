@@ -1,10 +1,12 @@
 <script setup lang="ts">
-const { loggedIn, user } = useUserSession()
+const { loggedIn } = useUserSession()
+// What the UI shows: `admin:access` opens /admin (the server checks it again).
+const { can } = useAuthorization()
 
 const links = computed(() => loggedIn.value
   ? [
       { label: 'My account', to: '/account', icon: 'i-lucide-user' },
-      ...(user.value?.role === 'admin' ? [{ label: 'Admin', to: '/admin', color: 'neutral' as const, variant: 'outline' as const }] : []),
+      ...(can('admin:access') ? [{ label: 'Admin', to: '/admin', color: 'neutral' as const, variant: 'outline' as const }] : []),
     ]
   : [
       { label: 'Sign in', to: '/login', icon: 'i-lucide-log-in' },

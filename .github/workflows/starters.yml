@@ -179,5 +179,5 @@ jobs:
           compare .starters/mobile/apps/mobile .starters/mobile-standalone/apps/mobile
           # apps/web of the standalone starter is the workspace one plus the OAuth server: only these files differ.
           compare .starters/workspace/apps/web .starters/mobile-standalone/apps/web \
-            -x nuxt.config.ts -x package.json -x .env.example -x AGENTS.md -x migrations -x api -x oauth-policy.ts
+            -x nuxt.config.ts -x package.json -x .env.example -x AGENTS.md -x migrations -x api
           exit $failed

@@ -100,8 +100,8 @@ The starters are templates for a **new project outside this repo**, each a pnpm 
 - **Shared files stay identical.** `.github/`, `.nvmrc`, `.gitignore`, `pnpm-workspace.yaml`, `scripts/` and
   `packages/` are the same in every starter, `apps/mobile` is the same in `mobile` and `mobile-standalone`, and
   `mobile-standalone/apps/web` differs from `workspace/apps/web` only in `nuxt.config.ts`, `package.json`,
-  `.env.example`, `AGENTS.md`, the migrations, `server/api/` and `server/plugins/oauth-policy.ts`. Change a shared file
-  in every starter in the same commit; the `drift` job of `.github/workflows/starters.yml` fails otherwise.
+  `.env.example`, `AGENTS.md`, the migrations and `server/api/`. Change a shared file in every starter in the same
+  commit; the `drift` job of `.github/workflows/starters.yml` fails otherwise.
 - `scripts/prepare-env.mjs` (`pnpm prepare:env`) is zero-dependency: it copies each `.env.example` and fills in empty
   secrets, never overwriting a value.
 - Work on a starter in a copy outside the repo (`cp -R .starters/<starter> "$TMPDIR/<starter>"`, then `pnpm install`

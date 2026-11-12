@@ -6,7 +6,7 @@ const { logout } = useAuth()
 const native = useNative()
 const signingOut = ref(false)
 
-// The default mapping of client mode: `{ id, sub, name, email, avatar, role }` from the ID token claims. Map other
+// The default mapping of client mode: `{ id, sub, name, email, avatar }` from the ID token claims. Map other
 // claims (`preferred_username`, ...) with `authentication.client.mapUser`.
 const profile = computed(() => user.value as { name?: string, email?: string } | null)
 const name = computed(() => profile.value?.name ?? profile.value?.email ?? 'Signed in')
