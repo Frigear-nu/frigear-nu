@@ -180,6 +180,10 @@ export default defineNuxtModule<ModuleOptions>({
     })
     nuxt.hook('build:before', () => warnUnenforced([]))
 
+    // The host's shared policies run in the app's `can()` in both modes (Auth serves them as `#auth/shared-policies`).
+    const sharedPolicies = policyFile(nuxt, options.policies?.shared, 'shared/policies')
+    if (sharedPolicies) addPolicies(nuxt, { path: sharedPolicies, host: true, shared: true })
+
     if (server) {
       // The module's own permissions. Role changes alter what someone may do, so assigning is session only.
       addPermission(nuxt,
@@ -192,9 +196,7 @@ export default defineNuxtModule<ModuleOptions>({
       if (options.defaultRoles?.length) setDefaultRoles(nuxt, options.defaultRoles)
       setRoleProvider(nuxt, { path: resolver.resolve('./runtime/server/role-provider') })
 
-      const shared = policyFile(nuxt, options.policies?.shared, 'shared/policies')
       const serverPolicies = policyFile(nuxt, options.policies?.server, 'server/policies')
-      if (shared) addPolicies(nuxt, { path: shared, host: true, shared: true })
       if (serverPolicies) addPolicies(nuxt, { path: serverPolicies, host: true })
 
       // `authorization_user_roles` and `authorization_meta`; `users.role` stays this release for the migration only.

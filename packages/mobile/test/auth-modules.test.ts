@@ -55,6 +55,16 @@ describe('mobile with auth and authorization', () => {
     expect(seen.size).toBe(1)
   })
 
+  // `useAuthorization()` imports `#auth/shared-policies`: client mode must provide it, with the host's shared policies.
+  it('serves the host\'s shared policies as `#auth/shared-policies` in client mode', async () => {
+    const nuxt = await load({ modules: [mobile, '@frigear-nu/authorization'] })
+    expect(nuxt.options.alias['#auth/shared-policies']).toMatch(/auth\/shared-policies\.mjs$/)
+    const template = nuxt.options.build.templates.find(entry => entry.filename === 'auth/shared-policies.mjs')
+    const contents = await template?.getContents?.({ nuxt, app: {} as never, options: {} } as never)
+    expect(contents).toMatch(/import \* as policies0 from ".*\/fixtures\/auth-modules\/shared\/policies\.ts"/)
+    await nuxt.close()
+  })
+
   it('installs Auth when only `authentication` is configured, not Authorization', async () => {
     const nuxt = await load({ modules: [mobile] })
     expect(installed(nuxt)).toContain('@frigear-nu/auth')
