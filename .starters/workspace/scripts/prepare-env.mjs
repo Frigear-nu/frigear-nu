@@ -15,8 +15,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** Generators for secrets that are filled in when their line is empty. */
 const secrets = {
-  // nuxt-auth-utils: encrypts the session cookie, at least 32 characters.
-  NUXT_SESSION_PASSWORD: () => randomBytes(32).toString('base64'),
+  // Nuxt's appSecret: nuxt-auth-utils seals the session cookie with it, at least 32 characters.
+  NUXT_APP_SECRET: () => randomBytes(32).toString('base64'),
   // @frigear-nu/oauth-server: a PKCS#8 RSA key, one line with `\n` escapes.
   NUXT_OAUTH_SERVER_PRIVATE_KEY: () => {
     const { privateKey } = generateKeyPairSync('rsa', {

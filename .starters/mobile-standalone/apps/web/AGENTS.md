@@ -16,8 +16,8 @@ app/assets/css/main.css            Tailwind + Nuxt UI
 server/                            Nitro: api routes, plugins, utils
 server/utils/acl.ts                effectiveRole(): stored role, or 'admin' for verified emails in NUXT_ACL_ADMINS
 server/utils/map-session-user.ts   session mapper (authentication.settings.session.mapper)
-server/plugins/users-policy.ts     host policy for the users admin
-server/plugins/oauth-policy.ts     host policy of the OAuth server: OAuth admins and the roles of a user
+server/plugins/authorization-role.ts the role a user acts as (NUXT_ACL_ADMINS)
+server/plugins/oauth-policy.ts     the roles an OAuth application's allowedRoles are checked against
 server/api/me.get.ts               GET /api/me, the sample route apps/mobile calls with its access token
 server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
 modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
@@ -55,11 +55,16 @@ to `modules`, set its options from its docs page, then generate and commit a mig
 - Authenticate server routes with `requireAuth(event, { scopes?, sessionOnly? })` (from `@frigear-nu/auth`) or
   `requireUser(event)` (from `@frigear-nu/users`), not nuxt-auth-utils' `requireUserSession`. Both accept cookie
   sessions and API tokens. Use `sessionOnly: true` for anything that changes who the user is or how they sign in.
-- Module staff areas are denied until a host policy allows them: a Nitro plugin on the module's `*:authorize` hook
-  (`users:admin:authorize`, `forms:authorize`, ...) that sets `ctx.allowed`. Identify the caller from `ctx.userId`,
-  never from the session on `ctx.event` (it is empty for API token requests). Reuse `effectiveRole()` so the
-  `NUXT_ACL_ADMINS` allowlist applies everywhere.
-- Roles: `userRoles` in `server/utils/acl.ts`. `/admin/**` is open to `admin.settings.roles` in `nuxt.config.ts`.
+- Role-based access control is on (`authorization.rbac`): the permissions of a user's role decide every staff check
+  (`/admin/users` needs `users:read` / `users:manage`, `/admin/roles` needs `roles:read`). Built in: `admin` holds
+  everything, `user` (the default) holds no staff permissions. A user's own profile, password and API tokens are not
+  permission-gated. No policy plugin is needed.
+- The role a user acts as: `server/plugins/authorization-role.ts` (`authorization:role` hook) returns `effectiveRole()`
+  from `server/utils/acl.ts`, the stored role or `admin` for verified emails in `NUXT_ACL_ADMINS`. To add a role, list
+  it in `userRoles` there and shape it under `authorization.roles` in `nuxt.config.ts` (`hierarchy`, `grant`,
+  `inherits`). A module's `*:authorize` hook only adds conditions a role cannot express; identify the caller from
+  `ctx.userId`, never from the session on `ctx.event` (it is empty for API token requests).
+- `/admin/**` is open to `admin.settings.roles` in `nuxt.config.ts`.
 - The session mapper runs at sign-in: after changing `NUXT_ACL_ADMINS` or a role, sign in again.
 
 ## The OAuth server and apps/mobile

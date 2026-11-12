@@ -23,8 +23,9 @@ pnpm install
 pnpm prepare:env
 ```
 
-`pnpm prepare:env` creates `apps/web/.env` and `apps/mobile/.env`, and generates the session password and the OAuth
-signing key. Put your email in `NUXT_ACL_ADMINS` in `apps/web/.env` (comma separated emails that are always admins).
+`pnpm prepare:env` creates `apps/web/.env` and `apps/mobile/.env`, and generates `NUXT_APP_SECRET` (it seals the
+session cookie) and the OAuth signing key. Put your email in `NUXT_ACL_ADMINS` in `apps/web/.env` (comma separated
+emails that are always admins).
 
 ```bash
 pnpm dev

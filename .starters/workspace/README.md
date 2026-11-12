@@ -17,8 +17,8 @@ pnpm install
 pnpm prepare:env
 ```
 
-`pnpm prepare:env` creates `apps/web/.env` and generates `NUXT_SESSION_PASSWORD` (it never overwrites a value). Put
-your email in `NUXT_ACL_ADMINS` there: comma separated emails that are always admins.
+`pnpm prepare:env` creates `apps/web/.env` and generates `NUXT_APP_SECRET`, which seals the session cookie (it never
+overwrites a value). Put your email in `NUXT_ACL_ADMINS` there: comma separated emails that are always admins.
 
 ```bash
 pnpm dev
