@@ -33,9 +33,19 @@ export async function resolveBearer(event: H3Event): Promise<void> {
     if (principal) {
       // A bearer credential acts within its user's current permissions (OAuth 2.0 scopes as delegation). They are
       // decided from the stored user, as for a cookie session: `principal.user` went through the host's session
-      // mapper, which may rewrite or drop `role`. Without a user store the principal's user is all there is.
-      const stored = storeConfigured ? await useAuthUserStore().findById(principal.user.id as string | number) : null
-      const permissions = await getAuthUserPermissions(event, (stored ?? principal.user) as { id: number })
+      // mapper, which may rewrite or drop `role`. Without a user store the principal's user is all there is. With one, a
+      // principal whose user the store lacks (a host resolver's mapped or forged user, or one deleted meanwhile) is
+      // refused: capping it by the role on the mapped user would let a stale "admin" act with `*`.
+      let subject: unknown = principal.user
+      if (storeConfigured) {
+        const stored = await useAuthUserStore().findById(principal.user.id as string | number)
+        if (!stored) {
+          event.context.authRejected = true
+          return
+        }
+        subject = stored
+      }
+      const permissions = await getAuthUserPermissions(event, subject as { id: number })
       event.context.auth = permissions ? { ...principal, ceiling: permissions } : principal
       return
     }

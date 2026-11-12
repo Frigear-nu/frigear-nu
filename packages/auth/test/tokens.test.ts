@@ -259,6 +259,21 @@ describe('auth tokens', async () => {
     expect((await call('GET', '/api/test/me', { bearer: token })).status).toBe(401)
   })
 
+  it('caps a host resolver\'s bearer by the stored user\'s role, and refuses one whose user is not stored', async () => {
+    // The `ghost_` resolver maps every token to an admin with `*`; the fixture lets admins do everything, others only
+    // read events. Ada is stored as a user, so the mapped role must not count.
+    expect((await call('GET', '/api/test/events', { bearer: 'ghost_1' })).status).toBe(200)
+    await expectApiError(apiClient({ bearer: 'ghost_1' }).json('POST', '/api/test/events'), 403, 'insufficient_scope')
+
+    await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'admin' } } })
+    expect((await call('POST', '/api/test/events', { bearer: 'ghost_1' })).status).toBe(200)
+    await call('PATCH', '/api/test/user', { body: { id: 1, patch: { role: 'user' } } })
+
+    // No stored user: refused, never capped by the mapped "admin" and never falling back to the session.
+    expect((await call('GET', '/api/test/me', { bearer: 'ghost_999' })).status).toBe(401)
+    expect((await call('GET', '/api/test/me', { bearer: 'ghost_999', cookie: ada })).status).toBe(401)
+  })
+
   describe('POST /api/auth/logout', () => {
     it('clears the session cookie and answers 204', async () => {
       const cookie = await login(1)
