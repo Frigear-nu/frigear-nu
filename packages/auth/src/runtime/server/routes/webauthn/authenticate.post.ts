@@ -46,14 +46,16 @@ export default defineWebAuthnAuthenticateEventHandler({
       .set({ counter: authenticationInfo.newCounter })
       .where(eq(schema.userCredentials.id, credential.id))
 
-    const dbUser = await useAuthUserStore().findById(credential.userId)
+    const users = useAuthUserStore()
+    const dbUser = await users.findById(credential.userId)
     if (!dbUser) throw invalidCredentials()
     // Same rule as password sign-in (`login.post.ts`).
     if (useRuntimeConfig(event).public.authentication?.verifyEmail && !dbUser.emailVerifiedAt) {
       throw apiError(403, 'email_not_verified', 'Please verify your email address before logging in.')
     }
 
-    await startAuthSession(event, dbUser)
+    const updated = await users.update(dbUser.id, { lastLoginAt: new Date() })
+    await startAuthSession(event, updated ?? dbUser)
   },
   // A failed verification (nuxt-auth-utils' bare 400, or a 500 for a malformed response) is the same generic 401;
   // the toolkit errors above pass through as they are.
