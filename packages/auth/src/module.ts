@@ -881,8 +881,39 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
     getContents: () => accessTypes(typedNames),
   }, { nuxt: true, nitro: true, node: true, shared: true })
 
+  // Auth's Nitro runtime hooks, generated so the host's server code sees them: `nitro.hooks` is typed by
+  // `nitropack/types`, which the module's own `declare module 'nitropack'` (a separate, deprecated copy) does not reach.
+  addTypeTemplate({
+    filename: 'types/auth-hooks.d.ts',
+    getContents: () => nitroHookTypes(resolver),
+  }, { nuxt: true, nitro: true })
+
   // A listener of a removed hook (`auth:user-permissions`, `events:authorize`, ...) never runs: say so in development.
   if (nuxt.options.dev) addServerPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))
+}
+
+/** The `nitropack/types` augmentation with auth's runtime hooks (`types/auth-hooks.d.ts`). */
+function nitroHookTypes(resolver: { resolve: (path: string) => string }) {
+  const type = (path: string, name: string) => `import(${JSON.stringify(resolver.resolve(path))}).${name}`
+  return `declare module 'nitropack/types' {
+  interface NitroRuntimeHooks {
+    /**
+     * The single host override, fired by \`authorize\` / \`allows\` / \`canGrantScope\` after the credential checks. Vote
+     * with \`ctx.allow()\` / \`ctx.deny()\`. Identify the caller from \`ctx.user\`, never from the session. Use
+     * \`subjectAllowed\` inside it, never \`allows\` / \`authorize\` (endless recursion).
+     */
+    'authorization:before': (ctx: ${type('./runtime/types', 'AuthorizationBeforeContext')}) => void | Promise<void>
+    /** Fired while a user's roles are resolved: push to or remove from \`ctx.roles\` (an environment allowlist, a directory). */
+    'authorization:roles': (ctx: ${type('./runtime/types', 'AuthorizationRolesContext')}) => void | Promise<void>
+    /** An auth email is about to be sent; replace \`ctx.notification\`'s subject/body to brand it. */
+    'auth:email': (ctx: ${type('./runtime/server/utils/auth-email', 'AuthEmailContext')}) => void | Promise<void>
+    /** A user's password was changed or reset, or their email changed. */
+    'auth:credentials:changed': (ctx: ${type('./runtime/server/utils/credentials', 'AuthCredentialsChangedContext')}) => void | Promise<void>
+  }
+}
+
+export {}
+`
 }
 
 /**
