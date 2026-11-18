@@ -1,0 +1,214 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { upgradeWorkspace } from '../src/commands/upgrade.ts'
+import { findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
+import { pendingMigrations } from '../src/upgrade/migrate.ts'
+import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
+import { migrations } from '../src/upgrades/index.ts'
+
+describe('versions', () => {
+  it('compares versions, a pre-release before its release', () => {
+    expect(compareVersions('0.10.0', '0.9.9')).toBeGreaterThan(0)
+    expect(compareVersions('1.0.0-beta.1', '1.0.0')).toBeLessThan(0)
+    expect(compareVersions('3.1.0', '3.1.0')).toBe(0)
+  })
+
+  it('moves a range to a version, keeping its operator', () => {
+    expect(rewriteRange('0.3.4', '0.6.1')).toBe('0.6.1')
+    expect(rewriteRange('^0.5.1', '0.6.1')).toBe('^0.6.1')
+    expect(rewriteRange('>=0.3.4', '0.6.1')).toBe('>=0.6.1')
+    expect(rewriteRange('>0.3.4', '0.6.1')).toBe('>=0.6.1')
+    expect(rewriteRange('~1.3.4', '1.3.5')).toBe('~1.3.5')
+  })
+
+  it('leaves workspace, catalog and complex ranges alone', () => {
+    for (const range of ['workspace:*', 'workspace:^', 'catalog:', 'latest', '*', '^1.0.0 || ^2.0.0', 'false', '0.6.1']) {
+      expect(rewriteRange(range, '0.6.1')).toBeUndefined()
+    }
+  })
+})
+
+describe('manifests', () => {
+  const yaml = [
+    'packages:',
+    '  - \'apps/*\'',
+    '  - packages/*',
+    '  - \'!packages/eslint-config/.example\'',
+    'allowBuilds:',
+    '  \'@frigear-nu/auth\': false',
+    'catalog:',
+    '  \'@frigear-nu/ui\': ^0.2.5 # shared',
+    'overrides:',
+    '  "@frigear-nu/module-kit": ^1.3.4',
+    'minimumReleaseAgeExclude:',
+    '  - \'@frigear-nu/auth@0.3.4\'',
+    '  - \'@frigear-nu/users\'',
+    '',
+  ].join('\n')
+
+  it('reads the workspace globs without negations', () => {
+    expect(workspaceGlobs(yaml)).toEqual(['apps/*', 'packages/*'])
+  })
+
+  it('rewrites pnpm-workspace.yaml pins and keeps comments, flags and bare names', () => {
+    const { text, bumps } = rewritePins('pnpm-workspace.yaml', yaml, {
+      '@frigear-nu/auth': '0.6.1',
+      '@frigear-nu/ui': '0.2.6',
+      '@frigear-nu/module-kit': '1.3.5',
+      '@frigear-nu/users': '3.1.0',
+    })
+    expect(text).toContain('  \'@frigear-nu/auth\': false')
+    expect(text).toContain('  \'@frigear-nu/ui\': ^0.2.6 # shared')
+    expect(text).toContain('  "@frigear-nu/module-kit": ^1.3.5')
+    expect(text).toContain('  - \'@frigear-nu/auth@0.6.1\'')
+    expect(text).toContain('  - \'@frigear-nu/users\'')
+    expect(bumps.map(bump => bump.name).sort()).toEqual(['@frigear-nu/auth', '@frigear-nu/module-kit', '@frigear-nu/ui'])
+  })
+
+  it('finds the pins of a package.json', () => {
+    const json = '{ "name": "@frigear-nu/inventory-web", "dependencies": { "@frigear-nu/auth": "0.1.2", "@frigear-nu/inventory-schema": "workspace:*" } }'
+    expect(findPins('package.json', json)).toEqual([
+      { file: 'package.json', name: '@frigear-nu/auth', range: '0.1.2' },
+      { file: 'package.json', name: '@frigear-nu/inventory-schema', range: 'workspace:*' },
+    ])
+  })
+})
+
+describe('pendingMigrations', () => {
+  it('picks the changes released after the current version, up to the target', () => {
+    const ids = (from: string, to: string) => pendingMigrations(migrations, { '@frigear-nu/auth': from }, { '@frigear-nu/auth': to }).map(m => m.id)
+    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-session-secret', 'auth-permissions'])
+    expect(ids('0.3.4', '0.6.1')).toEqual(['auth-session-secret', 'auth-permissions'])
+    expect(ids('0.5.0', '0.6.1')).toEqual([])
+  })
+})
+
+describe('upgradeWorkspace', () => {
+  let root: string
+  const write = async (path: string, text: string) => {
+    await mkdir(dirname(join(root, path)), { recursive: true })
+    await writeFile(join(root, path), text)
+  }
+  const read = (path: string) => readFile(join(root, path), 'utf-8')
+  const latest: Record<string, string> = {
+    '@frigear-nu/auth': '0.6.1',
+    '@frigear-nu/users': '3.1.0',
+    '@frigear-nu/admin': '0.5.0',
+    '@frigear-nu/module-kit': '1.3.5',
+  }
+  const resolveLatest = async (name: string) => latest[name]
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'frigear-upgrade-'))
+    await write('pnpm-workspace.yaml', [
+      'packages:',
+      '  - \'apps/*\'',
+      '  - \'packages/*\'',
+      'allowBuilds:',
+      '  \'@frigear-nu/auth\': false',
+      'minimumReleaseAgeExclude:',
+      '  - \'@frigear-nu/auth@0.3.4\'',
+      '  - \'@frigear-nu/users@1.3.0\'',
+      '',
+    ].join('\n'))
+    await write('package.json', '{ "name": "root", "private": true }\n')
+    await write('apps/web/package.json', `${JSON.stringify({
+      name: 'web',
+      dependencies: {
+        '@frigear-nu/admin': '0.2.5',
+        '@frigear-nu/auth': '0.3.4',
+        '@frigear-nu/users': '1.3.0',
+        '@frigear-nu/teams': 'workspace:*',
+      },
+    }, null, 2)}\n`)
+    await write('packages/teams/package.json', `${JSON.stringify({
+      name: '@frigear-nu/teams',
+      dependencies: { '@frigear-nu/module-kit': '1.3.4' },
+      peerDependencies: { '@frigear-nu/auth': '>=0.3.4' },
+    }, null, 2)}\n`)
+    await write('apps/web/.env.example', 'NUXT_SESSION_PASSWORD=\n')
+    await write('apps/web/nuxt.config.ts', [
+      'export default defineNuxtConfig({',
+      '  modules: [\'@frigear-nu/auth\', \'@frigear-nu/admin\'],',
+      '  authentication: { scopes: [{ name: \'teams:read\' }] },',
+      '  admin: { settings: { roles: [\'admin\'] } },',
+      '})',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/api/teams.get.ts', [
+      'export default defineEventHandler(async (event) => {',
+      '  const user = await requireUser(event, { scopes: [\'teams:read\'] })',
+      '  return $fetch(\'/api/auth/tokens\')',
+      '})',
+      'nitro.hooks.hook(\'teams:authorize\', () => {})',
+      '',
+    ].join('\n'))
+    await write('apps/web/node_modules/@frigear-nu/auth/index.js', 'requireUser(event, { scopes })\n')
+  })
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it('bumps every pin and lists the rest in the report', async () => {
+    const result = await upgradeWorkspace({ cwd: join(root, 'apps/web'), resolveLatest })
+    expect(result.from).toEqual({
+      '@frigear-nu/admin': '0.2.5',
+      '@frigear-nu/auth': '0.3.4',
+      '@frigear-nu/module-kit': '1.3.4',
+      '@frigear-nu/users': '1.3.0',
+    })
+
+    const web = JSON.parse(await read('apps/web/package.json'))
+    expect(web.dependencies).toEqual({
+      '@frigear-nu/admin': '0.5.0',
+      '@frigear-nu/auth': '0.6.1',
+      '@frigear-nu/users': '3.1.0',
+      '@frigear-nu/teams': 'workspace:*',
+    })
+    const teams = JSON.parse(await read('packages/teams/package.json'))
+    expect(teams.dependencies['@frigear-nu/module-kit']).toBe('1.3.5')
+    expect(teams.peerDependencies['@frigear-nu/auth']).toBe('>=0.6.1')
+    const yaml = await read('pnpm-workspace.yaml')
+    expect(yaml).toContain('- \'@frigear-nu/auth@0.6.1\'')
+    expect(yaml).toContain('- \'@frigear-nu/users@3.1.0\'')
+    expect(yaml).toContain('\'@frigear-nu/auth\': false')
+
+    // auth 0.3.4 already had the /api/auth/me routes: no rewrite of the route file
+    expect(await read('apps/web/server/api/teams.get.ts')).toContain('/api/auth/tokens')
+    expect(await read('apps/web/.env.example')).toContain('NUXT_APP_SECRET=')
+    // dependencies are never touched
+    expect(await read('apps/web/node_modules/@frigear-nu/auth/index.js')).toBe('requireUser(event, { scopes })\n')
+
+    expect(result.report).toContain('apps/web/server/api/teams.get.ts:2')
+    expect(result.report).toContain('apps/web/server/api/teams.get.ts:5')
+    expect(result.report).toContain('`authentication.scopes` is ignored')
+    expect(result.report).toContain('`admin.settings.roles` throws at build time')
+    expect(result.report).toContain('Mint API tokens again')
+    expect(result.report).toContain('these releases changed the schema')
+  })
+
+  it('rewrites the moved routes when coming from before they moved', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.1.2" } }\n')
+    await write('pnpm-workspace.yaml', 'packages:\n  - \'apps/*\'\n')
+    const result = await upgradeWorkspace({ cwd: root, resolveLatest, only: ['@frigear-nu/auth'] })
+    expect(await read('apps/web/server/api/teams.get.ts')).toContain('$fetch(\'/api/auth/me/tokens\')')
+    expect(result.report).toContain('## Rewritten')
+  })
+
+  it('changes nothing on a dry run', async () => {
+    const before = await read('apps/web/package.json')
+    const result = await upgradeWorkspace({ cwd: root, resolveLatest, dryRun: true })
+    expect(result.bumps.length).toBeGreaterThan(0)
+    expect(await read('apps/web/package.json')).toBe(before)
+    expect(await read('apps/web/.env.example')).not.toContain('NUXT_APP_SECRET')
+    expect(result.report).toContain('(dry run)')
+  })
+
+  it('never downgrades', async () => {
+    const result = await upgradeWorkspace({ cwd: root, resolveLatest, to: { '@frigear-nu/auth': '0.2.0' } })
+    expect(result.skipped).toEqual(['@frigear-nu/auth: pinned 0.3.4 is newer than 0.2.0'])
+    expect(JSON.parse(await read('apps/web/package.json')).dependencies['@frigear-nu/auth']).toBe('0.3.4')
+  })
+})
