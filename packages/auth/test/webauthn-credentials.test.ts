@@ -12,6 +12,7 @@ const users = sqliteTable('users', {
   name: text().notNull(),
   email: text().notNull().unique(),
   emailVerifiedAt: integer({ mode: 'timestamp' }),
+  lastLoginAt: integer({ mode: 'timestamp' }),
 })
 const schema = { ...authSchema, users }
 
@@ -48,6 +49,7 @@ vi.stubGlobal('useAuthUserStore', () => ({
   findByEmail: async (email: string) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, email) })) ?? null,
   findById: async (id: number) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })) ?? null,
   create: async (values: { name: string, email: string }) => (await db.insert(users).values(values).returning())[0]!,
+  update: async (id: number, values: Partial<typeof users.$inferInsert>) => (await db.update(users).set(values).where(eq(users.id, id)).returning())[0] ?? null,
   remove: async (id: number) => { await db.delete(users).where(eq(users.id, id)) },
 }))
 vi.stubGlobal('setUserSession', setUserSession)
@@ -80,7 +82,7 @@ describe('webauthn credential routes', () => {
 
   beforeAll(async () => {
     await client.execute('PRAGMA foreign_keys = ON')
-    await client.execute(`CREATE TABLE users (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, email text NOT NULL UNIQUE, emailVerifiedAt integer)`)
+    await client.execute(`CREATE TABLE users (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, email text NOT NULL UNIQUE, emailVerifiedAt integer, lastLoginAt integer)`)
     await client.execute(`CREATE TABLE user_credentials (id text PRIMARY KEY NOT NULL, userId integer NOT NULL, publicKey text NOT NULL, counter integer DEFAULT 0 NOT NULL, backedUp integer DEFAULT false NOT NULL, transports text, name text, createdAt integer NOT NULL)`)
     register = (await import('../src/runtime/server/routes/webauthn/register.post')).default as unknown as RegisterHandler
     list = (await import('../src/runtime/server/routes/me/passkeys.get')).default as never
@@ -248,11 +250,26 @@ describe('webauthn authenticate route', () => {
     await expect(signIn()).rejects.toMatchObject({ statusCode: 403, data: { code: 'email_not_verified' } })
     expect(setUserSession).not.toHaveBeenCalled()
     expect(replaceUserSession).not.toHaveBeenCalled()
+    // A refused sign-in is not a sign-in.
+    expect((await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, a!.id) }))?.lastLoginAt).toBeNull()
 
     await db.update(schema.users).set({ emailVerifiedAt: new Date() }).where(eq(schema.users.id, a!.id))
     await signIn()
     expect(session.user?.email).toBe('a@example.com')
     expect(replaceUserSession).toHaveBeenCalledOnce()
     expect(setUserSession).not.toHaveBeenCalled()
+  })
+
+  it('records the sign-in time on the account, like password login', async () => {
+    const [a] = await db.insert(schema.users).values({ name: 'A', email: 'a@example.com' }).returning()
+    await db.insert(schema.userCredentials).values({ ...credential('a-1'), userId: a!.id })
+    const before = Date.now()
+
+    await authenticate.onSuccess({}, { credential: { id: 'a-1', userId: a!.id }, authenticationInfo: { newCounter: 1 } })
+
+    const user = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, a!.id) })
+    // Timestamp columns store whole seconds.
+    expect(user?.lastLoginAt?.getTime()).toBeGreaterThanOrEqual(Math.floor(before / 1000) * 1000)
+    expect(session.user?.id).toBe(a!.id)
   })
 })
