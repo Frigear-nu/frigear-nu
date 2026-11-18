@@ -114,7 +114,9 @@ export const runMigrations = async (migrations: Migration[], ctx: ProjectContext
         for (const match of text.matchAll(rule.pattern)) {
           const line = lineOf(text, match.index)
           const hit = { file, line, text: lineText(text, line), message: rule.message }
-          ;(rule.replace === undefined ? result.manual : result.applied).push(hit)
+          const list = rule.replace === undefined ? result.manual : result.applied
+          // one item per line and migration: the first (most specific) rule's message
+          if (!list.some(other => other.file === file && other.line === line)) list.push(hit)
         }
         if (rule.replace !== undefined) text = text.replace(rule.pattern, rule.replace)
       }

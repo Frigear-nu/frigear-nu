@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import consola from 'consola'
+import consola, { type ConsolaInstance } from 'consola'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { migrations as allMigrations } from '../upgrades/index.ts'
@@ -62,6 +62,34 @@ export const upgradeWorkspace = async (options: UpgradeOptions) => {
   const fromUpgraded = Object.fromEntries(Object.keys(to).map(name => [name, from[name]!]))
   const report = renderReport({ root, from: fromUpgraded, to, bumps, results, dryRun })
   return { root, from: fromUpgraded, to, bumps, results, skipped, report }
+}
+
+/**
+ * `pnpm install` after the rewrite. It is expected to fail until the report's to-do items are done (the host's
+ * `nuxt prepare` throws on removed options such as `admin.settings.roles`): then it warns, without the stack, and
+ * answers `false`.
+ */
+export const installAfterUpgrade = async (
+  root: string,
+  reportPath: string,
+  logger: Pick<ConsolaInstance, 'start' | 'success' | 'warn'>,
+  install: (cwd: string) => Promise<unknown> = installDeps,
+) => {
+  logger.start('Installing')
+  try {
+    await install(root)
+    logger.success('Installed')
+    return true
+  }
+  catch (error) {
+    const reason = error instanceof Error ? error.message.split('\n')[0] : String(error)
+    logger.warn([
+      `\`pnpm install\` failed (${reason}).`,
+      'That is expected until the to-do items are done: `nuxt prepare` throws on the options the new releases removed.',
+      `Work through ${reportPath}, then run \`pnpm install\` again.`,
+    ].join('\n'))
+    return false
+  }
 }
 
 export default defineCommand({
@@ -129,9 +157,6 @@ export default defineCommand({
     logger.success(`Upgraded ${upgraded.map(name => `${name} ${result.from[name]} → ${result.to[name]}`).join(', ')}`)
     logger.info(`${result.bumps.length} pins updated, ${applied} code changes made, ${manual} items to do by hand: ${reportPath}`)
 
-    if (args.install) {
-      logger.start('Installing')
-      await installDeps(result.root)
-    }
+    if (args.install && !await installAfterUpgrade(result.root, reportPath, logger)) process.exit(1)
   },
 })

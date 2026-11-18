@@ -2,11 +2,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { upgradeWorkspace } from '../src/commands/upgrade.ts'
+import { installAfterUpgrade, upgradeWorkspace } from '../src/commands/upgrade.ts'
 import { findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
 import { pendingMigrations } from '../src/upgrade/migrate.ts'
 import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
 import { migrations } from '../src/upgrades/index.ts'
+import { addAppSecret } from '../src/upgrades/session.ts'
 
 describe('versions', () => {
   it('compares versions, a pre-release before its release', () => {
@@ -76,11 +77,60 @@ describe('manifests', () => {
   })
 })
 
+describe('addAppSecret', () => {
+  it('puts a placeholder secret above NUXT_SESSION_PASSWORD and the comment describing it', () => {
+    const text = addAppSecret('NUXT_PUBLIC_SITE_URL=http://localhost:3000\n\n# Encrypts stored tokens\nNUXT_SESSION_PASSWORD=some-very-long-password\n')
+    const lines = text.split('\n')
+    const secret = lines.findIndex(line => line.startsWith('NUXT_APP_SECRET='))
+    expect(lines[secret]!.slice('NUXT_APP_SECRET='.length).length).toBeGreaterThanOrEqual(32)
+    expect(lines[secret - 1]).toMatch(/^#/)
+    expect(lines.slice(secret + 1)).toEqual(['# Encrypts stored tokens', 'NUXT_SESSION_PASSWORD=some-very-long-password', ''])
+    expect(lines[0]).toBe('NUXT_PUBLIC_SITE_URL=http://localhost:3000')
+  })
+
+  it('appends it when there is no NUXT_SESSION_PASSWORD', () => {
+    const text = addAppSecret('NUXT_PUBLIC_SITE_URL=http://localhost:3000')
+    expect(text.startsWith('NUXT_PUBLIC_SITE_URL=http://localhost:3000\n#')).toBe(true)
+    expect(text).toMatch(/\nNUXT_APP_SECRET=.{32,}\n$/)
+  })
+})
+
+describe('installAfterUpgrade', () => {
+  const logger = () => {
+    const calls: Record<'start' | 'success' | 'warn', string[]> = { start: [], success: [], warn: [] }
+    return {
+      calls,
+      start: (message: string) => void calls.start.push(message),
+      success: (message: string) => void calls.success.push(message),
+      warn: (message: string) => void calls.warn.push(message),
+    }
+  }
+
+  it('warns with the report path instead of throwing when the install fails', async () => {
+    const log = logger()
+    const failing = async () => {
+      throw new Error('Command failed with exit code 1: pnpm install\n    at stack frame')
+    }
+    expect(await installAfterUpgrade('/ws', '/ws/frigear-upgrade.md', log as never, failing)).toBe(false)
+    expect(log.calls.warn).toHaveLength(1)
+    expect(log.calls.warn[0]).toContain('/ws/frigear-upgrade.md')
+    expect(log.calls.warn[0]).toContain('expected until the to-do items are done')
+    expect(log.calls.warn[0]).not.toContain('at stack frame')
+  })
+
+  it('answers true after an install that succeeds', async () => {
+    const log = logger()
+    expect(await installAfterUpgrade('/ws', '/ws/frigear-upgrade.md', log as never, async () => {})).toBe(true)
+    expect(log.calls.warn).toEqual([])
+  })
+})
+
 describe('pendingMigrations', () => {
   it('picks the changes released after the current version, up to the target', () => {
     const ids = (from: string, to: string) => pendingMigrations(migrations, { '@frigear-nu/auth': from }, { '@frigear-nu/auth': to }).map(m => m.id)
-    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-session-secret', 'auth-permissions'])
-    expect(ids('0.3.4', '0.6.1')).toEqual(['auth-session-secret', 'auth-permissions'])
+    const roles = ['auth-role-allowlist', 'auth-role-column', 'auth-additive-roles']
+    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-session-secret', 'auth-permissions', ...roles])
+    expect(ids('0.3.4', '0.6.1')).toEqual(['auth-session-secret', 'auth-permissions', ...roles])
     expect(ids('0.5.0', '0.6.1')).toEqual([])
   })
 })
@@ -177,7 +227,7 @@ describe('upgradeWorkspace', () => {
 
     // auth 0.3.4 already had the /api/auth/me routes: no rewrite of the route file
     expect(await read('apps/web/server/api/teams.get.ts')).toContain('/api/auth/tokens')
-    expect(await read('apps/web/.env.example')).toContain('NUXT_APP_SECRET=')
+    expect(await read('apps/web/.env.example')).toMatch(/^# Seals the session cookie[^\n]*\n#[^\n]*\nNUXT_APP_SECRET=.{32,}\nNUXT_SESSION_PASSWORD=\n$/)
     // dependencies are never touched
     expect(await read('apps/web/node_modules/@frigear-nu/auth/index.js')).toBe('requireUser(event, { scopes })\n')
 
@@ -204,6 +254,72 @@ describe('upgradeWorkspace', () => {
     expect(await read('apps/web/package.json')).toBe(before)
     expect(await read('apps/web/.env.example')).not.toContain('NUXT_APP_SECRET')
     expect(result.report).toContain('(dry run)')
+  })
+
+  it('lists the admin allowlist, the users.role reads and writes, and additive roles', async () => {
+    await write('apps/web/nuxt.config.ts', [
+      'export default defineNuxtConfig({',
+      '  modules: [\'@frigear-nu/auth\'],',
+      '  runtimeConfig: { aclAdmins: \'\' },',
+      '  authentication: { settings: { session: { mapper: \'~~/server/utils/session-mapper\' } } },',
+      '  routeRules: { \'/portal/**\': { roles: [\'tenant\'] }, \'/admin/**\': { roles: [\'admin\', \'manager\'] } },',
+      '})',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/utils/session-mapper.ts', [
+      'export default (user: { email: string }) => ({ ...user, role: effectiveRole(user) })',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/utils/acl.ts', [
+      'export const effectiveRole = (user: { email: string, role: string }) =>',
+      '  useRuntimeConfig().aclAdmins.split(\',\').includes(user.email) ? \'admin\' : user.role',
+      'export const userHasRole = (user: { role: string }, role: string) => user.role === role',
+      '',
+    ].join('\n'))
+    await write('apps/web/app/pages/portal.vue', [
+      '<script setup lang="ts">',
+      'const { user } = useUserSession()',
+      'const isTenant = computed(() => user.value?.role === \'tenant\')',
+      '</script>',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/tasks/seed.ts', [
+      'export default defineTask({ async run() {',
+      '  await db.insert(schema.users).values({ email: \'t@example.com\', name: \'Tenant\', role })',
+      '  await db.update(schema.users).set({ role: \'admin\' }).where(eq(schema.users.id, 1))',
+      '} })',
+      '',
+    ].join('\n'))
+
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest, only: ['@frigear-nu/auth'] })
+    const section = (title: string) => report.split('### ').find(part => part.startsWith(title)) ?? ''
+
+    const allowlist = section('An admin allowlist becomes an authorization:roles listener')
+    expect(allowlist).toContain('apps/web/server/utils/acl.ts:1')
+    expect(allowlist).toContain('apps/web/server/utils/acl.ts:2')
+    expect(allowlist).toContain('apps/web/nuxt.config.ts:3')
+    expect(allowlist).toContain('apps/web/server/utils/session-mapper.ts: the session mapper')
+    expect(allowlist).toContain('#move-an-allowlist-to-authorizationroles')
+    expect(allowlist).toContain('drop the session mapper that sets `role`')
+
+    const column = section('users.role is no longer read or written')
+    expect(column.match(/acl\.ts:3\b/g)).toHaveLength(1)
+    expect(column).toContain('apps/web/app/pages/portal.vue:3')
+    expect(column).toContain('apps/web/server/tasks/seed.ts:2')
+    expect(column).toContain('apps/web/server/tasks/seed.ts:3')
+    expect(column).toContain('never read again')
+    expect(column).toContain('setAuthUserRoles(userId, roles, { source: \'manual\' })')
+    expect(column).toContain('useAuthorization().can')
+
+    const additive = section('Roles add up')
+    expect(additive).toContain('`admin`, `manager`, `tenant`')
+    expect(additive).toContain('authorization:roles')
+  })
+
+  it('does not warn about additive roles when the app checks a single role', async () => {
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest, only: ['@frigear-nu/auth'] })
+    expect(report).not.toContain('Roles add up')
+    expect(report).not.toContain('An admin allowlist')
   })
 
   it('never downgrades', async () => {

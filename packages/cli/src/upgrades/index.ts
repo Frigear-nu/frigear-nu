@@ -9,6 +9,7 @@ import {
   menuPermission,
   usersPermissions,
 } from './permissions.ts'
+import { additiveRoles, roleAllowlist, roleColumn } from './roles.ts'
 import { authRoutes, usersRoutes } from './routes.ts'
 import { authSessionSecret } from './session.ts'
 
@@ -27,6 +28,9 @@ export const migrations: Migration[] = [
   adminPermission,
   authPermissions,
   authorizationRoles,
+  roleAllowlist,
+  roleColumn,
+  additiveRoles,
   accountPermission,
   usersPermissions,
 ]
