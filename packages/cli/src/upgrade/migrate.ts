@@ -19,6 +19,8 @@ export interface Rule {
   files?: RegExp
   /** Only files whose text matches. */
   when?: RegExp
+  /** Not in files whose text matches (already migrated). */
+  unless?: RegExp
 }
 
 /** What a workspace-level check found: changes it made and things a person must do. */
@@ -111,10 +113,13 @@ export const runMigrations = async (migrations: Migration[], ctx: ProjectContext
       for (const rule of migration.rules ?? []) {
         if (rule.files && !rule.files.test(file)) continue
         if (rule.when && !rule.when.test(text)) continue
+        if (rule.unless?.test(text)) continue
         for (const match of text.matchAll(rule.pattern)) {
           const line = lineOf(text, match.index)
-          const hit = { file, line, text: lineText(text, line), message: rule.message }
-          ;(rule.replace === undefined ? result.manual : result.applied).push(hit)
+          const hits = rule.replace === undefined ? result.manual : result.applied
+          const last = hits.at(-1)
+          if (last?.file === file && last.line === line && last.message === rule.message) continue
+          hits.push({ file, line, text: lineText(text, line), message: rule.message })
         }
         if (rule.replace !== undefined) text = text.replace(rule.pattern, rule.replace)
       }

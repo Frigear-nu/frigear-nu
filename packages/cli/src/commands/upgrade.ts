@@ -1,9 +1,10 @@
 import { defineCommand } from 'citty'
 import consola from 'consola'
+import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { migrations as allMigrations } from '../upgrades/index.ts'
-import { currentVersions, findPins, manifestFiles, rewritePins, type Bump, type Pin } from '../upgrade/manifests.ts'
+import { currentVersions, duplicateVersions, findPins, manifestFiles, rewritePins, type Bump, type Pin } from '../upgrade/manifests.ts'
 import { pendingMigrations, runMigrations, sourceFiles, type Migration } from '../upgrade/migrate.ts'
 import { latestVersion, parseTargets } from '../upgrade/registry.ts'
 import { renderReport } from '../upgrade/report.ts'
@@ -131,7 +132,20 @@ export default defineCommand({
 
     if (args.install) {
       logger.start('Installing')
-      await installDeps(result.root)
+      try {
+        await installDeps(result.root)
+      }
+      catch (error) {
+        logger.warn(`pnpm install failed: ${error instanceof Error ? error.message.split('\n')[0] : error}`)
+        logger.info(`Expected while the report still has items that fail the build (\`nuxt prepare\` runs on install). Work through ${reportPath}, then run \`pnpm install\` again.`)
+        process.exitCode = 1
+        return
+      }
+      const lock = join(result.root, 'pnpm-lock.yaml')
+      const duplicates = existsSync(lock) ? duplicateVersions(await readFile(lock, 'utf-8')) : {}
+      for (const [name, versions] of Object.entries(duplicates)) {
+        logger.warn(`${name} is installed in ${versions.length} versions (${versions.join(', ')}). Modules share build-time state through one copy: add \`'${name}': ^${result.to[name] ?? versions.at(-1)}\` to \`overrides\` in pnpm-workspace.yaml and run \`pnpm install\` again.`)
+      }
     }
   },
 })

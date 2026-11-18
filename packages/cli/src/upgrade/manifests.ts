@@ -146,3 +146,15 @@ export const currentVersions = (pins: Pin[]) => {
 
 /** Pins with `file` made relative to `root`, for messages. */
 export const relativeFile = (root: string, file: string) => relative(root, file) || file
+
+/** `@frigear-nu/*` packages a `pnpm-lock.yaml` holds in more than one version, with those versions (sorted). */
+export const duplicateVersions = (lock: string) => {
+  const found = new Map<string, Set<string>>()
+  for (const match of lock.matchAll(/^ {2}'?(@frigear-nu\/[\w.-]+)@(\d[^'(:\s]*)/gm)) {
+    const versions = found.get(match[1]!) ?? new Set()
+    found.set(match[1]!, versions.add(match[2]!))
+  }
+  return Object.fromEntries([...found]
+    .filter(([, versions]) => versions.size > 1)
+    .map(([name, versions]) => [name, [...versions].sort(compareVersions)]))
+}
