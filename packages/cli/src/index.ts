@@ -1,3 +1,7 @@
 export { default, mainCmd } from './cli.ts'
 export { default as initCmd, PLATFORMS, resolveStarter, STARTERS } from './commands/init.ts'
 export type { Platform, Starter } from './commands/init.ts'
+export { upgradeWorkspace } from './commands/upgrade.ts'
+export type { UpgradeOptions } from './commands/upgrade.ts'
+export { migrations } from './upgrades/index.ts'
+export type { Migration, Rule } from './upgrade/migrate.ts'

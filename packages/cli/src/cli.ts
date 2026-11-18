@@ -5,13 +5,14 @@ export const mainCmd = defineCommand({
   meta: {
     name: 'frigear-nu',
     version: pkg.version,
-    description: 'Scaffold Frigear projects, apps and modules',
+    description: 'Scaffold Frigear projects, apps and modules, and upgrade them',
   },
   subCommands: {
     'init': () => import('./commands/init.ts').then(module => module.default),
     'app:create': () => import('./commands/app-create.ts').then(module => module.default),
     'module:create': () => import('./commands/module-create.ts').then(module => module.default),
     'add': () => import('./commands/add.ts').then(module => module.default),
+    'upgrade': () => import('./commands/upgrade.ts').then(module => module.default),
   },
 })
 

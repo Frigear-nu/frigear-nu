@@ -431,6 +431,10 @@ before committing. Use `git rm -r --cached <path>` to untrack any files accident
 ## PR / commit conventions
 
 - Use Conventional Commits (`feat:`, `fix:`, `chore:`, etc.).
+- A breaking change in a published package (removed export, option, hook or route, moved path, new required step)
+  adds a migration to `packages/cli/src/upgrades/` (`since` = the version that ships it) with a test in
+  `packages/cli/test/upgrade.test.ts`, and a row in `apps/docs/content/1.get-started/9.upgrading.md`, so
+  `frigear-nu upgrade` carries it to every app that depends on the package.
 - If the repo uses Changesets (`.changeset/` folder present), add a changeset for any change to a published
   `packages/**` package:
   ```bash
