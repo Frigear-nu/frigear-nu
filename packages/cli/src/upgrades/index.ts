@@ -1,4 +1,5 @@
 import type { Migration } from '../upgrade/migrate.ts'
+import { authApi } from './api.ts'
 import { accountComponents, adminComponents } from './components.ts'
 import {
   accountPermission,
@@ -21,6 +22,7 @@ export const migrations: Migration[] = [
   usersRoutes,
   adminComponents,
   accountComponents,
+  authApi,
   authSessionSecret,
   menuPermission,
   mcpPermission,

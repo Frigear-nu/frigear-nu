@@ -118,7 +118,7 @@ describe('addAppSecret', () => {
 describe('pendingMigrations', () => {
   it('picks the changes released after the current version, up to the target', () => {
     const ids = (from: string, to: string) => pendingMigrations(migrations, { '@frigear-nu/auth': from }, { '@frigear-nu/auth': to }).map(m => m.id)
-    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-session-secret', 'auth-permissions'])
+    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-api', 'auth-session-secret', 'auth-permissions'])
     expect(ids('0.3.4', '0.6.1')).toEqual(['auth-session-secret', 'auth-permissions'])
     expect(ids('0.5.0', '0.6.1')).toEqual([])
   })
@@ -278,6 +278,17 @@ describe('upgradeWorkspace', () => {
     expect(report).toContain('`authentication.settings.session.mapper` is set')
     expect(report).toContain('`runtimeConfig.session.password` is no longer read')
     expect(report).toContain('Roles add up')
+  })
+
+  it('lists app plugins and composables that clash with auth\'s $api and useApi', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.1.2" } }\n')
+    await write('apps/web/app/plugins/api.ts', 'export default defineNuxtPlugin(() => ({ provide: { api: $fetch.create({}) } }))\n')
+    await write('apps/web/app/composables/useApi.ts', 'export const useApi = () => useNuxtApp().$api\n')
+    await write('apps/web/server/plugins/api.ts', 'export default defineNitroPlugin(() => ({ provide: { api: 1 } }))\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => latest[name], dryRun: true })
+    expect(report).toContain('apps/web/app/plugins/api.ts:1')
+    expect(report).toContain('apps/web/app/composables/useApi.ts:1')
+    expect(report).not.toContain('apps/web/server/plugins/api.ts')
   })
 
   it('changes nothing on a dry run', async () => {
