@@ -158,3 +158,52 @@ export const duplicateVersions = (lock: string) => {
     .filter(([, versions]) => versions.size > 1)
     .map(([name, versions]) => [name, [...versions].sort(compareVersions)]))
 }
+
+/** Libraries the modules share with the app: two copies of one major break the build output or shared state. */
+export const SHARED_LIBRARIES = ['zod', 'h3', 'vue', 'vue-router', 'drizzle-orm', '@nuxt/kit']
+
+/**
+ * `{ zod: ['4.6.5', '4.6.7'] }` for every shared library installed in more than one version of the same major in a
+ * pnpm lockfile. (zod 3 next to zod 4 is fine: different majors are separate on purpose.)
+ */
+export const sharedDuplicates = (lock: string, names = SHARED_LIBRARIES) => {
+  const found = new Map<string, Set<string>>()
+  for (const match of lock.matchAll(/^ {2}'?((?:@[\w.-]+\/)?[\w.-]+)@(\d[^'(:\s]*)/gm)) {
+    if (!names.includes(match[1]!)) continue
+    const versions = found.get(match[1]!) ?? new Set()
+    found.set(match[1]!, versions.add(match[2]!))
+  }
+  const duplicates: Record<string, string[]> = {}
+  for (const [name, versions] of found) {
+    const byMajor = new Map<string, string[]>()
+    for (const version of versions) {
+      const major = version.split('.')[0]!
+      byMajor.set(major, [...(byMajor.get(major) ?? []), version])
+    }
+    for (const same of byMajor.values()) {
+      if (same.length > 1) duplicates[name] = [...(duplicates[name] ?? []), ...same.sort(compareVersions)]
+    }
+  }
+  return duplicates
+}
+
+export interface PatchMove { file: string, name: string, from: string, to: string, patch: string, next: string }
+
+const PATCH_ENTRY = /^(\s*)(["']?)(@frigear-nu\/[\w.-]+)@(\d[^"'\s:]*)\2(\s*:\s*)(["']?)([^"'\s,]+)\6/gm
+
+/**
+ * `patchedDependencies` entries (pnpm-workspace.yaml, or `pnpm` in package.json) of packages in `targets` moved to the
+ * target version, with the patch file renamed to match: pnpm fails the install on a patch whose version is not installed.
+ * Whether the patch still applies is for the user to check.
+ */
+export const movePatchedDependencies = (file: string, text: string, targets: Record<string, string>) => {
+  const moves: PatchMove[] = []
+  const out = text.replace(PATCH_ENTRY, (all, indent: string, q: string, name: string, version: string, sep: string, vq: string, patch: string) => {
+    const to = targets[name]
+    if (!to || to === version) return all
+    const next = patch.split(version).join(to)
+    moves.push({ file, name, from: version, to, patch, next })
+    return `${indent}${q}${name}@${to}${q}${sep}${vq}${next}${vq}`
+  })
+  return { text: out, moves }
+}
