@@ -70,3 +70,16 @@ Run everything from the repository root:
 | `pnpm mobile:ios` | Build and run on an iOS simulator |
 | `pnpm mobile:ios:device` | Build against this machine's LAN address and open Xcode, to run on a phone |
 | `pnpm mobile:android` | Build and run on an Android emulator or device |
+
+## Upgrading
+
+```bash
+pnpx @frigear-nu/cli@latest upgrade --dry-run   # what would change
+pnpx @frigear-nu/cli@latest upgrade
+```
+
+It moves every `@frigear-nu/*` version (package.json files and `pnpm-workspace.yaml`) to the latest release, applies the
+code changes of the breaking releases in between, and writes `frigear-upgrade.md` with what is left to do by hand.
+Then run `pnpm lint`, `pnpm typecheck` and `pnpm test`. `pnpx` caches what `@latest` resolved to for a day: if it
+answers `Unknown command upgrade`, name the version (`npm view @frigear-nu/cli version`). The
+[Upgrading guide](https://docs.frigear.dev/get-started/upgrading) lists the breaking changes by release.

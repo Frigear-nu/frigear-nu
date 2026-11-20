@@ -83,8 +83,27 @@ Run everything from the repository root:
 ## Adding a module
 
 ```bash
-pnpm --filter ./apps/web add @frigear-nu/<module>
+pnpx @frigear-nu/cli add <module>
 ```
 
-Add it to `modules` in `apps/web/nuxt.config.ts`, set its options, run `pnpm db:generate` and commit the migration.
-Each module's docs page lists its options, required hooks and environment variables.
+This installs `@frigear-nu/<module>` in `apps/web` and adds it to `modules` in `apps/web/nuxt.config.ts` (the same as
+`pnpm --filter ./apps/web add @frigear-nu/<module>` plus the config line). Set its options, run `pnpm db:generate` and
+commit the migration. Each module's docs page lists its options, required hooks and environment variables.
+
+Your own modules go in `apps/web/modules/` (`modules/foo.ts`, loaded automatically). When one needs runtime files
+(plugins, components, server routes), `pnpx @frigear-nu/cli module:folder foo --runtime` turns it into
+`modules/foo/index.ts` with a `runtime/` folder; `module:move` moves it to another app or package and
+`package:rename` renames a workspace package, both fixing the imports that point to it (`--dry-run` shows the changes).
+
+## Upgrading
+
+```bash
+pnpx @frigear-nu/cli@latest upgrade --dry-run   # what would change
+pnpx @frigear-nu/cli@latest upgrade
+```
+
+It moves every `@frigear-nu/*` version (package.json files and `pnpm-workspace.yaml`) to the latest release, applies the
+code changes of the breaking releases in between, and writes `frigear-upgrade.md` with what is left to do by hand.
+Then run `pnpm db:generate` (commit any new migration), `pnpm lint`, `pnpm typecheck` and `pnpm test`. `pnpx` caches what `@latest` resolved to for a day: if it
+answers `Unknown command upgrade`, name the version (`npm view @frigear-nu/cli version`). The
+[Upgrading guide](https://docs.frigear.dev/get-started/upgrading) lists the breaking changes by release.
