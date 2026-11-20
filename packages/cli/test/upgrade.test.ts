@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { upgradeWorkspace } from '../src/commands/upgrade.ts'
-import { duplicateVersions, findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
+import { duplicateVersions, findPins, sharedDuplicates, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
 import { pendingMigrations } from '../src/upgrade/migrate.ts'
 import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
 import { migrations } from '../src/upgrades/index.ts'
@@ -89,6 +89,20 @@ describe('lockfile', () => {
       '  \'@frigear-nu/users@3.1.0(@frigear-nu/auth@0.6.0)\':',
     ].join('\n')
     expect(duplicateVersions(lock)).toEqual({ '@frigear-nu/auth': ['0.6.0', '0.6.1'] })
+  })
+
+  it('finds shared libraries installed in two versions of one major', () => {
+    const lock = [
+      'packages:',
+      '  zod@3.25.76:',
+      '  zod@4.6.5:',
+      '  zod@4.6.7:',
+      '  h3@1.15.11:',
+      '  vue@3.5.0:',
+      'snapshots:',
+      '  zod@4.6.7: {}',
+    ].join('\n')
+    expect(sharedDuplicates(lock)).toEqual({ zod: ['4.6.5', '4.6.7'] })
   })
 })
 

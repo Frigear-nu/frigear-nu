@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { migrations as allMigrations } from '../upgrades/index.ts'
-import { currentVersions, duplicateVersions, findPins, manifestFiles, rewritePins, type Bump, type Pin } from '../upgrade/manifests.ts'
+import { currentVersions, duplicateVersions, findPins, sharedDuplicates, manifestFiles, rewritePins, type Bump, type Pin } from '../upgrade/manifests.ts'
 import { pendingMigrations, runMigrations, sourceFiles, type Migration } from '../upgrade/migrate.ts'
 import { latestVersion, parseTargets } from '../upgrade/registry.ts'
 import { renderReport } from '../upgrade/report.ts'
@@ -92,7 +92,7 @@ export default defineCommand({
     },
     report: {
       type: 'string',
-      description: 'Where to write the Markdown report (relative to the workspace root)',
+      description: 'Where to write the Markdown report (relative to the workspace root, or absolute)',
       default: 'frigear-upgrade.md',
     },
   }),
@@ -125,7 +125,7 @@ export default defineCommand({
       return
     }
 
-    const reportPath = join(result.root, args.report)
+    const reportPath = resolve(result.root, args.report)
     await writeFile(reportPath, result.report, 'utf-8')
     logger.success(`Upgraded ${upgraded.map(name => `${name} ${result.from[name]} → ${result.to[name]}`).join(', ')}`)
     logger.info(`${result.bumps.length} pins updated, ${applied} code changes made, ${manual} items to do by hand: ${reportPath}`)
@@ -145,6 +145,10 @@ export default defineCommand({
       const duplicates = existsSync(lock) ? duplicateVersions(await readFile(lock, 'utf-8')) : {}
       for (const [name, versions] of Object.entries(duplicates)) {
         logger.warn(`${name} is installed in ${versions.length} versions (${versions.join(', ')}). Modules share build-time state through one copy: add \`'${name}': ^${result.to[name] ?? versions.at(-1)}\` to \`overrides\` in pnpm-workspace.yaml and run \`pnpm install\` again.`)
+      }
+      const shared = existsSync(lock) ? sharedDuplicates(await readFile(lock, 'utf-8')) : {}
+      for (const [name, versions] of Object.entries(shared)) {
+        logger.warn(`${name} is installed in ${versions.length} versions of one major (${versions.join(', ')}), usually because an app or package pins it lower than the @frigear-nu modules need. The build output can end up with a broken copy (\`Cannot find module …/node_modules/${name}/…\` at boot): raise that range to \`^${versions.at(-1)}\` and run \`pnpm install\` again.`)
       }
     }
   },
