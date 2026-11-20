@@ -186,3 +186,24 @@ export const sharedDuplicates = (lock: string, names = SHARED_LIBRARIES) => {
   }
   return duplicates
 }
+
+export interface PatchMove { file: string, name: string, from: string, to: string, patch: string, next: string }
+
+const PATCH_ENTRY = /^(\s*)(["']?)(@frigear-nu\/[\w.-]+)@(\d[^"'\s:]*)\2(\s*:\s*)(["']?)([^"'\s,]+)\6/gm
+
+/**
+ * `patchedDependencies` entries (pnpm-workspace.yaml, or `pnpm` in package.json) of packages in `targets` moved to the
+ * target version, with the patch file renamed to match: pnpm fails the install on a patch whose version is not installed.
+ * Whether the patch still applies is for the user to check.
+ */
+export const movePatchedDependencies = (file: string, text: string, targets: Record<string, string>) => {
+  const moves: PatchMove[] = []
+  const out = text.replace(PATCH_ENTRY, (all, indent: string, q: string, name: string, version: string, sep: string, vq: string, patch: string) => {
+    const to = targets[name]
+    if (!to || to === version) return all
+    const next = patch.split(version).join(to)
+    moves.push({ file, name, from: version, to, patch, next })
+    return `${indent}${q}${name}@${to}${q}${sep}${vq}${next}${vq}`
+  })
+  return { text: out, moves }
+}

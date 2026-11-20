@@ -1,10 +1,10 @@
 import { defineCommand } from 'citty'
 import consola from 'consola'
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { dirname, join, relative, resolve } from 'node:path'
 import { migrations as allMigrations } from '../upgrades/index.ts'
-import { currentVersions, duplicateVersions, findPins, sharedDuplicates, manifestFiles, rewritePins, type Bump, type Pin } from '../upgrade/manifests.ts'
+import { currentVersions, duplicateVersions, findPins, manifestFiles, movePatchedDependencies, rewritePins, sharedDuplicates, type PatchMove, type Bump, type Pin } from '../upgrade/manifests.ts'
 import { pendingMigrations, runMigrations, sourceFiles, type Migration } from '../upgrade/migrate.ts'
 import { latestVersion, parseTargets } from '../upgrade/registry.ts'
 import { renderReport } from '../upgrade/report.ts'
@@ -52,17 +52,38 @@ export const upgradeWorkspace = async (options: UpgradeOptions) => {
   }))
 
   const bumps: Bump[] = []
+  const patches: PatchMove[] = []
   for (const manifest of manifests) {
-    const { text, bumps: made } = rewritePins(manifest.file, manifest.text, to)
-    bumps.push(...made)
-    if (made.length && !dryRun) await writeFile(manifest.file, text, 'utf-8')
+    const pinned = rewritePins(manifest.file, manifest.text, to)
+    const patched = movePatchedDependencies(manifest.file, pinned.text, to)
+    bumps.push(...pinned.bumps)
+    patches.push(...patched.moves)
+    if ((pinned.bumps.length || patched.moves.length) && !dryRun) await writeFile(manifest.file, patched.text, 'utf-8')
+  }
+  for (const move of patches) {
+    const source = join(root, move.patch)
+    const target = join(root, move.next)
+    if (dryRun || move.next === move.patch || !existsSync(source) || existsSync(target)) continue
+    await mkdir(dirname(target), { recursive: true })
+    await rename(source, target)
   }
 
   const pending = pendingMigrations(options.migrations ?? allMigrations, from, to)
   const results = await runMigrations(pending, { root, files: await sourceFiles(root), dryRun })
   const fromUpgraded = Object.fromEntries(Object.keys(to).map(name => [name, from[name]!]))
-  const report = renderReport({ root, from: fromUpgraded, to, bumps, results, dryRun })
-  return { root, from: fromUpgraded, to, bumps, results, skipped, report }
+  let report = renderReport({ root, from: fromUpgraded, to, bumps, results, dryRun })
+  if (patches.length) {
+    report += [
+      '',
+      '## Patched packages',
+      '',
+      `${dryRun ? 'Would move' : 'Moved'} these \`patchedDependencies\` to the new version. Check that each patch still applies (\`pnpm install\` fails if not) and is still needed: the release may already include the change.`,
+      '',
+      ...patches.map(move => `- \`${move.name}\` ${move.from} → ${move.to}: \`${move.patch}\` → \`${move.next}\` (${relative(root, move.file)})`),
+      '',
+    ].join('\n')
+  }
+  return { root, from: fromUpgraded, to, bumps, patches, results, skipped, report }
 }
 
 export default defineCommand({
@@ -144,11 +165,11 @@ export default defineCommand({
       const lock = join(result.root, 'pnpm-lock.yaml')
       const duplicates = existsSync(lock) ? duplicateVersions(await readFile(lock, 'utf-8')) : {}
       for (const [name, versions] of Object.entries(duplicates)) {
-        logger.warn(`${name} is installed in ${versions.length} versions (${versions.join(', ')}). Modules share build-time state through one copy: add \`'${name}': ^${result.to[name] ?? versions.at(-1)}\` to \`overrides\` in pnpm-workspace.yaml and run \`pnpm install\` again.`)
+        logger.warn(`${name} is installed in ${versions.length} versions (${versions.join(', ')}). Modules share build-time state through one copy. Usually a stale lockfile entry: run \`pnpm dedupe\` (or \`pnpm update -r ${name}\`). If it stays, something pins the old version: raise that range, or add \`'${name}': ^${result.to[name] ?? versions.at(-1)}\` to \`overrides\` in pnpm-workspace.yaml.`)
       }
       const shared = existsSync(lock) ? sharedDuplicates(await readFile(lock, 'utf-8')) : {}
       for (const [name, versions] of Object.entries(shared)) {
-        logger.warn(`${name} is installed in ${versions.length} versions of one major (${versions.join(', ')}), usually because an app or package pins it lower than the @frigear-nu modules need. The build output can end up with a broken copy (\`Cannot find module …/node_modules/${name}/…\` at boot): raise that range to \`^${versions.at(-1)}\` and run \`pnpm install\` again.`)
+        logger.warn(`${name} is installed in ${versions.length} versions of one major (${versions.join(', ')}), usually because an app or package pins it lower than the @frigear-nu modules need. The build output can end up with a broken copy (\`Cannot find module …/node_modules/${name}/…\` at boot): raise that range to \`^${versions.at(-1)}\` and run \`pnpm install\` again, then \`pnpm dedupe\` if a stale lockfile entry keeps the old copy.`)
       }
     }
   },

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { upgradeWorkspace } from '../src/commands/upgrade.ts'
-import { duplicateVersions, findPins, sharedDuplicates, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
+import { duplicateVersions, findPins, movePatchedDependencies, sharedDuplicates, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
 import { pendingMigrations } from '../src/upgrade/migrate.ts'
 import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
 import { migrations } from '../src/upgrades/index.ts'
@@ -103,6 +103,18 @@ describe('lockfile', () => {
       '  zod@4.6.7: {}',
     ].join('\n')
     expect(sharedDuplicates(lock)).toEqual({ zod: ['4.6.5', '4.6.7'] })
+  })
+})
+
+describe('movePatchedDependencies', () => {
+  it('moves yaml and package.json patch entries to the new version', () => {
+    const yaml = 'patchedDependencies:\n  \'@frigear-nu/mobile@0.6.0\': patches/@frigear-nu__mobile@0.6.0.patch\n  vue@3.5.0: patches/vue.patch\n'
+    const moved = movePatchedDependencies('pnpm-workspace.yaml', yaml, { '@frigear-nu/mobile': '0.6.1' })
+    expect(moved.text).toBe('patchedDependencies:\n  \'@frigear-nu/mobile@0.6.1\': patches/@frigear-nu__mobile@0.6.1.patch\n  vue@3.5.0: patches/vue.patch\n')
+    expect(moved.moves).toEqual([{ file: 'pnpm-workspace.yaml', name: '@frigear-nu/mobile', from: '0.6.0', to: '0.6.1', patch: 'patches/@frigear-nu__mobile@0.6.0.patch', next: 'patches/@frigear-nu__mobile@0.6.1.patch' }])
+    const json = '{ "pnpm": { "patchedDependencies": {\n    "@frigear-nu/mobile@0.6.0": "patches/mobile.patch"\n  } } }'
+    expect(movePatchedDependencies('package.json', json, { '@frigear-nu/mobile': '0.6.1' }).text).toContain('"@frigear-nu/mobile@0.6.1": "patches/mobile.patch"')
+    expect(movePatchedDependencies('package.json', json, {}).moves).toEqual([])
   })
 })
 
@@ -289,6 +301,16 @@ describe('upgradeWorkspace', () => {
     expect(report).toContain('apps/web/app/plugins/api.ts:1')
     expect(report).toContain('apps/web/app/composables/useApi.ts:1')
     expect(report).not.toContain('apps/web/server/plugins/api.ts')
+  })
+
+  it('moves patched dependencies and their patch files', async () => {
+    await write('pnpm-workspace.yaml', 'packages:\n  - \'apps/*\'\npatchedDependencies:\n  \'@frigear-nu/auth@0.5.0\': patches/@frigear-nu__auth@0.5.0.patch\n')
+    await write('patches/@frigear-nu__auth@0.5.0.patch', 'diff\n')
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.5.0" } }\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => latest[name] })
+    expect(await read('pnpm-workspace.yaml')).toContain(`'@frigear-nu/auth@${latest['@frigear-nu/auth']}': patches/@frigear-nu__auth@${latest['@frigear-nu/auth']}.patch`)
+    expect(await read(`patches/@frigear-nu__auth@${latest['@frigear-nu/auth']}.patch`)).toBe('diff\n')
+    expect(report).toContain('## Patched packages')
   })
 
   it('changes nothing on a dry run', async () => {
