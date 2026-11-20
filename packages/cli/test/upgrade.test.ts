@@ -3,10 +3,11 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { upgradeWorkspace } from '../src/commands/upgrade.ts'
-import { findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
+import { duplicateVersions, findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
 import { pendingMigrations } from '../src/upgrade/migrate.ts'
 import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
 import { migrations } from '../src/upgrades/index.ts'
+import { addAppSecret } from '../src/upgrades/session.ts'
 
 describe('versions', () => {
   it('compares versions, a pre-release before its release', () => {
@@ -73,6 +74,30 @@ describe('manifests', () => {
       { file: 'package.json', name: '@frigear-nu/auth', range: '0.1.2' },
       { file: 'package.json', name: '@frigear-nu/inventory-schema', range: 'workspace:*' },
     ])
+  })
+})
+
+describe('lockfile', () => {
+  it('finds @frigear-nu packages installed in more than one version', () => {
+    const lock = [
+      'packages:',
+      '  \'@frigear-nu/auth@0.6.0\':',
+      '  \'@frigear-nu/auth@0.6.1\':',
+      '  \'@frigear-nu/users@3.1.0\':',
+      'snapshots:',
+      '  \'@frigear-nu/auth@0.6.1(nuxt@4.6.4)\':',
+      '  \'@frigear-nu/users@3.1.0(@frigear-nu/auth@0.6.0)\':',
+    ].join('\n')
+    expect(duplicateVersions(lock)).toEqual({ '@frigear-nu/auth': ['0.6.0', '0.6.1'] })
+  })
+})
+
+describe('addAppSecret', () => {
+  it('goes right after NUXT_SESSION_PASSWORD', () => {
+    expect(addAppSecret('A=1\nNUXT_SESSION_PASSWORD=\nB=2\n')).toBe('A=1\nNUXT_SESSION_PASSWORD=\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\nB=2\n')
+  })
+  it('goes at the end otherwise', () => {
+    expect(addAppSecret('A=1')).toBe('A=1\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\n')
   })
 })
 
@@ -195,6 +220,50 @@ describe('upgradeWorkspace', () => {
     const result = await upgradeWorkspace({ cwd: root, resolveLatest, only: ['@frigear-nu/auth'] })
     expect(await read('apps/web/server/api/teams.get.ts')).toContain('$fetch(\'/api/auth/me/tokens\')')
     expect(result.report).toContain('## Rewritten')
+  })
+
+  it('adds NUXT_APP_SECRET only to apps with server sessions', async () => {
+    await write('apps/site/package.json', '{ "dependencies": { "@frigear-nu/cookie-consent": "0.2.4" } }\n')
+    await write('apps/site/nuxt.config.ts', 'export default defineNuxtConfig({ modules: [\'@frigear-nu/cookie-consent\'] })\n')
+    await write('apps/site/.env.example', 'NUXT_PUBLIC_SITE_URL=\n')
+    await write('apps/mobile/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.3.4" } }\n')
+    await write('apps/mobile/nuxt.config.ts', 'export default defineNuxtConfig({ ssr: false })\n')
+    await write('apps/mobile/.env.example', 'NUXT_PUBLIC_API=\n')
+    await upgradeWorkspace({ cwd: root, resolveLatest })
+    expect(await read('apps/web/.env.example')).toBe('NUXT_SESSION_PASSWORD=\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\n')
+    expect(await read('apps/site/.env.example')).not.toContain('NUXT_APP_SECRET')
+    expect(await read('apps/mobile/.env.example')).not.toContain('NUXT_APP_SECRET')
+  })
+
+  it('lists stored roles, role checks and admin allowlists', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.3.4", "@frigear-nu/authorization": "0.3.2" } }\n')
+    await write('apps/web/nuxt.config.ts', [
+      'export default defineNuxtConfig({',
+      '  authentication: { settings: { session: { mapper: \'./server/utils/map-session-user\' } } },',
+      '  runtimeConfig: { session: { password: \'\' } },',
+      '})',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/utils/acl.ts', [
+      'export const effectiveRole = (user: { email: string, role: string }) =>',
+      '  useRuntimeConfig().aclAdmins.includes(user.email) ? \'admin\' : user.role',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/tasks/db/seed.ts', [
+      'export default defineTask({ run: () => db.insert(users).values({ email: \'a@b.c\', role: \'admin\' }) })',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/plugins/roles.ts', 'nitro.hooks.hook(\'authorization:roles\', (ctx) => { if (aclAdmins.includes(ctx.user.email)) ctx.roles.push(\'admin\') })\n')
+    await write('apps/web/app/components/AdminLink.vue', '<template><a v-if="currentUser?.role === \'admin\'">Admin</a></template>\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => ({ ...latest, '@frigear-nu/authorization': '0.6.0' })[name], dryRun: true })
+    expect(report).toContain('apps/web/server/utils/acl.ts:1')
+    expect(report).toContain('apps/web/server/utils/acl.ts:2')
+    expect(report).toContain('apps/web/server/tasks/db/seed.ts:1')
+    expect(report).toContain('apps/web/app/components/AdminLink.vue:1')
+    expect(report).not.toContain('apps/web/server/plugins/roles.ts')
+    expect(report).toContain('`authentication.settings.session.mapper` is set')
+    expect(report).toContain('`runtimeConfig.session.password` is no longer read')
+    expect(report).toContain('Roles add up')
   })
 
   it('changes nothing on a dry run', async () => {

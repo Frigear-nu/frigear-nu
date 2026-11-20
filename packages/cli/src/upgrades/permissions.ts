@@ -43,7 +43,7 @@ export const authPermissions: Migration = {
   ],
   steps: [
     'Mint API tokens again: a token issued before the upgrade has no frozen permissions and holds nothing.',
-    'Everything fails closed: an unregistered permission is a 403 (also for admins), and `*` never covers `:pii` or `sessionOnly` permissions. Click through the staff areas before deploying.',
+    'Everything fails closed: an unregistered permission is a 403 (also for admins), and `*` never covers sensitive (`:pii`) permissions. Click through the staff areas before deploying.',
   ],
   async project({ root, files }) {
     const manual: string[] = []
@@ -98,14 +98,41 @@ export const authorizationRoles: Migration = {
       when: /\bcan\(\s*(?!['"`])/,
       message: 'Check the `can(...)` calls in this file: `can(permission, record?)` takes a permission name now, not an ability.',
     },
+    {
+      pattern: /\b(?:effectiveRole|userHasRole|hasRole)\b/g,
+      message: 'A role check of its own: access comes from roles that grant permissions now. Check the permission (`authorize` / `allows` on the server, `can()` in the client), and move an env allowlist to an `authorization:roles` hook that pushes the role (it is never stored).',
+    },
+    {
+      pattern: /\b(?:NUXT_ACL_ADMINS|NUXT_ADMIN_EMAILS|aclAdmins|adminEmails)\b/g,
+      unless: /authorization:roles/,
+      message: 'An admin allowlist: give those users the role in an `authorization:roles` hook (`ctx.roles.push(\'admin\')`, from `ctx.user`, verified addresses only) instead of a role on the session or the user row.',
+    },
+    {
+      pattern: /\b\w*[uU]sers?\??\.role\b/g,
+      message: '`users.role` is copied once into `authorization_user_roles` and never read again: a read sees a stale value, a write is silently ignored (new users get no role). Read access with `can()` / `allows`, and assign roles with `setAuthUserRoles` (or the users admin).',
+    },
+    {
+      pattern: /\brole\s*:\s*['"`][\w-]+['"`]/g,
+      when: /\binsert\(\s*users\b|\b(?:createUser|findOrCreateUser|defineTask)\b/,
+      message: 'Writes `users.role`, which is no longer read: assign the role with `setAuthUserRoles(userId, roles, { source: \'manual\' })` instead.',
+    },
+    {
+      pattern: /\brequireAuth\(\s*[\w.]+\s*,\s*\{[^}]*\bsessionOnly\b/g,
+      when: /\.role\b|effectiveRole|isAdmin/,
+      message: 'A session-only route with a role check: register a `sessionOnly` permission granted to that role and check it with `authorize(event, permission)`.',
+    },
   ],
   steps: [
     'Run the verification SQL of the migration guide: `users.role` is copied once into `authorization_user_roles` and no longer read.',
+    'Roles add up: a user holds their assigned roles plus every `defaultRoles` role. Where a stored role used to replace the default (a `tenant` who is not a `user`), drop the default in an `authorization:roles` hook, or leave it out of `defaultRoles`.',
   ],
   async project({ root, files }) {
     const manual: string[] = []
     for (const { file, options } of await readNuxtConfigs(files)) {
       const at = relative(root, file)
+      if (option(options, 'authentication.settings.session.mapper') !== undefined) {
+        manual.push(`${at}: \`authentication.settings.session.mapper\` is set. If it puts \`role\` on the session user, remove that (or the mapper): access no longer reads it, and a stale role on the session only misleads the client.`)
+      }
       const removed = ['abilities', 'resolvers', 'rbac'].filter(key => option(options, `authorization.${key}`) !== undefined)
       const roleKeys = ['hierarchy', 'inherits', 'grant', 'revoke', 'labels', 'descriptions', 'definitions', 'defaultRole']
         .filter(key => option(options, `authorization.roles.${key}`) !== undefined)

@@ -504,6 +504,22 @@ export {}
 `,
   }, { nitro: true, nuxt: true })
 
+  // The runtime hooks again, generated: Nitro's server tsconfig does not load module types, so without this an app's
+  // `nitro.hooks.hook('authorization:roles', ...)` does not typecheck.
+  addTypeTemplate({
+    filename: 'types/auth-hooks.d.ts',
+    getContents: () => `declare module 'nitropack/types' {
+  interface NitroRuntimeHooks {
+    'authorization:before': (ctx: import('${resolver.resolve('./runtime/types')}').AuthorizationBeforeContext) => void | Promise<void>
+    'authorization:roles': (ctx: import('${resolver.resolve('./runtime/types')}').AuthorizationRolesContext) => void | Promise<void>
+    'auth:email': (ctx: import('${resolver.resolve('./runtime/server/utils/auth-email')}').AuthEmailContext) => void | Promise<void>
+    'auth:credentials:changed': (ctx: import('${resolver.resolve('./runtime/server/utils/credentials')}').AuthCredentialsChangedContext) => void | Promise<void>
+  }
+}
+export {}
+`,
+  }, { nitro: true, nuxt: true })
+
   // OAuth sign-in reuses nuxt-auth-utils' handlers: each `defineOAuth<Provider>EventHandler` it auto-imports is a
   // provider here, loaded on first use and keyed like its `runtimeConfig.oauth` block, so its env vars turn it on.
   let nitroInstance: Nitro | undefined
