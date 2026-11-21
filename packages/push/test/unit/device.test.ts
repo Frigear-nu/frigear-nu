@@ -49,7 +49,7 @@ function setup(plugin: ReturnType<typeof fakePlugin>, overrides: Partial<Paramet
       requests.push({ path, body: options.body })
     },
     state: deviceState,
-    appId: 'nu.frigear.app',
+    appId: 'com.example.app',
     locale: () => 'da',
     storage: { get: () => stored.token, set: (token) => { stored.token = token } },
     navigate: path => navigated.push(path),
@@ -65,7 +65,7 @@ describe('createPushDevice', () => {
     const { device, requests, stored, deviceState } = setup(plugin)
     expect(await device.register()).toBe(true)
     expect(plugin.calls).toEqual(['requestPermissions', 'listen:registration', 'listen:registrationError', 'listen:pushNotificationActionPerformed', 'register'])
-    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', token: 'token-1', appId: 'nu.frigear.app', locale: 'da' } }])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', token: 'token-1', appId: 'com.example.app', locale: 'da' } }])
     expect(stored.token).toBe('token-1')
     expect(deviceState).toMatchObject({ permission: { value: 'granted' }, token: { value: 'token-1' }, registered: { value: true } })
   })
