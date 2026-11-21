@@ -1,10 +1,11 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { asc, eq, inArray } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { isEmptyVisibility, isVisible, parseVisibility } from '@frigear-nu/audience'
 import type { Viewer } from '@frigear-nu/audience'
 import { resolveViewer } from '@frigear-nu/audience/server'
-import { apiError, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, likeContains, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../access'
 import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
 import type { InboxChannelAccountRow, InboxContactRow, InboxMailboxRow, InboxThreadRow } from './inbox-dto'
@@ -172,6 +173,17 @@ export async function inboxReadableMailboxes(event: H3Event): Promise<InboxMailb
 }
 
 /**
+ * Those of `threads` the caller reads: in a mailbox they read (`inboxReadableMailboxes`) and not hidden below a role
+ * they lack. The same rule as `inbox:read` with each thread as the record, with the mailboxes checked once.
+ */
+export async function inboxVisibleThreads<T extends Pick<InboxThreadRow, 'mailboxId' | 'hiddenBelow'>>(event: H3Event, threads: T[]): Promise<T[]> {
+  if (!threads.length) return []
+  const readable = new Set((await inboxReadableMailboxes(event)).map(mailbox => mailbox.id))
+  const roles = await inboxCallerRoles(event)
+  return threads.filter(thread => readable.has(thread.mailboxId) && (!thread.hiddenBelow || roles.includes(thread.hiddenBelow)))
+}
+
+/**
  * The thread behind `:id` for a caller who passed `authorize(event, inbox:read)`: a thread they may not read (an
  * unknown id, another mailbox, hidden from their role) is the same 404.
  */
@@ -211,4 +223,29 @@ export async function inboxAssertAssignee(event: H3Event, userId: number, thread
   if (!(await inboxUserCanAccessThread(event, userId, thread))) {
     throw apiError(409, 'assignee_no_access', 'This user cannot read and answer this thread: they lack access to its mailbox or the role it is hidden below.')
   }
+}
+
+/** The most candidates `inboxAssigneeCandidates` answers, and the most users it looks at to find them. */
+export const INBOX_ASSIGNEE_LIMIT = 50
+const INBOX_ASSIGNEE_SCAN = 1000
+
+/**
+ * The users who could be assigned `thread` (`inboxUserCanAccessThread`, the rule `inboxAssertAssignee` enforces), by
+ * name, optionally those whose name contains `q`. Users are read in D1-sized pages; at most `INBOX_ASSIGNEE_LIMIT` are
+ * answered and `INBOX_ASSIGNEE_SCAN` looked at, so `q` narrows a large user base. Without a `users` table, nobody.
+ */
+export async function inboxAssigneeCandidates(event: H3Event, thread: Pick<InboxThreadRow, 'mailboxId' | 'hiddenBelow'>, options: { q?: string } = {}): Promise<InboxUserRef[]> {
+  const users = (schema as unknown as { users?: typeof schema.users }).users
+  if (!users) return []
+  const where: SQL | undefined = options.q ? likeContains(users.name, options.q) : undefined
+  const found: InboxUserRef[] = []
+  for (let offset = 0; offset < INBOX_ASSIGNEE_SCAN && found.length < INBOX_ASSIGNEE_LIMIT; offset += INBOX_CHUNK) {
+    const rows = await db.select({ id: users.id, name: users.name }).from(users).where(where).orderBy(asc(users.name), asc(users.id)).limit(INBOX_CHUNK).offset(offset)
+    const allowed = await Promise.all(rows.map(row => inboxUserCanAccessThread(event, Number(row.id), thread)))
+    rows.forEach((row, index) => {
+      if (allowed[index] && found.length < INBOX_ASSIGNEE_LIMIT) found.push({ id: Number(row.id), name: row.name ?? null })
+    })
+    if (rows.length < INBOX_CHUNK) break
+  }
+  return found
 }

@@ -134,13 +134,15 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // Server only. The empty strings are there so `NUXT_INBOX_EMAIL_WEBHOOK_SECRET`, `NUXT_INBOX_META_APP_SECRET` and
-    // `NUXT_INBOX_META_VERIFY_TOKEN` override them at run time.
+    // `NUXT_INBOX_META_VERIFY_TOKEN` override them at run time; a channel secret declared in `secrets` (empty) is
+    // overridden by `NUXT_INBOX_SECRETS_<REF>`, and `NUXT_INBOX_SECRETS` (JSON) adds any.
     const existing = (nuxt.options.runtimeConfig as { inbox?: Partial<InboxRuntimeConfig> }).inbox ?? {}
     const runtime: InboxRuntimeConfig = {
       retention: {
         days: options.retention?.days ?? existing.retention?.days ?? 365,
         mode: options.retention?.mode ?? existing.retention?.mode ?? 'delete',
         batch: options.retention?.batch ?? existing.retention?.batch ?? 500,
+        tombstoneDays: options.retention?.tombstoneDays ?? existing.retention?.tombstoneDays ?? 365,
       },
       email: { webhookSecret: options.email?.webhookSecret ?? existing.email?.webhookSecret ?? '' },
       meta: {
@@ -218,6 +220,7 @@ declare module '#inbox/server-registry' {
       { method: 'get', path: 'threads', file: 'admin/threads.get' },
       { method: 'get', path: 'threads/:id', file: 'admin/thread.get' },
       { method: 'patch', path: 'threads/:id', file: 'admin/thread.patch' },
+      { method: 'get', path: 'threads/:id/assignees', file: 'admin/thread-assignees.get' },
       { method: 'post', path: 'threads/:id/messages', file: 'admin/thread-messages.post' },
       { method: 'post', path: 'threads/:id/notes', file: 'admin/thread-notes.post' },
       { method: 'post', path: 'threads/:id/hide', file: 'admin/thread-hide.post' },

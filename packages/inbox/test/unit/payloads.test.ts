@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cleanSubject,
   displayNameOf,
+  emailCc,
   emailRecipients,
   emailToInbound,
   htmlToText,
@@ -18,7 +19,7 @@ const THREAD = 'ibt_0123456789abcdef0123456789abcdef'
 describe('email payloads', () => {
   it('normalises addresses and reads display names', () => {
     expect(normaliseEmail('Kari Nordmann <Kari@Example.ORG>')).toBe('kari@example.org')
-    expect(normaliseEmail(' info@frigear.nu ')).toBe('info@frigear.nu')
+    expect(normaliseEmail(' support@example.com ')).toBe('support@example.com')
     expect(displayNameOf('"Kari Nordmann" <kari@example.org>')).toBe('Kari Nordmann')
     expect(displayNameOf('kari@example.org')).toBeNull()
   })
@@ -38,23 +39,38 @@ describe('email payloads', () => {
     const payload = inboxEmailPayload.parse({
       messageId: '<abc@mail>',
       from: 'Kari Nordmann <Kari@Example.org>',
-      to: ['Info@frigear.nu', { email: 'other@frigear.nu' }],
+      to: ['Support@example.com', { email: 'other@example.com' }],
       subject: `Re: Tickets [${THREAD}]`,
       html: '<p>Hi</p>',
       attachments: [{ filename: 'ticket.pdf', contentType: 'application/pdf', size: 1200, url: 'https://files.example/ticket.pdf' }],
     })
-    expect(emailRecipients(payload)).toEqual(['info@frigear.nu', 'other@frigear.nu'])
-    expect(emailToInbound(payload, 'info@frigear.nu')).toEqual({
-      address: 'info@frigear.nu',
+    expect(emailRecipients(payload)).toEqual(['support@example.com', 'other@example.com'])
+    expect(emailToInbound(payload, 'support@example.com')).toEqual({
+      address: 'support@example.com',
       contact: { externalId: 'kari@example.org', email: 'kari@example.org', name: 'Kari Nordmann' },
       externalId: '<abc@mail>',
       subject: 'Tickets',
       body: 'Hi',
       attachments: [{ filename: 'ticket.pdf', contentType: 'application/pdf', size: 1200, url: 'https://files.example/ticket.pdf' }],
+      cc: [],
       threadId: THREAD,
       authenticated: false,
     })
-    expect(emailToInbound({ ...payload, authenticated: true }, 'info@frigear.nu').authenticated).toBe(true)
+    expect(emailToInbound({ ...payload, authenticated: true }, 'support@example.com').authenticated).toBe(true)
+  })
+
+  it('reads the cc recipients, without the mailbox itself', () => {
+    const payload = inboxEmailPayload.parse({
+      messageId: '<cc@mail>',
+      from: 'kari@example.org',
+      to: 'board@example.com',
+      cc: ['Ola <Ola@Example.org>', { email: 'support@example.com' }, 'ola@example.org', { email: 'Lise@Example.org', name: 'Lise' }],
+      text: 'Hi',
+    })
+    expect(emailCc(payload, 'support@example.com')).toEqual(['ola@example.org', 'lise@example.org'])
+    expect(emailToInbound(payload, 'support@example.com').cc).toEqual(['ola@example.org', 'lise@example.org'])
+    expect(emailCc(inboxEmailPayload.parse({ messageId: '1', from: 'a@b.c', to: 'x@y.z', cc: 'Ola <ola@example.org>' }))).toEqual(['ola@example.org'])
+    expect(emailCc(inboxEmailPayload.parse({ messageId: '1', from: 'a@b.c', to: 'x@y.z' }))).toEqual([])
   })
 
   it('refuses a body that is not an email', () => {

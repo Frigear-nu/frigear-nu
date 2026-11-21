@@ -28,6 +28,8 @@ export const inboxApi = {
     threads: `${ADMIN_BASE}/threads`,
     /** `GET` one thread with its messages / `PATCH` its status or assignee. */
     thread: (id: string) => `${ADMIN_BASE}/threads/${enc(id)}`,
+    /** `GET` (`?q`) the people the thread can be assigned to. */
+    assignees: (id: string) => `${ADMIN_BASE}/threads/${enc(id)}/assignees`,
     /** `POST` a reply, sent through the thread's channel. */
     messages: (id: string) => `${ADMIN_BASE}/threads/${enc(id)}/messages`,
     /** `POST` an internal note. */

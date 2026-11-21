@@ -29,6 +29,8 @@ export const inboxEmailPayload = z.object({
   messageId: z.string().trim().min(1).max(998),
   from: address,
   to: z.union([address, z.array(address).min(1)]),
+  /** The `Cc` recipients, stored with the message and shown to staff with `inbox:pii`. */
+  cc: z.union([address, z.array(address).max(100)]).nullish(),
   subject: z.string().max(998).nullish(),
   text: z.string().nullish(),
   html: z.string().nullish(),
@@ -96,6 +98,13 @@ export function emailRecipients(payload: InboxEmailPayload): string[] {
   return list.map(entry => normaliseEmail(emailOf(entry)))
 }
 
+/** The `Cc` recipients of an email payload, lower case, without `exclude` (the mailbox's own address) or repeats. */
+export function emailCc(payload: InboxEmailPayload, exclude?: string): string[] {
+  const list = payload.cc ? (Array.isArray(payload.cc) ? payload.cc : [payload.cc]) : []
+  const skip = exclude ? normaliseEmail(exclude) : undefined
+  return [...new Set(list.map(entry => normaliseEmail(emailOf(entry))))].filter(email => email && email !== skip)
+}
+
 /** An email payload as an inbound message for the account at `address`. */
 export function emailToInbound(payload: InboxEmailPayload, accountAddress: string): InboxInboundMessage {
   const from = emailOf(payload.from)
@@ -109,6 +118,7 @@ export function emailToInbound(payload: InboxEmailPayload, accountAddress: strin
     authenticated: payload.authenticated === true,
     body: clip(body),
     attachments: (payload.attachments ?? []).map(file => ({ filename: file.filename, contentType: file.contentType, size: file.size, url: file.url })),
+    cc: emailCc(payload, accountAddress),
     threadId: threadIdFromSubject(payload.subject),
   }
 }

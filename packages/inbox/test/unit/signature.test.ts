@@ -1,6 +1,6 @@
-import { createHmac } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
-import { hmacSha256Hex, signSha256, timingSafeEqual, verifySha256Signature } from '../../src/runtime/utils/signature'
+import { createHash, createHmac } from 'node:crypto'
+import { describe, expect, it, vi } from 'vitest'
+import { hmacSha256Hex, secretsEqual, sha256Hex, signSha256, timingSafeEqual, verifySha256Signature } from '../../src/runtime/utils/signature'
 
 describe('webhook signatures', () => {
   const body = JSON.stringify({ object: 'page', entry: [{ id: '1' }] })
@@ -32,5 +32,22 @@ describe('webhook signatures', () => {
     expect(timingSafeEqual('abc', 'abc')).toBe(true)
     expect(timingSafeEqual('abc', 'abd')).toBe(false)
     expect(timingSafeEqual('abc', 'abcd')).toBe(false)
+  })
+
+  it('compares a verify token in constant time, whatever its length', async () => {
+    expect(await secretsEqual('test-verify-token', 'test-verify-token')).toBe(true)
+    expect(await secretsEqual('test-verify-tokeN', 'test-verify-token')).toBe(false)
+    expect(await secretsEqual('test', 'test-verify-token')).toBe(false)
+    expect(await secretsEqual('test-verify-token-and-more', 'test-verify-token')).toBe(false)
+    expect(await secretsEqual('', 'test-verify-token')).toBe(false)
+    // A shorter token is not refused early: both sides are HMAC-ed, then the equal-length digests compared.
+    const sign = vi.spyOn(crypto.subtle, 'sign')
+    await secretsEqual('x', 'a-much-longer-expected-token')
+    expect(sign).toHaveBeenCalledTimes(2)
+    sign.mockRestore()
+  })
+
+  it('hashes text with SHA-256', async () => {
+    expect(await sha256Hex('abc')).toBe(createHash('sha256').update('abc').digest('hex'))
   })
 })

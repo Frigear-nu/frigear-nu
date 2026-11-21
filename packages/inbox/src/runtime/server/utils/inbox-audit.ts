@@ -16,9 +16,10 @@ export async function inboxActorId(event: H3Event | undefined): Promise<number |
 
 /**
  * Writes one audit entry. A failure is logged and never fails the request: the action it records has happened.
- * `viewed` is written once per person and thread in a 15 minute window.
+ * `viewed` is written once per person and thread in a 15 minute window. An entry of a thread records the thread's
+ * mailbox (unless given), so the log can be filtered by mailbox access after the thread is gone.
  */
-export async function inboxAudit(event: H3Event | undefined, entry: { action: InboxAuditAction, threadId?: string | null, contactId?: string | null, data?: Record<string, unknown> | null, actorId?: number | null }): Promise<void> {
+export async function inboxAudit(event: H3Event | undefined, entry: { action: InboxAuditAction, threadId?: string | null, mailboxId?: string | null, contactId?: string | null, data?: Record<string, unknown> | null, actorId?: number | null }): Promise<void> {
   try {
     const actorId = entry.actorId !== undefined ? entry.actorId : await inboxActorId(event)
     if (entry.action === 'viewed' && entry.threadId && actorId !== null) {
@@ -28,9 +29,15 @@ export async function inboxAudit(event: H3Event | undefined, entry: { action: In
         .orderBy(desc(schema.inboxAudit.createdAt)).limit(1)
       if (recent) return
     }
+    let mailboxId = entry.mailboxId ?? null
+    if (mailboxId === null && entry.threadId) {
+      const [thread] = await db.select({ mailboxId: schema.inboxThreads.mailboxId }).from(schema.inboxThreads).where(eq(schema.inboxThreads.id, entry.threadId)).limit(1)
+      mailboxId = thread?.mailboxId ?? null
+    }
     await db.insert(schema.inboxAudit).values({
       id: newInboxId('iba'),
       threadId: entry.threadId ?? null,
+      mailboxId,
       contactId: entry.contactId ?? null,
       actorId,
       action: entry.action,

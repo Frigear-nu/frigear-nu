@@ -34,7 +34,7 @@ const channelOptions = computed(() => Object.values(channels).map(channel => ({ 
 const mailboxOptions = computed(() => props.mailboxes.map(mailbox => ({ label: tr(mailbox.name) || mailbox.key, value: mailbox.id })))
 const needsSecret = computed(() => ['whatsapp', 'messenger', 'instagram'].includes(state.channel))
 const addressHelp = computed(() => ({
-  email: t('channels.addressEmail', 'The address people write to, such as info@frigear.nu.'),
+  email: t('channels.addressEmail', 'The address people write to, such as support@example.com.'),
   form: t('channels.addressForm', 'The slug of the form, such as contact.'),
   whatsapp: t('channels.addressWhatsapp', 'The phone number id of the WhatsApp Business number (not the phone number).'),
   messenger: t('channels.addressMessenger', 'The id of the Facebook page.'),
@@ -127,7 +127,7 @@ async function save() {
         name="secretRef"
         :label="t('channels.secretRef', 'Secret name')"
         :description="needsSecret
-          ? t('channels.secretRefMeta', 'The name of the access token in the server config: inbox.secrets.<NAME> or NUXT_INBOX_SECRET_<NAME>.')
+          ? t('channels.secretRefMeta', 'The name of the access token in the server config: inbox.secrets.<NAME>, set with NUXT_INBOX_SECRETS_<NAME>.')
           : t('channels.secretRefOptional', 'Only for channels that need a token of their own.')"
         :required="needsSecret"
       >

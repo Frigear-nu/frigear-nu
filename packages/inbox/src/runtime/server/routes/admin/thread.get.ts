@@ -26,7 +26,7 @@ export default defineEventHandler(async (event): Promise<InboxThreadDetailDto> =
     mailbox: toInboxMailboxDto(mailbox!),
     contact: contact ? toInboxContactDto(contact, can.pii) : null,
     assignee: thread.assigneeId ? users.get(thread.assigneeId) ?? { id: thread.assigneeId, name: null } : null,
-    messages: messages.map(message => toInboxMessageDto(message, message.authorId ? users.get(message.authorId) ?? null : null)),
+    messages: messages.map(message => toInboxMessageDto(message, message.authorId ? users.get(message.authorId) ?? null : null, can.pii)),
     can,
     hideRoles: can.hide ? roles : [],
   }

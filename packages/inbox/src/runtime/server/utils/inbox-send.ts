@@ -62,6 +62,7 @@ export async function inboxReply(event: H3Event, thread: InboxThreadRow, input: 
     authorId: input.authorId,
     body: input.body,
     attachments: [],
+    channelAccountId: thread.channelAccountId,
     externalId,
     createdAt: now,
     createdAtMs: now.getTime(),

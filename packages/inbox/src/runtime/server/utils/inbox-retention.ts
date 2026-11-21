@@ -6,13 +6,15 @@ import type { InboxRetentionMode, InboxRetentionResult } from '../../../types'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * Blanks the messages of threads (D1-sized chunks) and closes them: bodies, attachments and provider ids
+ * Blanks the messages of threads (D1-sized chunks) and closes them: bodies, attachments, cc recipients and provider ids
  * (`erased:<message id>`) go, the subject and preview too. The threads stay, as a record that something was answered.
+ * The provider ids are tombstoned first, so a replayed webhook does not bring a message back.
  */
 export async function inboxAnonymiseThreads(threadIds: string[], now = new Date()): Promise<void> {
+  await inboxTombstoneThreads(threadIds, now)
   for (const chunk of inboxChunks(threadIds)) {
     await db.update(schema.inboxMessages)
-      .set({ body: '', attachments: [], externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
+      .set({ body: '', attachments: [], cc: null, externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
       .where(inArray(schema.inboxMessages.threadId, chunk))
     await db.update(schema.inboxThreads)
       .set({ subject: null, preview: null, status: 'closed', anonymisedAt: now })
@@ -29,8 +31,9 @@ async function eraseContactRows(contactIds: string[], now: Date): Promise<void> 
   }
 }
 
-/** Deletes threads with their messages (D1-sized chunks). */
-async function deleteThreads(threadIds: string[]): Promise<void> {
+/** Deletes threads with their messages (D1-sized chunks), tombstoning their provider ids first. */
+async function deleteThreads(threadIds: string[], now: Date): Promise<void> {
+  await inboxTombstoneThreads(threadIds, now)
   for (const chunk of inboxChunks(threadIds)) {
     await db.delete(schema.inboxMessages).where(inArray(schema.inboxMessages.threadId, chunk))
     await db.delete(schema.inboxThreads).where(inArray(schema.inboxThreads.id, chunk))
@@ -71,7 +74,9 @@ async function eraseFullyAnonymisedContacts(contactIds: string[], now: Date): Pr
  * `retentionDays`, else `inbox.retention.days`) are deleted with their messages (`mode: 'delete'`; contacts left
  * without a thread go too) or blanked (`mode: 'anonymise'`; contacts left with only anonymised threads are erased). At
  * most `batch` threads per run, so a big backlog is worked off over several runs within D1's limits; one audit entry
- * per mailbox records what went. `mode` overrides the configured one (manual runs and tests).
+ * per mailbox records what went. The provider ids of what went are tombstoned, so a replayed webhook is not stored
+ * again, and tombstones older than `retention.tombstoneDays` are pruned. `mode` overrides the configured one (manual
+ * runs and tests).
  */
 export async function inboxRunRetention(options: { now?: Date, event?: H3Event, mode?: InboxRetentionMode } = {}): Promise<InboxRetentionResult> {
   const config = inboxConfig(options.event).retention
@@ -97,14 +102,16 @@ export async function inboxRunRetention(options: { now?: Date, event?: H3Event, 
       result.contacts += await eraseFullyAnonymisedContacts(contactIds, now)
     }
     else {
-      await deleteThreads(ids)
+      await deleteThreads(ids, now)
       result.contacts += await deleteOrphanContacts(contactIds)
     }
     budget -= rows.length
     result.threads += rows.length
     result.mailboxes++
-    await inboxAudit(undefined, { action: 'retention', actorId: null, data: { mailboxId: mailbox.id, mode, threads: rows.length, before: cutoff.toISOString() } })
+    await inboxAudit(undefined, { action: 'retention', actorId: null, mailboxId: mailbox.id, data: { mailboxId: mailbox.id, mode, threads: rows.length, before: cutoff.toISOString() } })
   }
+  // The provider ids of removed messages are remembered `tombstoneDays` (from their removal), then forgotten.
+  await inboxPruneTombstones(new Date(now.getTime() - Math.max(1, config.tombstoneDays) * DAY_MS))
   return result
 }
 

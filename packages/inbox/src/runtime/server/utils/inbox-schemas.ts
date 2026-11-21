@@ -93,6 +93,11 @@ export const inboxChannelPatchInput = z.object({
   enabled: z.boolean().optional(),
 })
 
+/** `GET /api/admin/inbox/threads/:id/assignees`: `q` narrows by name. */
+export const inboxAssigneesQuery = z.object({
+  q: z.string().trim().max(100).optional().transform(value => value || undefined),
+})
+
 /** `GET /api/admin/inbox/audit`. */
 export const inboxAuditQuery = pageQuery({
   sort: ['createdAt'],

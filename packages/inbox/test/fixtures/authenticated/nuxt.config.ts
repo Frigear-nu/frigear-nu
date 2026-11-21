@@ -24,6 +24,8 @@ export default defineNuxtConfig({
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [], inherit: ['crew'] })
       addRole(nuxt, { name: 'admin', label: 'Admin', grant: [], inherit: ['coordinator'] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['inbox:*'] })
+      // A privacy officer: contact details, exports and the audit log, but only the mailboxes a coordinator reads.
+      addRole(nuxt, { name: 'dpo', label: 'Privacy officer', grant: ['inbox:pii', 'inbox-audit:pii'], inherit: ['coordinator'] })
       setRoleProvider(nuxt, { path: here('./server/roles/provider') })
     },
     // A module with a channel of its own, registered with `extendInbox` only: its adapter records what it sends and reads
@@ -55,7 +57,8 @@ export default defineNuxtConfig({
   inbox: {
     email: { webhookSecret: 'test-email-secret' },
     meta: { appSecret: 'test-app-secret', verifyToken: 'test-verify-token' },
-    secrets: { FAKE_TOKEN: 'fake-token-value' },
+    // `ENV_TOKEN` is declared empty and set by `NUXT_INBOX_SECRETS_ENV_TOKEN` in the test's environment.
+    secrets: { FAKE_TOKEN: 'fake-token-value', ENV_TOKEN: '' },
     // The retention task runs from a test route with a fake `now`, never on a schedule here.
     retention: { days: 30, cron: false },
     mailboxes: [

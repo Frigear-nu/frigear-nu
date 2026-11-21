@@ -48,12 +48,25 @@ describe('inbox (authenticated, database-backed)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
-  await setup({ rootDir, dev: true, serverStartTimeout: 240_000, setupTimeout: 300_000 })
+  await setup({
+    rootDir,
+    dev: true,
+    serverStartTimeout: 240_000,
+    setupTimeout: 300_000,
+    env: {
+      // Channel secrets come from the runtime config only: the per-ref override of a declared ref, and the JSON object.
+      NUXT_INBOX_SECRETS_ENV_TOKEN: 'env-token-value',
+      NUXT_INBOX_SECRETS: JSON.stringify({ JSON_TOKEN: 'json-token-value' }),
+      // The old direct environment read is gone: this never resolves.
+      NUXT_INBOX_SECRET_LEGACY_TOKEN: 'legacy-token-value',
+    },
+  })
 
   let admin: Session
   let coord: Session
   let crew: Session
   let wild: Session
+  let dpo: Session
   let support: Json
   let board: Json
 
@@ -62,6 +75,7 @@ describe('inbox (authenticated, database-backed)', async () => {
     coord = await registerUser('Coord', 'coord.test')
     crew = await registerUser('Crew', 'crew.test')
     wild = await registerUser('Wild', 'wild.test')
+    dpo = await registerUser('Dpo', 'dpo.test')
   })
 
   const threadsOf = async (session: Session, query = '') => (await as(session).json<Json>('GET', `${inboxApi.admin.threads}?pageSize=90${query}`)).items as Json[]
@@ -137,6 +151,23 @@ describe('inbox (authenticated, database-backed)', async () => {
       await expectApiError(bearer(token).json('GET', inboxApi.admin.channels), 403, 'session_required')
       await expectApiError(bearer(token).json('POST', inboxApi.admin.channels, { mailboxId: support.id, channel: 'email', address: 'z@inbox.test' }), 403, 'session_required')
     })
+
+    it('reads channel secrets from the runtime config only, overridable by NUXT_INBOX_SECRETS_*', async () => {
+      const connect = (address: string, secretRef: string) => as(admin).json<Json>('POST', inboxApi.admin.channels, { mailboxId: support.id, channel: 'test.fake', address, secretRef })
+      expect((await connect('fake-env', 'ENV_TOKEN')).secretConfigured).toBe(true)
+      expect((await connect('fake-json', 'JSON_TOKEN')).secretConfigured).toBe(true)
+      // `NUXT_INBOX_SECRET_LEGACY_TOKEN` is set, but the environment is never read directly.
+      expect((await connect('fake-legacy', 'LEGACY_TOKEN')).secretConfigured).toBe(false)
+
+      // The reply goes out with the value of the environment override.
+      const headers = { 'content-type': 'application/json', 'x-fake-token': 'let-me-in' }
+      await fetch(inboxApi.webhooks.channel('test.fake'), { method: 'POST', headers, body: JSON.stringify({ to: 'fake-env', from: 'env-user', id: 'env-1', text: 'Hello' }) })
+      const thread = (await threadsOf(admin, '&channel=test.fake')).find(item => item.contact?.externalId === 'env-user')!
+      await as(admin).json('POST', inboxApi.admin.messages(thread.id), { body: 'Hi' })
+      expect((await getSent()).at(-1)).toMatchObject({ threadId: thread.id, secret: 'env-token-value' })
+      // Out of the active list, where the module channel tests look for their own thread.
+      await as(admin).json('PATCH', inboxApi.admin.thread(thread.id), { status: 'closed' })
+    })
   })
 
   describe('email webhook', () => {
@@ -183,6 +214,34 @@ describe('inbox (authenticated, database-backed)', async () => {
       // An answer from the person reopens a pending thread.
       expect(thread.thread.status).toBe('open')
     })
+
+    it('stores a provider id once per channel account, not once overall', async () => {
+      const payload = email()
+      const toSupport = await (await postEmail(payload)).json() as Json
+      // The same Message-ID delivered to another mailbox's address is another message.
+      const toBoard = await (await postEmail({ ...payload, to: 'board@inbox.test' })).json() as Json
+      expect(toSupport.status).toBe('received')
+      expect(toBoard.status).toBe('received')
+      expect(toBoard.messageId).not.toBe(toSupport.messageId)
+      expect((await detail(admin, toBoard.threadId)).thread.mailboxId).toBe(board.id)
+      // A redelivery to either is still a duplicate.
+      expect(await (await postEmail({ ...payload, to: 'board@inbox.test' })).json()).toEqual({ status: 'duplicate', messageId: toBoard.messageId })
+      expect(await (await postEmail(payload)).json()).toEqual({ status: 'duplicate', messageId: toSupport.messageId })
+    })
+
+    it('keeps the cc recipients of an email, shown to people who see contact details', async () => {
+      const threadId = await emailThread({ cc: ['Ola <Ola@Example.org>', { email: 'support@inbox.test' }, { email: 'lise@example.org', name: 'Lise' }] })
+      const forAdmin = await detail(admin, threadId)
+      expect(forAdmin.messages[0].cc).toEqual(['ola@example.org', 'lise@example.org'])
+      expect(await detail(coord, threadId).then(thread => thread.messages[0])).not.toHaveProperty('cc')
+      const exported = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(forAdmin.contact.id))
+      expect(exported.threads.find((item: Json) => item.thread.id === threadId).messages[0].cc).toEqual(['ola@example.org', 'lise@example.org'])
+      // Notify's email has no cc: a reply goes to the contact only.
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Thanks, all.' })
+      const sent = (await getEmails()).at(-1)! as Json
+      expect(sent.to).toBe(forAdmin.contact.email)
+      expect(sent.cc).toBeUndefined()
+    })
   })
 
   describe('unverified senders and subjects', () => {
@@ -221,8 +280,11 @@ describe('inbox (authenticated, database-backed)', async () => {
       const ok = await fetch(`${inboxApi.webhooks.meta}?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=12345`)
       expect(ok.status).toBe(200)
       expect(await ok.text()).toBe('12345')
-      const wrong = await fetch(`${inboxApi.webhooks.meta}?hub.mode=subscribe&hub.verify_token=nope&hub.challenge=12345`)
-      expect(wrong.status).toBe(403)
+      // Compared in constant time: a prefix, a longer token or an empty one fail like any other.
+      for (const token of ['nope', 'test-verify', 'test-verify-token-plus', '']) {
+        const wrong = await fetch(`${inboxApi.webhooks.meta}?hub.mode=subscribe&hub.verify_token=${encodeURIComponent(token)}&hub.challenge=12345`)
+        expect(wrong.status, token).toBe(403)
+      }
     })
 
     it('checks X-Hub-Signature-256 and stores WhatsApp and Messenger messages once', async () => {
@@ -389,6 +451,31 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect((await detail(coord, threadId)).thread.id).toBe(threadId)
       await expectApiError(as(crew).json('POST', inboxApi.admin.hide(threadId), { role: null }), 403, 'forbidden')
     })
+
+    it('lists everybody a thread can be assigned to: the people with access to its mailbox', async () => {
+      const threadId = await emailThread()
+      const ids = async (session: Session, query = '') => (await as(session).json<Json[]>('GET', `${inboxApi.admin.assignees(threadId)}${query}`)).map(person => person.id)
+      // Support is read by coordinators and up (coord, dpo, admin) and by wild, which manages every mailbox; not crew.
+      const everyone = await ids(coord)
+      expect(everyone).toEqual(expect.arrayContaining([coord.id, admin.id, wild.id, dpo.id]))
+      expect(everyone).not.toContain(crew.id)
+      expect(await ids(coord, '?q=Wild')).toEqual([wild.id])
+      // Anyone listed can be assigned.
+      expect((await as(coord).json<Json>('PATCH', inboxApi.admin.thread(threadId), { assigneeId: dpo.id })).assigneeId).toBe(dpo.id)
+
+      // A thread hidden below admin lists only those who hold admin (and nobody else is listed for it).
+      await as(admin).json('POST', inboxApi.admin.hide(threadId), { role: 'admin' })
+      const hiddenFor = await ids(admin)
+      expect(hiddenFor).toContain(admin.id)
+      expect(hiddenFor).not.toContain(coord.id)
+      expect(hiddenFor).not.toContain(dpo.id)
+      expect(hiddenFor).not.toContain(wild.id)
+
+      // 401 and 403 come before the 404 of a thread the caller cannot read.
+      await expectApiError(as().json('GET', inboxApi.admin.assignees(threadId)), 401)
+      await expectApiError(as(crew).json('GET', inboxApi.admin.assignees(threadId)), 403, 'forbidden')
+      await expectApiError(as(coord).json('GET', inboxApi.admin.assignees(threadId)), 404, 'not_found')
+    })
   })
 
   describe('personal data', () => {
@@ -441,13 +528,76 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(after.messages.every((message: Json) => message.body === '')).toBe(true)
       expect(after.thread).toMatchObject({ status: 'closed', subject: null })
       expect(after.thread.anonymisedAt).toBeTruthy()
-      // The provider ids are gone too: the same email delivered again is stored as a new message of a new contact.
-      const again = await (await postEmail(exportedEmail)).json() as Json
+      // The provider ids are gone, but tombstoned: the same email delivered again does not bring it back.
+      expect(await (await postEmail(exportedEmail)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+      // A new email from the same person is a new message of a new contact.
+      const again = await (await postEmail(email({ from: exportedEmail.from, text: 'Me again' }))).json() as Json
       expect(again.status).toBe('received')
       expect(again.threadId).not.toBe(threadId)
+      expect((await detail(admin, again.threadId)).contact.id).not.toBe(contact.id)
       await expectApiError(as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Hello?' }), 409, 'channel_unavailable')
       const log = await as(admin).json<Json>('GET', `${inboxApi.admin.audit}?contactId=${contact.id}`)
       expect((log.items as Json[]).map(entry => entry.action).sort()).toEqual(['erased', 'exported'])
+    })
+  })
+
+  describe('personal data across mailboxes and hidden threads', () => {
+    let contactId: string
+    let supportThread: string
+    let boardThread: string
+
+    it('exports only the threads the caller reads: their mailboxes, not hidden from them', async () => {
+      const from = { email: `split${++counter}@example.org`, name: 'Split Person' }
+      supportThread = await emailThread({ from, text: 'To support' })
+      boardThread = (await (await postEmail(email({ from, to: 'board@inbox.test', text: 'To the board' }))).json() as Json).threadId
+      contactId = (await detail(admin, supportThread)).contact.id
+      expect((await detail(admin, boardThread)).contact.id).toBe(contactId)
+
+      // The privacy officer holds inbox:pii but reads only the support mailbox.
+      const forDpo = await as(dpo).json<Json>('GET', inboxApi.admin.contactExport(contactId))
+      expect(forDpo.threads.map((item: Json) => item.thread.id)).toEqual([supportThread])
+      expect(JSON.stringify(forDpo)).not.toContain('To the board')
+      const forAdmin = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(contactId))
+      expect(forAdmin.threads.map((item: Json) => item.thread.id).sort()).toEqual([supportThread, boardThread].sort())
+
+      // A contact whose every thread is out of reach is the same 404 as an unknown one.
+      const boardOnly = (await (await postEmail(email({ to: 'board@inbox.test' }))).json() as Json).threadId
+      const boardContact = (await detail(admin, boardOnly)).contact.id
+      await expectApiError(as(dpo).json('GET', inboxApi.admin.contactExport(boardContact)), 404, 'not_found')
+      await expectApiError(as(dpo).json('GET', inboxApi.admin.contactExport('icn_00000000000000000000000000000000')), 404, 'not_found')
+    })
+
+    it('filters the audit log by mailbox access and hidden threads', async () => {
+      await detail(admin, boardThread)
+      await detail(dpo, supportThread)
+      const entries = async (session: Session, query: string) => (await as(session).json<Json>('GET', `${inboxApi.admin.audit}?pageSize=100&${query}`)).items as Json[]
+      expect((await entries(admin, `threadId=${boardThread}`)).map(entry => entry.action)).toContain('viewed')
+      expect(await entries(dpo, `threadId=${boardThread}`)).toEqual([])
+      expect((await entries(dpo, `threadId=${supportThread}`)).map(entry => entry.action)).toContain('viewed')
+      expect((await entries(dpo, '')).some(entry => entry.threadId === boardThread)).toBe(false)
+      // An export of a contact with a thread the caller reads is listed; retention runs of mailboxes they do not read are not.
+      expect((await entries(dpo, `contactId=${contactId}`)).map(entry => entry.action)).toContain('exported')
+
+      // Hidden below a role the caller lacks: the thread's entries go from their log too.
+      await as(admin).json('POST', inboxApi.admin.hide(supportThread), { role: 'admin' })
+      expect(await entries(dpo, `threadId=${supportThread}`)).toEqual([])
+      expect((await entries(admin, `threadId=${supportThread}`)).map(entry => entry.action)).toContain('hidden')
+      await as(admin).json('POST', inboxApi.admin.hide(supportThread), { role: null })
+    })
+
+    it('refuses to erase a contact with threads hidden from the caller', async () => {
+      // wild hides the support thread below its own role, which admin does not hold.
+      await as(wild).json('POST', inboxApi.admin.hide(supportThread), { role: 'wild' })
+      const forAdmin = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(contactId))
+      expect(forAdmin.threads.map((item: Json) => item.thread.id)).toEqual([boardThread])
+      await expectApiError(as(admin).json('POST', inboxApi.admin.contactErase(contactId)), 409, 'contact_threads_hidden')
+      expect((await detail(admin, boardThread)).messages[0].body).toBe('To the board')
+      // Without inbox:manage there is no erase at all.
+      await expectApiError(as(dpo).json('POST', inboxApi.admin.contactErase(contactId)), 403, 'forbidden')
+
+      await as(wild).json('POST', inboxApi.admin.hide(supportThread), { role: null })
+      const erased = await as(admin).json<Json>('POST', inboxApi.admin.contactErase(contactId))
+      expect(erased).toMatchObject({ id: contactId, threads: 2 })
     })
   })
 
@@ -517,6 +667,35 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(after.contact.erasedAt).toBeTruthy()
       // A second run finds nothing new to blank.
       expect((await runRetention(new Date(), 'anonymise')).result.threads).toBe(0)
+    })
+  })
+
+  describe('replays after retention', () => {
+    it('ignores a webhook replayed after retention removed its message, until the tombstone is pruned', async () => {
+      const day = 24 * 60 * 60 * 1000
+      const payload = email({ text: 'Replay me' })
+      const stored = await (await postEmail(payload)).json() as Json
+      const wamid = `wamid.replay.${++counter}`
+      expect(await (await postMeta(whatsapp(wamid, '4529999999', 'Replay me too'))).json()).toMatchObject({ received: 1 })
+      const [whatsappThread] = (await threadsOf(admin, '&channel=whatsapp&status=all')).filter(thread => thread.preview === 'Replay me too')
+      for (const id of [stored.threadId, whatsappThread!.id]) {
+        await as(admin).json('PATCH', inboxApi.admin.thread(id), { status: 'closed' })
+        await backdate(id, 40)
+      }
+      await runRetention(new Date())
+      await expectApiError(as(admin).json('GET', inboxApi.admin.thread(stored.threadId)), 404)
+      await expectApiError(as(admin).json('GET', inboxApi.admin.thread(whatsappThread!.id)), 404)
+
+      // The provider retries, or someone replays the signed request: nothing comes back.
+      expect(await (await postEmail(payload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+      expect(await (await postMeta(whatsapp(wamid, '4529999999', 'Replay me too'))).json()).toEqual({ received: 0, duplicates: 0, ignored: 1, failed: 0 })
+      expect((await threadsOf(admin, '&status=all')).some(thread => thread.preview === 'Replay me' || thread.preview === 'Replay me too')).toBe(false)
+
+      // Still remembered 300 days later; a run 400 days later prunes it (retention.tombstoneDays is 365).
+      await runRetention(new Date(Date.now() + 300 * day))
+      expect(await (await postEmail(payload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+      await runRetention(new Date(Date.now() + 400 * day))
+      expect((await (await postEmail(payload)).json() as Json).status).toBe('received')
     })
   })
 

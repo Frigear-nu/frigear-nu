@@ -7,11 +7,13 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 //   @coord.test -> `coordinator` (inherits crew; inbox:assign and inbox:hide)
 //   @crew.test  -> `crew`
 //   @wild.test  -> `wild` (inbox:*, which never covers inbox:pii or inbox-audit:pii)
+//   @dpo.test   -> `dpo` (inherits coordinator; inbox:pii and inbox-audit:pii, but not inbox:manage)
 const ROLES: Record<string, string[]> = {
   '@admin.test': ['admin'],
   '@coord.test': ['coordinator'],
   '@crew.test': ['crew'],
   '@wild.test': ['wild'],
+  '@dpo.test': ['dpo'],
 }
 
 const provider: AuthRoleProvider = {

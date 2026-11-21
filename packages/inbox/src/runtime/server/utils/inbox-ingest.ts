@@ -9,7 +9,7 @@ import type { InboxChannelAccountRow, InboxContactRow, InboxThreadRow } from './
 export type InboxReceiveResult
   = | { status: 'received', thread: InboxThreadDto, message: InboxMessageDto }
     | { status: 'duplicate', messageId: string }
-    | { status: 'ignored', reason: 'no_account' | 'disabled' }
+    | { status: 'ignored', reason: 'no_account' | 'disabled' | 'removed' }
 
 /** Control characters (CR, LF, tabs, ...) become a space, so a subject can never carry a header line. */
 export function inboxCleanText(value: string): string {
@@ -45,9 +45,10 @@ export async function inboxFindAccount(channel: string, ref: { accountId?: strin
   return row
 }
 
-/** The message stored under this provider id, if any (webhook retries). */
-async function existingMessageId(externalId: string): Promise<string | undefined> {
-  const [row] = await db.select({ id: schema.inboxMessages.id }).from(schema.inboxMessages).where(eq(schema.inboxMessages.externalId, externalId)).limit(1)
+/** The message stored under this provider id on this account, if any (webhook retries). */
+async function existingMessageId(channelAccountId: string, externalId: string): Promise<string | undefined> {
+  const [row] = await db.select({ id: schema.inboxMessages.id }).from(schema.inboxMessages)
+    .where(and(eq(schema.inboxMessages.channelAccountId, channelAccountId), eq(schema.inboxMessages.externalId, externalId))).limit(1)
   return row?.id
 }
 
@@ -118,17 +119,19 @@ async function sameEmail(contactId: string, email: string | null): Promise<boole
 /**
  * Stores an inbound message of `channel`: finds the account, the contact and the thread (`authenticated` decides
  * whether it may join an existing one), stores the message once per
- * provider id, reopens a closed or pending thread and fires `inbox:message:received` (and
+ * provider id and channel account, reopens a closed or pending thread and fires `inbox:message:received` (and
  * `inbox:thread:status-changed` when the status moved). A message delivered twice answers `duplicate`; one for an
- * address no enabled account has answers `ignored`, so a provider stops retrying either.
+ * address no enabled account has answers `ignored`, and so does a replay of a message retention or an erase removed
+ * (`removed`, see `inboxTombstoneThreads`), so a provider stops retrying either.
  */
 export async function inboxReceive(event: H3Event, channel: string, inbound: InboxInboundMessage, account?: InboxChannelAccountRow): Promise<InboxReceiveResult> {
   const target = account ?? await inboxFindAccount(channel, { accountId: inbound.accountId, address: inbound.address })
   if (!target) return { status: 'ignored', reason: 'no_account' }
   if (!target.enabled) return { status: 'ignored', reason: 'disabled' }
   const externalId = `${channel}:${inbound.externalId}`
-  const known = await existingMessageId(externalId)
+  const known = await existingMessageId(target.id, externalId)
   if (known) return { status: 'duplicate', messageId: known }
+  if (await inboxIsTombstoned(target.id, externalId)) return { status: 'ignored', reason: 'removed' }
 
   const now = new Date()
   const authenticated = inbound.authenticated === true
@@ -141,12 +144,14 @@ export async function inboxReceive(event: H3Event, channel: string, inbound: Inb
     direction: 'in',
     body: inbound.body,
     attachments: inbound.attachments ?? [],
+    cc: inbound.cc?.length ? inbound.cc : null,
+    channelAccountId: target.id,
     externalId,
     createdAt: now,
     createdAtMs: now.getTime(),
   }).onConflictDoNothing().returning()
   // Another delivery of the same message won the race.
-  if (!message) return { status: 'duplicate', messageId: (await existingMessageId(externalId)) ?? '' }
+  if (!message) return { status: 'duplicate', messageId: (await existingMessageId(target.id, externalId)) ?? '' }
 
   const from = thread.status as InboxThreadStatus
   const to: InboxThreadStatus = 'open'

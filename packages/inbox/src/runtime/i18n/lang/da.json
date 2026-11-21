@@ -20,7 +20,7 @@
     },
     "channels": {
       "address": "Adresse",
-      "addressEmail": "Adressen folk skriver til, fx info@frigear.nu.",
+      "addressEmail": "Adressen folk skriver til, fx support@example.com.",
       "addressForm": "Formularens slug, fx kontakt.",
       "addressInstagram": "Id på Instagram-professionelkontoen.",
       "addressMessenger": "Id på Facebook-siden.",
@@ -47,7 +47,7 @@
       "secretMissing": "{name} mangler",
       "secretRef": "Navn på hemmelighed",
       "secretRefHelp": "Store bogstaver, tal og \"_\", fx WHATSAPP_TOKEN.",
-      "secretRefMeta": "Navnet på adgangstokenet i serverens konfiguration: inbox.secrets.<NAVN> eller NUXT_INBOX_SECRET_<NAVN>.",
+      "secretRefMeta": "Navnet på adgangstokenet i serverens konfiguration: inbox.secrets.<NAVN>, sat med NUXT_INBOX_SECRETS_<NAVN>.",
       "secretRefOptional": "Kun for kanaler, der har deres eget token.",
       "state": "Tilstand"
     },
@@ -209,6 +209,10 @@
     },
     "thread": {
       "assignToMe": "Tildel tråd til mig",
+      "assignTo": "Tildel tråd",
+      "assigneeSearch": "Søg efter personer",
+      "assigneesEmpty": "Ingen andre kan læse denne tråd",
+      "cc": "Cc: {recipients}",
       "assigned": "Tildelte {subject}",
       "backToInbox": "Tilbage til indbakken",
       "close": "Luk tråd",

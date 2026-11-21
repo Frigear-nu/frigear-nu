@@ -20,7 +20,7 @@
     },
     "channels": {
       "address": "Address",
-      "addressEmail": "The address people write to, such as info@frigear.nu.",
+      "addressEmail": "The address people write to, such as support@example.com.",
       "addressForm": "The slug of the form, such as contact.",
       "addressInstagram": "The id of the Instagram professional account.",
       "addressMessenger": "The id of the Facebook page.",
@@ -47,7 +47,7 @@
       "secretMissing": "{name} missing",
       "secretRef": "Secret name",
       "secretRefHelp": "Upper case letters, digits and \"_\", such as WHATSAPP_TOKEN.",
-      "secretRefMeta": "The name of the access token in the server config: inbox.secrets.<NAME> or NUXT_INBOX_SECRET_<NAME>.",
+      "secretRefMeta": "The name of the access token in the server config: inbox.secrets.<NAME>, set with NUXT_INBOX_SECRETS_<NAME>.",
       "secretRefOptional": "Only for channels that need a token of their own.",
       "state": "State"
     },
@@ -209,6 +209,10 @@
     },
     "thread": {
       "assignToMe": "Assign thread to me",
+      "assignTo": "Assign thread",
+      "assigneeSearch": "Search people",
+      "assigneesEmpty": "Nobody else can read this thread",
+      "cc": "Cc: {recipients}",
       "assigned": "Assigned {subject}",
       "backToInbox": "Back to the inbox",
       "close": "Close thread",

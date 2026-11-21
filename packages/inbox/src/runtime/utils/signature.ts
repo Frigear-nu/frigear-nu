@@ -13,7 +13,23 @@ export async function hmacSha256Hex(secret: string, body: string | Uint8Array): 
   return toHex(await crypto.subtle.sign('HMAC', key, data as BufferSource))
 }
 
-/** Compares two strings in time that does not depend on where they differ. */
+/** The hex SHA-256 of `value`. */
+export async function sha256Hex(value: string): Promise<string> {
+  return toHex(await crypto.subtle.digest('SHA-256', encoder.encode(value)))
+}
+
+/**
+ * Compares a secret a caller sent with the configured one in constant time, whatever their lengths: both are HMAC-ed
+ * with a fresh random key and the equal-length digests are compared, so neither the secret's length nor where the two
+ * differ shows in the timing. For tokens compared as text (Meta's `hub.verify_token`).
+ */
+export async function secretsEqual(given: string, expected: string): Promise<boolean> {
+  const key = toHex(crypto.getRandomValues(new Uint8Array(32)).buffer)
+  const [a, b] = await Promise.all([hmacSha256Hex(key, given), hmacSha256Hex(key, expected)])
+  return timingSafeEqual(a, b)
+}
+
+/** Compares two strings of the same length in time that does not depend on where they differ. */
 export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0

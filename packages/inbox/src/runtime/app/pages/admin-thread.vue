@@ -4,8 +4,8 @@ import type { Page } from '@frigear-nu/module-kit/server'
 import { channels } from '#inbox/registry'
 import { inboxApi } from '../../utils/api'
 import { INBOX_AUDIT_LABELS, INBOX_STATUS_LABELS } from '../../utils'
-import type { InboxAuditDto, InboxThreadDetailDto, InboxThreadStatus } from '../../../types'
-import { computed, errorMessage, h, navigateTo, tableUi, useFetch, useFormat, useInboxLinks, useInboxThreadActions, useInboxTranslate, useModuleT, useRoute, useUserSession } from '#imports'
+import type { InboxAuditDto, InboxThreadDetailDto, InboxThreadStatus, InboxUserRef } from '../../../types'
+import { computed, errorMessage, h, navigateTo, tableUi, useFetch, useFormat, useInboxLinks, useInboxThreadActions, useInboxTranslate, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'InboxAdminThreadPage' })
 
@@ -15,7 +15,6 @@ const format = useFormat()
 const route = useRoute()
 const links = useInboxLinks()
 const actions = useInboxThreadActions()
-const { user } = useUserSession()
 const id = computed(() => String(route.params.id))
 
 const { data, error, refresh } = await useFetch<InboxThreadDetailDto>(() => inboxApi.admin.thread(id.value))
@@ -41,10 +40,28 @@ const statusItems = computed(() => (['open', 'pending', 'closed'] as const).map(
 async function changeStatus(value: InboxThreadStatus) {
   if (thread.value && value !== thread.value.status && await actions.setStatus(thread.value, value)) await refreshAll()
 }
-const myId = computed(() => (user.value?.id !== undefined ? Number(user.value.id) : undefined))
-async function toggleMine() {
-  if (!thread.value || myId.value === undefined) return
-  if (await actions.assign(thread.value, thread.value.assigneeId === myId.value ? null : myId.value)) await refreshAll()
+// The assignee picker lists the people who could read and answer the thread, loaded when it is first opened.
+const { data: assignees, status: assigneesStatus, execute: loadAssignees } = await useFetch<InboxUserRef[]>(() => inboxApi.admin.assignees(id.value), {
+  immediate: false,
+  default: () => [],
+})
+const userLabel = (person: InboxUserRef) => person.name ?? `#${person.id}`
+const assigneeItems = computed(() => {
+  const people = [...(assignees.value ?? [])]
+  const current = data.value?.assignee
+  if (current && !people.some(person => person.id === current.id)) people.unshift(current)
+  return [
+    { label: t('list.nobody', 'Unassigned'), value: 'none' },
+    ...people.map(person => ({ label: userLabel(person), value: String(person.id) })),
+  ]
+})
+async function onAssigneeOpen(open: boolean) {
+  if (open && assigneesStatus.value === 'idle') await loadAssignees()
+}
+async function changeAssignee(value: string) {
+  if (!thread.value) return
+  const assigneeId = value === 'none' ? null : Number(value)
+  if (assigneeId !== thread.value.assigneeId && await actions.assign(thread.value, assigneeId)) await refreshAll()
 }
 
 const contactName = computed(() => data.value?.contact?.name ?? null)
@@ -102,18 +119,28 @@ const auditColumns = computed<TableColumn<InboxAuditDto>[]>(() => [
             class="w-36"
             @update:model-value="(value: InboxThreadStatus) => changeStatus(value)"
           />
-          <UButton
+          <USelectMenu
             v-if="can?.assign"
-            color="neutral"
-            variant="outline"
-            :icon="thread.assigneeId === myId ? 'i-lucide-user-minus' : 'i-lucide-user-check'"
-            :label="thread.assigneeId === myId ? t('thread.unassign', 'Unassign thread') : t('thread.assignToMe', 'Assign thread to me')"
-            @click="toggleMine"
-          />
+            :model-value="thread.assigneeId === null ? 'none' : String(thread.assigneeId)"
+            :items="assigneeItems"
+            value-key="value"
+            icon="i-lucide-user-check"
+            :loading="assigneesStatus === 'pending'"
+            :search-input="{ placeholder: t('thread.assigneeSearch', 'Search people') }"
+            :aria-label="t('thread.assignTo', 'Assign thread')"
+            class="w-52"
+            data-assignee-picker
+            @update:open="onAssigneeOpen"
+            @update:model-value="(value: string) => changeAssignee(value)"
+          >
+            <template #empty>
+              {{ t('thread.assigneesEmpty', 'Nobody else can read this thread') }}
+            </template>
+          </USelectMenu>
           <RowMenu
             variant="outline"
             :subject="thread.subject ?? ''"
-            :items="actions.menu(thread, { open: false, onChanged: refreshAll, can: { reply: false, assign: false, hide: can?.hide }, hideRoles: data.hideRoles })"
+            :items="actions.menu(thread, { open: false, onChanged: refreshAll, can: { reply: false, assign: can?.assign, hide: can?.hide }, hideRoles: data.hideRoles })"
           />
         </template>
       </PageHeading>

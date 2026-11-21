@@ -97,7 +97,8 @@ export function toInboxThreadDto(row: InboxThreadRow): InboxThreadDto {
   }
 }
 
-export function toInboxMessageDto(row: InboxMessageRow, author: InboxUserRef | null = null): InboxMessageDto {
+/** A message; its cc recipients (other people's addresses) only with `pii`. */
+export function toInboxMessageDto(row: InboxMessageRow, author: InboxUserRef | null = null, pii = false): InboxMessageDto {
   return {
     id: row.id,
     threadId: row.threadId,
@@ -106,6 +107,7 @@ export function toInboxMessageDto(row: InboxMessageRow, author: InboxUserRef | n
     author,
     body: row.body,
     attachments: row.attachments ?? [],
+    ...(pii ? { cc: row.cc?.length ? row.cc : null } : {}),
     createdAt: isoDate(row.createdAt),
   }
 }

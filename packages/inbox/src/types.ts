@@ -42,6 +42,8 @@ export type InboxInboundMessage = {
   subject?: string | null
   body: string
   attachments?: InboxAttachment[]
+  /** Email `Cc` recipients (lower case), stored on the message and shown with `inbox:pii`. */
+  cc?: string[]
   /** A thread id the message answers (`[ibt_...]` in an email subject); used when it belongs to the same mailbox and contact. */
   threadId?: string | null
   /**
@@ -120,7 +122,7 @@ export type InboxChannelAccountDto = {
   address: string
   /** Settings that are not secret (`fields` of a form account, `replyTo` of an email account). */
   config: Record<string, unknown>
-  /** The name of the secret in `inbox.secrets` (or `NUXT_INBOX_SECRET_<REF>`); the value is never stored or shown. */
+  /** The name of the secret in `inbox.secrets` (`NUXT_INBOX_SECRETS_<REF>`); the value is never stored or shown. */
   secretRef: string | null
   /** Whether `secretRef` resolves to a value on this server. */
   secretConfigured: boolean
@@ -188,6 +190,8 @@ export type InboxMessageDto = {
   author: InboxUserRef | null
   body: string
   attachments: InboxAttachment[]
+  /** Email `Cc` recipients of an inbound message; only with `inbox:pii`. */
+  cc?: string[] | null
   createdAt: string
 }
 
@@ -268,6 +272,11 @@ export type ModuleOptions = {
     cron?: string | false
     /** Threads one run handles at most (D1 friendly). Defaults to `500`. */
     batch?: number
+    /**
+     * Days the provider ids of removed messages are remembered, so a replayed webhook is not stored again. Counted from
+     * when retention or an erase removed them. Defaults to `365`.
+     */
+    tombstoneDays?: number
   }
   email?: {
     /** HMAC secret of `POST /api/inbox/webhooks/email` (`NUXT_INBOX_EMAIL_WEBHOOK_SECRET`). */
@@ -285,7 +294,10 @@ export type ModuleOptions = {
     /** Milliseconds a Graph API call may take. Defaults to `10000`. */
     timeoutMs?: number
   }
-  /** Channel account secrets by `secretRef` (access tokens). Prefer `NUXT_INBOX_SECRET_<REF>` environment variables. */
+  /**
+   * Channel account secrets by `secretRef` (access tokens). Declare each ref with an empty value and set it with the
+   * `NUXT_INBOX_SECRETS_<REF>` environment variable, or set them all at once as JSON in `NUXT_INBOX_SECRETS`.
+   */
   secrets?: Record<string, string>
   settings?: {
     pages?: {
@@ -307,7 +319,7 @@ export type PublicModuleOptions = {
 
 /** The server-only runtime config (`runtimeConfig.inbox`). */
 export type InboxRuntimeConfig = {
-  retention: { days: number | false, mode: InboxRetentionMode, batch: number }
+  retention: { days: number | false, mode: InboxRetentionMode, batch: number, tombstoneDays: number }
   email: { webhookSecret: string }
   meta: { appSecret: string, verifyToken: string, apiBase: string, apiVersion: string, timeoutMs: number }
   secrets: Record<string, string>

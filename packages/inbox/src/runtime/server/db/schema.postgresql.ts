@@ -104,13 +104,21 @@ export const inboxMessages = pgTable('inbox_messages', {
   authorId: integer(),
   body: text().notNull(),
   attachments: jsonb().$type<InboxAttachment[]>().notNull(),
-  /** `<channel>:<provider id>`, unique: a webhook delivered twice stores one message. */
-  externalId: text().unique(),
+  /** Email `Cc` recipients of an inbound message (lower case, the mailbox's own address left out); `null` otherwise. */
+  cc: jsonb().$type<string[]>(),
+  /**
+   * The channel account the message came in on or went out through. No foreign key: it stays when the account is
+   * deleted, so the account's provider ids keep their meaning.
+   */
+  channelAccountId: text(),
+  /** `<channel>:<provider id>`, unique per channel account: a webhook delivered twice stores one message. */
+  externalId: text(),
   /** Epoch milliseconds: orders a thread's messages (`createdAt` has whole seconds on sqlite). */
   createdAtMs: bigint({ mode: 'number' }).notNull().$defaultFn(() => Date.now()),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('inbox_message_thread_idx').on(t.threadId, t.createdAtMs),
+  uniqueIndex('inbox_message_external_idx').on(t.channelAccountId, t.externalId),
 ])
 
 export const inboxAudit = pgTable('inbox_audit', {
@@ -118,6 +126,8 @@ export const inboxAudit = pgTable('inbox_audit', {
   id: text().primaryKey(),
   /** No foreign key: the log outlives deleted threads. */
   threadId: text(),
+  /** The thread's mailbox (or the mailbox of a retention run): the log is filtered by mailbox access. */
+  mailboxId: text(),
   contactId: text(),
   actorId: integer(),
   /** `viewed | replied | noted | assigned | status | hidden | exported | erased | retention`. */
@@ -127,5 +137,18 @@ export const inboxAudit = pgTable('inbox_audit', {
 }, t => [
   index('inbox_audit_thread_idx').on(t.threadId),
   index('inbox_audit_contact_idx').on(t.contactId),
+  index('inbox_audit_mailbox_idx').on(t.mailboxId),
   index('inbox_audit_created_idx').on(t.createdAt),
+])
+
+/**
+ * Provider ids of inbound messages that retention or an erase removed, so a webhook replayed later is not stored again.
+ * Pruned `retention.tombstoneDays` after they were written.
+ */
+export const inboxTombstones = pgTable('inbox_tombstones', {
+  /** Hex SHA-256 of `<channel account id>:<external id>`: no provider id or address is kept in the clear. */
+  key: text().primaryKey(),
+  createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  index('inbox_tombstone_created_idx').on(t.createdAt),
 ])

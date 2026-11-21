@@ -44,6 +44,13 @@ const format = useFormat()
           >{{ format.dateTime(message.createdAt) }}</time>
         </div>
         <p
+          v-if="message.cc?.length"
+          class="mb-1 text-xs text-muted"
+          data-cc
+        >
+          {{ t('thread.cc', 'Cc: {recipients}', { recipients: message.cc.join(', ') }) }}
+        </p>
+        <p
           v-if="message.body"
           class="whitespace-pre-wrap break-words"
         >
