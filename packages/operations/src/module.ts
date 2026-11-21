@@ -18,7 +18,6 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
-import { adminRoute } from '@frigear-nu/admin/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
 import type {
@@ -85,9 +84,14 @@ export default defineNuxtModule<ModuleOptions>({
 
     // The public page is on unless `pages.public` is `false`; the admin pages are opt-in and need `@frigear-nu/admin`.
     const publicPath = resolvePagePath(settings.pages?.public ?? true, '/operations/:slug')
-    const withAdmin = hasNuxtModule('@frigear-nu/admin')
-    const adminPath = withAdmin ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'operations')) : undefined
-    const adminOperationPath = withAdmin ? resolvePagePath(settings.pages?.adminOperation, adminRoute(nuxt, 'operations', ':id')) : undefined
+    // Imported only when Admin is installed: it is an optional module, and a host without it must still load this one.
+    let adminPath: string | undefined
+    let adminOperationPath: string | undefined
+    if (hasNuxtModule('@frigear-nu/admin')) {
+      const { adminRoute } = await import('@frigear-nu/admin/utils')
+      adminPath = resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'operations'))
+      adminOperationPath = resolvePagePath(settings.pages?.adminOperation, adminRoute(nuxt, 'operations', ':id'))
+    }
 
     nuxt.options.runtimeConfig.public.operations = {
       pages: { public: publicPath, admin: adminPath, adminOperation: adminOperationPath },

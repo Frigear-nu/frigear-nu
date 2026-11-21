@@ -18,7 +18,7 @@ export type {
   OperationUpdatedContext,
   Schedule,
   Translated,
-} from '../types'
+} from '../../types'
 
 /** Random, prefixed id (`opr_...`), Web Crypto only so it works on Workers. */
 export function newId(prefix: string): string {
