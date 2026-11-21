@@ -6,7 +6,6 @@ import type { OperationDto } from '../../../../types'
 export default defineEventHandler(async (event): Promise<OperationDto[]> => {
   const query = await getValidatedQuery(event, operationListQuery.parse)
   const principal = await allows(event, operationsAccess.permissions.read) ? await getAuth(event) : null
-  const viewer = await resolveOperationsViewer(event, principal?.user ?? null)
-  const rows = await listReadableOperations({ viewer, canManage: false, status: query.status })
+  const rows = await listReadableOperations(event, { user: principal?.user ?? null, canManage: false, status: query.status })
   return rows.map(toOperationDto)
 })

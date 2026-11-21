@@ -1,0 +1,19 @@
+{
+  "grants": {
+    "kinds": {
+      "public": "Alle",
+      "role": "Rolle"
+    },
+    "editor": {
+      "any": "Alle, der matcher en af disse, kan se det.",
+      "nobody": "Ingen kan se det endnu: tilføj hvem der må.",
+      "unknown": "Intet installeret modul kender denne type, så den giver ingen adgang.",
+      "remove": "Fjern {kind}",
+      "add": "Tilføj hvem der må se det"
+    },
+    "role": {
+      "placeholder": "Vælg en rolle",
+      "typed": "Rollens navn, for eksempel admin"
+    }
+  }
+}
