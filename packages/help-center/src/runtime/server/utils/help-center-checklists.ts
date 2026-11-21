@@ -2,8 +2,8 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
-import { isVisible, parseVisibility, takesPart } from '@frigear-nu/audience'
-import type { Visibility } from '@frigear-nu/audience'
+import { readGrants } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/grants/core'
 import { isoDate, notFound, paginate, validationError } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
@@ -16,11 +16,10 @@ import type {
   HelpProgressRow,
   HelpProgressSummary,
 } from '../../../types'
-import { normalizeVisibility } from '../../utils/visibility'
 import { helpCenterArticleById, helpCenterRequest } from './help-center'
 import type { HelpCenterRequest } from './help-center'
 import { helpCenterContentArticles } from './help-center-content'
-import { assertHelpOperation, assertHelpVisibilityOperation } from './help-center-db'
+import { assertHelpOperation } from './help-center-db'
 import { toHelpArticleSummaryDto, toHelpArticleSummary } from './help-center-dto'
 import type { helpChecklistInput, helpChecklistPatchSchema } from './help-center-schemas'
 
@@ -109,19 +108,23 @@ async function readTimes(userId: string, articleIds: string[]): Promise<Map<stri
   return reads
 }
 
-/** Whether the viewer may see a checklist: its visibility, and when it is for an operation, taking part in it. */
-function checklistVisible(row: HelpChecklistRow, viewer: HelpCenterRequest['viewer']): boolean {
-  if (!isVisible(parseVisibility(row.visibility), viewer)) return false
-  return !row.operationId || takesPart(viewer, row.operationId)
+/**
+ * Whether the reader may see a checklist: its grants admit them, and when it is for an operation, they take part in it
+ * (the `operation` grant kind; without `@frigear-nu/operations` nobody does).
+ */
+async function checklistVisible(row: HelpChecklistRow, ctx: HelpCenterRequest): Promise<boolean> {
+  if (!ctx.user || !(await ctx.reader.canRead(row))) return false
+  return !row.operationId || grantsMatch(ctx.event, ctx.user, [{ kind: 'operation', operationId: row.operationId }])
 }
 
 /**
- * The checklists a signed-in viewer sees, each with the articles in it they may read (the others are left out, as if
+ * The checklists a signed-in reader sees, each with the articles in it they may read (the others are left out, as if
  * not there) and which of them they have read. A checklist with nothing readable is left out. Anonymous callers get none.
  */
 export async function loadViewerChecklists(ctx: HelpCenterRequest): Promise<HelpChecklistDto[]> {
   if (!ctx.user) return []
-  const checklists = (await listHelpChecklistRows()).filter(row => checklistVisible(row, ctx.viewer))
+  const checklists: HelpChecklistRow[] = []
+  for (const row of await listHelpChecklistRows()) if (await checklistVisible(row, ctx)) checklists.push(row)
   if (!checklists.length) return []
   const itemRows = await itemRowsOf(checklists.map(row => row.id))
   const contentArticles = await helpCenterContentArticles(ctx.event)
@@ -197,7 +200,7 @@ export async function toAdminHelpChecklistDtos(event: H3Event, rows: HelpCheckli
     id: row.id,
     name: row.name,
     operationId: row.operationId ?? null,
-    visibility: parseVisibility(row.visibility),
+    grants: readGrants(row.grants),
     sort: row.sort,
     items: (lists.get(row.id) ?? []).map((item): AdminHelpChecklistItemDto => ({
       id: item.id ?? `content:${item.articleId}`,
@@ -237,13 +240,13 @@ async function replaceChecklistItems(checklistId: string, items: NonNullable<Che
 
 export async function createHelpChecklistRow(event: H3Event, input: ChecklistInput): Promise<HelpChecklistRow> {
   await assertHelpOperation(event, input.operationId, undefined, ['operationId'])
-  await assertHelpVisibilityOperation(event, input.visibility as Visibility | null | undefined)
+  const grants = await grantsValidate(event, (input.grants ?? []) as Grant[])
   if (input.items) await assertChecklistItems(event, input.items)
   const [row] = await db.insert(schema.helpChecklists).values({
     id: newRowId('hck'),
     operationId: input.operationId ?? null,
     name: input.name,
-    visibility: normalizeVisibility(input.visibility as Visibility | null | undefined),
+    grants,
     sort: input.sort ?? (await listHelpChecklistRows()).length,
   }).returning()
   if (input.items?.length) await replaceChecklistItems(row!.id, input.items)
@@ -253,12 +256,12 @@ export async function createHelpChecklistRow(event: H3Event, input: ChecklistInp
 /** Applies a partial update; `items`, when given, replaces the whole list. */
 export async function patchHelpChecklistRow(event: H3Event, existing: HelpChecklistRow, patch: ChecklistPatch): Promise<HelpChecklistRow> {
   if (patch.operationId !== undefined) await assertHelpOperation(event, patch.operationId, existing.operationId, ['operationId'])
-  if (patch.visibility) await assertHelpVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
+  const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : undefined
   if (patch.items) await assertChecklistItems(event, patch.items)
   const values: Partial<typeof schema.helpChecklists.$inferInsert> = {}
   if (patch.name !== undefined) values.name = patch.name
   if (patch.operationId !== undefined) values.operationId = patch.operationId ?? null
-  if (patch.visibility !== undefined) values.visibility = normalizeVisibility(patch.visibility as Visibility | null)
+  if (grants) values.grants = grants
   if (patch.sort !== undefined) values.sort = patch.sort
   let row = existing
   if (Object.keys(values).length) {
@@ -321,7 +324,7 @@ export type HelpProgressQuery = { page: number, pageSize: number, q?: string, so
 
 /**
  * Who read what on a checklist: every person who read one of its articles, plus the people the checklist's operation
- * resolves to through `help-center:audience:resolve` (so someone who has not started shows with zero). Unfinished first.
+ * takes part in (the members of its `operation` grant, so someone who has not started shows with zero). Unfinished first.
  * Read in memory: a checklist has a handful of articles and the people are a few hundred.
  */
 export async function loadHelpChecklistProgress(event: H3Event, row: HelpChecklistRow, query: HelpProgressQuery): Promise<Page<HelpProgressRow> & HelpProgressSummary> {
@@ -335,10 +338,7 @@ export async function loadHelpChecklistProgress(event: H3Event, row: HelpCheckli
   const byUser = new Map<string, Array<typeof schema.helpReads.$inferSelect>>()
   for (const read of reads) byUser.set(read.userId, [...(byUser.get(read.userId) ?? []), read])
 
-  const audience: string[] = []
-  if (row.operationId) {
-    await useNitroApp().hooks.callHook('help-center:audience:resolve', { event, audience: { operationId: row.operationId }, userIds: audience })
-  }
+  const audience = row.operationId ? await grantsMembers(event, [{ kind: 'operation', operationId: row.operationId }]) : []
   const userIds = [...new Set([...byUser.keys(), ...audience.map(String)])]
   const people = await loadHelpUsers(userIds)
 

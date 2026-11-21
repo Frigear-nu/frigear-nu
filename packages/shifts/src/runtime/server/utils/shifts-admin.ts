@@ -37,7 +37,7 @@ function shiftsAssertScheduleSettings(settings: { coverage: string, handover: st
 }
 
 /** The schedules of an operation (or every one), newest first, with how many shifts each has. */
-export async function shiftsListSchedules(operationId?: string): Promise<ShiftScheduleDto[]> {
+export async function shiftsListSchedules(operationId?: string, event?: H3Event): Promise<ShiftScheduleDto[]> {
   const rows = await db.select().from(schema.shiftSchedules)
     .where(operationId ? eq(schema.shiftSchedules.operationId, operationId) : undefined)
     .orderBy(desc(schema.shiftSchedules.createdAt), asc(schema.shiftSchedules.id))
@@ -46,7 +46,7 @@ export async function shiftsListSchedules(operationId?: string): Promise<ShiftSc
   const counts = await db.select({ scheduleId: schema.shifts.scheduleId, total: count() }).from(schema.shifts)
     .where(inArray(schema.shifts.scheduleId, rows.map(row => row.id))).groupBy(schema.shifts.scheduleId)
   const byId = new Map(counts.map(row => [row.scheduleId, Number(row.total)]))
-  return rows.map(row => toShiftScheduleDto(row, byId.get(row.id) ?? 0))
+  return rows.map(row => toShiftScheduleDto(row, byId.get(row.id) ?? 0, event))
 }
 
 /** Creates a draft schedule. 400 `invalid_schedule_settings` when the settings do not fit together. */
@@ -124,7 +124,7 @@ export async function shiftsPublishSchedule(event: H3Event, existing: ShiftSched
   const [row] = await db.update(schema.shiftSchedules).set({ status: 'published', publishedAt: new Date() })
     .where(and(eq(schema.shiftSchedules.id, existing.id), eq(schema.shiftSchedules.status, 'draft'))).returning()
   if (!row) return getShiftScheduleOr404(existing.id)
-  await shiftsFire('shifts:schedule:published', { event, schedule: toShiftScheduleDto(row) })
+  await shiftsFire('shifts:schedule:published', { event, schedule: toShiftScheduleDto(row, undefined, event) })
   return row
 }
 
@@ -407,5 +407,5 @@ export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, s
   const [updated] = await db.update(schema.shiftSchedules).set({ coverage: source.coverage, handover: source.handover, approval: source.approval })
     .where(eq(schema.shiftSchedules.id, target.id)).returning()
   for (const row of created) await shiftsFire('shifts:shift:created', { event, shift: toShiftDto(row, target) })
-  return { schedule: toShiftScheduleDto(updated ?? target, undefined), roles: roleMap.size, shifts: created.length, skippedTeamIds, changedRoleIds }
+  return { schedule: toShiftScheduleDto(updated ?? target, undefined, event), roles: roleMap.size, shifts: created.length, skippedTeamIds, changedRoleIds }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/push",
   "version": "0.1.0",
-  "description": "Push notifications for the frigear ecosystem: device registration, FCM and APNs delivery, per-user channel preferences with a topic registry and a notifyUser helper (email, SMS, push). Runs in server and client mode.",
+  "description": "Push notifications for the frigear ecosystem: device registration, FCM and APNs delivery (iOS through FCM too), per-user channel preferences with a topic registry and a notifyUser helper (email, SMS, push). Runs in server and client mode.",
   "homepage": "https://docs.frigear.dev/modules/communication/push",
   "repository": {
     "type": "git",
@@ -89,6 +89,7 @@
     "zod": "^4.6.7"
   },
   "peerDependencies": {
+    "@capacitor-firebase/messaging": ">=8.0.0",
     "@capacitor/push-notifications": ">=8.0.0",
     "@frigear-nu/admin": ">=0.0.0",
     "@frigear-nu/menu": "workspace:^",
@@ -98,6 +99,9 @@
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@capacitor-firebase/messaging": {
+      "optional": true
+    },
     "@capacitor/push-notifications": {
       "optional": true
     },

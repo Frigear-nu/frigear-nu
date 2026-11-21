@@ -9,5 +9,5 @@ export default defineEventHandler(async (event): Promise<ShiftScheduleDto[]> => 
     const operation = await getOperationOr404(operationId)
     await authorize(event, shiftsAccess.permissions.manage, { operationId: operation.id })
   }
-  return shiftsListSchedules(operationId)
+  return shiftsListSchedules(operationId, event)
 })

@@ -18,7 +18,7 @@ export const operationsApi = {
   /** `GET` the underlay image of the venue layout. */
   venueUnderlay: (slug: string) => `${PUBLIC_BASE}/${enc(slug)}/venue-layout/underlay`,
   me: {
-    /** `GET` the operations the caller takes part in (`takesPart` of `@frigear-nu/audience`). */
+    /** `GET` the operations the caller takes part in (`operations:participation:resolve`). */
     operations: `${PUBLIC_BASE}/me`,
   },
   admin: {

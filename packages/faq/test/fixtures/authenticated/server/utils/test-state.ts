@@ -1,22 +1,22 @@
-// In-memory state of the test fixture, shared by its plugin and its test routes.
+// In-memory state of the test fixture, shared by its plugin, its grant kind and its test routes.
 
-/** What a module like teams or crew would report about a user to `audience:viewer:resolve`. */
-export type TestViewerState = {
-  operationIds: string[]
-  teamRoles: Array<{ ownerType: string, ownerId: string | null, teamId: string, kind: string, role: string, source: 'explicit' | 'mapped' }>
+/** user id -> the clubs of the fixture's `club` grant kind the user is in. */
+const clubs = new Map<string, string[]>()
+
+export function testJoinClub(userId: string | number, clubId: string) {
+  const key = String(userId)
+  clubs.set(key, [...(clubs.get(key) ?? []), clubId])
 }
 
-const viewers = new Map<string, TestViewerState>()
-
-export function testSetViewer(userId: string | number, state: Partial<TestViewerState>) {
-  viewers.set(String(userId), { operationIds: state.operationIds ?? [], teamRoles: state.teamRoles ?? [] })
+export function testClubsOf(userId: string | number): string[] {
+  return clubs.get(String(userId)) ?? []
 }
 
-export function testViewerOf(userId: string | number): TestViewerState | undefined {
-  return viewers.get(String(userId))
+export function testClubMembers(clubIds: string[]): string[] {
+  return [...clubs].filter(([, ids]) => ids.some(id => clubIds.includes(id))).map(([userId]) => userId)
 }
 
-/** The ids the fixture's `audience:owner:resolve` answers `exists: true` for, by owner type. */
+/** The ids the fixture's `teams:owner:resolve` answers `exists: true` for, by owner type. */
 export const testOwners: Record<string, Record<string, { name: string | Record<string, string> }>> = {
   operation: { opr_known: { name: { en: 'Known operation', da: 'Kendt operation' } } },
   team: { tem_known: { name: 'Known team' } },

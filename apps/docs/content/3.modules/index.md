@@ -41,13 +41,13 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Push to a phone and let users choose email, SMS or push | [Push](/modules/communication/push) | Auth, Users, Notify, UI |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/interface/dashboard) | Widget, UI |
-| Decide who may see a record by role, team role or operation | [Audience](/modules/organisation/audience) (a library, not a module) | Nothing else |
-| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, Maps, UI |
-| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/organisation/teams) | Auth, Users, Audience, UI |
-| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/content/faq) | Auth, UI |
-| Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Audience, UI |
-| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, UI |
-| Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, Maps, UI |
+| Decide who may see a record by role, team role or operation | [Grants](/modules/platform/grants) | Auth, UI |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Grants, Maps, UI |
+| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/organisation/teams) | Auth, Users, Grants, UI |
+| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/content/faq) | Auth, Grants, UI |
+| Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Grants, UI |
+| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, Grants, UI |
+| Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Maps, UI |
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 | Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, Audience, UI |
 
@@ -85,12 +85,11 @@ replaces it.
 
 ### Organisation
 
-Who belongs where: teams with role ladders, and who may see a record.
+Who belongs where: teams with role ladders and owner references.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Teams](/modules/organisation/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
-| [Audience](/modules/organisation/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
 
 ### Commerce
 
@@ -108,7 +107,7 @@ What people read: questions and answers, and help articles.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
-| [FAQ](/modules/content/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
+| [FAQ](/modules/content/faq) | Bilingual question-and-answer groups with per-group and per-item grants, content components for pages and an admin area. | ✓ | ✓ | ✓ |
 | [Help center](/modules/content/help-center) | Bilingual help articles in categories, public or per role, onboarding checklists with read tracking, and articles from the database or Nuxt Content. | ✓ | ✓ | ✓ |
 
 ### Features
@@ -154,6 +153,7 @@ The foundations that other modules and apps stand on.
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Module Kit](/modules/platform/module-kit) | Helpers for writing modules, the server toolkit and extendable database tables. | ✓ |  |  |
+| [Grants](/modules/platform/grants) | Who may see a record, as a list of grants where any one admits, with kinds modules register and a list editor. | ✓ | ✓ |  |
 | [Base Layer](/modules/platform/base-layer) | A Nuxt layer, not a module. Your app extends it to get the modules, styling and content conventions of Frigear websites. |  | ✓ |  |
 
 ### Volunteering

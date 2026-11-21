@@ -3,8 +3,8 @@ import { and, inArray, isNull } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import type { PushMessage, PushRuntimeConfig, SendPushResult } from '../../../types'
 import { chunk } from '../../providers/chunk'
-import { createPlatformSenders, resolvePushDriver } from '../../providers/config'
-import type { PlatformSenders } from '../../providers/config'
+import { createProviderSenders, resolveIosProvider, resolvePushDriver } from '../../providers/config'
+import type { ProviderSenders } from '../../providers/config'
 import { deliverToDevices } from '../../providers/deliver'
 import type { Http2Transport } from '../../providers/types'
 import { readTranslated } from '../../utils/topics'
@@ -12,12 +12,12 @@ import { readTranslated } from '../../utils/topics'
 const pushConfig = () => useRuntimeConfig().push as PushRuntimeConfig
 
 // One sender per credential set, so the OAuth token (FCM) and the JWT (APNs) are reused between pushes.
-let senders: { key: string, value: PlatformSenders } | undefined
+let senders: { key: string, value: ProviderSenders } | undefined
 let http2Transport: Http2Transport | undefined
 
-function platformSenders(config: PushRuntimeConfig): PlatformSenders {
+function providerSenders(config: PushRuntimeConfig): ProviderSenders {
   const key = JSON.stringify([config.fcm, config.apns, config.timeoutMs])
-  if (senders?.key !== key) senders = { key, value: createPlatformSenders(config, { http2: http2Transport }) }
+  if (senders?.key !== key) senders = { key, value: createProviderSenders(config, { http2: http2Transport }) }
   return senders.value
 }
 
@@ -33,9 +33,10 @@ export function setPushHttp2Transport(transport: Http2Transport | undefined): vo
 let warnedLogDriver = false
 
 /**
- * Sends a push notification to every active device of `message.userIds`: FCM for Android, APNs (over HTTP/2) for iOS. A
- * device whose token the provider reports as dead is revoked. Nothing here throws for a single device: failures are
- * counted (and logged) and the result tells how many devices were reached.
+ * Sends a push notification to every active device of `message.userIds`: FCM for Android, and for iOS FCM or APNs (over
+ * HTTP/2), whichever issued the device's token (`push.ios` for a device that did not say). A device whose token the
+ * provider reports as dead is revoked. Nothing here throws for a single device: failures are counted (and logged) and
+ * the result tells how many devices were reached.
  *
  * `title` and `body` can be one text per locale: each device gets the text for the locale it registered with.
  *
@@ -72,7 +73,7 @@ export async function sendPush(_event: H3Event | undefined, message: PushMessage
     body: text(message.body, device.locale ?? null),
     url: message.url,
     data: message.data,
-  }), platformSenders(config))
+  }), providerSenders(config), { ios: resolveIosProvider(config) })
 
   for (const ids of chunk(revokedIds)) {
     await db.update(schema.pushDevices).set({ revokedAt: new Date() }).where(inArray(schema.pushDevices.id, ids))

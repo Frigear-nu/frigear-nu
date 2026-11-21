@@ -2,11 +2,12 @@
 
 Bilingual help articles in categories, public or visible per role, with onboarding checklists that track what each
 volunteer has read. Articles come from the database (edited in an admin area) or from Nuxt Content, behind one source
-interface. Part of the volunteering modules; it follows the contracts of [`@frigear-nu/audience`](../audience): every
-category and article has a `visibility`, and the viewer is resolved through `audience:viewer:resolve`.
+interface. Every category, article and checklist stores who may read it as a grant list of
+[`@frigear-nu/grants`](../grants), read through `help-center:read` and its policy; a `public` grant needs no sign-in, and
+an empty list admits nobody. A send reaches the members of a grant list.
 
 - **Public area** (`/help`): public articles only, the same for every visitor, so it caches and indexes the same way.
-- **Signed-in area** (`/account/help`): the articles the viewer's roles allow, onboarding checklists with read state,
+- **Signed-in area** (`/account/help`): the articles the person is granted, onboarding checklists with read state,
   "recently updated for you". Both paths are options.
 - **Coordinators** see who has read what (`help-center:pii`) and send article links by email and SMS.
 

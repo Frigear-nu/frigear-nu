@@ -1,5 +1,3 @@
-import { createViewer } from '@frigear-nu/audience'
-import { faqAccess } from '../../../access'
 import type { FaqSearchResult } from '../../../../types'
 
 // Published items whose question or answer contains `?q=` in any language, among the ones the caller may read (50 at
@@ -10,11 +8,9 @@ export default defineEventHandler(async (event): Promise<FaqSearchResult[]> => {
 
   if (query.public) {
     setResponseHeader(event, 'cache-control', 'public, max-age=60, stale-while-revalidate=300')
-    return searchFaq({ viewer: createViewer(), query: query.q, operationId })
+    return searchFaq({ event, public: true }, { query: query.q, operationId })
   }
 
   setResponseHeader(event, 'cache-control', 'private, no-store')
-  const principal = await allows(event, faqAccess.permissions.read) ? await getAuth(event) : null
-  const viewer = await resolveFaqViewer(event, principal?.user ?? null)
-  return searchFaq({ viewer, query: query.q, operationId })
+  return searchFaq({ event }, { query: query.q, operationId })
 })

@@ -116,6 +116,10 @@
       "upcomingEmpty": "No upcoming operations",
       "upcomingEmptyDescription": "The operations you work at show here.",
       "upcomingFailed": "Could not load your operations."
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Choose an operation"
     }
   }
 }

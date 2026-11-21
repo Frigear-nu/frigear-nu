@@ -9,5 +9,5 @@ export default defineEventHandler(async (event): Promise<ShiftScheduleDto> => {
   const input = await readValidatedBody(event, shiftsScheduleInput.parse)
   const operation = await getOperationOr404(input.operationId)
   await authorize(event, shiftsAccess.permissions.manage, { operationId: operation.id })
-  return created(event, toShiftScheduleDto(await shiftsCreateSchedule(input), 0))
+  return created(event, toShiftScheduleDto(await shiftsCreateSchedule(input), 0, event))
 })

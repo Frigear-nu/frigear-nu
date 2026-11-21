@@ -6,6 +6,7 @@ import type { z } from 'zod'
 import { apiError, conflict, likeContains, notFound, orderByQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import type { CrewApplyDto, CrewMemberDto, CrewStatus, MyCrewDto, Translated } from '../../../types'
+import { chunkGrantParams } from '@frigear-nu/grants/core'
 import { ladderKeys } from '@frigear-nu/teams/utils'
 import { crewAccess } from '../../access'
 import { canMoveCrew, newId, teamStatusOf, translate } from '../../utils'
@@ -137,17 +138,39 @@ export async function crewMyEntries(event: H3Event, userId: number): Promise<MyC
   return Promise.all(rows.map(async row => toMyCrewDto({ member: row.member, team: teamLite(row.team), operation: row.operation, roleLabel: await crewRoleLabelOf(event, row.team.kind, row.member.role) })))
 }
 
-/** The ids of the operations a user is approved crew of: what the viewer's `operationIds` get. */
-export async function crewApprovedOperationIds(userId: number): Promise<string[]> {
+/**
+ * A membership that makes its person take part in the team's operation: a team the operation owns, a membership that
+ * grants (`status` null or `active`) and, for a crew row, an approved one. Applied, waitlisted, rejected and withdrawn
+ * people do not take part; a row added by hand in teams (no `crewStatus`) does. Mapped team roles are no rows, so a
+ * mapping rule never makes anyone take part.
+ */
+const crewParticipating = () => and(
+  eq(schema.teams.ownerType, 'operation'),
+  or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active')),
+  or(isNull(schema.teamMembers.crewStatus), eq(schema.teamMembers.crewStatus, 'approved')),
+)
+
+/** The ids of the operations a user takes part in (`operations:participation:resolve`). */
+export async function crewParticipationOperationIds(userId: number): Promise<string[]> {
   const rows = await db.selectDistinct({ operationId: schema.teams.ownerId }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
-    .where(and(
-      eq(schema.teamMembers.userId, userId),
-      eq(schema.teamMembers.crewStatus, 'approved'),
-      eq(schema.teamMembers.status, 'active'),
-      eq(schema.teams.ownerType, 'operation'),
-    ))
+    .where(and(eq(schema.teamMembers.userId, userId), crewParticipating()))
   return rows.flatMap(row => row.operationId ? [row.operationId] : [])
+}
+
+/**
+ * The ids (as text) of the users who take part in any of `operationIds` (`operations:participants:resolve`), in queries
+ * under D1's bound parameter limit.
+ */
+export async function crewOperationParticipants(operationIds: string[]): Promise<string[]> {
+  const ids = new Set<string>()
+  for (const chunk of chunkGrantParams([...new Set(operationIds)])) {
+    const rows = await db.selectDistinct({ userId: schema.teamMembers.userId }).from(schema.teamMembers)
+      .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
+      .where(and(inArray(schema.teams.ownerId, chunk), crewParticipating()))
+    for (const row of rows) ids.add(String(row.userId))
+  }
+  return [...ids]
 }
 
 /**
@@ -156,10 +179,7 @@ export async function crewApprovedOperationIds(userId: number): Promise<string[]
  */
 export async function crewUserReadsOperation(event: H3Event, operation: Pick<CrewOperationRow, 'id' | 'public'>, userId: number): Promise<boolean> {
   if (operation.public) return true
-  const user = await loadAuthUser(userId)
-  if (!user) return false
-  const viewer = await resolveOperationsViewer(event, user)
-  return operationReadable(operation, viewer, await userCan(event, userId, 'operations:manage'))
+  return operationReadable(event, operation, { id: userId }, await userCan(event, userId, 'operations:manage'))
 }
 
 /** Whether applications to an operation are open now, by its form, status and window. */

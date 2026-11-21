@@ -60,6 +60,7 @@ describe('FCM', () => {
         notification: { title: 'Shift tomorrow', body: 'You work 18:00 - 23:00' },
         data: { shiftId: '42', url: '/shifts/42' },
         android: { priority: 'HIGH' },
+        apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default' } } },
       },
     })
     expect(buildFcmRequest('p', 't', { token: 'x', title: 'a', body: 'b' }).body.message).not.toHaveProperty('data')
@@ -193,7 +194,7 @@ describe('APNs', () => {
     expect(first).toMatchObject({ status: 'failed', reason: expect.stringContaining('HTTP/2 is not available') })
     expect(second.status).toBe('failed')
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0]![0]).toContain('Node runtime, or through a relay')
+    expect(warn.mock.calls[0]![0]).toContain('Register the FCM token on iOS')
   })
 })
 

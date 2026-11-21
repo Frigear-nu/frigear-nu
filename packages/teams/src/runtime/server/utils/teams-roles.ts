@@ -2,9 +2,9 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, inArray, isNull, or } from 'drizzle-orm'
 import { table as authRoleTable } from '#auth/roles'
+import { chunkGrantParams } from '@frigear-nu/grants/core'
 import type { SQL } from 'drizzle-orm'
-import type { OwnerRef, TeamRoleGrant } from '@frigear-nu/audience'
-import type { TeamMemberDto, TeamOwner, TeamRoleMappingDto, TeamsMembersCandidatesContext, TeamsResolverTeam, TeamsRolesResolveContext } from '../../../types'
+import type { OwnerRef, TeamRoleGrant, TeamMemberDto, TeamOwner, TeamRoleMappingDto, TeamsMembersCandidatesContext, TeamsResolverTeam, TeamsRolesResolveContext } from '../../../types'
 import { isLeadRole } from '../../utils/ladders'
 import { grantsOfOwner, isPlanMatch, isRoleMatch, mappedGrantsFor, mappingCoversTeam, mergeTeamGrants } from '../../utils/resolve'
 import { teamsAuthorizationCandidatesQuery, teamsRolesGranting, teamsSubscriptionCandidatesQuery } from '../candidates'
@@ -66,7 +66,7 @@ export async function teamsGlobalRolesOf(event: H3Event | undefined, userId: str
 
 /**
  * Whether a membership row grants its role: `status` null or `'active'`. Any other status (crew's `pending`,
- * `inactive`, ...) keeps the row listed on the team but gives no grant: no read, no lead, nothing in the viewer.
+ * `inactive`, ...) keeps the row listed on the team but gives no grant: no read, no lead, no `team` grant.
  */
 export function teamMemberStatusGrants(status: string | null | undefined): boolean {
   return status === null || status === undefined || status === 'active'
@@ -87,7 +87,7 @@ async function explicitGrantsOf(userId: number): Promise<TeamRoleGrant[]> {
 }
 
 export type TeamsGrantOptions = {
-  /** The user's global roles when the caller already has them (the viewer hook, the OAuth claim). */
+  /** The user's global roles when the caller already has them (the OAuth claim). */
   globalRoles?: string[]
 }
 
@@ -145,7 +145,7 @@ async function computeTeamGrants(event: H3Event | undefined, userId: number, opt
 }
 
 /**
- * The team roles `userId` holds on the teams of `owner` (the team-role contract of `@frigear-nu/audience`): explicit
+ * The team roles `userId` holds on the teams of `owner` (the team-role contract): explicit
  * memberships first, then mapped grants. Cached per request.
  */
 export async function resolveTeamRoles(event: H3Event, userId: string | number, owner: OwnerRef): Promise<TeamRoleGrant[]> {
@@ -174,10 +174,14 @@ export const TEAMS_MAPPED_CANDIDATE_LIMIT = 1000
 type UserFields = { name: string | null, email: string | null, avatar: string | null }
 
 async function usersById(ids: number[]): Promise<Map<number, UserFields>> {
-  if (!ids.length) return new Map()
-  const rows = await db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email, avatar: schema.users.avatar })
-    .from(schema.users).where(inArray(schema.users.id, ids))
-  return new Map(rows.map(row => [Number(row.id), { name: row.name ?? null, email: row.email ?? null, avatar: row.avatar ?? null }]))
+  const users = new Map<number, UserFields>()
+  // In chunks: D1 allows 100 bound parameters per query, and a team can have more members.
+  for (const chunk of chunkGrantParams([...new Set(ids)])) {
+    const rows = await db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email, avatar: schema.users.avatar })
+      .from(schema.users).where(inArray(schema.users.id, chunk))
+    for (const row of rows) users.set(Number(row.id), { name: row.name ?? null, email: row.email ?? null, avatar: row.avatar ?? null })
+  }
+  return users
 }
 
 type CandidateTables = {

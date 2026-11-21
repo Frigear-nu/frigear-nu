@@ -8,7 +8,8 @@ generic `default` ladder (`member`, `lead`).
 - Explicit memberships are rows; mapped ones are resolved at read time and never stored. An explicit membership always
   wins over a mapped role on the same team.
 - `resolveTeamRoles(event, userId, owner)` and `isTeamLead(event, userId, teamId)` for other modules (auto-imported).
-- Answers `audience:viewer:resolve` and `audience:owner:resolve` (`team`) of `@frigear-nu/audience`.
+- Registers the `team` grant kind of `@frigear-nu/grants` (a minimum role on one team), and owns owner references
+  (`ownerType` / `ownerId`, `OwnerRef`) and the `teams:owner:resolve` hook.
 - Permissions `teams:read`, `teams:lead`, `teams:manage` and `teams:pii`; the `teams` scope and OAuth claim.
 - Admin pages at `/admin/teams` (opt-in) and a "Teams" tab on the operation page.
 

@@ -9,5 +9,5 @@ export default defineEventHandler(async (event): Promise<ShiftScheduleDto> => {
   const { scheduleId } = await getValidatedRouterParams(event, idParams('scheduleId').parse)
   const schedule = await getShiftScheduleOr404(scheduleId)
   await authorize(event, shiftsAccess.permissions.manage, { operationId: schedule.operationId })
-  return toShiftScheduleDto(await shiftsPublishSchedule(event, schedule))
+  return toShiftScheduleDto(await shiftsPublishSchedule(event, schedule), undefined, event)
 })
