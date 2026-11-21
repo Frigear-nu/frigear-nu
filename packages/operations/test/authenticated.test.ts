@@ -147,6 +147,17 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(paged.items.map((item: Json) => item.id)).toEqual([b.id])
     })
 
+    it('searches Danish letters regardless of the case typed', async () => {
+      const marker = `dk${++counter}`
+      const bar = await createOperation({ slug: `${marker}-bar`, name: { da: `ølbar ${marker}`, en: `Beer bar ${marker}` } })
+      const found = async (q: string) => ((await ok(await json(staff.cookie, 'GET', `${operationsApi.admin.operations}?q=${encodeURIComponent(q)}`))).items as Json[]).map(item => item.id)
+      expect(await found(`ølbar ${marker}`)).toEqual([bar.id])
+      // sqlite folds ASCII only: the typed capitals are lowercased before they reach the query.
+      expect(await found(`ØLBAR ${marker}`)).toEqual([bar.id])
+      expect(await found(`Ølbar ${marker}`)).toEqual([bar.id])
+      expect(await found(`BEER BAR ${marker}`)).toEqual([bar.id])
+    })
+
     it('validates the body', async () => {
       staff ??= await registerUser('Staff', 'staff@staff.test')
       const base = { name: 'Valid', startsAt: future(3) }

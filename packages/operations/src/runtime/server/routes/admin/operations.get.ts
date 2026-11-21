@@ -15,7 +15,9 @@ import type { AdminOperationDto } from '../../../../types'
  * postgresql with `jsonb_each_text`, wrapping a string scalar in an object first.
  */
 function translatedContains(column: typeof schema.operations.name, value: string) {
-  const pattern = `%${escapeLike(value)}%`
+  // Lowercased here, in JS: sqlite's `lower()` and LIKE only fold ASCII, so `ØLBAR` would never match `ølbar` there.
+  // (A stored non-ASCII capital such as `Ølbar` is still not folded by sqlite; postgresql folds both sides.)
+  const pattern = `%${escapeLike(value.toLocaleLowerCase())}%`
   if (is(schema.operations, PgTable)) {
     return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like lower(${pattern}) escape '\\')`
   }
