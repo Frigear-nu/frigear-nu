@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { OperationDto } from '../../../types'
 import { operationsApi } from '../../utils/api'
+import { OPERATION_STATUS_LABELS } from '../../utils/status'
 import { computed, createError, resolveComponent, useFetch, useFormat, useModuleT, useOperationsTranslate, useRoute, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'OperationDetailPage' })
@@ -36,7 +37,7 @@ useSeoMeta({ title: () => (operation.value ? tr(operation.value.name) : 'Operati
             v-if="operation.status !== 'active'"
             color="neutral"
             variant="subtle"
-            :label="t(`admin.statuses.${operation.status}`, operation.status)"
+            :label="t(`admin.statuses.${operation.status}`, OPERATION_STATUS_LABELS[operation.status])"
           />
         </template>
       </UPageHeader>

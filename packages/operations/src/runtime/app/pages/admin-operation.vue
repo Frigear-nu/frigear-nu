@@ -2,6 +2,7 @@
 import DetailsTab from '../tabs/Details.vue'
 import type { StaffOperation } from '../utils/admin-operation'
 import { operationsApi } from '../../utils/api'
+import { OPERATION_STATUS_LABELS } from '../../utils/status'
 import { computed, errorMessage, navigateTo, resolveComponent, useFetch, useFormat, useModuleT, useOperationActions, useOperationLinks, useOperationsTranslate, useRoute, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'OperationsAdminOperationPage' })
@@ -48,7 +49,7 @@ const facts = computed(() => operation.value
         <template #badge>
           <StatusBadge
             :status="operation.status"
-            :label="t(`admin.statuses.${operation.status}`, operation.status)"
+            :label="t(`admin.statuses.${operation.status}`, OPERATION_STATUS_LABELS[operation.status])"
           />
         </template>
         <template #actions>

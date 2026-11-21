@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { StaffOperationSummary, StaffOperationsPage } from '../utils/admin-operation'
-import { OPERATION_STATUSES } from '../../utils/status'
+import { OPERATION_STATUSES, OPERATION_STATUS_LABELS } from '../../utils/status'
 import { operationsApi } from '../../utils/api'
 import { computed, emptyCell, errorMessage, h, navigateTo, resolveComponent, tableUi, useFetch, useFormat, useModuleT, useOperationActions, useOperationLinks, useOperationsTranslate, useTableQuery, useTableSort } from '#imports'
 
@@ -32,7 +32,7 @@ const forbidden = computed(() => error.value?.statusCode === 401 || error.value?
 
 const statusOptions = computed(() => [
   { label: t('admin.allStatuses', 'All statuses'), value: 'all' },
-  ...OPERATION_STATUSES.map(value => ({ label: t(`admin.statuses.${value}`, value), value })),
+  ...OPERATION_STATUSES.map(value => ({ label: t(`admin.statuses.${value}`, OPERATION_STATUS_LABELS[value]), value })),
 ])
 
 const StatusBadge = resolveComponent('StatusBadge')
@@ -49,7 +49,7 @@ const columns = computed<TableColumn<StaffOperationSummary>[]>(() => [
   {
     accessorKey: 'status',
     header: header('status', t('admin.status', 'Status')),
-    cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: t(`admin.statuses.${row.original.status}`, row.original.status) }),
+    cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: t(`admin.statuses.${row.original.status}`, OPERATION_STATUS_LABELS[row.original.status]) }),
   },
   {
     accessorKey: 'startsAt',

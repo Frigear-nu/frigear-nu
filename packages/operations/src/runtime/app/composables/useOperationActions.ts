@@ -2,7 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import OperationFormSlideover from '../components/OperationFormSlideover.vue'
 import type { StaffOperation, StaffOperationSummary } from '../utils/admin-operation'
 import { operationsApi } from '../../utils/api'
-import { nextStatuses } from '../../utils/status'
+import { OPERATION_STATUS_ACTION_LABELS, OPERATION_STATUS_LABELS, nextStatuses } from '../../utils/status'
 import type { OperationStatus } from '../../../types'
 import { $fetch, navigateTo, useAction, useConfirmDialog, useModuleT, useOperationLinks, useOperationsTranslate, useOverlay, useRuntimeConfig } from '#imports'
 
@@ -62,7 +62,7 @@ export function useOperationActions() {
     const updated = await run(
       () => $fetch<StaffOperation>(operationsApi.admin.status(operation.id), { method: 'POST', body: { status: to } }),
       {
-        success: t('admin.statusChanged', '{name} is now {status}', { name, status: t(`admin.statuses.${to}`, to) }),
+        success: t('admin.statusChanged', '{name} is now {status}', { name, status: t(`admin.statuses.${to}`, OPERATION_STATUS_LABELS[to]) }),
         error: t('admin.statusFailed', 'Could not change the status'),
       },
     )
@@ -111,7 +111,7 @@ export function useOperationActions() {
         label: t('admin.changeStatus', 'Change status…'),
         icon: 'i-lucide-list-checks',
         children: moves.map(to => ({
-          label: t(`admin.statusActions.${to}`, to),
+          label: t(`admin.statusActions.${to}`, OPERATION_STATUS_ACTION_LABELS[to]),
           onSelect: async () => {
             if (await changeStatus(operation, to)) await options.onChanged?.()
           },

@@ -24,6 +24,22 @@ export function canTransition(from: OperationStatus, to: OperationStatus): boole
   return TRANSITIONS[from].includes(to)
 }
 
+/** The English label of each status: the fallback of `operations.admin.statuses.<status>` when i18n is not installed. */
+export const OPERATION_STATUS_LABELS: Readonly<Record<OperationStatus, string>> = {
+  planning: 'Planning',
+  active: 'Active',
+  wrapped_up: 'Wrapped up',
+  archived: 'Archived',
+}
+
+/** The English label of the action that moves an operation to a status (`operations.admin.statusActions.<status>`). */
+export const OPERATION_STATUS_ACTION_LABELS: Readonly<Record<OperationStatus, string>> = {
+  planning: 'Back to planning',
+  active: 'Start operation',
+  wrapped_up: 'Mark as wrapped up',
+  archived: 'Archive operation',
+}
+
 export function isOperationStatus(value: unknown): value is OperationStatus {
   return typeof value === 'string' && (OPERATION_STATUSES as readonly string[]).includes(value)
 }
