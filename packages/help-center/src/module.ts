@@ -19,13 +19,13 @@ import {
   registerTailwindSource,
   resolvePagePath,
 } from '@frigear-nu/module-kit/utils'
-import { registerAccess } from '@frigear-nu/auth/utils'
+import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { helpCenterAccess } from './runtime/access'
 import { HELP_CENTER_DASHBOARD, helpCenterDashboardItems } from './runtime/dashboard'
 import { DEFAULT_REQUIRED_LOCALES } from './runtime/utils/publish'
 import { helpCenterRoutePatterns, isPathUnder, resolveHelpCenterAreas } from './runtime/utils/paths'
 import { contentRowKey, frontmatterKeys, localizedContentCollection, missingContentLocales, validateContentFile } from './runtime/utils/content'
-import type { HelpAudienceResolveContext, ModuleOptions, PublicModuleOptions } from './types'
+import type { ModuleOptions, PublicModuleOptions } from './types'
 
 export type * from './types'
 
@@ -42,17 +42,6 @@ declare module '@nuxt/schema' {
 
   interface PublicRuntimeConfig {
     helpCenter: PublicModuleOptions
-  }
-}
-
-declare module 'nitropack' {
-  interface NitroRuntimeHooks {
-    /**
-     * Provider: turns the audience of a send (`operationId`, `teamId`, `globalRoles`) and the volunteers of an
-     * operation's checklist into people. Listeners (teams, crew) push user ids into `ctx.userIds`; without one only
-     * the explicit `userIds` of a send resolve.
-     */
-    'help-center:audience:resolve': (ctx: HelpAudienceResolveContext) => void | Promise<void>
   }
 }
 
@@ -74,6 +63,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@nuxthub/core': { version: '>=0.10' },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
+    // Who may read a category, an article or a checklist, and who a send reaches: grant lists.
+    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
@@ -94,6 +85,8 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     // The `help-center:*` permissions and the `help-center` scope (`runtime/access.ts`).
     registerAccess(nuxt, helpCenterAccess, { from: MODULE_NAME })
+    // The record rule of `help-center:read`: the record's grants admit the user.
+    addPolicies(nuxt, { path: resolver.resolve('./runtime/server/policies') })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}

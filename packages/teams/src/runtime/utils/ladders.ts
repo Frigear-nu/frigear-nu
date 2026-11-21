@@ -30,6 +30,13 @@ export function teamRoleRank(keys: readonly string[] | undefined, role: string):
   return keys ? keys.indexOf(role) : -1
 }
 
+/** Whether `held` is at or above `min` on the ladder (role keys, lowest first). A role missing from it fails closed. */
+export function roleAtLeast(keys: readonly string[] | undefined, held: string, min: string): boolean {
+  const heldRank = teamRoleRank(keys, held)
+  const minRank = teamRoleRank(keys, min)
+  return heldRank >= 0 && minRank >= 0 && heldRank >= minRank
+}
+
 /** Whether `role` is at or above `leadFrom` on the ladder. `false` without a `leadFrom` or for an unknown role. */
 export function isLeadRole(keys: readonly string[] | undefined, role: string, leadFrom: string | null | undefined): boolean {
   if (!leadFrom) return false

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { visibilitySchema } from '@frigear-nu/audience'
+import { grantListShape } from '@frigear-nu/grants/core'
 import { FAQ_SLUG_PATTERN, isReservedFaqSlug } from '../../utils'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
@@ -33,8 +33,8 @@ const groupFields = z.object({
   description: faqTranslated.nullish(),
   icon: z.string().trim().min(1).max(100).nullish(),
   owner: faqOwnerSchema.optional(),
-  // Strict: an unknown key (a `permission`, a typo) is a 400 instead of silently widening to "every signed-in user".
-  visibility: visibilitySchema.nullish(),
+  // Who may read it: the shape of a grant list. The handler checks each grant against its kind (`grantsValidate`).
+  grants: grantListShape.optional(),
   sort: z.number().int().min(0).max(1_000_000).optional(),
 })
 
@@ -49,7 +49,8 @@ const itemFields = z.object({
   answer: faqTranslated,
   icon: z.string().trim().min(1).max(100).nullish(),
   links: z.array(faqLinkSchema).max(10).nullish(),
-  visibility: visibilitySchema.nullish(),
+  // `null` inherits the group; a list narrows it.
+  grants: grantListShape.nullish(),
 })
 
 /** The body of `POST /api/admin/faq/groups/:id/items`: a new item is always a draft. */

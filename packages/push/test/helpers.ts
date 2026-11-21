@@ -58,6 +58,6 @@ export async function getHookCalls(reset = false): Promise<HookCall[]> {
   return $fetch<HookCall[]>(`/api/test/hooks${reset ? '?reset=1' : ''}`)
 }
 
-export type DeviceRow = { id: string, userId: number, platform: string, token: string, revokedAt: string | null }
+export type DeviceRow = { id: string, userId: number, platform: string, provider: string | null, token: string, revokedAt: string | null }
 
 export const deviceRows = () => $fetch<DeviceRow[]>('/api/test/devices')

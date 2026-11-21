@@ -8,7 +8,7 @@ import { authApi } from '@frigear-nu/auth/api'
 import { faqApi } from '../../faq/src/runtime/utils/api'
 import { helpCenterApi } from '../src/runtime/utils/api'
 import { helpCenterAccess } from '../src/runtime/access'
-import { getEmails, getTexts, registerUser, setAudience, setPhone, setViewer } from './helpers'
+import { getEmails, getTexts, registerUser, setPhone, takePart } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -22,6 +22,12 @@ const ok = async (response: Response) => {
 }
 
 const both = (en: string, da: string) => ({ en, da })
+// Grant lists (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. Every signed-in user of the
+// fixture holds the default role `member`, so MEMBERS is "every signed-in user".
+const PUBLIC = [{ kind: 'public' }]
+const MEMBERS = [{ kind: 'role', role: 'member' }]
+const SUPERVISORS = [{ kind: 'role', role: 'supervisor' }]
+const operation = (operationId: string) => [{ kind: 'operation', operationId }]
 let counter = 0
 
 async function createToken(cookie: string, scopes: string[]) {
@@ -46,6 +52,7 @@ describe('help center (authenticated, database-backed)', async () => {
     return ok(await json(staff.cookie, 'POST', helpCenterApi.admin.categories, {
       slug: `category-${++counter}`,
       name: both('Safety', 'Sikkerhed'),
+      grants: MEMBERS,
       ...overrides,
     }))
   }
@@ -127,7 +134,7 @@ describe('help center (authenticated, database-backed)', async () => {
     it('lets a role holding help-center:* manage and send, but never read who read what (:pii is never covered by a wildcard)', async () => {
       const wild = await registerUser('Wild', `wild${++counter}@wild.test`)
       expect((await json(wild.cookie, 'GET', helpCenterApi.admin.categories)).status).toBe(200)
-      const checklist = await ok(await json((await asStaff()).cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Wild list' }))
+      const checklist = await ok(await json((await asStaff()).cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Wild list' }))
       await expectApiError(json(wild.cookie, 'GET', helpCenterApi.admin.progress(checklist.id)), 403, 'forbidden')
       // `send` is not sensitive: the wildcard reaches it (the body is validated after the check, so a 400 is a pass).
       expect((await json(wild.cookie, 'POST', helpCenterApi.admin.send, {})).status).toBe(400)
@@ -141,7 +148,7 @@ describe('help center (authenticated, database-backed)', async () => {
         slug: `crud-${++counter}`,
         name: both('Safety', 'Sikkerhed'),
         description: both('About safety', 'Om sikkerhed'),
-        visibility: { public: true },
+        grants: PUBLIC,
         faqGroups: ['volunteering'],
       })
       expect(response.status).toBe(201)
@@ -151,15 +158,15 @@ describe('help center (authenticated, database-backed)', async () => {
         name: both('Safety', 'Sikkerhed'),
         description: both('About safety', 'Om sikkerhed'),
         public: true,
-        visibility: { public: true },
+        grants: PUBLIC,
         owner: { type: 'platform', id: null },
         faqGroups: ['volunteering'],
         articleCount: 0,
         parentId: null,
       })
 
-      const edited = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { name: both('Safe', 'Sikker'), visibility: null, faqGroups: null }))
-      expect(edited).toMatchObject({ name: both('Safe', 'Sikker'), public: false, visibility: null, faqGroups: [] })
+      const edited = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { name: both('Safe', 'Sikker'), grants: [], faqGroups: null }))
+      expect(edited).toMatchObject({ name: both('Safe', 'Sikker'), public: false, grants: [], faqGroups: [] })
 
       expect((await json(staff.cookie, 'DELETE', helpCenterApi.admin.category(created.id))).status).toBe(204)
       expect(slugsOf(await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.categories)) as unknown as Json[])).not.toContain(created.slug)
@@ -176,14 +183,15 @@ describe('help center (authenticated, database-backed)', async () => {
       await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(other.id), { slug: first.slug }), 409, 'conflict')
     })
 
-    it('refuses a visibility with an unknown key, and an operation that does not exist', async () => {
+    it('refuses an unknown grant kind, an invalid grant and an operation that does not exist', async () => {
       await asStaff()
-      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', visibility: { permission: 'x' } })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', visibility: { operationId: 'opr_known' } })).status).toBe(201)
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', grants: [{ kind: 'galaxy' }] })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', grants: [{ kind: 'role', role: 'x', permission: 'x' }] })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', grants: operation('opr_unknown') })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `v-${++counter}`, name: 'X', grants: operation('opr_known') })).status).toBe(201)
     })
 
-    it('checks the owner through audience:owner:resolve', async () => {
+    it('checks the owner through teams:owner:resolve', async () => {
       await asStaff()
       const create = (owner: Json) => json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `o-${++counter}`, name: 'X', owner })
       expect((await create({ type: 'operation', id: 'opr_known' })).status).toBe(201)
@@ -226,7 +234,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
   describe('admin: articles and the publish rule', () => {
     it('adds a draft that nobody but staff sees, and publishes it', async () => {
-      const category = await createCategory({ visibility: { public: true } })
+      const category = await createCategory({ grants: PUBLIC })
       const response = await json(staff.cookie, 'POST', helpCenterApi.admin.articles, {
         categoryId: category.id,
         slug: `draft-${++counter}`,
@@ -273,7 +281,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('turns a published article back into a draft', async () => {
-      const { category, article } = await publishedArticle({ visibility: { public: true } })
+      const { category, article } = await publishedArticle({ grants: PUBLIC })
       expect(slugsOf(await listArticles(undefined))).toContain(article.slug)
       expect((await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.unpublish(article.id)))).status).toBe('draft')
       expect(slugsOf(await listArticles(undefined))).not.toContain(article.slug)
@@ -327,9 +335,9 @@ describe('help center (authenticated, database-backed)', async () => {
     })
   })
 
-  describe('visibility', () => {
+  describe('grants', () => {
     it('shows anonymous visitors public articles only', async () => {
-      const open = await publishedArticle({ visibility: { public: true } })
+      const open = await publishedArticle({ grants: PUBLIC })
       const signedIn = await publishedArticle()
       const slugs = slugsOf(await listArticles(undefined))
       expect(slugs).toContain(open.article.slug)
@@ -345,7 +353,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('shows a signed-in person public and signed-in articles, and flags what is public', async () => {
-      const open = await publishedArticle({ visibility: { public: true } })
+      const open = await publishedArticle({ grants: PUBLIC })
       const signedIn = await publishedArticle()
       const member = await user('Member')
       const mine = await listArticles(member.cookie)
@@ -359,8 +367,8 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('answers ?public=1 the same for everyone, and lets it be cached; the viewer-filtered answer is not', async () => {
-      const open = await publishedArticle({ visibility: { public: true } })
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
+      const open = await publishedArticle({ grants: PUBLIC })
+      const restricted = await publishedArticle({ grants: SUPERVISORS })
       const bar = await supervisor()
       const member = await user('Member')
 
@@ -381,7 +389,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('shows a restricted category to the roles it names, and to nobody else', async () => {
-      const { category, article } = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
+      const { category, article } = await publishedArticle({ grants: SUPERVISORS })
       const member = await user('Member')
       const bar = await supervisor()
       expect(slugsOf(await listArticles(undefined))).not.toContain(article.slug)
@@ -395,35 +403,33 @@ describe('help center (authenticated, database-backed)', async () => {
       expect((await json(bar.cookie, 'GET', helpCenterApi.article(article.slug))).status).toBe(200)
     })
 
-    it('uses the team-role ladder: "this role or higher"', async () => {
-      const { article } = await publishedArticle({ visibility: { minTeamRole: { kind: 'bar', role: 'lead' } } })
-      const grant = (role: string) => ({ ownerType: 'platform', ownerId: null, teamId: 'tem_1', kind: 'bar', role, source: 'explicit' as const })
-      const volunteer = await user('Volunteer')
-      const bartender = await user('Bartender')
-      const teamLead = await user('Lead')
-      const coordinator = await user('Coordinator')
-      await setViewer(volunteer.cookie, { teamRoles: [grant('volunteer')] })
-      await setViewer(bartender.cookie, { teamRoles: [grant('bartender')] })
-      await setViewer(teamLead.cookie, { teamRoles: [grant('lead')] })
-      await setViewer(coordinator.cookie, { teamRoles: [grant('coordinator')] })
-      expect(slugsOf(await listArticles(volunteer.cookie))).not.toContain(article.slug)
-      expect(slugsOf(await listArticles(bartender.cookie))).not.toContain(article.slug)
-      expect(slugsOf(await listArticles(teamLead.cookie))).toContain(article.slug)
-      expect(slugsOf(await listArticles(coordinator.cookie))).toContain(article.slug)
+    it('admits on any one grant, and nobody with an empty list', async () => {
+      const either = await publishedArticle({ grants: [...SUPERVISORS, ...operation('opr_either')] })
+      const nobody = await publishedArticle({ grants: [] })
+      const outsider = await user('Outsider')
+      const crew = await user('Crew')
+      await takePart('opr_either', [crew.id])
+      const bar = await supervisor()
+      expect(slugsOf(await listArticles(outsider.cookie))).not.toContain(either.article.slug)
+      expect(slugsOf(await listArticles(crew.cookie))).toContain(either.article.slug)
+      expect(slugsOf(await listArticles(bar.cookie))).toContain(either.article.slug)
+      // The empty list is nobody, never "every signed-in user": not even staff on the public API.
+      for (const session of [outsider, crew, bar, staff]) expect(slugsOf(await listArticles(session.cookie))).not.toContain(nobody.article.slug)
+      expect((await json(bar.cookie, 'GET', helpCenterApi.article(nobody.article.slug))).status).toBe(404)
     })
 
     it('limits a category to the people who take part in an operation', async () => {
-      const { article } = await publishedArticle({ visibility: { operationId: 'opr_known' } })
+      const { article } = await publishedArticle({ grants: operation('opr_known') })
       const outsider = await user('Outsider')
       const crew = await user('Crew')
-      await setViewer(crew.cookie, { operationIds: ['opr_known'] })
+      await takePart('opr_known', [crew.id])
       expect(slugsOf(await listArticles(outsider.cookie))).not.toContain(article.slug)
       expect(slugsOf(await listArticles(crew.cookie))).toContain(article.slug)
     })
 
     it('lets an article narrow its category, never widen it', async () => {
-      const category = await createCategory({ visibility: { public: true } })
-      const narrower = await publish((await createArticle(category.id, { visibility: { globalRoles: ['supervisor'] } })).id)
+      const category = await createCategory({ grants: PUBLIC })
+      const narrower = await publish((await createArticle(category.id, { grants: SUPERVISORS })).id)
       const inherits = await publish((await createArticle(category.id)).id)
       const member = await user('Member')
       const bar = await supervisor()
@@ -433,8 +439,8 @@ describe('help center (authenticated, database-backed)', async () => {
       expect((await json(undefined, 'GET', helpCenterApi.article(narrower.slug))).status).toBe(404)
       expect((await json(member.cookie, 'GET', helpCenterApi.article(narrower.slug))).status).toBe(404)
 
-      const restricted = await createCategory({ visibility: { globalRoles: ['supervisor'] } })
-      const widening = await publish((await createArticle(restricted.id, { visibility: { public: true } })).id)
+      const restricted = await createCategory({ grants: SUPERVISORS })
+      const widening = await publish((await createArticle(restricted.id, { grants: PUBLIC })).id)
       expect(slugsOf(await listArticles(undefined))).not.toContain(widening.slug)
       expect(slugsOf(await listArticles(member.cookie))).not.toContain(widening.slug)
       expect(slugsOf(await listArticles(bar.cookie))).toContain(widening.slug)
@@ -443,11 +449,11 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('lets a subcategory inherit what its ancestors hide: a category is visible only when every category above it is', async () => {
-      const parent = await createCategory({ visibility: { globalRoles: ['supervisor'] } })
-      const child = await createCategory({ parentId: parent.id, visibility: { public: true } })
+      const parent = await createCategory({ grants: SUPERVISORS })
+      const child = await createCategory({ parentId: parent.id, grants: PUBLIC })
       const grandchild = await createCategory({ parentId: child.id })
       const inChild = await publish((await createArticle(child.id)).id)
-      const inGrandchild = await publish((await createArticle(grandchild.id, { visibility: { public: true } })).id)
+      const inGrandchild = await publish((await createArticle(grandchild.id, { grants: PUBLIC })).id)
       const member = await user('Member')
       const bar = await supervisor()
 
@@ -475,7 +481,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('gives a token without help-center:read the public articles only, and one with it the viewer\'s own', async () => {
-      const open = await publishedArticle({ visibility: { public: true } })
+      const open = await publishedArticle({ grants: PUBLIC })
       const signedIn = await publishedArticle()
       await asStaff()
       const withoutRead = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.manage]) })
@@ -489,7 +495,7 @@ describe('help center (authenticated, database-backed)', async () => {
   describe('sources', () => {
     it('merges the articles of a registered source; with precedence: wiki the wiki wins a clash of slugs', async () => {
       await asStaff()
-      const guides = await createCategory({ slug: 'db-guides', visibility: { public: true } })
+      const guides = await createCategory({ slug: 'db-guides', grants: PUBLIC })
       await publish((await createArticle(guides.id, { slug: 'shared-slug', title: both('From the database', 'Fra databasen') })).id)
 
       const anonymous = await listArticles(undefined)
@@ -507,7 +513,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('keeps an always-public article of a source out of a restricted category\'s listing, but not out of its URL', async () => {
-      const restricted = await createCategory({ slug: 'wiki-staff', visibility: { globalRoles: ['supervisor'] } })
+      const restricted = await createCategory({ slug: 'wiki-staff', grants: SUPERVISORS })
       expect(restricted.slug).toBe('wiki-staff')
       const bar = await supervisor()
       const member = await user('Member')
@@ -534,7 +540,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('puts a source article on a checklist by its id', async () => {
       await asStaff()
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Wiki list', items: [{ articleId: 'wiki:guides/parking' }] }))
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Wiki list', items: [{ articleId: 'wiki:guides/parking' }] }))
       expect(checklist.items[0]).toMatchObject({ articleId: 'wiki:guides/parking', article: { slug: 'wiki-parking', source: 'wiki' } })
     })
 
@@ -546,7 +552,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
   describe('search', () => {
     it('finds articles by any word of the title or the text, in either language, ignoring case', async () => {
-      const { article } = await publishedArticle({ visibility: { public: true } }, {
+      const { article } = await publishedArticle({ grants: PUBLIC }, {
         title: both('Beer policy', 'Ølpolitik'),
         body: both('We pour **responsibly**.', 'Vi skænker ansvarligt.'),
       })
@@ -559,9 +565,9 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('never finds what the viewer may not read, nor a draft', async () => {
       const marker = `zebra${++counter}`
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } }, { title: both(`Hidden ${marker}`, `Skjult ${marker}`) })
-      const open = await publishedArticle({ visibility: { public: true } }, { title: both(`Seen ${marker}`, `Set ${marker}`) })
-      const draft = await createArticle((await createCategory({ visibility: { public: true } })).id, { title: both(`Draft ${marker}`, `Kladde ${marker}`) })
+      const restricted = await publishedArticle({ grants: SUPERVISORS }, { title: both(`Hidden ${marker}`, `Skjult ${marker}`) })
+      const open = await publishedArticle({ grants: PUBLIC }, { title: both(`Seen ${marker}`, `Set ${marker}`) })
+      const draft = await createArticle((await createCategory({ grants: PUBLIC })).id, { title: both(`Draft ${marker}`, `Kladde ${marker}`) })
       const member = await user('Member')
       const bar = await supervisor()
       expect(slugsOf(await listArticles(undefined, `?q=${marker}`))).toEqual([open.article.slug])
@@ -571,10 +577,10 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('searches inside one category', async () => {
-      const category = await createCategory({ visibility: { public: true } })
+      const category = await createCategory({ grants: PUBLIC })
       const marker = `kiwi${++counter}`
       const inside = await publish((await createArticle(category.id, { title: both(`In ${marker}`, `I ${marker}`) })).id)
-      await publishedArticle({ visibility: { public: true } }, { title: both(`Outside ${marker}`, `Udenfor ${marker}`) })
+      await publishedArticle({ grants: PUBLIC }, { title: both(`Outside ${marker}`, `Udenfor ${marker}`) })
       expect(slugsOf(await listArticles(undefined, `?q=${marker}&category=${category.slug}`))).toEqual([inside.slug])
       expect(slugsOf(await listArticles(undefined, `?q=${marker}`))).toHaveLength(2)
     })
@@ -591,7 +597,7 @@ describe('help center (authenticated, database-backed)', async () => {
     })
 
     it('refuses to record an article the person may not read, or one that does not exist: the same 404', async () => {
-      const { article } = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
+      const { article } = await publishedArticle({ grants: SUPERVISORS })
       const member = await user('Reader')
       const hidden = await json(member.cookie, 'POST', helpCenterApi.me.reads, { articleId: article.id })
       const missing = await json(member.cookie, 'POST', helpCenterApi.me.reads, { articleId: 'hlp_missing' })
@@ -600,12 +606,12 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(await hidden.json()).toMatchObject({ statusMessage: 'Help article not found.' })
       expect((await json(member.cookie, 'POST', helpCenterApi.me.reads, {})).status).toBe(400)
       // A draft cannot be read either.
-      const draft = await createArticle((await createCategory({ visibility: { public: true } })).id)
+      const draft = await createArticle((await createCategory({ grants: PUBLIC })).id)
       expect((await json(member.cookie, 'POST', helpCenterApi.me.reads, { articleId: draft.id })).status).toBe(404)
     })
 
     it('refuses a token without help-center:read (insufficient_scope)', async () => {
-      const { article } = await publishedArticle({ visibility: { public: true } })
+      const { article } = await publishedArticle({ grants: PUBLIC })
       await asStaff()
       const withManage = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.manage]) })
       await expectApiError(withManage.json('POST', helpCenterApi.me.reads, { articleId: article.id }), 403, 'insufficient_scope')
@@ -621,14 +627,15 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('shows a checklist with the articles the person may read and which they have read', async () => {
       await asStaff()
-      const open = await publishedArticle({ visibility: { public: true } })
-      const optional = await publishedArticle({ visibility: { public: true } })
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
+      const open = await publishedArticle({ grants: PUBLIC })
+      const optional = await publishedArticle({ grants: PUBLIC })
+      const restricted = await publishedArticle({ grants: SUPERVISORS })
       const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, {
+        grants: MEMBERS,
         name: both('Onboarding', 'Introduktion'),
         items: [{ articleId: open.article.id }, { articleId: optional.article.id, required: false }, { articleId: restricted.article.id }],
       }))
-      expect(checklist).toMatchObject({ id: expect.stringMatching(/^hck_/), operationId: null, visibility: null })
+      expect(checklist).toMatchObject({ id: expect.stringMatching(/^hck_/), operationId: null, grants: MEMBERS })
       expect(checklist.items.map((item: Json) => [item.articleId, item.required])).toEqual([[open.article.id, true], [optional.article.id, false], [restricted.article.id, true]])
       expect(checklist.items[0].article).toMatchObject({ slug: open.article.slug })
 
@@ -651,16 +658,16 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(barList).toMatchObject({ requiredCount: 2, requiredReadCount: 0, completed: false })
     })
 
-    it('shows a checklist of an operation, or with its own visibility, to the people it is for', async () => {
+    it('shows a checklist of an operation, or with its own grants, to the people it is for', async () => {
       await asStaff()
-      const { article } = await publishedArticle({ visibility: { public: true } })
+      const { article } = await publishedArticle({ grants: PUBLIC })
       const items = [{ articleId: article.id }]
-      const operation = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Operation list', operationId: 'opr_known', items }))
-      const roleOnly = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Bar list', visibility: { globalRoles: ['supervisor'] }, items }))
+      const operation = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Operation list', operationId: 'opr_known', items }))
+      const roleOnly = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Bar list', grants: SUPERVISORS, items }))
       const outsider = await user('Outsider')
       const crew = await user('Crew')
       const bar = await supervisor()
-      await setViewer(crew.cookie, { operationIds: ['opr_known'] })
+      await takePart('opr_known', [crew.id])
       const ids = async (cookie: string) => (await ok(await json(cookie, 'GET', helpCenterApi.me.checklists)) as unknown as Json[]).map(entry => entry.id)
       expect(await ids(outsider.cookie)).not.toEqual(expect.arrayContaining([operation.id]))
       expect(await ids(crew.cookie)).toContain(operation.id)
@@ -671,22 +678,22 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('leaves out a checklist with nothing the person may read', async () => {
       await asStaff()
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Bar only items', items: [{ articleId: restricted.article.id }] }))
+      const restricted = await publishedArticle({ grants: SUPERVISORS })
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Bar only items', items: [{ articleId: restricted.article.id }] }))
       const member = await user('Member')
       expect((await ok(await json(member.cookie, 'GET', helpCenterApi.me.checklists)) as unknown as Json[]).map(entry => entry.id)).not.toContain(checklist.id)
     })
 
     it('edits the items of a checklist as a whole, in order, and refuses unknown or repeated articles', async () => {
       await asStaff()
-      const a = await publishedArticle({ visibility: { public: true } })
-      const b = await publishedArticle({ visibility: { public: true } })
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Order', items: [{ articleId: a.article.id }, { articleId: b.article.id }] }))
+      const a = await publishedArticle({ grants: PUBLIC })
+      const b = await publishedArticle({ grants: PUBLIC })
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Order', items: [{ articleId: a.article.id }, { articleId: b.article.id }] }))
       const reordered = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.checklist(checklist.id), { items: [{ articleId: b.article.id }, { articleId: a.article.id, required: false }] }))
       expect(reordered.items.map((item: Json) => [item.articleId, item.required, item.sort])).toEqual([[b.article.id, true, 0], [a.article.id, false, 1]])
       expect((await json(staff.cookie, 'PATCH', helpCenterApi.admin.checklist(checklist.id), { items: [{ articleId: a.article.id }, { articleId: a.article.id }] })).status).toBe(400)
       expect((await json(staff.cookie, 'PATCH', helpCenterApi.admin.checklist(checklist.id), { items: [{ articleId: 'hlp_missing' }] })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Bad operation', operationId: 'opr_unknown' })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Bad operation', operationId: 'opr_unknown' })).status).toBe(400)
       // The failed edits changed nothing.
       expect((await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.checklist(checklist.id)))).items).toHaveLength(2)
       const renamed = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.checklist(checklist.id), { name: both('Renamed', 'Omdøbt') }))
@@ -699,9 +706,9 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('drops a deleted article from checklists and from the record of reads', async () => {
       await asStaff()
-      const keep = await publishedArticle({ visibility: { public: true } })
-      const gone = await publishedArticle({ visibility: { public: true } })
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Shrinking', items: [{ articleId: keep.article.id }, { articleId: gone.article.id }] }))
+      const keep = await publishedArticle({ grants: PUBLIC })
+      const gone = await publishedArticle({ grants: PUBLIC })
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Shrinking', items: [{ articleId: keep.article.id }, { articleId: gone.article.id }] }))
       const reader = await user('Reader')
       await ok(await json(reader.cookie, 'POST', helpCenterApi.me.reads, { articleId: gone.article.id }))
       expect((await json(staff.cookie, 'DELETE', helpCenterApi.admin.article(gone.article.id))).status).toBe(204)
@@ -715,10 +722,11 @@ describe('help center (authenticated, database-backed)', async () => {
   describe('progress (help-center:pii)', () => {
     it('shows a coordinator who read what, the ones who have not finished first', async () => {
       await asStaff()
-      const a = await publishedArticle({ visibility: { public: true } })
-      const b = await publishedArticle({ visibility: { public: true } })
-      const c = await publishedArticle({ visibility: { public: true } })
+      const a = await publishedArticle({ grants: PUBLIC })
+      const b = await publishedArticle({ grants: PUBLIC })
+      const c = await publishedArticle({ grants: PUBLIC })
       const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, {
+        grants: MEMBERS,
         name: 'Progress',
         items: [{ articleId: a.article.id }, { articleId: b.article.id }, { articleId: c.article.id, required: false }],
       }))
@@ -746,22 +754,21 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(paged.items).toHaveLength(1)
     })
 
-    it('lists the people an operation names through help-center:audience:resolve, with nothing read yet', async () => {
+    it('lists the people who take part in its operation (the operation grant\'s members), with nothing read yet', async () => {
       await asStaff()
-      const { article } = await publishedArticle({ visibility: { public: true } })
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Operation progress', operationId: 'opr_known', items: [{ articleId: article.id }] }))
+      const { article } = await publishedArticle({ grants: PUBLIC })
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Operation progress', operationId: 'opr_progress', items: [{ articleId: article.id }] }))
       const started = await user('Started')
       const waiting = await user('Waiting')
-      await setViewer(started.cookie, { operationIds: ['opr_known'] })
+      await takePart('opr_progress', [started.id, waiting.id])
       await ok(await json(started.cookie, 'POST', helpCenterApi.me.reads, { articleId: article.id }))
-      await setAudience('opr_known', [started.id, waiting.id])
       const progress = await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.progress(checklist.id)))
       expect(progress.items.map((row: Json) => [row.user.id, row.readCount, row.completed])).toEqual([[waiting.id, 0, false], [started.id, 1, true]])
     })
 
     it('needs help-center:pii: a token with manage but not pii is refused (insufficient_scope), one with pii is not', async () => {
       await asStaff()
-      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Scoped' }))
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Scoped' }))
       const withManage = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.manage]) })
       await expectApiError(withManage.json('GET', helpCenterApi.admin.progress(checklist.id)), 403, 'insufficient_scope')
       const withPii = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.pii]) })
@@ -778,7 +785,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('emails people a link to each article they may read, the public area for a public one and the signed-in area otherwise', async () => {
       await asStaff()
-      const open = await publishedArticle({ visibility: { public: true } })
+      const open = await publishedArticle({ grants: PUBLIC })
       const internal = await publishedArticle()
       const member = await registerUser('Reader', `reader${++counter}@example.com`)
       const memberEmail = `reader${counter}@example.com`
@@ -800,7 +807,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('sends only what each person may read, and skips a person who may read none of it', async () => {
       await asStaff()
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } })
+      const restricted = await publishedArticle({ grants: SUPERVISORS })
       const member = await registerUser('Plain', `plain${++counter}@example.com`)
       const bar = await registerUser('Bar', `bar${++counter}@bar.test`)
       const before = (await getEmails()).length
@@ -818,7 +825,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('texts people who have a phone number', async () => {
       await asStaff()
-      const { article, category } = await publishedArticle({ visibility: { public: true } })
+      const { article, category } = await publishedArticle({ grants: PUBLIC })
       const withPhone = await user('Phone')
       const without = await user('Nophone')
       await setPhone(withPhone.id, '+4512345678')
@@ -835,28 +842,32 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(texts[0]!.body).toContain(`/help/${category.slug}/${article.slug}`)
     })
 
-    it('resolves an operation or a team through help-center:audience:resolve, and merges it with explicit people', async () => {
+    it('resolves grants through each kind\'s members, and merges them with explicit people', async () => {
       await asStaff()
-      const { article } = await publishedArticle({ visibility: { public: true } })
-      const fromHook = await registerUser('Hooked', `hooked${++counter}@example.com`)
+      const { article } = await publishedArticle({ grants: PUBLIC })
+      const fromGrant = await registerUser('Granted', `granted${++counter}@example.com`)
       const explicit = await registerUser('Explicit', `explicit${++counter}@example.com`)
-      await setAudience('opr_known', [fromHook.id])
+      await takePart('opr_send', [fromGrant.id])
       const before = (await getEmails()).length
       const result = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, {
         articleIds: [article.id],
-        audience: { operationId: 'opr_known', userIds: [explicit.id] },
+        audience: { grants: operation('opr_send'), userIds: [explicit.id] },
         channels: ['email'],
       }))
       expect(result).toMatchObject({ recipients: 2, emailed: 2 })
-      expect((await getEmails()).slice(before).map(mail => mail.to).sort()).toEqual([`explicit${counter}@example.com`, `hooked${counter - 1}@example.com`].sort())
-      // Nobody answers for this team: that is said, not reported as "sent to nobody".
-      await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { teamId: 'tem_nobody' }, channels: ['email'] }), 400, 'audience_not_resolved')
+      expect((await getEmails()).slice(before).map(mail => mail.to).sort()).toEqual([`explicit${counter}@example.com`, `granted${counter - 1}@example.com`].sort())
+      // Grants that list nobody are said to, not reported as "sent to nobody".
+      await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { grants: operation('opr_empty') }, channels: ['email'] }), 400, 'audience_not_resolved')
+      // An unknown kind, a reference that does not exist, and `public` (which lists nobody) are refused.
+      for (const grants of [[{ kind: 'galaxy' }], operation('opr_unknown'), PUBLIC]) {
+        await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { grants }, channels: ['email'] }), 400, 'validation_failed')
+      }
     })
 
     it('writes the subject in the language of the send', async () => {
       await asStaff()
-      const a = await publishedArticle({ visibility: { public: true } }, { title: both('First guide', 'Første guide') })
-      const b = await publishedArticle({ visibility: { public: true } }, { title: both('Second guide', 'Anden guide') })
+      const a = await publishedArticle({ grants: PUBLIC }, { title: both('First guide', 'Første guide') })
+      const b = await publishedArticle({ grants: PUBLIC }, { title: both('Second guide', 'Anden guide') })
       const person = await registerUser('Dansker', `dansker${++counter}@example.com`)
       const before = (await getEmails()).length
       await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [a.article.id, b.article.id], audience: { userIds: [person.id] }, channels: ['email'], locale: 'da' }))
@@ -868,7 +879,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('validates the request and needs help-center:send', async () => {
       await asStaff()
-      const { article } = await publishedArticle({ visibility: { public: true } })
+      const { article } = await publishedArticle({ grants: PUBLIC })
       const ok1 = { articleIds: [article.id], audience: { userIds: ['1'] }, channels: ['email'] }
       expect((await json(staff.cookie, 'POST', helpCenterApi.admin.send, { ...ok1, audience: {} })).status).toBe(400)
       expect((await json(staff.cookie, 'POST', helpCenterApi.admin.send, { ...ok1, channels: [] })).status).toBe(400)
@@ -889,8 +900,8 @@ describe('help center (authenticated, database-backed)', async () => {
     }
 
     it('shows /help to everyone the same: public articles only, also to a signed-in person who may read more', async () => {
-      const open = await publishedArticle({ visibility: { public: true }, name: both('Open Guides', 'Åbne guides') }, { title: both('Open article', 'Åben artikel') })
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] }, name: both('Bar Secrets', 'Barens hemmeligheder') })
+      const open = await publishedArticle({ grants: PUBLIC, name: both('Open Guides', 'Åbne guides') }, { title: both('Open article', 'Åben artikel') })
+      const restricted = await publishedArticle({ grants: SUPERVISORS, name: both('Bar Secrets', 'Barens hemmeligheder') })
       const bar = await supervisor()
       const anonymous = await page('/help')
       const signedIn = await page('/help', bar.cookie)
@@ -919,7 +930,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('renders a public article with its Markdown, JSON-LD for search engines, and no signed-in version', async () => {
       const { category, article } = await publishedArticle(
-        { visibility: { public: true } },
+        { grants: PUBLIC },
         { title: both('Pour well', 'Skænk godt'), body: both('Always pour **carefully** & slowly.', 'Skænk altid **forsigtigt**.') },
       )
       const { status, html } = await page(`/help/${category.slug}/${article.slug}`)
@@ -933,14 +944,14 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(blocks[0]).toContain('Always pour carefully & slowly.')
       expect(blocks[0]).not.toContain('**')
       // A link to the article's own category: another category in the address goes to the right one.
-      const other = await createCategory({ visibility: { public: true } })
+      const other = await createCategory({ grants: PUBLIC })
       const redirected = await fetch(`/help/${other.slug}/${article.slug}`, { redirect: 'manual' })
       expect(redirected.status).toBe(301)
       expect(redirected.headers.get('location')).toContain(`/help/${category.slug}/${article.slug}`)
     })
 
     it('does not render a restricted or a draft article in the public area', async () => {
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] } }, { body: both('Secret recipe', 'Hemmelig opskrift') })
+      const restricted = await publishedArticle({ grants: SUPERVISORS }, { body: both('Secret recipe', 'Hemmelig opskrift') })
       const bar = await supervisor()
       for (const cookie of [undefined, bar.cookie]) {
         const { html, status } = await page(`/help/${restricted.category.slug}/${restricted.article.slug}`, cookie)
@@ -953,9 +964,10 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('shows /account/help to a person only what their roles allow, with their checklist', async () => {
       await asStaff()
-      const open = await publishedArticle({ visibility: { public: true }, name: both('Everyone Guides', 'Alles guider') }, { title: both('Everyone article', 'Alles artikel') })
-      const restricted = await publishedArticle({ visibility: { globalRoles: ['supervisor'] }, name: both('Bar Team Handbook', 'Bar-holdets håndbog') }, { title: both('Bar article', 'Bar-artikel') })
+      const open = await publishedArticle({ grants: PUBLIC, name: both('Everyone Guides', 'Alles guider') }, { title: both('Everyone article', 'Alles artikel') })
+      const restricted = await publishedArticle({ grants: SUPERVISORS, name: both('Bar Team Handbook', 'Bar-holdets håndbog') }, { title: both('Bar article', 'Bar-artikel') })
       await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, {
+        grants: MEMBERS,
         name: both('Your first week', 'Din første uge'),
         items: [{ articleId: open.article.id }, { articleId: restricted.article.id }],
       }))
@@ -986,15 +998,15 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('shows the FAQ groups a category lists, for the people who may read each group', async () => {
       await asStaff()
-      const group = (slug: string, visibility: Json, question: string) => async () => {
-        const created = await ok(await json(staff.cookie, 'POST', faqApi.admin.groups, { slug, title: both(`Group ${slug}`, `Gruppe ${slug}`), visibility }))
+      const group = (slug: string, grants: Json[], question: string) => async () => {
+        const created = await ok(await json(staff.cookie, 'POST', faqApi.admin.groups, { slug, title: both(`Group ${slug}`, `Gruppe ${slug}`), grants }))
         const item = await ok(await json(staff.cookie, 'POST', faqApi.admin.items(created.id), { question: both(question, `${question} (da)`), answer: both('Because.', 'Fordi.') }))
         await ok(await json(staff.cookie, 'POST', faqApi.admin.publish(item.id)))
       }
       const suffix = ++counter
-      await group(`pub-faq-${suffix}`, { public: true }, `Public faq question ${suffix}`)()
-      await group(`bar-faq-${suffix}`, { globalRoles: ['supervisor'] }, `Bar faq question ${suffix}`)()
-      const { category } = await publishedArticle({ visibility: { public: true }, faqGroups: [`pub-faq-${suffix}`, `bar-faq-${suffix}`] })
+      await group(`pub-faq-${suffix}`, PUBLIC, `Public faq question ${suffix}`)()
+      await group(`bar-faq-${suffix}`, SUPERVISORS, `Bar faq question ${suffix}`)()
+      const { category } = await publishedArticle({ grants: PUBLIC, faqGroups: [`pub-faq-${suffix}`, `bar-faq-${suffix}`] })
       const bar = await supervisor()
 
       // The category lists only the FAQ groups faq would show the viewer: a restricted group's slug never reaches visitors.
@@ -1009,7 +1021,7 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(visitor.html).not.toContain(`Bar faq question ${suffix}`)
       // The public area is the same for a supervisor: it asks faq for what anonymous visitors read.
       expect((await page(`/help/${category.slug}`, bar.cookie)).html).not.toContain(`Bar faq question ${suffix}`)
-      // The signed-in area asks as the person: faq's own visibility decides.
+      // The signed-in area asks as the person: faq's own grants decide.
       const inside = await page(`/account/help/${category.slug}`, bar.cookie)
       expect(inside.html).toContain(`Public faq question ${suffix}`)
       expect(inside.html).toContain(`Bar faq question ${suffix}`)
@@ -1018,16 +1030,16 @@ describe('help center (authenticated, database-backed)', async () => {
     it('renders embedded FAQ components as what visitors read in the public area, and as the person in the signed-in one', async () => {
       await asStaff()
       const suffix = ++counter
-      for (const [slug, visibility, question] of [
-        [`mdc-pub-${suffix}`, { public: true }, `Embedded public ${suffix}`],
-        [`mdc-bar-${suffix}`, { globalRoles: ['supervisor'] }, `Embedded bar ${suffix}`],
+      for (const [slug, grants, question] of [
+        [`mdc-pub-${suffix}`, PUBLIC, `Embedded public ${suffix}`],
+        [`mdc-bar-${suffix}`, SUPERVISORS, `Embedded bar ${suffix}`],
       ] as const) {
-        const group = await ok(await json(staff.cookie, 'POST', faqApi.admin.groups, { slug, title: both(`Group ${slug}`, `Gruppe ${slug}`), visibility }))
+        const group = await ok(await json(staff.cookie, 'POST', faqApi.admin.groups, { slug, title: both(`Group ${slug}`, `Gruppe ${slug}`), grants }))
         const item = await ok(await json(staff.cookie, 'POST', faqApi.admin.items(group.id), { question: both(question, `${question} (da)`), answer: both('Because.', 'Fordi.') }))
         await ok(await json(staff.cookie, 'POST', faqApi.admin.publish(item.id)))
       }
       const body = `::faq{group="mdc-pub-${suffix}"}\n::\n\n::faq{group="mdc-bar-${suffix}"}\n::`
-      const { category, article } = await publishedArticle({ visibility: { public: true } }, { body: both(body, body) })
+      const { category, article } = await publishedArticle({ grants: PUBLIC }, { body: both(body, body) })
       const bar = await supervisor()
 
       // `/help` is the same for everyone: the embedded groups are forced to what visitors read.

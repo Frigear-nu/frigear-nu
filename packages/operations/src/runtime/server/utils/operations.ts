@@ -1,10 +1,8 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, eq, inArray, ne, or } from 'drizzle-orm'
+import { and, eq, inArray, ne } from 'drizzle-orm'
 import type { Column, SQL, Table } from 'drizzle-orm'
-import { resolveViewer } from '@frigear-nu/audience/server'
-import { takesPart } from '@frigear-nu/audience'
-import type { Viewer } from '@frigear-nu/audience'
+import { chunkGrantParams } from '@frigear-nu/grants/core'
 import { conflict, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { AdminOperationDto, OperationStatus } from '../../../types'
 import { newId } from '../../utils'
@@ -52,57 +50,84 @@ export async function getOperationOr404(id: string): Promise<OperationRow> {
   return row
 }
 
-/**
- * Who is looking, through `audience:viewer:resolve`: the operations the signed-in user takes part in are filled in by
- * the modules that know it (crew). Anonymous visitors get an empty viewer.
- */
-export async function resolveOperationsViewer(event: H3Event, user: { id: string | number } | null): Promise<Viewer> {
-  return resolveViewer(event, {
-    hooks: useNitroApp().hooks,
-    user,
-    globalRoles: user ? await getEffectiveRoles(event, user as Parameters<typeof getEffectiveRoles>[1]) : [],
-  })
-}
+type ParticipationCache = { operationsParticipation?: Map<string, Promise<string[]>> }
 
 /**
- * Whether the viewer reads this operation: public ones, the ones they take part in, and every one for staff.
- * `canManage` is `allows(event, 'operations:manage')` of the caller.
+ * The ids of the operations `userId` takes part in, from the `operations:participation:resolve` listeners (crew).
+ * Cached per request. A listener that fails counts as no participation: the user takes part in less, never more.
  */
-export function operationReadable(row: Pick<OperationRow, 'id' | 'public'>, viewer: Viewer, canManage: boolean): boolean {
-  return canManage || row.public || takesPart(viewer, row.id)
-}
-
-/**
- * The ids of the operations a viewer takes part in: `viewer.operationIds` plus the operations they hold an explicit
- * team grant on. Mapped grants do not count, as in `takesPart`.
- */
-export function participatingOperationIds(viewer: Viewer): string[] {
-  const ids = new Set(viewer.operationIds)
-  for (const grant of viewer.teamRoles) {
-    if (grant.source === 'explicit' && grant.ownerType === 'operation' && grant.ownerId) ids.add(grant.ownerId)
+export function operationsParticipationOf(event: H3Event | undefined, userId: string | number): Promise<string[]> {
+  const run = async () => {
+    const ctx = { event, user: { id: userId }, operationIds: new Set<string>() }
+    try {
+      await useNitroApp().hooks.callHook('operations:participation:resolve', ctx)
+    }
+    catch (error) {
+      console.error('[operations] the participation of a user could not be resolved; they take part in nothing', error)
+      return []
+    }
+    return [...ctx.operationIds].sort()
   }
-  return [...ids]
+  if (!event) return run()
+  const cache = (event.context as ParticipationCache).operationsParticipation ??= new Map()
+  const key = String(userId)
+  if (!cache.has(key)) cache.set(key, run())
+  return cache.get(key)!
 }
 
-/** The rows a viewer reads, filtered by `status`; archived ones only when asked for. Upcoming first (ascending start). */
-export async function listReadableOperations(options: { viewer: Viewer, canManage: boolean, status?: OperationStatus }): Promise<OperationRow[]> {
-  const { viewer, canManage, status } = options
+/** Whether `userId` takes part in the operation (`operations:participation:resolve`). */
+export async function operationsTakesPart(event: H3Event | undefined, userId: string | number, operationId: string): Promise<boolean> {
+  return (await operationsParticipationOf(event, userId)).includes(operationId)
+}
+
+/**
+ * The ids (as text) of the users who take part in any of `operationIds`, from the `operations:participants:resolve`
+ * listeners (crew). A listener that fails adds nobody.
+ */
+export async function operationsParticipants(event: H3Event | undefined, operationIds: string[]): Promise<string[]> {
+  if (!operationIds.length) return []
+  const ctx = { event, operationIds: [...new Set(operationIds)], userIds: new Set<string>() }
+  try {
+    await useNitroApp().hooks.callHook('operations:participants:resolve', ctx)
+  }
+  catch (error) {
+    console.error('[operations] the participants of operations could not be resolved; nobody is listed', error)
+    return []
+  }
+  return [...ctx.userIds].map(String).sort()
+}
+
+/**
+ * Whether `user` reads this operation: public ones, the ones they take part in, and every one for staff. `canManage` is
+ * `allows(event, 'operations:manage')` of the caller, or `userCan` for another user.
+ */
+export async function operationReadable(event: H3Event | undefined, row: Pick<OperationRow, 'id' | 'public'>, user: { id: string | number } | null, canManage: boolean): Promise<boolean> {
+  if (canManage || row.public) return true
+  return !!user && operationsTakesPart(event, user.id, row.id)
+}
+
+/** The rows `user` reads, filtered by `status`; archived ones only when asked for. Upcoming first (ascending start). */
+export async function listReadableOperations(event: H3Event, options: { user: { id: string | number } | null, canManage: boolean, status?: OperationStatus }): Promise<OperationRow[]> {
+  const { user, canManage, status } = options
   const conditions: (SQL | undefined)[] = []
   if (status) conditions.push(eq(schema.operations.status, status))
   else conditions.push(ne(schema.operations.status, 'archived'))
-  if (!canManage) {
-    const ids = participatingOperationIds(viewer)
-    const own = ids.length ? inArray(schema.operations.id, ids) : undefined
-    conditions.push(or(eq(schema.operations.public, true), own))
-  }
-  return db.select().from(schema.operations).where(and(...conditions)).orderBy(schema.operations.startsAt)
+  const rows = await db.select().from(schema.operations).where(and(...conditions)).orderBy(schema.operations.startsAt)
+  if (canManage) return rows
+  // Participation is filtered here rather than in SQL, so the query stays under D1's bound parameter limit however many
+  // operations a user takes part in.
+  const own = new Set(user ? await operationsParticipationOf(event, user.id) : [])
+  return rows.filter(row => row.public || own.has(row.id))
 }
 
-/** The rows of the operations a viewer takes part in (`participatingOperationIds`), whatever their status. */
-export async function listParticipatingOperations(viewer: Viewer): Promise<OperationRow[]> {
-  const ids = participatingOperationIds(viewer)
-  if (!ids.length) return []
-  return db.select().from(schema.operations).where(inArray(schema.operations.id, ids)).orderBy(schema.operations.startsAt)
+/** The rows of the operations `userId` takes part in, whatever their status. */
+export async function listParticipatingOperations(event: H3Event, userId: string | number): Promise<OperationRow[]> {
+  const ids = await operationsParticipationOf(event, userId)
+  const rows: OperationRow[] = []
+  for (const chunk of chunkGrantParams(ids)) {
+    rows.push(...await db.select().from(schema.operations).where(inArray(schema.operations.id, chunk)))
+  }
+  return rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
 }
 
 /** 409 when another operation already uses `slug`. */

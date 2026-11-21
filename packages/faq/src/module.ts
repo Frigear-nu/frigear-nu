@@ -18,7 +18,7 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
-import { registerAccess } from '@frigear-nu/auth/utils'
+import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { faqAccess } from './runtime/access'
 import { DEFAULT_REQUIRED_LOCALES } from './runtime/utils/publish'
 import type {
@@ -65,6 +65,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
+    // Who may read a group or an item: a grant list (`grants` column).
+    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
@@ -78,6 +80,8 @@ export default defineNuxtModule<ModuleOptions>({
     const resolver = createResolver(import.meta.url)
     // The `faq:manage` and `faq:read` permissions and the `faq` scope (`runtime/access.ts`).
     registerAccess(nuxt, faqAccess, { from: MODULE_NAME })
+    // The record rule of `faq:read`: the group's (or item's) grants admit the user.
+    addPolicies(nuxt, { path: resolver.resolve('./runtime/server/policies') })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
 
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))

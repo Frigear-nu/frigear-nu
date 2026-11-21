@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
-import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
+import { addRole, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import { extendGrants } from '@frigear-nu/grants/utils'
 import FaqModule from '../../../../faq/src/module'
 import HelpCenterModule from '../../../src/module'
 
@@ -23,7 +24,14 @@ export default defineNuxtConfig({
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['help-center:*'] })
       addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [] })
+      // Every signed-in user holds `member`: a `{ kind: 'role', role: 'member' }` grant is "every signed-in user".
+      addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
+      setDefaultRoles(nuxt, ['member'])
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+    },
+    // The `operation` grant kind, standing in for `@frigear-nu/operations` with crew: who takes part is test state.
+    (_options, nuxt) => {
+      extendGrants(nuxt, { kind: 'operation', label: 'Operation', server: fileURLToPath(new URL('./grants/operation', import.meta.url)) })
     },
   ],
   pages: true,

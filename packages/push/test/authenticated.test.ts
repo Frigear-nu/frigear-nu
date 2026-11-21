@@ -141,6 +141,51 @@ describe('push (authenticated, database-backed)', async () => {
       const titles = (await getProviderCalls()).filter(call => call.provider === 'fcm').map(call => (call.body as { message: { notification: { title: string } } }).message.notification.title)
       expect(titles.sort()).toEqual(['Shift tomorrow', 'Shift tomorrow', 'Vagt i morgen'])
     })
+
+    // Cloudflare Workers have no HTTP/2 client for APNs: an iOS app that registers its FCM token is sent to through FCM.
+    it('sends an iOS device registered with its FCM token through FCM, and one without a provider through APNs', async () => {
+      const user = await registerUser('Fcm iOS', 'fcm-ios@example.com')
+      const viaFcm = await register(user.cookie, unique('fcm-ok-ios'), 'ios', { provider: 'fcm' })
+      const viaApns = await register(user.cookie, unique('apns-ok'), 'ios')
+      expect(viaFcm.provider).toBe('fcm')
+      expect(viaApns.provider).toBe('apns')
+      const rows = new Map((await deviceRows()).map(row => [row.id, row]))
+      expect(rows.get(viaFcm.id)!.provider).toBe('fcm')
+      expect(rows.get(viaApns.id)!.provider).toBe('apns')
+
+      await getProviderCalls(true)
+      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There', url: '/shifts/42' })).toEqual({ sent: 2, failed: 0, revoked: 0 })
+      const calls = await getProviderCalls()
+      const fcm = calls.filter(call => call.provider === 'fcm')
+      expect(fcm).toHaveLength(1)
+      expect(fcm[0]!.body).toMatchObject({
+        message: {
+          token: expect.stringMatching(/^fcm-ok-ios/),
+          notification: { title: 'Hi', body: 'There' },
+          data: { url: '/shifts/42' },
+          apns: { payload: { aps: { sound: 'default' } } },
+        },
+      })
+      expect(calls.filter(call => call.provider === 'apns').map(call => call.url)).toEqual([expect.stringMatching(/\/3\/device\/apns-ok/)])
+    })
+
+    it('revokes an iOS FCM token that FCM reports dead, without asking APNs', async () => {
+      const user = await registerUser('Fcm iOS dead', 'fcm-ios-dead@example.com')
+      const dead = await register(user.cookie, unique('fcm-dead-ios'), 'ios', { provider: 'fcm' })
+      await getProviderCalls(true)
+      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 0, revoked: 1 })
+      expect((await getProviderCalls()).filter(call => call.provider === 'apns')).toEqual([])
+      expect((await deviceRows()).find(row => row.id === dead.id)!.revokedAt).not.toBeNull()
+    })
+
+    it('moves a token to FCM when the device registers it again with that provider', async () => {
+      const user = await registerUser('Fcm move', 'fcm-move@example.com')
+      const token = unique('fcm-ok-moved')
+      const before = await register(user.cookie, token, 'ios')
+      expect(before.provider).toBe('apns')
+      const after = await register(user.cookie, token, 'ios', { provider: 'fcm' })
+      expect(after).toMatchObject({ id: before.id, provider: 'fcm' })
+    })
   })
 
   describe('devices', () => {
@@ -151,7 +196,7 @@ describe('push (authenticated, database-backed)', async () => {
 
       const token = unique('fcm-ok')
       const device = await register(user.cookie, token, 'android', { appId: 'com.example.app', locale: 'da' })
-      expect(device).toMatchObject({ id: expect.stringMatching(/^psd_/), userId: user.id, platform: 'android', appId: 'com.example.app', locale: 'da', revokedAt: null })
+      expect(device).toMatchObject({ id: expect.stringMatching(/^psd_/), userId: user.id, platform: 'android', provider: 'fcm', appId: 'com.example.app', locale: 'da', revokedAt: null })
       expect(device).not.toHaveProperty('token')
       expect(await getHookCalls()).toEqual([{ hook: 'push:device:registered', deviceId: device.id, userId: user.id, platform: 'android' }])
 
@@ -173,6 +218,9 @@ describe('push (authenticated, database-backed)', async () => {
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'web', token: 'x' }), 400)
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios', token: '   ' }), 400)
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios' }), 400)
+      // An Android token is always an FCM token, and only the two providers exist.
+      await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'android', token: 'x', provider: 'apns' }), 400)
+      await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios', token: 'x', provider: 'sns' }), 400)
       await expectApiError(apiClient().json('GET', pushApi.me.devices), 401)
       await expectApiError(apiClient().json('POST', pushApi.me.devices, { platform: 'ios', token: 'x' }), 401)
       await expectApiError(apiClient().json('POST', pushApi.me.unregister, { token: 'x' }), 401)

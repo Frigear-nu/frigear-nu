@@ -116,6 +116,10 @@
       "upcomingEmpty": "Ingen kommende operationer",
       "upcomingEmptyDescription": "De operationer, du arbejder ved, vises her.",
       "upcomingFailed": "Kunne ikke hente dine operationer."
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Vælg en operation"
     }
   }
 }

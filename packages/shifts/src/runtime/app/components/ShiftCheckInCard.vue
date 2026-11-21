@@ -39,11 +39,23 @@ function reset() {
 }
 watch(() => props.schedule, reset, { immediate: true })
 
-const modeItems = computed(() => [
-  { label: t('checkIn.modes.station', 'Station'), description: t('checkIn.modes.stationHelp', 'Volunteers scan the rotating QR code of a station of their team.'), value: 'station' },
+// Without a station key on the server (`NUXT_SHIFTS_STATION_KEY`) station check-in cannot work: the mode cannot be
+// turned on, and one already on can only be turned off.
+const stationReady = computed(() => props.schedule.stationKeyConfigured)
+const stationInUse = computed(() => modes.value.includes('station') || overrides.value.some(item => item.modes.includes('station')))
+const modeItemsFor = (selected: SelfMode[]) => [
+  {
+    label: t('checkIn.modes.station', 'Station'),
+    description: stationReady.value
+      ? t('checkIn.modes.stationHelp', 'Volunteers scan the rotating QR code of a station of their team.')
+      : t('checkIn.modes.stationNeedsKey', 'Needs a station key on the server (NUXT_SHIFTS_STATION_KEY).'),
+    value: 'station',
+    disabled: !stationReady.value && !selected.includes('station'),
+  },
   { label: t('checkIn.modes.location', 'Location'), description: t('checkIn.modes.locationHelp', 'Volunteers tap "I\'m here" and the app sends their position. A determined person can fake it.'), value: 'location' },
   { label: t('checkIn.modes.daily', 'Once a day'), description: t('checkIn.modes.dailyHelp', 'The first check-in of the day also checks in the person\'s other shifts that day whose check-in is open.'), value: 'daily' },
-])
+]
+const modeItems = computed(() => modeItemsFor(modes.value))
 const teamName = (id: string) => {
   const team = props.teams.find(item => item.id === id)
   return team ? tr(team.name) : id
@@ -93,6 +105,16 @@ const columns = computed<TableColumn<ShiftStationDto>[]>(() => [
 
 <template>
   <div class="flex flex-col gap-4">
+    <UAlert
+      v-if="!stationReady"
+      icon="i-lucide-key-round"
+      :color="stationInUse ? 'warning' : 'neutral'"
+      variant="subtle"
+      :title="t('checkIn.stationKeyMissing', 'Station check-in needs a station key')"
+      :description="stationInUse
+        ? t('checkIn.stationKeyMissingInUse', 'Station check-in is on, but the server has no NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set the key, or turn the mode off. The other modes work.')
+        : t('checkIn.stationKeyMissingHint', 'Set NUXT_SHIFTS_STATION_KEY on the server to use station check-in and station screens. The other modes work without it.')"
+    />
     <SectionCard
       :title="t('checkIn.title', 'How volunteers check in')"
       :description="t('checkIn.description', 'Any mode that is on is enough. A lead can always scan a volunteer\'s pass.')"
@@ -166,7 +188,7 @@ const columns = computed<TableColumn<ShiftStationDto>[]>(() => [
               </div>
               <UCheckboxGroup
                 v-model="item.modes"
-                :items="modeItems"
+                :items="modeItemsFor(item.modes)"
                 orientation="horizontal"
               />
               <MapLocationField
