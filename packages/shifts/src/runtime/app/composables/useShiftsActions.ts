@@ -6,6 +6,7 @@ import ShiftScheduleSlideover from '../components/ShiftScheduleSlideover.vue'
 import ShiftSlideover from '../components/ShiftSlideover.vue'
 import type { ShiftsLadder, ShiftsTeamOption } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
+import { allowsSwapKind, offerKind } from '../../utils/settings'
 import type { ShiftCopyResultDto, ShiftDto, ShiftRoleDto, ShiftScheduleDto, ShiftScheduleSettings, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
 import { $fetch, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsFormat, useShiftsTranslate } from '#imports'
 
@@ -59,6 +60,15 @@ export function useShiftsActions() {
     return back
       ? t('swaps.tradesWith', '{from} trades it with {to} for {team}, {when}', { ...names, team: tr(back.teamName), when: format.range(back.startsAt, back.endsAt) })
       : t('swaps.fromTo', '{from} gives it to {to}', names)
+  }
+
+  /**
+   * Whether the schedule's settings of now still allow a swap waiting for approval (its accepted offer's kind). One they
+   * no longer allow cannot be approved (the server answers 409 `handover_not_allowed`): only rejected.
+   */
+  function swapAllowed(swap: ShiftSwapDto): boolean {
+    const accepted = swap.offers?.find(offer => offer.status === 'accepted')
+    return allowsSwapKind(swap.settings, accepted ? offerKind(accepted) : swap.kind)
   }
 
   async function publishSchedule(schedule: ShiftScheduleDto): Promise<ShiftScheduleDto | false> {
@@ -194,6 +204,7 @@ export function useShiftsActions() {
     approveSwap,
     rejectSwap,
     swapSummary,
+    swapAllowed,
     scheduleMenu,
     roleMenu,
   }

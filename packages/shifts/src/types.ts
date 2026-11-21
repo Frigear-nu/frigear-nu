@@ -253,15 +253,15 @@ export type MyShiftDto = {
   teamName: Translated
   roleName: Translated | null
   /** My live swap of it, if any. */
-  swap: Pick<ShiftSwapDto, 'id' | 'status'> | null
+  swap: Pick<ShiftSwapDto, 'id' | 'status' | 'kind'> | null
+  /** How the schedule lets this shift change hands. */
+  settings: ShiftScheduleSettings
 }
 
 /** One of my shifts with what the detail page shows (`GET /api/shifts/me/:assignmentId`). */
 export type MyShiftDetailDto = MyShiftDto & {
   /** The leads of the team on shift at the same time (names only). */
   leadsOnDuty: ShiftPersonDto[]
-  /** How the schedule lets this shift change hands. */
-  settings: ShiftScheduleSettings
   /** My live swap with its offers. */
   swapDetail: ShiftSwapDto | null
   /** When the QR pass shows: from `startsAt` minus `checkInOpensMinutes` to `endsAt`. */

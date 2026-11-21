@@ -223,6 +223,14 @@ useHead({ title: () => t('shift.title', 'My shift') })
               icon="i-lucide-info"
               :title="t('shift.tradeOnly', 'Trade only: you must work all your shifts.')"
             />
+            <UAlert
+              v-if="swap && !allowsSwapKind(data.settings, swap.kind)"
+              class="mb-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :title="t('shift.swapNoLongerAllowed', 'The schedule no longer allows this kind of swap: withdraw it and open a new one.')"
+            />
             <div
               v-if="swap"
               class="flex flex-col gap-3"

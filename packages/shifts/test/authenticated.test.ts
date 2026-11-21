@@ -526,6 +526,90 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect((await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))).status).toBe('completed')
     })
 
+    /** A second published schedule in the same operation, with one shift for the team on another day. */
+    async function otherSchedule(setup: { op: Json, team: Json }, body: Json, day = '2027-07-04') {
+      const schedule = await createSchedule(setup.op.id, body)
+      const [shift] = await bulk(schedule.id, { teamId: setup.team.id, days: [day], slots: [{ start: '10:00', end: '14:00' }] })
+      await publish(schedule.id)
+      return { schedule, shift: shift! }
+    }
+
+    it('keeps a shift that must be worked inside its schedule: no trade into or out of another schedule', async () => {
+      // Roskilde: every shift must be worked, trades only. Another schedule of the same operation is flexible.
+      const s = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const flexible = await otherSchedule(s, { coverage: 'flexible', handover: 'both' })
+      const dee = await user('Xdee')
+      await addMember(s.team.id, dee)
+      const deeShift = await assigned(flexible.shift.id, dee)
+      // Ann offers her Roskilde shift for Dee's flexible one: refused from either side, and when aimed at it.
+      const annSwap = await ok(await open(s.ann, s.annShift.assignment.id))
+      await expectApiError(offerOn(dee, annSwap.id, deeShift.assignment.id), 409, 'handover_cross_schedule')
+      const deeSwap = await ok(await open(dee, deeShift.assignment.id, { kind: 'trade' }))
+      await expectApiError(offerOn(s.ann, deeSwap.id, s.annShift.assignment.id), 409, 'handover_cross_schedule')
+      await ok(await json(s.bo.cookie, 'POST', shiftsApi.offers(annSwap.id), { assignmentId: s.boShift.assignment.id }))
+      const [ann2] = await bulk(s.schedule.id, { teamId: s.team.id, days: ['2027-07-05'], slots: [{ start: '10:00', end: '14:00' }] })
+      const annSecond = await assigned(ann2!.id, s.ann)
+      await expectApiError(open(s.ann, annSecond.assignment.id, { wantedAssignmentId: deeShift.assignment.id }), 409, 'handover_cross_schedule')
+
+      // Two flexible schedules trade freely, unless one of them allows no trades.
+      const a = await tradeSetup({})
+      const b = await otherSchedule(a, { handover: 'both' })
+      const releaseOnly = await otherSchedule(a, { handover: 'release' }, '2027-07-06')
+      const [eve, fay] = await Promise.all([user('Xeve'), user('Xfay')])
+      for (const who of [eve, fay]) await addMember(a.team.id, who)
+      const eveShift = await assigned(b.shift.id, eve)
+      const fayShift = await assigned(releaseOnly.shift.id, fay)
+      const trade = await ok(await open(a.ann, a.annShift.assignment.id, { kind: 'trade' }))
+      await expectApiError(offerOn(fay, trade.id, fayShift.assignment.id), 409, 'handover_not_allowed')
+      const offer = await ok(await offerOn(eve, trade.id, eveShift.assignment.id))
+      // The other schedule switches to "every shift" before the owner accepts: refused at accept time.
+      await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(b.schedule.id), { coverage: 'all', handover: 'trade' }))
+      await expectApiError(json(a.ann.cookie, 'POST', shiftsApi.acceptOffer(trade.id, offer.id)), 409, 'handover_cross_schedule')
+      expect(await countOf(a.ann)).toBe(1)
+    })
+
+    it('needs a lead when the schedule of the shift given back asks for one', async () => {
+      const s = await tradeSetup({ approval: 'peer' }, true)
+      const leadSchedule = await otherSchedule(s, { handover: 'trade', approval: 'lead' })
+      const dee = await user('Ldee')
+      await addMember(s.team.id, dee)
+      const deeShift = await assigned(leadSchedule.shift.id, dee)
+      const swap = await ok(await open(s.ann, s.annShift.assignment.id, { kind: 'trade' }))
+      const offer = await ok(await offerOn(dee, swap.id, deeShift.assignment.id))
+      expect((await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))).status).toBe('pending_approval')
+      expect(await assignmentOf(s.ann, s.shifts[0]!.id)).toBeDefined()
+      expect((await json(dee.cookie, 'POST', shiftsApi.approveSwap(swap.id))).status).toBe(403)
+      expect((await ok(await json(s.boss.cookie, 'POST', shiftsApi.approveSwap(swap.id)))).status).toBe('completed')
+      expect(await assignmentOf(s.ann, leadSchedule.shift.id)).toBeDefined()
+    })
+
+    it('replaces a stale open swap on reopening, and refuses while offers wait on it', async () => {
+      const s = await tradeSetup({})
+      const swapStatus = async (id: string) => (await ok(await json(staff.cookie, 'GET', `${shiftsApi.admin.swaps}?operationId=${s.op.id}`)) as unknown as Json[]).find(item => item.id === id)!.status
+      // Another kind asked for: the open swap is cancelled and a new one opened.
+      const trade = await ok(await open(s.ann, s.annShift.assignment.id, { kind: 'trade' }))
+      const release = await ok(await open(s.ann, s.annShift.assignment.id, { kind: 'release' }))
+      expect(release.id).not.toBe(trade.id)
+      expect(release.kind).toBe('release')
+      expect(await swapStatus(trade.id)).toBe('cancelled')
+      // The schedule no longer allows it: reopening without a kind replaces it with a trade.
+      await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(s.schedule.id), { coverage: 'all', handover: 'trade' }))
+      const detail = await ok(await json(s.ann.cookie, 'GET', shiftsApi.me.shift(s.annShift.assignment.id)))
+      expect(detail.swapDetail).toMatchObject({ id: release.id, kind: 'release' })
+      const replaced = await ok(await open(s.ann, s.annShift.assignment.id))
+      expect(replaced).toMatchObject({ kind: 'trade' })
+      expect(await swapStatus(release.id)).toBe('cancelled')
+      // With an offer waiting, a stale swap is not replaced.
+      await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(s.schedule.id), { coverage: 'flexible', handover: 'both' }))
+      const cy = await user('Scy')
+      await addMember(s.team.id, cy)
+      await ok(await open(s.bo, s.boShift.assignment.id, { kind: 'release' }))
+      const boSwap = (await assignmentOf(s.bo, s.later.id))!.swap
+      await ok(await offerOn(cy, boSwap.id))
+      await expectApiError(open(s.bo, s.boShift.assignment.id, { kind: 'trade' }), 409, 'swap_changed')
+      expect(await swapStatus(boSwap.id)).toBe('offered')
+    })
+
     it('runs the guards for both people at offer and accept time, each answering a code naming the guard', async () => {
       // Overlap: Bo works 12:00–15:00, so taking Ann's 10:00–14:00 overlaps.
       const overlap = await tradeSetup({ coverage: 'all', handover: 'trade' })

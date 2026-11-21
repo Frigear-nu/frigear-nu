@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_SWAP_OFFER_STATUS_LABELS } from '../../utils/status'
+import { allowsSwapKind } from '../../utils/settings'
 import type { MyShiftDto, ShiftSwapDto } from '../../../types'
 import { $fetch, computed, errorMessage, navigateTo, onMounted, reactive, ref, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
@@ -26,10 +27,14 @@ const now = ref(0)
 onMounted(() => (now.value = Date.now()))
 const upcomingMine = computed(() => mine.value.filter(item => item.assignment.status === 'assigned' && Date.parse(item.shift.startsAt) > now.value))
 const myOpen = computed(() => upcomingMine.value.filter(item => item.swap))
-// Per trade: the shift of mine I give in return (required). A trade aimed at one of my shifts only takes that one.
+// Per trade: the shift of mine I give in return (required). A trade aimed at one of my shifts only takes that one. My
+// shift's schedule must allow trades too, and where either schedule asks for every shift to be worked, both shifts are
+// in the same schedule (the server answers 409 `handover_cross_schedule` otherwise).
 const giving = reactive<Record<string, string>>({})
 const givingOptions = (swap: ShiftSwapDto) => upcomingMine.value
   .filter(item => !swap.wantedAssignmentId || item.assignment.id === swap.wantedAssignmentId)
+  .filter(item => allowsSwapKind(item.settings, 'trade'))
+  .filter(item => item.shift.scheduleId === swap.shift.scheduleId || (swap.settings.coverage !== 'all' && item.settings.coverage !== 'all'))
   .map(item => ({ label: `${tr(item.teamName)} · ${format.range(item.shift.startsAt, item.shift.endsAt)}`, value: item.assignment.id }))
 
 async function offer(swap: ShiftSwapDto) {

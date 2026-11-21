@@ -110,7 +110,13 @@ useHead({ title: () => t('lead.title', 'Lead {team}', { team: team.value ? tr(te
                     {{ actions.swapSummary(swap) }}
                   </span>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
+                  <span
+                    v-if="!actions.swapAllowed(swap)"
+                    class="text-muted text-sm"
+                  >
+                    {{ t('swaps.noLongerAllowed', 'No longer allowed by the schedule\'s settings: reject it.') }}
+                  </span>
                   <UButton
                     color="neutral"
                     variant="outline"
@@ -118,6 +124,7 @@ useHead({ title: () => t('lead.title', 'Lead {team}', { team: team.value ? tr(te
                     @click="reject(swap)"
                   />
                   <UButton
+                    v-if="actions.swapAllowed(swap)"
                     :label="t('swaps.approveAction', 'Approve swap')"
                     @click="approve(swap)"
                   />

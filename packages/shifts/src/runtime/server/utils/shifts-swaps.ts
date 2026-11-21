@@ -203,13 +203,33 @@ async function shiftsAssertCanTake(event: H3Event, userId: number, entry: ShiftA
 }
 
 /**
- * Checks both directions of an exchange: the offerer takes the owner's shift, the owner takes the one given back. The
- * guards run for both people, each as they would stand after the exchange.
+ * The schedules of a trade, when the shift given back is in another schedule than the owner's: both must allow a trade
+ * now (409 `handover_not_allowed`), and when either has `coverage: 'all'` both shifts must be in the same schedule (409
+ * `handover_cross_schedule`), so nobody trades a shift they must work for one in a schedule that lets them give it away.
+ */
+function shiftsAssertTradeSchedules(owner: ShiftAssignmentEntry, back: ShiftAssignmentEntry): void {
+  shiftsAssertHandover(scheduleSettingsOf(owner.schedule), 'trade')
+  shiftsAssertHandover(scheduleSettingsOf(back.schedule), 'trade')
+  if (owner.schedule.id === back.schedule.id) return
+  if (owner.schedule.coverage === 'all' || back.schedule.coverage === 'all') {
+    throw apiError(409, 'handover_cross_schedule', 'A schedule where every shift must be worked only trades within itself: offer a shift of the same schedule.', { field: 'assignmentId', scheduleId: owner.schedule.id })
+  }
+}
+
+/** Whether a swap needs a lead's approval: either schedule involved says `approval: 'lead'`. */
+const shiftsNeedsLead = (owner: ShiftAssignmentEntry, back: ShiftAssignmentEntry | null | undefined) =>
+  owner.schedule.approval === 'lead' || back?.schedule.approval === 'lead'
+
+/**
+ * Checks both directions of an exchange: the offerer takes the owner's shift, the owner takes the one given back. A trade
+ * across schedules needs both schedules to allow it (`shiftsAssertTradeSchedules`). The guards run for both people, each
+ * as they would stand after the exchange.
  */
 async function shiftsAssertExchange(event: H3Event, owner: ShiftAssignmentEntry, offererId: number, back: ShiftAssignmentEntry | null): Promise<void> {
   shiftsAssertSwappable(owner, 'swap')
   if (back) {
     if (back.assignment.userId !== offererId) throw apiError(409, 'not_swappable', 'The shift offered in return is not the offerer\'s.', { field: 'assignmentId' })
+    shiftsAssertTradeSchedules(owner, back)
     shiftsAssertSwappable(back, 'assignmentId')
     if (back.shift.id === owner.shift.id) throw apiError(409, 'not_swappable', 'Offer another shift than the one on offer.', { field: 'assignmentId' })
     const [busy] = await db.select({ id: schema.shiftSwaps.id }).from(schema.shiftSwaps).where(and(
@@ -228,16 +248,24 @@ async function shiftsAssertExchange(event: H3Event, owner: ShiftAssignmentEntry,
  * Opens a swap of one of my assignments (`assigned`, published, not started): a `trade` (shift for shift, optionally aimed
  * at one `wantedAssignmentId`) or a `release` (given away). `kind` defaults to `release` when the schedule allows it, else
  * `trade`. 409 `handover_not_allowed` when the schedule does not allow the kind. A targeted trade is checked like an offer
- * (both people eligible, no guard broken) and its holder is emailed. Opening it again answers the live swap; two opens at
- * once keep the first swap.
+ * (both people eligible, no guard broken, both schedules allow it) and its holder is emailed. Opening it again answers
+ * the live swap while it is of that kind and still allowed; a stale `open` one is cancelled and replaced, one with offers
+ * answers 409 `swap_changed`. Two opens at once keep the first swap.
  */
 export async function shiftsOpenSwap(event: H3Event, entry: ShiftAssignmentEntry, input: { kind?: ShiftSwapKind, wantedAssignmentId?: string | null } = {}): Promise<ShiftSwapDto> {
   shiftsAssertSwappable(entry, 'swap')
   const settings = scheduleSettingsOf(entry.schedule)
-  const kind = input.kind ?? defaultSwapKind(settings)
-  shiftsAssertHandover(settings, kind)
   const existing = await findLiveShiftSwapOf(entry.assignment.id)
-  if (existing) return shiftsSwapDtoOf(existing)
+  // Opening again keeps the live swap when it is still of the kind asked for (any allowed kind when none is asked for).
+  const existingAllowed = !!existing && allowsSwapKind(settings, existing.kind as ShiftSwapKind)
+  const kind = input.kind ?? (existing && existingAllowed ? existing.kind as ShiftSwapKind : defaultSwapKind(settings))
+  shiftsAssertHandover(settings, kind)
+  if (existing) {
+    if (existingAllowed && existing.kind === kind) return shiftsSwapDtoOf(existing)
+    // A stale swap (another kind, or one the schedule no longer allows) is replaced while nothing waits on it.
+    const cancelled = existing.status === 'open' ? await shiftsMoveSwap(existing, 'open', 'cancelled', { decidedAt: new Date() }) : undefined
+    if (!cancelled) throw apiError(409, 'swap_changed', 'This shift is in a swap of another kind with offers: withdraw it first.', { swapId: existing.id, kind: existing.kind })
+  }
   let wanted: ShiftAssignmentEntry | null = null
   if (input.wantedAssignmentId) {
     if (kind !== 'trade') throw validationError([{ path: ['wantedAssignmentId'], message: 'Only a trade asks for a shift in return.' }])
@@ -453,9 +481,9 @@ export async function shiftsRejectOffer(event: H3Event, swap: ShiftSwapRow, offe
  * The owner accepts an offer. The schedule's settings of now are checked (409 `handover_not_allowed` when they no longer
  * allow the offer, e.g. a release after `coverage` became `all`), and both directions again (409 `guard_*`); then the
  * swap is claimed with a conditional write, so two accepts at once (of the same or of two offers) carry out one: the
- * other gets a 409 `swap_changed`. The other waiting offers are not chosen (`superseded`). With `approval: 'peer'` the
- * swap completes at once; with `'lead'` it waits for a lead of the team(s) or staff (`pending_approval`), who are
- * emailed. Fires `shifts:swap:accepted`.
+ * other gets a 409 `swap_changed`. The other waiting offers are not chosen (`superseded`). When both schedules involved
+ * say `approval: 'peer'` the swap completes at once; when either says `'lead'` it waits for a lead of the team(s) or
+ * staff (`pending_approval`), who are emailed. Fires `shifts:swap:accepted`.
  */
 export async function shiftsAcceptOffer(event: H3Event, swap: ShiftSwapRow, offer: ShiftSwapOfferRow): Promise<ShiftSwapDto> {
   if (swap.status !== 'offered') throw apiError(409, 'swap_changed', `The swap is ${swap.status}.`)
@@ -467,7 +495,7 @@ export async function shiftsAcceptOffer(event: H3Event, swap: ShiftSwapRow, offe
   if (offer.offeredAssignmentId && !back) throw apiError(409, 'not_swappable', 'The shift offered in return no longer exists.')
   await shiftsAssertExchange(event, owner, offer.userId, back ?? null)
 
-  const approval = owner.schedule.approval === 'lead'
+  const approval = shiftsNeedsLead(owner, back)
   const claimed = await shiftsMoveSwap(swap, 'offered', approval ? 'pending_approval' : 'accepted')
   if (!claimed) throw apiError(409, 'swap_changed', 'The swap changed meanwhile.')
   const accepted = await shiftsMoveOffer(offer, 'offered', 'accepted')
