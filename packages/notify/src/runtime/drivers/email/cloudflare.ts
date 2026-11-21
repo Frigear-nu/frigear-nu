@@ -17,6 +17,7 @@ export const createCloudflareDriver = (config: CloudflareConfig): EmailDriver =>
     body: JSON.stringify({
       from: resolveFrom(config),
       to: toArray(n.to),
+      cc: n.cc ? toArray(n.cc) : undefined,
       subject: n.subject,
       html: n.body,
       text: n.text,

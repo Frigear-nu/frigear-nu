@@ -40,6 +40,11 @@ export interface EmailNotification<M = NotificationMeta> {
   /** Address replies should go to (the `Reply-To` header). */
   replyTo?: string
   /**
+   * `Cc` recipients. Optional and additive: every built-in driver (`resend`, `ses`, `cloudflare`, `log`) passes them
+   * on. A custom driver whose transport has no cc may ignore them, and should say so where it is documented.
+   */
+  cc?: string | string[]
+  /**
    * Template to render this email from instead of `subject`/`body`/`text`, when a renderer is
    * installed (`@frigear-nu/email-templates` listens on the `notify:email` hook). Without one,
    * the notification goes out as built, so `subject` and `body` are always the fallback.
