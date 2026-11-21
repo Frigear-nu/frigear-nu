@@ -8,7 +8,7 @@ import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { shiftsApi } from '../src/runtime/utils/api'
-import { addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
+import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -729,9 +729,9 @@ describe('shifts (authenticated, database-backed)', async () => {
       // 26 hours ahead: nothing is inside the largest offset yet.
       expect(await runReminders('2031-03-09T08:00:00.000Z')).toEqual({ checked: 0, sent: 0, spent: 0 })
 
-      // 24 hours ahead of the first shift: Ann and Bo get the day-before reminder, Eli (not eligible), Cy (cancelled) and
-      // Dee (a draft schedule) nothing.
-      expect(await runReminders('2031-03-09T10:00:00.000Z')).toEqual({ checked: 3, sent: 2, spent: 0 })
+      // 24 hours ahead of the first shift: Ann and Bo get the day-before reminder, Eli (not eligible: spent without a
+      // message), Cy (cancelled) and Dee (a draft schedule) nothing.
+      expect(await runReminders('2031-03-09T10:00:00.000Z')).toEqual({ checked: 3, sent: 2, spent: 1 })
       for (const who of [ann, bo]) {
         const sent = await remindersOf(who)
         expect(sent).toHaveLength(1)
@@ -767,6 +767,49 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await getSmsTo('+4522222222')).toHaveLength(1)
       // Nothing for a shift that has started.
       expect(await runReminders('2031-03-10T10:30:00.000Z')).toMatchObject({ sent: 0 })
+    })
+
+    it('words the real time left, in the recipient\'s language, and survives a locale nobody knows', async () => {
+      const setup = await newSetup()
+      const [ann, bo, cy] = await Promise.all([user('Wann2'), user('Wbo2'), user('Wcy2')])
+      for (const who of [ann, bo, cy]) await addMember(setup.team.id, who)
+      await setLocale(bo.id, setup.team.id, 'da')
+      await setLocale(cy.id, setup.team.id, 'not a locale!!')
+      await moveTo(setup.shifts[0]!.id, '2034-02-07', '10:00', '14:00')
+      for (const who of [ann, bo, cy]) await assigned(setup.shifts[0]!.id, who)
+      // Three hours before: only the day-before offset is due, but the message says what is true.
+      expect(await runReminders('2034-02-07T07:00:00.000Z')).toMatchObject({ sent: 3 })
+      expect((await remindersOf(ann))[0]).toMatchObject({ subject: 'Reminder: your shift starts in 3 hours', template: { locale: 'en' } })
+      expect((await remindersOf(bo))[0]).toMatchObject({ subject: 'Påmindelse: din vagt starter om 3 timer', text: expect.stringContaining('Hej'), template: { locale: 'da' } })
+      // The garbage locale does not throw after the claim: the English text goes out.
+      expect((await remindersOf(cy))[0]).toMatchObject({ subject: 'Reminder: your shift starts in 3 hours' })
+      expect((await getHooks()).filter(hook => hook.name === 'reminder:sent' && hook.userId === cy.id)).toHaveLength(1)
+    })
+
+    it('takes at most a batch per run, soonest first, and picks the rest up next time, beyond 100 due assignments', async () => {
+      const setup = await newSetup()
+      await moveTo(setup.shifts[0]!.id, '2033-04-05', '10:00', '14:00')
+      await moveTo(setup.shifts[1]!.id, '2033-04-05', '11:00', '15:00')
+      const seeded = await addBulkAssignments(setup.shifts[0]!.id, setup.team.id, 130, 'rem')
+      expect(seeded.created).toBe(130)
+      const later = await addBulkAssignments(setup.shifts[1]!.id, setup.team.id, 3, 'late')
+      const reminded = async (emails: string[]) => (await Promise.all(emails.map(email => getEmailsTo(email)))).filter(sent => sent.some(item => item.template?.name === 'shifts-reminder')).length
+      // The default batch is 100, soonest shift first: the 130 of the first shift split 100 + 30, and the later shift waits.
+      const now = '2033-04-04T12:00:00.000Z'
+      expect(await runReminders(now)).toEqual({ checked: 100, sent: 100, spent: 0 })
+      expect(await reminded(seeded.emails)).toBe(100)
+      expect(await reminded(later.emails)).toBe(0)
+      // The 30 left of the first shift, then the 3 of the later one.
+      expect(await runReminders(now)).toEqual({ checked: 33, sent: 33, spent: 0 })
+      expect(await reminded(seeded.emails)).toBe(130)
+      expect(await reminded(later.emails)).toBe(3)
+      // Everything is claimed: nothing is left to look at, and nobody is reminded twice.
+      expect(await runReminders(now)).toEqual({ checked: 0, sent: 0, spent: 0 })
+      expect(await reminded(seeded.emails)).toBe(130)
+      // A smaller batch for one run.
+      const more = await addBulkAssignments(setup.shifts[1]!.id, setup.team.id, 5, 'more')
+      expect(await runReminders(now, { batchSize: 2 })).toMatchObject({ checked: 2, sent: 2 })
+      expect(await reminded(more.emails)).toBe(2)
     })
 
     it('sends one message when both offsets fall due together, and spends the larger one', async () => {

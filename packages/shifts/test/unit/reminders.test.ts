@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_REMINDER_OFFSETS, dueReminderOffsets, normalizeReminderOffsets, reminderOffsetToSend } from '../../src/runtime/utils/reminders'
-import { buildShiftBroadcastEmail, buildShiftBroadcastSms, buildShiftReminderEmail, buildShiftReminderSms, describeReminderOffset } from '../../src/runtime/server/reminder-email'
+import { DEFAULT_REMINDER_BATCH, DEFAULT_REMINDER_OFFSETS, dueReminderOffsets, normalizeReminderBatch, normalizeReminderOffsets, reminderOffsetToSend, timeLeftBucket } from '../../src/runtime/utils/reminders'
+import { buildShiftBroadcastEmail, buildShiftBroadcastSms, buildShiftReminderEmail, buildShiftReminderSms, describeTimeLeft, formatShiftWhen, reminderLanguage } from '../../src/runtime/server/reminder-email'
 
 const HOUR = 3_600_000
 const startsAt = new Date('2027-06-28T10:00:00.000Z')
@@ -32,35 +32,84 @@ describe('reminder offsets', () => {
   })
 })
 
+describe('reminder batch and time left', () => {
+  it('cleans the batch size', () => {
+    expect(normalizeReminderBatch(undefined)).toBe(DEFAULT_REMINDER_BATCH)
+    expect(normalizeReminderBatch(0)).toBe(DEFAULT_REMINDER_BATCH)
+    expect(normalizeReminderBatch('x')).toBe(DEFAULT_REMINDER_BATCH)
+    expect(normalizeReminderBatch(25.9)).toBe(25)
+    expect(normalizeReminderBatch(99_999)).toBe(1000)
+  })
+
+  it('names the real time left, not the configured offset', () => {
+    const left = (minutes: number) => timeLeftBucket(startsAt, new Date(startsAt.getTime() - minutes * 60_000))
+    expect(left(0.2)).toEqual({ unit: 'minutes', count: 1 })
+    expect(left(45)).toEqual({ unit: 'minutes', count: 45 })
+    expect(left(90)).toEqual({ unit: 'hours', count: 2 })
+    expect(left(180)).toEqual({ unit: 'hours', count: 3 })
+    // 23.5 hours is "in a day", and a day and a half is still a day.
+    expect(left(23.5 * 60)).toEqual({ unit: 'days', count: 1 })
+    expect(left(1440)).toEqual({ unit: 'days', count: 1 })
+    expect(left(36 * 60)).toEqual({ unit: 'days', count: 1 })
+    expect(left(3 * 1440)).toEqual({ unit: 'days', count: 3 })
+  })
+})
+
 describe('reminder and broadcast messages', () => {
   const variables = { name: 'Ann <b>', team: 'Bar', role: 'BA', when: '28 Jun 2027, 12:00', where: 'Main bar', start: startsAt.toISOString() }
 
-  it('words the offset', () => {
-    expect(describeReminderOffset(1440)).toBe('in a day')
-    expect(describeReminderOffset(2880)).toBe('in 2 days')
-    expect(describeReminderOffset(120)).toBe('in 2 hours')
-    expect(describeReminderOffset(60)).toBe('in an hour')
-    expect(describeReminderOffset(45)).toBe('in 45 minutes')
+  it('words the time left in English and Danish, English for anything else', () => {
+    expect(describeTimeLeft({ unit: 'days', count: 1 })).toBe('in a day')
+    expect(describeTimeLeft({ unit: 'days', count: 2 }, 'en')).toBe('in 2 days')
+    expect(describeTimeLeft({ unit: 'hours', count: 3 }, 'en-GB')).toBe('in 3 hours')
+    expect(describeTimeLeft({ unit: 'hours', count: 1 })).toBe('in an hour')
+    expect(describeTimeLeft({ unit: 'minutes', count: 45 })).toBe('in 45 minutes')
+    expect(describeTimeLeft({ unit: 'hours', count: 3 }, 'da')).toBe('om 3 timer')
+    expect(describeTimeLeft({ unit: 'days', count: 1 }, 'da-DK')).toBe('om en dag')
+    expect(describeTimeLeft({ unit: 'minutes', count: 5 }, 'da_DK')).toBe('om 5 minutter')
+    expect(describeTimeLeft({ unit: 'hours', count: 3 }, 'sv')).toBe('in 3 hours')
+    expect(reminderLanguage('not a locale!!')).toBe('en')
+    expect(reminderLanguage(null)).toBe('en')
+    expect(reminderLanguage('dar')).toBe('en')
+  })
+
+  it('formats the time in the locale, and falls back to English for a locale Intl rejects', () => {
+    const when = new Date('2027-06-28T08:00:00.000Z')
+    expect(formatShiftWhen(when, 'en', 'Europe/Copenhagen')).toContain('10:00')
+    expect(() => formatShiftWhen(when, 'not a locale!!', 'Europe/Copenhagen')).not.toThrow()
+    expect(formatShiftWhen(when, 'not a locale!!', 'Europe/Copenhagen')).toBe(formatShiftWhen(when, 'en', 'Europe/Copenhagen'))
+    expect(formatShiftWhen(when, null, 'Europe/Copenhagen')).toBe(formatShiftWhen(when, 'en', 'Europe/Copenhagen'))
   })
 
   it('builds the reminder email with the template, escaped html and the link', () => {
-    const email = buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, url: 'https://example.com/shifts/sha_1?a=1&b=2', locale: 'da' })!
+    const left = { unit: 'hours', count: 2 } as const
+    const email = buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, url: 'https://example.com/shifts/sha_1?a=1&b=2', locale: 'en' })!
     expect(email.to).toBe('ann@example.com')
     expect(email.subject).toBe('Reminder: your shift starts in 2 hours')
     expect(email.body).toContain('Hi Ann &lt;b&gt;')
     expect(email.body).toContain('a=1&amp;b=2')
     expect(email.text).toContain('Bar (BA) starts in 2 hours: 28 Jun 2027, 12:00, Main bar.')
-    expect(email.template).toMatchObject({ name: 'shifts-reminder', locale: 'da' })
-    expect(buildShiftReminderEmail({ email: null, variables, offset: 120 })).toBeNull()
-    expect(buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120 })!.text).not.toContain('http')
+    expect(email.template).toMatchObject({ name: 'shifts-reminder', locale: 'en', props: { heading: 'Your shift is coming up', button: 'See your shift', greeting: 'Hi Ann <b>,' } })
+    expect(buildShiftReminderEmail({ email: null, variables, offset: 120, left })).toBeNull()
+    expect(buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left })!.text).not.toContain('http')
+    // Danish: subject, text, greeting, heading and button.
+    const da = buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, locale: 'da' })!
+    expect(da.subject).toBe('Påmindelse: din vagt starter om 2 timer')
+    expect(da.text).toContain('Hej Ann <b>,')
+    expect(da.text).toContain('Din vagt på Bar (BA) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
+    expect(da.template).toMatchObject({ locale: 'da', props: { heading: 'Din vagt nærmer sig', button: 'Se din vagt', greeting: 'Hej Ann <b>,' } })
+    // A garbage locale gets the English text.
+    expect(buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, locale: 'not a locale!!' })!.subject).toBe('Reminder: your shift starts in 2 hours')
   })
 
   it('builds the reminder SMS only with a phone number', () => {
-    expect(buildShiftReminderSms({ phone: null, variables, offset: 120 })).toBeNull()
-    expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, url: 'https://example.com/s' })).toMatchObject({
+    const left = { unit: 'hours', count: 2 } as const
+    expect(buildShiftReminderSms({ phone: null, variables, offset: 120, left })).toBeNull()
+    expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, left, url: 'https://example.com/s' })).toMatchObject({
       to: '+4512345678',
       body: 'Your shift on Bar (BA) starts in 2 hours: 28 Jun 2027, 12:00, Main bar. https://example.com/s',
     })
+    expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, left, locale: 'da' })!.body).toBe('Din vagt på Bar (BA) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
   })
 
   it('builds the broadcast email and SMS', () => {

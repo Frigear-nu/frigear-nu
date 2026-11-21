@@ -3,9 +3,14 @@
 
 const encoder = new TextEncoder()
 
-/** Escapes a TEXT value: backslash, semicolon, comma and line breaks. */
+/**
+ * Escapes a TEXT value: backslash, semicolon, comma and line breaks. Control characters (U+0000-0008, U+000B-001F,
+ * U+007F) are not allowed in a TEXT value and would break the file or the line: they are dropped (a tab stays).
+ */
 export function icsEscape(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n')
+    // eslint-disable-next-line no-control-regex -- stripping them is the point
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '')
 }
 
 /** An instant as `YYYYMMDDTHHMMSSZ` (UTC). */

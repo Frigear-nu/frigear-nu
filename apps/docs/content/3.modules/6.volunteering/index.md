@@ -184,8 +184,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 - **Two segments** are allowed when the entity is the module's own main resource: `operations:created`, like the
   existing `forms:submitted`.
 - **The context** is always one mutable object with `event`. Two exceptions: `teams:roles:resolve` has `event:
-  undefined` while teams builds an OAuth claim, and `shifts:reminder:sent` has `event: undefined` because the reminder
-  task has no request. Both run outside a request, so a listener never reads the session from them.
+  undefined` while teams builds an OAuth claim, and `shifts:reminder:sent` has `event` always `undefined`
+  (type `H3Event | undefined`) because the reminder task has no request. Both run outside a request, so a listener never reads the session from them.
 
 | Hook | Owner | Context | Phase |
 | --- | --- | --- | --- |
@@ -216,7 +216,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:swap:rejected` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:swap:completed` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
-| `shifts:reminder:sent` | shifts | `{ event: undefined, assignment, offset, channels }` | 5 |
+| `shifts:reminder:sent` | shifts | `{ event, assignment, offset, channels }`, `event` always `undefined` when fired from the task | 5 |
 | `shifts:broadcast:sent` | shifts | `{ event, broadcast }` | 5 |
 | `shifts:perk:redeemed` | shifts | `{ event, perk, redemption }` | 5 |
 | `push:device:registered` | push | `{ event, device }` | 4 |

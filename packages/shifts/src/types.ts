@@ -75,6 +75,11 @@ export type ShiftsRemindersOptions = {
   offsets?: number[]
   /** Also send an SMS to people with a phone number. Defaults to `false`: SMS costs money. */
   sms?: boolean
+  /**
+   * The most due assignments one run handles, soonest shift first; the next run takes the rest (claims are idempotent).
+   * Keeps a run inside a Workers invocation's budget. Defaults to `100`, at most `1000`.
+   */
+  batchSize?: number
 }
 
 export type PublicModuleOptions = {
@@ -88,7 +93,7 @@ export type ShiftsRuntimeConfig = {
   timeZone: string
   checkInOpensMinutes: number
   /** The reminder offsets in minutes (largest first) and whether reminders also go out by SMS. */
-  reminders: { offsets: number[], sms: boolean }
+  reminders: { offsets: number[], sms: boolean, batchSize: number }
 }
 
 /** A person as a shifts response shows them. `email` and `phone` only with `shifts:pii`. */
@@ -370,8 +375,12 @@ export type ShiftBroadcastDto = {
   createdAt: string
 }
 
-/** The answer of sending a broadcast: what was stored and how many messages went out per channel. */
-export type ShiftBroadcastResultDto = ShiftBroadcastDto & { sent: { email: number, sms: number } }
+/** The answer of sending a broadcast: what was stored and how many messages went out per channel (once delivered). */
+export type ShiftBroadcastResultDto = ShiftBroadcastDto & {
+  sent: { email: number, sms: number }
+  /** `done`: delivered before the answer. `queued`: handed to the platform's `waitUntil`, so `sent` is not known yet (zeros). */
+  delivery: 'done' | 'queued'
+}
 
 export type ShiftPerkKind = 'meal' | 'drink' | 'other'
 

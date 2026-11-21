@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import type { ShiftCheckInDto, ShiftPerkDto, ShiftPerkRedeemDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, ref, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsTranslate } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, ref, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsCheckInPage' })
 
@@ -46,9 +46,19 @@ const failureTitle = (status: number | undefined, errorCode: string | undefined)
   return mode.value === 'perk' ? t('scanner.redeemFailed', 'Could not redeem the perk') : t('scanner.failed', 'Could not check in')
 }
 
+// The camera reads the same code many times a second while it stays in view: a repeat of the last code within a few
+// seconds is ignored, until a different code is scanned. Both modes, so a person is not checked in, or given a second
+// meal, by a lingering pass.
+const REPEAT_MS = 3000
+let last: { code: string, at: number } | null = null
+// Another mode is another action: the same pass may be scanned for it at once.
+watch(mode, () => (last = null))
+
 async function scan(value: string) {
   const trimmed = value.trim()
   if (!trimmed || busy.value) return
+  if (last && last.code === trimmed && Date.now() - last.at < REPEAT_MS) return
+  last = { code: trimmed, at: Date.now() }
   busy.value = true
   try {
     if (mode.value === 'perk') {

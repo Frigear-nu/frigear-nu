@@ -168,6 +168,8 @@
       "message": "Message",
       "messageHelp": "Each person gets the text in their own language when you write it in several.",
       "messageRequired": "Write the message.",
+      "queued": "Sending to {count} people",
+      "queuedDetail": "The messages go out in the background.",
       "recipients": "People",
       "role": "Role",
       "roleHelp": "This role and everyone above it on the team's ladder.",

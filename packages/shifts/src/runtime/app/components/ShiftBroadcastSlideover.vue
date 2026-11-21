@@ -75,8 +75,8 @@ async function send(event: FormSubmitEvent<State>) {
 const toast = useToast()
 function notifySent(sent: ShiftBroadcastResultDto) {
   toast.add({
-    title: t('broadcast.sent', 'Sent to {count} people', { count: sent.recipientCount }),
-    description: sent.sent.sms ? t('broadcast.sentDetail', '{email} emails and {sms} texts.', { email: sent.sent.email, sms: sent.sent.sms }) : t('broadcast.sentEmails', '{email} emails.', { email: sent.sent.email }),
+    title: sent.delivery === 'queued' ? t('broadcast.queued', 'Sending to {count} people', { count: sent.recipientCount }) : t('broadcast.sent', 'Sent to {count} people', { count: sent.recipientCount }),
+    description: sent.delivery === 'queued' ? t('broadcast.queuedDetail', 'The messages go out in the background.') : sent.sent.sms ? t('broadcast.sentDetail', '{email} emails and {sms} texts.', { email: sent.sent.email, sms: sent.sent.sms }) : t('broadcast.sentEmails', '{email} emails.', { email: sent.sent.email }),
     color: 'success',
   })
 }

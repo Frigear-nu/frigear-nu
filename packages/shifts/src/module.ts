@@ -22,7 +22,7 @@ import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { shiftsAccess } from './runtime/access'
 import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
 import { isValidTimeZone } from './runtime/utils/time'
-import { normalizeReminderOffsets } from './runtime/utils/reminders'
+import { normalizeReminderBatch, normalizeReminderOffsets } from './runtime/utils/reminders'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -139,7 +139,7 @@ export default defineNuxtModule<ModuleOptions>({
       checkInOpensMinutes,
     }
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
-    const reminders = { offsets: normalizeReminderOffsets(options.reminders?.offsets), sms: options.reminders?.sms === true }
+    const reminders = { offsets: normalizeReminderOffsets(options.reminders?.offsets), sms: options.reminders?.sms === true, batchSize: normalizeReminderBatch(options.reminders?.batchSize) }
     runtime.shifts = { ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes, reminders } satisfies ShiftsRuntimeConfig
 
     // --- Database -------------------------------------------------------------------------

@@ -21,8 +21,12 @@ export const getHooks = () => $fetch<HookEntry[]>('/api/test/hooks')
 export type EmailEntry = { to: string | string[], subject: string, body: string, text?: string, template?: { name: string, props?: Record<string, unknown>, locale?: string } }
 
 /** Runs the reminder task with a fake `now` and no request, like the scheduler (fixture-only route). */
-export const runReminders = (now: string, extra: { sms?: boolean, offsets?: number[] } = {}) =>
+export const runReminders = (now: string, extra: { sms?: boolean, offsets?: number[], batchSize?: number } = {}) =>
   $fetch<{ checked: number, sent: number, spent: number }>('/api/test/reminders', { method: 'POST', body: { now, ...extra } })
+
+/** Puts `count` new people (user, explicit membership, `assigned` assignment) on a shift (fixture-only route). */
+export const addBulkAssignments = (shiftId: string, teamId: string, count: number, prefix = 'bulk') =>
+  $fetch<{ emails: string[], created: number }>('/api/test/assignments-bulk', { method: 'POST', body: { shiftId, teamId, count, prefix } })
 
 /** Gives a user a phone number (fixture-only route). */
 export const setPhone = (userId: number, phone: string | null) => $fetch('/api/test/phone', { method: 'POST', body: { userId, phone } })

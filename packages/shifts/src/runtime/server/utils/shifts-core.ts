@@ -8,7 +8,8 @@ import type { NitroRuntimeHooks } from 'nitropack'
 import type { ShiftAssigneeDto, ShiftsRuntimeConfig, ShiftWarning } from '../../../types'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { shiftGuardWarnings } from '../../utils/guards'
-import { DEFAULT_REMINDER_OFFSETS, normalizeReminderOffsets } from '../../utils/reminders'
+import { shiftsChunk } from '../../utils/chunk'
+import { DEFAULT_REMINDER_BATCH, DEFAULT_REMINDER_OFFSETS, normalizeReminderBatch, normalizeReminderOffsets } from '../../utils/reminders'
 import type { GuardShift } from '../../utils/guards'
 import { toShiftAssignmentDto, toShiftPersonDto } from './shifts-dto'
 import type { ShiftAssignmentRow, ShiftRoleRow, ShiftRow, ShiftScheduleRow, ShiftUserLite } from './shifts-dto'
@@ -19,7 +20,7 @@ export type ShiftEntry = { shift: ShiftRow, schedule: ShiftScheduleRow }
 /** An assignment with its shift and schedule. */
 export type ShiftAssignmentEntry = ShiftEntry & { assignment: ShiftAssignmentRow }
 
-const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60, reminders: { offsets: [...DEFAULT_REMINDER_OFFSETS], sms: false } }
+const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60, reminders: { offsets: [...DEFAULT_REMINDER_OFFSETS], sms: false, batchSize: DEFAULT_REMINDER_BATCH } }
 
 /** The module options shifts reads at runtime: the time zone, when check-in opens and the reminders. */
 export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {
@@ -27,7 +28,7 @@ export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {
   return {
     timeZone: config.timeZone || DEFAULTS.timeZone,
     checkInOpensMinutes: config.checkInOpensMinutes ?? DEFAULTS.checkInOpensMinutes,
-    reminders: { offsets: normalizeReminderOffsets(config.reminders?.offsets), sms: config.reminders?.sms === true },
+    reminders: { offsets: normalizeReminderOffsets(config.reminders?.offsets), sms: config.reminders?.sms === true, batchSize: normalizeReminderBatch(config.reminders?.batchSize) },
   }
 }
 
@@ -88,8 +89,9 @@ export async function getShiftAssignmentEntryOr404(id: string): Promise<ShiftAss
 export async function shiftsUsersById(ids: number[]): Promise<Map<number, ShiftUserLite>> {
   const unique = [...new Set(ids)]
   if (!unique.length) return new Map()
-  const rows = await db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email, avatar: schema.users.avatar, phone: schema.users.phone })
-    .from(schema.users).where(inArray(schema.users.id, unique))
+  // In chunks: D1 binds at most 100 parameters per statement.
+  const rows = (await Promise.all(shiftsChunk(unique).map(part => db.select({ id: schema.users.id, name: schema.users.name, email: schema.users.email, avatar: schema.users.avatar, phone: schema.users.phone })
+    .from(schema.users).where(inArray(schema.users.id, part))))).flat()
   return new Map(rows.map(row => [Number(row.id), { name: row.name ?? null, email: row.email ?? null, avatar: row.avatar ?? null, phone: row.phone ?? null }]))
 }
 
@@ -97,8 +99,28 @@ export async function shiftsUsersById(ids: number[]): Promise<Map<number, ShiftU
 export async function shiftsTeamsById(ids: string[]): Promise<Map<string, ShiftTeamRow>> {
   const unique = [...new Set(ids)]
   if (!unique.length) return new Map()
-  const rows = await db.select().from(schema.teams).where(inArray(schema.teams.id, unique))
+  const rows = (await Promise.all(shiftsChunk(unique).map(part => db.select().from(schema.teams).where(inArray(schema.teams.id, part))))).flat()
   return new Map(rows.map(row => [row.id, row]))
+}
+
+/** Shift roles by id (a lookup in chunks). */
+export async function shiftsRolesByIds(ids: Array<string | null | undefined>): Promise<Map<string, ShiftRoleRow>> {
+  const unique = [...new Set(ids.filter((id): id is string => !!id))]
+  if (!unique.length) return new Map()
+  const rows = (await Promise.all(shiftsChunk(unique).map(part => db.select().from(schema.shiftRoles).where(inArray(schema.shiftRoles.id, part))))).flat()
+  return new Map(rows.map(row => [row.id, row]))
+}
+
+/**
+ * The locale people get their shifts messages in, for many `{ userId, teamId }` pairs at once: the one stored on their crew
+ * row of the team, else `en`. Keyed `<userId>:<teamId>`. Chunked lookups, so one run costs a few statements.
+ */
+export async function shiftsLocalesOfMany(pairs: Array<{ userId: number, teamId: string }>): Promise<Map<string, string>> {
+  const userIds = [...new Set(pairs.map(pair => pair.userId))]
+  const rows = (await Promise.all(shiftsChunk(userIds).map(part => db.select({ teamId: schema.teamMembers.teamId, userId: schema.teamMembers.userId, locale: schema.teamMembers.locale })
+    .from(schema.teamMembers).where(inArray(schema.teamMembers.userId, part))))).flat()
+  const found = new Map(rows.map(row => [`${row.userId}:${row.teamId}`, row.locale || 'en']))
+  return new Map(pairs.map(pair => [`${pair.userId}:${pair.teamId}`, found.get(`${pair.userId}:${pair.teamId}`) ?? 'en']))
 }
 
 /** The team with this id when the operation owns it, else a 400 on `field`. */

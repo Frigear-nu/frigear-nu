@@ -1,7 +1,8 @@
 import type { EmailNotification, SMSNotification } from '@frigear-nu/notify/types'
 
 // The reminder email and SMS, and the broadcast email, built without Nitro (tested as a unit). `shiftsSendReminders` and
-// `shiftsSendBroadcast` (server utils) fill and send them. Same shape as `swap-email.ts`.
+// `shiftsSendBroadcast` (server utils) fill and send them. Same shape as `swap-email.ts`. The reminder is written in the
+// recipient's language (a small da/en table, English for any other locale).
 
 const escapeHtml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -9,57 +10,111 @@ const escapeHtml = (value: string) =>
 /** What a reminder says about the shift: `when` is already formatted in the person's locale and the module's time zone. */
 export type ShiftReminderVariables = { name: string, team: string, role?: string, when: string, where?: string, start: string }
 
-/** "in 2 hours", "tomorrow"-style wording of the offset, in English. */
-export function describeReminderOffset(minutes: number): string {
-  if (minutes >= 1440 && minutes % 1440 === 0) {
-    const days = minutes / 1440
-    return days === 1 ? 'in a day' : `in ${days} days`
-  }
-  if (minutes >= 60 && minutes % 60 === 0) {
-    const hours = minutes / 60
-    return hours === 1 ? 'in an hour' : `in ${hours} hours`
-  }
-  return `in ${minutes} minutes`
+/** How much time is left, bucketed (see `timeLeftBucket`). */
+export type ShiftTimeLeft = { unit: 'minutes' | 'hours' | 'days', count: number }
+
+type ReminderTexts = {
+  left: { minutes: (count: number) => string, hours: (count: number) => string, days: (count: number) => string }
+  subject: (left: string) => string
+  message: (what: string, left: string, when: string, where?: string) => string
+  greeting: (name: string) => string
+  heading: string
+  button: string
 }
 
-function reminderMessage(variables: ShiftReminderVariables, offset: number): string {
+const TEXTS: Record<'en' | 'da', ReminderTexts> = {
+  en: {
+    left: {
+      minutes: count => count === 1 ? 'in a minute' : `in ${count} minutes`,
+      hours: count => count === 1 ? 'in an hour' : `in ${count} hours`,
+      days: count => count === 1 ? 'in a day' : `in ${count} days`,
+    },
+    subject: left => `Reminder: your shift starts ${left}`,
+    message: (what, left, when, where) => `Your shift on ${what} starts ${left}: ${when}${where ? `, ${where}` : ''}.`,
+    greeting: name => `Hi ${name},`,
+    heading: 'Your shift is coming up',
+    button: 'See your shift',
+  },
+  da: {
+    left: {
+      minutes: count => count === 1 ? 'om et minut' : `om ${count} minutter`,
+      hours: count => count === 1 ? 'om en time' : `om ${count} timer`,
+      days: count => count === 1 ? 'om en dag' : `om ${count} dage`,
+    },
+    subject: left => `Påmindelse: din vagt starter ${left}`,
+    message: (what, left, when, where) => `Din vagt på ${what} starter ${left}: ${when}${where ? `, ${where}` : ''}.`,
+    greeting: name => `Hej ${name},`,
+    heading: 'Din vagt nærmer sig',
+    button: 'Se din vagt',
+  },
+}
+
+/** The language of the texts for a locale (`da`, `da-DK` and `da_DK` are Danish); English for anything else, even garbage. */
+export function reminderLanguage(locale: string | undefined | null): 'en' | 'da' {
+  return typeof locale === 'string' && /^da(?:[-_]|$)/i.test(locale.trim()) ? 'da' : 'en'
+}
+
+/** The wording of the time left in a locale: "in 3 hours", "om 3 timer". */
+export function describeTimeLeft(left: ShiftTimeLeft, locale?: string | null): string {
+  return TEXTS[reminderLanguage(locale)].left[left.unit](left.count)
+}
+
+/**
+ * A shift time as `Jun 28, 2027, 12:00` in the person's locale and the time zone. A locale `Intl` does not know (the
+ * value is free text on a crew row) falls back to English instead of throwing in the middle of a run.
+ */
+export function formatShiftWhen(date: Date, locale: string | undefined | null, timeZone: string): string {
+  const options: Intl.DateTimeFormatOptions = { timeZone, dateStyle: 'medium', timeStyle: 'short' }
+  try {
+    return new Intl.DateTimeFormat(locale || 'en', options).format(date)
+  }
+  catch {
+    return new Intl.DateTimeFormat('en', options).format(date)
+  }
+}
+
+function reminderMessage(variables: ShiftReminderVariables, left: ShiftTimeLeft, locale?: string | null): string {
+  const texts = TEXTS[reminderLanguage(locale)]
   const what = variables.role ? `${variables.team} (${variables.role})` : variables.team
-  return `Your shift on ${what} starts ${describeReminderOffset(offset)}: ${variables.when}${variables.where ? `, ${variables.where}` : ''}.`
+  return texts.message(what, describeTimeLeft(left, locale), variables.when, variables.where)
 }
 
-/** The reminder email. `null` without an address. */
+/** The reminder email. `null` without an address. `offset` is the configured offset that fell due; `left` the real time left. */
 export function buildShiftReminderEmail(input: {
   email: string | null
   variables: ShiftReminderVariables
   offset: number
+  left: ShiftTimeLeft
   url?: string
   locale?: string
 }): EmailNotification | null {
-  const { email, variables, url, offset } = input
+  const { email, variables, url, offset, left, locale } = input
   if (!email) return null
-  const subject = `Reminder: your shift starts ${describeReminderOffset(offset)}`
-  const message = reminderMessage(variables, offset)
+  const texts = TEXTS[reminderLanguage(locale)]
+  const subject = texts.subject(describeTimeLeft(left, locale))
+  const message = reminderMessage(variables, left, locale)
+  const greeting = texts.greeting(variables.name)
   const link = url ? `<p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>` : ''
   return {
     to: email,
     subject,
-    body: `<p>Hi ${escapeHtml(variables.name)},</p><p>${escapeHtml(message)}</p>${link}`,
-    text: `Hi ${variables.name},\n\n${message}${url ? `\n\n${url}` : ''}`,
+    body: `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(message)}</p>${link}`,
+    text: `${greeting}\n\n${message}${url ? `\n\n${url}` : ''}`,
     template: {
       name: 'shifts-reminder',
-      props: { name: variables.name, subject, message, url: url ?? null },
-      locale: input.locale ?? 'en',
+      props: { name: variables.name, subject, message, url: url ?? null, greeting, heading: texts.heading, button: texts.button },
+      locale: locale ?? 'en',
     },
     meta: { shiftReminder: offset },
   }
 }
 
-/** The reminder SMS: one short line, with the link when there is one. `null` without a phone number. */
-export function buildShiftReminderSms(input: { phone: string | null, variables: ShiftReminderVariables, offset: number, url?: string }): SMSNotification | null {
+/** The reminder SMS: one short line in the person's language, with the link when there is one. `null` without a phone number. */
+export function buildShiftReminderSms(input: { phone: string | null, variables: ShiftReminderVariables, offset: number, left: ShiftTimeLeft, url?: string, locale?: string }): SMSNotification | null {
   if (!input.phone) return null
   return {
     to: input.phone,
-    body: `${reminderMessage(input.variables, input.offset)}${input.url ? ` ${input.url}` : ''}`,
+    body: `${reminderMessage(input.variables, input.left, input.locale)}${input.url ? ` ${input.url}` : ''}`,
     meta: { shiftReminder: input.offset },
   }
 }

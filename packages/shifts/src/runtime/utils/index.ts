@@ -3,6 +3,7 @@ import { translate } from '@frigear-nu/ui/translated'
 
 export { translate }
 export * from './api'
+export * from './chunk'
 export * from './guards'
 export * from './ics'
 export * from './reminders'

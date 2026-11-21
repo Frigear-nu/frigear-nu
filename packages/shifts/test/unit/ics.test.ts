@@ -8,6 +8,13 @@ describe('iCalendar writer', () => {
     expect(icsEscape('Bar; Nord, "Early"\\late\nnext\r\nlast')).toBe('Bar\\; Nord\\, "Early"\\\\late\\nnext\\nlast')
   })
 
+  it('drops control characters that would break a line, keeping tabs and the escaped line breaks', () => {
+    expect(icsEscape('a\u0000b\u0007c\u000Bd\u000Ce\u001Bf\u007Fg')).toBe('abcdefg')
+    expect(icsEscape('x\ty\nz')).toBe('x\ty\\nz')
+    // A bare carriage return cannot smuggle in a new content line.
+    expect(icsEscape('Bar\rEND:VEVENT')).toBe('Bar\\nEND:VEVENT')
+  })
+
   it('writes instants in UTC without separators', () => {
     expect(icsDate(new Date('2027-06-28T08:00:00.000Z'))).toBe('20270628T080000Z')
   })

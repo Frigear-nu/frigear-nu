@@ -168,6 +168,8 @@
       "message": "Besked",
       "messageHelp": "Hver person får teksten på deres eget sprog, når du skriver den på flere.",
       "messageRequired": "Skriv beskeden.",
+      "queued": "Sender til {count} personer",
+      "queuedDetail": "Beskederne sendes i baggrunden.",
       "recipients": "Personer",
       "role": "Rolle",
       "roleHelp": "Denne rolle og alle over den på holdets rangstige.",

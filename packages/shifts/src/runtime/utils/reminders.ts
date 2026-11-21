@@ -30,3 +30,27 @@ export function dueReminderOffsets(startsAt: Date, offsets: readonly number[], n
 export function reminderOffsetToSend(due: readonly number[]): number | undefined {
   return due.length ? Math.min(...due) : undefined
 }
+
+/** How many due assignments one reminder run handles unless `reminders.batchSize` says otherwise. */
+export const DEFAULT_REMINDER_BATCH = 100
+
+/** The most one run may handle: a Workers invocation has a budget of subrequests, so a run stays small. */
+export const MAX_REMINDER_BATCH = 1000
+
+/** Cleans the `reminders.batchSize` option: a whole number from 1 to 1000, else the default. */
+export function normalizeReminderBatch(value: unknown): number {
+  const size = Math.floor(Number(value))
+  return Number.isFinite(size) && size >= 1 ? Math.min(size, MAX_REMINDER_BATCH) : DEFAULT_REMINDER_BATCH
+}
+
+/**
+ * The real time left, as the reminder words it: minutes below an hour, whole hours (rounded) below a day, whole days
+ * (rounded down) from there. The configured offset is when a reminder falls due, not how long is left when it is sent.
+ */
+export function timeLeftBucket(startsAt: Date, now: Date): { unit: 'minutes' | 'hours' | 'days', count: number } {
+  const minutes = Math.max(1, Math.round((startsAt.getTime() - now.getTime()) / MINUTE))
+  if (minutes < 60) return { unit: 'minutes', count: minutes }
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return { unit: 'hours', count: hours }
+  return { unit: 'days', count: Math.max(1, Math.floor(minutes / 1440)) }
+}

@@ -7,10 +7,11 @@ import { apiError, validationError } from '@frigear-nu/module-kit/server'
 import { ladderKeys } from '@frigear-nu/teams/utils'
 import type { ShiftBroadcastDto, ShiftBroadcastResultDto, Translated } from '../../../types'
 import { newId, translate } from '../../utils'
+import { shiftsChunk } from '../../utils/chunk'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { buildShiftBroadcastEmail, buildShiftBroadcastSms } from '../reminder-email'
 import { toShiftBroadcastDto } from './shifts-dto'
-import { findShiftEntry, shiftsFire, shiftsOperationTeamOr400, shiftsUsersById } from './shifts-core'
+import { findShiftEntry, shiftsFire, shiftsLocalesOfMany, shiftsOperationTeamOr400, shiftsUsersById } from './shifts-core'
 import type { shiftsBroadcastInput } from './shifts-schemas'
 
 type BroadcastInput = z.output<typeof shiftsBroadcastInput>
@@ -50,11 +51,14 @@ export async function shiftsBroadcastRecipients(event: H3Event, operationId: str
     ? [await shiftsOperationTeamOr400(operationId, audience.teamId, 'audience.teamId')]
     : await db.select().from(schema.teams).where(and(eq(schema.teams.ownerType, 'operation'), eq(schema.teams.ownerId, operationId)))
   if (teams.length) {
-    const [members, ladders] = await Promise.all([
-      db.select({ teamId: schema.teamMembers.teamId, userId: schema.teamMembers.userId, role: schema.teamMembers.role, status: schema.teamMembers.status })
-        .from(schema.teamMembers).where(inArray(schema.teamMembers.teamId, teams.map(team => team.id))).limit(5000),
+    const [memberLists, ladders] = await Promise.all([
+      // In chunks: D1 binds at most 100 parameters per statement.
+      Promise.all(shiftsChunk(teams.map(team => team.id)).map(part =>
+        db.select({ teamId: schema.teamMembers.teamId, userId: schema.teamMembers.userId, role: schema.teamMembers.role, status: schema.teamMembers.status })
+          .from(schema.teamMembers).where(inArray(schema.teamMembers.teamId, part)).limit(5000))),
       loadTeamLadders(event),
     ])
+    const members = memberLists.flat()
     const kindOf = new Map(teams.map(team => [team.id, team.kind]))
     for (const member of members) {
       if (!teamMemberStatusGrants(member.status) || people.has(member.userId)) continue
@@ -68,24 +72,16 @@ export async function shiftsBroadcastRecipients(event: H3Event, operationId: str
   return { recipients: [...people.values()], teamId: audience.teamId ?? null, shiftId: null }
 }
 
-/** The locale each person gets their messages in: the one on their crew row of the team they were found through, else `en`. */
-async function shiftsLocalesOf(recipients: ShiftsBroadcastRecipient[]): Promise<Map<number, string>> {
-  const rows = recipients.length
-    ? await db.select({ teamId: schema.teamMembers.teamId, userId: schema.teamMembers.userId, locale: schema.teamMembers.locale }).from(schema.teamMembers)
-        .where(inArray(schema.teamMembers.userId, recipients.map(item => item.userId)))
-    : []
-  return new Map(recipients.map((item) => {
-    const row = rows.find(candidate => candidate.userId === item.userId && candidate.teamId === item.teamId)
-    return [item.userId, row?.locale || 'en']
-  }))
-}
-
 /**
  * Sends a broadcast: resolves the audience (400 `audience_empty` for nobody, 400 `audience_too_large` past
- * `SHIFTS_BROADCAST_CAP`), stores it, then emails each person (and texts the ones with a phone number when `sms` is among
- * the channels) the subject and message in their own locale. SMS is opt-in per broadcast because it costs money. A
- * delivery that fails is logged and skipped: the broadcast stands, and `sent` says how many went out. Fires
- * `shifts:broadcast:sent`.
+ * `SHIFTS_BROADCAST_CAP`), the people and their locales (so a failure there leaves no history row), stores it, then emails
+ * each person (and texts the ones with a phone number when `sms` is among the channels) the subject and message in their
+ * own locale. SMS is opt-in per broadcast because it costs money. A delivery that fails is logged and skipped: the
+ * broadcast stands.
+ *
+ * Delivery runs in Cloudflare's `waitUntil` when the app runs on Workers, so the request returns once the
+ * row is stored, with `delivery: 'queued'` and no counts; the totals, failures included, are logged when it ends. Without
+ * one (Node) it is awaited and `sent` says how many went out. Fires `shifts:broadcast:sent` once delivery is over.
  */
 export async function shiftsSendBroadcast(event: H3Event, input: BroadcastInput, by: number): Promise<ShiftBroadcastResultDto> {
   const { recipients, teamId, shiftId } = await shiftsBroadcastRecipients(event, input.operationId, input.audience)
@@ -93,6 +89,7 @@ export async function shiftsSendBroadcast(event: H3Event, input: BroadcastInput,
   if (recipients.length > SHIFTS_BROADCAST_CAP) {
     throw apiError(400, 'audience_too_large', `A broadcast reaches at most ${SHIFTS_BROADCAST_CAP} people: this one reaches ${recipients.length}. Narrow it to a team, a role or a shift.`, { cap: SHIFTS_BROADCAST_CAP, recipients: recipients.length })
   }
+  const [users, locales] = await Promise.all([shiftsUsersById(recipients.map(item => item.userId)), shiftsLocalesOfMany(recipients)])
   const [row] = await db.insert(schema.shiftBroadcasts).values({
     id: newId('shb'),
     operationId: input.operationId,
@@ -107,17 +104,18 @@ export async function shiftsSendBroadcast(event: H3Event, input: BroadcastInput,
   }).returning()
   const broadcast = toShiftBroadcastDto(row!)
 
-  const [users, locales] = await Promise.all([shiftsUsersById(recipients.map(item => item.userId)), shiftsLocalesOf(recipients)])
   const sent = { email: 0, sms: 0 }
+  const failed = { email: 0, sms: 0 }
   const deliver = async (recipient: ShiftsBroadcastRecipient) => {
     const user = users.get(recipient.userId)
-    const locale = locales.get(recipient.userId) ?? 'en'
+    const locale = locales.get(`${recipient.userId}:${recipient.teamId}`) ?? 'en'
     const subject = translate(input.subject as Translated, locale, 'en')
     const message = translate(input.message as Translated, locale, 'en')
     if (input.channels.includes('email')) {
       const email = buildShiftBroadcastEmail({ email: user?.email ?? null, name: user?.name ?? '', subject, message, locale })
       if (email) {
         await dispatchEmailNotification(email).then(() => sent.email++).catch((error: unknown) => {
+          failed.email++
           console.error(`[shifts] the broadcast ${row!.id} could not be emailed to user ${recipient.userId}`, error)
         })
       }
@@ -126,16 +124,35 @@ export async function shiftsSendBroadcast(event: H3Event, input: BroadcastInput,
       const sms = buildShiftBroadcastSms({ phone: user?.phone ?? null, subject, message })
       if (sms) {
         await dispatchSMSNotification(sms).then(() => sent.sms++).catch((error: unknown) => {
+          failed.sms++
           console.error(`[shifts] the broadcast ${row!.id} could not be texted to user ${recipient.userId}`, error)
         })
       }
     }
   }
-  for (let index = 0; index < recipients.length; index += 10) {
-    await Promise.all(recipients.slice(index, index + 10).map(deliver))
+  const run = async () => {
+    for (let index = 0; index < recipients.length; index += 10) {
+      await Promise.all(recipients.slice(index, index + 10).map(deliver))
+    }
+    console.info(`[shifts] broadcast ${row!.id} delivered: ${sent.email} emails and ${sent.sms} texts sent, ${failed.email} emails and ${failed.sms} texts failed`)
+    await shiftsFire('shifts:broadcast:sent', { event, broadcast })
   }
-  await shiftsFire('shifts:broadcast:sent', { event, broadcast })
-  return { ...broadcast, sent }
+  const waitUntil = shiftsWaitUntil(event)
+  if (waitUntil) {
+    waitUntil(run().catch((error: unknown) => console.error(`[shifts] the delivery of broadcast ${row!.id} failed`, error)))
+    return { ...broadcast, sent, delivery: 'queued' }
+  }
+  await run()
+  return { ...broadcast, sent, delivery: 'done' }
+}
+
+/**
+ * Cloudflare's `waitUntil` for this request, if the app runs on Workers. Elsewhere (Node, where Nitro's own
+ * `event.waitUntil` only collects promises) delivery is awaited, so the answer carries the counts.
+ */
+function shiftsWaitUntil(event: H3Event): ((promise: Promise<unknown>) => void) | undefined {
+  const context = (event.context as { cloudflare?: { context?: { waitUntil?: (promise: Promise<unknown>) => void } } }).cloudflare?.context
+  return typeof context?.waitUntil === 'function' ? promise => context.waitUntil!(promise) : undefined
 }
 
 /** The broadcasts of an operation, newest first (the last 100). */
