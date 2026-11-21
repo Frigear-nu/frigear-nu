@@ -1,0 +1,40 @@
+{
+  "dashboard": {
+    "home": {
+      "label": "Hjem"
+    },
+    "edit": {
+      "start": "Tilpas oversigt",
+      "done": "Færdig"
+    },
+    "reset": {
+      "button": "Nulstil layout",
+      "title": "Nulstil layout?",
+      "description": "Gendanner standardrækkefølgen og viser alle skjulte elementer. Sammenklappede elementer åbnes igen.",
+      "confirm": "Nulstil layout"
+    },
+    "item": {
+      "expand": "Udvid {title}",
+      "collapse": "Klap {title} sammen",
+      "moveUp": "Flyt {title} op",
+      "moveDown": "Flyt {title} ned",
+      "hide": "Skjul {title}",
+      "error": "{title} kunne ikke indlæses.",
+      "errorHint": "Noget gik galt. Prøv igen om lidt.",
+      "retry": "Prøv igen"
+    },
+    "hidden": {
+      "title": "Skjulte elementer",
+      "show": "Vis {title}"
+    },
+    "allHidden": {
+      "title": "Alle elementer er skjult",
+      "description": "Vis de elementer, du vil se igen."
+    },
+    "empty": {
+      "title": "Her er intet endnu",
+      "description": "Elementer vises her, når de moduler, der tilføjer dem, er installeret."
+    },
+    "error": "Oversigten kunne ikke indlæses."
+  }
+}
