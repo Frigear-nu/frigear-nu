@@ -1,0 +1,102 @@
+{
+  "name": "@frigear-nu/grants",
+  "version": "0.0.0",
+  "description": "Grant lists: who may see a record, as a list of grants where any one admits. A registry of grant kinds that modules extend, the policy helpers and a list editor.",
+  "homepage": "https://docs.frigear.dev/modules/platform/grants",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/grants"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    },
+    "./core": {
+      "types": "./src/runtime/utils/core.ts",
+      "import": "./src/runtime/utils/core.ts",
+      "default": "./src/runtime/utils/core.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      },
+      "./core": {
+        "types": "./dist/runtime/utils/core.d.ts",
+        "import": "./dist/runtime/utils/core.js",
+        "default": "./dist/runtime/utils/core.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@nuxt/kit": "catalog:",
+    "drizzle-orm": "catalog:",
+    "h3": "catalog:",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

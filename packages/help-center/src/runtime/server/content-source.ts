@@ -98,7 +98,7 @@ export function createContentSource(options: ContentSourceOptions): HelpCenterSo
     async categories(ctx): Promise<HelpSourceCategory[]> {
       const slugs = [...new Set((await articles(ctx.event)).map(article => article.categorySlug))]
       // A category of Nuxt Content has no file of its own: it exists because an article names it, titled after its slug.
-      // A database category with the same slug replaces it, and carries its title, visibility and FAQ groups.
+      // A database category with the same slug replaces it, and carries its title, grants and FAQ groups.
       return slugs.map(slug => ({
         id: `content-category:${slug}`,
         slug,

@@ -158,6 +158,11 @@
       "mineEmptyDescription": "The teams you work in show here, with your role.",
       "mineFailed": "Could not load your teams.",
       "mineMore": "{count} more teams"
+    },
+    "grants": {
+      "team": "Team",
+      "chooseTeam": "Choose a team",
+      "minRole": "At least this role"
     }
   }
 }

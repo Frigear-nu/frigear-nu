@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '../src/runtime/utils/api'
 import { operationsAccess } from '../src/runtime/access'
-import { getHooksFor, getOwner, getStatusChanges, participate, registerUser } from './helpers'
+import { evaluateGrants, getHooksFor, getStatusChanges, participate, registerUser, validateGrants } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -462,24 +462,6 @@ describe('operations (authenticated, database-backed)', async () => {
       await expectApiError(json(undefined, 'GET', operationsApi.operation(mine.slug)), 404, 'not_found')
     })
 
-    it('counts an explicit team grant on the operation as taking part, and a mapped one not', async () => {
-      const explicit = await user('Explicit')
-      const mapped = await user('Mapped')
-      const marker = `grant${++counter}`
-      const closed = await createOperation({ slug: `${marker}-closed`, public: false })
-      await participate(explicit.cookie, closed.id, 'explicit')
-      await participate(mapped.cookie, closed.id, 'mapped')
-
-      // List, slug route and /me all follow `takesPart`.
-      expect(((await ok(await json(explicit.cookie, 'GET', operationsApi.list))) as unknown as Json[]).map(item => item.id)).toContain(closed.id)
-      expect(await ok(await json(explicit.cookie, 'GET', operationsApi.operation(closed.slug)))).toMatchObject({ id: closed.id })
-      expect(((await ok(await json(explicit.cookie, 'GET', operationsApi.me.operations))) as unknown as Json[]).map(item => item.id)).toEqual([closed.id])
-
-      expect(((await ok(await json(mapped.cookie, 'GET', operationsApi.list))) as unknown as Json[]).map(item => item.id)).not.toContain(closed.id)
-      await expectApiError(json(mapped.cookie, 'GET', operationsApi.operation(closed.slug)), 404, 'not_found')
-      expect(await ok(await json(mapped.cookie, 'GET', operationsApi.me.operations))).toEqual([])
-    })
-
     it('shows staff a non-public operation by its URL name', async () => {
       const closed = await createOperation({ public: false })
       expect(await ok(await json(staff.cookie, 'GET', operationsApi.operation(closed.slug)))).toMatchObject({ id: closed.id })
@@ -538,16 +520,30 @@ describe('operations (authenticated, database-backed)', async () => {
     })
   })
 
-  describe('audience:owner:resolve', () => {
-    it('answers for the operation owner type with its name, and that it exists', async () => {
-      const operation = await createOperation({ name: { en: 'Owner op', da: 'Ejer op' } })
-      expect(await getOwner('operation', operation.id)).toEqual({ label: { en: 'Owner op', da: 'Ejer op' }, exists: true })
+  describe('the operation grant kind', () => {
+    it('admits the people who take part, and lists them', async () => {
+      const member = await user('Grantmember')
+      const outsider = await user('Grantoutsider')
+      const operation = await createOperation({ public: false })
+      await participate(member.cookie, operation.id)
+      const grants = [{ kind: 'operation', operationId: operation.id }]
+
+      const forMember = await evaluateGrants(member.cookie, grants)
+      expect(forMember.matches).toBe(true)
+      expect(forMember.members).toHaveLength(1)
+      expect((await evaluateGrants(outsider.cookie, grants)).matches).toBe(false)
+      // Anonymous callers match no operation grant, and the empty list admits nobody.
+      expect((await evaluateGrants(undefined, grants)).matches).toBe(false)
+      expect((await evaluateGrants(member.cookie, [])).matches).toBe(false)
+      // An invalid grant of the kind admits nobody.
+      expect((await evaluateGrants(member.cookie, [{ kind: 'operation', operationId: operation.id, extra: 1 }])).matches).toBe(false)
     })
 
-    it('answers exists: false for an unknown operation, and nothing for other owner types', async () => {
-      expect(await getOwner('operation', 'opr_missing')).toEqual({ label: null, exists: false })
-      expect(await getOwner('team', 'tem_1')).toEqual({ label: null, exists: null })
-      expect(await getOwner('platform', '')).toEqual({ label: null, exists: null })
+    it('refuses a grant naming an operation that does not exist', async () => {
+      const operation = await createOperation({})
+      expect((await validateGrants([{ kind: 'operation', operationId: operation.id }])).status).toBe(200)
+      expect((await validateGrants([{ kind: 'operation', operationId: 'opr_missing' }])).status).toBe(400)
+      expect((await validateGrants([{ kind: 'galaxy' }])).status).toBe(400)
     })
   })
 

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { deliverToDevices } from '../../src/runtime/providers/deliver'
 import { chunk } from '../../src/runtime/providers/chunk'
-import { apnsConfigOf, createPlatformSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, requestTimeoutMs, resolvePushDriver } from '../../src/runtime/providers/config'
+import { apnsConfigOf, createProviderSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, requestTimeoutMs, resolveDeviceProvider, resolveIosProvider, resolvePushDriver } from '../../src/runtime/providers/config'
 import type { PushRuntimeConfig } from '../../src/types'
 import type { DeviceSender } from '../../src/runtime/providers/types'
 
 const config = (overrides: Partial<PushRuntimeConfig> = {}): PushRuntimeConfig => ({
   driver: '',
   timeoutMs: 10000,
+  ios: '',
   fcm: { serviceAccount: '' },
   apns: { keyId: '', teamId: '', topic: '', privateKey: '', sandbox: false },
   ...overrides,
@@ -36,11 +37,28 @@ describe('resolvePushDriver', () => {
     expect(apnsConfigOf(config({ apns: { keyId: ' k ', teamId: 't', topic: 'a', privateKey: 'p', sandbox: 'true' } }))).toMatchObject({ keyId: 'k', sandbox: true })
   })
 
+  it('reads push.ios, APNs unless set, and refuses anything else', () => {
+    expect(resolveIosProvider(config())).toBe('apns')
+    expect(resolveIosProvider(config({ ios: ' FCM ' }))).toBe('fcm')
+    expect(resolveIosProvider(config({ ios: 'apns' }))).toBe('apns')
+    expect(() => resolveIosProvider(config({ ios: 'sns' }))).toThrow(/"fcm" or "apns"/)
+  })
+
+  it('routes a device to the provider it registered with, else by platform', () => {
+    expect(resolveDeviceProvider({ platform: 'ios', provider: 'fcm' }, 'apns')).toBe('fcm')
+    expect(resolveDeviceProvider({ platform: 'ios', provider: 'apns' }, 'fcm')).toBe('apns')
+    expect(resolveDeviceProvider({ platform: 'ios', provider: null }, 'fcm')).toBe('fcm')
+    expect(resolveDeviceProvider({ platform: 'ios' }, 'apns')).toBe('apns')
+    expect(resolveDeviceProvider({ platform: 'android', provider: null }, 'apns')).toBe('fcm')
+    expect(resolveDeviceProvider({ platform: 'android', provider: 'unknown' }, 'apns')).toBe('fcm')
+    expect(resolveDeviceProvider({ platform: 'web' }, 'apns')).toBeUndefined()
+  })
+
   it('creates a sender per configured provider only', () => {
-    expect(createPlatformSenders(config())).toEqual({ android: undefined, ios: undefined })
-    const senders = createPlatformSenders(config({ apns: { keyId: 'k', teamId: 't', topic: 'a', privateKey: 'p', sandbox: false } }))
-    expect(senders.ios).toBeDefined()
-    expect(senders.android).toBeUndefined()
+    expect(createProviderSenders(config())).toEqual({ fcm: undefined, apns: undefined })
+    const senders = createProviderSenders(config({ apns: { keyId: 'k', teamId: 't', topic: 'a', privateKey: 'p', sandbox: false } }))
+    expect(senders.apns).toBeDefined()
+    expect(senders.fcm).toBeUndefined()
   })
 })
 
@@ -56,19 +74,70 @@ describe('deliverToDevices', () => {
       { id: 'd', platform: 'ios', token: 'throws' },
       { id: 'e', platform: 'web', token: 'web' },
     ], message, {
-      android: sender(async token => token === 'dead' ? { status: 'dead', reason: '404' } : { status: 'sent' }),
-      ios: sender(async (token) => {
+      fcm: sender(async token => token === 'dead' ? { status: 'dead', reason: '404' } : { status: 'sent' }),
+      apns: sender(async (token) => {
         if (token === 'throws') throw new Error('boom')
         return { status: 'failed', reason: '500' }
       }),
     })
     expect(report).toMatchObject({ sent: 1, failed: 3, revoked: 1, revokedIds: ['b'] })
-    expect([...report.problems].sort()).toEqual(['c: 500', 'd: boom', 'e: no web provider is configured'])
+    expect([...report.problems].sort()).toEqual(['c: 500', 'd: boom', 'e: no provider sends to web devices'])
   })
 
   it('reports a platform without a provider as failed', async () => {
     const report = await deliverToDevices([{ id: 'a', platform: 'ios', token: 't' }], message, {})
     expect(report).toMatchObject({ sent: 0, failed: 1, revoked: 0 })
+    expect(report.problems).toEqual(['a: no APNs provider is configured (ios device)'])
+  })
+
+  // The fix for Cloudflare Workers: an iOS device registered with its FCM token never needs APNs (HTTP/2).
+  it('sends an iOS device registered with an FCM token through FCM, whatever push.ios says', async () => {
+    const seen: Array<[string, string]> = []
+    const record = (provider: string) => sender(async (token) => {
+      seen.push([provider, token])
+      return { status: 'sent' }
+    })
+    const report = await deliverToDevices([
+      { id: 'a', platform: 'ios', token: 'ios-fcm', provider: 'fcm' },
+      { id: 'b', platform: 'ios', token: 'ios-apns', provider: 'apns' },
+      { id: 'c', platform: 'android', token: 'android', provider: 'fcm' },
+    ], message, { fcm: record('fcm'), apns: record('apns') }, { ios: 'apns' })
+    expect(report).toMatchObject({ sent: 3, failed: 0 })
+    expect(seen.sort()).toEqual([['apns', 'ios-apns'], ['fcm', 'android'], ['fcm', 'ios-fcm']])
+  })
+
+  it('reaches an iOS FCM device with only FCM configured (no APNs credentials, no HTTP/2)', async () => {
+    const report = await deliverToDevices([{ id: 'a', platform: 'ios', token: 'ios-fcm', provider: 'fcm' }], message, { fcm: sender(async () => ({ status: 'sent' })) })
+    expect(report).toMatchObject({ sent: 1, failed: 0, problems: [] })
+  })
+
+  it('sends iOS devices that did not say through push.ios (APNs by default), Android always through FCM', async () => {
+    const seen: string[] = []
+    const record = (provider: string) => sender(async (token) => {
+      seen.push(`${provider}:${token}`)
+      return { status: 'sent' }
+    })
+    const devices = [
+      { id: 'a', platform: 'ios', token: 'ios', provider: null },
+      { id: 'b', platform: 'android', token: 'android' },
+    ]
+    await deliverToDevices(devices, message, { fcm: record('fcm'), apns: record('apns') })
+    expect(seen.sort()).toEqual(['apns:ios', 'fcm:android'])
+    seen.length = 0
+    await deliverToDevices(devices, message, { fcm: record('fcm'), apns: record('apns') }, { ios: 'fcm' })
+    expect(seen.sort()).toEqual(['fcm:android', 'fcm:ios'])
+  })
+
+  it('ignores FCM devices when deciding whether every APNs device got BadDeviceToken', async () => {
+    const report = await deliverToDevices([
+      { id: 'a', platform: 'ios', token: 'bad', provider: 'apns' },
+      { id: 'b', platform: 'ios', token: 'ok', provider: 'fcm' },
+    ], message, {
+      apns: sender(async () => ({ status: 'dead', reason: '400 BadDeviceToken', ambiguous: true })),
+      fcm: sender(async () => ({ status: 'sent' })),
+    })
+    // The only APNs device got it: a sandbox or production mix-up, so it is not revoked.
+    expect(report).toMatchObject({ sent: 1, failed: 1, revoked: 0 })
   })
 
   it('sends to many devices in batches', async () => {
@@ -76,7 +145,7 @@ describe('deliverToDevices', () => {
     let concurrent = 0
     let peak = 0
     const report = await deliverToDevices(devices, message, {
-      android: sender(async () => {
+      fcm: sender(async () => {
         peak = Math.max(peak, ++concurrent)
         await new Promise(resolve => setTimeout(resolve, 1))
         concurrent--
@@ -93,7 +162,7 @@ describe('deliverToDevices', () => {
       { id: 'a', platform: 'ios', token: '1' },
       { id: 'b', platform: 'ios', token: '2' },
       { id: 'c', platform: 'android', token: '3' },
-    ], message, { ios: bad, android: sender(async () => ({ status: 'sent' })) })
+    ], message, { apns: bad, fcm: sender(async () => ({ status: 'sent' })) })
     expect(report).toMatchObject({ sent: 1, failed: 2, revoked: 0, revokedIds: [] })
     expect(report.problems[0]).toContain('push.apns.sandbox')
   })
@@ -102,12 +171,12 @@ describe('deliverToDevices', () => {
     const report = await deliverToDevices([
       { id: 'a', platform: 'ios', token: 'bad' },
       { id: 'b', platform: 'ios', token: 'ok' },
-    ], message, { ios: sender(async token => token === 'bad' ? { status: 'dead', reason: '400 BadDeviceToken', ambiguous: true } : { status: 'sent' }) })
+    ], message, { apns: sender(async token => token === 'bad' ? { status: 'dead', reason: '400 BadDeviceToken', ambiguous: true } : { status: 'sent' }) })
     expect(report).toMatchObject({ sent: 1, failed: 0, revoked: 1, revokedIds: ['a'] })
   })
 
   it('still revokes an unambiguous dead token when every iOS device is dead', async () => {
-    const report = await deliverToDevices([{ id: 'a', platform: 'ios', token: '1' }], message, { ios: sender(async () => ({ status: 'dead', reason: '410 Unregistered' })) })
+    const report = await deliverToDevices([{ id: 'a', platform: 'ios', token: '1' }], message, { apns: sender(async () => ({ status: 'dead', reason: '410 Unregistered' })) })
     expect(report).toMatchObject({ revoked: 1, revokedIds: ['a'] })
   })
 
@@ -117,7 +186,7 @@ describe('deliverToDevices', () => {
       { id: 'a', platform: 'android', token: '1', locale: 'da' },
       { id: 'b', platform: 'android', token: '2', locale: null },
     ], device => ({ title: device.locale === 'da' ? 'Hej' : 'Hello', body: '' }), {
-      android: {
+      fcm: {
         send: async (sent) => {
           seen.push(sent.title)
           return { status: 'sent' }

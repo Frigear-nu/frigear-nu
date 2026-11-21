@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import type { AdminHelpArticleDto, AdminHelpCategoryDto, AdminHelpChecklistDto, Translated, Visibility } from '../../../types'
+import type { AdminHelpArticleDto, AdminHelpCategoryDto, AdminHelpChecklistDto, Grant, Translated } from '../../../types'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from '../../utils/slug'
-import { normalizeVisibility } from '../../utils/visibility'
 
 // The staff views of the admin API's DTOs.
 export type StaffHelpCategory = AdminHelpCategoryDto
@@ -51,7 +50,7 @@ export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
     parentId: z.string().trim().optional(),
     ownerType: z.string().trim().min(1).max(64),
     ownerId: z.string().trim().max(128).optional(),
-    visibility: z.custom<Visibility | null>().optional(),
+    grants: z.custom<Grant[] | null>(),
     faqGroups: z.array(z.string()),
   }).refine(value => value.ownerType === 'platform' || !!value.ownerId, {
     message: t('admin.ownerIdRequired', 'Enter the id of the owner.'),
@@ -62,7 +61,7 @@ export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
 export type HelpCategoryFormState = z.output<ReturnType<typeof helpCategoryFormSchema>>
 
 export function emptyHelpCategoryForm(): HelpCategoryFormState {
-  return { name: undefined, slug: '', description: undefined, parentId: '', ownerType: 'platform', ownerId: '', visibility: null, faqGroups: [] }
+  return { name: undefined, slug: '', description: undefined, parentId: '', ownerType: 'platform', ownerId: '', grants: [], faqGroups: [] }
 }
 
 export function categoryToForm(category: StaffHelpCategory): HelpCategoryFormState {
@@ -73,7 +72,7 @@ export function categoryToForm(category: StaffHelpCategory): HelpCategoryFormSta
     parentId: category.parentId ?? '',
     ownerType: category.owner.type,
     ownerId: category.owner.id ?? '',
-    visibility: category.visibility,
+    grants: category.grants,
     faqGroups: [...category.faqGroups],
   }
 }
@@ -86,7 +85,7 @@ export function formToCategoryBody(data: HelpCategoryFormState) {
     description: emptyTranslatedToNull(data.description),
     parentId: data.parentId || null,
     owner: { type: data.ownerType, id: data.ownerType === 'platform' ? null : data.ownerId || null },
-    visibility: normalizeVisibility(data.visibility ?? null),
+    grants: data.grants,
     faqGroups: data.faqGroups.length ? data.faqGroups : null,
   }
 }
@@ -99,18 +98,18 @@ export function helpArticleFormSchema(t: Translate, tr: TranslateText) {
     slug: slugSchema(t),
     title: z.custom<Translated | undefined>().refine(value => !!tr(value).trim(), t('admin.articleTitleRequired', 'Enter a title.')),
     body: z.custom<Translated | undefined>().refine(value => !!tr(value).trim(), t('admin.bodyRequired', 'Write the article.')),
-    visibility: z.custom<Visibility | null>().optional(),
+    grants: z.custom<Grant[] | null>(),
   })
 }
 
 export type HelpArticleFormState = z.output<ReturnType<typeof helpArticleFormSchema>>
 
 export function emptyHelpArticleForm(categoryId = ''): HelpArticleFormState {
-  return { categoryId, slug: '', title: undefined, body: undefined, visibility: null }
+  return { categoryId, slug: '', title: undefined, body: undefined, grants: null }
 }
 
 export function articleToForm(article: StaffHelpArticle): HelpArticleFormState {
-  return { categoryId: article.categoryId ?? '', slug: article.slug, title: article.title, body: article.body, visibility: article.visibility }
+  return { categoryId: article.categoryId ?? '', slug: article.slug, title: article.title, body: article.body, grants: article.grants }
 }
 
 export function formToArticleBody(data: HelpArticleFormState) {
@@ -119,7 +118,7 @@ export function formToArticleBody(data: HelpArticleFormState) {
     slug: data.slug,
     title: data.title,
     body: data.body,
-    visibility: normalizeVisibility(data.visibility ?? null),
+    grants: data.grants,
   }
 }
 
@@ -129,20 +128,20 @@ export function helpChecklistFormSchema(t: Translate, tr: TranslateText) {
   return z.object({
     name: z.custom<Translated | undefined>().refine(value => !!tr(value).trim(), t('admin.nameRequired', 'Enter a name.')),
     operationId: z.string().trim().max(128).optional(),
-    visibility: z.custom<Visibility | null>().optional(),
+    grants: z.custom<Grant[] | null>(),
   })
 }
 
 export type HelpChecklistFormState = z.output<ReturnType<typeof helpChecklistFormSchema>>
 
-export const emptyHelpChecklistForm = (): HelpChecklistFormState => ({ name: undefined, operationId: '', visibility: null })
+export const emptyHelpChecklistForm = (): HelpChecklistFormState => ({ name: undefined, operationId: '', grants: [] })
 
 export const checklistToForm = (checklist: StaffHelpChecklist): HelpChecklistFormState => ({
   name: checklist.name,
   operationId: checklist.operationId ?? '',
-  visibility: checklist.visibility,
+  grants: checklist.grants,
 })
 
 export function formToChecklistBody(data: HelpChecklistFormState) {
-  return { name: data.name, operationId: data.operationId || null, visibility: normalizeVisibility(data.visibility ?? null) }
+  return { name: data.name, operationId: data.operationId || null, grants: data.grants ?? [] }
 }

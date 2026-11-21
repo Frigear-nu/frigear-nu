@@ -197,6 +197,11 @@ export type ShiftScheduleDto = {
   /** Whether assignments still `assigned` without a check-in become `no_show` `autoNoShowMinutes` after the start. Off by default. */
   autoNoShow: boolean
   autoNoShowMinutes: number
+  /**
+   * Whether the server has a station key (`NUXT_SHIFTS_STATION_KEY`). Without one, `station` check-in and station
+   * screens answer 501 `not_configured`, whatever `checkIn.modes` says. A fact of the deployment, the same on every schedule.
+   */
+  stationKeyConfigured: boolean
   publishedAt: string | null
   createdAt: string
   updatedAt: string

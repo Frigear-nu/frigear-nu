@@ -51,7 +51,8 @@ const redirects: Record<string, string> = {
   "/modules/platform/email-templates/components": "/modules/communication/email-templates/components",
   "/modules/platform/email-templates/server": "/modules/communication/email-templates/server",
   "/modules/platform/email-templates/module-emails": "/modules/communication/email-templates/module-emails",
-  "/modules/volunteering/audience": "/modules/organisation/audience",
+  "/modules/volunteering/audience": "/modules/platform/grants",
+  "/modules/organisation/audience": "/modules/platform/grants",
   // The volunteering overview page was removed; its contracts live on each module's page.
   "/modules/volunteering": "/modules#volunteering",
 };

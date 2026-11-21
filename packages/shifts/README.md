@@ -2,8 +2,8 @@
 
 An operation's shifts: schedules of shifts for its teams, the people on them, swaps between volunteers, a QR pass to
 check in and who is on shift now with the lead on duty. Built on [crew](../crew) and [teams](../teams): a person can
-hold a shift when they hold an explicit role on its team. Part of the volunteering modules; it follows the contracts of
-[`@frigear-nu/audience`](../audience).
+hold a shift when they hold an explicit role on its team. Part of the volunteering modules: who takes part in an
+operation comes from Operations' participation hooks, which crew answers.
 
 - Schedules per operation: `draft` until published, how shifts change hands (`coverage` `all` or `flexible`,
   `handover` `trade`, `release` or `both`, `approval` `peer` or `lead`), people per shift and guards (`maxShiftsPerDay`,

@@ -11,8 +11,13 @@ export const pushDevices = pgTable('push_devices', {
   userId: integer().notNull(),
   /** `ios | android | web`. */
   platform: text().notNull(),
-  /** The FCM registration token (android) or the APNs device token (ios). */
+  /** The FCM registration token (android, and ios through FCM) or the APNs device token (ios through APNs). */
   token: text().notNull().unique(),
+  /**
+   * `fcm | apns`: who issued the token, so where its pushes go. `null` for a row registered before the column existed:
+   * android is FCM and ios follows `push.ios`.
+   */
+  provider: text(),
   appId: text(),
   locale: text(),
   lastSeenAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),

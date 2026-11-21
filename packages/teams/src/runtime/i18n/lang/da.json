@@ -158,6 +158,11 @@
       "mineEmptyDescription": "De hold, du arbejder på, vises her med din rolle.",
       "mineFailed": "Kunne ikke hente dine hold.",
       "mineMore": "{count} hold mere"
+    },
+    "grants": {
+      "team": "Team",
+      "chooseTeam": "Vælg et team",
+      "minRole": "Mindst denne rolle"
     }
   }
 }

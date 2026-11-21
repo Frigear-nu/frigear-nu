@@ -2,7 +2,6 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -19,6 +18,7 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
+import { extendGrants } from '@frigear-nu/grants/utils'
 import { operationsAccess } from './runtime/access'
 import { OPERATIONS_DASHBOARD, operationsDashboardItems } from './runtime/dashboard'
 import { defineMapFeatureKind, extendMaps } from '@frigear-nu/maps/utils'
@@ -26,6 +26,8 @@ import { OPERATIONS_CONTAINER_KIND, OPERATIONS_STATION_KIND } from './runtime/ut
 import type {
   ModuleOptions,
   OperationCreatedContext,
+  OperationsParticipantsContext,
+  OperationsParticipationContext,
   OperationStatusChangedContext,
   OperationUpdatedContext,
   PublicModuleOptions,
@@ -51,6 +53,10 @@ declare module 'nitropack' {
     'operations:updated': (ctx: OperationUpdatedContext) => void | Promise<void>
     /** An operation moved along its life cycle (`planning -> active -> wrapped_up -> archived`). */
     'operations:status-changed': (ctx: OperationStatusChangedContext) => void | Promise<void>
+    /** Provider: add the operations a user takes part in (crew answers it). Operations stores no participants itself. */
+    'operations:participation:resolve': (ctx: OperationsParticipationContext) => void | Promise<void>
+    /** Provider: add the users who take part in any of `operationIds` (crew answers it), for the `operation` grant. */
+    'operations:participants:resolve': (ctx: OperationsParticipantsContext) => void | Promise<void>
   }
 }
 
@@ -66,6 +72,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
+    // Registers the `operation` grant kind: who takes part in an operation.
+    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Items on the `crew.home` dashboard.
@@ -135,8 +143,18 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Answers `audience:owner:resolve` for the `operation` owner type. Always on: audience is a hard dependency.
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/audience'))
+    // The `operation` grant kind (`@frigear-nu/grants`): the users who take part in the operation, answered by the
+    // `operations:participation:resolve` and `operations:participants:resolve` hooks.
+    extendGrants(nuxt, {
+      kind: 'operation',
+      label: 'Operation',
+      labelKey: 'operations.grants.operation',
+      icon: 'i-lucide-tent',
+      server: resolver.resolve('./runtime/server/grants/operation'),
+      field: resolver.resolve('./runtime/app/grants/OperationGrantField.vue'),
+      defaults: { operationId: '' },
+      order: 30,
+    })
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([
