@@ -1,6 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
-import { conflict, idParams } from '@frigear-nu/module-kit/server'
+import { apiError, conflict, idParams } from '@frigear-nu/module-kit/server'
 import { mapsAccess } from '../../../access'
 import type { AdminMapDto, MapBase, OwnerRef } from '../../../../types'
 
@@ -15,6 +15,8 @@ export default defineEventHandler(async (event): Promise<AdminMapDto> => {
   const values: Partial<typeof schema.maps.$inferInsert> = {}
   if (input.name !== undefined) values.name = input.name
   if (input.key !== undefined && input.key !== row.key) {
+    // The module that created the map finds it by its key (`ensureMap`): a new key would make it create another one.
+    if (row.source === 'code') throw apiError(409, 'code_map_key_locked', 'This map was created by a module, which finds it by its key: the key cannot change.')
     await mapsAssertKeyFree(input.key, row.id)
     values.key = input.key
   }

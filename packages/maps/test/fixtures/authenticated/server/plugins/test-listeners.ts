@@ -35,6 +35,16 @@ export default defineNitroPlugin((nitro) => {
       name: { da: 'Førstehjælp', en: 'First aid' },
       features: [{ featureKind: 'first-aid.post', layer: 'posts', geometry: { type: 'Point', coordinates: [12.08, 55.618] }, label: 'Post 1', properties: { capacity: 4 } }],
     })
+    // A broken definition: its feature names a layer the map does not have. Nothing of it may be stored, and the
+    // failure must not make every request seed again.
+    ctx.maps.push({
+      key: 'seeded-broken',
+      kind: 'maps.generic-geo',
+      owner: { type: 'platform', id: null },
+      name: 'Broken',
+      visibility: { public: true },
+      features: [{ featureKind: 'maps.marker', layer: 'nope', geometry: { type: 'Point', coordinates: [12, 55] } }],
+    })
   })
 
   // A team's leads may edit that team's maps; here every user with an `@lead.test` email leads `tem_lead`.

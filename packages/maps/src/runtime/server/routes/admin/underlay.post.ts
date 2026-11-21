@@ -7,6 +7,9 @@ import { MAX_UNDERLAY_BYTES, UNDERLAY_EXTENSIONS, imageSize, sniffImageType } fr
 import { planeBoundsFor } from '../../../utils/view'
 import type { AdminMapDto } from '../../../../types'
 
+/** Room for the multipart boundaries, part headers and the `width` / `height` fields around the image. */
+const MULTIPART_ALLOWANCE = 16 * 1024
+
 // Uploads the floor plan of a plane map (multipart: `file`, `width`, `height`). PNG, JPEG or WebP by their bytes (415
 // otherwise), at most `maps.settings.maxUnderlayBytes` (10 MB by default, 413 above). The client measures the image;
 // the server checks the measure against the image itself. The image is placed at `[[0, 0], [height, width]]` and the
@@ -15,6 +18,12 @@ export default defineEventHandler(async (event): Promise<AdminMapDto> => {
   await authorize(event, mapsAccess.permissions.manage)
   const { id } = await getValidatedRouterParams(event, idParams().parse)
   if (!(getRequestHeader(event, 'content-type') ?? '').includes('multipart/form-data')) throw badRequest('Send the floor plan as multipart/form-data.')
+  // The body is read into memory: refuse a request that does not say how large it is, or says it is too large, first.
+  const maxBytes = Number(useRuntimeConfig(event).public.maps?.maxUnderlayBytes) || MAX_UNDERLAY_BYTES
+  const length = Number(getRequestHeader(event, 'content-length'))
+  if (!Number.isFinite(length) || length <= 0 || length > maxBytes + MULTIPART_ALLOWANCE) {
+    throw apiError(413, 'file_too_large', `The image is larger than ${Math.round(maxBytes / 1024 / 1024)} MB.`)
+  }
   const parts = await readMultipartFormData(event) ?? []
   const row = await getMapOr404(id)
   if (row.base !== 'plane') throw badRequest('Only plane maps have a floor plan.')
@@ -24,14 +33,14 @@ export default defineEventHandler(async (event): Promise<AdminMapDto> => {
   const fields = mapsUnderlayFields.safeParse(Object.fromEntries(parts.filter(part => !part.filename && part.name).map(part => [part.name!, part.data.toString('utf8')])))
   if (!fields.success) throw validationError(fields.error.issues, 'Invalid size')
 
-  const maxBytes = Number(useRuntimeConfig(event).public.maps?.maxUnderlayBytes) || MAX_UNDERLAY_BYTES
   if (file.data.byteLength > maxBytes) throw apiError(413, 'file_too_large', `The image is larger than ${Math.round(maxBytes / 1024 / 1024)} MB.`)
   const bytes = new Uint8Array(file.data.buffer, file.data.byteOffset, file.data.byteLength)
   const type = sniffImageType(bytes)
   if (!type) throw apiError(415, 'unsupported_media_type', 'The floor plan must be a PNG, JPEG or WebP image.')
   const { width, height } = fields.data
   const size = imageSize(bytes)
-  if (size && (size.width !== width || size.height !== height)) {
+  if (!size) throw apiError(400, 'unreadable_image', 'The size of the image could not be read.')
+  if ((size.width !== width || size.height !== height)) {
     throw validationError([{ path: ['width'], message: `The image is ${size.width} by ${size.height} pixels.` }], 'Invalid size')
   }
 

@@ -8,7 +8,8 @@ export default defineEventHandler(async (event) => {
   await authorize(event, mapsAccess.permissions.edit)
   const { map, featureId } = await getValidatedRouterParams(event, mapsFeatureParams.parse)
   const row = await findMapByIdOrKey(map)
-  if (!row) throw notFound('Map not found.')
+  // A map the caller may not see is the same 404 as an unknown one, whatever they could edit.
+  if (!row || !(await allows(event, mapsAccess.permissions.read, row))) throw notFound('Map not found.')
   await authorize(event, mapsAccess.permissions.edit, row)
   const existing = await getMapFeatureOr404(row.id, featureId)
   const layer = await getMapLayerOr404(row.id, existing.layerId)

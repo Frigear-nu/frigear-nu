@@ -60,6 +60,30 @@ export function jpegBytes(width: number, height: number): Uint8Array {
   ])
 }
 
+/** A lossless WebP (VP8L) header of `width` by `height`. */
+export function webpLosslessBytes(width: number, height: number): Uint8Array {
+  const out = new Uint8Array(30)
+  out.set(new TextEncoder().encode('RIFF'), 0)
+  out.set(new TextEncoder().encode('WEBPVP8L'), 8)
+  out[20] = 0x2F
+  const w = width - 1
+  const h = height - 1
+  // 14 bits of width, then 14 bits of height, little endian.
+  const bits = w | (h << 14)
+  out.set([bits & 0xFF, (bits >> 8) & 0xFF, (bits >> 16) & 0xFF, (bits >> 24) & 0xFF], 21)
+  return out
+}
+
+/** A lossy WebP (VP8) header of `width` by `height`. */
+export function webpLossyBytes(width: number, height: number): Uint8Array {
+  const out = new Uint8Array(30)
+  out.set(new TextEncoder().encode('RIFF'), 0)
+  out.set(new TextEncoder().encode('WEBPVP8 '), 8)
+  out.set([0x9D, 0x01, 0x2A], 23)
+  out.set([width & 0xFF, (width >> 8) & 0x3F, height & 0xFF, (height >> 8) & 0x3F], 26)
+  return out
+}
+
 /** A WebP (VP8X) header of `width` by `height`. */
 export function webpBytes(width: number, height: number): Uint8Array {
   const out = new Uint8Array(30)

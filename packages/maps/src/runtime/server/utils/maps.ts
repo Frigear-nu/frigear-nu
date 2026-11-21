@@ -364,7 +364,20 @@ export async function ensureMap(event: H3Event, definition: EnsureMapDefinition)
     feature,
     valid: await mapsValidateFeature({ kind: kind.id, base: kind.base }, feature),
   })))
+  // Every feature's layer must be one the new map will have, checked before anything is stored.
+  const layerKeys = [...kind.defaultLayers, ...(definition.layers ?? [])].map(layer => layer.key)
+  features.forEach(({ feature }, index) => {
+    if (feature.layer && !layerKeys.includes(feature.layer)) {
+      throw validationError([{ path: ['features', index, 'layer'], message: `The map has no layer "${feature.layer}".` }], 'Unknown layer')
+    }
+  })
+  if (features.length && !layerKeys.length) {
+    throw validationError([{ path: ['features'], message: 'The map has no layer for its features.' }], 'Unknown layer')
+  }
 
+  // Not in one transaction: D1 has no interactive transactions, so the map, its layers and its features are three
+  // writes. Everything that can be wrong with the definition is checked above; only a database failure between the
+  // writes can leave a map without its layers or features.
   let row: MapRow
   try {
     row = await insertMapRow({ kind, owner: definition.owner, name: definition.name, key: definition.key, view, visibility, source: 'code' }, definition.layers ?? [])
@@ -382,8 +395,8 @@ export async function ensureMap(event: H3Event, definition: EnsureMapDefinition)
     const layers = await listMapLayers(row.id)
     const fallback = layers.find(layer => layer.editable) ?? layers[0]
     const values = features.map(({ feature, valid }, index) => {
-      const layer = feature.layer ? layers.find(candidate => candidate.key === feature.layer) : fallback
-      if (!layer) throw validationError([{ path: ['features', index, 'layer'], message: `The map has no layer "${feature.layer}".` }], 'Unknown layer')
+      // Checked above, so the layer exists.
+      const layer = (feature.layer ? layers.find(candidate => candidate.key === feature.layer) : fallback)!
       return {
         id: newId('mpf'),
         mapId: row.id,
@@ -400,26 +413,37 @@ export async function ensureMap(event: H3Event, definition: EnsureMapDefinition)
 }
 
 let seeding: Promise<void> | undefined
+let seedingFailedAt = 0
+
+/** How long a failed seed waits before a request tries again. */
+export const MAPS_SEED_RETRY_MS = 60_000
 
 /**
  * Creates the maps `maps:seed:resolve` listeners ask for, once per server: on the first request, with that request's
- * event. A failure is logged and retried on the next request.
+ * event. When the hook or any definition fails, the failure is logged and seeding runs again on a request at least a
+ * minute later (maps that exist already are skipped by `ensureMap`).
  */
 export function ensureMapsSeeded(event: H3Event): Promise<void> {
+  if (!seeding && seedingFailedAt && Date.now() - seedingFailedAt < MAPS_SEED_RETRY_MS) return Promise.resolve()
   seeding ??= (async () => {
     const ctx: MapsSeedResolveContext = { event, maps: [] }
     await useNitroApp().hooks.callHook('maps:seed:resolve', ctx)
+    let failed = false
     for (const definition of ctx.maps) {
       try {
         await ensureMap(event, definition)
       }
       catch (error) {
+        failed = true
         console.error(`[maps] the seeded map "${definition.key}" could not be created`, error)
       }
     }
+    if (failed) throw new Error('one or more seeded maps could not be created')
+    seedingFailedAt = 0
   })().catch((error: unknown) => {
     seeding = undefined
-    console.error('[maps] seeding failed; retried on the next request', error)
+    seedingFailedAt = Date.now()
+    console.error('[maps] seeding failed; retried on a request in a minute', error)
   })
   return seeding
 }

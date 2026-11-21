@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { $fetch, fetch, setup, url } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { mapsApi } from '../src/runtime/utils/api'
 import { mapsAccess } from '../src/runtime/access'
@@ -50,6 +50,10 @@ describe('maps (authenticated, database-backed)', async () => {
       expect(site.map).toMatchObject({ key: 'seeded-site', kind: 'maps.generic-geo', base: 'geo', public: true, ownerType: 'platform', ownerId: null })
       expect(site.features.map((feature: Json) => feature.featureKind).sort()).toEqual(['maps.area', 'maps.marker'])
       await as(plain).json('GET', mapsApi.list)
+      // The broken definition failed: nothing of it is stored, and the failure does not make every request seed again.
+      await expectApiError(as().json('GET', mapsApi.map('seeded-broken')), 401)
+      await expectApiError(as(plain).json('GET', mapsApi.map('seeded-broken')), 404)
+      await as(plain).json('GET', mapsApi.list)
       expect((await getMapsLog()).seedCalls).toBe(1)
 
       const owned = await as(staff).json<Json>('GET', `${mapsApi.admin.maps}?ownerType=operation&ownerId=opr_seed`)
@@ -81,6 +85,40 @@ describe('maps (authenticated, database-backed)', async () => {
         name: 'X',
         features: [{ featureKind: 'first-aid.post', geometry: point(12, 55), properties: { capacity: -1 } }],
       }), 400)
+    })
+
+    it('ensureMap stores nothing when a feature names a layer the map will not have', async () => {
+      const key = `x-${++counter}`
+      const error = await expectApiError(ensureMapOnServer({
+        key,
+        kind: 'first-aid',
+        owner: { type: 'operation', id: 'opr_1' },
+        name: 'X',
+        features: [{ featureKind: 'first-aid.post', layer: 'nope', geometry: point(12, 55), properties: { capacity: 1 } }],
+      }), 400)
+      expect(JSON.stringify(error.data)).toContain('nope')
+      await expectApiError(as(staff).json('GET', mapsApi.map(key)), 404)
+      const withExtraLayer = await ensureMapOnServer<Json>({
+        key: `x-${++counter}`,
+        kind: 'first-aid',
+        owner: { type: 'operation', id: 'opr_1' },
+        name: 'X',
+        layers: [{ key: 'extra', name: 'Extra' }],
+        features: [{ featureKind: 'first-aid.post', layer: 'extra', geometry: point(12, 55), properties: { capacity: 1 } }],
+      })
+      expect((await as(staff).json<Json>('GET', mapsApi.map(withExtraLayer.id))).features).toHaveLength(1)
+    })
+  })
+
+  describe('map list', () => {
+    it('fills the list from the maps the caller may see, past rows they may not', async () => {
+      const ownerType = `bulk${++counter}`
+      const [signedIn, publicId] = await $fetch<string[]>('/api/test/bulk-maps', { method: 'POST', body: { ownerType, hidden: 520, visible: [null, { public: true }] } })
+      const seen = (await as(plain).json<Json[]>('GET', `${mapsApi.list}?ownerType=${ownerType}`)).map(map => map.id)
+      expect(seen).toEqual([signedIn, publicId])
+      const anonymous = (await as().json<Json[]>('GET', `${mapsApi.list}?ownerType=${ownerType}`)).map(map => map.id)
+      expect(anonymous).toEqual([publicId])
+      expect(await as(staff).json<Json[]>('GET', `${mapsApi.list}?ownerType=${ownerType}`)).toHaveLength(500)
     })
   })
 
@@ -124,7 +162,7 @@ describe('maps (authenticated, database-backed)', async () => {
     })
 
     it('shows every map to staff', async () => {
-      const listed = (await as(staff).json<Json[]>('GET', mapsApi.list)).map(map => map.id)
+      const listed = (await as(staff).json<Json[]>('GET', `${mapsApi.list}?ownerType=platform`)).map(map => map.id)
       expect(listed).toEqual(expect.arrayContaining([publicMap.id, signedIn.id, vipOnly.id, baOnly.id]))
     })
 
@@ -239,13 +277,37 @@ describe('maps (authenticated, database-backed)', async () => {
       expect((await as(plain).json<Json>('GET', mapsApi.map(venue.id))).canEdit).toBe(false)
     })
 
-    it('lets a token edit with maps:edit plus the kind\'s permission, and refuses one without', async () => {
-      const withBoth = await createToken(firstAid.cookie, [mapsAccess.permissions.edit, 'first-aid:manage'])
-      expect((await apiClient({ bearer: withBoth }).json<Json>('POST', mapsApi.features(map.id), { featureKind: 'maps.marker', geometry: point(12, 55) })).id).toMatch(/^mpf_/)
+    it('lets a token edit with maps:read, maps:edit and the kind\'s permission, and refuses one without', async () => {
+      const marker = { featureKind: 'maps.marker', geometry: point(12, 55) }
+      const all = await createToken(firstAid.cookie, [mapsAccess.permissions.read, mapsAccess.permissions.edit, 'first-aid:manage'])
+      expect((await apiClient({ bearer: all }).json<Json>('POST', mapsApi.features(map.id), marker)).id).toMatch(/^mpf_/)
       const readOnly = await createToken(firstAid.cookie, [mapsAccess.permissions.read])
-      await expectApiError(apiClient({ bearer: readOnly }).json('POST', mapsApi.features(map.id), { featureKind: 'maps.marker', geometry: point(12, 55) }), 403, 'insufficient_scope')
-      const editOnly = await createToken(firstAid.cookie, [mapsAccess.permissions.edit])
-      await expectApiError(apiClient({ bearer: editOnly }).json('POST', mapsApi.features(map.id), { featureKind: 'maps.marker', geometry: point(12, 55) }), 403, 'forbidden')
+      await expectApiError(apiClient({ bearer: readOnly }).json('POST', mapsApi.features(map.id), marker), 403, 'insufficient_scope')
+      const withoutKindPermission = await createToken(firstAid.cookie, [mapsAccess.permissions.read, mapsAccess.permissions.edit])
+      await expectApiError(apiClient({ bearer: withoutKindPermission }).json('POST', mapsApi.features(map.id), marker), 403, 'forbidden')
+      // A token that cannot read the map does not learn that it exists.
+      const editOnly = await createToken(firstAid.cookie, [mapsAccess.permissions.edit, 'first-aid:manage'])
+      await expectApiError(apiClient({ bearer: editOnly }).json('POST', mapsApi.features(map.id), marker), 404, 'not_found')
+    })
+
+    it('answers the same 404 for a map the caller cannot see as for an unknown one, even to editPermission holders', async () => {
+      const hidden = await ensureMapOnServer<Json>({
+        key: `first-aid-opr_hidden${++counter}`,
+        kind: 'first-aid',
+        owner: { type: 'operation', id: `opr_hidden${counter}` },
+        name: 'Hidden',
+        visibility: { globalRoles: ['vip'] },
+        features: [{ featureKind: 'first-aid.post', geometry: point(12, 55), properties: { capacity: 1 } }],
+      })
+      const marker = { featureKind: 'maps.marker', geometry: point(12, 55) }
+      const unknown = await expectApiError(as(firstAid).json('POST', mapsApi.features('no-such-map'), marker), 404, 'not_found') as Json
+      const invisible = await expectApiError(as(firstAid).json('POST', mapsApi.features(hidden.id), marker), 404, 'not_found') as Json
+      expect(invisible.statusMessage).toBe(unknown.statusMessage)
+      const featureId = (await as(staff).json<Json>('GET', mapsApi.map(hidden.id))).features[0].id
+      await expectApiError(as(firstAid).json('PATCH', mapsApi.feature(hidden.id, featureId), { label: 'X' }), 404, 'not_found')
+      await expectApiError(as(firstAid).json('DELETE', mapsApi.feature(hidden.id, featureId)), 404, 'not_found')
+      // Staff still edit it.
+      expect((await as(staff).json<Json>('POST', mapsApi.features(hidden.id), marker)).id).toMatch(/^mpf_/)
     })
   })
 
@@ -274,12 +336,21 @@ describe('maps (authenticated, database-backed)', async () => {
       await expectApiError(as(staff).json('PATCH', mapsApi.admin.map(created.id), { view: { center: [0, 0], zoom: 3 } }), 400)
       await expectApiError(as(staff).json('PATCH', mapsApi.admin.map(created.id), { visibility: { permission: 'x' } }), 400)
       await expectApiError(as(staff).json('PATCH', mapsApi.admin.map(created.id), { key: 'seeded-site' }), 409, 'conflict')
+      expect((await as(staff).json<Json>('PATCH', mapsApi.admin.map(created.id), { key: `bar-renamed-${++counter}` })).key).toContain('bar-renamed')
 
       const list = await as(staff).json<Json>('GET', `${mapsApi.admin.maps}?q=renamed&kind=maps.generic-plane`)
       expect(list.items.map((item: Json) => item.id)).toContain(created.id)
 
       expect((await as(staff).fetch('DELETE', mapsApi.admin.map(created.id))).status).toBe(204)
       await expectApiError(as(staff).json('GET', mapsApi.admin.map(created.id)), 404, 'not_found')
+    })
+
+    it('keeps the key of a map created from code, which its module finds it by', async () => {
+      const seeded = await as(staff).json<Json>('GET', mapsApi.map('seeded-site'))
+      await expectApiError(as(staff).json('PATCH', mapsApi.admin.map(seeded.map.id), { key: 'something-else' }), 409, 'code_map_key_locked')
+      await expectApiError(as(staff).json('PATCH', mapsApi.admin.map(seeded.map.id), { key: null }), 409, 'code_map_key_locked')
+      // Other fields still change, and repeating the same key is no change.
+      expect((await as(staff).json<Json>('PATCH', mapsApi.admin.map(seeded.map.id), { key: 'seeded-site', name: { da: 'Områdekort', en: 'Site map' } })).key).toBe('seeded-site')
     })
 
     it('validates the kind and the owner', async () => {
@@ -328,6 +399,19 @@ describe('maps (authenticated, database-backed)', async () => {
       expect((await postForm(mapsApi.admin.underlay(plan.id), imageForm(png, 41, 30), staff.cookie)).status).toBe(400)
       const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')
       expect((await postForm(mapsApi.admin.underlay(plan.id), imageForm(svg, 10, 10, 'image/png', 'plan.png'), staff.cookie)).status).toBe(415)
+      // A PNG signature with no readable header: the client's size is not trusted.
+      expect((await postForm(mapsApi.admin.underlay(plan.id), imageForm(png.subarray(0, 12), 40, 30), staff.cookie)).status).toBe(400)
+      // A body without a length is refused before it is read.
+      const streamed = await globalThis.fetch(url(mapsApi.admin.underlay(plan.id)), {
+        method: 'POST',
+        headers: { 'cookie': staff.cookie, 'content-type': 'multipart/form-data; boundary=x' },
+        body: new ReadableStream({ start(controller) {
+          controller.enqueue(new TextEncoder().encode('--x--\r\n'))
+          controller.close()
+        } }),
+        duplex: 'half',
+      } as RequestInit)
+      expect(streamed.status).toBe(413)
       const big = new Uint8Array(250_000)
       big.set(png.subarray(0, 24))
       expect((await postForm(mapsApi.admin.underlay(plan.id), imageForm(big, 40, 30), staff.cookie)).status).toBe(413)

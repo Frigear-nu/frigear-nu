@@ -12,7 +12,8 @@ export default defineEventHandler(async (event): Promise<MapFeatureDto> => {
   const { map } = await getValidatedRouterParams(event, mapsMapParams.parse)
   const input = await readValidatedBody(event, mapsFeatureInput.parse)
   const row = await findMapByIdOrKey(map)
-  if (!row) throw notFound('Map not found.')
+  // A map the caller may not see is the same 404 as an unknown one, whatever they could edit.
+  if (!row || !(await allows(event, mapsAccess.permissions.read, row))) throw notFound('Map not found.')
   await authorize(event, mapsAccess.permissions.edit, row)
 
   const layer = await mapsEditableLayerOr409(row.id, input.layerId)

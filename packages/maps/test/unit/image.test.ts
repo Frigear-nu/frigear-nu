@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { imageSize, sniffImageType } from '../../src/runtime/utils/image'
-import { jpegBytes, pngBytes, webpBytes } from '../images'
+import { jpegBytes, pngBytes, webpBytes, webpLosslessBytes, webpLossyBytes } from '../images'
 
 describe('underlay images', () => {
   it('knows PNG, JPEG and WebP by their bytes and reads their size', () => {
@@ -10,6 +10,14 @@ describe('underlay images', () => {
     expect(imageSize(jpegBytes(64, 48))).toEqual({ width: 64, height: 48 })
     expect(sniffImageType(webpBytes(120, 90))).toBe('image/webp')
     expect(imageSize(webpBytes(120, 90))).toEqual({ width: 120, height: 90 })
+  })
+
+  it('reads lossless and lossy WebP too, and nothing from a truncated header', () => {
+    expect(imageSize(webpLosslessBytes(1000, 700))).toEqual({ width: 1000, height: 700 })
+    expect(imageSize(webpLosslessBytes(16384, 3))).toEqual({ width: 16384, height: 3 })
+    expect(imageSize(webpLossyBytes(640, 480))).toEqual({ width: 640, height: 480 })
+    expect(sniffImageType(pngBytes(4, 4).subarray(0, 12))).toBe('image/png')
+    expect(imageSize(pngBytes(4, 4).subarray(0, 12))).toBeNull()
   })
 
   it('refuses anything else, whatever it is called', () => {
