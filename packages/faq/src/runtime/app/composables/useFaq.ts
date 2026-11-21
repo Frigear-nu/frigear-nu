@@ -24,7 +24,7 @@ const slugList = (value: string | string[] | null | undefined): string[] =>
  * read), each with its published items the viewer may read. Built on `useAsyncData`, so it works with SSR, and the
  * request carries the session cookie on the server.
  *
- *     const { groups, items, status } = await useFaq(['volunteering', 'roskilde'])
+ *     const { groups, items, status } = await useFaq(['volunteering', 'summer-festival'])
  *
  * The fetch key includes the signed-in user, so what a restricted group showed to one user is never reused for
  * another after a sign-in or sign-out. A client that is signed in without a session user (a bearer token, the mobile

@@ -113,7 +113,7 @@ async function save(event: FormSubmitEvent<State>) {
       <UFormField
         name="role"
         :label="t('admin.role', 'Role')"
-        :description="t('admin.inviteRoleHelp', 'Pick a lead role such as BA to invite someone as a lead.')"
+        :description="t('admin.inviteRoleHelp', 'Pick a lead role of the ladder to invite someone as a lead.')"
         required
       >
         <USelect

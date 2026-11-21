@@ -104,7 +104,7 @@ async function save(event: FormSubmitEvent<OperationFormState>) {
       <UFormField
         name="hostName"
         :label="t('admin.hostName', 'Host')"
-        :description="t('admin.hostNameHelp', 'Who hosts it: Frigear, or the festival or venue Frigear works at.')"
+        :description="t('admin.hostNameHelp', 'Who hosts it: your organisation, or the venue or event you work at.')"
       >
         <UInput
           v-model="state.hostName"

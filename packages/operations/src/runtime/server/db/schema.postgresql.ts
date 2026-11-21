@@ -15,7 +15,7 @@ export const operations = pgTable('operations', {
   slug: text().notNull().unique(),
   name: jsonb().$type<Translated>().notNull(),
   description: jsonb().$type<Translated>(),
-  /** Who hosts the occasion: Frigear, or the festival or venue Frigear works at. */
+  /** Who hosts the occasion: your organisation, or the venue or event it works at. */
   hostName: text(),
   hostUrl: text(),
   startsAt: timestamp({ withTimezone: true }).notNull(),

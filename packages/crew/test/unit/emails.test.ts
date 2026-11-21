@@ -3,7 +3,7 @@ import { buildCrewStatusEmail } from '../../src/runtime/server/utils/crew-emails
 import { CREW_STATUSES } from '../../src/runtime/utils/status'
 
 const member = { email: 'ada@example.com', name: 'Ada <Lovelace>', teamName: { en: 'Bar A', da: 'Bar A' }, role: 'volunteer' }
-const base = { member, operationName: { en: 'Roskilde 2027', da: 'Roskilde 2027' }, roleLabel: 'Volunteer', settings: undefined }
+const base = { member, operationName: { en: 'Summer Festival 2030', da: 'Summer Festival 2030' }, roleLabel: 'Volunteer', settings: undefined }
 
 describe('crew status emails', () => {
   it('builds a built-in email for every status, from the crew-status-<status> template', () => {
@@ -11,8 +11,8 @@ describe('crew status emails', () => {
       const email = buildCrewStatusEmail({ ...base, status })
       expect(email, status).not.toBeNull()
       expect(email!.to).toBe('ada@example.com')
-      expect(email!.template).toMatchObject({ name: `crew-status-${status}`, locale: 'en', props: { operationName: 'Roskilde 2027', teamName: 'Bar A', role: 'Volunteer' } })
-      expect(email!.subject).toContain('Roskilde 2027')
+      expect(email!.template).toMatchObject({ name: `crew-status-${status}`, locale: 'en', props: { operationName: 'Summer Festival 2030', teamName: 'Bar A', role: 'Volunteer' } })
+      expect(email!.subject).toContain('Summer Festival 2030')
       expect(email!.subject).not.toContain('{{')
       expect(email!.body).not.toContain('{{')
     }
@@ -32,7 +32,7 @@ describe('crew status emails', () => {
       locale: 'da',
       settings: { statusEmails: { approved: { subject: { en: 'Welcome {{name}}', da: 'Velkommen til {{operation}}, {{ name }}' }, body: { da: 'Du er {{role}} på {{team}}.\n\nVi ses!' } } } },
     })!
-    expect(email.subject).toBe('Velkommen til Roskilde 2027, Ada <Lovelace>')
+    expect(email.subject).toBe('Velkommen til Summer Festival 2030, Ada <Lovelace>')
     expect(email.text).toContain('Du er Volunteer på Bar A.')
     expect(email.body).toContain('<p>Du er Volunteer på Bar A.</p><p>Vi ses!</p>')
     expect(email.template?.props).toMatchObject({ subject: email.subject, message: 'Du er Volunteer på Bar A.\n\nVi ses!' })

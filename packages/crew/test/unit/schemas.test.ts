@@ -16,16 +16,16 @@ describe('crew input schemas', () => {
 
   it('needs a team or a role to move somebody, and ids to approve in bulk', () => {
     expect(crewMemberPatchSchema.safeParse({}).success).toBe(false)
-    expect(crewMemberPatchSchema.safeParse({ role: 'ba' }).success).toBe(true)
+    expect(crewMemberPatchSchema.safeParse({ role: 'lead' }).success).toBe(true)
     expect(crewApproveInput.parse(undefined)).toEqual({})
     expect(crewBulkApproveInput.safeParse({ ids: [] }).success).toBe(false)
     expect(crewBulkApproveInput.safeParse({ ids: Array.from({ length: 201 }, (_, index) => `tmm_${index}`) }).success).toBe(false)
   })
 
   it('limits invites to a sane number of uses', () => {
-    expect(crewInviteInput.parse({ teamId: 'tem_1', role: 'ba' }).maxUses).toBe(1)
-    expect(crewInviteInput.safeParse({ teamId: 'tem_1', role: 'ba', maxUses: 0 }).success).toBe(false)
-    expect(crewInviteInput.safeParse({ teamId: 'tem_1', role: 'ba', maxUses: 1001 }).success).toBe(false)
+    expect(crewInviteInput.parse({ teamId: 'tem_1', role: 'lead' }).maxUses).toBe(1)
+    expect(crewInviteInput.safeParse({ teamId: 'tem_1', role: 'lead', maxUses: 0 }).success).toBe(false)
+    expect(crewInviteInput.safeParse({ teamId: 'tem_1', role: 'lead', maxUses: 1001 }).success).toBe(false)
   })
 
   it('reads the members query: sorts and filters it knows, defaults to the newest applications', () => {

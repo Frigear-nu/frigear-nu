@@ -15,7 +15,7 @@ export const operations = sqliteTable('operations', {
   slug: text().notNull().unique(),
   name: text({ mode: 'json' }).$type<Translated>().notNull(),
   description: text({ mode: 'json' }).$type<Translated>(),
-  /** Who hosts the occasion: Frigear, or the festival or venue Frigear works at. */
+  /** Who hosts the occasion: your organisation, or the venue or event it works at. */
   hostName: text(),
   hostUrl: text(),
   startsAt: integer({ mode: 'timestamp' }).notNull(),
