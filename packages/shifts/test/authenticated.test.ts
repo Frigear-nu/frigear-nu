@@ -1023,9 +1023,9 @@ describe('shifts (authenticated, database-backed)', async () => {
       // 26 hours ahead: nothing is inside the largest offset yet.
       expect(await runReminders('2031-03-09T08:00:00.000Z')).toEqual({ checked: 0, sent: 0, spent: 0 })
 
-      // 24 hours ahead of the first shift: Ann and Bo get the day-before reminder, Eli (not eligible: spent without a
-      // message), Cy (cancelled) and Dee (a draft schedule) nothing.
-      expect(await runReminders('2031-03-09T10:00:00.000Z')).toEqual({ checked: 3, sent: 2, spent: 1 })
+      // 24 hours ahead of the first shift: Ann and Bo get the day-before reminder; Eli (his membership stopped granting, which
+      // cancels his assignment), Cy (cancelled) and Dee (a draft schedule) get nothing.
+      expect(await runReminders('2031-03-09T10:00:00.000Z')).toEqual({ checked: 2, sent: 2, spent: 0 })
       for (const who of [ann, bo]) {
         const sent = await remindersOf(who)
         expect(sent).toHaveLength(1)
@@ -1432,6 +1432,87 @@ describe('shifts (authenticated, database-backed)', async () => {
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
       await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, code), 404)
       expect((await passOf(setup.ann, ann.assignment.id)).perks).toEqual([])
+    })
+  })
+
+  // --- The extras and handovers: a trade or a release keeps an assignment's id and changes its owner ----------------------
+
+  describe('extras after a handover', () => {
+    const feedOf = async (who: Session) => (await (await fetch(shiftsApi.feed((await json(who.cookie, 'POST', shiftsApi.me.feedToken).then(ok)).token))).text()).replace(/\r\n /g, '')
+    const handOver = async (from: Session, to: Session, assignmentId: string, give?: string) => {
+      const swap = await ok(await json(from.cookie, 'POST', shiftsApi.me.swap(assignmentId), give ? { kind: 'trade' } : { kind: 'release' }))
+      const offer = await ok(await json(to.cookie, 'POST', shiftsApi.offers(swap.id), give ? { assignmentId: give } : {}))
+      await ok(await json(from.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))
+    }
+
+    it('moves a released or traded shift between the two people\'s feeds', async () => {
+      const setup = await newSetup()
+      const [ann, bo, cy] = await Promise.all([user('Zann'), user('Zbo'), user('Zcy')])
+      for (const who of [ann, bo, cy]) await addMember(setup.team.id, who)
+      const annShift = await assigned(setup.shifts[0]!.id, ann)
+      const boShift = await assigned(setup.shifts[1]!.id, bo)
+      expect(await feedOf(ann)).toContain(annShift.assignment.id)
+      expect(await feedOf(bo)).not.toContain(annShift.assignment.id)
+      // A release: the assignment (same id, so the same event) is now in the taker's feed and gone from the giver's.
+      await handOver(ann, cy, annShift.assignment.id)
+      expect(await feedOf(ann)).not.toContain(annShift.assignment.id)
+      expect(await feedOf(cy)).toContain(annShift.assignment.id)
+      // A trade: the two assignments change feeds.
+      await handOver(bo, cy, boShift.assignment.id, annShift.assignment.id)
+      const [boFeed, cyFeed] = [await feedOf(bo), await feedOf(cy)]
+      expect(boFeed).toContain(annShift.assignment.id)
+      expect(boFeed).not.toContain(boShift.assignment.id)
+      expect(cyFeed).toContain(boShift.assignment.id)
+      expect(cyFeed).not.toContain(annShift.assignment.id)
+    })
+
+    it('does not remind the new owner of an offset the old owner already got, but of the later ones', async () => {
+      const setup = await newSetup()
+      const [ann, bo] = await Promise.all([user('Yann'), user('Ybo')])
+      for (const who of [ann, bo]) await addMember(setup.team.id, who)
+      await patchShift(setup.shifts[0]!.id, { startsAt: '2035-01-10T10:00:00.000Z', endsAt: '2035-01-10T14:00:00.000Z' })
+      const annShift = await assigned(setup.shifts[0]!.id, ann)
+      const reminders = async (who: Session) => (await getEmailsTo(who.email)).filter(email => email.template?.name === 'shifts-reminder')
+      expect(await runReminders('2035-01-09T10:00:00.000Z')).toMatchObject({ sent: 1 })
+      expect(await reminders(ann)).toHaveLength(1)
+      await handOver(ann, bo, annShift.assignment.id)
+      // The claim is keyed by assignment and offset: the day-before reminder is not sent again to the new owner...
+      expect(await runReminders('2035-01-09T12:00:00.000Z')).toMatchObject({ sent: 0 })
+      expect(await reminders(bo)).toHaveLength(0)
+      // ...and the next offset goes to whoever holds the shift then.
+      expect(await runReminders('2035-01-10T08:30:00.000Z')).toMatchObject({ sent: 1 })
+      expect(await reminders(bo)).toHaveLength(1)
+      expect(await reminders(ann)).toHaveLength(1)
+    })
+
+    it('lets a per-shift allowance travel with the assignment and a per-person budget follow the person', async () => {
+      const setup = await newSetup()
+      const other = await createTeam(setup.op.id)
+      const [ann, cy, lead] = await Promise.all([user('Xann'), user('Xcy'), user('Xlead')])
+      for (const who of [ann, cy]) await addMember(setup.team.id, who)
+      await addMember(setup.team.id, lead, 'ba')
+      await addMember(other.id, await user('Xother'), 'ba')
+      // Open pass window, but not started yet: a started shift cannot be swapped.
+      for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
+      const perShift = await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'Meal', perShift: 1 }).then(ok)
+      const perPerson = await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'Drink', perPerson: 2 }).then(ok)
+      const annShift = await assigned(setup.shifts[0]!.id, ann)
+      const passOf = async (who: Session, id: string) => json(who.cookie, 'GET', shiftsApi.me.pass(id)).then(ok)
+      const oldCode = (await passOf(ann, annShift.assignment.id)).code
+      const redeem = (perk: Json, code: string) => json(lead.cookie, 'POST', shiftsApi.teams.redeemPerk(setup.team.id, perk.id), { code })
+      await ok(await redeem(perShift, oldCode))
+      await ok(await redeem(perPerson, oldCode))
+
+      await handOver(ann, cy, annShift.assignment.id)
+      const pass = await passOf(cy, annShift.assignment.id)
+      const left = (perk: Json) => pass.perks.find((item: Json) => item.perkId === perk.id)
+      // The meal was taken on this assignment: the new owner finds it used. Their own drink budget is untouched by Ann's.
+      expect(left(perShift)).toMatchObject({ per: 'shift', used: 1, remaining: 0 })
+      expect(left(perPerson)).toMatchObject({ per: 'person', used: 0, remaining: 2 })
+      await expectApiError(redeem(perShift, pass.code), 409, 'perk_used_up')
+      await ok(await redeem(perPerson, pass.code))
+      // The handover issued a new code: the old pass no longer works.
+      await expectApiError(redeem(perPerson, oldCode), 404)
     })
   })
 })

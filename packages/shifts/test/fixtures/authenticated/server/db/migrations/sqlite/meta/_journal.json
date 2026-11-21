@@ -15,6 +15,13 @@
       "when": 1795900000000,
       "tag": "0001_shift_handover",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795265719976,
+      "tag": "0002_shifts_extras",
+      "breakpoints": true
     }
   ]
 }
