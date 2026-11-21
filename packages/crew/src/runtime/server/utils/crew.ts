@@ -620,7 +620,7 @@ export async function crewAcceptInvite(event: H3Event, token: string, userId: nu
 
 // --- Staff list ------------------------------------------------------------------------------
 
-/** The ids of the teams of an operation that a user leads (`ba` and up on a bar team). */
+/** The ids of the teams of an operation that a user leads (the ladder's lead role and up). */
 export async function crewLedTeamIds(event: H3Event, userId: number, operationId: string): Promise<string[]> {
   const led: string[] = []
   for (const team of await crewOperationTeams(operationId)) {

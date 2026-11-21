@@ -10,7 +10,7 @@ export const TEAMS_ENTITLED_SUBSCRIPTION_STATUSES = ['active', 'trialing'] as co
 
 /**
  * The roles that grant any of `referenced`: the roles themselves, and every role that inherits one of them, directly or
- * through another role (`barmanager` inherits `member`, so a rule on `member` also needs the `barmanager` holders).
+ * through another role (when `supervisor` inherits `member`, a rule on `member` also needs the `supervisor` holders).
  * `roles` is auth's compiled role table (`#auth/roles`).
  */
 export function teamsRolesGranting(roles: Readonly<Record<string, { inherit?: readonly string[] }>>, referenced: readonly string[]): string[] {

@@ -90,7 +90,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
 
-    // The built-in ladders: the default `bar` ladder, and the option's kinds over it (a kind there replaces the default).
+    // The built-in ladders: the generic `default` ladder, and the option's kinds over it (a kind there replaces the default).
     const ladders = mergeTeamLadders(options.ladders)
     for (const [kind, ladder] of Object.entries(ladders)) {
       const issues = teamLadderIssues(ladder)

@@ -73,7 +73,7 @@
         "anyRole": "Any signed-in person",
         "rolesPlaceholder": "Type a role and press Enter",
         "teamRole": "Team role",
-        "teamRoleHelp": "At least this role in a team of this kind, for example bar and ba.",
+        "teamRoleHelp": "At least this role in a team of this kind, for example a kind and its lead role.",
         "teamKind": "Team kind",
         "teamRoleName": "Role",
         "operation": "Operation",

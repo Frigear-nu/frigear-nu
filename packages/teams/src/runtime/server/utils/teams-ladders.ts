@@ -6,7 +6,7 @@ import { DEFAULT_TEAM_LADDERS, ladderKeys } from '../../utils/ladders'
 
 const ladderCache = new WeakMap<H3Event, Promise<Record<string, TeamLadderDto>>>()
 
-/** The ladders of the module option `ladders` (merged over the default `bar` ladder in `module.ts`). */
+/** The ladders of the module option `ladders` (merged over the generic `default` ladder in `module.ts`). */
 export function teamsLadderOption(): Record<string, TeamLadder> {
   const config = useRuntimeConfig() as unknown as { teams?: { ladders?: Record<string, TeamLadder> } }
   return config.teams?.ladders ?? { ...DEFAULT_TEAM_LADDERS }

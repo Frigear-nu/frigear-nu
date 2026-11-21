@@ -4,7 +4,7 @@ import { RESERVED_FAQ_SLUGS, isValidFaqSlug } from '../../src/runtime/utils'
 describe('FAQ group slugs', () => {
   it('accepts lowercase words joined by single dashes', () => {
     expect(isValidFaqSlug('volunteering')).toBe(true)
-    expect(isValidFaqSlug('roskilde-2027-bar')).toBe(true)
+    expect(isValidFaqSlug('summer-2030-bar')).toBe(true)
   })
 
   it('rejects anything else', () => {

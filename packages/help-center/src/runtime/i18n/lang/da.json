@@ -175,7 +175,7 @@
         "signedIn": "Loggede ind kan se den. Begræns den med reglerne nedenfor; alle regler, der er sat, skal gælde.",
         "teamKind": "Holdtype",
         "teamRole": "Holdrolle",
-        "teamRoleHelp": "Mindst denne rolle på et hold af denne slags, for eksempel bar og ba.",
+        "teamRoleHelp": "Mindst denne rolle på et hold af denne slags, for eksempel en slags og dens lederrolle.",
         "teamRoleName": "Rolle",
         "widens": "Dette viser artiklen for flere end dens kategori",
         "widensHelp": "En artikel kan kun begrænse sin kategori, så folk, som kategorien skjuler den for, ser den stadig ikke."

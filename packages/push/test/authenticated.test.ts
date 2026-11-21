@@ -66,7 +66,7 @@ describe('push (authenticated, database-backed)', async () => {
         url: 'https://api.push.apple.com/3/device/apns-ok-1',
         header: { alg: 'ES256', kid: 'KEY1234567' },
         claims: { iss: 'TEAM123456' },
-        headers: { 'apns-topic': 'nu.frigear.test', 'apns-push-type': 'alert' },
+        headers: { 'apns-topic': 'com.example.test', 'apns-push-type': 'alert' },
         body: { shiftId: '42', url: '/shifts/42', aps: { alert: { title: 'Shift tomorrow', body: 'You work 18:00' } } },
       })
 
@@ -150,13 +150,13 @@ describe('push (authenticated, database-backed)', async () => {
       await getHookCalls(true)
 
       const token = unique('fcm-ok')
-      const device = await register(user.cookie, token, 'android', { appId: 'nu.frigear.app', locale: 'da' })
-      expect(device).toMatchObject({ id: expect.stringMatching(/^psd_/), userId: user.id, platform: 'android', appId: 'nu.frigear.app', locale: 'da', revokedAt: null })
+      const device = await register(user.cookie, token, 'android', { appId: 'com.example.app', locale: 'da' })
+      expect(device).toMatchObject({ id: expect.stringMatching(/^psd_/), userId: user.id, platform: 'android', appId: 'com.example.app', locale: 'da', revokedAt: null })
       expect(device).not.toHaveProperty('token')
       expect(await getHookCalls()).toEqual([{ hook: 'push:device:registered', deviceId: device.id, userId: user.id, platform: 'android' }])
 
       // Registering the same token again is idempotent: same device, one row.
-      const again = await register(user.cookie, token, 'android', { appId: 'nu.frigear.app', locale: 'en' })
+      const again = await register(user.cookie, token, 'android', { appId: 'com.example.app', locale: 'en' })
       expect(again).toMatchObject({ id: device.id, locale: 'en' })
       expect(await api.json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
 
@@ -396,7 +396,7 @@ describe('push (authenticated, database-backed)', async () => {
     it('lists every device of a user for staff, revoked ones too', async () => {
       const staff = apiClient({ cookie: await registerStaff() })
       const user = await registerUser('Kim', 'kim@example.com')
-      const live = await register(user.cookie, unique('fcm-ok'), 'android', { appId: 'nu.frigear.app' })
+      const live = await register(user.cookie, unique('fcm-ok'), 'android', { appId: 'com.example.app' })
       const dead = await register(user.cookie, unique('fcm-dead'), 'android')
       await send({ userIds: [user.id], title: 'Hi', body: 'There' })
 

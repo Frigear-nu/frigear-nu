@@ -12,7 +12,7 @@ export default defineMenuSource(() => {
       id: 'operations-admin',
       label: 'Operations',
       labelKey: 'operations.menu.admin.label',
-      description: 'Manage the occasions Frigear works at.',
+      description: 'Manage the occasions your organisation works at.',
       descriptionKey: 'operations.menu.admin.description',
       icon: 'i-lucide-tent',
       to: config.pages.admin,

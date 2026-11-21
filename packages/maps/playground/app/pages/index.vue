@@ -45,7 +45,7 @@ async function upload(file: File): Promise<PlaneUnderlay> {
       <MapViewer
         :layout="layout"
         surface="demo.venue"
-        :params="{ venue: 'roskilde' }"
+        :params="{ venue: 'main-stage' }"
       />
       <MapViewer :locations="location ? [{ id: 'site', label: 'Festival site', location }] : []" />
     </section>

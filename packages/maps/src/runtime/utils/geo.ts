@@ -4,8 +4,8 @@ import type { GeoPoint, MapLocation } from '../../types'
 /** The mean radius of the earth, in metres. */
 export const EARTH_RADIUS_METERS = 6_371_008.8
 
-/** Where the location picker opens without a value: Roskilde, at city level. */
-export const DEFAULT_GEO_CENTER: { center: [number, number], zoom: number } = { center: [55.6415, 12.0803], zoom: 13 }
+/** Where the location picker and viewers open without a value or a configured `maps.defaultCenter`: the whole world. */
+export const DEFAULT_GEO_CENTER: { center: [number, number], zoom: number } = { center: [0, 0], zoom: 2 }
 
 const radians = (degrees: number) => degrees * Math.PI / 180
 

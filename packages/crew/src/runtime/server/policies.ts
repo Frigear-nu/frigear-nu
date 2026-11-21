@@ -4,7 +4,7 @@ type CrewRecord = { userId: number, teamId: string }
 // The record rule of crew (registered with `addPolicies` in `module.ts`). A policy only narrows: signed-in users hold
 // `crew:read` implicitly, this decides which crew members that covers.
 export default [
-  // A crew member is readable by the person themselves, by the leads of their team (`ba` and up on a bar team, see
+  // A crew member is readable by the person themselves, by the leads of their team (the ladder's lead role and up, see
   // `isTeamLead` of teams) and by staff with `crew:manage`.
   definePolicy<CrewRecord>('crew:read', async ({ event, user, record }) => {
     if (!record) return undefined
