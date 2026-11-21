@@ -14,6 +14,6 @@ describe('the optional users.phone column', () => {
   })
 
   it('only accepts a non-empty string as a number', () => {
-    expect([' +4511223344 ', '', '   ', null, undefined, 4511223344].map(normalizePhone)).toEqual(['+4511223344', null, null, null, null, null])
+    expect([' +15550100101 ', '', '   ', null, undefined, 15550100101].map(normalizePhone)).toEqual(['+15550100101', null, null, null, null, null])
   })
 })
