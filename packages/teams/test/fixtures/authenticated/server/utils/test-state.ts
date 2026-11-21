@@ -20,3 +20,6 @@ export function testHoldsPlan(userId: string | number, plan: string) {
 
 /** Every teams hook that fired, in order. */
 export const testTeamsHooks: Array<{ name: string, teamId: string, userId: number, role: string, from?: string, to?: string }> = []
+
+/** Users for whom the stand-in `teams:roles:resolve` listener throws, to check that teams fails closed. */
+export const testFailingUsers = new Set<string>()

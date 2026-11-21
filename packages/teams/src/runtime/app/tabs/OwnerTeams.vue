@@ -17,8 +17,13 @@ const links = useTeamLinks()
 const actions = useTeamActions()
 
 const owner = computed(() => ({ ownerType: props.ownerType, ownerId: props.operation?.id ?? null }))
+// Without the owner's record (a host page that renders the area without it) there is nothing to list: never query
+// every team of the owner type.
+const hasOwner = computed(() => !!owner.value.ownerId)
 const { data, status, error, refresh } = await useFetch<StaffTeamsPage>(teamsApi.admin.teams, {
   query: computed(() => ({ ownerType: owner.value.ownerType, ownerId: owner.value.ownerId ?? undefined, pageSize: 100, sort: 'sort', order: 'asc' })),
+  immediate: hasOwner.value,
+  watch: false,
 })
 const rows = computed(() => data.value?.items ?? [])
 
@@ -46,6 +51,7 @@ const columns = computed<TableColumn<StaffTeam>[]>(() => [
 ])
 
 async function create() {
+  if (!hasOwner.value) return
   if (await actions.create({ owner: owner.value, navigate: false })) await refresh()
 }
 </script>
@@ -53,9 +59,12 @@ async function create() {
 <template>
   <TableCard
     :title="t('admin.title', 'Teams')"
-    :loading="status === 'pending' && !data"
+    :loading="hasOwner && status === 'pending' && !data"
   >
-    <template #actions>
+    <template
+      v-if="hasOwner"
+      #actions
+    >
       <UButton
         icon="i-lucide-plus"
         size="sm"
@@ -64,7 +73,13 @@ async function create() {
       />
     </template>
     <UEmpty
-      v-if="error && !data"
+      v-if="!hasOwner"
+      variant="naked"
+      icon="i-lucide-circle-alert"
+      :title="t('admin.noOwner', 'Open this tab from an operation page.')"
+    />
+    <UEmpty
+      v-else-if="error && !data"
       variant="naked"
       icon="i-lucide-circle-alert"
       :title="t('admin.loadFailed', 'Teams could not be loaded')"

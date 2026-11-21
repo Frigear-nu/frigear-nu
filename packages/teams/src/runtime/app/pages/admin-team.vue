@@ -23,7 +23,7 @@ const notFound = computed(() => error.value?.statusCode === 404)
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
 
 // Mapped members are resolved on demand (every candidate is checked), so they are behind a switch.
-const showMapped = ref(true)
+const showMapped = ref(false)
 const { data: members, status: membersStatus, refresh: refreshMembers } = await useFetch<StaffTeamMember[]>(() => teamsApi.members(id.value), {
   query: computed(() => (showMapped.value ? { include: 'mapped' } : {})),
   default: () => [],
@@ -80,6 +80,12 @@ const memberColumns = computed<TableColumn<StaffTeamMember>[]>(() => [
       label: row.original.source === 'mapped' ? t('admin.sources.mapped', 'Mapped') : t('admin.sources.explicit', 'Added'),
       colors: { explicit: 'primary', mapped: 'neutral' },
     }),
+  },
+  {
+    // Set by consumers such as crew: anything but `active` keeps the member listed without a role.
+    accessorKey: 'status',
+    header: t('admin.status', 'Status'),
+    cell: ({ row }) => row.original.status ? h(StatusBadge, { status: row.original.status }) : emptyCell(),
   },
   {
     accessorKey: 'addedAt',

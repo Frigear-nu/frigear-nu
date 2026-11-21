@@ -148,11 +148,12 @@ export async function patchTeamRow(existing: TeamRow, patch: TeamPatch): Promise
   return row!
 }
 
-/** Deletes a team: its memberships and rules go with it (foreign keys), its sub-teams lose their parent. */
+/**
+ * Deletes a team: its memberships and its own rules go with it (`onDelete: 'cascade'` on both foreign keys), its
+ * sub-teams lose their parent (`parentId` has no foreign key).
+ */
 export async function deleteTeamRow(id: string): Promise<void> {
   await db.update(schema.teams).set({ parentId: null }).where(eq(schema.teams.parentId, id))
-  await db.delete(schema.teamMembers).where(eq(schema.teamMembers.teamId, id))
-  await db.delete(schema.teamRoleMappings).where(eq(schema.teamRoleMappings.teamId, id))
   await db.delete(schema.teams).where(eq(schema.teams.id, id))
 }
 

@@ -147,7 +147,9 @@
       "removeMemberDescription": "{name} mister sin rolle på {team}. En regel kan stadig give dem en.",
       "removeMemberAction": "Fjern medlem",
       "memberRemoved": "{name} er fjernet",
-      "removeMemberFailed": "Medlemmet kunne ikke fjernes"
+      "removeMemberFailed": "Medlemmet kunne ikke fjernes",
+      "status": "Status",
+      "noOwner": "Åbn fanen fra en operations side."
     }
   }
 }

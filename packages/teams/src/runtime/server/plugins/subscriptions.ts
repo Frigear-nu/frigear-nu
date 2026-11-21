@@ -11,7 +11,16 @@ export default defineNitroPlugin((nitro) => {
     const met = []
     for (const rule of rules) {
       const plan = (rule.match as { plan: string }).plan
-      if (!held.has(plan)) held.set(plan, await hasActiveSubscription(Number(ctx.user.id), { plans: [plan] }))
+      if (!held.has(plan)) {
+        try {
+          held.set(plan, await hasActiveSubscription(Number(ctx.user.id), { plans: [plan] }))
+        }
+        catch (error) {
+          // Fail closed: a plan that cannot be checked is not held.
+          console.error(`[teams] the subscription to "${plan}" could not be checked; its rules give no role`, error)
+          held.set(plan, false)
+        }
+      }
       if (held.get(plan)) met.push(rule)
     }
     ctx.grants.push(...mappedGrantsFor(ctx.teams, met, ctx.ladders))

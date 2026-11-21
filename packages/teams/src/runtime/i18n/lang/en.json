@@ -147,7 +147,9 @@
       "removeMemberDescription": "{name} loses their role on {team}. A mapping rule may still give them one.",
       "removeMemberAction": "Remove member",
       "memberRemoved": "Removed {name}",
-      "removeMemberFailed": "Could not remove the member"
+      "removeMemberFailed": "Could not remove the member",
+      "status": "Status",
+      "noOwner": "Open this tab from an operation page."
     }
   }
 }

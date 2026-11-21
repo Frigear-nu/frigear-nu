@@ -18,7 +18,6 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
-import { adminRoute } from '@frigear-nu/admin/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { teamsAccess } from './runtime/access'
 import { mergeTeamLadders, teamLadderIssues } from './runtime/utils/ladders'
@@ -98,9 +97,14 @@ export default defineNuxtModule<ModuleOptions>({
     runtime.teams = { ...(runtime.teams as Record<string, unknown> | undefined), ladders }
 
     // The admin pages are opt-in and need `@frigear-nu/admin`.
-    const withAdmin = hasNuxtModule('@frigear-nu/admin')
-    const adminPath = withAdmin ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'teams')) : undefined
-    const adminTeamPath = withAdmin ? resolvePagePath(settings.pages?.adminTeam, adminRoute(nuxt, 'teams', ':id')) : undefined
+    // `@frigear-nu/admin` is optional: its helper is only loaded when it is installed.
+    let adminPath: string | undefined
+    let adminTeamPath: string | undefined
+    if (hasNuxtModule('@frigear-nu/admin')) {
+      const { adminRoute } = await import('@frigear-nu/admin/utils')
+      adminPath = resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'teams'))
+      adminTeamPath = resolvePagePath(settings.pages?.adminTeam, adminRoute(nuxt, 'teams', ':id'))
+    }
     nuxt.options.runtimeConfig.public.teams = { pages: { admin: adminPath, adminTeam: adminTeamPath } }
 
     // --- Database -------------------------------------------------------------------------

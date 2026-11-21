@@ -44,6 +44,16 @@ describe('teams claim', () => {
     expect(resolveAllTeamRoles).toHaveBeenCalledWith(undefined, 7, { globalRoles: ['barmanager', 'member'] })
   })
 
+  it('leaves the claim out when the roles cannot be resolved (fail closed)', async () => {
+    resolveAllTeamRoles.mockRejectedValueOnce(new Error('database down'))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const context = ctx({ scope: ['openid', 'teams'] })
+    await expect(addTeamsClaim(context)).resolves.toBeUndefined()
+    expect(context.claims).toEqual({})
+    expect(error).toHaveBeenCalled()
+    error.mockRestore()
+  })
+
   it('leaves access tokens, other scopes and an existing claim alone', async () => {
     const access = ctx({ scope: ['openid', 'teams'], tokenType: 'access_token' })
     await addTeamsClaim(access)

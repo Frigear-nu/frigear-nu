@@ -1,11 +1,13 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, inArray, isNull, or } from 'drizzle-orm'
+import { table as authRoleTable } from '#auth/roles'
 import type { SQL } from 'drizzle-orm'
 import type { OwnerRef, TeamRoleGrant } from '@frigear-nu/audience'
 import type { TeamMemberDto, TeamOwner, TeamRoleMappingDto, TeamsMembersCandidatesContext, TeamsResolverTeam, TeamsRolesResolveContext } from '../../../types'
 import { isLeadRole } from '../../utils/ladders'
 import { grantsOfOwner, isPlanMatch, isRoleMatch, mappedGrantsFor, mappingCoversTeam, mergeTeamGrants } from '../../utils/resolve'
+import { teamsAuthorizationCandidatesQuery, teamsRolesGranting, teamsSubscriptionCandidatesQuery } from '../candidates'
 import { toMappedTeamMemberDto, toTeamMemberDto, toTeamRoleMappingDto } from './teams-dto'
 import { loadTeamLadders, teamLadderKeyMap } from './teams-ladders'
 
@@ -62,7 +64,15 @@ export async function teamsGlobalRolesOf(event: H3Event | undefined, userId: str
   return user ? getEffectiveRoles(event, user) : []
 }
 
-/** The explicit grants of a user: their membership rows, on every owner. */
+/**
+ * Whether a membership row grants its role: `status` null or `'active'`. Any other status (crew's `pending`,
+ * `inactive`, ...) keeps the row listed on the team but gives no grant: no read, no lead, nothing in the viewer.
+ */
+export function teamMemberStatusGrants(status: string | null | undefined): boolean {
+  return status === null || status === undefined || status === 'active'
+}
+
+/** The explicit grants of a user: their membership rows that grant (`teamMemberStatusGrants`), on every owner. */
 async function explicitGrantsOf(userId: number): Promise<TeamRoleGrant[]> {
   const rows = await db.select({
     teamId: schema.teamMembers.teamId,
@@ -72,7 +82,7 @@ async function explicitGrantsOf(userId: number): Promise<TeamRoleGrant[]> {
     kind: schema.teams.kind,
   }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
-    .where(eq(schema.teamMembers.userId, userId))
+    .where(and(eq(schema.teamMembers.userId, userId), or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active'))))
   return rows.map(row => ({ ownerType: row.ownerType, ownerId: row.ownerId ?? null, teamId: row.teamId, kind: row.kind, role: row.role, source: 'explicit' as const }))
 }
 
@@ -121,7 +131,16 @@ async function computeTeamGrants(event: H3Event | undefined, userId: number, opt
     ladders,
     grants: mappedGrantsFor(teams, roleRules, ladders),
   }
-  await useNitroApp().hooks.callHook('teams:roles:resolve', ctx)
+  const own = [...ctx.grants]
+  try {
+    await useNitroApp().hooks.callHook('teams:roles:resolve', ctx)
+  }
+  catch (error) {
+    // Fail closed: a listener that throws gives nobody anything. Its grants (and those of listeners after it) are
+    // dropped; the explicit memberships and teams' own role rules still count.
+    console.error('[teams] a teams:roles:resolve listener failed; its mapped grants are left out', error)
+    return mergeTeamGrants(explicit, own, ladders)
+  }
   return mergeTeamGrants(explicit, ctx.grants, ladders)
 }
 
@@ -161,24 +180,37 @@ async function usersById(ids: number[]): Promise<Map<number, UserFields>> {
   return new Map(rows.map(row => [Number(row.id), { name: row.name ?? null, email: row.email ?? null, avatar: row.avatar ?? null }]))
 }
 
-type OptionalTable = { userId: never, planKey?: never }
+type CandidateTables = {
+  authorizationUserRoles?: Parameters<typeof teamsAuthorizationCandidatesQuery>[1]
+  subscriptions?: Parameters<typeof teamsSubscriptionCandidatesQuery>[1]
+}
 
-/** The candidates teams knows itself: users with an assigned role (authorization) and subscribers of mapped plans. */
+/** Runs one candidate source; a failing source is logged and adds nobody. */
+async function candidateSource(name: string, run: () => Promise<unknown>): Promise<number[]> {
+  try {
+    return ((await run()) as Array<{ userId: unknown }>).map(row => Number(row.userId))
+  }
+  catch (error) {
+    console.error(`[teams] the ${name} candidates of mapped members could not be read; they are left out`, error)
+    return []
+  }
+}
+
+/**
+ * The candidates teams knows itself: users assigned a role a rule names, or a role inheriting one (`authorization`),
+ * and users with an entitled subscription to a plan a rule names (`subscriptions`).
+ */
 async function builtInCandidates(rules: readonly TeamRoleMappingDto[]): Promise<number[]> {
   const ids: number[] = []
-  const tables = schema as unknown as Record<string, OptionalTable | undefined>
-  const roleRules = rules.filter(rule => isRoleMatch(rule.match))
-  const assigned = tables.authorizationUserRoles as unknown as { userId: typeof schema.teamMembers.userId } | undefined
-  if (roleRules.length && assigned) {
-    const rows = await db.selectDistinct({ userId: assigned.userId }).from(assigned as unknown as typeof schema.teamMembers).limit(TEAMS_MAPPED_CANDIDATE_LIMIT)
-    ids.push(...rows.map(row => Number(row.userId)))
+  const tables = schema as unknown as CandidateTables
+  const roles = [...new Set(rules.flatMap(rule => isRoleMatch(rule.match) ? [rule.match.role] : []))]
+  if (roles.length && tables.authorizationUserRoles) {
+    const granting = teamsRolesGranting(authRoleTable.roles, roles)
+    ids.push(...await candidateSource('authorization', async () => teamsAuthorizationCandidatesQuery(db, tables.authorizationUserRoles!, granting, TEAMS_MAPPED_CANDIDATE_LIMIT)))
   }
   const plans = [...new Set(rules.flatMap(rule => isPlanMatch(rule.match) ? [rule.match.plan] : []))]
-  const subscriptions = tables.subscriptions as unknown as { userId: typeof schema.teamMembers.userId, planKey: typeof schema.teamMembers.role } | undefined
-  if (plans.length && subscriptions) {
-    const rows = await db.selectDistinct({ userId: subscriptions.userId }).from(subscriptions as unknown as typeof schema.teamMembers)
-      .where(inArray(subscriptions.planKey, plans)).limit(TEAMS_MAPPED_CANDIDATE_LIMIT)
-    ids.push(...rows.map(row => Number(row.userId)))
+  if (plans.length && tables.subscriptions) {
+    ids.push(...await candidateSource('subscriptions', async () => teamsSubscriptionCandidatesQuery(db, tables.subscriptions!, plans, TEAMS_MAPPED_CANDIDATE_LIMIT)))
   }
   return ids
 }
@@ -188,6 +220,8 @@ export type TeamMembersOptions = {
   mapped?: boolean
   /** Copy the members' emails into the DTOs (the caller holds `teams:pii`). */
   pii?: boolean
+  /** Keep the membership `status` in the DTOs (the caller manages or leads the team); otherwise it is left out. */
+  status?: boolean
 }
 
 /**
@@ -211,7 +245,12 @@ export async function teamMembers(event: H3Event, teamId: string, options: TeamM
     const rules = (await loadTeamMappingRules(event)).filter(rule => mappingCoversTeam(rule, resolverTeam))
     if (rules.length) {
       const ctx: TeamsMembersCandidatesContext = { event, team: resolverTeam, rules, userIds: new Set(await builtInCandidates(rules)) }
-      await useNitroApp().hooks.callHook('teams:members:candidates', ctx)
+      try {
+        await useNitroApp().hooks.callHook('teams:members:candidates', ctx)
+      }
+      catch (error) {
+        console.error('[teams] a teams:members:candidates listener failed; the candidates found so far are checked', error)
+      }
       const candidates = [...ctx.userIds].filter(id => Number.isInteger(id) && id > 0 && !explicitIds.has(id)).slice(0, TEAMS_MAPPED_CANDIDATE_LIMIT)
       for (const userId of candidates) {
         const grant = await teamGrantOf(event, userId, teamId)
@@ -222,10 +261,11 @@ export async function teamMembers(event: H3Event, teamId: string, options: TeamM
 
   const users = await usersById([...explicitIds, ...mapped.map(item => item.userId)])
   const keys = (await loadTeamLadders(event))[team.kind]?.roles.map(role => role.key) ?? []
-  const members = [
+  const all = [
     ...rows.map(row => toTeamMemberDto(row, users.get(row.userId), pii)),
     ...mapped.map(item => toMappedTeamMemberDto(teamId, item.userId, item.role, users.get(item.userId), pii)),
   ]
+  const members = options.status === false ? all.map(({ status: _status, ...member }) => member as TeamMemberDto) : all
   // Highest role first, then by name: leads at the top.
   return members.sort((a, b) => keys.indexOf(b.role) - keys.indexOf(a.role) || (a.name ?? '').localeCompare(b.name ?? '') || a.userId - b.userId)
 }

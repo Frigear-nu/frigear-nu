@@ -84,8 +84,12 @@ export type TeamMemberDto = {
   /** Only with `teams:pii`; otherwise left out. */
   email?: string | null
   role: string
-  /** Owned by consumers such as crew; teams never interprets it. Always `null` for a mapped member. */
-  status: string | null
+  /**
+   * Owned by consumers such as crew. Only `null` and `'active'` grant the role; any other value (`pending`,
+   * `inactive`, ...) keeps the member listed without a grant. Always `null` for a mapped member. Left out unless the
+   * caller manages (`teams:manage`) or leads (`teams:lead`) the team.
+   */
+  status?: string | null
   source: 'explicit' | 'mapped'
   /** When the membership was added; `null` for a mapped member. */
   addedAt: string | null

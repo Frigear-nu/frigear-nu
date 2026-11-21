@@ -9,11 +9,19 @@ export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('audience:viewer:resolve', async (ctx) => {
     // The user comes from `ctx.user`, never from the session: bearer requests have none. The calling module seeds the
     // global roles; when it did not, ask auth (cached per request).
-    const globalRoles = ctx.viewer.globalRoles.length ? ctx.viewer.globalRoles : await teamsGlobalRolesOf(ctx.event, ctx.user.id)
-    const grants = await resolveAllTeamRoles(ctx.event, ctx.user.id, { globalRoles })
+    let grants: Awaited<ReturnType<typeof resolveAllTeamRoles>>
+    let ladders: Record<string, string[]>
+    try {
+      const globalRoles = ctx.viewer.globalRoles.length ? ctx.viewer.globalRoles : await teamsGlobalRolesOf(ctx.event, ctx.user.id)
+      grants = await resolveAllTeamRoles(ctx.event, ctx.user.id, { globalRoles })
+      ladders = grants.length ? teamLadderKeyMap(await loadTeamLadders(ctx.event)) : {}
+    }
+    catch (error) {
+      // Fail closed: without its team roles the viewer sees less, never more.
+      console.error('[teams] the team roles of the viewer could not be resolved; the viewer gets none', error)
+      return
+    }
     ctx.viewer.teamRoles.push(...grants)
-    if (!grants.length) return
-    const ladders = teamLadderKeyMap(await loadTeamLadders(ctx.event))
     for (const kind of new Set(grants.map(grant => grant.kind))) {
       if (ladders[kind] && !ctx.viewer.ladders[kind]) ctx.viewer.ladders[kind] = ladders[kind]
     }

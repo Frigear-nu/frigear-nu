@@ -14,6 +14,11 @@ export default defineNitroPlugin((nitro) => {
   })
 
   nitro.hooks.hook('teams:roles:resolve', (ctx) => {
+    if (testFailingUsers.has(String(ctx.user.id))) {
+      // Push first, then throw: teams must drop what a failing listener pushed.
+      ctx.grants.push(...mappedGrantsFor(ctx.teams, ctx.rules, ctx.ladders).map(grant => ({ ...grant, role: 'coordinator', priority: 1000 })))
+      throw new Error('test: the plan source is down')
+    }
     const met = ctx.rules.filter(rule => isPlanMatch(rule.match) && testHoldsPlan(ctx.user.id, rule.match.plan))
     ctx.grants.push(...mappedGrantsFor(ctx.teams, met, ctx.ladders))
   })
