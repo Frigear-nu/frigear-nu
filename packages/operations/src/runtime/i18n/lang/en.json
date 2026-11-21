@@ -9,7 +9,7 @@
     "menu": {
       "admin": {
         "label": "Operations",
-        "description": "Manage the occasions Frigear works at."
+        "description": "Manage the occasions your organisation works at."
       }
     },
     "permissions": {
@@ -26,7 +26,7 @@
         "details": "Details"
       },
       "title": "Operations",
-      "listDescription": "The occasions Frigear works at, whether or not Frigear hosts them.",
+      "listDescription": "The occasions your organisation works at, whether or not it hosts them.",
       "create": "Add operation",
       "createAction": "Create operation",
       "createDescription": "It starts in planning. Move it along when the plans are final.",
@@ -65,7 +65,7 @@
       "location": "Location",
       "address": "Address",
       "hostName": "Host",
-      "hostNameHelp": "Who hosts it: Frigear, or the festival or venue Frigear works at.",
+      "hostNameHelp": "Who hosts it: your organisation, or the venue or event you work at.",
       "hostUrl": "Host website",
       "hostUrlInvalid": "Enter a web address starting with https://.",
       "eventId": "Event",

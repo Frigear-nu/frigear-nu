@@ -4,7 +4,7 @@ import { isFaqItemPublic, isFaqItemVisible, normalizeVisibility } from '../../sr
 
 const anonymous = createViewer()
 const member = createViewer({ userId: 1 })
-const barManager = createViewer({ userId: 2, globalRoles: ['barmanager'] })
+const supervisor = createViewer({ userId: 2, globalRoles: ['supervisor'] })
 
 describe('the visibility of an item in its group', () => {
   it('is the group\'s when the item is empty (null or {})', () => {
@@ -16,16 +16,16 @@ describe('the visibility of an item in its group', () => {
 
   it('can narrow the group: a public group with a role-only item hides the item from visitors and other members', () => {
     const group = { visibility: { public: true } }
-    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['barmanager'] } }, anonymous)).toBe(false)
-    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['barmanager'] } }, member)).toBe(false)
-    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['barmanager'] } }, barManager)).toBe(true)
+    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['supervisor'] } }, anonymous)).toBe(false)
+    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['supervisor'] } }, member)).toBe(false)
+    expect(isFaqItemVisible(group, { visibility: { globalRoles: ['supervisor'] } }, supervisor)).toBe(true)
   })
 
   it('can never widen the group: a public item in a restricted group stays restricted', () => {
-    const group = { visibility: { globalRoles: ['barmanager'] } }
+    const group = { visibility: { globalRoles: ['supervisor'] } }
     expect(isFaqItemVisible(group, { visibility: { public: true } }, anonymous)).toBe(false)
     expect(isFaqItemVisible(group, { visibility: { public: true } }, member)).toBe(false)
-    expect(isFaqItemVisible(group, { visibility: { public: true } }, barManager)).toBe(true)
+    expect(isFaqItemVisible(group, { visibility: { public: true } }, supervisor)).toBe(true)
   })
 
   it('fails closed on a stored value with an unknown key', () => {
@@ -35,7 +35,7 @@ describe('the visibility of an item in its group', () => {
 
   it('is public only when anonymous visitors read both', () => {
     expect(isFaqItemPublic({ visibility: { public: true } }, { visibility: null })).toBe(true)
-    expect(isFaqItemPublic({ visibility: { public: true } }, { visibility: { globalRoles: ['barmanager'] } })).toBe(false)
+    expect(isFaqItemPublic({ visibility: { public: true } }, { visibility: { globalRoles: ['supervisor'] } })).toBe(false)
     expect(isFaqItemPublic({ visibility: null }, { visibility: { public: true } })).toBe(false)
   })
 

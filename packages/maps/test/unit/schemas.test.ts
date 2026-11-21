@@ -3,10 +3,10 @@ import { emptyPlaneLayout, mapLocationSchema, planeFeatureCollectionSchema, plan
 
 describe('mapLocationSchema', () => {
   it('accepts a point, a point with a radius and an area, and drops extra keys', () => {
-    expect(mapLocationSchema.parse({ point: { lat: 55.6, lng: 12.1 }, extra: true })).toEqual({ point: { lat: 55.6, lng: 12.1 } })
-    expect(mapLocationSchema.parse({ point: { lat: 55.6, lng: 12.1 }, radiusMeters: 150 })).toMatchObject({ radiusMeters: 150 })
-    const area = [{ lat: 55.6, lng: 12.1 }, { lat: 55.61, lng: 12.1 }, { lat: 55.61, lng: 12.11 }]
-    expect(mapLocationSchema.parse({ point: { lat: 55.605, lng: 12.105 }, area })).toMatchObject({ area })
+    expect(mapLocationSchema.parse({ point: { lat: 10.0, lng: 20.1 }, extra: true })).toEqual({ point: { lat: 10.0, lng: 20.1 } })
+    expect(mapLocationSchema.parse({ point: { lat: 10.0, lng: 20.1 }, radiusMeters: 150 })).toMatchObject({ radiusMeters: 150 })
+    const area = [{ lat: 10.0, lng: 20.1 }, { lat: 10.01, lng: 20.1 }, { lat: 10.01, lng: 20.11 }]
+    expect(mapLocationSchema.parse({ point: { lat: 10.005, lng: 20.105 }, area })).toMatchObject({ area })
   })
 
   it('refuses out-of-range points, both a radius and an area, and too small areas', () => {

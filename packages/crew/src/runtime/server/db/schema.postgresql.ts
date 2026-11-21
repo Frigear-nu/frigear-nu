@@ -39,7 +39,7 @@ export const crewInvites = pgTable('crew_invites', {
   id: text().primaryKey(),
   operationId: text().notNull(),
   teamId: text().notNull(),
-  /** A role of the team kind's ladder; `ba` for "invite as lead". */
+  /** A role of the team kind's ladder; a lead role for "invite as lead". */
   role: text().notNull(),
   /** SHA-256 (base64url) of the token. The token itself is shown once, on creation. */
   tokenHash: text().notNull(),

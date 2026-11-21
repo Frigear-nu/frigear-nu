@@ -73,7 +73,7 @@
         "anyRole": "Alle loggede ind",
         "rolesPlaceholder": "Skriv en rolle, og tryk Enter",
         "teamRole": "Holdrolle",
-        "teamRoleHelp": "Mindst denne rolle på et hold af denne slags, for eksempel bar og ba.",
+        "teamRoleHelp": "Mindst denne rolle på et hold af denne slags, for eksempel en slags og dens lederrolle.",
         "teamKind": "Holdtype",
         "teamRoleName": "Rolle",
         "operation": "Operation",
