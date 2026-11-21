@@ -220,6 +220,8 @@ export type HelpSendResult = {
   recipients: number
   emailed: number
   texted: number
+  /** Push notifications that went out. Only present when `@frigear-nu/push` is installed. */
+  pushed?: number
   /** Recipients that got nothing: they cannot read any of the articles, or have no address for the channels asked for. */
   skipped: number
 }

@@ -206,6 +206,9 @@
       "article": "Open in the crew help center",
       "label": "Crew help center"
     },
+    "dashboard": {
+      "onboarding": "Your onboarding"
+    },
     "descriptionPublic": "Answers and guides for everyone.",
     "descriptionSignedIn": "Guides, onboarding and answers for you.",
     "empty": "Nothing here yet",

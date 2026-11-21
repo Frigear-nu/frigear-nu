@@ -5,22 +5,23 @@ import type {
   ShiftAssignmentStatus,
   ShiftBroadcastDto,
   ShiftChannel,
+  ShiftCheckInMethod,
   ShiftDto,
   ShiftGuards,
   ShiftLocation,
   ShiftPerkDto,
-  ShiftPerkKind,
-  ShiftPerkRedemptionDto,
   ShiftPersonDto,
   ShiftRoleDto,
   ShiftScheduleDto,
   ShiftScheduleStatus,
+  ShiftStationDto,
   ShiftSwapOfferDto,
   ShiftSwapOfferStatus,
   Translated,
 } from '../../../types'
 import { effectiveCapacity } from '../../utils/guards'
 import { scheduleSettingsOf } from '../../utils/settings'
+import { checkInSettingsOf } from '../../utils/checkin'
 
 export type ShiftScheduleRow = typeof schema.shiftSchedules.$inferSelect
 export type ShiftRoleRow = typeof schema.shiftRoles.$inferSelect
@@ -42,6 +43,9 @@ export function toShiftScheduleDto(row: ShiftScheduleRow, shiftCount?: number): 
     minPerShift: row.minPerShift ?? null,
     maxPerShift: row.maxPerShift ?? null,
     guards: (row.guards ?? {}) as ShiftGuards,
+    checkIn: checkInSettingsOf(row.checkIn),
+    autoNoShow: !!row.autoNoShow,
+    autoNoShowMinutes: row.autoNoShowMinutes ?? 30,
     publishedAt: isoDate(row.publishedAt),
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),
@@ -88,6 +92,7 @@ export function toShiftAssignmentDto(row: ShiftAssignmentRow): ShiftAssignmentDt
     status: row.status as ShiftAssignmentStatus,
     checkedInAt: isoDate(row.checkedInAt),
     checkedInBy: row.checkedInBy ?? null,
+    checkInMethod: (row.checkInMethod ?? null) as ShiftCheckInMethod | null,
     assignedBy: row.assignedBy ?? null,
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),
@@ -106,7 +111,8 @@ export function toShiftPersonDto(userId: number, user: ShiftUserLite | undefined
 
 export type ShiftBroadcastRow = typeof schema.shiftBroadcasts.$inferSelect
 export type ShiftPerkRow = typeof schema.shiftPerks.$inferSelect
-export type ShiftPerkRedemptionRow = typeof schema.shiftPerkRedemptions.$inferSelect
+export type ShiftPerkGrantRow = typeof schema.shiftPerkGrants.$inferSelect
+export type ShiftStationRow = typeof schema.shiftStations.$inferSelect
 
 export function toShiftBroadcastDto(row: ShiftBroadcastRow): ShiftBroadcastDto {
   return {
@@ -124,29 +130,29 @@ export function toShiftBroadcastDto(row: ShiftBroadcastRow): ShiftBroadcastDto {
   }
 }
 
-export function toShiftPerkDto(row: ShiftPerkRow, redeemed?: number): ShiftPerkDto {
+export function toShiftPerkDto(row: ShiftPerkRow, granted?: number): ShiftPerkDto {
   return {
     id: row.id,
     operationId: row.operationId,
     teamId: row.teamId ?? null,
-    kind: row.kind as ShiftPerkKind,
     name: row.name as Translated,
-    perShift: row.perShift ?? null,
-    perPerson: row.perPerson ?? null,
+    voucherType: row.voucherType,
+    quantity: row.quantity,
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),
-    ...(redeemed === undefined ? {} : { redeemed }),
+    ...(granted === undefined ? {} : { granted }),
   }
 }
 
-export function toShiftPerkRedemptionDto(row: ShiftPerkRedemptionRow): ShiftPerkRedemptionDto {
+export function toShiftStationDto(row: ShiftStationRow): ShiftStationDto {
   return {
     id: row.id,
-    perkId: row.perkId,
-    assignmentId: row.assignmentId,
-    userId: row.userId,
-    redeemedAt: isoDate(row.redeemedAt),
-    redeemedBy: row.redeemedBy,
+    scheduleId: row.scheduleId,
+    teamId: row.teamId,
+    name: row.name as Translated,
+    featureId: row.featureId ?? null,
+    createdAt: isoDate(row.createdAt),
+    updatedAt: isoDate(row.updatedAt),
   }
 }
 

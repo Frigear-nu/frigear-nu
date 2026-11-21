@@ -43,8 +43,17 @@ const redirects: Record<string, string> = {
   "/modules/widget": "/modules/interface/widget",
   "/modules/mobile": "/modules/interface/mobile",
   "/modules/module-kit": "/modules/platform/module-kit",
-  "/modules/notify": "/modules/platform/notify",
-  "/modules/email-templates": "/modules/platform/email-templates",
+  "/modules/notify": "/modules/communication/notify",
+  "/modules/email-templates": "/modules/communication/email-templates",
+  // Moved from Platform and Volunteering when the module categories were regrouped.
+  "/modules/platform/notify": "/modules/communication/notify",
+  "/modules/platform/email-templates": "/modules/communication/email-templates",
+  "/modules/platform/email-templates/components": "/modules/communication/email-templates/components",
+  "/modules/platform/email-templates/server": "/modules/communication/email-templates/server",
+  "/modules/platform/email-templates/module-emails": "/modules/communication/email-templates/module-emails",
+  "/modules/volunteering/audience": "/modules/organisation/audience",
+  // The volunteering overview page was removed; its contracts live on each module's page.
+  "/modules/volunteering": "/modules#volunteering",
 };
 
 export default defineNuxtConfig({

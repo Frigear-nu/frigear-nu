@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { resolveViewer } from '@frigear-nu/audience/server'
 import { apiError, notConfigured, validationError } from '@frigear-nu/module-kit/server'
-import { dispatchEmailNotification, dispatchSMSNotification, notifyAvailable } from '#help-center/optional'
+import { notifyAvailable, pushAvailable } from '#help-center/optional'
 import type { z } from 'zod'
 import type { HelpArticleDto, HelpSendResult } from '../../../types'
 import { createHelpCenterPaths, localizeHelpCenterPath } from '../../utils/paths'
@@ -9,6 +9,7 @@ import type { HelpCenterI18n } from '../../utils/paths'
 import { translate } from '../../utils/index'
 import { helpCenterArticleById } from './help-center'
 import { loadHelpUsers } from './help-center-checklists'
+import { helpCenterDeliver } from './help-center-deliver'
 import { helpCenterRequiredLocales } from './help-center-db'
 import type { helpSendInput } from './help-center-schemas'
 
@@ -63,7 +64,7 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
   const locale = input.locale ?? requiredLocales[0] ?? 'en'
   // The configured site, never a header the client chooses (`authSiteOrigin`).
   const origin = authSiteOrigin(event)
-  const result: HelpSendResult = { recipients: ids.length, emailed: 0, texted: 0, skipped: 0 }
+  const result: HelpSendResult = { recipients: ids.length, emailed: 0, texted: 0, skipped: 0, ...(pushAvailable ? { pushed: 0 } : {}) }
 
   for (const id of ids) {
     const person = people.get(id)
@@ -96,22 +97,29 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
     }
 
     try {
-      if (wantsEmail) {
-        const subject = links.length === 1 ? links[0]!.title : helpSendSubject(locale, links.length)
-        await dispatchEmailNotification({
-          to: person.email!,
+      const subject = links.length === 1 ? links[0]!.title : helpSendSubject(locale, links.length)
+      const names = links.map(link => link.title).join(', ')
+      const delivered = await helpCenterDeliver(event, {
+        userId: Number(id),
+        email: input.channels.includes('email'),
+        sms: input.channels.includes('sms'),
+        to: person.email ?? null,
+        phone: person.phone ?? null,
+        message: {
           subject,
           body: `<p>${escapeHtml(person.name ?? '')}</p><ul>${links.map(link => `<li><a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a></li>`).join('')}</ul>`,
           text: `${person.name ?? ''}\n\n${links.map(link => `${link.title}: ${link.url}`).join('\n')}`,
           template: { name: 'help-center-articles', props: { name: person.name ?? '', links }, locale },
           meta: { helpCenter: { articleIds: input.articleIds } },
-        })
-        result.emailed++
-      }
-      if (wantsSms) {
-        await dispatchSMSNotification({ to: person.phone!, body: links.map(link => `${link.title}: ${link.url}`).join('\n') })
-        result.texted++
-      }
+        },
+        smsBody: links.map(link => `${link.title}: ${link.url}`).join('\n'),
+        push: { title: subject, body: names.length > 200 ? `${names.slice(0, 197)}...` : names, url: links[0]!.url },
+      })
+      if (delivered.emailed) result.emailed++
+      if (delivered.texted) result.texted++
+      if (delivered.pushed) result.pushed = (result.pushed ?? 0) + 1
+      // Somebody who turned the channels off, or cannot be reached on them, is skipped like a person without an address.
+      if (!delivered.emailed && !delivered.texted && !delivered.pushed) result.skipped++
     }
     catch (error) {
       console.error(`[@frigear-nu/help-center] could not send articles to user ${id}:`, error)

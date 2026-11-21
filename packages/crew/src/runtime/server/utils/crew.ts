@@ -306,6 +306,7 @@ async function crewNotify(event: H3Event, entry: CrewEntry, operation: CrewOpera
   const member = await crewMemberDtoOf(entry, operation, true)
   const locale = entry.member.locale ?? undefined
   await crewSendStatusEmail(event, {
+    userId: entry.member.userId,
     status,
     member,
     operationName: operation.name,

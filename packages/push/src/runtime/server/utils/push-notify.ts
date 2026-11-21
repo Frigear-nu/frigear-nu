@@ -44,7 +44,16 @@ export async function notifyUser(event: H3Event | undefined, userId: number, inp
 
   await run('email', !!input.email, async () => {
     if (!user?.email || !input.email) return false
-    await dispatchEmailNotification({ to: user.email, ...input.email })
+    const { subject, body, text, replyTo, template, meta } = input.email
+    await dispatchEmailNotification({
+      to: user.email,
+      subject,
+      body,
+      ...(text !== undefined ? { text } : {}),
+      ...(replyTo !== undefined ? { replyTo } : {}),
+      ...(template !== undefined ? { template } : {}),
+      ...(meta !== undefined ? { meta } : {}),
+    })
     return true
   })
 

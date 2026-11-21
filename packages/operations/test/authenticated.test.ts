@@ -20,6 +20,16 @@ const ok = async (response: Response) => {
   return response.json() as Promise<Json>
 }
 
+/** The first bytes of a PNG of `width` by `height`: what the underlay upload reads its type and size from. */
+function pngBytes(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(64)
+  bytes.set([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52])
+  const view = new DataView(bytes.buffer)
+  view.setUint32(16, width)
+  view.setUint32(20, height)
+  return bytes
+}
+
 const future = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString()
 let counter = 0
 
@@ -102,14 +112,14 @@ describe('operations (authenticated, database-backed)', async () => {
         public: true,
         hostName: 'Roskilde Festival',
         hostUrl: 'https://example.com/roskilde',
-        location: { name: { en: 'Darupvej', da: 'Darupvej' }, address: 'Darupvej 1, Roskilde', lat: 55.6, lng: 12.0 },
+        location: { name: { en: 'Darupvej', da: 'Darupvej' }, address: 'Darupvej 1, Roskilde', point: { lat: 55.6, lng: 12.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
       })
       expect(created).toMatchObject({
         status: 'planning',
         public: true,
         hostName: 'Roskilde Festival',
-        location: { address: 'Darupvej 1, Roskilde', lat: 55.6 },
+        location: { address: 'Darupvej 1, Roskilde', point: { lat: 55.6, lng: 12.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
         eventId: null,
       })
@@ -220,6 +230,103 @@ describe('operations (authenticated, database-backed)', async () => {
     it('accepts an eventId as it is while events is not installed', async () => {
       const created = await createOperation({ eventId: 'evn_unknown' })
       expect(created.eventId).toBe('evn_unknown')
+    })
+  })
+
+  describe('location and venue layout', () => {
+    const area = [{ lat: 55.62, lng: 12.07 }, { lat: 55.62, lng: 12.09 }, { lat: 55.61, lng: 12.08 }]
+    const station = (id: string, properties: Json = {}) => ({ id, kind: 'operations.station', geometry: { type: 'Point', coordinates: [100, 200] }, properties })
+    const upload = (cookie: string | undefined, operationId: string, bytes: Uint8Array, name = 'plan.png') => {
+      const body = new FormData()
+      body.append('file', new Blob([bytes as BlobPart], { type: 'image/png' }), name)
+      return fetch(operationsApi.admin.venueUnderlay(operationId), { method: 'POST', body, headers: cookie ? { cookie } : {} })
+    }
+
+    it('stores the location picker\'s value, and refuses a radius or area without a point, or both', async () => {
+      const operation = await createOperation({ location: { point: { lat: 55.615, lng: 12.08 }, area } })
+      expect(operation.location).toEqual({ point: { lat: 55.615, lng: 12.08 }, area })
+      for (const location of [
+        { name: 'Bar', radiusMeters: 10 },
+        { point: { lat: 55.6, lng: 12 }, radiusMeters: 10, area },
+        { point: { lat: 95, lng: 12 } },
+        { point: { lat: 55.6, lng: 12 }, area: area.slice(0, 2) },
+        {},
+      ]) {
+        expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { location })).status, JSON.stringify(location)).toBe(400)
+      }
+      const cleared = await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { location: null }))
+      expect(cleared.location).toBeNull()
+    })
+
+    it('saves a venue layout of the allowed kinds, with properties their schemas accept', async () => {
+      const operation = await createOperation({ public: true })
+      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null })
+
+      const layout = {
+        features: [
+          station('bar-1', { taps: 8 }),
+          { id: 'stage', kind: 'maps.area', label: { en: 'Stage', da: 'Scene' }, geometry: { type: 'Polygon', coordinates: [[[0, 0], [100, 0], [100, 50]]] } },
+          { id: 'cold-1', kind: 'operations.container', geometry: { type: 'Point', coordinates: [5, 5] } },
+        ],
+        extent: { width: 800, height: 600 },
+      }
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout }))
+      expect(saved.features.map((feature: Json) => feature.id)).toEqual(['bar-1', 'stage', 'cold-1'])
+      // Polygons are closed, and defaults filled in by the kind's schema.
+      expect(saved.features[1].geometry.coordinates[0]).toHaveLength(4)
+      expect(saved.features[2].properties).toEqual({ cooled: false })
+      expect(saved.extent).toEqual({ width: 800, height: 600 })
+      // Whoever may read the operation reads its layout; a public operation is everyone's.
+      expect(await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).toEqual(saved)
+
+      const invalid = await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1', { taps: -1 }), { ...station('seat'), kind: 'seating.seat' }, station('bar-1')] } })
+      expect(invalid.status).toBe(400)
+      const issues = JSON.stringify(await invalid.json())
+      expect(issues).toContain('used twice')
+      expect(issues).toContain('not allowed')
+    })
+
+    it('keeps the venue layout to staff with operations:manage, and to readers of the operation', async () => {
+      const operation = await createOperation({ public: false })
+      const plain = await user('Venueplain')
+      const layout = { features: [station('bar-1')] }
+      expect((await json(undefined, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout })).status).toBe(401)
+      await expectApiError(json(plain.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout }), 403, 'forbidden')
+      await expectApiError(json(plain.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)), 403, 'forbidden')
+      const readOnly = apiClient({ bearer: await createToken(staff.cookie, [operationsAccess.permissions.read]) })
+      await expectApiError(readOnly.json('PUT', operationsApi.admin.venueLayout(operation.id), { layout }), 403, 'insufficient_scope')
+      // A private operation's layout is a 404 for those who do not take part, like the operation.
+      expect((await json(plain.cookie, 'GET', operationsApi.venueLayout(operation.slug))).status).toBe(404)
+      expect((await json(undefined, 'GET', operationsApi.venueLayout(operation.slug))).status).toBe(404)
+      await participate(plain.cookie, operation.id)
+      expect((await ok(await json(plain.cookie, 'GET', operationsApi.venueLayout(operation.slug)))).features).toEqual([])
+    })
+
+    it('uploads an underlay, serves it to readers, keeps it on save and removes it with underlay: null', async () => {
+      const operation = await createOperation({ public: true })
+      const anonymous = await upload(undefined, operation.id, pngBytes(40, 30))
+      expect(anonymous.status).toBe(401)
+      const refused = await upload(staff.cookie, operation.id, new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'plan.svg')
+      expect(refused.status).toBe(415)
+
+      const response = await upload(staff.cookie, operation.id, pngBytes(40, 30))
+      expect(response.status, await response.clone().text()).toBe(200)
+      const underlay = await response.json() as Json
+      expect(underlay).toMatchObject({ width: 40, height: 30 })
+      expect(underlay.url).toMatch(new RegExp(`^/api/operations/${operation.slug}/venue-layout/underlay\\?v=`))
+      expect(JSON.stringify(underlay)).not.toContain(`operations/${operation.id}`)
+      const image = await fetch(underlay.url)
+      expect(image.status).toBe(200)
+      expect(image.headers.get('content-type')).toBe('image/png')
+      expect(image.headers.get('x-content-type-options')).toBe('nosniff')
+
+      // Saving the layout keeps the stored image, whatever underlay the client sends.
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')], underlay: { url: 'https://evil.example/x.png', width: 1, height: 1 } } }))
+      expect(saved.underlay).toEqual(underlay)
+      const removed = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { ...saved, underlay: null } }))
+      expect(removed.underlay).toBeNull()
+      expect(removed.features).toHaveLength(1)
+      expect((await fetch(underlay.url)).status).toBe(404)
     })
   })
 

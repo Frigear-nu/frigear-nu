@@ -307,6 +307,24 @@ describe('push (authenticated, database-backed)', async () => {
       expect((await getProviderCalls()).filter(call => call.provider === 'fcm')).toHaveLength(1)
     })
 
+    it('hands the email\'s template and meta to the email driver, and only what was given', async () => {
+      const user = await registerUser('Ida', 'ida@example.com')
+      await getMails(true)
+      const template = { name: 'shifts-reminder', props: { team: 'Bar' }, locale: 'da' }
+      await notify({
+        userId: user.id,
+        topic: 'shifts.reminder',
+        email: { subject: 'Shift', body: '<p>B</p>', replyTo: 'lead@example.com', template, meta: { shifts: { assignmentId: 'sha_1' } } },
+      })
+      expect(await getMails()).toEqual([{ to: 'ida@example.com', subject: 'Shift', body: '<p>B</p>', replyTo: 'lead@example.com', template, meta: { shifts: { assignmentId: 'sha_1' } } }])
+
+      // Without them the email is what it was before: no `template`, no `meta`, not even as `undefined`.
+      await getMails(true)
+      await notify({ userId: user.id, topic: 'shifts.reminder', email: { subject: 'Plain', body: 'B' } })
+      const [plain] = await getMails()
+      expect(Object.keys(plain!).sort()).toEqual(['body', 'subject', 'to'])
+    })
+
     it('honours the user\'s choices per channel', async () => {
       const user = await registerUser('Hal', 'hal@example.com')
       await register(user.cookie, unique('fcm-ok'))

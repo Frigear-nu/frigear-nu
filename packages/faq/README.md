@@ -39,4 +39,4 @@ const { groups, status } = await useFaq(['volunteering'])
 the `faq:manage` permission, granted to the `admin` and `coordinator` roles. An item is a draft until it is published, and
 publishing needs every language in `requiredLocales` (`da` and `en` by default).
 
-Full documentation: <https://docs.frigear.dev/modules/volunteering/faq>.
+Full documentation: <https://docs.frigear.dev/modules/content/faq>.

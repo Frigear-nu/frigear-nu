@@ -120,12 +120,13 @@ async function saveSettings() {
   }
 }
 
-const view = ref<'day' | 'list' | 'roles' | 'swaps' | 'settings'>('day')
+const view = ref<'day' | 'list' | 'roles' | 'swaps' | 'checkin' | 'settings'>('day')
 const viewItems = computed(() => [
   { label: t('admin.viewDay', 'Day'), value: 'day', icon: 'i-lucide-calendar-range' },
   { label: t('admin.viewList', 'List'), value: 'list', icon: 'i-lucide-list' },
   { label: t('admin.viewRoles', 'Shift roles'), value: 'roles', icon: 'i-lucide-badge' },
   { label: t('admin.viewSwaps', 'Swaps to approve ({count})', { count: pendingSwaps.value.length }), value: 'swaps', icon: 'i-lucide-arrow-left-right' },
+  { label: t('admin.viewCheckIn', 'Check-in'), value: 'checkin', icon: 'i-lucide-scan-line' },
   { label: t('admin.viewSettings', 'Settings'), value: 'settings', icon: 'i-lucide-settings' },
 ])
 
@@ -376,6 +377,13 @@ async function reject(swap: ShiftSwapDto) {
           </template>
         </UTable>
       </TableCard>
+
+      <ShiftCheckInCard
+        v-else-if="view === 'checkin' && selected"
+        :schedule="selected"
+        :teams="teams"
+        @changed="refreshSchedules"
+      />
 
       <SectionCard
         v-else-if="view === 'settings'"

@@ -43,6 +43,8 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
     kv: true,
+    // Venue layout underlay images (`storeMapUnderlay` of `@frigear-nu/maps`).
+    blob: true,
   },
   operations: {
     settings: { pages: { public: true, admin: true, adminOperation: true } },

@@ -80,6 +80,7 @@
     "@frigear-nu/audience": "workspace:^",
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/crew": "workspace:^",
+    "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
     "@frigear-nu/operations": "workspace:^",
@@ -98,15 +99,20 @@
   },
   "peerDependencies": {
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
     "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/dashboard": {
       "optional": true
     },
     "@frigear-nu/email-templates": {
@@ -118,6 +124,9 @@
     "@frigear-nu/mobile": {
       "optional": true
     },
+    "@frigear-nu/push": {
+      "optional": true
+    },
     "@frigear-nu/widget": {
       "optional": true
     },
@@ -127,10 +136,12 @@
   },
   "devDependencies": {
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/forms": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",

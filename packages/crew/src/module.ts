@@ -3,11 +3,13 @@ import {
   addImports,
   addServerImportsDir,
   addServerPlugin,
+  addTypeTemplate,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
+  defineVirtualRegistry,
   registerDatabaseTable,
   extendDatabaseTable,
   registerModule,
@@ -22,6 +24,8 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { crewAccess } from './runtime/access'
 import { CREW_DEFAULT_PAGES } from './runtime/utils/links'
+import { CREW_DASHBOARD, crewDashboardItems } from './runtime/dashboard'
+import { CREW_PUSH_MODULE_TYPES, crewNotificationTopics } from './runtime/notifications'
 import type { CrewMemberContext, CrewRuntimeConfig, ModuleOptions, PublicModuleOptions } from './types'
 
 export type * from './types'
@@ -73,6 +77,10 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
+    // The status message goes through `notifyUser` (email and push, by the person's choice).
+    '@frigear-nu/push': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the operation page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
@@ -197,6 +205,28 @@ export default defineNuxtModule<ModuleOptions>({
         sfSymbolActive: 'person.3.fill',
         requiresAuth: true,
       })
+    }
+
+    // Push: the `crew.status` topic, and `notifyUser` for the status message (`crew-send.ts`) through a server module that
+    // is `undefined` when push is not installed, so crew keeps sending the email itself then.
+    defineVirtualRegistry(nuxt, {
+      filename: '#crew/push',
+      target: 'server',
+      collect: () => hasNuxtModule('@frigear-nu/push', nuxt),
+      contents: installed => installed
+        ? 'export { notifyUser } from \'#imports\'\nexport const pushAvailable = true\n'
+        : 'export const notifyUser = undefined\nexport const pushAvailable = false\n',
+    })
+    addTypeTemplate({ filename: 'types/crew-push.d.ts', getContents: () => CREW_PUSH_MODULE_TYPES }, { nuxt: true, nitro: true })
+    if (hasNuxtModule('@frigear-nu/push')) {
+      const { extendNotificationTopics } = await import('@frigear-nu/push/utils')
+      extendNotificationTopics(nuxt, crewNotificationTopics)
+    }
+
+    // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
+    if (hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, CREW_DASHBOARD, crewDashboardItems(path => resolver.resolve(path)))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })

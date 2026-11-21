@@ -23,7 +23,8 @@
     },
     "admin": {
       "tabs": {
-        "details": "Detaljer"
+        "details": "Detaljer",
+        "venue": "Plantegning"
       },
       "title": "Operationer",
       "listDescription": "De lejligheder Frigear arbejder ved, uanset om Frigear er vært.",
@@ -94,10 +95,27 @@
       "archiveDescription": "En arkiveret operation er endelig: den kan ikke startes eller genåbnes.",
       "archiveAction": "Arkivér operation",
       "deleteTitle": "Slet {name}?",
-      "deleteDescription": "Crew, vagter og kort knyttet til den bliver tilbage uden en operation. Arkivér en operation, der er afviklet, i stedet.",
+      "deleteDescription": "Dens plantegning slettes med den; crew og vagter knyttet til den bliver tilbage uden en operation. Arkivér en operation, der er afviklet, i stedet.",
       "deleteAction": "Slet operation",
       "deleted": "Slettede {name}",
-      "deleteFailed": "Operationen kunne ikke slettes"
+      "deleteFailed": "Operationen kunne ikke slettes",
+      "locationMap": "På kortet",
+      "locationMapHelp": "Tryk på kortet for at placere operationen, og giv den en radius eller tegn dens område.",
+      "venueLayout": "Plantegning",
+      "venueLayoutHelp": "Hvor stationer, containere og områder er. Vagter peger på dem, og live-lagene tegnes på dem.",
+      "venueLoadFailed": "Plantegningen kunne ikke indlæses.",
+      "venueSaved": "Plantegningen for {name} er gemt",
+      "discardVenue": "Kassér ændringer",
+      "saveVenue": "Gem plantegning",
+      "venueLive": "Live-visning",
+      "venueLiveHelp": "Den gemte plantegning, som crew ser den, med live-lagene.",
+      "tryAgain": "Prøv igen"
+    },
+    "dashboard": {
+      "upcoming": "Kommende operationer",
+      "upcomingEmpty": "Ingen kommende operationer",
+      "upcomingEmptyDescription": "De operationer, du arbejder ved, vises her.",
+      "upcomingFailed": "Kunne ikke hente dine operationer."
     }
   }
 }

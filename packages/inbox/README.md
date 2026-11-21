@@ -35,4 +35,4 @@ Secrets come from the environment, never the database: `NUXT_INBOX_EMAIL_WEBHOOK
 WhatsApp, Messenger and Instagram need Meta business verification, a WhatsApp Business number and app review before
 they work: start those early.
 
-Full reference: [docs.frigear.dev/modules/volunteering/inbox](https://docs.frigear.dev/modules/volunteering/inbox).
+Full reference: [docs.frigear.dev/modules/communication/inbox](https://docs.frigear.dev/modules/communication/inbox).

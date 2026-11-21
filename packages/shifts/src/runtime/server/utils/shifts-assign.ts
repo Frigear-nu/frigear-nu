@@ -1,11 +1,13 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, isNull, lt, ne } from 'drizzle-orm'
 import { apiError, conflict, notFound } from '@frigear-nu/module-kit/server'
-import type { ShiftAssignResultDto, ShiftAssignmentStatus, ShiftCheckInDto, ShiftWarning } from '../../../types'
+import type { ShiftAssignResultDto, ShiftAssignmentStatus, ShiftCheckInDto, ShiftCheckInMethod, ShiftSelfCheckInDto, ShiftSelfCheckInInput, ShiftWarning } from '../../../types'
 import { newCheckInCode, newId } from '../../utils'
 import { effectiveCapacity, shiftCapacityWarnings } from '../../utils/guards'
 import { ACTIVE_ASSIGNMENT_STATUSES, canMoveAssignment } from '../../utils/status'
+import { checkInRuleFor, checkLocation } from '../../utils/checkin'
+import { addDays, dayKey, zonedTimeToUtc } from '../../utils/time'
 import { toShiftAssignmentDto, toShiftDto } from './shifts-dto'
 import type { ShiftAssignmentRow } from './shifts-dto'
 import {
@@ -22,15 +24,17 @@ import {
 } from './shifts-core'
 import type { ShiftAssignmentEntry, ShiftEntry } from './shifts-core'
 import { shiftsCancelSwapsOf } from './shifts-swaps'
+import { shiftsGrantPerks, shiftsRevokePerkGrants } from './shifts-perks'
+import { findShiftStation, shiftsVerifyStationToken } from './shifts-stations'
 
 /** When the QR pass of a shift shows and check-in is open: `checkInOpensMinutes` before it starts until it ends. */
-export function shiftsPassWindow(event: H3Event, shift: { startsAt: Date, endsAt: Date }): { opensAt: Date, closesAt: Date } {
+export function shiftsPassWindow(event: H3Event | undefined, shift: { startsAt: Date, endsAt: Date }): { opensAt: Date, closesAt: Date } {
   const { checkInOpensMinutes } = shiftsConfig(event)
   return { opensAt: new Date(shift.startsAt.getTime() - checkInOpensMinutes * 60_000), closesAt: shift.endsAt }
 }
 
 /** Whether check-in is open now for a shift. */
-export function shiftsCheckInOpen(event: H3Event, shift: { startsAt: Date, endsAt: Date }, now = new Date()): boolean {
+export function shiftsCheckInOpen(event: H3Event | undefined, shift: { startsAt: Date, endsAt: Date }, now = new Date()): boolean {
   const { opensAt, closesAt } = shiftsPassWindow(event, shift)
   return now.getTime() >= opensAt.getTime() && now.getTime() <= closesAt.getTime()
 }
@@ -57,8 +61,8 @@ async function shiftsPlaceOf(shiftId: string, assignmentId: string): Promise<num
   return rows.findIndex(row => row.id === assignmentId)
 }
 
-async function shiftsAssignmentChanged(event: H3Event, assignment: ShiftAssignmentRow, previous: ShiftAssignmentRow | null): Promise<void> {
-  await shiftsFire('shifts:assignment:changed', { event, assignment: toShiftAssignmentDto(assignment), previous: previous ? toShiftAssignmentDto(previous) : null })
+async function shiftsAssignmentChanged(event: H3Event | undefined, assignment: ShiftAssignmentRow, previous: ShiftAssignmentRow | null, auto?: boolean): Promise<void> {
+  await shiftsFire('shifts:assignment:changed', { event, assignment: toShiftAssignmentDto(assignment), previous: previous ? toShiftAssignmentDto(previous) : null, ...(auto ? { auto } : {}) })
 }
 
 /**
@@ -142,26 +146,95 @@ export async function shiftsCancelAssignment(event: H3Event, entry: ShiftAssignm
 }
 
 /**
- * Marks attendance (a lead of the team, or staff): `attended` (the check-in time is kept, or set now) or `no_show`.
- * Asking for the status it has is a no-op; a move the status table does not allow is a 409 `invalid_transition`. Fires
- * `shifts:attendance:marked` and `shifts:assignment:changed` when it changed.
+ * Marks attendance (a lead of the team, or staff; `by: null` with `auto: true` is the system, the auto no-show of the
+ * `shifts:close-shifts` task, with no request): `attended` (the check-in time is kept, or set now) or `no_show`.
+ * Asking for the status it has is a no-op; a move the status table does not allow is a 409 `invalid_transition`.
+ * Marking an ended shift attended grants its perks at once; a flip from `attended` to `no_show` revokes the grants
+ * nobody claimed yet. Fires `shifts:attendance:marked` and `shifts:assignment:changed` when it changed (with `auto`).
  */
-export async function shiftsMarkAttendance(event: H3Event, entry: ShiftAssignmentEntry, to: 'attended' | 'no_show', by: number): Promise<ShiftAssignmentRow> {
+export async function shiftsMarkAttendance(event: H3Event | undefined, entry: ShiftAssignmentEntry, to: 'attended' | 'no_show', by: number | null, options: { auto?: boolean, now?: Date } = {}): Promise<ShiftAssignmentRow> {
   const { assignment } = entry
+  const now = options.now ?? new Date()
   const from = assignment.status as ShiftAssignmentStatus
   if (from === to) return assignment
   if (!canMoveAssignment(from, to)) throw apiError(409, 'invalid_transition', `An ${from} assignment cannot be marked ${to === 'no_show' ? 'a no-show' : to}.`)
-  if (Date.now() < shiftsPassWindow(event, entry.shift).opensAt.getTime()) {
-    throw apiError(409, 'outside_window', 'Attendance can be marked once check-in for the shift opens.', { opensAt: shiftsPassWindow(event, entry.shift).opensAt.toISOString() })
+  const { opensAt } = shiftsPassWindow(event, entry.shift)
+  if (now.getTime() < opensAt.getTime()) {
+    throw apiError(409, 'outside_window', 'Attendance can be marked once check-in for the shift opens.', { opensAt: opensAt.toISOString() })
   }
+  const checksIn = to === 'attended' && !assignment.checkedInAt
   const patch: Partial<typeof schema.shiftAssignments.$inferInsert> = { status: to }
-  if (to === 'attended' && !assignment.checkedInAt) Object.assign(patch, { checkedInAt: new Date(), checkedInBy: by })
+  if (checksIn) Object.assign(patch, { checkedInAt: now, checkedInBy: by, checkInMethod: 'lead' })
   const written = await shiftsWriteAssignment(assignment, patch)
   if (!written) throw conflict('The assignment changed meanwhile. Try again.')
   if (from === 'assigned') await shiftsCancelSwapsOf(event, written.id)
-  await shiftsFire('shifts:attendance:marked', { event, assignment: toShiftAssignmentDto(written), by })
-  await shiftsAssignmentChanged(event, written, assignment)
+  if (to === 'no_show' && from === 'attended') await shiftsRevokePerkGrants(event, written.id)
+  if (to === 'attended') await shiftsGrantPerks(event, [{ assignment: written, shift: entry.shift, schedule: entry.schedule }], now)
+  await shiftsFire('shifts:attendance:marked', { event, assignment: toShiftAssignmentDto(written), by, ...(options.auto ? { auto: true } : {}), ...(checksIn ? { method: 'lead' as const } : {}) })
+  await shiftsAssignmentChanged(event, written, assignment, options.auto)
   return written
+}
+
+/**
+ * Claims the check-in of an assignment: `attended`, checked in at `now` by `by` with `method` (a conditional write from
+ * `assigned` or `no_show` without a check-in, so two check-ins at once land once). `undefined` when it was claimed
+ * meanwhile. Cancels the live swap of an `assigned` one and fires `shifts:attendance:marked` and
+ * `shifts:assignment:changed`.
+ */
+async function shiftsClaimCheckIn(event: H3Event | undefined, assignment: ShiftAssignmentRow, by: number, method: ShiftCheckInMethod, now: Date): Promise<ShiftAssignmentRow | undefined> {
+  const [claimed] = await db.update(schema.shiftAssignments).set({ status: 'attended', checkedInAt: now, checkedInBy: by, checkInMethod: method }).where(and(
+    eq(schema.shiftAssignments.id, assignment.id),
+    eq(schema.shiftAssignments.userId, assignment.userId),
+    isNull(schema.shiftAssignments.checkedInAt),
+    inArray(schema.shiftAssignments.status, ['assigned', 'no_show']),
+  )).returning()
+  if (!claimed) return undefined
+  if (assignment.status === 'assigned') await shiftsCancelSwapsOf(event, claimed.id)
+  await shiftsFire('shifts:attendance:marked', { event, assignment: toShiftAssignmentDto(claimed), by, method })
+  await shiftsAssignmentChanged(event, claimed, assignment)
+  return claimed
+}
+
+/**
+ * The `daily` mode: when this is the person's first check-in of the day (in the module's time zone), their other shifts
+ * starting that day whose check-in window is open now, whose team's rule has `daily` and that they still hold
+ * (`assigned`, no check-in) are checked in too, with `method: 'daily'`. Shifts whose window opens later need a check-in
+ * of their own. Returns the assignment ids it checked in.
+ */
+export async function shiftsDailyCascade(event: H3Event | undefined, first: ShiftAssignmentRow, by: number, now: Date): Promise<string[]> {
+  const { timeZone } = shiftsConfig(event)
+  const day = dayKey(now, timeZone)
+  const dayStart = zonedTimeToUtc(day, '00:00', timeZone)
+  const dayEnd = zonedTimeToUtc(addDays(day, 1), '00:00', timeZone)
+  const [earlier] = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(and(
+    eq(schema.shiftAssignments.userId, first.userId),
+    ne(schema.shiftAssignments.id, first.id),
+    gte(schema.shiftAssignments.checkedInAt, dayStart),
+    lt(schema.shiftAssignments.checkedInAt, now),
+  )).limit(1)
+  if (earlier) return []
+  const rows = await db.select({ assignment: schema.shiftAssignments, shift: schema.shifts, schedule: schema.shiftSchedules }).from(schema.shiftAssignments)
+    .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
+    .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
+    .where(and(
+      eq(schema.shiftAssignments.userId, first.userId),
+      ne(schema.shiftAssignments.id, first.id),
+      eq(schema.shiftAssignments.status, 'assigned'),
+      isNull(schema.shiftAssignments.checkedInAt),
+      eq(schema.shiftSchedules.status, 'published'),
+      gte(schema.shifts.startsAt, dayStart),
+      lt(schema.shifts.startsAt, dayEnd),
+    ))
+    .orderBy(asc(schema.shifts.startsAt))
+    .limit(24)
+  const done: string[] = []
+  for (const { assignment, shift, schedule } of rows) {
+    if (!checkInRuleFor(schedule.checkIn, shift.teamId).modes.includes('daily')) continue
+    if (!shiftsCheckInOpen(event, shift, now)) continue
+    if (!await shiftsStillEligible(event, assignment, shift.teamId)) continue
+    if (await shiftsClaimCheckIn(event, assignment, by, 'daily', now)) done.push(assignment.id)
+  }
+  return done
 }
 
 /** The assignment (with its shift and schedule) a QR pass code belongs to, if any. */
@@ -186,29 +259,77 @@ export async function shiftsCheckIn(event: H3Event, teamId: string, code: string
     await shiftsCancelFutureAssignments(event, assignment.userId, shift.teamId, row => shiftsStillEligible(event, row, shift.teamId))
     throw apiError(409, 'not_eligible', 'This person no longer holds a role on the team.')
   }
-  const respond = async (row: ShiftAssignmentRow, alreadyCheckedIn: boolean): Promise<ShiftCheckInDto> => {
+  const respond = async (row: ShiftAssignmentRow, alreadyCheckedIn: boolean, alsoCheckedIn: string[] = []): Promise<ShiftCheckInDto> => {
     const [dto] = await shiftsAssigneeDtos([row], pii)
-    return { ok: true, alreadyCheckedIn, checkedInAt: (row.checkedInAt ?? new Date()).toISOString(), assignment: dto!, shift: toShiftDto(shift, schedule) }
+    return { ok: true, alreadyCheckedIn, checkedInAt: (row.checkedInAt ?? new Date()).toISOString(), assignment: dto!, shift: toShiftDto(shift, schedule), alsoCheckedIn }
   }
   if (assignment.status === 'attended' && assignment.checkedInAt) return respond(assignment, true)
   if (!shiftsCheckInOpen(event, shift)) {
     const { opensAt, closesAt } = shiftsPassWindow(event, shift)
     throw apiError(409, 'outside_window', 'Check-in for this shift is not open now.', { opensAt: opensAt.toISOString(), closesAt: closesAt.toISOString() })
   }
-  const [claimed] = await db.update(schema.shiftAssignments).set({ status: 'attended', checkedInAt: new Date(), checkedInBy: by }).where(and(
-    eq(schema.shiftAssignments.id, assignment.id),
-    isNull(schema.shiftAssignments.checkedInAt),
-    inArray(schema.shiftAssignments.status, ['assigned', 'no_show']),
-  )).returning()
+  const now = new Date()
+  const claimed = await shiftsClaimCheckIn(event, assignment, by, 'lead', now)
   if (!claimed) {
     const current = await findShiftAssignmentEntry(assignment.id)
     if (current?.assignment.status === 'attended') return respond(current.assignment, true)
     throw conflict('The assignment changed meanwhile. Try again.')
   }
-  if (assignment.status === 'assigned') await shiftsCancelSwapsOf(event, claimed.id)
-  await shiftsFire('shifts:attendance:marked', { event, assignment: toShiftAssignmentDto(claimed), by })
-  await shiftsAssignmentChanged(event, claimed, assignment)
-  return respond(claimed, false)
+  return respond(claimed, false, await shiftsDailyCascade(event, claimed, by, now))
+}
+
+/**
+ * A volunteer checks in on one of their own shifts (`POST /api/shifts/me/:assignmentId/check-in`), by a mode the
+ * team's rule has on (409 `mode_disabled` otherwise):
+ * - `station`: the token of a station's QR code. A token that is not one, or whose signature does not verify, is a 400
+ *   `invalid_token`; one older than the previous 30 second window a 409 `token_expired`; a station of another team or
+ *   schedule a 409 `wrong_station`.
+ * - `location`: the device's position and accuracy. Without a place set, 409 `no_location`; an accuracy worse than the
+ *   radius 409 `inaccurate_position`; outside the place 409 `outside_location` (with the distance and radius).
+ * Then, like a lead's scan: a cancelled assignment is a 409 `assignment_cancelled`, somebody who lost their role 409
+ * `not_eligible`, outside the check-in window 409 `outside_window`. A second check-in (a replayed token, a second tap)
+ * answers `alreadyCheckedIn` and changes nothing. The first check-in of the day runs the `daily` mode.
+ */
+export async function shiftsSelfCheckIn(event: H3Event, entry: ShiftAssignmentEntry, input: ShiftSelfCheckInInput, now = new Date()): Promise<ShiftSelfCheckInDto> {
+  const { assignment, shift, schedule } = entry
+  const rule = checkInRuleFor(schedule.checkIn, shift.teamId)
+  if (!rule.modes.includes(input.mode)) throw apiError(409, 'mode_disabled', `Checking in by ${input.mode} is not on for this shift.`, { modes: rule.modes })
+  if (input.mode === 'station') {
+    const stationId = await shiftsVerifyStationToken(event, input.token, now.getTime())
+    const station = await findShiftStation(stationId)
+    if (!station || station.scheduleId !== schedule.id || station.teamId !== shift.teamId) throw apiError(409, 'wrong_station', 'This station is not one of your team\'s on this schedule.')
+  }
+  else {
+    if (!rule.location) throw apiError(409, 'no_location', 'No check-in place is set for this shift.')
+    const check = checkLocation(rule.location, { lat: input.latitude, lng: input.longitude }, input.accuracy)
+    if (!check.ok) {
+      throw check.reason === 'inaccurate'
+        ? apiError(409, 'inaccurate_position', 'Your position is not accurate enough. Try again outside, or ask a lead.', { radius: check.radius })
+        : apiError(409, 'outside_location', 'You are not at the check-in place.', { distance: check.distance, radius: check.radius })
+    }
+  }
+  if (assignment.status === 'cancelled') throw apiError(409, 'assignment_cancelled', 'This assignment was cancelled.')
+  const respond = (row: ShiftAssignmentRow, alreadyCheckedIn: boolean, alsoCheckedIn: string[] = []): ShiftSelfCheckInDto => ({
+    ok: true,
+    alreadyCheckedIn,
+    checkedInAt: (row.checkedInAt ?? now).toISOString(),
+    method: (row.checkInMethod ?? input.mode) as ShiftCheckInMethod,
+    assignment: toShiftAssignmentDto(row),
+    alsoCheckedIn,
+  })
+  if (assignment.status === 'attended' && assignment.checkedInAt) return respond(assignment, true)
+  if (!await shiftsStillEligible(event, assignment, shift.teamId)) throw apiError(409, 'not_eligible', 'You no longer hold a role on the team.')
+  if (!shiftsCheckInOpen(event, shift, now)) {
+    const { opensAt, closesAt } = shiftsPassWindow(event, shift)
+    throw apiError(409, 'outside_window', 'Check-in for this shift is not open now.', { opensAt: opensAt.toISOString(), closesAt: closesAt.toISOString() })
+  }
+  const claimed = await shiftsClaimCheckIn(event, assignment, assignment.userId, input.mode, now)
+  if (!claimed) {
+    const current = await findShiftAssignmentEntry(assignment.id)
+    if (current?.assignment.status === 'attended' && current.assignment.userId === assignment.userId) return respond(current.assignment, true)
+    throw conflict('The assignment changed meanwhile. Try again.')
+  }
+  return respond(claimed, false, await shiftsDailyCascade(event, claimed, assignment.userId, now))
 }
 
 /**

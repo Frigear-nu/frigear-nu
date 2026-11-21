@@ -16,8 +16,16 @@ export const shiftsApi = {
     shift: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}`,
     /** `GET` the QR pass of one of my shifts (the code only while check-in is open). */
     pass: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/pass`,
+    /** `POST` `{ mode: 'station', token }` or `{ mode: 'location', latitude, longitude, accuracy }` to check in on one of my shifts myself. */
+    checkIn: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/check-in`,
+    /** `GET` (`?status=unclaimed|claimed|all`) the perks I earned (`perks:read`). */
+    perkGrants: `${BASE}/me/perk-grants`,
+    /** `POST` `{ client? }` to claim one of my perk grants, idempotently (`perks:claim`). */
+    claimPerkGrant: (grantId: string) => `${BASE}/me/perk-grants/${enc(grantId)}/claim`,
     /** `POST` to open a swap of one of my shifts, `DELETE` to withdraw it. */
     swap: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/swap`,
+    /** `GET` the teams I work on that have a shift running now, with who is on it. */
+    now: `${BASE}/me/now`,
     /** `GET` the teams I lead. */
     leads: `${BASE}/me/leads`,
     /** `GET` whether I have a calendar feed, `POST` to mint one (shown once, revokes the old one), `DELETE` to revoke it. Session only. */
@@ -48,17 +56,21 @@ export const shiftsApi = {
     swaps: (teamId: string) => `${BASE}/teams/${enc(teamId)}/swaps`,
     /** `POST` `{ audience?, channels?, subject, message }` to message the team (a lead of it, or staff). Email unless `channels` adds `sms`. */
     broadcasts: (teamId: string) => `${BASE}/teams/${enc(teamId)}/broadcasts`,
-    /** `GET` the perks the team's leads can redeem (a lead of the team, or staff). */
-    perks: (teamId: string) => `${BASE}/teams/${enc(teamId)}/perks`,
-    /** `POST` `{ code }` to redeem a perk with a person's QR pass (a lead of the team, or staff). */
-    redeemPerk: (teamId: string, perkId: string) => `${BASE}/teams/${enc(teamId)}/perks/${enc(perkId)}/redeem`,
+    /** `GET` the exceptions of the team's recent shifts: no-shows, late, not checked in (a lead of the team, or staff). */
+    exceptions: (teamId: string) => `${BASE}/teams/${enc(teamId)}/exceptions`,
+    /** `GET` the team's check-in stations on published schedules (a lead of the team, or staff). */
+    stations: (teamId: string) => `${BASE}/teams/${enc(teamId)}/stations`,
   },
+  /** `GET` the current rotating QR code of a check-in station (a lead of its team, or staff). */
+  stationToken: (stationId: string) => `${BASE}/stations/${enc(stationId)}/token`,
   /** `POST` to mark an assignment attended (a lead of the team, or staff). */
   attended: (assignmentId: string) => `${BASE}/assignments/${enc(assignmentId)}/attended`,
   /** `POST` to mark an assignment a no-show (a lead of the team, or staff). */
   noShow: (assignmentId: string) => `${BASE}/assignments/${enc(assignmentId)}/no-show`,
   /** `GET` who is on shift now in an operation, and the leads on duty per team. */
   now: (operationId: string) => `${BASE}/operations/${enc(operationId)}/now`,
+  /** `GET` the `shifts.on-duty` live layer: GeoJSON points on the operation's venue layout, a team per shift location. */
+  onDuty: (operationId: string) => `${BASE}/operations/${enc(operationId)}/on-duty`,
   admin: {
     /** `GET` (`?operationId`) / `POST` schedules. */
     schedules: `${ADMIN_BASE}/schedules`,
@@ -70,6 +82,10 @@ export const shiftsApi = {
     copyFrom: (scheduleId: string) => `${ADMIN_BASE}/schedules/${enc(scheduleId)}/copy-from`,
     /** `GET` / `POST` a schedule's shift roles. */
     roles: (scheduleId: string) => `${ADMIN_BASE}/schedules/${enc(scheduleId)}/roles`,
+    /** `GET` / `POST` a schedule's check-in stations. */
+    stations: (scheduleId: string) => `${ADMIN_BASE}/schedules/${enc(scheduleId)}/stations`,
+    /** `PATCH` / `DELETE` one check-in station. */
+    station: (stationId: string) => `${ADMIN_BASE}/stations/${enc(stationId)}`,
     /** `PATCH` / `DELETE` one shift role. */
     role: (roleId: string) => `${ADMIN_BASE}/roles/${enc(roleId)}`,
     /** `GET` (`?teamId&from&to`) a schedule's shifts with their assignments. */
@@ -92,7 +108,7 @@ export const shiftsApi = {
     teams: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/teams`,
     /** `GET` (`?operationId`) the broadcasts of an operation, `POST` `{ operationId, audience, channels, subject, message }` to send one (`shifts:broadcast`). */
     broadcasts: `${ADMIN_BASE}/broadcasts`,
-    /** `GET` / `POST` an operation's perks (meal and drink vouchers). */
+    /** `GET` / `POST` an operation's perks (what an attended shift earns). */
     perks: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/perks`,
     /** `PATCH` / `DELETE` one perk. */
     perk: (perkId: string) => `${ADMIN_BASE}/perks/${enc(perkId)}`,

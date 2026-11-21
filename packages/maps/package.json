@@ -1,8 +1,8 @@
 {
   "name": "@frigear-nu/maps",
   "version": "0.0.0",
-  "description": "Maps for the frigear ecosystem: geographic and floor-plan maps owned by anything, with map kinds, feature kinds and provider layers that other modules register.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/maps",
+  "description": "Maps as a building block for other modules: a location picker on OpenStreetMap, a plane layout editor with underlay and snapping, web and mobile viewers with live layers, feature kinds, zod schemas and geometry helpers. No tables of its own.",
+  "homepage": "https://docs.frigear.dev/modules/interface/maps",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
@@ -22,10 +22,10 @@
       "import": "./src/runtime/utils/index.ts",
       "default": "./src/runtime/utils/index.ts"
     },
-    "./api": {
-      "types": "./src/runtime/utils/api.ts",
-      "import": "./src/runtime/utils/api.ts",
-      "default": "./src/runtime/utils/api.ts"
+    "./schemas": {
+      "types": "./src/runtime/schemas.ts",
+      "import": "./src/runtime/schemas.ts",
+      "default": "./src/runtime/schemas.ts"
     },
     "./properties": {
       "types": "./src/runtime/utils/properties.ts",
@@ -47,10 +47,10 @@
         "import": "./dist/runtime/utils/index.js",
         "default": "./dist/runtime/utils/index.js"
       },
-      "./api": {
-        "types": "./dist/runtime/utils/api.d.ts",
-        "import": "./dist/runtime/utils/api.js",
-        "default": "./dist/runtime/utils/api.js"
+      "./schemas": {
+        "types": "./dist/runtime/schemas.d.ts",
+        "import": "./dist/runtime/schemas.js",
+        "default": "./dist/runtime/schemas.js"
       },
       "./properties": {
         "types": "./dist/runtime/utils/properties.d.ts",
@@ -87,45 +87,24 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/audience": "workspace:^",
-    "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@geoman-io/leaflet-geoman-free": "^2.20.8",
-    "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
-    "drizzle-kit": "catalog:",
-    "drizzle-orm": "catalog:",
     "h3": "catalog:",
     "leaflet": "^1.9.4",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
-    "@frigear-nu/admin": "workspace:^",
-    "@frigear-nu/menu": "workspace:^",
-    "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
-    "@frigear-nu/admin": {
-      "optional": true
-    },
-    "@frigear-nu/menu": {
-      "optional": true
-    },
-    "@frigear-nu/widget": {
-      "optional": true
-    },
     "@nuxt/ui": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@frigear-nu/admin": "workspace:^",
-    "@frigear-nu/menu": "workspace:^",
-    "@frigear-nu/users": "workspace:^",
-    "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",
@@ -138,7 +117,6 @@
     "eslint": "catalog:",
     "nuxt": "catalog:",
     "typescript": "catalog:",
-    "unstorage": "^1.17.5",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }

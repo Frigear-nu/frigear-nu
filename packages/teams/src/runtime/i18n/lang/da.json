@@ -150,6 +150,14 @@
       "removeMemberFailed": "Medlemmet kunne ikke fjernes",
       "status": "Status",
       "noOwner": "Åbn fanen fra en operations side."
+    },
+    "dashboard": {
+      "mapped": "Via rolle",
+      "mine": "Mine hold",
+      "mineEmpty": "Du er ikke på et hold endnu",
+      "mineEmptyDescription": "De hold, du arbejder på, vises her med din rolle.",
+      "mineFailed": "Kunne ikke hente dine hold.",
+      "mineMore": "{count} hold mere"
     }
   }
 }

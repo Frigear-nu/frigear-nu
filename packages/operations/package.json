@@ -79,6 +79,7 @@
   "dependencies": {
     "@frigear-nu/audience": "workspace:^",
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
@@ -91,6 +92,7 @@
   },
   "peerDependencies": {
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/events": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
@@ -99,6 +101,9 @@
   },
   "peerDependenciesMeta": {
     "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/dashboard": {
       "optional": true
     },
     "@frigear-nu/events": {
@@ -116,6 +121,7 @@
   },
   "devDependencies": {
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@frigear-nu/widget": "workspace:^",

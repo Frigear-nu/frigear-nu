@@ -24,6 +24,12 @@ export const shiftsAccess = defineAccess('shifts', {
       description: 'Check people in, mark attendance and approve swaps on the teams you lead.',
       implicit: true,
     },
+    // Held by everyone, narrowed by the policy to the person's own assignments: checking in at a station or by location.
+    attend: {
+      label: 'Check in on your shifts',
+      description: 'Check in on your own shifts by scanning a station\'s code or by your location.',
+      implicit: true,
+    },
     // Held by everyone, but only through a signed-in session: the calendar feed URL is a secret that shows your shifts to
     // whoever holds it, so a token (or an OAuth client) cannot mint or revoke one.
     feed: {
@@ -56,6 +62,31 @@ export const shiftsAccess = defineAccess('shifts', {
       description: 'See your own shifts.',
       icon: 'i-lucide-calendar-clock',
       permissions: ['shifts:read'],
+    },
+  },
+})
+
+// The perks people earned on their shifts, for the app that spends them (frigear-vouchers): read and claim your own
+// grants. Both are held by everyone and narrowed by the policy to the caller's own grants; the `perks` scope covers both.
+export const perksAccess = defineAccess('perks', {
+  permissions: {
+    'perks:read': {
+      label: 'Read your perks',
+      description: 'See the perks you earned on your shifts.',
+      implicit: true,
+    },
+    'perks:claim': {
+      label: 'Claim your perks',
+      description: 'Mark the perks you earned as claimed, so an app can hand them out.',
+      implicit: true,
+    },
+  },
+  scopes: {
+    perks: {
+      label: 'Perks',
+      description: 'See and claim the perks you earned on your shifts.',
+      icon: 'i-lucide-ticket',
+      permissions: ['perks:read', 'perks:claim'],
     },
   },
 })

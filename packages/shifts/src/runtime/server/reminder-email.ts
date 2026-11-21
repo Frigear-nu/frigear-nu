@@ -109,6 +109,15 @@ export function buildShiftReminderEmail(input: {
   }
 }
 
+/** The reminder push notification: the email's subject and the same one-line message. */
+export function buildShiftReminderPush(input: { variables: ShiftReminderVariables, left: ShiftTimeLeft, url?: string, locale?: string }): { title: string, body: string, url?: string } {
+  return {
+    title: TEXTS[reminderLanguage(input.locale)].subject(describeTimeLeft(input.left, input.locale)),
+    body: reminderMessage(input.variables, input.left, input.locale),
+    ...(input.url ? { url: input.url } : {}),
+  }
+}
+
 /** The reminder SMS: one short line in the person's language, with the link when there is one. `null` without a phone number. */
 export function buildShiftReminderSms(input: { phone: string | null, variables: ShiftReminderVariables, offset: number, left: ShiftTimeLeft, url?: string, locale?: string }): SMSNotification | null {
   if (!input.phone) return null

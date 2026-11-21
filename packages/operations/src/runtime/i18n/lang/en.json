@@ -23,7 +23,8 @@
     },
     "admin": {
       "tabs": {
-        "details": "Details"
+        "details": "Details",
+        "venue": "Venue layout"
       },
       "title": "Operations",
       "listDescription": "The occasions Frigear works at, whether or not Frigear hosts them.",
@@ -94,10 +95,27 @@
       "archiveDescription": "An archived operation is final: it cannot be started or reopened.",
       "archiveAction": "Archive operation",
       "deleteTitle": "Delete {name}?",
-      "deleteDescription": "Crew, shifts and maps attached to it stay behind without an operation. Archive an operation that has been worked instead.",
+      "deleteDescription": "Its venue layout is deleted with it; crew and shifts attached to it stay behind without an operation. Archive an operation that has been worked instead.",
       "deleteAction": "Delete operation",
       "deleted": "Deleted {name}",
-      "deleteFailed": "Could not delete the operation"
+      "deleteFailed": "Could not delete the operation",
+      "locationMap": "On the map",
+      "locationMapHelp": "Tap the map to place the operation, and give it a radius or draw its area.",
+      "venueLayout": "Venue layout",
+      "venueLayoutHelp": "Where the stations, containers and areas are. Shifts point to them, and the live layers draw on them.",
+      "venueLoadFailed": "The venue layout could not be loaded.",
+      "venueSaved": "Saved the venue layout of {name}",
+      "discardVenue": "Discard changes",
+      "saveVenue": "Save venue layout",
+      "venueLive": "Live view",
+      "venueLiveHelp": "The saved layout as crew see it, with the live layers.",
+      "tryAgain": "Try again"
+    },
+    "dashboard": {
+      "upcoming": "Upcoming operations",
+      "upcomingEmpty": "No upcoming operations",
+      "upcomingEmptyDescription": "The operations you work at show here.",
+      "upcomingFailed": "Could not load your operations."
     }
   }
 }

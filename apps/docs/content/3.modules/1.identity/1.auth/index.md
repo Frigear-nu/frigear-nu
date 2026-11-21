@@ -30,19 +30,19 @@ its own, such as a single-page application (SPA) or a Capacitor app, uses
   the sign-in and sign-out actions, and `$api` / `useApi()` call your API. The same names work in both modes. Roles
   and the guards of the interface come from [Authorization](/modules/identity/authorization) in both.
 - **Emails**: the emailed sign-in link, address verification and password reset, sent through
-  [Notify](/modules/platform/notify) when those flows are on.
+  [Notify](/modules/communication/notify) when those flows are on.
 
 :module-runtime{server client mobile}
 
 ::note
-**Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) and
+**Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/communication/notify) and
 `nuxt-auth-utils`; in client mode, `@frigear-nu/module-kit` only.
 
 **You add:** `@nuxthub/core` in server mode.
 
 **Optional:** [`@frigear-nu/menu`](/modules/interface/menu) (the sign-out item), `@nuxt/ui` (the shipped pages),
 `@simplewebauthn/browser` and `@simplewebauthn/server` (passkeys), and
-[`@frigear-nu/email-templates`](/modules/platform/email-templates) (rendered emails).
+[`@frigear-nu/email-templates`](/modules/communication/email-templates) (rendered emails).
 ::
 
 ## Quick setup

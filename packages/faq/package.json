@@ -2,7 +2,7 @@
   "name": "@frigear-nu/faq",
   "version": "0.0.0",
   "description": "Managed question-and-answer content for the frigear ecosystem: bilingual FAQ groups with per-group and per-item visibility, MDC components, composables and an admin area.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/faq",
+  "homepage": "https://docs.frigear.dev/modules/content/faq",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

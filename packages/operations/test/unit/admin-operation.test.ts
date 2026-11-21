@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { emptyTranslatedToNull, formToOperationBody, isEmptyTranslated, localToIso, toLocalInput } from '../../src/runtime/app/utils/admin-operation'
+import { emptyTranslatedToNull, formToOperationBody, isEmptyTranslated, localToIso, operationLocationMap, operationToForm, toLocalInput } from '../../src/runtime/app/utils/admin-operation'
 import type { OperationFormState, StaffOperation } from '../../src/runtime/app/utils/admin-operation'
 
 const form = (overrides: Partial<OperationFormState> = {}): OperationFormState => ({
-  name: 'Bar', slug: 'bar', description: undefined, hostName: '', hostUrl: '', startsAt: '2027-06-27T10:00', endsAt: '', locationName: undefined, locationAddress: '', public: false, eventId: '', ...overrides,
+  name: 'Bar', slug: 'bar', description: undefined, hostName: '', hostUrl: '', startsAt: '2027-06-27T10:00', endsAt: '', locationName: undefined, locationAddress: '', locationMap: null, public: false, eventId: '', ...overrides,
 })
 
 describe('operation form body', () => {
@@ -33,8 +33,15 @@ describe('operation form body', () => {
     expect(formToOperationBody(form({ locationName: { en: 'Darupvej' } })).location).toEqual({ name: { en: 'Darupvej' } })
   })
 
-  it('keeps stored coordinates while the place is only renamed', () => {
-    const previous = { startsAt: '2027-06-27T08:00:00.000Z', endsAt: null, location: { name: 'Old', lat: 55.6, lng: 12 } } as StaffOperation
-    expect(formToOperationBody(form({ locationName: 'New' }), previous).location).toEqual({ name: 'New', lat: 55.6, lng: 12 })
+  it('sends the location picker\'s value with the name and address, and reads it back', () => {
+    const area = [{ lat: 55.62, lng: 12.07 }, { lat: 55.62, lng: 12.09 }, { lat: 55.61, lng: 12.08 }]
+    const body = formToOperationBody(form({ locationName: 'Darupvej', locationAddress: ' Darupvej 1 ', locationMap: { point: { lat: 55.615, lng: 12.08 }, area } }))
+    expect(body.location).toEqual({ name: 'Darupvej', address: 'Darupvej 1', point: { lat: 55.615, lng: 12.08 }, area })
+    // A place on the map alone is a location too.
+    expect(formToOperationBody(form({ locationMap: { point: { lat: 55.6, lng: 12 }, radiusMeters: 50 } })).location)
+      .toEqual({ point: { lat: 55.6, lng: 12 }, radiusMeters: 50 })
+    const stored = { name: 'Bar', slug: 'bar', startsAt: '2027-06-27T08:00:00.000Z', endsAt: null, location: { name: 'Darupvej', point: { lat: 55.6, lng: 12 }, radiusMeters: 50 } } as StaffOperation
+    expect(operationToForm(stored).locationMap).toEqual({ point: { lat: 55.6, lng: 12 }, radiusMeters: 50 })
+    expect(operationLocationMap({ name: 'Only a name' })).toBeNull()
   })
 })

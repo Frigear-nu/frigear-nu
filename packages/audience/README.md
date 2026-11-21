@@ -1,7 +1,7 @@
 # @frigear-nu/audience
 
-Shared visibility rules and owner references for the Frigear volunteering modules. FAQ groups, help articles, maps
-and mailboxes store who may see them in one `visibility` shape, and this package decides whether a viewer passes. It
+Shared visibility rules and owner references for the Frigear volunteering modules. FAQ groups and help articles
+store who may see them in one `visibility` shape, and this package decides whether a viewer passes. It
 is a plain TypeScript library, not a Nuxt module.
 
 ```bash
@@ -27,4 +27,4 @@ const visible = isVisible(groupVisibility, viewer)
 | `Viewer`, `TeamRoleGrant`, `OwnerRef`, `OwnerType`, `OWNER_TYPES` | The shared types. |
 | `@frigear-nu/audience/server` | The `audience:viewer:resolve` and `audience:owner:resolve` Nitro hooks, and `resolveViewer` / `resolveOwner`. |
 
-Full reference: [docs.frigear.dev/modules/volunteering/audience](https://docs.frigear.dev/modules/volunteering/audience).
+Full reference: [docs.frigear.dev/modules/organisation/audience](https://docs.frigear.dev/modules/organisation/audience).

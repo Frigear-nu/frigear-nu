@@ -2,7 +2,7 @@
   "name": "@frigear-nu/inbox",
   "version": "0.0.0",
   "description": "Shared support inboxes for the frigear ecosystem: staff read and answer messages from the contact form, email, WhatsApp, Messenger and Instagram in one place, with assignment, internal notes, hidden threads, an audit log and retention.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/inbox",
+  "homepage": "https://docs.frigear.dev/modules/communication/inbox",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

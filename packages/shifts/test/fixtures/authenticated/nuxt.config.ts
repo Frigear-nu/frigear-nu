@@ -14,7 +14,11 @@ export default defineNuxtConfig({
     '@frigear-nu/teams',
     '@frigear-nu/forms',
     '@frigear-nu/notify',
+    // Installed so reminders, swaps and broadcasts go through `notifyUser` (push's log driver, the default, delivers the pushes).
+    '@frigear-nu/push',
     '@frigear-nu/crew',
+    // Installed so the dashboard items of operations, crew, teams and shifts are rendered on one page (`pages/dashboard-test.vue`).
+    '@frigear-nu/dashboard',
     ShiftsModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
     // `admin` and `coordinator` hold what the modules `grantTo` them (`shifts:manage`, `shifts:pii`, ...);
@@ -57,5 +61,7 @@ export default defineNuxtConfig({
     // The task is run by a test route with a fake `now`, never by a schedule; SMS is on so the tests can tell it apart
     // from a run that overrides it off.
     reminders: { cron: false, offsets: [1440, 120], sms: true },
+    // The close task too is run by a test route with a fake `now`.
+    automation: { cron: false },
   },
 })

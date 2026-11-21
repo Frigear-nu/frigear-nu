@@ -2,7 +2,7 @@
   "name": "@frigear-nu/dashboard",
   "version": "0.0.0",
   "description": "Customisable dashboards: modules add items to a named dashboard (extendDashboard), pages render them with <Dashboard> or their own layout (useDashboard), and each user reorders, hides and collapses items.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/dashboard",
+  "homepage": "https://docs.frigear.dev/modules/interface/dashboard",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

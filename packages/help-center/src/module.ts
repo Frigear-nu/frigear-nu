@@ -21,6 +21,8 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
 import { helpCenterAccess } from './runtime/access'
+import { HELP_CENTER_DASHBOARD, helpCenterDashboardItems } from './runtime/dashboard'
+import { helpCenterNotificationTopics } from './runtime/notifications'
 import { DEFAULT_REQUIRED_LOCALES } from './runtime/utils/publish'
 import { helpCenterRoutePatterns, isPathUnder, resolveHelpCenterAreas } from './runtime/utils/paths'
 import { contentRowKey, frontmatterKeys, localizedContentCollection, missingContentLocales, validateContentFile } from './runtime/utils/content'
@@ -81,6 +83,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1', optional: true },
     // "Your onboarding" on the account overview.
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // The optional Help tab of the mobile app.
     '@frigear-nu/mobile': { version: '>=0.0.1', optional: true },
     // FAQ groups shown inside categories.
@@ -200,14 +204,18 @@ export default defineNuxtModule<ModuleOptions>({
     defineVirtualRegistry(nuxt, {
       filename: '#help-center/optional',
       target: 'server',
-      collect: () => ({ content: hasNuxtModule('@nuxt/content', nuxt), notify: hasNuxtModule('@frigear-nu/notify', nuxt) }),
-      contents: ({ content, notify }) => [
+      collect: () => ({ content: hasNuxtModule('@nuxt/content', nuxt), notify: hasNuxtModule('@frigear-nu/notify', nuxt), push: hasNuxtModule('@frigear-nu/push', nuxt) }),
+      contents: ({ content, notify, push }) => [
         content
           ? 'export { queryCollection } from \'@nuxt/content/server\''
           : 'export const queryCollection = () => { throw new Error(\'[@frigear-nu/help-center] @nuxt/content is not installed\') }',
         notify
           ? 'export { dispatchEmailNotification, dispatchSMSNotification } from \'#imports\'\nexport const notifyAvailable = true'
           : 'export const dispatchEmailNotification = () => { throw new Error(\'[@frigear-nu/help-center] @frigear-nu/notify is not installed\') }\nexport const dispatchSMSNotification = dispatchEmailNotification\nexport const notifyAvailable = false',
+        // `notifyUser` of push: a send goes through it on the `help-center.send` topic when push is installed.
+        push
+          ? 'export { notifyUser } from \'#imports\'\nexport const pushAvailable = true'
+          : 'export const notifyUser = undefined\nexport const pushAvailable = false',
       ].join('\n'),
     })
     addTypeTemplate({
@@ -224,6 +232,13 @@ export default defineNuxtModule<ModuleOptions>({
   }): Promise<unknown>
   export function dispatchSMSNotification(notification: { to: string | string[], body: string }): Promise<unknown>
   export const notifyAvailable: boolean
+  export const notifyUser: ((event: import('h3').H3Event | undefined, userId: number, input: {
+    topic: string
+    email?: { subject: string, body: string, text?: string, replyTo?: string, template?: { name: string, props?: Record<string, unknown>, locale?: string }, meta?: Record<string, unknown> }
+    sms?: { body: string }
+    push?: { title: string, body: string, url?: string }
+  }) => Promise<{ channels: Array<'email' | 'sms' | 'push'>, skipped: Partial<Record<'email' | 'sms' | 'push', string>> }>) | undefined
+  export const pushAvailable: boolean
 }
 `,
     }, { nuxt: true, nitro: true })
@@ -306,6 +321,18 @@ export default defineNuxtModule<ModuleOptions>({
     if (areas.signedIn && settings.accountWidget !== false && hasNuxtModule('@frigear-nu/widget', nuxt)) {
       const { extendWidgets } = await import('@frigear-nu/widget/utils')
       extendWidgets(nuxt, 'account.overview', { id: 'help-center-onboarding', component: resolver.resolve('./runtime/app/widgets/OnboardingSummary.vue'), order: 20 })
+    }
+
+    // Push: the `help-center.send` topic (the send itself goes through `notifyUser`, see `help-center-send.ts`).
+    if (hasNuxtModule('@frigear-nu/push')) {
+      const { extendNotificationTopics } = await import('@frigear-nu/push/utils')
+      extendNotificationTopics(nuxt, helpCenterNotificationTopics)
+    }
+
+    // The same summary as an item of the `crew.home` dashboard, next to the account widget (which stays).
+    if (areas.signedIn && hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, HELP_CENTER_DASHBOARD, helpCenterDashboardItems(path => resolver.resolve(path)))
     }
 
     // --- Nuxt Content ---------------------------------------------------------------------

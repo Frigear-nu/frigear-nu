@@ -13,6 +13,7 @@ export type {
   NotificationChannel,
   NotificationTopic,
   NotificationTopicDto,
+  NotifyUserEmailTemplate,
   NotifyUserInput,
   NotifyUserResult,
   PushDeviceDto,

@@ -2,7 +2,7 @@
   "name": "@frigear-nu/help-center",
   "version": "0.0.0",
   "description": "Help articles and onboarding checklists for the frigear ecosystem: bilingual articles in categories, visible per role or public, read tracking, and articles from the database or Nuxt Content.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/help-center",
+  "homepage": "https://docs.frigear.dev/modules/content/help-center",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
@@ -112,11 +112,13 @@
   "peerDependencies": {
     "@frigear-nu/account": "workspace:^",
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/faq": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/content": "catalog:",
     "@nuxt/ui": "catalog:",
@@ -127,6 +129,9 @@
       "optional": true
     },
     "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/dashboard": {
       "optional": true
     },
     "@frigear-nu/email-templates": {
@@ -144,6 +149,9 @@
     "@frigear-nu/notify": {
       "optional": true
     },
+    "@frigear-nu/push": {
+      "optional": true
+    },
     "@frigear-nu/widget": {
       "optional": true
     },
@@ -157,11 +165,13 @@
   "devDependencies": {
     "@frigear-nu/account": "workspace:^",
     "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/dashboard": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/faq": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",

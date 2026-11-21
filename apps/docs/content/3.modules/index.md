@@ -37,19 +37,19 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Show a cookie banner and record consent | [Cookie Consent](/modules/features/cookie-consent) | Nothing else |
 | Let AI agents call your app's tools within the user's scopes | [MCP](/modules/features/mcp) | Auth |
 | Give staff a guarded admin area | [Admin](/modules/interface/admin) | Menu, Widget, UI |
-| Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
-| Push to a phone and let users choose email, SMS or push | [Push](/modules/volunteering/push) | Auth, Users, Notify, UI |
+| Send email and SMS | [Notify](/modules/communication/notify) | Nothing else |
+| Push to a phone and let users choose email, SMS or push | [Push](/modules/communication/push) | Auth, Users, Notify, UI |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
-| Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/volunteering/dashboard) | Widget, UI |
-| Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
-| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, UI |
-| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Audience, UI |
-| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
+| Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/interface/dashboard) | Widget, UI |
+| Decide who may see a record by role, team role or operation | [Audience](/modules/organisation/audience) (a library, not a module) | Nothing else |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, Maps, UI |
+| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/organisation/teams) | Auth, Users, Audience, UI |
+| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/content/faq) | Auth, UI |
 | Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Audience, UI |
-| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
-| Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, UI |
-| Show site maps and floor plans, and let staff draw on them | [Maps](/modules/volunteering/maps) | Auth, UI |
-| Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/volunteering/inbox) | Auth, Notify, Audience, UI |
+| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, UI |
+| Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, Maps, UI |
+| Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
+| Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, Audience, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -83,6 +83,15 @@ The `@frigear-nu/oauth-client` package is deprecated. [Auth in client mode](/mod
 replaces it.
 ::
 
+### Organisation
+
+Who belongs where: teams with role ladders, and who may see a record.
+
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Teams](/modules/organisation/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
+| [Audience](/modules/organisation/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
+
 ### Commerce
 
 Taking money through Stripe.
@@ -92,6 +101,15 @@ Taking money through Stripe.
 | [Stripe](/modules/commerce/stripe) | Links users to Stripe customers, verifies one webhook and passes its events to other modules. | ✓ |  |  |
 | [Payments](/modules/commerce/payments) | One-time Stripe payments with lifecycle hooks. | ✓ | ✓ |  |
 | [Subscriptions](/modules/commerce/subscriptions) | Recurring subscriptions with plans and entitlements that your app defines. | ✓ | ✓ |  |
+
+### Content
+
+What people read: questions and answers, and help articles.
+
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [FAQ](/modules/content/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
+| [Help center](/modules/content/help-center) | Bilingual help articles in categories, public or per role, onboarding checklists with read tracking, and articles from the database or Nuxt Content. | ✓ | ✓ | ✓ |
 
 ### Features
 
@@ -104,6 +122,17 @@ Ready-made product features.
 | [Cookie Consent](/modules/features/cookie-consent) | A General Data Protection Regulation (GDPR) banner with consent categories, gating and proof of consent. | ✓ | ✓ |  |
 | [MCP](/modules/features/mcp) | Model Context Protocol (MCP) tools that other modules add, limited by the caller's scopes. | ✓ |  |  |
 
+### Communication
+
+Reaching people: email, SMS and push, the templates they use, each user's choice of channel, and shared inboxes for the replies.
+
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Notify](/modules/communication/notify) | Email, SMS and simple notification drivers and dispatch. | ✓ |  |  |
+| [Email Templates](/modules/communication/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
+| [Push](/modules/communication/push) | Device registration, FCM and APNs delivery, and per-user channel choices (email, SMS, push) with a topic registry and `notifyUser`. | ✓ | ✓ | ✓ |
+| [Inbox](/modules/communication/inbox) | Shared mailboxes for the contact form, email and Meta's channels, with assignment, notes, hidden threads, an audit log, retention and GDPR export and erase. | ✓ | ✓ |  |
+
 ### Interface
 
 The shell, navigation and components that screens are built from.
@@ -115,6 +144,8 @@ The shell, navigation and components that screens are built from.
 | [Menu](/modules/interface/menu) | Named navigation menus that modules and content add items to. | ✓ | ✓ |  |
 | [Widget](/modules/interface/widget) | Named widget and tab areas that modules add components to. |  | ✓ |  |
 | [Mobile](/modules/interface/mobile) | A Capacitor app shell: one tab registry for native and web tab bars, native features, deep links and a CLI. |  | ✓ | ✓ |
+| [Dashboard](/modules/interface/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
+| [Maps](/modules/interface/maps) | A building block for modules: a location picker, a plane layout editor and viewers with live layers. No tables of its own. | ✓ | ✓ | ✓ |
 
 ### Platform
 
@@ -123,28 +154,18 @@ The foundations that other modules and apps stand on.
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Module Kit](/modules/platform/module-kit) | Helpers for writing modules, the server toolkit and extendable database tables. | ✓ |  |  |
-| [Notify](/modules/platform/notify) | Email, SMS and simple notification drivers and dispatch. | ✓ |  |  |
-| [Email Templates](/modules/platform/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
 | [Base Layer](/modules/platform/base-layer) | A Nuxt layer, not a module. Your app extends it to get the modules, styling and content conventions of Frigear websites. |  | ✓ |  |
 
 ### Volunteering
 
-Crew and volunteer work: operations, teams, shifts and the content volunteers read. The modules are being built.
-[Volunteering](/modules/volunteering) holds the contracts they share, and each module adds its row here when it lands.
+Crew work: the occasions Frigear staffs, the crew that work them and their shifts. They build on Organisation, Content,
+Communication and Interface.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
-| [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
-| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
-| [Dashboard](/modules/volunteering/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
-| [Teams](/modules/volunteering/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
-| [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
+| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place, venue layout and status, that crew and shifts attach to. | ✓ | ✓ |  |
 | [Crew](/modules/volunteering/crew) | Applications, approvals, waiting list and invite links that turn people into an operation's crew, on top of teams. | ✓ | ✓ | ✓ |
-| [Help center](/modules/volunteering/help-center) | Bilingual help articles in categories, public or per role, onboarding checklists with read tracking, and articles from the database or Nuxt Content. | ✓ | ✓ | ✓ |
-| [Push](/modules/volunteering/push) | Device registration, FCM and APNs delivery, and per-user channel choices (email, SMS, push) with a topic registry and `notifyUser`. | ✓ | ✓ | ✓ |
-| [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, QR check-in and who is on shift now, per operation. | ✓ | ✓ | ✓ |
-| [Maps](/modules/volunteering/maps) | Geographic and floor-plan maps owned by anything, with an editor, provider layers and map kinds other modules add. | ✓ | ✓ | ✓ |
-| [Inbox](/modules/volunteering/inbox) | Shared mailboxes for the contact form, email and Meta's channels, with assignment, notes, hidden threads, an audit log, retention and GDPR export and erase. | ✓ | ✓ |  |
+| [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, check-in by pass, station or location, earned perks and who is on shift now, per operation. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 

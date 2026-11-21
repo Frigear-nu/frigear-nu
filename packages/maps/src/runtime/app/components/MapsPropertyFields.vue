@@ -5,14 +5,16 @@ import { useMapsTranslate, useModuleT } from '#imports'
 defineOptions({ name: 'MapsPropertyFields' })
 
 // The form fields of a feature kind's properties, generated from its zod schema (`propertyFields`). Inside a `UForm`,
-// field names are `properties.<key>` so the server's issues (`properties.<key>`) land on the right field.
-const props = defineProps<{ fields: MapPropertyField[] }>()
+// field names are `properties.<key>` so the server's issues (`properties.<key>`) land on the right field; `errors`
+// shows the issues the schema found in the browser.
+const props = defineProps<{ fields: MapPropertyField[], errors?: Record<string, string> }>()
 const model = defineModel<Record<string, unknown>>({ required: true })
 
 const t = useModuleT('maps')
 const tr = useMapsTranslate()
 
 const labelOf = (field: MapPropertyField) => tr(field.label) || field.key
+const numberOf = (key: string) => typeof model.value[key] === 'number' ? model.value[key] as number : undefined
 const set = (key: string, value: unknown) => {
   model.value = { ...model.value, [key]: value }
 }
@@ -32,6 +34,7 @@ const optionsOf = (field: MapPropertyField) => [
     :label="labelOf(field)"
     :description="tr(field.help) || undefined"
     :required="field.required"
+    :error="props.errors?.[field.key]"
   >
     <TranslatedInput
       v-if="field.type === 'translated'"
@@ -48,12 +51,12 @@ const optionsOf = (field: MapPropertyField) => [
     <UInput
       v-else-if="field.type === 'number'"
       type="number"
-      :model-value="(model[field.key] as number | undefined) ?? ''"
+      :model-value="numberOf(field.key)"
       :min="field.min"
       :max="field.max"
       :step="field.integer ? 1 : 'any'"
       class="w-full"
-      @update:model-value="set(field.key, $event === '' ? undefined : Number($event))"
+      @update:model-value="set(field.key, String($event) === '' ? undefined : Number($event))"
     />
     <USwitch
       v-else-if="field.type === 'boolean'"

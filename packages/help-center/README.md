@@ -30,4 +30,4 @@ The two areas are on by default and move with `settings.pages.public` and `setti
 off). Articles need Danish and English in title and body before they are published (`requiredLocales`). Staff routes need
 the `help-center:manage` permission, granted to the `admin` and `coordinator` roles.
 
-Full documentation: <https://docs.frigear.dev/modules/volunteering/help-center>.
+Full documentation: <https://docs.frigear.dev/modules/content/help-center>.

@@ -206,6 +206,9 @@
       "article": "Åbn i det frivillige hjælpecenter",
       "label": "Frivilligt hjælpecenter"
     },
+    "dashboard": {
+      "onboarding": "Din onboarding"
+    },
     "descriptionPublic": "Svar og guider til alle.",
     "descriptionSignedIn": "Guider, introduktion og svar til dig.",
     "empty": "Her er endnu ingenting",
