@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import type { AdminFaqGroupDto, AdminFaqItemDto, FaqLink, Translated, Visibility } from '../../../types'
+import type { AdminFaqGroupDto, AdminFaqItemDto, FaqLink, Grant, Translated } from '../../../types'
 import { FAQ_SLUG_PATTERN, isReservedFaqSlug } from '../../utils/slug'
-import { normalizeVisibility } from '../../utils/visibility'
 
 // The staff views of the admin API's DTOs.
 export type StaffFaqGroup = AdminFaqGroupDto
@@ -45,7 +44,7 @@ export function faqGroupFormSchema(t: Translate, tr: TranslateText) {
     icon: z.string().trim().max(100).optional(),
     ownerType: z.string().trim().min(1).max(64),
     ownerId: z.string().trim().max(128).optional(),
-    visibility: z.custom<Visibility | null>().optional(),
+    grants: z.custom<Grant[]>(),
   }).refine(value => value.ownerType === 'platform' || !!value.ownerId, {
     message: t('admin.ownerIdRequired', 'Enter the id of the owner.'),
     path: ['ownerId'],
@@ -55,7 +54,7 @@ export function faqGroupFormSchema(t: Translate, tr: TranslateText) {
 export type FaqGroupFormState = z.output<ReturnType<typeof faqGroupFormSchema>>
 
 export function emptyFaqGroupForm(): FaqGroupFormState {
-  return { title: undefined, slug: '', description: undefined, icon: '', ownerType: 'platform', ownerId: '', visibility: null }
+  return { title: undefined, slug: '', description: undefined, icon: '', ownerType: 'platform', ownerId: '', grants: [] }
 }
 
 export function groupToForm(group: StaffFaqGroup): FaqGroupFormState {
@@ -66,7 +65,7 @@ export function groupToForm(group: StaffFaqGroup): FaqGroupFormState {
     icon: group.icon ?? '',
     ownerType: group.owner.type,
     ownerId: group.owner.id ?? '',
-    visibility: group.visibility,
+    grants: group.grants,
   }
 }
 
@@ -78,7 +77,7 @@ export function formToGroupBody(data: FaqGroupFormState) {
     description: emptyTranslatedToNull(data.description),
     icon: data.icon || null,
     owner: { type: data.ownerType, id: data.ownerType === 'platform' ? null : data.ownerId || null },
-    visibility: normalizeVisibility(data.visibility ?? null),
+    grants: data.grants,
   }
 }
 
@@ -95,14 +94,15 @@ export function faqItemFormSchema(t: Translate, tr: TranslateText) {
         .refine(value => /^(?:\/(?![/\\])|#|https?:\/\/|mailto:|tel:)/i.test(value), t('admin.linkToInvalid', 'Use a path, a web address starting with https://, or a mailto: or tel: link.')),
       icon: z.string().trim().max(100).optional(),
     })),
-    visibility: z.custom<Visibility | null>().optional(),
+    // `null`: same as the group.
+    grants: z.custom<Grant[] | null>(),
   })
 }
 
 export type FaqItemFormState = z.output<ReturnType<typeof faqItemFormSchema>>
 
 export function emptyFaqItemForm(): FaqItemFormState {
-  return { question: undefined, answer: undefined, icon: '', links: [], visibility: null }
+  return { question: undefined, answer: undefined, icon: '', links: [], grants: null }
 }
 
 export function itemToForm(item: StaffFaqItem): FaqItemFormState {
@@ -111,7 +111,7 @@ export function itemToForm(item: StaffFaqItem): FaqItemFormState {
     answer: item.answer,
     icon: item.icon ?? '',
     links: item.links.map(link => ({ label: link.label, to: link.to, icon: link.icon ?? '' })),
-    visibility: item.visibility,
+    grants: item.grants,
   }
 }
 
@@ -122,7 +122,7 @@ export function formToItemBody(data: FaqItemFormState) {
     answer: data.answer,
     icon: data.icon || null,
     links,
-    visibility: normalizeVisibility(data.visibility ?? null),
+    grants: data.grants,
   }
 }
 

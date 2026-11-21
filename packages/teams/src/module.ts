@@ -19,6 +19,7 @@ import {
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
+import { extendGrants } from '@frigear-nu/grants/utils'
 import { teamsAccess } from './runtime/access'
 import { mergeTeamLadders, teamLadderIssues } from './runtime/utils/ladders'
 import type {
@@ -27,6 +28,7 @@ import type {
   TeamMemberContext,
   TeamMemberRoleChangedContext,
   TeamsMembersCandidatesContext,
+  TeamsOwnerResolveContext,
   TeamsRolesResolveContext,
 } from './types'
 
@@ -54,6 +56,11 @@ declare module 'nitropack' {
     'teams:roles:resolve': (ctx: TeamsRolesResolveContext) => void | Promise<void>
     /** Add users who may hold a mapped role on a team, for `GET /api/teams/:id/members?include=mapped`. */
     'teams:members:candidates': (ctx: TeamsMembersCandidatesContext) => void | Promise<void>
+    /**
+     * Provider: label an owner and say whether it exists. Teams answers `team` and `operation`; an app adds its own
+     * owner types here. Other modules that store `ownerType` / `ownerId` validate their owners through it.
+     */
+    'teams:owner:resolve': (ctx: TeamsOwnerResolveContext) => void | Promise<void>
   }
 }
 
@@ -71,6 +78,8 @@ export default defineNuxtModule<ModuleOptions>({
     // Members are users: the members list and the user lookup read the `users` table.
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
+    // Registers the `team` grant kind.
+    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
@@ -142,8 +151,19 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Answers `audience:viewer:resolve` (team roles and ladders) and `audience:owner:resolve` for `team`. Always on.
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/audience'))
+    // Answers `teams:owner:resolve` for `team`, and for `operation` when the operations table is there.
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/owners'))
+    // The `team` grant kind (`@frigear-nu/grants`): the users holding a minimum role on one team.
+    extendGrants(nuxt, {
+      kind: 'team',
+      label: 'Team',
+      labelKey: 'teams.grants.team',
+      icon: 'i-lucide-users',
+      server: resolver.resolve('./runtime/server/grants/team'),
+      field: resolver.resolve('./runtime/app/grants/TeamGrantField.vue'),
+      defaults: { teamId: '', minRole: '' },
+      order: 20,
+    })
     // Stores the option's ladders on the first request (insert-if-missing).
     addServerPlugin(resolver.resolve('./runtime/server/plugins/ladders'))
 

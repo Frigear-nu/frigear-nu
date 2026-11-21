@@ -32,9 +32,11 @@ const TableIdentity = resolveComponent('TableIdentity')
 const StatusBadge = resolveComponent('StatusBadge')
 const UBadge = resolveComponent('UBadge')
 
-const visibilityLabel = (article: StaffHelpArticle) => article.visibility?.public
-  ? t('admin.visibility.public', 'Public')
-  : article.visibility ? t('admin.visibilityRestricted', 'Restricted') : t('admin.visibilityInherited', 'Same as the category')
+const grantsLabel = (article: StaffHelpArticle) => !article.grants
+  ? t('admin.grantsInherited', 'Same as the category')
+  : article.grants.some(grant => grant.kind === 'public')
+    ? t('admin.grantsPublic', 'Public')
+    : article.grants.length ? t('admin.grantsRestricted', 'Restricted') : t('admin.grantsNobody', 'Nobody yet')
 
 const categoryName = (slug: string) => {
   const category = props.categories.find(entry => entry.slug === slug)
@@ -64,9 +66,9 @@ const columns = computed<TableColumn<StaffHelpArticle>[]>(() => [
     ]),
   },
   {
-    id: 'visibility',
-    header: t('admin.visibilityLabel', 'Who can see it'),
-    cell: ({ row }) => h('span', { class: 'text-muted' }, visibilityLabel(row.original)),
+    id: 'grants',
+    header: t('admin.grantsLabel', 'Who can see it'),
+    cell: ({ row }) => h('span', { class: 'text-muted' }, grantsLabel(row.original)),
   },
   {
     accessorKey: 'updatedAt',

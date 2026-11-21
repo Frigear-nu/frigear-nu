@@ -27,7 +27,14 @@ watch(draftTitle, (title, previous) => {
 })
 
 const categoryItems = computed(() => props.categories.map(category => ({ value: category.id, label: tr(category.name) })))
-const parent = computed(() => props.categories.find(category => category.id === state.categoryId)?.visibility ?? null)
+// "Same as the category" is an article without a list of its own (`grants: null`). Turning it off starts an empty list,
+// which admits nobody until a grant is added; the article can only narrow its category.
+const inherit = computed({
+  get: () => state.grants === null,
+  set: (value: boolean) => {
+    state.grants = value ? null : []
+  },
+})
 
 // What the article still lacks to be published, shown while editing.
 const missing = () => ({ title: missingLocales(state.title, requiredLocales), body: missingLocales(state.body, requiredLocales) })
@@ -106,14 +113,20 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
         />
       </UFormField>
       <UFormField
-        name="visibility"
-        :label="t('admin.visibilityLabel', 'Who can see it')"
+        name="grants"
+        :label="t('admin.grantsLabel', 'Who can see it')"
       >
-        <HelpCenterVisibilityEditor
-          v-model="state.visibility"
-          :parent="parent"
-          inheritable
-        />
+        <div class="flex w-full flex-col gap-4">
+          <USwitch
+            v-model="inherit"
+            :label="t('admin.grantsInherit', 'Same as the category')"
+            :description="t('admin.grantsInheritHelp', 'The article is visible to the people who can see its category. Turn this off to narrow it further.')"
+          />
+          <GrantsEditor
+            v-if="state.grants !== null"
+            v-model="state.grants"
+          />
+        </div>
       </UFormField>
     </UForm>
   </FormSlideover>

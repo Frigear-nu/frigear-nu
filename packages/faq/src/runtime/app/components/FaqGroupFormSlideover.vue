@@ -117,10 +117,10 @@ async function save(event: FormSubmitEvent<FaqGroupFormState>) {
         />
       </UFormField>
       <UFormField
-        name="visibility"
-        :label="t('admin.visibilityLabel', 'Who can see it')"
+        name="grants"
+        :label="t('admin.grantsLabel', 'Who can see it')"
       >
-        <FaqVisibilityEditor v-model="state.visibility" />
+        <GrantsEditor v-model="state.grants" />
       </UFormField>
     </UForm>
   </FormSlideover>

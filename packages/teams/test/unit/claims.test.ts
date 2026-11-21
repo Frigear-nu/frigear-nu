@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { TeamRoleGrant } from '@frigear-nu/audience'
+import type { TeamRoleGrant } from '../../src/types'
 import { scopeAllowsTeamsClaim, teamsClaim } from '../../src/runtime/utils/claims'
 
 const grants: TeamRoleGrant[] = [

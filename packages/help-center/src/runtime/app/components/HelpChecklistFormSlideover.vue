@@ -3,6 +3,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpChecklistFormState, type StaffHelpChecklist, checklistToForm, emptyHelpChecklistForm, formToChecklistBody, helpChecklistFormSchema } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, reactive, useAction, useHelpCenterTranslate, useModuleT } from '#imports'
+import { grantFields } from '#grants/fields'
 
 defineOptions({ name: 'HelpChecklistFormSlideover' })
 
@@ -30,6 +31,9 @@ async function save(event: FormSubmitEvent<HelpChecklistFormState>) {
   )
   if (saved) emit('close', saved)
 }
+
+// Checklists are for signed-in people: `public` is left out of the menu.
+const grantKinds = grantFields.map(field => field.kind).filter(kind => kind !== 'public')
 </script>
 
 <template>
@@ -66,10 +70,13 @@ async function save(event: FormSubmitEvent<HelpChecklistFormState>) {
         />
       </UFormField>
       <UFormField
-        name="visibility"
-        :label="t('admin.visibilityLabel', 'Who can see it')"
+        name="grants"
+        :label="t('admin.grantsLabel', 'Who can see it')"
       >
-        <HelpCenterVisibilityEditor v-model="state.visibility" />
+        <GrantsEditor
+          v-model="state.grants"
+          :kinds="grantKinds"
+        />
       </UFormField>
     </UForm>
   </FormSlideover>
