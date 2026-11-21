@@ -73,7 +73,7 @@ const columns = computed<TableColumn<StaffOperationSummary>[]>(() => [
   <div class="flex flex-col gap-4">
     <PageHeading
       :title="t('admin.title', 'Operations')"
-      :description="t('admin.listDescription', 'The occasions Frigear works at, whether or not Frigear hosts them.')"
+      :description="t('admin.listDescription', 'The occasions your organisation works at, whether or not it hosts them.')"
     >
       <template #actions>
         <UButton
