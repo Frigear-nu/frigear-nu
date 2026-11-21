@@ -2325,6 +2325,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/maps':
+        specifier: workspace:^
+        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -2701,6 +2704,9 @@ importers:
       '@frigear-nu/forms':
         specifier: workspace:^
         version: link:../forms
+      '@frigear-nu/maps':
+        specifier: workspace:^
+        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -2971,6 +2977,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/maps':
+        specifier: workspace:^
+        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu

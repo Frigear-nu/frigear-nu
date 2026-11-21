@@ -275,9 +275,24 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on the first request, and maps creates the
   missing ones. To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
 - **`maps:edit:resolve`.** Asked when a caller holds neither `maps:manage` nor the map kind's `editPermission`. The
-  module that owns the map's owner type sets `allowed = true` for its leads; it never needs to import maps.
+  module that owns the map's owner type sets `allowed = true` for its leads; it never needs to import maps. Operations
+  answers for `operation` maps (holders of `operations:manage`) and teams for `team` maps (the team's leads), each only
+  when maps is installed. The user is `ctx.user`.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through
   `oauth:claims`. Dashboard items are filtered by the client-side `widgets:filter`.
+
+## Maps integrations
+
+Phase 6 wires the modules to maps. Each integration is optional: a module registers it only when
+`hasNuxtModule('@frigear-nu/maps')`, and maps imports none of them.
+
+| Module | Registers | Where |
+| --- | --- | --- |
+| operations | Kinds `operations.site` (geo) and `operations.venue-layout` (plane), both with owner type `operation`. | `extendMaps` in `setup()` |
+| operations | One map of each kind per new operation, keys `operation-<id>-site` and `operation-<id>-venue`, created with `ensureMap` on `operations:created`. | Server plugin |
+| operations | `maps:edit:resolve`: `allowed = true` for holders of `operations:manage`, on `operation` maps. | Server plugin |
+| teams | `maps:edit:resolve`: `allowed = true` for the team's leads (`isTeamLead`), on `team` maps. | Server plugin |
+| shifts | Layer `shifts.on-duty` on `operations.venue-layout`, permission `shifts:read`, `refreshInterval: 60`: a point per shift location, with `shifts:pii` for names. | `extendMaps` in `setup()` |
 
 ## Dashboard items
 
@@ -340,7 +355,7 @@ audience    (plain package, no Nuxt module)
 
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
 operations  ─► auth, audience                        (soft: events, maps, dashboard)
-teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
+teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, maps, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
 faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,

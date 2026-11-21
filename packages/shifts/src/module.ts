@@ -111,6 +111,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
     // Renders the `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails from the templates this module ships.
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
+    // The `shifts.on-duty` layer on the venue layouts of operations.
+    '@frigear-nu/maps': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -267,6 +269,23 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'shifts-lead', path: leadPath, file: './runtime/app/pages/lead.vue' },
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
     ])
+
+    // Maps: the `shifts.on-duty` layer on the venue layout of an operation, with a point per shift location. Registered
+    // here, not on `modules:done`: maps reads the registry once every module is done.
+    if (hasNuxtModule('@frigear-nu/maps')) {
+      const { defineMapLayer, extendMaps } = await import('@frigear-nu/maps/utils')
+      extendMaps(nuxt, {
+        layers: [defineMapLayer({
+          key: 'shifts.on-duty',
+          label: { da: 'På vagt nu', en: 'On duty now' },
+          // `operations.venue-layout` of `@frigear-nu/operations`, which maps shifts onto an operation's floor plan.
+          appliesTo: { kind: 'operations.venue-layout' },
+          provider: resolver.resolve('./runtime/server/maps/on-duty'),
+          permission: shiftsAccess.permissions.read,
+          refreshInterval: 60,
+        })],
+      })
+    }
 
     // A "Shifts" tab on the staff operation page (`admin.operations`, owned by `@frigear-nu/operations`), after crew (10)
     // and teams (20).

@@ -1,12 +1,13 @@
 import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
-import { fetch, setup } from '@nuxt/test-utils/e2e'
+import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '../src/runtime/utils/api'
 import { operationsAccess } from '../src/runtime/access'
+import { mapsApi } from '@frigear-nu/maps/utils'
 import { getHooksFor, getOwner, getStatusChanges, participate, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
@@ -93,6 +94,56 @@ describe('operations (authenticated, database-backed)', async () => {
     it('lets a role holding operations:* manage operations (the wildcard covers non-sensitive permissions)', async () => {
       const wild = await registerUser('Wild', `wild${++counter}@wild.test`)
       expect((await json(wild.cookie, 'GET', operationsApi.admin.operations)).status).toBe(200)
+    })
+  })
+
+  describe('maps (installed in this fixture)', () => {
+    const maps = async (operationId: string) => {
+      const { items } = await ok(await json(staff.cookie, 'GET', `${mapsApi.admin.maps}?ownerType=operation&ownerId=${operationId}`))
+      return (items as Json[]).sort((a, b) => a.key.localeCompare(b.key))
+    }
+    const marker = { featureKind: 'maps.marker', geometry: { type: 'Point', coordinates: [12, 55] } }
+
+    it('gives a new operation a site map and a venue layout, once', async () => {
+      const operation = await createOperation({ name: { en: 'Maps operation', da: 'Kortoperation' } })
+      const created = await maps(operation.id)
+      expect(created.map(map => map.key)).toEqual([`operation-${operation.id}-site`, `operation-${operation.id}-venue`])
+      expect(created).toMatchObject([
+        { kind: 'operations.site', base: 'geo', ownerType: 'operation', ownerId: operation.id, name: { en: 'Maps operation', da: 'Kortoperation' } },
+        { kind: 'operations.venue-layout', base: 'plane', ownerType: 'operation', ownerId: operation.id, name: { en: 'Maps operation – Venue layout', da: 'Kortoperation – Plantegning' } },
+      ])
+      // The hook firing again (a retry, a map staff made first) creates nothing new and leaves the maps alone.
+      await $fetch('/api/test/operation-created', { method: 'POST', body: { id: operation.id } })
+      expect((await maps(operation.id)).map(map => map.id)).toEqual(created.map(map => map.id))
+    })
+
+    it('gives a plain-string name a suffix in both languages', async () => {
+      const operation = await createOperation({ name: 'Plain name' })
+      const [site, venue] = await maps(operation.id)
+      expect(site!.name).toBe('Plain name')
+      expect(venue!.name).toEqual({ da: 'Plain name – Plantegning', en: 'Plain name – Venue layout' })
+    })
+
+    it('lets operations managers draw on the operation\'s maps, and nobody else', async () => {
+      const operation = await createOperation()
+      const other = await createOperation()
+      const [site] = await maps(operation.id)
+      const [otherSite] = await maps(other.id)
+      const manager = await registerUser('Manager', `manager${++counter}@ops.test`)
+      const plain = await user('Plain')
+      const platform = await ok(await json(staff.cookie, 'POST', mapsApi.admin.maps, { kind: 'maps.generic-geo', ownerType: 'platform', name: 'Platform map' }))
+
+      // A manager of operations holds `operations:manage` but not `maps:manage`: the listener is the only way in, and it
+      // is tied to the owner type, not to one operation.
+      expect((await ok(await json(manager.cookie, 'POST', mapsApi.features(site!.id), marker))).featureKind).toBe('maps.marker')
+      expect((await ok(await json(manager.cookie, 'POST', mapsApi.features(otherSite!.id), marker))).featureKind).toBe('maps.marker')
+      expect((await ok(await json(manager.cookie, 'GET', mapsApi.map(site!.id)))).canEdit).toBe(true)
+      await expectApiError(json(manager.cookie, 'POST', mapsApi.features(platform.id), marker), 403, 'forbidden')
+
+      await expectApiError(json(plain.cookie, 'POST', mapsApi.features(site!.id), marker), 403, 'forbidden')
+      expect((await ok(await json(plain.cookie, 'GET', mapsApi.map(site!.id)))).canEdit).toBe(false)
+      // Staff keep editing through `maps:manage`.
+      expect((await ok(await json(staff.cookie, 'POST', mapsApi.features(site!.id), marker))).id).toMatch(/^mpf_/)
     })
   })
 

@@ -4,6 +4,7 @@
 export const testOperations = new Map<string, string>([
   ['opr_roskilde', 'Roskilde 2027 bar operation'],
   ['opr_priority', 'Priority test operation'],
+  ['opr_maps_mapped', 'Maps test operation'],
 ])
 
 /** user id -> the plan keys the user holds, standing in for active subscriptions. */

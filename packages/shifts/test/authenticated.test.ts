@@ -7,6 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
+import { mapsApi } from '@frigear-nu/maps/utils'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
 
@@ -1513,6 +1514,85 @@ describe('shifts (authenticated, database-backed)', async () => {
       await ok(await redeem(perPerson, pass.code))
       // The handover issued a new code: the old pass no longer works.
       await expectApiError(redeem(perPerson, oldCode), 404)
+    })
+  })
+
+  describe('maps (installed in this fixture)', () => {
+    const mapsOf = async (operationId: string): Promise<Json[]> =>
+      (await ok(await json(staff.cookie, 'GET', `${mapsApi.admin.maps}?ownerType=operation&ownerId=${operationId}`))).items
+    const draw = async (mapId: string, body: Json) => ok(await json(staff.cookie, 'POST', mapsApi.features(mapId), body))
+    const layerKey = 'shifts.on-duty'
+
+    it('offers the on-duty layer on the venue layout of an operation, and on no other map', async () => {
+      const op = await createOperation()
+      const maps = await mapsOf(op.id)
+      const venue = maps.find(map => map.kind === 'operations.venue-layout')!
+      const site = maps.find(map => map.kind === 'operations.site')!
+      const venueDetail = await ok(await json(staff.cookie, 'GET', mapsApi.map(venue.id)))
+      expect(venueDetail.providerLayers).toMatchObject([{ key: layerKey, url: mapsApi.layer(venue.id, layerKey), refreshInterval: 60 }])
+      expect((await ok(await json(staff.cookie, 'GET', mapsApi.map(site.id)))).providerLayers).toEqual([])
+      // The site map has no such layer: not found.
+      await expectApiError(json(staff.cookie, 'GET', mapsApi.layer(site.id, layerKey)), 404, 'not_found')
+    })
+
+    it('draws a point per shift location, skips other maps and no location, and hides names without shifts:pii', async () => {
+      const setup = await newSetup({}, { publish: false })
+      const [third] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-06-28'], slots: [{ start: '23:00', end: '23:30' }] })
+      await publish(setup.schedule.id)
+      const [ann, lead, bo, outsider] = await Promise.all([user('Mann'), user('Mlead'), user('Mbo'), user('Mout')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, bo)
+
+      const maps = await mapsOf(setup.op.id)
+      const venue = maps.find(map => map.kind === 'operations.venue-layout')!
+      const site = maps.find(map => map.kind === 'operations.site')!
+      const marker = await draw(venue.id, { featureKind: 'maps.marker', geometry: { type: 'Point', coordinates: [10, 20] } })
+      const area = await draw(venue.id, { featureKind: 'maps.area', geometry: { type: 'Polygon', coordinates: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]] } })
+      const siteMarker = await draw(site.id, { featureKind: 'maps.marker', geometry: { type: 'Point', coordinates: [12, 55] } })
+
+      const now = { startsAt: iso(-HOUR), endsAt: iso(HOUR) }
+      await patchShift(setup.shifts[0]!.id, { ...now, location: { mapId: venue.id, featureId: marker.id } })
+      await patchShift(setup.shifts[1]!.id, { ...now, location: { mapId: venue.id, featureId: area.id } })
+      // A location on another map is skipped.
+      await patchShift(third!.id, { ...now, location: { mapId: site.id, featureId: siteMarker.id } })
+      await assigned(setup.shifts[0]!.id, ann)
+      await assigned(setup.shifts[1]!.id, lead)
+      await assigned(third!.id, bo)
+
+      const layer = (cookie: string) => json(cookie, 'GET', mapsApi.layer(venue.id, layerKey))
+      // Ann takes part (an explicit team role): the points, the team and the numbers, no names.
+      const forAnn = await ok(await layer(ann.cookie))
+      expect(forAnn.type).toBe('FeatureCollection')
+      expect(forAnn.features).toHaveLength(2)
+      const byCoordinates = (collection: Json, coordinates: number[]) => collection.features.find((feature: Json) => JSON.stringify(feature.geometry.coordinates) === JSON.stringify(coordinates))
+      expect(byCoordinates(forAnn, [10, 20])).toMatchObject({ geometry: { type: 'Point' }, properties: { teamId: setup.team.id, featureId: marker.id, onNow: 1, leadsOnDuty: 0 } })
+      // The polygon is drawn at its centre.
+      expect(byCoordinates(forAnn, [50, 50])).toMatchObject({ properties: { featureId: area.id, onNow: 1, leadsOnDuty: 1 } })
+      expect(forAnn.features.every((feature: Json) => feature.properties.leads === undefined)).toBe(true)
+      expect(JSON.stringify(forAnn)).not.toContain(lead.name)
+
+      // Staff hold shifts:pii (admin): the leads' names.
+      const forStaff = await ok(await layer(staff.cookie))
+      expect(byCoordinates(forStaff, [50, 50]).properties.leads).toEqual([lead.name])
+      expect(byCoordinates(forStaff, [10, 20]).properties.leads).toEqual([])
+
+      // Somebody who does not take part in the operation sees an empty layer, not an error.
+      expect((await ok(await layer(outsider.cookie))).features).toEqual([])
+      // Nobody on shift at a location: no point.
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(5 * HOUR), endsAt: iso(6 * HOUR) })
+      expect((await ok(await layer(ann.cookie))).features).toHaveLength(1)
+    })
+
+    it('needs shifts:read on the token, on top of reading the map', async () => {
+      const setup = await newSetup()
+      const ann = await user('Mtoken')
+      await addMember(setup.team.id, ann)
+      const venue = (await mapsOf(setup.op.id)).find(map => map.kind === 'operations.venue-layout')!
+      const mapsOnly = apiClient({ bearer: await createToken(ann.cookie, ['maps:read']) })
+      await expectApiError(mapsOnly.json('GET', mapsApi.layer(venue.id, layerKey)), 403, 'insufficient_scope')
+      const both = apiClient({ bearer: await createToken(ann.cookie, ['maps:read', 'shifts:read']) })
+      expect(await both.json<Json>('GET', mapsApi.layer(venue.id, layerKey))).toMatchObject({ type: 'FeatureCollection', features: [] })
     })
   })
 })

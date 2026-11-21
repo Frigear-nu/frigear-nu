@@ -11,12 +11,16 @@ export default defineNuxtConfig({
     '@frigear-nu/menu',
     '@frigear-nu/widget',
     '@frigear-nu/admin',
+    // Installed so the operations integration with maps (kinds, maps of a new operation, coordinators editing them) is tested.
+    '@frigear-nu/maps',
     OperationsModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
     // `coordinator` is the role `operations:manage` is granted to (`grantTo`); a role the host does not configure is skipped.
     (_options, nuxt) => {
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['operations:*'] })
+      // Manages operations but not maps: draws on an operation's maps only through the `maps:edit:resolve` listener.
+      addRole(nuxt, { name: 'opsmanager', label: 'Operations manager', grant: ['operations:manage'] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
     },
     // Another module adding a tab to the operation page without operations knowing about it.
@@ -43,6 +47,7 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
     kv: true,
+    blob: true,
   },
   operations: {
     settings: { pages: { public: true, admin: true, adminOperation: true } },

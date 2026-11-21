@@ -99,6 +99,7 @@
   "peerDependencies": {
     "@frigear-nu/admin": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
+    "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
@@ -110,6 +111,9 @@
       "optional": true
     },
     "@frigear-nu/email-templates": {
+      "optional": true
+    },
+    "@frigear-nu/maps": {
       "optional": true
     },
     "@frigear-nu/menu": {
@@ -129,6 +133,7 @@
     "@frigear-nu/admin": "workspace:^",
     "@frigear-nu/email-templates": "workspace:^",
     "@frigear-nu/forms": "workspace:^",
+    "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/widget": "workspace:^",

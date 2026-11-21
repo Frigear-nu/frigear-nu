@@ -20,6 +20,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
+import { operationsMapKinds } from './runtime/maps'
 import type {
   ModuleOptions,
   OperationCreatedContext,
@@ -69,6 +70,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     // An operation may name an event (`eventId`): the id is validated when events is installed.
     '@frigear-nu/events': { version: '>=0.0.1', optional: true },
+    // Gives every operation a site map and a venue layout, and lets its coordinators draw on them.
+    '@frigear-nu/maps': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -148,6 +151,15 @@ export default defineNuxtModule<ModuleOptions>({
       extendTabs(nuxt, 'admin.operations', [
         { id: 'details', component: resolver.resolve('./runtime/app/tabs/Details.vue'), order: 0, label: 'Details', labelKey: 'operations.admin.tabs.details', icon: 'i-lucide-file-text' },
       ])
+    }
+
+    // Maps: the `operations.site` and `operations.venue-layout` kinds, an `operations:created` listener that creates both
+    // maps of a new operation, and the coordinators' right to edit them (`maps:edit:resolve`). Registered here, not on
+    // `modules:done`: maps reads the registry once every module is done.
+    if (hasNuxtModule('@frigear-nu/maps')) {
+      const { extendMaps } = await import('@frigear-nu/maps/utils')
+      extendMaps(nuxt, { kinds: operationsMapKinds })
+      addServerPlugin(resolver.resolve('./runtime/server/plugins/maps'))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
