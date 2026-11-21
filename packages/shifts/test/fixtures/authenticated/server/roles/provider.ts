@@ -6,13 +6,13 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 //   @staff.test  -> `admin` (shifts:manage, shifts:pii, and what operations, teams and crew grant to admin)
 //   @coord.test  -> `coordinator`
 //   @mgr.test    -> `shiftmanager` (shifts:manage only: no shifts:pii)
-//   @bar.test    -> `barmanager` (a mapping rule makes them a BA on a team without a membership row)
+//   @bar.test    -> `supervisor` (a mapping rule makes them a lead on a team without a membership row)
 //   @wild.test   -> `wild` (shifts:* only, which never covers shifts:pii)
 const ROLES: Record<string, string[]> = {
   '@staff.test': ['admin'],
   '@coord.test': ['coordinator'],
   '@mgr.test': ['shiftmanager'],
-  '@bar.test': ['barmanager'],
+  '@bar.test': ['supervisor'],
   '@wild.test': ['wild'],
 }
 

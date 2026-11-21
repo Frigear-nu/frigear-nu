@@ -222,7 +222,7 @@ async function editLadder() {
               variant="naked"
               icon="i-lucide-git-merge"
               :title="t('admin.noMappings', 'No mapping rules')"
-              :description="t('admin.noMappingsDescription', 'For example: everyone with the global role barmanager is a BA here.')"
+              :description="t('admin.noMappingsDescription', 'For example: everyone with a given global role holds a given team role here.')"
               :actions="[{ label: t('admin.addMapping', 'Add mapping rule'), icon: 'i-lucide-plus', onClick: addMapping }]"
             />
           </template>

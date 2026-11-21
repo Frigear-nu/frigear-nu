@@ -352,7 +352,7 @@ async function reject(swap: ShiftSwapDto) {
       <TableCard
         v-else-if="view === 'roles'"
         :title="t('admin.viewRoles', 'Shift roles')"
-        :description="t('admin.rolesDescription', 'Roles such as BA or bartender, with the lowest team role that may hold them.')"
+        :description="t('admin.rolesDescription', 'Roles such as team lead or bartender, with the lowest team role that may hold them.')"
       >
         <template #actions>
           <UButton

@@ -175,7 +175,7 @@
         "signedIn": "Signed-in people see it. Narrow it down with any of the rules below; all that are set must hold.",
         "teamKind": "Team kind",
         "teamRole": "Team role",
-        "teamRoleHelp": "At least this role in a team of this kind, for example bar and ba.",
+        "teamRoleHelp": "At least this role in a team of this kind, for example a kind and its lead role.",
         "teamRoleName": "Role",
         "widens": "This shows the article to more people than its category",
         "widensHelp": "An article can only narrow its category, so people the category hides it from will still not see it."

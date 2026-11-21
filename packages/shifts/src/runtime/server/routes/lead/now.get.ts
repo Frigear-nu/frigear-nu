@@ -2,7 +2,7 @@ import { idParams } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
 import type { ShiftsNowDto } from '../../../../types'
 
-// Who is on shift now in an operation, per team, with the leads on duty (the BA on duty). For people who take part in
+// Who is on shift now in an operation, per team, with the leads on duty. For people who take part in
 // the operation (approved crew, or an explicit team role there) and staff. Names always; email and phone number only
 // with `shifts:pii`.
 export default defineEventHandler(async (event): Promise<ShiftsNowDto> => {

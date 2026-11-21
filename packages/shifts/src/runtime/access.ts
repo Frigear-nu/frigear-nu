@@ -18,7 +18,7 @@ export const shiftsAccess = defineAccess('shifts', {
       description: 'Offer your own shifts for a swap, and offer to take other people\'s.',
       implicit: true,
     },
-    // Held by everyone, narrowed by the policy to the leads of the record's team (BA and up on a bar team) and staff.
+    // Held by everyone, narrowed by the policy to the leads of the record's team (lead role and up) and staff.
     lead: {
       label: 'Lead shifts',
       description: 'Check people in, mark attendance and approve swaps on the teams you lead.',
@@ -66,7 +66,7 @@ export const shiftsAccess = defineAccess('shifts', {
   },
 })
 
-// The perks people earned on their shifts, for the app that spends them (frigear-vouchers): read and claim your own
+// The perks people earned on their shifts, for the app that spends them (a vouchers app): read and claim your own
 // grants. Both are held by everyone and narrowed by the policy to the caller's own grants; the `perks` scope covers both.
 export const perksAccess = defineAccess('perks', {
   permissions: {

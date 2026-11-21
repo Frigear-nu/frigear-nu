@@ -45,7 +45,7 @@ export const shiftSchedules = pgTable('shift_schedules', {
   index('shift_schedule_operation_idx').on(t.operationId),
 ])
 
-/** A role a schedule staffs on one team, with the lowest team role that may hold it (`ba` for a BA shift). */
+/** A role a schedule staffs on one team, with the lowest team role that may hold it (`lead` for a lead shift). */
 export const shiftRoles = pgTable('shift_roles', {
   /** `shr_` + random id. */
   id: text().primaryKey(),
@@ -234,7 +234,7 @@ export const shiftPerkGrants = pgTable('shift_perk_grants', {
   quantity: integer().notNull(),
   earnedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   claimedAt: timestamp({ withTimezone: true }),
-  /** The client that claimed it (`frigear-vouchers`). */
+  /** The client that claimed it (such as `vouchers`). */
   claimClient: text(),
   revokedAt: timestamp({ withTimezone: true }),
 }, t => [

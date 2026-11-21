@@ -3,7 +3,7 @@ import type { TeamRoleGrant } from '@frigear-nu/audience'
 import { grantsOfOwner, mappedGrantsFor, mappingCoversTeam, mergeTeamGrants } from '../../src/runtime/utils/resolve'
 import type { TeamRoleMappingDto, TeamsResolverTeam } from '../../src/types'
 
-const ladders = { bar: ['volunteer', 'bartender', 'ba', 'coordinator'], firstaid: ['helper', 'medic'] }
+const ladders = { bar: ['volunteer', 'bartender', 'lead', 'coordinator'], firstaid: ['helper', 'medic'] }
 const barA: TeamsResolverTeam = { id: 'tem_a', ownerType: 'operation', ownerId: 'opr_1', kind: 'bar' }
 const barB: TeamsResolverTeam = { id: 'tem_b', ownerType: 'operation', ownerId: 'opr_1', kind: 'bar' }
 const aid: TeamsResolverTeam = { id: 'tem_c', ownerType: 'operation', ownerId: 'opr_1', kind: 'firstaid' }
@@ -16,8 +16,8 @@ const rule = (values: Partial<TeamRoleMappingDto>): TeamRoleMappingDto => ({
   ownerType: 'operation',
   ownerId: 'opr_1',
   teamId: null,
-  match: { role: 'barmanager' },
-  teamRole: 'ba',
+  match: { role: 'supervisor' },
+  teamRole: 'lead',
   priority: 0,
   createdAt: '',
   updatedAt: '',
@@ -41,7 +41,7 @@ describe('mappedGrantsFor', () => {
   it('gives one grant per covered team whose ladder has the role, with the rule\'s priority', () => {
     const grants = mappedGrantsFor([barA, barB, aid, otherOwner], [rule({ priority: 3 })], ladders)
     expect(grants.map(grant => grant.teamId)).toEqual(['tem_a', 'tem_b'])
-    expect(grants[0]).toEqual({ ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_a', kind: 'bar', role: 'ba', source: 'mapped', priority: 3 })
+    expect(grants[0]).toEqual({ ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_a', kind: 'bar', role: 'lead', source: 'mapped', priority: 3 })
   })
 })
 
@@ -51,7 +51,7 @@ describe('mergeTeamGrants', () => {
     const merged = mergeTeamGrants([explicit(barA, 'volunteer')], mapped, ladders)
     expect(merged).toEqual([
       explicit(barA, 'volunteer'),
-      { ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_b', kind: 'bar', role: 'ba', source: 'mapped' },
+      { ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_b', kind: 'bar', role: 'lead', source: 'mapped' },
     ])
     expect(merged.some(grant => 'priority' in grant)).toBe(false)
   })
@@ -62,8 +62,8 @@ describe('mergeTeamGrants', () => {
     const tie = rule({ teamRole: 'bartender', priority: 5 })
     const merged = mergeTeamGrants([], mappedGrantsFor([barA], [low, high, tie], ladders), ladders)
     expect(merged).toEqual([expect.objectContaining({ teamId: 'tem_a', role: 'bartender', source: 'mapped' })])
-    expect(mergeTeamGrants([], mappedGrantsFor([barA], [rule({ teamRole: 'volunteer' }), rule({ teamRole: 'ba' })], ladders), ladders))
-      .toEqual([expect.objectContaining({ role: 'ba' })])
+    expect(mergeTeamGrants([], mappedGrantsFor([barA], [rule({ teamRole: 'volunteer' }), rule({ teamRole: 'lead' })], ladders), ladders))
+      .toEqual([expect.objectContaining({ role: 'lead' })])
   })
 
   it('drops a mapped grant whose role is not on the ladder (pushed by a listener)', () => {
@@ -74,7 +74,7 @@ describe('mergeTeamGrants', () => {
 
 describe('grantsOfOwner', () => {
   it('filters by owner type and id, with null for the platform', () => {
-    const grants = [explicit(barA, 'ba'), explicit(otherOwner, 'ba'), explicit(platform, 'volunteer')]
+    const grants = [explicit(barA, 'lead'), explicit(otherOwner, 'lead'), explicit(platform, 'volunteer')]
     expect(grantsOfOwner(grants, { ownerType: 'operation', ownerId: 'opr_1' }).map(grant => grant.teamId)).toEqual(['tem_a'])
     expect(grantsOfOwner(grants, { ownerType: 'platform', ownerId: null }).map(grant => grant.teamId)).toEqual(['tem_e'])
   })

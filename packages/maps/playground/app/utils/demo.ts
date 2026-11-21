@@ -2,12 +2,12 @@ import type { MapLocation, PlaneFeatureCollection } from '../../../src/runtime/u
 
 // Starting values of the playground: a location with an area and a small venue layout.
 export const demoLocation = (): MapLocation => ({
-  point: { lat: 55.6175, lng: 12.0795 },
+  point: { lat: 10.002, lng: 20.004 },
   area: [
-    { lat: 55.6195, lng: 12.0755 },
-    { lat: 55.6195, lng: 12.0835 },
-    { lat: 55.6155, lng: 12.0835 },
-    { lat: 55.6155, lng: 12.0755 },
+    { lat: 10.004, lng: 20.000 },
+    { lat: 10.004, lng: 20.008 },
+    { lat: 10.000, lng: 20.008 },
+    { lat: 10.000, lng: 20.000 },
   ],
 })
 
