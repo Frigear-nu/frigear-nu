@@ -26,13 +26,15 @@ function publicConfig(): Partial<PublicModuleOptions> {
 }
 
 /**
- * The enabled sources in the order they are merged: `settings.sources`, with the one named by `content.precedence`
- * first, because the first source with a slug wins. An id nobody registered is skipped with one warning.
+ * The enabled sources in the order they are merged, because the first source with a slug wins. For `articles` that is
+ * `settings.sources` with the one named by `content.precedence` first; `categories` always put the database first, so a
+ * category hidden from the viewer keeps claiming its slug whatever the precedence. An id nobody registered is skipped
+ * with one warning.
  */
-export function helpCenterSources(): HelpCenterSource[] {
+export function helpCenterSources(of: 'articles' | 'categories' = 'articles'): HelpCenterSource[] {
   const ids = publicConfig().sources?.length ? publicConfig().sources! : ['database']
   const precedence = (useRuntimeConfig().helpCenter as { content?: { precedence?: string } } | undefined)?.content?.precedence ?? 'database'
-  const ordered = orderSourceIds(ids, precedence)
+  const ordered = orderSourceIds(ids, of === 'categories' ? 'database' : precedence)
   const sources: HelpCenterSource[] = []
   for (const id of ordered) {
     const source = id === 'database' ? helpCenterDatabaseSource : id === 'content' ? helpCenterContentSource() : registry.get(id)
@@ -75,14 +77,36 @@ export async function helpCenterRequest(event: H3Event, options: { public?: bool
  * category the viewer may not read still claims its slug, so a content-derived category cannot replace it.
  */
 export async function helpCenterMergedCategories(ctx: HelpSourceContext): Promise<HelpSourceCategory[]> {
-  return mergeBySlug(await Promise.all(helpCenterSources().map(async source => source.categories(ctx))))
+  return mergeBySlug(await Promise.all(helpCenterSources('categories').map(async source => source.categories(ctx))))
 }
 
 const toCategoryDto = ({ visible: _visible, ...category }: HelpSourceCategory): HelpCategoryDto => category
 
+/**
+ * Keeps, on each category, the FAQ groups `@frigear-nu/faq` itself would show this viewer: asked of its own route (as a
+ * visitor for an anonymous viewer, as the caller otherwise), so the slug of a restricted FAQ group never reaches
+ * people who cannot read it. Without faq, or when it cannot be asked, no group is listed.
+ */
+async function withVisibleFaqGroups(ctx: HelpSourceContext, categories: HelpCategoryDto[]): Promise<HelpCategoryDto[]> {
+  const slugs = [...new Set(categories.flatMap(category => category.faqGroups))]
+  if (!slugs.length) return categories
+  let shown = new Set<string>()
+  if (publicConfig().faq) {
+    try {
+      const groups = await (ctx.event as unknown as { $fetch: <T>(url: string, init?: Record<string, unknown>) => Promise<T> })
+        .$fetch<Array<{ slug: string }>>('/api/faq/groups', { query: { slugs: slugs.join(','), public: ctx.viewer.userId ? undefined : 1 } })
+      shown = new Set(groups.map(group => group.slug))
+    }
+    catch (error) {
+      console.warn('[@frigear-nu/help-center] could not ask @frigear-nu/faq which groups to show:', error)
+    }
+  }
+  return categories.map(category => ({ ...category, faqGroups: category.faqGroups.filter(slug => shown.has(slug)) }))
+}
+
 /** The categories the viewer may read, in their order. */
 export async function helpCenterCategories(ctx: HelpSourceContext): Promise<HelpCategoryDto[]> {
-  return (await helpCenterMergedCategories(ctx)).filter(category => category.visible).map(toCategoryDto)
+  return withVisibleFaqGroups(ctx, (await helpCenterMergedCategories(ctx)).filter(category => category.visible).map(toCategoryDto))
 }
 
 /**
@@ -109,7 +133,7 @@ export async function helpCenterArticle(ctx: HelpSourceContext, slug: string): P
   }
   if (!article) return undefined
   const category = (await helpCenterMergedCategories(ctx)).find(entry => entry.slug === article!.categorySlug && entry.visible)
-  return { ...article, category: category ? toCategoryDto(category) : null }
+  return { ...article, category: category ? (await withVisibleFaqGroups(ctx, [toCategoryDto(category)]))[0]! : null }
 }
 
 /** One article by its id (`hlp_...`, `content:...`), or `undefined` when it does not exist or the viewer may not read it. */

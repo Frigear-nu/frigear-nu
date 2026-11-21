@@ -35,7 +35,7 @@ declare module '@nuxt/schema' {
 
   interface RuntimeConfig {
     helpCenter: {
-      content: { collection: string | null, perLocale: boolean, precedence: 'database' | 'content' }
+      content: { collection: string | null, perLocale: boolean, precedence: string }
     }
   }
 
@@ -132,6 +132,11 @@ export default defineNuxtModule<ModuleOptions>({
     const inMenu = !!menuName && addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus/signed-in'), menu: menuName })
     if (adminPath) addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus/admin'), menu: 'admin.nav' })
 
+    // How `@nuxtjs/i18n` puts locales in paths, so links in emails get the same prefix as the pages.
+    const i18nOptions = (nuxt.options as { i18n?: { strategy?: string, defaultLocale?: string, locales?: Array<string | { code: string }> } }).i18n
+    const i18nLocales = (i18nOptions?.locales ?? []).map(locale => typeof locale === 'string' ? locale : locale.code)
+    const i18nConfig = i18nLocales.length ? { strategy: i18nOptions?.strategy ?? 'prefix_except_default', defaultLocale: i18nOptions?.defaultLocale ?? null, locales: i18nLocales } : null
+
     nuxt.options.runtimeConfig.public.helpCenter = {
       pages: { public: areas.public, signedIn: areas.signedIn, admin: adminPath, adminChecklist: adminChecklistPath, mobile: mobilePath },
       requiredLocales,
@@ -143,6 +148,7 @@ export default defineNuxtModule<ModuleOptions>({
       sources,
       contentCollection: contentCollection ?? null,
       faq: hasNuxtModule('@frigear-nu/faq'),
+      i18n: i18nConfig,
     }
     nuxt.options.runtimeConfig.helpCenter = {
       content: { collection: contentCollection ?? null, perLocale, precedence: settings.content?.precedence ?? 'database' },
@@ -171,6 +177,8 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'articles', file: 'admin/articles.get' },
       { method: 'post', path: 'articles', file: 'admin/articles.post' },
       { method: 'get', path: 'articles/:id', file: 'admin/article.get' },
+      // An id of another source can hold a `/` (`content:help:safety/first-aid`), and auth refuses an encoded `%2F` under /api.
+      { method: 'get', path: 'source-articles/**:id', file: 'admin/article.get' },
       { method: 'patch', path: 'articles/:id', file: 'admin/article.patch' },
       { method: 'delete', path: 'articles/:id', file: 'admin/article.delete' },
       { method: 'post', path: 'articles/:id/publish', file: 'admin/article-publish.post' },
@@ -257,19 +265,27 @@ export default defineNuxtModule<ModuleOptions>({
     // The signed-in area is for signed-in people. Under `/account` the account module guards and frames it; anywhere
     // else this module does: a route rule (enforced by `@frigear-nu/authorization`, also on the server) and, with
     // `signedInLayout`, the host's own layout. With `@nuxtjs/i18n` every page also exists under `/<locale>/...`.
+    const withAuthorization = hasNuxtModule('@frigear-nu/authorization')
     if (areas.signedIn) {
-      const locales = (nuxt.options as { i18n?: { locales?: Array<string | { code: string }> } }).i18n?.locales ?? []
-      const prefixes = ['', ...locales.map(locale => typeof locale === 'string' ? locale : locale.code).map(code => `/${code}`)]
-      const patterns = prefixes.flatMap(prefix => [`${prefix}${areas.signedIn}`, `${prefix}${areas.signedIn}/**`])
       const rules = nuxt.options.routeRules ||= {}
-      if (hasNuxtModule('@frigear-nu/authorization')) {
+      const prefixes = ['', ...i18nLocales.map(code => `/${code}`)]
+      const patterns = prefixes.flatMap(prefix => [`${prefix}${areas.signedIn}`, `${prefix}${areas.signedIn}/**`])
+      if (withAuthorization) {
         for (const pattern of patterns) rules[pattern] = { authenticated: true, ...rules[pattern] } as (typeof rules)[string]
       }
-      else if (!isPathUnder(areas.signedIn, '/account')) {
+      else if (!isPathUnder(areas.signedIn, '/account') || !hasNuxtModule('@frigear-nu/account')) {
+        // Under /account the account module guards the area, but only through authorization: without both nothing does.
         console.warn(`[@frigear-nu/help-center] @frigear-nu/authorization is not installed: ${areas.signedIn} is not guarded. Install it and guard the path yourself.`)
       }
       if (settings.signedInLayout) {
         for (const pattern of patterns) rules[pattern] = { appLayout: settings.signedInLayout, ...rules[pattern] } as (typeof rules)[string]
+      }
+    }
+    // The mobile page shows the signed-in area, so it is for signed-in people as well.
+    if (mobilePath && withAuthorization) {
+      const rules = nuxt.options.routeRules ||= {}
+      for (const prefix of ['', ...i18nLocales.map(code => `/${code}`)]) {
+        rules[`${prefix}${mobilePath}`] = { authenticated: true, ...rules[`${prefix}${mobilePath}`] } as (typeof rules)[string]
       }
     }
 
@@ -300,11 +316,12 @@ export default defineNuxtModule<ModuleOptions>({
       nuxt.hook('content:file:afterParse' as never, ((ctx: ContentAfterParse) => {
         const name = ctx.collection.name
         const locale = perLocale ? requiredLocales.find(code => localizedContentCollection(contentCollection, code) === name) : undefined
-        if (perLocale ? !locale && !name.startsWith(`${contentCollection}_`) : name !== contentCollection) return
+        // Per-locale mode reads the collections of the required locales only; another `<collection>_xx` is not ours.
+        if (perLocale ? !locale : name !== contentCollection) return
         const row = ctx.content
         const keys = [...Object.keys(row), ...Object.keys(row.meta ?? {}), ...frontmatterKeys(ctx.file.body ?? '')]
         const read = (key: string) => row[key] ?? row.meta?.[key]
-        const fileLocale = perLocale ? (locale ?? name.slice(contentCollection.length + 1)) : (typeof read('locale') === 'string' ? read('locale') as string : undefined)
+        const fileLocale = perLocale ? locale : (typeof read('locale') === 'string' ? read('locale') as string : undefined)
         const { errors } = validateContentFile(
           { id: ctx.file.id, keys, category: read('category'), slug: read('slug'), title: row.title, locale: perLocale ? fileLocale : read('locale') },
           { perLocale },

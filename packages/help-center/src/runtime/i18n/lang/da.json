@@ -29,6 +29,8 @@
       "categoryRequired": "Vælg en kategori.",
       "categorySaved": "Gemte {name}",
       "categoryVisibilityHelp": "Gælder alle artikler i kategorien. En artikel kan begrænse den yderligere, aldrig udvide den.",
+      "categoryWidens": "Dette viser kategorien for flere end dens overordnede kategori",
+      "categoryWidensHelp": "En kategori kan kun ses af dem, der kan se alle kategorier over den, så folk, som den overordnede skjuler den for, ser den stadig ikke.",
       "channelEmail": "Mail",
       "channelSms": "Sms",
       "channelSmsHelp": "Kun folk med et telefonnummer får en sms.",
@@ -184,12 +186,14 @@
       "visibilitySignedIn": "Loggede ind"
     },
     "article": {
+      "loadFailed": "Artiklen kunne ikke indlæses",
       "notFound": "Artiklen blev ikke fundet",
       "notFoundDescription": "Den findes ikke, eller du må ikke læse den."
     },
     "articleCount": "{count} artikler",
     "category": {
       "empty": "Der er endnu ingen artikler her",
+      "loadFailed": "Kategorien kunne ikke indlæses",
       "notFound": "Kategorien blev ikke fundet",
       "notFoundDescription": "Den findes ikke, eller du må ikke læse den."
     },
@@ -206,6 +210,7 @@
     "descriptionSignedIn": "Guider, introduktion og svar til dig.",
     "empty": "Her er endnu ingenting",
     "emptyDescription": "Artikler dukker op her, når de er udgivet.",
+    "loadFailed": "Hjælpecenteret kunne ikke indlæses",
     "menu": {
       "admin": {
         "description": "Administrer hjælpeartikler, kategorier og introduktionslister.",

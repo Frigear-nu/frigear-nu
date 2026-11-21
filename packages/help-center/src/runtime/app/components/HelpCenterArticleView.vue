@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { helpCenterApi } from '../../utils/api'
 import { stripMarkdown } from '../../utils/markdown'
-import { $fetch, clearNuxtData, computed, navigateTo, onMounted, useHead, useHelpCenterArticle, useHelpCenterFallbackLocale, useHelpCenterLocale, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useSeoMeta, useUserSession } from '#imports'
+import { $fetch, clearNuxtData, computed, errorMessage, navigateTo, onMounted, setResponseStatus, useRequestEvent, useHead, useHelpCenterArticle, useHelpCenterFallbackLocale, useHelpCenterLocale, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useSeoMeta, useUserSession } from '#imports'
 
 defineOptions({ name: 'HelpCenterArticleView' })
 
@@ -20,7 +20,10 @@ const links = isPublic ? paths.public : paths.signedIn
 const config = useRuntimeConfig().public.helpCenter
 const { loggedIn } = useUserSession()
 
-const { article } = await useHelpCenterArticle(() => props.slug, { public: isPublic })
+const { article, error, refresh } = await useHelpCenterArticle(() => props.slug, { public: isPublic })
+
+// Not found is a 404 for crawlers too; a failed request is an error, not "not found".
+if (import.meta.server && !article.value && !error.value) setResponseStatus(useRequestEvent(), 404)
 
 // The address of an article is `<base>/<its category>/<slug>`: another category in the URL goes to the real one.
 if (article.value && article.value.categorySlug !== props.category) {
@@ -83,7 +86,10 @@ onMounted(async () => {
     :breadcrumb="breadcrumb"
   >
     <div class="flex max-w-3xl flex-col gap-8">
-      <HelpCenterArticleBody :body="body" />
+      <HelpCenterArticleBody
+        :body="body"
+        :public="isPublic"
+      />
       <div
         v-if="isPublic"
         class="border-default flex border-t pt-4"
@@ -95,6 +101,18 @@ onMounted(async () => {
         />
       </div>
     </div>
+  </HelpCenterFrame>
+  <HelpCenterFrame
+    v-else-if="error"
+    :area="area"
+    :title="t('article.loadFailed', 'The article could not be loaded')"
+  >
+    <UEmpty
+      icon="i-lucide-circle-alert"
+      :title="t('article.loadFailed', 'The article could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
   </HelpCenterFrame>
   <HelpCenterFrame
     v-else

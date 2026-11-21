@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { isNarrowerOrEqual } from '@frigear-nu/audience'
 import { type HelpCategoryFormState, type StaffHelpCategory, OWNER_TYPE_OPTIONS, categoryToForm, emptyHelpCategoryForm, formToCategoryBody, helpCategoryFormSchema, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, watch } from '#imports'
@@ -31,6 +32,12 @@ const parents = computed(() => [
   { value: '', label: t('admin.noParent', 'Top level') },
   ...props.categories.filter(entry => entry.id !== props.category?.id).map(entry => ({ value: entry.id, label: tr(entry.name) })),
 ])
+
+// A subcategory can only narrow its parent: an ancestor that hides it keeps it hidden whatever it says itself.
+const widens = computed(() => {
+  const parent = props.categories.find(entry => entry.id === state.parentId)
+  return !!parent?.visibility && !isNarrowerOrEqual(parent.visibility, state.visibility ?? null)
+})
 
 async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
   const body = formToCategoryBody(event.data)
@@ -140,6 +147,14 @@ async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
       >
         <HelpCenterVisibilityEditor v-model="state.visibility" />
       </UFormField>
+      <UAlert
+        v-if="widens"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('admin.categoryWidens', 'This shows the category to more people than its parent')"
+        :description="t('admin.categoryWidensHelp', 'A category is only visible to people who can see every category above it, so the people the parent hides it from will still not see it.')"
+      />
     </UForm>
   </FormSlideover>
 </template>

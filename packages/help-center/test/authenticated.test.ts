@@ -442,6 +442,38 @@ describe('help center (authenticated, database-backed)', async () => {
       expect((await listArticles(bar.cookie)).find(article => article.slug === widening.slug)?.public).toBe(false)
     })
 
+    it('lets a subcategory inherit what its ancestors hide: a category is visible only when every category above it is', async () => {
+      const parent = await createCategory({ visibility: { globalRoles: ['barmanager'] } })
+      const child = await createCategory({ parentId: parent.id, visibility: { public: true } })
+      const grandchild = await createCategory({ parentId: child.id })
+      const inChild = await publish((await createArticle(child.id)).id)
+      const inGrandchild = await publish((await createArticle(grandchild.id, { visibility: { public: true } })).id)
+      const member = await user('Member')
+      const bar = await barManager()
+
+      for (const cookie of [undefined, member.cookie]) {
+        expect(slugsOf(await listCategories(cookie))).not.toEqual(expect.arrayContaining([child.slug]))
+        expect(slugsOf(await listCategories(cookie))).not.toContain(grandchild.slug)
+        expect(slugsOf(await listArticles(cookie))).not.toContain(inChild.slug)
+        expect(slugsOf(await listArticles(cookie))).not.toContain(inGrandchild.slug)
+        expect((await json(cookie, 'GET', helpCenterApi.article(inChild.slug))).status).toBe(404)
+        expect((await json(cookie, 'GET', helpCenterApi.article(inGrandchild.slug))).status).toBe(404)
+      }
+      expect(slugsOf(await listArticles(undefined, '?public=1'))).not.toContain(inChild.slug)
+      expect(slugsOf(await listCategories(bar.cookie))).toEqual(expect.arrayContaining([parent.slug, child.slug, grandchild.slug]))
+      expect(slugsOf(await listArticles(bar.cookie))).toEqual(expect.arrayContaining([inChild.slug, inGrandchild.slug]))
+      // Public in its own right, but not public: an ancestor restricts it.
+      expect((await listArticles(bar.cookie)).find(article => article.slug === inChild.slug)?.public).toBe(false)
+      expect((await listCategories(bar.cookie)).find(category => category.slug === child.slug)?.public).toBe(false)
+
+      // Reading, checklists and searching follow the same rule.
+      const reader = await user('Reader')
+      expect((await json(reader.cookie, 'POST', helpCenterApi.me.reads, { articleId: inChild.id })).status).toBe(404)
+      expect((await json(bar.cookie, 'POST', helpCenterApi.me.reads, { articleId: inChild.id })).status).toBe(200)
+      expect(await listArticles(undefined, `?q=${encodeURIComponent(inChild.title.en)}`)).toEqual([])
+      expect(slugsOf(await listArticles(bar.cookie, `?q=${encodeURIComponent(inChild.title.en)}`))).toContain(inChild.slug)
+    })
+
     it('gives a token without help-center:read the public articles only, and one with it the viewer\'s own', async () => {
       const open = await publishedArticle({ visibility: { public: true } })
       const signedIn = await publishedArticle()
@@ -455,17 +487,18 @@ describe('help center (authenticated, database-backed)', async () => {
   })
 
   describe('sources', () => {
-    it('merges the articles of a registered source, and lets the database win a clash of slugs', async () => {
+    it('merges the articles of a registered source; with precedence: wiki the wiki wins a clash of slugs', async () => {
       await asStaff()
       const guides = await createCategory({ slug: 'db-guides', visibility: { public: true } })
       await publish((await createArticle(guides.id, { slug: 'shared-slug', title: both('From the database', 'Fra databasen') })).id)
 
       const anonymous = await listArticles(undefined)
       const wiki = anonymous.find(article => article.slug === 'wiki-parking')
-      expect(wiki).toMatchObject({ id: 'wiki:parking', source: 'wiki', public: true, categorySlug: 'wiki-guides', title: both('Parking', 'Parkering') })
+      expect(wiki).toMatchObject({ id: 'wiki:guides/parking', source: 'wiki', public: true, categorySlug: 'wiki-guides', title: both('Parking', 'Parkering') })
       const shared = anonymous.filter(article => article.slug === 'shared-slug')
       expect(shared).toHaveLength(1)
-      expect(shared[0]).toMatchObject({ source: 'database', title: both('From the database', 'Fra databasen') })
+      // `content.precedence` is `wiki` in this fixture: the source that is not the database wins the article.
+      expect(shared[0]).toMatchObject({ source: 'wiki', title: both('From the wiki', 'Fra wiki') })
 
       // The source's categories are listed too.
       expect(slugsOf(await listCategories(undefined))).toContain('wiki-guides')
@@ -478,7 +511,8 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(restricted.slug).toBe('wiki-staff')
       const bar = await barManager()
       const member = await user('Member')
-      // The database category claims the slug, so the source's own `wiki-staff` category cannot show up for the others.
+      // Categories ignore the precedence: the database goes first, so its hidden category keeps claiming the slug and the
+      // source's own `wiki-staff` category cannot show up for the others, although the wiki wins articles here.
       expect(slugsOf(await listCategories(member.cookie))).not.toContain('wiki-staff')
       expect(slugsOf(await listArticles(undefined))).not.toContain('wiki-staff-note')
       expect(slugsOf(await listArticles(member.cookie))).not.toContain('wiki-staff-note')
@@ -487,6 +521,21 @@ describe('help center (authenticated, database-backed)', async () => {
       // Content is public: by its address anybody can still open it.
       expect((await json(undefined, 'GET', helpCenterApi.article('wiki-staff-note'))).status).toBe(200)
       expect((await json(member.cookie, 'GET', helpCenterApi.article('wiki-staff-note'))).status).toBe(200)
+    })
+
+    it('lets staff read an article of another source by its id, also one that holds a slash', async () => {
+      await asStaff()
+      const article = await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.article('wiki:guides/parking')))
+      expect(article).toMatchObject({ id: 'wiki:guides/parking', source: 'wiki', readOnly: true, status: 'published', slug: 'wiki-parking', categorySlug: 'wiki-guides' })
+      expect((await json(staff.cookie, 'GET', helpCenterApi.admin.article('wiki:guides/nothing'))).status).toBe(404)
+      const member = await user('Member')
+      await expectApiError(json(member.cookie, 'GET', helpCenterApi.admin.article('wiki:guides/parking')), 403, 'forbidden')
+    })
+
+    it('puts a source article on a checklist by its id', async () => {
+      await asStaff()
+      const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { name: 'Wiki list', items: [{ articleId: 'wiki:guides/parking' }] }))
+      expect(checklist.items[0]).toMatchObject({ articleId: 'wiki:guides/parking', article: { slug: 'wiki-parking', source: 'wiki' } })
     })
 
     it('searches every source', async () => {
@@ -567,7 +616,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
     it('records an article of another source by its id', async () => {
       const member = await user('Reader')
-      expect(await ok(await json(member.cookie, 'POST', helpCenterApi.me.reads, { articleId: 'wiki:parking' }))).toMatchObject({ articleId: 'wiki:parking' })
+      expect(await ok(await json(member.cookie, 'POST', helpCenterApi.me.reads, { articleId: 'wiki:guides/parking' }))).toMatchObject({ articleId: 'wiki:guides/parking' })
     })
 
     it('shows a checklist with the articles the person may read and which they have read', async () => {
@@ -800,9 +849,21 @@ describe('help center (authenticated, database-backed)', async () => {
       }))
       expect(result).toMatchObject({ recipients: 2, emailed: 2 })
       expect((await getEmails()).slice(before).map(mail => mail.to).sort()).toEqual([`explicit${counter}@example.com`, `hooked${counter - 1}@example.com`].sort())
-      // Nobody answers for this team: nobody to send to.
-      expect(await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { teamId: 'tem_nobody' }, channels: ['email'] })))
-        .toEqual({ recipients: 0, emailed: 0, texted: 0, skipped: 0 })
+      // Nobody answers for this team: that is said, not reported as "sent to nobody".
+      await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { teamId: 'tem_nobody' }, channels: ['email'] }), 400, 'audience_not_resolved')
+    })
+
+    it('writes the subject in the language of the send', async () => {
+      await asStaff()
+      const a = await publishedArticle({ visibility: { public: true } }, { title: both('First guide', 'Første guide') })
+      const b = await publishedArticle({ visibility: { public: true } }, { title: both('Second guide', 'Anden guide') })
+      const person = await registerUser('Dansker', `dansker${++counter}@example.com`)
+      const before = (await getEmails()).length
+      await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [a.article.id, b.article.id], audience: { userIds: [person.id] }, channels: ['email'], locale: 'da' }))
+      const [mail] = (await getEmails()).slice(before)
+      expect(mail!.subject).toBe('2 hjælpeartikler')
+      expect(mail!.body).toContain('Første guide')
+      expect(mail!.template).toMatchObject({ name: 'help-center-articles', locale: 'da' })
     })
 
     it('validates the request and needs help-center:send', async () => {
@@ -850,8 +911,10 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(category.status).toBe(200)
       expect(category.html).toContain('Open article')
       expect(category.html).toContain(`/help/${open.category.slug}/${open.article.slug}`)
-      // A restricted category is not there for anyone on /help, a bar manager included.
-      expect((await page(`/help/${restricted.category.slug}`, bar.cookie)).html).toContain('Category not found')
+      // A restricted category is not there for anyone on /help, a bar manager included: a 404 page.
+      const hiddenCategory = await page(`/help/${restricted.category.slug}`, bar.cookie)
+      expect(hiddenCategory.html).toContain('Category not found')
+      expect(hiddenCategory.status).toBe(404)
     })
 
     it('renders a public article with its Markdown, JSON-LD for search engines, and no signed-in version', async () => {
@@ -880,8 +943,9 @@ describe('help center (authenticated, database-backed)', async () => {
       const restricted = await publishedArticle({ visibility: { globalRoles: ['barmanager'] } }, { body: both('Secret recipe', 'Hemmelig opskrift') })
       const bar = await barManager()
       for (const cookie of [undefined, bar.cookie]) {
-        const { html } = await page(`/help/${restricted.category.slug}/${restricted.article.slug}`, cookie)
+        const { html, status } = await page(`/help/${restricted.category.slug}/${restricted.article.slug}`, cookie)
         expect(html).toContain('Article not found')
+        expect(status).toBe(404)
         expect(html).not.toContain('Secret recipe')
         expect(html).not.toContain('application/ld+json')
       }
@@ -911,7 +975,9 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(theirs.html).toContain('Bar Team Handbook')
       expect(theirs.html).toContain('Bar article')
 
-      expect((await page(`/account/help/${restricted.category.slug}/${restricted.article.slug}`, member.cookie)).html).toContain('Article not found')
+      const notForMember = await page(`/account/help/${restricted.category.slug}/${restricted.article.slug}`, member.cookie)
+      expect(notForMember.html).toContain('Article not found')
+      expect(notForMember.status).toBe(404)
       const own = await page(`/account/help/${restricted.category.slug}/${restricted.article.slug}`, bar.cookie)
       expect(own.html).toContain('Bar article')
       // The signed-in version carries no JSON-LD: it is not for search engines.
@@ -931,6 +997,13 @@ describe('help center (authenticated, database-backed)', async () => {
       const { category } = await publishedArticle({ visibility: { public: true }, faqGroups: [`pub-faq-${suffix}`, `bar-faq-${suffix}`] })
       const bar = await barManager()
 
+      // The category lists only the FAQ groups faq would show the viewer: a restricted group's slug never reaches visitors.
+      const listed = (cookie: string | undefined, query = '') => listCategories(cookie, query).then(categories => categories.find(entry => entry.slug === category.slug)?.faqGroups)
+      expect(await listed(undefined)).toEqual([`pub-faq-${suffix}`])
+      expect(await listed(bar.cookie, '?public=1')).toEqual([`pub-faq-${suffix}`])
+      expect((await listed(bar.cookie))?.sort()).toEqual([`bar-faq-${suffix}`, `pub-faq-${suffix}`])
+      expect((await ok(await json(undefined, 'GET', helpCenterApi.article((await publish((await createArticle(category.id)).id)).slug)))).category.faqGroups).toEqual([`pub-faq-${suffix}`])
+
       const visitor = await page(`/help/${category.slug}`)
       expect(visitor.html).toContain(`Public faq question ${suffix}`)
       expect(visitor.html).not.toContain(`Bar faq question ${suffix}`)
@@ -940,6 +1013,32 @@ describe('help center (authenticated, database-backed)', async () => {
       const inside = await page(`/account/help/${category.slug}`, bar.cookie)
       expect(inside.html).toContain(`Public faq question ${suffix}`)
       expect(inside.html).toContain(`Bar faq question ${suffix}`)
+    })
+
+    it('renders embedded FAQ components as what visitors read in the public area, and as the person in the signed-in one', async () => {
+      await asStaff()
+      const suffix = ++counter
+      for (const [slug, visibility, question] of [
+        [`mdc-pub-${suffix}`, { public: true }, `Embedded public ${suffix}`],
+        [`mdc-bar-${suffix}`, { globalRoles: ['barmanager'] }, `Embedded bar ${suffix}`],
+      ] as const) {
+        const group = await ok(await json(staff.cookie, 'POST', faqApi.admin.groups, { slug, title: both(`Group ${slug}`, `Gruppe ${slug}`), visibility }))
+        const item = await ok(await json(staff.cookie, 'POST', faqApi.admin.items(group.id), { question: both(question, `${question} (da)`), answer: both('Because.', 'Fordi.') }))
+        await ok(await json(staff.cookie, 'POST', faqApi.admin.publish(item.id)))
+      }
+      const body = `::faq{group="mdc-pub-${suffix}"}\n::\n\n::faq{group="mdc-bar-${suffix}"}\n::`
+      const { category, article } = await publishedArticle({ visibility: { public: true } }, { body: both(body, body) })
+      const bar = await barManager()
+
+      // `/help` is the same for everyone: the embedded groups are forced to what visitors read.
+      for (const cookie of [undefined, bar.cookie]) {
+        const { html } = await page(`/help/${category.slug}/${article.slug}`, cookie)
+        expect(html).toContain(`Embedded public ${suffix}`)
+        expect(html).not.toContain(`Embedded bar ${suffix}`)
+      }
+      const inside = await page(`/account/help/${category.slug}/${article.slug}`, bar.cookie)
+      expect(inside.html).toContain(`Embedded public ${suffix}`)
+      expect(inside.html).toContain(`Embedded bar ${suffix}`)
     })
 
     it('puts the areas where the options say, and nowhere else', async () => {

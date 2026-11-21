@@ -29,6 +29,8 @@
       "categoryRequired": "Choose a category.",
       "categorySaved": "Saved {name}",
       "categoryVisibilityHelp": "Applies to every article in the category. An article can narrow it further, never widen it.",
+      "categoryWidens": "This shows the category to more people than its parent",
+      "categoryWidensHelp": "A category is only visible to people who can see every category above it, so the people the parent hides it from will still not see it.",
       "channelEmail": "Email",
       "channelSms": "SMS",
       "channelSmsHelp": "Only people with a phone number get a text.",
@@ -184,12 +186,14 @@
       "visibilitySignedIn": "Signed-in people"
     },
     "article": {
+      "loadFailed": "The article could not be loaded",
       "notFound": "Article not found",
       "notFoundDescription": "It does not exist, or you may not read it."
     },
     "articleCount": "{count} articles",
     "category": {
       "empty": "No articles here yet",
+      "loadFailed": "The category could not be loaded",
       "notFound": "Category not found",
       "notFoundDescription": "It does not exist, or you may not read it."
     },
@@ -206,6 +210,7 @@
     "descriptionSignedIn": "Guides, onboarding and answers for you.",
     "empty": "Nothing here yet",
     "emptyDescription": "Articles will show up here once they are published.",
+    "loadFailed": "The help center could not be loaded",
     "menu": {
       "admin": {
         "description": "Manage help articles, categories and onboarding checklists.",

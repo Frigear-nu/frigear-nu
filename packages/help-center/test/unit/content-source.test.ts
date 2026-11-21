@@ -85,6 +85,7 @@ describe('the content source', () => {
     const articles = await source(true).articles(event)
     expect(articles).toHaveLength(1)
     expect(articles[0]).toMatchObject({ key: 'guide', id: 'content:help:guide', title: { da: 'Guide', en: 'Guide' }, body: { da: 'Dansk', en: 'English' } })
+    const failures: string[] = []
     const failing = createContentSource({
       collection: 'missing',
       perLocale: true,
@@ -92,7 +93,23 @@ describe('the content source', () => {
       query: async () => {
         throw new Error('none')
       },
+      onError: collection => failures.push(collection),
     })
-    expect(await failing.articles(event)).toEqual([])
+    expect(await failing.articles({} as H3Event)).toEqual([])
+    // Skipped, but reported: a language without a collection is never silent.
+    expect(failures).toEqual(['missing_da', 'missing_en'])
+  })
+
+  it('reads each collection once per request', async () => {
+    let reads = 0
+    const counting = createContentSource({ collection: 'help', perLocale: false, locales: ['da', 'en'], query: async () => (reads++, rows.help!) })
+    const request = {} as H3Event
+    await counting.list({ ...ctx, event: request })
+    await counting.get('fire', { ...ctx, event: request })
+    await counting.getById!('content:help:safety/fire', { ...ctx, event: request })
+    await counting.categories({ ...ctx, event: request })
+    expect(reads).toBe(1)
+    await counting.list({ ...ctx, event: {} as H3Event })
+    expect(reads).toBe(2)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createViewer } from '@frigear-nu/audience'
-import { isHelpArticlePublic, isHelpArticleVisible, normalizeVisibility } from '../../src/runtime/utils'
+import { categoryChain, isHelpArticlePublic, isHelpArticleVisible, isHelpArticleVisibleIn, isHelpChainVisible, normalizeVisibility } from '../../src/runtime/utils'
 
 const anonymous = createViewer()
 const member = createViewer({ userId: 1 })
@@ -44,5 +44,40 @@ describe('the visibility of an article in its category', () => {
     expect(normalizeVisibility(undefined)).toBeNull()
     expect(normalizeVisibility({ public: true })).toEqual({ public: true })
     expect(normalizeVisibility({ globalRoles: ['x'] })).toEqual({ globalRoles: ['x'] })
+  })
+})
+
+describe('categories below categories', () => {
+  const node = (id: string, parentId: string | null, visibility: unknown) => ({ id, parentId, visibility })
+  const nodes = [node('top', null, { globalRoles: ['barmanager'] }), node('mid', 'top', { public: true }), node('leaf', 'mid', null), node('orphan', 'gone', null)]
+  const byId = new Map(nodes.map(entry => [entry.id, entry]))
+
+  it('walks from a category up to the top', () => {
+    expect(categoryChain(byId.get('leaf')!, byId).map(entry => entry.id)).toEqual(['leaf', 'mid', 'top'])
+    expect(categoryChain(byId.get('top')!, byId).map(entry => entry.id)).toEqual(['top'])
+  })
+
+  it('counts a category whose parent is gone as top level, and cuts a loop', () => {
+    expect(categoryChain(byId.get('orphan')!, byId).map(entry => entry.id)).toEqual(['orphan'])
+    const loop = new Map([['a', node('a', 'b', null)], ['b', node('b', 'a', null)]])
+    expect(categoryChain(loop.get('a')!, loop).map(entry => entry.id)).toEqual(['a', 'b'])
+  })
+
+  it('is visible only when every category in the chain is: a child narrows its parent and never widens it', () => {
+    const chain = categoryChain(byId.get('mid')!, byId)
+    // `mid` says public, `top` says bar managers: visitors and other members stay out.
+    expect(isHelpChainVisible(chain, anonymous)).toBe(false)
+    expect(isHelpChainVisible(chain, member)).toBe(false)
+    expect(isHelpChainVisible(chain, barManager)).toBe(true)
+    expect(isHelpArticleVisibleIn(chain, { visibility: { public: true } }, anonymous)).toBe(false)
+    expect(isHelpArticleVisibleIn(chain, { visibility: null }, barManager)).toBe(true)
+    expect(isHelpArticleVisibleIn(chain, { visibility: { globalRoles: ['other'] } }, barManager)).toBe(false)
+  })
+
+  it('lets an ancestor that is public leave the child to its own rule', () => {
+    const open = new Map([['p', node('p', null, { public: true })], ['c', node('c', 'p', { globalRoles: ['barmanager'] })]])
+    const chain = categoryChain(open.get('c')!, open)
+    expect(isHelpChainVisible(chain, anonymous)).toBe(false)
+    expect(isHelpChainVisible(chain, barManager)).toBe(true)
   })
 })

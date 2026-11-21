@@ -45,6 +45,8 @@ export default defineNuxtConfig({
       pages: { admin: true },
       // A source of the host next to the database, registered by `server/plugins/wiki-source.ts`.
       sources: ['database', 'wiki'],
+      // The wiki wins a clash of slugs; categories still put the database first.
+      content: { precedence: 'wiki' },
     },
   },
   notify: {

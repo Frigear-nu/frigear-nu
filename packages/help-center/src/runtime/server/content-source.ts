@@ -15,7 +15,13 @@ export type ContentSourceOptions = {
   /** The languages to read: the required locales. */
   locales: readonly string[]
   query: ContentQuery
+  /** Called when one per-locale collection cannot be read (it is skipped). Defaults to a warning in the log. */
+  onError?: (collection: string, error: unknown) => void
 }
+
+// Each collection is read once per request: a send or a checklist asks for the articles again and again. Keyed by the
+// request event, so nothing outlives the request.
+const requestReads = new WeakMap<object, Map<string, Promise<HelpContentArticle[]>>>()
 
 const humanize = (slug: string) => slug.replace(/-+/g, ' ').replace(/^./, char => char.toUpperCase())
 
@@ -40,11 +46,25 @@ export const contentArticleDto = (article: HelpContentArticle): HelpArticleDto =
 
 export function createContentSource(options: ContentSourceOptions): HelpCenterSource & { articles: (event: H3Event) => Promise<HelpContentArticle[]> } {
   /** Every article of the collection with its languages. A missing per-locale collection is skipped. */
-  async function articles(event: H3Event): Promise<HelpContentArticle[]> {
+  function articles(event: H3Event): Promise<HelpContentArticle[]> {
+    const reads = requestReads.get(event) ?? new Map<string, Promise<HelpContentArticle[]>>()
+    requestReads.set(event, reads)
+    const key = `${options.collection}|${options.perLocale}|${options.locales.join(',')}`
+    let read = reads.get(key)
+    if (!read) reads.set(key, read = readArticles(event))
+    return read
+  }
+
+  async function readArticles(event: H3Event): Promise<HelpContentArticle[]> {
     const entries: Array<{ row: HelpContentRow, locale: string | undefined }> = []
     if (options.perLocale) {
       for (const locale of options.locales) {
-        const rows = await options.query(event, localizedContentCollection(options.collection, locale)).catch(() => [] as HelpContentRow[])
+        const name = localizedContentCollection(options.collection, locale)
+        const rows = await options.query(event, name).catch((error: unknown) => {
+          // A language without a collection is skipped, but never silently.
+          (options.onError ?? ((collection, cause) => console.warn(`[@frigear-nu/help-center] could not read the content collection "${collection}":`, cause)))(name, error)
+          return [] as HelpContentRow[]
+        })
         for (const row of rows) entries.push({ row, locale })
       }
     }

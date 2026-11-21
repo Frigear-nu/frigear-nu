@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, resolveComponent, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useSeoMeta } from '#imports'
+import { computed, errorMessage, resolveComponent, setResponseStatus, useRequestEvent, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'HelpCenterCategoryView' })
 
@@ -14,8 +14,10 @@ const tr = useHelpCenterTranslate()
 const paths = useHelpCenterPaths()
 const links = isPublic ? paths.public : paths.signedIn
 
-const { categories } = await useHelpCenterCategories({ public: isPublic })
-const { articles } = await useHelpCenterArticles(() => props.category, { public: isPublic })
+const { categories, error: categoriesError, refresh: refreshCategories } = await useHelpCenterCategories({ public: isPublic })
+const { articles, error: articlesError, refresh: refreshArticles } = await useHelpCenterArticles(() => props.category, { public: isPublic })
+const error = computed(() => categoriesError.value ?? articlesError.value)
+const refresh = () => Promise.all([refreshCategories(), refreshArticles()])
 
 const current = computed(() => categories.value.find(category => category.slug === props.category))
 const children = computed(() => current.value ? categories.value.filter(category => category.parentId === current.value!.id) : [])
@@ -31,6 +33,9 @@ const breadcrumb = computed(() => [
   ...(parent.value ? [{ label: tr(parent.value.name), to: links.category(parent.value.slug) }] : []),
   { label: current.value ? tr(current.value.name) : props.category },
 ])
+
+// Not found is a 404 for crawlers too; a failed request is an error, not "not found".
+if (import.meta.server && !current.value && !error.value) setResponseStatus(useRequestEvent(), 404)
 
 useSeoMeta({ title: () => current.value ? tr(current.value.name) : t('title', 'Help center') })
 </script>
@@ -98,6 +103,18 @@ useSeoMeta({ title: () => current.value ? tr(current.value.name) : t('title', 'H
         />
       </div>
     </div>
+  </HelpCenterFrame>
+  <HelpCenterFrame
+    v-else-if="error"
+    :area="area"
+    :title="t('category.loadFailed', 'The category could not be loaded')"
+  >
+    <UEmpty
+      icon="i-lucide-circle-alert"
+      :title="t('category.loadFailed', 'The category could not be loaded')"
+      :description="errorMessage(error, '')"
+      :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+    />
   </HelpCenterFrame>
   <HelpCenterFrame
     v-else

@@ -19,15 +19,20 @@ const querySchema = pageQuery({
 
 // Every article of every source, whatever its status or visibility: the database ones (editable) and, with Nuxt Content,
 // its files (read-only, always published and public). `q` searches the title in every language and the URL name;
-// `category` is a category's URL name; `source` limits to one source. Read in memory: staff lists are a few hundred rows.
+// `category` is a category's URL name; `source` limits to one source. Sorted and paged in memory over the newest
+// HELP_ADMIN_ARTICLE_CAP (5000) database rows; `total` is counted in SQL, so it stays right past the cap.
 export default defineEventHandler(async (event): Promise<Page<AdminHelpArticleDto>> => {
   await authorize(event, helpCenterAccess.permissions.manage)
   const query = await getValidatedQuery(event, querySchema.parse)
   const needle = query.q?.toLocaleLowerCase()
 
   const items: AdminHelpArticleDto[] = []
+  let databaseTotal = 0
   if (query.source !== 'content') {
-    const rows = await listHelpArticleRows({ q: query.q, status: query.status, categorySlug: query.category || undefined })
+    const filter = { q: query.q, status: query.status, categorySlug: query.category || undefined }
+    const [rows, total] = await Promise.all([listHelpArticleRows(filter), countHelpArticleRows(filter)])
+    databaseTotal = total
+    if (total > rows.length) console.warn(`[@frigear-nu/help-center] the admin article list holds the newest ${rows.length} of ${total} articles: narrow it with a search or a filter.`)
     items.push(...rows.map(({ article, category }) => toAdminHelpArticleDto(category, article)))
   }
   if (query.source !== 'database' && (!query.status || query.status === 'published')) {
@@ -50,5 +55,6 @@ export default defineEventHandler(async (event): Promise<Page<AdminHelpArticleDt
     return compare * direction || a.slug.localeCompare(b.slug)
   })
   const { limit, offset } = pageRange(query)
-  return paginate({ total: items.length, query, items: items.slice(offset, offset + limit) })
+  const contentTotal = items.filter(item => item.source !== 'database').length
+  return paginate({ total: databaseTotal + contentTotal, query, items: items.slice(offset, offset + limit) })
 })

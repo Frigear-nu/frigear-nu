@@ -51,8 +51,8 @@ export type ModuleOptions = {
       collection?: string
       /** One collection per locale (`<collection>_<locale>`) instead of a `locale` field in the frontmatter. */
       perLocale?: boolean
-      /** Which source wins when a database article and a content article share a slug. Defaults to `database`. */
-      precedence?: 'database' | 'content'
+      /** The id of the source that wins when two articles share a slug (`database`, `content` or a registered one). Categories always put the database first. Defaults to `database`. */
+      precedence?: string
       /** What a missing required language in a content article does at build time. Defaults to `warn`. */
       missingLocales?: 'warn' | 'error'
     }
@@ -83,6 +83,8 @@ export type PublicModuleOptions = {
   contentCollection: string | null
   /** `@frigear-nu/faq` is installed: categories can show FAQ groups. */
   faq: boolean
+  /** How the site puts locales in paths, or `null` without i18n. Used for links in emails. */
+  i18n: { strategy: string, defaultLocale: string | null, locales: string[] } | null
 }
 
 /** A category as the viewer who may read it sees it. */

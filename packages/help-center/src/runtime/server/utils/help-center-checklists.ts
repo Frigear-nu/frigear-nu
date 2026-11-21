@@ -16,9 +16,8 @@ import type {
   HelpProgressRow,
   HelpProgressSummary,
 } from '../../../types'
-import { isContentArticleId } from '../../utils/content'
 import { normalizeVisibility } from '../../utils/visibility'
-import { helpCenterArticleById } from './help-center'
+import { helpCenterArticleById, helpCenterRequest } from './help-center'
 import type { HelpCenterRequest } from './help-center'
 import { helpCenterContentArticles } from './help-center-content'
 import { assertHelpOperation, assertHelpVisibilityOperation } from './help-center-db'
@@ -167,7 +166,7 @@ export async function loadViewerChecklists(ctx: HelpCenterRequest): Promise<Help
 /** Summaries of articles by id for staff, whatever their status: database rows and content articles. */
 async function adminArticleSummaries(event: H3Event, ids: string[]): Promise<Map<string, HelpArticleSummaryDto>> {
   const summaries = new Map<string, HelpArticleSummaryDto>()
-  const databaseIds = ids.filter(id => !isContentArticleId(id))
+  const databaseIds = ids.filter(id => id.startsWith('hlp_'))
   for (const part of chunked(databaseIds)) {
     const rows = await db.select({ article: schema.helpArticles, category: schema.helpCategories })
       .from(schema.helpArticles)
@@ -175,21 +174,14 @@ async function adminArticleSummaries(event: H3Event, ids: string[]): Promise<Map
       .where(inArray(schema.helpArticles.id, part))
     for (const { article, category } of rows) summaries.set(article.id, toHelpArticleSummaryDto(category, article))
   }
-  if (ids.some(isContentArticleId)) {
-    for (const article of await helpCenterContentArticles(event)) {
-      if (!ids.includes(article.id)) continue
-      summaries.set(article.id, {
-        id: article.id,
-        slug: article.slug,
-        title: article.title,
-        categorySlug: article.categorySlug,
-        source: 'content',
-        public: true,
-        sort: article.order,
-        publishedAt: null,
-        updatedAt: null,
-      })
-    }
+  // The other sources (Nuxt Content, a host's own) serve public articles: read them as a visitor, each id once.
+  const others = [...new Set(ids.filter(id => !id.startsWith('hlp_')))]
+  if (others.length) {
+    const ctx = await helpCenterRequest(event, { public: true })
+    await Promise.all(others.map(async (id) => {
+      const article = await helpCenterArticleById(ctx, id)
+      if (article) summaries.set(id, toHelpArticleSummary(article))
+    }))
   }
   return summaries
 }
@@ -294,7 +286,8 @@ type UsersTable = { id: AnyColumn, name: AnyColumn, email: AnyColumn, phone?: An
 /** The `users` table of `@frigear-nu/users`, when the host has it (a package must not import it). */
 const usersTable = () => (schema as unknown as { users?: UsersTable }).users
 
-export type HelpUserRecord = { id: string, name: string | null, email: string | null, phone: string | null }
+/** `user` is the row as stored (`id` as the table has it, a number for the users module), what auth's role lookup takes. */
+export type HelpUserRecord = { id: string, name: string | null, email: string | null, phone: string | null, user: { id: string | number, name: string | null, email: string | null } }
 
 /** People by id: name and email, and the phone when the host's users table has a `phone` column. */
 export async function loadHelpUsers(ids: string[]): Promise<Map<string, HelpUserRecord>> {
@@ -313,6 +306,11 @@ export async function loadHelpUsers(ids: string[]): Promise<Map<string, HelpUser
         name: typeof row.name === 'string' ? row.name : null,
         email: typeof row.email === 'string' ? row.email : null,
         phone: typeof row.phone === 'string' && row.phone ? row.phone : null,
+        user: {
+          id: row.id as string | number,
+          name: typeof row.name === 'string' ? row.name : null,
+          email: typeof row.email === 'string' ? row.email : null,
+        },
       })
     }
   }

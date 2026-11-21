@@ -3,14 +3,14 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, desc, eq, inArray, is, or, sql } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
-import { isVisible, parseVisibility } from '@frigear-nu/audience'
-import type { OwnerRef, Visibility } from '@frigear-nu/audience'
+import { parseVisibility } from '@frigear-nu/audience'
+import type { OwnerRef, Viewer, Visibility } from '@frigear-nu/audience'
 import { resolveOwner } from '@frigear-nu/audience/server'
 import { apiError, conflict, escapeLike, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { HelpCenterSource, HelpSourceCategory } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
-import { isHelpArticleVisible, normalizeVisibility } from '../../utils/visibility'
+import { categoryChain, isHelpArticleVisibleIn, isHelpChainVisible, normalizeVisibility } from '../../utils/visibility'
 import { toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
 import type { HelpArticleRow, HelpCategoryRow } from './help-center-dto'
 import { isHelpCenterForeignKeyViolation, isHelpCenterUniqueViolation } from './help-center-errors'
@@ -109,25 +109,61 @@ const MAX_BATCHES = 50
 
 const ARTICLE_ORDER = [asc(schema.helpArticles.sort), asc(schema.helpArticles.createdAt), asc(schema.helpArticles.id)] as const
 
+// --- Per-request cache ------------------------------------------------------------------------
+
+type RequestCache = {
+  categories?: Promise<HelpCategoryRow[]>
+  articlesById: Map<string, Promise<HelpArticleRow | undefined>>
+  articlesBySlug: Map<string, Promise<HelpArticleRow | undefined>>
+}
+
+/** Rows read for one request, so a send or a checklist reads each article and the category tree once, not once per person. */
+function requestCache(event: H3Event): RequestCache {
+  return (event.context.helpCenterCache ??= { articlesById: new Map(), articlesBySlug: new Map() }) as RequestCache
+}
+
+/** Every category, read once per request. Not for the admin routes: they write, and must see their own changes. */
+export function cachedHelpCategoryRows(event: H3Event): Promise<HelpCategoryRow[]> {
+  const cache = requestCache(event)
+  return cache.categories ??= listHelpCategoryRows()
+}
+
+function cachedArticleBy(event: H3Event, kind: 'articlesById' | 'articlesBySlug', key: string, find: (key: string) => Promise<HelpArticleRow | undefined>) {
+  const map = requestCache(event)[kind]
+  let found = map.get(key)
+  if (!found) map.set(key, found = find(key))
+  return found
+}
+
+/** A category tree held in memory: ancestors are looked up without another query. */
+function categoryTree(rows: HelpCategoryRow[]) {
+  const byId = new Map(rows.map(row => [row.id, row]))
+  return { byId, chainOf: (row: HelpCategoryRow) => categoryChain(row, byId) }
+}
+
 // --- The database source ----------------------------------------------------------------------
 
 /**
- * The `database` source: published articles of the tables, filtered by the viewer. The category's visibility and the
- * article's own are both checked (`isHelpArticleVisible`); the category filter and the search are in SQL, the viewer's
- * visibility is not, so rows are read in batches until there are enough visible ones or none are left.
+ * The `database` source: published articles of the tables, filtered by the viewer. A category is visible only when it and
+ * every ancestor are, and an article when its whole chain is and its own visibility allows it (`isHelpArticleVisibleIn`);
+ * the category filter and the search are in SQL, the viewer's visibility is not, so rows are read in batches until there
+ * are enough visible ones or none are left.
  */
 export const helpCenterDatabaseSource: HelpCenterSource = {
   id: 'database',
   readOnly: false,
 
-  async categories({ viewer }) {
-    const rows = await listHelpCategoryRows()
-    return rows.map((row): HelpSourceCategory => ({ ...toHelpCategoryDto(row), visible: isVisible(parseVisibility(row.visibility), viewer) }))
+  async categories({ event, viewer }) {
+    const tree = categoryTree(await cachedHelpCategoryRows(event))
+    return [...tree.byId.values()].map((row): HelpSourceCategory => {
+      const chain = tree.chainOf(row)
+      return { ...toHelpCategoryDto(row, chain), visible: isHelpChainVisible(chain, viewer) }
+    })
   },
 
-  async list({ viewer, q, category }) {
-    const categories = (await listHelpCategoryRows()).filter(row => isVisible(parseVisibility(row.visibility), viewer))
-    const byId = new Map(categories.map(row => [row.id, row]))
+  async list({ event, viewer, q, category }) {
+    const tree = categoryTree(await cachedHelpCategoryRows(event))
+    const categories = [...tree.byId.values()].filter(row => isHelpChainVisible(tree.chainOf(row), viewer))
     const wanted = category ? categories.filter(row => row.slug === category) : categories
     if (!wanted.length) return []
     const where = and(
@@ -137,32 +173,44 @@ export const helpCenterDatabaseSource: HelpCenterSource = {
     )
     const limit = q ? SEARCH_LIMIT : LIST_LIMIT
     const articles = []
+    let exhausted = false
     for (let batch = 0; batch < MAX_BATCHES && articles.length < limit; batch++) {
       const rows = await db.select().from(schema.helpArticles).where(where).orderBy(...ARTICLE_ORDER).limit(BATCH).offset(batch * BATCH)
       for (const row of rows) {
-        const owner = byId.get(row.categoryId)
-        if (owner && articles.length < limit && isHelpArticleVisible(owner, row, viewer)) articles.push(toHelpArticleDto(owner, row))
+        const owner = tree.byId.get(row.categoryId)
+        if (!owner || articles.length >= limit) continue
+        const chain = tree.chainOf(owner)
+        if (isHelpArticleVisibleIn(chain, row, viewer)) articles.push(toHelpArticleDto(owner, row, chain))
       }
-      if (rows.length < BATCH) break
+      if (rows.length < BATCH) {
+        exhausted = true
+        break
+      }
     }
+    // A cut is by design (50 hits for a search, 1000 articles for a list); say so in the log instead of cutting silently.
+    if (!exhausted && !q && articles.length >= limit) console.warn(`[@frigear-nu/help-center] the article list is cut at ${LIST_LIMIT} articles.`)
+    if (!exhausted && articles.length < limit) console.warn(`[@frigear-nu/help-center] a read stopped after ${MAX_BATCHES * BATCH} rows without finding enough readable articles.`)
     return articles
   },
 
-  async get(slug, { viewer }) {
-    return readable(await findHelpArticleBySlug(slug), viewer)
+  async get(slug, { event, viewer }) {
+    return readable(event, await cachedArticleBy(event, 'articlesBySlug', slug, findHelpArticleBySlug), viewer)
   },
 
-  async getById(id, { viewer }) {
+  async getById(id, { event, viewer }) {
     if (!id.startsWith('hlp_')) return undefined
-    return readable(await findHelpArticleById(id), viewer)
+    return readable(event, await cachedArticleBy(event, 'articlesById', id, findHelpArticleById), viewer)
   },
 }
 
-async function readable(row: HelpArticleRow | undefined, viewer: Parameters<typeof isHelpArticleVisible>[2]) {
+async function readable(event: H3Event, row: HelpArticleRow | undefined, viewer: Viewer) {
   if (!row || row.status !== 'published') return undefined
-  const category = await findHelpCategoryById(row.categoryId)
-  if (!category || !isHelpArticleVisible(category, row, viewer)) return undefined
-  return toHelpArticleDto(category, row)
+  const tree = categoryTree(await cachedHelpCategoryRows(event))
+  const category = tree.byId.get(row.categoryId)
+  if (!category) return undefined
+  const chain = tree.chainOf(category)
+  if (!isHelpArticleVisibleIn(chain, row, viewer)) return undefined
+  return toHelpArticleDto(category, row, chain)
 }
 
 // --- Writing ---------------------------------------------------------------------------------
@@ -385,8 +433,9 @@ export async function deleteHelpArticleRow(existing: HelpArticleRow): Promise<vo
   await db.delete(schema.helpArticles).where(eq(schema.helpArticles.id, existing.id))
 }
 
-/** Every article row with its category slug, newest change first, for the admin list. Filters run in SQL. */
-export async function listHelpArticleRows(options: { q?: string, status?: 'draft' | 'published', categorySlug?: string }) {
+type AdminArticleFilter = { q?: string, status?: 'draft' | 'published', categorySlug?: string }
+
+function adminArticleWhere(options: AdminArticleFilter) {
   const conditions: (SQL | undefined)[] = []
   if (options.status) conditions.push(eq(schema.helpArticles.status, options.status))
   if (options.categorySlug) conditions.push(eq(schema.helpCategories.slug, options.categorySlug))
@@ -396,10 +445,27 @@ export async function listHelpArticleRows(options: { q?: string, status?: 'draft
       sql`lower(${schema.helpArticles.slug}) like ${`%${escapeLike(options.q.toLocaleLowerCase())}%`} escape '\\'`,
     ))
   }
+  return conditions.length ? and(...conditions) : undefined
+}
+
+/** The most article rows the admin list sorts and pages in memory. `countHelpArticleRows` still counts them all. */
+export const HELP_ADMIN_ARTICLE_CAP = 5000
+
+/** The newest article rows with their category, for the admin list. Filters run in SQL; at most {@link HELP_ADMIN_ARTICLE_CAP}. */
+export async function listHelpArticleRows(options: AdminArticleFilter) {
   return db.select({ article: schema.helpArticles, category: schema.helpCategories })
     .from(schema.helpArticles)
     .innerJoin(schema.helpCategories, eq(schema.helpArticles.categoryId, schema.helpCategories.id))
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(adminArticleWhere(options))
     .orderBy(desc(schema.helpArticles.updatedAt), asc(schema.helpArticles.id))
-    .limit(5000)
+    .limit(HELP_ADMIN_ARTICLE_CAP)
+}
+
+/** How many articles match, whatever the cap of the list: the `total` of the admin page. */
+export async function countHelpArticleRows(options: AdminArticleFilter): Promise<number> {
+  const [row] = await db.select({ total: count() })
+    .from(schema.helpArticles)
+    .innerJoin(schema.helpCategories, eq(schema.helpArticles.categoryId, schema.helpCategories.id))
+    .where(adminArticleWhere(options))
+  return Number(row?.total ?? 0)
 }

@@ -35,8 +35,8 @@ on:
           - eslint-config
           - events
           - faq
-          - help-center
           - forms
+          - help-center
           - oauth-resource
           - mcp
           - menu

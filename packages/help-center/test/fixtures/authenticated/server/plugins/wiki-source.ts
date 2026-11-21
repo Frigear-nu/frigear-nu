@@ -1,11 +1,11 @@
 import { defineHelpCenterSource } from '../../../../../src/runtime/server/source'
 
 // A source of the host next to the database (`sources: ['database', 'wiki']`), the way Nuxt Content is one: its articles
-// are public, it is read-only, and the database wins a clash of slugs.
+// are public, it is read-only, and (the fixture sets precedence: wiki) it wins a clash of slugs.
 const articles = [
   // Public, in an open category.
-  { id: 'wiki:parking', slug: 'wiki-parking', categorySlug: 'wiki-guides', title: { da: 'Parkering', en: 'Parking' }, body: { da: 'Parkér ved porten.', en: 'Park at the gate.' } },
-  // Shares its slug with a database article: the database one is shown.
+  { id: 'wiki:guides/parking', slug: 'wiki-parking', categorySlug: 'wiki-guides', title: { da: 'Parkering', en: 'Parking' }, body: { da: 'Parkér ved porten.', en: 'Park at the gate.' } },
+  // Shares its slug with a database article: the wiki one is shown (the fixture sets precedence: wiki).
   { id: 'wiki:clash', slug: 'shared-slug', categorySlug: 'wiki-guides', title: { da: 'Fra wiki', en: 'From the wiki' }, body: { da: 'Wiki.', en: 'Wiki.' } },
   // Public, but filed in the restricted database category `wiki-staff`: hidden in that category's listing, still readable by its URL.
   { id: 'wiki:staff-note', slug: 'wiki-staff-note', categorySlug: 'wiki-staff', title: { da: 'Note til crew', en: 'Crew note' }, body: { da: 'Åben note.', en: 'Open note.' } },

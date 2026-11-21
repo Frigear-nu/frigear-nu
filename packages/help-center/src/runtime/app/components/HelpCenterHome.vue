@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HelpArticleSummaryDto, HelpCategoryDto } from '../../../types'
-import { computed, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterChecklists, useHelpCenterPaths, useHelpCenterSearch, useHelpCenterTranslate, useModuleT, useSeoMeta } from '#imports'
+import { computed, errorMessage, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterChecklists, useHelpCenterPaths, useHelpCenterSearch, useHelpCenterTranslate, useModuleT, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'HelpCenterHome' })
 
@@ -15,7 +15,7 @@ const tr = useHelpCenterTranslate()
 const paths = useHelpCenterPaths()
 const links = isPublic ? paths.public : paths.signedIn
 
-const { categories, status: categoriesStatus } = await useHelpCenterCategories({ public: isPublic })
+const { categories, status: categoriesStatus, error: categoriesError, refresh: refreshCategories } = await useHelpCenterCategories({ public: isPublic })
 const { articles } = await useHelpCenterArticles(undefined, { public: isPublic })
 // The checklists belong to the person, so only the signed-in area asks for them.
 const checklists = isPublic ? computed(() => []) : (await useHelpCenterChecklists()).checklists
@@ -108,6 +108,13 @@ const categoryName = (article: HelpArticleSummaryDto) => {
         <template v-if="categoriesStatus === 'pending' && !topLevel.length">
           <USkeleton class="h-32" />
         </template>
+        <UEmpty
+          v-else-if="categoriesError && !topLevel.length"
+          icon="i-lucide-circle-alert"
+          :title="t('loadFailed', 'The help center could not be loaded')"
+          :description="errorMessage(categoriesError, '')"
+          :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refreshCategories() }]"
+        />
         <UEmpty
           v-else-if="!topLevel.length"
           variant="naked"

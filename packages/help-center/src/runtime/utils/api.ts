@@ -28,8 +28,12 @@ export const helpCenterApi = {
     category: (id: string) => `${ADMIN_BASE}/categories/${enc(id)}`,
     /** `GET` (paginated, every source) / `POST` a draft article. */
     articles: `${ADMIN_BASE}/articles`,
-    /** `GET` / `PATCH` / `DELETE` one article. */
-    article: (id: string) => `${ADMIN_BASE}/articles/${enc(id)}`,
+    /** `GET` / `PATCH` / `DELETE` one article; `GET` also reads an article of another source by its id (read-only). */
+    article: (id: string) => id.includes('/')
+      // An id of another source with a `/` (`content:help:safety/first-aid`): an encoded `%2F` is refused under /api, so each
+      // segment is encoded and the slashes stay.
+      ? `${ADMIN_BASE}/source-articles/${id.split('/').map(enc).join('/')}`
+      : `${ADMIN_BASE}/articles/${enc(id)}`,
     /** `POST` to publish an article (every required locale must be filled in). */
     publish: (id: string) => `${ADMIN_BASE}/articles/${enc(id)}/publish`,
     /** `POST` to turn a published article back into a draft. */

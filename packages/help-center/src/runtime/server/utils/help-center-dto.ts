@@ -2,7 +2,7 @@ import type { schema } from '@nuxthub/db'
 import { parseVisibility } from '@frigear-nu/audience'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AdminHelpArticleDto, AdminHelpCategoryDto, HelpArticleDto, HelpArticleStatus, HelpArticleSummaryDto, HelpCategoryDto } from '../../../types'
-import { isHelpArticlePublic } from '../../utils/visibility'
+import { isHelpArticleVisibleIn } from '../../utils/visibility'
 
 export type HelpCategoryRow = typeof schema.helpCategories.$inferSelect
 export type HelpArticleRow = typeof schema.helpArticles.$inferSelect
@@ -10,7 +10,7 @@ export type HelpArticleRow = typeof schema.helpArticles.$inferSelect
 const iso = (value: Date | null | undefined) => value ? isoDate(value) : null
 
 /** What anybody who may read the category sees: an allowlist of the row's fields (no owner, visibility or audit data). */
-export function toHelpCategoryDto(row: HelpCategoryRow): HelpCategoryDto {
+export function toHelpCategoryDto(row: HelpCategoryRow, chain: HelpCategoryRow[] = [row]): HelpCategoryDto {
   return {
     id: row.id,
     slug: row.slug,
@@ -18,29 +18,30 @@ export function toHelpCategoryDto(row: HelpCategoryRow): HelpCategoryDto {
     description: row.description ?? null,
     parentId: row.parentId ?? null,
     sort: row.sort,
-    public: parseVisibility(row.visibility)?.public === true,
+    // Public only when the category and every ancestor are.
+    public: chain.every(node => parseVisibility(node.visibility)?.public === true),
     source: 'database',
     faqGroups: row.faqGroups ?? [],
   }
 }
 
 /** An article without its text, as the viewer who may read it sees it. */
-export function toHelpArticleSummaryDto(category: HelpCategoryRow, row: HelpArticleRow): HelpArticleSummaryDto {
+export function toHelpArticleSummaryDto(category: HelpCategoryRow, row: HelpArticleRow, chain: HelpCategoryRow[] = [category]): HelpArticleSummaryDto {
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     categorySlug: category.slug,
     source: 'database',
-    public: isHelpArticlePublic(category, row),
+    public: isHelpArticleVisibleIn(chain, row, null),
     sort: row.sort,
     publishedAt: iso(row.publishedAt),
     updatedAt: iso(row.updatedAt),
   }
 }
 
-export function toHelpArticleDto(category: HelpCategoryRow, row: HelpArticleRow): HelpArticleDto {
-  return { ...toHelpArticleSummaryDto(category, row), body: row.body }
+export function toHelpArticleDto(category: HelpCategoryRow, row: HelpArticleRow, chain: HelpCategoryRow[] = [category]): HelpArticleDto {
+  return { ...toHelpArticleSummaryDto(category, row, chain), body: row.body }
 }
 
 /** The list shape of an article: the text left out. */

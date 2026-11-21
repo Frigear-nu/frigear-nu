@@ -23,7 +23,8 @@ export function normalizeHelpCenterPath(value: string, option: string): string {
 
 /**
  * Turns the `pages` option into the bases of the two areas: a string is a custom path, `false` turns the area off and
- * anything else (omitted, `true`) is the default (`/help`, `/account/help`). The areas cannot share a path.
+ * anything else (omitted, `true`) is the default (`/help`, `/account/help`). The areas cannot share a path or sit inside
+ * one another.
  */
 export function resolveHelpCenterAreas(pages: { public?: string | boolean, signedIn?: string | boolean } | undefined): HelpCenterAreas {
   const one = (setting: string | boolean | undefined, fallback: string, option: string) => {
@@ -34,8 +35,9 @@ export function resolveHelpCenterAreas(pages: { public?: string | boolean, signe
     public: one(pages?.public, DEFAULT_PUBLIC_PATH, 'public'),
     signedIn: one(pages?.signedIn, DEFAULT_SIGNED_IN_PATH, 'signedIn'),
   }
-  if (areas.public && areas.public === areas.signedIn) {
-    throw new Error(`[@frigear-nu/help-center] \`settings.pages.public\` and \`settings.pages.signedIn\` are both "${areas.public}": the areas need paths of their own.`)
+  if (areas.public && areas.signedIn && (isPathUnder(areas.public, areas.signedIn) || isPathUnder(areas.signedIn, areas.public))) {
+    // Equal, or one below the other: the pages of the outer area (`<base>/:category`) would swallow the inner one's.
+    throw new Error(`[@frigear-nu/help-center] \`settings.pages.public\` ("${areas.public}") and \`settings.pages.signedIn\` ("${areas.signedIn}") overlap: the areas need paths of their own, neither inside the other.`)
   }
   return areas
 }
@@ -75,3 +77,17 @@ export function createHelpCenterPaths(areas: HelpCenterAreas) {
 }
 
 export type HelpCenterPaths = ReturnType<typeof createHelpCenterPaths>
+
+/** How the site's locales appear in paths: what `@nuxtjs/i18n` was configured with, as the module records it. */
+export type HelpCenterI18n = { strategy: string, defaultLocale: string | null, locales: string[] }
+
+/**
+ * `path` with the prefix of `locale` when the site uses prefixed routes (`prefix`, `prefix_and_default`, and
+ * `prefix_except_default` for a locale other than the default). Links that leave the app (emails) cannot ask
+ * `useLocaleLink`, so they use this. An unknown locale, or no i18n, leaves the path as it is.
+ */
+export function localizeHelpCenterPath(path: string, locale: string | undefined, i18n: HelpCenterI18n | null | undefined): string {
+  if (!locale || !i18n || !i18n.locales.includes(locale) || i18n.strategy === 'no_prefix') return path
+  if (i18n.strategy === 'prefix_except_default' && locale === i18n.defaultLocale) return path
+  return `/${locale}${path}`
+}

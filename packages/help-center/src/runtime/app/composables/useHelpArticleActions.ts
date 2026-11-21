@@ -3,7 +3,8 @@ import HelpArticleFormSlideover from '../components/HelpArticleFormSlideover.vue
 import HelpSendSlideover from '../components/HelpSendSlideover.vue'
 import type { StaffHelpArticle, StaffHelpCategory } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay } from '#imports'
+import { missingTranslations } from '../../utils/publish'
+import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay, useRuntimeConfig } from '#imports'
 
 export type HelpArticleMenuOptions = {
   /** The categories, for the category picker of the form. */
@@ -26,6 +27,7 @@ export function useHelpArticleActions() {
   const confirm = useConfirmDialog()
   const { run } = useAction()
   const tr = useHelpCenterTranslate()
+  const requiredLocales = useRuntimeConfig().public.helpCenter?.requiredLocales ?? ['da', 'en']
 
   async function create(categories: StaffHelpCategory[], categoryId?: string): Promise<StaffHelpArticle | false> {
     return await overlay.create(HelpArticleFormSlideover, { destroyOnClose: true, props: { article: undefined, categories, categoryId } }).open() as StaffHelpArticle | false
@@ -84,7 +86,13 @@ export function useHelpArticleActions() {
     }]
     const state: DropdownMenuItem[] = [article.status === 'published'
       ? { label: t('admin.unpublish', 'Unpublish'), icon: 'i-lucide-eye-off', onSelect: async () => changed(await unpublish(article)) }
-      : { label: t('admin.publish', 'Publish'), icon: 'i-lucide-send', onSelect: async () => changed(await publish(article)) }]
+      : {
+          label: t('admin.publish', 'Publish'),
+          icon: 'i-lucide-send',
+          // Publishing needs every required language: edit the article first.
+          disabled: missingTranslations(article, requiredLocales).length > 0,
+          onSelect: async () => changed(await publish(article)),
+        }]
     if (options.send && article.status === 'published') {
       state.push({
         label: t('admin.sendArticle', 'Send to people'),
