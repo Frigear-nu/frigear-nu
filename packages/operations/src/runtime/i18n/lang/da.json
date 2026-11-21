@@ -98,6 +98,10 @@
       "deleteAction": "Slet operation",
       "deleted": "Slettede {name}",
       "deleteFailed": "Operationen kunne ikke slettes"
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Vælg en operation"
     }
   }
 }
