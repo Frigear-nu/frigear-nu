@@ -1,0 +1,12 @@
+import { db, schema } from '@nuxthub/db'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+const bodySchema = z.object({ email: z.string(), phone: z.string().nullable() })
+
+// Test-only: sets the phone number (the host's `users.phone` column, see `server/db/extend.sqlite.ts`).
+export default defineEventHandler(async (event) => {
+  const { email, phone } = await readValidatedBody(event, bodySchema.parse)
+  const [user] = await db.update(schema.users).set({ phone } as never).where(eq(schema.users.email, email)).returning()
+  return { id: user?.id }
+})

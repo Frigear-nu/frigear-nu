@@ -77,3 +77,4 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/forms](./packages/forms) - Dynamic, database-stored forms (single page or stepped) with conditional fields, file uploads, submissions and email delivery
 - [@frigear-nu/cookie-consent](./packages/cookie-consent) - GDPR cookie consent banner with categories other modules contribute to, `onCookieConsent` gating and consent stored as proof on the user
 - [@frigear-nu/audience](./packages/audience) - Shared visibility rules (`isVisible`, `narrowVisibility`), owner references and the `audience:viewer:resolve` / `audience:owner:resolve` hooks for the volunteering modules; a plain library, not a Nuxt module
+- [@frigear-nu/push](./packages/push) - Push notifications: device registration, FCM and APNs delivery (`sendPush`), per-user email, SMS and push choices with a topic registry (`extendNotificationTopics`) and `notifyUser`; runs in server and client mode

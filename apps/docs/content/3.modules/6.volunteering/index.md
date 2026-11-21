@@ -10,8 +10,9 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The only package that exists today is [Audience](/modules/volunteering/audience), the shared visibility rules. Every
-other module adds its own page to this group in the pull request that adds the module.
+Two packages exist today: [Audience](/modules/volunteering/audience), the shared visibility rules, and
+[Push](/modules/volunteering/push), device registration and channel choices. Every other module adds its own page to this
+group in the pull request that adds the module.
 
 ## The modules
 
@@ -24,7 +25,7 @@ other module adds its own page to this group in the pull request that adds the m
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
-| `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
+| [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
 | [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
@@ -167,6 +168,25 @@ type TeamRoleGrant = {
 - Teams answers `audience:viewer:resolve` with the grants on every owner, plus the ladder of each team kind in them.
 - Modules that only need visibility never call `resolveTeamRoles`. They call `resolveViewer` and get the grants
   through the hook, so they do not import teams.
+
+## Notifications
+
+A module that tells a person something does not send email, SMS or push itself. It registers a topic at build time and
+calls one helper at run time, and [Push](/modules/volunteering/push) sends on the channels the person chose.
+
+```ts
+// in the module's setup()
+extendNotificationTopics(nuxt, [{ id: 'shifts.reminder', label: { da: 'Vagtpåmindelser', en: 'Shift reminders' }, defaults: { email: true, sms: false, push: true } }])
+
+// in a route or task
+await notifyUser(event, userId, { topic: 'shifts.reminder', email: { subject, body }, sms: { body: text }, push: { title, body: text, url } })
+```
+
+- **Topic ids** are lower case, dot separated and start with the module name: `shifts.reminder`, `inbox.message`.
+- **A topic that is not registered throws**, so a typo fails in development.
+- **SMS and email** go through the drivers of [Notify](/modules/platform/notify). The host app picks them.
+- A module that only sends when Push is installed checks `hasNuxtModule('@frigear-nu/push')` and registers its topics
+  then. The helpers are server auto-imports where Push is installed.
 
 ## Hooks
 
