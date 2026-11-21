@@ -68,7 +68,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@frigear-nu/mobile', '@frigear-nu/authorization'],
   css: ['~/assets/css/main.css'],
   mobile: {
-    appId: 'nu.frigear.bills', // capacitor appId and, in lowercase, the OAuth redirect scheme
+    appId: 'com.example.app', // capacitor appId and, in lowercase, the OAuth redirect scheme
     appName: 'Bills',
     tabs: [
       { id: 'home', to: '/', label: 'Upcoming', icon: 'i-lucide-calendar-clock', sfSymbol: 'calendar.badge.clock' },

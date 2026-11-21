@@ -28,7 +28,7 @@ const menu = [[{ label: 'Open' }], [{ label: 'Delete event', color: 'error' as c
       label="Event sections"
     />
     <SectionCard title="Key facts">
-      <DescriptionList :items="[{ label: 'Venue', value: 'Copenhagen' }, { label: 'Capacity', value: null }]" />
+      <DescriptionList :items="[{ label: 'Venue', value: 'Main hall' }, { label: 'Capacity', value: null }]" />
     </SectionCard>
     <RowMenu :items="menu" />
   </div>
