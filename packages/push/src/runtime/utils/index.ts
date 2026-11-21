@@ -2,6 +2,8 @@
 export * from './api'
 export { NOTIFICATION_CHANNELS, extendNotificationTopics, readTranslated, resolveChannelSettings, topicChannels } from './topics'
 
+export type { Http2Request, Http2Response, Http2Transport } from '../providers/types'
+
 export type {
   ChannelMatrixDto,
   ChannelMatrixInput,

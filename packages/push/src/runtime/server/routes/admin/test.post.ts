@@ -14,5 +14,10 @@ export default defineEventHandler(async (event): Promise<SendPushResult> => {
   const [target] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1)
   if (!target) throw notFound('User not found.')
   await authorize(event, 'push:send', target)
-  return sendPush(event, { userIds: [userId], title: 'Test notification', body: 'If you can read this, push notifications reach this device.' })
+  // Each device gets the text for the locale it registered with.
+  return sendPush(event, {
+    userIds: [userId],
+    title: { da: 'Testnotifikation', en: 'Test notification' },
+    body: { da: 'Kan du læse dette, virker pushnotifikationer på denne enhed.', en: 'If you can read this, push notifications reach this device.' },
+  })
 })

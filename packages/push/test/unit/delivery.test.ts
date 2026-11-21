@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { deliverToDevices } from '../../src/runtime/providers/deliver'
-import { apnsConfigOf, createPlatformSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, resolvePushDriver } from '../../src/runtime/providers/config'
+import { chunk } from '../../src/runtime/providers/chunk'
+import { apnsConfigOf, createPlatformSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, requestTimeoutMs, resolvePushDriver } from '../../src/runtime/providers/config'
 import type { PushRuntimeConfig } from '../../src/types'
 import type { DeviceSender } from '../../src/runtime/providers/types'
 
 const config = (overrides: Partial<PushRuntimeConfig> = {}): PushRuntimeConfig => ({
   driver: '',
+  timeoutMs: 10000,
   fcm: { serviceAccount: '' },
   apns: { keyId: '', teamId: '', topic: '', privateKey: '', sandbox: false },
   ...overrides,
@@ -83,5 +85,62 @@ describe('deliverToDevices', () => {
     })
     expect(report.sent).toBe(25)
     expect(peak).toBeLessThanOrEqual(10)
+  })
+
+  it('does not revoke when every iOS device of the call gets BadDeviceToken (a sandbox or production mix-up)', async () => {
+    const bad = sender(async () => ({ status: 'dead', reason: '400 BadDeviceToken', ambiguous: true }))
+    const report = await deliverToDevices([
+      { id: 'a', platform: 'ios', token: '1' },
+      { id: 'b', platform: 'ios', token: '2' },
+      { id: 'c', platform: 'android', token: '3' },
+    ], message, { ios: bad, android: sender(async () => ({ status: 'sent' })) })
+    expect(report).toMatchObject({ sent: 1, failed: 2, revoked: 0, revokedIds: [] })
+    expect(report.problems[0]).toContain('push.apns.sandbox')
+  })
+
+  it('revokes a BadDeviceToken when other iOS devices of the call were fine', async () => {
+    const report = await deliverToDevices([
+      { id: 'a', platform: 'ios', token: 'bad' },
+      { id: 'b', platform: 'ios', token: 'ok' },
+    ], message, { ios: sender(async token => token === 'bad' ? { status: 'dead', reason: '400 BadDeviceToken', ambiguous: true } : { status: 'sent' }) })
+    expect(report).toMatchObject({ sent: 1, failed: 0, revoked: 1, revokedIds: ['a'] })
+  })
+
+  it('still revokes an unambiguous dead token when every iOS device is dead', async () => {
+    const report = await deliverToDevices([{ id: 'a', platform: 'ios', token: '1' }], message, { ios: sender(async () => ({ status: 'dead', reason: '410 Unregistered' })) })
+    expect(report).toMatchObject({ revoked: 1, revokedIds: ['a'] })
+  })
+
+  it('picks the text per device, so each gets its own language', async () => {
+    const seen: string[] = []
+    await deliverToDevices([
+      { id: 'a', platform: 'android', token: '1', locale: 'da' },
+      { id: 'b', platform: 'android', token: '2', locale: null },
+    ], device => ({ title: device.locale === 'da' ? 'Hej' : 'Hello', body: '' }), {
+      android: {
+        send: async (sent) => {
+          seen.push(sent.title)
+          return { status: 'sent' }
+        },
+      },
+    })
+    expect(seen.sort()).toEqual(['Hej', 'Hello'])
+  })
+})
+
+describe('chunk', () => {
+  it('keeps every IN list under the 100 bound parameters of D1', () => {
+    const ids = Array.from({ length: 250 }, (_, index) => index)
+    const pieces = chunk(ids)
+    expect(pieces.map(piece => piece.length)).toEqual([90, 90, 70])
+    expect(pieces.flat()).toEqual(ids)
+    expect(chunk([])).toEqual([])
+    expect(chunk([1, 2, 3], 2)).toEqual([[1, 2], [3]])
+  })
+})
+
+describe('requestTimeoutMs', () => {
+  it('reads a number or an env string and falls back to 10 seconds', () => {
+    expect([2500, '3000', '', 0, 'abc', undefined as unknown as number].map(timeoutMs => requestTimeoutMs({ timeoutMs }))).toEqual([2500, 3000, 10000, 10000, 10000, 10000])
   })
 })

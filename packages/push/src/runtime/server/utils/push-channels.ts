@@ -3,6 +3,8 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
 import { topics } from '#push/topics'
 import type { ChannelMatrixDto, ChannelMatrixRow, ChannelSettings, NotificationTopic } from '../../../types'
+import { chunk } from '../../providers/chunk'
+import { normalizePhone, phoneColumnOf } from '../../utils/phone'
 import { resolveChannelSettings, topicChannels } from '../../utils/topics'
 
 /** The topics modules registered with `extendNotificationTopics`. */
@@ -29,10 +31,10 @@ export async function pushChannelSettingsFor(userId: number, topic: Notification
  * `null` without the column or without a value.
  */
 export async function pushUserPhone(userId: number): Promise<string | null> {
-  const column = (schema.users as unknown as Record<string, AnyColumn | undefined>).phone
+  const column = phoneColumnOf<AnyColumn>(schema.users)
   if (!column) return null
   const [row] = await db.select({ phone: column }).from(schema.users).where(eq(schema.users.id, userId)).limit(1)
-  return typeof row?.phone === 'string' && row.phone.trim() ? row.phone.trim() : null
+  return normalizePhone(row?.phone)
 }
 
 /** The matrix `GET /api/push/me/channels` answers: every registered topic with what applies to the user. */
@@ -64,8 +66,8 @@ export async function readPushChannelMatrix(userId: number): Promise<ChannelMatr
 export async function savePushChannelChoices(userId: number, changes: Record<string, Partial<ChannelSettings>>): Promise<void> {
   const ids = Object.keys(changes)
   if (!ids.length) return
-  const existing = await db.select().from(schema.pushChannelPreferences)
-    .where(and(eq(schema.pushChannelPreferences.userId, userId), inArray(schema.pushChannelPreferences.topic, ids)))
+  const existing = (await Promise.all(chunk(ids).map(topicIds => db.select().from(schema.pushChannelPreferences)
+    .where(and(eq(schema.pushChannelPreferences.userId, userId), inArray(schema.pushChannelPreferences.topic, topicIds)))))).flat()
   const stored = new Map(existing.map(row => [row.topic, row]))
 
   for (const id of ids) {

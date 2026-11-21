@@ -19,6 +19,7 @@ const { data: matrix, error, loading, refresh } = await useCachedFetch<ChannelMa
 
 const CHANNELS: NotificationChannel[] = ['email', 'sms', 'push']
 const topics = computed(() => matrix.value?.topics ?? [])
+const offersSms = computed(() => topics.value.some(row => row.channels.includes('sms')))
 
 // A topic names its text with a plain/translated value or an i18n key of the app that registered it.
 const locale = computed(() => $i18n?.locale.value ?? 'en')
@@ -40,7 +41,7 @@ async function change(row: ChannelMatrixRow, channel: NotificationChannel, value
   const previous = row.settings[channel]
   row.settings[channel] = value
   try {
-    matrix.value = await $fetch<ChannelMatrixDto>(pushApi.me.channels, { method: 'PUT', body: { topics: { [row.id]: { [channel]: value } } } })
+    matrix.value = await $fetch<ChannelMatrixDto>(pushApi.me.channels, { method: 'PATCH', body: { topics: { [row.id]: { [channel]: value } } } })
     toast.add({ title: t('updated', 'Notifications updated'), description: topicText(row.labelKey, row.label), color: 'success', icon: 'i-lucide-check' })
   }
   catch (e) {
@@ -74,7 +75,7 @@ async function change(row: ChannelMatrixRow, channel: NotificationChannel, value
         :description="t('noDevice', 'Push notifications arrive in the app: sign in there and allow notifications to turn them on.')"
       />
       <UAlert
-        v-if="matrix && !matrix.hasPhone"
+        v-if="matrix && !matrix.hasPhone && offersSms"
         color="neutral"
         variant="subtle"
         icon="i-lucide-phone"

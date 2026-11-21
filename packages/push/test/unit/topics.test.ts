@@ -53,6 +53,9 @@ describe('readTranslated', () => {
     expect(readTranslated({ da: 'Hej', en: 'Hello' }, 'da')).toBe('Hej')
     expect(readTranslated({ da: 'Hej', en: 'Hello' }, 'sv')).toBe('Hello')
     expect(readTranslated({ da: 'Hej' }, 'en')).toBe('Hej')
+    // A regional locale falls back to its language before English.
+    expect(readTranslated({ da: 'Hej', en: 'Hello' }, 'da-DK')).toBe('Hej')
+    expect(readTranslated({ da: 'Hej', en: 'Hello' }, 'sv_SE')).toBe('Hello')
     expect(readTranslated('Same', 'da')).toBe('Same')
     expect(readTranslated(undefined, 'da')).toBe('')
   })

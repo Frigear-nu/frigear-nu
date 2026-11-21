@@ -125,6 +125,30 @@ describe('createPushDevice', () => {
     expect(requests[1]!.body).toMatchObject({ token: 'token-2' })
   })
 
+  it('shares one registration between overlapping calls', async () => {
+    const plugin = fakePlugin({ permission: 'granted' })
+    const { device, requests } = setup(plugin)
+    const results = await Promise.all([device.register(), device.register(), device.register()])
+    expect(results).toEqual([true, true, true])
+    expect(plugin.calls.filter(call => call === 'register')).toHaveLength(1)
+    expect(requests).toHaveLength(1)
+    // Once it is done a new call registers again.
+    await device.register()
+    expect(plugin.calls.filter(call => call === 'register')).toHaveLength(2)
+  })
+
+  it('lets a later call register after an earlier one timed out, and the late token does not break it', async () => {
+    const plugin = fakePlugin({ permission: 'granted', token: null })
+    const { device, requests } = setup(plugin, { tokenTimeoutMs: 100 })
+    await expect(device.register()).rejects.toThrow(/did not hand out/)
+    // The next call has its own waiter and gets the token the OS hands out now.
+    const next = device.register()
+    await vi.waitFor(() => expect(plugin.calls.filter(call => call === 'register')).toHaveLength(2), { interval: 1 })
+    plugin.listeners.registration!({ value: 'late-token' })
+    expect(await next).toBe(true)
+    expect(requests.at(-1)!.body).toMatchObject({ token: 'late-token' })
+  })
+
   it('opens a tapped notification\'s url only when it is a path inside the app', async () => {
     const plugin = fakePlugin({ permission: 'granted' })
     const { device, navigated } = setup(plugin)

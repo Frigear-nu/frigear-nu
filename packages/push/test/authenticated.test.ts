@@ -10,7 +10,7 @@ import { createToken, deviceRows, getHookCalls, getMails, getProviderCalls, getT
 let counter = 0
 const unique = (prefix: string) => `${prefix}-${++counter}`
 
-const register = (cookie: string, token: string, platform: 'ios' | 'android' | 'web' = 'android', extra: Record<string, unknown> = {}) =>
+const register = (cookie: string, token: string, platform: 'ios' | 'android' = 'android', extra: Record<string, unknown> = {}) =>
   apiClient({ cookie }).json<PushDeviceDto>('POST', pushApi.me.devices, { platform, token, ...extra })
 
 const notify = (body: Record<string, unknown>) => $fetch<NotifyUserResult>('/api/test/notify', { method: 'POST', body })
@@ -104,13 +104,42 @@ describe('push (authenticated, database-backed)', async () => {
       expect(back.revokedAt).toBeNull()
     })
 
-    it('answers zeros for users without devices and counts a platform without a provider as failed', async () => {
+    it('answers zeros for users without devices', async () => {
       const user = await registerUser('Nobody', 'nobody@example.com')
       expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 0, revoked: 0 })
       expect(await send({ userIds: [], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 0, revoked: 0 })
+    })
 
-      await register(user.cookie, unique('web-token'), 'web')
-      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+    it('reaches users among hundreds of ids (queries are chunked for D1\'s bound-parameter limit)', async () => {
+      const user = await registerUser('Crowd', 'crowd@example.com')
+      await register(user.cookie, unique('fcm-ok'))
+      const others = Array.from({ length: 300 }, (_, index) => 900_000 + index)
+      expect(await send({ userIds: [...others.slice(0, 150), user.id, ...others.slice(150)], title: 'Hi', body: 'There' })).toEqual({ sent: 1, failed: 0, revoked: 0 })
+    })
+
+    it('does not revoke iOS devices when every one of them gets BadDeviceToken (a sandbox or production mix-up)', async () => {
+      const user = await registerUser('Sandbox', 'sandbox@example.com')
+      const first = await register(user.cookie, unique('apns-baddevice'), 'ios')
+      const second = await register(user.cookie, unique('apns-baddevice'), 'ios')
+      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 2, revoked: 0 })
+      const rows = new Map((await deviceRows()).map(row => [row.id, row]))
+      expect(rows.get(first.id)!.revokedAt).toBeNull()
+      expect(rows.get(second.id)!.revokedAt).toBeNull()
+
+      // With one good iOS device in the call the bad token is a dead one.
+      await register(user.cookie, unique('apns-ok'), 'ios')
+      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 1, failed: 0, revoked: 2 })
+    })
+
+    it('picks the text of each device\'s locale', async () => {
+      const user = await registerUser('Locale', 'locale@example.com')
+      await register(user.cookie, unique('fcm-ok'), 'android', { locale: 'da-DK' })
+      await register(user.cookie, unique('fcm-ok'), 'android', { locale: 'en' })
+      await register(user.cookie, unique('fcm-ok'), 'android')
+      await getProviderCalls(true)
+      await send({ userIds: [user.id], title: { da: 'Vagt i morgen', en: 'Shift tomorrow' }, body: { da: 'Du har vagt', en: 'You work' } })
+      const titles = (await getProviderCalls()).filter(call => call.provider === 'fcm').map(call => (call.body as { message: { notification: { title: string } } }).message.notification.title)
+      expect(titles.sort()).toEqual(['Shift tomorrow', 'Shift tomorrow', 'Vagt i morgen'])
     })
   })
 
@@ -140,6 +169,8 @@ describe('push (authenticated, database-backed)', async () => {
       const user = await registerUser('Bob', 'bob@example.com')
       const api = apiClient({ cookie: user.cookie })
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'windows', token: 'x' }), 400)
+      // Web push is not part of v1.
+      await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'web', token: 'x' }), 400)
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios', token: '   ' }), 400)
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios' }), 400)
       await expectApiError(apiClient().json('GET', pushApi.me.devices), 401)
@@ -223,12 +254,12 @@ describe('push (authenticated, database-backed)', async () => {
       const other = await registerUser('Eve', 'eve@example.com')
       const api = apiClient({ cookie: user.cookie })
 
-      const changed = await api.json<ChannelMatrixDto>('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { push: false, sms: true } } })
+      const changed = await api.json<ChannelMatrixDto>('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { push: false, sms: true } } })
       expect(changed.topics.find(topic => topic.id === 'shifts.reminder')).toMatchObject({ settings: { email: true, sms: true, push: false }, custom: true })
       expect(changed.topics.find(topic => topic.id === 'broadcast')).toMatchObject({ settings: { email: true, sms: false, push: false }, custom: false })
 
       // A later change keeps what was chosen before.
-      await api.json('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false } } })
+      await api.json('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false } } })
       const matrix = await api.json<ChannelMatrixDto>('GET', pushApi.me.channels)
       expect(matrix.topics.find(topic => topic.id === 'shifts.reminder')!.settings).toEqual({ email: false, sms: true, push: false })
 
@@ -241,17 +272,17 @@ describe('push (authenticated, database-backed)', async () => {
       const user = await registerUser('Fay', 'fay@example.com')
       const api = apiClient({ cookie: user.cookie })
 
-      const matrix = await api.json<ChannelMatrixDto>('PUT', pushApi.me.channels, { topics: { broadcast: { sms: true, push: true } } })
+      const matrix = await api.json<ChannelMatrixDto>('PATCH', pushApi.me.channels, { topics: { broadcast: { sms: true, push: true } } })
       expect(matrix.topics.find(topic => topic.id === 'broadcast')!.settings).toEqual({ email: true, sms: false, push: true })
 
-      const error = await expectApiError(api.json('PUT', pushApi.me.channels, { topics: { 'nope.topic': { push: true }, 'shifts.reminder': { push: false } } }), 400, 'validation_failed')
+      const error = await expectApiError(api.json('PATCH', pushApi.me.channels, { topics: { 'nope.topic': { push: true }, 'shifts.reminder': { push: false } } }), 400, 'validation_failed')
       expect(JSON.stringify(error.data)).toContain('nope.topic')
       // Nothing of the refused request was stored.
       expect((await api.json<ChannelMatrixDto>('GET', pushApi.me.channels)).topics.find(topic => topic.id === 'shifts.reminder')!.custom).toBe(false)
 
-      await expectApiError(api.json('PUT', pushApi.me.channels, { topics: { broadcast: { fax: true } } }), 400)
-      await expectApiError(api.json('PUT', pushApi.me.channels, { topics: { broadcast: { push: 'yes' } } }), 400)
-      await expectApiError(api.json('PUT', pushApi.me.channels, {}), 400)
+      await expectApiError(api.json('PATCH', pushApi.me.channels, { topics: { broadcast: { fax: true } } }), 400)
+      await expectApiError(api.json('PATCH', pushApi.me.channels, { topics: { broadcast: { push: 'yes' } } }), 400)
+      await expectApiError(api.json('PATCH', pushApi.me.channels, {}), 400)
     })
   })
 
@@ -282,26 +313,26 @@ describe('push (authenticated, database-backed)', async () => {
       const api = apiClient({ cookie: user.cookie })
       const content = { userId: user.id, topic: 'shifts.reminder', email: { subject: 'S', body: 'B' }, push: { title: 'T', body: 'B' } }
 
-      await api.json('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false, push: true } } })
+      await api.json('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false, push: true } } })
       await getMails(true)
       await getProviderCalls(true)
       expect(await notify(content)).toEqual({ channels: ['push'], skipped: { email: 'disabled', sms: 'disabled' } })
       expect(await getMails()).toEqual([])
 
-      await api.json('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { email: true, push: false } } })
+      await api.json('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { email: true, push: false } } })
       await getProviderCalls(true)
       expect(await notify(content)).toEqual({ channels: ['email'], skipped: { push: 'disabled', sms: 'disabled' } })
       expect((await getProviderCalls()).filter(call => call.provider === 'fcm')).toEqual([])
       expect(await getMails()).toHaveLength(1)
 
-      await api.json('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false, push: false } } })
+      await api.json('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { email: false, push: false } } })
       expect(await notify(content)).toEqual({ channels: [], skipped: { email: 'disabled', sms: 'disabled', push: 'disabled' } })
     })
 
     it('sends SMS through notify\'s driver only with a phone number, and only when the user turned it on', async () => {
       const user = await registerUser('Ivy', 'ivy@example.com')
       const api = apiClient({ cookie: user.cookie })
-      await api.json('PUT', pushApi.me.channels, { topics: { 'shifts.reminder': { sms: true } } })
+      await api.json('PATCH', pushApi.me.channels, { topics: { 'shifts.reminder': { sms: true } } })
       const content = { userId: user.id, topic: 'shifts.reminder', sms: { body: 'You work 18:00' } }
       await getTexts(true)
 
@@ -372,11 +403,13 @@ describe('push (authenticated, database-backed)', async () => {
       const staff = apiClient({ cookie: await registerStaff() })
       const user = await registerUser('Max', 'max@example.com')
       await register(user.cookie, unique('fcm-ok'))
+      await register(user.cookie, unique('fcm-ok'), 'android', { locale: 'da' })
       await getProviderCalls(true)
 
-      expect(await staff.json<SendPushResult>('POST', pushApi.admin.test, { userId: user.id })).toEqual({ sent: 1, failed: 0, revoked: 0 })
-      const fcm = (await getProviderCalls()).find(call => call.provider === 'fcm')!
-      expect(fcm.body).toMatchObject({ message: { notification: { title: 'Test notification' } } })
+      expect(await staff.json<SendPushResult>('POST', pushApi.admin.test, { userId: user.id })).toEqual({ sent: 2, failed: 0, revoked: 0 })
+      // The text follows each device's locale: English without one, Danish for `da`.
+      const titles = (await getProviderCalls()).filter(call => call.provider === 'fcm').map(call => (call.body as { message: { notification: { title: string } } }).message.notification.title)
+      expect(titles.sort()).toEqual(['Test notification', 'Testnotifikation'])
 
       // A user without devices: reached nobody.
       const lonely = await registerUser('Lonely', 'lonely@example.com')

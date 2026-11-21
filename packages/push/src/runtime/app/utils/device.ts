@@ -86,7 +86,7 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
     })
   }
 
-  async function register(): Promise<boolean> {
+  async function doRegister(): Promise<boolean> {
     const loaded = await native()
     if (!loaded) {
       state.permission.value = 'unsupported'
@@ -102,11 +102,8 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
     await listen(loaded)
     const timeoutMs = deps.tokenTimeoutMs ?? 15_000
     const token = await new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        waiting = undefined
-        reject(new Error('The OS did not hand out a push token in time.'))
-      }, timeoutMs)
-      waiting = {
+      // This call's own waiter: a timeout or an error only ever clears it, never one put in its place later.
+      const mine: NonNullable<typeof waiting> = {
         resolve: (value) => {
           clearTimeout(timer)
           resolve(value)
@@ -116,14 +113,28 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
           reject(error)
         },
       }
+      const timer = setTimeout(() => {
+        if (waiting === mine) waiting = undefined
+        reject(new Error('The OS did not hand out a push token in time.'))
+      }, timeoutMs)
+      waiting = mine
       plugin.register().catch((error: unknown) => {
         clearTimeout(timer)
-        waiting = undefined
+        if (waiting === mine) waiting = undefined
         reject(error instanceof Error ? error : new Error(String(error)))
       })
     })
     await post(loaded.platform, token)
     return true
+  }
+
+  // One registration at a time: overlapping calls (the sign-in plugin and the app) share it instead of racing for the token.
+  let inflight: Promise<boolean> | undefined
+  function register(): Promise<boolean> {
+    inflight ??= doRegister().finally(() => {
+      inflight = undefined
+    })
+    return inflight
   }
 
   async function unregister(): Promise<boolean> {

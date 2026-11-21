@@ -2,6 +2,7 @@ import type { PushRuntimeConfig } from '../../types'
 import { createApnsSender } from './apns'
 import type { ApnsConfig } from './apns'
 import { createFcmSender, parseFcmServiceAccount } from './fcm'
+import { DEFAULT_TIMEOUT_MS } from './types'
 import type { DeviceSender, ProviderEnvironment } from './types'
 
 const isSet = (value: unknown) => typeof value === 'string' && value.trim() !== ''
@@ -23,6 +24,12 @@ export function resolvePushDriver(config: PushRuntimeConfig): 'log' | 'providers
   return hasFcmCredentials(config) || hasApnsCredentials(config) ? 'providers' : 'log'
 }
 
+/** `push.timeoutMs` (a number, or the string an env var gives), or the 10 second default. */
+export function requestTimeoutMs(config: Pick<PushRuntimeConfig, 'timeoutMs'>): number {
+  const value = Number(config.timeoutMs)
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS
+}
+
 /** The `sandbox` setting: an env var arrives as the string `"true"`. */
 export const isApnsSandbox = (value: boolean | string | undefined) => value === true || (typeof value === 'string' && ['true', '1', 'yes'].includes(value.trim().toLowerCase()))
 
@@ -40,6 +47,7 @@ export type PlatformSenders = { android?: DeviceSender, ios?: DeviceSender }
 
 /** One sender per configured provider (`android` is FCM, `ios` is APNs). Missing credentials leave the platform out. */
 export function createPlatformSenders(config: PushRuntimeConfig, env: ProviderEnvironment = {}): PlatformSenders {
+  env = { timeoutMs: requestTimeoutMs(config), ...env }
   return {
     android: hasFcmCredentials(config) ? createFcmSender(parseFcmServiceAccount(config.fcm.serviceAccount), env) : undefined,
     ios: hasApnsCredentials(config) ? createApnsSender(apnsConfigOf(config), env) : undefined,

@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 
+/** `web` exists in the data model for later; v1 registers `ios` and `android` only. */
 export type PushPlatform = 'ios' | 'android' | 'web'
 
 export type NotificationChannel = 'email' | 'sms' | 'push'
@@ -40,6 +41,8 @@ export type PushPublicConfig = {
 export type PushRuntimeConfig = {
   /** `log`, `providers` or empty for the automatic choice (see `ModuleOptions`). */
   driver: string
+  /** How long a provider request may take, in milliseconds, before the device counts as failed. Defaults to 10000. */
+  timeoutMs: number | string
   fcm: {
     /** The Firebase service account JSON (the whole file), for FCM HTTP v1. */
     serviceAccount: string
@@ -119,7 +122,7 @@ export type PushDeviceDto = {
 
 /** `POST /api/push/me/devices`. */
 export type RegisterDeviceInput = {
-  platform: PushPlatform
+  platform: Exclude<PushPlatform, 'web'>
   token: string
   appId?: string
   locale?: string
@@ -127,8 +130,9 @@ export type RegisterDeviceInput = {
 
 export type PushMessage = {
   userIds: number[]
-  title: string
-  body: string
+  /** Text, or one text per locale (`{ da, en }`): each device gets the one for its registered locale, else `en`. */
+  title: Translated
+  body: Translated
   /** Where the app goes when the notification is opened (a path in the app or a URL). */
   url?: string
   /** Extra string data delivered with the notification. */
@@ -148,7 +152,7 @@ export type NotifyUserInput = {
   topic: string
   email?: { subject: string, body: string, text?: string, replyTo?: string }
   sms?: { body: string }
-  push?: { title: string, body: string, url?: string, data?: Record<string, string> }
+  push?: { title: Translated, body: Translated, url?: string, data?: Record<string, string> }
 }
 
 export type NotifyUserResult = {

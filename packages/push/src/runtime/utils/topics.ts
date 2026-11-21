@@ -25,11 +25,11 @@ export function resolveChannelSettings(
   return result
 }
 
-/** A label or description to show: the entry for `locale`, then `en`, then the first one. */
+/** A label, description or push text to show: the entry for `locale` (then its language, `da` for `da-DK`), then `en`, then the first one. */
 export function readTranslated(value: Translated | undefined, locale: string): string {
   if (value === undefined) return ''
   if (typeof value === 'string') return value
-  return value[locale] ?? value.en ?? Object.values(value)[0] ?? ''
+  return value[locale] ?? value[locale.split(/[-_]/)[0]!] ?? value.en ?? Object.values(value)[0] ?? ''
 }
 
 function validate(topic: NotificationTopic): NotificationTopic {

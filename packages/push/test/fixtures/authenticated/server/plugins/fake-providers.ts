@@ -72,26 +72,34 @@ export default defineNitroPlugin(() => {
       return json(200, { name: 'projects/test-project/messages/1' })
     }
 
+    // APNs is HTTP/2, which `fetch` does not speak: the sender goes through the transport set below, never through here.
     if (url.hostname === 'api.push.apple.com' || url.hostname === 'api.sandbox.push.apple.com') {
-      const apns = config.apns
-      const call: FakeCall = { provider: 'apns', url: url.href, headers, body: JSON.parse(raw), verified: false }
-      calls.push(call)
-      try {
-        const { payload, header } = await verify(String(headers.authorization?.replace(/^bearer /i, '')), apns.privateKey, 'ES256', { issuer: apns.teamId })
-        call.claims = payload
-        call.header = header
-        call.verified = header.kid === apns.keyId && headers['apns-topic'] === apns.topic && headers['apns-push-type'] === 'alert'
-      }
-      catch (error) {
-        call.error = String(error)
-      }
-      if (!call.verified) return json(403, { reason: 'InvalidProviderToken' })
-      const token = url.pathname.split('/').pop() ?? ''
-      if (token.includes('dead')) return json(410, { reason: 'Unregistered' })
-      if (token.includes('broken')) return json(500, { reason: 'InternalServerError' })
-      return new Response(null, { status: 200 })
+      throw new Error('APNs must not be reached through fetch: it needs HTTP/2.')
     }
 
     return realFetch(input, init)
   }) as typeof fetch
+
+  // The HTTP/2 transport of the APNs sender, replaced with this fake (see `setPushHttp2Transport`).
+  setPushHttp2Transport(async ({ origin, path, headers: sent, body }) => {
+    const apns = useRuntimeConfig().push.apns
+    const headers = lower(sent)
+    const call: FakeCall = { provider: 'apns', url: `${origin}${path}`, headers, body: JSON.parse(body), verified: false }
+    calls.push(call)
+    try {
+      const { payload, header } = await verify(String(headers.authorization?.replace(/^bearer /i, '')), apns.privateKey, 'ES256', { issuer: apns.teamId })
+      call.claims = payload
+      call.header = header
+      call.verified = header.kid === apns.keyId && headers['apns-topic'] === apns.topic && headers['apns-push-type'] === 'alert'
+    }
+    catch (error) {
+      call.error = String(error)
+    }
+    if (!call.verified) return { status: 403, body: JSON.stringify({ reason: 'InvalidProviderToken' }) }
+    const token = path.split('/').pop() ?? ''
+    if (token.includes('dead')) return { status: 410, body: JSON.stringify({ reason: 'Unregistered' }) }
+    if (token.includes('baddevice')) return { status: 400, body: JSON.stringify({ reason: 'BadDeviceToken' }) }
+    if (token.includes('broken')) return { status: 500, body: JSON.stringify({ reason: 'InternalServerError' }) }
+    return { status: 200, body: '' }
+  })
 })

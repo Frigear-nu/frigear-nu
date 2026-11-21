@@ -1,5 +1,6 @@
 import { SignJWT, importPKCS8 } from 'jose'
-import { callFetch, normalizePemKey } from './types'
+import { defaultHttp2Transport, Http2UnsupportedError } from './http2'
+import { DEFAULT_TIMEOUT_MS, describeError, normalizePemKey } from './types'
 import type { DeliveryOutcome, DeviceMessage, DeviceSender, ProviderEnvironment } from './types'
 
 /** APNs wants a token no older than an hour and not renewed more often than every 20 minutes. */
@@ -30,8 +31,12 @@ export const apnsHost = (sandbox: boolean) => sandbox ? 'api.sandbox.push.apple.
 
 /** The APNs request for one device. The url and the extra data travel next to `aps` in the payload. */
 export function buildApnsRequest(config: Pick<ApnsConfig, 'topic' | 'sandbox'>, jwt: string, message: DeviceMessage) {
+  const origin = `https://${apnsHost(config.sandbox)}`
+  const path = `/3/device/${encodeURIComponent(message.token)}`
   return {
-    url: `https://${apnsHost(config.sandbox)}/3/device/${encodeURIComponent(message.token)}`,
+    origin,
+    path,
+    url: `${origin}${path}`,
     headers: {
       'authorization': `bearer ${jwt}`,
       'apns-topic': config.topic,
@@ -52,10 +57,18 @@ export function isDeadApnsToken(status: number, reason: string | undefined): boo
   return status === 410 || reason === 'Unregistered' || reason === 'BadDeviceToken'
 }
 
-/** A sender for one APNs key. It keeps the JWT for 50 minutes. */
+let warnedUnsupported = false
+
+/**
+ * A sender for one APNs key. It sends over HTTP/2 (`env.http2`, by default `node:http2`: APNs refuses HTTP/1.1, which
+ * is all `fetch` speaks on Node) and keeps the JWT for 50 minutes. Without an HTTP/2 client (Cloudflare Workers) every
+ * send fails with a clear reason, is logged once, and never marks a token dead.
+ */
 export function createApnsSender(config: ApnsConfig, env: ProviderEnvironment = {}): DeviceSender {
-  const doFetch = env.fetch ?? callFetch
+  const transport = env.http2 ?? defaultHttp2Transport
   const now = env.now ?? Date.now
+  const timeoutMs = env.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const log = env.log ?? console
   let cached: { jwt: string, issuedAt: number } | undefined
 
   async function jwt(): Promise<string> {
@@ -69,24 +82,30 @@ export function createApnsSender(config: ApnsConfig, env: ProviderEnvironment = 
     async send(message): Promise<DeliveryOutcome> {
       try {
         const request = buildApnsRequest(config, await jwt(), message)
-        const response = await doFetch(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(request.body) })
-        if (response.ok) return { status: 'sent' }
-        const text = await response.text().catch(() => '')
+        const response = await transport({ origin: request.origin, path: request.path, headers: request.headers, body: JSON.stringify(request.body), timeoutMs })
+        if (response.status >= 200 && response.status < 300) return { status: 'sent' }
         let reason: string | undefined
         try {
-          reason = (JSON.parse(text) as { reason?: string }).reason
+          reason = (JSON.parse(response.body) as { reason?: string }).reason
         }
         catch {
           reason = undefined
         }
-        const description = `${response.status}${reason ? ` ${reason}` : text ? ` ${text.slice(0, 300)}` : ''}`
-        if (isDeadApnsToken(response.status, reason)) return { status: 'dead', reason: description }
+        const description = `${response.status}${reason ? ` ${reason}` : response.body ? ` ${response.body.slice(0, 300)}` : ''}`
+        if (isDeadApnsToken(response.status, reason)) return { status: 'dead', reason: description, ambiguous: reason === 'BadDeviceToken' }
         // A rejected provider token: sign a new one on the next send.
         if (reason === 'ExpiredProviderToken' || reason === 'InvalidProviderToken') cached = undefined
         return { status: 'failed', reason: description }
       }
       catch (error) {
-        return { status: 'failed', reason: error instanceof Error ? error.message : String(error) }
+        if (error instanceof Http2UnsupportedError) {
+          if (!warnedUnsupported) {
+            warnedUnsupported = true
+            log.warn(`[@frigear-nu/push] ${error.message}`)
+          }
+          return { status: 'failed', reason: error.message }
+        }
+        return { status: 'failed', reason: describeError(error, timeoutMs) }
       }
     },
   }

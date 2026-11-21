@@ -3,7 +3,7 @@ import { created } from '@frigear-nu/module-kit/server'
 import type { PushDeviceDto } from '../../../../types'
 
 const bodySchema = z.object({
-  platform: z.enum(['ios', 'android', 'web']),
+  platform: z.enum(['ios', 'android']),
   token: z.string().trim().min(1).max(4096),
   appId: z.string().trim().min(1).max(255).optional(),
   locale: z.string().trim().min(1).max(35).optional(),

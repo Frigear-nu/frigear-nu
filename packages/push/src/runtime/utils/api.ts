@@ -13,7 +13,7 @@ export const pushApi = {
     device: (id: string) => `${BASE}/me/devices/${enc(id)}`,
     /** `POST { token }` to unregister by token (204), so an app that only knows its token can sign out cleanly. */
     unregister: `${BASE}/me/devices/unregister`,
-    /** `GET` the channel matrix of the registered topics and `PUT` changes to it. */
+    /** `GET` the channel matrix of the registered topics and `PATCH` changes to it (a partial merge). */
     channels: `${BASE}/me/channels`,
   },
   admin: {

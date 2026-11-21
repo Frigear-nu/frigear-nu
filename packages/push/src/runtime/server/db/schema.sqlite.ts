@@ -3,8 +3,8 @@ import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqli
 // There is deliberately no foreign key to `users` (that table is registered from another file).
 
 // One row per app installation that can receive pushes. Registering a token that already exists moves it to the
-// current user and clears `revokedAt`: a phone that changes hands belongs to whoever signed in last. A revoked row is
-// kept (a dead token reported by FCM or APNs, or a device the user removed) so it is not sent to again.
+// current user and clears `revokedAt`: a phone that changes hands belongs to whoever signed in last. A device the user
+// removes is deleted; a row is revoked only when FCM or APNs report its token dead, and is kept so it is not sent to again.
 export const pushDevices = sqliteTable('push_devices', {
   /** `psd_` + random id. */
   id: text().primaryKey(),

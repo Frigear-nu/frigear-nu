@@ -131,6 +131,7 @@ export default defineNuxtModule<ModuleOptions>({
     const existing = nuxt.options.runtimeConfig.push as Partial<PushRuntimeConfig> | undefined
     nuxt.options.runtimeConfig.push = {
       driver: existing?.driver ?? settings.driver ?? '',
+      timeoutMs: existing?.timeoutMs ?? 10_000,
       fcm: { serviceAccount: '', ...existing?.fcm },
       apns: { keyId: '', teamId: '', topic: '', privateKey: '', sandbox: false, ...existing?.apns },
     }
@@ -164,7 +165,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'devices/unregister', file: 'me/unregister.post' },
       { method: 'delete', path: 'devices/:id', file: 'me/device.delete' },
       { method: 'get', path: 'channels', file: 'me/channels.get' },
-      { method: 'put', path: 'channels', file: 'me/channels.put' },
+      { method: 'patch', path: 'channels', file: 'me/channels.patch' },
     ], { base: '/api/push/me' })
     addModuleRoutes(resolver, [
       { method: 'post', path: 'test', file: 'admin/test.post' },

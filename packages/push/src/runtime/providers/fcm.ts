@@ -1,5 +1,5 @@
 import { SignJWT, importPKCS8 } from 'jose'
-import { callFetch, describeResponse, normalizePemKey } from './types'
+import { DEFAULT_TIMEOUT_MS, callFetch, describeError, describeResponse, normalizePemKey } from './types'
 import type { DeliveryOutcome, DeviceMessage, DeviceSender, ProviderEnvironment } from './types'
 
 const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
@@ -64,16 +64,19 @@ export function buildFcmRequest(projectId: string, accessToken: string, message:
   }
 }
 
-type FcmError = { error?: { status?: string, message?: string, details?: { errorCode?: string }[] } }
+type FcmError = { error?: { status?: string, message?: string, details?: { errorCode?: string, fieldViolations?: { field?: string }[] }[] } }
 
-/** Whether an FCM answer says the token will never work again. */
-export function isDeadFcmToken(status: number, body: FcmError | undefined): boolean {
-  if (status === 404) return true
+/**
+ * Whether an FCM answer says the token will never work again: `UNREGISTERED`, or `INVALID_ARGUMENT` about the
+ * registration token itself (a violation of `message.token`). A bare 404 or `NOT_FOUND` can be a wrong project or
+ * endpoint, so it is only a failure.
+ */
+export function isDeadFcmToken(_status: number, body: FcmError | undefined): boolean {
   const error = body?.error
   if (error?.details?.some(detail => detail.errorCode === 'UNREGISTERED')) return true
-  if (error?.status === 'NOT_FOUND') return true
-  // A malformed token is a 400 INVALID_ARGUMENT about the registration token; any other 400 is about the payload.
-  return status === 400 && error?.status === 'INVALID_ARGUMENT' && /registration token/i.test(error.message ?? '')
+  if (error?.status !== 'INVALID_ARGUMENT') return false
+  return !!error.details?.some(detail => detail.fieldViolations?.some(violation => violation.field === 'message.token'))
+    || /registration token/i.test(error.message ?? '')
 }
 
 /**
@@ -83,6 +86,7 @@ export function isDeadFcmToken(status: number, body: FcmError | undefined): bool
 export function createFcmSender(account: FcmServiceAccount, env: ProviderEnvironment = {}): DeviceSender {
   const doFetch = env.fetch ?? callFetch
   const now = env.now ?? Date.now
+  const timeoutMs = env.timeoutMs ?? DEFAULT_TIMEOUT_MS
   let cached: { token: string, expiresAt: number } | undefined
   let pending: Promise<string> | undefined
 
@@ -95,6 +99,7 @@ export function createFcmSender(account: FcmServiceAccount, env: ProviderEnviron
           method: 'POST',
           headers: { 'content-type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }).toString(),
+          signal: AbortSignal.timeout(timeoutMs),
         })
         if (!response.ok) throw new Error(`FCM token request failed: ${await describeResponse(response)}`)
         const { access_token: token, expires_in: expiresIn } = await response.json() as { access_token?: string, expires_in?: number }
@@ -113,7 +118,7 @@ export function createFcmSender(account: FcmServiceAccount, env: ProviderEnviron
     async send(message): Promise<DeliveryOutcome> {
       try {
         const request = buildFcmRequest(account.projectId, await accessToken(), message)
-        const response = await doFetch(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(request.body) })
+        const response = await doFetch(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(request.body), signal: AbortSignal.timeout(timeoutMs) })
         if (response.ok) return { status: 'sent' }
         const text = await response.text().catch(() => '')
         let body: FcmError | undefined
@@ -130,7 +135,7 @@ export function createFcmSender(account: FcmServiceAccount, env: ProviderEnviron
         return { status: 'failed', reason }
       }
       catch (error) {
-        return { status: 'failed', reason: error instanceof Error ? error.message : String(error) }
+        return { status: 'failed', reason: describeError(error, timeoutMs) }
       }
     },
   }

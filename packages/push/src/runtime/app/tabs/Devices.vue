@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { PushDeviceDto, SendPushResult } from '../../../types'
+import { authApi } from '@frigear-nu/auth/api'
 import { pushApi } from '../../utils/api'
 import { $fetch, computed, errorMessage, tableUi, useAction, useFormat, useLazyFetch, useModuleT, useToast } from '#imports'
 
@@ -21,6 +22,10 @@ const { data: devices, status, error, refresh } = useLazyFetch<PushDeviceDto[]>(
   () => pushApi.admin.userDevices(props.user.id),
   { key: () => `admin-push-devices-${props.user.id}` },
 )
+
+// The action needs `push:send`, which staff with `push:manage` may not hold: ask what the viewer may do.
+const { data: access } = useLazyFetch<{ permissions: string[] }>(authApi.me.access, { key: 'push-viewer-access' })
+const canSend = computed(() => access.value?.permissions.includes('push:send') === true)
 
 const loading = computed(() => status.value === 'pending' && !devices.value)
 const columns = computed<TableColumn<PushDeviceDto>[]>(() => [
@@ -57,7 +62,10 @@ async function sendTest() {
     :loading="loading"
     :refreshing="status === 'pending' && !loading"
   >
-    <template #actions>
+    <template
+      v-if="canSend"
+      #actions
+    >
       <UButton
         icon="i-lucide-send"
         color="neutral"
