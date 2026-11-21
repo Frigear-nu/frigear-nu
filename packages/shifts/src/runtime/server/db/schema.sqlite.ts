@@ -234,7 +234,7 @@ export const shiftPerkGrants = sqliteTable('shift_perk_grants', {
   quantity: integer().notNull(),
   earnedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   claimedAt: integer({ mode: 'timestamp' }),
-  /** The client that claimed it (`frigear-vouchers`). */
+  /** The client that claimed it (such as `vouchers`). */
   claimClient: text(),
   revokedAt: integer({ mode: 'timestamp' }),
 }, t => [

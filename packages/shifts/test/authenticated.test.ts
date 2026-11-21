@@ -1309,17 +1309,17 @@ describe('shifts (authenticated, database-backed)', async () => {
     const patchSchedule = (scheduleId: string, body: Json) => json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(scheduleId), body).then(ok)
     const statusOf = async (who: Session, shiftId: string) => (await assignmentOf(who, shiftId))?.assignment
     // The bar, and points about 100 m and 300 m north of it.
-    const bar = { lat: 55.6167, lng: 12.0784 }
-    const near = { latitude: 55.6176, longitude: 12.0784 }
-    const far = { latitude: 55.6194, longitude: 12.0784 }
+    const bar = { lat: 10.0167, lng: 20.0784 }
+    const near = { latitude: 10.0176, longitude: 20.0784 }
+    const far = { latitude: 10.0194, longitude: 20.0784 }
 
     it('station: a rotating code checks in once; an expired or forged one is refused, the previous window is accepted', async () => {
       const setup = await newSetup({ checkIn: { modes: ['station'] } })
       const other = await createTeam(setup.op.id)
       const [ann, bo, lead, otherLead] = await Promise.all([user('Sann'), user('Sbo'), user('Slead'), user('Sother')])
       for (const who of [ann, bo]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, otherLead, 'lead')
       for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
       const { assignment } = await assigned(setup.shifts[0]!.id, ann)
       const bos = await assigned(setup.shifts[1]!.id, bo)
@@ -1404,7 +1404,7 @@ describe('shifts (authenticated, database-backed)', async () => {
 
       const answer = await ok(await selfCheckIn(ann, mine[0]!.id, { mode: 'location', ...near, accuracy: 10 }))
       // Near midnight the second shift falls on the next day and is left out.
-      if (dayKey(new Date(now + starts[0]!), 'Europe/Copenhagen') === dayKey(new Date(now + starts[1]!), 'Europe/Copenhagen')) {
+      if (dayKey(new Date(now + starts[0]!), 'Europe/Berlin') === dayKey(new Date(now + starts[1]!), 'Europe/Berlin')) {
         expect(answer.alsoCheckedIn).toEqual([mine[1]!.id])
         expect(await statusOf(ann, ids[1]!)).toMatchObject({ status: 'attended', checkInMethod: 'daily' })
       }
@@ -1416,7 +1416,7 @@ describe('shifts (authenticated, database-backed)', async () => {
   describe('automation and perk grants', () => {
     const createPerk = (operationId: string, body: Json = {}): Promise<Json> => json(staff.cookie, 'POST', shiftsApi.admin.perks(operationId), { name: { en: 'Beer', da: 'Øl' }, voucherType: 'beer', quantity: 2, ...body }).then(ok)
     const grantsOf = async (who: Session, status?: string): Promise<Json[]> => (await ok(await json(who.cookie, 'GET', status ? `${shiftsApi.me.perkGrants}?status=${status}` : shiftsApi.me.perkGrants))).items
-    const claim = (who: Session, id: string, body: Json = { client: 'frigear-vouchers' }) => json(who.cookie, 'POST', shiftsApi.me.claimPerkGrant(id), body)
+    const claim = (who: Session, id: string, body: Json = { client: 'vouchers-app' }) => json(who.cookie, 'POST', shiftsApi.me.claimPerkGrant(id), body)
     const passOf = (who: Session, assignmentId: string): Promise<Json> => json(who.cookie, 'GET', shiftsApi.me.pass(assignmentId)).then(ok)
 
     /** A team with a lead and two volunteers on its first shift, which runs now and ends `endsIn` from now. */
@@ -1424,7 +1424,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup(schedule)
       const [ann, bo, lead] = await Promise.all([user('Gann'), user('Gbo'), user('Glead')])
       for (const who of [ann, bo]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       const shiftId = setup.shifts[0]!.id
       await patchShift(shiftId, { startsAt: iso(-HOUR), endsAt: iso(endsIn) })
       const annA = (await assigned(shiftId, ann)).assignment
@@ -1536,7 +1536,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const perks = apiClient({ bearer: await createToken(setup.ann.cookie, ['perks']) })
       const { items } = await (await perks.fetch('GET', shiftsApi.me.perkGrants)).json() as Json
       expect(items).toHaveLength(1)
-      expect(await (await perks.fetch('POST', shiftsApi.me.claimPerkGrant(items[0].id), { client: 'frigear-vouchers' })).json()).toMatchObject({ claimedAt: expect.any(String) })
+      expect(await (await perks.fetch('POST', shiftsApi.me.claimPerkGrant(items[0].id), { client: 'vouchers-app' })).json()).toMatchObject({ claimedAt: expect.any(String) })
 
       const readOnly = apiClient({ bearer: await createToken(setup.ann.cookie, ['perks:read']) })
       expect((await readOnly.fetch('GET', `${shiftsApi.me.perkGrants}?status=all`)).status).toBe(200)
@@ -1682,7 +1682,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       await publish(setup.schedule.id)
       const [ann, lead, bo, outsider] = await Promise.all([user('Mann'), user('Mlead'), user('Mbo'), user('Mout')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(setup.team.id, bo)
       await putLayout(setup.op.id, [
         { id: 'bar-1', kind: 'operations.station', geometry: { type: 'Point', coordinates: [10, 20] } },

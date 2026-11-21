@@ -66,7 +66,7 @@ export const shiftsAccess = defineAccess('shifts', {
   },
 })
 
-// The perks people earned on their shifts, for the app that spends them (frigear-vouchers): read and claim your own
+// The perks people earned on their shifts, for the app that spends them (a vouchers app): read and claim your own
 // grants. Both are held by everyone and narrowed by the policy to the caller's own grants; the `perks` scope covers both.
 export const perksAccess = defineAccess('perks', {
   permissions: {

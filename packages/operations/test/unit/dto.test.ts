@@ -12,7 +12,7 @@ const row = {
   startsAt: new Date('2027-06-27T10:00:00.000Z'),
   endsAt: new Date('2027-07-04T10:00:00.000Z'),
   schedule: null,
-  location: { name: 'Darupvej', point: { lat: 55.6, lng: 12.0 } },
+  location: { name: 'Main Street', point: { lat: 10.0, lng: 20.0 } },
   venueLayout: null,
   status: 'planning',
   public: true,
@@ -48,14 +48,14 @@ describe('operation DTOs', () => {
   it('sends the venue layout with the underlay\'s URL, never its blob pathname', () => {
     const feature = { type: 'Feature' as const, id: 'bar', kind: 'operations.station', geometry: { type: 'Point' as const, coordinates: [10, 20] as [number, number] }, properties: {} }
     const dto = toOperationVenueLayoutDto({
-      slug: 'roskilde-2027-bar',
+      slug: 'summer-2030-bar',
       venueLayout: { type: 'FeatureCollection', features: [feature], underlay: { pathname: 'operations/opr_1/underlay-abc.png', contentType: 'image/png', width: 800, height: 600 } },
     })
     expect(dto).toEqual({
       type: 'FeatureCollection',
       features: [feature],
       extent: null,
-      underlay: { url: '/api/operations/roskilde-2027-bar/venue-layout/underlay?v=underlay-abc.png', width: 800, height: 600 },
+      underlay: { url: '/api/operations/summer-2030-bar/venue-layout/underlay?v=underlay-abc.png', width: 800, height: 600 },
     })
     expect(JSON.stringify(dto)).not.toContain('operations/opr_1')
     expect(toOperationVenueLayoutDto({ slug: 'x', venueLayout: null })).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null })

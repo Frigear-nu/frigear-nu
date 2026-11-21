@@ -573,8 +573,8 @@ export type ShiftPassPerkDto = {
 }
 
 /**
- * A perk grant as the vouchers app sees it (`GET /api/shifts/me/perk-grants`): the contract between frigear.nu and
- * frigear-vouchers. `id` is the idempotency key on the vouchers side; `perkName` is in the caller's locale.
+ * A perk grant as the vouchers app sees it (`GET /api/shifts/me/perk-grants`): the contract between this app and
+ * a vouchers app. `id` is the idempotency key on the vouchers side; `perkName` is in the caller's locale.
  */
 export type ShiftPerkGrantDto = {
   id: string

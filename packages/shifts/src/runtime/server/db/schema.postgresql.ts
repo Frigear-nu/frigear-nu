@@ -234,7 +234,7 @@ export const shiftPerkGrants = pgTable('shift_perk_grants', {
   quantity: integer().notNull(),
   earnedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   claimedAt: timestamp({ withTimezone: true }),
-  /** The client that claimed it (`frigear-vouchers`). */
+  /** The client that claimed it (such as `vouchers`). */
   claimClient: text(),
   revokedAt: timestamp({ withTimezone: true }),
 }, t => [
