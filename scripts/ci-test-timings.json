@@ -78,6 +78,13 @@
     "test/customized.test.ts": 20,
     "test/schema-parity.test.ts": 1
   },
+  "@frigear-nu/crew": {
+    "test/authenticated.test.ts": 45,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/emails.test.ts": 1,
+    "test/unit/schemas.test.ts": 1,
+    "test/unit/status.test.ts": 1
+  },
   "@frigear-nu/email-templates": {
     "test/email-templates.test.ts": 24
   },
