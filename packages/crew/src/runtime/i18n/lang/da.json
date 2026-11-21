@@ -145,6 +145,13 @@
       "title": "Ansøg til {operation}",
       "unavailable": "Dette crew tager ikke imod ansøgninger"
     },
+    "dashboard": {
+      "status": "Min crew-status",
+      "statusEmpty": "Du har ikke ansøgt endnu",
+      "statusEmptyDescription": "Når du ansøger til en operation, vises den her.",
+      "statusFailed": "Kunne ikke hente din crew-status.",
+      "statusLink": "Mit crew"
+    },
     "invite": {
       "accept": "Kom med på crewet",
       "alreadyMember": "Du er allerede på dette team",

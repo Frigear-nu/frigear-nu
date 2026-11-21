@@ -2,7 +2,8 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 import { renderSVG } from 'uqr'
-import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapKind, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
+import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsMyNowDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapKind, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
+import { shiftsAccess } from '../../access'
 import { scheduleSettingsOf } from '../../utils/settings'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { toShiftAssignmentDto, toShiftDto, toShiftPersonDto } from './shifts-dto'
@@ -165,6 +166,33 @@ export async function shiftsNow(event: H3Event, operationId: string, pii: boolea
     }
   }
   return { operationId, at: at.toISOString(), teams: [...byTeam.values()] }
+}
+
+/**
+ * The teams of mine that have a shift running now: for each operation I hold a team role in (explicit or mapped), the
+ * "on shift now" view narrowed to my teams. An operation I may not read the view of is left out. Names only.
+ */
+export async function shiftsMyNow(event: H3Event, userId: number, at = new Date()): Promise<ShiftsMyNowDto> {
+  const grants = (await resolveAllTeamRoles(event, userId)).filter(grant => grant.ownerType === 'operation' && grant.ownerId)
+  if (!grants.length) return { at: at.toISOString(), teams: [] }
+  const myTeamIds = new Set(grants.map(grant => grant.teamId))
+  const operationIds = [...new Set(grants.map(grant => grant.ownerId!))]
+  const operations = await db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations)
+    .where(inArray(schema.operations.id, operationIds))
+  const names = new Map(operations.map(operation => [operation.id, operation.name as Translated]))
+  const teams: ShiftsMyNowDto['teams'] = []
+  for (const operationId of operationIds) {
+    if (!names.has(operationId)) continue
+    if (!(await allows(event, shiftsAccess.permissions.read, { operationId }))) continue
+    const now = await shiftsNow(event, operationId, false, at)
+    for (const team of now.teams) {
+      if (!myTeamIds.has(team.teamId)) continue
+      const people = new Map<number, ShiftPersonDto>()
+      for (const shift of team.shifts) for (const assignee of shift.assignees) people.set(assignee.userId, assignee.person)
+      teams.push({ operationId, operationName: names.get(operationId)!, teamId: team.teamId, teamName: team.teamName, leads: team.leads, people: [...people.values()] })
+    }
+  }
+  return { at: at.toISOString(), teams }
 }
 
 /**

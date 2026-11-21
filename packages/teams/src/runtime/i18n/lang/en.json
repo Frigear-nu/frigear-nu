@@ -150,6 +150,14 @@
       "removeMemberFailed": "Could not remove the member",
       "status": "Status",
       "noOwner": "Open this tab from an operation page."
+    },
+    "dashboard": {
+      "mapped": "By role",
+      "mine": "My teams",
+      "mineEmpty": "You are not on a team yet",
+      "mineEmptyDescription": "The teams you work in show here, with your role.",
+      "mineFailed": "Could not load your teams.",
+      "mineMore": "{count} more teams"
     }
   }
 }

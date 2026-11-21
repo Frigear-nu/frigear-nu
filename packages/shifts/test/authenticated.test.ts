@@ -1517,6 +1517,50 @@ describe('shifts (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('my teams on shift now', () => {
+    it('lists my teams with a shift running, who is on them and the leads, names only', async () => {
+      const setup = await newSetup()
+      const [ann, lead, bystander, outsider] = await Promise.all([user('Ynann'), user('Ynlead'), user('Ynby'), user('Ynout')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, bystander)
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
+      await assigned(setup.shifts[0]!.id, ann)
+      await assigned(setup.shifts[0]!.id, lead)
+
+      // Somebody on the team who is not on the shift sees who is.
+      const view = await ok(await json(bystander.cookie, 'GET', shiftsApi.me.now))
+      expect(view.teams).toHaveLength(1)
+      expect(view.teams[0]).toMatchObject({ operationId: setup.op.id, teamId: setup.team.id })
+      expect(view.teams[0].people.map((person: Json) => person.userId).sort()).toEqual([ann.id, lead.id].sort())
+      expect(view.teams[0].leads.map((person: Json) => person.userId)).toEqual([lead.id])
+      // Names only: no email or phone number, not even for the lead.
+      expect(JSON.stringify(view)).not.toContain(ann.email)
+      expect(view.teams[0].people.every((person: Json) => person.email === undefined && person.phone === undefined)).toBe(true)
+      // Somebody on no team of the operation, and staff who are not on one, see nothing.
+      expect((await ok(await json(outsider.cookie, 'GET', shiftsApi.me.now))).teams).toEqual([])
+      expect((await ok(await json(staff.cookie, 'GET', shiftsApi.me.now))).teams).toEqual([])
+      // Anonymous: 401.
+      expect((await json(undefined, 'GET', shiftsApi.me.now)).status).toBe(401)
+
+      // A shift that has not started is not "now".
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(2 * HOUR), endsAt: iso(3 * HOUR) })
+      expect((await ok(await json(bystander.cookie, 'GET', shiftsApi.me.now))).teams).toEqual([])
+    })
+  })
+
+  describe('dashboard items (installed in this fixture)', () => {
+    it('renders the items of operations, crew, teams and shifts on crew.home, in their order', async () => {
+      const volunteer = await user('Dashvol')
+      const html = await (await fetch('/dashboard-test', { headers: { cookie: volunteer.cookie } })).text()
+      const rendered = html.slice(0, html.indexOf('<script type="application/json"'))
+      const frames = [...rendered.matchAll(/data-dashboard-item="([^"]+)"/g)].map(match => match[1])
+      expect(frames).toEqual(['crew.status', 'shifts.next', 'shifts.on-now', 'shifts.swaps', 'operations.upcoming', 'teams.mine'])
+      // Titles fall back to the plain `title` without translations; each frame has its own.
+      for (const title of ['My crew status', 'My next shift', 'My team on shift now', 'Open swaps', 'Upcoming operations', 'My teams']) expect(rendered).toContain(title)
+    }, 180_000)
+  })
+
   describe('maps (installed in this fixture)', () => {
     const mapsOf = async (operationId: string): Promise<Json[]> =>
       (await ok(await json(staff.cookie, 'GET', `${mapsApi.admin.maps}?ownerType=operation&ownerId=${operationId}`))).items

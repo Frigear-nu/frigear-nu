@@ -98,6 +98,12 @@
       "deleteAction": "Slet operation",
       "deleted": "Slettede {name}",
       "deleteFailed": "Operationen kunne ikke slettes"
+    },
+    "dashboard": {
+      "upcoming": "Kommende operationer",
+      "upcomingEmpty": "Ingen kommende operationer",
+      "upcomingEmptyDescription": "De operationer, du arbejder ved, vises her.",
+      "upcomingFailed": "Kunne ikke hente dine operationer."
     }
   }
 }

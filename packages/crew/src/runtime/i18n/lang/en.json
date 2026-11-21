@@ -145,6 +145,13 @@
       "title": "Apply to {operation}",
       "unavailable": "This crew is not taking applications"
     },
+    "dashboard": {
+      "status": "My crew status",
+      "statusEmpty": "You have not applied yet",
+      "statusEmptyDescription": "When you apply to an operation, it shows up here.",
+      "statusFailed": "Could not load your crew status.",
+      "statusLink": "My crew"
+    },
     "invite": {
       "accept": "Join the crew",
       "alreadyMember": "You are on this team already",

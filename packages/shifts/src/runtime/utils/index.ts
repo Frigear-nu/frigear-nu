@@ -55,6 +55,7 @@ export type {
   ShiftScheduleSettings,
   ShiftScheduleStatus,
   ShiftsLedTeamDto,
+  ShiftsMyNowDto,
   ShiftsNowDto,
   ShiftsOperationTeamDto,
   ShiftsRemindersOptions,

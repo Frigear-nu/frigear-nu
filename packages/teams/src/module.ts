@@ -21,6 +21,7 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { teamsAccess } from './runtime/access'
 import { mergeTeamLadders, teamLadderIssues } from './runtime/utils/ladders'
+import { TEAMS_DASHBOARD, teamsDashboardItems } from './runtime/dashboard'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -73,6 +74,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     // A team's leads may edit the maps the team owns.
@@ -194,6 +197,12 @@ export default defineNuxtModule<ModuleOptions>({
         props: { ownerType: 'operation' },
         permission: teamsAccess.permissions.manage,
       })
+    }
+
+    // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
+    if (hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, TEAMS_DASHBOARD, teamsDashboardItems(path => resolver.resolve(path)))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'admin.nav' })

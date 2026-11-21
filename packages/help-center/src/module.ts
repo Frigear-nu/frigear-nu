@@ -21,6 +21,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
 import { helpCenterAccess } from './runtime/access'
+import { HELP_CENTER_DASHBOARD, helpCenterDashboardItems } from './runtime/dashboard'
 import { DEFAULT_REQUIRED_LOCALES } from './runtime/utils/publish'
 import { helpCenterRoutePatterns, isPathUnder, resolveHelpCenterAreas } from './runtime/utils/paths'
 import { contentRowKey, frontmatterKeys, localizedContentCollection, missingContentLocales, validateContentFile } from './runtime/utils/content'
@@ -81,6 +82,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1', optional: true },
     // "Your onboarding" on the account overview.
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // The optional Help tab of the mobile app.
     '@frigear-nu/mobile': { version: '>=0.0.1', optional: true },
     // FAQ groups shown inside categories.
@@ -306,6 +309,12 @@ export default defineNuxtModule<ModuleOptions>({
     if (areas.signedIn && settings.accountWidget !== false && hasNuxtModule('@frigear-nu/widget', nuxt)) {
       const { extendWidgets } = await import('@frigear-nu/widget/utils')
       extendWidgets(nuxt, 'account.overview', { id: 'help-center-onboarding', component: resolver.resolve('./runtime/app/widgets/OnboardingSummary.vue'), order: 20 })
+    }
+
+    // The same summary as an item of the `crew.home` dashboard, next to the account widget (which stays).
+    if (areas.signedIn && hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, HELP_CENTER_DASHBOARD, helpCenterDashboardItems(path => resolver.resolve(path)))
     }
 
     // --- Nuxt Content ---------------------------------------------------------------------

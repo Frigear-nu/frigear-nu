@@ -21,6 +21,7 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
 import { operationsMapKinds } from './runtime/maps'
+import { OPERATIONS_DASHBOARD, operationsDashboardItems } from './runtime/dashboard'
 import type {
   ModuleOptions,
   OperationCreatedContext,
@@ -66,6 +67,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     // An operation may name an event (`eventId`): the id is validated when events is installed.
@@ -160,6 +163,12 @@ export default defineNuxtModule<ModuleOptions>({
       const { extendMaps } = await import('@frigear-nu/maps/utils')
       extendMaps(nuxt, { kinds: operationsMapKinds })
       addServerPlugin(resolver.resolve('./runtime/server/plugins/maps'))
+    }
+
+    // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
+    if (hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, OPERATIONS_DASHBOARD, operationsDashboardItems(path => resolver.resolve(path)))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })

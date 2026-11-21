@@ -18,6 +18,8 @@ export const shiftsApi = {
     pass: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/pass`,
     /** `POST` to open a swap of one of my shifts, `DELETE` to withdraw it. */
     swap: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/swap`,
+    /** `GET` the teams I work on that have a shift running now, with who is on it. */
+    now: `${BASE}/me/now`,
     /** `GET` the teams I lead. */
     leads: `${BASE}/me/leads`,
     /** `GET` whether I have a calendar feed, `POST` to mint one (shown once, revokes the old one), `DELETE` to revoke it. Session only. */

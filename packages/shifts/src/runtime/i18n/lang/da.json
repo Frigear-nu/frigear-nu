@@ -216,6 +216,28 @@
       "title": "Skriv til hold",
       "when": "Sendt"
     },
+    "dashboard": {
+      "allShifts": "Se mine vagter",
+      "next": "Min næste vagt",
+      "nextEmpty": "Ingen kommende vagter",
+      "nextEmptyDescription": "Din næste vagt vises her, når du er sat på en vagtplan.",
+      "nextFailed": "Kunne ikke hente dine vagter.",
+      "nextPass": "Åbn vagt og pas",
+      "nextRunning": "På vagt nu",
+      "onNow": "Mit hold på vagt nu",
+      "onNowEmpty": "Ingen på dine hold er på vagt",
+      "onNowEmptyDescription": "Når en vagt på et af dine hold er i gang, kan du se, hvem der er på den.",
+      "onNowFailed": "Kunne ikke hente, hvem der er på vagt.",
+      "onNowLead": "Leder på vagt: {names}",
+      "onNowNoLead": "Ingen leder på vagt",
+      "onNowPeople": "{count} på vagt nu",
+      "swaps": "Åbne bytter",
+      "swapsCount": "{count} åbne bytter, du kan tage",
+      "swapsEmpty": "Ingen åbne bytter",
+      "swapsEmptyDescription": "Vagter, andre giver væk, vises her, når du kan tage dem.",
+      "swapsFailed": "Kunne ikke hente de åbne bytter.",
+      "swapsLink": "Se byttene"
+    },
     "feed": {
       "active": "Dit kalenderlink er aktivt",
       "activeSince": "Oprettet {made}, sidst læst {read}. Det vises ikke igen: erstat det for at få et nyt.",

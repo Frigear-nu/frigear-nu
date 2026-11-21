@@ -216,6 +216,28 @@
       "title": "Message teams",
       "when": "Sent"
     },
+    "dashboard": {
+      "allShifts": "See my shifts",
+      "next": "My next shift",
+      "nextEmpty": "No upcoming shifts",
+      "nextEmptyDescription": "Your next shift shows here once you are on a schedule.",
+      "nextFailed": "Could not load your shifts.",
+      "nextPass": "Open shift and pass",
+      "nextRunning": "On now",
+      "onNow": "My team on shift now",
+      "onNowEmpty": "Nobody on your teams is on shift",
+      "onNowEmptyDescription": "When a shift of one of your teams is running, you see who is on it.",
+      "onNowFailed": "Could not load who is on shift.",
+      "onNowLead": "Lead on duty: {names}",
+      "onNowNoLead": "No lead on duty",
+      "onNowPeople": "{count} on now",
+      "swaps": "Open swaps",
+      "swapsCount": "{count} open swaps you can take",
+      "swapsEmpty": "No open swaps",
+      "swapsEmptyDescription": "Shifts other people give away show here when you could take them.",
+      "swapsFailed": "Could not load the open swaps.",
+      "swapsLink": "See the swaps"
+    },
     "feed": {
       "active": "Your calendar link is active",
       "activeSince": "Made {made}, last read {read}. It is not shown again: replace it to get a new one.",

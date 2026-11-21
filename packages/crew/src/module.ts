@@ -22,6 +22,7 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { crewAccess } from './runtime/access'
 import { CREW_DEFAULT_PAGES } from './runtime/utils/links'
+import { CREW_DASHBOARD, crewDashboardItems } from './runtime/dashboard'
 import type { CrewMemberContext, CrewRuntimeConfig, ModuleOptions, PublicModuleOptions } from './types'
 
 export type * from './types'
@@ -73,6 +74,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the operation page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
@@ -197,6 +200,12 @@ export default defineNuxtModule<ModuleOptions>({
         sfSymbolActive: 'person.3.fill',
         requiresAuth: true,
       })
+    }
+
+    // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
+    if (hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, CREW_DASHBOARD, crewDashboardItems(path => resolver.resolve(path)))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })

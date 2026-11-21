@@ -1092,6 +1092,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/email-templates':
         specifier: workspace:^
         version: link:../email-templates
@@ -1620,6 +1623,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/email-templates':
         specifier: workspace:^
         version: link:../email-templates
@@ -2325,6 +2331,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/maps':
         specifier: workspace:^
         version: link:../maps
@@ -2698,6 +2707,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/email-templates':
         specifier: workspace:^
         version: link:../email-templates
@@ -2977,6 +2989,9 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/maps':
         specifier: workspace:^
         version: link:../maps

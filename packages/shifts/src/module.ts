@@ -23,6 +23,7 @@ import { shiftsAccess } from './runtime/access'
 import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
 import { isValidTimeZone } from './runtime/utils/time'
 import { normalizeReminderBatch, normalizeReminderOffsets } from './runtime/utils/reminders'
+import { SHIFTS_DASHBOARD, shiftsDashboardItems } from './runtime/dashboard'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -106,6 +107,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Items on the `crew.home` dashboard.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the operation page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
@@ -157,6 +160,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'me', file: 'me/shifts.get' },
       // Static, so it wins over `me/:assignmentId`.
       { method: 'get', path: 'me/leads', file: 'me/leads.get' },
+      { method: 'get', path: 'me/now', file: 'me/now.get' },
       { method: 'get', path: 'me/feed-token', file: 'me/feed-token.get' },
       { method: 'post', path: 'me/feed-token', file: 'me/feed-token.post' },
       { method: 'delete', path: 'me/feed-token', file: 'me/feed-token.delete' },
@@ -315,6 +319,12 @@ export default defineNuxtModule<ModuleOptions>({
         sfSymbolActive: 'calendar.circle.fill',
         requiresAuth: true,
       })
+    }
+
+    // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
+    if (hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard } = await import('@frigear-nu/dashboard/utils')
+      extendDashboard(nuxt, SHIFTS_DASHBOARD, shiftsDashboardItems(path => resolver.resolve(path)))
     }
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })

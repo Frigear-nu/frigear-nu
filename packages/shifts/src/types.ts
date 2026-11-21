@@ -325,6 +325,24 @@ export type ShiftsNowDto = {
   }>
 }
 
+/**
+ * The teams of mine that are on shift now (`GET /api/shifts/me/now`): for each operation I work at, the teams I hold a
+ * role on that have a shift running, with who is on it and the leads among them. Names only, never contact details.
+ */
+export type ShiftsMyNowDto = {
+  at: string
+  teams: Array<{
+    operationId: string
+    operationName: Translated
+    teamId: string
+    teamName: Translated
+    /** The leads (BA and up) on shift now. */
+    leads: ShiftPersonDto[]
+    /** Everybody on shift now in this team, the leads included. */
+    people: ShiftPersonDto[]
+  }>
+}
+
 /** The answer of copying a schedule's roles and shifts (`POST /api/admin/shifts/schedules/:scheduleId/copy-from`). */
 export type ShiftCopyResultDto = {
   schedule: ShiftScheduleDto

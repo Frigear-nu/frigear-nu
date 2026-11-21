@@ -328,6 +328,19 @@ type DashboardItem = WidgetDefinition & {
   installed. Without Preferences, or signed out, changes last for the session and the registered order applies after a
   reload. See [Dashboard](/modules/volunteering/dashboard#per-user-layout).
 
+Items the volunteering modules add to `crew.home`, each only when dashboard is installed and each with the permission
+that guards its data:
+
+| Item | Module | Permission | Shows |
+| --- | --- | --- | --- |
+| `crew.status` | crew | `crew:read` | My application status, with a link to `/crew/status`. |
+| `shifts.next` | shifts | `shifts:read` | My next shift, with the pass link. |
+| `shifts.on-now` | shifts | `shifts:read` | My teams on shift now (`GET /api/shifts/me/now`). |
+| `shifts.swaps` | shifts | `shifts:read` | Open swaps I can take. |
+| `operations.upcoming` | operations | `operations:read` | Upcoming operations I take part in. |
+| `teams.mine` | teams | `teams:read` | My teams and roles (`GET /api/teams/me`). |
+| `help-center.onboarding` | help-center | `help-center:read` | My onboarding progress, next to the `account.overview` widget. |
+
 A module adds items only when dashboard is installed:
 
 ```ts [module.ts]
