@@ -2,7 +2,7 @@
   "name": "@frigear-nu/maps",
   "version": "0.0.0",
   "description": "Maps for the frigear ecosystem: geographic and floor-plan maps owned by anything, with map kinds, feature kinds and provider layers that other modules register.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/maps",
+  "homepage": "https://docs.frigear.dev/modules/interface/maps",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

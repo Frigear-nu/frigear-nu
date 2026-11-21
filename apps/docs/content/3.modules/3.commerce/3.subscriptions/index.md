@@ -27,13 +27,13 @@ to paying users only, put the `subscription` requirement on it (see [Permissions
 
 ::note
 **Installed for you:** `@frigear-nu/module-kit`, [Auth](/modules/identity/auth), Users,
-[Stripe](/modules/commerce/stripe), [Notify](/modules/platform/notify), [MCP](/modules/features/mcp) and
+[Stripe](/modules/commerce/stripe), [Notify](/modules/communication/notify), [MCP](/modules/features/mcp) and
 [UI](/modules/interface/ui).
 
 **You add:** `@nuxthub/core` with key-value storage (KV) on, and `@nuxt/ui` for the pages and components.
 
 **Optional:** [Menu](/modules/interface/menu) for the account menu item, Admin and Widget for the admin tab and card,
-Payments to store invoices as payments, [Email Templates](/modules/platform/email-templates) for the payment link
+Payments to store invoices as payments, [Email Templates](/modules/communication/email-templates) for the payment link
 email, and `@nuxtjs/i18n` for translated labels.
 ::
 

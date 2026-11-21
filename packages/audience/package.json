@@ -9,7 +9,7 @@
     "email": "kontakt@frigear.nu",
     "url": "https://frigear.nu"
   },
-  "homepage": "https://docs.frigear.dev/modules/volunteering/audience",
+  "homepage": "https://docs.frigear.dev/modules/organisation/audience",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

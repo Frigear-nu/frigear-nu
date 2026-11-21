@@ -7,7 +7,7 @@ navigation:
 
 Emails from modules, such as a sign-in link, go out as plain HTML by default. Email Templates renders them, and your
 own emails, from Vue components with your logo and colours. Your app replaces any module's email by adding a file with
-the same name. To only choose how email is delivered, [Notify](/modules/platform/notify) is enough.
+the same name. To only choose how email is delivered, [Notify](/modules/communication/notify) is enough.
 
 The package is `@frigear-nu/email-templates`. It renders with [nuxt-email-renderer](https://nuxtemail.com) and sends
 through Notify.
@@ -59,7 +59,7 @@ export default defineNuxtConfig({
 ### Add a template
 
 Every top-level `.vue` file in `app/emails` is a template, named by its file name. Copy `welcome.vue` from
-[Composing an email](/modules/platform/email-templates/components#composing-an-email).
+[Composing an email](/modules/communication/email-templates/components#composing-an-email).
 
 ::
 
@@ -100,11 +100,11 @@ the server bundle. Set `nuxtEmailRenderer.codeHighlighting: true` to use `<ECode
 
 | Page | What it covers | For |
 | --- | --- | --- |
-| [Email components](/modules/platform/email-templates/components) | The `Email*` components, and three example emails. | App developers |
-| [Server](/modules/platform/email-templates/server) | `sendEmailTemplate`, `renderEmailTemplate`, and bundle notes. | App developers |
-| [Module emails](/modules/platform/email-templates/module-emails) | Shipping a template from a module, and overriding one. | Module authors and app developers |
+| [Email components](/modules/communication/email-templates/components) | The `Email*` components, and three example emails. | App developers |
+| [Server](/modules/communication/email-templates/server) | `sendEmailTemplate`, `renderEmailTemplate`, and bundle notes. | App developers |
+| [Module emails](/modules/communication/email-templates/module-emails) | Shipping a template from a module, and overriding one. | Module authors and app developers |
 
 ## Next steps
 
-- [Email templates server](/modules/platform/email-templates/server) – send the template from a server route.
-- [Module emails](/modules/platform/email-templates/module-emails) – give the sign-in emails your own words.
+- [Email templates server](/modules/communication/email-templates/server) – send the template from a server route.
+- [Module emails](/modules/communication/email-templates/module-emails) – give the sign-in emails your own words.

@@ -2,7 +2,7 @@
   "name": "@frigear-nu/teams",
   "version": "0.0.0",
   "description": "Teams for the frigear ecosystem: teams owned by an operation or the platform, members, role ladders per team kind and role mapping rules.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/teams",
+  "homepage": "https://docs.frigear.dev/modules/organisation/teams",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

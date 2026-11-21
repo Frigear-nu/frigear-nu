@@ -27,4 +27,4 @@ const visible = isVisible(groupVisibility, viewer)
 | `Viewer`, `TeamRoleGrant`, `OwnerRef`, `OwnerType`, `OWNER_TYPES` | The shared types. |
 | `@frigear-nu/audience/server` | The `audience:viewer:resolve` and `audience:owner:resolve` Nitro hooks, and `resolveViewer` / `resolveOwner`. |
 
-Full reference: [docs.frigear.dev/modules/volunteering/audience](https://docs.frigear.dev/modules/volunteering/audience).
+Full reference: [docs.frigear.dev/modules/organisation/audience](https://docs.frigear.dev/modules/organisation/audience).

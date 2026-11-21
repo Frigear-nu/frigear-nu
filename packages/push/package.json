@@ -2,7 +2,7 @@
   "name": "@frigear-nu/push",
   "version": "0.1.0",
   "description": "Push notifications for the frigear ecosystem: device registration, FCM and APNs delivery, per-user channel preferences with a topic registry and a notifyUser helper (email, SMS, push). Runs in server and client mode.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/push",
+  "homepage": "https://docs.frigear.dev/modules/communication/push",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

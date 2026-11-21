@@ -24,13 +24,13 @@ The package is `@frigear-nu/forms`. Each form is a definition stored in the data
 - **Composables and helpers** (on by default): `defineForm()` to write a form in code, and a hook that receives every
   submission.
 - **MCP tools** (opt-in): list and submit forms, and manage them as staff, through [MCP](/modules/features/mcp).
-- **Emails** (opt-in per form): each submission is emailed through [Notify](/modules/platform/notify) to the recipients
+- **Emails** (opt-in per form): each submission is emailed through [Notify](/modules/communication/notify) to the recipients
   the form names. Your app picks the Notify driver; until it does, emails are not sent.
 
 :module-runtime{server client}
 
 ::note
-**Installed for you:** [Notify](/modules/platform/notify), [Auth](/modules/identity/auth),
+**Installed for you:** [Notify](/modules/communication/notify), [Auth](/modules/identity/auth),
 [Users](/modules/identity/users), [MCP](/modules/features/mcp), [UI](/modules/interface/ui) and Module Kit.
 **You add:** `@nuxthub/core` (Forms turns on its key-value storage for rate limiting and blob storage for uploads), and
 `@nuxt/ui` for the pages.

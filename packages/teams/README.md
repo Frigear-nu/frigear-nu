@@ -11,4 +11,4 @@ from a global role or a subscription plan without adding them by hand.
 - Permissions `teams:read`, `teams:lead`, `teams:manage` and `teams:pii`; the `teams` scope and OAuth claim.
 - Admin pages at `/admin/teams` (opt-in) and a "Teams" tab on the operation page.
 
-Documentation: https://docs.frigear.dev/modules/volunteering/teams
+Documentation: https://docs.frigear.dev/modules/organisation/teams

@@ -2,7 +2,7 @@
   "name": "@frigear-nu/help-center",
   "version": "0.0.0",
   "description": "Help articles and onboarding checklists for the frigear ecosystem: bilingual articles in categories, visible per role or public, read tracking, and articles from the database or Nuxt Content.",
-  "homepage": "https://docs.frigear.dev/modules/volunteering/help-center",
+  "homepage": "https://docs.frigear.dev/modules/content/help-center",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

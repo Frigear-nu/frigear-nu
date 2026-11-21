@@ -28,4 +28,4 @@ export default defineNuxtConfig({
 The default tiles are OpenStreetMap's public tile server, which forbids heavy use: set `maps.tiles` to a hosted tile
 provider in production.
 
-Full reference: [docs.frigear.dev/modules/volunteering/maps](https://docs.frigear.dev/modules/volunteering/maps).
+Full reference: [docs.frigear.dev/modules/interface/maps](https://docs.frigear.dev/modules/interface/maps).
