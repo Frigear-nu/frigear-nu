@@ -227,6 +227,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
   rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
   explicit memberships and teams' own role rules still count.
+- **`teams:member:*`.** They follow the grant of an explicit membership, not the row: `added` when it starts granting
+  (added with `status` null or `'active'`, or its status became one of those), `removed` when it stops (removed while
+  granting, or its status left them), `role-changed` for a role change while it grants. Crew fires on the same
+  transitions. Mapped grants fire none of them.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.

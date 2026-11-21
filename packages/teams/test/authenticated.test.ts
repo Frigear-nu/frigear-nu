@@ -376,6 +376,28 @@ describe('teams (authenticated, database-backed)', async () => {
       expect((await myTeams(pending.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'ba', source: 'explicit' })
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: pending.cookie }, query: { teamId: team.id } })).toEqual({ allowed: true, isTeamLead: true })
     })
+
+    it('fires added and removed when the status starts or ends the grant, not for rows without one', async () => {
+      const team = await createTeam()
+      const someone = await user('Statused')
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: someone.id, role: 'volunteer', status: 'pending' }))
+      // A role change without a grant fires nothing; the grant starts with the role it has then.
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { role: 'bartender' }))
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: 'active' }))
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { role: 'ba' }))
+      // `active` -> null both grant: nothing to tell.
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: null }))
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: 'inactive' }))
+      expect((await myTeams(someone.cookie)).find(grant => grant.teamId === team.id)).toBeUndefined()
+      // Deleting a row without a grant fires nothing either.
+      expect((await json(staff.cookie, 'DELETE', teamsApi.admin.member(team.id, someone.id))).status).toBe(204)
+
+      expect((await getHooksFor(team.id)).map(hook => [hook.name, hook.role, hook.from, hook.to])).toEqual([
+        ['added', 'bartender', undefined, undefined],
+        ['role-changed', 'ba', 'bartender', 'ba'],
+        ['removed', 'ba', undefined, undefined],
+      ])
+    })
   })
 
   describe('failing sources', () => {
