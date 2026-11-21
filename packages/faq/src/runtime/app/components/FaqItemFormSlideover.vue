@@ -2,7 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type FaqItemFormState, type StaffFaqGroup, type StaffFaqItem, emptyFaqItemForm, faqItemFormSchema, formToItemBody, itemToForm, missingLocales } from '../utils/admin-faq'
 import { faqApi } from '../../utils/api'
-import { $fetch, reactive, useAction, useFaqTranslate, useModuleT, useRuntimeConfig } from '#imports'
+import { $fetch, computed, reactive, useAction, useFaqTranslate, useModuleT, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'FaqItemFormSlideover' })
 
@@ -18,6 +18,15 @@ const requiredLocales = useRuntimeConfig().public.faq?.requiredLocales ?? ['da',
 
 const schema = faqItemFormSchema(t, tr)
 const state = reactive<FaqItemFormState>(props.item ? itemToForm(props.item) : emptyFaqItemForm())
+
+// "Same as the group" is an item without a list of its own (`grants: null`). Turning it off starts an empty list, which
+// admits nobody until a grant is added; the item can only narrow its group.
+const inherit = computed({
+  get: () => state.grants === null,
+  set: (value: boolean) => {
+    state.grants = value ? null : []
+  },
+})
 
 // What the item still lacks to be published, shown while editing.
 const missing = () => ({ question: missingLocales(state.question, requiredLocales), answer: missingLocales(state.answer, requiredLocales) })
@@ -132,14 +141,20 @@ async function save(event: FormSubmitEvent<FaqItemFormState>) {
       </div>
 
       <UFormField
-        name="visibility"
-        :label="t('admin.visibilityLabel', 'Who can see it')"
+        name="grants"
+        :label="t('admin.grantsLabel', 'Who can see it')"
       >
-        <FaqVisibilityEditor
-          v-model="state.visibility"
-          :parent="group.visibility"
-          inheritable
-        />
+        <div class="flex w-full flex-col gap-4">
+          <USwitch
+            v-model="inherit"
+            :label="t('admin.grantsInherit', 'Same as the group')"
+            :description="t('admin.grantsInheritHelp', 'The question is visible to the people who can see its group. Turn this off to narrow it further.')"
+          />
+          <GrantsEditor
+            v-if="state.grants !== null"
+            v-model="state.grants"
+          />
+        </div>
       </UFormField>
     </UForm>
   </FormSlideover>

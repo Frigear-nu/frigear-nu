@@ -71,7 +71,7 @@ const showPreview = ref(true)
         <template #badge>
           <StatusBadge
             :status="group.public ? 'published' : 'draft'"
-            :label="group.public ? t('admin.visibility.public', 'Public') : t('admin.visibilityNotPublic', 'Not public')"
+            :label="group.public ? t('admin.grantsPublic', 'Public') : t('admin.grantsNotPublic', 'Not public')"
           />
         </template>
         <template #actions>
@@ -183,12 +183,12 @@ const showPreview = ref(true)
             </div>
           </FormRow>
           <FormRow
-            name="visibility"
-            :label="t('admin.visibilityLabel', 'Who can see it')"
-            :description="t('admin.visibilityHelp', 'Questions can narrow this further, never widen it.')"
+            name="grants"
+            :label="t('admin.grantsLabel', 'Who can see it')"
+            :description="t('admin.grantsHelp', 'Anyone who matches one of these. Questions can narrow this further, never widen it.')"
           >
             <div class="w-full sm:max-w-sm">
-              <FaqVisibilityEditor v-model="state.visibility" />
+              <GrantsEditor v-model="state.grants" />
             </div>
           </FormRow>
         </UForm>

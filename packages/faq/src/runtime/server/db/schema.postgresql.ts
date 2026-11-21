@@ -4,8 +4,8 @@ import { pgTable, text, integer, jsonb, timestamp, index } from 'drizzle-orm/pg-
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 // (declared here, not imported: this file is merged into the generated schema as plain text)
 type Translated = string | Record<string, string>
-// Who may see a record, see `Visibility` of `@frigear-nu/audience`.
-type Visibility = import('@frigear-nu/audience').Visibility
+// Who may read a record, see `Grant` of `@frigear-nu/grants`.
+type Grant = { kind: string } & Record<string, unknown>
 // A button under an answer, see `FaqLink` in types.ts.
 type FaqLink = { label: string, to: string, icon?: string }
 
@@ -16,12 +16,12 @@ export const faqGroups = pgTable('faq_groups', {
   title: jsonb().$type<Translated>().notNull(),
   description: jsonb().$type<Translated>(),
   icon: text(),
-  /** `operation | team | user | platform`, or a type another module adds (see `@frigear-nu/audience`). */
+  /** `platform`, `operation`, `team`, or a type an app adds (`OwnerType` of `@frigear-nu/teams`). */
   ownerType: text().notNull().default('platform'),
   /** `null` for the platform. */
   ownerId: text(),
-  /** `null` is signed-in viewers only; `{ public: true }` is everyone. */
-  visibility: jsonb().$type<Visibility>(),
+  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: jsonb().$type<Grant[]>().notNull().default([]),
   sort: integer().notNull().default(0),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
@@ -40,8 +40,8 @@ export const faqItems = pgTable('faq_items', {
   links: jsonb().$type<FaqLink[]>(),
   /** `draft | published`. */
   status: text().notNull().default('draft'),
-  /** Can only narrow the group's. `null` inherits it. */
-  visibility: jsonb().$type<Visibility>(),
+  /** Narrows the parent: `null` inherits it, a list must admit too (`@frigear-nu/grants`). */
+  grants: jsonb().$type<Grant[]>(),
   sort: integer().notNull().default(0),
   /** The id of the user who changed it last, as text. */
   updatedBy: text(),

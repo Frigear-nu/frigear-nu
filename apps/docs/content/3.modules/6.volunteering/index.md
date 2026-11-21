@@ -23,7 +23,7 @@ group in the pull request that adds the module.
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
 | [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
-| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
+| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item grants. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |

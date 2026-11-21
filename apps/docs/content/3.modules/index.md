@@ -43,7 +43,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Decide who may see a record by role, team role or operation | [Grants](/modules/platform/grants) | Auth, UI |
 | Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Grants, UI |
 | Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Grants, UI |
-| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
+| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, Grants, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -132,7 +132,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
 | [Dashboard](/modules/volunteering/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
 | [Teams](/modules/volunteering/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
-| [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
+| [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item grants, content components for pages and an admin area. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 

@@ -12,15 +12,17 @@ describe('group input', () => {
       description: 'About it',
       icon: 'i-lucide-info',
       owner: { type: 'operation', id: 'opr_1' },
-      visibility: { globalRoles: ['supervisor'], minTeamRole: { kind: 'bar', role: 'lead' }, operationId: 'opr_1' },
+      grants: [{ kind: 'role', role: 'supervisor' }, { kind: 'team', teamId: 'tem_1', minRole: 'lead' }],
       sort: 3,
     }).success).toBe(true)
   })
 
-  it('refuses a visibility with an unknown key, such as a permission', () => {
-    expect(faqGroupInput.safeParse({ ...group, visibility: { permission: 'faq:manage' } }).success).toBe(false)
-    expect(faqGroupInput.safeParse({ ...group, visibility: { globalRole: ['x'] } }).success).toBe(false)
-    expect(faqGroupPatchSchema.safeParse({ visibility: { permission: 'x' } }).success).toBe(false)
+  it('takes grants in the shape of a list (each kind is checked in the handler)', () => {
+    expect(faqGroupInput.safeParse({ ...group, grants: { kind: 'public' } }).success).toBe(false)
+    expect(faqGroupInput.safeParse({ ...group, grants: [{ role: 'x' }] }).success).toBe(false)
+    expect(faqGroupInput.safeParse({ ...group, grants: [{ kind: 'Not A Kind' }] }).success).toBe(false)
+    expect(faqGroupPatchSchema.safeParse({ grants: null }).success).toBe(false)
+    expect(faqGroupPatchSchema.safeParse({ grants: [] }).success).toBe(true)
   })
 
   it('refuses reserved and malformed slugs', () => {
@@ -35,7 +37,7 @@ describe('group input', () => {
 
   it('lets a patch carry any of the fields, or none', () => {
     expect(faqGroupPatchSchema.safeParse({}).success).toBe(true)
-    expect(faqGroupPatchSchema.safeParse({ visibility: null, description: null }).success).toBe(true)
+    expect(faqGroupPatchSchema.safeParse({ grants: [], description: null }).success).toBe(true)
   })
 })
 
@@ -51,9 +53,10 @@ describe('item input', () => {
     }
   })
 
-  it('refuses a visibility with an unknown key', () => {
-    expect(faqItemInput.safeParse({ ...item, visibility: { permission: 'x' } }).success).toBe(false)
-    expect(faqItemPatchSchema.safeParse({ visibility: { public: true } }).success).toBe(true)
+  it('takes grants in the shape of a list, or null to inherit the group', () => {
+    expect(faqItemInput.safeParse({ ...item, grants: { kind: 'public' } }).success).toBe(false)
+    expect(faqItemPatchSchema.safeParse({ grants: [{ kind: 'public' }] }).success).toBe(true)
+    expect(faqItemPatchSchema.safeParse({ grants: null }).success).toBe(true)
   })
 
   it('does not take a status: it has its own routes', () => {

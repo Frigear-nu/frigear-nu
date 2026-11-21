@@ -12,7 +12,7 @@ const querySchema = pageQuery({
   defaultOrder: 'asc',
 })
 
-// Every group, whatever its visibility, in their order by default (`sort` and `order` change it). `q` searches the title
+// Every group, whatever its grants, in their order by default (`sort` and `order` change it). `q` searches the title
 // (every language) and the slug.
 export default defineEventHandler(async (event): Promise<Page<AdminFaqGroupDto>> => {
   await authorize(event, faqAccess.permissions.manage)
