@@ -18,6 +18,8 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
+import { defineMapLayer, extendMaps } from '@frigear-nu/maps/utils'
+import { OPERATIONS_VENUE_SURFACE } from '@frigear-nu/operations/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { shiftsAccess } from './runtime/access'
 import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
@@ -111,8 +113,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
     // Renders the `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails from the templates this module ships.
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
-    // The `shifts.on-duty` layer on the venue layouts of operations.
-    '@frigear-nu/maps': { version: '>=0.0.0', optional: true },
+    // The `shifts.on-duty` live layer on the venue layouts of operations (installed with operations already).
+    '@frigear-nu/maps': { version: '>=0.0.0' },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -182,6 +184,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'assignments/:assignmentId/attended', file: 'lead/attended.post' },
       { method: 'post', path: 'assignments/:assignmentId/no-show', file: 'lead/no-show.post' },
       { method: 'get', path: 'operations/:operationId/now', file: 'lead/now.get' },
+      { method: 'get', path: 'operations/:operationId/on-duty', file: 'lead/on-duty.get' },
     ], { base: '/api/shifts' })
 
     addModuleRoutes(resolver, [
@@ -270,22 +273,19 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
     ])
 
-    // Maps: the `shifts.on-duty` layer on the venue layout of an operation, with a point per shift location. Registered
-    // here, not on `modules:done`: maps reads the registry once every module is done.
-    if (hasNuxtModule('@frigear-nu/maps')) {
-      const { defineMapLayer, extendMaps } = await import('@frigear-nu/maps/utils')
-      extendMaps(nuxt, {
-        layers: [defineMapLayer({
-          key: 'shifts.on-duty',
-          label: { da: 'På vagt nu', en: 'On duty now' },
-          // `operations.venue-layout` of `@frigear-nu/operations`, which maps shifts onto an operation's floor plan.
-          appliesTo: { kind: 'operations.venue-layout' },
-          provider: resolver.resolve('./runtime/server/maps/on-duty'),
-          permission: shiftsAccess.permissions.read,
-          refreshInterval: 60,
-        })],
-      })
-    }
+    // The `shifts.on-duty` live layer of `@frigear-nu/maps`: a point per shift location on the venue layout of an
+    // operation (`OPERATIONS_VENUE_SURFACE`), fetched from our own route. Registered here, not on `modules:done`: maps
+    // reads the registry once every module is done.
+    extendMaps(nuxt, {
+      layers: [defineMapLayer({
+        id: 'shifts.on-duty',
+        label: { da: 'På vagt nu', en: 'On duty now' },
+        appliesTo: OPERATIONS_VENUE_SURFACE,
+        endpoint: '/api/shifts/operations/:operationId/on-duty',
+        permission: shiftsAccess.permissions.read,
+        refreshInterval: 120,
+      })],
+    })
 
     // A "Shifts" tab on the staff operation page (`admin.operations`, owned by `@frigear-nu/operations`), after crew (10)
     // and teams (20).

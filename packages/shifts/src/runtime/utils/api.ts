@@ -59,6 +59,8 @@ export const shiftsApi = {
   noShow: (assignmentId: string) => `${BASE}/assignments/${enc(assignmentId)}/no-show`,
   /** `GET` who is on shift now in an operation, and the leads on duty per team. */
   now: (operationId: string) => `${BASE}/operations/${enc(operationId)}/now`,
+  /** `GET` the `shifts.on-duty` live layer: GeoJSON points on the operation's venue layout, a team per shift location. */
+  onDuty: (operationId: string) => `${BASE}/operations/${enc(operationId)}/on-duty`,
   admin: {
     /** `GET` (`?operationId`) / `POST` schedules. */
     schedules: `${ADMIN_BASE}/schedules`,

@@ -15,8 +15,6 @@ export default defineNuxtConfig({
     '@frigear-nu/forms',
     '@frigear-nu/notify',
     '@frigear-nu/crew',
-    // Installed so the integrations with maps (the venue layouts of operations, the `shifts.on-duty` layer) are tested.
-    '@frigear-nu/maps',
     ShiftsModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
     // `admin` and `coordinator` hold what the modules `grantTo` them (`shifts:manage`, `shifts:pii`, ...);

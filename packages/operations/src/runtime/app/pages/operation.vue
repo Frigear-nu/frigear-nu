@@ -87,6 +87,12 @@ useSeoMeta({ title: () => (operation.value ? tr(operation.value.name) : 'Operati
           </div>
         </div>
 
+        <MapViewer
+          v-if="operation.location?.point"
+          :locations="[{ id: operation.id, label: operation.location.name ?? operation.name, location: { point: operation.location.point, radiusMeters: operation.location.radiusMeters, area: operation.location.area } }]"
+          height="18rem"
+        />
+
         <UButton
           v-if="operation.hostUrl"
           :to="operation.hostUrl"

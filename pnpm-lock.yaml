@@ -2264,6 +2264,9 @@ importers:
       '@frigear-nu/events':
         specifier: workspace:^
         version: link:../events
+      '@frigear-nu/maps':
+        specifier: workspace:^
+        version: link:../maps
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit
@@ -2295,9 +2298,6 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
-      '@frigear-nu/maps':
-        specifier: workspace:^
-        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -2619,6 +2619,9 @@ importers:
       '@frigear-nu/crew':
         specifier: workspace:^
         version: link:../crew
+      '@frigear-nu/maps':
+        specifier: workspace:^
+        version: link:../maps
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit
@@ -2674,9 +2677,6 @@ importers:
       '@frigear-nu/forms':
         specifier: workspace:^
         version: link:../forms
-      '@frigear-nu/maps':
-        specifier: workspace:^
-        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -2947,9 +2947,6 @@ importers:
       '@frigear-nu/admin':
         specifier: workspace:^
         version: link:../admin
-      '@frigear-nu/maps':
-        specifier: workspace:^
-        version: link:../maps
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu

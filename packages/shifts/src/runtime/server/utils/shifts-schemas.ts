@@ -29,7 +29,6 @@ const guards = z.strictObject({
 
 const location = z.strictObject({
   name: shiftsTranslated.optional(),
-  mapId: key.optional(),
   featureId: key.optional(),
 })
 

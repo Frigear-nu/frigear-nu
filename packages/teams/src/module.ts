@@ -75,8 +75,6 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
-    // A team's leads may edit the maps the team owns.
-    '@frigear-nu/maps': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -154,10 +152,6 @@ export default defineNuxtModule<ModuleOptions>({
       // `plan` mapping rules: an active subscription to the plan.
       if (hasNuxtModule('@frigear-nu/subscriptions', nuxt)) {
         addServerPlugin(resolver.resolve('./runtime/server/plugins/subscriptions'))
-      }
-      // A team's leads may edit the maps the team owns (`maps:edit:resolve`).
-      if (hasNuxtModule('@frigear-nu/maps', nuxt)) {
-        addServerPlugin(resolver.resolve('./runtime/server/plugins/maps'))
       }
       // The `teams` claim of id tokens and userinfo, with the `teams` / `teams:read` scope.
       if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {

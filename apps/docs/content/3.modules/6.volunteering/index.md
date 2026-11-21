@@ -272,16 +272,16 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 
 ## Maps integrations
 
-Phase 6 wires the modules to maps. Each integration is optional: a module registers it only when
-`hasNuxtModule('@frigear-nu/maps')`, and maps imports none of them.
+Maps is a building block: a module stores a location or a plane layout in its own table, edits it with the components
+of Maps, and saves it through its own routes, which check access the module's own way. No module answers a maps hook.
 
-| Module | Registers | Where |
+| Module | Uses | How |
 | --- | --- | --- |
-| operations | Kinds `operations.site` (geo) and `operations.venue-layout` (plane), both with owner type `operation`. | `extendMaps` in `setup()` |
-| operations | One map of each kind per new operation, keys `operation-<id>-site` and `operation-<id>-venue`, created with `ensureMap` on `operations:created`. | Server plugin |
-| operations | `maps:edit:resolve`: `allowed = true` for holders of `operations:manage`, on `operation` maps. | Server plugin |
-| teams | `maps:edit:resolve`: `allowed = true` for the team's leads (`isTeamLead`), on `team` maps. | Server plugin |
-| shifts | Layer `shifts.on-duty` on `operations.venue-layout`, permission `shifts:read`, `refreshInterval: 60`: a point per shift location, with `shifts:pii` for names. | `extendMaps` in `setup()` |
+| operations | `location`: a name, an address and the location picker's value (`point`, `radiusMeters` or `area`). | `<MapLocationField>` in the Details tab, `PATCH /api/admin/operations/:id` (`operations:manage`) |
+| operations | `venueLayout`: a plane layout with an underlay image in Blob, on the `operations.venue-layout` surface. | `<MapPlaneEditor>` in the Venue layout tab, `PUT .../venue-layout` and `POST .../venue-layout/underlay` (`operations:manage`) |
+| operations | Feature kinds `operations.station` and `operations.container`. | `extendMaps` in `setup()` |
+| shifts | A shift's `location.featureId` points to a feature of the operation's venue layout. | `{ name?, featureId? }` |
+| shifts | Live layer `shifts.on-duty` on `operations.venue-layout`, `refreshInterval: 120`, `shifts:read`: a point per team and location, the leads' names only with `shifts:pii`. | `GET /api/shifts/operations/:operationId/on-duty` |
 
 ## Dashboard items
 
@@ -343,10 +343,10 @@ registries, so each module also works alone. Arrows point one way: a lower modul
 audience    (plain package, no Nuxt module)
 
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
-operations  ─► auth, audience                        (soft: events, maps, dashboard)
-teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, maps, dashboard)
+operations  ─► auth, audience, maps                  (soft: events, dashboard)
+teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
-shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
+shifts      ─► crew, notify, maps                    (soft: dashboard, push, mobile)
 faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
