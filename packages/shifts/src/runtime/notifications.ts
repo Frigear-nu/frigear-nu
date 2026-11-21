@@ -3,11 +3,13 @@ import type { NotificationTopic } from '@frigear-nu/push/utils'
 // The notification topics shifts registers with `extendNotificationTopics` when `@frigear-nu/push` is installed (the rows of
 // the account's channel matrix, and what `notifyUser` checks a person's choices against). The defaults are email and push;
 // SMS is offered where it costs money for a reason (a reminder, a broadcast) and stays off until the person turns it on.
+// `shifts.digest` reaches leads only: the exceptions of their teams after a run of `shifts:close-shifts`.
 
 export const SHIFTS_TOPICS = {
   reminder: 'shifts.reminder',
   swap: 'shifts.swap',
   broadcast: 'shifts.broadcast',
+  digest: 'shifts.digest',
 } as const
 
 export type ShiftsTopic = typeof SHIFTS_TOPICS[keyof typeof SHIFTS_TOPICS]
@@ -33,6 +35,13 @@ export const shiftsNotificationTopics: NotificationTopic[] = [
     description: { da: 'Beskeder fra ledere og koordinatorer til dit hold.', en: 'Messages from leads and coordinators to your team.' },
     defaults: { email: true, sms: false, push: true },
     channels: ['email', 'sms', 'push'],
+  },
+  {
+    id: SHIFTS_TOPICS.digest,
+    label: { da: 'Overblik for ledere', en: 'Lead digest' },
+    description: { da: 'No-shows og andet, der skal ses på, på de hold, du leder.', en: 'No-shows and other exceptions on the teams you lead.' },
+    defaults: { email: true, sms: false, push: true },
+    channels: ['email', 'push'],
   },
 ]
 

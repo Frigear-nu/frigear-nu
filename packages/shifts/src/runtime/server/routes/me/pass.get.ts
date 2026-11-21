@@ -1,5 +1,6 @@
 import { idParams, notFound } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
+import { checkInRuleFor } from '../../../utils/checkin'
 import type { ShiftPassDto } from '../../../../types'
 
 // The QR pass of one of my shifts. The code (and the QR code as SVG) is in it only from `checkInOpensMinutes` before the
@@ -13,10 +14,10 @@ export default defineEventHandler(async (event): Promise<ShiftPassDto> => {
   if (entry.assignment.userId !== Number(principal.user.id) || entry.schedule.status !== 'published') throw notFound('Assignment not found.')
   await authorize(event, shiftsAccess.permissions.read, { userId: entry.assignment.userId })
   setResponseHeader(event, 'cache-control', 'no-store')
-  const pass = shiftsPassOf(event, entry)
+  const pass = { ...shiftsPassOf(event, entry), checkIn: checkInRuleFor(entry.schedule.checkIn, entry.shift.teamId) }
   if (pass.available && !await shiftsStillEligible(event, entry.assignment, entry.shift.teamId)) {
     await shiftsCancelFutureAssignments(event, entry.assignment.userId, entry.shift.teamId, row => shiftsStillEligible(event, row, entry.shift.teamId))
     return { ...pass, available: false, code: null, svg: null, perks: [] }
   }
-  return { ...pass, perks: entry.assignment.status === 'assigned' || entry.assignment.status === 'attended' ? await shiftsPassPerks(entry) : [] }
+  return { ...pass, perks: entry.assignment.status === 'cancelled' ? [] : await shiftsPassPerks(entry) }
 })

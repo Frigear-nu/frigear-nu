@@ -1,7 +1,7 @@
 import { idParams, noContent } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
 
-// Deletes a perk together with its redemptions.
+// Deletes a perk nobody earned yet: 409 `perk_has_grants` once a grant exists (change the perk instead).
 export default defineEventHandler(async (event) => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { perkId } = await getValidatedRouterParams(event, idParams('perkId').parse)

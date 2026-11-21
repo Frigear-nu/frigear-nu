@@ -6,7 +6,7 @@ import { toZonedInput, warningColor, zonedInputToIso } from '../utils/admin-shif
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS } from '../../utils/status'
 import type { ShiftAssigneeDto, ShiftAssignResultDto, ShiftCandidateDto, ShiftRoleDto, ShiftWarning, ShiftWithAssigneesDto } from '../../../types'
-import { $fetch, computed, errorMessage, reactive, ref, useAction, useConfirmDialog, useLazyFetch, useModuleT, useRuntimeConfig, useShiftsFormat, useShiftsTranslate, useToast } from '#imports'
+import { $fetch, computed, errorMessage, reactive, ref, SHIFTS_NO_FEATURE, useAction, useConfirmDialog, useLazyFetch, useModuleT, useRuntimeConfig, useShiftsFormat, useShiftsTranslate, useShiftsVenueFeatures, useToast } from '#imports'
 
 defineOptions({ name: 'ShiftSlideover' })
 
@@ -35,6 +35,7 @@ const schema = z.object({
   endsAt: z.string().min(1),
   capacity: z.number().int().min(0).nullable(),
   shiftRoleId: z.string(),
+  featureId: z.string(),
 }).refine(value => value.endsAt > value.startsAt, { message: t('admin.endsAfterStart', 'A shift must end after it starts.'), path: ['endsAt'] })
 type State = z.output<typeof schema>
 const state = reactive<State>({
@@ -42,7 +43,10 @@ const state = reactive<State>({
   endsAt: toZonedInput(props.shift.endsAt, timeZone),
   capacity: props.shift.capacity,
   shiftRoleId: props.shift.shiftRoleId ?? NONE,
+  featureId: props.shift.location?.featureId ?? SHIFTS_NO_FEATURE,
 })
+// Where on the operation's venue layout the shift is (the on-duty layer draws it there).
+const venue = useShiftsVenueFeatures(() => props.shift.operationId)
 const roleOptions = computed(() => [
   { label: t('admin.noRole', 'No role'), value: NONE },
   ...props.roles.filter(role => role.teamId === props.shift.teamId).map(role => ({ label: tr(role.name), value: role.id })),
@@ -54,12 +58,21 @@ async function save(event: FormSubmitEvent<State>) {
     endsAt: zonedInputToIso(event.data.endsAt, timeZone),
     capacity: event.data.capacity,
     shiftRoleId: event.data.shiftRoleId === NONE ? null : event.data.shiftRoleId,
+    location: shiftLocation(event.data.featureId),
   }
   const saved = await run(
     () => $fetch(shiftsApi.admin.shift(current.value.id), { method: 'PATCH', body }),
     { success: t('admin.shiftSaved', 'Saved the shift') },
   )
   if (saved) emit('close', true)
+}
+
+/** The shift's location with the picked feature: its name is kept, a cleared feature is dropped. */
+function shiftLocation(featureId: string) {
+  const location = { ...props.shift.location }
+  if (featureId === SHIFTS_NO_FEATURE) delete location.featureId
+  else location.featureId = featureId
+  return Object.keys(location).length ? location : null
 }
 
 // --- Who works it -----------------------------------------------------------------------------------------------------
@@ -343,6 +356,19 @@ const capacityLabel = computed(() => current.value.effectiveCapacity === null
             <USelect
               v-model="state.shiftRoleId"
               :items="roleOptions"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            name="featureId"
+            class="col-span-2"
+            :label="t('admin.venueFeature', 'Place on the venue layout')"
+            :description="t('admin.venueFeatureHelp', 'Where the shift is worked: the on-duty map draws it there.')"
+          >
+            <USelect
+              v-model="state.featureId"
+              :items="venue.items.value"
+              :loading="venue.status.value === 'pending'"
               class="w-full"
             />
           </UFormField>

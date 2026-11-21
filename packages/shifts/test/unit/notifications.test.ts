@@ -11,9 +11,9 @@ const register = () => {
 }
 
 describe('the shifts notification topics', () => {
-  it('register with push: reminders, swaps and broadcasts', () => {
-    expect(register().map(topic => topic.id)).toEqual(['shifts.reminder', 'shifts.swap', 'shifts.broadcast'])
-    expect(Object.values(SHIFTS_TOPICS)).toEqual(['shifts.reminder', 'shifts.swap', 'shifts.broadcast'])
+  it('register with push: reminders, swaps, broadcasts and the leads\' digest', () => {
+    expect(register().map(topic => topic.id)).toEqual(['shifts.reminder', 'shifts.swap', 'shifts.broadcast', 'shifts.digest'])
+    expect(Object.values(SHIFTS_TOPICS)).toEqual(['shifts.reminder', 'shifts.swap', 'shifts.broadcast', 'shifts.digest'])
   })
 
   it('default to email and push, and offer SMS on reminders and broadcasts only', () => {
@@ -22,6 +22,7 @@ describe('the shifts notification topics', () => {
     expect(topics['shifts.reminder']!.channels).toEqual(['email', 'sms', 'push'])
     expect(topics['shifts.broadcast']!.channels).toEqual(['email', 'sms', 'push'])
     expect(topics['shifts.swap']!.channels).toEqual(['email', 'push'])
+    expect(topics['shifts.digest']!.channels).toEqual(['email', 'push'])
     // A person who never chose gets email and push; SMS stays off until they turn it on, and swaps never offer it.
     expect(resolveChannelSettings(topics['shifts.reminder']!)).toEqual({ email: true, sms: false, push: true })
     expect(resolveChannelSettings(topics['shifts.swap']!, { sms: true })).toEqual({ email: true, sms: false, push: true })

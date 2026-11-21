@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, jsonb, timestamp, boolean, index, uniqueIndex } from 'drizzle-orm/pg-core'
 
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
@@ -8,6 +8,8 @@ type Translated = string | Record<string, string>
 type ShiftGuards = { maxShiftsPerDay?: number | null, minRestHours?: number | null }
 // Where a shift takes place, see `ShiftLocation` in types.ts.
 type ShiftLocation = { name?: Translated, featureId?: string }
+// How people check in on a schedule's shifts, see `ShiftCheckInSettings` in types.ts.
+type ShiftCheckInSettings = { modes?: string[], location?: unknown, teams?: Record<string, unknown> }
 
 // Operation, team and user ids carry no foreign key here: those tables belong to other modules. Shifts' own rows refer to
 // each other by id and are removed by shifts itself.
@@ -31,6 +33,11 @@ export const shiftSchedules = pgTable('shift_schedules', {
   /** The capacity of a shift that sets none; `null` is unlimited. */
   maxPerShift: integer(),
   guards: jsonb().$type<ShiftGuards>(),
+  /** How people check in: the modes, the place of `location` mode and per-team overrides (`ShiftCheckInSettings`). `null` is the lead's scanner only. */
+  checkIn: jsonb().$type<ShiftCheckInSettings>(),
+  /** Mark assignments still `assigned` without a check-in `autoNoShowMinutes` after the start as `no_show` (the `shifts:close-shifts` task). */
+  autoNoShow: boolean().notNull().default(false),
+  autoNoShowMinutes: integer().notNull().default(30),
   publishedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
@@ -66,9 +73,12 @@ export const shifts = pgTable('shifts', {
   /** How many people the shift takes; `null` is the schedule's `maxPerShift`. */
   capacity: integer(),
   notes: jsonb().$type<Translated>(),
+  /** When the `shifts:close-shifts` task handled the shift's end (perk grants); `null` until then. */
+  closedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 }, t => [
+  index('shift_end_closed_idx').on(t.endsAt, t.closedAt),
   index('shift_schedule_start_idx').on(t.scheduleId, t.startsAt),
   index('shift_team_start_idx').on(t.teamId, t.startsAt),
 ])
@@ -86,6 +96,8 @@ export const shiftAssignments = pgTable('shift_assignments', {
   checkInCode: text().notNull(),
   checkedInAt: timestamp({ withTimezone: true }),
   checkedInBy: integer(),
+  /** How the person checked in: `lead`, `station`, `location` or `daily`; `null` before a check-in. */
+  checkInMethod: text(),
   assignedBy: integer(),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
@@ -187,36 +199,74 @@ export const shiftBroadcasts = pgTable('shift_broadcasts', {
   index('shift_broadcast_operation_idx').on(t.operationId, t.createdAt),
 ])
 
-/** A perk of an operation (a meal, a drink voucher): per assignment (`perShift`) or per person over the operation (`perPerson`). */
+/** A perk of an operation (a meal, two beers): every attended assignment of a team it applies to earns a grant of it. */
 export const shiftPerks = pgTable('shift_perks', {
   /** `spk_` + random id. */
   id: text().primaryKey(),
   operationId: text().notNull(),
   /** The team it is for; `null` is every team of the operation. */
   teamId: text(),
-  /** `meal`, `drink` or `other`. */
-  kind: text().notNull().default('meal'),
   name: jsonb().$type<Translated>().notNull(),
-  /** The allowance of each assignment. Exactly one of `perShift` and `perPerson` is set. */
-  perShift: integer(),
-  /** The budget of each person across the operation. */
-  perPerson: integer(),
+  /** Free text the vouchers app spends it as (`beer`, `meal`). Always set by the API; the default only lets the column be added. */
+  voucherType: text().notNull().default(''),
+  /** How many of it one attended shift earns (at least 1). */
+  quantity: integer().notNull().default(1),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 }, t => [
   index('shift_perk_operation_idx').on(t.operationId),
 ])
 
-/** One redemption of a perk, with the assignment whose pass was scanned and the lead who scanned it. */
-export const shiftPerkRedemptions = pgTable('shift_perk_redemptions', {
-  /** `spr_` + random id. */
+/**
+ * A perk earned on one attended assignment: granted once per perk and assignment (the unique key), at the shift's end or
+ * when a lead marks an ended shift attended. The vouchers app claims it; flipping the assignment to `no_show` revokes it
+ * while it is unclaimed.
+ */
+export const shiftPerkGrants = pgTable('shift_perk_grants', {
+  /** `spg_` + random id. */
   id: text().primaryKey(),
   perkId: text().notNull(),
   assignmentId: text().notNull(),
+  /** The person who attended (the assignment's holder when it was granted). */
   userId: integer().notNull(),
-  redeemedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
-  redeemedBy: integer().notNull(),
+  /** Copied from the perk when granted. */
+  voucherType: text().notNull(),
+  quantity: integer().notNull(),
+  earnedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  claimedAt: timestamp({ withTimezone: true }),
+  /** The client that claimed it (`frigear-vouchers`). */
+  claimClient: text(),
+  revokedAt: timestamp({ withTimezone: true }),
 }, t => [
-  index('shift_perk_redemption_assignment_idx').on(t.perkId, t.assignmentId),
-  index('shift_perk_redemption_user_idx').on(t.perkId, t.userId),
+  uniqueIndex('shift_perk_grant_unique').on(t.perkId, t.assignmentId),
+  index('shift_perk_grant_user_idx').on(t.userId, t.claimedAt),
+  index('shift_perk_grant_assignment_idx').on(t.assignmentId),
+])
+
+/** A check-in station of a team on a schedule: a screen showing a rotating QR code volunteers scan. */
+export const shiftStations = pgTable('shift_stations', {
+  /** `sst_` + random id. */
+  id: text().primaryKey(),
+  scheduleId: text().notNull(),
+  teamId: text().notNull(),
+  name: jsonb().$type<Translated>().notNull(),
+  /** A feature of the operation's venue layout (an `operations.station`), or `null`. */
+  featureId: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
+}, t => [
+  index('shift_station_schedule_idx').on(t.scheduleId),
+])
+
+/** An exception claimed for the leads' digest: the unique key sends each one once. */
+export const shiftDigestItems = pgTable('shift_digest_items', {
+  /** `sdi_` + random id. */
+  id: text().primaryKey(),
+  /** `no_show`, `not_checked_in` or `claimed_no_show`. */
+  kind: text().notNull(),
+  assignmentId: text().notNull(),
+  teamId: text().notNull(),
+  sentAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  uniqueIndex('shift_digest_item_unique').on(t.kind, t.assignmentId),
 ])

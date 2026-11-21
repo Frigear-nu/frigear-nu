@@ -47,7 +47,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/content/faq) | Auth, UI |
 | Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Audience, UI |
 | Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, UI |
-| Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, Maps, UI |
+| Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, Maps, UI |
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
@@ -163,7 +163,7 @@ Communication and Interface.
 | --- | --- | :---: | :---: | :---: |
 | [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place, venue layout and status, that crew and shifts attach to. | ✓ | ✓ |  |
 | [Crew](/modules/volunteering/crew) | Applications, approvals, waiting list and invite links that turn people into an operation's crew, on top of teams. | ✓ | ✓ | ✓ |
-| [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, QR check-in and who is on shift now, per operation. | ✓ | ✓ | ✓ |
+| [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, check-in by pass, station or location, earned perks and who is on shift now, per operation. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 
