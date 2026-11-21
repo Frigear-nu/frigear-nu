@@ -2,7 +2,7 @@
 
 The occasions Frigear works at, whether or not Frigear hosts them ("Roskilde 2027 bar operation"). An operation has a
 period, a place, a host and a status (`planning`, `active`, `wrapped_up`, `archived`), and is the anchor that crew,
-shifts, maps and help content attach to. Part of the volunteering modules; it follows the contracts of
+shifts and help content attach to. Part of the volunteering modules; it follows the contracts of
 [`@frigear-nu/audience`](../audience).
 
 ## Quick Setup

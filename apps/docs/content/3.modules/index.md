@@ -42,13 +42,13 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/interface/dashboard) | Widget, UI |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/organisation/audience) (a library, not a module) | Nothing else |
-| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, UI |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, Maps, UI |
 | Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/organisation/teams) | Auth, Users, Audience, UI |
 | Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/content/faq) | Auth, UI |
 | Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Audience, UI |
 | Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, UI |
-| Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, UI |
-| Show site maps and floor plans, and let staff draw on them | [Maps](/modules/interface/maps) | Auth, UI |
+| Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, Maps, UI |
+| Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -143,7 +143,7 @@ The shell, navigation and components that screens are built from.
 | [Widget](/modules/interface/widget) | Named widget and tab areas that modules add components to. |  | ✓ |  |
 | [Mobile](/modules/interface/mobile) | A Capacitor app shell: one tab registry for native and web tab bars, native features, deep links and a CLI. |  | ✓ | ✓ |
 | [Dashboard](/modules/interface/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
-| [Maps](/modules/interface/maps) | Geographic and floor-plan maps owned by anything, with an editor, provider layers and map kinds other modules add. | ✓ | ✓ | ✓ |
+| [Maps](/modules/interface/maps) | A building block for modules: a location picker, a plane layout editor and viewers with live layers. No tables of its own. | ✓ | ✓ | ✓ |
 
 ### Platform
 
@@ -157,11 +157,11 @@ The foundations that other modules and apps stand on.
 ### Volunteering
 
 Crew work: the occasions Frigear staffs, the crew that work them and their shifts. They build on Organisation, Content,
-Communication and Interface. [Volunteering](/modules/volunteering) holds the contracts they share.
+Communication and Interface.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
-| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
+| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place, venue layout and status, that crew and shifts attach to. | ✓ | ✓ |  |
 | [Crew](/modules/volunteering/crew) | Applications, approvals, waiting list and invite links that turn people into an operation's crew, on top of teams. | ✓ | ✓ | ✓ |
 | [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, QR check-in and who is on shift now, per operation. | ✓ | ✓ | ✓ |
 

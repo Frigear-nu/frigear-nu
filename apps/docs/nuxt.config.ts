@@ -52,6 +52,8 @@ const redirects: Record<string, string> = {
   "/modules/platform/email-templates/server": "/modules/communication/email-templates/server",
   "/modules/platform/email-templates/module-emails": "/modules/communication/email-templates/module-emails",
   "/modules/volunteering/audience": "/modules/organisation/audience",
+  // The volunteering overview page was removed; its contracts live on each module's page.
+  "/modules/volunteering": "/modules#volunteering",
 };
 
 export default defineNuxtConfig({
