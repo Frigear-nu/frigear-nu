@@ -11,7 +11,7 @@ export type StaffTeamsPage = { items: AdminTeamDto[], total: number, page: numbe
 
 type TranslateText = (value: Translated | null | undefined) => string
 
-/** The owner types the admin forms offer; the API takes any owner `audience:owner:resolve` knows. */
+/** The owner types the admin forms offer; the API takes any owner `teams:owner:resolve` knows. */
 export const TEAM_OWNER_TYPES = ['platform', 'operation'] as const
 
 /** The label of a role key on a ladder, falling back to the key. */

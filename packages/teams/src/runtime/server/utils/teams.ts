@@ -1,10 +1,9 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, count, eq, inArray } from 'drizzle-orm'
-import { resolveOwner } from '@frigear-nu/audience/server'
 import { conflict, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { AdminTeamDto, TeamMemberDto, TeamOwner, Translated } from '../../../types'
+import type { AdminTeamDto, OwnerRef, TeamMemberDto, TeamOwner, Translated } from '../../../types'
 import { newId } from '../../utils'
 import { sameTeamOwner } from '../../utils/resolve'
 import { toAdminTeamDto, toTeamMemberDto } from './teams-dto'
@@ -45,8 +44,19 @@ export async function getTeamMemberOr404(teamId: string, userId: number): Promis
 }
 
 /**
+ * An owner's label and whether it exists, through `teams:owner:resolve` (teams answers `team` and `operation`). Both
+ * stay `null` for an owner type nobody answers. It answers nothing about access. Other modules that store
+ * `ownerType` / `ownerId` call it to validate their owners.
+ */
+export async function resolveTeamsOwner(event: H3Event | undefined, owner: OwnerRef): Promise<{ label: Translated | null, exists: boolean | null }> {
+  const ctx = { event, owner: { ...owner }, label: null as Translated | null, exists: null as boolean | null }
+  await useNitroApp().hooks.callHook('teams:owner:resolve', ctx)
+  return { label: ctx.label, exists: ctx.exists }
+}
+
+/**
  * Checks an owner and returns its label: the platform has no id (`ownerId: null`), every other owner must exist
- * according to `audience:owner:resolve` (operations answers `operation`, teams answers `team`). An owner type nobody
+ * according to `teams:owner:resolve` (operations answers `operation`, teams answers `team`). An owner type nobody
  * answers for, or an id that does not exist, is a 400.
  */
 export async function assertTeamsOwner(event: H3Event, owner: TeamOwner): Promise<Translated | null> {
@@ -55,7 +65,7 @@ export async function assertTeamsOwner(event: H3Event, owner: TeamOwner): Promis
     return null
   }
   if (!owner.ownerId) throw validationError([{ path: ['ownerId'], message: 'Choose the owner.' }], 'Unknown owner')
-  const resolved = await resolveOwner(event, { type: owner.ownerType, id: owner.ownerId }, { hooks: useNitroApp().hooks })
+  const resolved = await resolveTeamsOwner(event, { type: owner.ownerType, id: owner.ownerId })
   if (resolved.exists !== true) {
     throw validationError([{ path: ['ownerId'], message: resolved.exists === false ? 'This owner does not exist.' : `No installed module knows the owner type "${owner.ownerType}".` }], 'Unknown owner')
   }
@@ -72,7 +82,7 @@ export async function teamsOwnerLabels(event: H3Event, owners: TeamOwner[]): Pro
       labels.set(key, null)
       continue
     }
-    const resolved = await resolveOwner(event, { type: owner.ownerType, id: owner.ownerId }, { hooks: useNitroApp().hooks })
+    const resolved = await resolveTeamsOwner(event, { type: owner.ownerType, id: owner.ownerId })
     labels.set(key, resolved.label)
   }
   return labels

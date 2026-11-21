@@ -150,6 +150,11 @@
       "removeMemberFailed": "Could not remove the member",
       "status": "Status",
       "noOwner": "Open this tab from an operation page."
+    },
+    "grants": {
+      "team": "Team",
+      "chooseTeam": "Choose a team",
+      "minRole": "At least this role"
     }
   }
 }

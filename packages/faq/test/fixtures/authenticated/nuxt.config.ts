@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
+import { extendGrants } from '@frigear-nu/grants/utils'
 import FaqModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -20,6 +21,10 @@ export default defineNuxtConfig({
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['faq:*'] })
       addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+    },
+    // A grant kind of the app's own (`grants/club.ts`), next to the built-in `public` and `role`.
+    (_options, nuxt) => {
+      extendGrants(nuxt, { kind: 'club', label: 'Club', server: fileURLToPath(new URL('./grants/club', import.meta.url)) })
     },
   ],
   pages: true,

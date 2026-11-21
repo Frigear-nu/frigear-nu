@@ -12,11 +12,9 @@ export async function registerUser(name: string, email: string) {
   return { cookie: response.headers.get('set-cookie')! }
 }
 
-type TeamRole = { ownerType: string, ownerId: string | null, teamId: string, kind: string, role: string, source: 'explicit' | 'mapped' }
-
-/** Tells the fixture's `audience:viewer:resolve` listener what teams and crew would report for the signed-in user. */
-export async function setViewer(cookie: string, state: { operationIds?: string[], teamRoles?: TeamRole[] }) {
-  await $fetch('/api/test/viewer', { method: 'POST', headers: { cookie }, body: state })
+/** Puts the signed-in user in a club of the fixture's `club` grant kind (fixture-only route). */
+export async function joinClub(cookie: string, clubId: string) {
+  await $fetch('/api/test/club', { method: 'POST', headers: { cookie }, body: { clubId } })
 }
 
 /** The FAQ hooks that fired so far, in order (fixture-only route). */
