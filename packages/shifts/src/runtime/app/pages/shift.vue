@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
 import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapOfferDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, useState } from '#imports'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
@@ -24,7 +24,8 @@ if (error.value?.statusCode === 401) {
 }
 
 // The pass: asked for while the window is open; the page checks again every half minute so it appears on time.
-const now = ref(Date.now())
+// The server's clock, carried to the client, so the first render matches.
+const now = useState('shifts:now', () => Date.now())
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   timer = setInterval(() => (now.value = Date.now()), 30_000)
@@ -34,7 +35,6 @@ const passOpen = computed(() => !!data.value && now.value >= Date.parse(data.val
 const holdsPlace = computed(() => data.value?.assignment.status === 'assigned' || data.value?.assignment.status === 'attended')
 const { data: pass } = useLazyFetch<ShiftPassDto>(() => shiftsApi.me.pass(assignmentId.value), {
   key: computed(() => `shifts:pass:${assignmentId.value}`),
-  immediate: false,
   watch: [passOpen],
   server: false,
 })
@@ -261,7 +261,10 @@ useHead({ title: () => t('shift.title', 'My shift') })
             >
               {{ t('shift.cannotSwap', 'This shift cannot be swapped now.') }}
             </p>
-            <template #footer>
+            <template
+              v-if="(swap && swap.status !== 'accepted') || canOpenSwap"
+              #footer
+            >
               <div class="flex justify-end gap-2">
                 <UButton
                   v-if="swap && swap.status !== 'accepted'"
