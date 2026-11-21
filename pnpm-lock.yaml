@@ -284,15 +284,36 @@ importers:
       '@frigear-nu/cookie-consent':
         specifier: workspace:*
         version: link:../../packages/cookie-consent
+      '@frigear-nu/crew':
+        specifier: workspace:*
+        version: link:../../packages/crew
+      '@frigear-nu/dashboard':
+        specifier: workspace:*
+        version: link:../../packages/dashboard
       '@frigear-nu/email-templates':
         specifier: workspace:*
         version: link:../../packages/email-templates
       '@frigear-nu/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@frigear-nu/faq':
+        specifier: workspace:*
+        version: link:../../packages/faq
       '@frigear-nu/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@frigear-nu/grants':
+        specifier: workspace:*
+        version: link:../../packages/grants
+      '@frigear-nu/help-center':
+        specifier: workspace:*
+        version: link:../../packages/help-center
+      '@frigear-nu/inbox':
+        specifier: workspace:*
+        version: link:../../packages/inbox
+      '@frigear-nu/maps':
+        specifier: workspace:*
+        version: link:../../packages/maps
       '@frigear-nu/menu':
         specifier: workspace:*
         version: link:../../packages/menu
@@ -305,18 +326,30 @@ importers:
       '@frigear-nu/oauth-server':
         specifier: workspace:*
         version: link:../../packages/oauth-server
+      '@frigear-nu/operations':
+        specifier: workspace:*
+        version: link:../../packages/operations
       '@frigear-nu/payments':
         specifier: workspace:*
         version: link:../../packages/payments
       '@frigear-nu/preferences':
         specifier: workspace:*
         version: link:../../packages/preferences
+      '@frigear-nu/push':
+        specifier: workspace:*
+        version: link:../../packages/push
+      '@frigear-nu/shifts':
+        specifier: workspace:*
+        version: link:../../packages/shifts
       '@frigear-nu/stripe':
         specifier: workspace:*
         version: link:../../packages/stripe
       '@frigear-nu/subscriptions':
         specifier: workspace:*
         version: link:../../packages/subscriptions
+      '@frigear-nu/teams':
+        specifier: workspace:*
+        version: link:../../packages/teams
       '@frigear-nu/ui':
         specifier: workspace:*
         version: link:../../packages/ui

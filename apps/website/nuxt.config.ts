@@ -38,6 +38,19 @@ export default defineNuxtConfig({
     '@frigear-nu/cookie-consent',
     '@frigear-nu/oauth-server',
     '@frigear-nu/preferences',
+    // Volunteering. Order matters where a module checks for another in its setup: dashboard and push come before the
+    // modules that add dashboard items and notification topics, teams before faq and help-center (team grants).
+    '@frigear-nu/grants',
+    '@frigear-nu/maps',
+    '@frigear-nu/dashboard',
+    '@frigear-nu/push',
+    '@frigear-nu/operations',
+    '@frigear-nu/teams',
+    '@frigear-nu/crew',
+    '@frigear-nu/shifts',
+    '@frigear-nu/faq',
+    '@frigear-nu/help-center',
+    '@frigear-nu/inbox',
   ],
 
   $development: {
@@ -272,6 +285,10 @@ export default defineNuxtConfig({
     //   (setting a user's role was a user write; a manager assigns only roles strictly below manager);
     // - admin `*` plus every sensitive permission by name (`*` never covers them), so admin holds every registered
     //   permission and may assign admin. Add new sensitive permissions here when a module registers one.
+    // The volunteering modules grant their staff permissions themselves (`grantTo`), by name, into the roles of the
+    // same name: `admin` and `coordinator` get operations, teams, crew, shifts, faq and help-center management and
+    // their `:pii`, plus inbox assign/hide; `admin` alone gets inbox manage/channels/`:pii`/audit and push manage/send.
+    // Team leads (`ba` and up on the bar ladder) get lead rights through the teams policies, not through a role here.
     // NUXT_ACL_ADMINS adds `admin` (server/plugins/authorization-roles.ts). `defineRoles` types the grants and parents
     // against the registered permissions and roles (`.nuxt/types/auth-access.d.ts`).
     roles: defineRoles({
@@ -300,6 +317,16 @@ export default defineNuxtConfig({
   cookieConsent: {
     policyUrl: '/legal/gdpr',
   },
+  crew: {
+    // The "Crew" team crew creates for an operation without teams (our teams are bar teams).
+    defaultTeamKind: 'bar',
+    // Global roles to team roles on an operation's teams when staff apply the presets. A member plan maps with
+    // `{ match: { plan: '<plan key>' }, teamRole: 'volunteer' }`.
+    rolePresets: [
+      { match: { role: 'barmanager' }, teamRole: 'ba' },
+      { match: { role: 'crew' }, teamRole: 'bartender' },
+    ],
+  },
   // Renders module emails (auth, users, subscriptions) from their Vue templates; without it notify sends plain HTML.
   emailTemplates: {
     brandName: 'Frigear.nu',
@@ -321,6 +348,13 @@ export default defineNuxtConfig({
       pages: { events: true, event: true, tickets: true, admin: true, adminEvent: true },
     },
   },
+  faq: {
+    settings: {
+      pages: { admin: true },
+      // The cards' contact button opens the site's own contact modal (components/content), prefilled from `initial`.
+      contactComponent: 'ContactFormModal',
+    },
+  },
   forms: {
     settings: {
       mcp: true,
@@ -333,12 +367,33 @@ export default defineNuxtConfig({
       forms: [projectApplicationForm, boardMemberApplicationForm, contactForm],
     },
   },
+  helpCenter: {
+    // Public area `/help`, signed-in area `/account/help` (the defaults), staff pages under `/admin/help-center`.
+    settings: { pages: { admin: true } },
+  },
   i18n: {
     defaultLocale: 'da',
     locales: [
       { code: 'da', language: 'da-DK', name: 'Dansk', file: 'da.json' },
       { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
     ],
+  },
+  // Secrets come from NUXT_INBOX_EMAIL_WEBHOOK_SECRET, NUXT_INBOX_META_APP_SECRET, NUXT_INBOX_META_VERIFY_TOKEN and
+  // NUXT_INBOX_SECRETS_<REF> (see .env.example); without them those webhooks answer 501.
+  inbox: {
+    // TODO(user): our mailboxes, created on the first request when their key does not exist and never changed
+    // afterwards, e.g. `{ key: '<key>', name: { da: '<name>', en: '<name>' }, grants: [{ kind: 'role', role: '<role>' }] }`.
+    // Staff can also create them at /admin/inbox/settings.
+    mailboxes: [],
+    // TODO(user): one empty entry per channel account secret ref (`secretRef`), set by NUXT_INBOX_SECRETS_<REF>.
+    secrets: {},
+    settings: {
+      pages: { admin: true, adminThread: true, adminSettings: true },
+    },
+  },
+  maps: {
+    // TODO(user): where the location picker and maps open without a value: `{ center: [<lat>, <lng>], zoom: <1-19> }`.
+    // Unset, they open on a world view.
   },
   notify: {
     email: {
@@ -357,8 +412,20 @@ export default defineNuxtConfig({
       pages: { admin: true, applications: true },
     },
   },
+  operations: {
+    // Public page `/operations/:slug` (the default), staff pages under `/admin/operations`.
+    settings: { pages: { admin: true, adminOperation: true } },
+  },
   payments: {
     settings: { mcp: true },
+  },
+  // Without credentials pushes only go to the server log. FCM and APNs credentials come from NUXT_PUSH_* (see
+  // .env.example); the notification settings are at /account/notifications.
+  push: {},
+  shifts: {
+    // Shift times are entered and shown in our local time; `appConfig.frigearUi.timeZone` is the same zone.
+    // Station check-in needs NUXT_SHIFTS_STATION_KEY (see .env.example).
+    timeZone: 'Europe/Copenhagen',
   },
   // Secrets come from NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
   stripe: {},
@@ -395,6 +462,21 @@ export default defineNuxtConfig({
       mcp: true,
       pages: { membership: true, success: true, cancel: true },
     },
+  },
+  teams: {
+    ladders: {
+      // Our bar ladder, lowest first: `ba` (bar manager) and up lead a bar team.
+      bar: {
+        roles: [
+          { key: 'volunteer', label: { en: 'Volunteer', da: 'Frivillig' } },
+          { key: 'bartender', label: { en: 'Bartender', da: 'Bartender' } },
+          { key: 'ba', label: { en: 'BA (bar manager)', da: 'BA (baransvarlig)' } },
+          { key: 'coordinator', label: { en: 'Coordinator', da: 'Koordinator' } },
+        ],
+        leadFrom: 'ba',
+      },
+    },
+    settings: { pages: { admin: true, adminTeam: true } },
   },
   users: {
     settings: {

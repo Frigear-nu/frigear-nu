@@ -169,6 +169,13 @@
       "when": 1794494593181,
       "tag": "0023_access_control",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1795301607395,
+      "tag": "0024_volunteering_modules",
+      "breakpoints": true
     }
   ]
 }
