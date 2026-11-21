@@ -38,7 +38,7 @@ export function toCrewMemberDto(input: { member: MemberRow, team: CrewTeamLite, 
 }
 
 /** My own crew status in one operation. */
-export function toMyCrewDto(input: { member: MemberRow, team: CrewTeamLite, operation: { slug: string, name: Translated } }): MyCrewDto {
+export function toMyCrewDto(input: { member: MemberRow, team: CrewTeamLite, operation: { slug: string, name: Translated }, roleLabel?: Translated }): MyCrewDto {
   const { member, team, operation } = input
   return {
     operationId: team.ownerId ?? '',
@@ -48,6 +48,7 @@ export function toMyCrewDto(input: { member: MemberRow, team: CrewTeamLite, oper
     teamId: team.id,
     teamName: team.name,
     role: member.role,
+    roleLabel: input.roleLabel ?? member.role,
     waitlistPosition: member.waitlistPosition ?? null,
     appliedAt: isoDate(member.appliedAt),
     decidedAt: isoDate(member.decidedAt),

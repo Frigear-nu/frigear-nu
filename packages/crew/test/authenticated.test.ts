@@ -182,7 +182,7 @@ describe('crew (authenticated, database-backed)', async () => {
 
       const mine = await ok(await json(alice.cookie, 'GET', crewApi.me.crew)) as unknown as Json[]
       expect(mine).toHaveLength(1)
-      expect(mine[0]).toMatchObject({ operationId: crew.op.id, operationSlug: crew.op.slug, crewStatus: 'applied', teamId: crew.teamId, role: 'volunteer', waitlistPosition: null })
+      expect(mine[0]).toMatchObject({ operationId: crew.op.id, operationSlug: crew.op.slug, crewStatus: 'applied', teamId: crew.teamId, role: 'volunteer', roleLabel: { en: 'Volunteer', da: 'Frivillig' }, waitlistPosition: null })
       expect(await ok(await json(alice.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'applied', crewStatus: 'applied', formSlug: null })
 
       // Pending in teams: listed on the team, but no read, no role, nothing in the viewer, no participation.
@@ -474,7 +474,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const created = await invite(crew)
       const ben = await user('Ben')
       const joined = await ok(await accept(ben, created.token))
-      expect(joined).toMatchObject({ operationId: crew.op.id, crewStatus: 'approved', teamId: crew.teamId, role: 'ba' })
+      expect(joined).toMatchObject({ operationId: crew.op.id, crewStatus: 'approved', teamId: crew.teamId, role: 'ba', roleLabel: { en: 'BA (bar manager)' } })
       expect(await myTeams(ben.cookie)).toEqual([expect.objectContaining({ teamId: crew.teamId, role: 'ba', source: 'explicit' })])
       expect((await myOperations(ben.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
       expect((await getViewer(ben.cookie)).operationIds).toEqual([crew.op.id])

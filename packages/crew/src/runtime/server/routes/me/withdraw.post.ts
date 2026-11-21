@@ -10,5 +10,5 @@ export default defineEventHandler(async (event): Promise<MyCrewDto> => {
   const { operationId } = await getValidatedRouterParams(event, idParams('operationId').parse)
   const entry = await crewWithdraw(event, Number(principal.user.id), operationId)
   const operation = await getOperationOr404(operationId)
-  return toMyCrewDto({ member: entry.member, team: { id: entry.team.id, name: entry.team.name, ownerId: entry.team.ownerId ?? null }, operation })
+  return crewMyEntryOf(event, entry, operation)
 })

@@ -5,7 +5,7 @@ import type { AnyColumn, SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import { apiError, conflict, likeContains, notFound, orderByQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
-import type { CrewApplyDto, CrewMemberDto, CrewStatus, MyCrewDto } from '../../../types'
+import type { CrewApplyDto, CrewMemberDto, CrewStatus, MyCrewDto, Translated } from '../../../types'
 import { ladderKeys } from '@frigear-nu/teams/utils'
 import { crewAccess } from '../../access'
 import { canMoveCrew, teamStatusOf, translate } from '../../utils'
@@ -111,20 +111,30 @@ export async function crewMemberResponse(event: H3Event, entry: CrewEntry): Prom
   return crewMemberDtoOf(entry, operation, await allows(event, crewAccess.permissions.pii))
 }
 
+/** The label of a role on the ladder of a team kind, as stored (a plain text or one per language); the key when unknown. */
+export async function crewRoleLabelOf(event: H3Event, kind: string, role: string): Promise<Translated> {
+  return (await loadTeamLadders(event))[kind]?.roles.find(item => item.key === role)?.label ?? role
+}
+
 /** The label of a role on the ladder of a team kind, in `locale`. */
 export async function crewRoleLabel(event: H3Event, kind: string, role: string, locale = 'en'): Promise<string> {
   const ladder = (await loadTeamLadders(event))[kind]
   return translate(ladder?.roles.find(item => item.key === role)?.label, locale, 'en') || role
 }
 
+/** My own crew status for one entry, with the role's label. */
+export async function crewMyEntryOf(event: H3Event, entry: CrewEntry, operation: Pick<CrewOperationRow, 'slug' | 'name'>): Promise<MyCrewDto> {
+  return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation, roleLabel: await crewRoleLabelOf(event, entry.team.kind, entry.member.role) })
+}
+
 /** My crew status in every operation I applied to or work at. */
-export async function crewMyEntries(userId: number): Promise<MyCrewDto[]> {
+export async function crewMyEntries(event: H3Event, userId: number): Promise<MyCrewDto[]> {
   const rows = await db.select({ member: schema.teamMembers, team: schema.teams, operation: schema.operations }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
     .innerJoin(schema.operations, eq(schema.operations.id, schema.teams.ownerId))
     .where(and(eq(schema.teamMembers.userId, userId), eq(schema.teams.ownerType, 'operation'), isNotNull(schema.teamMembers.crewStatus)))
     .orderBy(desc(schema.operations.startsAt))
-  return rows.map(row => toMyCrewDto({ member: row.member, team: teamLite(row.team), operation: row.operation }))
+  return Promise.all(rows.map(async row => toMyCrewDto({ member: row.member, team: teamLite(row.team), operation: row.operation, roleLabel: await crewRoleLabelOf(event, row.team.kind, row.member.role) })))
 }
 
 /** The ids of the operations a user is approved crew of: what the viewer's `operationIds` get. */
@@ -510,7 +520,7 @@ export async function crewAcceptInvite(event: H3Event, token: string, userId: nu
       await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(entry, operation, true))
       await crewNotify(event, entry, operation, settings, 'approved')
     }
-    return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation })
+    return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation, roleLabel: await crewRoleLabelOf(event, entry.team.kind, entry.member.role) })
   }
   catch (error) {
     // The use was not spent on anybody: give it back.

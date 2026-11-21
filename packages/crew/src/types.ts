@@ -93,6 +93,8 @@ export type MyCrewDto = {
   teamId: string
   teamName: Translated
   role: string
+  /** The role's label on the team kind's ladder; the role key when the ladder has no such role. */
+  roleLabel: Translated
   waitlistPosition: number | null
   appliedAt: string | null
   decidedAt: string | null

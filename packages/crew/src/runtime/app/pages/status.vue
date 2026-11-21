@@ -84,7 +84,7 @@ useHead({ title: () => t('status.title', 'My crew') })
             <DescriptionList
               :items="[
                 { key: 'team', label: t('admin.team', 'Team'), value: tr(entry.teamName) },
-                ...(entry.crewStatus === 'approved' ? [{ key: 'role', label: t('admin.role', 'Role'), value: entry.role }] : []),
+                ...(entry.crewStatus === 'approved' ? [{ key: 'role', label: t('admin.role', 'Role'), value: tr(entry.roleLabel) }] : []),
                 ...(entry.crewStatus === 'waitlisted' && entry.waitlistPosition ? [{ key: 'position', label: t('status.position', 'Place on the waiting list'), value: String(entry.waitlistPosition) }] : []),
                 { key: 'applied', label: t('admin.applied', 'Applied'), value: entry.appliedAt ? format.dateTime(entry.appliedAt) : null },
               ]"
