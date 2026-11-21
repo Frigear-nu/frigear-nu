@@ -1,0 +1,159 @@
+import type { H3Event } from 'h3'
+import { db, schema } from '@nuxthub/db'
+import { asc, eq, inArray } from 'drizzle-orm'
+import { isEmptyVisibility, isVisible, parseVisibility } from '@frigear-nu/audience'
+import type { Viewer } from '@frigear-nu/audience'
+import { resolveViewer } from '@frigear-nu/audience/server'
+import { notFound } from '@frigear-nu/module-kit/server'
+import { inboxAccess } from '../../access'
+import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
+import type { InboxChannelAccountRow, InboxContactRow, InboxMailboxRow, InboxThreadRow } from './inbox-dto'
+
+/** D1 binds at most 100 parameters per statement: id lists are cut into chunks of this size. */
+export const INBOX_CHUNK = 90
+
+/** `list` in chunks of `size`. */
+export function inboxChunks<T>(list: readonly T[], size = INBOX_CHUNK): T[][] {
+  const out: T[][] = []
+  for (let index = 0; index < list.length; index += size) out.push(list.slice(index, index + size))
+  return out
+}
+
+// --- Lookups ---------------------------------------------------------------------------------------------------------
+
+export async function findInboxMailbox(id: string): Promise<InboxMailboxRow | undefined> {
+  const [row] = await db.select().from(schema.inboxMailboxes).where(eq(schema.inboxMailboxes.id, id)).limit(1)
+  return row
+}
+
+export async function findInboxMailboxByKey(key: string): Promise<InboxMailboxRow | undefined> {
+  const [row] = await db.select().from(schema.inboxMailboxes).where(eq(schema.inboxMailboxes.key, key)).limit(1)
+  return row
+}
+
+export async function findInboxThread(id: string): Promise<InboxThreadRow | undefined> {
+  const [row] = await db.select().from(schema.inboxThreads).where(eq(schema.inboxThreads.id, id)).limit(1)
+  return row
+}
+
+export async function findInboxContact(id: string): Promise<InboxContactRow | undefined> {
+  const [row] = await db.select().from(schema.inboxContacts).where(eq(schema.inboxContacts.id, id)).limit(1)
+  return row
+}
+
+export async function findInboxChannelAccount(id: string): Promise<InboxChannelAccountRow | undefined> {
+  const [row] = await db.select().from(schema.inboxChannelAccounts).where(eq(schema.inboxChannelAccounts.id, id)).limit(1)
+  return row
+}
+
+export async function getInboxMailboxOr404(id: string): Promise<InboxMailboxRow> {
+  const row = await findInboxMailbox(id)
+  if (!row) throw notFound('Mailbox not found.')
+  return row
+}
+
+/** Every mailbox, by name order of their keys. A deployment has a handful, so they are read whole. */
+export function listInboxMailboxes(): Promise<InboxMailboxRow[]> {
+  return db.select().from(schema.inboxMailboxes).orderBy(asc(schema.inboxMailboxes.key))
+}
+
+/** Names of users, for assignees, authors and actors. Without a `users` table, nobody has a name. */
+export async function inboxUserRefs(ids: Array<number | null | undefined>): Promise<Map<number, InboxUserRef>> {
+  const unique = [...new Set(ids.filter((id): id is number => typeof id === 'number'))]
+  const refs = new Map<number, InboxUserRef>()
+  const users = (schema as unknown as { users?: typeof schema.users }).users
+  if (!unique.length || !users) return refs
+  for (const chunk of inboxChunks(unique)) {
+    const rows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, chunk))
+    for (const row of rows) refs.set(Number(row.id), { id: Number(row.id), name: row.name ?? null })
+  }
+  return refs
+}
+
+// --- Who is looking ------------------------------------------------------------------------------------------------------
+
+type InboxEventContext = { inboxViewer?: Promise<Viewer>, inboxRoles?: Promise<string[]> }
+
+/** The caller's global roles (closed over `inherit`), once per request. */
+export function inboxCallerRoles(event: H3Event): Promise<string[]> {
+  const context = event.context as InboxEventContext
+  context.inboxRoles ??= (async () => {
+    const principal = await getAuth(event)
+    return principal?.user ? getEffectiveRoles(event, principal.user) : []
+  })()
+  return context.inboxRoles
+}
+
+/** Who is looking, once per request: `audience:viewer:resolve` fills in team roles and operations. */
+export function resolveInboxViewer(event: H3Event): Promise<Viewer> {
+  const context = event.context as InboxEventContext
+  context.inboxViewer ??= (async () => {
+    const principal = await getAuth(event)
+    const user = principal?.user ?? null
+    return resolveViewer(event, {
+      hooks: useNitroApp().hooks,
+      user: user as { id: string | number } | null,
+      globalRoles: user ? await inboxCallerRoles(event) : [],
+    })
+  })()
+  return context.inboxViewer
+}
+
+/** A hidden thread is seen only by people who hold its `hiddenBelow` role (roles inherit along the host's chain). */
+export async function inboxSeesHidden(event: H3Event, hiddenBelow: string | null | undefined): Promise<boolean> {
+  if (!hiddenBelow) return true
+  return (await inboxCallerRoles(event)).includes(hiddenBelow)
+}
+
+/**
+ * The record rule of `inbox:read` and `inbox:reply` for a mailbox: staff with `inbox:manage` read every one, a team's
+ * leads read the team's, anyone else what its visibility lets in. An empty or public visibility lets nobody in: a
+ * mailbox holds outsiders' messages, so it is never open to every signed-in user.
+ */
+export async function inboxCanAccessMailbox(event: H3Event, user: { id: string | number }, mailbox: InboxMailboxRow): Promise<boolean> {
+  // Without a record, so this check does not run the record policies again.
+  if (await allows(event, inboxAccess.permissions.manage)) return true
+  if (mailbox.ownerType === 'team' && mailbox.ownerId && await inboxIsTeamLead(event, user.id, mailbox.ownerId)) return true
+  const visibility = parseVisibility(mailbox.visibility)
+  if (!visibility || isEmptyVisibility(visibility) || visibility.public) return false
+  return isVisible(visibility, await resolveInboxViewer(event))
+}
+
+/** The same rule for a thread: its `hiddenBelow` first, then its mailbox. */
+export async function inboxCanAccessThread(event: H3Event, user: { id: string | number }, thread: InboxThreadRow, mailbox?: InboxMailboxRow): Promise<boolean> {
+  if (!(await inboxSeesHidden(event, thread.hiddenBelow))) return false
+  const box = mailbox ?? await findInboxMailbox(thread.mailboxId)
+  return !!box && inboxCanAccessMailbox(event, user, box)
+}
+
+/** The mailboxes the caller reads (`inbox:read` with each mailbox as the record). */
+export async function inboxReadableMailboxes(event: H3Event): Promise<InboxMailboxRow[]> {
+  const readable: InboxMailboxRow[] = []
+  for (const mailbox of await listInboxMailboxes()) {
+    if (await allows(event, inboxAccess.permissions.read, mailbox)) readable.push(mailbox)
+  }
+  return readable
+}
+
+/**
+ * The thread behind `:id` for a caller who passed `authorize(event, inbox:read)`: a thread they may not read (an
+ * unknown id, another mailbox, hidden from their role) is the same 404.
+ */
+export async function getReadableInboxThreadOr404(event: H3Event, id: string): Promise<InboxThreadRow> {
+  const thread = await findInboxThread(id)
+  if (!thread || !(await allows(event, inboxAccess.permissions.read, thread))) throw notFound('Thread not found.')
+  return thread
+}
+
+/** What the caller may do with a thread they read. */
+export async function inboxAbilities(event: H3Event, thread: InboxThreadRow): Promise<InboxThreadAbilities> {
+  const [reply, assign, hide, pii, audit, manage] = await Promise.all([
+    allows(event, inboxAccess.permissions.reply, thread),
+    allows(event, inboxAccess.permissions.assign),
+    allows(event, inboxAccess.permissions.hide),
+    allows(event, inboxAccess.permissions.pii),
+    allows(event, inboxAccess.permissions['inbox-audit:pii']),
+    allows(event, inboxAccess.permissions.manage),
+  ])
+  return { reply, assign, hide, pii, audit, erase: manage && pii }
+}

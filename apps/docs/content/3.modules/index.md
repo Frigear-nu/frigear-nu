@@ -49,6 +49,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
 | Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, UI |
 | Show site maps and floor plans, and let staff draw on them | [Maps](/modules/volunteering/maps) | Auth, UI |
+| Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/volunteering/inbox) | Auth, Notify, Audience, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -143,6 +144,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | [Push](/modules/volunteering/push) | Device registration, FCM and APNs delivery, and per-user channel choices (email, SMS, push) with a topic registry and `notifyUser`. | ✓ | ✓ | ✓ |
 | [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, QR check-in and who is on shift now, per operation. | ✓ | ✓ | ✓ |
 | [Maps](/modules/volunteering/maps) | Geographic and floor-plan maps owned by anything, with an editor, provider layers and map kinds other modules add. | ✓ | ✓ | ✓ |
+| [Inbox](/modules/volunteering/inbox) | Shared mailboxes for the contact form, email and Meta's channels, with assignment, notes, hidden threads, an audit log, retention and GDPR export and erase. | ✓ | ✓ |  |
 
 ## How they fit together
 

@@ -14,8 +14,8 @@ The packages that exist today are [Audience](/modules/volunteering/audience), th
 [Operations](/modules/volunteering/operations), [Dashboard](/modules/volunteering/dashboard),
 [Teams](/modules/volunteering/teams), [FAQ](/modules/volunteering/faq), [Crew](/modules/volunteering/crew),
 [Help center](/modules/volunteering/help-center), [Push](/modules/volunteering/push),
-[Shifts](/modules/volunteering/shifts) and [Maps](/modules/volunteering/maps). Every other module adds its own page to
-this group in the pull request that adds the module.
+[Shifts](/modules/volunteering/shifts), [Maps](/modules/volunteering/maps) and [Inbox](/modules/volunteering/inbox)
+(its platform side). Every other module adds its own page to this group in the pull request that adds the module.
 
 ## The modules
 
@@ -30,7 +30,7 @@ this group in the pull request that adds the module.
 | [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
 | [`@frigear-nu/maps`](/modules/volunteering/maps) | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
-| `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
+| [`@frigear-nu/inbox`](/modules/volunteering/inbox) | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
 | [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
 
 The two tracks are built in parallel and never edit the same package.
@@ -111,6 +111,11 @@ The JSON holds only these keys. Read it with `parseVisibility`: its schema is st
 `permission`) hides the record instead of showing it to every signed-in user. There is no `permission` key. Maps
 stores `{ public, permission }` and inbox `roles/permission` in the plan; both keep only visibility keys in the JSON,
 and check permissions with `authorize(event, permission, record)` and their policies.
+
+A mailbox is the one record that is never open to every signed-in user: Inbox refuses a `public` visibility and an
+empty one on a platform mailbox, and reads a stored empty one as staff only. A thread's `hiddenBelow` is not a
+visibility: it names a global role the viewer must hold on top of the mailbox's rule, and a thread hidden from the
+viewer answers the same 404 as an unknown one.
 
 An item inside a group can only narrow the group: an FAQ item narrows its group, an article its category.
 
@@ -276,6 +281,11 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   missing ones. To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
 - **`maps:edit:resolve`.** Asked when a caller holds neither `maps:manage` nor the map kind's `editPermission`. The
   module that owns the map's owner type sets `allowed = true` for its leads; it never needs to import maps.
+- **Inbox hooks.** `inbox:message:received` fires once per stored inbound message, never for a webhook retry of the
+  same provider id; `inbox:message:sent` once a reply went out through the channel and was stored (notes fire
+  nothing). `inbox:thread:assigned` also fires when hiding a thread drops an assignee without the role, and
+  `inbox:thread:status-changed` when a new message reopens a pending or closed thread. Phase 6 fires them for platform
+  and team mailboxes.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through
   `oauth:claims`. Dashboard items are filtered by the client-side `widgets:filter`.
 
@@ -348,7 +358,8 @@ faq         ─► auth, audience                        (soft: menu, admin, for
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
-inbox       ─► auth, notify, audience                (soft: forms, users, teams, push, mobile, dashboard)
+inbox       ─► auth, notify, audience                (soft: forms, teams, push, dashboard, admin, menu, widget;
+                                                            users and mobile with the user side)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
 
