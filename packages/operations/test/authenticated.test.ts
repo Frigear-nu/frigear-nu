@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '../src/runtime/utils/api'
 import { operationsAccess } from '../src/runtime/access'
-import { mapsApi } from '@frigear-nu/maps/utils'
+import { mapsApi } from '@frigear-nu/maps/api'
 import { getHooksFor, getOwner, getStatusChanges, participate, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
@@ -144,6 +144,17 @@ describe('operations (authenticated, database-backed)', async () => {
       expect((await ok(await json(plain.cookie, 'GET', mapsApi.map(site!.id)))).canEdit).toBe(false)
       // Staff keep editing through `maps:manage`.
       expect((await ok(await json(staff.cookie, 'POST', mapsApi.features(site!.id), marker))).id).toMatch(/^mpf_/)
+    })
+
+    it('does not let a token without operations:manage edit through the listener, whoever minted it', async () => {
+      const operation = await createOperation()
+      const [site] = await maps(operation.id)
+      const manager = await registerUser('Tokman', `tokman${++counter}@ops.test`)
+      const mapsOnly = apiClient({ bearer: await createToken(manager.cookie, ['maps:read', 'maps:edit']) })
+      await expectApiError(mapsOnly.json('POST', mapsApi.features(site!.id), marker), 403, 'forbidden')
+      // With the permission on the token it works.
+      const withManage = apiClient({ bearer: await createToken(manager.cookie, ['maps:read', 'maps:edit', operationsAccess.permissions.manage]) })
+      expect((await withManage.json<Json>('POST', mapsApi.features(site!.id), marker)).featureKind).toBe('maps.marker')
     })
   })
 

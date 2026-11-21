@@ -138,8 +138,12 @@ export async function shiftsTeamShifts(teamId: string, range: { from?: Date, to?
 /**
  * Who is on shift now in an operation: the shifts of its published schedules running at `at`, with the people on them
  * (`assigned` and `attended`) and, per team, the leads among them (the BA on duty). Contact details only with `pii`.
+ * `teamIds` narrows it to those teams in the query, so the people and leads of other teams are never loaded or resolved
+ * (finding a lead resolves the person's team roles, which costs queries per person).
  */
-export async function shiftsNow(event: H3Event, operationId: string, pii: boolean, at = new Date()): Promise<ShiftsNowDto> {
+export async function shiftsNow(event: H3Event, operationId: string, pii: boolean, at = new Date(), teamIds?: string[]): Promise<ShiftsNowDto> {
+  // A short list goes into the query; a long one would pass D1's bound parameters, so it is applied below instead.
+  const inQuery = teamIds && teamIds.length <= 50
   const rows = await db.select({ shift: schema.shifts, schedule: schema.shiftSchedules }).from(schema.shifts)
     .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
     .where(and(
@@ -147,9 +151,11 @@ export async function shiftsNow(event: H3Event, operationId: string, pii: boolea
       eq(schema.shiftSchedules.status, 'published'),
       lte(schema.shifts.startsAt, at),
       gte(schema.shifts.endsAt, at),
+      inQuery ? inArray(schema.shifts.teamId, teamIds) : undefined,
     ))
     .orderBy(asc(schema.shifts.startsAt), asc(schema.shifts.id))
     .limit(1000)
+  if (teamIds && !inQuery) rows.splice(0, rows.length, ...rows.filter(row => teamIds.includes(row.shift.teamId)))
   const schedules = new Map<string, ShiftScheduleRow>(rows.map(row => [row.schedule.id, row.schedule]))
   const shifts = await shiftsWithAssignees(rows.map(row => row.shift), schedules, pii)
   const teams = await shiftsTeamsById(shifts.map(shift => shift.teamId))
@@ -184,9 +190,8 @@ export async function shiftsMyNow(event: H3Event, userId: number, at = new Date(
   for (const operationId of operationIds) {
     if (!names.has(operationId)) continue
     if (!(await allows(event, shiftsAccess.permissions.read, { operationId }))) continue
-    const now = await shiftsNow(event, operationId, false, at)
+    const now = await shiftsNow(event, operationId, false, at, [...myTeamIds])
     for (const team of now.teams) {
-      if (!myTeamIds.has(team.teamId)) continue
       const people = new Map<number, ShiftPersonDto>()
       for (const shift of team.shifts) for (const assignee of shift.assignees) people.set(assignee.userId, assignee.person)
       teams.push({ operationId, operationName: names.get(operationId)!, teamId: team.teamId, teamName: team.teamName, leads: team.leads, people: [...people.values()] })

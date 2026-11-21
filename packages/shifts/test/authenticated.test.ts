@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
-import { mapsApi } from '@frigear-nu/maps/utils'
+import { mapsApi } from '@frigear-nu/maps/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
 
@@ -1543,6 +1543,16 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Anonymous: 401.
       expect((await json(undefined, 'GET', shiftsApi.me.now)).status).toBe(401)
 
+      // Another team of the operation with a lead on shift is not mine: it is not listed.
+      const other = await createTeam(setup.op.id)
+      const otherLead = await user('Ynolead')
+      await addMember(other.id, otherLead, 'ba')
+      const [otherShift] = await bulk(setup.schedule.id, { teamId: other.id, days: ['2027-06-28'], slots: [{ start: '23:00', end: '23:30' }] })
+      await patchShift(otherShift!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
+      await assigned(otherShift!.id, otherLead)
+      expect((await ok(await json(bystander.cookie, 'GET', shiftsApi.me.now))).teams.map((team: Json) => team.teamId)).toEqual([setup.team.id])
+      expect((await ok(await json(staff.cookie, 'GET', shiftsApi.now(setup.op.id)))).teams).toHaveLength(2)
+
       // A shift that has not started is not "now".
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(2 * HOUR), endsAt: iso(3 * HOUR) })
       expect((await ok(await json(bystander.cookie, 'GET', shiftsApi.me.now))).teams).toEqual([])
@@ -1573,7 +1583,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const venue = maps.find(map => map.kind === 'operations.venue-layout')!
       const site = maps.find(map => map.kind === 'operations.site')!
       const venueDetail = await ok(await json(staff.cookie, 'GET', mapsApi.map(venue.id)))
-      expect(venueDetail.providerLayers).toMatchObject([{ key: layerKey, url: mapsApi.layer(venue.id, layerKey), refreshInterval: 60 }])
+      expect(venueDetail.providerLayers).toMatchObject([{ key: layerKey, url: mapsApi.layer(venue.id, layerKey), refreshInterval: 120 }])
       expect((await ok(await json(staff.cookie, 'GET', mapsApi.map(site.id)))).providerLayers).toEqual([])
       // The site map has no such layer: not found.
       await expectApiError(json(staff.cookie, 'GET', mapsApi.layer(site.id, layerKey)), 404, 'not_found')
