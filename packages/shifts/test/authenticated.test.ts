@@ -9,7 +9,7 @@ import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { dayKey } from '../src/runtime/utils/time'
-import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, optInSms, registerDevice, runCloseShifts, runReminders, setChannels, setLocale, setPhone, stationToken } from './helpers'
+import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, optInSms, registerDevice, runCloseShifts, runReminders, setChannels, setLocale, setPhone, setStationKey, stationToken } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
