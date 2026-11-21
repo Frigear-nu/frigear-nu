@@ -47,7 +47,11 @@ export async function buildFcmAssertion(account: FcmServiceAccount, now: number 
     .sign(key)
 }
 
-/** The FCM HTTP v1 request for one device. Data values must be strings; the url travels as `data.url`. */
+/**
+ * The FCM HTTP v1 request for one device, Android or iOS: FCM hands an iOS token's message to APNs with the key
+ * uploaded to the Firebase project. Data values must be strings; the url travels as `data.url`. The `apns` block plays
+ * the default sound, like a push sent to APNs directly.
+ */
 export function buildFcmRequest(projectId: string, accessToken: string, message: DeviceMessage) {
   const data = { ...message.data, ...(message.url ? { url: message.url } : {}) }
   return {
@@ -59,6 +63,7 @@ export function buildFcmRequest(projectId: string, accessToken: string, message:
         notification: { title: message.title, body: message.body },
         ...(Object.keys(data).length ? { data } : {}),
         android: { priority: 'HIGH' },
+        apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default' } } },
       },
     },
   }

@@ -4,8 +4,8 @@ import { pgTable, text, integer, boolean, jsonb, timestamp, index, uniqueIndex }
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 // (declared here, not imported: this file is merged into the generated schema as plain text)
 type Translated = string | Record<string, string>
-// Who may see a record, see `Visibility` of `@frigear-nu/audience`.
-type Visibility = import('@frigear-nu/audience').Visibility
+// Who may read a record, see `Grant` of `@frigear-nu/grants`.
+type Grant = { kind: string } & Record<string, unknown>
 
 export const helpCategories = pgTable('help_categories', {
   /** `hlc_` + random id. */
@@ -15,12 +15,12 @@ export const helpCategories = pgTable('help_categories', {
   description: jsonb().$type<Translated>(),
   /** The id of the parent category, or `null` for a top-level one. Not a foreign key: deleting a category moves its children up. */
   parentId: text(),
-  /** `operation | team | user | platform`, or a type another module adds (see `@frigear-nu/audience`). */
+  /** `platform`, `operation`, `team`, or a type an app adds (`OwnerType` of `@frigear-nu/teams`). */
   ownerType: text().notNull().default('platform'),
   /** `null` for the platform. */
   ownerId: text(),
-  /** `null` is signed-in viewers only; `{ public: true }` is everyone. Applies to every article in the category. */
-  visibility: jsonb().$type<Visibility>(),
+  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: jsonb().$type<Grant[]>().notNull().default([]),
   /** Slugs of `@frigear-nu/faq` groups shown in the category (when faq is installed). */
   faqGroups: jsonb().$type<string[]>(),
   sort: integer().notNull().default(0),
@@ -41,8 +41,8 @@ export const helpArticles = pgTable('help_articles', {
   body: jsonb().$type<Translated>().notNull(),
   /** `draft | published`. */
   status: text().notNull().default('draft'),
-  /** Can only narrow the category's. `null` inherits it. */
-  visibility: jsonb().$type<Visibility>(),
+  /** Narrows the parent: `null` inherits it, a list must admit too (`@frigear-nu/grants`). */
+  grants: jsonb().$type<Grant[]>(),
   sort: integer().notNull().default(0),
   publishedAt: timestamp({ withTimezone: true }),
   /** The id of the user who changed it last, as text. */
@@ -59,8 +59,8 @@ export const helpChecklists = pgTable('help_checklists', {
   /** The operation the checklist is for, or `null` for every volunteer. */
   operationId: text(),
   name: jsonb().$type<Translated>().notNull(),
-  /** `null` is signed-in viewers only. */
-  visibility: jsonb().$type<Visibility>(),
+  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: jsonb().$type<Grant[]>().notNull().default([]),
   sort: integer().notNull().default(0),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),

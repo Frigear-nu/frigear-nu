@@ -96,7 +96,7 @@ useHead({ title: () => data.value ? tr(data.value.station.name) : t('station.tit
       class="flex max-w-md flex-col items-center gap-2 text-center"
     >
       <p class="text-xl font-semibold">
-        {{ error.statusCode === 403 ? t('station.forbidden', 'Only leads of the team can open this station') : error.statusCode === 404 ? t('station.notFound', 'This station does not exist') : t('station.loadFailed', 'The station could not be loaded') }}
+        {{ error.statusCode === 403 ? t('station.forbidden', 'Only leads of the team can open this station') : error.statusCode === 404 ? t('station.notFound', 'This station does not exist') : error.statusCode === 501 ? t('station.notConfigured', 'Station check-in is not set up on this server') : t('station.loadFailed', 'The station could not be loaded') }}
       </p>
       <p
         v-if="error.statusCode !== 403 && error.statusCode !== 404"

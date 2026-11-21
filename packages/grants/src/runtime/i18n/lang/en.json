@@ -1,0 +1,19 @@
+{
+  "grants": {
+    "kinds": {
+      "public": "Everyone",
+      "role": "Role"
+    },
+    "editor": {
+      "any": "Anyone who matches one of these sees it.",
+      "nobody": "Nobody sees it yet: add who may.",
+      "unknown": "No installed module knows this kind, so it lets nobody in.",
+      "remove": "Remove {kind}",
+      "add": "Add who may see it"
+    },
+    "role": {
+      "placeholder": "Choose a role",
+      "typed": "Role name, for example admin"
+    }
+  }
+}

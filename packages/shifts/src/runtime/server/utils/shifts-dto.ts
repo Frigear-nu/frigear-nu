@@ -1,3 +1,4 @@
+import type { H3Event } from 'h3'
 import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type {
@@ -22,6 +23,7 @@ import type {
 import { effectiveCapacity } from '../../utils/guards'
 import { scheduleSettingsOf } from '../../utils/settings'
 import { checkInSettingsOf } from '../../utils/checkin'
+import { shiftsStationKeyConfigured } from './shifts-station-key'
 
 export type ShiftScheduleRow = typeof schema.shiftSchedules.$inferSelect
 export type ShiftRoleRow = typeof schema.shiftRoles.$inferSelect
@@ -33,7 +35,8 @@ export type ShiftSwapOfferRow = typeof schema.shiftSwapOffers.$inferSelect
 /** The user fields shifts shows; `email` and `phone` are only copied with `pii`. */
 export type ShiftUserLite = { name: string | null, email: string | null, avatar: string | null, phone: string | null }
 
-export function toShiftScheduleDto(row: ShiftScheduleRow, shiftCount?: number): ShiftScheduleDto {
+/** `event` scopes the runtime config `stationKeyConfigured` is read from (the shared one without it). */
+export function toShiftScheduleDto(row: ShiftScheduleRow, shiftCount?: number, event?: H3Event): ShiftScheduleDto {
   return {
     id: row.id,
     operationId: row.operationId,
@@ -46,6 +49,7 @@ export function toShiftScheduleDto(row: ShiftScheduleRow, shiftCount?: number): 
     checkIn: checkInSettingsOf(row.checkIn),
     autoNoShow: !!row.autoNoShow,
     autoNoShowMinutes: row.autoNoShowMinutes ?? 30,
+    stationKeyConfigured: shiftsStationKeyConfigured(event),
     publishedAt: isoDate(row.publishedAt),
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),

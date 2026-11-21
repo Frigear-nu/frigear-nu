@@ -23,7 +23,7 @@ They build on modules in other categories, which other apps use without them:
 | Module | Category | What the crew modules use it for |
 | --- | --- | --- |
 | [Teams](/modules/organisation/teams) | Organisation | The teams crew work in, and the team roles of the role ladder below. |
-| [Audience](/modules/organisation/audience) | Organisation | [Owners](/modules/organisation/audience#owners), [visibility](/modules/organisation/audience#visibility) and the viewer hook that operations and crew answer. |
+| [Grants](/modules/platform/grants) | Platform | Who may see a record: grant lists, where any one grant admits. Operations registers `operation`, Teams `team`. |
 | [FAQ](/modules/content/faq) and [Help center](/modules/content/help-center) | Content | What volunteers read, visible per team role or operation. |
 | [Push](/modules/communication/push) | Communication | The [notification topics](#notifications) crew and shifts send on. |
 | [Dashboard](/modules/interface/dashboard) and [Maps](/modules/interface/maps) | Interface | The `crew.home` [dashboard](#dashboard-items) and the [maps](#maps-integrations) of an operation. |
@@ -112,9 +112,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:reminder:sent` | shifts | `{ event, assignment, offset, channels }`, `event` always `undefined` when fired from the task | 5 |
 | `shifts:broadcast:sent` | shifts | `{ event, broadcast }` | 5 |
 
-The modules the crew modules build on list their own hooks: [Audience](/modules/organisation/audience#hooks),
-[Teams](/modules/organisation/teams#hooks), [FAQ](/modules/content/faq#hooks),
-[Help center](/modules/content/help-center#hooks), [Push](/modules/communication/push#hooks)
+The modules the crew modules build on list their own hooks: [Teams](/modules/organisation/teams#hooks),
+[FAQ](/modules/content/faq#hooks), [Push](/modules/communication/push#hooks)
 and [Dashboard](/modules/interface/dashboard#hooks). [Maps](/modules/interface/maps) has none: it is a building block.
 
 - **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each
@@ -185,24 +184,24 @@ The crew modules and the modules they build on. Hard dependencies go in `moduleD
 ones use `hasNuxtModule()` plus hooks and registries, so each module also works alone. Arrows point one way: a lower module never imports a higher one.
 
 ```text
-audience    (plain package, no Nuxt module)
+grants      ─► auth, ui
 
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
-operations  ─► auth, audience                        (soft: events, maps, dashboard)
-teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, maps, dashboard)
+operations  ─► auth, grants                          (soft: events, maps, dashboard)
+teams       ─► auth, users, grants                   (soft: authorization, subscriptions, oauth-server, maps, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
+faq         ─► auth, grants                          (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
-help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
+help-center ─► auth, grants                          (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
-maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
-inbox       ─► auth, notify, audience                (planned; soft: forms, users, teams, push, mobile, dashboard)
+maps        ─► auth                                  (owners register kinds and layers; maps imports none of them)
+inbox       ─► auth, notify, grants                  (planned; soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
 
-The soft links between visibility consumers and teams, crew or operations need no import at all: they meet in
-`audience:viewer:resolve`. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
+The soft links between grant consumers and teams, crew or operations need no import at all: they meet in the grants
+registry and Operations' participation hooks. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
 
 ## Documentation
 
@@ -212,7 +211,7 @@ Content, Communication or Interface. Follow the module page templates in [Docume
 
 ## Next steps
 
-- [Audience](/modules/organisation/audience) – owners, visibility and the viewer hook the crew modules answer.
+- [Grants](/modules/platform/grants) – who may see a record, with the kinds the crew modules register.
 - [Teams](/modules/organisation/teams) – the team roles of the role ladder.
 - [Extension points](/guide/concepts/extension-points) – how hooks and registries let modules extend each other.
 - [Access control](/guide/concepts/auth-and-scopes) – the policies owner modules add.

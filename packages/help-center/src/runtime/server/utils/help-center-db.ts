@@ -3,14 +3,14 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, desc, eq, inArray, is, or, sql } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
-import { parseVisibility } from '@frigear-nu/audience'
-import type { OwnerRef, Viewer, Visibility } from '@frigear-nu/audience'
-import { resolveOwner } from '@frigear-nu/audience/server'
+import { chunkGrantParams } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/grants/core'
 import { apiError, conflict, escapeLike, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { HelpCenterSource, HelpSourceCategory } from '../../../types'
+import type { HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
-import { categoryChain, isHelpArticleVisibleIn, isHelpChainVisible, normalizeVisibility } from '../../utils/visibility'
+import { categoryChain, isHelpArticleReadableIn, isHelpChainReadable } from '../../utils/grants'
+import type { HelpRecordReader } from '../../utils/grants'
 import { toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
 import type { HelpArticleRow, HelpCategoryRow } from './help-center-dto'
 import { isHelpCenterForeignKeyViolation, isHelpCenterUniqueViolation } from './help-center-errors'
@@ -144,31 +144,32 @@ function categoryTree(rows: HelpCategoryRow[]) {
 // --- The database source ----------------------------------------------------------------------
 
 /**
- * The `database` source: published articles of the tables, filtered by the viewer. A category is visible only when it and
- * every ancestor are, and an article when its whole chain is and its own visibility allows it (`isHelpArticleVisibleIn`);
- * the category filter and the search are in SQL, the viewer's visibility is not, so rows are read in batches until there
- * are enough visible ones or none are left.
+ * The `database` source: published articles of the tables, filtered by the reader. A category is readable only when it
+ * and every ancestor are, and an article when its whole chain is and its own grants admit too (`isHelpArticleReadableIn`);
+ * the category filter and the search are in SQL, the grants are not, so rows are read in batches until there are enough
+ * readable ones or none are left.
  */
 export const helpCenterDatabaseSource: HelpCenterSource = {
   id: 'database',
   readOnly: false,
 
-  async categories({ event, viewer }) {
+  async categories({ event, reader }) {
     const tree = categoryTree(await cachedHelpCategoryRows(event))
-    return [...tree.byId.values()].map((row): HelpSourceCategory => {
+    return Promise.all([...tree.byId.values()].map(async (row): Promise<HelpSourceCategory> => {
       const chain = tree.chainOf(row)
-      return { ...toHelpCategoryDto(row, chain), visible: isHelpChainVisible(chain, viewer) }
-    })
+      return { ...toHelpCategoryDto(row, chain), visible: await isHelpChainReadable(chain, reader.canRead) }
+    }))
   },
 
-  async list({ event, viewer, q, category }) {
+  async list({ event, reader, q, category }) {
     const tree = categoryTree(await cachedHelpCategoryRows(event))
-    const categories = [...tree.byId.values()].filter(row => isHelpChainVisible(tree.chainOf(row), viewer))
+    const categories: HelpCategoryRow[] = []
+    for (const row of tree.byId.values()) if (await isHelpChainReadable(tree.chainOf(row), reader.canRead)) categories.push(row)
     const wanted = category ? categories.filter(row => row.slug === category) : categories
     if (!wanted.length) return []
     const where = and(
       eq(schema.helpArticles.status, 'published'),
-      inArray(schema.helpArticles.categoryId, wanted.map(row => row.id)),
+      helpInChunks(schema.helpArticles.categoryId, wanted.map(row => row.id)),
       q ? or(helpTranslatedContains(schema.helpArticles.title, q), helpTranslatedContains(schema.helpArticles.body, q)) : undefined,
     )
     const limit = q ? SEARCH_LIMIT : LIST_LIMIT
@@ -180,7 +181,7 @@ export const helpCenterDatabaseSource: HelpCenterSource = {
         const owner = tree.byId.get(row.categoryId)
         if (!owner || articles.length >= limit) continue
         const chain = tree.chainOf(owner)
-        if (isHelpArticleVisibleIn(chain, row, viewer)) articles.push(toHelpArticleDto(owner, row, chain))
+        if (await isHelpArticleReadableIn(chain, row, reader.canRead)) articles.push(toHelpArticleDto(owner, row, chain))
       }
       if (rows.length < BATCH) {
         exhausted = true
@@ -193,23 +194,23 @@ export const helpCenterDatabaseSource: HelpCenterSource = {
     return articles
   },
 
-  async get(slug, { event, viewer }) {
-    return readable(event, await cachedArticleBy(event, 'articlesBySlug', slug, findHelpArticleBySlug), viewer)
+  async get(slug, { event, reader }) {
+    return readable(event, await cachedArticleBy(event, 'articlesBySlug', slug, findHelpArticleBySlug), reader.canRead)
   },
 
-  async getById(id, { event, viewer }) {
+  async getById(id, { event, reader }) {
     if (!id.startsWith('hlp_')) return undefined
-    return readable(event, await cachedArticleBy(event, 'articlesById', id, findHelpArticleById), viewer)
+    return readable(event, await cachedArticleBy(event, 'articlesById', id, findHelpArticleById), reader.canRead)
   },
 }
 
-async function readable(event: H3Event, row: HelpArticleRow | undefined, viewer: Viewer) {
+async function readable(event: H3Event, row: HelpArticleRow | undefined, canRead: HelpRecordReader) {
   if (!row || row.status !== 'published') return undefined
   const tree = categoryTree(await cachedHelpCategoryRows(event))
   const category = tree.byId.get(row.categoryId)
   if (!category) return undefined
   const chain = tree.chainOf(category)
-  if (!isHelpArticleVisibleIn(chain, row, viewer)) return undefined
+  if (!(await isHelpArticleReadableIn(chain, row, canRead))) return undefined
   return toHelpArticleDto(category, row, chain)
 }
 
@@ -235,10 +236,17 @@ const rethrowSlugConflict = (what: string) => (error: unknown): never => {
   throw error
 }
 
+/** An owner, as Teams' `teams:owner:resolve` answers it. */
+async function resolveHelpOwner(event: H3Event, owner: OwnerRef): Promise<boolean | null> {
+  const ctx = { event, owner: { ...owner }, label: null, exists: null as boolean | null }
+  await useNitroApp().hooks.callHook('teams:owner:resolve', ctx)
+  return ctx.exists
+}
+
 /**
- * 400 when the owner does not exist. `platform` has no id; every other type must be answered by its module through
- * `audience:owner:resolve` (operations answers for `operation`). A type nobody answers cannot be verified, so it is
- * refused too.
+ * 400 when the owner does not exist. `platform` has no id; every other type must be answered through
+ * `teams:owner:resolve` (Teams answers `team` and `operation`, an app its own types). A type nobody answers cannot be
+ * verified, so it is refused too.
  */
 export async function assertHelpOwner(event: H3Event, owner: OwnerRef): Promise<void> {
   if (owner.type === 'platform') {
@@ -246,27 +254,25 @@ export async function assertHelpOwner(event: H3Event, owner: OwnerRef): Promise<
     return
   }
   if (!owner.id) throw validationError([{ path: ['owner', 'id'], message: 'An owner of this type needs an id.' }])
-  const resolved = await resolveOwner(event, owner, { hooks: useNitroApp().hooks })
-  if (resolved.exists !== true) {
+  if (await resolveHelpOwner(event, owner) !== true) {
     throw validationError([{ path: ['owner'], message: 'This owner does not exist.' }], 'Unknown owner')
   }
 }
 
 /**
- * 400 when an id names an operation that does not exist (through `audience:owner:resolve`, like an owner), unless it is
- * the one already stored: a record whose operation was deleted can still be edited.
+ * 400 when an id names an operation that does not exist (through `teams:owner:resolve`, like an owner), unless it is the
+ * one already stored: a record whose operation was deleted can still be edited.
  */
 export async function assertHelpOperation(event: H3Event, operationId: string | null | undefined, stored: string | null | undefined, path: string[]): Promise<void> {
   if (!operationId || operationId === stored) return
-  const resolved = await resolveOwner(event, { type: 'operation', id: operationId }, { hooks: useNitroApp().hooks })
-  if (resolved.exists !== true) {
+  if (await resolveHelpOwner(event, { type: 'operation', id: operationId }) !== true) {
     throw validationError([{ path, message: 'This operation does not exist.' }], 'Unknown operation')
   }
 }
 
-/** The `operationId` of a visibility, checked with {@link assertHelpOperation}. */
-export function assertHelpVisibilityOperation(event: H3Event, visibility: Visibility | null | undefined, stored?: unknown): Promise<void> {
-  return assertHelpOperation(event, visibility?.operationId, parseVisibility(stored)?.operationId, ['visibility', 'operationId'])
+/** `column IN (...)` cut into chunks under D1's bound parameter limit, joined with `or`. */
+export function helpInChunks(column: AnyColumn, values: string[]): SQL | undefined {
+  return or(...chunkGrantParams(values).map(chunk => inArray(column, chunk)))
 }
 
 /** The parent must exist, not be the category itself and not be one of its descendants. */
@@ -296,13 +302,13 @@ async function nextArticleSort(categoryId: string): Promise<number> {
 
 const faqGroupsValue = (groups: string[] | null | undefined) => groups?.length ? [...new Set(groups)] : null
 
-/** Inserts a category after the slug, parent, owner and visibility checks. */
+/** Inserts a category after the slug, parent, owner and grants checks. */
 export async function createHelpCategoryRow(event: H3Event, input: CategoryInput): Promise<HelpCategoryRow> {
   await assertHelpCategorySlugFree(input.slug)
   await assertHelpParent(input.parentId)
   const owner = ownerValue(input.owner)
   await assertHelpOwner(event, owner)
-  await assertHelpVisibilityOperation(event, input.visibility as Visibility | null | undefined)
+  const grants = await grantsValidate(event, (input.grants ?? []) as Grant[])
   const [row] = await db.insert(schema.helpCategories).values({
     id: newRowId('hlc'),
     slug: input.slug,
@@ -311,7 +317,7 @@ export async function createHelpCategoryRow(event: H3Event, input: CategoryInput
     parentId: input.parentId ?? null,
     ownerType: owner.type,
     ownerId: owner.id,
-    visibility: normalizeVisibility(input.visibility as Visibility | null | undefined),
+    grants,
     faqGroups: faqGroupsValue(input.faqGroups),
     sort: input.sort ?? await nextCategorySort(),
   }).returning().catch(rethrowSlugConflict('category'))
@@ -325,7 +331,7 @@ export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategor
   const owner = patch.owner ? ownerValue(patch.owner) : undefined
   // An unchanged owner is not checked again: a category whose operation was deleted can still be edited.
   if (owner && !(owner.type === existing.ownerType && owner.id === (existing.ownerId ?? null))) await assertHelpOwner(event, owner)
-  if (patch.visibility) await assertHelpVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
+  const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : undefined
   const values: Partial<typeof schema.helpCategories.$inferInsert> = {}
   if (patch.slug !== undefined) values.slug = patch.slug
   if (patch.name !== undefined) values.name = patch.name
@@ -335,7 +341,7 @@ export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategor
     values.ownerType = owner.type
     values.ownerId = owner.id
   }
-  if (patch.visibility !== undefined) values.visibility = normalizeVisibility(patch.visibility as Visibility | null)
+  if (grants) values.grants = grants
   if (patch.faqGroups !== undefined) values.faqGroups = faqGroupsValue(patch.faqGroups)
   if (patch.sort !== undefined) values.sort = patch.sort
   const changed: Partial<typeof schema.helpCategories.$inferInsert> = Object.fromEntries(
@@ -379,7 +385,7 @@ async function requireHelpCategory(id: string): Promise<HelpCategoryRow> {
 export async function createHelpArticleRow(event: H3Event, input: ArticleInput, userId: string | number): Promise<HelpArticleRow> {
   await assertHelpArticleSlugFree(input.slug)
   const category = await requireHelpCategory(input.categoryId)
-  await assertHelpVisibilityOperation(event, input.visibility as Visibility | null | undefined)
+  const grants = input.grants ? await grantsValidate(event, input.grants as Grant[]) : null
   const [row] = await db.insert(schema.helpArticles).values({
     id: newRowId('hlp'),
     categoryId: category.id,
@@ -387,7 +393,7 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
     title: input.title,
     body: input.body,
     status: 'draft',
-    visibility: normalizeVisibility(input.visibility as Visibility | null | undefined),
+    grants,
     sort: input.sort ?? await nextArticleSort(category.id),
     updatedBy: String(userId),
   }).returning().catch(rethrowSlugConflict('article'))
@@ -401,13 +407,13 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
 export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleRow, patch: ArticlePatch, userId: string | number): Promise<HelpArticleRow> {
   if (patch.slug) await assertHelpArticleSlugFree(patch.slug, existing.id)
   if (patch.categoryId && patch.categoryId !== existing.categoryId) await requireHelpCategory(patch.categoryId)
-  if (patch.visibility) await assertHelpVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
+  const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : patch.grants
   const values: Partial<typeof schema.helpArticles.$inferInsert> = {}
   if (patch.categoryId !== undefined) values.categoryId = patch.categoryId
   if (patch.slug !== undefined) values.slug = patch.slug
   if (patch.title !== undefined) values.title = patch.title
   if (patch.body !== undefined) values.body = patch.body
-  if (patch.visibility !== undefined) values.visibility = normalizeVisibility(patch.visibility as Visibility | null)
+  if (grants !== undefined) values.grants = grants
   if (patch.sort !== undefined) values.sort = patch.sort
   const changed: Partial<typeof schema.helpArticles.$inferInsert> = Object.fromEntries(
     Object.entries(values).filter(([key, value]) => !sameValue(value, existing[key as keyof HelpArticleRow])),

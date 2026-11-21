@@ -26,6 +26,9 @@ export type EmailEntry = { to: string | string[], subject: string, body: string,
 /** The emails notify was asked to deliver to an address, in order (fixture-only route). */
 export const getEmailsTo = (to: string) => $fetch<EmailEntry[]>('/api/test/emails', { query: { to } })
 
-/** The viewer of the caller, as a visibility consumer builds it (fixture-only route). */
-export const getViewer = (cookie: string) =>
-  $fetch<{ operationIds: string[], teamRoles: Array<{ teamId: string, role: string, source: string }> }>('/api/test/viewer', { headers: { cookie } })
+/**
+ * The operations the caller takes part in, as operations asks crew; with `operationId`, whether the `operation` grant
+ * admits the caller and who it lists (fixture-only route).
+ */
+export const getParticipation = (cookie: string, operationId?: string) =>
+  $fetch<{ operationIds: string[], matches: boolean, members: number[] }>('/api/test/participation', { headers: { cookie }, query: operationId ? { operationId } : {} })

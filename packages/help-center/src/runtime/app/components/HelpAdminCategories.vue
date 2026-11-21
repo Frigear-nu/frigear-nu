@@ -34,9 +34,9 @@ const rows = computed<Row[]>(() => {
 const RowMenu = resolveComponent('RowMenu')
 const TableIdentity = resolveComponent('TableIdentity')
 
-const visibilityLabel = (category: StaffHelpCategory) => category.public
-  ? t('admin.visibility.public', 'Public')
-  : category.visibility ? t('admin.visibilityRestricted', 'Restricted') : t('admin.visibilitySignedIn', 'Signed-in people')
+const grantsLabel = (category: StaffHelpCategory) => category.public
+  ? t('admin.grantsPublic', 'Public')
+  : category.grants.length ? t('admin.grantsRestricted', 'Restricted') : t('admin.grantsNobody', 'Nobody yet')
 
 const columns = computed<TableColumn<Row>[]>(() => [
   {
@@ -57,9 +57,9 @@ const columns = computed<TableColumn<Row>[]>(() => [
     cell: ({ row }) => row.original.faqGroups.length ? h('span', { class: 'text-muted' }, row.original.faqGroups.join(', ')) : emptyCell(),
   },
   {
-    id: 'visibility',
-    header: t('admin.visibilityLabel', 'Who can see it'),
-    cell: ({ row }) => h('span', { class: 'text-muted' }, visibilityLabel(row.original)),
+    id: 'grants',
+    header: t('admin.grantsLabel', 'Who can see it'),
+    cell: ({ row }) => h('span', { class: 'text-muted' }, grantsLabel(row.original)),
   },
   {
     id: 'owner',

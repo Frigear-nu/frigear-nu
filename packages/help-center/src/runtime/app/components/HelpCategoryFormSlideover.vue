@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { isNarrowerOrEqual } from '@frigear-nu/audience'
 import { type HelpCategoryFormState, type StaffHelpCategory, OWNER_TYPE_OPTIONS, categoryToForm, emptyHelpCategoryForm, formToCategoryBody, helpCategoryFormSchema, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, watch } from '#imports'
@@ -34,10 +33,7 @@ const parents = computed(() => [
 ])
 
 // A subcategory can only narrow its parent: an ancestor that hides it keeps it hidden whatever it says itself.
-const widens = computed(() => {
-  const parent = props.categories.find(entry => entry.id === state.parentId)
-  return !!parent?.visibility && !isNarrowerOrEqual(parent.visibility, state.visibility ?? null)
-})
+const hasParent = computed(() => !!state.parentId)
 
 async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
   const body = formToCategoryBody(event.data)
@@ -141,19 +137,19 @@ async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
         />
       </UFormField>
       <UFormField
-        name="visibility"
-        :label="t('admin.visibilityLabel', 'Who can see it')"
-        :description="t('admin.categoryVisibilityHelp', 'Applies to every article in the category. An article can narrow it further, never widen it.')"
+        name="grants"
+        :label="t('admin.grantsLabel', 'Who can see it')"
+        :description="t('admin.categoryGrantsHelp', 'Anyone who matches one of these. Applies to every article in the category; an article can narrow it further, never widen it.')"
       >
-        <HelpCenterVisibilityEditor v-model="state.visibility" />
+        <GrantsEditor v-model="state.grants" />
       </UFormField>
       <UAlert
-        v-if="widens"
-        color="warning"
+        v-if="hasParent"
+        color="neutral"
         variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="t('admin.categoryWidens', 'This shows the category to more people than its parent')"
-        :description="t('admin.categoryWidensHelp', 'A category is only visible to people who can see every category above it, so the people the parent hides it from will still not see it.')"
+        icon="i-lucide-info"
+        :title="t('admin.categoryNarrows', 'People must also see the category above it')"
+        :description="t('admin.categoryNarrowsHelp', 'A category is only visible to people who can see every category above it.')"
       />
     </UForm>
   </FormSlideover>

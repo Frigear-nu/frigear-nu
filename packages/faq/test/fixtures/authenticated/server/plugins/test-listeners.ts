@@ -1,16 +1,7 @@
-// Stands in for the modules that answer the audience hooks (teams and crew would fill the viewer; operations and teams
-// would label their owners) and for whatever listens to the FAQ hooks (a cache purge, say).
+// Stands in for teams, which answers `teams:owner:resolve` for its owner types, and for whatever listens to the FAQ
+// hooks (a cache purge, say).
 export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('audience:viewer:resolve', (ctx) => {
-    const state = testViewerOf(ctx.user.id)
-    if (!state) return
-    ctx.viewer.operationIds.push(...state.operationIds)
-    ctx.viewer.teamRoles.push(...state.teamRoles)
-    // The `bar` ladder, lowest first.
-    ctx.viewer.ladders.bar = ['volunteer', 'bartender', 'lead', 'coordinator']
-  })
-
-  nitro.hooks.hook('audience:owner:resolve', (ctx) => {
+  nitro.hooks.hook('teams:owner:resolve', (ctx) => {
     const owner = testOwners[ctx.owner.type]
     if (!owner) return
     const known = ctx.owner.id ? owner[ctx.owner.id] : undefined

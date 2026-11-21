@@ -19,9 +19,9 @@ const loading = computed(() => status.value === 'pending' && !data.value?.length
 const RowMenu = resolveComponent('RowMenu')
 const TableIdentity = resolveComponent('TableIdentity')
 
-const visibilityLabel = (checklist: StaffHelpChecklist) => checklist.visibility?.public
-  ? t('admin.visibility.public', 'Public')
-  : checklist.visibility ? t('admin.visibilityRestricted', 'Restricted') : t('admin.visibilitySignedIn', 'Signed-in people')
+const grantsLabel = (checklist: StaffHelpChecklist) => checklist.grants.length
+  ? t('admin.grantsRestricted', 'Restricted')
+  : t('admin.grantsNobody', 'Nobody yet')
 
 const columns = computed<TableColumn<StaffHelpChecklist>[]>(() => [
   {
@@ -35,9 +35,9 @@ const columns = computed<TableColumn<StaffHelpChecklist>[]>(() => [
     cell: ({ row }) => h('span', { class: 'tabular-nums' }, t('admin.itemCounts', '{required} required of {total}', { required: row.original.items.filter(item => item.required).length, total: row.original.items.length })),
   },
   {
-    id: 'visibility',
-    header: t('admin.visibilityLabel', 'Who can see it'),
-    cell: ({ row }) => row.original.operationId || row.original.visibility ? h('span', { class: 'text-muted' }, visibilityLabel(row.original)) : emptyCell(),
+    id: 'grants',
+    header: t('admin.grantsLabel', 'Who can see it'),
+    cell: ({ row }) => row.original.operationId || row.original.grants.length ? h('span', { class: 'text-muted' }, grantsLabel(row.original)) : emptyCell(),
   },
   {
     id: 'actions',
