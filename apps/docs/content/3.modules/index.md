@@ -39,7 +39,10 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Give staff a guarded admin area | [Admin](/modules/interface/admin) | Menu, Widget, UI |
 | Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
+| Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/volunteering/dashboard) | Widget, UI |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, UI |
+| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Audience, UI |
 | Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
@@ -126,6 +129,9 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
+| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
+| [Dashboard](/modules/volunteering/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
+| [Teams](/modules/volunteering/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
 | [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
 
 ## How they fit together

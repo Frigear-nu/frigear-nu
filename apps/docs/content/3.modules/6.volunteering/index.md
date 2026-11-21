@@ -10,19 +10,20 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
-[FAQ](/modules/volunteering/faq), the first module built on them. Every other module adds its own page to this group in
-the pull request that adds the module.
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
+[Operations](/modules/volunteering/operations), [Dashboard](/modules/volunteering/dashboard),
+[Teams](/modules/volunteering/teams) and [FAQ](/modules/volunteering/faq). Every other module adds its own page to this
+group in the pull request that adds the module.
 
 ## The modules
 
 | Module | What it does | Track |
 | --- | --- | --- |
-| `@frigear-nu/operations` | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
-| `@frigear-nu/teams` | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
+| [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
+| [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
-| `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
+| [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
 | [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
@@ -163,6 +164,10 @@ type TeamRoleGrant = {
 
 - Explicit memberships come first, then the grants of the mapping rules. Mapped grants are never stored.
 - An explicit membership on a team wins over a mapped grant on the same team.
+- **Membership status.** A `team_members` row grants its role only when its `status` is `null` or `'active'`. Any
+  other value (`'pending'`, `'inactive'`, ...) keeps the person listed on the team without a grant: no read, no lead,
+  nothing in the viewer. Crew sets teams' `status` next to its own crew status. A mapping rule may still give such a
+  person a mapped role.
 - Mapped grants are resolved per request: every call reads the mapping rules and the user's global roles and plans.
   Call `resolveTeamRoles` (and `resolveViewer`) once per request and reuse the result, not once per record.
 - Teams answers `audience:viewer:resolve` with the grants on every owner, plus the ladder of each team kind in them.
@@ -178,7 +183,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 - **Provider:** `resolve`, `check` or `filter`. Listeners mutate the context.
 - **Two segments** are allowed when the entity is the module's own main resource: `operations:created`, like the
   existing `forms:submitted`.
-- **The context** is always one mutable object with `event`.
+- **The context** is always one mutable object with `event`. One exception: `teams:roles:resolve` has `event:
+  undefined` while teams builds an OAuth claim, which runs outside a request.
 
 | Hook | Owner | Context | Phase |
 | --- | --- | --- | --- |
@@ -191,7 +197,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:member:added` | teams | `{ event, team, member }` | 2 |
 | `teams:member:removed` | teams | `{ event, team, member }` | 2 |
 | `teams:member:role-changed` | teams | `{ event, team, member, from, to }` | 2 |
-| `teams:roles:resolve` | teams | `{ event, user, owner, grants }` | 2 |
+| `teams:roles:resolve` | teams | `{ event, user, owner, globalRoles, rules, teams, ladders, grants }` | 2 |
+| `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
@@ -217,7 +224,16 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6: platform mailboxes; 7: user mailboxes |
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
-  know. Crew's presets are plain `team_role_mappings` rows instead.
+  know. Crew's presets are plain `team_role_mappings` rows instead. `owner` is `null`: one resolution covers every
+  owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
+  rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
+  explicit memberships and teams' own role rules still count.
+- **`teams:member:*`.** They follow the grant of an explicit membership, not the row: `added` when it starts granting
+  (added with `status` null or `'active'`, or its status became one of those), `removed` when it stops (removed while
+  granting, or its status left them), `role-changed` for a role change while it grants. Crew fires on the same
+  transitions. Mapped grants fire none of them.
+- **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
+  members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
   To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through
@@ -252,8 +268,10 @@ type DashboardItem = WidgetDefinition & {
 - The client `widgets:filter` hook keeps hiding items by `permission`.
 - Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`. Dashboard declares
   it with `definePreferences` (a zod schema of
-  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`) and registers it with
-  `addUserPreferences(nuxt, { path })` when Preferences is installed. Without Preferences the registered order applies.
+  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[], settings? }>`, where `settings`
+  holds per-item settings by item id) and registers it with `addUserPreferences(nuxt, { path })` when Preferences is
+  installed. Without Preferences, or signed out, changes last for the session and the registered order applies after a
+  reload. See [Dashboard](/modules/volunteering/dashboard#per-user-layout).
 
 A module adds items only when dashboard is installed:
 
@@ -280,7 +298,7 @@ registries, so each module also works alone. Arrows point one way: a lower modul
 ```text
 audience    (plain package, no Nuxt module)
 
-dashboard   ─► widget, menu, auth                    (soft: preferences, mobile, admin)
+dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
 operations  ─► auth, audience                        (soft: events, maps, dashboard)
 teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
