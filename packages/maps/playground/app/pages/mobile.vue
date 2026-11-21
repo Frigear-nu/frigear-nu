@@ -13,7 +13,7 @@ const layout = demoLayout()
     <MapMobileViewer
       :layout="layout"
       surface="demo.venue"
-      :params="{ venue: 'roskilde' }"
+      :params="{ venue: 'main-stage' }"
     />
   </div>
 </template>
