@@ -114,7 +114,7 @@ const menu = [[{ label: 'Open', icon: 'i-lucide-arrow-right' }, { label: 'Edit',
         title="Key facts"
         description="What attendees see."
       >
-        <DescriptionList :items="[{ label: 'Venue', value: 'Copenhagen' }, { label: 'Capacity', value: null }]" />
+        <DescriptionList :items="[{ label: 'Venue', value: 'Main hall' }, { label: 'Capacity', value: null }]" />
       </SectionCard>
       <USwitch
         v-model="refreshing"
