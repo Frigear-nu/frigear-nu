@@ -8,7 +8,7 @@ type FormatAppConfig = { frigearUi?: { timeZone?: string } }
 
 /**
  * The date and money formatters bound to the active locale (`@nuxtjs/i18n`'s when installed, otherwise `en`) and to
- * the app's time zone (`appConfig.frigearUi.timeZone`, e.g. `Europe/Copenhagen`), so server and client render the
+ * the app's time zone (`appConfig.frigearUi.timeZone`, e.g. `America/New_York`), so server and client render the
  * same text. Without a configured time zone the runtime's own is used, which differs between a UTC server and a
  * visitor's browser: set it in the host app.
  *

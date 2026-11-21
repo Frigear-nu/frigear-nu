@@ -26,7 +26,7 @@ describe('page patterns', async () => {
 
   it('shows "Not set" for empty description values', async () => {
     const html = await $fetch<string>('/')
-    expect(html).toContain('Copenhagen')
+    expect(html).toContain('Main hall')
     expect(html).toContain('Not set')
   })
 
