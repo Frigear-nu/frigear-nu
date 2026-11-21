@@ -13,4 +13,8 @@ export const teamMembers = pgTable('team_members', {
   submissionId: text(),
   /** Place on the waiting list, 1 first; `null` when not waitlisted. */
   waitlistPosition: integer(),
+  /** Why a person is waitlisted: `capacity` (the crew was full; promoted automatically) or `manual` (staff; stays until staff move them). */
+  waitlistReason: text(),
+  /** The locale of the application (or of the invite request), for the status emails. */
+  locale: text(),
 })

@@ -68,6 +68,7 @@ describe('crew (authenticated, database-backed)', async () => {
     slug: `operation-${++counter}`,
     name: { en: `Operation ${counter}` },
     startsAt: '2027-06-27T10:00:00.000Z',
+    public: true,
     ...overrides,
   }))
   const createForm = async (definition: Json = FORM_DEFINITION): Promise<Json> => ok(await json(staff.cookie, 'POST', formsApi.admin.forms, {
@@ -95,6 +96,8 @@ describe('crew (authenticated, database-backed)', async () => {
 
   const apply = (who: Session, crew: Crew, answers: Json = {}) =>
     json(who.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: who.email, ...answers }, locale: 'en' })
+  /** The scoped read of `/api/crew`: what leads, volunteers and staff may read of an operation's crew. */
+  const scoped = async (cookie: string, crew: Crew, query = ''): Promise<Json> => ok(await json(cookie, 'GET', `${crewApi.members(crew.op.id)}?pageSize=100${query}`))
   const list = async (cookie: string, crew: Crew, query = ''): Promise<Json> => ok(await json(cookie, 'GET', `${crewApi.admin.members(crew.op.id)}?pageSize=100${query}`))
   const rowOf = async (crew: Crew, who: Session, cookie = staff.cookie): Promise<Json> => {
     const row = (await list(cookie, crew)).items.find((item: Json) => item.userId === who.id)
@@ -370,10 +373,11 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(gusRow.id)))).toMatchObject({ crewStatus: 'waitlisted', waitlistPosition: 2 })
       expect(await hookNames(fay)).toEqual(['crew:applied', 'crew:waitlisted'])
 
-      // A withdrawn person can only come back by approval.
+      // A withdrawn person has left: only they can come back, by applying again.
       await ok(await json(gus.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.reject(gusRow.id)), 409, 'crew_invalid_transition')
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.waitlist(gusRow.id)), 409, 'crew_invalid_transition')
+      await expectApiError(json(staff.cookie, 'POST', crewApi.admin.approve(gusRow.id), {}), 409, 'crew_invalid_transition')
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.approve('tmm_missing'), {}), 404)
     })
 
@@ -588,26 +592,26 @@ describe('crew (authenticated, database-backed)', async () => {
       await approve(await applied(onB, crew), { teamId: teamB.id })
       await applied(plain, crew)
 
-      const seen = await list(lead.cookie, crew)
+      const seen = await scoped(lead.cookie, crew)
       expect(seen.items.map((item: Json) => item.userId).sort()).toEqual([lead.id, onA.id, plain.id].sort())
       expect(seen.items.every((item: Json) => item.teamId === crew.teamId && !('email' in item))).toBe(true)
       expect(seen.total).toBe(3)
-      expect((await list(lead.cookie, crew, `&team=${teamB.id}`)).items).toEqual([])
+      expect((await scoped(lead.cookie, crew, `&team=${teamB.id}`)).items).toEqual([])
 
       const ownRow = await rowOf(crew, onA)
       const otherRow = await rowOf(crew, onB)
-      expect(await ok(await json(lead.cookie, 'GET', crewApi.admin.member(ownRow.id)))).toMatchObject({ userId: onA.id })
-      await expectApiError(json(lead.cookie, 'GET', crewApi.admin.member(otherRow.id)), 403, 'forbidden')
+      expect(await ok(await json(lead.cookie, 'GET', crewApi.member(ownRow.id)))).toMatchObject({ userId: onA.id })
+      await expectApiError(json(lead.cookie, 'GET', crewApi.member(otherRow.id)), 403, 'forbidden')
 
       // Leading is reading, not managing.
       await expectApiError(json(lead.cookie, 'POST', crewApi.admin.reject(ownRow.id)), 403, 'forbidden')
       await expectApiError(json(lead.cookie, 'GET', crewApi.admin.settings(crew.op.id)), 403, 'forbidden')
 
       // A volunteer sees no list, but their own row; an applicant sees nothing of anybody.
-      expect((await list(onA.cookie, crew)).items).toEqual([])
-      expect(await ok(await json(onA.cookie, 'GET', crewApi.admin.member(ownRow.id)))).toMatchObject({ userId: onA.id })
-      await expectApiError(json(onA.cookie, 'GET', crewApi.admin.member((await rowOf(crew, lead)).id)), 403, 'forbidden')
-      expect((await list(plain.cookie, crew)).items).toEqual([])
+      expect((await scoped(onA.cookie, crew)).items).toEqual([])
+      expect(await ok(await json(onA.cookie, 'GET', crewApi.member(ownRow.id)))).toMatchObject({ userId: onA.id })
+      await expectApiError(json(onA.cookie, 'GET', crewApi.member((await rowOf(crew, lead)).id)), 403, 'forbidden')
+      expect((await scoped(plain.cookie, crew)).items).toEqual([])
     })
   })
 
@@ -650,6 +654,226 @@ describe('crew (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('waiting list rules', () => {
+    it('never promotes the person staff just waitlisted, and only promotes people the full crew waitlisted', async () => {
+      const crew = await newCrew({ capacity: 1, waitlist: true })
+      const [holder, queued, parked] = [await user('Holder'), await user('Queued'), await user('Parked')] as [Session, Session, Session]
+      // Staff parked somebody while there was room, before the crew filled up.
+      const parkedRow = await applied(parked, crew)
+      await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(parkedRow.id)))
+      const holderRow = await applied(holder, crew)
+      await approve(holderRow)
+      expect(await applied(queued, crew)).toMatchObject({ crewStatus: 'waitlisted' })
+
+      // Staff demote the holder to the waiting list: the place goes to the one the full crew waitlisted, not back to them.
+      expect(await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(holderRow.id)))).toMatchObject({ crewStatus: 'waitlisted' })
+      expect(await rowOf(crew, queued)).toMatchObject({ crewStatus: 'approved' })
+      expect(await rowOf(crew, holder)).toMatchObject({ crewStatus: 'waitlisted' })
+      expect(await rowOf(crew, parked)).toMatchObject({ crewStatus: 'waitlisted' })
+
+      // A bigger capacity promotes nobody staff waitlisted.
+      await ok(await saveSettings(crew.op.id, { formId: crew.form.id, capacity: 10 }))
+      expect(await rowOf(crew, holder)).toMatchObject({ crewStatus: 'waitlisted' })
+      expect((await list(staff.cookie, crew, '&status=waitlisted')).items.map((item: Json) => item.userId).sort()).toEqual([holder.id, parked.id].sort())
+    })
+
+    it('keeps a person staff waitlisted waitlisted when a place frees', async () => {
+      const crew = await newCrew({ capacity: 5, waitlist: true })
+      const [one, two] = [await user('Sticky'), await user('Free')] as [Session, Session]
+      const row = await applied(one, crew)
+      await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(row.id)))
+      await approve(await applied(two, crew))
+      await ok(await json(two.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      expect(await rowOf(crew, one)).toMatchObject({ crewStatus: 'waitlisted' })
+    })
+
+    it('lets a status change that lost a race do nothing: no second hook, no second email', async () => {
+      const crew = await newCrew()
+      const racer = await user('Racer')
+      const row = await applied(racer, crew)
+      const results = await Promise.all([json(staff.cookie, 'POST', crewApi.admin.approve(row.id), {}), json(staff.cookie, 'POST', crewApi.admin.approve(row.id), {})])
+      expect(results.map(result => result.status)).toEqual([200, 200])
+      expect(await rowOf(crew, racer)).toMatchObject({ crewStatus: 'approved' })
+      expect((await hookNames(racer)).filter(name => name === 'crew:approved')).toHaveLength(1)
+      expect((await hookNames(racer)).filter(name => name === 'teams:added')).toHaveLength(1)
+      expect((await getEmailsTo(racer.email)).filter(email => email.template?.name === 'crew-status-approved')).toHaveLength(1)
+
+      // Two withdrawals at once: one wins, the other is told it is over or sees it done, and the hook fires once.
+      const withdrawals = await Promise.all([json(racer.cookie, 'POST', crewApi.me.withdraw(crew.op.id)), json(racer.cookie, 'POST', crewApi.me.withdraw(crew.op.id))])
+      expect(withdrawals.map(result => result.status).sort()).toContain(200)
+      expect((await hookNames(racer)).filter(name => name === 'crew:withdrawn')).toHaveLength(1)
+    })
+
+    it('never overfills the crew when several places free up at once', async () => {
+      const crew = await newCrew({ capacity: 2, waitlist: true })
+      const people = [await user('Pa'), await user('Pb'), await user('Pc'), await user('Pd'), await user('Pe')] as Session[]
+      const rows = []
+      for (const person of people.slice(0, 2)) rows.push(await applied(person, crew))
+      for (const row of rows) await approve(row)
+      for (const person of people.slice(2)) await ok(await apply(person, crew))
+      await Promise.all(people.slice(0, 2).map(person => json(person.cookie, 'POST', crewApi.me.withdraw(crew.op.id))))
+      const members = (await list(staff.cookie, crew)).items as Json[]
+      expect(members.filter(member => member.crewStatus === 'approved')).toHaveLength(2)
+      expect(members.filter(member => member.crewStatus === 'waitlisted')).toHaveLength(1)
+      expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.settings(crew.op.id)))).approved).toBe(2)
+    })
+  })
+
+  describe('private operations', () => {
+    it('answers 404 for a private operation and registers nobody who may not read it', async () => {
+      const crew = await newCrew({}, { public: false })
+      const outsider = await user('Outsider')
+      await expectApiError(json(outsider.cookie, 'GET', crewApi.apply(crew.op.slug)), 404)
+      await expectApiError(json(outsider.cookie, 'GET', crewApi.apply(crew.op.id)), 404)
+      // The form is still submittable through the forms API, but nothing is registered.
+      await ok(await apply(outsider, crew))
+      expect(await ok(await json(outsider.cookie, 'GET', crewApi.me.crew))).toEqual([])
+      expect((await list(staff.cookie, crew)).items).toEqual([])
+      // Staff may read it, and so may somebody who takes part already.
+      expect(await ok(await json(staff.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'open' })
+      const insider = await user('Insider')
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'bartender' }))
+      await ok(await json(insider.cookie, 'POST', crewApi.acceptInvite(created.token)))
+      expect(await ok(await json(insider.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'applied', crewStatus: 'approved' })
+    })
+  })
+
+  describe('redelivery', () => {
+    it('ignores a submission that was delivered already, and keeps the first phone number', async () => {
+      const crew = await newCrew()
+      const rob = await user('Rob')
+      const row = await applied(rob, crew, { phone: '+4511111111' })
+      const before = (await hookNames(rob)).length
+      // Forms' own redelivery runs `forms:submitted` again for the stored submission.
+      await ok(await json(staff.cookie, 'POST', formsApi.admin.redeliver(row.submissionId)))
+      expect(await hookNames(rob)).toHaveLength(before)
+      expect(await getEmailsTo(rob.email)).toHaveLength(1)
+      expect(await rowOf(crew, rob)).toMatchObject({ id: row.id, submissionId: row.submissionId, phone: '+4511111111' })
+      // A second application of somebody already in does not overwrite their phone number either.
+      await ok(await apply(rob, crew, { phone: '+4522222222' }))
+      expect(await rowOf(crew, rob)).toMatchObject({ phone: '+4511111111' })
+    })
+
+    it('ignores an old submission redelivered after the person withdrew', async () => {
+      const crew = await newCrew()
+      const sue = await user('Sue')
+      const first = await ok(await apply(sue, crew))
+      await new Promise(resolve => setTimeout(resolve, 1_200))
+      // A second submission replaces the first on the row, so the first is no longer the stored one.
+      await ok(await apply(sue, crew, { motivation: 'second' }))
+      await ok(await json(sue.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await json(staff.cookie, 'POST', formsApi.admin.redeliver(first.id)))
+      expect(await rowOf(crew, sue)).toMatchObject({ crewStatus: 'withdrawn' })
+    })
+  })
+
+  describe('presets are added once', () => {
+    it('never re-adds a rule staff removed, and a later save adds none', async () => {
+      const crew = await newCrew()
+      const url = `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${crew.op.id}`
+      const rules = await ok(await json(staff.cookie, 'GET', url)) as unknown as Json[]
+      expect(rules).toHaveLength(3)
+      const barmanager = rules.find(rule => rule.match.role === 'barmanager')!
+      expect((await json(staff.cookie, 'DELETE', teamsApi.admin.mapping(barmanager.id))).status).toBe(204)
+      await ok(await saveSettings(crew.op.id, { formId: crew.form.id, capacity: 3 }))
+      expect(((await ok(await json(staff.cookie, 'GET', url))) as unknown as Json[]).map(rule => rule.match.role ?? rule.match.plan).sort()).toEqual(['crew', 'member-plan'])
+
+      // Presets switched on later add nothing; switched off later remove nothing.
+      const off = await newCrew({ presets: false })
+      expect(await ok(await saveSettings(off.op.id, { formId: off.form.id, presets: true }))).toMatchObject({ presets: false })
+      expect(await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${off.op.id}`))).toEqual([])
+      const on = await newCrew()
+      await ok(await saveSettings(on.op.id, { formId: on.form.id, presets: false }))
+      expect(((await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${on.op.id}`))) as unknown as Json[])).toHaveLength(3)
+    })
+
+    it('does not re-add a preset whose rule staff changed to another role', async () => {
+      const crew = await newCrew()
+      const url = `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${crew.op.id}`
+      const rule = ((await ok(await json(staff.cookie, 'GET', url))) as unknown as Json[]).find(item => item.match.role === 'crew')!
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.mapping(rule.id), { teamRole: 'volunteer' }))
+      await ok(await saveSettings(crew.op.id, { formId: crew.form.id }))
+      const after = (await ok(await json(staff.cookie, 'GET', url))) as unknown as Json[]
+      expect(after).toHaveLength(3)
+      expect(after.find(item => item.match.role === 'crew')).toMatchObject({ teamRole: 'volunteer' })
+    })
+  })
+
+  describe('email language', () => {
+    const texts = { subject: { en: 'English {{name}}', da: 'Dansk {{name}}' } }
+
+    it('sends every status email in the language of the application', async () => {
+      const crew = await newCrew({ statusEmails: { applied: texts, approved: texts } })
+      const dane = await user('Dane')
+      const english = await user('Brit')
+      await ok(await json(dane.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Dane' }, locale: 'da-DK' }))
+      await ok(await json(english.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Brit' }, locale: 'en' }))
+      await approve(await rowOf(crew, dane))
+      expect((await getEmailsTo(dane.email)).map(email => [email.template?.name, email.template?.locale, email.subject])).toEqual([
+        ['crew-status-applied', 'da', 'Dansk Dane'],
+        ['crew-status-approved', 'da', 'Dansk Dane'],
+      ])
+      expect((await getEmailsTo(english.email))[0]).toMatchObject({ subject: 'English Brit', template: { locale: 'en' } })
+    })
+
+    it('sends the invite email in the language of the request that accepted it', async () => {
+      const crew = await newCrew({ statusEmails: { approved: texts } })
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'bartender' }))
+      const hans = await user('Hans')
+      const response = await fetch(crewApi.acceptInvite(created.token), { method: 'POST', headers: { 'cookie': hans.cookie, 'accept-language': 'da-DK,da;q=0.9,en;q=0.8' } })
+      expect(response.status, await response.clone().text()).toBeLessThan(300)
+      expect((await getEmailsTo(hans.email))[0]).toMatchObject({ subject: 'Dansk Hans', template: { locale: 'da' } })
+    })
+  })
+
+  describe('forms to recruit with', () => {
+    it('lists only the forms an operation can use, and keeps its own', async () => {
+      const crew = await newCrew()
+      const other = await newCrew()
+      const open = await createForm({ ...FORM_DEFINITION, access: { availability: 'web', auth: 'none' } })
+      const unstored = await createForm({ ...FORM_DEFINITION, storage: 'none' })
+      const fresh = await createForm()
+      const ids = async (query: string) => ((await ok(await json(staff.cookie, 'GET', `${crewApi.admin.forms}${query}`))) as unknown as Json[]).map(form => form.id)
+
+      const forOther = await ids(`?operationId=${other.op.id}`)
+      expect(forOther).toContain(fresh.id)
+      expect(forOther).toContain(other.form.id)
+      expect(forOther).not.toContain(crew.form.id)
+      expect(forOther).not.toContain(open.id)
+      expect(forOther).not.toContain(unstored.id)
+      // Without an operation, forms in use are not offered.
+      expect(await ids('')).not.toContain(other.form.id)
+      expect(await ids('')).toContain(fresh.id)
+      expect((await json((await user('Nobody')).cookie, 'GET', crewApi.admin.forms)).status).toBe(403)
+    })
+  })
+
+  describe('invite rules', () => {
+    it('refuses somebody approved anywhere in the operation, and a rejected applicant', async () => {
+      const crew = await newCrew()
+      const bar = await createTeam(crew, 'Bar C')
+      const [approvedPerson, rejectedPerson] = [await user('Already'), await user('Turned')] as [Session, Session]
+      await approve(await applied(approvedPerson, crew))
+      await reject(await applied(rejectedPerson, crew))
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: bar.id, role: 'ba', maxUses: 5 }))
+      await expectApiError(json(approvedPerson.cookie, 'POST', crewApi.acceptInvite(created.token)), 409, 'crew_already_member')
+      await expectApiError(json(rejectedPerson.cookie, 'POST', crewApi.acceptInvite(created.token)), 409, 'crew_rejected')
+      expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 0 })
+      expect(await rowOf(crew, rejectedPerson)).toMatchObject({ crewStatus: 'rejected' })
+      expect(await rowOf(crew, approvedPerson)).toMatchObject({ teamId: crew.teamId })
+    })
+
+    it('keeps the use spent when a hook listener fails after the membership was written', async () => {
+      const crew = await newCrew()
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba', maxUses: 2 }))
+      const failing = await registerUser('Failing', `hookfail${++counter}@example.com`)
+      const response = await json(failing.cookie, 'POST', crewApi.acceptInvite(created.token))
+      expect(response.status).toBe(500)
+      expect(await rowOf(crew, failing)).toMatchObject({ crewStatus: 'approved', role: 'ba' })
+      expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 1 })
+    })
+  })
+
   describe('access', () => {
     it('denies by default: anonymous 401, non-staff 403 on the staff routes', async () => {
       const crew = await newCrew()
@@ -660,7 +884,8 @@ describe('crew (authenticated, database-backed)', async () => {
         ['POST', crewApi.me.withdraw(crew.op.id)],
         ['GET', crewApi.admin.settings(crew.op.id)],
         ['GET', crewApi.admin.members(crew.op.id)],
-        ['GET', crewApi.admin.member(row.id)],
+        ['GET', crewApi.member(row.id)],
+        ['GET', crewApi.members(crew.op.id)],
         ['GET', crewApi.admin.invites(crew.op.id)],
         ['DELETE', crewApi.admin.invite('civ_missing')],
       ] as Array<[ApiMethod, string]>) {
@@ -673,7 +898,8 @@ describe('crew (authenticated, database-backed)', async () => {
       await expectApiError(json(nobody.cookie, 'POST', crewApi.admin.approveMany(crew.op.id), { ids: [row.id] }), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'PATCH', crewApi.admin.member(row.id), { role: 'ba' }), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'DELETE', crewApi.admin.invite('civ_missing')), 403, 'forbidden')
-      expect((await list(nobody.cookie, crew)).items).toEqual([])
+      await expectApiError(json(nobody.cookie, 'GET', crewApi.admin.members(crew.op.id)), 403, 'forbidden')
+      expect((await scoped(nobody.cookie, crew)).items).toEqual([])
     })
 
     it('reads /me with a crew:read token or the crew scope, and refuses a token without (insufficient_scope)', async () => {

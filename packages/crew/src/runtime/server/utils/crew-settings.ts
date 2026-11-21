@@ -1,9 +1,9 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, asc, count, eq, isNull, ne } from 'drizzle-orm'
+import { and, asc, count, eq, isNotNull, isNull, ne } from 'drizzle-orm'
 import { conflict, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { CrewRuntimeConfig, CrewSettingsDto } from '../../../types'
+import type { CrewFormOptionDto, CrewRuntimeConfig, CrewSettingsDto } from '../../../types'
 import { newId } from '../../utils'
 import { toCrewSettingsDto } from './crew-dto'
 import type { crewSettingsInput } from './crew-schemas'
@@ -82,7 +82,8 @@ type Preset = { match: TeamRoleMatchLike, teamRole: string }
 /**
  * Adds the role mapping presets of an operation as owner-wide `team_role_mappings` rows: a global `barmanager` is a BA,
  * a global `crew` is a bartender, and (with the module option `memberPlan`) an active subscription to that plan is a
- * volunteer. A preset that exists already, or whose role is on no ladder, is skipped, so it is safe to call again.
+ * volunteer. A preset whose match has a rule already, or whose role is on no ladder, is skipped. Called when an operation's
+ * settings are first saved, never again.
  */
 export async function crewEnsurePresets(event: H3Event, operationId: string): Promise<void> {
   const memberPlan = (useRuntimeConfig(event).crew as CrewRuntimeConfig | undefined)?.memberPlan
@@ -97,7 +98,8 @@ export async function crewEnsurePresets(event: H3Event, operationId: string): Pr
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
   for (const preset of presets) {
     const match = normalizeTeamRoleMatch(preset.match)
-    if (existing.some(row => same(normalizeTeamRoleMatch(row.match as TeamRoleMatchLike), match) && row.teamRole === preset.teamRole)) continue
+    // By match alone: a rule staff changed (another role, a priority) or removed-and-readded is theirs, not added again.
+    if (existing.some(row => same(normalizeTeamRoleMatch(row.match as TeamRoleMatchLike), match))) continue
     try {
       await assertTeamMappingTarget(event, { ...owner, teamId: null, teamRole: preset.teamRole })
     }
@@ -128,9 +130,30 @@ export async function assertCrewForm(formId: string, operationId: string): Promi
   if (other) throw conflict('Another operation recruits with this form already.', { field: 'formId' })
 }
 
-/** Saves the settings of an operation (the whole record), creating the default team and the presets on the way. */
+/**
+ * The forms an operation can recruit with: published or draft, not archived, asking for a signed-in user, storing their
+ * submissions, and not used by another operation's crew (`operationId` keeps its own form in the list).
+ */
+export async function crewEligibleForms(operationId?: string): Promise<CrewFormOptionDto[]> {
+  const [forms, used] = await Promise.all([
+    db.select({ id: schema.forms.id, name: schema.forms.name, slug: schema.forms.slug, status: schema.forms.status, definition: schema.forms.definition })
+      .from(schema.forms).where(ne(schema.forms.status, 'archived')).orderBy(asc(schema.forms.name)).limit(500),
+    db.select({ formId: schema.crewSettings.formId, operationId: schema.crewSettings.operationId }).from(schema.crewSettings).where(isNotNull(schema.crewSettings.formId)),
+  ])
+  const taken = new Set(used.filter(row => row.operationId !== operationId).map(row => row.formId))
+  return forms
+    .filter(form => (form.definition.access?.auth ?? 'none') === 'user' && form.definition.storage !== 'none' && !taken.has(form.id))
+    .map(({ id, name, slug, status }) => ({ id, name, slug, status }))
+}
+
+/**
+ * Saves the settings of an operation (the whole record), creating the default team on the way. The role presets are added
+ * only when the settings are first created, and recorded in `presets`: later saves keep that value, never add presets and
+ * never remove any (staff edit the rules in Teams).
+ */
 export async function saveCrewSettings(event: H3Event, operationId: string, input: CrewSettingsInput): Promise<CrewSettingsRow> {
   if (input.formId) await assertCrewForm(input.formId, operationId)
+  const previous = await findCrewSettings(operationId)
   const team = await crewEnsureDefaultTeam(event, operationId, input.defaultTeamId)
   const values = {
     formId: input.formId ?? null,
@@ -141,11 +164,11 @@ export async function saveCrewSettings(event: H3Event, operationId: string, inpu
     opensAt: input.opensAt ?? null,
     closesAt: input.closesAt ?? null,
     statusEmails: input.statusEmails ?? null,
-    presets: input.presets,
+    presets: previous ? previous.presets : input.presets,
   }
   const [row] = await db.insert(schema.crewSettings).values({ operationId, ...values })
     .onConflictDoUpdate({ target: schema.crewSettings.operationId, set: { ...values, updatedAt: new Date() } })
     .returning()
-  if (input.presets) await crewEnsurePresets(event, operationId)
+  if (!previous && input.presets) await crewEnsurePresets(event, operationId)
   return row!
 }

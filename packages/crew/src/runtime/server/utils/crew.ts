@@ -8,7 +8,7 @@ import type { Page } from '@frigear-nu/module-kit/server'
 import type { CrewApplyDto, CrewMemberDto, CrewStatus, MyCrewDto, Translated } from '../../../types'
 import { ladderKeys } from '@frigear-nu/teams/utils'
 import { crewAccess } from '../../access'
-import { canMoveCrew, teamStatusOf, translate } from '../../utils'
+import { canMoveCrew, newId, teamStatusOf, translate } from '../../utils'
 import { toCrewMemberDto, toMyCrewDto } from './crew-dto'
 import type { CrewTeamLite, CrewUserLite } from './crew-dto'
 import { crewSendStatusEmail } from './crew-emails'
@@ -150,6 +150,18 @@ export async function crewApprovedOperationIds(userId: number): Promise<string[]
   return rows.flatMap(row => row.operationId ? [row.operationId] : [])
 }
 
+/**
+ * Whether a user may read an operation, by the rule of `operations:read`: a public operation, one they take part in, or
+ * `operations:manage`. A private operation takes no applications from people who cannot read it.
+ */
+export async function crewUserReadsOperation(event: H3Event, operation: Pick<CrewOperationRow, 'id' | 'public'>, userId: number): Promise<boolean> {
+  if (operation.public) return true
+  const user = await loadAuthUser(userId)
+  if (!user) return false
+  const viewer = await resolveOperationsViewer(event, user)
+  return operationReadable(operation, viewer, await userCan(event, userId, 'operations:manage'))
+}
+
 /** Whether applications to an operation are open now, by its form, status and window. */
 export function crewOpenState(operation: Pick<CrewOperationRow, 'status'>, settings: CrewSettingsRow | undefined, now = new Date()): 'open' | 'scheduled' | 'closed' | 'unavailable' {
   if (!settings?.formId) return 'unavailable'
@@ -202,6 +214,14 @@ async function crewFire(event: H3Event, name: CrewHookName, operationId: string,
   await useNitroApp().hooks.callHook(name, { event, operationId, member })
 }
 
+/** The primary language tag of the request (`da-DK,da;q=0.9` is `da`), or `undefined`. */
+export function crewRequestLocale(event: H3Event): string | undefined {
+  const tag = getRequestHeader(event, 'accept-language')?.split(',')[0]?.trim().split(/[-_;]/)[0]?.toLowerCase()
+  return tag && /^[a-z]{2,3}$/.test(tag) ? tag : undefined
+}
+
+const primaryLocale = (locale: string | undefined) => locale?.split(/[-_]/)[0]?.toLowerCase() || undefined
+
 /**
  * Fires the teams member hooks for a change of a crew row, which teams' own routes would have fired. They follow the
  * grant: `added` when the row starts to hold its role (approved), `removed` when it stops, `role-changed` when an
@@ -224,32 +244,56 @@ async function crewFireTeamsHooks(event: H3Event, before: CrewEntry | undefined,
   }
 }
 
-type CrewColumns = Partial<Pick<typeof schema.teamMembers.$inferInsert, 'crewStatus' | 'appliedAt' | 'decidedAt' | 'decidedBy' | 'submissionId' | 'waitlistPosition'>>
+type CrewColumns = Partial<Pick<typeof schema.teamMembers.$inferInsert, 'crewStatus' | 'appliedAt' | 'decidedAt' | 'decidedBy' | 'submissionId' | 'waitlistPosition' | 'waitlistReason' | 'locale'>>
 
-/** Adds a crew membership: a teams membership row (409 when the person is on the team) with the crew columns. */
-async function crewInsertMember(event: H3Event, input: CrewColumns & { team: CrewTeamRow, userId: number, role: string, crewStatus: CrewStatus, addedBy: number | null }): Promise<CrewEntry> {
-  const { team, userId, role, addedBy, ...columns } = input
-  const inserted = await insertTeamMemberRow({ teamId: team.id, userId, role, status: teamStatusOf(input.crewStatus), addedBy })
-  const [member] = await db.update(schema.teamMembers).set(columns).where(eq(schema.teamMembers.id, inserted.id)).returning()
+/**
+ * Adds a crew membership in one insert, crew columns included, so a failure cannot leave a half-written row that blocks
+ * the person from applying again. 409 when the person is on the team already.
+ */
+async function crewInsertMember(event: H3Event, input: CrewColumns & { team: CrewTeamRow, userId: number, role: string, crewStatus: CrewStatus, addedBy: number | null, fire?: boolean }): Promise<CrewEntry> {
+  const { team, userId, role, addedBy, fire = true, ...columns } = input
+  const taken = () => conflict('This user is a member of the team already.', { field: 'userId' })
+  if (await findTeamMember(team.id, userId)) throw taken()
+  const [member] = await db.insert(schema.teamMembers).values({ id: newId('tmm'), teamId: team.id, userId, role, status: teamStatusOf(input.crewStatus), addedBy, ...columns }).returning().catch((error: unknown) => {
+    if (isTeamsUniqueViolation(error)) throw taken()
+    throw error
+  })
   forgetTeamRoles(event)
   const entry = { member: member!, team }
-  await crewFireTeamsHooks(event, undefined, entry)
+  if (fire) await crewFireTeamsHooks(event, undefined, entry)
   return entry
 }
 
-/** Changes a crew row (its crew columns, team and role), keeping teams' `status` in step and firing the teams hooks. */
-async function crewUpdateMember(event: H3Event, before: CrewEntry, patch: CrewColumns & { teamId?: string, role?: string }): Promise<CrewEntry> {
+/**
+ * Writes a crew row only if it still has the crew status the caller read (a conditional update), keeping teams' `status`
+ * in step. `undefined` when somebody else changed it first. Fires nothing.
+ */
+async function crewWrite(event: H3Event, before: CrewEntry, patch: CrewColumns & { teamId?: string, role?: string }): Promise<CrewEntry | undefined> {
   const values: Partial<typeof schema.teamMembers.$inferInsert> = { ...patch }
   if (patch.crewStatus) values.status = teamStatusOf(patch.crewStatus as CrewStatus)
-  const [member] = await db.update(schema.teamMembers).set(values).where(eq(schema.teamMembers.id, before.member.id)).returning()
+  const current = before.member.crewStatus
+  const [member] = await db.update(schema.teamMembers).set(values).where(and(
+    eq(schema.teamMembers.id, before.member.id),
+    current === null ? isNull(schema.teamMembers.crewStatus) : eq(schema.teamMembers.crewStatus, current),
+  )).returning()
+  if (!member) return undefined
   forgetTeamRoles(event)
   const team = patch.teamId && patch.teamId !== before.team.id ? (await findTeamById(patch.teamId)) ?? before.team : before.team
-  const entry = { member: member!, team }
-  await crewFireTeamsHooks(event, before, entry)
-  return entry
+  return { member, team }
 }
 
-/** The next free place on an operation's waiting list. */
+/**
+ * `crewWrite` and the teams hooks. When the row changed under the caller (`changed: false`), `entry` is its current state
+ * and nothing was written or fired: the caller must not fire its own hooks or send emails either.
+ */
+async function crewUpdateMember(event: H3Event, before: CrewEntry, patch: CrewColumns & { teamId?: string, role?: string }): Promise<{ entry: CrewEntry, changed: boolean }> {
+  const written = await crewWrite(event, before, patch)
+  if (!written) return { entry: await getCrewEntryOr404(before.member.id).catch(() => before), changed: false }
+  await crewFireTeamsHooks(event, before, written)
+  return { entry: written, changed: true }
+}
+
+/** The next place on an operation's waiting list. Positions may repeat when requests race: the list orders by position, then by when people applied. */
 async function crewNextWaitlistPosition(operationId: string): Promise<number> {
   const [row] = await db.select({ top: max(schema.teamMembers.waitlistPosition) }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
@@ -257,9 +301,10 @@ async function crewNextWaitlistPosition(operationId: string): Promise<number> {
   return Number(row?.top ?? 0) + 1
 }
 
-/** Emails the person about their new status; a failing email is logged, never thrown. */
-async function crewNotify(event: H3Event, entry: CrewEntry, operation: CrewOperationRow, settings: CrewSettingsRow | undefined, status: CrewStatus, locale?: string): Promise<void> {
+/** Emails the person about their new status, in the locale stored on their row; a failing email is logged, never thrown. */
+async function crewNotify(event: H3Event, entry: CrewEntry, operation: CrewOperationRow, settings: CrewSettingsRow | undefined, status: CrewStatus): Promise<void> {
   const member = await crewMemberDtoOf(entry, operation, true)
+  const locale = entry.member.locale ?? undefined
   await crewSendStatusEmail(event, {
     status,
     member,
@@ -277,12 +322,14 @@ async function crewApplyStatus(operationId: string, settings: CrewSettingsRow | 
 }
 
 /**
- * Registers an application: a new `applied` (or `waitlisted`) person on the operation's default team holding its lowest
- * role without a grant. A person who has applied already is left as they are (a withdrawn one reopens their application),
- * and `null` is returned for someone who already works on a team of the operation through teams.
+ * Registers an application: a new `applied` (or `waitlisted`, because the crew is full) person on the operation's default
+ * team holding its lowest role without a grant. A person who has applied already is left as they are (`created: false`;
+ * a withdrawn one reopens their application, `created: true`), and `null` is returned for someone who already works on a
+ * team of the operation through teams.
  */
 export async function crewApply(event: H3Event, input: { operation: CrewOperationRow, settings: CrewSettingsRow | undefined, userId: number, submissionId: string | null, locale?: string }): Promise<{ entry: CrewEntry, created: boolean } | null> {
-  const { operation, settings, userId, submissionId, locale } = input
+  const { operation, settings, userId, submissionId } = input
+  const locale = primaryLocale(input.locale) ?? null
   const now = new Date()
   const existing = await findCrewEntry(userId, operation.id)
   let entry: CrewEntry
@@ -294,14 +341,18 @@ export async function crewApply(event: H3Event, input: { operation: CrewOperatio
       return { entry: existing, created: false }
     }
     const status = await crewApplyStatus(operation.id, settings)
-    entry = await crewUpdateMember(event, existing, {
+    const reopened = await crewUpdateMember(event, existing, {
       crewStatus: status,
       appliedAt: now,
       decidedAt: null,
       decidedBy: null,
       submissionId,
+      locale,
       waitlistPosition: status === 'waitlisted' ? await crewNextWaitlistPosition(operation.id) : null,
+      waitlistReason: status === 'waitlisted' ? 'capacity' : null,
     })
+    if (!reopened.changed) return { entry: reopened.entry, created: false }
+    entry = reopened.entry
   }
   else {
     if (await crewHasPlainMembership(userId, operation.id)) return null
@@ -314,7 +365,9 @@ export async function crewApply(event: H3Event, input: { operation: CrewOperatio
       crewStatus: status,
       appliedAt: now,
       submissionId,
+      locale,
       waitlistPosition: status === 'waitlisted' ? await crewNextWaitlistPosition(operation.id) : null,
+      waitlistReason: status === 'waitlisted' ? 'capacity' : null,
       addedBy: null,
     })
   }
@@ -322,15 +375,16 @@ export async function crewApply(event: H3Event, input: { operation: CrewOperatio
   const dto = await crewMemberDtoOf(entry, operation, true)
   await crewFire(event, 'crew:member:applied', operation.id, dto)
   if (status === 'waitlisted') await crewFire(event, 'crew:member:waitlisted', operation.id, dto)
-  await crewNotify(event, entry, operation, settings, status, locale)
+  await crewNotify(event, entry, operation, settings, status)
   return { entry, created: true }
 }
 
 /**
  * Moves a crew member to `approved`, `rejected` or `waitlisted`. Approving may also set the team (of the same operation)
  * and role. Asking for the status the person has is a no-op, so a double click does no harm; any other move the status
- * table does not allow is a 409. Fires the crew hook and sends the status email; a person leaving `approved` frees a place
- * on the waiting list.
+ * table does not allow is a 409. The write is conditional on the status that was read: when somebody else moved the person
+ * first, the current row comes back and no hook fires and no email goes out. Fires the crew hook and sends the status email;
+ * a person leaving `approved` frees a place on the waiting list. Staff approval does not check the capacity.
  */
 export async function crewDecide(event: H3Event, id: string, to: 'approved' | 'rejected' | 'waitlisted', options: { by: number | null, teamId?: string, role?: string } = { by: null }): Promise<CrewEntry> {
   const entry = await getCrewEntryOr404(id)
@@ -355,22 +409,29 @@ export async function crewDecide(event: H3Event, id: string, to: 'approved' | 'r
   if (!moves && !retargets) return entry
   if (moves && !canMoveCrew(from, to)) throw apiError(409, 'crew_invalid_transition', `A person who is ${from} cannot be ${to}.`)
 
-  const updated = await crewUpdateMember(event, entry, {
+  const result = await crewUpdateMember(event, entry, {
     crewStatus: to,
     decidedAt: new Date(),
     decidedBy: options.by,
+    // Staff waitlisting is sticky: only people waitlisted because the crew was full are promoted automatically.
     waitlistPosition: to === 'waitlisted' ? (from === 'waitlisted' ? entry.member.waitlistPosition : await crewNextWaitlistPosition(operationId)) : null,
+    waitlistReason: to === 'waitlisted' ? (from === 'waitlisted' ? entry.member.waitlistReason : 'manual') : null,
     ...(team.id !== entry.team.id ? { teamId: team.id } : {}),
     ...(role !== entry.member.role ? { role } : {}),
   })
-  if (!moves) return updated
+  if (!result.changed || !moves) return result.entry
+  const updated = result.entry
   await crewFire(event, `crew:member:${to}`, operationId, await crewMemberDtoOf(updated, operation, true))
   await crewNotify(event, updated, operation, settings, to)
+  // The person just demoted is waitlisted by hand, so the promotion below skips them.
   if (from === 'approved') await crewPromoteWaitlist(event, operation, settings)
   return updated
 }
 
-/** Approves people in turn, collecting the ones that could not be (a person who is rejected or gone stays as they are). */
+/**
+ * Approves people in turn. People who cannot be approved because of what they are (unknown, another operation's, in a
+ * status that cannot become approved: a 4xx) come back in `skipped`; any other failure is thrown.
+ */
 export async function crewApproveMany(event: H3Event, operationId: string, ids: string[], by: number | null): Promise<{ approved: CrewEntry[], skipped: string[] }> {
   const approved: CrewEntry[] = []
   const skipped: string[] = []
@@ -383,8 +444,10 @@ export async function crewApproveMany(event: H3Event, operationId: string, ids: 
     try {
       approved.push(await crewDecide(event, id, 'approved', { by }))
     }
-    catch {
-      skipped.push(id)
+    catch (error) {
+      const status = (error as { statusCode?: number }).statusCode
+      if (typeof status === 'number' && status >= 400 && status < 500) skipped.push(id)
+      else throw error
     }
   }
   return { approved, skipped }
@@ -398,11 +461,12 @@ export async function crewWithdraw(event: H3Event, userId: number, operationId: 
   if (from === 'rejected' || from === 'withdrawn') throw apiError(409, 'crew_not_withdrawable', `Your application is ${from}.`)
   const operation = await getOperationOr404(operationId)
   const settings = await findCrewSettings(operationId)
-  const updated = await crewUpdateMember(event, entry, { crewStatus: 'withdrawn', decidedAt: new Date(), decidedBy: null, waitlistPosition: null })
-  await crewFire(event, 'crew:member:withdrawn', operationId, await crewMemberDtoOf(updated, operation, true))
-  await crewNotify(event, updated, operation, settings, 'withdrawn')
+  const result = await crewUpdateMember(event, entry, { crewStatus: 'withdrawn', decidedAt: new Date(), decidedBy: null, waitlistPosition: null, waitlistReason: null })
+  if (!result.changed) return result.entry
+  await crewFire(event, 'crew:member:withdrawn', operationId, await crewMemberDtoOf(result.entry, operation, true))
+  await crewNotify(event, result.entry, operation, settings, 'withdrawn')
   if (from === 'approved') await crewPromoteWaitlist(event, operation, settings)
-  return updated
+  return result.entry
 }
 
 /** Moves a crew member to another team and/or role of the same operation (an approved person keeps their grant). */
@@ -420,16 +484,18 @@ export async function crewMove(event: H3Event, id: string, input: { teamId?: str
   if (input.role) role = input.role
   await assertTeamRoleOnLadder(event, team.kind, role)
   if (team.id === entry.team.id && role === entry.member.role) return entry
-  return crewUpdateMember(event, entry, {
+  return (await crewUpdateMember(event, entry, {
     ...(team.id !== entry.team.id ? { teamId: team.id } : {}),
     ...(role !== entry.member.role ? { role } : {}),
-  })
+  })).entry
 }
 
 /**
- * Fills the places the approved crew leaves free from the waiting list (when the operation has a capacity and a list):
- * previous crew first when the setting is on, then in the order people joined the list. Each promotion fires the same
- * hooks and email as an approval by staff.
+ * Fills the places the approved crew leaves free from the waiting list (when the operation has a capacity and a list), but
+ * only with people who were waitlisted because the crew was full (`waitlistReason: 'capacity'`): staff waitlisting is
+ * sticky. Previous crew go first when the setting is on, then in the order people joined the list. Each candidate is
+ * claimed with a conditional update and the capacity is checked again after the claim, so two requests promoting at once
+ * cannot overfill the crew: the claim that went over is put back. A promotion fires the same hooks and email as an approval.
  */
 export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperationRow, settings: CrewSettingsRow | undefined): Promise<CrewEntry[]> {
   if (!settings || settings.capacity === null || !settings.waitlist) return []
@@ -439,11 +505,28 @@ export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperati
     const previous = sql<number>`case when ${crewPreviousExists(operation, schema.teamMembers.userId)} then 1 else 0 end`
     const [next] = await db.select({ id: schema.teamMembers.id }).from(schema.teamMembers)
       .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
-      .where(and(operationTeamOwned(operation.id), eq(schema.teamMembers.crewStatus, 'waitlisted')))
+      .where(and(operationTeamOwned(operation.id), eq(schema.teamMembers.crewStatus, 'waitlisted'), eq(schema.teamMembers.waitlistReason, 'capacity')))
       .orderBy(...(settings.previousCrewFirst ? [desc(previous)] : []), asc(schema.teamMembers.waitlistPosition), asc(schema.teamMembers.appliedAt), asc(schema.teamMembers.id))
       .limit(1)
     if (!next) break
-    promoted.push(await crewDecide(event, next.id, 'approved', { by: null }))
+    const candidate = await getCrewEntryOr404(next.id).catch(() => undefined)
+    if (!candidate || candidate.member.crewStatus !== 'waitlisted') continue
+    const claimed = await crewWrite(event, candidate, { crewStatus: 'approved', decidedAt: new Date(), decidedBy: null, waitlistPosition: null, waitlistReason: null })
+    if (!claimed) continue
+    if (await crewApprovedCount(operation.id) > settings.capacity) {
+      await crewWrite(event, claimed, {
+        crewStatus: 'waitlisted',
+        decidedAt: candidate.member.decidedAt,
+        decidedBy: candidate.member.decidedBy,
+        waitlistPosition: candidate.member.waitlistPosition,
+        waitlistReason: 'capacity',
+      })
+      break
+    }
+    await crewFireTeamsHooks(event, candidate, claimed)
+    await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(claimed, operation, true))
+    await crewNotify(event, claimed, operation, settings, 'approved')
+    promoted.push(claimed)
   }
   return promoted
 }
@@ -453,10 +536,13 @@ export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperati
 const gone = (code: 'invite_revoked' | 'invite_expired' | 'invite_used' | 'invite_unavailable', message: string) => apiError(410, code, message)
 
 /**
- * Accepts an invite link for a signed-in user: the invite's team, approved, with the invite's role (an approved person
- * on the team keeps a higher role). A use is claimed atomically (`uses < maxUses`, not revoked, not expired), so a link
- * with one use adds exactly one person even when it is opened twice at once. 404 for an unknown token, 410 for a link
- * that is revoked, expired or used up, 409 when the user is on the team already.
+ * Accepts an invite link for a signed-in user: the invite's team, approved, with the invite's role. A use is claimed
+ * atomically (`uses < maxUses`, not revoked, not expired), so a link with one use adds exactly one person even when it
+ * is opened twice at once; the use is given back only when writing the membership itself fails, not when a hook listener
+ * throws afterwards. 404 for an unknown token, 410 for a link that is revoked, expired or used up. 409
+ * `crew_already_member` when the user is approved anywhere in the operation (or holds a role there through teams), and 409
+ * `crew_rejected` for a rejected applicant: staff's decision wins. An applicant who is waiting or withdrawn is moved onto
+ * the team. An invite does not check the capacity.
  */
 export async function crewAcceptInvite(event: H3Event, token: string, userId: number): Promise<MyCrewDto> {
   const tokenHash = await crewHashToken(token)
@@ -476,9 +562,10 @@ export async function crewAcceptInvite(event: H3Event, token: string, userId: nu
 
   const existing = await findCrewEntry(userId, invite.operationId)
   const atTeam = await findTeamMember(team.id, userId)
-  if (atTeam && teamMemberStatusGrants(atTeam.status) && (atTeam.crewStatus === null || atTeam.crewStatus === 'approved')) {
-    throw apiError(409, 'crew_already_member', 'You are on this team already.')
+  if (existing?.member.crewStatus === 'approved' || await crewHasPlainMembership(userId, invite.operationId)) {
+    throw apiError(409, 'crew_already_member', 'You are on this crew already.')
   }
+  if (existing?.member.crewStatus === 'rejected') throw apiError(409, 'crew_rejected', 'Your application was rejected, so an invite cannot add you.')
 
   const now = new Date()
   const claimed = await db.update(schema.crewInvites).set({ uses: sql`${schema.crewInvites.uses} + 1` }).where(and(
@@ -492,41 +579,42 @@ export async function crewAcceptInvite(event: H3Event, token: string, userId: nu
     throw fresh ? reasonOf(fresh) : notFound('This invite link is not valid.')
   }
 
+  // The row the invite fills: the person's row on the team, else their crew row elsewhere (moved here), else a new one.
+  const base: CrewEntry | undefined = atTeam ? { member: atTeam, team } : existing
+  const decided = { crewStatus: 'approved' as const, decidedAt: now, decidedBy: invite.createdBy ?? null, waitlistPosition: null, waitlistReason: null }
+  let entry: CrewEntry
   try {
-    const settings = await findCrewSettings(operation.id)
-    // The row the invite fills: the person's row on the team, else their crew row elsewhere (moved here), else a new one.
-    const base: CrewEntry | undefined = atTeam ? { member: atTeam, team } : existing
-    const decided = { crewStatus: 'approved' as const, decidedAt: now, decidedBy: invite.createdBy ?? null, waitlistPosition: null }
-    let entry: CrewEntry
     if (base) {
-      const keys = ladderKeys((await loadTeamLadders(event))[team.kind])
-      const keepsRole = teamMemberStatusGrants(base.member.status) && keys.indexOf(base.member.role) > keys.indexOf(invite.role)
-      const role = keepsRole ? base.member.role : invite.role
-      entry = await crewUpdateMember(event, base, {
+      const result = await crewWrite(event, base, {
         ...decided,
+        role: invite.role,
         ...(base.team.id !== team.id ? { teamId: team.id } : {}),
-        ...(role !== base.member.role ? { role } : {}),
         ...(base.member.crewStatus ? {} : { appliedAt: now }),
+        ...(base.member.locale ? {} : { locale: crewRequestLocale(event) ?? null }),
       })
+      if (!result) throw apiError(409, 'conflict', 'Your crew status changed meanwhile. Try the link again.')
+      entry = result
       // A second crew row of the same person elsewhere in the operation would double count them: it is withdrawn.
       if (existing && existing.member.id !== base.member.id) {
-        await crewUpdateMember(event, existing, { crewStatus: 'withdrawn', decidedAt: now, decidedBy: null, waitlistPosition: null })
+        await crewWrite(event, existing, { crewStatus: 'withdrawn', decidedAt: now, decidedBy: null, waitlistPosition: null, waitlistReason: null })
       }
     }
     else {
-      entry = await crewInsertMember(event, { team, userId, role: invite.role, appliedAt: now, addedBy: invite.createdBy ?? null, ...decided })
+      // The teams hooks run below, after the membership is safely written.
+      entry = await crewInsertMember(event, { team, userId, role: invite.role, appliedAt: now, addedBy: invite.createdBy ?? null, locale: crewRequestLocale(event) ?? null, fire: false, ...decided })
     }
-    if (base?.member.crewStatus !== 'approved') {
-      await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(entry, operation, true))
-      await crewNotify(event, entry, operation, settings, 'approved')
-    }
-    return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation, roleLabel: await crewRoleLabelOf(event, entry.team.kind, entry.member.role) })
   }
   catch (error) {
-    // The use was not spent on anybody: give it back.
+    // The use was not spent on anybody: give it back. (Hook listeners run after this block and never give it back.)
     await db.update(schema.crewInvites).set({ uses: sql`${schema.crewInvites.uses} - 1` }).where(eq(schema.crewInvites.id, invite.id))
     throw error
   }
+
+  const settings = await findCrewSettings(operation.id)
+  await crewFireTeamsHooks(event, base, entry)
+  await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(entry, operation, true))
+  await crewNotify(event, entry, operation, settings, 'approved')
+  return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation, roleLabel: await crewRoleLabelOf(event, entry.team.kind, entry.member.role) })
 }
 
 // --- Staff list ------------------------------------------------------------------------------

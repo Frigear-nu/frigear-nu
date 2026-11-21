@@ -31,6 +31,8 @@ describe('crew statuses', () => {
     expect(canMoveCrew('applied', 'approved')).toBe(true)
     expect(canMoveCrew('approved', 'waitlisted')).toBe(true)
     expect(canMoveCrew('withdrawn', 'rejected')).toBe(false)
+    // A withdrawn person has left: staff cannot approve them, they apply again.
+    expect(canMoveCrew('withdrawn', 'approved')).toBe(false)
     expect(canMoveCrew('waitlisted', 'applied')).toBe(false)
   })
 })

@@ -21,7 +21,7 @@ export async function getHooksOf(userId: number) {
   return log.filter(entry => entry.userId === userId)
 }
 
-export type EmailEntry = { to: string | string[], subject: string, body: string, text?: string, template?: { name: string, props?: Record<string, unknown> } }
+export type EmailEntry = { to: string | string[], subject: string, body: string, text?: string, template?: { name: string, props?: Record<string, unknown>, locale?: string } }
 
 /** The emails notify was asked to deliver to an address, in order (fixture-only route). */
 export const getEmailsTo = (to: string) => $fetch<EmailEntry[]>('/api/test/emails', { query: { to } })

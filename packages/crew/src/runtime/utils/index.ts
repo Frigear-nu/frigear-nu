@@ -9,6 +9,7 @@ export * from './status'
 export type {
   CreatedCrewInviteDto,
   CrewApplyDto,
+  CrewFormOptionDto,
   CrewInviteDto,
   CrewMemberContext,
   CrewMemberDto,

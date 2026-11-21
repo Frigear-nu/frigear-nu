@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formsApi } from '@frigear-nu/forms/api'
+import { authApi } from '@frigear-nu/auth/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import type { CrewFormOption, CrewLadder, CrewTeamOption, StaffCrewMember, StaffCrewPage, StaffCrewSettings } from '../utils/admin-crew'
 import { crewRoleLabel, isEmptyTranslated, localToIso, toLocalInput } from '../utils/admin-crew'
 import { crewApi } from '../../utils/api'
 import { CREW_STATUSES, CREW_STATUS_LABELS } from '../../utils/status'
 import type { CrewInviteDto, CrewStatus, CrewStatusEmails, Translated } from '../../../types'
-import { $fetch, computed, emptyCell, errorMessage, h, reactive, ref, resolveComponent, tableUi, useAction, useCopyToClipboard, useCrewActions, useCrewLinks, useCrewTranslate, useFetch, useFormat, useModuleT, useRequestURL, useTableQuery, useTableSort, watch } from '#imports'
+import { $fetch, computed, emptyCell, errorMessage, h, reactive, ref, resolveComponent, tableUi, useAction, useCopyToClipboard, useCrewActions, useCrewLinks, useCrewTranslate, useFetch, useFormat, useModuleT, useRequestURL, useRuntimeConfig, useTableQuery, useTableSort, watch } from '#imports'
 
 defineOptions({ name: 'CrewOperationTab' })
 
@@ -22,7 +22,9 @@ const links = useCrewLinks()
 const actions = useCrewActions()
 const { busy: saving, run } = useAction()
 const { copy } = useCopyToClipboard()
-const origin = useRequestURL().origin
+// The configured site URL, like the emailed links; the request's origin when none is set.
+const siteUrl = useRuntimeConfig().public.siteUrl as string | undefined
+const origin = (siteUrl ? new URL(siteUrl).origin : useRequestURL().origin)
 
 const operationId = computed(() => props.operation?.id ?? '')
 const hasOperation = computed(() => !!operationId.value)
@@ -36,11 +38,17 @@ const { data: teamsPage } = await useFetch<{ items: CrewTeamOption[] }>(teamsApi
   default: () => ({ items: [] }),
 })
 const { data: ladders } = await useFetch<CrewLadder[]>(teamsApi.admin.ladders, { key: 'crew:ladders', default: () => [] })
-const { data: formsPage } = await useFetch<{ items: CrewFormOption[] }>(formsApi.admin.forms, {
-  query: { pageSize: 100 },
-  key: 'crew:forms',
-  default: () => ({ items: [] }),
+// Only the forms an operation can recruit with: crew filters them (signed-in users, stored, not used elsewhere).
+const { data: eligibleForms } = await useFetch<CrewFormOption[]>(crewApi.admin.forms, {
+  query: computed(() => ({ operationId: operationId.value || undefined })),
+  key: computed(() => `crew:forms:${operationId.value}`),
+  immediate: hasOperation.value,
+  watch: false,
+  default: () => [],
 })
+// What the caller may do: the member form shows the application's answers only with `crew:pii`.
+const { data: access } = await useFetch<{ permissions: string[] }>(authApi.me.access, { key: 'crew:access', default: () => ({ permissions: [] }) })
+const pii = computed(() => access.value.permissions.includes('crew:pii'))
 const teams = computed(() => teamsPage.value?.items ?? [])
 
 // --- Settings -------------------------------------------------------------------------------------------------------
@@ -65,7 +73,6 @@ const rows = computed(() => data.value?.items ?? [])
 const pending = computed(() => status.value === 'pending')
 const loading = computed(() => pending.value && !data.value)
 const refreshing = computed(() => pending.value && !!data.value)
-const pii = computed(() => rows.value.some(row => row.email !== undefined))
 
 const { data: invites, status: invitesStatus, refresh: refreshInvites } = await useFetch<CrewInviteDto[]>(() => crewApi.admin.invites(operationId.value), {
   immediate: hasOperation.value,
@@ -263,7 +270,7 @@ function fillForm(value: StaffCrewSettings | null | undefined) {
 watch(settings, fillForm, { immediate: true })
 
 const formOptions = computed(() => {
-  const items = (formsPage.value?.items ?? []).filter(item => item.status !== 'archived').map(item => ({ label: item.name, value: item.id }))
+  const items = (eligibleForms.value ?? []).map(item => ({ label: item.name, value: item.id }))
   const current = settings.value?.formId
   if (current && !items.some(item => item.value === current)) items.push({ label: current, value: current })
   return [{ label: t('admin.noForm', 'No form (applications closed)'), value: NONE }, ...items]
@@ -543,9 +550,12 @@ function jumpToSettings() {
           <FormRow
             name="presets"
             :label="t('admin.presets', 'Role presets')"
-            :description="t('admin.presetsHelp', 'Give a global bar manager the BA role and global crew the bartender role on every team, without adding them by hand.')"
+            :description="t('admin.presetsHelp', 'Added once, when the settings are first saved: a global bar manager is a BA and global crew a bartender on every team. Turning this off later removes nothing; edit the rules in Teams.')"
           >
-            <USwitch v-model="form.presets" />
+            <USwitch
+              v-model="form.presets"
+              :disabled="settings?.source === 'stored'"
+            />
           </FormRow>
           <FormRow
             name="emails"

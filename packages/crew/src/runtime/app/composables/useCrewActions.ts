@@ -113,16 +113,16 @@ export function useCrewActions() {
       if (result) await options.onChanged?.()
     }
     const main: DropdownMenuItem[] = [{
-      label: t('admin.open', 'Open'),
+      label: t('admin.open', 'Open application'),
       icon: 'i-lucide-arrow-right',
       onSelect: async () => changed(await open(member, options)),
     }]
     const moves: DropdownMenuItem[] = []
     if (canMoveCrew(member.crewStatus, 'approved')) {
-      moves.push({ label: t('admin.approveAction', 'Approve'), icon: 'i-lucide-user-check', onSelect: async () => changed(await approve(member)) })
+      moves.push({ label: t('admin.approveAction', 'Approve application'), icon: 'i-lucide-user-check', onSelect: async () => changed(await approve(member)) })
     }
     if (canMoveCrew(member.crewStatus, 'waitlisted')) {
-      moves.push({ label: t('admin.waitlistAction', 'Put on waiting list'), icon: 'i-lucide-hourglass', onSelect: async () => changed(await waitlist(member)) })
+      moves.push({ label: t('admin.waitlistAction', 'Move to waiting list'), icon: 'i-lucide-hourglass', onSelect: async () => changed(await waitlist(member)) })
     }
     const destructive: DropdownMenuItem[] = canMoveCrew(member.crewStatus, 'rejected')
       ? [{ label: t('admin.rejectAction', 'Reject application'), icon: 'i-lucide-user-x', color: 'error', onSelect: async () => changed(await reject(member)) }]

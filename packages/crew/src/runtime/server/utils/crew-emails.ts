@@ -77,7 +77,7 @@ export function buildCrewStatusEmail(input: {
 export async function crewSendStatusEmail(event: H3Event, input: Omit<Parameters<typeof buildCrewStatusEmail>[0], 'statusUrl'>): Promise<void> {
   try {
     const statusPath = (useRuntimeConfig(event).public.crew as { pages?: { status?: string } } | undefined)?.pages?.status
-    const notification = buildCrewStatusEmail({ ...input, statusUrl: statusPath ? `${getRequestURL(event).origin}${statusPath}` : undefined })
+    const notification = buildCrewStatusEmail({ ...input, statusUrl: statusPath ? `${configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin}${statusPath}` : undefined })
     if (notification) await dispatchEmailNotification(notification)
   }
   catch (error) {

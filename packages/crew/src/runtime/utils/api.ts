@@ -17,16 +17,20 @@ export const crewApi = {
   },
   /** `GET` what the apply page needs for an operation (its id or URL name): the form to render, or why not. */
   apply: (operation: string) => `${BASE}/operations/${enc(operation)}/apply`,
+  /** `GET` (paginated) an operation's crew as the caller may read it: staff all of it, team leads their own teams, others nothing. */
+  members: (operationId: string) => `${BASE}/operations/${enc(operationId)}/members`,
+  /** `GET` one crew member: yourself, a lead of the team, or staff. */
+  member: (id: string) => `${BASE}/members/${enc(id)}`,
   /** `POST` to accept an invite link: joins the invite's team, approved, with the invite's role. */
   acceptInvite: (token: string) => `${BASE}/invites/${enc(token)}/accept`,
   admin: {
     /** `GET` / `PUT` how an operation's crew is recruited. */
     settings: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/settings`,
-    /** `GET` (paginated, `?status&team&previous&q`) an operation's crew. Team leads get their own teams. */
+    /** `GET` (paginated, `?status&team&previous&q`) an operation's whole crew, for staff. */
     members: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/members`,
     /** `POST` `{ ids }` to approve several people at once. */
     approveMany: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/members/approve`,
-    /** `GET` one crew member / `PATCH` `{ teamId?, role? }` to move them. */
+    /** `PATCH` `{ teamId?, role? }` to move a crew member. */
     member: (id: string) => `${ADMIN_BASE}/members/${enc(id)}`,
     /** `POST` `{ teamId?, role? }` to approve, optionally into another team or role. */
     approve: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/approve`,
@@ -36,6 +40,8 @@ export const crewApi = {
     waitlist: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/waitlist`,
     /** `GET` the application's answers (needs `crew:pii`). */
     submission: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/submission`,
+    /** `GET` the forms an operation can recruit with (`?operationId=` keeps its own). */
+    forms: `${ADMIN_BASE}/forms`,
     /** `GET` / `POST` an operation's invite links. */
     invites: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/invites`,
     /** `DELETE` (revoke) one invite. */

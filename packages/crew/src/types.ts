@@ -138,6 +138,9 @@ export type CrewSettingsDto = {
   updatedAt: string | null
 }
 
+/** A form an operation can recruit with (`GET /api/admin/crew/forms`). */
+export type CrewFormOptionDto = { id: string, name: string, slug: string, status: string }
+
 /** An invite link as staff see it. The token is only in {@link CreatedCrewInviteDto}. */
 export type CrewInviteDto = {
   id: string

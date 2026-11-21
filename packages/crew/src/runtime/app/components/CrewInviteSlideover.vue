@@ -5,7 +5,7 @@ import type { CrewLadder, CrewTeamOption } from '../utils/admin-crew'
 import { crewRoleOptions, localToIso } from '../utils/admin-crew'
 import { crewApi } from '../../utils/api'
 import type { CreatedCrewInviteDto } from '../../../types'
-import { $fetch, computed, reactive, ref, useAction, useCopyToClipboard, useCrewTranslate, useModuleT, useRequestURL, watch } from '#imports'
+import { $fetch, computed, reactive, ref, useAction, useCopyToClipboard, useCrewTranslate, useModuleT, useRequestURL, useRuntimeConfig, watch } from '#imports'
 
 defineOptions({ name: 'CrewInviteSlideover' })
 
@@ -19,7 +19,9 @@ const t = useModuleT('crew')
 const tr = useCrewTranslate()
 const { busy, run } = useAction()
 const { copy } = useCopyToClipboard()
-const origin = useRequestURL().origin
+// The configured site URL, like the emailed links; the request's origin when none is set.
+const siteUrl = useRuntimeConfig().public.siteUrl as string | undefined
+const origin = siteUrl ? new URL(siteUrl).origin : useRequestURL().origin
 
 const schema = z.object({
   teamId: z.string().min(1, t('admin.teamRequired', 'Choose a team.')),

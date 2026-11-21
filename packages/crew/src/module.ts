@@ -124,6 +124,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'me/:operationId/withdraw', file: 'me/withdraw.post' },
       { method: 'get', path: 'operations/:operation/apply', file: 'public/apply.get' },
       { method: 'post', path: 'invites/:token/accept', file: 'public/invite-accept.post' },
+      // `:operation` like the apply route: h3's router wants one parameter name per segment.
+      { method: 'get', path: 'operations/:operation/members', file: 'public/members.get' },
+      { method: 'get', path: 'members/:id', file: 'public/member.get' },
     ], { base: '/api/crew' })
 
     addModuleRoutes(resolver, [
@@ -133,7 +136,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'operations/:operationId/members/approve', file: 'admin/members-approve.post' },
       { method: 'get', path: 'operations/:operationId/invites', file: 'admin/invites.get' },
       { method: 'post', path: 'operations/:operationId/invites', file: 'admin/invites.post' },
-      { method: 'get', path: 'members/:id', file: 'admin/member.get' },
+      { method: 'get', path: 'forms', file: 'admin/forms.get' },
       { method: 'patch', path: 'members/:id', file: 'admin/member.patch' },
       { method: 'post', path: 'members/:id/approve', file: 'admin/member-approve.post' },
       { method: 'post', path: 'members/:id/reject', file: 'admin/member-reject.post' },

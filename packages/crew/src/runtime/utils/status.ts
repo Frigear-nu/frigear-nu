@@ -23,13 +23,13 @@ export function teamStatusOf(status: CrewStatus): 'pending' | 'active' | 'inacti
 /** Whether a crew status holds the team role (the teams membership rule: `active` grants, anything else is listed only). */
 export const crewStatusGrants = (status: CrewStatus | null | undefined) => status === 'approved'
 
-/** The statuses a person can still be moved out of by staff, and where to. */
+/** The moves staff can make, by current status. A withdrawn person has left: only they can come back, by applying again. */
 export const CREW_TRANSITIONS: Record<CrewStatus, readonly CrewStatus[]> = {
   applied: ['approved', 'rejected', 'waitlisted'],
   waitlisted: ['approved', 'rejected'],
   approved: ['rejected', 'waitlisted'],
   rejected: ['approved', 'waitlisted'],
-  withdrawn: ['approved'],
+  withdrawn: [],
 }
 
 export const canMoveCrew = (from: CrewStatus, to: CrewStatus) => CREW_TRANSITIONS[from].includes(to)

@@ -2,7 +2,8 @@ import { idParams } from '@frigear-nu/module-kit/server'
 import { crewAccess } from '../../../access'
 import type { CrewMemberDto } from '../../../../types'
 
-// One crew member: the person themselves, the leads of their team and staff (the `crew:read` policy).
+// One crew member: the person themselves, the leads of their team and staff (the `crew:read` policy). A scoped read, so it
+// lives under `/api/crew` next to the staff routes of `/api/admin/crew`.
 export default defineEventHandler(async (event): Promise<CrewMemberDto> => {
   await authorize(event, crewAccess.permissions.read)
   const { id } = await getValidatedRouterParams(event, idParams().parse)
