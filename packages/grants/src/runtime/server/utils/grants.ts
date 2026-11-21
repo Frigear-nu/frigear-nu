@@ -66,19 +66,26 @@ export function grantsListSchema() {
 }
 
 /**
- * 400 when a grant of a submitted list fails its kind's `validate` (a team or an operation that does not exist). Grants
- * already in `stored` are not checked again, so a record whose team was deleted can still be edited. `field` is the
- * body key the list came in (`grants`).
+ * Checks a submitted list (already in the shape of `grantListShape`) and returns it as stored: 400 when a grant is of an
+ * unknown kind, fails its kind's schema, or fails its kind's `validate` (a team or an operation that does not exist).
+ * Grants already in `stored` skip `validate`, so a record whose team was deleted can still be edited. `field` is the body
+ * key the list came in (`grants`). Request schemas keep to the shape (`grantListShape` of `@frigear-nu/grants/core`)
+ * so they stay testable without Nitro; the handler calls this.
  */
-export async function grantsValidate(event: H3Event, value: readonly Grant[], options: { stored?: unknown, field?: string } = {}): Promise<void> {
+export async function grantsValidate(event: H3Event, value: readonly Grant[], options: { stored?: unknown, field?: string } = {}): Promise<Grant[]> {
+  const field = options.field ?? 'grants'
+  const shapeIssues = checkGrantList(grantsRegistry(), value)
+  if (shapeIssues.length) throw validationError(shapeIssues.map(issue => ({ path: [field, issue.index], message: issue.message })), 'Invalid grants')
+  const grants = value.map(grant => parseGrant(grantsRegistry(), grant)!)
   const stored = new Set(readGrants(options.stored).map(grant => JSON.stringify(grant)))
   const issues: Array<{ path: (string | number)[], message: string }> = []
-  for (const [index, grant] of value.entries()) {
+  for (const [index, grant] of grants.entries()) {
     if (stored.has(JSON.stringify(grant))) continue
     const kind = grantsRegistry().get(grant.kind)
     if (!kind?.validate) continue
     const message = await kind.validate({ event, grant })
-    if (message) issues.push({ path: [options.field ?? 'grants', index], message })
+    if (message) issues.push({ path: [field, index], message })
   }
   if (issues.length) throw validationError(issues, 'Invalid grants')
+  return grants
 }

@@ -5,9 +5,7 @@ import { z } from 'zod'
 export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, z.object({ grants: z.array(z.looseObject({ kind: z.string() })), validate: z.boolean().optional() }).parse)
   if (body.validate) {
-    const parsed = grantsListSchema().safeParse(body.grants)
-    if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'Invalid grants' })
-    await grantsValidate(event, parsed.data)
+    await grantsValidate(event, body.grants)
     return { ok: true }
   }
   const principal = await getAuth(event)
