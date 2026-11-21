@@ -41,6 +41,7 @@ export function shiftsPushFromEmail(email: EmailNotification): { title: string, 
 export async function shiftsNotify(event: H3Event | undefined, userId: number, notification: ShiftsNotification): Promise<ShiftsNotifyResult> {
   const { topic, email, sms, label } = notification
   if (pushAvailable && notifyUser) {
+    const push = notification.push ?? (email ? shiftsPushFromEmail(email) : undefined)
     try {
       const result = await notifyUser(event, userId, {
         topic,
@@ -48,13 +49,14 @@ export async function shiftsNotify(event: H3Event | undefined, userId: number, n
           ? { email: { subject: email.subject, body: email.body, text: email.text, replyTo: email.replyTo, template: email.template, meta: email.meta as Record<string, unknown> | undefined } }
           : {}),
         ...(sms ? { sms: { body: sms.body } } : {}),
-        push: notification.push ?? (email ? shiftsPushFromEmail(email) : undefined),
+        push,
       })
       return { channels: result.channels, failed: (Object.keys(result.skipped) as ShiftChannel[]).filter(channel => result.skipped[channel] === 'failed') }
     }
     catch (error) {
       console.error(`[shifts] ${label} could not be sent`, error)
-      return { channels: [], failed: [] }
+      // Nothing is known to have gone out: every channel that had content counts as failed.
+      return { channels: [], failed: [email ? 'email' : undefined, sms ? 'sms' : undefined, push ? 'push' : undefined].filter((channel): channel is ShiftChannel => !!channel) }
     }
   }
 

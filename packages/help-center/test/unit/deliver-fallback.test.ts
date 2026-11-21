@@ -31,19 +31,21 @@ beforeEach(() => {
 
 describe('helpCenterDeliver without push', () => {
   it('dispatches the email with its address and the text, and never reports a push', async () => {
-    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: true, texted: true, pushed: false })
+    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: true, texted: true, pushed: false, failed: [] })
     expect(optional.dispatchEmailNotification).toHaveBeenCalledWith({ to: 'ann@example.com', ...message })
     expect(optional.dispatchSMSNotification).toHaveBeenCalledWith({ to: '+4512345678', body: 'Handbook: https://example.com/h' })
   })
 
   it('sends only what the sender chose and the person can receive', async () => {
-    expect(await helpCenterDeliver(undefined, delivery({ sms: false }))).toEqual({ emailed: true, texted: false, pushed: false })
-    expect(await helpCenterDeliver(undefined, delivery({ email: false }))).toEqual({ emailed: false, texted: true, pushed: false })
-    expect(await helpCenterDeliver(undefined, delivery({ to: null, phone: null }))).toEqual({ emailed: false, texted: false, pushed: false })
+    expect(await helpCenterDeliver(undefined, delivery({ sms: false }))).toEqual({ emailed: true, texted: false, pushed: false, failed: [] })
+    expect(await helpCenterDeliver(undefined, delivery({ email: false }))).toEqual({ emailed: false, texted: true, pushed: false, failed: [] })
+    expect(await helpCenterDeliver(undefined, delivery({ to: null, phone: null }))).toEqual({ emailed: false, texted: false, pushed: false, failed: [] })
   })
 
-  it('throws when a send fails, for the caller to count the person as skipped', async () => {
+  it('reports a failed channel as failed, keeps going, and does not throw', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     optional.dispatchEmailNotification.mockRejectedValue(new Error('smtp down'))
-    await expect(helpCenterDeliver(undefined, delivery())).rejects.toThrow('smtp down')
+    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: false, texted: true, pushed: false, failed: ['email'] })
+    error.mockRestore()
   })
 })

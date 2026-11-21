@@ -31,7 +31,7 @@ let shiftsWarnedNoOrigin = false
  * several offsets are due together (a late run, or a person assigned inside the window) one message goes out, for the
  * smallest, and the others are spent without one. A failed send keeps its row: a broken address is not retried every
  * run. A person who no longer holds their role on the team gets nothing, and their due offsets are spent so they do not
- * crowd later runs. Email always, SMS only with `reminders.sms` and a phone number. The message names the real time left,
+ * crowd later runs. Through `shiftsNotify`: the email and push notification, and the SMS only with `reminders.sms` and a phone number. With push installed the person's own choice for the `shifts.reminder` topic decides which of them go out; without it, email always. The message names the real time left,
  * in the person's language. Fires `shifts:reminder:sent` (`event` is always `undefined` when the task fires it).
  *
  * A run handles at most `reminders.batchSize` assignments (default 100), soonest shift first; rows with every due offset

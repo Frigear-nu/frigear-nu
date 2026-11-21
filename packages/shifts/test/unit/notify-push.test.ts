@@ -68,7 +68,9 @@ describe('shiftsNotify with push installed', () => {
 
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     notifyUser.mockRejectedValue(new Error('unknown topic'))
-    expect(await shiftsNotify(undefined, 7, { topic: 'shifts.swap', email: null, push: { title: 'A', body: 'B' }, label: 'the swap message' })).toEqual({ channels: [], failed: [] })
+    expect(await shiftsNotify(undefined, 7, { topic: 'shifts.swap', email: null, push: { title: 'A', body: 'B' }, label: 'the swap message' })).toEqual({ channels: [], failed: ['push'] })
+    // Every channel that had content counts as failed, so a broadcast's counts show it.
+    expect(await shiftsNotify(undefined, 7, { topic: 'shifts.broadcast', email: buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, url, locale: 'en' }), sms: { to: '+45', body: 'x' }, push: { title: 'A', body: 'B' }, label: 'x' })).toEqual({ channels: [], failed: ['email', 'sms', 'push'] })
     expect(error).toHaveBeenCalledWith('[shifts] the swap message could not be sent', expect.any(Error))
     error.mockRestore()
   })

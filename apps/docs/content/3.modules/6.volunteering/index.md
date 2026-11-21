@@ -197,8 +197,8 @@ await notifyUser(event, userId, { topic: 'shifts.reminder', email: { subject, bo
   then. The helpers are server auto-imports where Push is installed.
 - **Without Push the module keeps sending itself.** Each module has one small helper at its send sites (`shiftsNotify`,
   `crewSend`, `helpCenterDeliver`). It calls `notifyUser` when Push is installed and `dispatchEmailNotification` and
-  `dispatchSMSNotification` when it is not, through a server module `#<module>/push` that a build generates (`notifyUser` is
-  `undefined` there when Push is absent).
+  `dispatchSMSNotification` when it is not, through a server module that a build generates: `#shifts/push` and `#crew/push`, and for the help center its existing
+  `#help-center/optional`. `notifyUser` is `undefined` there when Push is absent.
 
 | Topic | Module | Offers | Default on | Send site |
 | --- | --- | --- | --- | --- |

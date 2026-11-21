@@ -20,36 +20,55 @@ export type HelpDelivery = {
   push: { title: string, body: string, url?: string }
 }
 
-/** The channels that went out for one person. */
-export type HelpDelivered = { emailed: boolean, texted: boolean, pushed: boolean }
+/** The channels that went out for one person, and the ones that were tried and failed. */
+export type HelpDelivered = { emailed: boolean, texted: boolean, pushed: boolean, failed: Array<'email' | 'sms' | 'push'> }
 
 /**
  * Sends one person their articles. With `@frigear-nu/push` installed the email goes through `notifyUser` on the
  * `help-center.send` topic, together with a push notification: the channels the person chose, as far as they can be
  * reached. The topic does not offer SMS, so a text is always sent directly (the sender asked for it). Without push it is
  * what the help center always did: the email through `dispatchEmailNotification`, the text through
- * `dispatchSMSNotification`. Throws when a send fails; the caller counts the person as skipped.
+ * `dispatchSMSNotification`. Never throws: a failure is logged and the attempted channels are reported as `failed`.
  */
 export async function helpCenterDeliver(event: H3Event | undefined, delivery: HelpDelivery): Promise<HelpDelivered> {
-  const result: HelpDelivered = { emailed: false, texted: false, pushed: false }
+  const result: HelpDelivered = { emailed: false, texted: false, pushed: false, failed: [] }
   const wantsEmail = delivery.email && !!delivery.to
   if (pushAvailable && notifyUser && delivery.email) {
     // A push belongs with the email: a send by SMS alone has none.
-    const sent = await notifyUser(event, delivery.userId, {
-      topic: HELP_CENTER_TOPICS.send,
-      ...(wantsEmail ? { email: delivery.message } : {}),
-      push: delivery.push,
-    })
-    result.emailed = sent.channels.includes('email')
-    result.pushed = sent.channels.includes('push')
+    try {
+      const sent = await notifyUser(event, delivery.userId, {
+        topic: HELP_CENTER_TOPICS.send,
+        ...(wantsEmail ? { email: delivery.message } : {}),
+        push: delivery.push,
+      })
+      result.emailed = sent.channels.includes('email')
+      result.pushed = sent.channels.includes('push')
+      for (const channel of ['email', 'push'] as const) if (sent.skipped[channel] === 'failed') result.failed.push(channel)
+    }
+    catch (error) {
+      console.error(`[@frigear-nu/help-center] the articles could not be sent to user ${delivery.userId}`, error)
+      result.failed.push(...(wantsEmail ? ['email' as const] : []), 'push')
+    }
   }
   else if (wantsEmail) {
-    await dispatchEmailNotification({ to: delivery.to!, ...delivery.message })
-    result.emailed = true
+    try {
+      await dispatchEmailNotification({ to: delivery.to!, ...delivery.message })
+      result.emailed = true
+    }
+    catch (error) {
+      console.error(`[@frigear-nu/help-center] the articles could not be emailed to user ${delivery.userId}`, error)
+      result.failed.push('email')
+    }
   }
   if (delivery.sms && delivery.phone) {
-    await dispatchSMSNotification({ to: delivery.phone, body: delivery.smsBody })
-    result.texted = true
+    try {
+      await dispatchSMSNotification({ to: delivery.phone, body: delivery.smsBody })
+      result.texted = true
+    }
+    catch (error) {
+      console.error(`[@frigear-nu/help-center] the articles could not be texted to user ${delivery.userId}`, error)
+      result.failed.push('sms')
+    }
   }
   return result
 }

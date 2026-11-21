@@ -28,7 +28,7 @@ describe('crewSend with push installed', () => {
   it('sends the status email through notifyUser without `to`, with a push to the status page', async () => {
     notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: {} })
 
-    expect(await crewSend(undefined, 7, email)).toEqual(['email', 'push'])
+    expect(await crewSend(undefined, 7, email)).toEqual({ channels: ['email', 'push'], failed: [] })
 
     expect(notifyUser).toHaveBeenCalledTimes(1)
     const [, userId, input] = notifyUser.mock.calls[0]!
@@ -41,9 +41,12 @@ describe('crewSend with push installed', () => {
     expect(dispatchEmail).not.toHaveBeenCalled()
   })
 
-  it('lets a failure of notifyUser reach the caller, which logs it and carries on', async () => {
+  it('reports the attempted channels as failed when notifyUser throws, and does not throw', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     notifyUser.mockRejectedValue(new Error('unknown topic'))
-    await expect(crewSend(undefined, 7, email)).rejects.toThrow('unknown topic')
+    expect(await crewSend(undefined, 7, email)).toEqual({ channels: [], failed: ['email', 'push'] })
+    expect(error).toHaveBeenCalled()
+    error.mockRestore()
   })
 
   it('shortens a long message for the push', () => {

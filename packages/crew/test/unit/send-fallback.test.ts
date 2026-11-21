@@ -25,13 +25,15 @@ beforeEach(() => {
 
 describe('crewSend without push', () => {
   it('dispatches the email as built', async () => {
-    expect(await crewSend(undefined, 7, email)).toEqual(['email'])
+    expect(await crewSend(undefined, 7, email)).toEqual({ channels: ['email'], failed: [] })
     expect(dispatchEmail).toHaveBeenCalledWith(email)
     expect(dispatchEmail.mock.calls[0]![0]).toMatchObject({ to: 'ann@example.com', template: { name: 'crew-status-waitlisted' } })
   })
 
-  it('lets a failing email reach the caller', async () => {
+  it('reports a failing email as failed, and does not throw', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     dispatchEmail.mockRejectedValue(new Error('smtp down'))
-    await expect(crewSend(undefined, 7, email)).rejects.toThrow('smtp down')
+    expect(await crewSend(undefined, 7, email)).toEqual({ channels: [], failed: ['email'] })
+    error.mockRestore()
   })
 })

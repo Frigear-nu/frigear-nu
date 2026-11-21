@@ -34,7 +34,7 @@ beforeEach(() => {
 describe('helpCenterDeliver with push installed', () => {
   it('sends the email and a push through notifyUser, without `to`', async () => {
     optional.notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: {} })
-    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: true, texted: false, pushed: true })
+    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: true, texted: false, pushed: true, failed: [] })
     expect(optional.notifyUser).toHaveBeenCalledWith(undefined, 7, { topic: 'help-center.send', email: message, push: { title: 'Handbook', body: 'Handbook', url: 'https://example.com/h' } })
     expect(optional.dispatchEmailNotification).not.toHaveBeenCalled()
     expect(optional.dispatchSMSNotification).not.toHaveBeenCalled()
@@ -42,17 +42,24 @@ describe('helpCenterDeliver with push installed', () => {
 
   it('reports nothing for a person who turned the channels off', async () => {
     optional.notifyUser.mockResolvedValue({ channels: [], skipped: { email: 'disabled', push: 'disabled' } })
-    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: false, texted: false, pushed: false })
+    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: false, texted: false, pushed: false, failed: [] })
+  })
+
+  it('reports email and push as failed when notifyUser throws', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    optional.notifyUser.mockRejectedValue(new Error('unknown topic'))
+    expect(await helpCenterDeliver(undefined, delivery())).toEqual({ emailed: false, texted: false, pushed: false, failed: ['email', 'push'] })
+    error.mockRestore()
   })
 
   it('texts directly when the sender chose SMS, whatever the person chose for the topic', async () => {
     optional.notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: {} })
-    expect(await helpCenterDeliver(undefined, delivery({ sms: true }))).toEqual({ emailed: true, texted: true, pushed: true })
+    expect(await helpCenterDeliver(undefined, delivery({ sms: true }))).toEqual({ emailed: true, texted: true, pushed: true, failed: [] })
     expect(optional.dispatchSMSNotification).toHaveBeenCalledWith({ to: '+4512345678', body: 'Handbook: https://example.com/h' })
   })
 
   it('does not use notifyUser for a send by SMS alone: a push belongs with the email', async () => {
-    expect(await helpCenterDeliver(undefined, delivery({ email: false, sms: true }))).toEqual({ emailed: false, texted: true, pushed: false })
+    expect(await helpCenterDeliver(undefined, delivery({ email: false, sms: true }))).toEqual({ emailed: false, texted: true, pushed: false, failed: [] })
     expect(optional.notifyUser).not.toHaveBeenCalled()
   })
 
