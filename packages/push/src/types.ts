@@ -148,9 +148,17 @@ export type SendPushResult = {
   revoked: number
 }
 
+/** A template to render an email from (`@frigear-nu/email-templates`), as `EmailNotification.template` of notify takes it. */
+export type NotifyUserEmailTemplate = { name: string, props?: Record<string, unknown>, locale?: string }
+
 export type NotifyUserInput = {
   topic: string
-  email?: { subject: string, body: string, text?: string, replyTo?: string }
+  /**
+   * The email to send. `template` and `meta` are handed to `dispatchEmailNotification` as they are (`subject` and `body`
+   * stay the fallback when no renderer is installed), so a module can send the same email through `notifyUser` that it
+   * sent with `dispatchEmailNotification` before.
+   */
+  email?: { subject: string, body: string, text?: string, replyTo?: string, template?: NotifyUserEmailTemplate, meta?: Record<string, unknown> }
   sms?: { body: string }
   push?: { title: Translated, body: Translated, url?: string, data?: Record<string, string> }
 }
