@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, asc, desc, eq, gt, inArray, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, inArray, is, ne } from 'drizzle-orm'
+import { PgTable } from 'drizzle-orm/pg-core'
 import { apiError, notFound } from '@frigear-nu/module-kit/server'
 import type { ShiftSwapDto, ShiftSwapOfferDto, ShiftSwapStatus, ShiftWarning, Translated } from '../../../types'
 import { newCheckInCode, newId } from '../../utils'
@@ -24,6 +25,9 @@ import { shiftsSendSwapEmail } from './shifts-emails'
 
 /** The offer statuses still in play. */
 const LIVE_OFFER_STATUSES = ['offered', 'accepted']
+
+/** How long a swap may sit in `accepted` (being carried out) before its owner or staff may recover it. */
+export const SHIFTS_STUCK_SWAP_MS = 5 * 60_000
 
 /** The guard codes that refuse a volunteer swap. */
 const SWAP_GUARD_CODES: readonly ShiftWarning['code'][] = ['overlap', 'min_rest', 'max_shifts_per_day']
@@ -172,6 +176,11 @@ async function shiftsAssertExchange(event: H3Event, owner: ShiftAssignmentEntry,
     if (back.assignment.userId !== offererId) throw apiError(409, 'not_swappable', 'The shift offered in return is not the offerer\'s.', { field: 'assignmentId' })
     shiftsAssertSwappable(back, 'assignmentId')
     if (back.shift.id === owner.shift.id) throw apiError(409, 'not_swappable', 'Offer another shift than the one on offer.', { field: 'assignmentId' })
+    const [busy] = await db.select({ id: schema.shiftSwaps.id }).from(schema.shiftSwaps).where(and(
+      eq(schema.shiftSwaps.assignmentId, back.assignment.id),
+      inArray(schema.shiftSwaps.status, ['accepted', 'pending_approval']),
+    )).limit(1)
+    if (busy) throw apiError(409, 'not_swappable', 'The shift offered in return is in another swap that is being carried out.', { field: 'assignmentId' })
   }
   await shiftsAssertCanTake(event, offererId, owner, back?.assignment.id ?? null)
   if (back) await shiftsAssertCanTake(event, owner.assignment.userId, back, owner.assignment.id)
@@ -200,6 +209,11 @@ export async function shiftsOpenSwap(entry: ShiftAssignmentEntry): Promise<Shift
 export async function shiftsWithdrawSwap(entry: ShiftAssignmentEntry): Promise<void> {
   const swap = await findLiveShiftSwapOf(entry.assignment.id)
   if (!swap) throw notFound('This shift is not offered for a swap.')
+  if (swap.status === 'accepted') {
+    if (Date.now() - swap.updatedAt.getTime() < SHIFTS_STUCK_SWAP_MS) throw apiError(409, 'swap_changed', 'The swap is being completed. Try again.')
+    await shiftsRecoverSwap(swap)
+    return
+  }
   const cancelled = await shiftsMoveSwap(swap, ['open', 'offered', 'pending_approval'], 'cancelled', { decidedAt: new Date() })
   if (!cancelled) throw apiError(409, 'swap_changed', 'The swap is being completed. Try again.')
   await db.update(schema.shiftSwapOffers).set({ status: 'superseded', decidedAt: new Date() })
@@ -296,6 +310,16 @@ export async function shiftsOffer(event: H3Event, swap: ShiftSwapRow, userId: nu
   await shiftsAssertExchange(event, owner, userId, back ?? null)
 
   const [offer] = await db.insert(schema.shiftSwapOffers).values({ id: newId('sho'), swapId: swap.id, userId, offeredAssignmentId: back?.assignment.id ?? null, status: 'offered' }).returning()
+  // Two offers of one person at once: the earliest stays.
+  const [first] = await db.select({ id: schema.shiftSwapOffers.id }).from(schema.shiftSwapOffers).where(and(
+    eq(schema.shiftSwapOffers.swapId, swap.id),
+    eq(schema.shiftSwapOffers.userId, userId),
+    inArray(schema.shiftSwapOffers.status, LIVE_OFFER_STATUSES),
+  )).orderBy(asc(schema.shiftSwapOffers.createdAt), asc(schema.shiftSwapOffers.id)).limit(1)
+  if (first && first.id !== offer!.id) {
+    await db.delete(schema.shiftSwapOffers).where(eq(schema.shiftSwapOffers.id, offer!.id))
+    throw apiError(409, 'offer_exists', 'You have offered on this swap already. Withdraw that offer first.')
+  }
   const moved = await shiftsMoveSwap(swap, ['open', 'offered'], 'offered')
   if (!moved) {
     // The swap closed meanwhile: the offer never counted.
@@ -318,7 +342,11 @@ export async function shiftsWithdrawOffer(swap: ShiftSwapRow, offer: ShiftSwapOf
   if (offer.status === 'accepted' && swap.status === 'pending_approval') {
     const moved = await shiftsMoveOffer(offer, 'accepted', 'withdrawn')
     if (!moved) throw apiError(409, 'offer_changed', 'The offer changed meanwhile.')
-    await shiftsMoveSwap(swap, 'pending_approval', 'open')
+    if (!await shiftsMoveSwap(swap, 'pending_approval', 'open')) {
+      // An approval claimed the swap first: the offer stands and the swap is carried out.
+      await shiftsMoveOffer(moved, 'withdrawn', 'accepted', { decidedAt: offer.decidedAt })
+      throw apiError(409, 'swap_changed', 'The swap is being carried out.')
+    }
     return toShiftSwapOfferDto(moved)
   }
   if (offer.status !== 'offered') throw apiError(409, 'offer_changed', `The offer is ${offer.status} already.`)
@@ -371,28 +399,30 @@ export async function shiftsAcceptOffer(event: H3Event, swap: ShiftSwapRow, offe
     eq(schema.shiftSwapOffers.status, 'offered'),
     ne(schema.shiftSwapOffers.id, offer.id),
   ))
-  const dto = await shiftsSwapDtoOf(claimed)
-  const offerDto = await shiftsOfferDtoOf(dto, accepted)
-  await shiftsFire('shifts:swap:accepted', { event, swap: dto, offer: offerDto })
-  await shiftsSendSwapEmail(event, 'accepted', { swap: dto, offer: offerDto, to: accepted.userId })
   if (approval) {
-    for (const lead of await shiftsSwapApprovers(event, [owner.shift.teamId, ...(back ? [back.shift.teamId] : [])])) {
-      await shiftsSendSwapEmail(event, 'pending', { swap: dto, offer: offerDto, to: lead })
+    const dto = await shiftsSwapDtoOf(claimed)
+    const offerDto = await shiftsOfferDtoOf(dto, accepted)
+    await shiftsFire('shifts:swap:accepted', { event, swap: dto, offer: offerDto })
+    await shiftsSendSwapEmail(event, 'accepted', { swap: dto, offer: offerDto, to: accepted.userId })
+    for (const [lead, teamId] of await shiftsSwapApprovers(event, [owner.shift.teamId, ...(back ? [back.shift.teamId] : [])])) {
+      await shiftsSendSwapEmail(event, 'pending', { swap: dto, offer: offerDto, to: lead, teamId })
     }
     return dto
   }
-  return shiftsCompleteSwap(event, claimed, accepted, null)
+  // Peer mode: `shifts:swap:accepted` fires once the exchange is done, followed by `shifts:swap:completed`; only the
+  // completed email goes out.
+  return shiftsCompleteSwap(event, claimed, accepted, null, { fireAccepted: true })
 }
 
-/** The explicit leads of the teams (BA and up), who approve swaps in `approval` mode. */
-async function shiftsSwapApprovers(event: H3Event, teamIds: string[]): Promise<number[]> {
-  const ids = new Set<number>()
+/** The explicit leads of the teams (BA and up), who approve swaps in `approval` mode, each with the team they lead. */
+async function shiftsSwapApprovers(event: H3Event, teamIds: string[]): Promise<Map<number, string>> {
+  const ids = new Map<number, string>()
   for (const teamId of new Set(teamIds)) {
-    for (const member of await teamMembers(event, teamId)) {
-      if (teamMemberStatusGrants(member.status) && await isTeamLead(event, member.userId, teamId)) ids.add(member.userId)
+    for (const member of await teamMembers(event, teamId, { status: true })) {
+      if (teamMemberStatusGrants(member.status) && await isTeamLead(event, member.userId, teamId) && !ids.has(member.userId)) ids.set(member.userId, teamId)
     }
   }
-  return [...ids]
+  return ids
 }
 
 /**
@@ -432,43 +462,92 @@ export async function shiftsRejectSwap(event: H3Event, swap: ShiftSwapRow, by: n
   return dto
 }
 
+/** Thrown inside a postgres transaction to roll the exchange back. */
+class ShiftsExchangeConflict extends Error {}
+
+type ShiftsExec = typeof db
+type ShiftsExchange = { ownerNew: ShiftAssignmentRow, backNew: ShiftAssignmentRow | null, offer: ShiftSwapOfferRow, swap: ShiftSwapRow }
+
+/** Whether the host runs postgres (the generated schema tells), where the exchange runs in a transaction. */
+const shiftsOnPostgres = () => is(schema.shiftSwaps, PgTable)
+
+/**
+ * The writes of an exchange, every one conditional: the accepted offer must still stand; the owner's assignment must
+ * still be `assigned` to the person who opened the swap (`swap.userId`), the one given back to the offerer
+ * (`offer.userId`); the swap must still be `accepted`. On postgres they run in one transaction. On sqlite and D1 (no
+ * interactive transactions) a failed write puts the earlier ones back, each undo conditional on the row holding what
+ * this exchange wrote. `null` when the exchange did not happen.
+ */
+async function shiftsExchangeWrites(swap: ShiftSwapRow, offer: ShiftSwapOfferRow, approvedBy: number | null): Promise<ShiftsExchange | null> {
+  const run = async (exec: ShiftsExec, undo: Array<() => Promise<unknown>>): Promise<ShiftsExchange | null> => {
+    const handOver = async (id: string, from: number, to: number) => (await exec.update(schema.shiftAssignments).set({ userId: to, checkInCode: newCheckInCode() }).where(and(
+      eq(schema.shiftAssignments.id, id),
+      eq(schema.shiftAssignments.userId, from),
+      eq(schema.shiftAssignments.status, 'assigned'),
+    )).returning())[0]
+    // A withdraw that won the race leaves no accepted offer.
+    const [standing] = await exec.update(schema.shiftSwapOffers).set({ approvedBy: approvedBy ?? offer.approvedBy ?? null })
+      .where(and(eq(schema.shiftSwapOffers.id, offer.id), eq(schema.shiftSwapOffers.status, 'accepted'))).returning()
+    if (!standing) return null
+    const ownerNew = await handOver(swap.assignmentId, swap.userId, offer.userId)
+    if (!ownerNew) return null
+    undo.push(() => exec.update(schema.shiftAssignments).set({ userId: swap.userId, checkInCode: newCheckInCode() })
+      .where(and(eq(schema.shiftAssignments.id, swap.assignmentId), eq(schema.shiftAssignments.userId, offer.userId))))
+    let backNew: ShiftAssignmentRow | null = null
+    if (offer.offeredAssignmentId) {
+      const backId = offer.offeredAssignmentId
+      backNew = await handOver(backId, offer.userId, swap.userId) ?? null
+      if (!backNew) return null
+      undo.push(() => exec.update(schema.shiftAssignments).set({ userId: offer.userId, checkInCode: newCheckInCode() })
+        .where(and(eq(schema.shiftAssignments.id, backId), eq(schema.shiftAssignments.userId, swap.userId))))
+    }
+    const [done] = await exec.update(schema.shiftSwaps).set({ status: 'completed', decidedAt: new Date() })
+      .where(and(eq(schema.shiftSwaps.id, swap.id), eq(schema.shiftSwaps.status, 'accepted'))).returning()
+    if (!done) return null
+    return { ownerNew, backNew, offer: standing, swap: done }
+  }
+  if (shiftsOnPostgres()) {
+    const transaction = (db as unknown as { transaction: <T>(work: (tx: ShiftsExec) => Promise<T>) => Promise<T> }).transaction
+    try {
+      return await transaction.call(db, async (tx) => {
+        const result = await run(tx, [])
+        if (!result) throw new ShiftsExchangeConflict()
+        return result
+      })
+    }
+    catch (error) {
+      if (error instanceof ShiftsExchangeConflict) return null
+      throw error
+    }
+  }
+  const undo: Array<() => Promise<unknown>> = []
+  const result = await run(db, undo)
+  if (!result) for (const step of undo.reverse()) await step()
+  return result
+}
+
 /**
  * Carries out a claimed (`accepted`) swap: the owner's assignment goes to the offerer and, when a shift was given back,
- * that assignment goes to the owner, each with a new check-in code. Each write is conditional on the assignment still
- * being `assigned` to the person it was read with; when one fails the other is put back, the offer is rejected and the
- * swap is open again (409 `swap_changed`). Other live swaps of the shift given back are cancelled and offers that gave
- * either assignment elsewhere are withdrawn. Fires `shifts:assignment:changed` twice (or once) and
+ * that assignment goes to the owner, each keeping its id with a new check-in code (see `shiftsExchangeWrites`). When the
+ * exchange cannot happen, the offer is rejected and the swap is open again (409 `swap_changed`). Other live swaps of the
+ * shift given back are cancelled and offers that gave either assignment elsewhere are withdrawn. Fires
+ * `shifts:assignment:changed` twice (or once), `shifts:swap:accepted` first in peer mode (`fireAccepted`), and
  * `shifts:swap:completed`, and emails both people.
+ *
+ * On sqlite and D1 a process that dies between the writes can leave a swap `accepted` with one assignment moved: the
+ * owner's withdraw (after `SHIFTS_STUCK_SWAP_MS`) or staff's cancel route recovers it (`shiftsRecoverSwap`).
  */
-async function shiftsCompleteSwap(event: H3Event, swap: ShiftSwapRow, offer: ShiftSwapOfferRow, approvedBy: number | null): Promise<ShiftSwapDto> {
+async function shiftsCompleteSwap(event: H3Event, swap: ShiftSwapRow, offer: ShiftSwapOfferRow, approvedBy: number | null, options: { fireAccepted?: boolean } = {}): Promise<ShiftSwapDto> {
   const owner = await getShiftAssignmentEntryOr404(swap.assignmentId)
   const back = offer.offeredAssignmentId ? await findShiftAssignmentEntry(offer.offeredAssignmentId) : null
-  const ownerId = owner.assignment.userId
-  const fail = async (): Promise<never> => {
-    await shiftsMoveOffer(offer, 'accepted', 'rejected')
+  const result = await shiftsExchangeWrites(swap, offer, approvedBy)
+  if (!result) {
+    // A withdrawn offer is rejected too, so a withdraw that lost the race cannot put it back on an open swap.
+    await shiftsMoveOffer(offer, ['accepted', 'withdrawn'], 'rejected')
     await shiftsMoveSwap(swap, 'accepted', 'open')
     throw apiError(409, 'swap_changed', 'One of the shifts changed meanwhile, so the swap could not be carried out.')
   }
-  const handOver = async (row: ShiftAssignmentRow, to: number): Promise<ShiftAssignmentRow | undefined> => {
-    const [written] = await db.update(schema.shiftAssignments).set({ userId: to, checkInCode: newCheckInCode() }).where(and(
-      eq(schema.shiftAssignments.id, row.id),
-      eq(schema.shiftAssignments.userId, row.userId),
-      eq(schema.shiftAssignments.status, 'assigned'),
-    )).returning()
-    return written
-  }
-  const ownerNew = await handOver(owner.assignment, offer.userId)
-  if (!ownerNew) return fail()
-  let backNew: ShiftAssignmentRow | undefined
-  if (back) {
-    backNew = await handOver(back.assignment, ownerId)
-    if (!backNew) {
-      await db.update(schema.shiftAssignments).set({ userId: ownerId, checkInCode: newCheckInCode() }).where(eq(schema.shiftAssignments.id, owner.assignment.id))
-      return fail()
-    }
-  }
-  const completed = await shiftsMoveSwap(swap, 'accepted', 'completed', { decidedAt: new Date() })
-  const finalOffer = (approvedBy !== null ? await db.update(schema.shiftSwapOffers).set({ approvedBy }).where(eq(schema.shiftSwapOffers.id, offer.id)).returning().then(rows => rows[0]) : undefined) ?? offer
+  const { ownerNew, backNew } = result
 
   // What the two assignments had in play elsewhere.
   if (back) {
@@ -497,12 +576,59 @@ async function shiftsCompleteSwap(event: H3Event, swap: ShiftSwapRow, offer: Shi
 
   await shiftsFire('shifts:assignment:changed', { event, assignment: toShiftAssignmentDto(ownerNew), previous: toShiftAssignmentDto(owner.assignment) })
   if (back && backNew) await shiftsFire('shifts:assignment:changed', { event, assignment: toShiftAssignmentDto(backNew), previous: toShiftAssignmentDto(back.assignment) })
-  const dto = await shiftsSwapDtoOf(completed ?? { ...swap, status: 'completed' })
-  const offerDto = await shiftsOfferDtoOf(dto, finalOffer)
+  const dto = await shiftsSwapDtoOf(result.swap)
+  const offerDto = await shiftsOfferDtoOf(dto, result.offer)
+  if (options.fireAccepted) await shiftsFire('shifts:swap:accepted', { event, swap: dto, offer: offerDto })
   await shiftsFire('shifts:swap:completed', { event, swap: dto, offer: offerDto })
-  await shiftsSendSwapEmail(event, 'completed', { swap: dto, offer: offerDto, to: ownerId })
+  await shiftsSendSwapEmail(event, 'completed', { swap: dto, offer: offerDto, to: swap.userId })
   await shiftsSendSwapEmail(event, 'completed', { swap: dto, offer: offerDto, to: offer.userId })
   return dto
+}
+
+/**
+ * Settles a swap stuck in `accepted` (a process died between the writes of an exchange): when every assignment moved it
+ * is marked `completed`; when only one moved it is put back to the person who held it before the swap (a conditional
+ * write) and the swap is `cancelled` with its offers not chosen; when nothing moved it is `cancelled`. Fires nothing:
+ * the people involved see the outcome in their shifts.
+ */
+export async function shiftsRecoverSwap(swap: ShiftSwapRow): Promise<ShiftSwapRow> {
+  const [offer] = await db.select().from(schema.shiftSwapOffers)
+    .where(and(eq(schema.shiftSwapOffers.swapId, swap.id), inArray(schema.shiftSwapOffers.status, ['accepted', 'withdrawn'])))
+    .orderBy(asc(schema.shiftSwapOffers.status)).limit(1)
+  const ownerRow = (await findShiftAssignmentEntry(swap.assignmentId))?.assignment
+  const backRow = offer?.offeredAssignmentId ? (await findShiftAssignmentEntry(offer.offeredAssignmentId))?.assignment : undefined
+  const ownerMoved = !!offer && ownerRow?.userId === offer.userId
+  const backMoved = !!offer && !!backRow && backRow.userId === swap.userId
+  if (offer && ownerMoved && (!offer.offeredAssignmentId || backMoved)) {
+    const done = await shiftsMoveSwap(swap, 'accepted', 'completed', { decidedAt: new Date() })
+    await shiftsMoveOffer(offer, ['accepted', 'withdrawn'], 'accepted')
+    return done ?? (await findShiftSwap(swap.id))!
+  }
+  if (offer && ownerMoved) {
+    await db.update(schema.shiftAssignments).set({ userId: swap.userId, checkInCode: newCheckInCode() })
+      .where(and(eq(schema.shiftAssignments.id, swap.assignmentId), eq(schema.shiftAssignments.userId, offer.userId)))
+  }
+  if (offer && backMoved && !ownerMoved) {
+    await db.update(schema.shiftAssignments).set({ userId: offer.userId, checkInCode: newCheckInCode() })
+      .where(and(eq(schema.shiftAssignments.id, offer.offeredAssignmentId!), eq(schema.shiftAssignments.userId, swap.userId)))
+  }
+  const cancelled = await shiftsMoveSwap(swap, 'accepted', 'cancelled', { decidedAt: new Date() })
+  await db.update(schema.shiftSwapOffers).set({ status: 'superseded', decidedAt: new Date() })
+    .where(and(eq(schema.shiftSwapOffers.swapId, swap.id), inArray(schema.shiftSwapOffers.status, [...LIVE_OFFER_STATUSES, 'withdrawn'])))
+  return cancelled ?? (await findShiftSwap(swap.id))!
+}
+
+/**
+ * Staff cancel a live swap, whatever its status: an `open`, `offered` or `pending_approval` one is cancelled with its
+ * offers; an `accepted` one (being carried out, or stuck) is recovered (`shiftsRecoverSwap`). 409 once it is over.
+ */
+export async function shiftsCancelSwap(swap: ShiftSwapRow): Promise<ShiftSwapDto> {
+  if (swap.status === 'accepted') return shiftsSwapDtoOf(await shiftsRecoverSwap(swap))
+  const cancelled = await shiftsMoveSwap(swap, ['open', 'offered', 'pending_approval'], 'cancelled', { decidedAt: new Date() })
+  if (!cancelled) throw apiError(409, 'swap_changed', `The swap is ${swap.status}.`)
+  await db.update(schema.shiftSwapOffers).set({ status: 'superseded', decidedAt: new Date() })
+    .where(and(eq(schema.shiftSwapOffers.swapId, swap.id), inArray(schema.shiftSwapOffers.status, LIVE_OFFER_STATUSES)))
+  return shiftsSwapDtoOf(cancelled)
 }
 
 /** The teams whose leads may approve a swap: the swap's shift's team and the team of the shift given back. */
@@ -531,3 +657,24 @@ export const shiftsSwapIsLive = (swap: Pick<ShiftSwapRow, 'status'>) => isLiveSw
 
 /** The person who opened a swap: only they accept or reject its offers. */
 export const shiftsSwapOwnerId = (swap: Pick<ShiftSwapRow, 'userId'>) => swap.userId
+
+/**
+ * The swaps a team's leads handle (`status` narrows them): swaps of the team's shifts, and swaps whose accepted offer
+ * gives back a shift of the team. Newest first, with their offers.
+ */
+export async function shiftsTeamSwaps(teamId: string, status?: ShiftSwapStatus): Promise<ShiftSwapDto[]> {
+  const own = await db.select({ swap: schema.shiftSwaps }).from(schema.shiftSwaps)
+    .innerJoin(schema.shiftAssignments, eq(schema.shiftAssignments.id, schema.shiftSwaps.assignmentId))
+    .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
+    .where(and(eq(schema.shifts.teamId, teamId), status ? eq(schema.shiftSwaps.status, status) : undefined))
+    .orderBy(desc(schema.shiftSwaps.openedAt)).limit(500)
+  const backs = await db.select({ swap: schema.shiftSwaps }).from(schema.shiftSwapOffers)
+    .innerJoin(schema.shiftSwaps, eq(schema.shiftSwaps.id, schema.shiftSwapOffers.swapId))
+    .innerJoin(schema.shiftAssignments, eq(schema.shiftAssignments.id, schema.shiftSwapOffers.offeredAssignmentId))
+    .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
+    .where(and(eq(schema.shifts.teamId, teamId), eq(schema.shiftSwapOffers.status, 'accepted'), status ? eq(schema.shiftSwaps.status, status) : undefined))
+    .limit(500)
+  const rows = new Map<string, ShiftSwapRow>()
+  for (const { swap } of [...own, ...backs]) rows.set(swap.id, swap)
+  return shiftsSwapDtos([...rows.values()].sort((a, b) => b.openedAt.getTime() - a.openedAt.getTime()), { offers: true })
+}
