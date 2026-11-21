@@ -8,6 +8,7 @@ import {
   moveItem,
   normalizeLayout,
   orderItems,
+  pruneLayout,
   resetLayout,
   setItemSettings,
   showItem,
@@ -55,19 +56,35 @@ describe('applyLayout', () => {
 
 describe('layout edits', () => {
   it('moves an item among the shown ones, clamped to the list', () => {
-    expect(moveItem(null, ['a', 'b', 'c'], 'c', 0).order).toEqual(['c', 'a', 'b'])
-    expect(moveItem(null, ['a', 'b', 'c'], 'a', 99).order).toEqual(['b', 'c', 'a'])
-    expect(moveItem(null, ['a', 'b', 'c'], 'b', -5).order).toEqual(['b', 'a', 'c'])
+    const all = ['a', 'b', 'c']
+    expect(moveItem(null, all, all, 'c', 0).order).toEqual(['c', 'a', 'b'])
+    expect(moveItem(null, all, all, 'a', 99).order).toEqual(['b', 'c', 'a'])
+    expect(moveItem(null, all, all, 'b', -5).order).toEqual(['b', 'a', 'c'])
   })
 
-  it('keeps hidden items in the order after the shown ones', () => {
-    const layout = moveItem({ order: ['a', 'x', 'b'], hidden: ['x'], collapsed: [] }, ['a', 'b'], 'b', 0)
+  it('keeps a hidden item where it was', () => {
+    const layout = moveItem({ order: ['a', 'x', 'b'], hidden: ['x'], collapsed: [] }, ['a', 'x', 'b'], ['a', 'b'], 'b', 0)
     expect(layout.order).toEqual(['b', 'a', 'x'])
     expect(layout.hidden).toEqual(['x'])
   })
 
+  it('never reorders the items of the other platform', () => {
+    // `m` is mobile-only: moving items on the web keeps it right after `a`, as registered.
+    const all = ['a', 'm', 'b', 'c']
+    const shown = ['a', 'b', 'c']
+    expect(moveItem(null, all, shown, 'c', 1).order).toEqual(['a', 'm', 'c', 'b'])
+    const swapped = moveItem(null, all, shown, 'b', 2).order
+    expect(swapped).toEqual(['a', 'm', 'c', 'b'])
+    expect(swapped.indexOf('m')).toBe(swapped.indexOf('a') + 1)
+  })
+
   it('leaves the layout as it is for an unknown id', () => {
-    expect(moveItem({ order: ['a'], hidden: [], collapsed: [] }, ['a'], 'zz', 0).order).toEqual(['a'])
+    expect(moveItem({ order: ['a'], hidden: [], collapsed: [] }, ['a'], ['a'], 'zz', 0).order).toEqual(['a'])
+  })
+
+  it('prunes ids that are not items of the dashboard', () => {
+    const pruned = pruneLayout({ order: ['a', 'gone', 'a'], hidden: ['old'], collapsed: ['b'], settings: { gone: { x: 1 } } }, ['a', 'b'])
+    expect(pruned).toEqual({ order: ['a'], hidden: [], collapsed: ['b'] })
   })
 
   it('hides and shows an item once', () => {
@@ -91,7 +108,8 @@ describe('layout edits', () => {
   it('never mutates its input', () => {
     const layout = { order: ['a'], hidden: ['b'], collapsed: ['c'], settings: { a: { x: 1 } } }
     const copy = structuredClone(layout)
-    moveItem(layout, ['a', 'c'], 'c', 0)
+    moveItem(layout, ['a', 'b', 'c'], ['a', 'c'], 'c', 0)
+    pruneLayout(layout, ['a'])
     hideItem(layout, 'c')
     showItem(layout, 'b')
     toggleCollapsed(layout, 'c')

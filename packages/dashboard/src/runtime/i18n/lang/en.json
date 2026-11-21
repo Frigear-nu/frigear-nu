@@ -5,7 +5,8 @@
     },
     "edit": {
       "start": "Customise dashboard",
-      "done": "Done"
+      "done": "Done",
+      "sessionOnly": "Changes last until you reload the page."
     },
     "reset": {
       "button": "Reset layout",
@@ -35,6 +36,10 @@
       "title": "Nothing here yet",
       "description": "Items appear here when the modules that add them are installed."
     },
-    "error": "The dashboard could not be loaded."
+    "error": "The dashboard could not be loaded.",
+    "save": {
+      "error": "Your dashboard layout could not be saved."
+    },
+    "retry": "Try again"
   }
 }

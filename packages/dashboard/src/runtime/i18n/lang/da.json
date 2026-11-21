@@ -5,7 +5,8 @@
     },
     "edit": {
       "start": "Tilpas oversigt",
-      "done": "Færdig"
+      "done": "Færdig",
+      "sessionOnly": "Ændringer gælder, indtil du genindlæser siden."
     },
     "reset": {
       "button": "Nulstil layout",
@@ -35,6 +36,10 @@
       "title": "Her er intet endnu",
       "description": "Elementer vises her, når de moduler, der tilføjer dem, er installeret."
     },
-    "error": "Oversigten kunne ikke indlæses."
+    "error": "Oversigten kunne ikke indlæses.",
+    "save": {
+      "error": "Dit oversigtslayout kunne ikke gemmes."
+    },
+    "retry": "Prøv igen"
   }
 }

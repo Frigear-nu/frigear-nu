@@ -65,19 +65,42 @@ export function applyLayout<T extends Identified>(items: T[], layout?: Partial<D
 }
 
 /**
- * Moves an item to `toIndex` among the shown items (`ids`, in their current order). The hidden items keep their
- * relative order after the shown ones.
+ * Moves an item to `toIndex` among the shown items (`shown`, in their current order). The move happens inside the
+ * full order of every item of the dashboard (`all`, registered order, including items hidden or filtered out by
+ * platform or permission): the item lands right before or after the shown item now at `toIndex`, and every other
+ * item keeps its position relative to the rest. So moving an item on the web never reorders the mobile-only items.
  */
-export function moveItem(layout: Partial<DashboardLayout> | null | undefined, ids: string[], id: string, toIndex: number): DashboardLayout {
+export function moveItem(
+  layout: Partial<DashboardLayout> | null | undefined,
+  all: string[],
+  shown: string[],
+  id: string,
+  toIndex: number,
+): DashboardLayout {
   const normalized = normalizeLayout(layout)
-  const from = ids.indexOf(id)
+  const from = shown.indexOf(id)
   if (from === -1) return normalized
-  const shown = [...ids]
-  shown.splice(from, 1)
-  const target = Math.max(0, Math.min(Math.trunc(toIndex), shown.length))
-  shown.splice(target, 0, id)
-  const rest = normalized.order.filter(entry => !shown.includes(entry))
-  return { ...normalized, order: [...shown, ...rest] }
+  const target = shown[Math.max(0, Math.min(Math.trunc(toIndex), shown.length - 1))]!
+  const full = orderItems([...new Set([...all, ...shown])].map(entry => ({ id: entry })), normalized.order).map(entry => entry.id)
+  if (target === id) return { ...normalized, order: full }
+  const order = full.filter(entry => entry !== id)
+  const at = order.indexOf(target)
+  order.splice(toIndex > from ? at + 1 : at, 0, id)
+  return { ...normalized, order }
+}
+
+/** The layout without ids that are not items of the dashboard (`ids`): removed or renamed items. */
+export function pruneLayout(layout: Partial<DashboardLayout> | null | undefined, ids: Iterable<string>): DashboardLayout {
+  const known = new Set(ids)
+  const normalized = normalizeLayout(layout)
+  const keep = (list: string[]) => [...new Set(list)].filter(id => known.has(id))
+  const settings = Object.fromEntries(Object.entries(normalized.settings ?? {}).filter(([id]) => known.has(id)))
+  return {
+    order: keep(normalized.order),
+    hidden: keep(normalized.hidden),
+    collapsed: keep(normalized.collapsed),
+    ...(Object.keys(settings).length ? { settings } : {}),
+  }
 }
 
 const without = (list: string[], id: string) => list.filter(entry => entry !== id)

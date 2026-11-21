@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
 
 const t = useModuleT('dashboard')
 const confirm = useConfirmDialog()
-const { items, hidden, status, error, move, hide, show, reset } = await useDashboard(props.name, () => props.context)
+const { items, hidden, status, error, persisted, saving, move, hide, show, reset, refresh } = await useDashboard(props.name, () => props.context)
 
 const editing = ref(false)
 
@@ -43,11 +43,19 @@ async function resetLayout() {
       class="flex flex-wrap items-center justify-end gap-2"
     >
       <template v-if="editing">
+        <p
+          v-if="!persisted"
+          class="text-muted me-auto text-sm"
+          data-dashboard-session-only
+        >
+          {{ t('edit.sessionOnly', 'Changes last until you reload the page.') }}
+        </p>
         <UButton
           color="neutral"
           variant="outline"
           icon="i-lucide-rotate-ccw"
           :label="t('reset.button', 'Reset layout')"
+          :disabled="saving"
           @click="resetLayout"
         />
         <UButton
@@ -86,6 +94,7 @@ async function resetLayout() {
       variant="subtle"
       icon="i-lucide-circle-alert"
       :title="t('error', 'The dashboard could not be loaded.')"
+      :actions="[{ label: t('retry', 'Try again'), color: 'neutral', variant: 'outline', icon: 'i-lucide-rotate-cw', onClick: () => refresh() }]"
     />
 
     <DashboardGrid v-else-if="items.length">
@@ -95,6 +104,7 @@ async function resetLayout() {
         :item="item"
         :context="context"
         :editing="editing"
+        :disabled="saving"
         :first="index === 0"
         :last="index === items.length - 1"
         @move-up="move(item.id, index - 1)"
@@ -144,6 +154,7 @@ async function resetLayout() {
             color="neutral"
             variant="outline"
             icon="i-lucide-eye"
+            :disabled="saving"
             :label="t('hidden.show', 'Show {title}', { title: item.title ?? item.id })"
             @click="show(item.id)"
           />

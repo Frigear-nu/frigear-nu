@@ -5,6 +5,7 @@ import {
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  useLogger,
 } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import {
@@ -72,11 +73,20 @@ export default defineNuxtModule<ModuleOptions>({
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
     }
 
+    // Layouts are saved through Preferences' `PATCH /api/preferences`, which only accepts a cookie session: with Auth in
+    // client mode (a Capacitor app, a bearer token) there is none, so the layout stays a session one there.
+    // Auth may be installed only later (as a dependency of Preferences), so its mode helper is loaded whenever the
+    // package resolves, and the mode is read once every module is done.
+    const resolveAuthMode = await import('@frigear-nu/auth/mode').then(mod => mod.resolveAuthMode, () => undefined)
+    const persistable = () => hasNuxtModule('@frigear-nu/preferences', nuxt)
+      && hasNuxtModule('@frigear-nu/auth', nuxt)
+      && resolveAuthMode?.(nuxt) === 'server'
+
     // Optional modules' composables, with stand-ins when they are not installed.
     addOptionalImports(nuxt, '#dashboard/optional', [
       {
         name: 'useUserPreferences',
-        available: () => hasNuxtModule('@frigear-nu/preferences', nuxt),
+        available: persistable,
         fallback: 'undefined',
         fallbackType: `undefined | (() => { preferences: import('vue').ComputedRef<Record<string, unknown>>, set: (key: 'dashboardLayouts', value: unknown) => Promise<void> })`,
       },
@@ -84,7 +94,7 @@ export default defineNuxtModule<ModuleOptions>({
         name: 'useUserSession',
         available: () => hasNuxtModule('@frigear-nu/auth', nuxt),
         fallback: 'undefined',
-        fallbackType: `undefined | (() => { loggedIn: import('vue').Ref<boolean> | import('vue').ComputedRef<boolean> })`,
+        fallbackType: `undefined | (() => { loggedIn: import('vue').Ref<boolean> | import('vue').ComputedRef<boolean>, user: import('vue').Ref<{ id?: string | number } | null | undefined> })`,
       },
       {
         name: 'useCapacitor',
@@ -135,6 +145,7 @@ export default defineNuxtModule<ModuleOptions>({
 
 /** Removes items whose `when.module` is absent from their dashboard's widget area, before the widget registry is written. */
 function pruneWidgetsByCondition(nuxt: Nuxt, hasModule: (name: string) => boolean) {
+  const logger = useLogger('dashboard')
   const hooks = nuxt.hooks as unknown as { hook: (name: 'widgets:resolved', fn: (areas: Record<string, RegisteredWidget[]>) => void) => void }
   hooks.hook('widgets:resolved', (areas) => {
     const dashboards = getDashboardItems(nuxt)
@@ -142,6 +153,11 @@ function pruneWidgetsByCondition(nuxt: Nuxt, hasModule: (name: string) => boolea
       const name = dashboardOfArea(area)
       if (name === undefined) continue
       const entries = new Map((dashboards[name] ?? []).map((entry: DashboardRegistryEntry) => [entry.id, entry]))
+      // A widget added with plain `extendWidgets` has no dashboard entry, so `useDashboard` never shows it.
+      const unregistered = widgets.filter(widget => !entries.has(widget.id)).map(widget => widget.id)
+      if (unregistered.length && !nuxt.options._prepare) {
+        logger.warn(`Widgets ${unregistered.map(id => `"${id}"`).join(', ')} are in the area "${area}" but were not added with \`extendDashboard\`, so dashboard "${name}" does not show them. Use \`extendDashboard(nuxt, '${name}', ...)\` instead of \`extendWidgets\`.`)
+      }
       // In place: the widget registry renders this same list when its template is written.
       const kept = widgets.filter((widget) => {
         const entry = entries.get(widget.id)

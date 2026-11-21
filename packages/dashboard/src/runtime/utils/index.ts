@@ -10,6 +10,7 @@ export {
   moveItem,
   normalizeLayout,
   orderItems,
+  pruneLayout,
   resetLayout,
   setItemSettings,
   showItem,

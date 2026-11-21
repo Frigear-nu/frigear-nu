@@ -80,7 +80,8 @@
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/preferences": "workspace:^",
-    "@nuxt/ui": "catalog:"
+    "@nuxt/ui": "catalog:",
+    "vue": "3.x"
   },
   "peerDependenciesMeta": {
     "@frigear-nu/auth": {
@@ -107,6 +108,7 @@
     "nuxt": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
+    "vue": "^3.5.45",
     "vue-tsc": "catalog:"
   }
 }

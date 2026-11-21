@@ -17,6 +17,8 @@ const props = defineProps<{
   item: DashboardEntry
   context?: Record<string, unknown>
   editing?: boolean
+  /** Disables the edit buttons, while a layout change is being saved. */
+  disabled?: boolean
   first?: boolean
   last?: boolean
 }>()
@@ -28,7 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const t = useModuleT('dashboard')
-const { layout, update } = useDashboardLayout(props.item.dashboard)
+const { layout, saving, update } = useDashboardLayout(props.item.dashboard)
 const component = computed(() => getDashboardComponent(props.item.dashboard, props.item.id))
 const label = computed(() => props.item.title ?? props.item.id)
 
@@ -81,6 +83,7 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
         type="button"
         class="text-highlighted flex min-w-0 items-center gap-1 text-sm font-semibold"
         :aria-expanded="!collapsed"
+        :disabled="saving"
         :aria-label="collapsed ? t('item.expand', 'Expand {title}', { title: label }) : t('item.collapse', 'Collapse {title}', { title: label })"
         @click="toggle"
       >
@@ -100,7 +103,7 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
           size="xs"
           color="neutral"
           variant="ghost"
-          :disabled="first"
+          :disabled="first || disabled"
           :aria-label="t('item.moveUp', 'Move {title} up', { title: label })"
           @click="emit('moveUp')"
         />
@@ -109,7 +112,7 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
           size="xs"
           color="neutral"
           variant="ghost"
-          :disabled="last"
+          :disabled="last || disabled"
           :aria-label="t('item.moveDown', 'Move {title} down', { title: label })"
           @click="emit('moveDown')"
         />
@@ -118,6 +121,7 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
           size="xs"
           color="neutral"
           variant="ghost"
+          :disabled="disabled"
           :aria-label="t('item.hide', 'Hide {title}', { title: label })"
           @click="emit('hide')"
         />

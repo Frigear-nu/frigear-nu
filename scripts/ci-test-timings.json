@@ -80,6 +80,7 @@
   },
   "@frigear-nu/dashboard": {
     "test/dashboard.test.ts": 30,
+    "test/unit/layout-persistence.test.ts": 1,
     "test/unit/layout.test.ts": 1,
     "test/unit/registry.test.ts": 1
   },
