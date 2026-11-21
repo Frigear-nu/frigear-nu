@@ -35,10 +35,10 @@ export default defineNitroPlugin((nitro) => {
     }
   })
 
-  // The coordinators (and staff) who manage operations may draw on the maps the operation owns. The user is
-  // `ctx.user`: the event's session is empty for bearer requests.
+  // The coordinators (and staff) who manage operations may draw on the maps the operation owns. The caller's own
+  // permission is asked (`allows`), so a token that was not given `operations:manage` cannot edit through this listener.
   nitro.hooks.hook('maps:edit:resolve', async (ctx) => {
     if (ctx.map.ownerType !== 'operation' || !ctx.map.ownerId) return
-    if (await userCan(ctx.event, ctx.user.id, operationsAccess.permissions.manage)) ctx.allowed = true
+    if (await allows(ctx.event, operationsAccess.permissions.manage)) ctx.allowed = true
   })
 })

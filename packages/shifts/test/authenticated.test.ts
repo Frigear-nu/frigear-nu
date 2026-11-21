@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
-import { mapsApi } from '@frigear-nu/maps/utils'
+import { mapsApi } from '@frigear-nu/maps/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
 
