@@ -57,6 +57,8 @@ An operation, a team, a user or the platform owns a record. Every table that has
 | `ownerType` | text | `'operation'`, `'team'`, `'user'`, `'platform'`, or a type another module adds |
 | `ownerId` | text, nullable | The owner's id as text. `null` for `platform`. |
 
+`ownerType` is never null. A record with no other owner is `ownerType: 'platform'` with `ownerId: null`.
+
 In code an owner is an `OwnerRef` (`{ type, id }`) from `@frigear-nu/audience`. The module that owns a type answers
 the `audience:owner:resolve` hook with the owner's label and whether it exists:
 
@@ -91,18 +93,34 @@ type Visibility = {
 | Empty (`null`, `{}`) | Signed-in viewers. Nothing is public unless it says so. |
 | `public: true` | Everyone, anonymous visitors included. The other keys are ignored. |
 | `globalRoles` | Signed-in viewers with at least one of these global roles. An empty list matches nobody. |
-| `minTeamRole` | Signed-in viewers with a team role of that kind at or above `role`. |
-| `operationId` | Signed-in viewers who take part in the operation: crew, or anyone with a team role on it. |
+| `minTeamRole` | Signed-in viewers with a team role of that kind at or above `role`. Explicit and mapped grants count. |
+| `operationId` | Signed-in viewers who take part in the operation: crew, or anyone with an explicit team role on it. Mapped grants do not count. |
 | `minTeamRole` and `operationId` | The team role must be on a team of that operation. |
 
 Several keys combine with AND. An unknown team kind or role fails closed.
 
-An item inside a group can only narrow the group: an FAQ item narrows its group, an article its category. The item's
-effective visibility is `narrowVisibility(group, item, ladders)`:
+Participation leaves out mapped grants on purpose. A mapping rule such as "member with a plan is a volunteer" gives
+every plan member a team role, but it does not make them crew of the operation.
+
+The JSON holds only these keys. Read it with `parseVisibility`: its schema is strict, so an unknown key (a typo, or a
+`permission`) hides the record instead of showing it to every signed-in user. There is no `permission` key. Maps
+stores `{ public, permission }` and inbox `roles/permission` in the plan; both keep only visibility keys in the JSON,
+and check permissions with `authorize(event, permission, record)` and their policies.
+
+An item inside a group can only narrow the group: an FAQ item narrows its group, an article its category.
+
+- **Access decisions** check both: `isVisible(group, viewer)`, and `isVisible(item, viewer)` unless the item is empty
+  and inherits.
+- **Storing or showing** one effective value uses `narrowVisibility(group, item, ladders)`. It is a conservative
+  approximation of "group AND item": never wider, sometimes narrower.
+
+`narrowVisibility` combines like this:
 
 - An empty item inherits the group.
 - A public item in a restricted group stays restricted.
-- `globalRoles` intersect, `operationId` must match and `minTeamRole` takes the higher role of the same kind.
+- `globalRoles` intersect, which is stricter than "any of each" when the lists only overlap.
+- `operationId` must match. A group's `minTeamRole` with an item's `operationId` becomes scoped to that operation.
+- `minTeamRole` takes the higher role of the same kind.
 - A combination that one visibility cannot hold, such as two operations or two team kinds, matches nobody.
 
 Nuxt Content articles are always public. Restricted content comes only from the database.
@@ -134,7 +152,7 @@ resolveTeamRoles(event: H3Event, userId: string | number, owner: OwnerRef): Prom
 
 type TeamRoleGrant = {
   ownerType: OwnerType
-  ownerId: string
+  ownerId: string | null // null for a platform-owned team, as in OwnerRef
   teamId: string
   kind: string
   role: string
@@ -144,6 +162,8 @@ type TeamRoleGrant = {
 
 - Explicit memberships come first, then the grants of the mapping rules. Mapped grants are never stored.
 - An explicit membership on a team wins over a mapped grant on the same team.
+- Mapped grants are resolved per request: every call reads the mapping rules and the user's global roles and plans.
+  Call `resolveTeamRoles` (and `resolveViewer`) once per request and reuse the result, not once per record.
 - Teams answers `audience:viewer:resolve` with the grants on every owner, plus the ladder of each team kind in them.
 - Modules that only need visibility never call `resolveTeamRoles`. They call `resolveViewer` and get the grants
   through the hook, so they do not import teams.
@@ -190,10 +210,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `maps:feature:created` | maps | `{ event, map, feature }` | 5 |
 | `maps:feature:updated` | maps | `{ event, map, feature, previous }` | 5 |
 | `maps:feature:deleted` | maps | `{ event, map, feature }` | 5 |
-| `inbox:message:received` | inbox | `{ event, thread, message }` | 6 |
-| `inbox:message:sent` | inbox | `{ event, thread, message }` | 6 |
-| `inbox:thread:assigned` | inbox | `{ event, thread, assigneeId, previous }` | 6 |
-| `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6 |
+| `inbox:message:received` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
+| `inbox:message:sent` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
+| `inbox:thread:assigned` | inbox | `{ event, thread, assigneeId, previous }` | 6: platform mailboxes only |
+| `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6: platform mailboxes; 7: user mailboxes |
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
   know. Crew's presets are plain `team_role_mappings` rows instead.
@@ -215,7 +235,7 @@ type DashboardItem = WidgetDefinition & {
   title?: string // plain fallback title
   titleKey?: string // i18n key, translated at render time
   platforms?: ('web' | 'mobile')[] // default: both
-  when?: { module?: string } | { permission?: string } | { platform?: 'web' | 'mobile' }
+  when?: { module?: string, platform?: 'web' | 'mobile' } // every key that is set must hold
 }
 ```
 
@@ -226,10 +246,13 @@ type DashboardItem = WidgetDefinition & {
   replaces the earlier one.
 - `title`, `titleKey`, `platforms` and `when` are kept in the `#dashboard/registry` virtual module, built with
   `defineVirtualRegistry` from `@frigear-nu/module-kit/utils`.
+- `when` is one object whose set keys are ANDed: `module` (the item shows only when that module is installed) and
+  `platform`. It has no `permission`: put that on the item's own `permission`.
 - The client `widgets:filter` hook keeps hiding items by `permission`.
-- Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`:
-  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`. Without Preferences the
-  registered order applies.
+- Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`. Dashboard declares
+  it with `definePreferences` (a zod schema of
+  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`) and registers it with
+  `addUserPreferences(nuxt, { path })` when Preferences is installed. Without Preferences the registered order applies.
 
 A module adds items only when dashboard is installed:
 
@@ -279,7 +302,6 @@ Each module adds one page to this group in the pull request that adds the module
 
 ## Next steps
 
-- [Audience](/modules/volunteering/audience) – the visibility resolver and the two hooks.
 - [Widget](/modules/interface/widget) – the widget areas dashboards are built on.
 - [Extension points](/guide/concepts/extension-points) – how hooks and registries let modules extend each other.
 - [Access control](/guide/concepts/auth-and-scopes) – the policies owner modules add.
