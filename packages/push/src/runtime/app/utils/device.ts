@@ -4,7 +4,7 @@ import { isInAppPath } from './native'
 import type { NativePush, NativePushLoader } from './native'
 
 /**
- * `unknown`: not asked yet. `unsupported`: not a native app, or `@capacitor/push-notifications` is not installed.
+ * `unknown`: not asked yet. `unsupported`: not a native app, or no push plugin is installed.
  * The others follow the operating system.
  */
 export type PushPermission = 'unknown' | 'unsupported' | 'prompt' | 'granted' | 'denied'
@@ -39,8 +39,8 @@ export type PushDeviceActions = {
 }
 
 /**
- * The device side of push, without Nuxt: asks for permission, registers with APNs / FCM through the Capacitor plugin and
- * tells the server the token. `usePushDevice()` and the sign-in plugin are thin wrappers over it.
+ * The device side of push, without Nuxt: asks for permission, registers through the push plugin and tells the server
+ * the token and who issued it. `usePushDevice()` and the sign-in plugin are thin wrappers over it.
  */
 export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
   const { state } = deps
@@ -54,15 +54,16 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
     return loaded.platform === 'ios' || loaded.platform === 'android' ? loaded : null
   }
 
-  async function post(platform: string, token: string) {
+  async function post({ platform, provider }: NativePush, token: string) {
     await deps.request(pushApi.me.devices, {
       method: 'POST',
-      body: { platform, token, ...(deps.appId ? { appId: deps.appId } : {}), ...(deps.locale?.() ? { locale: deps.locale() } : {}) },
+      body: { platform, provider, token, ...(deps.appId ? { appId: deps.appId } : {}), ...(deps.locale?.() ? { locale: deps.locale() } : {}) },
     })
     state.registered.value = true
   }
 
-  async function listen({ plugin, platform }: NativePush) {
+  async function listen(loaded: NativePush) {
+    const { plugin } = loaded
     if (listening) return
     listening = true
     await plugin.addListener('registration', ({ value }) => {
@@ -73,7 +74,7 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
         waiting = undefined
       }
       // A later token (the OS rotated it): keep the server current while this installation is registered.
-      else if (state.registered.value) post(platform, value).catch(error => log.warn('[@frigear-nu/push] Updating the device token failed:', error))
+      else if (state.registered.value) post(loaded, value).catch(error => log.warn('[@frigear-nu/push] Updating the device token failed:', error))
     })
     await plugin.addListener('registrationError', ({ error }) => {
       log.warn('[@frigear-nu/push] The OS could not register for push notifications:', error)
@@ -124,7 +125,7 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
         reject(error instanceof Error ? error : new Error(String(error)))
       })
     })
-    await post(loaded.platform, token)
+    await post(loaded, token)
     return true
   }
 
