@@ -41,6 +41,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
 | Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, UI |
+| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Audience, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -127,6 +128,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
 | [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
+| [Teams](/modules/volunteering/teams) | Teams owned by an operation or the platform, members with a role from their kind's ladder, and rules that map global roles and plans to team roles. | ✓ | ✓ |  |
 
 ## How they fit together
 
