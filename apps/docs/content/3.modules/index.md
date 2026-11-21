@@ -39,6 +39,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Give staff a guarded admin area | [Admin](/modules/interface/admin) | Menu, Widget, UI |
 | Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
+| Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -115,6 +116,15 @@ The foundations that other modules and apps stand on.
 | [Notify](/modules/platform/notify) | Email, SMS and simple notification drivers and dispatch. | ✓ |  |  |
 | [Email Templates](/modules/platform/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
 | [Base Layer](/modules/platform/base-layer) | A Nuxt layer, not a module. Your app extends it to get the modules, styling and content conventions of Frigear websites. |  | ✓ |  |
+
+### Volunteering
+
+Crew and volunteer work: operations, teams, shifts and the content volunteers read. The modules are being built.
+[Volunteering](/modules/volunteering) holds the contracts they share, and each module adds its row here when it lands.
+
+| Module | What it does | Server | Client | Mobile |
+| --- | --- | :---: | :---: | :---: |
+| [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
 
 ## How they fit together
 
