@@ -16,7 +16,8 @@ export default defineNuxtConfig({
 ```
 
 - Store a list in a JSON column named `grants` (`text({ mode: 'json' })` on sqlite, `jsonb()` on postgresql).
-- Validate input with `grantsListSchema()`, and check references with `grantsValidate(event, grants)`.
+- Validate input with `grantListShape` (from `@frigear-nu/grants/core`), then check it with `grantsValidate(event, grants)`:
+  unknown kinds, invalid grants and references that do not exist are a 400.
 - Declare a read permission and a policy on it that calls `grantsMatch(event, user, record.grants)`.
 - Serve a record with `grantsCanRead(event, permission, record)`: a `public` grant is served without sign-in, every
   other record goes through `allows()` and the policy.
