@@ -2576,9 +2576,6 @@ importers:
 
   packages/shifts:
     dependencies:
-      '@frigear-nu/audience':
-        specifier: workspace:^
-        version: link:../audience
       '@frigear-nu/auth':
         specifier: workspace:^
         version: link:../auth
