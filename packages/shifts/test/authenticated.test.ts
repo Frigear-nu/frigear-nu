@@ -92,7 +92,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const op = await createOperation()
       const team = await createTeam(op.id)
       const schedule = await createSchedule(op.id)
-      expect(schedule).toMatchObject({ status: 'draft', swapMode: 'peer', operationId: op.id })
+      expect(schedule).toMatchObject({ status: 'draft', coverage: 'flexible', handover: 'both', approval: 'peer', operationId: op.id })
       const created = await bulk(schedule.id, { teamId: team.id, days: ['2027-01-15', '2027-06-28'], slots: [{ start: '10:00', end: '16:00' }, { start: '22:00', end: '04:00' }] })
       expect(created.map(shift => [shift.startsAt, shift.endsAt])).toEqual([
         ['2027-01-15T09:00:00.000Z', '2027-01-15T15:00:00.000Z'],
@@ -147,7 +147,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(mine[0]).toMatchObject({ shift: { id: setup.shifts[0]!.id }, assignment: { status: 'assigned', userId: ann.id }, operationId: setup.op.id, swap: null })
       expect(mine[0]!.assignment.checkInCode).toBeUndefined()
       const detail = await ok(await json(ann.cookie, 'GET', shiftsApi.me.shift(result.assignment.id)))
-      expect(detail).toMatchObject({ swapMode: 'peer', swapDetail: null, leadsOnDuty: [] })
+      expect(detail).toMatchObject({ settings: { coverage: 'flexible', handover: 'both', approval: 'peer' }, swapDetail: null, leadsOnDuty: [] })
       // Somebody else's assignment is not found under my own routes.
       const bo = await user('Bo')
       expect((await json(bo.cookie, 'GET', shiftsApi.me.shift(result.assignment.id))).status).toBe(404)
@@ -214,15 +214,17 @@ describe('shifts (authenticated, database-backed)', async () => {
   })
 
   describe('swaps', () => {
-    it('swaps between volunteers: offers with and without a shift back, accepting one completes and supersedes the rest', async () => {
+    it('trades between volunteers: every offer gives a shift back, accepting one completes and supersedes the rest', async () => {
       const setup = await newSetup()
       const [ann, bo, cy] = await Promise.all([user('Ann'), user('Bo'), user('Cy')])
       for (const who of [ann, bo, cy]) await addMember(setup.team.id, who)
+      const [cyDay] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-07-01'], slots: [{ start: '10:00', end: '14:00' }] })
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const boShift = await assigned(setup.shifts[1]!.id, bo)
+      const cyShift = await assigned(cyDay!.id, cy)
 
-      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
-      expect(swap).toMatchObject({ status: 'open', assignmentId: annShift.assignment.id, owner: { userId: ann.id } })
+      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id), { kind: 'trade' }))
+      expect(swap).toMatchObject({ status: 'open', kind: 'trade', assignmentId: annShift.assignment.id, owner: { userId: ann.id }, wantedAssignmentId: null })
       // Opening again answers the same swap.
       expect((await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))).id).toBe(swap.id)
       // The owner does not see their own swap in the marketplace; Bo and Cy do.
@@ -231,11 +233,16 @@ describe('shifts (authenticated, database-backed)', async () => {
 
       const boOffer = await ok(await json(bo.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: boShift.assignment.id }))
       expect(boOffer).toMatchObject({ status: 'offered', userId: bo.id, offeredAssignmentId: boShift.assignment.id })
-      await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}), 409, 'offer_exists')
-      // Offering somebody else's assignment is not found.
+      await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: boShift.assignment.id }), 409, 'offer_exists')
+      // Offering somebody else's assignment is not found; a trade without a shift in return is refused.
       await expectApiError(json(cy.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: boShift.assignment.id }), 404)
-      const cyOffer = await ok(await json(cy.cookie, 'POST', shiftsApi.offers(swap.id), {}))
-      expect((await getEmailsTo(ann.email)).filter(email => email.template?.name === 'shifts-swap-offered')).toHaveLength(2)
+      await expectApiError(json(cy.cookie, 'POST', shiftsApi.offers(swap.id), {}), 409, 'handover_not_allowed')
+      const cyOffer = await ok(await json(cy.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: cyShift.assignment.id }))
+      const offered = (await getEmailsTo(ann.email)).filter(email => email.template?.name === 'shifts-swap-offered')
+      expect(offered).toHaveLength(2)
+      // A trade email names both shifts.
+      expect(offered[0]!.template!.props).toMatchObject({ trade: true })
+      expect(offered[0]!.text).toMatch(/their shift on .+ for your shift on /)
 
       // Only the owner accepts.
       expect((await json(cy.cookie, 'POST', shiftsApi.acceptOffer(swap.id, boOffer.id))).status).toBe(403)
@@ -247,8 +254,13 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await assignmentOf(ann, setup.shifts[1]!.id)).toMatchObject({ assignment: { id: boShift.assignment.id } })
       expect(await assignmentOf(bo, setup.shifts[0]!.id)).toMatchObject({ assignment: { id: annShift.assignment.id } })
       expect(await assignmentOf(ann, setup.shifts[0]!.id)).toBeUndefined()
-      const hooks = (await getHooks()).filter(hook => hook.swapId === swap.id).map(hook => hook.name)
-      expect(hooks).toEqual(['swap:offered', 'swap:offered', 'swap:accepted', 'swap:completed'])
+      const hooks = (await getHooks()).filter(hook => hook.swapId === swap.id)
+      expect(hooks.map(hook => hook.name)).toEqual(['swap:offered', 'swap:offered', 'swap:accepted', 'swap:completed'])
+      expect(hooks.every(hook => hook.kind === 'trade')).toBe(true)
+      // Each person holds as many shifts as before.
+      expect((await myShifts(ann)).length).toBe(1)
+      expect((await myShifts(bo)).length).toBe(1)
+      expect((await myShifts(cy)).length).toBe(1)
       const moves = (await getHooks()).filter(hook => hook.name === 'assignment:changed' && (hook.assignmentId === annShift.assignment.id || hook.assignmentId === boShift.assignment.id) && hook.previousUserId !== null && hook.previousUserId !== hook.userId)
       expect(moves.map(hook => [hook.previousUserId, hook.userId])).toEqual([[ann.id, bo.id], [bo.id, ann.id]])
       // Peer mode: only the completed email, no separate "accepted" one; no site origin is configured, so no link.
@@ -259,12 +271,17 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect((await getEmailsTo(ann.email)).map(email => email.template?.name)).toContain('shifts-swap-completed')
     })
 
-    it('hands a shift over when nothing is given back, and lets the owner reject and withdraw', async () => {
+    it('hands a released shift over, and lets the owner reject and withdraw', async () => {
       const setup = await newSetup()
       const [ann, bo, cy] = await Promise.all([user('Han'), user('Hbo'), user('Hcy')])
       for (const who of [ann, bo, cy]) await addMember(setup.team.id, who)
       const annShift = await assigned(setup.shifts[0]!.id, ann)
+      const boShift = await assigned(setup.shifts[1]!.id, bo)
+      // `handover: 'both'`: a swap opened without a kind is a release.
       const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
+      expect(swap).toMatchObject({ kind: 'release' })
+      // A release takes nothing in return.
+      await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: boShift.assignment.id }), 400)
       const boOffer = await ok(await json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}))
       await ok(await json(ann.cookie, 'POST', shiftsApi.rejectOffer(swap.id, boOffer.id)))
       expect((await getEmailsTo(bo.email)).map(email => email.template?.name)).toContain('shifts-swap-rejected')
@@ -286,8 +303,8 @@ describe('shifts (authenticated, database-backed)', async () => {
       await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(second.id), {}), 409, 'swap_closed')
     })
 
-    it('waits for a lead or staff in approval mode', async () => {
-      const setup = await newSetup({ swapMode: 'approval' })
+    it('waits for a lead or staff with approval "lead"', async () => {
+      const setup = await newSetup({ approval: 'lead' })
       const [ann, bo, lead] = await Promise.all([user('Aan'), user('Abo'), user('Alead')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
@@ -328,13 +345,13 @@ describe('shifts (authenticated, database-backed)', async () => {
       await addMember(other.id, dan)
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const danShift = await assigned(otherShift!.id, dan)
-      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
+      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id), { kind: 'trade' }))
       // Dan holds no role on Ann's team: the swap is not his to see or take.
       expect((await ok(await json(dan.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).find(item => item.id === swap.id)).toBeUndefined()
-      await expectApiError(json(dan.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: danShift.assignment.id }), 409, 'not_eligible')
-      // Dan joins Ann's team, but Ann is not on Dan's: giving Dan's shift back is still refused.
+      await expectApiError(json(dan.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: danShift.assignment.id }), 409, 'guard_ineligible')
+      // Dan joins Ann's team, but Ann is not on Dan's: giving Dan's shift back is still refused (the guards run for both).
       await addMember(setup.team.id, dan)
-      await expectApiError(json(dan.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: danShift.assignment.id }), 409, 'not_eligible')
+      await expectApiError(json(dan.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: danShift.assignment.id }), 409, 'guard_ineligible')
       // Both on both teams: allowed.
       await addMember(other.id, ann)
       const offer = await ok(await json(dan.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: danShift.assignment.id }))
@@ -351,7 +368,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Bo works the evening of the same day: taking Ann's morning would be two shifts that day.
       await assigned(setup.shifts[1]!.id, bo)
       const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
-      await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}), 409, 'swap_guard')
+      await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}), 409, 'guard_max_per_day')
 
       // Two offers, two accepts at once: one carries the swap out.
       const dee = await user('Rdee')
@@ -369,6 +386,199 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect([cy.id, dee.id]).toContain(winner)
       const mine = await myShifts(winner === cy.id ? cy : dee)
       expect(mine.map(item => item.shift.id)).toEqual([setup.shifts[0]!.id])
+    })
+  })
+
+  describe('coverage, handover and approval', () => {
+    const open = (who: Session, assignmentId: string, body: Json = {}) => json(who.cookie, 'POST', shiftsApi.me.swap(assignmentId), body)
+    const offerOn = (who: Session, swapId: string, assignmentId?: string) => json(who.cookie, 'POST', shiftsApi.offers(swapId), assignmentId ? { assignmentId } : {})
+    const countOf = async (who: Session) => (await myShifts(who)).length
+    /** A setup with Ann on the morning shift and Bo on a shift two days later: a trade that breaks no guard. */
+    async function tradeSetup(schedule: Json, lead = false) {
+      const setup = await newSetup(schedule)
+      const [ann, bo, boss] = await Promise.all([user('Tann'), user('Tbo'), user('Tlead')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bo)
+      if (lead) await addMember(setup.team.id, boss, 'ba')
+      const [later] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-06-30'], slots: [{ start: '10:00', end: '14:00' }] })
+      const annShift = await assigned(setup.shifts[0]!.id, ann)
+      const boShift = await assigned(later!.id, bo)
+      return { ...setup, later: later!, ann, bo, boss, annShift, boShift }
+    }
+
+    it('accepts every valid combination and refuses coverage "all" with release or both, on create and on a merged patch', async () => {
+      const op = await createOperation()
+      for (const [coverage, handover] of [['all', 'trade'], ['flexible', 'trade'], ['flexible', 'release'], ['flexible', 'both']]) {
+        expect(await createSchedule(op.id, { coverage, handover, approval: 'lead' })).toMatchObject({ coverage, handover, approval: 'lead' })
+      }
+      for (const handover of ['release', 'both']) {
+        await expectApiError(json(staff.cookie, 'POST', shiftsApi.admin.schedules, { operationId: op.id, name: 'x', coverage: 'all', handover }), 400, 'invalid_schedule_settings')
+      }
+      // The patch is checked merged with what is stored: `coverage: 'all'` alone on a `both` schedule is refused.
+      const schedule = await createSchedule(op.id)
+      await expectApiError(json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { coverage: 'all' }), 400, 'invalid_schedule_settings')
+      const roskilde = await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { coverage: 'all', handover: 'trade', approval: 'lead' }))
+      expect(roskilde).toMatchObject({ coverage: 'all', handover: 'trade', approval: 'lead' })
+      await expectApiError(json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { handover: 'both' }), 400, 'invalid_schedule_settings')
+      // Copying from a schedule carries its settings over.
+      const target = await createSchedule(op.id)
+      const copied = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.copyFrom(target.id), { scheduleId: schedule.id, offsetDays: 0 }))
+      expect(copied.schedule).toMatchObject({ coverage: 'all', handover: 'trade', approval: 'lead' })
+    })
+
+    for (const approval of ['peer', 'lead'] as const) {
+      it(`coverage "all" + trade (${approval}): trades keep both counts, nothing lowers one`, async () => {
+        const s = await tradeSetup({ coverage: 'all', handover: 'trade', approval }, approval === 'lead')
+        const [annBefore, boBefore] = [await countOf(s.ann), await countOf(s.bo)]
+        // Opening a release is refused; opening without a kind is a trade.
+        await expectApiError(open(s.ann, s.annShift.assignment.id, { kind: 'release' }), 409, 'handover_not_allowed')
+        const swap = await ok(await open(s.ann, s.annShift.assignment.id))
+        expect(swap).toMatchObject({ kind: 'trade', settings: { coverage: 'all', handover: 'trade', approval } })
+        const detail = await ok(await json(s.ann.cookie, 'GET', shiftsApi.me.shift(s.annShift.assignment.id)))
+        expect(detail.settings).toMatchObject({ coverage: 'all' })
+        // An offer without a shift in return is refused.
+        await expectApiError(offerOn(s.bo, swap.id), 409, 'handover_not_allowed')
+        const offer = await ok(await offerOn(s.bo, swap.id, s.boShift.assignment.id))
+        const accepted = await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))
+        if (approval === 'lead') {
+          expect(accepted.status).toBe('pending_approval')
+          const pending = (await getEmailsTo(s.boss.email)).find(email => email.template?.name === 'shifts-swap-pending')!
+          expect(pending.text).toMatch(/want to trade shifts/)
+          expect((await ok(await json(s.boss.cookie, 'POST', shiftsApi.approveSwap(swap.id)))).status).toBe('completed')
+        }
+        else {
+          expect(accepted.status).toBe('completed')
+        }
+        expect(await assignmentOf(s.ann, s.later.id)).toBeDefined()
+        expect(await assignmentOf(s.bo, s.shifts[0]!.id)).toBeDefined()
+        expect([await countOf(s.ann), await countOf(s.bo)]).toEqual([annBefore, boBefore])
+        expect((await getHooks()).filter(hook => hook.swapId === swap.id).every(hook => hook.kind === 'trade')).toBe(true)
+        const completed = (await getEmailsTo(s.bo.email)).find(email => email.template?.name === 'shifts-swap-completed')!
+        expect(completed.template!.props).toMatchObject({ trade: true })
+      })
+    }
+
+    it('coverage "all" + trade: refuses accepting a release opened before the schedule changed, and the marketplace hides it', async () => {
+      const s = await tradeSetup({})
+      const cy = await user('Tcy')
+      await addMember(s.team.id, cy)
+      const swap = await ok(await open(s.ann, s.annShift.assignment.id, { kind: 'release' }))
+      const offer = await ok(await offerOn(cy, swap.id))
+      await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(s.schedule.id), { coverage: 'all', handover: 'trade' }))
+      await expectApiError(json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)), 409, 'handover_not_allowed')
+      expect((await ok(await json(cy.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).find(item => item.id === swap.id)).toBeUndefined()
+      // A new offer on it is refused too, and Ann keeps her shift.
+      const dee = await user('Tdee')
+      await addMember(s.team.id, dee)
+      await expectApiError(offerOn(dee, swap.id), 409, 'handover_not_allowed')
+      expect(await countOf(s.ann)).toBe(1)
+    })
+
+    it('approving re-checks the settings: a release waiting for a lead is refused once coverage is "all"', async () => {
+      const s = await tradeSetup({ approval: 'lead' }, true)
+      const cy = await user('Tcy')
+      await addMember(s.team.id, cy)
+      const swap = await ok(await open(s.ann, s.annShift.assignment.id, { kind: 'release' }))
+      const offer = await ok(await offerOn(cy, swap.id))
+      expect((await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))).status).toBe('pending_approval')
+      await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(s.schedule.id), { coverage: 'all', handover: 'trade' }))
+      await expectApiError(json(s.boss.cookie, 'POST', shiftsApi.approveSwap(swap.id)), 409, 'handover_not_allowed')
+      expect(await assignmentOf(s.ann, s.shifts[0]!.id)).toBeDefined()
+    })
+
+    it('flexible + trade allows trades only; flexible + release gives away only; flexible + both lets the owner choose', async () => {
+      const trade = await tradeSetup({ handover: 'trade' })
+      await expectApiError(open(trade.ann, trade.annShift.assignment.id, { kind: 'release' }), 409, 'handover_not_allowed')
+      expect(await ok(await open(trade.ann, trade.annShift.assignment.id))).toMatchObject({ kind: 'trade' })
+
+      const release = await tradeSetup({ handover: 'release' })
+      const cy = await user('Rcy')
+      await addMember(release.team.id, cy)
+      await expectApiError(open(release.ann, release.annShift.assignment.id, { kind: 'trade' }), 409, 'handover_not_allowed')
+      const given = await ok(await open(release.ann, release.annShift.assignment.id))
+      expect(given).toMatchObject({ kind: 'release' })
+      await expectApiError(offerOn(release.bo, given.id, release.boShift.assignment.id), 400)
+      const taken = await ok(await offerOn(cy, given.id))
+      expect((await ok(await json(release.ann.cookie, 'POST', shiftsApi.acceptOffer(given.id, taken.id)))).status).toBe('completed')
+      expect([await countOf(release.ann), await countOf(cy)]).toEqual([0, 1])
+      expect((await getHooks()).filter(hook => hook.swapId === given.id).every(hook => hook.kind === 'release')).toBe(true)
+
+      const both = await tradeSetup({ handover: 'both' })
+      expect(await ok(await open(both.ann, both.annShift.assignment.id, { kind: 'trade' }))).toMatchObject({ kind: 'trade' })
+      expect(await ok(await open(both.bo, both.boShift.assignment.id, { kind: 'release' }))).toMatchObject({ kind: 'release' })
+    })
+
+    it('aims a trade at one shift: only its holder sees it and offers that shift, and gets a proposal', async () => {
+      const s = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const cy = await user('Acy')
+      await addMember(s.team.id, cy)
+      const [cyDay] = await bulk(s.schedule.id, { teamId: s.team.id, days: ['2027-07-03'], slots: [{ start: '10:00', end: '14:00' }] })
+      const cyShift = await assigned(cyDay!.id, cy)
+      await expectApiError(open(s.ann, s.annShift.assignment.id, { kind: 'release', wantedAssignmentId: s.boShift.assignment.id }), 409, 'handover_not_allowed')
+      await expectApiError(open(s.ann, s.annShift.assignment.id, { wantedAssignmentId: s.annShift.assignment.id }), 400)
+      const swap = await ok(await open(s.ann, s.annShift.assignment.id, { wantedAssignmentId: s.boShift.assignment.id }))
+      expect(swap).toMatchObject({ kind: 'trade', wantedAssignmentId: s.boShift.assignment.id, wantedShift: { id: s.later.id } })
+      expect((await getEmailsTo(s.bo.email)).find(email => email.template?.name === 'shifts-swap-proposed')).toBeDefined()
+      expect((await ok(await json(cy.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).find(item => item.id === swap.id)).toBeUndefined()
+      expect((await ok(await json(s.bo.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).find(item => item.id === swap.id)).toBeDefined()
+      await expectApiError(offerOn(cy, swap.id, cyShift.assignment.id), 409, 'not_wanted')
+      const offer = await ok(await offerOn(s.bo, swap.id, s.boShift.assignment.id))
+      expect((await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))).status).toBe('completed')
+    })
+
+    it('runs the guards for both people at offer and accept time, each answering a code naming the guard', async () => {
+      // Overlap: Bo works 12:00–15:00, so taking Ann's 10:00–14:00 overlaps.
+      const overlap = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const [busy] = await bulk(overlap.schedule.id, { teamId: overlap.team.id, days: ['2027-06-28'], slots: [{ start: '12:00', end: '15:00' }] })
+      await assigned(busy!.id, overlap.bo)
+      const swap1 = await ok(await open(overlap.ann, overlap.annShift.assignment.id))
+      await expectApiError(offerOn(overlap.bo, swap1.id, overlap.boShift.assignment.id), 409, 'guard_overlap')
+
+      // Rest: Bo works the evening of the same day, 4 hours after Ann's shift ends; 6 are required.
+      const rest = await tradeSetup({ coverage: 'all', handover: 'trade', guards: { minRestHours: 6 } })
+      await assigned(rest.shifts[1]!.id, rest.bo)
+      const swap2 = await ok(await open(rest.ann, rest.annShift.assignment.id))
+      await expectApiError(offerOn(rest.bo, swap2.id, rest.boShift.assignment.id), 409, 'guard_rest')
+
+      // Max per day: one shift a day, and Bo works that evening.
+      const perDay = await tradeSetup({ coverage: 'all', handover: 'trade', guards: { maxShiftsPerDay: 1 } })
+      await assigned(perDay.shifts[1]!.id, perDay.bo)
+      const swap3 = await ok(await open(perDay.ann, perDay.annShift.assignment.id))
+      await expectApiError(offerOn(perDay.bo, swap3.id, perDay.boShift.assignment.id), 409, 'guard_max_per_day')
+
+      // Ineligible: the shift needs a BA, and Bo is a volunteer.
+      const role = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const ba = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(role.schedule.id), { teamId: role.team.id, teamRole: 'ba', name: 'BA' }))
+      const lead = await user('Gba')
+      await addMember(role.team.id, lead, 'ba')
+      const leadShift = await assigned(role.shifts[1]!.id, lead, { shiftRoleId: ba.id })
+      const swap4 = await ok(await open(lead, leadShift.assignment.id))
+      await expectApiError(offerOn(role.bo, swap4.id, role.boShift.assignment.id), 409, 'guard_ineligible')
+
+      // Capacity: one person per shift, and staff forced a second onto Ann's.
+      const full = await tradeSetup({ coverage: 'all', handover: 'trade', maxPerShift: 1 })
+      const extra = await user('Gextra')
+      await addMember(full.team.id, extra)
+      await assigned(full.shifts[0]!.id, extra, { force: true })
+      const swap5 = await ok(await open(full.ann, full.annShift.assignment.id))
+      await expectApiError(offerOn(full.bo, swap5.id, full.boShift.assignment.id), 409, 'guard_capacity')
+
+      // The owner's side: Ann works at the time of Bo's shift too, so taking it overlaps (her userId in the answer).
+      const owner = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const [clash] = await bulk(owner.schedule.id, { teamId: owner.team.id, days: ['2027-06-30'], slots: [{ start: '11:00', end: '13:00' }] })
+      await assigned(clash!.id, owner.ann)
+      const swap6 = await ok(await open(owner.ann, owner.annShift.assignment.id))
+      const refused = await json(owner.bo.cookie, 'POST', shiftsApi.offers(swap6.id), { assignmentId: owner.boShift.assignment.id })
+      expect(refused.status).toBe(409)
+      expect(await refused.json()).toMatchObject({ data: { code: 'guard_overlap', userId: owner.ann.id } })
+
+      // At accept time: Bo took on a clashing shift after offering.
+      const late = await tradeSetup({ coverage: 'all', handover: 'trade' })
+      const swap7 = await ok(await open(late.ann, late.annShift.assignment.id))
+      const offer = await ok(await offerOn(late.bo, swap7.id, late.boShift.assignment.id))
+      const [later] = await bulk(late.schedule.id, { teamId: late.team.id, days: ['2027-06-28'], slots: [{ start: '09:00', end: '11:00' }] })
+      await assigned(later!.id, late.bo)
+      await expectApiError(json(late.ann.cookie, 'POST', shiftsApi.acceptOffer(swap7.id, offer.id)), 409, 'guard_overlap')
     })
   })
 
@@ -547,7 +757,7 @@ describe('shifts (authenticated, database-backed)', async () => {
 
     it('settles a withdraw and an approval at once one way, never half', async () => {
       for (let round = 0; round < 3; round++) {
-        const setup = await newSetup({ swapMode: 'approval' })
+        const setup = await newSetup({ approval: 'lead' })
         const [ann, bo, lead] = await Promise.all([user('Qann'), user('Qbo'), user('Qlead')])
         await addMember(setup.team.id, ann)
         await addMember(setup.team.id, bo)
@@ -588,7 +798,7 @@ describe('shifts (authenticated, database-backed)', async () => {
     })
 
     it('refuses to give back a shift whose own swap waits for approval', async () => {
-      const setup = await newSetup({ swapMode: 'approval' })
+      const setup = await newSetup({ approval: 'lead' })
       const [ann, bo, cy] = await Promise.all([user('Gann'), user('Gbo'), user('Gcy')])
       for (const who of [ann, bo, cy]) await addMember(setup.team.id, who)
       const [extra] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-07-02'], slots: [{ start: '10:00', end: '14:00' }] })
@@ -598,7 +808,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const boSwap = await ok(await json(bo.cookie, 'POST', shiftsApi.me.swap(boShift.assignment.id)))
       const cyOffer = await ok(await json(cy.cookie, 'POST', shiftsApi.offers(boSwap.id), {}))
       await ok(await json(bo.cookie, 'POST', shiftsApi.acceptOffer(boSwap.id, cyOffer.id)))
-      const annSwap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
+      const annSwap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id), { kind: 'trade' }))
       await expectApiError(json(bo.cookie, 'POST', shiftsApi.offers(annSwap.id), { assignmentId: boShift.assignment.id }), 409, 'not_swappable')
     })
 
@@ -610,7 +820,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [extra] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-07-02'], slots: [{ start: '10:00', end: '14:00' }] })
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const boShift = await assigned(extra!.id, bo)
-      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
+      const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id), { kind: 'trade' }))
       const offer = await ok(await json(bo.cookie, 'POST', shiftsApi.offers(swap.id), { assignmentId: boShift.assignment.id }))
       // Ann's shift went to Bo, Bo's never came back: half an exchange.
       await ok(await json(undefined, 'POST', '/api/test/stuck-swap', { swapId: swap.id, offerId: offer.id }))
@@ -634,7 +844,7 @@ describe('shifts (authenticated, database-backed)', async () => {
 
   describe('leads and eligibility', () => {
     it('gives leads their teams, the swaps waiting for them and the team view; others nothing', async () => {
-      const setup = await newSetup({ swapMode: 'approval' })
+      const setup = await newSetup({ approval: 'lead' })
       const [ann, bo, lead] = await Promise.all([user('Lann2'), user('Lbo2'), user('Llead2')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)

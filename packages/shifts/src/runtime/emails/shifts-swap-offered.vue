@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailText } from '@frigear-nu/email-templates/components'
 
-// Sent to the owner of a swap when somebody offers to take their shift (see `buildShiftSwapEmail`).
+// Sent to the owner of a swap when somebody offers on it: to take the shift over, or a shift in return (see `buildShiftSwapEmail`).
 defineProps<{
   name: string
   subject: string
   message: string
   url?: string | null
+  /** A trade: the message names both shifts. */
+  trade?: boolean
 }>()
 </script>
 
@@ -14,7 +16,7 @@ defineProps<{
   <EmailLayout :preview="subject">
     <ESubject>{{ subject }}</ESubject>
     <EmailHeading>
-      A new offer for your shift
+      {{ trade ? 'A trade offered for your shift' : 'A new offer for your shift' }}
     </EmailHeading>
     <EmailDivider />
     <EmailText>

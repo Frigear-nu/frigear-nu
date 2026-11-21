@@ -3,6 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 import { renderSVG } from 'uqr'
 import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
+import { scheduleSettingsOf } from '../../utils/settings'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { toShiftAssignmentDto, toShiftDto, toShiftPersonDto } from './shifts-dto'
 import type { ShiftRow, ShiftScheduleRow } from './shifts-dto'
@@ -93,7 +94,7 @@ export async function shiftsMyShiftDetail(event: H3Event, entry: ShiftAssignment
   return {
     ...base!,
     leadsOnDuty: await shiftsLeadsOnDuty(event, entry.shift.teamId, entry.shift.startsAt, entry.shift.endsAt, entry.assignment.userId),
-    swapMode: entry.schedule.swapMode as MyShiftDetailDto['swapMode'],
+    settings: scheduleSettingsOf(entry.schedule),
     swapDetail: swapDetail ?? null,
     passOpensAt: opensAt.toISOString(),
     passClosesAt: closesAt.toISOString(),

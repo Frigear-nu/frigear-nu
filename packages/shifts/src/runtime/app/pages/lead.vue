@@ -107,7 +107,7 @@ useHead({ title: () => t('lead.title', 'Lead {team}', { team: team.value ? tr(te
                 <div class="flex flex-col text-sm">
                   <span class="text-highlighted font-medium">{{ tr(swap.shift.teamName) }} · {{ format.range(swap.shift.startsAt, swap.shift.endsAt) }}</span>
                   <span class="text-muted">
-                    {{ t('swaps.fromTo', '{from} gives it to {to}', { from: swap.owner.name ?? '', to: swap.offers?.find(offer => offer.status === 'accepted')?.person?.name ?? '' }) }}
+                    {{ actions.swapSummary(swap) }}
                   </span>
                 </div>
                 <div class="flex gap-2">

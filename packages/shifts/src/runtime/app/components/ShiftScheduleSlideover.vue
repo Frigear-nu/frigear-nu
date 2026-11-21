@@ -2,12 +2,14 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { z } from 'zod'
 import { shiftsApi } from '../../utils/api'
-import type { ShiftScheduleDto, Translated } from '../../../types'
-import { $fetch, reactive, useAction, useModuleT, useShiftsTranslate } from '#imports'
+import { DEFAULT_SCHEDULE_SETTINGS, SHIFT_APPROVALS, SHIFT_COVERAGES, SHIFT_HANDOVERS, validScheduleSettings } from '../../utils/settings'
+import type { ShiftScheduleDto, ShiftScheduleSettings, Translated } from '../../../types'
+import { $fetch, computed, reactive, useAction, useModuleT, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftScheduleSlideover' })
 
-// Creates a schedule for an operation, or edits one: its name, how swaps work, the people per shift and the guards.
+// Creates a schedule for an operation, or edits one: its name, how shifts change hands (coverage, handover, approval),
+// the people per shift and the guards.
 // Opened by `useShiftsActions()`; closes with the saved schedule, or `false`.
 const props = defineProps<{ operationId: string, schedule?: ShiftScheduleDto }>()
 const emit = defineEmits<{ close: [saved: ShiftScheduleDto | false] }>()
@@ -19,30 +21,34 @@ const { busy, run } = useAction()
 const optionalCount = z.number().int().min(0).nullable()
 const schema = z.object({
   name: z.custom<Translated>(value => !!value && (typeof value === 'string' ? !!value.trim() : Object.values(value as Record<string, string>).some(text => text?.trim())), t('admin.nameRequired', 'Give the schedule a name.')),
-  swapMode: z.enum(['peer', 'approval']),
+  coverage: z.enum(SHIFT_COVERAGES),
+  handover: z.enum(SHIFT_HANDOVERS),
+  approval: z.enum(SHIFT_APPROVALS),
   minPerShift: optionalCount,
   maxPerShift: optionalCount,
   maxShiftsPerDay: z.number().int().min(1).max(24).nullable(),
   minRestHours: z.number().min(0).max(72).nullable(),
-})
+}).refine(validScheduleSettings, { message: t('admin.handoverAllHelp', 'With every shift covered, volunteers can only trade.'), path: ['handover'] })
 type State = z.output<typeof schema>
 const state = reactive<State>({
   name: props.schedule?.name ?? '',
-  swapMode: props.schedule?.swapMode ?? 'peer',
+  coverage: props.schedule?.coverage ?? DEFAULT_SCHEDULE_SETTINGS.coverage,
+  handover: props.schedule?.handover ?? DEFAULT_SCHEDULE_SETTINGS.handover,
+  approval: props.schedule?.approval ?? DEFAULT_SCHEDULE_SETTINGS.approval,
   minPerShift: props.schedule?.minPerShift ?? null,
   maxPerShift: props.schedule?.maxPerShift ?? null,
   maxShiftsPerDay: props.schedule?.guards.maxShiftsPerDay ?? null,
   minRestHours: props.schedule?.guards.minRestHours ?? null,
 })
 
-const swapModes = [
-  { label: t('admin.swapModes.peer', 'Between volunteers'), value: 'peer', description: t('admin.swapModes.peerHelp', 'A swap is done as soon as the owner accepts an offer.') },
-  { label: t('admin.swapModes.approval', 'With approval'), value: 'approval', description: t('admin.swapModes.approvalHelp', 'A lead of the team or staff approves each swap.') },
-]
+const settings = computed<ShiftScheduleSettings>({
+  get: () => ({ coverage: state.coverage, handover: state.handover, approval: state.approval }),
+  set: value => Object.assign(state, value),
+})
 
 async function save(event: FormSubmitEvent<State>) {
-  const { name, swapMode, minPerShift, maxPerShift, maxShiftsPerDay, minRestHours } = event.data
-  const body = { name, swapMode, minPerShift, maxPerShift, guards: { maxShiftsPerDay, minRestHours } }
+  const { name, coverage, handover, approval, minPerShift, maxPerShift, maxShiftsPerDay, minRestHours } = event.data
+  const body = { name, coverage, handover, approval, minPerShift, maxPerShift, guards: { maxShiftsPerDay, minRestHours } }
   const saved = await run(
     () => props.schedule
       ? $fetch<ShiftScheduleDto>(shiftsApi.admin.schedule(props.schedule.id), { method: 'PATCH', body })
@@ -79,15 +85,9 @@ async function save(event: FormSubmitEvent<State>) {
           class="w-full"
         />
       </UFormField>
-      <UFormField
-        name="swapMode"
-        :label="t('admin.swapMode', 'Swaps')"
-      >
-        <URadioGroup
-          v-model="state.swapMode"
-          :items="swapModes"
-        />
-      </UFormField>
+      <div class="divide-default border-default divide-y border-y py-4">
+        <ShiftScheduleSettingsFields v-model="settings" />
+      </div>
       <div class="grid grid-cols-2 gap-4">
         <UFormField
           name="minPerShift"
