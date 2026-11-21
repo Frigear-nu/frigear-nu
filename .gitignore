@@ -72,6 +72,7 @@ packages/cookie-consent/test/fixtures/authenticated/.data
 packages/events/test/fixtures/authenticated/.data
 packages/forms/test/fixtures/authenticated/.data
 packages/oauth-server/test/fixtures/authenticated/.data
+packages/operations/test/fixtures/authenticated/.data
 packages/payments/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/custom-path/.data
