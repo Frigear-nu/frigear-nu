@@ -1,6 +1,6 @@
 # @frigear-nu/audience
 
-Shared visibility rules and owner references for the Frigear volunteering modules. FAQ groups and help articles
+Shared visibility rules and owner references for the volunteering modules. FAQ groups and help articles
 store who may see them in one `visibility` shape, and this package decides whether a viewer passes. It
 is a plain TypeScript library, not a Nuxt module.
 
