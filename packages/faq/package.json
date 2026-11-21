@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/faq",
   "version": "0.0.0",
-  "description": "Managed question-and-answer content for the frigear ecosystem: bilingual FAQ groups with per-group and per-item visibility, MDC components, composables and an admin area.",
+  "description": "Managed question-and-answer content for the frigear ecosystem: bilingual FAQ groups with per-group and per-item grants, MDC components, composables and an admin area.",
   "homepage": "https://docs.frigear.dev/modules/volunteering/faq",
   "repository": {
     "type": "git",
@@ -77,8 +77,8 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/audience": "workspace:^",
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/grants": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
@@ -94,6 +94,7 @@
     "@frigear-nu/forms": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/teams": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
@@ -110,6 +111,9 @@
     "@frigear-nu/mobile": {
       "optional": true
     },
+    "@frigear-nu/teams": {
+      "optional": true
+    },
     "@nuxt/ui": {
       "optional": true
     }
@@ -118,6 +122,7 @@
     "@frigear-nu/admin": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/teams": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",

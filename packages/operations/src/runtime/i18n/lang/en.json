@@ -98,6 +98,10 @@
       "deleteAction": "Delete operation",
       "deleted": "Deleted {name}",
       "deleteFailed": "Could not delete the operation"
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Choose an operation"
     }
   }
 }

@@ -1,9 +1,10 @@
 import type { H3Event } from 'h3'
 import type { ButtonProps, PageCardProps } from '@nuxt/ui'
-import type { OwnerRef, Visibility } from '@frigear-nu/audience'
+import type { Grant } from '@frigear-nu/grants/core'
+import type { OwnerRef } from '@frigear-nu/teams'
 import type { Translated } from '@frigear-nu/ui/translated'
 
-export type { Translated, Visibility, OwnerRef }
+export type { Translated, Grant, OwnerRef }
 
 type ForwardedProps = Pick<PageCardProps, 'title' | 'description' | 'icon' | 'to' | 'spotlight' | 'variant' | 'class'>
 
@@ -31,7 +32,7 @@ export type FaqCardProps = ForwardedProps & {
   }
 }
 
-/** `draft` items are only seen by staff; `published` ones by everyone their visibility allows. */
+/** `draft` items are only seen by staff; `published` ones by everyone their grants admit. */
 export type FaqItemStatus = 'draft' | 'published'
 
 /** A button under a card or an answer, the shape Nuxt UI's `ButtonProps` takes (`label`, `to`, `icon`). */
@@ -101,24 +102,26 @@ export type FaqGroupDto = {
   icon: string | null
   owner: OwnerRef
   sort: number
-  /** Anonymous visitors may read the group (`visibility.public`). */
+  /** Anonymous visitors may read the group (a `public` grant). */
   public: boolean
   items: FaqItemDto[]
 }
 
-/** A group as staff see it: the visibility, the audit dates and how many items it has. */
+/** A group as staff see it: who may read it, the audit dates and how many items it has. */
 export type AdminFaqGroupDto = Omit<FaqGroupDto, 'items'> & {
-  visibility: Visibility | null
+  /** Who may read the group (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: Grant[]
   itemCount: number
   publishedCount: number
   createdAt: string
   updatedAt: string
 }
 
-/** An item as staff see it: every status, the visibility of its own and who changed it last. */
+/** An item as staff see it: every status, its own grants and who changed it last. */
 export type AdminFaqItemDto = Omit<FaqItemDto, 'public'> & {
   status: FaqItemStatus
-  visibility: Visibility | null
+  /** `null`: the item has no list of its own and everyone who reads the group reads it. Otherwise it narrows the group. */
+  grants: Grant[] | null
   updatedBy: string | null
   createdAt: string
   updatedAt: string

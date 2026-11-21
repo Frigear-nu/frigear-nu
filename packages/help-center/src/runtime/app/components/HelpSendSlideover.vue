@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { helpCenterApi } from '../../utils/api'
-import type { HelpSendResult } from '../../../types'
+import type { HelpSendResult, Grant } from '../../../types'
 import type { StaffHelpArticle, StaffHelpArticlesPage } from '../utils/admin'
 import { $fetch, computed, reactive, ref, useAction, useFetch, useHelpCenterTranslate, useModuleT, useToast } from '#imports'
+import { grantFields } from '#grants/fields'
 
 defineOptions({ name: 'HelpSendSlideover' })
 
 // Sends links to articles by email and SMS (`POST /api/admin/help-center/send`), opened with `useOverlay()`. Each person
-// gets only the articles they may read. The audience is explicit people and/or an operation, a team or roles that the
-// host's teams or crew answer for.
+// gets only the articles they may read. The audience is explicit people and/or a grant list: each grant kind (a role,
+// a team, an operation) lists its members.
 const props = defineProps<{ articleIds?: string[] }>()
 const emit = defineEmits<{ close: [sent: HelpSendResult | false] }>()
 
@@ -27,21 +28,19 @@ const items = computed(() => articles.value.map(article => ({ value: article.id,
 const state = reactive({
   articleIds: [...(props.articleIds ?? [])],
   userIds: [] as string[],
-  operationId: '',
-  teamId: '',
-  globalRoles: [] as string[],
+  grants: [] as Grant[],
   email: true,
   sms: false,
 })
 const error = ref<string | null>(null)
+// `public` lists nobody, so a send cannot go to it.
+const sendKinds = grantFields.map(field => field.kind).filter(kind => kind !== 'public')
 
 async function send() {
   error.value = null
   const audience = {
     ...(state.userIds.length ? { userIds: state.userIds } : {}),
-    ...(state.operationId.trim() ? { operationId: state.operationId.trim() } : {}),
-    ...(state.teamId.trim() ? { teamId: state.teamId.trim() } : {}),
-    ...(state.globalRoles.length ? { globalRoles: state.globalRoles } : {}),
+    ...(state.grants.length ? { grants: state.grants } : {}),
   }
   const channels = [...(state.email ? ['email'] : []), ...(state.sms ? ['sms'] : [])]
   if (!state.articleIds.length) error.value = t('admin.sendNeedsArticles', 'Pick at least one article.')
@@ -106,27 +105,12 @@ async function send() {
         />
       </UFormField>
       <UFormField
-        :label="t('admin.operation', 'Operation')"
-        :description="t('admin.sendOperationHelp', 'Everyone who takes part in this operation, when crew is installed.')"
+        :label="t('admin.sendGroups', 'Groups')"
+        :description="t('admin.sendGroupsHelp', 'Everyone who matches one of these: a role, a team, the people who take part in an operation.')"
       >
-        <UInput
-          v-model="state.operationId"
-          class="w-full"
-        />
-      </UFormField>
-      <UFormField
-        :label="t('admin.sendTeam', 'Team')"
-        :description="t('admin.sendTeamHelp', 'The members of this team, when teams is installed.')"
-      >
-        <UInput
-          v-model="state.teamId"
-          class="w-full"
-        />
-      </UFormField>
-      <UFormField :label="t('admin.sendRoles', 'Roles')">
-        <TagInput
-          v-model="state.globalRoles"
-          :placeholder="t('admin.visibility.rolesPlaceholder', 'Type a role and press Enter')"
+        <GrantsEditor
+          v-model="state.grants"
+          :kinds="sendKinds"
         />
       </UFormField>
       <div class="flex flex-col gap-2">

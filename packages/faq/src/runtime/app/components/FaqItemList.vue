@@ -44,9 +44,10 @@ function drop(to: number) {
   if (from !== null && from !== to) void move(from, to)
 }
 
-function visibilityLabel(item: StaffFaqItem) {
-  if (!item.visibility) return t('admin.visibilityInherited', 'Same as the group')
-  return item.visibility.public ? t('admin.visibility.public', 'Public') : t('admin.visibilityRestricted', 'Restricted')
+function grantsLabel(item: StaffFaqItem) {
+  if (!item.grants) return t('admin.grantsInherited', 'Same as the group')
+  if (!item.grants.length) return t('admin.grantsNobody', 'Nobody yet')
+  return item.grants.some(grant => grant.kind === 'public') ? t('admin.grantsPublic', 'Public') : t('admin.grantsRestricted', 'Restricted')
 }
 </script>
 
@@ -77,7 +78,7 @@ function visibilityLabel(item: StaffFaqItem) {
           {{ tr(item.question) }}
         </div>
         <div class="text-muted truncate text-xs">
-          {{ visibilityLabel(item) }}
+          {{ grantsLabel(item) }}
         </div>
       </div>
       <StatusBadge

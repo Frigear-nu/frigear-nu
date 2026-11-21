@@ -148,8 +148,8 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Answers `audience:viewer:resolve` with the operations the user is approved crew of. Always on.
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/audience'))
+    // Answers `operations:participation:resolve` and `operations:participants:resolve`: who takes part in an operation.
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/participation'))
     // Registers an application when the operation's crew form is submitted (`forms:submitted`).
     addServerPlugin(resolver.resolve('./runtime/server/plugins/forms'))
 
