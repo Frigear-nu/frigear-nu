@@ -1104,6 +1104,9 @@ importers:
       '@frigear-nu/mobile':
         specifier: workspace:^
         version: link:../mobile
+      '@frigear-nu/push':
+        specifier: workspace:^
+        version: link:../push
       '@frigear-nu/widget':
         specifier: workspace:^
         version: link:../widget
@@ -1641,6 +1644,9 @@ importers:
       '@frigear-nu/notify':
         specifier: workspace:^
         version: link:../notify
+      '@frigear-nu/push':
+        specifier: workspace:^
+        version: link:../push
       '@frigear-nu/users':
         specifier: workspace:^
         version: link:../users
@@ -2725,6 +2731,9 @@ importers:
       '@frigear-nu/mobile':
         specifier: workspace:^
         version: link:../mobile
+      '@frigear-nu/push':
+        specifier: workspace:^
+        version: link:../push
       '@frigear-nu/widget':
         specifier: workspace:^
         version: link:../widget

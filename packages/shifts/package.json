@@ -103,6 +103,7 @@
     "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
@@ -126,6 +127,9 @@
     "@frigear-nu/mobile": {
       "optional": true
     },
+    "@frigear-nu/push": {
+      "optional": true
+    },
     "@frigear-nu/widget": {
       "optional": true
     },
@@ -141,6 +145,7 @@
     "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/push": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",

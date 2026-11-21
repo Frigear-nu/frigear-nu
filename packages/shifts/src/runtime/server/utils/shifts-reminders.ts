@@ -1,14 +1,16 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, gt, inArray, lte, notExists, or, sql } from 'drizzle-orm'
-import type { ShiftChannel, Translated } from '../../../types'
+import type { Translated } from '../../../types'
 import { newId, translate } from '../../utils'
 import { shiftsChunk } from '../../utils/chunk'
 import { dueReminderOffsets, normalizeReminderBatch, normalizeReminderOffsets, reminderOffsetToSend, timeLeftBucket } from '../../utils/reminders'
-import { buildShiftReminderEmail, buildShiftReminderSms, formatShiftWhen } from '../reminder-email'
+import { buildShiftReminderEmail, buildShiftReminderPush, buildShiftReminderSms, formatShiftWhen } from '../reminder-email'
 import { toShiftAssignmentDto } from './shifts-dto'
 import { shiftsConfig, shiftsFire, shiftsLocalesOfMany, shiftsRolesByIds, shiftsTeamsById, shiftsUsersById } from './shifts-core'
 import { shiftsStillEligible } from './shifts-assign'
+import { shiftsNotify } from './shifts-notify'
+import { SHIFTS_TOPICS } from '../../notifications'
 
 export type ShiftsReminderRunDto = {
   /** The due assignments this run took (at most `batchSize`, soonest shift first). */
@@ -123,19 +125,17 @@ export async function shiftsSendReminders(now = new Date(), event?: H3Event, ove
       }
       const left = timeLeftBucket(shift.startsAt, now)
       const url = shiftPath && origin ? `${origin}${shiftPath.replace(':assignmentId', encodeURIComponent(assignment.id))}` : undefined
-      const channels: ShiftChannel[] = []
       const email = buildShiftReminderEmail({ email: user?.email ?? null, variables, offset: toSend, left, url, locale })
-      if (email) {
-        await dispatchEmailNotification(email).then(() => channels.push('email')).catch((error: unknown) => {
-          console.error(`[shifts] the reminder email of assignment ${assignment.id} could not be sent`, error)
-        })
-      }
+      // The text only when the module asks for it (`reminders.sms`); with push installed the person's own choice for the
+      // `shifts.reminder` topic still decides whether it goes out.
       const sms = reminders.sms ? buildShiftReminderSms({ phone: user?.phone ?? null, variables, offset: toSend, left, url, locale }) : null
-      if (sms) {
-        await dispatchSMSNotification(sms).then(() => channels.push('sms')).catch((error: unknown) => {
-          console.error(`[shifts] the reminder SMS of assignment ${assignment.id} could not be sent`, error)
-        })
-      }
+      const { channels } = await shiftsNotify(event, assignment.userId, {
+        topic: SHIFTS_TOPICS.reminder,
+        email,
+        sms,
+        push: buildShiftReminderPush({ variables, left, url, locale }),
+        label: `the reminder of assignment ${assignment.id}`,
+      })
       if (!channels.length) continue
       result.sent++
       await shiftsFire('shifts:reminder:sent', { event, assignment: toShiftAssignmentDto(assignment), offset: toSend, channels })

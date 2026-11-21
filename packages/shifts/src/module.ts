@@ -3,11 +3,13 @@ import {
   addImports,
   addServerImportsDir,
   addServerPlugin,
+  addTypeTemplate,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
 import {
+  defineVirtualRegistry,
   registerDatabaseTable,
   registerModule,
   registerLocales,
@@ -24,6 +26,7 @@ import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
 import { isValidTimeZone } from './runtime/utils/time'
 import { normalizeReminderBatch, normalizeReminderOffsets } from './runtime/utils/reminders'
 import { SHIFTS_DASHBOARD, shiftsDashboardItems } from './runtime/dashboard'
+import { SHIFTS_PUSH_MODULE_TYPES, shiftsNotificationTopics } from './runtime/notifications'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -109,6 +112,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Items on the `crew.home` dashboard.
     '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
+    // Reminders, swaps and broadcasts go through `notifyUser` (email, push, SMS by the person's choice).
+    '@frigear-nu/push': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the operation page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
@@ -319,6 +324,23 @@ export default defineNuxtModule<ModuleOptions>({
         sfSymbolActive: 'calendar.circle.fill',
         requiresAuth: true,
       })
+    }
+
+    // Push: the `shifts.reminder`, `shifts.swap` and `shifts.broadcast` topics, and `notifyUser` for the send sites
+    // (`shifts-notify.ts`) through a server module that is `undefined` when push is not installed, so they keep sending
+    // email and SMS themselves then.
+    defineVirtualRegistry(nuxt, {
+      filename: '#shifts/push',
+      target: 'server',
+      collect: () => hasNuxtModule('@frigear-nu/push', nuxt),
+      contents: installed => installed
+        ? 'export { notifyUser } from \'#imports\'\nexport const pushAvailable = true\n'
+        : 'export const notifyUser = undefined\nexport const pushAvailable = false\n',
+    })
+    addTypeTemplate({ filename: 'types/shifts-push.d.ts', getContents: () => SHIFTS_PUSH_MODULE_TYPES }, { nuxt: true, nitro: true })
+    if (hasNuxtModule('@frigear-nu/push')) {
+      const { extendNotificationTopics } = await import('@frigear-nu/push/utils')
+      extendNotificationTopics(nuxt, shiftsNotificationTopics)
     }
 
     // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).

@@ -391,7 +391,7 @@ export type ShiftBroadcastContext = { event: H3Event, broadcast: ShiftBroadcastD
 export type ShiftPerkContext = { event: H3Event, perk: ShiftPerkDto, redemption: ShiftPerkRedemptionDto }
 
 /** How a reminder or broadcast reaches people. */
-export type ShiftChannel = 'email' | 'sms'
+export type ShiftChannel = 'email' | 'sms' | 'push'
 
 /** The state of my calendar feed (`GET /api/shifts/me/feed-token`): the secret itself is never shown again. */
 export type ShiftFeedStatusDto = {
@@ -433,7 +433,7 @@ export type ShiftBroadcastDto = {
 
 /** The answer of sending a broadcast: what was stored and how many messages went out per channel (once delivered). */
 export type ShiftBroadcastResultDto = ShiftBroadcastDto & {
-  sent: { email: number, sms: number }
+  sent: { email: number, sms: number, push: number }
   /** `done`: delivered before the answer. `queued`: handed to the platform's `waitUntil`, so `sent` is not known yet (zeros). */
   delivery: 'done' | 'queued'
 }

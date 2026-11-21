@@ -11,6 +11,8 @@ import { shiftsChunk } from '../../utils/chunk'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { buildShiftBroadcastEmail, buildShiftBroadcastSms } from '../reminder-email'
 import { toShiftBroadcastDto } from './shifts-dto'
+import { shiftsNotify } from './shifts-notify'
+import { SHIFTS_TOPICS } from '../../notifications'
 import { findShiftEntry, shiftsFire, shiftsLocalesOfMany, shiftsOperationTeamOr400, shiftsUsersById } from './shifts-core'
 import type { shiftsBroadcastInput } from './shifts-schemas'
 
@@ -104,37 +106,34 @@ export async function shiftsSendBroadcast(event: H3Event, input: BroadcastInput,
   }).returning()
   const broadcast = toShiftBroadcastDto(row!)
 
-  const sent = { email: 0, sms: 0 }
-  const failed = { email: 0, sms: 0 }
+  const sent = { email: 0, sms: 0, push: 0 }
+  const failed = { email: 0, sms: 0, push: 0 }
   const deliver = async (recipient: ShiftsBroadcastRecipient) => {
     const user = users.get(recipient.userId)
     const locale = locales.get(`${recipient.userId}:${recipient.teamId}`) ?? 'en'
     const subject = translate(input.subject as Translated, locale, 'en')
     const message = translate(input.message as Translated, locale, 'en')
-    if (input.channels.includes('email')) {
-      const email = buildShiftBroadcastEmail({ email: user?.email ?? null, name: user?.name ?? '', subject, message, locale })
-      if (email) {
-        await dispatchEmailNotification(email).then(() => sent.email++).catch((error: unknown) => {
-          failed.email++
-          console.error(`[shifts] the broadcast ${row!.id} could not be emailed to user ${recipient.userId}`, error)
-        })
-      }
-    }
-    if (input.channels.includes('sms')) {
-      const sms = buildShiftBroadcastSms({ phone: user?.phone ?? null, subject, message })
-      if (sms) {
-        await dispatchSMSNotification(sms).then(() => sent.sms++).catch((error: unknown) => {
-          failed.sms++
-          console.error(`[shifts] the broadcast ${row!.id} could not be texted to user ${recipient.userId}`, error)
-        })
-      }
-    }
+    // The email and the text only when the sender chose them (SMS costs money, so it is opt-in per broadcast). With push
+    // installed the person's own choice for the `shifts.broadcast` topic decides on top of that, and the push notification
+    // goes out too when they have it on.
+    const email = input.channels.includes('email') ? buildShiftBroadcastEmail({ email: user?.email ?? null, name: user?.name ?? '', subject, message, locale }) : null
+    const sms = input.channels.includes('sms') ? buildShiftBroadcastSms({ phone: user?.phone ?? null, subject, message }) : null
+    const { channels, failed: lost } = await shiftsNotify(event, recipient.userId, {
+      topic: SHIFTS_TOPICS.broadcast,
+      email,
+      sms,
+      // A notification on the phone belongs with the email: a sender who only ticked SMS did not ask for one.
+      push: input.channels.includes('email') ? { title: subject, body: message.length > 200 ? `${message.slice(0, 197)}...` : message } : undefined,
+      label: `the broadcast ${row!.id} to user ${recipient.userId}`,
+    })
+    for (const channel of channels) sent[channel]++
+    for (const channel of lost) failed[channel]++
   }
   const run = async () => {
     for (let index = 0; index < recipients.length; index += 10) {
       await Promise.all(recipients.slice(index, index + 10).map(deliver))
     }
-    console.info(`[shifts] broadcast ${row!.id} delivered: ${sent.email} emails and ${sent.sms} texts sent, ${failed.email} emails and ${failed.sms} texts failed`)
+    console.info(`[shifts] broadcast ${row!.id} delivered: ${sent.email} emails, ${sent.sms} texts and ${sent.push} pushes sent, ${failed.email} emails, ${failed.sms} texts and ${failed.push} pushes failed`)
     await shiftsFire('shifts:broadcast:sent', { event, broadcast })
   }
   const waitUntil = shiftsWaitUntil(event)

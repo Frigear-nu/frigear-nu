@@ -195,6 +195,18 @@ await notifyUser(event, userId, { topic: 'shifts.reminder', email: { subject, bo
 - **SMS and email** go through the drivers of [Notify](/modules/platform/notify). The host app picks them.
 - A module that only sends when Push is installed checks `hasNuxtModule('@frigear-nu/push')` and registers its topics
   then. The helpers are server auto-imports where Push is installed.
+- **Without Push the module keeps sending itself.** Each module has one small helper at its send sites (`shiftsNotify`,
+  `crewSend`, `helpCenterDeliver`). It calls `notifyUser` when Push is installed and `dispatchEmailNotification` and
+  `dispatchSMSNotification` when it is not, through a server module `#<module>/push` that a build generates (`notifyUser` is
+  `undefined` there when Push is absent).
+
+| Topic | Module | Offers | Default on | Send site |
+| --- | --- | --- | --- | --- |
+| `shifts.reminder` | shifts | email, SMS, push | email, push | The `shifts:send-reminders` task. SMS needs `reminders.sms` and the person's choice. |
+| `shifts.swap` | shifts | email, push | email, push | The swap emails. |
+| `shifts.broadcast` | shifts | email, SMS, push | email, push | Broadcasts. SMS needs the sender's `sms` channel and the person's choice. |
+| `crew.status` | crew | email, push | email, push | The status email of an application. |
+| `help-center.send` | help-center | email, push | email, push | Sending articles. A send's SMS channel is still sent directly. |
 
 ## Hooks
 

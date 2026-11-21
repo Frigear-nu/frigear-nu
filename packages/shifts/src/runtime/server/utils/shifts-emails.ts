@@ -4,6 +4,8 @@ import { translate } from '../../utils'
 import { buildShiftSwapEmail } from '../swap-email'
 import type { ShiftSwapEmailKind } from '../swap-email'
 import { shiftsConfig, shiftsLocaleOf, shiftsUsersById } from './shifts-core'
+import { shiftsNotify } from './shifts-notify'
+import { SHIFTS_TOPICS } from '../../notifications'
 
 let shiftsWarnedNoOrigin = false
 
@@ -51,7 +53,7 @@ export async function shiftsSendSwapEmail(event: H3Event, kind: ShiftSwapEmailKi
       url: path && origin ? `${origin}${path}` : undefined,
       locale,
     })
-    if (notification) await dispatchEmailNotification(notification)
+    if (notification) await shiftsNotify(event, to, { topic: SHIFTS_TOPICS.swap, email: notification, label: `the "${kind}" swap message` })
   }
   catch (error) {
     console.error(`[shifts] the "${kind}" swap email could not be sent`, error)

@@ -3,6 +3,7 @@ import type { EmailNotification } from '@frigear-nu/notify/types'
 import type { CrewMemberDto, CrewStatus, Translated } from '../../../types'
 import { CREW_STATUS_LABELS, translate } from '../../utils'
 import type { CrewSettingsRow } from './crew-settings'
+import { crewSend } from './crew-send'
 
 const escapeHtml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -71,14 +72,16 @@ export function buildCrewStatusEmail(input: {
 }
 
 /**
- * Emails a person that their crew status changed (`crew-status-<status>` template, overridable per operation). A failing
- * email never fails the change itself: it is logged.
+ * Tells a person that their crew status changed (`crew-status-<status>` template, overridable per operation, and turned off
+ * per status with `enabled: false`): by email, and with `@frigear-nu/push` installed through `notifyUser` on the
+ * `crew.status` topic, so they get it on the channels they chose. A failing send never fails the change itself: it is logged.
  */
-export async function crewSendStatusEmail(event: H3Event, input: Omit<Parameters<typeof buildCrewStatusEmail>[0], 'statusUrl'>): Promise<void> {
+export async function crewSendStatusEmail(event: H3Event, input: Omit<Parameters<typeof buildCrewStatusEmail>[0], 'statusUrl'> & { userId: number }): Promise<void> {
   try {
+    const { userId, ...rest } = input
     const statusPath = (useRuntimeConfig(event).public.crew as { pages?: { status?: string } } | undefined)?.pages?.status
-    const notification = buildCrewStatusEmail({ ...input, statusUrl: statusPath ? `${configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin}${statusPath}` : undefined })
-    if (notification) await dispatchEmailNotification(notification)
+    const notification = buildCrewStatusEmail({ ...rest, statusUrl: statusPath ? `${configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin}${statusPath}` : undefined })
+    if (notification) await crewSend(event, userId, notification)
   }
   catch (error) {
     console.error(`[crew] the "${input.status}" email could not be sent`, error)
