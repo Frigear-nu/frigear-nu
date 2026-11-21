@@ -10,8 +10,8 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The only package that exists today is [Audience](/modules/volunteering/audience), the shared visibility rules. Every
-other module adds its own page to this group in the pull request that adds the module.
+[Audience](/modules/volunteering/audience), the shared visibility rules, and [Maps](/modules/volunteering/maps) exist
+today. Every other module adds its own page to this group in the pull request that adds the module.
 
 ## The modules
 
@@ -25,7 +25,7 @@ other module adds its own page to this group in the pull request that adds the m
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
-| `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
+| [`@frigear-nu/maps`](/modules/volunteering/maps) | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
 | [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
 
@@ -70,8 +70,9 @@ the `audience:owner:resolve` hook with the owner's label and whether it exists:
 | `platform` | nobody: there is one platform, and the consumer labels it itself |
 
 The hook answers no access questions. A consumer such as maps checks access with
-`authorize(event, 'maps:edit', map)`, and the owning module adds a [policy](/guide/concepts/glossary) for its owner
-type: operations lets an operation's coordinators edit that operation's maps. No consumer imports an owner module.
+`authorize(event, 'maps:edit', map)`, and the owning module answers the consumer's own hook for its owner type:
+operations sets `allowed` in `maps:edit:resolve` for an operation's coordinators, teams for a team's leads. No consumer
+imports an owner module.
 
 ## Visibility
 
@@ -207,6 +208,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
 | `maps:seed:resolve` | maps | `{ event, maps }` | 5 |
+| `maps:edit:resolve` | maps | `{ event, user, map, allowed }` | 5 |
 | `maps:feature:created` | maps | `{ event, map, feature }` | 5 |
 | `maps:feature:updated` | maps | `{ event, map, feature, previous }` | 5 |
 | `maps:feature:deleted` | maps | `{ event, map, feature }` | 5 |
@@ -217,8 +219,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
   know. Crew's presets are plain `team_role_mappings` rows instead.
-- **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
-  To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
+- **`maps:seed:resolve`.** Listeners push map definitions into `maps` on the first request, and maps creates the
+  missing ones. To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
+- **`maps:edit:resolve`.** Asked when a caller holds neither `maps:manage` nor the map kind's `editPermission`. The
+  module that owns the map's owner type sets `allowed = true` for its leads; it never needs to import maps.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through
   `oauth:claims`. Dashboard items are filtered by the client-side `widgets:filter`.
 
