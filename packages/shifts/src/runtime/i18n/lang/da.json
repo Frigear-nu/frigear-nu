@@ -189,6 +189,18 @@
       "superseded": "Ikke valgt",
       "withdrawn": "Trukket tilbage"
     },
+    "permissions": {
+      "lead": "Led vagter",
+      "leadDescription": "Tjek folk ind, registrér fremmøde og godkend bytter på de hold, du leder.",
+      "manage": "Administrér vagter",
+      "manageDescription": "Opret og offentliggør vagtplaner, opret vagter i bulk, sæt folk på og håndtér alle bytter.",
+      "pii": "Se kontaktoplysninger for folk på vagt",
+      "piiDescription": "Se e-mailadresse og telefonnummer for folk på en vagt.",
+      "read": "Se vagter",
+      "readDescription": "Se dine egne vagter, og hvem der er på vagt nu i de operationer, du arbejder på.",
+      "swap": "Byt vagter",
+      "swapDescription": "Sæt dine egne vagter til bytte, og tilbyd at tage andres."
+    },
     "scanner": {
       "already": "{name} var allerede tjekket ind",
       "alreadyAt": "Kl. {time}, vagt {when}",
@@ -207,6 +219,9 @@
       "shift": "Vagt {when}",
       "title": "Check-in",
       "unknown": "Ukendt kode for dette hold"
+    },
+    "scopes": {
+      "shifts": "Vagter"
     },
     "shift": {
       "acceptOffer": "Acceptér tilbud",

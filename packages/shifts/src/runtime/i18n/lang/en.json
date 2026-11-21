@@ -189,6 +189,18 @@
       "superseded": "Not chosen",
       "withdrawn": "Withdrawn"
     },
+    "permissions": {
+      "lead": "Lead shifts",
+      "leadDescription": "Check people in, mark attendance and approve swaps on the teams you lead.",
+      "manage": "Manage shifts",
+      "manageDescription": "Create and publish schedules, create shifts in bulk, assign people and handle every swap.",
+      "pii": "See the contact details of people on shift",
+      "piiDescription": "See the email address and phone number of the people on a shift.",
+      "read": "Read shifts",
+      "readDescription": "See your own shifts, and who is on shift now in the operations you work at.",
+      "swap": "Swap shifts",
+      "swapDescription": "Offer your own shifts for a swap, and offer to take other people's."
+    },
     "scanner": {
       "already": "{name} was checked in already",
       "alreadyAt": "At {time}, shift {when}",
@@ -207,6 +219,9 @@
       "shift": "Shift {when}",
       "title": "Check in",
       "unknown": "Unknown code for this team"
+    },
+    "scopes": {
+      "shifts": "Shifts"
     },
     "shift": {
       "acceptOffer": "Accept offer",

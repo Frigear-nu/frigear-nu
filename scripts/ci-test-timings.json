@@ -85,6 +85,12 @@
     "test/unit/schemas.test.ts": 1,
     "test/unit/status.test.ts": 1
   },
+  "@frigear-nu/shifts": {
+    "test/authenticated.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/guards.test.ts": 1,
+    "test/unit/time.test.ts": 1
+  },
   "@frigear-nu/email-templates": {
     "test/email-templates.test.ts": 24
   },
