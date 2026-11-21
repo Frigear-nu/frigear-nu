@@ -1,0 +1,45 @@
+{
+  "dashboard": {
+    "home": {
+      "label": "Home"
+    },
+    "edit": {
+      "start": "Customise dashboard",
+      "done": "Done",
+      "sessionOnly": "Changes last until you reload the page."
+    },
+    "reset": {
+      "button": "Reset layout",
+      "title": "Reset layout?",
+      "description": "Restores the default order and shows every hidden item. Collapsed items open again.",
+      "confirm": "Reset layout"
+    },
+    "item": {
+      "expand": "Expand {title}",
+      "collapse": "Collapse {title}",
+      "moveUp": "Move {title} up",
+      "moveDown": "Move {title} down",
+      "hide": "Hide {title}",
+      "error": "{title} could not be loaded.",
+      "errorHint": "Something went wrong. Try again in a moment.",
+      "retry": "Try again"
+    },
+    "hidden": {
+      "title": "Hidden items",
+      "show": "Show {title}"
+    },
+    "allHidden": {
+      "title": "Every item is hidden",
+      "description": "Show the items you want to see again."
+    },
+    "empty": {
+      "title": "Nothing here yet",
+      "description": "Items appear here when the modules that add them are installed."
+    },
+    "error": "The dashboard could not be loaded.",
+    "save": {
+      "error": "Your dashboard layout could not be saved."
+    },
+    "retry": "Try again"
+  }
+}

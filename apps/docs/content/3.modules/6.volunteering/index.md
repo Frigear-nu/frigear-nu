@@ -23,8 +23,8 @@ module.
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
-| `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
-| `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
+| [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
+| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
@@ -228,10 +228,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
   rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
   explicit memberships and teams' own role rules still count.
-- **Teams hooks and crew.** Teams fires `teams:member:*` from its own admin routes, once per row change. Crew changes
-  `team_members` rows itself and fires the same hooks with the same payloads, but when a **grant** starts or stops, not on
-  every row change: `added` when an approved person starts to hold a role, `removed` when they stop, `role-changed` when
-  an approved person's role changes. An applicant's row (`pending`) has no grant, so it fires nothing in Teams.
+- **`teams:member:*`.** They follow the grant of an explicit membership, not the row: `added` when it starts granting
+  (added with `status` null or `'active'`, or its status became one of those), `removed` when it stops (removed while
+  granting, or its status left them), `role-changed` for a role change while it grants. Crew fires on the same
+  transitions, so an applicant's `pending` row (applied or waitlisted) fires nothing. Mapped grants fire none of them.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
@@ -268,8 +268,10 @@ type DashboardItem = WidgetDefinition & {
 - The client `widgets:filter` hook keeps hiding items by `permission`.
 - Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`. Dashboard declares
   it with `definePreferences` (a zod schema of
-  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`) and registers it with
-  `addUserPreferences(nuxt, { path })` when Preferences is installed. Without Preferences the registered order applies.
+  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[], settings? }>`, where `settings`
+  holds per-item settings by item id) and registers it with `addUserPreferences(nuxt, { path })` when Preferences is
+  installed. Without Preferences, or signed out, changes last for the session and the registered order applies after a
+  reload. See [Dashboard](/modules/volunteering/dashboard#per-user-layout).
 
 A module adds items only when dashboard is installed:
 
@@ -296,12 +298,13 @@ registries, so each module also works alone. Arrows point one way: a lower modul
 ```text
 audience    (plain package, no Nuxt module)
 
-dashboard   ─► widget, menu, auth                    (soft: preferences, mobile, admin)
+dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
 operations  ─► auth, audience                        (soft: events, maps, dashboard)
 teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, menu, audience                  (soft: forms, teams, crew, operations, mobile, dashboard)
+faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
+                                                            dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu)
 maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
