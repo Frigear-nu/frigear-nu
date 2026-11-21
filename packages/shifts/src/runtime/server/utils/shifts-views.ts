@@ -69,7 +69,7 @@ export async function shiftsMyShiftDtos(rows: ShiftAssignmentEntry[]): Promise<M
  * The leads (BA and up) of a team who hold a place on one of its shifts overlapping `[startsAt, endsAt)`, names only.
  * `exclude` leaves a person out (yourself).
  */
-export async function shiftsLeadsOnDuty(event: H3Event, teamId: string, startsAt: Date, endsAt: Date, exclude?: number): Promise<ShiftPersonDto[]> {
+export async function shiftsLeadsOnDuty(event: H3Event | undefined, teamId: string, startsAt: Date, endsAt: Date, exclude?: number): Promise<ShiftPersonDto[]> {
   const rows = await db.select({ userId: schema.shiftAssignments.userId }).from(schema.shiftAssignments)
     .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
     .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
@@ -106,7 +106,7 @@ export async function shiftsMyShiftDetail(event: H3Event, entry: ShiftAssignment
  * The QR pass of an assignment: the code (and its QR code as SVG) only while check-in is open and the assignment holds a
  * place. The perks are added by the route (`shiftsPassPerks`).
  */
-export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks'> {
+export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks' | 'checkIn'> {
   const { opensAt, closesAt } = shiftsPassWindow(event, entry.shift)
   const available = (entry.assignment.status === 'assigned' || entry.assignment.status === 'attended') && shiftsCheckInOpen(event, entry.shift)
   return {

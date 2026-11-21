@@ -13,7 +13,7 @@ export async function registerUser(name: string, email: string) {
   return { cookie: response.headers.get('set-cookie')!, id: Number(body.id), email, name }
 }
 
-export type HookEntry = { name: string, userId?: number, assignmentId?: string, shiftId?: string, swapId?: string, offerId?: string, scheduleId?: string, status?: string, previousUserId?: number | null, previousStatus?: string | null, by?: number, offset?: number, channels?: string[], eventless?: boolean, broadcastId?: string, recipientCount?: number, perkId?: string, redemptionId?: string, kind?: string }
+export type HookEntry = { name: string, userId?: number, assignmentId?: string, shiftId?: string, swapId?: string, offerId?: string, scheduleId?: string, status?: string, previousUserId?: number | null, previousStatus?: string | null, by?: number | null, offset?: number, channels?: string[], eventless?: boolean, broadcastId?: string, recipientCount?: number, perkId?: string, grantId?: string, kind?: string, auto?: boolean, method?: string, items?: string[] }
 
 /** Every shifts hook that fired, in order (fixture-only route). */
 export const getHooks = () => $fetch<HookEntry[]>('/api/test/hooks')
@@ -44,3 +44,11 @@ export const getSmsTo = (to: string) => $fetch<SmsEntry[]>('/api/test/sms', { qu
 
 /** The emails notify was asked to deliver to an address, in order (fixture-only route). */
 export const getEmailsTo = (to: string) => $fetch<EmailEntry[]>('/api/test/emails', { query: { to } })
+
+/** Runs the `shifts:close-shifts` task with a fake `now` and no request, like the scheduler (fixture-only route). */
+export const runCloseShifts = (now: string, extra: { batchSize?: number } = {}) =>
+  $fetch<{ closed: number, granted: number, noShows: number, digests: number, exceptions: number }>('/api/test/close-shifts', { method: 'POST', body: { now, ...extra } })
+
+/** Mints a station token for a window (fixture-only route): `offset` windows from now, or a forged one. */
+export const stationToken = (stationId: string, offset = 0) =>
+  $fetch<{ token: string }>('/api/test/station-token', { method: 'POST', body: { stationId, offset } })

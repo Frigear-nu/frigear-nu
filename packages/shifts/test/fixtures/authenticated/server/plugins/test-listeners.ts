@@ -19,6 +19,7 @@ export default defineNitroPlugin((nitro) => {
       status: ctx.assignment.status,
       previousUserId: ctx.previous?.userId ?? null,
       previousStatus: ctx.previous?.status ?? null,
+      auto: ctx.auto,
     })
   })
   for (const name of ['offered', 'accepted', 'rejected', 'completed'] as const) {
@@ -27,7 +28,7 @@ export default defineNitroPlugin((nitro) => {
     })
   }
   nitro.hooks.hook('shifts:attendance:marked', (ctx) => {
-    testHooks.push({ name: 'attendance:marked', assignmentId: ctx.assignment.id, userId: ctx.assignment.userId, status: ctx.assignment.status, by: ctx.by })
+    testHooks.push({ name: 'attendance:marked', assignmentId: ctx.assignment.id, userId: ctx.assignment.userId, status: ctx.assignment.status, by: ctx.by, auto: ctx.auto, method: ctx.method, eventless: ctx.event === undefined })
   })
   nitro.hooks.hook('shifts:reminder:sent', (ctx) => {
     testHooks.push({ name: 'reminder:sent', assignmentId: ctx.assignment.id, userId: ctx.assignment.userId, offset: ctx.offset, channels: ctx.channels, eventless: ctx.event === undefined })
@@ -35,8 +36,13 @@ export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('shifts:broadcast:sent', (ctx) => {
     testHooks.push({ name: 'broadcast:sent', broadcastId: ctx.broadcast.id, by: ctx.broadcast.sentBy, channels: ctx.broadcast.channels, recipientCount: ctx.broadcast.recipientCount })
   })
-  nitro.hooks.hook('shifts:perk:redeemed', (ctx) => {
-    testHooks.push({ name: 'perk:redeemed', perkId: ctx.perk.id, redemptionId: ctx.redemption.id, assignmentId: ctx.redemption.assignmentId, userId: ctx.redemption.userId, by: ctx.redemption.redeemedBy })
+  for (const name of ['granted', 'revoked'] as const) {
+    nitro.hooks.hook(`shifts:perk:${name}`, (ctx) => {
+      testHooks.push({ name: `perk:${name}`, perkId: ctx.perkId, grantId: ctx.grantId, assignmentId: ctx.assignmentId, userId: ctx.userId })
+    })
+  }
+  nitro.hooks.hook('shifts:digest:sent', (ctx) => {
+    testHooks.push({ name: 'digest:sent', userId: ctx.userId, items: ctx.items.map(item => `${item.kind}:${item.assignmentId}`), channels: ctx.channels })
   })
   nitro.hooks.hook('notify:email', (ctx) => {
     const { to, subject, body, text, template } = ctx.notification

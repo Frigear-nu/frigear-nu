@@ -3,9 +3,10 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, desc, eq, gte, inArray, lt, ne } from 'drizzle-orm'
 import type { z } from 'zod'
 import { apiError, validationError } from '@frigear-nu/module-kit/server'
-import type { ShiftCopyResultDto, ShiftDto, ShiftScheduleDto, ShiftWithAssigneesDto, Translated } from '../../../types'
+import type { ShiftCheckInSettings, ShiftCopyResultDto, ShiftDto, ShiftScheduleDto, ShiftWithAssigneesDto, Translated } from '../../../types'
 import { newId } from '../../utils'
 import { validScheduleSettings } from '../../utils/settings'
+import { shiftsChunk } from '../../utils/chunk'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { shiftByDays, slotInstants } from '../../utils/time'
 import { toShiftDto, toShiftRoleDto, toShiftScheduleDto } from './shifts-dto'
@@ -62,8 +63,30 @@ export async function shiftsCreateSchedule(input: ScheduleInput): Promise<ShiftS
     minPerShift: input.minPerShift ?? null,
     maxPerShift: input.maxPerShift ?? null,
     guards: cleanGuards(input.guards),
+    checkIn: input.checkIn ? await shiftsCleanCheckIn(input.operationId, input.checkIn) : null,
+    autoNoShow: input.autoNoShow,
+    autoNoShowMinutes: input.autoNoShowMinutes,
   }).returning()
   return row!
+}
+
+/** Check-in settings to store: the team overrides must name teams of the operation (400 on `checkIn.teams`). */
+async function shiftsCleanCheckIn(operationId: string, checkIn: NonNullable<ScheduleInput['checkIn']>): Promise<ShiftCheckInSettings> {
+  const teamIds = Object.keys(checkIn.teams ?? {})
+  if (teamIds.length) {
+    const known = new Set((await Promise.all(shiftsChunk(teamIds).map(part => db.select({ id: schema.teams.id }).from(schema.teams).where(and(
+      inArray(schema.teams.id, part),
+      eq(schema.teams.ownerType, 'operation'),
+      eq(schema.teams.ownerId, operationId),
+    ))))).flat().map(row => row.id))
+    const unknown = teamIds.find(id => !known.has(id))
+    if (unknown) throw validationError([{ path: ['checkIn', 'teams', unknown], message: 'The team must belong to the schedule\'s operation.' }], 'Unknown team')
+  }
+  return {
+    modes: checkIn.modes,
+    ...(checkIn.location ? { location: checkIn.location } : {}),
+    ...(teamIds.length ? { teams: checkIn.teams } : {}),
+  }
 }
 
 /**
@@ -81,6 +104,9 @@ export async function shiftsPatchSchedule(existing: ShiftScheduleRow, patch: Sch
   if (patch.minPerShift !== undefined) values.minPerShift = patch.minPerShift
   if (patch.maxPerShift !== undefined) values.maxPerShift = patch.maxPerShift
   if (patch.guards !== undefined) values.guards = cleanGuards(patch.guards)
+  if (patch.checkIn !== undefined) values.checkIn = patch.checkIn ? await shiftsCleanCheckIn(existing.operationId, patch.checkIn) : null
+  if (patch.autoNoShow !== undefined) values.autoNoShow = patch.autoNoShow
+  if (patch.autoNoShowMinutes !== undefined) values.autoNoShowMinutes = patch.autoNoShowMinutes
   const min = values.minPerShift !== undefined ? values.minPerShift : existing.minPerShift
   const max = values.maxPerShift !== undefined ? values.maxPerShift : existing.maxPerShift
   if (min != null && max != null && max < min) throw validationError([{ path: ['maxPerShift'], message: 'The maximum must be at least the minimum.' }])
@@ -105,27 +131,34 @@ export async function shiftsPublishSchedule(event: H3Event, existing: ShiftSched
 /** Whether any of the shifts holds a person (`assigned`, `attended` or `no_show`): history staff must not lose. */
 async function shiftsHaveAttendance(shiftIds: string[]): Promise<boolean> {
   if (!shiftIds.length) return false
-  const [row] = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments)
-    .where(and(inArray(schema.shiftAssignments.shiftId, shiftIds), ne(schema.shiftAssignments.status, 'cancelled'))).limit(1)
-  return !!row
+  for (const part of shiftsChunk(shiftIds)) {
+    const [row] = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments)
+      .where(and(inArray(schema.shiftAssignments.shiftId, part), ne(schema.shiftAssignments.status, 'cancelled'))).limit(1)
+    if (row) return true
+  }
+  return false
 }
 
-/** Removes shifts and everything hanging off them (cancelled assignments, their swaps and offers). */
+/**
+ * Removes shifts and everything hanging off them (cancelled assignments, their swaps and offers, reminders, perk grants
+ * and digest claims). Every lookup and delete by a list of ids runs in chunks below D1's 100 bound parameters.
+ */
 async function shiftsDeleteShiftRows(shiftIds: string[]): Promise<void> {
   if (!shiftIds.length) return
-  const assignments = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(inArray(schema.shiftAssignments.shiftId, shiftIds))
-  const assignmentIds = assignments.map(row => row.id)
+  const each = async <T>(ids: string[], run: (part: string[]) => Promise<T>) => (await Promise.all(shiftsChunk(ids).map(run)))
+  const assignmentIds = (await each(shiftIds, part => db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(inArray(schema.shiftAssignments.shiftId, part)))).flat().map(row => row.id)
   if (assignmentIds.length) {
-    const swaps = await db.select({ id: schema.shiftSwaps.id }).from(schema.shiftSwaps).where(inArray(schema.shiftSwaps.assignmentId, assignmentIds))
-    if (swaps.length) {
-      await db.delete(schema.shiftSwapOffers).where(inArray(schema.shiftSwapOffers.swapId, swaps.map(row => row.id)))
-      await db.delete(schema.shiftSwaps).where(inArray(schema.shiftSwaps.id, swaps.map(row => row.id)))
+    const swapIds = (await each(assignmentIds, part => db.select({ id: schema.shiftSwaps.id }).from(schema.shiftSwaps).where(inArray(schema.shiftSwaps.assignmentId, part)))).flat().map(row => row.id)
+    if (swapIds.length) {
+      await each(swapIds, part => db.delete(schema.shiftSwapOffers).where(inArray(schema.shiftSwapOffers.swapId, part)))
+      await each(swapIds, part => db.delete(schema.shiftSwaps).where(inArray(schema.shiftSwaps.id, part)))
     }
-    await db.delete(schema.shiftReminders).where(inArray(schema.shiftReminders.assignmentId, assignmentIds))
-    await db.delete(schema.shiftPerkRedemptions).where(inArray(schema.shiftPerkRedemptions.assignmentId, assignmentIds))
-    await db.delete(schema.shiftAssignments).where(inArray(schema.shiftAssignments.id, assignmentIds))
+    await each(assignmentIds, part => db.delete(schema.shiftReminders).where(inArray(schema.shiftReminders.assignmentId, part)))
+    await each(assignmentIds, part => db.delete(schema.shiftPerkGrants).where(inArray(schema.shiftPerkGrants.assignmentId, part)))
+    await each(assignmentIds, part => db.delete(schema.shiftDigestItems).where(inArray(schema.shiftDigestItems.assignmentId, part)))
+    await each(assignmentIds, part => db.delete(schema.shiftAssignments).where(inArray(schema.shiftAssignments.id, part)))
   }
-  await db.delete(schema.shifts).where(inArray(schema.shifts.id, shiftIds))
+  await each(shiftIds, part => db.delete(schema.shifts).where(inArray(schema.shifts.id, part)))
 }
 
 /** Deletes a schedule with its roles and shifts. 409 `schedule_in_use` while people are (or were) on its shifts. */
@@ -134,6 +167,7 @@ export async function shiftsDeleteSchedule(existing: ShiftScheduleRow): Promise<
   if (await shiftsHaveAttendance(shiftIds)) throw apiError(409, 'schedule_in_use', 'People are assigned to shifts of this schedule. Cancel their assignments first.')
   await shiftsDeleteShiftRows(shiftIds)
   await db.delete(schema.shiftRoles).where(eq(schema.shiftRoles.scheduleId, existing.id))
+  await db.delete(schema.shiftStations).where(eq(schema.shiftStations.scheduleId, existing.id))
   await db.delete(schema.shiftSchedules).where(eq(schema.shiftSchedules.id, existing.id))
 }
 

@@ -8,8 +8,8 @@ import { $fetch, computed, reactive, useAction, useModuleT, useShiftsTranslate }
 
 defineOptions({ name: 'ShiftPerkSlideover' })
 
-// A perk of an operation: a meal or drink voucher for one team or all of them, as an allowance per shift or a budget per
-// person across the whole operation. Opened by `useShiftsActions()`; closes with the saved perk, or `false`.
+// A perk of an operation, for one team or all of them: every attended shift earns `quantity` of `voucherType`, which the
+// vouchers app hands out. Opened by `useShiftsActions()`; closes with the saved perk, or `false`.
 const props = defineProps<{ operationId: string, teams: ShiftsTeamOption[], perk?: ShiftPerkDto }>()
 const emit = defineEmits<{ close: [saved: ShiftPerkDto | false] }>()
 
@@ -20,35 +20,23 @@ const { busy, run } = useAction()
 const ALL = '__all__'
 const schema = z.object({
   name: z.custom<Translated>(value => !!value && (typeof value === 'string' ? !!value.trim() : Object.values(value as Record<string, string>).some(text => text?.trim())), t('perks.nameRequired', 'Give the perk a name.')),
-  kind: z.enum(['meal', 'drink', 'other']),
+  voucherType: z.string().trim().min(1, t('perks.voucherTypeRequired', 'Name the voucher type, e.g. beer.')).max(64),
   teamId: z.string(),
-  per: z.enum(['perShift', 'perPerson']),
-  amount: z.number().int().min(1, t('perks.amountMin', 'At least 1.')).max(1000),
+  quantity: z.number().int().min(1, t('perks.amountMin', 'At least 1.')).max(1000),
 })
 type State = z.output<typeof schema>
 const state = reactive<State>({
   name: props.perk?.name ?? '',
-  kind: props.perk?.kind ?? 'meal',
+  voucherType: props.perk?.voucherType ?? '',
   teamId: props.perk?.teamId ?? ALL,
-  per: props.perk?.perPerson != null ? 'perPerson' : 'perShift',
-  amount: props.perk?.perShift ?? props.perk?.perPerson ?? 1,
+  quantity: props.perk?.quantity ?? 1,
 })
 
-const kindOptions = computed(() => [
-  { label: t('perks.kinds.meal', 'Meal'), value: 'meal' },
-  { label: t('perks.kinds.drink', 'Drink'), value: 'drink' },
-  { label: t('perks.kinds.other', 'Other'), value: 'other' },
-])
 const teamOptions = computed(() => [{ label: t('admin.allTeams', 'All teams'), value: ALL }, ...props.teams.map(team => ({ label: tr(team.name), value: team.id }))])
-const perOptions = computed(() => [
-  { label: t('perks.perShift', 'Per shift'), description: t('perks.perShiftHelp', 'Each assignment gets this many.'), value: 'perShift' },
-  { label: t('perks.perPerson', 'Per person'), description: t('perks.perPersonHelp', 'Each person gets this many across the whole operation.'), value: 'perPerson' },
-])
 
 async function save(event: FormSubmitEvent<State>) {
   const { data } = event
-  const allowance = data.per === 'perShift' ? { perShift: data.amount } : { perPerson: data.amount }
-  const body = { name: data.name, kind: data.kind, teamId: data.teamId === ALL ? null : data.teamId, ...allowance }
+  const body = { name: data.name, voucherType: data.voucherType, quantity: data.quantity, teamId: data.teamId === ALL ? null : data.teamId }
   const saved = await run(
     () => props.perk
       ? $fetch<ShiftPerkDto>(shiftsApi.admin.perk(props.perk.id), { method: 'PATCH', body })
@@ -63,7 +51,7 @@ async function save(event: FormSubmitEvent<State>) {
   <FormSlideover
     form-id="shift-perk-form"
     :title="perk ? t('perks.editTitle', 'Edit perk') : t('perks.newTitle', 'New perk')"
-    :description="t('perks.description', 'A meal or drink a lead hands out by scanning a volunteer\'s check-in pass.')"
+    :description="t('perks.description', 'What a volunteer earns for every shift they attend. The vouchers app hands it out.')"
     :submit-label="perk ? t('perks.save', 'Save perk') : t('perks.create', 'Add perk')"
     :loading="busy"
     @close="emit('close', false)"
@@ -86,44 +74,37 @@ async function save(event: FormSubmitEvent<State>) {
         />
       </UFormField>
       <UFormField
-        name="kind"
-        :label="t('perks.kind', 'Kind')"
+        name="voucherType"
+        :label="t('perks.voucherType', 'Voucher type')"
+        :description="t('perks.voucherTypeHelp', 'What the vouchers app hands out, e.g. beer or meal.')"
+        required
       >
-        <USelect
-          v-model="state.kind"
-          :items="kindOptions"
+        <UInput
+          v-model="state.voucherType"
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        name="quantity"
+        :label="t('perks.quantity', 'Per shift')"
+        :description="t('perks.quantityHelp', 'How many one attended shift earns.')"
+        required
+      >
+        <UInputNumber
+          v-model="state.quantity"
+          :min="1"
+          :max="1000"
           class="w-full"
         />
       </UFormField>
       <UFormField
         name="teamId"
         :label="t('admin.team', 'Team')"
-        :description="t('perks.teamHelp', 'Only people on this team can get it.')"
+        :description="t('perks.teamHelp', 'Only shifts of this team earn it.')"
       >
         <USelect
           v-model="state.teamId"
           :items="teamOptions"
-          class="w-full"
-        />
-      </UFormField>
-      <UFormField
-        name="per"
-        :label="t('perks.allowance', 'Allowance')"
-      >
-        <URadioGroup
-          v-model="state.per"
-          :items="perOptions"
-        />
-      </UFormField>
-      <UFormField
-        name="amount"
-        :label="t('perks.amount', 'How many')"
-        required
-      >
-        <UInputNumber
-          v-model="state.amount"
-          :min="1"
-          :max="1000"
           class="w-full"
         />
       </UFormField>

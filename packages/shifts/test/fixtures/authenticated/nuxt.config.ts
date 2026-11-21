@@ -59,5 +59,7 @@ export default defineNuxtConfig({
     // The task is run by a test route with a fake `now`, never by a schedule; SMS is on so the tests can tell it apart
     // from a run that overrides it off.
     reminders: { cron: false, offsets: [1440, 120], sms: true },
+    // The close task too is run by a test route with a fake `now`.
+    automation: { cron: false },
   },
 })
