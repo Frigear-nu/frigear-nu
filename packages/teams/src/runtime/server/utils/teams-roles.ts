@@ -220,7 +220,10 @@ export type TeamMembersOptions = {
   mapped?: boolean
   /** Copy the members' emails into the DTOs (the caller holds `teams:pii`). */
   pii?: boolean
-  /** Keep the membership `status` in the DTOs (the caller manages or leads the team); otherwise it is left out. */
+  /**
+   * `false` leaves the membership `status` out of the DTOs (for a caller who neither manages nor leads the team). The
+   * status is kept by default.
+   */
   status?: boolean
 }
 

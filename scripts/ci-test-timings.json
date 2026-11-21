@@ -91,6 +91,12 @@
     "test/unit/guards.test.ts": 1,
     "test/unit/time.test.ts": 1
   },
+  "@frigear-nu/dashboard": {
+    "test/dashboard.test.ts": 30,
+    "test/unit/layout-persistence.test.ts": 1,
+    "test/unit/layout.test.ts": 1,
+    "test/unit/registry.test.ts": 1
+  },
   "@frigear-nu/email-templates": {
     "test/email-templates.test.ts": 24
   },
@@ -185,6 +191,15 @@
     "test/oauth.test.ts": 44,
     "test/registry.test.ts": 1,
     "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/push": {
+    "test/authenticated.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/delivery.test.ts": 1,
+    "test/unit/device.test.ts": 1,
+    "test/unit/modes.test.ts": 1,
+    "test/unit/providers.test.ts": 1,
+    "test/unit/topics.test.ts": 1
   },
   "@frigear-nu/stripe": {
     "test/authenticated.test.ts": 21,

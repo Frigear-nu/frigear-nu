@@ -32,10 +32,13 @@ on:
           - create-frigear-app
           - cookie-consent
           - crew
+          - dashboard
           - email-templates
           - eslint-config
           - events
+          - faq
           - forms
+          - help-center
           - oauth-resource
           - mcp
           - menu
@@ -46,6 +49,7 @@ on:
           - operations
           - payments
           - preferences
+          - push
           - shifts
           - stripe
           - subscriptions
@@ -91,7 +95,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
           PACKAGES: ${{ inputs.packages }}
           # Every releasable package, in dependency order. Keep in sync with the `package` choices.
-          ALL: '["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","email-templates","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","audience","operations","teams","crew","shifts","oauth-resource","mobile","eslint-config","cli","create-frigear-app"]'
+          ALL: '["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","email-templates","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","audience","operations","teams","faq","crew","help-center","push","shifts","oauth-resource","mobile","dashboard","eslint-config","cli","create-frigear-app"]'
         run: |
           if [ -n "${PACKAGES//[ ,]/}" ]; then
             # A set: the named packages in the order of ALL, failing on a name that is not in it.

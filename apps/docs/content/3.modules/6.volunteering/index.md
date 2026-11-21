@@ -11,9 +11,11 @@ other through hooks and registries instead of imports. This page is for module a
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
 The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
-[Operations](/modules/volunteering/operations), [Teams](/modules/volunteering/teams),
-[Crew](/modules/volunteering/crew) and [Shifts](/modules/volunteering/shifts). Every other module adds its own page to this group in the pull request that adds the
-module.
+[Operations](/modules/volunteering/operations), [Dashboard](/modules/volunteering/dashboard),
+[Teams](/modules/volunteering/teams), [FAQ](/modules/volunteering/faq), [Crew](/modules/volunteering/crew),
+[Help center](/modules/volunteering/help-center), [Push](/modules/volunteering/push) and
+[Shifts](/modules/volunteering/shifts). Every other module adds its own page to this group in the pull request that
+adds the module.
 
 ## The modules
 
@@ -23,10 +25,10 @@ module.
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
 | [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, swaps, attendance and who is on shift now; reminders and an iCal feed next. | A |
-| `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
-| `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
-| `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
-| `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
+| [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
+| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
+| [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
+| [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
 | [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
@@ -174,6 +176,25 @@ type TeamRoleGrant = {
 - Modules that only need visibility never call `resolveTeamRoles`. They call `resolveViewer` and get the grants
   through the hook, so they do not import teams.
 
+## Notifications
+
+A module that tells a person something does not send email, SMS or push itself. It registers a topic at build time and
+calls one helper at run time, and [Push](/modules/volunteering/push) sends on the channels the person chose.
+
+```ts
+// in the module's setup()
+extendNotificationTopics(nuxt, [{ id: 'shifts.reminder', label: { da: 'Vagtpåmindelser', en: 'Shift reminders' }, defaults: { email: true, sms: false, push: true } }])
+
+// in a route or task
+await notifyUser(event, userId, { topic: 'shifts.reminder', email: { subject, body }, sms: { body: text }, push: { title, body: text, url } })
+```
+
+- **Topic ids** are lower case, dot separated and start with the module name: `shifts.reminder`, `inbox.message`.
+- **A topic that is not registered throws**, so a typo fails in development.
+- **SMS and email** go through the drivers of [Notify](/modules/platform/notify). The host app picks them.
+- A module that only sends when Push is installed checks `hasNuxtModule('@frigear-nu/push')` and registers its topics
+  then. The helpers are server auto-imports where Push is installed.
+
 ## Hooks
 
 Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with kebab-case segments.
@@ -201,6 +222,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
+| `help-center:audience:resolve` | help-center | `{ event, audience, userIds }` | 3 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:approved` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:rejected` | crew | `{ event, operationId, member }` | 3 |
@@ -230,10 +252,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
   rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
   explicit memberships and teams' own role rules still count.
-- **Teams hooks and crew.** Teams fires `teams:member:*` from its own admin routes, once per row change. Crew changes
-  `team_members` rows itself and fires the same hooks with the same payloads, but when a **grant** starts or stops, not on
-  every row change: `added` when an approved person starts to hold a role, `removed` when they stop, `role-changed` when
-  an approved person's role changes. An applicant's row (`pending`) has no grant, so it fires nothing in Teams.
+- **`teams:member:*`.** They follow the grant of an explicit membership, not the row: `added` when it starts granting
+  (added with `status` null or `'active'`, or its status became one of those), `removed` when it stops (removed while
+  granting, or its status left them), `role-changed` for a role change while it grants. Crew fires on the same
+  transitions, so an applicant's `pending` row (applied or waitlisted) fires nothing. Mapped grants fire none of them.
 - **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each of the
   two assignments a completed swap hands over. `shifts:schedule:published` fires once, when a draft is published; the
   shifts of a draft fire `shifts:shift:created` as they are created. In peer mode `shifts:swap:accepted` and
@@ -275,8 +297,10 @@ type DashboardItem = WidgetDefinition & {
 - The client `widgets:filter` hook keeps hiding items by `permission`.
 - Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`. Dashboard declares
   it with `definePreferences` (a zod schema of
-  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`) and registers it with
-  `addUserPreferences(nuxt, { path })` when Preferences is installed. Without Preferences the registered order applies.
+  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[], settings? }>`, where `settings`
+  holds per-item settings by item id) and registers it with `addUserPreferences(nuxt, { path })` when Preferences is
+  installed. Without Preferences, or signed out, changes last for the session and the registered order applies after a
+  reload. See [Dashboard](/modules/volunteering/dashboard#per-user-layout).
 
 A module adds items only when dashboard is installed:
 
@@ -303,14 +327,15 @@ registries, so each module also works alone. Arrows point one way: a lower modul
 ```text
 audience    (plain package, no Nuxt module)
 
-dashboard   ─► widget, menu, auth                    (soft: preferences, mobile, admin)
+dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
 operations  ─► auth, audience                        (soft: events, maps, dashboard)
 teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, menu, audience                  (soft: forms, teams, crew, operations, mobile, dashboard)
+faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
+                                                            dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
-                                                            @nuxt/content, faq, menu)
+                                                            @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
 inbox       ─► auth, notify, audience                (soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
