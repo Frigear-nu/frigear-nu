@@ -17,6 +17,7 @@ const id = computed(() => String(route.params.id))
 
 const { data: operation, error, refresh } = await useFetch<StaffOperation>(() => operationsApi.admin.operation(id.value))
 const notFound = computed(() => error.value?.statusCode === 404)
+const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
 
 // The tabs below the key facts are the `admin.operations` area: modules add tabs with
 // `extendTabs(nuxt, 'admin.operations', ...)` and each tab component receives the `operation` and may emit `refresh`.
@@ -85,6 +86,12 @@ const facts = computed(() => operation.value
       />
     </template>
 
+    <UEmpty
+      v-else-if="forbidden"
+      icon="i-lucide-lock"
+      :title="t('admin.forbidden', 'You do not have access to operations')"
+      :actions="[{ label: t('admin.allOperations', 'All operations'), to: links.admin(), color: 'neutral', variant: 'outline' }]"
+    />
     <UEmpty
       v-else-if="notFound || !error"
       icon="i-lucide-tent"

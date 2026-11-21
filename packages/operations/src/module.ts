@@ -70,7 +70,6 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     // An operation may name an event (`eventId`): the id is validated when events is installed.
     '@frigear-nu/events': { version: '>=0.0.1', optional: true },
-    '@frigear-nu/mobile': { version: '>=0.0.1', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)

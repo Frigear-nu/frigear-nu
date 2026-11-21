@@ -14,3 +14,6 @@ export function testParticipationOf(userId: string | number): string[] {
 
 /** What the `operations:status-changed` hook received, in order. */
 export const testStatusChanges: Array<{ id: string, from: string, to: string }> = []
+
+/** Every operations hook that fired, in order: `created`, `updated` or `status-changed`, with the operation's id. */
+export const testHookLog: Array<{ name: string, id: string }> = []

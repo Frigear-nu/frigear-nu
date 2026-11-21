@@ -74,6 +74,25 @@ export function operationToForm(operation: StaffOperation): OperationFormState {
   }
 }
 
+/** Whether a translated value holds no text in any language (cleared inputs give `''`, `{}` or blank entries). */
+export function isEmptyTranslated(value: Translated | null | undefined): boolean {
+  if (value === undefined || value === null) return true
+  if (typeof value === 'string') return !value.trim()
+  return !Object.values(value).some(text => text.trim())
+}
+
+/** `null` for a cleared translated field, so the API stores nothing instead of rejecting `{}`. */
+export const emptyTranslatedToNull = (value: Translated | null | undefined) => isEmptyTranslated(value) ? null : value!
+
+/**
+ * A `datetime-local` value (the browser's local time, no zone) as the ISO instant the API wants. A value that still
+ * equals the stored instant (the input shows minutes only) keeps it, so saving an untouched form never moves a date.
+ */
+export function localToIso(value: string, stored?: string | null): string {
+  if (stored && toLocalInput(stored) === value) return stored
+  return new Date(value).toISOString()
+}
+
 /**
  * The request body for a form state. The latitude and longitude of a stored location are not in the form: `previous`
  * keeps them while the place is only renamed.
@@ -83,12 +102,12 @@ export function formToOperationBody(data: OperationFormState, previous?: StaffOp
   return {
     name: data.name,
     slug: data.slug,
-    description: data.description ?? null,
+    description: emptyTranslatedToNull(data.description),
     hostName: data.hostName || null,
     hostUrl: data.hostUrl || null,
-    startsAt: data.startsAt,
-    endsAt: data.endsAt || null,
-    location: data.locationName
+    startsAt: localToIso(data.startsAt, previous?.startsAt),
+    endsAt: data.endsAt ? localToIso(data.endsAt, previous?.endsAt) : null,
+    location: !isEmptyTranslated(data.locationName)
       ? { name: data.locationName, ...(data.locationAddress ? { address: data.locationAddress } : {}), ...(kept?.lat !== undefined ? { lat: kept.lat } : {}), ...(kept?.lng !== undefined ? { lng: kept.lng } : {}) }
       : null,
     public: data.public,

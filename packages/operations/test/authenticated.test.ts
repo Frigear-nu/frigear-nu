@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '../src/runtime/utils/api'
 import { operationsAccess } from '../src/runtime/access'
-import { getOwner, getStatusChanges, participate, registerUser } from './helpers'
+import { getHooksFor, getOwner, getStatusChanges, participate, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -79,6 +79,15 @@ describe('operations (authenticated, database-backed)', async () => {
       const readOnly = apiClient({ bearer: await createToken(staff.cookie, [operationsAccess.permissions.read]) })
       await expectApiError(readOnly.json('GET', operationsApi.admin.operations), 403, 'insufficient_scope')
       await expectApiError(readOnly.json('POST', operationsApi.admin.operations, { slug: `nope-${++counter}`, name: 'No', startsAt: future(2) }), 403, 'insufficient_scope')
+    })
+
+    it('refuses a read-only token on PATCH, DELETE and the status route (insufficient_scope)', async () => {
+      const operation = await createOperation()
+      const readOnly = apiClient({ bearer: await createToken(staff.cookie, [operationsAccess.permissions.read]) })
+      await expectApiError(readOnly.json('PATCH', operationsApi.admin.operation(operation.id), { name: 'Nope' }), 403, 'insufficient_scope')
+      await expectApiError(readOnly.json('DELETE', operationsApi.admin.operation(operation.id)), 403, 'insufficient_scope')
+      await expectApiError(readOnly.json('POST', operationsApi.admin.status(operation.id), { status: 'active' }), 403, 'insufficient_scope')
+      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.operation(operation.id)))).toMatchObject({ status: 'planning' })
     })
 
     it('lets a role holding operations:* manage operations (the wildcard covers non-sensitive permissions)', async () => {
@@ -154,6 +163,34 @@ describe('operations (authenticated, database-backed)', async () => {
       }
     })
 
+    it('requires ISO datetimes with an offset, so the server time zone never shifts a date', async () => {
+      staff ??= await registerUser('Staff', 'staff@staff.test')
+      const body = { slug: `tz-${++counter}`, name: 'Zone' }
+      // `datetime-local` strings carry no offset: refused, never read in the server's zone.
+      expect((await json(staff.cookie, 'POST', operationsApi.admin.operations, { ...body, startsAt: '2027-06-27T10:00' })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', operationsApi.admin.operations, { ...body, startsAt: '2027-06-27' })).status).toBe(400)
+
+      // An offset keeps the instant: 10:00 at +02:00 is 08:00Z.
+      const created = await ok(await json(staff.cookie, 'POST', operationsApi.admin.operations, { ...body, startsAt: '2027-06-27T10:00:00+02:00', endsAt: '2027-07-04T10:00:00.000Z' }))
+      expect(created.startsAt).toBe('2027-06-27T08:00:00.000Z')
+      // Sending the returned values back (a save of an untouched form) changes nothing.
+      const again = await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(created.id), { startsAt: created.startsAt, endsAt: created.endsAt }))
+      expect(again).toMatchObject({ startsAt: created.startsAt, endsAt: created.endsAt })
+    })
+
+    it('rejects null, true and 0 as dates instead of reading them as 1970', async () => {
+      const operation = await createOperation()
+      for (const startsAt of [null, true, 0, '']) {
+        expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { startsAt })).status, String(startsAt)).toBe(400)
+      }
+      for (const endsAt of [true, 0, '']) {
+        expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { endsAt })).status, String(endsAt)).toBe(400)
+      }
+      // The end may be cleared.
+      expect(await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { endsAt: null }))).toMatchObject({ endsAt: null })
+      expect((await ok(await json(staff.cookie, 'GET', operationsApi.admin.operation(operation.id)))).startsAt).toBe(operation.startsAt)
+    })
+
     it('refuses a patch that puts the end before the start', async () => {
       const created = await createOperation({ startsAt: future(10), endsAt: future(12) })
       expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(created.id), { endsAt: future(1) })).status).toBe(400)
@@ -187,6 +224,23 @@ describe('operations (authenticated, database-backed)', async () => {
         expect(changes.at(-1)).toEqual({ id: operation.id, from, to })
       }
       expect((await getStatusChanges()).length - before).toBe(3)
+    })
+
+    it('fires operations:created and operations:updated, and not for a patch that changes nothing', async () => {
+      const operation = await createOperation()
+      expect(await getHooksFor(operation.id)).toEqual(['created'])
+
+      await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { name: 'Renamed for the hook' }))
+      expect(await getHooksFor(operation.id)).toEqual(['created', 'updated:renamed'])
+
+      // Same values, an empty body, and a slug it already has: nothing changed, no hook.
+      await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { name: 'Renamed for the hook', slug: operation.slug }))
+      await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), {}))
+      await ok(await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { startsAt: operation.startsAt }))
+      expect(await getHooksFor(operation.id)).toEqual(['created', 'updated:renamed'])
+
+      await ok(await setStatus(operation.id, 'active'))
+      expect(await getHooksFor(operation.id)).toEqual(['created', 'updated:renamed', 'status-changed'])
     })
 
     it('lets a plan that never happens go straight to archived', async () => {
@@ -316,6 +370,15 @@ describe('operations (authenticated, database-backed)', async () => {
       expect((await json(undefined, 'GET', operationsApi.me.operations)).status).toBe(401)
     })
 
+    it('refuses a token without operations:read (insufficient_scope)', async () => {
+      const member = await user('Metoken')
+      const scopes = await ok(await json(member.cookie, 'GET', authApi.scopes)) as unknown as Array<{ name: string }>
+      const other = scopes.map(scope => scope.name).find(name => !name.startsWith('operations'))!
+      await expectApiError(apiClient({ bearer: await createToken(member.cookie, [other]) }).json('GET', operationsApi.me.operations), 403, 'insufficient_scope')
+      const named = apiClient({ bearer: await createToken(member.cookie, ['operations']) })
+      expect(await named.json('GET', operationsApi.me.operations)).toEqual([])
+    })
+
     it('lists the operations the caller takes part in, whatever their visibility or status', async () => {
       const member = await user('Crew')
       const none = await user('Nocrew')
@@ -376,12 +439,27 @@ describe('operations (authenticated, database-backed)', async () => {
       expect((await fetch(`/operations/${closed.slug}`)).status).toBe(404)
     }, 180_000)
 
+    it('keeps the public page for public operations only, participants and staff included', async () => {
+      const member = await user('Pagecrew')
+      const closed = await createOperation({ name: 'Private operation', public: false })
+      await participate(member.cookie, closed.id)
+      // The API lets them read it...
+      expect((await json(member.cookie, 'GET', operationsApi.operation(closed.slug))).status).toBe(200)
+      expect((await json(staff.cookie, 'GET', operationsApi.operation(closed.slug))).status).toBe(200)
+      // ...the public page does not exist for it.
+      expect((await fetch(`/operations/${closed.slug}`, { headers: { cookie: member.cookie } })).status).toBe(404)
+      expect((await fetch(`/operations/${closed.slug}`, { headers: { cookie: staff.cookie } })).status).toBe(404)
+    }, 180_000)
+
     it('keeps the admin pages behind the staff permission', async () => {
       const nobody = await user('Pagenobody')
       const operation = await createOperation()
       // The pages render their own forbidden state from the API's answer.
       const html = await (await fetch(`/admin/operations/${operation.id}`, { headers: { cookie: nobody.cookie } })).text()
+      expect(html).toContain('You do not have access to operations')
       expect(html).not.toContain(operation.slug)
+      const list = await (await fetch('/admin/operations', { headers: { cookie: nobody.cookie } })).text()
+      expect(list).toContain('You do not have access to operations')
     }, 180_000)
   })
 })

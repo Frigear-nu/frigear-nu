@@ -1812,9 +1812,6 @@ importers:
       '@frigear-nu/events':
         specifier: workspace:^
         version: link:../events
-      '@frigear-nu/mobile':
-        specifier: workspace:^
-        version: link:../mobile
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit

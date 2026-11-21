@@ -93,7 +93,6 @@
     "@frigear-nu/admin": "workspace:^",
     "@frigear-nu/events": "workspace:^",
     "@frigear-nu/menu": "workspace:^",
-    "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
@@ -106,9 +105,6 @@
       "optional": true
     },
     "@frigear-nu/menu": {
-      "optional": true
-    },
-    "@frigear-nu/mobile": {
       "optional": true
     },
     "@frigear-nu/widget": {

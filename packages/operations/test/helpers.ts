@@ -23,3 +23,9 @@ export const getStatusChanges = () => $fetch<Array<{ id: string, from: string, t
 /** What `audience:owner:resolve` answers for an owner (fixture-only route). */
 export const getOwner = (type: string, id: string) =>
   $fetch<{ label: string | Record<string, string> | null, exists: boolean | null }>('/api/test/owner', { query: { type, id } })
+
+/** The operations hooks that fired for one operation, in order (fixture-only route). */
+export async function getHooksFor(id: string) {
+  const log = await $fetch<Array<{ name: string, id: string }>>('/api/test/hooks')
+  return log.filter(entry => entry.id === id).map(entry => entry.name)
+}

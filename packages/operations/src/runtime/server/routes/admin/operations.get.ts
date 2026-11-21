@@ -30,7 +30,7 @@ const querySchema = pageQuery({
   },
 })
 
-// Every operation, whatever its status and visibility, newest start first. `q` searches the name (every language) and
+// Every operation, whatever its status and visibility, newest start first by default (`sort` and `order` change it). `q` searches the name (every language) and
 // the slug.
 export default defineEventHandler(async (event): Promise<Page<AdminOperationDto>> => {
   await authorize(event, operationsAccess.permissions.manage)

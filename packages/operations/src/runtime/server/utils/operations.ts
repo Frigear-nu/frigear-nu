@@ -11,6 +11,7 @@ import type { z } from 'zod'
 import { operationEndsAfterStart } from './operations-schemas'
 import type { operationInput, operationPatchSchema } from './operations-schemas'
 import { toAdminOperationDto } from './operations-dto'
+import { isOperationUniqueViolation } from './operations-errors'
 
 export type OperationRow = typeof schema.operations.$inferSelect
 type OperationInput = z.output<typeof operationInput>
@@ -55,7 +56,7 @@ export function operationReadable(row: Pick<OperationRow, 'id' | 'public'>, view
   return canManage || row.public || viewer.operationIds.includes(row.id)
 }
 
-/** The rows a viewer reads, filtered by `status`; archived ones only when asked for. Newest start first. */
+/** The rows a viewer reads, filtered by `status`; archived ones only when asked for. Upcoming first (ascending start). */
 export async function listReadableOperations(options: { viewer: Viewer, canManage: boolean, status?: OperationStatus }): Promise<OperationRow[]> {
   const { viewer, canManage, status } = options
   const conditions: (SQL | undefined)[] = []
@@ -99,6 +100,17 @@ export async function assertOperationEventExists(eventId: string | null | undefi
   if (!rows.length) throw validationError([{ path: ['eventId'], message: 'This event does not exist.' }], 'Unknown event')
 }
 
+const sameValue = (a: unknown, b: unknown) =>
+  a instanceof Date || b instanceof Date
+    ? a instanceof Date && b instanceof Date && a.getTime() === b.getTime()
+    : JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** Two requests can pass the slug pre-check together: the unique index decides, and the loser gets the same 409. */
+function rethrowSlugConflict(error: unknown): never {
+  if (isOperationUniqueViolation(error)) throw conflict('An operation with this slug already exists.', { field: 'slug' })
+  throw error
+}
+
 /** `hostName` and the other optional texts are stored as `null` when blank. */
 const blankToNull = (value: string | null | undefined) => value?.trim() ? value.trim() : null
 
@@ -120,7 +132,7 @@ export async function createOperationRow(input: OperationInput): Promise<Operati
     status: 'planning',
     public: input.public ?? false,
     eventId: input.eventId ?? null,
-  }).returning()
+  }).returning().catch(rethrowSlugConflict)
   return row!
 }
 
@@ -145,8 +157,12 @@ export async function patchOperationRow(existing: OperationRow, patch: Operation
   if (patch.location !== undefined) values.location = patch.location
   if (patch.public !== undefined) values.public = patch.public
   if (patch.eventId !== undefined) values.eventId = patch.eventId
-  if (!Object.keys(values).length) return existing
-  const [row] = await db.update(schema.operations).set(values).where(eq(schema.operations.id, existing.id)).returning()
+  // Only what differs from the stored row counts: a patch that changes nothing writes nothing.
+  const changed: Partial<typeof schema.operations.$inferInsert> = Object.fromEntries(
+    Object.entries(values).filter(([key, value]) => !sameValue(value, existing[key as keyof OperationRow])),
+  )
+  if (!Object.keys(changed).length) return existing
+  const [row] = await db.update(schema.operations).set(changed).where(eq(schema.operations.id, existing.id)).returning().catch(rethrowSlugConflict)
   return row!
 }
 

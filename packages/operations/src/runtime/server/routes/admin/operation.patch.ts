@@ -10,7 +10,9 @@ export default defineEventHandler(async (event): Promise<AdminOperationDto> => {
   const existing = await getOperationOr404(id)
   // Record-level policies of `operations:manage` see the stored operation before anything changes.
   await authorize(event, operationsAccess.permissions.manage, existing)
-  const operation = toAdminOperationDto(await patchOperationRow(existing, patch))
-  await useNitroApp().hooks.callHook('operations:updated', { event, operation, previous: toAdminOperationDto(existing) })
+  const updated = await patchOperationRow(existing, patch)
+  const operation = toAdminOperationDto(updated)
+  // A patch that changed nothing returns the stored row itself, and fires no hook.
+  if (updated !== existing) await useNitroApp().hooks.callHook('operations:updated', { event, operation, previous: toAdminOperationDto(existing) })
   return operation
 })

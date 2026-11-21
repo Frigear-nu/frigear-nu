@@ -4,13 +4,15 @@ import { OPERATION_SLUG_PATTERN, OPERATION_STATUSES, isReservedOperationSlug } f
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
 export const operationTranslated = z.union([
-  z.string().min(1),
+  z.string().trim().min(1),
   z.record(z.string(), z.string())
     .transform(value => Object.fromEntries(Object.entries(value).filter(([, text]) => text.trim())))
     .refine(value => Object.keys(value).length > 0, 'Add a text in at least one language.'),
 ])
 
-const date = z.coerce.date()
+// A strict instant: an ISO datetime with an offset (`2027-06-27T10:00:00.000Z`). Offset-free strings would be read in the
+// server's time zone, and null, true or 0 must not become 1970.
+const date = z.iso.datetime({ offset: true }).transform(value => new Date(value))
 
 const operationFields = z.object({
   // `me` is the static segment of `/api/operations/me`: h3's router never falls back to `:slug` past it.

@@ -7,5 +7,15 @@ export default defineNitroPlugin((nitro) => {
 
   nitro.hooks.hook('operations:status-changed', (ctx) => {
     testStatusChanges.push({ id: ctx.operation.id, from: ctx.from, to: ctx.to })
+    testHookLog.push({ name: 'status-changed', id: ctx.operation.id })
+  })
+
+  nitro.hooks.hook('operations:created', (ctx) => {
+    testHookLog.push({ name: 'created', id: ctx.operation.id })
+  })
+
+  nitro.hooks.hook('operations:updated', (ctx) => {
+    // `previous` is the state before the edit.
+    testHookLog.push({ name: `updated:${ctx.previous.name === ctx.operation.name ? 'same' : 'renamed'}`, id: ctx.operation.id })
   })
 })

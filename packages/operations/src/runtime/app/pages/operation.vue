@@ -16,8 +16,9 @@ const format = useFormat()
 const slug = computed(() => String(route.params.slug))
 
 const { data: operation, error } = await useFetch<OperationDto>(() => operationsApi.operation(slug.value), { key: `operations:detail:${slug.value}` })
-if (!operation.value) {
-  throw createError({ statusCode: error.value?.statusCode ?? 404, statusMessage: t('notFound', 'Operation not found'), fatal: true })
+// The API also answers participants and staff for a non-public operation, but the public page exists for public ones only.
+if (!operation.value || !operation.value.public) {
+  throw createError({ statusCode: operation.value ? 404 : error.value?.statusCode ?? 404, statusMessage: t('notFound', 'Operation not found'), fatal: true })
 }
 
 useSeoMeta({ title: () => (operation.value ? tr(operation.value.name) : 'Operation') })

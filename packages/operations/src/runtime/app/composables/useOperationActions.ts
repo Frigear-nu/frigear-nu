@@ -98,8 +98,11 @@ export function useOperationActions() {
       label: t('admin.edit', 'Edit'),
       icon: 'i-lucide-pencil',
       onSelect: async () => {
-        const full = await $fetch<StaffOperation>(operationsApi.admin.operation(operation.id))
-        if (await edit(full)) await options.onChanged?.()
+        const full = await run(
+          () => $fetch<StaffOperation>(operationsApi.admin.operation(operation.id)),
+          { error: t('admin.operationLoadFailed', 'The operation could not be loaded') },
+        )
+        if (full && await edit(full)) await options.onChanged?.()
       },
     }]
     const moves = nextStatuses(operation.status)
