@@ -1,0 +1,139 @@
+{
+  "name": "@frigear-nu/faq",
+  "version": "0.0.0",
+  "description": "Managed question-and-answer content for the frigear ecosystem: bilingual FAQ groups with per-group and per-item visibility, MDC components, composables and an admin area.",
+  "homepage": "https://docs.frigear.dev/modules/volunteering/faq",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/faq"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    },
+    "./api": {
+      "types": "./src/runtime/utils/api.ts",
+      "import": "./src/runtime/utils/api.ts",
+      "default": "./src/runtime/utils/api.ts"
+    },
+    "./composables": "./src/runtime/app/composables/index.ts",
+    "./composables/*": "./src/runtime/app/composables/*.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      },
+      "./api": {
+        "types": "./dist/runtime/utils/api.d.ts",
+        "import": "./dist/runtime/utils/api.js",
+        "default": "./dist/runtime/utils/api.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/audience": "workspace:^",
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/kit": "catalog:",
+    "@vueuse/core": "^15.0.0",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:",
+    "h3": "catalog:",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/forms": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/mobile": "workspace:^",
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@frigear-nu/admin": {
+      "optional": true
+    },
+    "@frigear-nu/forms": {
+      "optional": true
+    },
+    "@frigear-nu/menu": {
+      "optional": true
+    },
+    "@frigear-nu/mobile": {
+      "optional": true
+    },
+    "@nuxt/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@frigear-nu/admin": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
+    "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/users": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:",
+    "@nuxtjs/mdc": "^0.23.2",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "unstorage": "^1.17.5",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

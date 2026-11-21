@@ -40,6 +40,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
+| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -125,6 +126,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
+| [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 

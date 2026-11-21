@@ -10,8 +10,9 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The only package that exists today is [Audience](/modules/volunteering/audience), the shared visibility rules. Every
-other module adds its own page to this group in the pull request that adds the module.
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
+[FAQ](/modules/volunteering/faq), the first module built on them. Every other module adds its own page to this group in
+the pull request that adds the module.
 
 ## The modules
 
@@ -22,7 +23,7 @@ other module adds its own page to this group in the pull request that adds the m
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
-| `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
+| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
@@ -284,7 +285,8 @@ operations  ─► auth, audience                        (soft: events, maps, da
 teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, menu, audience                  (soft: forms, teams, crew, operations, mobile, dashboard)
+faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
+                                                            dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu)
 maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
