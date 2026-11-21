@@ -292,7 +292,7 @@ Phase 6 wires the modules to maps. Each integration is optional: a module regist
 | operations | One map of each kind per new operation, keys `operation-<id>-site` and `operation-<id>-venue`, created with `ensureMap` on `operations:created`. | Server plugin |
 | operations | `maps:edit:resolve`: `allowed = true` for holders of `operations:manage`, on `operation` maps. | Server plugin |
 | teams | `maps:edit:resolve`: `allowed = true` for the team's leads (`isTeamLead`), on `team` maps. | Server plugin |
-| shifts | Layer `shifts.on-duty` on `operations.venue-layout`, permission `shifts:read`, `refreshInterval: 60`: a point per shift location, with `shifts:pii` for names. | `extendMaps` in `setup()` |
+| shifts | Layer `shifts.on-duty` on `operations.venue-layout`, permission `shifts:read`, `refreshInterval: 120`: a point per shift location, with `shifts:pii` for names. | `extendMaps` in `setup()` |
 
 ## Dashboard items
 

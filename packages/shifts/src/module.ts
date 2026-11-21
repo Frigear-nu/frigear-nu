@@ -286,7 +286,8 @@ export default defineNuxtModule<ModuleOptions>({
           appliesTo: { kind: 'operations.venue-layout' },
           provider: resolver.resolve('./runtime/server/maps/on-duty'),
           permission: shiftsAccess.permissions.read,
-          refreshInterval: 60,
+          // Every team's leads are looked up (each resolves the person's team roles), so it refreshes every two minutes.
+          refreshInterval: 120,
         })],
       })
     }
