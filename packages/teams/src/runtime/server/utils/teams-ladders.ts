@@ -38,7 +38,7 @@ export function forgetTeamLadders(event: H3Event): void {
   ladderCache.delete(event)
 }
 
-/** Team kind to its ordered role keys, lowest first: the shape of `viewer.ladders`. */
+/** Team kind to its ordered role keys, lowest first. */
 export function teamLadderKeyMap(ladders: Record<string, TeamLadderDto>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(ladders).map(([kind, ladder]) => [kind, ladderKeys(ladder)]))
 }

@@ -2,14 +2,14 @@
   "$schema": "https://unpkg.com/release-it/schema/release-it.json",
   "git": {
     "requireCleanWorkingDir": true,
-    "commitMessage": "chore(release): @frigear-nu/audience@${version}",
-    "tagName": "audience@${version}",
-    "tagAnnotation": "@frigear-nu/audience@${version}",
+    "commitMessage": "chore(release): @frigear-nu/grants@${version}",
+    "tagName": "grants@${version}",
+    "tagAnnotation": "@frigear-nu/grants@${version}",
     "push": true
   },
   "github": {
     "release": true,
-    "releaseName": "@frigear-nu/audience@${version}"
+    "releaseName": "@frigear-nu/grants@${version}"
   },
   "npm": {
     "publish": false
