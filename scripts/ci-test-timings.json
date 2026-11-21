@@ -78,6 +78,25 @@
     "test/customized.test.ts": 20,
     "test/schema-parity.test.ts": 1
   },
+  "@frigear-nu/crew": {
+    "test/authenticated.test.ts": 45,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/emails.test.ts": 1,
+    "test/unit/schemas.test.ts": 1,
+    "test/unit/status.test.ts": 1
+  },
+  "@frigear-nu/shifts": {
+    "test/authenticated.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/guards.test.ts": 1,
+    "test/unit/time.test.ts": 1
+  },
+  "@frigear-nu/dashboard": {
+    "test/dashboard.test.ts": 30,
+    "test/unit/layout-persistence.test.ts": 1,
+    "test/unit/layout.test.ts": 1,
+    "test/unit/registry.test.ts": 1
+  },
   "@frigear-nu/email-templates": {
     "test/email-templates.test.ts": 24
   },
@@ -155,6 +174,14 @@
     "test/schema-parity.test.ts": 1,
     "test/utils.test.ts": 1
   },
+  "@frigear-nu/operations": {
+    "test/authenticated.test.ts": 30,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/dto.test.ts": 1,
+    "test/unit/links.test.ts": 1,
+    "test/unit/slug.test.ts": 1,
+    "test/unit/status.test.ts": 1
+  },
   "@frigear-nu/payments": {
     "test/authenticated.test.ts": 54,
     "test/schema-parity.test.ts": 1
@@ -164,6 +191,15 @@
     "test/oauth.test.ts": 44,
     "test/registry.test.ts": 1,
     "test/schema-parity.test.ts": 1
+  },
+  "@frigear-nu/push": {
+    "test/authenticated.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/delivery.test.ts": 1,
+    "test/unit/device.test.ts": 1,
+    "test/unit/modes.test.ts": 1,
+    "test/unit/providers.test.ts": 1,
+    "test/unit/topics.test.ts": 1
   },
   "@frigear-nu/stripe": {
     "test/authenticated.test.ts": 21,

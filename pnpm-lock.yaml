@@ -1038,6 +1038,179 @@ importers:
         specifier: 'catalog:'
         version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
 
+  packages/crew:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/forms':
+        specifier: workspace:^
+        version: link:../forms
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/notify':
+        specifier: workspace:^
+        version: link:../notify
+      '@frigear-nu/operations':
+        specifier: workspace:^
+        version: link:../operations
+      '@frigear-nu/teams':
+        specifier: workspace:^
+        version: link:../teams
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/email-templates':
+        specifier: workspace:^
+        version: link:../email-templates
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
+  packages/dashboard:
+    dependencies:
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/preferences':
+        specifier: workspace:^
+        version: link:../preferences
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue:
+        specifier: ^3.5.45
+        version: 3.5.45(typescript@6.0.3)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
   packages/email-templates:
     dependencies:
       '@frigear-nu/module-kit':
@@ -1211,6 +1384,106 @@ importers:
         specifier: 'catalog:'
         version: 3.3.14(typescript@6.0.3)
 
+  packages/faq:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/forms':
+        specifier: workspace:^
+        version: link:../forms
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@nuxtjs/mdc':
+        specifier: ^0.23.2
+        version: 0.23.2(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(supports-color@10.2.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
   packages/forms:
     dependencies:
       '@frigear-nu/admin':
@@ -1283,6 +1556,118 @@ importers:
       changelogen:
         specifier: ^0.6.2
         version: 0.6.2(magicast@0.5.5)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
+  packages/help-center:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/content':
+        specifier: 'catalog:'
+        version: 3.16.2(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(better-sqlite3@12.11.1)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(supports-color@10.2.2)(valibot@1.5.0(typescript@6.0.3))(vite@8.3.6)
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/account':
+        specifier: workspace:^
+        version: link:../account
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/email-templates':
+        specifier: workspace:^
+        version: link:../email-templates
+      '@frigear-nu/faq':
+        specifier: workspace:^
+        version: link:../faq
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/notify':
+        specifier: workspace:^
+        version: link:../notify
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@nuxtjs/mdc':
+        specifier: ^0.23.2
+        version: 0.23.2(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(supports-color@10.2.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
       eslint:
         specifier: 'catalog:'
         version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
@@ -1898,6 +2283,100 @@ importers:
         specifier: 'catalog:'
         version: 3.3.14(typescript@6.0.3)
 
+  packages/operations:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/events':
+        specifier: workspace:^
+        version: link:../events
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
   packages/payments:
     dependencies:
       '@frigear-nu/auth':
@@ -2052,6 +2531,221 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
+  packages/push:
+    dependencies:
+      '@capacitor/push-notifications':
+        specifier: '>=8.0.0'
+        version: 8.1.3(@capacitor/core@8.6.2)
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/notify':
+        specifier: workspace:^
+        version: link:../notify
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
+  packages/shifts:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/crew':
+        specifier: workspace:^
+        version: link:../crew
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/notify':
+        specifier: workspace:^
+        version: link:../notify
+      '@frigear-nu/operations':
+        specifier: workspace:^
+        version: link:../operations
+      '@frigear-nu/teams':
+        specifier: workspace:^
+        version: link:../teams
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      uqr:
+        specifier: ^0.1.3
+        version: 0.1.3
+      vue-qrcode-reader:
+        specifier: ^5.7.3
+        version: 5.7.3
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/email-templates':
+        specifier: workspace:^
+        version: link:../email-templates
+      '@frigear-nu/forms':
+        specifier: workspace:^
+        version: link:../forms
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/mobile':
+        specifier: workspace:^
+        version: link:../mobile
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
       vitest:
         specifier: 'catalog:'
         version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
@@ -2216,6 +2910,103 @@ importers:
       changelogen:
         specifier: ^0.6.2
         version: 0.6.2(magicast@0.5.5)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unstorage:
+        specifier: ^1.17.5
+        version: 1.17.6(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
+  packages/teams:
+    dependencies:
+      '@frigear-nu/audience':
+        specifier: workspace:^
+        version: link:../audience
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@frigear-nu/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@frigear-nu/users':
+        specifier: workspace:^
+        version: link:../users
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.45(typescript@6.0.3))
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.11
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.16)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)
+      h3:
+        specifier: 'catalog:'
+        version: 1.15.11
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@frigear-nu/admin':
+        specifier: workspace:^
+        version: link:../admin
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
+      '@frigear-nu/oauth-server':
+        specifier: workspace:^
+        version: link:../oauth-server
+      '@frigear-nu/subscriptions':
+        specifier: workspace:^
+        version: link:../subscriptions
+      '@frigear-nu/widget':
+        specifier: workspace:^
+        version: link:../widget
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(792c51f2918f4c023e0015634a63b7e1)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.1(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/ui':
+        specifier: 'catalog:'
+        version: 4.12.0(05178fccc36274ab9219d3d4c0b0e0c8)
+      '@nuxthub/core':
+        specifier: 'catalog:'
+        version: 0.10.12(@capacitor/preferences@8.0.1(@capacitor/core@8.6.2))(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@nuxt/schema@4.6.4)(@vitejs/devtools@0.8.2)(confbox@0.3.1)(db0@0.4.1)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(magic-string@1.4.5)(magicast@0.5.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(synckit@0.11.13)(typescript@6.0.3)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vue-tsc@3.3.14(typescript@6.0.3))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
       eslint:
         specifier: 'catalog:'
         version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
@@ -2776,6 +3567,11 @@ packages:
 
   '@capacitor/preferences@8.0.1':
     resolution: {integrity: sha512-T6no3ebi79XJCk91U3Jp/liJUwgBdvHR+s6vhvPkPxSuch7z3zx5Rv1bdWM6sWruNx+pViuEGqZvbfCdyBvcHQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@capacitor/push-notifications@8.1.3':
+    resolution: {integrity: sha512-UlOCTS3uiw8ZUJ1rkFKJgoqPADipHDNn0lq5mNRwtXALVxQXIeIoRd3iqpzC+962R2LpCRJRkCTjPX2OHK3tBA==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -14287,6 +15083,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.6.2
 
+  '@capacitor/push-notifications@8.1.3(@capacitor/core@8.6.2)':
+    dependencies:
+      '@capacitor/core': 8.6.2
+
   '@capacitor/share@8.0.3(@capacitor/core@8.6.2)':
     dependencies:
       '@capacitor/core': 8.6.2
@@ -20139,7 +20939,6 @@ snapshots:
       - rolldown
       - supports-color
       - unplugin
-    optional: true
 
   '@nuxtjs/robots@6.2.4(@nuxt/schema@4.6.4)(confbox@0.2.4)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(nuxt@4.6.4(d19ecec12c8ec1f7a750af2114c3a01c))(oxc-parser@0.151.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))(vite@8.3.6)(vue@3.5.45(typescript@6.0.3))(zod@4.6.7)':
     dependencies:
