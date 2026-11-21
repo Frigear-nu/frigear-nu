@@ -1,11 +1,12 @@
-// Stands in for the modules that listen to operations: crew would answer `audience:viewer:resolve` with the operations
-// a user works at, and anything may listen to `operations:status-changed`.
+// Stands in for the modules that listen to operations: crew would answer the participation hooks with the operations a
+// user works at, and anything may listen to `operations:status-changed`.
 export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('audience:viewer:resolve', (ctx) => {
-    for (const { operationId, kind } of testParticipationOf(ctx.user.id)) {
-      if (kind === 'id') ctx.viewer.operationIds.push(operationId)
-      else ctx.viewer.teamRoles.push({ ownerType: 'operation', ownerId: operationId, teamId: `tem_${operationId}`, kind: 'bar', role: 'volunteer', source: kind })
-    }
+  nitro.hooks.hook('operations:participation:resolve', (ctx) => {
+    for (const operationId of testParticipationOf(ctx.user.id)) ctx.operationIds.add(operationId)
+  })
+
+  nitro.hooks.hook('operations:participants:resolve', (ctx) => {
+    for (const userId of testParticipantsOf(ctx.operationIds)) ctx.userIds.add(userId)
   })
 
   nitro.hooks.hook('operations:status-changed', (ctx) => {
