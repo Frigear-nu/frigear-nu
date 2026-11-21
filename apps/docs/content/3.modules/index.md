@@ -41,6 +41,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
 | Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
+| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -127,6 +128,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
 | [FAQ](/modules/volunteering/faq) | Bilingual question-and-answer groups with per-group and per-item visibility, content components for pages and an admin area. | ✓ | ✓ | ✓ |
+| [Help center](/modules/volunteering/help-center) | Bilingual help articles in categories, public or per role, onboarding checklists with read tracking, and articles from the database or Nuxt Content. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 

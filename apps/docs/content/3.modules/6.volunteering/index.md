@@ -10,9 +10,10 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
-[FAQ](/modules/volunteering/faq), the first module built on them. Every other module adds its own page to this group in
-the pull request that adds the module.
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
+[FAQ](/modules/volunteering/faq), the first module built on them, and the
+[Help center](/modules/volunteering/help-center). Every other module adds its own page to this group in the pull request
+that adds the module.
 
 ## The modules
 
@@ -24,7 +25,7 @@ the pull request that adds the module.
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
 | [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
-| `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
+| [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
 | `@frigear-nu/maps` | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
@@ -194,6 +195,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:roles:resolve` | teams | `{ event, user, owner, grants }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
+| `help-center:audience:resolve` | help-center | `{ event, audience, userIds }` | 3 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:approved` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:rejected` | crew | `{ event, operationId, member }` | 3 |
@@ -288,7 +290,7 @@ shifts      ─► crew, notify                          (soft: dashboard, push,
 faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
-                                                            @nuxt/content, faq, menu)
+                                                            @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
 inbox       ─► auth, notify, audience                (soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
