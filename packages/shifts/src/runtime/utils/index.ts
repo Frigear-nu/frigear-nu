@@ -5,6 +5,7 @@ export { translate }
 export * from './api'
 export * from './guards'
 export * from './links'
+export * from './settings'
 export * from './status'
 export * from './time'
 
@@ -12,6 +13,7 @@ export type {
   ModuleOptions,
   MyShiftDetailDto,
   MyShiftDto,
+  ShiftApproval,
   ShiftAssigneeDto,
   ShiftAssignmentChangedContext,
   ShiftAssignmentDto,
@@ -21,22 +23,26 @@ export type {
   ShiftCandidateDto,
   ShiftCheckInDto,
   ShiftCopyResultDto,
+  ShiftCoverage,
   ShiftCreatedContext,
   ShiftDto,
   ShiftGuards,
+  ShiftHandover,
   ShiftLocation,
   ShiftPassDto,
   ShiftPersonDto,
   ShiftRoleDto,
   ShiftScheduleContext,
   ShiftScheduleDto,
+  ShiftScheduleSettings,
   ShiftScheduleStatus,
   ShiftsLedTeamDto,
   ShiftsNowDto,
   ShiftsOperationTeamDto,
   ShiftSwapContext,
   ShiftSwapDto,
-  ShiftSwapMode,
+  ShiftSwapGuardCode,
+  ShiftSwapKind,
   ShiftSwapOfferDto,
   ShiftSwapOfferStatus,
   ShiftSwapStatus,

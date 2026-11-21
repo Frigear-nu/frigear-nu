@@ -5,13 +5,15 @@ check in and who is on shift now with the lead on duty. Built on [crew](../crew)
 hold a shift when they hold an explicit role on its team. Part of the volunteering modules; it follows the contracts of
 [`@frigear-nu/audience`](../audience).
 
-- Schedules per operation: `draft` until published, `swapMode` `peer` or `approval`, people per shift and guards
-  (`maxShiftsPerDay`, `minRestHours`).
+- Schedules per operation: `draft` until published, how shifts change hands (`coverage` `all` or `flexible`,
+  `handover` `trade`, `release` or `both`, `approval` `peer` or `lead`), people per shift and guards (`maxShiftsPerDay`,
+  `minRestHours`).
 - Shift roles with a minimum team role; bulk creation of time slots over days in the module's `timeZone`; copying
   another schedule's roles and shifts by a number of days.
 - Assignment by staff: an explicit team role that meets the shift role, guard warnings, `409 shift_full` unless forced.
-- Swaps: offers that take a shift over or give one back, accept (completes at once, or waits for a lead's approval),
-  reject and withdraw; conditional writes so two accepts carry out one.
+- Swaps: trades (shift for shift, both change hands together; optionally aimed at one shift) and releases (given away,
+  taken over), refused where the schedule does not allow them; the guards run for both people; accept (completes at
+  once, or waits for a lead's approval), reject and withdraw; conditional writes so two accepts carry out one.
 - A check-in code per assignment, shown as a QR pass from `checkInOpensMinutes` before the shift until its end; leads
   scan it or mark attendance.
 - Hooks `shifts:schedule:published`, `shifts:shift:created|updated`, `shifts:assignment:changed`,

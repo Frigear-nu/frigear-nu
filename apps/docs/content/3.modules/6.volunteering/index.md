@@ -233,10 +233,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:shift:created` | shifts | `{ event, shift }` | 4 |
 | `shifts:shift:updated` | shifts | `{ event, shift, previous }` | 4 |
 | `shifts:assignment:changed` | shifts | `{ event, assignment, previous }` | 4 |
-| `shifts:swap:offered` | shifts | `{ event, swap, offer }` | 4 |
-| `shifts:swap:accepted` | shifts | `{ event, swap, offer }` | 4 |
-| `shifts:swap:rejected` | shifts | `{ event, swap, offer }` | 4 |
-| `shifts:swap:completed` | shifts | `{ event, swap, offer }` | 4 |
+| `shifts:swap:offered` | shifts | `{ event, kind, swap, offer }` | 4 |
+| `shifts:swap:accepted` | shifts | `{ event, kind, swap, offer }` | 4 |
+| `shifts:swap:rejected` | shifts | `{ event, kind, swap, offer }` | 4 |
+| `shifts:swap:completed` | shifts | `{ event, kind, swap, offer }` | 4 |
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
 | `maps:seed:resolve` | maps | `{ event, maps }` | 5 |
@@ -258,10 +258,11 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   (added with `status` null or `'active'`, or its status became one of those), `removed` when it stops (removed while
   granting, or its status left them), `role-changed` for a role change while it grants. Crew fires on the same
   transitions, so an applicant's `pending` row (applied or waitlisted) fires nothing. Mapped grants fire none of them.
-- **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each of the
-  two assignments a completed swap hands over. `shifts:schedule:published` fires once, when a draft is published; the
-  shifts of a draft fire `shifts:shift:created` as they are created. In peer mode `shifts:swap:accepted` and
-  `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
+- **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each
+  assignment a completed swap hands over: two for a trade, one for a release. The swap hooks carry the swap's `kind`
+  (`trade` or `release`, also on `swap.kind`). `shifts:schedule:published` fires once, when a draft is published; the
+  shifts of a draft fire `shifts:shift:created` as they are created. With `approval: 'peer'`, `shifts:swap:accepted`
+  and `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
   `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.

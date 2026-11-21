@@ -5,14 +5,14 @@ import { shiftDays, shiftsRoleLabel } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
-import type { ShiftRoleDto, ShiftScheduleDto, ShiftsOperationTeamDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import type { ShiftRoleDto, ShiftScheduleDto, ShiftScheduleSettings, ShiftsOperationTeamDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
 import { computed, h, navigateTo, ref, resolveComponent, tableUi, useFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsOperationTab' })
 
 // The "Shifts" tab of the staff operation page (`extendTabs(nuxt, 'admin.operations', ...)`): the operation's schedules,
-// and one schedule (`?schedule=` in the URL) with a day timeline per team, a list, its shift roles and the swaps waiting
-// for approval, plus who is working now.
+// and one schedule (`?schedule=` in the URL) with a day timeline per team, a list, its shift roles, the swaps waiting
+// for approval and its settings (coverage, handover, approval), plus who is working now.
 const props = defineProps<{ operation?: { id: string, slug?: string } }>()
 
 const t = useModuleT('shifts')
@@ -57,7 +57,6 @@ async function newSchedule() {
   await openSchedule(created.id)
 }
 
-const swapModeLabel = (mode: ShiftScheduleDto['swapMode']) => mode === 'approval' ? t('admin.swapModes.approval', 'With approval') : t('admin.swapModes.peer', 'Between volunteers')
 const statusLabel = (status: ShiftScheduleDto['status']) => status === 'published' ? t('admin.statusPublished', 'Published') : t('admin.statusDraft', 'Draft')
 
 const RowMenu = resolveComponent('RowMenu')
@@ -65,7 +64,7 @@ const StatusBadge = resolveComponent('StatusBadge')
 const scheduleColumns = computed<TableColumn<ShiftScheduleDto>[]>(() => [
   { accessorKey: 'name', header: t('admin.name', 'Name'), cell: ({ row }) => h('span', { class: 'text-highlighted font-medium' }, tr(row.original.name)) },
   { accessorKey: 'status', header: t('admin.status', 'Status'), cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: statusLabel(row.original.status) }) },
-  { accessorKey: 'swapMode', header: t('admin.swapMode', 'Swaps'), cell: ({ row }) => swapModeLabel(row.original.swapMode) },
+  { id: 'settings', header: t('admin.swaps', 'Swaps'), cell: ({ row }) => actions.settingsLabel(row.original) },
   { accessorKey: 'shiftCount', header: t('admin.shifts', 'Shifts'), cell: ({ row }) => String(row.original.shiftCount ?? 0) },
   {
     id: 'actions',
@@ -103,12 +102,31 @@ async function refreshSchedule() {
 }
 const context = computed(() => ({ teams: teams.value, ladders: ladders.value, roles: roles.value }))
 
-const view = ref<'day' | 'list' | 'roles' | 'swaps'>('day')
+// The settings form: a copy of the selected schedule's, saved with `saveScheduleSettings`.
+const settingsState = ref<ShiftScheduleSettings>({ coverage: 'flexible', handover: 'both', approval: 'peer' })
+watch(selected, (schedule) => {
+  if (schedule) settingsState.value = { coverage: schedule.coverage, handover: schedule.handover, approval: schedule.approval }
+}, { immediate: true })
+const settingsChanged = computed(() => !!selected.value && (['coverage', 'handover', 'approval'] as const).some(key => settingsState.value[key] !== selected.value![key]))
+const savingSettings = ref(false)
+async function saveSettings() {
+  if (!selected.value) return
+  savingSettings.value = true
+  try {
+    if (await actions.saveScheduleSettings(selected.value, settingsState.value)) await refreshSchedules()
+  }
+  finally {
+    savingSettings.value = false
+  }
+}
+
+const view = ref<'day' | 'list' | 'roles' | 'swaps' | 'settings'>('day')
 const viewItems = computed(() => [
   { label: t('admin.viewDay', 'Day'), value: 'day', icon: 'i-lucide-calendar-range' },
   { label: t('admin.viewList', 'List'), value: 'list', icon: 'i-lucide-list' },
   { label: t('admin.viewRoles', 'Shift roles'), value: 'roles', icon: 'i-lucide-badge' },
   { label: t('admin.viewSwaps', 'Swaps to approve ({count})', { count: pendingSwaps.value.length }), value: 'swaps', icon: 'i-lucide-arrow-left-right' },
+  { label: t('admin.viewSettings', 'Settings'), value: 'settings', icon: 'i-lucide-settings' },
 ])
 
 const teamFilter = ref('all')
@@ -216,7 +234,7 @@ async function reject(swap: ShiftSwapDto) {
             v-if="selected"
             color="neutral"
             variant="subtle"
-            :label="swapModeLabel(selected.swapMode)"
+            :label="actions.settingsLabel(selected)"
           />
         </div>
         <div class="flex flex-wrap gap-2">
@@ -360,9 +378,35 @@ async function reject(swap: ShiftSwapDto) {
       </TableCard>
 
       <SectionCard
+        v-else-if="view === 'settings'"
+        :title="t('admin.settingsTitle', 'How shifts change hands')"
+        :description="t('admin.settingsDescription', 'Changes apply to swaps opened before too: accepting or approving one checks the settings of that moment.')"
+      >
+        <UForm
+          id="shift-schedule-settings-form"
+          :state="settingsState"
+          class="divide-default divide-y"
+          @submit="saveSettings"
+        >
+          <ShiftScheduleSettingsFields v-model="settingsState" />
+        </UForm>
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton
+              type="submit"
+              form="shift-schedule-settings-form"
+              :loading="savingSettings"
+              :disabled="!settingsChanged"
+              :label="t('admin.saveSettings', 'Save settings')"
+            />
+          </div>
+        </template>
+      </SectionCard>
+
+      <SectionCard
         v-else
         :title="t('admin.viewSwapsTitle', 'Swaps to approve')"
-        :description="selected?.swapMode === 'approval' ? t('admin.swapsApprovalHelp', 'Swaps the owner accepted wait here for a lead of the team or staff.') : t('admin.swapsPeerHelp', 'This schedule swaps between volunteers: nothing waits for approval.')"
+        :description="selected?.approval === 'lead' ? t('admin.swapsApprovalHelp', 'Swaps the owner accepted wait here for a lead of the team or staff.') : t('admin.swapsPeerHelp', 'This schedule swaps between volunteers: nothing waits for approval.')"
       >
         <p
           v-if="!pendingSwaps.length"
@@ -382,7 +426,7 @@ async function reject(swap: ShiftSwapDto) {
             <div class="flex flex-col text-sm">
               <span class="text-highlighted font-medium">{{ tr(swap.shift.teamName) }} · {{ format.range(swap.shift.startsAt, swap.shift.endsAt) }}</span>
               <span class="text-muted">
-                {{ t('swaps.fromTo', '{from} gives it to {to}', { from: swap.owner.name ?? '', to: swap.offers?.find(offer => offer.status === 'accepted')?.person?.name ?? '' }) }}
+                {{ actions.swapSummary(swap) }}
               </span>
               <StatusBadge
                 class="self-start"
@@ -390,7 +434,13 @@ async function reject(swap: ShiftSwapDto) {
                 :label="t(`swapStatuses.${swap.status}`, SHIFT_SWAP_STATUS_LABELS[swap.status])"
               />
             </div>
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2">
+              <span
+                v-if="!actions.swapAllowed(swap)"
+                class="text-muted text-sm"
+              >
+                {{ t('swaps.noLongerAllowed', 'No longer allowed by the schedule\'s settings: reject it.') }}
+              </span>
               <UButton
                 color="neutral"
                 variant="outline"
@@ -398,6 +448,7 @@ async function reject(swap: ShiftSwapDto) {
                 @click="reject(swap)"
               />
               <UButton
+                v-if="actions.swapAllowed(swap)"
                 :label="t('swaps.approveAction', 'Approve swap')"
                 @click="approve(swap)"
               />

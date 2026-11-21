@@ -42,7 +42,7 @@ async function save(event: FormSubmitEvent<State>) {
   <FormSlideover
     form-id="shift-copy-form"
     :title="t('admin.copyTitle', 'Copy from another schedule')"
-    :description="t('admin.copyDescription', 'Copies the shift roles and shifts, not who works them. Teams of another operation are matched by name.')"
+    :description="t('admin.copyDescription', 'Copies the shift roles and shifts, not who works them, and the coverage, handover and approval, which replace this schedule\'s. Teams of another operation are matched by name.')"
     :submit-label="t('admin.copySubmit', 'Copy shifts')"
     :loading="busy"
     @close="emit('close', false)"

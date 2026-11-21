@@ -6,19 +6,22 @@ import ShiftScheduleSlideover from '../components/ShiftScheduleSlideover.vue'
 import ShiftSlideover from '../components/ShiftSlideover.vue'
 import type { ShiftsLadder, ShiftsTeamOption } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
-import type { ShiftCopyResultDto, ShiftDto, ShiftRoleDto, ShiftScheduleDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
-import { $fetch, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsTranslate } from '#imports'
+import { allowsSwapKind, offerKind } from '../../utils/settings'
+import type { ShiftCopyResultDto, ShiftDto, ShiftRoleDto, ShiftScheduleDto, ShiftScheduleSettings, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import { $fetch, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsFormat, useShiftsTranslate } from '#imports'
 
 /** What the schedule forms need to know about the operation. */
 export type ShiftsScheduleContext = { teams: ShiftsTeamOption[], ladders: ShiftsLadder[], roles: ShiftRoleDto[] }
 
 /**
  * What staff do with schedules, roles, shifts and swaps, shared by the Shifts tab: the forms (opened as slideovers,
- * resolving with the saved record or `false`), the confirmations of publishing and deleting, and the row menus.
+ * resolving with the saved record or `false`), saving a schedule's settings, the confirmations of publishing and
+ * deleting, the row menus, and the short label of a schedule's settings.
  */
 export function useShiftsActions() {
   const t = useModuleT('shifts')
   const tr = useShiftsTranslate()
+  const format = useShiftsFormat()
   const overlay = useOverlay()
   const confirm = useConfirmDialog()
   const { run } = useAction()
@@ -27,6 +30,46 @@ export function useShiftsActions() {
     await overlay.create(ShiftScheduleSlideover, { destroyOnClose: true, props: { operationId } }).open() as ShiftScheduleDto | false
   const editSchedule = async (schedule: ShiftScheduleDto) =>
     await overlay.create(ShiftScheduleSlideover, { destroyOnClose: true, props: { operationId: schedule.operationId, schedule } }).open() as ShiftScheduleDto | false
+
+  /** Saves a schedule's coverage, handover and approval (the inline settings form). Resolves with the saved schedule or `false`. */
+  async function saveScheduleSettings(schedule: ShiftScheduleDto, settings: ShiftScheduleSettings): Promise<ShiftScheduleDto | false> {
+    return await run(
+      () => $fetch<ShiftScheduleDto>(shiftsApi.admin.schedule(schedule.id), { method: 'PATCH', body: settings }),
+      { success: t('admin.settingsSaved', 'Saved the settings of {name}', { name: tr(schedule.name) }), error: t('admin.settingsFailed', 'Could not save the settings') },
+    ) ?? false
+  }
+
+  /** A short label of how a schedule's shifts change hands, e.g. "Trade only · A lead approves". */
+  function settingsLabel(settings: ShiftScheduleSettings): string {
+    const handover = settings.coverage === 'all'
+      ? t('admin.settingsAll', 'Every shift, trade only')
+      : settings.handover === 'trade'
+        ? t('admin.settingsTrade', 'Trade only')
+        : settings.handover === 'release'
+          ? t('admin.settingsRelease', 'Give away only')
+          : t('admin.settingsBoth', 'Trade or give away')
+    const approval = settings.approval === 'lead' ? t('admin.approvals.lead', 'A lead approves') : t('admin.approvals.peer', 'Between volunteers')
+    return `${handover} · ${approval}`
+  }
+
+  /** Who a swap waiting for approval moves where: "Ann gives it to Bo", or for a trade "Ann trades it with Bo for Bar, 28 Jun 18:00". */
+  function swapSummary(swap: ShiftSwapDto): string {
+    const accepted = swap.offers?.find(offer => offer.status === 'accepted')
+    const names = { from: swap.owner.name ?? '', to: accepted?.person?.name ?? '' }
+    const back = accepted?.offeredShift
+    return back
+      ? t('swaps.tradesWith', '{from} trades it with {to} for {team}, {when}', { ...names, team: tr(back.teamName), when: format.range(back.startsAt, back.endsAt) })
+      : t('swaps.fromTo', '{from} gives it to {to}', names)
+  }
+
+  /**
+   * Whether the schedule's settings of now still allow a swap waiting for approval (its accepted offer's kind). One they
+   * no longer allow cannot be approved (the server answers 409 `handover_not_allowed`): only rejected.
+   */
+  function swapAllowed(swap: ShiftSwapDto): boolean {
+    const accepted = swap.offers?.find(offer => offer.status === 'accepted')
+    return allowsSwapKind(swap.settings, accepted ? offerKind(accepted) : swap.kind)
+  }
 
   async function publishSchedule(schedule: ShiftScheduleDto): Promise<ShiftScheduleDto | false> {
     const name = tr(schedule.name)
@@ -147,6 +190,8 @@ export function useShiftsActions() {
   return {
     createSchedule,
     editSchedule,
+    saveScheduleSettings,
+    settingsLabel,
     publishSchedule,
     deleteSchedule,
     bulkCreate,
@@ -158,6 +203,8 @@ export function useShiftsActions() {
     deleteShift,
     approveSwap,
     rejectSwap,
+    swapSummary,
+    swapAllowed,
     scheduleMenu,
     roleMenu,
   }

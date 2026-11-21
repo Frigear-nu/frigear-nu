@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SHIFT_APPROVALS, SHIFT_COVERAGES, SHIFT_HANDOVERS, SHIFT_SWAP_KINDS } from '../../utils/settings'
 import { SHIFT_SWAP_STATUSES } from '../../utils/status'
 import { isClock, isDay } from '../../utils/time'
 
@@ -32,11 +33,16 @@ const location = z.strictObject({
   featureId: key.optional(),
 })
 
-/** The body of `POST /api/admin/shifts/schedules`. */
+/**
+ * The body of `POST /api/admin/shifts/schedules`. `coverage: 'all'` with a `handover` other than `trade` is refused
+ * with 400 `invalid_schedule_settings` (checked by `shiftsCreateSchedule`, so the code is stable).
+ */
 export const shiftsScheduleInput = z.object({
   operationId: key,
   name: shiftsTranslated,
-  swapMode: z.enum(['peer', 'approval']).default('peer'),
+  coverage: z.enum(SHIFT_COVERAGES).default('flexible'),
+  handover: z.enum(SHIFT_HANDOVERS).default('both'),
+  approval: z.enum(SHIFT_APPROVALS).default('peer'),
   minPerShift: count.nullish(),
   maxPerShift: count.nullish(),
   guards: guards.nullish(),
@@ -45,10 +51,12 @@ export const shiftsScheduleInput = z.object({
   path: ['maxPerShift'],
 })
 
-/** The body of `PATCH /api/admin/shifts/schedules/:scheduleId`. */
+/** The body of `PATCH /api/admin/shifts/schedules/:scheduleId`. The settings are checked merged with the stored ones. */
 export const shiftsSchedulePatch = z.object({
   name: shiftsTranslated.optional(),
-  swapMode: z.enum(['peer', 'approval']).optional(),
+  coverage: z.enum(SHIFT_COVERAGES).optional(),
+  handover: z.enum(SHIFT_HANDOVERS).optional(),
+  approval: z.enum(SHIFT_APPROVALS).optional(),
   minPerShift: count.nullish(),
   maxPerShift: count.nullish(),
   guards: guards.nullish(),
@@ -127,7 +135,16 @@ export const shiftsCandidatesQuery = z.object({
 /** The body of `POST /api/shifts/teams/:teamId/check-in`. */
 export const shiftsCheckInInput = z.object({ code: z.string().trim().min(1).max(200) })
 
-/** The body of `POST /api/shifts/swaps/:swapId/offers`: one of my own assignments to give back, or none. */
+/**
+ * The body of `POST /api/shifts/me/:assignmentId/swap`: the kind (the schedule's only allowed kind, else `release`, when
+ * left out) and, for a trade, the one assignment wanted in return.
+ */
+export const shiftsOpenSwapInput = z.object({
+  kind: z.enum(SHIFT_SWAP_KINDS).optional(),
+  wantedAssignmentId: key.nullish(),
+}).prefault({})
+
+/** The body of `POST /api/shifts/swaps/:swapId/offers`: one of my own assignments in return (a trade), or none (a release). */
 export const shiftsOfferInput = z.object({ assignmentId: key.nullish() }).prefault({})
 
 /** The router params of `/api/shifts/swaps/:swapId/offers/:offerId`. */

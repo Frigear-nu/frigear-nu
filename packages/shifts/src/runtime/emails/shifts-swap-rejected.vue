@@ -7,6 +7,8 @@ defineProps<{
   subject: string
   message: string
   url?: string | null
+  /** A trade: the message names both shifts. */
+  trade?: boolean
 }>()
 </script>
 

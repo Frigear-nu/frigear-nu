@@ -13,7 +13,7 @@ export async function registerUser(name: string, email: string) {
   return { cookie: response.headers.get('set-cookie')!, id: Number(body.id), email, name }
 }
 
-export type HookEntry = { name: string, userId?: number, assignmentId?: string, shiftId?: string, swapId?: string, offerId?: string, scheduleId?: string, status?: string, previousUserId?: number | null, previousStatus?: string | null, by?: number }
+export type HookEntry = { name: string, userId?: number, assignmentId?: string, shiftId?: string, swapId?: string, offerId?: string, scheduleId?: string, status?: string, previousUserId?: number | null, previousStatus?: string | null, by?: number, kind?: string }
 
 /** Every shifts hook that fired, in order (fixture-only route). */
 export const getHooks = () => $fetch<HookEntry[]>('/api/test/hooks')
