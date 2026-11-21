@@ -1,6 +1,3 @@
-// Loads the `authorization:roles` hook type (Nitro's server tsconfig does not include module types).
-import type {} from '@frigear-nu/auth'
-
 // Verified addresses in NUXT_ACL_ADMINS hold the `admin` role (`authorization.roles` in nuxt.config.ts). This bootstraps
 // the first admin, who verifies through the emailed link and assigns every other role in the admin. Nothing is stored:
 // removing an address removes the access. The user comes from `ctx.user`, never from the session on `ctx.event`.

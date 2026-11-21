@@ -13,6 +13,11 @@ pnpx @frigear-nu/cli --help
 | `app:create <name> --template <web\|web-standalone\|mobile>` | Adds a starter's app to `apps/<name>`. |
 | `module:create <name> [--scope @acme]` | Scaffolds a Nuxt module in `packages/<name>`. |
 | `add <module...> [--app <app>]` | `pnpm add` in the app and adds the modules to its `nuxt.config`. |
+| `package:rename <package> <new-name> [--dir]` | Renames a workspace package in manifests, `pnpm-workspace.yaml`, imports and config. |
+| `module:folder <module> [--runtime]` | Turns `modules/foo.ts` into `modules/foo/index.ts`. |
+| `module:move <module> <destination> [--name <name>]` | Moves a local module or package folder and fixes relative paths. |
+
+The three refactoring commands take `--dry-run` to print the changes without writing them.
 
 Starters are downloaded from `Frigear-nu/frigear-nu` with [giget](https://github.com/unjs/giget) (`--ref` picks a branch
 or tag). While that repository is not public, set `GIGET_AUTH` to a GitHub token that can read it.

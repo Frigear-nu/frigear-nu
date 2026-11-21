@@ -3,10 +3,11 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { upgradeWorkspace } from '../src/commands/upgrade.ts'
-import { findPins, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
+import { duplicateVersions, findPins, movePatchedDependencies, sharedDuplicates, rewritePins, workspaceGlobs } from '../src/upgrade/manifests.ts'
 import { pendingMigrations } from '../src/upgrade/migrate.ts'
 import { compareVersions, rewriteRange } from '../src/upgrade/versions.ts'
 import { migrations } from '../src/upgrades/index.ts'
+import { addAppSecret } from '../src/upgrades/session.ts'
 
 describe('versions', () => {
   it('compares versions, a pre-release before its release', () => {
@@ -76,10 +77,60 @@ describe('manifests', () => {
   })
 })
 
+describe('lockfile', () => {
+  it('finds @frigear-nu packages installed in more than one version', () => {
+    const lock = [
+      'packages:',
+      '  \'@frigear-nu/auth@0.6.0\':',
+      '  \'@frigear-nu/auth@0.6.1\':',
+      '  \'@frigear-nu/users@3.1.0\':',
+      'snapshots:',
+      '  \'@frigear-nu/auth@0.6.1(nuxt@4.6.4)\':',
+      '  \'@frigear-nu/users@3.1.0(@frigear-nu/auth@0.6.0)\':',
+    ].join('\n')
+    expect(duplicateVersions(lock)).toEqual({ '@frigear-nu/auth': ['0.6.0', '0.6.1'] })
+  })
+
+  it('finds shared libraries installed in two versions of one major', () => {
+    const lock = [
+      'packages:',
+      '  zod@3.25.76:',
+      '  zod@4.6.5:',
+      '  zod@4.6.7:',
+      '  h3@1.15.11:',
+      '  vue@3.5.0:',
+      'snapshots:',
+      '  zod@4.6.7: {}',
+    ].join('\n')
+    expect(sharedDuplicates(lock)).toEqual({ zod: ['4.6.5', '4.6.7'] })
+  })
+})
+
+describe('movePatchedDependencies', () => {
+  it('moves yaml and package.json patch entries to the new version', () => {
+    const yaml = 'patchedDependencies:\n  \'@frigear-nu/mobile@0.6.0\': patches/@frigear-nu__mobile@0.6.0.patch\n  vue@3.5.0: patches/vue.patch\n'
+    const moved = movePatchedDependencies('pnpm-workspace.yaml', yaml, { '@frigear-nu/mobile': '0.6.1' })
+    expect(moved.text).toBe('patchedDependencies:\n  \'@frigear-nu/mobile@0.6.1\': patches/@frigear-nu__mobile@0.6.1.patch\n  vue@3.5.0: patches/vue.patch\n')
+    expect(moved.moves).toEqual([{ file: 'pnpm-workspace.yaml', name: '@frigear-nu/mobile', from: '0.6.0', to: '0.6.1', patch: 'patches/@frigear-nu__mobile@0.6.0.patch', next: 'patches/@frigear-nu__mobile@0.6.1.patch' }])
+    const json = '{ "pnpm": { "patchedDependencies": {\n    "@frigear-nu/mobile@0.6.0": "patches/mobile.patch"\n  } } }'
+    expect(movePatchedDependencies('package.json', json, { '@frigear-nu/mobile': '0.6.1' }).text).toContain('"@frigear-nu/mobile@0.6.1": "patches/mobile.patch"')
+    expect(movePatchedDependencies('package.json', json, {}).moves).toEqual([])
+  })
+})
+
+describe('addAppSecret', () => {
+  it('goes right after NUXT_SESSION_PASSWORD', () => {
+    expect(addAppSecret('A=1\nNUXT_SESSION_PASSWORD=\nB=2\n')).toBe('A=1\nNUXT_SESSION_PASSWORD=\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\nB=2\n')
+  })
+  it('goes at the end otherwise', () => {
+    expect(addAppSecret('A=1')).toBe('A=1\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\n')
+  })
+})
+
 describe('pendingMigrations', () => {
   it('picks the changes released after the current version, up to the target', () => {
     const ids = (from: string, to: string) => pendingMigrations(migrations, { '@frigear-nu/auth': from }, { '@frigear-nu/auth': to }).map(m => m.id)
-    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-session-secret', 'auth-permissions'])
+    expect(ids('0.1.2', '0.6.1')).toEqual(['auth-routes', 'auth-api', 'auth-session-secret', 'auth-permissions'])
     expect(ids('0.3.4', '0.6.1')).toEqual(['auth-session-secret', 'auth-permissions'])
     expect(ids('0.5.0', '0.6.1')).toEqual([])
   })
@@ -195,6 +246,71 @@ describe('upgradeWorkspace', () => {
     const result = await upgradeWorkspace({ cwd: root, resolveLatest, only: ['@frigear-nu/auth'] })
     expect(await read('apps/web/server/api/teams.get.ts')).toContain('$fetch(\'/api/auth/me/tokens\')')
     expect(result.report).toContain('## Rewritten')
+  })
+
+  it('adds NUXT_APP_SECRET only to apps with server sessions', async () => {
+    await write('apps/site/package.json', '{ "dependencies": { "@frigear-nu/cookie-consent": "0.2.4" } }\n')
+    await write('apps/site/nuxt.config.ts', 'export default defineNuxtConfig({ modules: [\'@frigear-nu/cookie-consent\'] })\n')
+    await write('apps/site/.env.example', 'NUXT_PUBLIC_SITE_URL=\n')
+    await write('apps/mobile/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.3.4" } }\n')
+    await write('apps/mobile/nuxt.config.ts', 'export default defineNuxtConfig({ ssr: false })\n')
+    await write('apps/mobile/.env.example', 'NUXT_PUBLIC_API=\n')
+    await upgradeWorkspace({ cwd: root, resolveLatest })
+    expect(await read('apps/web/.env.example')).toBe('NUXT_SESSION_PASSWORD=\n# Seals the session cookie (32+ random characters).\nNUXT_APP_SECRET=\n')
+    expect(await read('apps/site/.env.example')).not.toContain('NUXT_APP_SECRET')
+    expect(await read('apps/mobile/.env.example')).not.toContain('NUXT_APP_SECRET')
+  })
+
+  it('lists stored roles, role checks and admin allowlists', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.3.4", "@frigear-nu/authorization": "0.3.2" } }\n')
+    await write('apps/web/nuxt.config.ts', [
+      'export default defineNuxtConfig({',
+      '  authentication: { settings: { session: { mapper: \'./server/utils/map-session-user\' } } },',
+      '  runtimeConfig: { session: { password: \'\' } },',
+      '})',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/utils/acl.ts', [
+      'export const effectiveRole = (user: { email: string, role: string }) =>',
+      '  useRuntimeConfig().aclAdmins.includes(user.email) ? \'admin\' : user.role',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/tasks/db/seed.ts', [
+      'export default defineTask({ run: () => db.insert(users).values({ email: \'a@b.c\', role: \'admin\' }) })',
+      '',
+    ].join('\n'))
+    await write('apps/web/server/plugins/roles.ts', 'nitro.hooks.hook(\'authorization:roles\', (ctx) => { if (aclAdmins.includes(ctx.user.email)) ctx.roles.push(\'admin\') })\n')
+    await write('apps/web/app/components/AdminLink.vue', '<template><a v-if="currentUser?.role === \'admin\'">Admin</a></template>\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => ({ ...latest, '@frigear-nu/authorization': '0.6.0' })[name], dryRun: true })
+    expect(report).toContain('apps/web/server/utils/acl.ts:1')
+    expect(report).toContain('apps/web/server/utils/acl.ts:2')
+    expect(report).toContain('apps/web/server/tasks/db/seed.ts:1')
+    expect(report).toContain('apps/web/app/components/AdminLink.vue:1')
+    expect(report).not.toContain('apps/web/server/plugins/roles.ts')
+    expect(report).toContain('`authentication.settings.session.mapper` is set')
+    expect(report).toContain('`runtimeConfig.session.password` is no longer read')
+    expect(report).toContain('Roles add up')
+  })
+
+  it('lists app plugins and composables that clash with auth\'s $api and useApi', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.1.2" } }\n')
+    await write('apps/web/app/plugins/api.ts', 'export default defineNuxtPlugin(() => ({ provide: { api: $fetch.create({}) } }))\n')
+    await write('apps/web/app/composables/useApi.ts', 'export const useApi = () => useNuxtApp().$api\n')
+    await write('apps/web/server/plugins/api.ts', 'export default defineNitroPlugin(() => ({ provide: { api: 1 } }))\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => latest[name], dryRun: true })
+    expect(report).toContain('apps/web/app/plugins/api.ts:1')
+    expect(report).toContain('apps/web/app/composables/useApi.ts:1')
+    expect(report).not.toContain('apps/web/server/plugins/api.ts')
+  })
+
+  it('moves patched dependencies and their patch files', async () => {
+    await write('pnpm-workspace.yaml', 'packages:\n  - \'apps/*\'\npatchedDependencies:\n  \'@frigear-nu/auth@0.5.0\': patches/@frigear-nu__auth@0.5.0.patch\n')
+    await write('patches/@frigear-nu__auth@0.5.0.patch', 'diff\n')
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/auth": "0.5.0" } }\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => latest[name] })
+    expect(await read('pnpm-workspace.yaml')).toContain(`'@frigear-nu/auth@${latest['@frigear-nu/auth']}': patches/@frigear-nu__auth@${latest['@frigear-nu/auth']}.patch`)
+    expect(await read(`patches/@frigear-nu__auth@${latest['@frigear-nu/auth']}.patch`)).toBe('diff\n')
+    expect(report).toContain('## Patched packages')
   })
 
   it('changes nothing on a dry run', async () => {
