@@ -1,7 +1,7 @@
 # @frigear-nu/crew
 
 An operation's crew: who applied, who is approved, and which team and role they hold. A volunteer applies through a
-[forms](../forms) form chosen per operation, staff approve, reject or waitlist, and an invite link puts a BA on a team
+[forms](../forms) form chosen per operation, staff approve, reject or waitlist, and an invite link puts a lead on a team
 directly. Crew is built on [teams](../teams): an approved person holds a team role of one of the operation's teams.
 Part of the volunteering modules; it follows the contracts of [`@frigear-nu/audience`](../audience).
 
@@ -10,7 +10,8 @@ Part of the volunteering modules; it follows the contracts of [`@frigear-nu/audi
 - Applications are submissions of the operation's form (`forms:submitted`); the form must ask for a signed-in user.
 - Capacity with a waiting list that moves up when a place frees, and "earlier crew first".
 - Invite links with hashed tokens, a number of uses claimed atomically, an optional expiry and an optional lead role.
-- Role presets for permanent members (`barmanager` is a BA, `crew` a bartender) and status emails through notify.
+- Role presets from the `rolePresets` option (global roles or plans to team roles, none by default) and status emails
+  through notify.
 - Hooks `crew:member:applied|approved|rejected|waitlisted|withdrawn`; answers `audience:viewer:resolve` with the
   operations a person is approved crew of.
 - Permissions `crew:apply`, `crew:read`, `crew:manage`, `crew:pii` and `crew:invite` (session only); the `crew` scope.

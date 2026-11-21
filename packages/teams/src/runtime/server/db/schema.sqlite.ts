@@ -21,7 +21,7 @@ export const teams = sqliteTable('teams', {
   ownerId: text(),
   /** A team this one belongs under (same owner). No foreign key: deleting a parent clears it in code. */
   parentId: text(),
-  /** The team kind, whose ladder holds the members' roles (`bar`). */
+  /** The team kind, whose ladder holds the members' roles (`default`, or a kind the app defines). */
   kind: text().notNull(),
   name: text({ mode: 'json' }).$type<Translated>().notNull(),
   description: text({ mode: 'json' }).$type<Translated>(),

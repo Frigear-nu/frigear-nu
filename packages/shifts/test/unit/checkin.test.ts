@@ -13,11 +13,11 @@ import {
 } from '../../src/runtime/utils/checkin'
 import { buildShiftDigestEmail } from '../../src/runtime/server/digest-email'
 
-const bar = { point: { lat: 55.6167, lng: 12.0784 } }
+const bar = { point: { lat: 10.0167, lng: 20.0784 } }
 // About 100 m north of the bar.
-const near = { lat: 55.6176, lng: 12.0784 }
+const near = { lat: 10.0176, lng: 20.0784 }
 // About 300 m north.
-const far = { lat: 55.6194, lng: 12.0784 }
+const far = { lat: 10.0194, lng: 20.0784 }
 
 describe('check-in settings', () => {
   it('falls back to the lead only, and always keeps the lead', () => {
@@ -55,7 +55,7 @@ describe('location check', () => {
   })
 
   it('checks an area by its outline', () => {
-    const area = { point: bar.point, area: [{ lat: 55.616, lng: 12.077 }, { lat: 55.618, lng: 12.077 }, { lat: 55.618, lng: 12.080 }, { lat: 55.616, lng: 12.080 }] }
+    const area = { point: bar.point, area: [{ lat: 10.016, lng: 20.077 }, { lat: 10.018, lng: 20.077 }, { lat: 10.018, lng: 20.080 }, { lat: 10.016, lng: 20.080 }] }
     expect(checkLocation(area, near, 10)).toEqual({ ok: true })
     expect(checkLocation(area, far, 10)).toMatchObject({ ok: false, reason: 'outside' })
   })

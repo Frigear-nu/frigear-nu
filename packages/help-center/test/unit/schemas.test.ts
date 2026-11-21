@@ -21,7 +21,7 @@ describe('category input', () => {
       description: 'About it',
       parentId: 'hlc_0',
       owner: { type: 'operation', id: 'opr_1' },
-      visibility: { globalRoles: ['barmanager'], minTeamRole: { kind: 'bar', role: 'ba' }, operationId: 'opr_1' },
+      visibility: { globalRoles: ['supervisor'], minTeamRole: { kind: 'bar', role: 'lead' }, operationId: 'opr_1' },
       faqGroups: ['volunteering', 'membership'],
       sort: 3,
     }).success).toBe(true)

@@ -47,7 +47,7 @@ describe('iCalendar writer', () => {
           uid: 'sha_1@shifts.frigear-nu',
           start: new Date('2027-06-28T08:00:00.000Z'),
           end: new Date('2027-06-28T14:00:00.000Z'),
-          summary: 'Bar, Nord · BA',
+          summary: 'Bar, Nord · Lead',
           location: 'Main bar',
           description: 'Line one\nhttps://example.com/shifts/sha_1',
           url: 'https://example.com/shifts/sha_1',
@@ -68,7 +68,7 @@ describe('iCalendar writer', () => {
     expect(lines).toContain('DTSTAMP:20270602T100000Z')
     // The event without a stamp takes the calendar's.
     expect(lines).toContain('DTSTAMP:20270601T000000Z')
-    expect(lines).toContain('SUMMARY:Bar\\, Nord · BA')
+    expect(lines).toContain('SUMMARY:Bar\\, Nord · Lead')
     expect(lines).toContain('LOCATION:Main bar')
     expect(lines.some(line => line.startsWith('DESCRIPTION:Line one\\nhttps'))).toBe(true)
     expect(lines).toContain('UID:sha_1@shifts.frigear-nu')

@@ -43,7 +43,7 @@ export default [
     if (!record) return undefined
     return record.userId !== undefined && Number(user.id) === record.userId
   }),
-  // The leads of the record's team (`isTeamLead` of teams: BA and up on a bar team), and staff.
+  // The leads of the record's team (`isTeamLead` of teams: lead role and up), and staff.
   definePolicy<ShiftsRecord>('shifts:lead', async ({ event, user, record }) => {
     if (!record) return undefined
     if (await allows(event, 'shifts:manage')) return true

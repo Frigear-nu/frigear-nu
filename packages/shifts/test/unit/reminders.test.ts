@@ -56,7 +56,7 @@ describe('reminder batch and time left', () => {
 })
 
 describe('reminder and broadcast messages', () => {
-  const variables = { name: 'Ann <b>', team: 'Bar', role: 'BA', when: '28 Jun 2027, 12:00', where: 'Main bar', start: startsAt.toISOString() }
+  const variables = { name: 'Ann <b>', team: 'Bar', role: 'Lead', when: '28 Jun 2027, 12:00', where: 'Main bar', start: startsAt.toISOString() }
 
   it('words the time left in English and Danish, English for anything else', () => {
     expect(describeTimeLeft({ unit: 'days', count: 1 })).toBe('in a day')
@@ -75,10 +75,10 @@ describe('reminder and broadcast messages', () => {
 
   it('formats the time in the locale, and falls back to English for a locale Intl rejects', () => {
     const when = new Date('2027-06-28T08:00:00.000Z')
-    expect(formatShiftWhen(when, 'en', 'Europe/Copenhagen')).toContain('10:00')
-    expect(() => formatShiftWhen(when, 'not a locale!!', 'Europe/Copenhagen')).not.toThrow()
-    expect(formatShiftWhen(when, 'not a locale!!', 'Europe/Copenhagen')).toBe(formatShiftWhen(when, 'en', 'Europe/Copenhagen'))
-    expect(formatShiftWhen(when, null, 'Europe/Copenhagen')).toBe(formatShiftWhen(when, 'en', 'Europe/Copenhagen'))
+    expect(formatShiftWhen(when, 'en', 'Europe/Berlin')).toContain('10:00')
+    expect(() => formatShiftWhen(when, 'not a locale!!', 'Europe/Berlin')).not.toThrow()
+    expect(formatShiftWhen(when, 'not a locale!!', 'Europe/Berlin')).toBe(formatShiftWhen(when, 'en', 'Europe/Berlin'))
+    expect(formatShiftWhen(when, null, 'Europe/Berlin')).toBe(formatShiftWhen(when, 'en', 'Europe/Berlin'))
   })
 
   it('builds the reminder email with the template, escaped html and the link', () => {
@@ -88,7 +88,7 @@ describe('reminder and broadcast messages', () => {
     expect(email.subject).toBe('Reminder: your shift starts in 2 hours')
     expect(email.body).toContain('Hi Ann &lt;b&gt;')
     expect(email.body).toContain('a=1&amp;b=2')
-    expect(email.text).toContain('Bar (BA) starts in 2 hours: 28 Jun 2027, 12:00, Main bar.')
+    expect(email.text).toContain('Bar (Lead) starts in 2 hours: 28 Jun 2027, 12:00, Main bar.')
     expect(email.template).toMatchObject({ name: 'shifts-reminder', locale: 'en', props: { heading: 'Your shift is coming up', button: 'See your shift', greeting: 'Hi Ann <b>,' } })
     expect(buildShiftReminderEmail({ email: null, variables, offset: 120, left })).toBeNull()
     expect(buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left })!.text).not.toContain('http')
@@ -96,7 +96,7 @@ describe('reminder and broadcast messages', () => {
     const da = buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, locale: 'da' })!
     expect(da.subject).toBe('Påmindelse: din vagt starter om 2 timer')
     expect(da.text).toContain('Hej Ann <b>,')
-    expect(da.text).toContain('Din vagt på Bar (BA) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
+    expect(da.text).toContain('Din vagt på Bar (Lead) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
     expect(da.template).toMatchObject({ locale: 'da', props: { heading: 'Din vagt nærmer sig', button: 'Se din vagt', greeting: 'Hej Ann <b>,' } })
     // A garbage locale gets the English text.
     expect(buildShiftReminderEmail({ email: 'ann@example.com', variables, offset: 120, left, locale: 'not a locale!!' })!.subject).toBe('Reminder: your shift starts in 2 hours')
@@ -107,9 +107,9 @@ describe('reminder and broadcast messages', () => {
     expect(buildShiftReminderSms({ phone: null, variables, offset: 120, left })).toBeNull()
     expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, left, url: 'https://example.com/s' })).toMatchObject({
       to: '+4512345678',
-      body: 'Your shift on Bar (BA) starts in 2 hours: 28 Jun 2027, 12:00, Main bar. https://example.com/s',
+      body: 'Your shift on Bar (Lead) starts in 2 hours: 28 Jun 2027, 12:00, Main bar. https://example.com/s',
     })
-    expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, left, locale: 'da' })!.body).toBe('Din vagt på Bar (BA) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
+    expect(buildShiftReminderSms({ phone: '+4512345678', variables, offset: 120, left, locale: 'da' })!.body).toBe('Din vagt på Bar (Lead) starter om 2 timer: 28 Jun 2027, 12:00, Main bar.')
   })
 
   it('builds the broadcast email and SMS', () => {

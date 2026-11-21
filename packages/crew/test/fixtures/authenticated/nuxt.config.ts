@@ -16,12 +16,12 @@ export default defineNuxtConfig({
     '@frigear-nu/notify',
     CrewModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`),
-    // and a slice of the website's chain: `barmanager` inherits `member`. `admin` and `coordinator` hold what the modules
+    // and a small role chain: `supervisor` inherits `member`. `admin` and `coordinator` hold what the modules
     // `grantTo` them (operations, teams, forms and crew: `crew:manage`, `crew:pii`, `crew:invite`). `crewmanager` holds
     // `crew:manage` only, so `crew:pii` can be told apart; `wild` holds `crew:*`, which never covers `crew:pii`.
     (_options, nuxt) => {
       addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
-      addRole(nuxt, { name: 'barmanager', label: 'Bar manager', grant: [], inherit: ['member'] })
+      addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [], inherit: ['member'] })
       addRole(nuxt, { name: 'crew', label: 'Crew', grant: [] })
       addRole(nuxt, { name: 'admin', label: 'Admin', grant: [] })
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [] })
@@ -46,8 +46,14 @@ export default defineNuxtConfig({
     blob: true,
   },
   // The log driver of notify (the default): the emails are captured by a `notify:email` listener of the fixture.
+  // The app's own presets and default team kind: crew ships none.
   crew: {
-    memberPlan: 'member-plan',
+    defaultTeamKind: 'bar',
+    rolePresets: [
+      { match: { role: 'supervisor' }, teamRole: 'lead' },
+      { match: { role: 'crew' }, teamRole: 'bartender' },
+      { match: { plan: 'member-plan' }, teamRole: 'volunteer' },
+    ],
   },
   forms: {
     settings: { rateLimit: 0, pages: { form: true } },
@@ -57,5 +63,17 @@ export default defineNuxtConfig({
   },
   teams: {
     settings: { pages: { admin: true, adminTeam: true } },
+    // The app's own ladder for the `bar` kind, led from `lead`.
+    ladders: {
+      bar: {
+        roles: [
+          { key: 'volunteer', label: { en: 'Volunteer', da: 'Frivillig' } },
+          { key: 'bartender', label: { en: 'Bartender', da: 'Bartender' } },
+          { key: 'lead', label: { en: 'Lead', da: 'Leder' } },
+          { key: 'coordinator', label: { en: 'Coordinator', da: 'Koordinator' } },
+        ],
+        leadFrom: 'lead',
+      },
+    },
   },
 })

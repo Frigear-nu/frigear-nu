@@ -12,7 +12,7 @@ vi.stubGlobal('dispatchEmailNotification', dispatchEmail)
 const email = buildCrewStatusEmail({
   status: 'waitlisted',
   member: { email: 'ann@example.com', name: 'Ann', teamName: 'Orange bar', role: 'volunteer' },
-  operationName: 'Roskilde',
+  operationName: 'Summer Festival',
   roleLabel: 'Volunteer',
   settings: undefined,
   locale: 'en',

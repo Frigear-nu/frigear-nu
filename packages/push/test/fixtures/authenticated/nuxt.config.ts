@@ -42,7 +42,7 @@ export default defineNuxtConfig({
           token_uri: 'https://oauth2.googleapis.com/token',
         }),
       },
-      apns: { keyId: 'KEY1234567', teamId: 'TEAM123456', topic: 'nu.frigear.test', privateKey: ec.privateKey, sandbox: false },
+      apns: { keyId: 'KEY1234567', teamId: 'TEAM123456', topic: 'com.example.test', privateKey: ec.privateKey, sandbox: false },
     },
   },
   hub: {
