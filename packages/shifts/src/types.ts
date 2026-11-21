@@ -455,7 +455,7 @@ export type ShiftsMyNowDto = {
     operationName: Translated
     teamId: string
     teamName: Translated
-    /** The leads (BA and up) on shift now. */
+    /** The leads (lead role and up) on shift now. */
     leads: ShiftPersonDto[]
     /** Everybody on shift now in this team, the leads included. */
     people: ShiftPersonDto[]

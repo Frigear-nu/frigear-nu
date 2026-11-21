@@ -1677,7 +1677,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup()
       const [ann, lead, bystander, outsider] = await Promise.all([user('Ynann'), user('Ynlead'), user('Ynby'), user('Ynout')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(setup.team.id, bystander)
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
       await assigned(setup.shifts[0]!.id, ann)
@@ -1701,7 +1701,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Another team of the operation with a lead on shift is not mine: it is not listed.
       const other = await createTeam(setup.op.id)
       const otherLead = await user('Ynolead')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(other.id, otherLead, 'lead')
       const [otherShift] = await bulk(setup.schedule.id, { teamId: other.id, days: ['2027-06-28'], slots: [{ start: '23:00', end: '23:30' }] })
       await patchShift(otherShift!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
       await assigned(otherShift!.id, otherLead)
