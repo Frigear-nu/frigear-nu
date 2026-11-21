@@ -163,6 +163,10 @@ type TeamRoleGrant = {
 
 - Explicit memberships come first, then the grants of the mapping rules. Mapped grants are never stored.
 - An explicit membership on a team wins over a mapped grant on the same team.
+- **Membership status.** A `team_members` row grants its role only when its `status` is `null` or `'active'`. Any
+  other value (`'pending'`, `'inactive'`, ...) keeps the person listed on the team without a grant: no read, no lead,
+  nothing in the viewer. Crew sets teams' `status` next to its own crew status. A mapping rule may still give such a
+  person a mapped role.
 - Mapped grants are resolved per request: every call reads the mapping rules and the user's global roles and plans.
   Call `resolveTeamRoles` (and `resolveViewer`) once per request and reuse the result, not once per record.
 - Teams answers `audience:viewer:resolve` with the grants on every owner, plus the ladder of each team kind in them.
@@ -178,7 +182,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 - **Provider:** `resolve`, `check` or `filter`. Listeners mutate the context.
 - **Two segments** are allowed when the entity is the module's own main resource: `operations:created`, like the
   existing `forms:submitted`.
-- **The context** is always one mutable object with `event`.
+- **The context** is always one mutable object with `event`. One exception: `teams:roles:resolve` has `event:
+  undefined` while teams builds an OAuth claim, which runs outside a request.
 
 | Hook | Owner | Context | Phase |
 | --- | --- | --- | --- |
@@ -191,7 +196,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:member:added` | teams | `{ event, team, member }` | 2 |
 | `teams:member:removed` | teams | `{ event, team, member }` | 2 |
 | `teams:member:role-changed` | teams | `{ event, team, member, from, to }` | 2 |
-| `teams:roles:resolve` | teams | `{ event, user, owner, grants }` | 2 |
+| `teams:roles:resolve` | teams | `{ event, user, owner, globalRoles, rules, teams, ladders, grants }` | 2 |
 | `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
@@ -218,7 +223,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6: platform mailboxes; 7: user mailboxes |
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
-  know. Crew's presets are plain `team_role_mappings` rows instead.
+  know. Crew's presets are plain `team_role_mappings` rows instead. `owner` is `null`: one resolution covers every
+  owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
+  rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
+  explicit memberships and teams' own role rules still count.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
