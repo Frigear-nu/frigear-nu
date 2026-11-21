@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { teamsApi } from '../src/runtime/utils/api'
 import { teamsAccess } from '../src/runtime/access'
-import { mapsApi } from '@frigear-nu/maps/utils'
+import { mapsApi } from '@frigear-nu/maps/api'
 import { getHooksFor, getOwner, givePlan, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
