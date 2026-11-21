@@ -10,15 +10,16 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The only package that exists today is [Audience](/modules/volunteering/audience), the shared visibility rules. Every
-other module adds its own page to this group in the pull request that adds the module.
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
+[Teams](/modules/volunteering/teams). Every other module adds its own page to this group in the pull request that adds
+the module.
 
 ## The modules
 
 | Module | What it does | Track |
 | --- | --- | --- |
 | `@frigear-nu/operations` | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
-| `@frigear-nu/teams` | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
+| [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
@@ -191,6 +192,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:member:removed` | teams | `{ event, team, member }` | 2 |
 | `teams:member:role-changed` | teams | `{ event, team, member, from, to }` | 2 |
 | `teams:roles:resolve` | teams | `{ event, user, owner, grants }` | 2 |
+| `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
@@ -217,6 +219,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
   know. Crew's presets are plain `team_role_mappings` rows instead.
+- **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
+  members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
   To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through

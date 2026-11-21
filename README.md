@@ -77,3 +77,4 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/forms](./packages/forms) - Dynamic, database-stored forms (single page or stepped) with conditional fields, file uploads, submissions and email delivery
 - [@frigear-nu/cookie-consent](./packages/cookie-consent) - GDPR cookie consent banner with categories other modules contribute to, `onCookieConsent` gating and consent stored as proof on the user
 - [@frigear-nu/audience](./packages/audience) - Shared visibility rules (`isVisible`, `narrowVisibility`), owner references and the `audience:viewer:resolve` / `audience:owner:resolve` hooks for the volunteering modules; a plain library, not a Nuxt module
+- [@frigear-nu/teams](./packages/teams) - Teams owned by an operation or the platform, members with roles from a ladder per team kind, and mapping rules that give global roles and plans a team role at read time; answers the audience hooks and adds a `teams` OAuth claim
