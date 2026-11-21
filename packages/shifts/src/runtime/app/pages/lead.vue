@@ -2,13 +2,15 @@
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
-import type { ShiftAssigneeDto, ShiftsLedTeamDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import type { ShiftAssigneeDto, ShiftExceptionDto, ShiftExceptionKind, ShiftsLedTeamDto, ShiftStationDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import { $fetch, computed, errorMessage, navigateTo, ref, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsLeadPage' })
 
-// A team lead's page: the team's upcoming shifts with who works them (attended and no-show marks), the swaps waiting for
-// approval, and the way to the check-in scanner. Only leads of the team (and staff) read it; the server decides.
+// A team lead's page. It opens on the exceptions of the team's recent shifts (no-shows, late check-ins, people not
+// checked in after the start, no-shows whose perk was claimed); the team's upcoming shifts with who works them
+// (attended and no-show marks) are one tab away. Also the swaps waiting for approval, the team's check-in stations and
+// the way to the scanner. Only leads of the team (and staff) read it; the server decides.
 const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
 const format = useShiftsFormat()
@@ -33,6 +35,26 @@ const { data: swaps, refresh: refreshSwaps } = await useFetch<ShiftSwapDto[]>(()
   key: computed(() => `shifts:lead-swaps:${teamId.value}`),
   default: () => [],
 })
+const { data: exceptions, refresh: refreshExceptions } = await useFetch<ShiftExceptionDto[]>(() => shiftsApi.teams.exceptions(teamId.value), {
+  key: computed(() => `shifts:lead-exceptions:${teamId.value}`),
+  default: () => [],
+})
+const { data: stations } = await useFetch<ShiftStationDto[]>(() => shiftsApi.teams.stations(teamId.value), {
+  key: computed(() => `shifts:lead-stations:${teamId.value}`),
+  default: () => [],
+})
+const view = ref<'exceptions' | 'shifts'>('exceptions')
+const viewItems = computed(() => [
+  { label: t('lead.viewExceptions', 'Exceptions ({count})', { count: exceptions.value.length }), value: 'exceptions', icon: 'i-lucide-triangle-alert' },
+  { label: t('lead.viewShifts', 'All shifts'), value: 'shifts', icon: 'i-lucide-list' },
+])
+const exceptionLabel = (item: ShiftExceptionDto) => ({
+  no_show: t('exceptions.no_show', 'No-show'),
+  late: t('exceptions.late', 'Late by {minutes} min', { minutes: item.lateMinutes ?? 0 }),
+  not_checked_in: t('exceptions.not_checked_in', 'Not checked in'),
+  claimed_no_show: t('exceptions.claimed_no_show', 'No-show, perk claimed'),
+} satisfies Record<ShiftExceptionKind, string>)[item.kind]
+const exceptionColor = (kind: ShiftExceptionKind) => kind === 'late' ? 'warning' : kind === 'not_checked_in' ? 'info' : 'error'
 const { data: led } = await useFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', default: () => [] })
 const team = computed(() => led.value.find(item => item.teamId === teamId.value))
 
@@ -53,7 +75,7 @@ async function mark(assignee: ShiftAssigneeDto, to: 'attended' | 'no_show') {
     () => $fetch(to === 'attended' ? shiftsApi.attended(assignee.id) : shiftsApi.noShow(assignee.id), { method: 'POST' }).then(() => true),
     { success: t('admin.marked', 'Marked {name} {status}', { name: nameOf(assignee.person), status: statusLabel(to).toLowerCase() }), error: t('lead.markFailed', 'Could not mark attendance') },
   )
-  if (done) await refresh()
+  if (done) await Promise.all([refresh(), refreshExceptions()])
 }
 
 async function approve(swap: ShiftSwapDto) {
@@ -140,13 +162,91 @@ useHead({ title: () => t('lead.title', 'Lead {team}', { team: team.value ? tr(te
             </ul>
           </SectionCard>
 
+          <SectionCard
+            v-if="stations.length"
+            :title="t('lead.stations', 'Check-in stations')"
+            icon="i-lucide-qr-code"
+          >
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                v-for="station in stations"
+                :key="station.id"
+                :to="links.station(station.id)"
+                icon="i-lucide-monitor"
+                color="neutral"
+                variant="outline"
+                :label="t('lead.openStation', 'Open {name}', { name: tr(station.name) })"
+              />
+            </div>
+          </SectionCard>
+
+          <UTabs
+            v-model="view"
+            :items="viewItems"
+            :content="false"
+            variant="link"
+          />
+
+          <template v-if="view === 'exceptions'">
+            <UEmpty
+              v-if="!exceptions.length"
+              icon="i-lucide-check-circle"
+              :title="t('lead.noExceptions', 'Nothing to look at')"
+              :description="t('lead.noExceptionsDescription', 'Everybody on the team\'s shifts of the last day checked in on time.')"
+            />
+            <SectionCard
+              v-else
+              :title="t('lead.exceptionsTitle', 'Exceptions')"
+              :description="t('lead.exceptionsDescription', 'No-shows, late check-ins and people not checked in on the shifts of the last day.')"
+            >
+              <ul class="divide-default divide-y">
+                <li
+                  v-for="item in exceptions"
+                  :key="`${item.kind}:${item.assignment.id}`"
+                  class="flex flex-wrap items-center justify-between gap-2 py-1.5"
+                >
+                  <div class="flex flex-col gap-0.5">
+                    <TableIdentity
+                      :title="nameOf(item.assignment.person)"
+                      :description="`${format.day(dayKey(item.shift.startsAt, format.timeZone))} · ${format.time(item.shift.startsAt)}–${format.time(item.shift.endsAt)}`"
+                      :avatar="{ src: item.assignment.person.avatar ?? undefined, alt: nameOf(item.assignment.person) }"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <UBadge
+                      :color="exceptionColor(item.kind)"
+                      variant="subtle"
+                      :label="exceptionLabel(item)"
+                    />
+                    <UButton
+                      v-if="item.assignment.status !== 'attended'"
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      :label="t('admin.markAttended', 'Mark attended')"
+                      @click="mark(item.assignment, 'attended')"
+                    />
+                    <UButton
+                      v-if="item.assignment.status === 'assigned'"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      :label="t('admin.markNoShow', 'Mark no-show')"
+                      @click="mark(item.assignment, 'no_show')"
+                    />
+                  </div>
+                </li>
+              </ul>
+            </SectionCard>
+          </template>
+
           <UEmpty
-            v-if="!days.length"
+            v-if="view === 'shifts' && !days.length"
             icon="i-lucide-calendar-clock"
             :title="t('lead.empty', 'No upcoming shifts for the team')"
           />
           <SectionCard
-            v-for="group in days"
+            v-for="group in (view === 'shifts' ? days : [])"
             :key="group.day"
             :title="format.day(group.day)"
           >

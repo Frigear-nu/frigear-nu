@@ -3,12 +3,12 @@ import { translate } from '@frigear-nu/ui/translated'
 
 export { translate }
 export * from './api'
+export * from './checkin'
 export * from './chunk'
 export * from './guards'
 export * from './ics'
 export * from './reminders'
 export * from './links'
-export * from './location'
 export * from './settings'
 export * from './status'
 export * from './time'
@@ -30,11 +30,19 @@ export type {
   ShiftBroadcastResultDto,
   ShiftCandidateDto,
   ShiftChannel,
+  ShiftCheckInMethod,
+  ShiftCheckInMode,
+  ShiftCheckInRule,
+  ShiftCheckInSettings,
+  ShiftCheckInTeamSettings,
   ShiftCheckInDto,
   ShiftCopyResultDto,
   ShiftCoverage,
   ShiftCreatedContext,
+  ShiftDigestContext,
   ShiftDto,
+  ShiftExceptionDto,
+  ShiftExceptionKind,
   ShiftFeedStatusDto,
   ShiftFeedTokenDto,
   ShiftGuards,
@@ -42,11 +50,10 @@ export type {
   ShiftLocation,
   ShiftPassDto,
   ShiftPassPerkDto,
-  ShiftPerkContext,
   ShiftPerkDto,
-  ShiftPerkKind,
-  ShiftPerkRedeemDto,
-  ShiftPerkRedemptionDto,
+  ShiftPerkGrantContext,
+  ShiftPerkGrantDto,
+  ShiftPerkGrantListDto,
   ShiftPersonDto,
   ShiftReminderContext,
   ShiftRoleDto,
@@ -54,6 +61,11 @@ export type {
   ShiftScheduleDto,
   ShiftScheduleSettings,
   ShiftScheduleStatus,
+  ShiftSelfCheckInDto,
+  ShiftSelfCheckInInput,
+  ShiftsAutomationOptions,
+  ShiftStationDto,
+  ShiftStationTokenDto,
   ShiftsLedTeamDto,
   ShiftsMyNowDto,
   ShiftsNowDto,

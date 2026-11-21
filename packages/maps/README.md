@@ -1,31 +1,36 @@
 # @frigear-nu/maps
 
-Maps for Frigear apps: a festival site map on map tiles, or a bar layout drawn on a floor plan. Any owner (an operation,
-a team, the platform) can have maps; staff draw on them in the browser, volunteers look at them on the web and in the
-app. Other modules ship their own kinds of maps, feature kinds, live layers and map pages without changing this one.
+Maps as a building block for other modules. A module that needs a place (where an operation is) or a layout (the bars,
+stations and seats of a venue) stores the value in its own table, edits it with these components on its own pages, and
+saves it through its own routes. Maps has no tables, routes or admin pages of its own.
 
 ```bash
-pnpm add @frigear-nu/maps @frigear-nu/audience
+pnpm add @frigear-nu/maps
 ```
 
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['@nuxthub/core', '@frigear-nu/users', '@frigear-nu/maps'],
-  hub: { db: 'sqlite', blob: true },
-  maps: { settings: { pages: { admin: true, adminMap: true } } },
+  modules: ['@nuxthub/core', '@frigear-nu/maps'],
+  hub: { blob: true },
 })
 ```
 
 | Export | What it does |
 | --- | --- |
-| `<MapView map>`, `<MapEditor map>`, `useMap(keyOrId)` | A read-only map, the editor (leaflet-geoman, limited to the kind's tools), and the composable for custom map pages. |
-| `extendMaps`, `defineMapKind`, `defineMapFeatureKind`, `defineMapLayer` (`@frigear-nu/maps/utils`) | Register map kinds, feature kinds (with a zod properties schema) and provider layers from a module's `setup()`. |
-| `ensureMap(event, definition)` (server util) | Creates a map from code once, idempotent by key. |
+| `<MapLocationField v-model>` | A location picker on OpenStreetMap tiles: a point, with a radius or an area. |
+| `<MapPlaneEditor v-model :kinds :upload>` | A plane layout editor (leaflet-geoman): underlay image, grid snapping, allowed feature kinds, a properties form per kind. |
+| `<MapViewer>`, `<MapMobileViewer>` | Read-only viewers for the web and for mobile screens, with live layers. |
+| `extendMaps`, `defineMapFeatureKind`, `defineMapLayer` (`@frigear-nu/maps/utils`) | Register feature kinds and live layers from a module's `setup()`. |
+| `mapLocationSchema`, `planeFeatureCollectionSchema` (`@frigear-nu/maps/schemas`) | zod schemas of the stored values. |
+| `haversineMeters`, `isInLocation`, `geometryAnchor`, ... (`@frigear-nu/maps/utils`) | Geometry helpers. |
+| `validatePlaneLayout`, `storeMapUnderlay`, `serveMapUnderlay` (server utils) | Check a layout against the registered kinds; store and serve underlay images in NuxtHub Blob. |
 | `translatedProperty` (`@frigear-nu/maps/properties`) | A translated text in a feature kind's properties schema. |
-| `mapsApi` (`@frigear-nu/maps/api`) | Typed paths of the HTTP API. |
 
 The default tiles are OpenStreetMap's public tile server, which forbids heavy use: set `maps.tiles` to a hosted tile
 provider in production.
 
-Full reference: [docs.frigear.dev/modules/interface/maps](https://docs.frigear.dev/modules/interface/maps).
+`pnpm --filter @frigear-nu/maps dev` runs the playground: every component with a sample layout, a `demo.seat` kind
+and a `demo.crowd` live layer.
+
+Docs: https://docs.frigear.dev/modules/interface/maps

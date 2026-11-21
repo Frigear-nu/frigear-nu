@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { mapLocationSchema } from '@frigear-nu/maps/schemas'
+import { SHIFT_CHECK_IN_MODES } from '../../utils/checkin'
 import { SHIFT_APPROVALS, SHIFT_COVERAGES, SHIFT_HANDOVERS, SHIFT_SWAP_KINDS } from '../../utils/settings'
 import { SHIFT_SWAP_STATUSES } from '../../utils/status'
 import { isClock, isDay } from '../../utils/time'
@@ -27,9 +29,21 @@ const guards = z.strictObject({
   minRestHours: z.number().min(0).max(72).nullish(),
 })
 
+const checkInModes = z.array(z.enum(SHIFT_CHECK_IN_MODES)).max(SHIFT_CHECK_IN_MODES.length).transform(value => [...new Set(value)])
+
+/** How people check in on a schedule's shifts, with overrides per team (keyed by team id, at most 200). */
+const checkIn = z.strictObject({
+  modes: checkInModes,
+  location: mapLocationSchema.nullish(),
+  teams: z.record(key, z.strictObject({ modes: checkInModes.optional(), location: mapLocationSchema.nullish() }))
+    .refine(value => Object.keys(value).length <= 200, 'At most 200 team overrides.')
+    .optional(),
+})
+
+const autoNoShowMinutes = z.number().int().min(0).max(24 * 60)
+
 const location = z.strictObject({
   name: shiftsTranslated.optional(),
-  mapId: key.optional(),
   featureId: key.optional(),
 })
 
@@ -46,6 +60,9 @@ export const shiftsScheduleInput = z.object({
   minPerShift: count.nullish(),
   maxPerShift: count.nullish(),
   guards: guards.nullish(),
+  checkIn: checkIn.nullish(),
+  autoNoShow: z.boolean().default(false),
+  autoNoShowMinutes: autoNoShowMinutes.default(30),
 }).refine(value => value.minPerShift == null || value.maxPerShift == null || value.maxPerShift >= value.minPerShift, {
   message: 'The maximum must be at least the minimum.',
   path: ['maxPerShift'],
@@ -60,6 +77,9 @@ export const shiftsSchedulePatch = z.object({
   minPerShift: count.nullish(),
   maxPerShift: count.nullish(),
   guards: guards.nullish(),
+  checkIn: checkIn.nullish(),
+  autoNoShow: z.boolean().optional(),
+  autoNoShowMinutes: autoNoShowMinutes.optional(),
 })
 
 /** The query of `GET /api/admin/shifts/schedules`. */
@@ -186,28 +206,55 @@ export const shiftsLeadBroadcastInput = z.object(broadcastFields)
 /** The query of `GET /api/admin/shifts/broadcasts`. */
 export const shiftsBroadcastsQuery = z.object({ operationId: key })
 
-const perkAmount = z.number().int().min(1).max(1000)
+const perkQuantity = z.number().int().min(1).max(1000)
+const voucherType = z.string().trim().min(1).max(64)
 
-/** The body of `POST /api/admin/shifts/operations/:operationId/perks`: exactly one of `perShift` and `perPerson`. */
+/** The body of `POST /api/admin/shifts/operations/:operationId/perks`. */
 export const shiftsPerkInput = z.object({
   teamId: key.nullish(),
-  kind: z.enum(['meal', 'drink', 'other']).default('meal'),
   name: shiftsTranslated,
-  perShift: perkAmount.nullish(),
-  perPerson: perkAmount.nullish(),
-}).refine(value => (value.perShift == null) !== (value.perPerson == null), {
-  message: 'Set either an allowance per shift or a budget per person.',
-  path: ['perShift'],
+  voucherType,
+  quantity: perkQuantity.default(1),
 })
 
-/** The body of `PATCH /api/admin/shifts/perks/:perkId` (the one-of rule is checked against the stored perk). */
+/** The body of `PATCH /api/admin/shifts/perks/:perkId`. Changes apply to grants made from now on. */
 export const shiftsPerkPatch = z.object({
   teamId: key.nullish(),
-  kind: z.enum(['meal', 'drink', 'other']).optional(),
   name: shiftsTranslated.optional(),
-  perShift: perkAmount.nullish(),
-  perPerson: perkAmount.nullish(),
+  voucherType: voucherType.optional(),
+  quantity: perkQuantity.optional(),
 })
+
+/** The query of `GET /api/shifts/me/perk-grants`. */
+export const shiftsPerkGrantsQuery = z.object({ status: z.enum(['unclaimed', 'claimed', 'all']).default('unclaimed') })
+
+/** The optional body of `POST /api/shifts/me/perk-grants/:id/claim`. */
+export const shiftsPerkClaimInput = z.object({ client: z.string().trim().min(1).max(100).optional() }).prefault({})
+
+/** The body of `POST /api/admin/shifts/schedules/:scheduleId/stations`. */
+export const shiftsStationInput = z.object({
+  teamId: key,
+  name: shiftsTranslated,
+  featureId: key.nullish(),
+})
+
+/** The body of `PATCH /api/admin/shifts/stations/:stationId`. */
+export const shiftsStationPatch = z.object({
+  name: shiftsTranslated.optional(),
+  featureId: key.nullish(),
+})
+
+/** The body of `POST /api/shifts/me/:assignmentId/check-in`: a station's QR token, or the device's position. */
+export const shiftsSelfCheckInInput = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('station'), token: z.string().trim().min(1).max(300) }),
+  z.object({
+    mode: z.literal('location'),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    /** The accuracy the device reports, in metres. */
+    accuracy: z.number().min(0).max(100_000),
+  }),
+])
 
 /** The query of `GET /api/shifts/teams/:teamId/swaps`. */
 export const shiftsTeamSwapsQuery = z.object({ status: z.enum(SHIFT_SWAP_STATUSES).optional() })

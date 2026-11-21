@@ -16,7 +16,7 @@ map integrations and dashboard items.
 | --- | --- |
 | [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. |
-| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, trades and releases, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and meal vouchers. |
+| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, trades and releases, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and earned perks. |
 
 They build on modules in other categories, which other apps use without them:
 
@@ -111,12 +111,11 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `shifts:reminder:sent` | shifts | `{ event, assignment, offset, channels }`, `event` always `undefined` when fired from the task | 5 |
 | `shifts:broadcast:sent` | shifts | `{ event, broadcast }` | 5 |
-| `shifts:perk:redeemed` | shifts | `{ event, perk, redemption }` | 5 |
 
 The modules the crew modules build on list their own hooks: [Audience](/modules/organisation/audience#hooks),
 [Teams](/modules/organisation/teams#hooks), [FAQ](/modules/content/faq#hooks),
-[Help center](/modules/content/help-center#hooks), [Push](/modules/communication/push#hooks),
-[Dashboard](/modules/interface/dashboard#hooks) and [Maps](/modules/interface/maps#hooks).
+[Help center](/modules/content/help-center#hooks), [Push](/modules/communication/push#hooks)
+and [Dashboard](/modules/interface/dashboard#hooks). [Maps](/modules/interface/maps) has none: it is a building block.
 
 - **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each
   assignment a completed swap hands over: two for a trade, one for a release. The swap hooks carry the swap's `kind`
@@ -125,7 +124,7 @@ The modules the crew modules build on list their own hooks: [Audience](/modules/
   and `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
   `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
   `shifts:reminder:sent` fires from the `shifts:send-reminders` task (so `event` is `undefined`), once per reminder that
-  went out; `shifts:broadcast:sent` and `shifts:perk:redeemed` fire in the request that sent or redeemed.
+  went out; `shifts:broadcast:sent` fires in the request that sent it.
 - **Crew hooks** fire on the same transitions as the `teams:member:*` hooks of
   [Teams](/modules/organisation/teams#hooks), which follow the grant of a membership rather than the row: an
   applicant's `pending` row (applied or waitlisted) fires nothing in teams.

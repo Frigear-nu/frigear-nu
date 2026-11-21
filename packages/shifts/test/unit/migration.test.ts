@@ -32,3 +32,25 @@ describe('0001_shift_handover', () => {
     client.close()
   })
 })
+
+describe('0006_shifts_checkin', () => {
+  it('applies on top of the earlier migrations: check-in off, auto no-show off, perks become grants', async () => {
+    const client = createClient({ url: ':memory:' })
+    for (const file of ['0000_init.sql', '0001_shift_handover.sql', '0002_shifts_extras.sql', '0003_shifts_maps.sql', '0004_shifts_push.sql', '0005_shifts_venue_layout.sql']) {
+      for (const sql of await statements(file)) await client.execute(sql)
+    }
+    const now = Date.now()
+    await client.execute({ sql: 'INSERT INTO shift_schedules (id, operationId, name, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)', args: ['shs_1', 'op', '"x"', 'published', now, now] })
+    for (const sql of await statements('0006_shifts_checkin.sql')) await client.execute(sql)
+    const [schedule] = (await client.execute('SELECT checkIn, autoNoShow, autoNoShowMinutes FROM shift_schedules')).rows
+    expect({ ...schedule }).toEqual({ checkIn: null, autoNoShow: 0, autoNoShowMinutes: 30 })
+    const tables = (await client.execute('SELECT name FROM sqlite_master WHERE type = \'table\'')).rows.map(row => row.name)
+    expect(tables).toEqual(expect.arrayContaining(['shift_perk_grants', 'shift_stations', 'shift_digest_items']))
+    expect(tables).not.toContain('shift_perk_redemptions')
+    // One grant per perk and assignment.
+    const grant = (id: string) => client.execute({ sql: 'INSERT INTO shift_perk_grants (id, perkId, assignmentId, userId, voucherType, quantity, earnedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [id, 'spk_1', 'sha_1', 1, 'beer', 2, now] })
+    await grant('spg_1')
+    await expect(grant('spg_2')).rejects.toThrow()
+    client.close()
+  })
+})

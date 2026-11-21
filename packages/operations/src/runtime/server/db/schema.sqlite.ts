@@ -6,8 +6,18 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 type Translated = string | Record<string, string>
 // A recurring period or fixed range, see `@frigear-nu/module-kit/schedule`.
 type Schedule = import('@frigear-nu/module-kit/schedule').Schedule
-// Where the operation takes place, see `OperationLocation` in types.ts.
-type OperationLocation = { name: Translated, address?: string, lat?: number, lng?: number }
+// Where the operation takes place, see `OperationLocation` in types.ts: a name and address, and the value of the
+// location picker of `@frigear-nu/maps` (a point, with a radius or an area).
+type GeoPoint = { lat: number, lng: number }
+type OperationLocation = { name?: Translated, address?: string, point?: GeoPoint, radiusMeters?: number, area?: GeoPoint[] }
+// The venue layout, see `OperationVenueLayout` in types.ts: a plane feature collection of `@frigear-nu/maps`, with the
+// blob pathname of its underlay image.
+type OperationVenueLayout = {
+  type: 'FeatureCollection'
+  features: Array<{ type: 'Feature', id: string, kind: string, geometry: { type: string, coordinates: unknown }, properties: Record<string, unknown>, label?: Translated | null }>
+  extent?: { width: number, height: number } | null
+  underlay?: { pathname: string, contentType: string, width: number, height: number } | null
+}
 
 export const operations = sqliteTable('operations', {
   /** `opr_` + random id. */
@@ -23,6 +33,8 @@ export const operations = sqliteTable('operations', {
   /** When the occasion runs, if it is more than the one period above. */
   schedule: text({ mode: 'json' }).$type<Schedule>(),
   location: text({ mode: 'json' }).$type<OperationLocation>(),
+  /** Where the bars, stations and containers are: drawn with the plane editor of `@frigear-nu/maps`. */
+  venueLayout: text({ mode: 'json' }).$type<OperationVenueLayout>(),
   /** `planning | active | wrapped_up | archived`. */
   status: text().notNull().default('planning'),
   /** Public operations have a public page and show for everyone; others only for those who take part and for staff. */

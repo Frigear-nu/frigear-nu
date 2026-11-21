@@ -9,6 +9,7 @@ import type { ShiftAssigneeDto, ShiftsRuntimeConfig, ShiftWarning } from '../../
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { shiftGuardWarnings } from '../../utils/guards'
 import { shiftsChunk } from '../../utils/chunk'
+import { DEFAULT_AUTOMATION_BATCH, normalizeAutomationBatch } from '../../utils/checkin'
 import { DEFAULT_REMINDER_BATCH, DEFAULT_REMINDER_OFFSETS, normalizeReminderBatch, normalizeReminderOffsets } from '../../utils/reminders'
 import type { GuardShift } from '../../utils/guards'
 import { toShiftAssignmentDto, toShiftPersonDto } from './shifts-dto'
@@ -20,7 +21,7 @@ export type ShiftEntry = { shift: ShiftRow, schedule: ShiftScheduleRow }
 /** An assignment with its shift and schedule. */
 export type ShiftAssignmentEntry = ShiftEntry & { assignment: ShiftAssignmentRow }
 
-const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60, reminders: { offsets: [...DEFAULT_REMINDER_OFFSETS], sms: false, batchSize: DEFAULT_REMINDER_BATCH } }
+const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60, reminders: { offsets: [...DEFAULT_REMINDER_OFFSETS], sms: false, batchSize: DEFAULT_REMINDER_BATCH }, automation: { batchSize: DEFAULT_AUTOMATION_BATCH } }
 
 /** The module options shifts reads at runtime: the time zone, when check-in opens and the reminders. */
 export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {
@@ -29,6 +30,7 @@ export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {
     timeZone: config.timeZone || DEFAULTS.timeZone,
     checkInOpensMinutes: config.checkInOpensMinutes ?? DEFAULTS.checkInOpensMinutes,
     reminders: { offsets: normalizeReminderOffsets(config.reminders?.offsets), sms: config.reminders?.sms === true, batchSize: normalizeReminderBatch(config.reminders?.batchSize) },
+    automation: { batchSize: normalizeAutomationBatch(config.automation?.batchSize) },
   }
 }
 

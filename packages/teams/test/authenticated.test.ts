@@ -7,7 +7,6 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { teamsApi } from '../src/runtime/utils/api'
 import { teamsAccess } from '../src/runtime/access'
-import { mapsApi } from '@frigear-nu/maps/api'
 import { getHooksFor, getOwner, givePlan, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
@@ -344,48 +343,6 @@ describe('teams (authenticated, database-backed)', async () => {
       await createRule({ ...scoped, teamId: mappedTeam.id, match: { role: 'barmanager' }, teamRole: 'coordinator', priority: 100 })
       const manager = await user('Mapped', 'bar.test')
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: manager.cookie }, query: { teamId: mappedTeam.id } })).toEqual({ allowed: true, isTeamLead: true })
-    })
-  })
-
-  describe('maps (installed in this fixture)', () => {
-    const marker = { featureKind: 'maps.marker', geometry: { type: 'Point', coordinates: [12, 55] } }
-    const createMap = async (ownerType: string, ownerId: string | null): Promise<Json> =>
-      ok(await json(staff.cookie, 'POST', mapsApi.admin.maps, { kind: 'maps.generic-geo', ownerType, ownerId, name: `Map ${++counter}` }))
-
-    it('lets a team\'s leads draw on the maps the team owns, and nobody else', async () => {
-      const team = await createTeam()
-      const otherTeam = await createTeam()
-      const lead = await user('Maplead')
-      const volunteer = await user('Mapvolunteer')
-      const stranger = await user('Mapstranger')
-      await ok(await addMember(team.id, lead.id, 'ba'))
-      await ok(await addMember(team.id, volunteer.id, 'volunteer'))
-      const owned = await createMap('team', team.id)
-      const others = await createMap('team', otherTeam.id)
-      const operationMap = await createMap('operation', 'opr_roskilde')
-
-      expect((await ok(await json(lead.cookie, 'POST', mapsApi.features(owned.id), marker))).featureKind).toBe('maps.marker')
-      expect((await ok(await json(lead.cookie, 'GET', mapsApi.map(owned.id)))).canEdit).toBe(true)
-      // A volunteer of the team, a stranger, and a lead of another team's map or of an operation's map are refused.
-      await expectApiError(json(volunteer.cookie, 'POST', mapsApi.features(owned.id), marker), 403, 'forbidden')
-      await expectApiError(json(stranger.cookie, 'POST', mapsApi.features(owned.id), marker), 403, 'forbidden')
-      await expectApiError(json(lead.cookie, 'POST', mapsApi.features(others.id), marker), 403, 'forbidden')
-      await expectApiError(json(lead.cookie, 'POST', mapsApi.features(operationMap.id), marker), 403, 'forbidden')
-      expect((await ok(await json(volunteer.cookie, 'GET', mapsApi.map(owned.id)))).canEdit).toBe(false)
-      // Staff keep editing through maps:manage.
-      expect((await ok(await json(staff.cookie, 'POST', mapsApi.features(owned.id), marker))).id).toMatch(/^mpf_/)
-    })
-
-    it('counts a mapped lead and lets a token with the maps permissions draw as that lead', async () => {
-      const scoped = { ownerType: 'operation', ownerId: 'opr_maps_mapped' }
-      const team = await createTeam(scoped)
-      await createRule({ ...scoped, teamId: team.id, match: { role: 'barmanager' }, teamRole: 'coordinator', priority: 100 })
-      const manager = await user('Mapmapped', 'bar.test')
-      const owned = await createMap('team', team.id)
-      expect((await ok(await json(manager.cookie, 'POST', mapsApi.features(owned.id), marker))).featureKind).toBe('maps.marker')
-      // The listener reads `ctx.user`, so a bearer request is judged by its user and the token's own scopes.
-      const bearer = apiClient({ bearer: await createToken(manager.cookie, ['maps:read', 'maps:edit']) })
-      expect((await bearer.json<Json>('POST', mapsApi.features(owned.id), marker)).featureKind).toBe('maps.marker')
     })
   })
 

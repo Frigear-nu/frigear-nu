@@ -7,11 +7,12 @@ import ShiftPerkSlideover from '../components/ShiftPerkSlideover.vue'
 import ShiftRoleSlideover from '../components/ShiftRoleSlideover.vue'
 import ShiftScheduleSlideover from '../components/ShiftScheduleSlideover.vue'
 import ShiftSlideover from '../components/ShiftSlideover.vue'
+import ShiftStationSlideover from '../components/ShiftStationSlideover.vue'
 import type { ShiftsLadder, ShiftsTeamOption } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
 import { allowsSwapKind, offerKind } from '../../utils/settings'
-import type { ShiftBroadcastResultDto, ShiftCopyResultDto, ShiftDto, ShiftPerkDto, ShiftRoleDto, ShiftScheduleDto, ShiftScheduleSettings, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
-import { $fetch, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsFormat, useShiftsTranslate } from '#imports'
+import type { ShiftBroadcastResultDto, ShiftCopyResultDto, ShiftDto, ShiftPerkDto, ShiftRoleDto, ShiftScheduleDto, ShiftScheduleSettings, ShiftStationDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import { $fetch, navigateTo, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 /** What the schedule forms need to know about the operation. */
 export type ShiftsScheduleContext = { teams: ShiftsTeamOption[], ladders: ShiftsLadder[], roles: ShiftRoleDto[] }
@@ -28,6 +29,7 @@ export function useShiftsActions() {
   const overlay = useOverlay()
   const confirm = useConfirmDialog()
   const { run } = useAction()
+  const links = useShiftsLinks()
 
   const createSchedule = async (operationId: string) =>
     await overlay.create(ShiftScheduleSlideover, { destroyOnClose: true, props: { operationId } }).open() as ShiftScheduleDto | false
@@ -104,7 +106,7 @@ export function useShiftsActions() {
   }
 
   const bulkCreate = async (schedule: ShiftScheduleDto, context: ShiftsScheduleContext) =>
-    await overlay.create(ShiftBulkSlideover, { destroyOnClose: true, props: { scheduleId: schedule.id, teams: context.teams, roles: context.roles } }).open() as ShiftDto[] | false
+    await overlay.create(ShiftBulkSlideover, { destroyOnClose: true, props: { scheduleId: schedule.id, operationId: schedule.operationId, teams: context.teams, roles: context.roles } }).open() as ShiftDto[] | false
   const copyFrom = async (schedule: ShiftScheduleDto) =>
     await overlay.create(ShiftCopySlideover, { destroyOnClose: true, props: { schedule } }).open() as ShiftCopyResultDto | false
   const createRole = async (schedule: ShiftScheduleDto, context: ShiftsScheduleContext) =>
@@ -188,7 +190,7 @@ export function useShiftsActions() {
     const name = tr(perk.name)
     const confirmed = await confirm({
       title: t('perks.deleteTitle', 'Delete {name}?', { name }),
-      description: t('perks.deleteDescription', 'Volunteers lose it from their pass, and the record of who got it is deleted too.'),
+      description: t('perks.deleteDescription', 'Shifts no longer earn it. A perk somebody earned already cannot be deleted: change it instead.'),
       confirmText: t('perks.delete', 'Delete perk'),
       destructive: true,
     })
@@ -204,6 +206,35 @@ export function useShiftsActions() {
     return [
       [{ label: t('perks.editTitle', 'Edit perk'), icon: 'i-lucide-pencil', onSelect: async () => (await editPerk(perk, context.teams)) && context.changed() }],
       [{ label: t('perks.delete', 'Delete perk'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: async () => (await deletePerk(perk)) && context.changed() }],
+    ]
+  }
+
+  const createStation = async (schedule: ShiftScheduleDto, teams: ShiftsScheduleContext['teams']) =>
+    await overlay.create(ShiftStationSlideover, { destroyOnClose: true, props: { scheduleId: schedule.id, operationId: schedule.operationId, teams } }).open() as ShiftStationDto | false
+  const editStation = async (station: ShiftStationDto, schedule: ShiftScheduleDto, teams: ShiftsScheduleContext['teams']) =>
+    await overlay.create(ShiftStationSlideover, { destroyOnClose: true, props: { scheduleId: schedule.id, operationId: schedule.operationId, teams, station } }).open() as ShiftStationDto | false
+
+  async function deleteStation(station: ShiftStationDto): Promise<boolean> {
+    const name = tr(station.name)
+    const confirmed = await confirm({
+      title: t('stations.deleteTitle', 'Delete {name}?', { name }),
+      description: t('stations.deleteDescription', 'Its screen stops working at once. Volunteers check in at another station, by location or with a lead.'),
+      confirmText: t('stations.delete', 'Delete station'),
+      destructive: true,
+    })
+    if (!confirmed) return false
+    return await run(
+      () => $fetch(shiftsApi.admin.station(station.id), { method: 'DELETE' }).then(() => true),
+      { success: t('stations.deleted', 'Deleted {name}', { name }), error: t('stations.deleteFailed', 'Could not delete the station') },
+    ) === true
+  }
+
+  /** The row menu of a station: Open its screen | Edit | Delete. */
+  function stationMenu(station: ShiftStationDto, context: { schedule: ShiftScheduleDto, teams: ShiftsScheduleContext['teams'], changed: () => unknown }): DropdownMenuItem[][] {
+    return [
+      [{ label: t('stations.open', 'Open station screen'), icon: 'i-lucide-qr-code', onSelect: () => navigateTo(links.station(station.id)) }],
+      [{ label: t('stations.editTitle', 'Edit station'), icon: 'i-lucide-pencil', onSelect: async () => (await editStation(station, context.schedule, context.teams)) && context.changed() }],
+      [{ label: t('stations.delete', 'Delete station'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: async () => (await deleteStation(station)) && context.changed() }],
     ]
   }
 
@@ -258,5 +289,9 @@ export function useShiftsActions() {
     editPerk,
     deletePerk,
     perkMenu,
+    createStation,
+    editStation,
+    deleteStation,
+    stationMenu,
   }
 }
