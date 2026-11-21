@@ -36,6 +36,13 @@
       "when": 1795270369448,
       "tag": "0004_shifts_push",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795274658080,
+      "tag": "0005_shifts_venue_layout",
+      "breakpoints": true
     }
   ]
 }

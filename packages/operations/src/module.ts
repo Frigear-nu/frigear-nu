@@ -20,8 +20,9 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
-import { operationsMapKinds } from './runtime/maps'
 import { OPERATIONS_DASHBOARD, operationsDashboardItems } from './runtime/dashboard'
+import { defineMapFeatureKind, extendMaps } from '@frigear-nu/maps/utils'
+import { OPERATIONS_CONTAINER_KIND, OPERATIONS_STATION_KIND } from './runtime/utils/venue'
 import type {
   ModuleOptions,
   OperationCreatedContext,
@@ -73,8 +74,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     // An operation may name an event (`eventId`): the id is validated when events is installed.
     '@frigear-nu/events': { version: '>=0.0.1', optional: true },
-    // Gives every operation a site map and a venue layout, and lets its coordinators draw on them.
-    '@frigear-nu/maps': { version: '>=0.0.0', optional: true },
+    // The location picker and the venue layout editor, their schemas and the underlay images (NuxtHub Blob).
+    '@frigear-nu/maps': { version: '>=0.0.0' },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -116,6 +117,8 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: '', file: 'public/operations.get' },
       { method: 'get', path: 'me', file: 'me/operations.get' },
       { method: 'get', path: ':slug', file: 'public/operation.get' },
+      { method: 'get', path: ':slug/venue-layout', file: 'public/venue-layout.get' },
+      { method: 'get', path: ':slug/venue-layout/underlay', file: 'public/venue-underlay.get' },
     ], { base: '/api/operations' })
 
     addModuleRoutes(resolver, [
@@ -125,6 +128,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: ':id', file: 'admin/operation.patch' },
       { method: 'delete', path: ':id', file: 'admin/operation.delete' },
       { method: 'post', path: ':id/status', file: 'admin/operation-status.post' },
+      { method: 'get', path: ':id/venue-layout', file: 'admin/venue-layout.get' },
+      { method: 'put', path: ':id/venue-layout', file: 'admin/venue-layout.put' },
+      { method: 'post', path: ':id/venue-layout/underlay', file: 'admin/venue-underlay.post' },
     ], { base: '/api/admin/operations' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
@@ -153,17 +159,32 @@ export default defineNuxtModule<ModuleOptions>({
       const { extendTabs } = await import('@frigear-nu/widget/utils')
       extendTabs(nuxt, 'admin.operations', [
         { id: 'details', component: resolver.resolve('./runtime/app/tabs/Details.vue'), order: 0, label: 'Details', labelKey: 'operations.admin.tabs.details', icon: 'i-lucide-file-text' },
+        { id: 'venue', component: resolver.resolve('./runtime/app/tabs/VenueLayout.vue'), order: 5, label: 'Venue layout', labelKey: 'operations.admin.tabs.venue', icon: 'i-lucide-map', permission: operationsAccess.permissions.manage },
       ])
     }
 
-    // Maps: the `operations.site` and `operations.venue-layout` kinds, an `operations:created` listener that creates both
-    // maps of a new operation, and the coordinators' right to edit them (`maps:edit:resolve`). Registered here, not on
-    // `modules:done`: maps reads the registry once every module is done.
-    if (hasNuxtModule('@frigear-nu/maps')) {
-      const { extendMaps } = await import('@frigear-nu/maps/utils')
-      extendMaps(nuxt, { kinds: operationsMapKinds })
-      addServerPlugin(resolver.resolve('./runtime/server/plugins/maps'))
-    }
+    // The feature kinds of a venue layout: stations and containers. Registered here, not on `modules:done`: maps reads
+    // the registry once every module is done.
+    extendMaps(nuxt, {
+      kinds: [
+        defineMapFeatureKind({
+          id: OPERATIONS_STATION_KIND,
+          label: { da: 'Station', en: 'Station' },
+          icon: 'i-lucide-beer',
+          geometry: ['Point', 'Polygon'],
+          color: 'primary',
+          properties: resolver.resolve('./runtime/maps/station'),
+        }),
+        defineMapFeatureKind({
+          id: OPERATIONS_CONTAINER_KIND,
+          label: { da: 'Container', en: 'Container' },
+          icon: 'i-lucide-container',
+          geometry: ['Point', 'Polygon'],
+          color: 'neutral',
+          properties: resolver.resolve('./runtime/maps/container'),
+        }),
+      ],
+    })
 
     // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
     if (hasNuxtModule('@frigear-nu/dashboard')) {

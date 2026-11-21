@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toAdminOperationDto, toOperationDto } from '../../src/runtime/server/utils/operations-dto'
+import { toAdminOperationDto, toOperationDto, toOperationVenueLayoutDto } from '../../src/runtime/server/utils/operations-dto'
 
 // A stored row, with a column the DTOs must never invent or pass on if the table grows one.
 const row = {
@@ -12,7 +12,8 @@ const row = {
   startsAt: new Date('2027-06-27T10:00:00.000Z'),
   endsAt: new Date('2027-07-04T10:00:00.000Z'),
   schedule: null,
-  location: { name: 'Darupvej', lat: 55.6, lng: 12.0 },
+  location: { name: 'Darupvej', point: { lat: 55.6, lng: 12.0 } },
+  venueLayout: null,
   status: 'planning',
   public: true,
   eventId: null,
@@ -42,5 +43,21 @@ describe('operation DTOs', () => {
   it('turns missing optional columns into null and keeps a missing end null', () => {
     const dto = toOperationDto({ ...row, endsAt: null, hostName: null, hostUrl: null, location: null })
     expect(dto).toMatchObject({ endsAt: null, hostName: null, hostUrl: null, location: null, description: null, schedule: null, eventId: null })
+  })
+
+  it('sends the venue layout with the underlay\'s URL, never its blob pathname', () => {
+    const feature = { type: 'Feature' as const, id: 'bar', kind: 'operations.station', geometry: { type: 'Point' as const, coordinates: [10, 20] as [number, number] }, properties: {} }
+    const dto = toOperationVenueLayoutDto({
+      slug: 'roskilde-2027-bar',
+      venueLayout: { type: 'FeatureCollection', features: [feature], underlay: { pathname: 'operations/opr_1/underlay-abc.png', contentType: 'image/png', width: 800, height: 600 } },
+    })
+    expect(dto).toEqual({
+      type: 'FeatureCollection',
+      features: [feature],
+      extent: null,
+      underlay: { url: '/api/operations/roskilde-2027-bar/venue-layout/underlay?v=underlay-abc.png', width: 800, height: 600 },
+    })
+    expect(JSON.stringify(dto)).not.toContain('operations/opr_1')
+    expect(toOperationVenueLayoutDto({ slug: 'x', venueLayout: null })).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null })
   })
 })

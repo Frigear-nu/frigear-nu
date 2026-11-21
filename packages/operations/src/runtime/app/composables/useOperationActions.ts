@@ -73,7 +73,7 @@ export function useOperationActions() {
     const name = tr(operation.name)
     const confirmed = await confirm({
       title: t('admin.deleteTitle', 'Delete {name}?', { name }),
-      description: t('admin.deleteDescription', 'Crew, shifts and maps attached to it stay behind without an operation. Archive an operation that has been worked instead.'),
+      description: t('admin.deleteDescription', 'Its venue layout is deleted with it; crew and shifts attached to it stay behind without an operation. Archive an operation that has been worked instead.'),
       confirmText: t('admin.deleteAction', 'Delete operation'),
       destructive: true,
     })

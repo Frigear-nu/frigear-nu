@@ -103,6 +103,16 @@ async function save(event: FormSubmitEvent<OperationFormState>) {
         />
       </FormRow>
       <FormRow
+        name="locationMap"
+        :label="t('admin.locationMap', 'On the map')"
+        :description="t('admin.locationMapHelp', 'Tap the map to place the operation, and give it a radius or draw its area.')"
+      >
+        <MapLocationField
+          v-model="state.locationMap"
+          class="w-full"
+        />
+      </FormRow>
+      <FormRow
         name="hostName"
         :label="t('admin.hostName', 'Host')"
         :description="t('admin.hostNameHelp', 'Who hosts it: Frigear, or the festival or venue Frigear works at.')"
