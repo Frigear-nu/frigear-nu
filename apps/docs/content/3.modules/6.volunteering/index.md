@@ -11,8 +11,8 @@ other through hooks and registries instead of imports. This page is for module a
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
 The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
-[Operations](/modules/volunteering/operations), [Teams](/modules/volunteering/teams) and
-[Crew](/modules/volunteering/crew). Every other module adds its own page to this group in the pull request that adds the
+[Operations](/modules/volunteering/operations), [Teams](/modules/volunteering/teams),
+[Crew](/modules/volunteering/crew) and [Shifts](/modules/volunteering/shifts). Every other module adds its own page to this group in the pull request that adds the
 module.
 
 ## The modules
@@ -22,7 +22,7 @@ module.
 | [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
-| `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
+| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, swaps, attendance and who is on shift now; reminders and an iCal feed next. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
@@ -206,12 +206,14 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `crew:member:rejected` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:waitlisted` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:withdrawn` | crew | `{ event, operationId, member }` | 3 |
+| `shifts:schedule:published` | shifts | `{ event, schedule }` | 4 |
 | `shifts:shift:created` | shifts | `{ event, shift }` | 4 |
 | `shifts:shift:updated` | shifts | `{ event, shift, previous }` | 4 |
 | `shifts:assignment:changed` | shifts | `{ event, assignment, previous }` | 4 |
 | `shifts:swap:offered` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:swap:accepted` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:swap:rejected` | shifts | `{ event, swap, offer }` | 4 |
+| `shifts:swap:completed` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
 | `maps:seed:resolve` | maps | `{ event, maps }` | 5 |
@@ -232,6 +234,11 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   `team_members` rows itself and fires the same hooks with the same payloads, but when a **grant** starts or stops, not on
   every row change: `added` when an approved person starts to hold a role, `removed` when they stop, `role-changed` when
   an approved person's role changes. An applicant's row (`pending`) has no grant, so it fires nothing in Teams.
+- **Shifts hooks.** `shifts:assignment:changed` has `previous: null` for a new assignment, and fires for each of the
+  two assignments a completed swap hands over. `shifts:schedule:published` fires once, when a draft is published; the
+  shifts of a draft fire `shifts:shift:created` as they are created. In peer mode `shifts:swap:accepted` and
+  `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
+  `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
