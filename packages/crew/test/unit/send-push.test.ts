@@ -13,7 +13,7 @@ vi.stubGlobal('dispatchEmailNotification', dispatchEmail)
 const email = buildCrewStatusEmail({
   status: 'approved',
   member: { email: 'ann@example.com', name: 'Ann', teamName: 'Orange bar', role: 'volunteer' },
-  operationName: 'Roskilde',
+  operationName: 'Summer Festival',
   roleLabel: 'Volunteer',
   settings: undefined,
   statusUrl: 'https://example.com/crew/status',
