@@ -12,7 +12,7 @@ export const faqTranslated = z.union([
 
 /** A link target a visitor can safely follow: a path on the site, a web address, an email or phone link or an anchor. */
 const linkTarget = z.string().trim().min(1).max(500)
-  .refine(value => /^(?:\/(?!\/)|#|https?:\/\/|mailto:|tel:)/i.test(value), 'Use a path, a web address starting with https://, or a mailto: or tel: link.')
+  .refine(value => /^(?:\/(?![/\\])|#|https?:\/\/|mailto:|tel:)/i.test(value), 'Use a path, a web address starting with https://, or a mailto: or tel: link.')
 
 export const faqLinkSchema = z.object({
   label: z.string().trim().min(1).max(200),

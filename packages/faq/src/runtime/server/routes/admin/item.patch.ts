@@ -10,7 +10,7 @@ export default defineEventHandler(async (event): Promise<AdminFaqItemDto> => {
   const patch = await readValidatedBody(event, faqItemPatchSchema.parse)
   const existing = await getFaqItemOr404(id)
   await authorize(event, faqAccess.permissions.manage, existing)
-  const updated = await patchFaqItemRow(existing, patch, principal.user.id)
+  const updated = await patchFaqItemRow(event, existing, patch, principal.user.id)
   if (updated !== existing) await callFaqGroupUpdated(event, existing.groupId)
   return toAdminFaqItemDto(updated)
 })

@@ -2,13 +2,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { StaffFaqGroup, StaffFaqGroupsPage } from '../utils/admin-faq'
 import { faqApi } from '../../utils/api'
-import { computed, emptyCell, errorMessage, h, navigateTo, resolveComponent, tableUi, useFaqGroupActions, useFaqLinks, useFaqTranslate, useFetch, useModuleT, useTableQuery, useTableSort } from '#imports'
+import { computed, emptyCell, errorMessage, h, navigateTo, resolveComponent, tableUi, useFaqGroupActions, useFaqLinks, useFaqTranslate, useFetch, useFormat, useModuleT, useTableQuery, useTableSort } from '#imports'
 
 defineOptions({ name: 'FaqAdminPage' })
 
 const t = useModuleT('faq')
 const tr = useFaqTranslate()
 const links = useFaqLinks()
+const format = useFormat()
 const actions = useFaqGroupActions()
 
 // Paginated on the server; page, search (title in every language, URL name) and sort live in the URL. Groups come in the
@@ -61,7 +62,7 @@ const columns = computed<TableColumn<StaffFaqGroup>[]>(() => [
   {
     accessorKey: 'createdAt',
     header: header('createdAt', t('admin.createdAt', 'Created')),
-    cell: ({ row }) => h('span', { class: 'text-muted tabular-nums' }, new Date(row.original.createdAt).toLocaleDateString()),
+    cell: ({ row }) => h('span', { class: 'text-muted tabular-nums' }, format.date(row.original.createdAt)),
   },
   {
     id: 'actions',
@@ -79,6 +80,7 @@ const columns = computed<TableColumn<StaffFaqGroup>[]>(() => [
     >
       <template #actions>
         <UButton
+          v-if="!forbidden"
           icon="i-lucide-plus"
           :label="t('admin.createGroup', 'Add FAQ group')"
           @click="actions.create()"

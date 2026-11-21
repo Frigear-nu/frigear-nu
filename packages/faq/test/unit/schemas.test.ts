@@ -46,7 +46,7 @@ describe('item input', () => {
   })
 
   it('refuses a button that goes somewhere unsafe', () => {
-    for (const to of ['javascript:alert(1)', '//evil.example', 'data:text/html,x', 'ftp://x']) {
+    for (const to of ['javascript:alert(1)', '//evil.example', '/\\evil.example', 'data:text/html,x', 'ftp://x']) {
       expect(faqItemInput.safeParse({ ...item, links: [{ label: 'x', to }] }).success, to).toBe(false)
     }
   })

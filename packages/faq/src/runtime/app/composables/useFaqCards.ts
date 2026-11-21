@@ -1,8 +1,8 @@
 import type { FaqCardProps, FaqGroupDto } from '../../../types'
-import { faqCardProps, faqPageJsonLd } from '../../utils/cards'
+import { faqCardProps, faqJsonLdQuestions, faqPageFromQuestions } from '../../utils/cards'
 import { useFaq } from './useFaq'
 import { useFaqFallbackLocale, useFaqLocale } from './useFaqLocale'
-import { computed, useHead, useRuntimeConfig } from '#imports'
+import { computed, getCurrentInstance, onScopeDispose, shallowReactive, useHead, useNuxtApp, useRuntimeConfig } from '#imports'
 
 /** What `Faq`, `FaqGrid` and `FaqSectionList` take to say which cards to show. */
 export type FaqCardsSource = {
@@ -18,19 +18,35 @@ export type FaqCardsSource = {
   public?: boolean
 }
 
+type LdQuestions = Array<{ id: string, entity: Record<string, unknown> }>
+
+/**
+ * The questions every component on the page contributes to the JSON-LD, by component. The registry belongs to the app
+ * instance (one per request on the server), and a component removes its entry when it goes away, so a page has one
+ * `FAQPage` with every public question once, whatever the number of components.
+ */
+function jsonLdRegistry() {
+  const nuxtApp = useNuxtApp() as unknown as { _faqJsonLd?: Map<number, { value: LdQuestions }> }
+  return nuxtApp._faqJsonLd ??= shallowReactive(new Map<number, { value: LdQuestions }>())
+}
+
 /**
  * The cards of a component: the managed groups (fetched through `useFaq`) as `FaqCardProps`, then the inline `items`.
- * Also adds the `FAQPage` JSON-LD of the public managed groups, unless the `schema` option is `false`.
+ * Also adds the public managed questions to the page's one `FAQPage` JSON-LD (as plain text), unless the `schema` option
+ * is `false`. The managed part follows the source: a `groups` or `operation` that is set later starts the fetch.
  */
 export function useFaqCards(source: () => FaqCardsSource) {
-  const initial = source()
-  const managed = initial.groups !== undefined || !!initial.operation
-    ? useFaq(() => source().groups ?? [], { operationId: () => source().operation, public: initial.public, lazy: true })
-    : undefined
+  const managed = computed(() => source().groups !== undefined || !!source().operation)
+  const fetched = useFaq(() => source().groups ?? [], {
+    operationId: () => source().operation,
+    public: source().public,
+    lazy: true,
+    enabled: managed,
+  })
   const locale = useFaqLocale()
   const fallback = useFaqFallbackLocale()
 
-  const groups = computed<FaqGroupDto[]>(() => managed?.groups.value ?? [])
+  const groups = computed<FaqGroupDto[]>(() => managed.value ? fetched.groups.value : [])
   const cards = computed<FaqCardProps[]>(() => {
     const { contact, items = [] } = source()
     const mapped = groups.value.map((group) => {
@@ -40,12 +56,16 @@ export function useFaqCards(source: () => FaqCardsSource) {
     return [...mapped, ...items]
   })
 
-  if (managed && useRuntimeConfig().public.faq?.schema !== false) {
+  if (useRuntimeConfig().public.faq?.schema !== false) {
+    const registry = jsonLdRegistry()
+    const uid = getCurrentInstance()?.uid ?? -1
+    registry.set(uid, computed(() => faqJsonLdQuestions(groups.value, locale.value, fallback.value)))
+    onScopeDispose(() => registry.delete(uid))
     useHead({
       script: computed(() => {
-        const jsonLd = faqPageJsonLd(groups.value, locale.value, fallback.value)
+        const page = faqPageFromQuestions([...registry.values()].flatMap(entry => entry.value))
         // `<` is escaped so a text containing `</script>` cannot end the tag.
-        return jsonLd ? [{ key: `faq-jsonld:${groups.value.map(group => group.slug).join(',')}`, type: 'application/ld+json', innerHTML: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }] : []
+        return page ? [{ key: 'faq-jsonld', type: 'application/ld+json', innerHTML: JSON.stringify(page).replace(/</g, '\\u003c') }] : []
       }),
     })
   }
@@ -54,6 +74,6 @@ export function useFaqCards(source: () => FaqCardsSource) {
     cards,
     groups,
     /** The first response of the managed groups is still on its way. */
-    loading: computed(() => !!managed && managed.status.value === 'pending' && !groups.value.length),
+    loading: computed(() => managed.value && fetched.status.value === 'pending' && !groups.value.length),
   }
 }

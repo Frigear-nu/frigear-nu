@@ -235,6 +235,23 @@ describe('faq (authenticated, database-backed)', async () => {
       await expectApiError(json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { icon: 'x' }), 404, 'not_found')
     })
 
+    it('checks a visibility operationId like an owner: an unknown operation is 400, also on items and patches', async () => {
+      await asStaff()
+      const slug = () => `vop-${++counter}`
+      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', visibility: { operationId: 'opr_unknown', minTeamRole: { kind: 'bar', role: 'ba' } } })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Good', visibility: { operationId: 'opr_known' } })).status).toBe(201)
+
+      const group = await createGroup()
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', faqApi.admin.items(group.id), { question: 'Q', answer: 'A', visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
+      const item = await createItem(group.id)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { visibility: { operationId: 'opr_known' } })).status).toBe(200)
+      // Nothing was stored by the refused calls.
+      expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(group.id)))).toMatchObject({ visibility: null })
+    })
+
     it('checks the owner: the platform has no id, others must be answered by their module', async () => {
       await asStaff()
       const slug = () => `owner-${++counter}`
@@ -496,7 +513,7 @@ describe('faq (authenticated, database-backed)', async () => {
       expect((await listPublic(bar.cookie, `?slugs=${restricted.group.slug}`))[0]!.items[0]).toMatchObject({ public: false })
     })
 
-    it('hides an item with a narrower visibility from visitors in a public group, also in a signed-in group', async () => {
+    it('does not show a public item in a signed-in group to visitors: an item never widens its group', async () => {
       const group = await publishedGroup({ visibility: null }, [{ visibility: { public: true } }])
       expect((await listPublic(undefined, `?slugs=${group.group.slug}`))).toEqual([])
     })
@@ -624,6 +641,52 @@ describe('faq (authenticated, database-backed)', async () => {
       expect(await search(undefined, `${marker}wardrobe`, '&operation=opr_known')).toEqual([])
     })
 
+    it('never searches the locale keys: `da` and `en` match only text that contains them', async () => {
+      const group = await publishedGroup({ visibility: { public: true } }, [{ question: both('Alpha', 'Beta'), answer: both('Gamma', 'Delta') }])
+      const search = async (q: string) => await ok(await json(undefined, 'GET', `${faqApi.search}?q=${encodeURIComponent(q)}`)) as unknown as Json[]
+      // The item is stored as `{ en, da }` for both fields, and none of its texts contains the keys.
+      expect((await search('Alpha')).map(hit => hit.item.id)).toEqual([group.items[0]!.id])
+      for (const key of ['da', 'en']) {
+        expect((await search(key)).map(hit => hit.item.id), key).not.toContain(group.items[0]!.id)
+      }
+    })
+
+    it('ignores case for Danish letters: øl finds ØL and Øl, and ØL finds øl', async () => {
+      const marker = `dan${++counter}`
+      const { items } = await publishedGroup({ visibility: { public: true } }, [
+        { question: both(`Cold ØL ${marker}`, `Kold ØL ${marker}`), answer: both('Upper.', 'Store.') },
+        { question: both(`Cold øl ${marker}`, `Kold øl ${marker}`), answer: both('Lower.', 'Små.') },
+        { question: both(`Cold Øl ${marker}`, `Kold Øl ${marker}`), answer: both('Title.', 'Titel.') },
+      ])
+      const ids = async (q: string) => ((await ok(await json(undefined, 'GET', `${faqApi.search}?q=${encodeURIComponent(q)}`))) as unknown as Json[]).map(hit => hit.item.id).sort()
+      const all = items.map(item => item.id).sort()
+      expect(await ids(`øl ${marker}`)).toEqual(all)
+      expect(await ids(`ØL ${marker}`)).toEqual(all)
+      expect(await ids(`Øl ${marker.toUpperCase()}`)).toEqual(all)
+    })
+
+    it('reads on past hidden matches until it has the visible ones', async () => {
+      const marker = `pag${++counter}`
+      // 205 matching items in a group visitors may not read come first (a lower `sort`), then one they may.
+      const hidden = await createGroup({ slug: `${marker}-hidden`, visibility: { globalRoles: ['barmanager'] } })
+      const ids: string[] = []
+      for (let start = 0; start < 205; start += 25) {
+        const batch = await Promise.all(Array.from({ length: Math.min(25, 205 - start) }, async (_, index) =>
+          (await createItem(hidden.id, { question: both(`Hidden ${marker} ${start + index}`, `Skjult ${marker} ${start + index}`) })).id))
+        ids.push(...batch)
+      }
+      for (let start = 0; start < ids.length; start += 25) await Promise.all(ids.slice(start, start + 25).map(publish))
+      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } }, [{ question: both(`Visible ${marker}`, `Synlig ${marker}`) }])
+
+      const search = async (cookie: string | undefined) => await ok(await json(cookie, 'GET', `${faqApi.search}?q=${marker}`)) as unknown as Json[]
+      expect((await search(undefined)).map(hit => hit.item.id)).toEqual([open.items[0]!.id])
+      const bar = await barManager()
+      // The role sees the hidden group's items first, and no more than 50.
+      const asBar = await search(bar.cookie)
+      expect(asBar).toHaveLength(50)
+      expect(asBar[0]!.group.slug).toBe(`${marker}-hidden`)
+    }, 120_000)
+
     it('needs a search term', async () => {
       expect((await json(undefined, 'GET', faqApi.search)).status).toBe(400)
       expect((await json(undefined, 'GET', `${faqApi.search}?q=`)).status).toBe(400)
@@ -649,7 +712,6 @@ describe('faq (authenticated, database-backed)', async () => {
       expect(visitor).toContain('Page group title')
       expect(visitor).toContain('Page group description')
       expect(visitor).toContain('How does the page work?')
-      expect(visitor).toContain('It renders **managed** content.')
       expect(visitor).toContain('Read more')
       expect(visitor).toContain('href="/read-more"')
       expect(visitor).toContain('Second group')
@@ -657,12 +719,25 @@ describe('faq (authenticated, database-backed)', async () => {
       // Each of Faq, FaqGrid and FaqSectionList rendered its cards, in the order asked for.
       expect(visitor.indexOf('Page group title')).toBeLessThan(visitor.indexOf('Second group'))
       expect(visitor).not.toContain('A restricted question?')
-      // FAQPage JSON-LD names the public questions only.
-      const ld = /<script[^>]*application\/ld\+json[^>]*>(.*?)<\/script>/.exec(visitor)
-      expect(ld, 'JSON-LD').not.toBeNull()
-      expect(ld![1]).toContain('FAQPage')
-      expect(ld![1]).toContain('How does the page work?')
-      expect(ld![1]).not.toContain('A restricted question?')
+      // The answer goes through `<MDC>`: Markdown becomes markup, in the blockquote of the card.
+      const managed = String.raw`<strong>(?:<!--\[-->)?managed(?:<!--\]-->)?</strong>`
+      expect(visitor).toMatch(new RegExp(managed))
+      expect(visitor).toMatch(new RegExp(String.raw`<blockquote[^>]*>[\s\S]*?${managed}`))
+      // The card is the `UPageCard` and each question a `UCollapsible`, with the classes the website had.
+      expect(visitor).toContain('data-slot="footer" class="pt-4 mt-0 flex w-full"')
+      expect(visitor).toContain('class="flex flex-col gap-4 w-full"')
+      expect(visitor).toContain('class="flex flex-col gap-2 w-full mb-0"')
+      expect(visitor).toContain('group-data-[state=open]:rotate-180 transition-transform duration-200')
+      expect(visitor).toContain('i-lucide:chevron-down')
+      // One FAQPage for the page, however many components show the group: the public questions only, once, as plain text.
+      const blocks = [...visitor.matchAll(/<script[^>]*application\/ld\+json[^>]*>(.*?)<\/script>/g)]
+      expect(blocks).toHaveLength(1)
+      const ld = blocks[0]![1]!
+      expect(ld).toContain('FAQPage')
+      expect(ld.match(/How does the page work\?/g)).toHaveLength(1)
+      expect(ld).toContain('It renders managed content.')
+      expect(ld).not.toContain('**')
+      expect(ld).not.toContain('A restricted question?')
 
       const bar = await barManager()
       expect(await (await fetch('/test/managed', { headers: { cookie: bar.cookie } })).text()).toContain('A restricted question?')
@@ -696,13 +771,26 @@ describe('faq (authenticated, database-backed)', async () => {
       expect(html).toContain('Custom question two?')
     }, 180_000)
 
-    it('does not leak a restricted group to the next visitor of the same page', async () => {
+    it('shows a restricted group through the components to its role only, and never to the next visitor', async () => {
       const bar = await barManager()
-      await publishedGroup({ slug: 'page-restricted-check', title: 'Restricted check', visibility: { globalRoles: ['barmanager'] } })
-      // The pages above only name their own groups: this one is checked through the API, the way `useFaq` asks.
-      expect(slugsOf(await listPublic(bar.cookie, '?slugs=page-restricted-check'))).toEqual(['page-restricted-check'])
-      expect(await listPublic(undefined, '?slugs=page-restricted-check')).toEqual([])
-    })
+      await publishedGroup({ slug: 'page-restricted-check', title: both('Restricted check', 'Begrænset tjek'), visibility: { globalRoles: ['barmanager'] } }, [
+        { question: both('Crew only question?', 'Spørgsmål kun for crew?') },
+      ])
+      const html = async (cookie?: string) => await (await fetch('/test/restricted', { headers: cookie ? { cookie } : {} })).text()
+
+      // The role first, then a visitor, then the role again: one answer never serves the next.
+      const first = await html(bar.cookie)
+      expect(first).toContain('Restricted check')
+      expect(first).toContain('Crew only question?')
+      const anonymous = await html()
+      expect(anonymous).not.toContain('Restricted check')
+      expect(anonymous).not.toContain('Crew only question?')
+      const signedIn = await html((await user('Plainpage')).cookie)
+      expect(signedIn).not.toContain('Restricted check')
+      expect(await html(bar.cookie)).toContain('Crew only question?')
+      // Staff without the role do not see it either.
+      expect(await html(staff.cookie)).not.toContain('Crew only question?')
+    }, 180_000)
 
     it('renders the admin list and the group page with its items, settings and preview', async () => {
       const { group } = await publishedGroup({ title: both('Admin page group', 'Admin sidegruppe') }, [{ question: both('Admin page question?', 'Admin sidespørgsmål?') }])

@@ -6,6 +6,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
     '@nuxthub/core',
+    // Answers render through `<MDC>`, the way they do in an app with Nuxt Content.
+    '@nuxtjs/mdc',
     '@frigear-nu/users',
     '@frigear-nu/menu',
     '@frigear-nu/widget',

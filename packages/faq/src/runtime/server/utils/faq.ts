@@ -110,16 +110,22 @@ export async function resolveFaqViewer(event: H3Event, user: { id: string | numb
 // --- Reading ---------------------------------------------------------------------------------
 
 /**
- * Case-insensitive search of a translated json column (a plain string, or a locale -> text map) for `value` in any
- * language. Matches the texts only, never the locale keys. sqlite reads the json with `json_each` (a json string scalar
+ * Search of a translated json column (a plain string, or a locale -> text map) for `value` in any language, ignoring
+ * case. Matches the texts only, never the locale keys. sqlite reads the json with `json_each` (a json string scalar
  * yields one row); postgresql with `jsonb_each_text`, wrapping a string scalar in an object first.
+ *
+ * The needle is folded in JavaScript with `toLocaleLowerCase()`, which knows Danish letters. postgresql then lowercases
+ * the stored text too (`lower()`, aware of non-ASCII letters). sqlite's `lower()` and `LIKE` only fold ASCII, so there
+ * the stored text is compared with the lowercase and the uppercase needle: `øl` finds `ØL` and `Øl`. A stored text that
+ * mixes cases of non-ASCII letters differently from the needle (`ØLæ` for `øLÆ`) can still be missed on sqlite.
  */
 export function faqTranslatedContains(column: AnyColumn, value: string): SQL {
-  const pattern = `%${escapeLike(value)}%`
+  const lower = `%${escapeLike(value.toLocaleLowerCase())}%`
+  const upper = `%${escapeLike(value.toLocaleUpperCase())}%`
   if (is(schema.faqItems, PgTable)) {
-    return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like lower(${pattern}) escape '\\')`
+    return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like ${lower} escape '\\')`
   }
-  return sql`exists (select 1 from json_each(${column}) as t where lower(t.value) like lower(${pattern}) escape '\\')`
+  return sql`exists (select 1 from json_each(${column}) as t where t.value like ${lower} escape '\\' or t.value like ${upper} escape '\\')`
 }
 
 /**
@@ -150,36 +156,41 @@ export async function loadFaqGroup(slug: string, viewer: Viewer): Promise<FaqGro
   return group
 }
 
-/** The most items a search looks at before the viewer's visibility filters them; it answers 50 at most. */
-const SEARCH_CANDIDATES = 500
+/** Items fetched per round trip of a search, and how many visible hits it answers. */
+const SEARCH_BATCH = 200
 const SEARCH_LIMIT = 50
+/** A search gives up after this many batches (10 000 matching items) so one request cannot scan the table. */
+const SEARCH_MAX_BATCHES = 50
 
 /**
  * Published items whose question or answer contains `query` in any language, among the ones the viewer may read, in the
- * order of the groups and items.
+ * order of the groups and items. The operation filter and the order are in SQL; the viewer's visibility is not, so the
+ * matches are read in batches until there are 50 visible hits or none are left.
  */
 export async function searchFaq(options: { viewer: Viewer, query: string, operationId?: string }): Promise<FaqSearchResult[]> {
   const { viewer, query, operationId } = options
-  const candidates = await db.select().from(schema.faqItems)
-    .where(and(
-      eq(schema.faqItems.status, 'published'),
-      or(faqTranslatedContains(schema.faqItems.question, query), faqTranslatedContains(schema.faqItems.answer, query)),
-    ))
-    .limit(SEARCH_CANDIDATES)
-  if (!candidates.length) return []
-  const groups = await db.select().from(schema.faqGroups).where(inArray(schema.faqGroups.id, [...new Set(candidates.map(item => item.groupId))]))
-  const byId = new Map(groups.map(group => [group.id, group]))
-  return candidates
-    .map(item => ({ item, group: byId.get(item.groupId)! }))
-    .filter(({ item, group }) => group
-      && (!operationId || (group.ownerType === 'operation' && group.ownerId === operationId))
-      && isFaqItemVisible(group, item, viewer))
-    .sort((a, b) => a.group.sort - b.group.sort || a.group.id.localeCompare(b.group.id) || a.item.sort - b.item.sort || a.item.id.localeCompare(b.item.id))
-    .slice(0, SEARCH_LIMIT)
-    .map(({ item, group }) => ({
-      group: { id: group.id, slug: group.slug, title: group.title },
-      item: toFaqItemDto(group, item),
-    }))
+  const where = and(
+    eq(schema.faqItems.status, 'published'),
+    or(faqTranslatedContains(schema.faqItems.question, query), faqTranslatedContains(schema.faqItems.answer, query)),
+    operationId ? and(eq(schema.faqGroups.ownerType, 'operation'), eq(schema.faqGroups.ownerId, operationId)) : undefined,
+  )
+  const hits: FaqSearchResult[] = []
+  for (let batch = 0; batch < SEARCH_MAX_BATCHES && hits.length < SEARCH_LIMIT; batch++) {
+    const rows = await db.select({ item: schema.faqItems, group: schema.faqGroups })
+      .from(schema.faqItems)
+      .innerJoin(schema.faqGroups, eq(schema.faqItems.groupId, schema.faqGroups.id))
+      .where(where)
+      .orderBy(asc(schema.faqGroups.sort), asc(schema.faqGroups.id), asc(schema.faqItems.sort), asc(schema.faqItems.id))
+      .limit(SEARCH_BATCH)
+      .offset(batch * SEARCH_BATCH)
+    for (const { item, group } of rows) {
+      if (hits.length < SEARCH_LIMIT && isFaqItemVisible(group, item, viewer)) {
+        hits.push({ group: { id: group.id, slug: group.slug, title: group.title }, item: toFaqItemDto(group, item) })
+      }
+    }
+    if (rows.length < SEARCH_BATCH) break
+  }
+  return hits
 }
 
 // --- Writing ---------------------------------------------------------------------------------
@@ -215,6 +226,19 @@ export async function assertFaqOwner(event: H3Event, owner: OwnerRef): Promise<v
   }
 }
 
+/**
+ * 400 when a visibility names an `operationId` that does not exist (through `audience:owner:resolve`, like an owner),
+ * unless it is the one already stored: a group whose operation was deleted can still be edited.
+ */
+export async function assertFaqVisibilityOperation(event: H3Event, visibility: Visibility | null | undefined, stored?: unknown): Promise<void> {
+  const id = visibility?.operationId
+  if (!id || id === parseVisibility(stored)?.operationId) return
+  const resolved = await resolveOwner(event, { type: 'operation', id }, { hooks: useNitroApp().hooks })
+  if (resolved.exists !== true) {
+    throw validationError([{ path: ['visibility', 'operationId'], message: 'This operation does not exist.' }], 'Unknown operation')
+  }
+}
+
 const blankToNull = (value: string | null | undefined) => value?.trim() ? value.trim() : null
 
 const ownerValue = (owner: { type: string, id?: string | null } | undefined): OwnerRef =>
@@ -235,6 +259,7 @@ export async function createFaqGroupRow(event: H3Event, input: GroupInput): Prom
   await assertFaqSlugFree(input.slug)
   const owner = ownerValue(input.owner)
   await assertFaqOwner(event, owner)
+  await assertFaqVisibilityOperation(event, input.visibility as Visibility | null | undefined)
   const [row] = await db.insert(schema.faqGroups).values({
     id: newId('faq'),
     slug: input.slug,
@@ -255,6 +280,7 @@ export async function patchFaqGroupRow(event: H3Event, existing: FaqGroupRow, pa
   const owner = patch.owner ? ownerValue(patch.owner) : undefined
   // An unchanged owner is not checked again: a group whose operation was deleted can still be edited.
   if (owner && !(owner.type === existing.ownerType && owner.id === (existing.ownerId ?? null))) await assertFaqOwner(event, owner)
+  if (patch.visibility) await assertFaqVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
   const values: Partial<typeof schema.faqGroups.$inferInsert> = {}
   if (patch.slug !== undefined) values.slug = patch.slug
   if (patch.title !== undefined) values.title = patch.title
@@ -274,9 +300,11 @@ export async function patchFaqGroupRow(event: H3Event, existing: FaqGroupRow, pa
   return row!
 }
 
-/** Deletes a group and its items. */
+/**
+ * Deletes a group; its items go with it through the foreign key (`onDelete: 'cascade'`), in the one statement, so there
+ * is no half-deleted group. No transaction is used: NuxtHub's D1 driver has none, and `db.batch` is not allowed.
+ */
 export async function deleteFaqGroupRow(id: string): Promise<void> {
-  await db.delete(schema.faqItems).where(eq(schema.faqItems.groupId, id))
   await db.delete(schema.faqGroups).where(eq(schema.faqGroups.id, id))
 }
 
@@ -287,7 +315,8 @@ export function assertFaqPublishable(item: Pick<FaqItemRow, 'question' | 'answer
 }
 
 /** Inserts a draft item at the end of the group. */
-export async function createFaqItemRow(group: FaqGroupRow, input: ItemInput, userId: string | number): Promise<FaqItemRow> {
+export async function createFaqItemRow(event: H3Event, group: FaqGroupRow, input: ItemInput, userId: string | number): Promise<FaqItemRow> {
+  await assertFaqVisibilityOperation(event, input.visibility as Visibility | null | undefined)
   const [row] = await db.insert(schema.faqItems).values({
     id: newId('fqi'),
     groupId: group.id,
@@ -307,7 +336,8 @@ export async function createFaqItemRow(group: FaqGroupRow, input: ItemInput, use
  * Applies a partial update to `existing`; returns the updated row (or `existing` when nothing changed). A published item
  * must keep every required locale, so an edit that removes one is `409 missing_translations`.
  */
-export async function patchFaqItemRow(existing: FaqItemRow, patch: ItemPatch, userId: string | number): Promise<FaqItemRow> {
+export async function patchFaqItemRow(event: H3Event, existing: FaqItemRow, patch: ItemPatch, userId: string | number): Promise<FaqItemRow> {
+  if (patch.visibility) await assertFaqVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
   const values: Partial<typeof schema.faqItems.$inferInsert> = {}
   if (patch.question !== undefined) values.question = patch.question
   if (patch.answer !== undefined) values.answer = patch.answer
@@ -340,8 +370,11 @@ export async function reorderFaqItems(groupId: string, itemIds: string[]): Promi
   if (!isValidReorder(problems)) {
     throw apiError(400, 'invalid_order', 'The order must list every item of the group exactly once.', problems)
   }
-  for (const [index, id] of itemIds.entries()) {
-    await db.update(schema.faqItems).set({ sort: index }).where(and(eq(schema.faqItems.id, id), eq(schema.faqItems.groupId, groupId)))
+  if (itemIds.length) {
+    // One statement, so the order changes completely or not at all (no transaction: see `deleteFaqGroupRow`).
+    const position = sql.join(itemIds.map((id, index) => sql`when ${schema.faqItems.id} = ${id} then cast(${index} as integer)`), sql` `)
+    await db.update(schema.faqItems).set({ sort: sql`case ${position} end` })
+      .where(and(eq(schema.faqItems.groupId, groupId), inArray(schema.faqItems.id, itemIds)))
   }
   return listFaqItemRows(groupId)
 }

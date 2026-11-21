@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { faqCardProps, faqPageJsonLd } from '../../src/runtime/utils'
+import { faqCardProps, faqPageFromQuestions, faqPageJsonLd, stripMarkdown } from '../../src/runtime/utils'
 import type { FaqGroupDto } from '../../src/runtime/utils'
 
 const group = (overrides: Partial<FaqGroupDto> = {}): FaqGroupDto => ({
@@ -80,5 +80,28 @@ describe('FAQPage JSON-LD', () => {
   it('is null when nothing is public', () => {
     expect(faqPageJsonLd([group({ public: false })], 'en')).toBeNull()
     expect(faqPageJsonLd([], 'en')).toBeNull()
+  })
+})
+
+describe('JSON-LD text', () => {
+  it('strips Markdown and MDC from an answer', () => {
+    expect(stripMarkdown('It is **bold**, _plain_ and `code`. See [the prices](/prices) or ![a map](/map.png).'))
+      .toBe('It is bold, _plain_ and code. See the prices or a map.')
+    expect(stripMarkdown('# Title\n\n> quoted\n\n- one\n- two\n\n1. first')).toBe('Title quoted one two first')
+    expect(stripMarkdown('Before\n::callout{color="info"}\nInside *this*.\n::\nAfter')).toBe('Before Inside this. After')
+    expect(stripMarkdown('```ts\nconst x = 1\n```\nDone <b>now</b>')).toBe('Done now')
+  })
+
+  it('puts plain text in the answers of the page\'s FAQPage', () => {
+    const answer = { da: '**Intet.**', en: 'Nothing, see [prices](/prices).' }
+    const jsonLd = faqPageJsonLd([group({ items: [{ ...group().items[0]!, answer }] })], 'en') as { mainEntity: Array<{ acceptedAnswer: { text: string } }> }
+    expect(jsonLd.mainEntity[0]!.acceptedAnswer.text).toBe('Nothing, see prices.')
+  })
+
+  it('lists a question once, however many components contributed it', () => {
+    const entity = { '@type': 'Question', 'name': 'Q?' }
+    const page = faqPageFromQuestions([{ id: 'fqi_1', entity }, { id: 'fqi_2', entity: { ...entity, name: 'R?' } }, { id: 'fqi_1', entity }]) as { mainEntity: unknown[] }
+    expect(page.mainEntity).toHaveLength(2)
+    expect(faqPageFromQuestions([])).toBeNull()
   })
 })

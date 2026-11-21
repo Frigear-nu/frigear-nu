@@ -12,6 +12,10 @@ describe('unique violation check', () => {
   it('does not take other errors for one', () => {
     expect(isFaqUniqueViolation(new Error('boom'))).toBe(false)
     expect(isFaqUniqueViolation({ code: '23503' })).toBe(false)
+    // Another sqlite constraint, such as a foreign key or a not-null, is not a slug conflict.
+    expect(isFaqUniqueViolation({ code: 'SQLITE_CONSTRAINT_FOREIGNKEY' })).toBe(false)
+    expect(isFaqUniqueViolation({ code: 'SQLITE_CONSTRAINT_NOTNULL' })).toBe(false)
+    expect(isFaqUniqueViolation({ code: 'SQLITE_CONSTRAINT' })).toBe(false)
     expect(isFaqUniqueViolation(null)).toBe(false)
   })
 })

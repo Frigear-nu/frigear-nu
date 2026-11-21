@@ -5,6 +5,10 @@ import { computed, reactive, ref, useFetch, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'FaqVisibilityEditor' })
 
+// The roles admin route of `@frigear-nu/authorization` (`authorizationApi.admin.roles`). Authorization is optional for this
+// package, so its path builders are not imported: the path is spelled out here, and a 403 or 404 means "no list".
+const ROLES_PATH = '/api/admin/authorization/roles'
+
 // Edits a `visibility` value (see `@frigear-nu/audience`): public, or signed-in viewers narrowed by global roles, a team role
 // and an operation. `null` is "signed-in viewers". The model only changes when the editor does: opening a stored
 // value and saving it untouched sends it back exactly as it was.
@@ -56,7 +60,7 @@ watch(model, (value) => {
 
 // The registered roles to pick from, when the roles admin of `@frigear-nu/authorization` is there and the caller may read
 // it. Otherwise the roles are typed in as tags.
-const { data: roles } = useFetch<{ name: string, label: string }[]>('/api/admin/authorization/roles', {
+const { data: roles } = useFetch<{ name: string, label: string }[]>(ROLES_PATH, {
   key: 'faq:role-options',
   server: false,
   lazy: true,

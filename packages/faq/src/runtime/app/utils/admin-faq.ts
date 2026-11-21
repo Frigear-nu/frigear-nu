@@ -92,7 +92,7 @@ export function faqItemFormSchema(t: Translate, tr: TranslateText) {
     links: z.array(z.object({
       label: z.string().trim().min(1, t('admin.linkLabelRequired', 'Enter a label.')),
       to: z.string().trim().min(1, t('admin.linkToRequired', 'Enter where it goes.'))
-        .refine(value => /^(?:\/(?!\/)|#|https?:\/\/|mailto:|tel:)/i.test(value), t('admin.linkToInvalid', 'Use a path, a web address starting with https://, or a mailto: or tel: link.')),
+        .refine(value => /^(?:\/(?![/\\])|#|https?:\/\/|mailto:|tel:)/i.test(value), t('admin.linkToInvalid', 'Use a path, a web address starting with https://, or a mailto: or tel: link.')),
       icon: z.string().trim().max(100).optional(),
     })),
     visibility: z.custom<Visibility | null>().optional(),
