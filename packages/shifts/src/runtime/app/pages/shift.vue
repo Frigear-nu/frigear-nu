@@ -3,12 +3,13 @@ import { shiftsApi } from '../../utils/api'
 import { allowedSwapKinds, allowsSwapKind, offerKind } from '../../utils/settings'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { countdownParts, dayKey } from '../../utils/time'
-import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapKind, ShiftSwapOfferDto } from '../../../types'
+import type { MyShiftDetailDto, ShiftPassDto, ShiftPassPerkDto, ShiftSelfCheckInDto, ShiftSwapKind, ShiftSwapOfferDto } from '../../../types'
 import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
-// One of my shifts: when and where, the lead on duty, the QR pass while check-in is open, and the swap (open a trade or
+// One of my shifts: when and where, the lead on duty, the QR pass and checking in myself (a station's code or my
+// location) while check-in is open, what the shift earns, and the swap (open a trade or
 // give the shift away, as far as the schedule allows; accept or reject offers; withdraw it).
 const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
@@ -35,7 +36,7 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(timer))
 const passOpen = computed(() => !!data.value && now.value >= Date.parse(data.value.passOpensAt) && now.value <= Date.parse(data.value.passClosesAt))
 const holdsPlace = computed(() => data.value?.assignment.status === 'assigned' || data.value?.assignment.status === 'attended')
-const { data: pass } = useLazyFetch<ShiftPassDto>(() => shiftsApi.me.pass(assignmentId.value), {
+const { data: pass, refresh: refreshPass } = useLazyFetch<ShiftPassDto>(() => shiftsApi.me.pass(assignmentId.value), {
   key: computed(() => `shifts:pass:${assignmentId.value}`),
   watch: [passOpen],
   server: false,
@@ -50,6 +51,68 @@ const countdown = computed(() => {
   return [days ? t('shift.unitDays', '{count} d', { count: days }) : '', days || hours ? t('shift.unitHours', '{count} h', { count: hours }) : '', t('shift.unitMinutes', '{count} min', { count: minutes })].filter(Boolean).join(' ')
 })
 const perks = computed(() => pass.value?.perks ?? [])
+const perkLabel = (perk: ShiftPassPerkDto) => perk.status === 'upcoming'
+  ? t('shift.perkUpcoming', 'You will earn this')
+  : perk.status === 'earned'
+    ? t('shift.perkEarned', 'Earned')
+    : perk.status === 'claimed' ? t('shift.perkClaimed', 'Claimed') : t('shift.perkRevoked', 'Revoked')
+const perkColor = (perk: ShiftPassPerkDto) => perk.status === 'earned' ? 'success' : perk.status === 'revoked' ? 'error' : 'neutral'
+
+// --- Checking in myself -------------------------------------------------------------------------------------------------
+const checkedIn = computed(() => data.value?.assignment.status === 'attended' && !!data.value.assignment.checkedInAt)
+const canStation = computed(() => !!pass.value?.available && !!pass.value.checkIn.modes.includes('station'))
+const canLocation = computed(() => !!pass.value?.available && !!pass.value.checkIn.modes.includes('location'))
+const scanning = ref(false)
+const checkInBusy = ref(false)
+const checkInResult = ref<{ tone: 'success' | 'warning' | 'error', title: string } | null>(null)
+const checkInFailure = (code: string | undefined, fallback: string) => ({
+  token_expired: t('checkIn.errors.expired', 'That code has expired. Scan the station again.'),
+  invalid_token: t('checkIn.errors.invalid', 'That is not a check-in station\'s code.'),
+  wrong_station: t('checkIn.errors.wrongStation', 'That station is not your team\'s.'),
+  outside_location: t('checkIn.errors.outside', 'You are not at the check-in place yet.'),
+  inaccurate_position: t('checkIn.errors.inaccurate', 'Your position is not accurate enough. Try again outside, or ask your lead.'),
+  outside_window: t('checkIn.errors.window', 'Check-in for this shift is not open now.'),
+  mode_disabled: t('checkIn.errors.disabled', 'This way of checking in is not on for your shift.'),
+} as Record<string, string>)[code ?? ''] ?? fallback
+
+async function checkIn(body: Record<string, unknown>) {
+  if (checkInBusy.value) return
+  checkInBusy.value = true
+  try {
+    const answer = await $fetch<ShiftSelfCheckInDto>(shiftsApi.me.checkIn(assignmentId.value), { method: 'POST', body })
+    scanning.value = false
+    checkInResult.value = answer.alreadyCheckedIn
+      ? { tone: 'warning', title: t('checkIn.already', 'You were checked in already, at {time}.', { time: format.time(answer.checkedInAt) }) }
+      : { tone: 'success', title: answer.alsoCheckedIn.length ? t('checkIn.doneDaily', 'Checked in, and on your {count} other shifts today.', { count: answer.alsoCheckedIn.length }) : t('checkIn.done', 'Checked in. Have a good shift!') }
+    await Promise.all([refresh(), refreshPass()])
+  }
+  catch (error) {
+    const code = (error as { data?: { data?: { code?: string } } }).data?.data?.code
+    checkInResult.value = { tone: 'error', title: checkInFailure(code, errorMessage(error, t('checkIn.failed', 'Could not check in'))) }
+  }
+  finally {
+    checkInBusy.value = false
+  }
+}
+const onStationScan = (token: string) => checkIn({ mode: 'station', token })
+function checkInHere() {
+  if (!import.meta.client || !navigator.geolocation) {
+    checkInResult.value = { tone: 'error', title: t('checkIn.errors.noGeo', 'This device cannot tell where you are.') }
+    return
+  }
+  checkInBusy.value = true
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      checkInBusy.value = false
+      void checkIn({ mode: 'location', latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy })
+    },
+    () => {
+      checkInBusy.value = false
+      checkInResult.value = { tone: 'error', title: t('checkIn.errors.geoDenied', 'Allow the app to use your location, or ask your lead to scan your pass.') }
+    },
+    { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+  )
+}
 const leadNames = computed(() => (data.value?.leadsOnDuty ?? []).map(lead => lead.name ?? `#${lead.userId}`))
 
 const swap = computed(() => data.value?.swapDetail ?? null)
@@ -160,7 +223,7 @@ useHead({ title: () => t('shift.title', 'My shift') })
                 class="size-60 rounded-md bg-white p-2"
               >
               <p class="text-muted text-center text-sm">
-                {{ t('shift.passHelp', 'Show this to the lead of your team when you arrive.') }}
+                {{ canStation || canLocation ? t('shift.passHelpSelf', 'Check in below, or show this to the lead of your team.') : t('shift.passHelp', 'Show this to the lead of your team when you arrive.') }}
               </p>
               <UButton
                 color="neutral"
@@ -190,6 +253,55 @@ useHead({ title: () => t('shift.title', 'My shift') })
                   : t('shift.passClosed', 'Check-in for this shift has closed.') }}
               </p>
             </div>
+            <div
+              v-if="checkedIn || canStation || canLocation || checkInResult"
+              class="border-default mt-3 flex flex-col gap-2 border-t pt-3"
+            >
+              <UAlert
+                v-if="checkInResult"
+                :color="checkInResult.tone"
+                variant="subtle"
+                :icon="checkInResult.tone === 'success' ? 'i-lucide-check-circle' : checkInResult.tone === 'warning' ? 'i-lucide-info' : 'i-lucide-circle-alert'"
+                :title="checkInResult.title"
+              />
+              <p
+                v-else-if="checkedIn"
+                class="text-success flex items-center gap-1.5 text-sm font-medium"
+              >
+                <UIcon
+                  name="i-lucide-check-circle"
+                  class="size-4"
+                />
+                {{ t('checkIn.checkedInAt', 'Checked in at {time}', { time: format.time(data.assignment.checkedInAt!) }) }}
+              </p>
+              <div
+                v-if="!checkedIn && (canStation || canLocation)"
+                class="flex flex-wrap gap-2"
+              >
+                <UButton
+                  v-if="canStation"
+                  icon="i-lucide-scan-line"
+                  :color="scanning ? 'neutral' : 'primary'"
+                  :variant="scanning ? 'outline' : 'solid'"
+                  :label="scanning ? t('checkIn.stopScanning', 'Stop scanning') : t('checkIn.scanStation', 'Scan the station code')"
+                  @click="scanning = !scanning"
+                />
+                <UButton
+                  v-if="canLocation"
+                  icon="i-lucide-map-pin"
+                  :color="canStation ? 'neutral' : 'primary'"
+                  :variant="canStation ? 'outline' : 'solid'"
+                  :loading="checkInBusy"
+                  :label="t('checkIn.imHere', 'I\'m here: check in')"
+                  @click="checkInHere"
+                />
+              </div>
+              <ShiftQrScanner
+                v-if="scanning && !checkedIn"
+                :paused="checkInBusy"
+                @detect="onStationScan"
+              />
+            </div>
             <p
               v-if="leadNames.length"
               class="text-muted mt-3 flex items-center gap-1.5 text-sm"
@@ -205,7 +317,7 @@ useHead({ title: () => t('shift.title', 'My shift') })
               class="border-default mt-3 flex flex-col gap-1.5 border-t pt-3"
             >
               <h3 class="text-highlighted text-sm font-semibold">
-                {{ t('shift.perks', 'Your perks') }}
+                {{ t('shift.perks', 'What this shift earns') }}
               </h3>
               <ul class="flex flex-col gap-1 text-sm">
                 <li
@@ -213,11 +325,11 @@ useHead({ title: () => t('shift.title', 'My shift') })
                   :key="perk.perkId"
                   class="flex items-center justify-between gap-2"
                 >
-                  <span>{{ tr(perk.name) }}</span>
+                  <span>{{ perk.quantity }} × {{ tr(perk.name) }}</span>
                   <UBadge
-                    :color="perk.remaining ? 'success' : 'neutral'"
+                    :color="perkColor(perk)"
                     variant="subtle"
-                    :label="t('shift.perkLeft', '{left} of {limit} left', { left: perk.remaining, limit: perk.limit })"
+                    :label="perkLabel(perk)"
                   />
                 </li>
               </ul>

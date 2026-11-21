@@ -2,8 +2,7 @@ import { created, idParams } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
 import type { ShiftPerkDto } from '../../../../types'
 
-// Adds a perk to an operation: a meal or drink voucher for one team or all of them, as an allowance per shift
-// (`perShift`) or a budget per person across the operation (`perPerson`), exactly one of them.
+// Adds a perk to an operation, for one team or all of them: every attended shift earns `quantity` of `voucherType`.
 export default defineEventHandler(async (event): Promise<ShiftPerkDto> => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { operationId } = await getValidatedRouterParams(event, idParams('operationId').parse)

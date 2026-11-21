@@ -29,6 +29,20 @@ export default [
     if (!record) return undefined
     return record.userId !== undefined && Number(user.id) === record.userId
   }),
+  // Only your own assignments: a station or location check-in.
+  definePolicy<ShiftsRecord>('shifts:attend', ({ user, record }) => {
+    if (!record) return undefined
+    return record.userId !== undefined && Number(user.id) === record.userId
+  }),
+  // Only your own perk grants (a grant is `{ userId }`).
+  definePolicy<ShiftsRecord>('perks:read', ({ user, record }) => {
+    if (!record) return undefined
+    return record.userId !== undefined && Number(user.id) === record.userId
+  }),
+  definePolicy<ShiftsRecord>('perks:claim', ({ user, record }) => {
+    if (!record) return undefined
+    return record.userId !== undefined && Number(user.id) === record.userId
+  }),
   // The leads of the record's team (`isTeamLead` of teams: BA and up on a bar team), and staff.
   definePolicy<ShiftsRecord>('shifts:lead', async ({ event, user, record }) => {
     if (!record) return undefined
