@@ -1,0 +1,54 @@
+import type { TeamLadder } from '../../types'
+
+/** Role keys and team kinds: lower case letters, digits, `-` and `_`, starting with a letter or digit. */
+export const TEAM_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/
+
+/** The default ladders: the `bar` kind, lowest first. `ba` (bar manager) and up lead a bar team. */
+export const DEFAULT_TEAM_LADDERS: Readonly<Record<string, TeamLadder>> = Object.freeze({
+  bar: {
+    roles: [
+      { key: 'volunteer', label: { en: 'Volunteer', da: 'Frivillig' } },
+      { key: 'bartender', label: { en: 'Bartender', da: 'Bartender' } },
+      { key: 'ba', label: { en: 'BA (bar manager)', da: 'BA (baransvarlig)' } },
+      { key: 'coordinator', label: { en: 'Coordinator', da: 'Koordinator' } },
+    ],
+    leadFrom: 'ba',
+  },
+})
+
+/** The ordered role keys of a ladder, lowest first. */
+export function ladderKeys(ladder: TeamLadder | undefined): string[] {
+  return ladder?.roles.map(role => role.key) ?? []
+}
+
+/** The position of `role` on the ladder (0 = lowest), or `-1` when it is not on it. */
+export function teamRoleRank(keys: readonly string[] | undefined, role: string): number {
+  return keys ? keys.indexOf(role) : -1
+}
+
+/** Whether `role` is at or above `leadFrom` on the ladder. `false` without a `leadFrom` or for an unknown role. */
+export function isLeadRole(keys: readonly string[] | undefined, role: string, leadFrom: string | null | undefined): boolean {
+  if (!leadFrom) return false
+  const held = teamRoleRank(keys, role)
+  const min = teamRoleRank(keys, leadFrom)
+  return held >= 0 && min >= 0 && held >= min
+}
+
+/** The problems of a ladder definition (empty when it is valid): keys well formed and unique, `leadFrom` on it. */
+export function teamLadderIssues(ladder: TeamLadder): string[] {
+  const issues: string[] = []
+  if (!ladder.roles.length) issues.push('A ladder needs at least one role.')
+  const seen = new Set<string>()
+  for (const role of ladder.roles) {
+    if (!TEAM_KEY_PATTERN.test(role.key)) issues.push(`"${role.key}" is not a valid role key: use lower case letters, digits, - and _.`)
+    if (seen.has(role.key)) issues.push(`"${role.key}" is on the ladder twice.`)
+    seen.add(role.key)
+  }
+  if (ladder.leadFrom && !seen.has(ladder.leadFrom)) issues.push(`The lead role "${ladder.leadFrom}" is not on the ladder.`)
+  return issues
+}
+
+/** The default ladders merged with the module option `ladders` (a kind in the option replaces the default one). */
+export function mergeTeamLadders(option: Record<string, TeamLadder> | undefined): Record<string, TeamLadder> {
+  return { ...DEFAULT_TEAM_LADDERS, ...option }
+}
