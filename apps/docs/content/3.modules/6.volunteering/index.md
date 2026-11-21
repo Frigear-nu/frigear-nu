@@ -29,7 +29,7 @@ this group in the pull request that adds the module.
 | [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
 | [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
-| [`@frigear-nu/maps`](/modules/volunteering/maps) | Geographic and floor-plan maps that modules add map kinds and layers to. | B |
+| [`@frigear-nu/maps`](/modules/volunteering/maps) | A building block: a location picker, a plane layout editor, web and mobile viewers with live layers. No tables of its own. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
 | [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
 
@@ -73,14 +73,12 @@ the `audience:owner:resolve` hook with the owner's label and whether it exists:
 | `user` | nobody yet: read the user through `@frigear-nu/users` |
 | `platform` | nobody: there is one platform, and the consumer labels it itself |
 
-The hook answers no access questions. A consumer such as maps checks access with
-`authorize(event, 'maps:edit', map)`, and the owning module answers the consumer's own hook for its owner type:
-operations sets `allowed` in `maps:edit:resolve` for an operation's coordinators, teams for a team's leads. No consumer
-imports an owner module.
+The hook answers no access questions. A consumer checks access with `authorize(event, permission, record)` and its
+own policies; no consumer imports an owner module.
 
 ## Visibility
 
-FAQ groups and items, help categories and articles, maps and mailboxes store who may see them in one JSON column,
+FAQ groups and items, help categories and articles, and mailboxes store who may see them in one JSON column,
 `visibility`. [Audience](/modules/volunteering/audience) owns the shape and the resolver, so every module answers the
 same way.
 
@@ -108,9 +106,9 @@ Participation leaves out mapped grants on purpose. A mapping rule such as "membe
 every plan member a team role, but it does not make them crew of the operation.
 
 The JSON holds only these keys. Read it with `parseVisibility`: its schema is strict, so an unknown key (a typo, or a
-`permission`) hides the record instead of showing it to every signed-in user. There is no `permission` key. Maps
-stores `{ public, permission }` and inbox `roles/permission` in the plan; both keep only visibility keys in the JSON,
-and check permissions with `authorize(event, permission, record)` and their policies.
+`permission`) hides the record instead of showing it to every signed-in user. There is no `permission` key. Inbox
+stores `roles/permission` in the plan; it keeps only visibility keys in the JSON, and checks permissions with
+`authorize(event, permission, record)` and its policies.
 
 An item inside a group can only narrow the group: an FAQ item narrows its group, an article its category.
 
@@ -136,7 +134,7 @@ Nuxt Content articles are always public. Restricted content comes only from the 
 module knows all of that, so the viewer is filled in through one Nitro hook.
 
 ```text
-faq / help-center / maps / inbox
+faq / help-center / inbox
         │  resolveViewer(event, { hooks, user, globalRoles })   globalRoles from auth's getEffectiveRoles
         ▼
 audience:viewer:resolve ── teams      → viewer.teamRoles, viewer.ladders   (resolveTeamRoles)
@@ -239,11 +237,6 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:swap:completed` | shifts | `{ event, kind, swap, offer }` | 4 |
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
-| `maps:seed:resolve` | maps | `{ event, maps }` | 5 |
-| `maps:edit:resolve` | maps | `{ event, user, map, allowed }` | 5 |
-| `maps:feature:created` | maps | `{ event, map, feature }` | 5 |
-| `maps:feature:updated` | maps | `{ event, map, feature, previous }` | 5 |
-| `maps:feature:deleted` | maps | `{ event, map, feature }` | 5 |
 | `inbox:message:received` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
 | `inbox:message:sent` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
 | `inbox:thread:assigned` | inbox | `{ event, thread, assigneeId, previous }` | 6: platform mailboxes only |
@@ -266,10 +259,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
-- **`maps:seed:resolve`.** Listeners push map definitions into `maps` on the first request, and maps creates the
-  missing ones. To create a map when an owner is created, listen to `operations:created` and call `ensureMap`.
-- **`maps:edit:resolve`.** Asked when a caller holds neither `maps:manage` nor the map kind's `editPermission`. The
-  module that owns the map's owner type sets `allowed = true` for its leads; it never needs to import maps.
+- **Maps has no hooks.** A module stores a location or a plane layout in its own table and saves it through its own
+  routes, so the module's own hooks fire. Feature kinds and live layers are registries (`extendMaps`), not hooks.
 - **Existing hooks used here.** Crew and inbox listen to `forms:submitted`. Teams adds a `teams` claim through
   `oauth:claims`. Dashboard items are filtered by the client-side `widgets:filter`.
 
@@ -341,7 +332,7 @@ faq         ─► auth, audience                        (soft: menu, admin, for
                                                             dashboard)
 help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
-maps        ─► auth, audience                        (owners register kinds and layers; maps imports none of them)
+maps        ─► ui, module-kit                        (modules register kinds and layers; maps imports none of them)
 inbox       ─► auth, notify, audience                (soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
