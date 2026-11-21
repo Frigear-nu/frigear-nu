@@ -44,3 +44,21 @@ export const getSmsTo = (to: string) => $fetch<SmsEntry[]>('/api/test/sms', { qu
 
 /** The emails notify was asked to deliver to an address, in order (fixture-only route). */
 export const getEmailsTo = (to: string) => $fetch<EmailEntry[]>('/api/test/emails', { query: { to } })
+
+/**
+ * Turns SMS on for the signed-in user on the shifts topics that offer it. Push is installed in this fixture, and SMS is off
+ * until a person chooses it, so a test that expects a text opts the person in first.
+ */
+export const optInSms = (cookie: string) => $fetch('/api/push/me/channels', {
+  method: 'PATCH',
+  headers: { cookie },
+  body: { topics: { 'shifts.reminder': { sms: true }, 'shifts.broadcast': { sms: true } } },
+})
+
+/** Registers a push device for the signed-in user (the log driver "delivers" to it). */
+export const registerDevice = (cookie: string, token: string) =>
+  $fetch('/api/push/me/devices', { method: 'POST', headers: { cookie }, body: { platform: 'android', token } })
+
+/** Sets the signed-in user's channel choices for a shifts topic (a partial merge). */
+export const setChannels = (cookie: string, topic: string, channels: Record<string, boolean>) =>
+  $fetch('/api/push/me/channels', { method: 'PATCH', headers: { cookie }, body: { topics: { [topic]: channels } } })

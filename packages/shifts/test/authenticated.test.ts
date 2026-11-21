@@ -9,7 +9,7 @@ import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { mapsApi } from '@frigear-nu/maps/api'
 import { shiftsApi } from '../src/runtime/utils/api'
-import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
+import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, optInSms, registerDevice, runReminders, setChannels, setLocale, setPhone } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -1020,6 +1020,9 @@ describe('shifts (authenticated, database-backed)', async () => {
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(setup.team.id, eli.id), { status: 'inactive' }))
       await setPhone(ann.id, '+4511111111')
       await setPhone(fay.id, '+4522222222')
+      // SMS is off until a person chooses it (push is installed here).
+      await optInSms(ann.cookie)
+      await optInSms(fay.cookie)
 
       // 26 hours ahead: nothing is inside the largest offset yet.
       expect(await runReminders('2031-03-09T08:00:00.000Z')).toEqual({ checked: 0, sent: 0, spent: 0 })
@@ -1220,6 +1223,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const { ann, bo, lead, cy } = setup
       await setLocale(ann.id, setup.team.id, 'da')
       await setPhone(ann.id, '+4533333333')
+      await optInSms(ann.cookie)
       const text = { subject: { en: 'Briefing', da: 'Briefing (dansk)' }, message: { en: 'Be there at nine', da: 'Mød op klokken ni' } }
 
       const sent = await ok(await broadcast(staff, { operationId: setup.op.id, audience: {}, ...text }))
@@ -1296,6 +1300,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { shiftId: (await bulk((await createSchedule(setup.op.id)).id, { teamId: setup.other.id, days: ['2027-06-28'], slots: [{ start: '10:00', end: '12:00' }] }))[0]!.id } })).status).toBe(400)
       // The lead's SMS needs asking for, too.
       await setPhone(ann.id, '+4544444444')
+      await optInSms(ann.cookie)
       await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, channels: ['sms'] }))
       expect(await getSmsTo('+4544444444')).toHaveLength(1)
       // Staff reach every team through the lead route as well.
@@ -1569,6 +1574,69 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Titles fall back to the plain `title` without translations; each frame has its own.
       for (const title of ['My crew status', 'My next shift', 'My team on shift now', 'Open swaps', 'Upcoming operations', 'My teams']) expect(rendered).toContain(title)
     }, 180_000)
+  })
+
+  describe('push (installed in this fixture)', () => {
+    const topicsOf = async (who: Session): Promise<Json[]> => (await ok(await json(who.cookie, 'GET', '/api/push/me/channels'))).topics
+
+    it('registers the shifts topics in the channel matrix, SMS only where it is offered and off by default', async () => {
+      const ann = await user('Pmatrix')
+      const topics = (await topicsOf(ann)).filter(topic => topic.id.startsWith('shifts.'))
+      expect(topics.map(topic => [topic.id, topic.channels])).toEqual([
+        ['shifts.reminder', ['email', 'sms', 'push']],
+        ['shifts.swap', ['email', 'push']],
+        ['shifts.broadcast', ['email', 'sms', 'push']],
+      ])
+      expect(topics.every(topic => topic.settings.email && topic.settings.push && !topic.settings.sms)).toBe(true)
+    })
+
+    it('sends a reminder through notifyUser: the person\'s channels decide, and a registered device gets the push', async () => {
+      const setup = await newSetup()
+      const [ann, bo] = await Promise.all([user('Pann'), user('Pbo')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bo)
+      await patchShift(setup.shifts[0]!.id, { startsAt: '2036-05-01T10:00:00.000Z', endsAt: '2036-05-01T14:00:00.000Z' })
+      await assigned(setup.shifts[0]!.id, ann)
+      await assigned(setup.shifts[0]!.id, bo)
+      await registerDevice(ann.cookie, `reminder-ann-${counter}`)
+      await registerDevice(bo.cookie, `reminder-bo-${counter}`)
+      // Bo turned the email off for reminders: without push installed that was not possible.
+      await setChannels(bo.cookie, 'shifts.reminder', { email: false })
+
+      expect(await runReminders('2036-04-30T10:00:00.000Z')).toEqual({ checked: 2, sent: 2, spent: 0 })
+      const hooks = (who: Session) => getHooks().then(all => all.filter(hook => hook.name === 'reminder:sent' && hook.userId === who.id))
+      expect(await hooks(ann)).toMatchObject([{ offset: 1440, channels: ['email', 'push'] }])
+      expect(await hooks(bo)).toMatchObject([{ offset: 1440, channels: ['push'] }])
+      expect((await getEmailsTo(ann.email)).filter(mail => mail.template?.name === 'shifts-reminder')).toHaveLength(1)
+      expect((await getEmailsTo(bo.email)).filter(mail => mail.template?.name === 'shifts-reminder')).toHaveLength(0)
+    })
+
+    it('sends a broadcast through notifyUser: counts per channel, SMS needs the sender and the person', async () => {
+      const op = await createOperation()
+      const team = await createTeam(op.id)
+      const [ann, bo] = await Promise.all([user('Pbann'), user('Pbbo')])
+      await addMember(team.id, ann)
+      await addMember(team.id, bo)
+      await setPhone(ann.id, '+4555555555')
+      await setPhone(bo.id, '+4566666666')
+      await optInSms(ann.cookie)
+      await registerDevice(ann.cookie, `broadcast-ann-${counter}`)
+      await registerDevice(bo.cookie, `broadcast-bo-${counter}`)
+      await setChannels(bo.cookie, 'shifts.broadcast', { email: false })
+      const send = async (channels: string[], subject: string) => ok(await json(staff.cookie, 'POST', shiftsApi.admin.broadcasts, { operationId: op.id, audience: {}, channels, subject: { en: subject }, message: { en: 'Hello' } }))
+
+      // Email and SMS asked for: Ann gets all three; Bo has the email off, and never chose SMS, so only the push.
+      expect(await send(['email', 'sms'], 'Both')).toMatchObject({ delivery: 'done', recipientCount: 2, sent: { email: 1, sms: 1, push: 2 } })
+      expect(await getEmailsTo(ann.email).then(mails => mails.filter(mail => mail.subject === 'Both'))).toHaveLength(1)
+      expect(await getEmailsTo(bo.email).then(mails => mails.filter(mail => mail.subject === 'Both'))).toHaveLength(0)
+      expect(await getSmsTo('+4555555555')).toHaveLength(1)
+      expect(await getSmsTo('+4566666666')).toHaveLength(0)
+
+      // SMS alone reaches only the person who opted in, and sends no push.
+      expect(await send(['sms'], 'Text only')).toMatchObject({ sent: { email: 0, sms: 1, push: 0 } })
+      expect(await getSmsTo('+4555555555')).toHaveLength(2)
+      expect(await getSmsTo('+4566666666')).toHaveLength(0)
+    })
   })
 
   describe('maps (installed in this fixture)', () => {
