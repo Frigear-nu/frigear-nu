@@ -2,6 +2,14 @@ import type { DateValue } from '../types'
 
 // Date and time formatting with `Intl`. Pages use these (or `useFormat()`, which binds the active locale)
 // instead of ad-hoc `toLocaleString()` calls. Empty or invalid values format as an empty string.
+//
+// Every helper returns plain spaces: ICU versions differ in the spaces they put around range dashes, before AM/PM
+// and between parts (U+2009 thin, U+202F narrow no-break, U+00A0 no-break), so Node on the server and the visitor's
+// browser would otherwise render different text for the same value and the page would fail to hydrate.
+
+const ICU_SPACES = /[\u00A0\u2009\u202F]/g
+
+const plainSpaces = (text: string) => text.replace(ICU_SPACES, ' ')
 
 const asDate = (value: DateValue | null | undefined): Date | undefined => {
   if (value === null || value === undefined || value === '') return undefined
@@ -11,7 +19,7 @@ const asDate = (value: DateValue | null | undefined): Date | undefined => {
 
 const format = (value: DateValue | null | undefined, locale: string | undefined, options: Intl.DateTimeFormatOptions) => {
   const date = asDate(value)
-  return date ? new Intl.DateTimeFormat(locale, options).format(date) : ''
+  return date ? plainSpaces(new Intl.DateTimeFormat(locale, options).format(date)) : ''
 }
 
 /** "15 Oct 2026" */
@@ -39,5 +47,5 @@ export function formatDateRange(start: DateValue | null | undefined, end: DateVa
   const resolved: Intl.DateTimeFormatOptions = { dateStyle: 'medium', ...options }
   if (!from) return to ? format(to, locale, resolved) : ''
   if (!to || to.getTime() < from.getTime()) return format(from, locale, resolved)
-  return new Intl.DateTimeFormat(locale, resolved).formatRange(from, to)
+  return plainSpaces(new Intl.DateTimeFormat(locale, resolved).formatRange(from, to))
 }
