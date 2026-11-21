@@ -134,13 +134,13 @@ describe('crew (authenticated, database-backed)', async () => {
       const rules = await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${op.id}`)) as unknown as Json[]
       expect(rules.map(rule => `${JSON.stringify(rule.match)}>${rule.teamRole}`).sort()).toEqual([
         '{"plan":"member-plan"}>volunteer',
-        '{"role":"barmanager"}>ba',
         '{"role":"crew"}>bartender',
+        '{"role":"supervisor"}>lead',
       ])
       expect(rules.every(rule => rule.teamId === null)).toBe(true)
     })
 
-    it('adds no presets when they are off, and a global barmanager is a BA on the crew\'s teams when they are on', async () => {
+    it('adds no presets when they are off, and a global supervisor is a lead on the crew\'s teams when they are on', async () => {
       const off = await newCrew({ presets: false })
       const on = await newCrew()
       const manager = await user('Manager', 'bar.test')
@@ -148,7 +148,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${off.op.id}`))) as unknown as Json[]).toEqual([])
 
       const grants = await myTeams(manager.cookie)
-      expect(grants.find(grant => grant.teamId === on.teamId)).toMatchObject({ role: 'ba', source: 'mapped', ownerType: 'operation', ownerId: on.op.id })
+      expect(grants.find(grant => grant.teamId === on.teamId)).toMatchObject({ role: 'lead', source: 'mapped', ownerType: 'operation', ownerId: on.op.id })
       expect(grants.find(grant => grant.teamId === off.teamId)).toBeUndefined()
       expect((await myTeams(crewRole.cookie)).find(grant => grant.teamId === on.teamId)).toMatchObject({ role: 'bartender', source: 'mapped' })
       // A mapped grant is no participation: the viewer does not take part in the operation.
@@ -324,15 +324,15 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await json(staff.cookie, 'POST', crewApi.admin.approve(row.id), { role: 'wizard' })).status).toBe(400)
       expect(await rowOf(crew, dan)).toMatchObject({ crewStatus: 'applied' })
 
-      expect(await approve(row, { teamId: bar.id, role: 'ba' })).toMatchObject({ crewStatus: 'approved', teamId: bar.id, role: 'ba' })
-      expect(await myTeams(dan.cookie)).toEqual([expect.objectContaining({ teamId: bar.id, role: 'ba', source: 'explicit' })])
+      expect(await approve(row, { teamId: bar.id, role: 'lead' })).toMatchObject({ crewStatus: 'approved', teamId: bar.id, role: 'lead' })
+      expect(await myTeams(dan.cookie)).toEqual([expect.objectContaining({ teamId: bar.id, role: 'lead', source: 'explicit' })])
       expect(await hookNames(dan)).toEqual(['crew:applied', 'teams:added', 'crew:approved'])
-      expect((await getHooksOf(dan.id)).find(entry => entry.name === 'teams:added')).toMatchObject({ teamId: bar.id, role: 'ba' })
+      expect((await getHooksOf(dan.id)).find(entry => entry.name === 'teams:added')).toMatchObject({ teamId: bar.id, role: 'lead' })
 
       // Same team, other role: the teams role-changed hook.
       const patched = await ok(await json(staff.cookie, 'PATCH', crewApi.admin.member(row.id), { role: 'bartender' }))
       expect(patched).toMatchObject({ teamId: bar.id, role: 'bartender', crewStatus: 'approved' })
-      expect((await getHooksOf(dan.id)).at(-1)).toMatchObject({ name: 'teams:role-changed', from: 'ba', to: 'bartender' })
+      expect((await getHooksOf(dan.id)).at(-1)).toMatchObject({ name: 'teams:role-changed', from: 'lead', to: 'bartender' })
 
       // Another team: removed from the first, added to the second.
       await ok(await json(staff.cookie, 'PATCH', crewApi.admin.member(row.id), { teamId: crew.teamId }))
@@ -442,14 +442,14 @@ describe('crew (authenticated, database-backed)', async () => {
   })
 
   describe('invites', () => {
-    const invite = async (crew: Crew, body: Json = {}): Promise<Json> => ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba', ...body }))
+    const invite = async (crew: Crew, body: Json = {}): Promise<Json> => ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'lead', ...body }))
     const accept = (who: Session, token: string) => json(who.cookie, 'POST', crewApi.acceptInvite(token))
 
     it('creates a link whose token is shown once, and lists it without the token', async () => {
       const crew = await newCrew()
       const created = await invite(crew, { maxUses: 3 })
       expect(created.token).toMatch(/^cvt_/)
-      expect(created).toMatchObject({ operationId: crew.op.id, teamId: crew.teamId, role: 'ba', maxUses: 3, uses: 0, status: 'active', createdBy: staff.id, path: `/crew/invite/${created.token}` })
+      expect(created).toMatchObject({ operationId: crew.op.id, teamId: crew.teamId, role: 'lead', maxUses: 3, uses: 0, status: 'active', createdBy: staff.id, path: `/crew/invite/${created.token}` })
       const listed = await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[]
       expect(listed).toHaveLength(1)
       expect(listed[0]).toMatchObject({ id: created.id, prefix: created.token.slice(0, 8), status: 'active' })
@@ -457,32 +457,32 @@ describe('crew (authenticated, database-backed)', async () => {
 
       // A team of another operation, an unknown role and a past expiry are refused.
       const elsewhere = await newCrew()
-      expect((await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: elsewhere.teamId, role: 'ba' })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: elsewhere.teamId, role: 'lead' })).status).toBe(400)
       expect((await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'wizard' })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba', expiresAt: '2020-01-01T00:00:00.000Z' })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'lead', expiresAt: '2020-01-01T00:00:00.000Z' })).status).toBe(400)
     })
 
     it('needs a session to create one: an API token is refused (session_required)', async () => {
       const crew = await newCrew()
       // `crew:invite` is session only, so it cannot even be a token scope: a token reaches it with `crew:manage` at most.
       const bot = apiClient({ bearer: await createToken(staff.cookie, [crewAccess.permissions.manage]) })
-      await expectApiError(bot.json('POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba' }), 403, 'session_required')
+      await expectApiError(bot.json('POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'lead' }), 403, 'session_required')
       // The same token may still read and manage what is not a credential.
       expect(await bot.json('GET', crewApi.admin.invites(crew.op.id))).toEqual([])
       const plain = apiClient({ cookie: (await user('Plain')).cookie })
-      await expectApiError(plain.json('POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba' }), 403, 'forbidden')
+      await expectApiError(plain.json('POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'lead' }), 403, 'forbidden')
     })
 
-    it('adds a BA to the team directly, without an application', async () => {
+    it('adds a lead to the team directly, without an application', async () => {
       const crew = await newCrew()
       const created = await invite(crew)
       const ben = await user('Ben')
       const joined = await ok(await accept(ben, created.token))
-      expect(joined).toMatchObject({ operationId: crew.op.id, crewStatus: 'approved', teamId: crew.teamId, role: 'ba', roleLabel: { en: 'BA (bar manager)' } })
-      expect(await myTeams(ben.cookie)).toEqual([expect.objectContaining({ teamId: crew.teamId, role: 'ba', source: 'explicit' })])
+      expect(joined).toMatchObject({ operationId: crew.op.id, crewStatus: 'approved', teamId: crew.teamId, role: 'lead', roleLabel: { en: 'Lead' } })
+      expect(await myTeams(ben.cookie)).toEqual([expect.objectContaining({ teamId: crew.teamId, role: 'lead', source: 'explicit' })])
       expect((await myOperations(ben.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
       expect((await getViewer(ben.cookie)).operationIds).toEqual([crew.op.id])
-      expect(await rowOf(crew, ben)).toMatchObject({ crewStatus: 'approved', role: 'ba', decidedBy: staff.id })
+      expect(await rowOf(crew, ben)).toMatchObject({ crewStatus: 'approved', role: 'lead', decidedBy: staff.id })
       expect(await hookNames(ben)).toEqual(['teams:added', 'crew:approved'])
       expect((await getEmailsTo(ben.email)).map(email => email.template?.name)).toEqual(['crew-status-approved'])
       expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 1, status: 'used' })
@@ -498,7 +498,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const kim = await user('Kim')
       await applied(kim, crew)
       const created = await invite(crew)
-      expect(await ok(await accept(kim, created.token))).toMatchObject({ crewStatus: 'approved', role: 'ba' })
+      expect(await ok(await accept(kim, created.token))).toMatchObject({ crewStatus: 'approved', role: 'lead' })
       const page = await list(staff.cookie, crew)
       expect(page.items.filter((item: Json) => item.userId === kim.id)).toHaveLength(1)
       expect(await hookNames(kim)).toEqual(['crew:applied', 'teams:added', 'crew:approved'])
@@ -515,7 +515,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const members = await list(staff.cookie, crew)
       expect(members.total).toBe(1)
       expect([lou.id, max.id]).toContain(members.items[0].userId)
-      expect(members.items[0]).toMatchObject({ crewStatus: 'approved', role: 'ba' })
+      expect(members.items[0]).toMatchObject({ crewStatus: 'approved', role: 'lead' })
 
       const double = await invite(crew, { maxUses: 2 })
       const [ned, oli, pia] = [await user('Ned'), await user('Oli'), await user('Pia')] as [Session, Session, Session]
@@ -587,7 +587,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const teamB = await createTeam(crew, 'Bar B')
       const [lead, onA, onB, plain] = [await user('Lead'), await user('Ona'), await user('Onb'), await user('Plain')] as [Session, Session, Session, Session]
 
-      await approve(await applied(lead, crew), { role: 'ba' })
+      await approve(await applied(lead, crew), { role: 'lead' })
       await approve(await applied(onA, crew))
       await approve(await applied(onB, crew), { teamId: teamB.id })
       await applied(plain, crew)
@@ -773,8 +773,8 @@ describe('crew (authenticated, database-backed)', async () => {
       const url = `${teamsApi.admin.mappings}?ownerType=operation&ownerId=${crew.op.id}`
       const rules = await ok(await json(staff.cookie, 'GET', url)) as unknown as Json[]
       expect(rules).toHaveLength(3)
-      const barmanager = rules.find(rule => rule.match.role === 'barmanager')!
-      expect((await json(staff.cookie, 'DELETE', teamsApi.admin.mapping(barmanager.id))).status).toBe(204)
+      const supervisor = rules.find(rule => rule.match.role === 'supervisor')!
+      expect((await json(staff.cookie, 'DELETE', teamsApi.admin.mapping(supervisor.id))).status).toBe(204)
       await ok(await saveSettings(crew.op.id, { formId: crew.form.id, capacity: 3 }))
       expect(((await ok(await json(staff.cookie, 'GET', url))) as unknown as Json[]).map(rule => rule.match.role ?? rule.match.plan).sort()).toEqual(['crew', 'member-plan'])
 
@@ -855,7 +855,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const [approvedPerson, rejectedPerson] = [await user('Already'), await user('Turned')] as [Session, Session]
       await approve(await applied(approvedPerson, crew))
       await reject(await applied(rejectedPerson, crew))
-      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: bar.id, role: 'ba', maxUses: 5 }))
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: bar.id, role: 'lead', maxUses: 5 }))
       await expectApiError(json(approvedPerson.cookie, 'POST', crewApi.acceptInvite(created.token)), 409, 'crew_already_member')
       await expectApiError(json(rejectedPerson.cookie, 'POST', crewApi.acceptInvite(created.token)), 409, 'crew_rejected')
       expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 0 })
@@ -865,11 +865,11 @@ describe('crew (authenticated, database-backed)', async () => {
 
     it('keeps the use spent when a hook listener fails after the membership was written', async () => {
       const crew = await newCrew()
-      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'ba', maxUses: 2 }))
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'lead', maxUses: 2 }))
       const failing = await registerUser('Failing', `hookfail${++counter}@example.com`)
       const response = await json(failing.cookie, 'POST', crewApi.acceptInvite(created.token))
       expect(response.status).toBe(500)
-      expect(await rowOf(crew, failing)).toMatchObject({ crewStatus: 'approved', role: 'ba' })
+      expect(await rowOf(crew, failing)).toMatchObject({ crewStatus: 'approved', role: 'lead' })
       expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 1 })
     })
   })
@@ -896,7 +896,7 @@ describe('crew (authenticated, database-backed)', async () => {
       await expectApiError(json(nobody.cookie, 'GET', crewApi.admin.invites(crew.op.id)), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'POST', crewApi.admin.approve(row.id), {}), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'POST', crewApi.admin.approveMany(crew.op.id), { ids: [row.id] }), 403, 'forbidden')
-      await expectApiError(json(nobody.cookie, 'PATCH', crewApi.admin.member(row.id), { role: 'ba' }), 403, 'forbidden')
+      await expectApiError(json(nobody.cookie, 'PATCH', crewApi.admin.member(row.id), { role: 'lead' }), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'DELETE', crewApi.admin.invite('civ_missing')), 403, 'forbidden')
       await expectApiError(json(nobody.cookie, 'GET', crewApi.admin.members(crew.op.id)), 403, 'forbidden')
       expect((await scoped(nobody.cookie, crew)).items).toEqual([])

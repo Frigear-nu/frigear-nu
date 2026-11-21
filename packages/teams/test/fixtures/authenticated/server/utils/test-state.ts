@@ -2,7 +2,7 @@
 
 /** Operations that "exist" for `audience:owner:resolve` (operations itself is not installed here). */
 export const testOperations = new Map<string, string>([
-  ['opr_roskilde', 'Roskilde 2027 bar operation'],
+  ['opr_summer', 'Summer Festival 2030'],
   ['opr_priority', 'Priority test operation'],
 ])
 

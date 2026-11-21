@@ -3,16 +3,20 @@ import type { TeamLadder } from '../../types'
 /** Role keys and team kinds: lower case letters, digits, `-` and `_`, starting with a letter or digit. */
 export const TEAM_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/
 
-/** The default ladders: the `bar` kind, lowest first. `ba` (bar manager) and up lead a bar team. */
+/** The kind of the one ladder the module ships, and of a new team unless the app picks another. */
+export const DEFAULT_TEAM_KIND = 'default'
+
+/**
+ * The ladder the module ships: one generic `default` kind, `member` then `lead`, led from `lead`. An app adds its own
+ * kinds and ladders with the module option `ladders`.
+ */
 export const DEFAULT_TEAM_LADDERS: Readonly<Record<string, TeamLadder>> = Object.freeze({
-  bar: {
+  [DEFAULT_TEAM_KIND]: {
     roles: [
-      { key: 'volunteer', label: { en: 'Volunteer', da: 'Frivillig' } },
-      { key: 'bartender', label: { en: 'Bartender', da: 'Bartender' } },
-      { key: 'ba', label: { en: 'BA (bar manager)', da: 'BA (baransvarlig)' } },
-      { key: 'coordinator', label: { en: 'Coordinator', da: 'Koordinator' } },
+      { key: 'member', label: { en: 'Member', da: 'Medlem' } },
+      { key: 'lead', label: { en: 'Lead', da: 'Leder' } },
     ],
-    leadFrom: 'ba',
+    leadFrom: 'lead',
   },
 })
 

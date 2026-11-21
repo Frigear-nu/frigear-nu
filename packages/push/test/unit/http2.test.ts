@@ -35,14 +35,14 @@ describe('the node:http2 transport', () => {
 
   it('posts over HTTP/2 and answers the status and body, on one reused session', async () => {
     const transport = createHttp2Transport()
-    const headers = { 'authorization': 'bearer jwt', 'apns-topic': 'nu.frigear.app', 'content-type': 'application/json' }
+    const headers = { 'authorization': 'bearer jwt', 'apns-topic': 'com.example.app', 'content-type': 'application/json' }
     const sent = await transport({ origin, path: '/3/device/abc', headers, body: '{"aps":{}}', timeoutMs: 2000 })
     expect(sent).toEqual({ status: 200, body: '' })
     const dead = await transport({ origin, path: '/3/device/dead', headers, body: '{}', timeoutMs: 2000 })
     expect(dead).toEqual({ status: 410, body: '{"reason":"Unregistered"}' })
 
     expect(seen[0]).toMatchObject({ method: 'POST', path: '/3/device/abc', body: '{"aps":{}}' })
-    expect(seen[0]!.headers).toMatchObject({ 'authorization': 'bearer jwt', 'apns-topic': 'nu.frigear.app' })
+    expect(seen[0]!.headers).toMatchObject({ 'authorization': 'bearer jwt', 'apns-topic': 'com.example.app' })
     expect(connections).toBe(1)
   })
 

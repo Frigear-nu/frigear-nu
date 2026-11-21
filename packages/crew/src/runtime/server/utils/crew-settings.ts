@@ -56,13 +56,14 @@ export async function getCrewOperationTeamOr400(operationId: string, teamId: str
 
 /**
  * The team applications land in: `preferredId` when it is a team of the operation, else the operation's first team,
- * else a new "Crew" team of the `bar` kind (so a fresh operation can take applications at once).
+ * else a new "Crew" team of the module option's `defaultTeamKind` (so a fresh operation can take applications at once).
  */
 export async function crewEnsureDefaultTeam(event: H3Event, operationId: string, preferredId?: string | null): Promise<CrewTeamRow> {
   if (preferredId) return getCrewOperationTeamOr400(operationId, preferredId, 'defaultTeamId')
   const [first] = await crewOperationTeams(operationId)
   if (first) return first
-  return createTeamRow(event, { ownerType: 'operation', ownerId: operationId, kind: 'bar', name: { en: 'Crew', da: 'Crew' } })
+  const kind = (useRuntimeConfig(event).crew as CrewRuntimeConfig | undefined)?.defaultTeamKind ?? 'default'
+  return createTeamRow(event, { ownerType: 'operation', ownerId: operationId, kind, name: { en: 'Crew', da: 'Crew' } })
 }
 
 /** The team applications of an operation land in: its stored default, or the first team, or a new "Crew" team. */
@@ -80,18 +81,12 @@ export async function crewLowestRole(event: H3Event, kind: string): Promise<stri
 type Preset = { match: TeamRoleMatchLike, teamRole: string }
 
 /**
- * Adds the role mapping presets of an operation as owner-wide `team_role_mappings` rows: a global `barmanager` is a BA,
- * a global `crew` is a bartender, and (with the module option `memberPlan`) an active subscription to that plan is a
- * volunteer. A preset whose match has a rule already, or whose role is on no ladder, is skipped. Called when an operation's
- * settings are first saved, never again.
+ * Adds the role mapping presets of an operation (the module option `rolePresets`, empty by default) as owner-wide
+ * `team_role_mappings` rows. A preset whose match has a rule already, or whose role is on no ladder, is skipped. Called
+ * when an operation's settings are first saved, never again.
  */
 export async function crewEnsurePresets(event: H3Event, operationId: string): Promise<void> {
-  const memberPlan = (useRuntimeConfig(event).crew as CrewRuntimeConfig | undefined)?.memberPlan
-  const presets: Preset[] = [
-    { match: { role: 'barmanager' }, teamRole: 'ba' },
-    { match: { role: 'crew' }, teamRole: 'bartender' },
-    ...(memberPlan ? [{ match: { plan: memberPlan }, teamRole: 'volunteer' }] : []),
-  ]
+  const presets: Preset[] = (useRuntimeConfig(event).crew as CrewRuntimeConfig | undefined)?.rolePresets ?? []
   const owner = { ownerType: 'operation', ownerId: operationId }
   const existing = await db.select().from(schema.teamRoleMappings)
     .where(and(eq(schema.teamRoleMappings.ownerType, owner.ownerType), eq(schema.teamRoleMappings.ownerId, operationId), isNull(schema.teamRoleMappings.teamId)))
