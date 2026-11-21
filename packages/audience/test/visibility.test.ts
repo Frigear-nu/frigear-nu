@@ -3,7 +3,9 @@ import {
   createViewer,
   isEmptyVisibility,
   isNarrowerOrEqual,
+  isSignedIn,
   isVisible,
+  ladderOf,
   narrowVisibility,
   NOBODY,
   OWNER_TYPES,
@@ -60,6 +62,15 @@ describe('isVisible', () => {
     expect(isVisible({ globalRoles: ['admin'] }, createViewer({ globalRoles: ['admin'] }))).toBe(false)
   })
 
+  it('treats an empty userId as anonymous', () => {
+    const blank = createViewer({ userId: '', globalRoles: ['admin'] })
+    expect(isSignedIn(blank)).toBe(false)
+    expect(isVisible({}, blank)).toBe(false)
+    expect(isVisible({ globalRoles: ['admin'] }, blank)).toBe(false)
+    expect(isVisible({ public: true }, blank)).toBe(true)
+    expect(isSignedIn(createViewer({ userId: 0 }))).toBe(true)
+  })
+
   it('matches any of the global roles', () => {
     const visibility = { globalRoles: ['admin', 'coordinator'] }
     expect(isVisible(visibility, viewer({ globalRoles: ['coordinator'] }))).toBe(true)
@@ -84,6 +95,24 @@ describe('isVisible', () => {
     expect(isVisible({ minTeamRole: { kind: 'bar', role: 'ba' } }, viewer({ teamRoles: [grant('owner')] }))).toBe(false)
   })
 
+  it('fails closed on a kind that names an Object.prototype property', () => {
+    for (const kind of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(() => isVisible({ minTeamRole: { kind, role: 'ba' } }, viewer({ teamRoles: [grant('ba', { kind })] }))).not.toThrow()
+      expect(isVisible({ minTeamRole: { kind, role: 'ba' } }, viewer({ teamRoles: [grant('ba', { kind })] }))).toBe(false)
+    }
+    expect(ladderOf(ladders, 'constructor')).toBeUndefined()
+    expect(ladderOf({ bar: 'volunteer' } as unknown as Record<string, string[]>, 'bar')).toBeUndefined()
+    expect(ladderOf(ladders, 'bar')).toEqual(BAR)
+  })
+
+  it('counts mapped grants for minTeamRole', () => {
+    expect(isVisible({ minTeamRole: { kind: 'bar', role: 'ba' } }, viewer({ teamRoles: [grant('ba', { source: 'mapped' })] }))).toBe(true)
+    expect(isVisible(
+      { operationId: 'opr_roskilde', minTeamRole: { kind: 'bar', role: 'ba' } },
+      viewer({ operationIds: ['opr_roskilde'], teamRoles: [grant('ba', { source: 'mapped' })] }),
+    )).toBe(true)
+  })
+
   it('ignores a grant of another kind', () => {
     const firstAid = { ...ladders, 'first-aid': ['helper', 'medic'] }
     expect(isVisible({ minTeamRole: { kind: 'bar', role: 'volunteer' } }, viewer({
@@ -97,6 +126,8 @@ describe('isVisible', () => {
     expect(isVisible(visibility, viewer({ operationIds: ['opr_roskilde'] }))).toBe(true)
     expect(isVisible(visibility, viewer({ teamRoles: [grant('volunteer')] }))).toBe(true)
     expect(isVisible(visibility, viewer({ operationIds: ['opr_other'] }))).toBe(false)
+    // A mapped grant (e.g. "member with a plan is a volunteer") is not participation.
+    expect(isVisible(visibility, viewer({ teamRoles: [grant('volunteer', { source: 'mapped' })] }))).toBe(false)
     expect(isVisible(visibility, viewer({ teamRoles: [grant('ba', { ownerType: 'team', ownerId: 'opr_roskilde' })] }))).toBe(false)
   })
 
@@ -160,6 +191,15 @@ describe('narrowVisibility', () => {
     expect(isVisible(NOBODY, viewer({ globalRoles: ['admin'] }))).toBe(false)
   })
 
+  it('is conservative: a parent team role combined with a child operation is scoped to it', () => {
+    const parent = { minTeamRole: { kind: 'bar', role: 'ba' } }
+    const child = { operationId: 'opr_roskilde' }
+    // BA at another operation, crew at Roskilde: passes both separately, not the stored combination.
+    const v = viewer({ operationIds: ['opr_roskilde'], teamRoles: [grant('ba', { ownerId: 'opr_other' })] })
+    expect(isVisible(parent, v) && isVisible(child, v)).toBe(true)
+    expect(isVisible(narrowVisibility(parent, child, ladders), v)).toBe(false)
+  })
+
   it('never shows the combination to a viewer the parent hides', () => {
     const parents = [null, { public: true }, { globalRoles: ['crew'] }, { operationId: 'opr_roskilde' }, { minTeamRole: { kind: 'bar', role: 'ba' } }]
     const children = [null, { public: true }, { globalRoles: ['crew', 'admin'] }, { operationId: 'opr_roskilde' }, { minTeamRole: { kind: 'bar', role: 'bartender' } }]
@@ -215,10 +255,19 @@ describe('isNarrowerOrEqual', () => {
 })
 
 describe('visibilitySchema and parseVisibility', () => {
-  it('accepts the documented shape and drops unknown keys', () => {
-    expect(visibilitySchema.parse({ public: false, globalRoles: ['crew'], minTeamRole: { kind: 'bar', role: 'ba' }, operationId: 'opr_x', extra: 1 }))
-      .toEqual({ public: false, globalRoles: ['crew'], minTeamRole: { kind: 'bar', role: 'ba' }, operationId: 'opr_x' })
+  it('accepts the documented shape', () => {
+    const full = { public: false, globalRoles: ['crew'], minTeamRole: { kind: 'bar', role: 'ba' }, operationId: 'opr_x' }
+    expect(visibilitySchema.parse(full)).toEqual(full)
     expect(visibilitySchema.safeParse({ minTeamRole: { kind: 'bar' } }).success).toBe(false)
+  })
+
+  it('rejects unknown keys instead of dropping them', () => {
+    expect(visibilitySchema.safeParse({ globalRoles: ['crew'], extra: 1 }).success).toBe(false)
+    expect(visibilitySchema.safeParse({ minTeamRole: { kind: 'bar', role: 'ba', level: 2 } }).success).toBe(false)
+    // A `permission` key or a typo must not parse to `{}` (every signed-in user).
+    expect(parseVisibility({ permission: 'maps:secret' })).toEqual(NOBODY)
+    expect(parseVisibility({ globalRole: ['admin'] })).toEqual(NOBODY)
+    expect(isVisible(parseVisibility({ permission: 'maps:secret' }), viewer())).toBe(false)
   })
 
   it('keeps empty values empty and fails closed on a malformed value', () => {

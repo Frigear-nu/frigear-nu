@@ -14,7 +14,8 @@ export interface AudienceUser {
  */
 export interface AudienceViewerContext {
   event: H3Event
-  user: AudienceUser | null
+  /** Always a signed-in user: the hook is never called for anonymous visitors. */
+  user: AudienceUser
   viewer: Viewer
 }
 
@@ -70,7 +71,7 @@ export interface ResolveViewerOptions {
  */
 export async function resolveViewer(event: H3Event, options: ResolveViewerOptions): Promise<Viewer> {
   const { hooks, user } = options
-  if (!user) return createViewer()
+  if (!user || user.id === '') return createViewer()
   const ctx: AudienceViewerContext = {
     event,
     user,

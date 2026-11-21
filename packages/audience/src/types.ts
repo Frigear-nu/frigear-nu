@@ -5,8 +5,8 @@ export const OWNER_TYPES = ['operation', 'team', 'user', 'platform'] as const
 export type OwnerType = typeof OWNER_TYPES[number] | (string & {})
 
 /**
- * A reference to a record's owner, stored as the `ownerType` / `ownerId` columns. `id` is text, and `null` for
- * `platform`, which has a single owner.
+ * A reference to a record's owner, stored as the `ownerType` / `ownerId` columns. `type` is never null: a record with
+ * no other owner is `{ type: 'platform', id: null }`. `id` is text, and `null` for `platform`, which has one owner.
  */
 export interface OwnerRef {
   type: OwnerType
@@ -43,7 +43,8 @@ export interface Visibility {
 /** A team role a viewer holds, on one team of one owner. */
 export interface TeamRoleGrant {
   ownerType: OwnerType
-  ownerId: string
+  /** `null` for a team owned by the platform, as in {@link OwnerRef}. */
+  ownerId: string | null
   teamId: string
   kind: string
   role: string
@@ -53,7 +54,7 @@ export interface TeamRoleGrant {
 
 /** Everything the visibility rules need to know about the person looking. */
 export interface Viewer {
-  /** `null` for an anonymous visitor. */
+  /** `null` (or an empty string) for an anonymous visitor. */
   userId: string | number | null
   /** Global roles from authorization (`admin`, `barmanager`, ...). */
   globalRoles: string[]

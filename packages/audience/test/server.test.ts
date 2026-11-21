@@ -23,6 +23,7 @@ describe('hook types', () => {
     const hooks = nitroHooks()
     hooks.hook('audience:viewer:resolve', (ctx) => {
       expectTypeOf(ctx).toEqualTypeOf<AudienceViewerContext>()
+      expectTypeOf(ctx.user).toEqualTypeOf<{ id: string | number }>()
     })
     hooks.hook('audience:owner:resolve', (ctx) => {
       expectTypeOf(ctx).toEqualTypeOf<AudienceOwnerContext>()
@@ -47,6 +48,17 @@ describe('resolveViewer', () => {
     const viewer = await resolveViewer(fakeEvent(), { hooks, user: { id: 7 }, globalRoles: ['barmanager'] })
     expect(viewer).toMatchObject({ userId: 7, globalRoles: ['barmanager'], operationIds: ['opr_roskilde'] })
     expect(isVisible({ operationId: 'opr_roskilde', minTeamRole: { kind: 'bar', role: 'ba' } }, viewer)).toBe(true)
+  })
+
+  it('treats an empty user id as anonymous', async () => {
+    const hooks = nitroHooks()
+    let called = false
+    hooks.hook('audience:viewer:resolve', () => {
+      called = true
+    })
+    const viewer = await resolveViewer(fakeEvent(), { hooks, user: { id: '' } })
+    expect(called).toBe(false)
+    expect(viewer.userId).toBeNull()
   })
 
   it('returns an anonymous viewer without calling the hook', async () => {

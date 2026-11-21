@@ -1,11 +1,14 @@
 import { z } from 'zod'
 import type { MinTeamRole, Viewer, Visibility } from './types.ts'
 
-/** Validates a stored or submitted `visibility` value. Unknown keys are dropped. */
-export const visibilitySchema = z.object({
+/**
+ * Validates a stored or submitted `visibility` value. It is strict: an unknown key (a typo such as `globalRole`, or a
+ * `permission`, which visibility does not have) fails, so it can never silently widen to "every signed-in user".
+ */
+export const visibilitySchema = z.strictObject({
   public: z.boolean().optional(),
   globalRoles: z.array(z.string().min(1)).optional(),
-  minTeamRole: z.object({ kind: z.string().min(1), role: z.string().min(1) }).optional(),
+  minTeamRole: z.strictObject({ kind: z.string().min(1), role: z.string().min(1) }).optional(),
   operationId: z.string().min(1).optional(),
 })
 
@@ -14,7 +17,8 @@ export const NOBODY: Readonly<Visibility> = Object.freeze({ globalRoles: [] })
 
 /**
  * Reads a `visibility` value of unknown shape, such as a JSON column. `null` / `undefined` stay empty (signed-in
- * viewers only). A value that does not match the schema fails closed: it becomes {@link NOBODY}.
+ * viewers only). A value that does not match the strict schema, unknown keys included, fails closed: it becomes
+ * {@link NOBODY}.
  */
 export function parseVisibility(value: unknown): Visibility | null {
   if (value === null || value === undefined) return null
@@ -34,10 +38,21 @@ export function createViewer(viewer: Partial<Viewer> = {}): Viewer {
 }
 
 /**
+ * The ladder of a team kind, or `undefined`. Only an own property holding an array counts, so a kind such as
+ * `constructor` fails closed instead of reading `Object.prototype`.
+ */
+export function ladderOf(ladders: Record<string, readonly string[]> | undefined, kind: string): readonly string[] | undefined {
+  if (!ladders || !Object.hasOwn(ladders, kind)) return undefined
+  const ladder = ladders[kind]
+  return Array.isArray(ladder) ? ladder : undefined
+}
+
+/**
  * Whether `held` is at or above `min` in `ladder` (ordered lowest first). A role missing from the ladder fails
  * closed.
  */
 export function roleAtLeast(ladder: readonly string[], held: string, min: string): boolean {
+  if (!Array.isArray(ladder)) return false
   const heldIndex = ladder.indexOf(held)
   const minIndex = ladder.indexOf(min)
   if (heldIndex === -1 || minIndex === -1) return false
@@ -53,22 +68,31 @@ export function isEmptyVisibility(visibility: Visibility | null | undefined): bo
     && visibility.operationId === undefined
 }
 
-function isSignedIn(viewer: Viewer | null): viewer is Viewer {
-  return viewer !== null && viewer.userId !== null && viewer.userId !== undefined
+/** A viewer with a `userId` that is set and not an empty string. */
+export function isSignedIn(viewer: Viewer | null | undefined): viewer is Viewer {
+  if (!viewer) return false
+  const { userId } = viewer
+  return userId !== null && userId !== undefined && userId !== ''
 }
 
-/** Whether the viewer takes part in an operation: listed in `operationIds`, or holding a team role on it. */
+/**
+ * Whether the viewer takes part in an operation: listed in `operationIds`, or holding an explicit team role on a team
+ * of it. Mapped grants do not count, so a mapping rule such as "member with a plan is a volunteer" does not make every
+ * plan member take part.
+ */
 export function takesPart(viewer: Viewer, operationId: string): boolean {
   return viewer.operationIds.includes(operationId)
-    || viewer.teamRoles.some(grant => grant.ownerType === 'operation' && grant.ownerId === operationId)
+    || viewer.teamRoles.some(grant =>
+      grant.source === 'explicit' && grant.ownerType === 'operation' && grant.ownerId === operationId,
+    )
 }
 
 /**
  * Whether the viewer holds a team role of `min.kind` at or above `min.role`. With `operationId`, only grants on a
- * team owned by that operation count. An unknown kind or role fails closed.
+ * team owned by that operation count. Explicit and mapped grants both count. An unknown kind or role fails closed.
  */
 export function holdsTeamRole(viewer: Viewer, min: MinTeamRole, operationId?: string): boolean {
-  const ladder = viewer.ladders[min.kind]
+  const ladder = ladderOf(viewer.ladders, min.kind)
   if (!ladder) return false
   return viewer.teamRoles.some(grant =>
     grant.kind === min.kind
@@ -83,7 +107,7 @@ export function holdsTeamRole(viewer: Viewer, min: MinTeamRole, operationId?: st
  * - `public: true`: everyone, `null` viewer included.
  * - Anything else needs a signed-in viewer (`userId` set). Empty visibility needs nothing more.
  * - Every key that is set must hold: `globalRoles` (any of them), `minTeamRole` (on the operation when
- *   `operationId` is set) and `operationId` (the viewer takes part).
+ *   `operationId` is set) and `operationId` (the viewer takes part: `operationIds`, or an explicit grant on it).
  */
 export function isVisible(visibility: Visibility | null | undefined, viewer: Viewer | null): boolean {
   if (visibility?.public === true) return true
@@ -100,7 +124,7 @@ export function isVisible(visibility: Visibility | null | undefined, viewer: Vie
 function higherRole(a: MinTeamRole, b: MinTeamRole, ladders?: Record<string, readonly string[]>): MinTeamRole | null {
   if (a.kind !== b.kind) return null
   if (a.role === b.role) return { ...a }
-  const ladder = ladders?.[a.kind]
+  const ladder = ladderOf(ladders, a.kind)
   if (!ladder || !ladder.includes(a.role) || !ladder.includes(b.role)) return null
   return roleAtLeast(ladder, a.role, b.role) ? { ...a } : { ...b }
 }
@@ -120,8 +144,12 @@ function copy(visibility: Visibility | null | undefined): Visibility {
 }
 
 /**
- * The visibility of an item inside a group (an FAQ item in its group, an article in its category). The item can
- * only narrow the group: the result is the group's visibility AND the item's.
+ * The effective visibility of an item inside a group (an FAQ item in its group, an article in its category), for
+ * storing or displaying. The item can only narrow the group.
+ *
+ * It is a conservative approximation of "group AND item", never wider but sometimes narrower: `globalRoles`
+ * intersect, and a group's `minTeamRole` combined with an item's `operationId` becomes scoped to that operation. For
+ * access decisions use `isVisible(group, viewer) && isVisible(item, viewer)` (treating an empty item as inheriting).
  *
  * - An empty item inherits the group.
  * - A public group takes the item's visibility as it is.
@@ -194,7 +222,7 @@ export function isNarrowerOrEqual(
     const min = c.minTeamRole
     if (!min || min.kind !== p.minTeamRole.kind) return false
     if (min.role !== p.minTeamRole.role) {
-      const ladder = ladders?.[min.kind]
+      const ladder = ladderOf(ladders, min.kind)
       if (!ladder || !roleAtLeast(ladder, min.role, p.minTeamRole.role)) return false
     }
   }
