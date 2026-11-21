@@ -24,7 +24,7 @@ this group in the pull request that adds the module.
 | [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
-| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, trades and releases, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and meal vouchers. | A |
+| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, trades and releases, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and earned perks. | A |
 | [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
 | [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
 | [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
@@ -239,7 +239,6 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
 | `shifts:reminder:sent` | shifts | `{ event, assignment, offset, channels }`, `event` always `undefined` when fired from the task | 5 |
 | `shifts:broadcast:sent` | shifts | `{ event, broadcast }` | 5 |
-| `shifts:perk:redeemed` | shifts | `{ event, perk, redemption }` | 5 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
 | `inbox:message:received` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
 | `inbox:message:sent` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
@@ -262,7 +261,7 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   and `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
   `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
   `shifts:reminder:sent` fires from the `shifts:send-reminders` task (so `event` is `undefined`), once per reminder that
-  went out; `shifts:broadcast:sent` and `shifts:perk:redeemed` fire in the request that sent or redeemed.
+  went out; `shifts:broadcast:sent` fires in the request that sent it.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **Maps has no hooks.** A module stores a location or a plane layout in its own table and saves it through its own

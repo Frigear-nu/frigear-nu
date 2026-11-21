@@ -2,7 +2,7 @@ import { idParams } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
 import type { ShiftPerkDto } from '../../../../types'
 
-// Changes a perk. Naming `perShift` or `perPerson` switches to it and clears the other.
+// Changes a perk. Grants made before keep their voucher type and quantity.
 export default defineEventHandler(async (event): Promise<ShiftPerkDto> => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { perkId } = await getValidatedRouterParams(event, idParams('perkId').parse)

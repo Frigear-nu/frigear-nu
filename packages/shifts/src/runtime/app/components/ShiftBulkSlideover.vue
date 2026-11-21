@@ -5,13 +5,13 @@ import type { ShiftsTeamOption } from '../utils/admin-shifts'
 import { daysBetween } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
 import type { ShiftDto, ShiftRoleDto } from '../../../types'
-import { $fetch, computed, reactive, useAction, useModuleT, useRuntimeConfig, useShiftsTranslate } from '#imports'
+import { $fetch, computed, reactive, SHIFTS_NO_FEATURE, useAction, useModuleT, useRuntimeConfig, useShiftsTranslate, useShiftsVenueFeatures } from '#imports'
 
 defineOptions({ name: 'ShiftBulkSlideover' })
 
 // Creates many shifts at once: every slot on every day of a range, for one team. Times are the local times of the
 // module's time zone. Opened by `useShiftsActions()`; closes with the created shifts, or `false`.
-const props = defineProps<{ scheduleId: string, teams: ShiftsTeamOption[], roles: ShiftRoleDto[] }>()
+const props = defineProps<{ scheduleId: string, operationId?: string, teams: ShiftsTeamOption[], roles: ShiftRoleDto[] }>()
 const emit = defineEmits<{ close: [saved: ShiftDto[] | false] }>()
 
 const t = useModuleT('shifts')
@@ -28,9 +28,11 @@ const schema = z.object({
   slots: z.array(z.object({ start: clock, end: clock })).min(1),
   capacity: z.number().int().min(0).nullable(),
   shiftRoleId: z.string(),
+  featureId: z.string(),
 }).refine(value => value.to >= value.from, { message: t('admin.rangeInvalid', 'The last day must be on or after the first.'), path: ['to'] })
 type State = z.output<typeof schema>
-const state = reactive<State>({ teamId: props.teams[0]?.id ?? '', from: '', to: '', slots: [{ start: '10:00', end: '16:00' }], capacity: null, shiftRoleId: NONE })
+const state = reactive<State>({ teamId: props.teams[0]?.id ?? '', from: '', to: '', slots: [{ start: '10:00', end: '16:00' }], capacity: null, shiftRoleId: NONE, featureId: SHIFTS_NO_FEATURE })
+const venue = useShiftsVenueFeatures(() => props.operationId ?? '')
 
 const teamOptions = computed(() => props.teams.map(team => ({ label: tr(team.name), value: team.id })))
 const roleOptions = computed(() => [
@@ -46,11 +48,11 @@ function addSlot() {
 }
 
 async function save(event: FormSubmitEvent<State>) {
-  const { teamId, slots, capacity, shiftRoleId } = event.data
+  const { teamId, slots, capacity, shiftRoleId, featureId } = event.data
   const saved = await run(
     () => $fetch<ShiftDto[]>(shiftsApi.admin.bulk(props.scheduleId), {
       method: 'POST',
-      body: { teamId, days: days.value, slots, capacity, shiftRoleId: shiftRoleId === NONE ? null : shiftRoleId },
+      body: { teamId, days: days.value, slots, capacity, shiftRoleId: shiftRoleId === NONE ? null : shiftRoleId, location: featureId === SHIFTS_NO_FEATURE ? null : { featureId } },
     }),
     { success: t('admin.bulkCreated', 'Created {count} shifts', { count: total.value }) },
   )
@@ -173,6 +175,19 @@ async function save(event: FormSubmitEvent<State>) {
           />
         </UFormField>
       </div>
+      <UFormField
+        v-if="operationId"
+        name="featureId"
+        :label="t('admin.venueFeature', 'Place on the venue layout')"
+        :description="t('admin.venueFeatureHelp', 'Where the shift is worked: the on-duty map draws it there.')"
+      >
+        <USelect
+          v-model="state.featureId"
+          :items="venue.items.value"
+          :loading="venue.status.value === 'pending'"
+          class="w-full"
+        />
+      </UFormField>
     </UForm>
   </FormSlideover>
 </template>

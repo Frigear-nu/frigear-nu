@@ -312,7 +312,7 @@ export async function shiftsWithdrawSwap(entry: ShiftAssignmentEntry): Promise<v
  * Cancels what an assignment that leaves `assigned` (cancelled, attended, a no-show) had in play: its live swap with its
  * offers, and the offers elsewhere that gave it back (withdrawn; their swaps go back to `open` when nothing waits).
  */
-export async function shiftsCancelSwapsOf(_event: H3Event, assignmentId: string): Promise<void> {
+export async function shiftsCancelSwapsOf(_event: H3Event | undefined, assignmentId: string): Promise<void> {
   const swaps = await db.select().from(schema.shiftSwaps)
     .where(and(eq(schema.shiftSwaps.assignmentId, assignmentId), inArray(schema.shiftSwaps.status, ['open', 'offered', 'pending_approval'])))
   for (const swap of swaps) {

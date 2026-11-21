@@ -21,10 +21,11 @@ import {
 import { defineMapLayer, extendMaps } from '@frigear-nu/maps/utils'
 import { OPERATIONS_VENUE_SURFACE } from '@frigear-nu/operations/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
-import { shiftsAccess } from './runtime/access'
+import { perksAccess, shiftsAccess } from './runtime/access'
 import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
 import { isValidTimeZone } from './runtime/utils/time'
 import { normalizeReminderBatch, normalizeReminderOffsets } from './runtime/utils/reminders'
+import { normalizeAutomationBatch } from './runtime/utils/checkin'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -32,7 +33,8 @@ import type {
   ShiftAttendanceContext,
   ShiftBroadcastContext,
   ShiftCreatedContext,
-  ShiftPerkContext,
+  ShiftDigestContext,
+  ShiftPerkGrantContext,
   ShiftReminderContext,
   ShiftScheduleContext,
   ShiftsRuntimeConfig,
@@ -70,7 +72,10 @@ declare module 'nitropack' {
     'shifts:swap:rejected': (ctx: ShiftSwapContext) => void | Promise<void>
     /** The shift changed hands: both shifts together in a trade, the one shift in a release. */
     'shifts:swap:completed': (ctx: ShiftSwapContext) => void | Promise<void>
-    /** A lead or staff marked attendance: a QR check-in, attended or a no-show. */
+    /**
+     * Attendance was marked: a lead's scan, a station or location check-in (`method`), attended or a no-show by a lead,
+     * or an auto no-show of the `shifts:close-shifts` task (`auto: true`, `by: null`, `event: undefined`).
+     */
     'shifts:attendance:marked': (ctx: ShiftAttendanceContext) => void | Promise<void>
     /**
      * A reminder went out (`channels` says how). Fired by the `shifts:send-reminders` task, which has no request: `event`
@@ -79,8 +84,12 @@ declare module 'nitropack' {
     'shifts:reminder:sent': (ctx: ShiftReminderContext) => void | Promise<void>
     /** A broadcast was sent to a team or shift. */
     'shifts:broadcast:sent': (ctx: ShiftBroadcastContext) => void | Promise<void>
-    /** A lead redeemed a perk (a meal voucher, a drink) with a person's QR pass. */
-    'shifts:perk:redeemed': (ctx: ShiftPerkContext) => void | Promise<void>
+    /** A perk grant was made (or came back) for an attended shift. Fired from the `shifts:close-shifts` task too (`event` undefined). */
+    'shifts:perk:granted': (ctx: ShiftPerkGrantContext) => void | Promise<void>
+    /** An unclaimed perk grant was revoked: the assignment flipped from attended to no-show. */
+    'shifts:perk:revoked': (ctx: ShiftPerkGrantContext) => void | Promise<void>
+    /** The `shifts:close-shifts` task sent a lead their digest of new exceptions (`event` is always `undefined`). */
+    'shifts:digest:sent': (ctx: ShiftDigestContext) => void | Promise<void>
   }
 }
 
@@ -119,8 +128,10 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
-    // `shifts:read`, `shifts:swap`, `shifts:lead`, `shifts:manage`, `shifts:pii` and the `shifts` scope (`runtime/access.ts`).
+    // `shifts:read`, `shifts:swap`, `shifts:attend`, `shifts:lead`, `shifts:manage`, `shifts:pii` and the `shifts` scope;
+    // `perks:read`, `perks:claim` and the `perks` scope (`runtime/access.ts`).
     registerAccess(nuxt, shiftsAccess, { from: MODULE_NAME })
+    registerAccess(nuxt, perksAccess, { from: MODULE_NAME })
     // The record rules of `shifts:read`, `shifts:swap` and `shifts:lead`.
     addPolicies(nuxt, { path: resolver.resolve('./runtime/server/policies') })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -137,14 +148,17 @@ export default defineNuxtModule<ModuleOptions>({
     const swapsPath = resolvePagePath(settings.pages?.swaps ?? true, SHIFTS_DEFAULT_PAGES.swaps)
     const checkInPath = resolvePagePath(settings.pages?.checkIn ?? true, SHIFTS_DEFAULT_PAGES.checkIn)
     const leadPath = resolvePagePath(settings.pages?.lead ?? true, SHIFTS_DEFAULT_PAGES.lead)
+    const stationPath = resolvePagePath(settings.pages?.station ?? true, SHIFTS_DEFAULT_PAGES.station)
     nuxt.options.runtimeConfig.public.shifts = {
-      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath, lead: leadPath },
+      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath, lead: leadPath, station: stationPath },
       timeZone,
       checkInOpensMinutes,
     }
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
     const reminders = { offsets: normalizeReminderOffsets(options.reminders?.offsets), sms: options.reminders?.sms === true, batchSize: normalizeReminderBatch(options.reminders?.batchSize) }
-    runtime.shifts = { ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes, reminders } satisfies ShiftsRuntimeConfig
+    const automation = { batchSize: normalizeAutomationBatch(options.automation?.batchSize) }
+    // `stationKey` (`NUXT_SHIFTS_STATION_KEY`): the secret station QR codes are signed with; the session password when empty.
+    runtime.shifts = { stationKey: '', ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes, reminders, automation } satisfies ShiftsRuntimeConfig & { stationKey: unknown }
 
     // --- Database -------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {
@@ -159,11 +173,14 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'me', file: 'me/shifts.get' },
       // Static, so it wins over `me/:assignmentId`.
       { method: 'get', path: 'me/leads', file: 'me/leads.get' },
+      { method: 'get', path: 'me/perk-grants', file: 'me/perk-grants.get' },
+      { method: 'post', path: 'me/perk-grants/:grantId/claim', file: 'me/perk-grant-claim.post' },
       { method: 'get', path: 'me/feed-token', file: 'me/feed-token.get' },
       { method: 'post', path: 'me/feed-token', file: 'me/feed-token.post' },
       { method: 'delete', path: 'me/feed-token', file: 'me/feed-token.delete' },
       { method: 'get', path: 'me/:assignmentId', file: 'me/shift.get' },
       { method: 'get', path: 'me/:assignmentId/pass', file: 'me/pass.get' },
+      { method: 'post', path: 'me/:assignmentId/check-in', file: 'me/check-in.post' },
       { method: 'post', path: 'me/:assignmentId/swap', file: 'me/swap.post' },
       { method: 'delete', path: 'me/:assignmentId/swap', file: 'me/swap.delete' },
       // The calendar feed: public, the secret in the path is the credential (`feed/<token>`, `.ics` suffix stripped by the handler).
@@ -179,8 +196,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'teams/:teamId/shifts', file: 'lead/team-shifts.get' },
       { method: 'get', path: 'teams/:teamId/swaps', file: 'lead/team-swaps.get' },
       { method: 'post', path: 'teams/:teamId/broadcasts', file: 'lead/broadcast.post' },
-      { method: 'get', path: 'teams/:teamId/perks', file: 'lead/perks.get' },
-      { method: 'post', path: 'teams/:teamId/perks/:perkId/redeem', file: 'lead/perk-redeem.post' },
+      { method: 'get', path: 'teams/:teamId/exceptions', file: 'lead/exceptions.get' },
+      { method: 'get', path: 'teams/:teamId/stations', file: 'lead/stations.get' },
+      { method: 'get', path: 'stations/:stationId/token', file: 'stations/token.get' },
       { method: 'post', path: 'assignments/:assignmentId/attended', file: 'lead/attended.post' },
       { method: 'post', path: 'assignments/:assignmentId/no-show', file: 'lead/no-show.post' },
       { method: 'get', path: 'operations/:operationId/now', file: 'lead/now.get' },
@@ -197,6 +215,10 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'schedules/:scheduleId/copy-from', file: 'admin/schedule-copy.post' },
       { method: 'get', path: 'schedules/:scheduleId/roles', file: 'admin/roles.get' },
       { method: 'post', path: 'schedules/:scheduleId/roles', file: 'admin/roles.post' },
+      { method: 'get', path: 'schedules/:scheduleId/stations', file: 'admin/stations.get' },
+      { method: 'post', path: 'schedules/:scheduleId/stations', file: 'admin/stations.post' },
+      { method: 'patch', path: 'stations/:stationId', file: 'admin/station.patch' },
+      { method: 'delete', path: 'stations/:stationId', file: 'admin/station.delete' },
       { method: 'get', path: 'schedules/:scheduleId/shifts', file: 'admin/shifts.get' },
       { method: 'post', path: 'schedules/:scheduleId/shifts/bulk', file: 'admin/shifts-bulk.post' },
       { method: 'patch', path: 'roles/:roleId', file: 'admin/role.patch' },
@@ -226,32 +248,45 @@ export default defineNuxtModule<ModuleOptions>({
     // The `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails, as templates `@frigear-nu/email-templates` renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
 
-    // --- Reminders ------------------------------------------------------------------------
-    // The `shifts:send-reminders` Nitro task, on `reminders.cron` (every ten minutes unless set; `false` registers the
-    // task without a schedule, to run it yourself). Like auth's housekeeping task it merges into `scheduledTasks`.
-    const cron = options.reminders?.cron === undefined ? '*/10 * * * *' : options.reminders.cron
+    // --- Scheduled tasks ------------------------------------------------------------------
+    // `shifts:send-reminders` on `reminders.cron` (every ten minutes unless set) and `shifts:close-shifts` on
+    // `automation.cron` (every five minutes unless set); `false` registers a task without a schedule, to run it yourself.
+    // Like auth's housekeeping task they merge into `scheduledTasks`.
+    const tasks = [
+      {
+        name: 'shifts:send-reminders',
+        handler: './runtime/server/tasks/send-reminders',
+        description: 'Email (and optionally text) people before their shifts start.',
+        cron: options.reminders?.cron === undefined ? '*/10 * * * *' : options.reminders.cron,
+      },
+      {
+        name: 'shifts:close-shifts',
+        handler: './runtime/server/tasks/close-shifts',
+        description: 'Grant the perks of ended shifts, mark auto no-shows and send the leads their digest.',
+        cron: options.automation?.cron === undefined ? '*/5 * * * *' : options.automation.cron,
+      },
+    ]
     nuxt.hook('nitro:config', (nitroConfig) => {
       nitroConfig.experimental ||= {}
       nitroConfig.experimental.tasks = true
       nitroConfig.tasks ||= {}
-      nitroConfig.tasks['shifts:send-reminders'] = {
-        handler: resolver.resolve('./runtime/server/tasks/send-reminders'),
-        description: 'Email (and optionally text) people before their shifts start.',
-      }
-      if (cron) {
-        nitroConfig.scheduledTasks ||= {}
-        const existing = nitroConfig.scheduledTasks[cron]
-        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'shifts:send-reminders']
+      nitroConfig.scheduledTasks ||= {}
+      for (const task of tasks) {
+        nitroConfig.tasks[task.name] = { handler: resolver.resolve(task.handler), description: task.description }
+        if (!task.cron) continue
+        const existing = nitroConfig.scheduledTasks[task.cron]
+        nitroConfig.scheduledTasks[task.cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), task.name]
       }
     })
     // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
-    // Cloudflare would never trigger them: mirror our cron into `triggers.crons` (a deduped union, so it works next to a
-    // host that mirrors all of its own, as `apps/website` does).
-    if (cron) {
+    // Cloudflare would never trigger them: mirror our crons into `triggers.crons` (a deduped union, so it works next to
+    // a host that mirrors all of its own, as `apps/website` does).
+    const crons = tasks.map(task => task.cron).filter((cron): cron is string => !!cron)
+    if (crons.length) {
       nuxt.hook('nitro:init', (nitro) => {
         if (!nitro.options.preset.startsWith('cloudflare')) return
         const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
-        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), cron])] }
+        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
       })
     }
 
@@ -261,6 +296,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useShiftsTranslate', from: resolver.resolve('./runtime/app/composables/useShiftsTranslate') },
       { name: 'useShiftsFormat', from: resolver.resolve('./runtime/app/composables/useShiftsFormat') },
       { name: 'useShiftsActions', from: resolver.resolve('./runtime/app/composables/useShiftsActions') },
+      { name: 'useShiftsVenueFeatures', from: resolver.resolve('./runtime/app/composables/useShiftsVenueFeatures') },
+      { name: 'SHIFTS_NO_FEATURE', from: resolver.resolve('./runtime/app/composables/useShiftsVenueFeatures') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
@@ -270,6 +307,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'shifts-swaps', path: swapsPath, file: './runtime/app/pages/swaps.vue' },
       { name: 'shifts-check-in', path: checkInPath, file: './runtime/app/pages/check-in.vue' },
       { name: 'shifts-lead', path: leadPath, file: './runtime/app/pages/lead.vue' },
+      // Before the detail page: `/shifts/station/:stationId` has two segments after `/shifts`.
+      { name: 'shifts-station', path: stationPath, file: './runtime/app/pages/station.vue' },
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
     ])
 

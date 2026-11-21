@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import type { Translated } from '@frigear-nu/ui/translated'
+import type { MapLocation } from '@frigear-nu/maps/utils'
 
 export type { Translated }
 
@@ -62,6 +63,40 @@ export type ShiftLocation = {
   featureId?: string
 }
 
+/**
+ * How a person checks in on a shift. `station`: they scan the rotating QR code of a station of their team. `location`:
+ * the app sends their position, which must be inside the check-in place. `daily`: their first check-in of the day also
+ * checks them in on their other shifts that day whose check-in is already open. `lead`: a lead scans their pass (always
+ * on, whatever the settings say).
+ */
+export type ShiftCheckInMode = 'station' | 'location' | 'daily' | 'lead'
+
+/** How an assignment was checked in (`checkInMethod`): `daily` is a shift checked in by the first check-in of the day. */
+export type ShiftCheckInMethod = 'lead' | 'station' | 'location' | 'daily'
+
+/** The check-in modes and place of a team, overriding the schedule's (a key left out keeps the schedule's). */
+export type ShiftCheckInTeamSettings = {
+  modes?: ShiftCheckInMode[]
+  location?: MapLocation | null
+}
+
+/**
+ * How people check in on a schedule's shifts: the modes (any one passing is enough), the place `location` mode checks
+ * against (a point and radius, default radius 150 m, or an area, from the maps location picker), and overrides per team
+ * (`teams`, keyed by team id).
+ */
+export type ShiftCheckInSettings = {
+  modes: ShiftCheckInMode[]
+  location?: MapLocation | null
+  teams?: Record<string, ShiftCheckInTeamSettings>
+}
+
+/** What applies to one team's shifts: the schedule's settings merged with the team's override. */
+export type ShiftCheckInRule = {
+  modes: ShiftCheckInMode[]
+  location: MapLocation | null
+}
+
 export type ModuleOptions = {
   settings?: {
     pages?: {
@@ -75,6 +110,8 @@ export type ModuleOptions = {
       checkIn?: string | boolean
       /** A team lead's page: the team's shifts, attendance and the swaps waiting for approval; must contain a `:teamId` param. On by default (`/shifts/lead/:teamId`). */
       lead?: string | boolean
+      /** The full-screen rotating QR code of a check-in station; must contain a `:stationId` param. On by default (`/shifts/station/:stationId`). */
+      station?: string | boolean
     }
     /** Add a "Shifts" tab to the `admin.operations` tab area (with `@frigear-nu/widget` and `@frigear-nu/admin`). Defaults to `true`. */
     operationsTab?: boolean
@@ -88,6 +125,18 @@ export type ModuleOptions = {
   checkInOpensMinutes?: number
   /** Reminders before a shift starts (a Nitro task, `shifts:send-reminders`). */
   reminders?: ShiftsRemindersOptions
+  /** The end of shifts (perk grants), auto no-shows and the leads' digest (a Nitro task, `shifts:close-shifts`). */
+  automation?: ShiftsAutomationOptions
+}
+
+export type ShiftsAutomationOptions = {
+  /**
+   * The cron expression the `shifts:close-shifts` task runs on. Defaults to every five minutes; `false` registers the
+   * task without a schedule (run it yourself). On Cloudflare the module adds it to the worker's cron triggers.
+   */
+  cron?: string | false
+  /** The most rows of each kind (ended shifts, no-shows, digest items) one run handles; the next run takes the rest. Defaults to `200`, at most `1000`. */
+  batchSize?: number
 }
 
 export type ShiftsRemindersOptions = {
@@ -108,7 +157,7 @@ export type ShiftsRemindersOptions = {
 }
 
 export type PublicModuleOptions = {
-  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string }
+  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string, station?: string }
   timeZone: string
   checkInOpensMinutes: number
 }
@@ -119,6 +168,8 @@ export type ShiftsRuntimeConfig = {
   checkInOpensMinutes: number
   /** The reminder offsets in minutes (largest first) and whether reminders also go out by SMS. */
   reminders: { offsets: number[], sms: boolean, batchSize: number }
+  /** The rows of each kind one run of `shifts:close-shifts` handles. */
+  automation: { batchSize: number }
 }
 
 /** A person as a shifts response shows them. `email` and `phone` only with `shifts:pii`. */
@@ -141,6 +192,11 @@ export type ShiftScheduleDto = {
   minPerShift: number | null
   maxPerShift: number | null
   guards: ShiftGuards
+  /** How people check in (`modes` is `['lead']` when nothing was set). */
+  checkIn: ShiftCheckInSettings
+  /** Whether assignments still `assigned` without a check-in become `no_show` `autoNoShowMinutes` after the start. Off by default. */
+  autoNoShow: boolean
+  autoNoShowMinutes: number
   publishedAt: string | null
   createdAt: string
   updatedAt: string
@@ -182,7 +238,9 @@ export type ShiftAssignmentDto = {
   shiftRoleId: string | null
   status: ShiftAssignmentStatus
   checkedInAt: string | null
+  /** The lead who checked the person in, the person themselves (a station or location check-in), or `null`. */
   checkedInBy: number | null
+  checkInMethod: ShiftCheckInMethod | null
   assignedBy: number | null
   createdAt: string
   updatedAt: string
@@ -301,8 +359,10 @@ export type ShiftPassDto = {
   code: string | null
   /** The QR code as an SVG document. */
   svg: string | null
-  /** The perks of the operation this person may still get, with what is left of each (also while the pass is closed). */
+  /** The perks this shift earns: `upcoming` until it is granted, then `earned`, `claimed` or `revoked`. */
   perks: ShiftPassPerkDto[]
+  /** How the person can check in on this shift themselves (`station`, `location`), besides showing the pass to a lead. */
+  checkIn: ShiftCheckInRule
 }
 
 /** The answer of a check-in (`POST /api/shifts/teams/:teamId/check-in`). */
@@ -312,6 +372,63 @@ export type ShiftCheckInDto = {
   checkedInAt: string
   assignment: ShiftAssigneeDto
   shift: ShiftDto
+  /** The person's other shifts that day the `daily` mode checked in too (assignment ids). */
+  alsoCheckedIn: string[]
+}
+
+/**
+ * The body of a volunteer's own check-in (`POST /api/shifts/me/:assignmentId/check-in`): the token of a station's QR
+ * code, or the position and its accuracy (metres) from the device.
+ */
+export type ShiftSelfCheckInInput
+  = | { mode: 'station', token: string }
+    | { mode: 'location', latitude: number, longitude: number, accuracy: number }
+
+/** The answer of a volunteer's own check-in. */
+export type ShiftSelfCheckInDto = {
+  ok: true
+  alreadyCheckedIn: boolean
+  checkedInAt: string
+  method: ShiftCheckInMethod
+  assignment: ShiftAssignmentDto
+  alsoCheckedIn: string[]
+}
+
+/** A check-in station of a team on a schedule. */
+export type ShiftStationDto = {
+  id: string
+  scheduleId: string
+  teamId: string
+  name: Translated
+  featureId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** The current QR code of a station (`GET /api/shifts/stations/:stationId/token`): valid for this window and the next. */
+export type ShiftStationTokenDto = {
+  station: ShiftStationDto & { teamName: Translated }
+  token: string
+  svg: string
+  /** When the next window starts: fetch a new token then. */
+  refreshAt: string
+  /** The rotation in seconds. */
+  rotateSeconds: number
+}
+
+/**
+ * Something on a team's shifts a lead should look at: `no_show`, `late` (checked in after the start),
+ * `not_checked_in` (still `assigned` after the start) and `claimed_no_show` (a no-show whose perk grant was claimed
+ * before the flip).
+ */
+export type ShiftExceptionKind = 'no_show' | 'late' | 'not_checked_in' | 'claimed_no_show'
+
+export type ShiftExceptionDto = {
+  kind: ShiftExceptionKind
+  assignment: ShiftAssigneeDto
+  shift: ShiftDto
+  /** `late`: minutes after the start the person checked in. */
+  lateMinutes?: number
 }
 
 /** Who is on shift now in an operation (`GET /api/shifts/operations/:operationId/now`). */
@@ -360,19 +477,28 @@ export type ShiftScheduleContext = { event: H3Event, schedule: ShiftScheduleDto 
 export type ShiftCreatedContext = { event: H3Event, shift: ShiftDto }
 /** Context of `shifts:shift:updated`. */
 export type ShiftUpdatedContext = { event: H3Event, shift: ShiftDto, previous: ShiftDto }
-/** Context of `shifts:assignment:changed`. `previous` is `null` for a new assignment. */
-export type ShiftAssignmentChangedContext = { event: H3Event, assignment: ShiftAssignmentDto, previous: ShiftAssignmentDto | null }
+/**
+ * Context of `shifts:assignment:changed`. `previous` is `null` for a new assignment. `auto: true` when the
+ * `shifts:close-shifts` task changed it (an auto no-show): `event` is `undefined` then.
+ */
+export type ShiftAssignmentChangedContext = { event: H3Event | undefined, assignment: ShiftAssignmentDto, previous: ShiftAssignmentDto | null, auto?: boolean }
 /** Context of `shifts:swap:offered`, `:accepted`, `:rejected` and `:completed`. `kind` is the swap's (`swap.kind`). */
 export type ShiftSwapContext = { event: H3Event, kind: ShiftSwapKind, swap: ShiftSwapDto, offer: ShiftSwapOfferDto }
-/** Context of `shifts:attendance:marked`. `by` is the lead or staff user. */
-export type ShiftAttendanceContext = { event: H3Event, assignment: ShiftAssignmentDto, by: number }
+/**
+ * Context of `shifts:attendance:marked`. `by` is the lead or staff user, the person themselves for a station or location
+ * check-in, or `null` for the system (`auto: true`, an auto no-show of the `shifts:close-shifts` task, with `event`
+ * `undefined`). `method` says how a check-in happened.
+ */
+export type ShiftAttendanceContext = { event: H3Event | undefined, assignment: ShiftAssignmentDto, by: number | null, auto?: boolean, method?: ShiftCheckInMethod }
 
 /** Context of `shifts:reminder:sent`. A scheduled task has no request: `event` is `undefined` there. */
 export type ShiftReminderContext = { event: H3Event | undefined, assignment: ShiftAssignmentDto, offset: number, channels: ShiftChannel[] }
 /** Context of `shifts:broadcast:sent`. */
 export type ShiftBroadcastContext = { event: H3Event, broadcast: ShiftBroadcastDto }
-/** Context of `shifts:perk:redeemed`. */
-export type ShiftPerkContext = { event: H3Event, perk: ShiftPerkDto, redemption: ShiftPerkRedemptionDto }
+/** Context of `shifts:perk:granted` and `shifts:perk:revoked`. Fired from the task too: `event` is `undefined` there. */
+export type ShiftPerkGrantContext = { event: H3Event | undefined, grantId: string, perkId: string, assignmentId: string, userId: number }
+/** Context of `shifts:digest:sent`: one lead's digest of a run of `shifts:close-shifts` (no request: `event` is `undefined`). */
+export type ShiftDigestContext = { event: undefined, userId: number, items: Array<{ kind: ShiftExceptionKind, assignmentId: string, teamId: string }>, channels: ShiftChannel[] }
 
 /** How a reminder or broadcast reaches people. */
 export type ShiftChannel = 'email' | 'sms'
@@ -422,52 +548,43 @@ export type ShiftBroadcastResultDto = ShiftBroadcastDto & {
   delivery: 'done' | 'queued'
 }
 
-export type ShiftPerkKind = 'meal' | 'drink' | 'other'
-
-/** A perk: `perShift` is the allowance of each assignment, `perPerson` the budget of each person across the operation (exactly one is set). */
+/** A perk: every attended shift of a team it applies to earns `quantity` of `voucherType`. */
 export type ShiftPerkDto = {
   id: string
   operationId: string
   teamId: string | null
-  kind: ShiftPerkKind
   name: Translated
-  perShift: number | null
-  perPerson: number | null
+  /** Free text the vouchers app spends it as (`beer`, `meal`). */
+  voucherType: string
+  quantity: number
   createdAt: string
   updatedAt: string
-  /** In staff lists: how many times it was redeemed. */
-  redeemed?: number
+  /** In staff lists: how many grants it has (revoked ones left out). */
+  granted?: number
 }
 
-export type ShiftPerkRedemptionDto = {
-  id: string
-  perkId: string
-  assignmentId: string
-  userId: number
-  redeemedAt: string
-  redeemedBy: number
-}
-
-/** A perk on a pass: the allowance that applies to me and what is left. */
+/** A perk on a pass. `upcoming`: the shift earns it once attended at its end; then `earned`, `claimed` or `revoked`. */
 export type ShiftPassPerkDto = {
   perkId: string
-  kind: ShiftPerkKind
   name: Translated
-  /** `shift`: the allowance of this assignment. `person`: my budget across the operation. */
-  per: 'shift' | 'person'
-  limit: number
-  used: number
-  remaining: number
+  voucherType: string
+  quantity: number
+  status: 'upcoming' | 'earned' | 'claimed' | 'revoked'
 }
 
-/** The answer of redeeming a perk (`POST /api/shifts/teams/:teamId/perks/:perkId/redeem`). */
-export type ShiftPerkRedeemDto = {
-  ok: true
-  perk: ShiftPerkDto
-  redemption: ShiftPerkRedemptionDto
-  /** What is left of the allowance that applied, after this redemption. */
-  remaining: number
-  limit: number
-  person: ShiftPersonDto
-  shift: ShiftDto
+/**
+ * A perk grant as the vouchers app sees it (`GET /api/shifts/me/perk-grants`): the contract between frigear.nu and
+ * frigear-vouchers. `id` is the idempotency key on the vouchers side; `perkName` is in the caller's locale.
+ */
+export type ShiftPerkGrantDto = {
+  id: string
+  voucherType: string
+  quantity: number
+  perkName: string
+  earnedAt: string
+  claimedAt: string | null
+  shift: { id: string, startsAt: string, endsAt: string, teamName: string, operationName: string }
 }
+
+/** The answer of `GET /api/shifts/me/perk-grants`: the caller's grants, oldest first (bounded, not paginated). */
+export type ShiftPerkGrantListDto = { items: ShiftPerkGrantDto[] }
