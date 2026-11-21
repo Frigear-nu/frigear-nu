@@ -16,12 +16,12 @@ const subscriptions = sqliteTable('subscriptions', {
 })
 
 describe('teamsRolesGranting', () => {
-  // The website chain, by `inherit`.
+  // A role chain, by `inherit`.
   const roles = {
     admin: { inherit: ['manager'] },
     manager: { inherit: ['coordinator'] },
-    coordinator: { inherit: ['barmanager'] },
-    barmanager: { inherit: ['crew'] },
+    coordinator: { inherit: ['supervisor'] },
+    supervisor: { inherit: ['crew'] },
     crew: { inherit: ['member'] },
     member: { inherit: ['user'] },
     user: { inherit: [] },
@@ -29,8 +29,8 @@ describe('teamsRolesGranting', () => {
   }
 
   it('adds every role that inherits a referenced one, directly or not', () => {
-    expect(teamsRolesGranting(roles, ['barmanager'])).toEqual(['admin', 'barmanager', 'coordinator', 'manager'])
-    expect(teamsRolesGranting(roles, ['member'])).toEqual(['admin', 'barmanager', 'coordinator', 'crew', 'manager', 'member'])
+    expect(teamsRolesGranting(roles, ['supervisor'])).toEqual(['admin', 'coordinator', 'manager', 'supervisor'])
+    expect(teamsRolesGranting(roles, ['member'])).toEqual(['admin', 'coordinator', 'crew', 'manager', 'member', 'supervisor'])
     expect(teamsRolesGranting(roles, ['nobody'])).toEqual(['nobody'])
   })
 })
@@ -39,9 +39,9 @@ describe('candidate queries', () => {
   const qb = new QueryBuilder()
 
   it('reads the users assigned one of the roles', () => {
-    const { sql, params } = (teamsAuthorizationCandidatesQuery(qb, authorizationUserRoles, ['barmanager', 'admin'], 1000) as { toSQL: () => { sql: string, params: unknown[] } }).toSQL()
+    const { sql, params } = (teamsAuthorizationCandidatesQuery(qb, authorizationUserRoles, ['supervisor', 'admin'], 1000) as { toSQL: () => { sql: string, params: unknown[] } }).toSQL()
     expect(sql).toBe('select distinct "user_id" from "authorization_user_roles" where "authorization_user_roles"."role" in (?, ?) limit ?')
-    expect(params).toEqual(['barmanager', 'admin', 1000])
+    expect(params).toEqual(['supervisor', 'admin', 1000])
   })
 
   it('reads the users with an entitled subscription to one of the plans: active or trialing, not ended', () => {

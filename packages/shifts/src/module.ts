@@ -99,7 +99,7 @@ export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'shifts' },
   defaults: {
     settings: { pages: {} },
-    timeZone: 'Europe/Copenhagen',
+    timeZone: 'UTC',
     checkInOpensMinutes: 60,
   },
   moduleDependencies: {
@@ -138,7 +138,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
 
-    const timeZone = options.timeZone || 'Europe/Copenhagen'
+    const timeZone = options.timeZone || 'UTC'
     if (!isValidTimeZone(timeZone)) throw new Error(`[shifts] \`timeZone\` "${timeZone}" is not a time zone this runtime knows.`)
     const checkInOpensMinutes = Math.max(0, Math.round(options.checkInOpensMinutes ?? 60))
 

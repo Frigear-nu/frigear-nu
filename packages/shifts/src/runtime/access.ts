@@ -18,7 +18,7 @@ export const shiftsAccess = defineAccess('shifts', {
       description: 'Offer your own shifts for a swap, and offer to take other people\'s.',
       implicit: true,
     },
-    // Held by everyone, narrowed by the policy to the leads of the record's team (BA and up on a bar team) and staff.
+    // Held by everyone, narrowed by the policy to the leads of the record's team (lead role and up) and staff.
     lead: {
       label: 'Lead shifts',
       description: 'Check people in, mark attendance and approve swaps on the teams you lead.',

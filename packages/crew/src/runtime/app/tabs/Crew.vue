@@ -461,7 +461,7 @@ function jumpToSettings() {
               variant="naked"
               icon="i-lucide-link"
               :title="t('admin.noInvites', 'No invite links yet')"
-              :description="teams.length ? t('admin.noInvitesDescription', 'Invite a BA or a friend of the crew straight onto a team.') : t('admin.noInviteTeams', 'Save the settings once to create the first team.')"
+              :description="teams.length ? t('admin.noInvitesDescription', 'Invite a team lead or a friend of the crew straight onto a team.') : t('admin.noInviteTeams', 'Save the settings once to create the first team.')"
               :actions="teams.length ? [{ label: t('admin.createInvite', 'Create invite'), icon: 'i-lucide-plus', onClick: createInvite }] : []"
             />
           </template>
@@ -550,7 +550,7 @@ function jumpToSettings() {
           <FormRow
             name="presets"
             :label="t('admin.presets', 'Role presets')"
-            :description="t('admin.presetsHelp', 'Added once, when the settings are first saved: a global bar manager is a BA and global crew a bartender on every team. Turning this off later removes nothing; edit the rules in Teams.')"
+            :description="t('admin.presetsHelp', 'Added once, when the settings are first saved: the role mapping rules this app presets for every team of the operation. Turning this off later removes nothing; edit the rules in Teams.')"
           >
             <USwitch
               v-model="form.presets"

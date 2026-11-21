@@ -30,7 +30,7 @@ describe('operation form body', () => {
       expect(body.location, JSON.stringify(cleared)).toBeNull()
     }
     expect(emptyTranslatedToNull({ en: 'Text' })).toEqual({ en: 'Text' })
-    expect(formToOperationBody(form({ locationName: { en: 'Darupvej' } })).location).toEqual({ name: { en: 'Darupvej' } })
+    expect(formToOperationBody(form({ locationName: { en: 'Main Street' } })).location).toEqual({ name: { en: 'Main Street' } })
   })
 
   it('sends the location picker\'s value with the name and address, and reads it back', () => {

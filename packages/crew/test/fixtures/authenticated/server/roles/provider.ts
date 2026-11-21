@@ -6,7 +6,7 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 //   @staff.test  -> `admin` (what operations, teams, forms and crew grant to admin, `crew:pii` and `crew:invite` included)
 //   @coord.test  -> `coordinator` (crew:manage, crew:pii and crew:invite, as the module's `grantTo`)
 //   @mgr.test    -> `crewmanager` (crew:manage only: no crew:pii)
-//   @bar.test    -> `barmanager` (inherits `member`)
+//   @bar.test    -> `supervisor` (inherits `member`)
 //   @crew.test   -> `crew`
 //   @member.test -> `member`
 //   @wild.test   -> `wild` (crew:* only, which never covers crew:pii)
@@ -14,7 +14,7 @@ const ROLES: Record<string, string[]> = {
   '@staff.test': ['admin'],
   '@coord.test': ['coordinator'],
   '@mgr.test': ['crewmanager'],
-  '@bar.test': ['barmanager'],
+  '@bar.test': ['supervisor'],
   '@crew.test': ['crew'],
   '@member.test': ['member'],
   '@wild.test': ['wild'],

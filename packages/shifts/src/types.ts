@@ -118,7 +118,7 @@ export type ModuleOptions = {
   }
   /**
    * The time zone shift times are entered in: bulk creation turns `days` and `HH:mm` slots into instants in it, and the
-   * guards count days in it. Defaults to `Europe/Copenhagen`.
+   * guards count days in it. Defaults to `UTC`: the app sets its own.
    */
   timeZone?: string
   /** How many minutes before a shift starts its QR pass shows and check-in opens. Defaults to `60`. */
@@ -438,7 +438,7 @@ export type ShiftsNowDto = {
   teams: Array<{
     teamId: string
     teamName: Translated
-    /** The leads (BA and up) on shift now. */
+    /** The leads (lead role and up) on shift now. */
     leads: ShiftPersonDto[]
     shifts: Array<ShiftDto & { assignees: ShiftAssigneeDto[] }>
   }>

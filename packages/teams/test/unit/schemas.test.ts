@@ -4,7 +4,7 @@ import { isTeamsUniqueViolation } from '../../src/runtime/server/utils/teams-err
 
 describe('schemas', () => {
   it('takes exactly one key in a match', () => {
-    expect(teamRoleMatchSchema.safeParse({ role: 'barmanager' }).success).toBe(true)
+    expect(teamRoleMatchSchema.safeParse({ role: 'supervisor' }).success).toBe(true)
     expect(teamRoleMatchSchema.safeParse({ plan: 'yearly' }).success).toBe(true)
     expect(teamRoleMatchSchema.safeParse({ role: 'a', plan: 'b' }).success).toBe(false)
     expect(teamRoleMatchSchema.safeParse({ permission: 'teams:manage' }).success).toBe(false)
@@ -12,7 +12,7 @@ describe('schemas', () => {
   })
 
   it('keeps role keys and kinds lower case', () => {
-    expect(teamMappingInput.safeParse({ ownerType: 'operation', ownerId: 'opr_1', match: { role: 'x' }, teamRole: 'BA' }).success).toBe(false)
+    expect(teamMappingInput.safeParse({ ownerType: 'operation', ownerId: 'opr_1', match: { role: 'x' }, teamRole: 'Lead' }).success).toBe(false)
     expect(teamInput.safeParse({ ownerType: 'platform', kind: 'Bar', name: 'x' }).success).toBe(false)
     expect(teamInput.safeParse({ ownerType: 'platform', kind: 'bar', name: 'x' }).success).toBe(true)
   })

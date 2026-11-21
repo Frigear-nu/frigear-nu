@@ -3,7 +3,7 @@ import { effectiveCapacity, shiftCapacityWarnings, shiftGuardWarnings } from '..
 import { canMoveAssignment, canMoveSwap } from '../../src/runtime/utils/status'
 import { buildShiftSwapEmail } from '../../src/runtime/server/swap-email'
 
-const CPH = 'Europe/Copenhagen'
+const CPH = 'Europe/Berlin'
 const shift = (id: string, start: string, end: string) => ({ id, startsAt: start, endsAt: end })
 
 describe('guards', () => {
@@ -22,7 +22,7 @@ describe('guards', () => {
   })
 
   it('counts days in the time zone', () => {
-    // 23:30 UTC on the 27th is the 28th in Copenhagen.
+    // 23:30 UTC on the 27th is the 28th in Berlin.
     const late = shift('d', '2027-06-27T23:30:00Z', '2027-06-28T01:00:00Z')
     expect(shiftGuardWarnings(evening, [late], { maxShiftsPerDay: 1 }, CPH).map(w => w.code)).toEqual(['max_shifts_per_day'])
     expect(shiftGuardWarnings(evening, [late], { maxShiftsPerDay: 1 }, 'UTC')).toEqual([])

@@ -122,7 +122,7 @@ const widens = computed(() => !!props.parent && !inherit.value && !isNarrowerOrE
         </UFormField>
         <UFormField
           :label="t('admin.visibility.teamRole', 'Team role')"
-          :description="t('admin.visibility.teamRoleHelp', 'At least this role in a team of this kind, for example bar and ba.')"
+          :description="t('admin.visibility.teamRoleHelp', 'At least this role in a team of this kind, for example a kind and its lead role.')"
         >
           <div class="flex gap-2">
             <UInput

@@ -4,7 +4,7 @@ import { crewAccess } from '../../../access'
 import { newId } from '../../../utils'
 import type { CreatedCrewInviteDto } from '../../../../types'
 
-// Creates an invite link for a team of the operation and a role of its ladder (`ba` for "invite as lead"). The token is in
+// Creates an invite link for a team of the operation and a role of its ladder (a lead role for "invite as lead"). The token is in
 // this response only; the database keeps its hash. It mints a credential that grants a role, so it needs a session: an
 // API token is refused with 403 `session_required`.
 export default defineEventHandler(async (event): Promise<CreatedCrewInviteDto> => {

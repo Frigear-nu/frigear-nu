@@ -52,7 +52,7 @@ describe('operations (authenticated, database-backed)', async () => {
     staff ??= await registerUser('Staff', 'staff@staff.test')
     return ok(await json(staff.cookie, 'POST', operationsApi.admin.operations, {
       slug: `operation-${++counter}`,
-      name: { en: 'Roskilde 2027 bar operation', da: 'Roskilde 2027 baroperation' },
+      name: { en: 'Summer Festival 2030 bar operation', da: 'Summer Festival 2030 baroperation' },
       startsAt: future(30),
       endsAt: future(37),
       ...overrides,
@@ -110,15 +110,15 @@ describe('operations (authenticated, database-backed)', async () => {
     it('creates, reads, edits and deletes an operation as a coordinator', async () => {
       const created = await createOperation({
         public: true,
-        hostName: 'Roskilde Festival',
-        hostUrl: 'https://example.com/roskilde',
+        hostName: 'Summer Festival',
+        hostUrl: 'https://example.com/summer',
         location: { name: { en: 'Main Street', da: 'Main Street' }, address: 'Main Street 1, Example Town', point: { lat: 10.0, lng: 20.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
       })
       expect(created).toMatchObject({
         status: 'planning',
         public: true,
-        hostName: 'Roskilde Festival',
+        hostName: 'Summer Festival',
         location: { address: 'Main Street 1, Example Town', point: { lat: 10.0, lng: 20.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
         eventId: null,
@@ -567,7 +567,7 @@ describe('operations (authenticated, database-backed)', async () => {
     }, 180_000)
 
     it('renders the public page of a public operation and 404s a private one', async () => {
-      const open = await createOperation({ name: 'Visible operation', public: true, hostName: 'Roskilde Festival' })
+      const open = await createOperation({ name: 'Visible operation', public: true, hostName: 'Summer Festival' })
       const closed = await createOperation({ public: false })
       const visible = await fetch(`/operations/${open.slug}`)
       expect(visible.status).toBe(200)

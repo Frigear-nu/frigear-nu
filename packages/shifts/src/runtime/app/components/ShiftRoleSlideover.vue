@@ -9,7 +9,7 @@ import { $fetch, computed, reactive, useAction, useModuleT, useShiftsTranslate }
 
 defineOptions({ name: 'ShiftRoleSlideover' })
 
-// A shift role of a schedule: a team and the lowest team role that may hold it (a "BA" role needs `ba` and up). Opened
+// A shift role of a schedule: a team and the lowest team role that may hold it (a "Lead" role needs `lead` and up). Opened
 // by `useShiftsActions()`; closes with the saved role, or `false`.
 const props = defineProps<{ scheduleId: string, teams: ShiftsTeamOption[], ladders: ShiftsLadder[], role?: ShiftRoleDto }>()
 const emit = defineEmits<{ close: [saved: ShiftRoleDto | false] }>()
@@ -47,7 +47,7 @@ async function save(event: FormSubmitEvent<State>) {
   <FormSlideover
     form-id="shift-role-form"
     :title="role ? t('admin.editRole', 'Edit shift role') : t('admin.newRole', 'New shift role')"
-    :description="t('admin.roleDescription', 'A role people hold on a shift, such as BA or bartender, with the lowest team role that may hold it.')"
+    :description="t('admin.roleDescription', 'A role people hold on a shift, such as team lead or bartender, with the lowest team role that may hold it.')"
     :submit-label="role ? t('admin.saveRole', 'Save shift role') : t('admin.createRole', 'Add shift role')"
     :loading="busy"
     @close="emit('close', false)"

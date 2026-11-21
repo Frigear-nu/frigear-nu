@@ -65,7 +65,7 @@ export const isDay = (value: string) => DATE_PATTERN.test(value) && !Number.isNa
 export const isClock = (value: string) => TIME_PATTERN.test(value)
 
 /**
- * The instant of a wall-clock time in a time zone: `2027-06-28` at `18:00` in `Europe/Copenhagen` is 16:00 UTC. A time
+ * The instant of a wall-clock time in a time zone: `2027-06-28` at `18:00` in `Europe/Berlin` is 16:00 UTC. A time
  * that daylight saving skips or repeats (a night in March or October) resolves to one of the instants next to it.
  */
 export function zonedTimeToUtc(day: string, clock: string, timeZone: string): Date {

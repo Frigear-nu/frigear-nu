@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { StaffTeam, StaffTeamLadder } from '../utils/admin-team'
 import { TEAM_OWNER_TYPES } from '../utils/admin-team'
 import { teamsApi } from '../../utils/api'
+import { DEFAULT_TEAM_KIND } from '../../utils/ladders'
 import type { TeamOwner, Translated } from '../../../types'
 import { $fetch, computed, reactive, useAction, useLazyFetch, useModuleT, useTeamsTranslate } from '#imports'
 
@@ -38,7 +39,7 @@ type State = z.output<typeof schema>
 
 const state = reactive<State>(props.team
   ? { name: props.team.name, description: props.team.description ?? undefined, kind: props.team.kind, ownerType: props.team.ownerType, ownerId: props.team.ownerId ?? '', capacity: props.team.capacity ?? undefined, sort: props.team.sort }
-  : { name: undefined, description: undefined, kind: 'bar', ownerType: props.owner?.ownerType ?? 'platform', ownerId: props.owner?.ownerId ?? '', capacity: undefined, sort: 0 })
+  : { name: undefined, description: undefined, kind: DEFAULT_TEAM_KIND, ownerType: props.owner?.ownerType ?? 'platform', ownerId: props.owner?.ownerId ?? '', capacity: undefined, sort: 0 })
 
 const isEmpty = (value: Translated | null | undefined) =>
   value === undefined || value === null || (typeof value === 'string' ? !value.trim() : !Object.values(value).some(text => text.trim()))
