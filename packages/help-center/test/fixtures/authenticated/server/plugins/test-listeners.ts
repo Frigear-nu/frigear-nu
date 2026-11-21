@@ -7,7 +7,7 @@ export default defineNitroPlugin((nitro) => {
     ctx.viewer.operationIds.push(...state.operationIds)
     ctx.viewer.teamRoles.push(...state.teamRoles)
     // The `bar` ladder, lowest first.
-    ctx.viewer.ladders.bar = ['volunteer', 'bartender', 'ba', 'coordinator']
+    ctx.viewer.ladders.bar = ['volunteer', 'bartender', 'lead', 'coordinator']
   })
 
   nitro.hooks.hook('audience:owner:resolve', (ctx) => {

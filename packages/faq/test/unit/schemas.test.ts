@@ -12,7 +12,7 @@ describe('group input', () => {
       description: 'About it',
       icon: 'i-lucide-info',
       owner: { type: 'operation', id: 'opr_1' },
-      visibility: { globalRoles: ['barmanager'], minTeamRole: { kind: 'bar', role: 'ba' }, operationId: 'opr_1' },
+      visibility: { globalRoles: ['supervisor'], minTeamRole: { kind: 'bar', role: 'lead' }, operationId: 'opr_1' },
       sort: 3,
     }).success).toBe(true)
   })

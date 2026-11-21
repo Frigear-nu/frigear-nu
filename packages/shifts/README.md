@@ -34,7 +34,7 @@ optional; `@nuxt/ui` is needed for the pages.
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@frigear-nu/admin', '@frigear-nu/widget', '@frigear-nu/shifts'],
   operations: { settings: { pages: { admin: true, adminOperation: true } } },
-  shifts: { timeZone: 'Europe/Copenhagen' },
+  shifts: { timeZone: 'Europe/Berlin' },
 })
 ```
 

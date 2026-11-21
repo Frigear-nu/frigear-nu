@@ -4,12 +4,12 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 // Test-only role provider (no `@frigear-nu/authorization`): the role follows the email domain, so the same rule
 // applies to cookie sessions and API tokens alike.
 //   @staff.test  -> `coordinator` (teams:manage and teams:pii, granted by the module's `grantTo`)
-//   @bar.test    -> `barmanager` (inherits `member`)
+//   @bar.test    -> `supervisor` (inherits `member`)
 //   @member.test -> `member`
 //   @wild.test   -> `wild` (teams:* only, which never covers teams:pii)
 const ROLES: Record<string, string[]> = {
   '@staff.test': ['coordinator'],
-  '@bar.test': ['barmanager'],
+  '@bar.test': ['supervisor'],
   '@member.test': ['member'],
   '@wild.test': ['wild'],
 }

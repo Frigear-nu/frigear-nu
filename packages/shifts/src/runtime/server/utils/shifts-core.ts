@@ -18,7 +18,7 @@ export type ShiftEntry = { shift: ShiftRow, schedule: ShiftScheduleRow }
 /** An assignment with its shift and schedule. */
 export type ShiftAssignmentEntry = ShiftEntry & { assignment: ShiftAssignmentRow }
 
-const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60 }
+const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'UTC', checkInOpensMinutes: 60 }
 
 /** The module options shifts reads at runtime: the time zone and when check-in opens. */
 export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {

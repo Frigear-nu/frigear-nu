@@ -42,7 +42,7 @@ describe('crew links and api paths', () => {
 
   it('builds the page links on the default paths, localized', () => {
     const links = createCrewLinks(undefined, localize)
-    expect(links.apply('roskilde-2027')).toBe('/da/crew/apply/roskilde-2027')
+    expect(links.apply('summer-2030')).toBe('/da/crew/apply/summer-2030')
     expect(links.status()).toBe('/da/crew/status')
     expect(links.invite('cvt_abc')).toBe('/da/crew/invite/cvt_abc')
   })
@@ -61,7 +61,7 @@ describe('crew links and api paths', () => {
 
   it('encodes ids in the api paths', () => {
     expect(crewApi.admin.approve('tmm_a/b')).toBe('/api/admin/crew/members/tmm_a%2Fb/approve')
-    expect(crewApi.apply('roskilde 2027')).toBe('/api/crew/operations/roskilde%202027/apply')
+    expect(crewApi.apply('summer 2030')).toBe('/api/crew/operations/summer%202030/apply')
     expect(crewApi.me.withdraw('opr_1')).toBe('/api/crew/me/opr_1/withdraw')
   })
 })

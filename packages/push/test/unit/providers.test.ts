@@ -117,7 +117,7 @@ describe('FCM', () => {
 })
 
 describe('APNs', () => {
-  const config = { keyId: 'KEY1234567', teamId: 'TEAM123456', topic: 'nu.frigear.app', privateKey: ec.privateKey, sandbox: false }
+  const config = { keyId: 'KEY1234567', teamId: 'TEAM123456', topic: 'com.example.app', privateKey: ec.privateKey, sandbox: false }
 
   it('signs the provider token with ES256, key id and team id', async () => {
     const jwt = await buildApnsJwt(config, 1_700_000_000_000)
@@ -136,7 +136,7 @@ describe('APNs', () => {
     expect(apnsHost(true)).toBe('api.sandbox.push.apple.com')
     const request = buildApnsRequest(config, 'jwt', message)
     expect(request.url).toBe('https://api.push.apple.com/3/device/device-token')
-    expect(request.headers).toMatchObject({ 'authorization': 'bearer jwt', 'apns-topic': 'nu.frigear.app', 'apns-push-type': 'alert', 'apns-priority': '10' })
+    expect(request.headers).toMatchObject({ 'authorization': 'bearer jwt', 'apns-topic': 'com.example.app', 'apns-push-type': 'alert', 'apns-priority': '10' })
     expect(request.body).toEqual({ shiftId: '42', url: '/shifts/42', aps: { alert: { title: 'Shift tomorrow', body: 'You work 18:00 - 23:00' }, sound: 'default' } })
     expect(buildApnsRequest({ ...config, sandbox: true }, 'jwt', message).url).toContain('api.sandbox.push.apple.com')
   })
@@ -163,7 +163,7 @@ describe('APNs', () => {
     })
     expect(await sender.send(message)).toEqual({ status: 'sent' })
     expect(requests[0]).toMatchObject({ origin: 'https://api.push.apple.com', path: '/3/device/device-token', timeoutMs: 1234 })
-    expect(requests[0]!.headers).toMatchObject({ 'apns-topic': 'nu.frigear.app', 'apns-push-type': 'alert' })
+    expect(requests[0]!.headers).toMatchObject({ 'apns-topic': 'com.example.app', 'apns-push-type': 'alert' })
     expect(JSON.parse(requests[0]!.body)).toMatchObject({ aps: { alert: { title: 'Shift tomorrow' } } })
 
     now += 10 * 60 * 1000

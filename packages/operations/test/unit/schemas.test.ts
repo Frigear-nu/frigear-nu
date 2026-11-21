@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { operationInput, operationPatchSchema, operationTranslated } from '../../src/runtime/server/utils/operations-schemas'
 
-const base = { slug: 'roskilde-2027-bar', name: 'Roskilde', startsAt: '2027-06-27T10:00:00.000Z' }
+const base = { slug: 'summer-2030-bar', name: 'Summer', startsAt: '2027-06-27T10:00:00.000Z' }
 
 describe('operation input dates', () => {
   it('accepts ISO datetimes with an offset and keeps the instant', () => {
