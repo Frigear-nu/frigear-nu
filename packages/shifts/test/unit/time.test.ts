@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, clockOf, countdownParts, dayKey, isClock, isDay, shiftByDays, slotInstants, zonedTimeToUtc } from '../../src/runtime/utils/time'
 
-const CPH = 'Europe/Copenhagen'
+const CPH = 'Europe/Berlin'
 
 describe('wall-clock times in a time zone', () => {
   it('turns a local time into the instant, in summer and in winter', () => {
@@ -12,7 +12,7 @@ describe('wall-clock times in a time zone', () => {
   })
 
   it('keeps the local time across a daylight saving change', () => {
-    // 2027-03-28 is the spring change in Copenhagen: the day before is +1, the day after +2.
+    // 2027-03-28 is the spring change in Berlin: the day before is +1, the day after +2.
     expect(zonedTimeToUtc('2027-03-27', '12:00', CPH).toISOString()).toBe('2027-03-27T11:00:00.000Z')
     expect(zonedTimeToUtc('2027-03-29', '12:00', CPH).toISOString()).toBe('2027-03-29T10:00:00.000Z')
   })

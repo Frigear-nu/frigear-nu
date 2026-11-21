@@ -118,7 +118,7 @@ export type ModuleOptions = {
   }
   /**
    * The time zone shift times are entered in: bulk creation turns `days` and `HH:mm` slots into instants in it, and the
-   * guards count days in it. Defaults to `Europe/Copenhagen`.
+   * guards count days in it. Defaults to `UTC`: the app sets its own.
    */
   timeZone?: string
   /** How many minutes before a shift starts its QR pass shows and check-in opens. Defaults to `60`. */
@@ -438,7 +438,7 @@ export type ShiftsNowDto = {
   teams: Array<{
     teamId: string
     teamName: Translated
-    /** The leads (BA and up) on shift now. */
+    /** The leads (lead role and up) on shift now. */
     leads: ShiftPersonDto[]
     shifts: Array<ShiftDto & { assignees: ShiftAssigneeDto[] }>
   }>
@@ -591,8 +591,8 @@ export type ShiftPassPerkDto = {
 }
 
 /**
- * A perk grant as the vouchers app sees it (`GET /api/shifts/me/perk-grants`): the contract between frigear.nu and
- * frigear-vouchers. `id` is the idempotency key on the vouchers side; `perkName` is in the caller's locale.
+ * A perk grant as the vouchers app sees it (`GET /api/shifts/me/perk-grants`): the contract between this app and
+ * a vouchers app. `id` is the idempotency key on the vouchers side; `perkName` is in the caller's locale.
  */
 export type ShiftPerkGrantDto = {
   id: string

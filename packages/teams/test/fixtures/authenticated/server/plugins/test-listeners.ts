@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { isPlanMatch, mappedGrantsFor } from '../../../../../src/runtime/utils/resolve'
 
 // Stands in for the modules teams works with in a real app:
-// - operations answers `audience:owner:resolve` for `operation` (only `opr_roskilde` exists here);
+// - operations answers `audience:owner:resolve` for `operation` (only `opr_summer` exists here);
 // - subscriptions answers `plan` mapping rules (plans are handed out by `POST /api/test/plan`);
 // - authorization would enumerate who holds a role: here every user is a candidate for a mapped role.
 export default defineNitroPlugin((nitro) => {

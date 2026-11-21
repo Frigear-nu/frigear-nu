@@ -17,7 +17,7 @@ const emit = defineEmits<{ close: [saved: ShiftDto[] | false] }>()
 const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
 const { busy, run } = useAction()
-const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'Europe/Copenhagen'
+const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'UTC'
 
 const NONE = '__none__'
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, t('admin.clockInvalid', 'Use HH:mm.'))

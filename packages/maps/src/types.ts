@@ -208,7 +208,10 @@ export type ModuleOptions = {
   /** Feature kinds and live layers of the host, the same as `extendMaps` from a module. */
   kinds?: MapFeatureKindDefinition[]
   layers?: MapLayerDefinition[]
-  /** Where the location picker opens when it has no value (`[lat, lng]` and zoom). Defaults to Roskilde. */
+  /**
+   * Where the location picker and viewers open when they have no value (`[lat, lng]` and zoom). There is no default
+   * location: without it they open on a world view (`[0, 0]`, zoom 2).
+   */
   defaultCenter?: { center: [number, number], zoom: number }
   /** The largest underlay image `readMapUnderlay` accepts, in bytes. Defaults to 10 MB. */
   maxUnderlayBytes?: number

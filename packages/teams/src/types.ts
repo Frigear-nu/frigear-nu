@@ -23,8 +23,8 @@ export type TeamRoleMatch = { role: string } | { plan: string }
 export type ModuleOptions = {
   /**
    * The built-in ladders, by team kind. They are stored in `team_role_ladders` on the first request when the kind has
-   * no row yet, and admins may edit the row later. Merged over the default `bar` ladder
-   * (`volunteer`, `bartender`, `ba`, `coordinator`; `ba` and up lead).
+   * no row yet, and admins may edit the row later. Merged over the one generic ladder the module ships, the `default`
+   * kind (`member`, `lead`; `lead` leads). The app defines its own kinds and roles here.
    */
   ladders?: Record<string, TeamLadder>
   settings?: {

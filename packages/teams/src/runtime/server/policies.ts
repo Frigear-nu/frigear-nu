@@ -15,7 +15,7 @@ export default [
     if (await allows(event, 'teams:manage')) return true
     return !!(await teamGrantOf(event, user.id, teamIdOf(record)))
   }),
-  // A lead holds a role at or above the ladder's `leadFrom` on the record's team (`ba` and up on a bar team).
+  // A lead holds a role at or above the ladder's `leadFrom` on the record's team.
   definePolicy<TeamRecord>('teams:lead', async ({ event, user, record }) => {
     if (!record) return undefined
     return isTeamLead(event, user.id, teamIdOf(record))

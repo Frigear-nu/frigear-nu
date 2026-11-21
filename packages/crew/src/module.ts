@@ -101,7 +101,8 @@ export default defineNuxtModule<ModuleOptions>({
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
     runtime.crew = {
       ...(runtime.crew as Record<string, unknown> | undefined),
-      memberPlan: options.memberPlan ?? null,
+      rolePresets: options.rolePresets ?? [],
+      defaultTeamKind: options.defaultTeamKind ?? 'default',
       phoneField: options.phoneField ?? 'phone',
     } satisfies CrewRuntimeConfig
 
