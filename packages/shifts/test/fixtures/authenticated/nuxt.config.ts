@@ -35,6 +35,10 @@ export default defineNuxtConfig({
     session: {
       password: 'a-test-only-session-password-at-least-32-chars',
     },
+    // Station check-in needs its own key; the tests turn it off per request through `/api/test/station-key`.
+    shifts: {
+      stationKey: 'a-test-only-station-key-at-least-32-chars',
+    },
   },
   hub: {
     db: {

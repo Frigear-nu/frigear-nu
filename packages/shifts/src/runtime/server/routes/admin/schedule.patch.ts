@@ -10,5 +10,5 @@ export default defineEventHandler(async (event): Promise<ShiftScheduleDto> => {
   const patch = await readValidatedBody(event, shiftsSchedulePatch.parse)
   const schedule = await getShiftScheduleOr404(scheduleId)
   await authorize(event, shiftsAccess.permissions.manage, { operationId: schedule.operationId })
-  return toShiftScheduleDto(await shiftsPatchSchedule(schedule, patch))
+  return toShiftScheduleDto(await shiftsPatchSchedule(schedule, patch), undefined, event)
 })

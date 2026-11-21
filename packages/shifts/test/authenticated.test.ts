@@ -9,7 +9,7 @@ import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { dayKey } from '../src/runtime/utils/time'
-import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runCloseShifts, runReminders, setLocale, setPhone, stationToken } from './helpers'
+import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runCloseShifts, runReminders, setLocale, setPhone, setStationKey, stationToken } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -1326,6 +1326,9 @@ describe('shifts (authenticated, database-backed)', async () => {
       const station = await createStation(setup.schedule.id, setup.team.id)
       const otherStation = await createStation(setup.schedule.id, other.id)
       expect(station.id).toMatch(/^sst_/)
+      // The fixture has a station key, and the schedule says so.
+      expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedule(setup.schedule.id)))).toMatchObject({ stationKeyConfigured: true })
+      expect((await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(assignment.id)))).checkIn.modes).toEqual(['station', 'lead'])
 
       // The screen: the team's leads and staff, nobody else.
       const screen = await ok(await json(lead.cookie, 'GET', shiftsApi.stationToken(station.id)))
@@ -1358,6 +1361,36 @@ describe('shifts (authenticated, database-backed)', async () => {
 
       // The current token works for another person of the team too: single use is per person and shift.
       expect(await ok(await selfCheckIn(bo, bos.assignment.id, { mode: 'station', token: screen.token }))).toMatchObject({ alreadyCheckedIn: false })
+    })
+
+    it('station: without a station key the screen and the check-in answer not_configured; the other modes keep working', async () => {
+      const setup = await newSetup({ checkIn: { modes: ['station', 'location'], location: { point: bar } } })
+      const [ann, lead] = await Promise.all([user('Kann'), user('Klead')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, lead, 'lead')
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
+      const { assignment } = await assigned(setup.shifts[0]!.id, ann)
+      const station = await createStation(setup.schedule.id, setup.team.id)
+      const signed = (await stationToken(station.id)).token
+
+      await setStationKey(false)
+      try {
+        // Staff see that the key is missing; stations can still be set up ahead of it.
+        expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedule(setup.schedule.id)))).toMatchObject({ stationKeyConfigured: false })
+        expect((await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedules))).find((item: Json) => item.id === setup.schedule.id)).toMatchObject({ stationKeyConfigured: false })
+        expect((await createStation(setup.schedule.id, setup.team.id)).id).toMatch(/^sst_/)
+        // The screen and a station check-in: 501, even with a code signed while the key was there. No other secret stands in.
+        await expectApiError(json(lead.cookie, 'GET', shiftsApi.stationToken(station.id)), 501, 'not_configured')
+        await expectApiError(selfCheckIn(ann, assignment.id, { mode: 'station', token: signed }), 501, 'not_configured')
+        await expectApiError(selfCheckIn(ann, assignment.id, { mode: 'station', token: 'not-a-token' }), 501, 'not_configured')
+        // The pass leaves station out, so the page does not offer a scan; location still checks in.
+        expect((await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(assignment.id)))).checkIn.modes).toEqual(['location', 'lead'])
+        expect(await ok(await selfCheckIn(ann, assignment.id, { mode: 'location', ...near, accuracy: 20 }))).toMatchObject({ method: 'location', assignment: { status: 'attended' } })
+      }
+      finally {
+        await setStationKey(true)
+      }
+      expect((await ok(await json(lead.cookie, 'GET', shiftsApi.stationToken(station.id)))).token).toMatch(/^sst_/)
     })
 
     it('location: inside the place with an accurate position; outside or inaccurate is refused; a team can override the place', async () => {

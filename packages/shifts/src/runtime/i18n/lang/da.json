@@ -265,7 +265,8 @@
         "location": "Placering",
         "locationHelp": "Frivillige trykker \"Jeg er her\", og appen sender deres placering. Den kan forfalskes af en, der vil.",
         "station": "Station",
-        "stationHelp": "Frivillige scanner den skiftende QR-kode på en af holdets stationer."
+        "stationHelp": "Frivillige scanner den skiftende QR-kode på en af holdets stationer.",
+        "stationNeedsKey": "Kræver en stationsnøgle på serveren (NUXT_SHIFTS_STATION_KEY)."
       },
       "modesHint": "Ud over at en leder scanner passet.",
       "modesLabel": "Måder at tjekke ind",
@@ -277,6 +278,9 @@
       "saveFailed": "Kunne ikke gemme indstillingerne for tjek ind",
       "saved": "Gemte tjek ind for {name}",
       "scanStation": "Scan stationens kode",
+      "stationKeyMissing": "Tjek ind ved station kræver en stationsnøgle",
+      "stationKeyMissingHint": "Sæt NUXT_SHIFTS_STATION_KEY på serveren for at bruge tjek ind ved station og stationsskærme. De andre tilstande virker uden den.",
+      "stationKeyMissingInUse": "Tjek ind ved station er slået til, men serveren har ingen NUXT_SHIFTS_STATION_KEY: frivillige kan ikke tjekke ind ved en station, og stationsskærme åbner ikke. Sæt nøglen, eller slå tilstanden fra. De andre tilstande virker.",
       "stopScanning": "Stop scanning",
       "title": "Sådan tjekker frivillige ind"
     },
@@ -506,6 +510,7 @@
       "forbidden": "Kun holdets ledere kan åbne denne station",
       "help": "Scan koden i appen, på din vagt, for at tjekke ind. Den skifter hvert 30. sekund.",
       "loadFailed": "Stationen kunne ikke hentes",
+      "notConfigured": "Tjek ind ved station er ikke sat op på denne server",
       "notFound": "Stationen findes ikke",
       "qrAlt": "QR-kode til at tjekke ind ved denne station",
       "title": "Station til tjek ind"

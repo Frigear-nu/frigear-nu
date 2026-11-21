@@ -11,6 +11,7 @@ import { STATION_ROTATE_SECONDS, parseStationToken, stationTokenPayload, station
 import { toShiftStationDto } from './shifts-dto'
 import type { ShiftScheduleRow, ShiftStationRow } from './shifts-dto'
 import { shiftsOperationTeamOr400 } from './shifts-core'
+import { shiftsRequireStationKey, shiftsStationSecret } from './shifts-station-key'
 import type { shiftsStationInput, shiftsStationPatch } from './shifts-schemas'
 
 type StationInput = z.output<typeof shiftsStationInput>
@@ -18,19 +19,16 @@ type StationPatch = z.output<typeof shiftsStationPatch>
 
 // Check-in stations: a screen of a team showing a QR code that rotates every 30 seconds. The code is
 // `<stationId>.<window>.<signature>`, the signature an HMAC-SHA-256 of `<stationId>:<window>` under a key derived (HKDF)
-// from the app's secret. Nothing is stored per token: the window says when it was made, the signature that we made it.
+// from `shifts.stationKey` (`NUXT_SHIFTS_STATION_KEY`). Nothing is stored per token: the window says when it was made,
+// the signature that we made it. Without that key station check-in is off: there is no fallback to another secret.
 
 const encoder = new TextEncoder()
 const stationKeys = new Map<string, Promise<CryptoKey>>()
 
-/**
- * The HMAC key of station tokens: HKDF-SHA-256 of `shifts.stationKey` (`NUXT_SHIFTS_STATION_KEY`), else the app secret
- * sessions are sealed with (`appSecret`, `NUXT_APP_SECRET`), else the session password (as auth's OAuth tokens fall back).
- */
+/** The HMAC key of station tokens: HKDF-SHA-256 of `shifts.stationKey`. 501 `not_configured` when it is empty. */
 function shiftsStationKey(event?: H3Event): Promise<CryptoKey> {
-  const config = useRuntimeConfig(event) as { shifts?: { stationKey?: string }, appSecret?: string, session?: { password?: string } }
-  const secret = config.shifts?.stationKey || config.appSecret || config.session?.password
-  if (!secret) throw new Error('[shifts] Station check-in needs NUXT_SHIFTS_STATION_KEY or NUXT_APP_SECRET.')
+  shiftsRequireStationKey(event)
+  const secret = shiftsStationSecret(event)
   let key = stationKeys.get(secret)
   if (!key) {
     key = crypto.subtle.importKey('raw', encoder.encode(secret), 'HKDF', false, ['deriveKey']).then(material => crypto.subtle.deriveKey(
@@ -65,11 +63,12 @@ export async function shiftsStationToken(event: H3Event | undefined, stationId: 
 }
 
 /**
- * Checks a scanned station token: 400 `invalid_token` when it is not one or its signature does not verify (forged or
- * altered), 409 `token_expired` when it is from a window before the previous one (or from the future). Returns the
- * station id; the caller loads the station.
+ * Checks a scanned station token: 501 `not_configured` without a station key, 400 `invalid_token` when it is not one
+ * or its signature does not verify (forged or altered), 409 `token_expired` when it is from a window before the
+ * previous one (or from the future). Returns the station id; the caller loads the station.
  */
 export async function shiftsVerifyStationToken(event: H3Event | undefined, token: string, now = Date.now()): Promise<string> {
+  shiftsRequireStationKey(event)
   const parsed = parseStationToken(token)
   const signature = parsed ? fromBase64Url(parsed.signature) : null
   const invalid = () => apiError(400, 'invalid_token', 'This is not a check-in code of a station.')
@@ -151,7 +150,7 @@ export async function shiftsTeamStations(teamId: string) {
   return rows.map(row => toShiftStationDto(row.station))
 }
 
-/** The current token of a station with its QR code, for the display page. */
+/** The current token of a station with its QR code, for the display page (501 `not_configured` without a station key). */
 export async function shiftsStationTokenDto(event: H3Event, station: ShiftStationRow, teamName: Translated): Promise<ShiftStationTokenDto> {
   const now = Date.now()
   const window = stationWindow(now)

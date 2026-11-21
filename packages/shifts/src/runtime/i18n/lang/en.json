@@ -265,7 +265,8 @@
         "location": "Location",
         "locationHelp": "Volunteers tap \"I'm here\" and the app sends their position. A determined person can fake it.",
         "station": "Station",
-        "stationHelp": "Volunteers scan the rotating QR code of a station of their team."
+        "stationHelp": "Volunteers scan the rotating QR code of a station of their team.",
+        "stationNeedsKey": "Needs a station key on the server (NUXT_SHIFTS_STATION_KEY)."
       },
       "modesHint": "Besides a lead scanning the pass.",
       "modesLabel": "Check-in modes",
@@ -277,6 +278,9 @@
       "saveFailed": "Could not save the check-in settings",
       "saved": "Saved the check-in of {name}",
       "scanStation": "Scan the station code",
+      "stationKeyMissing": "Station check-in needs a station key",
+      "stationKeyMissingHint": "Set NUXT_SHIFTS_STATION_KEY on the server to use station check-in and station screens. The other modes work without it.",
+      "stationKeyMissingInUse": "Station check-in is on, but the server has no NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set the key, or turn the mode off. The other modes work.",
       "stopScanning": "Stop scanning",
       "title": "How volunteers check in"
     },
@@ -506,6 +510,7 @@
       "forbidden": "Only leads of the team can open this station",
       "help": "Scan this code in the app, on your shift, to check in. It changes every 30 seconds.",
       "loadFailed": "The station could not be loaded",
+      "notConfigured": "Station check-in is not set up on this server",
       "notFound": "This station does not exist",
       "qrAlt": "QR code to check in at this station",
       "title": "Check-in station"

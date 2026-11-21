@@ -52,3 +52,7 @@ export const runCloseShifts = (now: string, extra: { batchSize?: number } = {}) 
 /** Mints a station token for a window (fixture-only route): `offset` windows from now, or a forged one. */
 export const stationToken = (stationId: string, offset = 0) =>
   $fetch<{ token: string }>('/api/test/station-token', { method: 'POST', body: { stationId, offset } })
+
+/** Turns the server's station key off or back on, as if `NUXT_SHIFTS_STATION_KEY` were unset (fixture-only route). */
+export const setStationKey = (configured: boolean) =>
+  $fetch('/api/test/station-key', { method: 'POST', body: { configured } })
