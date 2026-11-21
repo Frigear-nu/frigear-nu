@@ -11,7 +11,7 @@ import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { crewApi } from '../src/runtime/utils/api'
 import { crewAccess } from '../src/runtime/access'
-import { getEmailsTo, getHooksOf, getViewer, registerUser } from './helpers'
+import { getEmailsTo, getHooksOf, getParticipation, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -151,8 +151,9 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(grants.find(grant => grant.teamId === on.teamId)).toMatchObject({ role: 'lead', source: 'mapped', ownerType: 'operation', ownerId: on.op.id })
       expect(grants.find(grant => grant.teamId === off.teamId)).toBeUndefined()
       expect((await myTeams(crewRole.cookie)).find(grant => grant.teamId === on.teamId)).toMatchObject({ role: 'bartender', source: 'mapped' })
-      // A mapped grant is no participation: the viewer does not take part in the operation.
-      expect((await getViewer(manager.cookie)).operationIds).not.toContain(on.op.id)
+      // A mapped grant is no participation: the manager does not take part in the operation, and no operation grant admits them.
+      expect(await getParticipation(manager.cookie, on.op.id)).toMatchObject({ matches: false })
+      expect((await getParticipation(manager.cookie)).operationIds).not.toContain(on.op.id)
     })
 
     it('refuses a form that cannot register applicants, or that another operation recruits with', async () => {
@@ -188,10 +189,10 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(mine[0]).toMatchObject({ operationId: crew.op.id, operationSlug: crew.op.slug, crewStatus: 'applied', teamId: crew.teamId, role: 'volunteer', roleLabel: { en: 'Volunteer', da: 'Frivillig' }, waitlistPosition: null })
       expect(await ok(await json(alice.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'applied', crewStatus: 'applied', formSlug: null })
 
-      // Pending in teams: listed on the team, but no read, no role, nothing in the viewer, no participation.
+      // Pending in teams: listed on the team, but no read, no role, no participation.
       expect(await myTeams(alice.cookie)).toEqual([])
       expect(await myOperations(alice.cookie)).toEqual([])
-      expect((await getViewer(alice.cookie)).operationIds).toEqual([])
+      expect(await getParticipation(alice.cookie, crew.op.id)).toMatchObject({ operationIds: [], matches: false })
       const members = await ok(await json(staff.cookie, 'GET', teamsApi.members(crew.teamId))) as unknown as Json[]
       expect(members.find(member => member.userId === alice.id)).toMatchObject({ role: 'volunteer', status: 'pending' })
 
@@ -298,11 +299,13 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(approved.decidedAt).toBeTruthy()
       expect(approved.decidedBy).toBe(staff.id)
 
-      // Teams sees an active membership: the role, in the viewer and in /api/operations/me.
+      // Teams sees an active membership: the role, participation and /api/operations/me.
       expect(await myTeams(cara.cookie)).toEqual([expect.objectContaining({ teamId: crew.teamId, role: 'volunteer', source: 'explicit', ownerId: crew.op.id })])
       expect(((await ok(await json(staff.cookie, 'GET', teamsApi.members(crew.teamId)))) as unknown as Json[]).find(member => member.userId === cara.id)).toMatchObject({ status: 'active' })
       expect((await myOperations(cara.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
-      expect((await getViewer(cara.cookie)).operationIds).toEqual([crew.op.id])
+      const participation = await getParticipation(cara.cookie, crew.op.id)
+      expect(participation).toMatchObject({ operationIds: [crew.op.id], matches: true })
+      expect(participation.members).toContain(cara.id)
       expect(await ok(await json(cara.cookie, 'GET', crewApi.me.crew))).toEqual([expect.objectContaining({ crewStatus: 'approved', role: 'volunteer' })])
 
       expect(await hookNames(cara)).toEqual(['crew:applied', 'teams:added', 'crew:approved'])
@@ -481,7 +484,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(joined).toMatchObject({ operationId: crew.op.id, crewStatus: 'approved', teamId: crew.teamId, role: 'lead', roleLabel: { en: 'Lead' } })
       expect(await myTeams(ben.cookie)).toEqual([expect.objectContaining({ teamId: crew.teamId, role: 'lead', source: 'explicit' })])
       expect((await myOperations(ben.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
-      expect((await getViewer(ben.cookie)).operationIds).toEqual([crew.op.id])
+      expect((await getParticipation(ben.cookie)).operationIds).toEqual([crew.op.id])
       expect(await rowOf(crew, ben)).toMatchObject({ crewStatus: 'approved', role: 'lead', decidedBy: staff.id })
       expect(await hookNames(ben)).toEqual(['teams:added', 'crew:approved'])
       expect((await getEmailsTo(ben.email)).map(email => email.template?.name)).toEqual(['crew-status-approved'])
