@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { resolveViewer } from '@frigear-nu/audience/server'
+import type { Grant } from '@frigear-nu/grants/core'
 import { apiError, notConfigured, validationError } from '@frigear-nu/module-kit/server'
 import { dispatchEmailNotification, dispatchSMSNotification, notifyAvailable } from '#help-center/optional'
 import type { z } from 'zod'
@@ -7,14 +7,14 @@ import type { HelpArticleDto, HelpSendResult } from '../../../types'
 import { createHelpCenterPaths, localizeHelpCenterPath } from '../../utils/paths'
 import type { HelpCenterI18n } from '../../utils/paths'
 import { translate } from '../../utils/index'
-import { helpCenterArticleById } from './help-center'
+import { helpCenterArticleById, helpCenterReaderFor } from './help-center'
 import { loadHelpUsers } from './help-center-checklists'
 import { helpCenterRequiredLocales } from './help-center-db'
 import type { helpSendInput } from './help-center-schemas'
 
 type SendInput = z.output<typeof helpSendInput>
 
-/** The most people one send reaches. Each one's viewer is resolved so nobody gets a link to something they cannot open. */
+/** The most people one send reaches. Each one's grants are checked so nobody gets a link to something they cannot open. */
 export const HELP_SEND_MAX_RECIPIENTS = 500
 
 /** The subject of a message with several articles, in the language of the send (English for any other). */
@@ -27,14 +27,21 @@ export const helpSendSubject = (locale: string, count: number) => (SUBJECTS[loca
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[char]!)
 
 /**
- * The people an audience stands for: the explicit `userIds`, plus whatever `help-center:audience:resolve` listeners add
- * for `operationId`, `teamId` and `globalRoles`. The help center imports neither teams nor crew, so without a listener
- * only explicit ids resolve.
+ * The people an audience stands for: the explicit `userIds`, plus the members of every grant (`grantsMembers`: each grant
+ * kind lists its own, `role` from Authorization, `team` from Teams, `operation` from the modules that know who takes
+ * part). The grants are checked first: an unknown kind or a reference that does not exist is a 400, and so is a
+ * `public` grant, which lists nobody.
  */
 export async function resolveHelpAudience(event: H3Event, audience: SendInput['audience']): Promise<string[]> {
   const userIds = (audience.userIds ?? []).map(String)
-  await useNitroApp().hooks.callHook('help-center:audience:resolve', { event, audience: { ...audience }, userIds })
-  return [...new Set(userIds.map(String))]
+  if (audience.grants?.length) {
+    const grants = await grantsValidate(event, audience.grants as Grant[], { field: 'audience' })
+    if (grants.some(grant => grant.kind === 'public')) {
+      throw validationError([{ path: ['audience', 'grants'], message: 'A send cannot go to everyone: name the roles, teams or people instead.' }])
+    }
+    userIds.push(...await grantsMembers(event, grants))
+  }
+  return [...new Set(userIds)]
 }
 
 /**
@@ -49,11 +56,10 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
   if (!paths.public.base && !paths.signedIn.base) throw notConfigured('Both areas of the help center are off, so there is nowhere to link to.')
 
   const ids = await resolveHelpAudience(event, input.audience)
-  // An operation, team or role that nobody answers for is not "zero people": say that nothing listened, so a host that
-  // has not installed teams or crew finds out instead of believing the message went out.
-  const named = input.audience.operationId || input.audience.teamId || input.audience.globalRoles?.length
-  if (!ids.length && named) {
-    throw apiError(400, 'audience_not_resolved', 'Nobody answers for this audience: no help-center:audience:resolve listener (teams or crew) returned people for it. Send to explicit userIds, or install the module that knows the audience.')
+  // Grants that list nobody are not a send to "zero people": say so, so the sender finds out instead of believing the
+  // message went out.
+  if (!ids.length) {
+    throw apiError(400, 'audience_not_resolved', 'Nobody matches this audience: its grants list no people. Check the roles, teams or operations, or send to explicit userIds.')
   }
   if (ids.length > HELP_SEND_MAX_RECIPIENTS) {
     throw validationError([{ path: ['audience'], message: `An audience of ${ids.length} people is too many: send to at most ${HELP_SEND_MAX_RECIPIENTS} at a time.` }])
@@ -73,13 +79,9 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
       result.skipped++
       continue
     }
-    // The user as stored (numeric id, email), the way a request's own user is, so role providers and hooks see the same.
-    const viewer = await resolveViewer(event, {
-      hooks: useNitroApp().hooks,
-      user: { id: person.user.id },
-      globalRoles: await getEffectiveRoles(event, person.user as Parameters<typeof getEffectiveRoles>[1]),
-    })
-    const ctx = { event, viewer, requiredLocales }
+    // The user as stored (numeric id, email), the way a request's own user is, so role providers and grant kinds see
+    // the same: each article is checked against the recipient's grants, never the sender's.
+    const ctx = { event, reader: helpCenterReaderFor(event, person.user as { id: string | number }), requiredLocales }
 
     const links: Array<{ title: string, url: string }> = []
     for (const articleId of input.articleIds) {

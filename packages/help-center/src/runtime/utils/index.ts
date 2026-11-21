@@ -5,7 +5,7 @@ export { translate }
 export * from './api'
 export * from './slug'
 export * from './publish'
-export * from './visibility'
+export * from './grants'
 export * from './markdown'
 export * from './paths'
 export * from './content'
@@ -20,8 +20,9 @@ export type {
   HelpArticleDto,
   HelpArticleStatus,
   HelpArticleSummaryDto,
+  Grant,
   HelpAudience,
-  HelpAudienceResolveContext,
+  HelpReader,
   HelpCategoryDto,
   HelpCenterSource,
   HelpChecklistDto,
@@ -35,8 +36,6 @@ export type {
   ModuleOptions,
   OwnerRef,
   Translated,
-  Viewer,
-  Visibility,
 } from '../../types'
 
 /** Random, prefixed id (`hlc_...`, `hlp_...`), Web Crypto only so it works on Workers. */

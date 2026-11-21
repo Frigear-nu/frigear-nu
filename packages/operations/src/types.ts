@@ -79,3 +79,27 @@ export type OperationStatusChangedContext = {
   from: OperationStatus
   to: OperationStatus
 }
+
+/**
+ * Context of `operations:participation:resolve`: listeners add the ids of the operations `user` takes part in. Crew
+ * answers it with the operations whose teams the user is an active member of. Identify the user from `ctx.user`, never
+ * from the session on `ctx.event`: it is empty for bearer requests, and `event` is `undefined` outside a request.
+ */
+export type OperationsParticipationContext = {
+  event: H3Event | undefined
+  user: { id: string | number }
+  operationIds: Set<string>
+}
+
+/**
+ * Context of `operations:participants:resolve`: listeners add the ids (as text) of the users who take part in any of
+ * `operationIds`. Keep every query under D1's 100 bound parameters (`chunkGrantParams` of `@frigear-nu/grants/core`).
+ */
+export type OperationsParticipantsContext = {
+  event: H3Event | undefined
+  operationIds: string[]
+  userIds: Set<string>
+}
+
+/** The `operation` grant of `@frigear-nu/grants`: the users who take part in the operation. */
+export type OperationGrant = { kind: 'operation', operationId: string }

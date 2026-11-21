@@ -1,5 +1,4 @@
-import type { TeamRoleGrant } from '@frigear-nu/audience'
-import type { TeamsClaimEntry } from '../../types'
+import type { TeamRoleGrant, TeamsClaimEntry } from '../../types'
 
 /** The scopes that let an OAuth application see the `teams` claim: the named scope `teams`, or `teams:read` itself. */
 export const TEAMS_CLAIM_SCOPES = ['teams', 'teams:read'] as const

@@ -4,7 +4,7 @@ import { computed, errorMessage, resolveComponent, setResponseStatus, useRequest
 defineOptions({ name: 'HelpCenterCategoryView' })
 
 // One category: its subcategories, its articles and, when `@frigear-nu/faq` is installed, the FAQ groups the category
-// lists. The FAQ component filters its own visibility, so a public FAQ group inside a restricted category is still public
+// lists. The FAQ component filters by its own grants, so a public FAQ group inside a restricted category is still public
 // through the FAQ's own API.
 const props = defineProps<{ area: 'public' | 'signedIn', category: string }>()
 

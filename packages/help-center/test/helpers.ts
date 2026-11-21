@@ -13,16 +13,9 @@ export async function registerUser(name: string, email: string) {
   return { cookie: response.headers.get('set-cookie')!, id: String(body.id) }
 }
 
-type TeamRole = { ownerType: string, ownerId: string | null, teamId: string, kind: string, role: string, source: 'explicit' | 'mapped' }
-
-/** Tells the fixture's `audience:viewer:resolve` listener what teams and crew would report for the signed-in user. */
-export async function setViewer(cookie: string, state: { operationIds?: string[], teamRoles?: TeamRole[] }) {
-  await $fetch('/api/test/viewer', { method: 'POST', headers: { cookie }, body: state })
-}
-
-/** Says which users `help-center:audience:resolve` returns for an operation or a team id (what crew or teams would answer). */
-export async function setAudience(key: string, userIds: string[]) {
-  await $fetch('/api/test/audience', { method: 'POST', body: { key, userIds } })
+/** Makes users take part in an operation, for the fixture's `operation` grant kind (what crew would answer). */
+export async function takePart(operationId: string, userIds: string[]) {
+  await $fetch('/api/test/participate', { method: 'POST', body: { operationId, userIds } })
 }
 
 /** Gives a user a phone number, as a host that sends texts would. */

@@ -1,5 +1,4 @@
-import type { TeamRoleGrant } from '@frigear-nu/audience'
-import type { TeamOwner, TeamRoleMappingDto, TeamRoleMatch, TeamsMappedGrant, TeamsResolverTeam } from '../../types'
+import type { TeamOwner, TeamRoleGrant, TeamRoleMappingDto, TeamRoleMatch, TeamsMappedGrant, TeamsResolverTeam } from '../../types'
 import { teamRoleRank } from './ladders'
 
 // The pure part of role resolution: which rules apply to which team, which mapped grant wins, and how explicit and
