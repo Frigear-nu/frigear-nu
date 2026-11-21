@@ -7,7 +7,7 @@ import { useFormat, useRuntimeConfig } from '#imports'
  */
 export function useShiftsFormat() {
   const format = useFormat()
-  const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'Europe/Copenhagen'
+  const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'UTC'
   // Node's and the browser's ICU put different spaces (U+2009, U+202F) around range dashes and before AM/PM; plain
   // spaces make the server and the client render the same text.
   const plain = (text: string) => text.replace(/[\u2009\u202F]/g, ' ')

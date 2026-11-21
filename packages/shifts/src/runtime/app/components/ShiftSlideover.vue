@@ -21,7 +21,7 @@ const format = useShiftsFormat()
 const toast = useToast()
 const confirm = useConfirmDialog()
 const { busy, run } = useAction()
-const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'Europe/Copenhagen'
+const timeZone = useRuntimeConfig().public.shifts?.timeZone ?? 'UTC'
 
 const current = ref<ShiftWithAssigneesDto>(props.shift)
 const changed = ref(false)

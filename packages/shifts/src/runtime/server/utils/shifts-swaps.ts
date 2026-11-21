@@ -524,7 +524,7 @@ export async function shiftsAcceptOffer(event: H3Event, swap: ShiftSwapRow, offe
   return shiftsCompleteSwap(event, claimed, accepted, null, { fireAccepted: true })
 }
 
-/** The explicit leads of the teams (BA and up), who approve swaps with `approval: 'lead'`, each with the team they lead. */
+/** The explicit leads of the teams (lead role and up), who approve swaps with `approval: 'lead'`, each with the team they lead. */
 async function shiftsSwapApprovers(event: H3Event, teamIds: string[]): Promise<Map<number, string>> {
   const ids = new Map<number, string>()
   for (const teamId of new Set(teamIds)) {

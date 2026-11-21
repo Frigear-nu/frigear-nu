@@ -65,7 +65,7 @@ export async function shiftsMyShiftDtos(rows: ShiftAssignmentEntry[]): Promise<M
 }
 
 /**
- * The leads (BA and up) of a team who hold a place on one of its shifts overlapping `[startsAt, endsAt)`, names only.
+ * The leads (lead role and up) of a team who hold a place on one of its shifts overlapping `[startsAt, endsAt)`, names only.
  * `exclude` leaves a person out (yourself).
  */
 export async function shiftsLeadsOnDuty(event: H3Event, teamId: string, startsAt: Date, endsAt: Date, exclude?: number): Promise<ShiftPersonDto[]> {
@@ -133,7 +133,7 @@ export async function shiftsTeamShifts(teamId: string, range: { from?: Date, to?
 
 /**
  * Who is on shift now in an operation: the shifts of its published schedules running at `at`, with the people on them
- * (`assigned` and `attended`) and, per team, the leads among them (the BA on duty). Contact details only with `pii`.
+ * (`assigned` and `attended`) and, per team, the leads among them. Contact details only with `pii`.
  */
 export async function shiftsNow(event: H3Event, operationId: string, pii: boolean, at = new Date()): Promise<ShiftsNowDto> {
   const rows = await db.select({ shift: schema.shifts, schedule: schema.shiftSchedules }).from(schema.shifts)
