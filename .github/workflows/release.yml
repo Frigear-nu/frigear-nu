@@ -37,6 +37,7 @@ on:
           - events
           - faq
           - forms
+          - grants
           - help-center
           - oauth-resource
           - mcp

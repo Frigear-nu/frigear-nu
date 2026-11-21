@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { createViewer } from '@frigear-nu/audience'
 import type { H3Event } from 'h3'
 import { createContentSource } from '../../src/runtime/server/content-source'
 import type { HelpContentRow } from '../../src/runtime/utils/content'
@@ -8,7 +7,8 @@ import type { HelpContentRow } from '../../src/runtime/utils/content'
 // `queryCollection(event, name).all()` (`server/utils/help-center-content.ts`); a fixture with `@nuxt/content` would only
 // test Nuxt Content's own database.
 const event = {} as H3Event
-const ctx = { event, viewer: createViewer(), requiredLocales: ['da', 'en'] }
+const reader = (user: { id: number } | null) => ({ user, canRead: async () => false })
+const ctx = { event, reader: reader(null), requiredLocales: ['da', 'en'] }
 
 const rows: Record<string, HelpContentRow[]> = {
   help: [
@@ -51,9 +51,9 @@ describe('the content source', () => {
     })
   })
 
-  it('serves public articles to anonymous visitors and signed-in viewers alike: nothing restricts content', async () => {
+  it('serves public articles to anonymous visitors and signed-in readers alike: nothing restricts content', async () => {
     const anonymous = await source().list(ctx)
-    const member = await source().list({ ...ctx, viewer: createViewer({ userId: 1 }) })
+    const member = await source().list({ ...ctx, reader: reader({ id: 1 }) })
     expect(member).toEqual(anonymous)
     expect(anonymous.every(article => article.public)).toBe(true)
   })

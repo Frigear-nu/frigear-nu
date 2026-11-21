@@ -137,7 +137,6 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
-| `help-center:audience:resolve` | help-center | `{ event, audience, userIds }` | 3 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:approved` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:rejected` | crew | `{ event, operationId, member }` | 3 |

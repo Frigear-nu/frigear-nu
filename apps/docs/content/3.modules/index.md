@@ -45,7 +45,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Grants, UI |
 | Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, Grants, UI |
 | Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Grants, UI |
-| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
+| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, Grants, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
