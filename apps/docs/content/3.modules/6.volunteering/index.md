@@ -11,8 +11,9 @@ other through hooks and registries instead of imports. This page is for module a
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
 The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
-[Operations](/modules/volunteering/operations) and [Teams](/modules/volunteering/teams). Every other module adds its
-own page to this group in the pull request that adds the module.
+[Operations](/modules/volunteering/operations), [Teams](/modules/volunteering/teams) and
+[Crew](/modules/volunteering/crew). Every other module adds its own page to this group in the pull request that adds the
+module.
 
 ## The modules
 
@@ -20,7 +21,7 @@ own page to this group in the pull request that adds the module.
 | --- | --- | --- |
 | [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
-| `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
+| [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
@@ -227,6 +228,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   owner. `rules` are the mapping rules in play and `teams` the teams they cover, so the hook only fires when there are
   rules. `event` is `undefined` while an OAuth claim is built. A listener that throws loses the grants it pushed; the
   explicit memberships and teams' own role rules still count.
+- **Teams hooks and crew.** Teams fires `teams:member:*` from its own admin routes, once per row change. Crew changes
+  `team_members` rows itself and fires the same hooks with the same payloads, but when a **grant** starts or stops, not on
+  every row change: `added` when an approved person starts to hold a role, `removed` when they stop, `role-changed` when
+  an approved person's role changes. An applicant's row (`pending`) has no grant, so it fires nothing in Teams.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.
