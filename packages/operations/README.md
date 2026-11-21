@@ -1,6 +1,6 @@
 # @frigear-nu/operations
 
-The occasions Frigear works at, whether or not Frigear hosts them ("Roskilde 2027 bar operation"). An operation has a
+The occasions an organisation works at, whether or not it hosts them (such as a festival bar). An operation has a
 period, a place, a host and a status (`planning`, `active`, `wrapped_up`, `archived`), and is the anchor that crew,
 shifts, maps and help content attach to. Part of the volunteering modules; it follows the contracts of
 [`@frigear-nu/audience`](../audience).
