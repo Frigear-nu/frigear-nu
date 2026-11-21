@@ -1209,7 +1209,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, lead, cy] = await Promise.all([user('Bann'), user('Bbo'), user('Blead'), user('Bcy')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(other.id, cy)
       return { ...setup, other, ann, bo, lead, cy }
     }
@@ -1256,7 +1256,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       await assigned(setup.shifts[0]!.id, ann)
       await assigned(setup.shifts[0]!.id, bo)
 
-      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.team.id, teamRole: 'ba' }, ...text }))).toMatchObject({ recipientCount: 1, teamId: setup.team.id, teamRole: 'ba' })
+      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.team.id, teamRole: 'lead' }, ...text }))).toMatchObject({ recipientCount: 1, teamId: setup.team.id, teamRole: 'lead' })
       expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
       expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id }, ...text }))).toMatchObject({ recipientCount: 1 })
       expect(await emailsWith(cy, 'Hi')).toHaveLength(1)
@@ -1265,12 +1265,12 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
       expect(await emailsWith(ann, 'Hi')).toHaveLength(1)
 
-      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id, teamRole: 'ba' }, ...text }), 400, 'audience_empty')
+      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id, teamRole: 'lead' }, ...text }), 400, 'audience_empty')
       // A team or a shift of another operation, and a role together with a shift: 400.
       const elsewhere = await newSetup()
       expect((await broadcast(staff, { operationId: setup.op.id, audience: { teamId: elsewhere.team.id }, ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: elsewhere.shifts[0]!.id }, ...text })).status).toBe(400)
-      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id, teamRole: 'ba' }, ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id, teamRole: 'lead' }, ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, channels: ['push'], ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, subject: '', message: 'x' })).status).toBe(400)
 
@@ -1287,7 +1287,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(sent).toMatchObject({ operationId: setup.op.id, teamId: setup.team.id, recipientCount: 3, channels: ['email'], sentBy: lead.id })
       expect(await emailsWith(ann, 'Team news')).toHaveLength(1)
       expect(await emailsWith(cy, 'Team news')).toHaveLength(0)
-      expect(await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamRole: 'ba' } }))).toMatchObject({ recipientCount: 1 })
+      expect(await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamRole: 'lead' } }))).toMatchObject({ recipientCount: 1 })
       // Another team, another team through the audience, a volunteer, and a shift of another team: refused.
       expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.other.id), text)).status).toBe(403)
       expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamId: setup.other.id } })).status).toBe(403)
@@ -1313,8 +1313,8 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, lead, otherLead] = await Promise.all([user('Kann'), user('Kbo'), user('Klead'), user('Kother')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      await addMember(setup.team.id, lead, 'ba')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, otherLead, 'lead')
       // Both shifts run now (they overlap: guards only warn), so every pass is open.
       for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
       return { ...setup, other, ann, bo, lead, otherLead }
@@ -1490,8 +1490,8 @@ describe('shifts (authenticated, database-backed)', async () => {
       const other = await createTeam(setup.op.id)
       const [ann, cy, lead] = await Promise.all([user('Xann'), user('Xcy'), user('Xlead')])
       for (const who of [ann, cy]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
-      await addMember(other.id, await user('Xother'), 'ba')
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, await user('Xother'), 'lead')
       // Open pass window, but not started yet: a started shift cannot be swapped.
       for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
       const perShift = await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'Meal', perShift: 1 }).then(ok)
