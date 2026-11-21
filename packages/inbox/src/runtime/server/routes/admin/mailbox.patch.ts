@@ -1,6 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 import { idParams } from '@frigear-nu/module-kit/server'
+import type { Grant } from '@frigear-nu/grants/core'
 import { inboxAccess } from '../../../access'
 import type { InboxMailboxDto } from '../../../../types'
 
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event): Promise<InboxMailboxDto> => {
 
   const values: Partial<typeof schema.inboxMailboxes.$inferInsert> = {}
   if (input.name !== undefined) values.name = input.name
-  if (input.visibility !== undefined) values.visibility = inboxCheckMailboxVisibility(row.ownerType, input.visibility)
+  if (input.grants !== undefined) values.grants = await inboxCheckMailboxGrants(event, row.ownerType, input.grants as Grant[], row.grants)
   if (input.retentionDays !== undefined) values.retentionDays = input.retentionDays
   if (!Object.keys(values).length) return toInboxMailboxDto(row)
   const [updated] = await db.update(schema.inboxMailboxes).set(values).where(eq(schema.inboxMailboxes.id, row.id)).returning()

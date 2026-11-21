@@ -94,7 +94,7 @@ describe('inbox (authenticated, database-backed)', async () => {
       const all = await as(admin).json<Json[]>('GET', inboxApi.admin.mailboxes)
       support = all.find(mailbox => mailbox.key === 'support')!
       board = all.find(mailbox => mailbox.key === 'board')!
-      expect(support).toMatchObject({ ownerType: 'platform', visibility: { globalRoles: ['coordinator'] } })
+      expect(support).toMatchObject({ ownerType: 'platform', grants: [{ kind: 'role', role: 'coordinator' }] })
       expect(board.retentionDays).toBe(365)
       expect((await as(coord).json<Json[]>('GET', inboxApi.admin.mailboxes)).map(mailbox => mailbox.key)).toEqual(['support'])
       expect(await as(crew).json<Json[]>('GET', inboxApi.admin.mailboxes)).toEqual([])
@@ -104,10 +104,14 @@ describe('inbox (authenticated, database-backed)', async () => {
 
     it('never makes a platform mailbox open to every signed-in user, and only staff manage them', async () => {
       await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'open', name: 'Open' }), 400)
-      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'public', name: 'Public', visibility: { public: true } }), 400)
-      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'typo', name: 'Typo', visibility: { permission: 'inbox:read' } }), 400)
-      await expectApiError(as(coord).json('POST', inboxApi.admin.mailboxes, { key: 'x', name: 'X', visibility: { globalRoles: ['crew'] } }), 403, 'forbidden')
-      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'support', name: 'Again', visibility: { globalRoles: ['crew'] } }), 409)
+      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'public', name: 'Public', grants: [{ kind: 'public' }] }), 400)
+      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'nobody', name: 'Nobody', grants: [] }), 400)
+      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'galaxy', name: 'Galaxy', grants: [{ kind: 'galaxy' }] }), 400)
+      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'typo', name: 'Typo', grants: [{ kind: 'role', role: 'crew', permission: 'inbox:read' }] }), 400)
+      await expectApiError(as(coord).json('POST', inboxApi.admin.mailboxes, { key: 'x', name: 'X', grants: [{ kind: 'role', role: 'crew' }] }), 403, 'forbidden')
+      await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'support', name: 'Again', grants: [{ kind: 'role', role: 'crew' }] }), 409)
+      // A stored list cannot be opened to everyone on a patch either.
+      await expectApiError(as(admin).json('PATCH', inboxApi.admin.mailbox(board.id), { grants: [{ kind: 'public' }] }), 400)
       const renamed = await as(admin).json<Json>('PATCH', inboxApi.admin.mailbox(board.id), { name: { da: 'Bestyrelse', en: 'Board' } })
       expect(renamed.name).toEqual({ da: 'Bestyrelse', en: 'Board' })
     })
@@ -115,12 +119,12 @@ describe('inbox (authenticated, database-backed)', async () => {
     it('lets a team\'s leads read a team mailbox', async () => {
       await expectApiError(as(admin).json('POST', inboxApi.admin.mailboxes, { key: 'ghost-team', name: 'Ghost', ownerType: 'team', ownerId: 'tem_missing' }), 400)
       const team = await as(admin).json<Json>('POST', inboxApi.admin.mailboxes, { key: 'bar-team', name: 'Bar team', ownerType: 'team', ownerId: 'tem_known' })
-      expect(team.visibility).toBeNull()
+      expect(team.grants).toEqual([])
       expect(await as(crew).json<Json[]>('GET', inboxApi.admin.mailboxes)).toEqual([])
       await makeLead(crew.cookie, 'tem_known')
       expect((await as(crew).json<Json[]>('GET', inboxApi.admin.mailboxes)).map(mailbox => mailbox.key)).toEqual(['bar-team'])
       // An empty mailbox can go; the support mailbox keeps its threads and cannot.
-      const spare = await as(admin).json<Json>('POST', inboxApi.admin.mailboxes, { key: 'spare', name: 'Spare', visibility: { globalRoles: ['admin'] } })
+      const spare = await as(admin).json<Json>('POST', inboxApi.admin.mailboxes, { key: 'spare', name: 'Spare', grants: [{ kind: 'role', role: 'admin' }] })
       expect((await as(admin).fetch('DELETE', inboxApi.admin.mailbox(spare.id))).status).toBe(204)
     })
   })

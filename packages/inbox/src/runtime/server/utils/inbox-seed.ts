@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { parseVisibility } from '@frigear-nu/audience'
+import { checkGrantList, readGrants } from '@frigear-nu/grants/core'
 import { newInboxId } from '../../utils'
 import type { InboxMailboxSeed } from '../../../types'
 
@@ -10,15 +10,17 @@ let failedAt = 0
 
 /** Creates a mailbox of `inbox.mailboxes` unless one with its key exists; an existing one is never changed. */
 export async function inboxEnsureMailbox(seed: InboxMailboxSeed): Promise<void> {
-  const visibility = seed.visibility === undefined || seed.visibility === null ? null : parseVisibility(seed.visibility)
-  if (seed.visibility && !visibility) throw new Error(`[inbox] the mailbox "${seed.key}" has an invalid visibility`)
+  const grants = readGrants(seed.grants ?? [])
+  if (checkGrantList(grantsRegistry(), grants).length || grants.some(grant => grant.kind === 'public')) {
+    throw new Error(`[inbox] the mailbox "${seed.key}" has invalid grants (an unknown kind, an invalid grant or a public one)`)
+  }
   await db.insert(schema.inboxMailboxes).values({
     id: newInboxId('ibx'),
     key: seed.key,
     ownerType: seed.ownerType ?? 'platform',
     ownerId: seed.ownerType === 'team' ? seed.ownerId ?? null : null,
     name: seed.name,
-    visibility,
+    grants,
     retentionDays: seed.retentionDays ?? null,
   }).onConflictDoNothing()
 }

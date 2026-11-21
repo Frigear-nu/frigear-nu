@@ -9,8 +9,8 @@ import { defineAccess } from '@frigear-nu/auth/access'
 export const inboxAccess = defineAccess('inbox', {
   permissions: {
     // Held by every signed-in user and narrowed by the policy: staff with `inbox:manage` read every mailbox, a team's
-    // leads read the team's mailbox, anyone else what the mailbox's `visibility` lets in. A mailbox with an empty
-    // visibility is staff only, never "every signed-in user". A hidden thread needs its `hiddenBelow` role on top.
+    // leads read the team's mailbox, anyone else whom the mailbox's `grants` admit. A mailbox with an empty
+    // list is staff only (and its team's leads), never "every signed-in user". A hidden thread needs its `hiddenBelow` role on top.
     'read': {
       sessionOnly: true,
       label: 'Read inboxes',

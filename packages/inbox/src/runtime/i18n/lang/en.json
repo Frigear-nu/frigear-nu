@@ -201,7 +201,8 @@
       "teamLeads": "Team leads",
       "title": "Inbox settings",
       "turnOff": "Turn off channel",
-      "turnOn": "Turn on channel"
+      "turnOn": "Turn on channel",
+      "moreGrants": "{count} more"
     },
     "status": {
       "closed": "Closed",
@@ -240,15 +241,6 @@
       "unassigned": "Unassigned {subject}",
       "visibleTo": "Seen by"
     },
-    "tryAgain": "Try again",
-    "visibility": {
-      "operation": "Only people taking part in operation",
-      "role": "Role",
-      "roles": "Roles that read it",
-      "rolesHelp": "Global roles, such as coordinator.",
-      "teamKind": "Team kind",
-      "teamRole": "Team role and up",
-      "teamRoleHelp": "A team kind and a role of its ladder, such as bar and ba."
-    }
+    "tryAgain": "Try again"
   }
 }

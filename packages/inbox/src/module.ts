@@ -101,6 +101,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
+    // Who reads a mailbox besides staff and a team's leads: a grant list.
+    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the staff pages live in; the page components come from `@frigear-nu/ui`.
@@ -112,7 +114,7 @@ export default defineNuxtModule<ModuleOptions>({
     // `inbox:read`, `:reply`, `:assign`, `:hide`, `:manage`, `inbox:pii`, `inbox:channels`,
     // `inbox-audit:pii` and the `inbox` scope (`runtime/access.ts`).
     registerAccess(nuxt, inboxAccess, { from: MODULE_NAME })
-    // The record rules of `inbox:read` and `inbox:reply`: mailbox visibility, team leads and `hiddenBelow`.
+    // The record rules of `inbox:read` and `inbox:reply`: mailbox grants, team leads and `hiddenBelow`.
     addPolicies(nuxt, { path: resolver.resolve('./runtime/server/policies') })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))

@@ -1,7 +1,8 @@
 import type { H3Event } from 'h3'
-import type { OwnerRef, Visibility } from '@frigear-nu/audience'
+import type { Grant } from '@frigear-nu/grants/core'
+import type { OwnerRef } from '@frigear-nu/teams'
 
-export type { OwnerRef, Visibility }
+export type { Grant, OwnerRef }
 
 /** A text in one language, or one per locale code (`{ da: '...', en: '...' }`), as in `@frigear-nu/ui`. */
 export type Translated = string | Record<string, string>
@@ -120,7 +121,8 @@ export type InboxMailboxDto = {
   ownerType: InboxMailboxOwnerType
   ownerId: string | null
   name: Translated
-  visibility: Visibility | null
+  /** Who reads it besides staff (and a team mailbox's leads): any one grant admits, never `public`. */
+  grants: Grant[]
   /** Days a closed thread is kept; `null` takes `inbox.retention.days`. */
   retentionDays: number | null
   createdAt: string
@@ -267,7 +269,8 @@ export type InboxMailboxSeed = {
   name: Translated
   ownerType?: 'platform' | 'team'
   ownerId?: string | null
-  visibility?: Visibility | null
+  /** Who reads it besides staff. A platform mailbox names someone; `public` is refused. */
+  grants?: Grant[]
   retentionDays?: number | null
 }
 

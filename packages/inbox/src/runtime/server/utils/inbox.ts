@@ -2,9 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { asc, eq, inArray } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { isEmptyVisibility, isVisible, parseVisibility } from '@frigear-nu/audience'
-import type { Viewer } from '@frigear-nu/audience'
-import { resolveViewer } from '@frigear-nu/audience/server'
+import { readGrants } from '@frigear-nu/grants/core'
 import { apiError, likeContains, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../access'
 import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
@@ -73,7 +71,7 @@ export async function inboxUserRefs(ids: Array<number | null | undefined>): Prom
 
 // --- Who is looking ------------------------------------------------------------------------------------------------------
 
-type InboxEventContext = { inboxViewer?: Promise<Viewer>, inboxRoles?: Promise<string[]> }
+type InboxEventContext = { inboxRoles?: Promise<string[]> }
 
 /** The caller's global roles (closed over `inherit`), once per request. */
 export function inboxCallerRoles(event: H3Event): Promise<string[]> {
@@ -83,21 +81,6 @@ export function inboxCallerRoles(event: H3Event): Promise<string[]> {
     return principal?.user ? getEffectiveRoles(event, principal.user) : []
   })()
   return context.inboxRoles
-}
-
-/** Who is looking, once per request: `audience:viewer:resolve` fills in team roles and operations. */
-export function resolveInboxViewer(event: H3Event): Promise<Viewer> {
-  const context = event.context as InboxEventContext
-  context.inboxViewer ??= (async () => {
-    const principal = await getAuth(event)
-    const user = principal?.user ?? null
-    return resolveViewer(event, {
-      hooks: useNitroApp().hooks,
-      user: user as { id: string | number } | null,
-      globalRoles: user ? await inboxCallerRoles(event) : [],
-    })
-  })()
-  return context.inboxViewer
 }
 
 /**
@@ -110,8 +93,6 @@ export type InboxSubject = {
   manages: () => Promise<boolean>
   /** Global roles, closed over `inherit`. */
   roles: () => Promise<string[]>
-  /** The audience viewer: team roles, ladders and operations. */
-  viewer: () => Promise<Viewer>
 }
 
 /** The caller as a subject, with the per-request caches. */
@@ -120,21 +101,17 @@ export function inboxCallerSubject(event: H3Event, user: { id: string | number }
     user,
     manages: () => allows(event, inboxAccess.permissions.manage),
     roles: () => inboxCallerRoles(event),
-    viewer: () => resolveInboxViewer(event),
   }
 }
 
-/** Another user as a subject: their own roles and viewer, and `inbox:manage` as their session would hold it. */
+/** Another user as a subject: their own roles, and `inbox:manage` as their session would hold it. */
 export function inboxUserSubject(event: H3Event, user: Parameters<typeof subjectAllowed>[1]): InboxSubject {
   let roles: Promise<string[]> | undefined
-  let viewer: Promise<Viewer> | undefined
-  const subject: InboxSubject = {
+  return {
     user,
     manages: () => subjectAllowed(event, user, inboxAccess.permissions.manage),
     roles: () => (roles ??= getEffectiveRoles(event, user)),
-    viewer: () => (viewer ??= subject.roles().then(globalRoles => resolveViewer(event, { hooks: useNitroApp().hooks, user: user as { id: string | number }, globalRoles }))),
   }
-  return subject
 }
 
 /** A hidden thread is seen only by people who hold its `hiddenBelow` role (roles inherit along the host's chain). */
@@ -145,15 +122,14 @@ export async function inboxSeesHidden(subject: InboxSubject, hiddenBelow: string
 
 /**
  * The record rule of `inbox:read` and `inbox:reply` for a mailbox: staff with `inbox:manage` read every one, a team's
- * leads read the team's, anyone else what its visibility lets in. An empty or public visibility lets nobody in: a
- * mailbox holds outsiders' messages, so it is never open to every signed-in user.
+ * leads read the team's, anyone else whom its grants (`@frigear-nu/grants`) admit. An empty list lets nobody else in, and
+ * a `public` grant never counts: a mailbox holds outsiders' messages, so it is never open to everyone.
  */
 export async function inboxCanAccessMailbox(event: H3Event, subject: InboxSubject, mailbox: InboxMailboxRow): Promise<boolean> {
   if (await subject.manages()) return true
   if (mailbox.ownerType === 'team' && mailbox.ownerId && await inboxIsTeamLead(event, subject.user.id, mailbox.ownerId)) return true
-  const visibility = parseVisibility(mailbox.visibility)
-  if (!visibility || isEmptyVisibility(visibility) || visibility.public) return false
-  return isVisible(visibility, await subject.viewer())
+  const grants = readGrants(mailbox.grants).filter(grant => grant.kind !== 'public')
+  return grants.length > 0 && grantsMatch(event, subject.user, grants)
 }
 
 /** The same rule for a thread: its `hiddenBelow` first, then its mailbox. */

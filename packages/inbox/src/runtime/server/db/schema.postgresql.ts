@@ -3,8 +3,8 @@ import { pgTable, text, integer, bigint, boolean, jsonb, timestamp, index, uniqu
 // (declared here, not imported: this file is merged into the generated schema as plain text)
 // A text in one language, or a `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 type Translated = string | Record<string, string>
-// Who may see a record, see `Visibility` in `@frigear-nu/audience`.
-type Visibility = { public?: boolean, globalRoles?: string[], minTeamRole?: { kind: string, role: string }, operationId?: string }
+// Who may read a record, see `Grant` of `@frigear-nu/grants`.
+type Grant = { kind: string } & Record<string, unknown>
 // A file on a message: a Blob pathname or a provider URL, never the bytes.
 type InboxAttachment = { filename: string, contentType?: string, size?: number, pathname?: string, url?: string }
 
@@ -18,8 +18,8 @@ export const inboxMailboxes = pgTable('inbox_mailboxes', {
   /** The owner's id as text; `null` for `platform`. */
   ownerId: text(),
   name: jsonb().$type<Translated>().notNull(),
-  /** Who reads it, besides staff with `inbox:manage` (and a team's leads for a team mailbox). */
-  visibility: jsonb().$type<Visibility>(),
+  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: jsonb().$type<Grant[]>().notNull().default([]),
   /** Days a closed thread is kept; `null` takes the module's `retention.days`. */
   retentionDays: integer(),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),

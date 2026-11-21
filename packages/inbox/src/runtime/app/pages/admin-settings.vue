@@ -31,9 +31,10 @@ const mailboxName = (id: string) => tr(mailboxes.value?.find(mailbox => mailbox.
 const readers = (mailbox: InboxMailboxDto) => {
   const parts: string[] = []
   if (mailbox.ownerType === 'team') parts.push(t('settings.teamLeads', 'Team leads'))
-  if (mailbox.visibility?.globalRoles?.length) parts.push(mailbox.visibility.globalRoles.join(', '))
-  if (mailbox.visibility?.minTeamRole) parts.push(`${mailbox.visibility.minTeamRole.kind} ${mailbox.visibility.minTeamRole.role}+`)
-  if (mailbox.visibility?.operationId) parts.push(mailbox.visibility.operationId)
+  const roles = mailbox.grants.flatMap(grant => grant.kind === 'role' && typeof grant.role === 'string' ? [grant.role] : [])
+  if (roles.length) parts.push(roles.join(', '))
+  const others = mailbox.grants.filter(grant => grant.kind !== 'role').length
+  if (others) parts.push(t('settings.moreGrants', '{count} more', { count: others }))
   return parts.join(' · ') || t('settings.staffOnly', 'Staff only')
 }
 

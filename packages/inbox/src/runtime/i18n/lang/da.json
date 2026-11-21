@@ -201,7 +201,8 @@
       "teamLeads": "Holdledere",
       "title": "Indstillinger for indbakken",
       "turnOff": "Slå kanal fra",
-      "turnOn": "Slå kanal til"
+      "turnOn": "Slå kanal til",
+      "moreGrants": "{count} mere"
     },
     "status": {
       "closed": "Lukket",
@@ -240,15 +241,6 @@
       "unassigned": "Fjernede tildelingen af {subject}",
       "visibleTo": "Ses af"
     },
-    "tryAgain": "Prøv igen",
-    "visibility": {
-      "operation": "Kun folk, der deltager i operationen",
-      "role": "Rolle",
-      "roles": "Roller, der læser den",
-      "rolesHelp": "Globale roller, fx coordinator.",
-      "teamKind": "Holdtype",
-      "teamRole": "Holdrolle og op",
-      "teamRoleHelp": "En holdtype og en rolle på dens stige, fx bar og ba."
-    }
+    "tryAgain": "Prøv igen"
   }
 }

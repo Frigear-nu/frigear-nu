@@ -7,7 +7,7 @@ an audit log, closed threads are deleted (or anonymised) after a retention perio
 exported and erased.
 
 ```bash
-pnpm add @frigear-nu/inbox @frigear-nu/audience
+pnpm add @frigear-nu/inbox
 ```
 
 ```ts
@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@frigear-nu/users', '@frigear-nu/forms', '@frigear-nu/inbox'],
   hub: { db: 'sqlite' },
   inbox: {
-    mailboxes: [{ key: 'support', name: 'Support', visibility: { globalRoles: ['coordinator'] } }],
+    mailboxes: [{ key: 'support', name: 'Support', grants: [{ kind: 'role', role: 'coordinator' }] }],
     settings: { pages: { admin: true, adminThread: true, adminSettings: true } },
   },
 })

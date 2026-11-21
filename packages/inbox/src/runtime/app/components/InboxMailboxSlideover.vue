@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { z } from 'zod'
-import type { InboxMailboxDto, Translated, Visibility } from '../../../types'
+import type { Grant, InboxMailboxDto, Translated } from '../../../types'
 import { inboxApi } from '../../utils/api'
 import { $fetch, reactive, useAction, useInboxTranslate, useModuleT } from '#imports'
+import { grantFields } from '#grants/fields'
 
 defineOptions({ name: 'InboxMailboxSlideover' })
 
@@ -15,10 +16,13 @@ const t = useModuleT('inbox')
 const tr = useInboxTranslate()
 const { busy, run } = useAction()
 
-type State = { name: Translated | null, key: string, ownerType: 'platform' | 'team', ownerId: string, visibility: Visibility | null, retentionDays: number | undefined }
+type State = { name: Translated | null, key: string, ownerType: 'platform' | 'team', ownerId: string, grants: Grant[], retentionDays: number | undefined }
 const state = reactive<State>(props.mailbox
-  ? { name: props.mailbox.name, key: props.mailbox.key, ownerType: props.mailbox.ownerType === 'team' ? 'team' : 'platform', ownerId: props.mailbox.ownerId ?? '', visibility: props.mailbox.visibility, retentionDays: props.mailbox.retentionDays ?? undefined }
-  : { name: null, key: '', ownerType: 'platform', ownerId: '', visibility: { globalRoles: ['admin'] }, retentionDays: undefined })
+  ? { name: props.mailbox.name, key: props.mailbox.key, ownerType: props.mailbox.ownerType === 'team' ? 'team' : 'platform', ownerId: props.mailbox.ownerId ?? '', grants: props.mailbox.grants, retentionDays: props.mailbox.retentionDays ?? undefined }
+  : { name: null, key: '', ownerType: 'platform', ownerId: '', grants: [{ kind: 'role', role: 'admin' }], retentionDays: undefined })
+
+// A mailbox holds outsiders' messages: `public` is not offered.
+const grantKinds = grantFields.map(field => field.kind).filter(kind => kind !== 'public')
 
 const ownerOptions = [
   { label: t('settings.ownerPlatform', 'Platform'), value: 'platform' },
@@ -35,7 +39,7 @@ const schema = z.object({
 
 async function save() {
   const name = tr(state.name)
-  const shared = { name: state.name, visibility: state.visibility, retentionDays: state.retentionDays ?? null }
+  const shared = { name: state.name, grants: state.grants, retentionDays: state.retentionDays ?? null }
   const saved = await run(
     () => props.mailbox
       ? $fetch<InboxMailboxDto>(inboxApi.admin.mailbox(props.mailbox.id), { method: 'PATCH', body: shared })
@@ -110,11 +114,14 @@ async function save() {
         </UFormField>
       </template>
       <UFormField
-        name="visibility"
+        name="grants"
         :label="t('settings.readers', 'Who reads it')"
         :description="t('settings.readersHelp', 'Staff who manage inboxes always do. A platform mailbox needs at least one rule.')"
       >
-        <InboxVisibilityInput v-model="state.visibility" />
+        <GrantsEditor
+          v-model="state.grants"
+          :kinds="grantKinds"
+        />
       </UFormField>
       <UFormField
         name="retentionDays"

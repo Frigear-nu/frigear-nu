@@ -49,7 +49,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/content/help-center) | Auth, Grants, UI |
 | Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Maps, UI |
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
-| Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, Audience, UI |
+| Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, Grants, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.

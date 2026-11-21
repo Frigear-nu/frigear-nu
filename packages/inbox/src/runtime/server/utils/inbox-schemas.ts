@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { visibilitySchema } from '@frigear-nu/audience'
+import { grantListShape } from '@frigear-nu/grants/core'
 import { pageQuery } from '@frigear-nu/module-kit/server'
 import { INBOX_CHANNEL_ID } from '../../utils/registry'
 
@@ -18,20 +18,20 @@ export const inboxTranslatedInput = (max = 200) => z.union([
 export const inboxStatusSchema = z.enum(['open', 'pending', 'closed'])
 export const inboxRoleSchema = z.string().trim().min(1).max(64)
 
-/** `POST /api/admin/inbox/mailboxes`. A platform mailbox needs a visibility that names who reads it (checked in the handler). */
+/** `POST /api/admin/inbox/mailboxes`. A platform mailbox needs grants that name who reads it (checked in the handler). */
 export const inboxMailboxCreateInput = z.object({
   key: inboxKeySchema,
   name: inboxTranslatedInput(),
   ownerType: z.enum(['platform', 'team']).default('platform'),
   ownerId: z.string().trim().min(1).max(128).nullish(),
-  visibility: visibilitySchema.nullish(),
+  grants: grantListShape.optional(),
   retentionDays: z.number().int().min(1).max(36_500).nullish(),
 })
 
 /** `PATCH /api/admin/inbox/mailboxes/:id`. The owner never changes; the key does not either (code finds mailboxes by it). */
 export const inboxMailboxPatchInput = z.object({
   name: inboxTranslatedInput().optional(),
-  visibility: visibilitySchema.nullable().optional(),
+  grants: grantListShape.optional(),
   retentionDays: z.number().int().min(1).max(36_500).nullable().optional(),
 })
 

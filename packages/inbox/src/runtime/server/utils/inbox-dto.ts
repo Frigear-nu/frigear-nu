@@ -1,6 +1,6 @@
 import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import { parseVisibility } from '@frigear-nu/audience'
+import { readGrants } from '@frigear-nu/grants/core'
 import type {
   InboxAuditAction,
   InboxAuditDto,
@@ -32,7 +32,7 @@ export function toInboxMailboxDto(row: InboxMailboxRow): InboxMailboxDto {
     ownerType: row.ownerType as InboxMailboxOwnerType,
     ownerId: row.ownerId ?? null,
     name: row.name,
-    visibility: parseVisibility(row.visibility),
+    grants: readGrants(row.grants),
     retentionDays: row.retentionDays ?? null,
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),

@@ -63,8 +63,8 @@ export default defineNuxtConfig({
     // The retention task runs from a test route with a fake `now`, never on a schedule here.
     retention: { days: 30, cron: false },
     mailboxes: [
-      { key: 'support', name: { da: 'Support', en: 'Support' }, visibility: { globalRoles: ['coordinator'] } },
-      { key: 'board', name: { da: 'Bestyrelsen', en: 'Board' }, visibility: { globalRoles: ['admin'] }, retentionDays: 365 },
+      { key: 'support', name: { da: 'Support', en: 'Support' }, grants: [{ kind: 'role', role: 'coordinator' }] },
+      { key: 'board', name: { da: 'Bestyrelsen', en: 'Board' }, grants: [{ kind: 'role', role: 'admin' }], retentionDays: 365 },
     ],
     settings: {
       pages: { admin: true, adminThread: true, adminSettings: true },

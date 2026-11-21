@@ -1,7 +1,7 @@
-// Stands in for the modules around the inbox: teams answers `audience:owner:resolve` for teams and says who leads them,
+// Stands in for the modules around the inbox: teams answers `teams:owner:resolve` for teams and says who leads them,
 // and a mail driver listens to notify. Every inbox hook is recorded.
 export default defineNitroPlugin((nitro) => {
-  nitro.hooks.hook('audience:owner:resolve', (ctx) => {
+  nitro.hooks.hook('teams:owner:resolve', (ctx) => {
     if (ctx.owner.type !== 'team') return
     ctx.exists = ctx.owner.id === 'tem_known'
     if (ctx.exists) ctx.label = 'Known team'
