@@ -1,0 +1,65 @@
+{
+  "push": {
+    "menu": {
+      "notifications": {
+        "label": "Notifications",
+        "description": "Choose how we reach you: email, SMS or push."
+      }
+    },
+    "notifications": {
+      "title": "Channels",
+      "description": "For each kind of message, choose which channels may reach you.",
+      "topic": "Message",
+      "channels": {
+        "email": "Email",
+        "sms": "SMS",
+        "push": "Push"
+      },
+      "notOffered": "This message does not use this channel.",
+      "noPhone": "Add a phone number to your profile to receive SMS.",
+      "noDevice": "Push notifications arrive in the app: sign in there and allow notifications to turn them on.",
+      "empty": "Nothing to choose yet",
+      "emptyDescription": "Messages you can choose channels for will show up here.",
+      "loadFailed": "Your notification settings could not be loaded",
+      "tryAgain": "Try again",
+      "updated": "Notifications updated",
+      "saveFailed": "Could not update your notifications"
+    },
+    "admin": {
+      "tab": "Devices",
+      "title": "Push devices",
+      "platform": "Platform",
+      "app": "App",
+      "locale": "Language",
+      "lastSeen": "Last seen",
+      "registered": "Registered",
+      "statusColumn": "Status",
+      "active": "Active",
+      "revoked": "Revoked",
+      "empty": "No devices registered",
+      "emptyDescription": "The user has not signed in to the app with notifications allowed.",
+      "loadFailed": "The devices could not be loaded",
+      "sendTest": "Send test push",
+      "testSent": "Test push sent",
+      "testResult": "{sent} sent, {failed} failed, {revoked} revoked.",
+      "testNone": "The user has no active devices.",
+      "testFailed": "Could not send the test push"
+    },
+    "platforms": {
+      "ios": "iOS",
+      "android": "Android",
+      "web": "Web"
+    },
+    "permissions": {
+      "devices": "Manage your devices and notification channels",
+      "devicesDescription": "Register and remove your own push devices and choose which channels reach you.",
+      "manage": "See users' push devices",
+      "manageDescription": "See the push devices registered by other users.",
+      "send": "Send test pushes",
+      "sendDescription": "Send a test push notification to a user's devices."
+    },
+    "scopes": {
+      "push": "Your push devices"
+    }
+  }
+}

@@ -38,6 +38,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Let AI agents call your app's tools within the user's scopes | [MCP](/modules/features/mcp) | Auth |
 | Give staff a guarded admin area | [Admin](/modules/interface/admin) | Menu, Widget, UI |
 | Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
+| Push to a phone and let users choose email, SMS or push | [Push](/modules/volunteering/push) | Auth, Users, Notify, UI |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
 
@@ -125,6 +126,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
+| [Push](/modules/volunteering/push) | Device registration, FCM and APNs delivery, and per-user channel choices (email, SMS, push) with a topic registry and `notifyUser`. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 

@@ -1,0 +1,65 @@
+{
+  "push": {
+    "menu": {
+      "notifications": {
+        "label": "Notifikationer",
+        "description": "Vælg, hvordan vi kontakter dig: e-mail, SMS eller push."
+      }
+    },
+    "notifications": {
+      "title": "Kanaler",
+      "description": "Vælg for hver type besked, hvilke kanaler der må nå dig.",
+      "topic": "Besked",
+      "channels": {
+        "email": "E-mail",
+        "sms": "SMS",
+        "push": "Push"
+      },
+      "notOffered": "Denne besked bruger ikke kanalen.",
+      "noPhone": "Tilføj et telefonnummer til din profil for at få SMS.",
+      "noDevice": "Pushnotifikationer kommer i appen: log ind der, og tillad notifikationer for at slå dem til.",
+      "empty": "Intet at vælge endnu",
+      "emptyDescription": "Beskeder, du kan vælge kanaler for, vises her.",
+      "loadFailed": "Dine notifikationsindstillinger kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
+      "updated": "Notifikationer opdateret",
+      "saveFailed": "Dine notifikationer kunne ikke opdateres"
+    },
+    "admin": {
+      "tab": "Enheder",
+      "title": "Pushenheder",
+      "platform": "Platform",
+      "app": "App",
+      "locale": "Sprog",
+      "lastSeen": "Sidst set",
+      "registered": "Registreret",
+      "statusColumn": "Status",
+      "active": "Aktiv",
+      "revoked": "Tilbagekaldt",
+      "empty": "Ingen enheder registreret",
+      "emptyDescription": "Brugeren har ikke logget ind i appen med notifikationer tilladt.",
+      "loadFailed": "Enhederne kunne ikke indlæses",
+      "sendTest": "Send test-push",
+      "testSent": "Test-push sendt",
+      "testResult": "{sent} sendt, {failed} fejlet, {revoked} tilbagekaldt.",
+      "testNone": "Brugeren har ingen aktive enheder.",
+      "testFailed": "Test-push kunne ikke sendes"
+    },
+    "platforms": {
+      "ios": "iOS",
+      "android": "Android",
+      "web": "Web"
+    },
+    "permissions": {
+      "devices": "Administrér dine enheder og notifikationskanaler",
+      "devicesDescription": "Registrér og fjern dine egne pushenheder, og vælg hvilke kanaler der når dig.",
+      "manage": "Se brugeres pushenheder",
+      "manageDescription": "Se de pushenheder, andre brugere har registreret.",
+      "send": "Send test-push",
+      "sendDescription": "Send en test-pushnotifikation til en brugers enheder."
+    },
+    "scopes": {
+      "push": "Dine pushenheder"
+    }
+  }
+}
