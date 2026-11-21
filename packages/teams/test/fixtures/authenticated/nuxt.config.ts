@@ -12,11 +12,11 @@ export default defineNuxtConfig({
     '@frigear-nu/admin',
     TeamsModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`),
-    // and a slice of the website's chain: `barmanager` inherits `member`. `coordinator` holds `teams:manage` and
+    // and a small role chain: `supervisor` inherits `member`. `coordinator` holds `teams:manage` and
     // `teams:pii` (the module's `grantTo`); `wild` holds `teams:*` only.
     (_options, nuxt) => {
       addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
-      addRole(nuxt, { name: 'barmanager', label: 'Bar manager', grant: [], inherit: ['member'] })
+      addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [], inherit: ['member'] })
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['teams:*'] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
@@ -38,8 +38,17 @@ export default defineNuxtConfig({
   },
   teams: {
     settings: { pages: { admin: true, adminTeam: true } },
-    // A second kind next to the default `bar` ladder; nobody leads it.
+    // The app's own kinds next to the shipped `default` ladder: a `bar` ladder led from `lead`, and a kind nobody leads.
     ladders: {
+      bar: {
+        roles: [
+          { key: 'volunteer', label: 'Volunteer' },
+          { key: 'bartender', label: 'Bartender' },
+          { key: 'lead', label: 'Lead' },
+          { key: 'coordinator', label: 'Coordinator' },
+        ],
+        leadFrom: 'lead',
+      },
       firstaid: { roles: [{ key: 'helper', label: 'Helper' }, { key: 'medic', label: 'Medic' }] },
     },
   },

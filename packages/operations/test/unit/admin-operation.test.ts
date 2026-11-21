@@ -30,11 +30,11 @@ describe('operation form body', () => {
       expect(body.location, JSON.stringify(cleared)).toBeNull()
     }
     expect(emptyTranslatedToNull({ en: 'Text' })).toEqual({ en: 'Text' })
-    expect(formToOperationBody(form({ locationName: { en: 'Darupvej' } })).location).toEqual({ name: { en: 'Darupvej' } })
+    expect(formToOperationBody(form({ locationName: { en: 'Main Street' } })).location).toEqual({ name: { en: 'Main Street' } })
   })
 
   it('keeps stored coordinates while the place is only renamed', () => {
-    const previous = { startsAt: '2027-06-27T08:00:00.000Z', endsAt: null, location: { name: 'Old', lat: 55.6, lng: 12 } } as StaffOperation
-    expect(formToOperationBody(form({ locationName: 'New' }), previous).location).toEqual({ name: 'New', lat: 55.6, lng: 12 })
+    const previous = { startsAt: '2027-06-27T08:00:00.000Z', endsAt: null, location: { name: 'Old', lat: 10, lng: 20 } } as StaffOperation
+    expect(formToOperationBody(form({ locationName: 'New' }), previous).location).toEqual({ name: 'New', lat: 10, lng: 20 })
   })
 })

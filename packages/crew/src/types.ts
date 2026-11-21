@@ -21,6 +21,12 @@ export type CrewStatusEmail = {
 /** The emails sent when a person's crew status changes, per status. A status left out sends the built-in email. */
 export type CrewStatusEmails = Partial<Record<CrewStatus, CrewStatusEmail>>
 
+/** A role mapping preset: everyone matching `match` (a global role, or an active subscription to a plan) holds `teamRole`. */
+export type CrewRolePreset = {
+  match: { role: string } | { plan: string }
+  teamRole: string
+}
+
 export type ModuleOptions = {
   settings?: {
     pages?: {
@@ -38,10 +44,13 @@ export type ModuleOptions = {
     operationsTab?: boolean
   }
   /**
-   * The key of a subscription plan whose active subscribers are volunteers of every operation with presets: crew adds a
-   * `plan` mapping rule for it next to the global-role presets. Left out: no plan rule.
+   * The role mapping presets: owner-wide mapping rules crew adds to an operation when its settings are first saved with
+   * presets on, such as `{ match: { role: 'staff' }, teamRole: 'lead' }` or `{ match: { plan: 'yearly' }, teamRole:
+   * 'member' }`. Empty by default: the app names its own global roles, plans and team roles.
    */
-  memberPlan?: string
+  rolePresets?: CrewRolePreset[]
+  /** The team kind of the "Crew" team crew creates for an operation without teams. Defaults to teams' `default` kind. */
+  defaultTeamKind?: string
   /** The key of the application form field that holds the phone number, stored on the user. Defaults to `phone`. */
   phoneField?: string
 }
@@ -52,7 +61,8 @@ export type PublicModuleOptions = {
 
 /** The private runtime config of crew (`runtimeConfig.crew`). */
 export type CrewRuntimeConfig = {
-  memberPlan: string | null
+  rolePresets: CrewRolePreset[]
+  defaultTeamKind: string
   phoneField: string
 }
 
