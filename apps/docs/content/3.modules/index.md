@@ -158,12 +158,12 @@ The foundations that other modules and apps stand on.
 
 ### Volunteering
 
-Crew work: the occasions Frigear staffs, the crew that work them and their shifts. They build on Organisation, Content,
-Communication and Interface.
+Crew work: the occasions your organisation staffs, the crew that work them and their shifts. They build on
+Organisation, Content, Communication and Interface.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
-| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place, venue layout and status, that crew and shifts attach to. | ✓ | ✓ |  |
+| [Operations](/modules/volunteering/operations) | The occasions your organisation works at, with a period, place, venue layout and status, that crew and shifts attach to. | ✓ | ✓ |  |
 | [Crew](/modules/volunteering/crew) | Applications, approvals, waiting list and invite links that turn people into an operation's crew, on top of teams. | ✓ | ✓ | ✓ |
 | [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, check-in by pass, station or location, earned perks and who is on shift now, per operation. | ✓ | ✓ | ✓ |
 

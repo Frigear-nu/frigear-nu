@@ -5,7 +5,7 @@ import { computed, useLazyFetch, useModuleT, useShiftsFormat, useShiftsTranslate
 
 defineOptions({ name: 'ShiftNowCard' })
 
-// "Working now": who is on shift in an operation at this moment, per team, with the leads on duty (the BA on duty).
+// "Working now": who is on shift in an operation at this moment, per team, with the leads on duty.
 const props = defineProps<{ operationId: string }>()
 
 const t = useModuleT('shifts')

@@ -52,7 +52,7 @@ describe('operations (authenticated, database-backed)', async () => {
     staff ??= await registerUser('Staff', 'staff@staff.test')
     return ok(await json(staff.cookie, 'POST', operationsApi.admin.operations, {
       slug: `operation-${++counter}`,
-      name: { en: 'Roskilde 2027 bar operation', da: 'Roskilde 2027 baroperation' },
+      name: { en: 'Summer Festival 2030 bar operation', da: 'Summer Festival 2030 baroperation' },
       startsAt: future(30),
       endsAt: future(37),
       ...overrides,
@@ -110,16 +110,16 @@ describe('operations (authenticated, database-backed)', async () => {
     it('creates, reads, edits and deletes an operation as a coordinator', async () => {
       const created = await createOperation({
         public: true,
-        hostName: 'Roskilde Festival',
-        hostUrl: 'https://example.com/roskilde',
-        location: { name: { en: 'Darupvej', da: 'Darupvej' }, address: 'Darupvej 1, Roskilde', point: { lat: 55.6, lng: 12.0 }, radiusMeters: 250 },
+        hostName: 'Summer Festival',
+        hostUrl: 'https://example.com/summer',
+        location: { name: { en: 'Main Street', da: 'Main Street' }, address: 'Main Street 1, Example Town', point: { lat: 10.0, lng: 20.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
       })
       expect(created).toMatchObject({
         status: 'planning',
         public: true,
-        hostName: 'Roskilde Festival',
-        location: { address: 'Darupvej 1, Roskilde', point: { lat: 55.6, lng: 12.0 }, radiusMeters: 250 },
+        hostName: 'Summer Festival',
+        location: { address: 'Main Street 1, Example Town', point: { lat: 10.0, lng: 20.0 }, radiusMeters: 250 },
         schedule: { type: 'always' },
         eventId: null,
       })
@@ -234,7 +234,7 @@ describe('operations (authenticated, database-backed)', async () => {
   })
 
   describe('location and venue layout', () => {
-    const area = [{ lat: 55.62, lng: 12.07 }, { lat: 55.62, lng: 12.09 }, { lat: 55.61, lng: 12.08 }]
+    const area = [{ lat: 10.02, lng: 20.07 }, { lat: 10.02, lng: 20.09 }, { lat: 10.01, lng: 20.08 }]
     const station = (id: string, properties: Json = {}) => ({ id, kind: 'operations.station', geometry: { type: 'Point', coordinates: [100, 200] }, properties })
     const upload = (cookie: string | undefined, operationId: string, bytes: Uint8Array, name = 'plan.png') => {
       const body = new FormData()
@@ -243,13 +243,13 @@ describe('operations (authenticated, database-backed)', async () => {
     }
 
     it('stores the location picker\'s value, and refuses a radius or area without a point, or both', async () => {
-      const operation = await createOperation({ location: { point: { lat: 55.615, lng: 12.08 }, area } })
-      expect(operation.location).toEqual({ point: { lat: 55.615, lng: 12.08 }, area })
+      const operation = await createOperation({ location: { point: { lat: 10.015, lng: 20.08 }, area } })
+      expect(operation.location).toEqual({ point: { lat: 10.015, lng: 20.08 }, area })
       for (const location of [
         { name: 'Bar', radiusMeters: 10 },
-        { point: { lat: 55.6, lng: 12 }, radiusMeters: 10, area },
+        { point: { lat: 10, lng: 20 }, radiusMeters: 10, area },
         { point: { lat: 95, lng: 12 } },
-        { point: { lat: 55.6, lng: 12 }, area: area.slice(0, 2) },
+        { point: { lat: 10, lng: 20 }, area: area.slice(0, 2) },
         {},
       ]) {
         expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(operation.id), { location })).status, JSON.stringify(location)).toBe(400)
@@ -567,7 +567,7 @@ describe('operations (authenticated, database-backed)', async () => {
     }, 180_000)
 
     it('renders the public page of a public operation and 404s a private one', async () => {
-      const open = await createOperation({ name: 'Visible operation', public: true, hostName: 'Roskilde Festival' })
+      const open = await createOperation({ name: 'Visible operation', public: true, hostName: 'Summer Festival' })
       const closed = await createOperation({ public: false })
       const visible = await fetch(`/operations/${open.slug}`)
       expect(visible.status).toBe(200)

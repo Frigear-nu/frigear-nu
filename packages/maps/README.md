@@ -30,6 +30,9 @@ export default defineNuxtConfig({
 The default tiles are OpenStreetMap's public tile server, which forbids heavy use: set `maps.tiles` to a hosted tile
 provider in production.
 
+There is no default location: without a value, the picker and viewers open on a world view unless configured. Set
+`maps.defaultCenter` (`{ center: [lat, lng], zoom }`) to open them on your own area.
+
 `pnpm --filter @frigear-nu/maps dev` runs the playground: every component with a sample layout, a `demo.seat` kind
 and a `demo.crowd` live layer.
 

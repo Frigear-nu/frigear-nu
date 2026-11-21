@@ -113,7 +113,7 @@ describe('shifts (authenticated, database-backed)', async () => {
 
     it('copies roles and shifts from another schedule, moved by days, and maps teams of another operation by name', async () => {
       const source = await newSetup({}, { publish: false })
-      await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(source.schedule.id), { teamId: source.team.id, teamRole: 'ba', name: { en: 'BA' } }))
+      await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(source.schedule.id), { teamId: source.team.id, teamRole: 'lead', name: { en: 'Lead' } }))
       const sameOp = await createSchedule(source.op.id)
       const copied = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.copyFrom(sameOp.id), { scheduleId: source.schedule.id, offsetDays: 7 }))
       expect(copied).toMatchObject({ roles: 1, shifts: 2, skippedTeamIds: [] })
@@ -158,7 +158,7 @@ describe('shifts (authenticated, database-backed)', async () => {
   describe('assignment', () => {
     it('needs an explicit role on the team that meets the shift role; mapped-only people are not assignable', async () => {
       const setup = await newSetup()
-      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'ba', name: 'BA' }))
+      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'lead', name: 'Lead' }))
       const outsider = await user('Out')
       await expectApiError(assign(setup.shifts[0]!.id, outsider), 409, 'not_eligible')
 
@@ -169,11 +169,11 @@ describe('shifts (authenticated, database-backed)', async () => {
       await expectApiError(Promise.resolve(low), 409, 'not_eligible')
 
       const lead = await user('Lead')
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       expect((await assigned(setup.shifts[1]!.id, lead, { shiftRoleId: role.id })).assignment).toMatchObject({ shiftRoleId: role.id, status: 'assigned' })
 
-      // A global barmanager is a mapped BA on the team through a rule, without a membership row: not assignable.
-      await ok(await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: setup.op.id, teamId: setup.team.id, match: { role: 'barmanager' }, teamRole: 'ba' }))
+      // A global supervisor is a mapped lead on the team through a rule, without a membership row: not assignable.
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: setup.op.id, teamId: setup.team.id, match: { role: 'supervisor' }, teamRole: 'lead' }))
       const mapped = await user('Mapped', 'bar.test')
       await expectApiError(assign(setup.shifts[1]!.id, mapped), 409, 'not_eligible')
       // Twice on the same shift is refused.
@@ -309,7 +309,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, lead] = await Promise.all([user('Aan'), user('Abo'), user('Alead')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
       const offer = await ok(await json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}))
@@ -400,7 +400,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, boss] = await Promise.all([user('Tann'), user('Tbo'), user('Tlead')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      if (lead) await addMember(setup.team.id, boss, 'ba')
+      if (lead) await addMember(setup.team.id, boss, 'lead')
       const [later] = await bulk(setup.schedule.id, { teamId: setup.team.id, days: ['2027-06-30'], slots: [{ start: '10:00', end: '14:00' }] })
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const boShift = await assigned(later!.id, bo)
@@ -418,8 +418,8 @@ describe('shifts (authenticated, database-backed)', async () => {
       // The patch is checked merged with what is stored: `coverage: 'all'` alone on a `both` schedule is refused.
       const schedule = await createSchedule(op.id)
       await expectApiError(json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { coverage: 'all' }), 400, 'invalid_schedule_settings')
-      const roskilde = await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { coverage: 'all', handover: 'trade', approval: 'lead' }))
-      expect(roskilde).toMatchObject({ coverage: 'all', handover: 'trade', approval: 'lead' })
+      const strict = await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { coverage: 'all', handover: 'trade', approval: 'lead' }))
+      expect(strict).toMatchObject({ coverage: 'all', handover: 'trade', approval: 'lead' })
       await expectApiError(json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(schedule.id), { handover: 'both' }), 400, 'invalid_schedule_settings')
       // Copying from a schedule carries its settings over.
       const target = await createSchedule(op.id)
@@ -536,13 +536,13 @@ describe('shifts (authenticated, database-backed)', async () => {
     }
 
     it('keeps a shift that must be worked inside its schedule: no trade into or out of another schedule', async () => {
-      // Roskilde: every shift must be worked, trades only. Another schedule of the same operation is flexible.
+      // The strict schedule: every shift must be worked, trades only. Another schedule of the same operation is flexible.
       const s = await tradeSetup({ coverage: 'all', handover: 'trade' })
       const flexible = await otherSchedule(s, { coverage: 'flexible', handover: 'both' })
       const dee = await user('Xdee')
       await addMember(s.team.id, dee)
       const deeShift = await assigned(flexible.shift.id, dee)
-      // Ann offers her Roskilde shift for Dee's flexible one: refused from either side, and when aimed at it.
+      // Ann offers her strict shift for Dee's flexible one: refused from either side, and when aimed at it.
       const annSwap = await ok(await open(s.ann, s.annShift.assignment.id))
       await expectApiError(offerOn(dee, annSwap.id, deeShift.assignment.id), 409, 'handover_cross_schedule')
       const deeSwap = await ok(await open(dee, deeShift.assignment.id, { kind: 'trade' }))
@@ -631,12 +631,12 @@ describe('shifts (authenticated, database-backed)', async () => {
       const swap3 = await ok(await open(perDay.ann, perDay.annShift.assignment.id))
       await expectApiError(offerOn(perDay.bo, swap3.id, perDay.boShift.assignment.id), 409, 'guard_max_per_day')
 
-      // Ineligible: the shift needs a BA, and Bo is a volunteer.
+      // Ineligible: the shift needs a lead, and Bo is a volunteer.
       const role = await tradeSetup({ coverage: 'all', handover: 'trade' })
-      const ba = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(role.schedule.id), { teamId: role.team.id, teamRole: 'ba', name: 'BA' }))
+      const leadRole = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(role.schedule.id), { teamId: role.team.id, teamRole: 'lead', name: 'Lead' }))
       const lead = await user('Gba')
-      await addMember(role.team.id, lead, 'ba')
-      const leadShift = await assigned(role.shifts[1]!.id, lead, { shiftRoleId: ba.id })
+      await addMember(role.team.id, lead, 'lead')
+      const leadShift = await assigned(role.shifts[1]!.id, lead, { shiftRoleId: leadRole.id })
       const swap4 = await ok(await open(lead, leadShift.assignment.id))
       await expectApiError(offerOn(role.bo, swap4.id, role.boShift.assignment.id), 409, 'guard_ineligible')
 
@@ -673,8 +673,8 @@ describe('shifts (authenticated, database-backed)', async () => {
       const other = await createTeam(setup.op.id)
       const [ann, lead, otherLead] = await Promise.all([user('Pann'), user('Plead'), user('Pother')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, otherLead, 'lead')
       const shiftId = setup.shifts[0]!.id
       const { assignment } = await assigned(shiftId, ann)
 
@@ -721,7 +721,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup()
       const [ann, lead] = await Promise.all([user('Wann'), user('Wlead')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       const { assignment } = await assigned(setup.shifts[0]!.id, ann)
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(HOUR / 2), endsAt: iso(HOUR) })
       const { code } = await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(assignment.id)))
@@ -739,7 +739,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const manager = await user('Nmgr', 'mgr.test')
       const wild = await user('Nwild', 'wild.test')
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
       await assigned(setup.shifts[0]!.id, ann)
       await assigned(setup.shifts[0]!.id, lead)
@@ -794,10 +794,10 @@ describe('shifts (authenticated, database-backed)', async () => {
   describe('people leaving a team', () => {
     it('cancels their future shifts on the team, and the ones a lower role no longer meets', async () => {
       const setup = await newSetup()
-      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'ba', name: 'BA' }))
+      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'lead', name: 'Lead' }))
       const [ann, bo] = await Promise.all([user('Lann'), user('Lbo')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, bo, 'ba')
+      await addMember(setup.team.id, bo, 'lead')
       const annShift = await assigned(setup.shifts[0]!.id, ann)
       const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
       const boPlain = await assigned(setup.shifts[0]!.id, bo)
@@ -809,7 +809,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       // The swap of the cancelled assignment is gone from the marketplace.
       expect((await ok(await json(bo.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).find(item => item.id === swap.id)).toBeUndefined()
 
-      // Bo goes from BA to volunteer: the BA shift is cancelled, the plain one kept.
+      // Bo goes from lead to volunteer: the lead shift is cancelled, the plain one kept.
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(setup.team.id, bo.id), { role: 'volunteer' }))
       const left = await myShifts(bo)
       expect(left.map(item => item.assignment.id)).toEqual([boPlain.assignment.id])
@@ -846,7 +846,7 @@ describe('shifts (authenticated, database-backed)', async () => {
         const [ann, bo, lead] = await Promise.all([user('Qann'), user('Qbo'), user('Qlead')])
         await addMember(setup.team.id, ann)
         await addMember(setup.team.id, bo)
-        await addMember(setup.team.id, lead, 'ba')
+        await addMember(setup.team.id, lead, 'lead')
         const annShift = await assigned(setup.shifts[0]!.id, ann)
         const swap = await ok(await json(ann.cookie, 'POST', shiftsApi.me.swap(annShift.assignment.id)))
         const offer = await ok(await json(bo.cookie, 'POST', shiftsApi.offers(swap.id), {}))
@@ -933,7 +933,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, lead] = await Promise.all([user('Lann2'), user('Lbo2'), user('Llead2')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       expect((await ok(await json(lead.cookie, 'GET', shiftsApi.me.leads)) as unknown as Json[]).map(item => item.teamId)).toEqual([setup.team.id])
       expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.leads))).toEqual([])
       const annShift = await assigned(setup.shifts[0]!.id, ann)
@@ -948,12 +948,12 @@ describe('shifts (authenticated, database-backed)', async () => {
       // The schedule forms read the teams through shifts: `shifts:manage` is enough.
       const manager = await user('Lmgr', 'mgr.test')
       const teams = await ok(await json(manager.cookie, 'GET', shiftsApi.admin.teams(setup.op.id))) as unknown as Json[]
-      expect(teams[0]).toMatchObject({ id: setup.team.id, kind: 'bar', ladder: { leadFrom: 'ba' } })
+      expect(teams[0]).toMatchObject({ id: setup.team.id, kind: 'bar', ladder: { leadFrom: 'lead' } })
     })
 
     it('checks eligibility for the role picked, and copies roles only onto a ladder that has them', async () => {
       const setup = await newSetup()
-      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'ba', name: 'BA' }))
+      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, teamRole: 'lead', name: 'Lead' }))
       const vol = await user('Evol')
       await addMember(setup.team.id, vol)
       const plain = await ok(await json(staff.cookie, 'GET', shiftsApi.admin.candidates(setup.shifts[0]!.id))) as unknown as Json[]
@@ -961,7 +961,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const asBa = await ok(await json(staff.cookie, 'GET', `${shiftsApi.admin.candidates(setup.shifts[0]!.id)}?shiftRoleId=${role.id}`)) as unknown as Json[]
       expect(asBa.find(item => item.userId === vol.id)).toMatchObject({ eligible: false, reason: 'role' })
 
-      // A team of the same name but another kind, whose ladder has no `ba`: the role comes over without its minimum.
+      // A team of the same name but another kind, whose ladder has no `lead`: the role comes over without its minimum.
       await ok(await json(staff.cookie, 'PUT', teamsApi.admin.ladder('firstaid'), { roles: [{ key: 'helper', label: 'Helper' }], leadFrom: null }))
       const next = await createOperation()
       await ok(await json(staff.cookie, 'POST', teamsApi.admin.teams, { ownerType: 'operation', ownerId: next.id, kind: 'firstaid', name: setup.team.name }))
@@ -976,7 +976,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup()
       const [ann, lead] = await Promise.all([user('Iann'), user('Ilead')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       const now = await assigned(setup.shifts[0]!.id, ann)
       const later = await assigned(setup.shifts[1]!.id, ann)
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
@@ -1213,7 +1213,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const [ann, bo, lead, cy] = await Promise.all([user('Bann'), user('Bbo'), user('Blead'), user('Bcy')])
       await addMember(setup.team.id, ann)
       await addMember(setup.team.id, bo)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(other.id, cy)
       return { ...setup, other, ann, bo, lead, cy }
     }
@@ -1261,7 +1261,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       await assigned(setup.shifts[0]!.id, ann)
       await assigned(setup.shifts[0]!.id, bo)
 
-      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.team.id, teamRole: 'ba' }, ...text }))).toMatchObject({ recipientCount: 1, teamId: setup.team.id, teamRole: 'ba' })
+      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.team.id, teamRole: 'lead' }, ...text }))).toMatchObject({ recipientCount: 1, teamId: setup.team.id, teamRole: 'lead' })
       expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
       expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id }, ...text }))).toMatchObject({ recipientCount: 1 })
       expect(await emailsWith(cy, 'Hi')).toHaveLength(1)
@@ -1270,12 +1270,12 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
       expect(await emailsWith(ann, 'Hi')).toHaveLength(1)
 
-      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id, teamRole: 'ba' }, ...text }), 400, 'audience_empty')
+      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id, teamRole: 'lead' }, ...text }), 400, 'audience_empty')
       // A team or a shift of another operation, and a role together with a shift: 400.
       const elsewhere = await newSetup()
       expect((await broadcast(staff, { operationId: setup.op.id, audience: { teamId: elsewhere.team.id }, ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: elsewhere.shifts[0]!.id }, ...text })).status).toBe(400)
-      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id, teamRole: 'ba' }, ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id, teamRole: 'lead' }, ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, channels: ['push'], ...text })).status).toBe(400)
       expect((await broadcast(staff, { operationId: setup.op.id, subject: '', message: 'x' })).status).toBe(400)
 
@@ -1292,7 +1292,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(sent).toMatchObject({ operationId: setup.op.id, teamId: setup.team.id, recipientCount: 3, channels: ['email'], sentBy: lead.id })
       expect(await emailsWith(ann, 'Team news')).toHaveLength(1)
       expect(await emailsWith(cy, 'Team news')).toHaveLength(0)
-      expect(await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamRole: 'ba' } }))).toMatchObject({ recipientCount: 1 })
+      expect(await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamRole: 'lead' } }))).toMatchObject({ recipientCount: 1 })
       // Another team, another team through the audience, a volunteer, and a shift of another team: refused.
       expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.other.id), text)).status).toBe(403)
       expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamId: setup.other.id } })).status).toBe(403)
@@ -1314,17 +1314,17 @@ describe('shifts (authenticated, database-backed)', async () => {
     const patchSchedule = (scheduleId: string, body: Json) => json(staff.cookie, 'PATCH', shiftsApi.admin.schedule(scheduleId), body).then(ok)
     const statusOf = async (who: Session, shiftId: string) => (await assignmentOf(who, shiftId))?.assignment
     // The bar, and points about 100 m and 300 m north of it.
-    const bar = { lat: 55.6167, lng: 12.0784 }
-    const near = { latitude: 55.6176, longitude: 12.0784 }
-    const far = { latitude: 55.6194, longitude: 12.0784 }
+    const bar = { lat: 10.0167, lng: 20.0784 }
+    const near = { latitude: 10.0176, longitude: 20.0784 }
+    const far = { latitude: 10.0194, longitude: 20.0784 }
 
     it('station: a rotating code checks in once; an expired or forged one is refused, the previous window is accepted', async () => {
       const setup = await newSetup({ checkIn: { modes: ['station'] } })
       const other = await createTeam(setup.op.id)
       const [ann, bo, lead, otherLead] = await Promise.all([user('Sann'), user('Sbo'), user('Slead'), user('Sother')])
       for (const who of [ann, bo]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, otherLead, 'lead')
       for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
       const { assignment } = await assigned(setup.shifts[0]!.id, ann)
       const bos = await assigned(setup.shifts[1]!.id, bo)
@@ -1409,7 +1409,7 @@ describe('shifts (authenticated, database-backed)', async () => {
 
       const answer = await ok(await selfCheckIn(ann, mine[0]!.id, { mode: 'location', ...near, accuracy: 10 }))
       // Near midnight the second shift falls on the next day and is left out.
-      if (dayKey(new Date(now + starts[0]!), 'Europe/Copenhagen') === dayKey(new Date(now + starts[1]!), 'Europe/Copenhagen')) {
+      if (dayKey(new Date(now + starts[0]!), 'Europe/Berlin') === dayKey(new Date(now + starts[1]!), 'Europe/Berlin')) {
         expect(answer.alsoCheckedIn).toEqual([mine[1]!.id])
         expect(await statusOf(ann, ids[1]!)).toMatchObject({ status: 'attended', checkInMethod: 'daily' })
       }
@@ -1421,7 +1421,7 @@ describe('shifts (authenticated, database-backed)', async () => {
   describe('automation and perk grants', () => {
     const createPerk = (operationId: string, body: Json = {}): Promise<Json> => json(staff.cookie, 'POST', shiftsApi.admin.perks(operationId), { name: { en: 'Beer', da: 'Øl' }, voucherType: 'beer', quantity: 2, ...body }).then(ok)
     const grantsOf = async (who: Session, status?: string): Promise<Json[]> => (await ok(await json(who.cookie, 'GET', status ? `${shiftsApi.me.perkGrants}?status=${status}` : shiftsApi.me.perkGrants))).items
-    const claim = (who: Session, id: string, body: Json = { client: 'frigear-vouchers' }) => json(who.cookie, 'POST', shiftsApi.me.claimPerkGrant(id), body)
+    const claim = (who: Session, id: string, body: Json = { client: 'vouchers-app' }) => json(who.cookie, 'POST', shiftsApi.me.claimPerkGrant(id), body)
     const passOf = (who: Session, assignmentId: string): Promise<Json> => json(who.cookie, 'GET', shiftsApi.me.pass(assignmentId)).then(ok)
 
     /** A team with a lead and two volunteers on its first shift, which runs now and ends `endsIn` from now. */
@@ -1429,7 +1429,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup(schedule)
       const [ann, bo, lead] = await Promise.all([user('Gann'), user('Gbo'), user('Glead')])
       for (const who of [ann, bo]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       const shiftId = setup.shifts[0]!.id
       await patchShift(shiftId, { startsAt: iso(-HOUR), endsAt: iso(endsIn) })
       const annA = (await assigned(shiftId, ann)).assignment
@@ -1541,7 +1541,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const perks = apiClient({ bearer: await createToken(setup.ann.cookie, ['perks']) })
       const { items } = await (await perks.fetch('GET', shiftsApi.me.perkGrants)).json() as Json
       expect(items).toHaveLength(1)
-      expect(await (await perks.fetch('POST', shiftsApi.me.claimPerkGrant(items[0].id), { client: 'frigear-vouchers' })).json()).toMatchObject({ claimedAt: expect.any(String) })
+      expect(await (await perks.fetch('POST', shiftsApi.me.claimPerkGrant(items[0].id), { client: 'vouchers-app' })).json()).toMatchObject({ claimedAt: expect.any(String) })
 
       const readOnly = apiClient({ bearer: await createToken(setup.ann.cookie, ['perks:read']) })
       expect((await readOnly.fetch('GET', `${shiftsApi.me.perkGrants}?status=all`)).status).toBe(200)
@@ -1655,7 +1655,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup()
       const [ann, cy, lead] = await Promise.all([user('Xann'), user('Xcy'), user('Xlead')])
       for (const who of [ann, cy]) await addMember(setup.team.id, who)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'Meal', voucherType: 'meal' }).then(ok)
       // Open pass window, but not started yet: a started shift cannot be swapped.
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
@@ -1682,7 +1682,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       const setup = await newSetup()
       const [ann, lead, bystander, outsider] = await Promise.all([user('Ynann'), user('Ynlead'), user('Ynby'), user('Ynout')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(setup.team.id, bystander)
       await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
       await assigned(setup.shifts[0]!.id, ann)
@@ -1706,7 +1706,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Another team of the operation with a lead on shift is not mine: it is not listed.
       const other = await createTeam(setup.op.id)
       const otherLead = await user('Ynolead')
-      await addMember(other.id, otherLead, 'ba')
+      await addMember(other.id, otherLead, 'lead')
       const [otherShift] = await bulk(setup.schedule.id, { teamId: other.id, days: ['2027-06-28'], slots: [{ start: '23:00', end: '23:30' }] })
       await patchShift(otherShift!.id, { startsAt: iso(-HOUR), endsAt: iso(HOUR) })
       await assigned(otherShift!.id, otherLead)
@@ -1805,7 +1805,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       await publish(setup.schedule.id)
       const [ann, lead, bo, outsider] = await Promise.all([user('Mann'), user('Mlead'), user('Mbo'), user('Mout')])
       await addMember(setup.team.id, ann)
-      await addMember(setup.team.id, lead, 'ba')
+      await addMember(setup.team.id, lead, 'lead')
       await addMember(setup.team.id, bo)
       await putLayout(setup.op.id, [
         { id: 'bar-1', kind: 'operations.station', geometry: { type: 'Point', coordinates: [10, 20] } },
