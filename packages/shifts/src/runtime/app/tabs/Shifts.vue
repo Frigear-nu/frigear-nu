@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { teamsApi } from '@frigear-nu/teams/api'
 import type { ShiftsLadder, ShiftsTeamOption } from '../utils/admin-shifts'
 import { shiftDays, shiftsRoleLabel } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
-import type { ShiftRoleDto, ShiftScheduleDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import type { ShiftRoleDto, ShiftScheduleDto, ShiftsOperationTeamDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
 import { computed, h, navigateTo, ref, resolveComponent, tableUi, useFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsOperationTab' })
@@ -25,16 +24,19 @@ const route = useRoute()
 const operationId = computed(() => props.operation?.id ?? '')
 const hasOperation = computed(() => !!operationId.value)
 
-// --- What teams knows: the operation's teams and the ladders ------------------------------------------------------------
-const { data: teamsPage } = await useFetch<{ items: ShiftsTeamOption[] }>(teamsApi.admin.teams, {
-  query: computed(() => ({ ownerType: 'operation', ownerId: operationId.value || undefined, pageSize: 100, sort: 'sort', order: 'asc' })),
+// --- The operation's teams and their ladders, through a shifts route (`shifts:manage` is enough) ------------------------
+const { data: operationTeams } = await useFetch<ShiftsOperationTeamDto[]>(() => shiftsApi.admin.teams(operationId.value || '_'), {
   immediate: hasOperation.value,
   watch: false,
   key: computed(() => `shifts:teams:${operationId.value}`),
-  default: () => ({ items: [] }),
+  default: () => [],
 })
-const { data: ladders } = await useFetch<ShiftsLadder[]>(teamsApi.admin.ladders, { key: 'shifts:ladders', default: () => [] })
-const teams = computed(() => teamsPage.value?.items ?? [])
+const teams = computed<ShiftsTeamOption[]>(() => operationTeams.value.map(({ id, kind, name }) => ({ id, kind, name })))
+const ladders = computed<ShiftsLadder[]>(() => {
+  const byKind = new Map<string, ShiftsLadder>()
+  for (const team of operationTeams.value) if (team.ladder) byKind.set(team.kind, { kind: team.kind, ...team.ladder })
+  return [...byKind.values()]
+})
 
 // --- Schedules ---------------------------------------------------------------------------------------------------------
 const { data: schedules, status: schedulesStatus, refresh: refreshSchedules } = await useFetch<ShiftScheduleDto[]>(shiftsApi.admin.schedules, {

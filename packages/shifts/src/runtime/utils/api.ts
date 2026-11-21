@@ -18,6 +18,8 @@ export const shiftsApi = {
     pass: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/pass`,
     /** `POST` to open a swap of one of my shifts, `DELETE` to withdraw it. */
     swap: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/swap`,
+    /** `GET` the teams I lead. */
+    leads: `${BASE}/me/leads`,
   },
   /** `GET` the open swaps I can take. */
   swaps: `${BASE}/swaps`,
@@ -38,6 +40,8 @@ export const shiftsApi = {
     checkIn: (teamId: string) => `${BASE}/teams/${enc(teamId)}/check-in`,
     /** `GET` (`?from&to`) the team's shifts in published schedules with who works them (a lead of the team, or staff). */
     shifts: (teamId: string) => `${BASE}/teams/${enc(teamId)}/shifts`,
+    /** `GET` (`?status`) the team's swaps, e.g. those waiting for approval (a lead of the team, or staff). */
+    swaps: (teamId: string) => `${BASE}/teams/${enc(teamId)}/swaps`,
   },
   /** `POST` to mark an assignment attended (a lead of the team, or staff). */
   attended: (assignmentId: string) => `${BASE}/assignments/${enc(assignmentId)}/attended`,
@@ -72,5 +76,9 @@ export const shiftsApi = {
     assignment: (assignmentId: string) => `${ADMIN_BASE}/assignments/${enc(assignmentId)}`,
     /** `GET` (`?operationId&status`) swaps, for staff. */
     swaps: `${ADMIN_BASE}/swaps`,
+    /** `POST` to cancel a live swap, settling one stuck while being carried out. */
+    cancelSwap: (swapId: string) => `${ADMIN_BASE}/swaps/${enc(swapId)}/cancel`,
+    /** `GET` an operation's teams with their kind's ladder. */
+    teams: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/teams`,
   },
 } as const

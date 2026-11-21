@@ -1,5 +1,5 @@
 /** The configured page paths (`public.shifts.pages`). */
-export type ShiftsPages = { shifts?: string, shift?: string, swaps?: string, checkIn?: string }
+export type ShiftsPages = { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string }
 
 /** The default page paths, as `true` resolves them. */
 export const SHIFTS_DEFAULT_PAGES = {
@@ -7,6 +7,7 @@ export const SHIFTS_DEFAULT_PAGES = {
   shift: '/shifts/:assignmentId',
   swaps: '/shifts/swaps',
   checkIn: '/shifts/check-in/:teamId',
+  lead: '/shifts/lead/:teamId',
 } as const
 
 /**
@@ -19,5 +20,6 @@ export function createShiftsLinks(pages: ShiftsPages | undefined, localize: (pat
     shift: (assignmentId: string) => localize((pages?.shift || SHIFTS_DEFAULT_PAGES.shift).replace(':assignmentId', encodeURIComponent(assignmentId))),
     swaps: () => localize(pages?.swaps || SHIFTS_DEFAULT_PAGES.swaps),
     checkIn: (teamId: string) => localize((pages?.checkIn || SHIFTS_DEFAULT_PAGES.checkIn).replace(':teamId', encodeURIComponent(teamId))),
+    lead: (teamId: string) => localize((pages?.lead || SHIFTS_DEFAULT_PAGES.lead).replace(':teamId', encodeURIComponent(teamId))),
   }
 }

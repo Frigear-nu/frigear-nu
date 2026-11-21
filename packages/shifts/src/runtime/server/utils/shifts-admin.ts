@@ -311,12 +311,22 @@ export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, s
   const skippedTeamIds = sourceTeamIds.filter(id => !teamMap.has(id))
 
   const roleMap = new Map<string, string>()
+  const changedRoleIds: string[] = []
+  const targetTeams = await shiftsTeamsById([...teamMap.values()])
+  const ladders = await loadTeamLadders(event)
   for (const role of roles) {
     const teamId = teamMap.get(role.teamId)
     if (!teamId) continue
+    // The minimum team role must be on the target team kind's ladder; one that is not is dropped (anybody may hold it).
+    let teamRole = role.teamRole
+    const keys = ladders[targetTeams.get(teamId)?.kind ?? '']?.roles.map(item => item.key) ?? []
+    if (teamRole && !keys.includes(teamRole)) {
+      teamRole = null
+      changedRoleIds.push(role.id)
+    }
     const id = newId('shr')
     roleMap.set(role.id, id)
-    await db.insert(schema.shiftRoles).values({ id, scheduleId: target.id, teamId, teamRole: role.teamRole, name: role.name })
+    await db.insert(schema.shiftRoles).values({ id, scheduleId: target.id, teamId, teamRole, name: role.name })
   }
 
   const { timeZone } = shiftsConfig(event)
@@ -340,5 +350,5 @@ export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, s
     created.push(...await db.insert(schema.shifts).values(values.slice(index, index + 25)).returning())
   }
   for (const row of created) await shiftsFire('shifts:shift:created', { event, shift: toShiftDto(row, target) })
-  return { schedule: toShiftScheduleDto(target, undefined), roles: roleMap.size, shifts: created.length, skippedTeamIds }
+  return { schedule: toShiftScheduleDto(target, undefined), roles: roleMap.size, shifts: created.length, skippedTeamIds, changedRoleIds }
 }

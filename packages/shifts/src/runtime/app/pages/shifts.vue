@@ -2,7 +2,7 @@
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
-import type { MyShiftDto } from '../../../types'
+import type { MyShiftDto, ShiftsLedTeamDto } from '../../../types'
 import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsMinePage' })
@@ -19,6 +19,8 @@ const { data, error, refresh } = await useFetch<MyShiftDto[]>(shiftsApi.me.shift
 if (error.value?.statusCode === 401) {
   await navigateTo({ path: useAuthPages().login, query: { redirect: route.path } })
 }
+// The teams I lead get a link to their lead page.
+const { data: led } = await useFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', default: () => [] })
 
 const today = dayKey(new Date(), format.timeZone)
 const showPast = ref(false)
@@ -54,6 +56,15 @@ useHead({ title: () => t('mine.title', 'My shifts') })
         :description="t('mine.description', 'Your shifts, your check-in pass and your swaps.')"
       >
         <template #links>
+          <UButton
+            v-for="team in led"
+            :key="team.teamId"
+            :to="links.lead(team.teamId)"
+            icon="i-lucide-shield-check"
+            color="neutral"
+            variant="outline"
+            :label="t('mine.lead', 'Lead {team}', { team: tr(team.teamName) })"
+          />
           <UButton
             :to="links.swaps()"
             icon="i-lucide-arrow-left-right"

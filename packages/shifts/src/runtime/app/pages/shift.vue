@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
 import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapOfferDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, useState } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
@@ -24,10 +24,11 @@ if (error.value?.statusCode === 401) {
 }
 
 // The pass: asked for while the window is open; the page checks again every half minute so it appears on time.
-// The server's clock, carried to the client, so the first render matches.
-const now = useState('shifts:now', () => Date.now())
+// A page clock, set in the browser only: the server renders without it, so the first render matches.
+const now = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
+  now.value = Date.now()
   timer = setInterval(() => (now.value = Date.now()), 30_000)
 })
 onBeforeUnmount(() => clearInterval(timer))

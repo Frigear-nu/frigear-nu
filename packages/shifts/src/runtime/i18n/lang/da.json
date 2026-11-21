@@ -149,6 +149,16 @@
       "when": "Hvornår",
       "who": "Hvem"
     },
+    "lead": {
+      "description": "Dit holds vagter, fremmøde og bytter.",
+      "empty": "Ingen kommende vagter for holdet",
+      "forbidden": "Du leder ikke dette hold",
+      "loadFailed": "Holdet kunne ikke hentes",
+      "markFailed": "Kunne ikke registrere fremmøde",
+      "scanner": "Åbn check-in-scanneren",
+      "title": "Led {team}",
+      "titleFallback": "Dit hold"
+    },
     "menu": {
       "mine": {
         "description": "Dine vagter, dit QR-pas og bytter.",
@@ -160,6 +170,7 @@
       "empty": "Ingen vagter endnu",
       "emptyDescription": "Når en koordinator sætter dig på en vagt, dukker den op her.",
       "hidePast": "Skjul tidligere vagter",
+      "lead": "Led {team}",
       "loadFailed": "Dine vagter kunne ikke hentes",
       "noneThatDay": "Ingen vagter den dag.",
       "noneUpcoming": "Ingen kommende vagter.",

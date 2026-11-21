@@ -48,6 +48,15 @@ export async function shiftsWriteAssignment(before: ShiftAssignmentRow, patch: P
   return row
 }
 
+/** The place of an assignment among a shift's active ones, earliest first (0 is the first place). */
+async function shiftsPlaceOf(shiftId: string, assignmentId: string): Promise<number> {
+  const rows = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(and(
+    eq(schema.shiftAssignments.shiftId, shiftId),
+    inArray(schema.shiftAssignments.status, [...ACTIVE_ASSIGNMENT_STATUSES]),
+  )).orderBy(asc(schema.shiftAssignments.createdAt), asc(schema.shiftAssignments.id))
+  return rows.findIndex(row => row.id === assignmentId)
+}
+
 async function shiftsAssignmentChanged(event: H3Event, assignment: ShiftAssignmentRow, previous: ShiftAssignmentRow | null): Promise<void> {
   await shiftsFire('shifts:assignment:changed', { event, assignment: toShiftAssignmentDto(assignment), previous: previous ? toShiftAssignmentDto(previous) : null })
 }
@@ -98,7 +107,8 @@ export async function shiftsAssign(event: H3Event, entry: ShiftEntry, input: { u
     throw apiError(409, 'already_assigned', 'This person is on the shift already.')
   }
   const filled = await shiftsFilledCount(shift.id)
-  if (capacity !== null && !input.force && filled > capacity) {
+  // The last places go to the earliest rows (the order of the duplicate check): only a row past the capacity is taken back.
+  if (capacity !== null && !input.force && filled > capacity && await shiftsPlaceOf(shift.id, assignment.id) >= capacity) {
     await db.delete(schema.shiftAssignments).where(eq(schema.shiftAssignments.id, assignment.id))
     throw full()
   }
@@ -141,6 +151,9 @@ export async function shiftsMarkAttendance(event: H3Event, entry: ShiftAssignmen
   const from = assignment.status as ShiftAssignmentStatus
   if (from === to) return assignment
   if (!canMoveAssignment(from, to)) throw apiError(409, 'invalid_transition', `An ${from} assignment cannot be marked ${to === 'no_show' ? 'a no-show' : to}.`)
+  if (Date.now() < shiftsPassWindow(event, entry.shift).opensAt.getTime()) {
+    throw apiError(409, 'outside_window', 'Attendance can be marked once check-in for the shift opens.', { opensAt: shiftsPassWindow(event, entry.shift).opensAt.toISOString() })
+  }
   const patch: Partial<typeof schema.shiftAssignments.$inferInsert> = { status: to }
   if (to === 'attended' && !assignment.checkedInAt) Object.assign(patch, { checkedInAt: new Date(), checkedInBy: by })
   const written = await shiftsWriteAssignment(assignment, patch)
@@ -163,6 +176,11 @@ export async function shiftsCheckIn(event: H3Event, teamId: string, code: string
   if (!entry || entry.shift.teamId !== teamId) throw notFound('Unknown check-in code.')
   const { assignment, shift, schedule } = entry
   if (assignment.status === 'cancelled') throw apiError(409, 'assignment_cancelled', 'This assignment was cancelled.')
+  // The person must still hold their role on the team: one who left (or whose membership stopped granting) cannot check in.
+  if (!await shiftsStillEligible(event, assignment, shift.teamId)) {
+    await shiftsCancelFutureAssignments(event, assignment.userId, shift.teamId, row => shiftsStillEligible(event, row, shift.teamId))
+    throw apiError(409, 'not_eligible', 'This person no longer holds a role on the team.')
+  }
   const respond = async (row: ShiftAssignmentRow, alreadyCheckedIn: boolean): Promise<ShiftCheckInDto> => {
     const [dto] = await shiftsAssigneeDtos([row], pii)
     return { ok: true, alreadyCheckedIn, checkedInAt: (row.checkedInAt ?? new Date()).toISOString(), assignment: dto!, shift: toShiftDto(shift, schedule) }

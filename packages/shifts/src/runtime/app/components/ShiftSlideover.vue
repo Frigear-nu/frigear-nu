@@ -111,7 +111,8 @@ function assigneeMenu(assignee: ShiftAssigneeDto): DropdownMenuItem[][] {
 const search = ref('')
 const query = refDebounced(search, 250)
 const { data: candidates, status: candidatesStatus, refresh: refreshCandidates } = useLazyFetch<ShiftCandidateDto[]>(() => shiftsApi.admin.candidates(current.value.id), {
-  query: computed(() => ({ q: query.value || undefined })),
+  // The role picked below: eligibility and warnings follow it.
+  query: computed(() => ({ q: query.value || undefined, shiftRoleId: state.shiftRoleId === NONE ? undefined : state.shiftRoleId })),
   key: `shifts:candidates:${props.shift.id}`,
   default: () => [],
 })
@@ -121,7 +122,7 @@ const warningText = (warning: ShiftWarning) => t(`warnings.${warning.code}`, war
 async function assign(candidate: ShiftCandidateDto, force = false) {
   const name = nameOf(candidate)
   try {
-    const result = await $fetch<ShiftAssignResultDto>(shiftsApi.admin.assignments(current.value.id), { method: 'POST', body: { userId: candidate.userId, force } })
+    const result = await $fetch<ShiftAssignResultDto>(shiftsApi.admin.assignments(current.value.id), { method: 'POST', body: { userId: candidate.userId, force, shiftRoleId: state.shiftRoleId === NONE ? undefined : state.shiftRoleId } })
     replaceAssignee(result.assignment)
     lastWarnings.value = result.warnings.length ? { name, warnings: result.warnings } : null
     toast.add({ title: t('admin.assigned', 'Assigned {name}', { name }), color: result.warnings.length ? 'warning' : 'success', icon: 'i-lucide-check' })

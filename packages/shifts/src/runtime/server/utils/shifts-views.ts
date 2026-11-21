@@ -2,11 +2,11 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 import { renderSVG } from 'uqr'
-import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsNowDto, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
+import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { toShiftAssignmentDto, toShiftDto, toShiftPersonDto } from './shifts-dto'
 import type { ShiftRow, ShiftScheduleRow } from './shifts-dto'
-import { shiftsActiveAssignmentOf, shiftsEligibility, shiftsGuardWarningsFor, shiftsRoleById, shiftsTeamsById, shiftsUsersById } from './shifts-core'
+import { shiftsActiveAssignmentOf, shiftsEligibility, shiftsGuardWarningsFor, shiftsRoleById, shiftsRoleOfOr400, shiftsTeamsById, shiftsUsersById } from './shifts-core'
 import type { ShiftAssignmentEntry } from './shifts-core'
 import { shiftsCheckInOpen, shiftsPassWindow } from './shifts-assign'
 import { shiftsWithAssignees } from './shifts-admin'
@@ -168,14 +168,15 @@ export async function shiftsNow(event: H3Event, operationId: string, pii: boolea
  * members added in Teams), `q` matching the name, with whether they are eligible for the shift role, and the guards they
  * would break. Mapped-only people are not listed: they cannot be assigned.
  */
-export async function shiftsCandidates(event: H3Event, entry: { shift: ShiftRow, schedule: ShiftScheduleRow }, q: string | undefined, pii: boolean): Promise<ShiftCandidateDto[]> {
-  const { shift } = entry
+export async function shiftsCandidates(event: H3Event, entry: { shift: ShiftRow, schedule: ShiftScheduleRow }, q: string | undefined, pii: boolean, shiftRoleId?: string): Promise<ShiftCandidateDto[]> {
+  const { shift, schedule } = entry
   const members = await db.select({ userId: schema.teamMembers.userId, role: schema.teamMembers.role, status: schema.teamMembers.status })
     .from(schema.teamMembers).where(eq(schema.teamMembers.teamId, shift.teamId)).limit(1000)
   const holding = members.filter(member => teamMemberStatusGrants(member.status))
   const users = await shiftsUsersById(holding.map(member => member.userId))
   const needle = q?.toLowerCase()
-  const role = await shiftsRoleById(shift.shiftRoleId)
+  // The role the person would hold: the one asked for, else the shift's own.
+  const role = shiftRoleId ? await shiftsRoleOfOr400(schedule.id, shift.teamId, shiftRoleId) : await shiftsRoleById(shift.shiftRoleId)
   const result: ShiftCandidateDto[] = []
   for (const member of holding) {
     const user = users.get(member.userId)
@@ -191,4 +192,40 @@ export async function shiftsCandidates(event: H3Event, entry: { shift: ShiftRow,
     })
   }
   return result.sort((a, b) => Number(b.eligible) - Number(a.eligible) || (a.name ?? '').localeCompare(b.name ?? ''))
+}
+
+/** The teams of operations a user leads (a role at or above the ladder's `leadFrom`, explicit or mapped). */
+export async function shiftsLedTeams(event: H3Event, userId: number): Promise<ShiftsLedTeamDto[]> {
+  const grants = (await resolveAllTeamRoles(event, userId)).filter(grant => grant.ownerType === 'operation' && grant.ownerId)
+  const led: typeof grants = []
+  for (const grant of grants) if (await isTeamLead(event, userId, grant.teamId)) led.push(grant)
+  if (!led.length) return []
+  const [teams, operations] = await Promise.all([
+    shiftsTeamsById(led.map(grant => grant.teamId)),
+    db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations).where(inArray(schema.operations.id, led.map(grant => grant.ownerId!))),
+  ])
+  return led.map(grant => ({
+    teamId: grant.teamId,
+    teamName: (teams.get(grant.teamId)?.name ?? grant.teamId) as Translated,
+    operationId: grant.ownerId!,
+    operationName: (operations.find(item => item.id === grant.ownerId)?.name ?? grant.ownerId!) as Translated,
+  }))
+}
+
+/** The teams of an operation, in the order staff set, with their kind's ladder: what the Shifts tab's forms need. */
+export async function shiftsOperationTeams(event: H3Event, operationId: string): Promise<ShiftsOperationTeamDto[]> {
+  const [rows, ladders] = await Promise.all([
+    db.select().from(schema.teams).where(and(eq(schema.teams.ownerType, 'operation'), eq(schema.teams.ownerId, operationId)))
+      .orderBy(asc(schema.teams.sort), asc(schema.teams.createdAt), asc(schema.teams.id)),
+    loadTeamLadders(event),
+  ])
+  return rows.map((team) => {
+    const ladder = ladders[team.kind]
+    return {
+      id: team.id,
+      kind: team.kind,
+      name: team.name as Translated,
+      ladder: ladder ? { roles: ladder.roles.map(role => ({ key: role.key, label: role.label as Translated })), leadFrom: ladder.leadFrom ?? null } : null,
+    }
+  })
 }

@@ -19,7 +19,7 @@ hold a shift when they hold an explicit role on its team. Part of the volunteeri
   and `teams:member:role-changed`.
 - Permissions `shifts:read`, `shifts:swap`, `shifts:lead` (implicit, with policies), `shifts:manage` and `shifts:pii`;
   the `shifts` scope.
-- Pages `/shifts`, `/shifts/:assignmentId`, `/shifts/swaps` and `/shifts/check-in/:teamId`, and a Shifts tab on the
+- Pages `/shifts`, `/shifts/:assignmentId`, `/shifts/swaps`, `/shifts/lead/:teamId` and `/shifts/check-in/:teamId`, and a Shifts tab on the
   operation page.
 
 ## Quick Setup

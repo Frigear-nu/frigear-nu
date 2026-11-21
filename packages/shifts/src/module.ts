@@ -119,8 +119,9 @@ export default defineNuxtModule<ModuleOptions>({
     const shiftPath = resolvePagePath(settings.pages?.shift ?? true, SHIFTS_DEFAULT_PAGES.shift)
     const swapsPath = resolvePagePath(settings.pages?.swaps ?? true, SHIFTS_DEFAULT_PAGES.swaps)
     const checkInPath = resolvePagePath(settings.pages?.checkIn ?? true, SHIFTS_DEFAULT_PAGES.checkIn)
+    const leadPath = resolvePagePath(settings.pages?.lead ?? true, SHIFTS_DEFAULT_PAGES.lead)
     nuxt.options.runtimeConfig.public.shifts = {
-      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath },
+      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath, lead: leadPath },
       timeZone,
       checkInOpensMinutes,
     }
@@ -138,6 +139,8 @@ export default defineNuxtModule<ModuleOptions>({
     // `:operationId` each sit after their own static segment.
     addModuleRoutes(resolver, [
       { method: 'get', path: 'me', file: 'me/shifts.get' },
+      // Static, so it wins over `me/:assignmentId`.
+      { method: 'get', path: 'me/leads', file: 'me/leads.get' },
       { method: 'get', path: 'me/:assignmentId', file: 'me/shift.get' },
       { method: 'get', path: 'me/:assignmentId/pass', file: 'me/pass.get' },
       { method: 'post', path: 'me/:assignmentId/swap', file: 'me/swap.post' },
@@ -151,6 +154,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'swaps/:swapId/reject', file: 'swaps/reject.post' },
       { method: 'post', path: 'teams/:teamId/check-in', file: 'lead/check-in.post' },
       { method: 'get', path: 'teams/:teamId/shifts', file: 'lead/team-shifts.get' },
+      { method: 'get', path: 'teams/:teamId/swaps', file: 'lead/team-swaps.get' },
       { method: 'post', path: 'assignments/:assignmentId/attended', file: 'lead/attended.post' },
       { method: 'post', path: 'assignments/:assignmentId/no-show', file: 'lead/no-show.post' },
       { method: 'get', path: 'operations/:operationId/now', file: 'lead/now.get' },
@@ -172,6 +176,8 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: 'roles/:roleId', file: 'admin/role.delete' },
       { method: 'delete', path: 'assignments/:assignmentId', file: 'admin/assignment.delete' },
       { method: 'get', path: 'swaps', file: 'admin/swaps.get' },
+      { method: 'post', path: 'swaps/:swapId/cancel', file: 'admin/swap-cancel.post' },
+      { method: 'get', path: 'operations/:operationId/teams', file: 'admin/operation-teams.get' },
       // A shift is the module's main resource: `/api/admin/shifts/:shiftId`. The static segments above win over it.
       { method: 'patch', path: ':shiftId', file: 'admin/shift.patch' },
       { method: 'delete', path: ':shiftId', file: 'admin/shift.delete' },
@@ -201,6 +207,7 @@ export default defineNuxtModule<ModuleOptions>({
       // The swaps page before the detail page: `/shifts/swaps` is not an assignment id.
       { name: 'shifts-swaps', path: swapsPath, file: './runtime/app/pages/swaps.vue' },
       { name: 'shifts-check-in', path: checkInPath, file: './runtime/app/pages/check-in.vue' },
+      { name: 'shifts-lead', path: leadPath, file: './runtime/app/pages/lead.vue' },
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
     ])
 

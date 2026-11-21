@@ -7,8 +7,8 @@ import type { ShiftCandidateDto } from '../../../../types'
 export default defineEventHandler(async (event): Promise<ShiftCandidateDto[]> => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { shiftId } = await getValidatedRouterParams(event, idParams('shiftId').parse)
-  const { q } = await getValidatedQuery(event, shiftsCandidatesQuery.parse)
+  const { q, shiftRoleId } = await getValidatedQuery(event, shiftsCandidatesQuery.parse)
   const entry = await getShiftEntryOr404(shiftId)
   await authorize(event, shiftsAccess.permissions.manage, { operationId: entry.schedule.operationId })
-  return shiftsCandidates(event, entry, q, await allows(event, shiftsAccess.permissions.pii))
+  return shiftsCandidates(event, entry, q, await allows(event, shiftsAccess.permissions.pii), shiftRoleId)
 })

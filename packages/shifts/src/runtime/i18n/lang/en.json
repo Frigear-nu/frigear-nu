@@ -149,6 +149,16 @@
       "when": "When",
       "who": "Who"
     },
+    "lead": {
+      "description": "Your team's shifts, attendance and swaps.",
+      "empty": "No upcoming shifts for the team",
+      "forbidden": "You do not lead this team",
+      "loadFailed": "The team could not be loaded",
+      "markFailed": "Could not mark attendance",
+      "scanner": "Open the check-in scanner",
+      "title": "Lead {team}",
+      "titleFallback": "Your team"
+    },
     "menu": {
       "mine": {
         "description": "Your shifts, your QR pass and swaps.",
@@ -160,6 +170,7 @@
       "empty": "No shifts yet",
       "emptyDescription": "When a coordinator puts you on a shift, it shows up here.",
       "hidePast": "Hide past shifts",
+      "lead": "Lead {team}",
       "loadFailed": "Your shifts could not be loaded",
       "noneThatDay": "No shifts on that day.",
       "noneUpcoming": "No upcoming shifts.",

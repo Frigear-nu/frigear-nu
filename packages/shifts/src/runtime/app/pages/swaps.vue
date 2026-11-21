@@ -2,7 +2,7 @@
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_SWAP_OFFER_STATUS_LABELS } from '../../utils/status'
 import type { MyShiftDto, ShiftSwapDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, reactive, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, useState } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onMounted, reactive, ref, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsSwapsPage' })
 
@@ -21,8 +21,9 @@ if (error.value?.statusCode === 401) {
 }
 const { data: mine, refresh: refreshMine } = await useFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', default: () => [] })
 
-// The server's clock, carried to the client, so the first render matches.
-const now = useState('shifts:now', () => Date.now())
+// A page clock, set in the browser only, so the first render matches the server's.
+const now = ref(0)
+onMounted(() => (now.value = Date.now()))
 const upcomingMine = computed(() => mine.value.filter(item => item.assignment.status === 'assigned' && Date.parse(item.shift.startsAt) > now.value))
 const myOpen = computed(() => upcomingMine.value.filter(item => item.swap))
 const TAKE = '__take__'

@@ -48,6 +48,8 @@ export type ModuleOptions = {
       swaps?: string | boolean
       /** The check-in scanner of a team's leads; must contain a `:teamId` param. On by default (`/shifts/check-in/:teamId`). */
       checkIn?: string | boolean
+      /** A team lead's page: the team's shifts, attendance and the swaps waiting for approval; must contain a `:teamId` param. On by default (`/shifts/lead/:teamId`). */
+      lead?: string | boolean
     }
     /** Add a "Shifts" tab to the `admin.operations` tab area (with `@frigear-nu/widget` and `@frigear-nu/admin`). Defaults to `true`. */
     operationsTab?: boolean
@@ -62,7 +64,7 @@ export type ModuleOptions = {
 }
 
 export type PublicModuleOptions = {
-  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string }
+  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string }
   timeZone: string
   checkInOpensMinutes: number
 }
@@ -269,6 +271,24 @@ export type ShiftCopyResultDto = {
   shifts: number
   /** Teams of the source with no team of the same name in this operation: their roles and shifts were not copied. */
   skippedTeamIds: string[]
+  /** Roles of the source whose minimum team role is not on the target team kind's ladder: copied without one. */
+  changedRoleIds: string[]
+}
+
+/** A team the caller leads (`GET /api/shifts/me/leads`): where the lead page and the scanner apply. */
+export type ShiftsLedTeamDto = {
+  teamId: string
+  teamName: Translated
+  operationId: string
+  operationName: Translated
+}
+
+/** A team of an operation with its kind's ladder (`GET /api/admin/shifts/operations/:operationId/teams`). */
+export type ShiftsOperationTeamDto = {
+  id: string
+  kind: string
+  name: Translated
+  ladder: { roles: Array<{ key: string, label: Translated }>, leadFrom: string | null } | null
 }
 
 /** Context of `shifts:schedule:published`. */

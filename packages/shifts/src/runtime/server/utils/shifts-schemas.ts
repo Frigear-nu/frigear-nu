@@ -118,7 +118,11 @@ export const shiftsAssignInput = z.object({
 })
 
 /** The query of `GET /api/admin/shifts/:shiftId/candidates`. */
-export const shiftsCandidatesQuery = z.object({ q: z.string().trim().max(200).optional() })
+export const shiftsCandidatesQuery = z.object({
+  q: z.string().trim().max(200).optional(),
+  // The shift role the person would hold; the shift's own role when left out.
+  shiftRoleId: key.optional(),
+})
 
 /** The body of `POST /api/shifts/teams/:teamId/check-in`. */
 export const shiftsCheckInInput = z.object({ code: z.string().trim().min(1).max(200) })
@@ -134,3 +138,6 @@ export const shiftsSwapsQuery = z.object({
   operationId: key.optional(),
   status: z.enum(SHIFT_SWAP_STATUSES).optional(),
 })
+
+/** The query of `GET /api/shifts/teams/:teamId/swaps`. */
+export const shiftsTeamSwapsQuery = z.object({ status: z.enum(SHIFT_SWAP_STATUSES).optional() })
