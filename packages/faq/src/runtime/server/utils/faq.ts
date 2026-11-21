@@ -3,13 +3,12 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, eq, inArray, is, or, sql } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
-import { isVisible, parseVisibility } from '@frigear-nu/audience'
-import type { OwnerRef, Viewer, Visibility } from '@frigear-nu/audience'
-import { resolveOwner, resolveViewer } from '@frigear-nu/audience/server'
+import { hasPublicGrant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/grants/core'
 import { apiError, conflict, escapeLike, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { AdminFaqGroupDto, FaqGroupDto, FaqItemStatus, FaqSearchResult } from '../../../types'
-import { checkReorder, describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, isFaqItemVisible, isValidReorder, missingTranslations, newId, normalizeVisibility } from '../../utils'
+import type { AdminFaqGroupDto, FaqGroupDto, FaqItemStatus, FaqSearchResult, OwnerRef } from '../../../types'
+import { checkReorder, describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, isFaqItemPublic, isFaqItemReadable, isValidReorder, missingTranslations, newId } from '../../utils'
 import { toAdminFaqGroupDto, toFaqGroupDto, toFaqItemDto } from './faq-dto'
 import { isFaqUniqueViolation } from './faq-errors'
 import type { faqGroupInput, faqGroupPatchSchema, faqItemInput, faqItemPatchSchema } from './faq-schemas'
@@ -93,18 +92,26 @@ export function faqRequiredLocales(): string[] {
   return configured?.length ? configured : [...DEFAULT_REQUIRED_LOCALES]
 }
 
-// --- Who is looking --------------------------------------------------------------------------
+// --- Who may read ----------------------------------------------------------------------------
 
 /**
- * Who is looking, through `audience:viewer:resolve` (team roles, ladders and operations come from the modules that know
- * them). Resolve it once per request. Anonymous visitors get an empty viewer without calling the hook.
+ * Who reads a group or an item. `public`: only what anonymous visitors read (a `public` grant), the same answer for
+ * everyone. Otherwise the caller of `event`, through `grantsCanRead` and the `faq:read` policy.
  */
-export async function resolveFaqViewer(event: H3Event, user: { id: string | number } | null): Promise<Viewer> {
-  return resolveViewer(event, {
-    hooks: useNitroApp().hooks,
-    user,
-    globalRoles: user ? await getEffectiveRoles(event, user as Parameters<typeof getEffectiveRoles>[1]) : [],
-  })
+export type FaqReader = { event: H3Event, public?: boolean }
+
+const faqCanRead = (reader: FaqReader) => (record: { grants: unknown }) =>
+  reader.public ? Promise.resolve(hasPublicGrant(record.grants)) : grantsCanRead(reader.event, 'faq:read', record)
+
+/** Whether the reader reads the group. */
+export function faqCanReadGroup(reader: FaqReader, group: FaqGroupRow): Promise<boolean> {
+  return faqCanRead(reader)(group)
+}
+
+/** Whether the reader reads the item: its group, and the item unless it inherits the group. */
+export function faqCanReadItem(reader: FaqReader, group: FaqGroupRow, item: FaqItemRow): Promise<boolean> {
+  if (reader.public) return Promise.resolve(isFaqItemPublic(group, item))
+  return isFaqItemReadable(group, item, faqCanRead(reader))
 }
 
 // --- Reading ---------------------------------------------------------------------------------
@@ -129,30 +136,37 @@ export function faqTranslatedContains(column: AnyColumn, value: string): SQL {
 }
 
 /**
- * The groups a viewer reads, each with its published items they may read, in `sort` order (or in the order of `slugs`
- * when given). A group the viewer may not read is left out, and so is a group that does not exist. `operationId` keeps the
- * groups owned by that operation.
+ * The groups the reader reads, each with its published items they may read, in `sort` order (or in the order of `slugs`
+ * when given). A group the reader may not read is left out, and so is a group that does not exist. `operationId` keeps
+ * the groups owned by that operation.
  */
-export async function loadFaqGroups(options: { viewer: Viewer, slugs?: string[], operationId?: string }): Promise<FaqGroupDto[]> {
-  const { viewer, slugs = [], operationId } = options
+export async function loadFaqGroups(reader: FaqReader, options: { slugs?: string[], operationId?: string } = {}): Promise<FaqGroupDto[]> {
+  const { slugs = [], operationId } = options
   const conditions: (SQL | undefined)[] = []
   if (slugs.length) conditions.push(inArray(schema.faqGroups.slug, slugs))
   if (operationId) conditions.push(and(eq(schema.faqGroups.ownerType, 'operation'), eq(schema.faqGroups.ownerId, operationId)))
   const rows = await db.select().from(schema.faqGroups).where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(schema.faqGroups.sort), asc(schema.faqGroups.createdAt), asc(schema.faqGroups.id))
-  const visible = rows.filter(row => isVisible(parseVisibility(row.visibility), viewer))
+  const visible: FaqGroupRow[] = []
+  for (const row of rows) if (await faqCanReadGroup(reader, row)) visible.push(row)
   if (slugs.length) visible.sort((a, b) => slugs.indexOf(a.slug) - slugs.indexOf(b.slug))
   if (!visible.length) return []
 
   const items = await db.select().from(schema.faqItems)
     .where(and(inArray(schema.faqItems.groupId, visible.map(row => row.id)), eq(schema.faqItems.status, 'published')))
     .orderBy(asc(schema.faqItems.sort), asc(schema.faqItems.createdAt), asc(schema.faqItems.id))
-  return visible.map(group => toFaqGroupDto(group, items.filter(item => item.groupId === group.id && isFaqItemVisible(group, item, viewer))))
+  const groups: FaqGroupDto[] = []
+  for (const group of visible) {
+    const readable: FaqItemRow[] = []
+    for (const item of items) if (item.groupId === group.id && await faqCanReadItem(reader, group, item)) readable.push(item)
+    groups.push(toFaqGroupDto(group, readable))
+  }
+  return groups
 }
 
-/** One group by URL name for a viewer, or `undefined` when it does not exist or they may not read it. */
-export async function loadFaqGroup(slug: string, viewer: Viewer): Promise<FaqGroupDto | undefined> {
-  const [group] = await loadFaqGroups({ viewer, slugs: [slug] })
+/** One group by URL name for the reader, or `undefined` when it does not exist or they may not read it. */
+export async function loadFaqGroup(reader: FaqReader, slug: string): Promise<FaqGroupDto | undefined> {
+  const [group] = await loadFaqGroups(reader, { slugs: [slug] })
   return group
 }
 
@@ -163,12 +177,12 @@ const SEARCH_LIMIT = 50
 const SEARCH_MAX_BATCHES = 50
 
 /**
- * Published items whose question or answer contains `query` in any language, among the ones the viewer may read, in the
- * order of the groups and items. The operation filter and the order are in SQL; the viewer's visibility is not, so the
- * matches are read in batches until there are 50 visible hits or none are left.
+ * Published items whose question or answer contains `query` in any language, among the ones the reader may read, in the
+ * order of the groups and items. The operation filter and the order are in SQL; the grants are not, so the matches are
+ * read in batches until there are 50 readable hits or none are left.
  */
-export async function searchFaq(options: { viewer: Viewer, query: string, operationId?: string }): Promise<FaqSearchResult[]> {
-  const { viewer, query, operationId } = options
+export async function searchFaq(reader: FaqReader, options: { query: string, operationId?: string }): Promise<FaqSearchResult[]> {
+  const { query, operationId } = options
   const where = and(
     eq(schema.faqItems.status, 'published'),
     or(faqTranslatedContains(schema.faqItems.question, query), faqTranslatedContains(schema.faqItems.answer, query)),
@@ -184,7 +198,7 @@ export async function searchFaq(options: { viewer: Viewer, query: string, operat
       .limit(SEARCH_BATCH)
       .offset(batch * SEARCH_BATCH)
     for (const { item, group } of rows) {
-      if (hits.length < SEARCH_LIMIT && isFaqItemVisible(group, item, viewer)) {
+      if (hits.length < SEARCH_LIMIT && await faqCanReadItem(reader, group, item)) {
         hits.push({ group: { id: group.id, slug: group.slug, title: group.title }, item: toFaqItemDto(group, item) })
       }
     }
@@ -210,9 +224,9 @@ function rethrowSlugConflict(error: unknown): never {
 }
 
 /**
- * 400 when the owner does not exist. `platform` has no id; every other type must be answered by its module through
- * `audience:owner:resolve` (operations answers for `operation`). A type nobody answers cannot be verified, so it is
- * refused too.
+ * 400 when the owner does not exist. `platform` has no id; every other type must be answered through
+ * `teams:owner:resolve` (Teams answers `team` and `operation`, an app its own types). A type nobody answers cannot be
+ * verified, so it is refused too.
  */
 export async function assertFaqOwner(event: H3Event, owner: OwnerRef): Promise<void> {
   if (owner.type === 'platform') {
@@ -220,22 +234,10 @@ export async function assertFaqOwner(event: H3Event, owner: OwnerRef): Promise<v
     return
   }
   if (!owner.id) throw validationError([{ path: ['owner', 'id'], message: 'An owner of this type needs an id.' }])
-  const resolved = await resolveOwner(event, owner, { hooks: useNitroApp().hooks })
-  if (resolved.exists !== true) {
+  const ctx = { event, owner: { ...owner }, label: null, exists: null as boolean | null }
+  await useNitroApp().hooks.callHook('teams:owner:resolve', ctx)
+  if (ctx.exists !== true) {
     throw validationError([{ path: ['owner'], message: 'This owner does not exist.' }], 'Unknown owner')
-  }
-}
-
-/**
- * 400 when a visibility names an `operationId` that does not exist (through `audience:owner:resolve`, like an owner),
- * unless it is the one already stored: a group whose operation was deleted can still be edited.
- */
-export async function assertFaqVisibilityOperation(event: H3Event, visibility: Visibility | null | undefined, stored?: unknown): Promise<void> {
-  const id = visibility?.operationId
-  if (!id || id === parseVisibility(stored)?.operationId) return
-  const resolved = await resolveOwner(event, { type: 'operation', id }, { hooks: useNitroApp().hooks })
-  if (resolved.exists !== true) {
-    throw validationError([{ path: ['visibility', 'operationId'], message: 'This operation does not exist.' }], 'Unknown operation')
   }
 }
 
@@ -259,7 +261,7 @@ export async function createFaqGroupRow(event: H3Event, input: GroupInput): Prom
   await assertFaqSlugFree(input.slug)
   const owner = ownerValue(input.owner)
   await assertFaqOwner(event, owner)
-  await assertFaqVisibilityOperation(event, input.visibility as Visibility | null | undefined)
+  const grants = await grantsValidate(event, (input.grants ?? []) as Grant[])
   const [row] = await db.insert(schema.faqGroups).values({
     id: newId('faq'),
     slug: input.slug,
@@ -268,7 +270,7 @@ export async function createFaqGroupRow(event: H3Event, input: GroupInput): Prom
     icon: blankToNull(input.icon),
     ownerType: owner.type,
     ownerId: owner.id,
-    visibility: normalizeVisibility(input.visibility as Visibility | null | undefined),
+    grants,
     sort: input.sort ?? await nextGroupSort(),
   }).returning().catch(rethrowSlugConflict)
   return row!
@@ -280,7 +282,7 @@ export async function patchFaqGroupRow(event: H3Event, existing: FaqGroupRow, pa
   const owner = patch.owner ? ownerValue(patch.owner) : undefined
   // An unchanged owner is not checked again: a group whose operation was deleted can still be edited.
   if (owner && !(owner.type === existing.ownerType && owner.id === (existing.ownerId ?? null))) await assertFaqOwner(event, owner)
-  if (patch.visibility) await assertFaqVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
+  const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : undefined
   const values: Partial<typeof schema.faqGroups.$inferInsert> = {}
   if (patch.slug !== undefined) values.slug = patch.slug
   if (patch.title !== undefined) values.title = patch.title
@@ -290,7 +292,7 @@ export async function patchFaqGroupRow(event: H3Event, existing: FaqGroupRow, pa
     values.ownerType = owner.type
     values.ownerId = owner.id
   }
-  if (patch.visibility !== undefined) values.visibility = normalizeVisibility(patch.visibility as Visibility | null)
+  if (grants) values.grants = grants
   if (patch.sort !== undefined) values.sort = patch.sort
   const changed: Partial<typeof schema.faqGroups.$inferInsert> = Object.fromEntries(
     Object.entries(values).filter(([key, value]) => !sameValue(value, existing[key as keyof FaqGroupRow])),
@@ -316,7 +318,7 @@ export function assertFaqPublishable(item: Pick<FaqItemRow, 'question' | 'answer
 
 /** Inserts a draft item at the end of the group. */
 export async function createFaqItemRow(event: H3Event, group: FaqGroupRow, input: ItemInput, userId: string | number): Promise<FaqItemRow> {
-  await assertFaqVisibilityOperation(event, input.visibility as Visibility | null | undefined)
+  const grants = input.grants ? await grantsValidate(event, input.grants as Grant[]) : null
   const [row] = await db.insert(schema.faqItems).values({
     id: newId('fqi'),
     groupId: group.id,
@@ -325,7 +327,7 @@ export async function createFaqItemRow(event: H3Event, group: FaqGroupRow, input
     icon: blankToNull(input.icon),
     links: input.links?.length ? input.links : null,
     status: 'draft',
-    visibility: normalizeVisibility(input.visibility as Visibility | null | undefined),
+    grants,
     sort: await nextItemSort(group.id),
     updatedBy: String(userId),
   }).returning()
@@ -337,13 +339,13 @@ export async function createFaqItemRow(event: H3Event, group: FaqGroupRow, input
  * must keep every required locale, so an edit that removes one is `409 missing_translations`.
  */
 export async function patchFaqItemRow(event: H3Event, existing: FaqItemRow, patch: ItemPatch, userId: string | number): Promise<FaqItemRow> {
-  if (patch.visibility) await assertFaqVisibilityOperation(event, patch.visibility as Visibility, existing.visibility)
+  const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : patch.grants
   const values: Partial<typeof schema.faqItems.$inferInsert> = {}
   if (patch.question !== undefined) values.question = patch.question
   if (patch.answer !== undefined) values.answer = patch.answer
   if (patch.icon !== undefined) values.icon = blankToNull(patch.icon)
   if (patch.links !== undefined) values.links = patch.links?.length ? patch.links : null
-  if (patch.visibility !== undefined) values.visibility = normalizeVisibility(patch.visibility as Visibility | null)
+  if (grants !== undefined) values.grants = grants
   const changed: Partial<typeof schema.faqItems.$inferInsert> = Object.fromEntries(
     Object.entries(values).filter(([key, value]) => !sameValue(value, existing[key as keyof FaqItemRow])),
   )

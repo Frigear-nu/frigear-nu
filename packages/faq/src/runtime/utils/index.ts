@@ -6,7 +6,7 @@ export * from './api'
 export * from './slug'
 export * from './publish'
 export * from './reorder'
-export * from './visibility'
+export * from './grants'
 export * from './cards'
 
 export type {
@@ -22,9 +22,9 @@ export type {
   FaqSearchResult,
   MissingTranslations,
   ModuleOptions,
+  Grant,
   OwnerRef,
   Translated,
-  Visibility,
 } from '../../types'
 
 /** Random, prefixed id (`faq_...`, `fqi_...`), Web Crypto only so it works on Workers. */

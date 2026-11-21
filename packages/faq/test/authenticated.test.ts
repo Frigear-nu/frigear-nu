@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { faqApi } from '../src/runtime/utils/api'
 import { faqAccess } from '../src/runtime/access'
-import { getHookLog, registerUser, setViewer } from './helpers'
+import { getHookLog, joinClub, registerUser } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -21,6 +21,10 @@ const ok = async (response: Response) => {
 }
 
 const both = (en: string, da: string) => ({ en, da })
+// Grant lists (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody.
+const PUBLIC = [{ kind: 'public' }]
+const SUPERVISORS = [{ kind: 'role', role: 'supervisor' }]
+const club = (clubId: string) => [{ kind: 'club', clubId }]
 let counter = 0
 
 async function createToken(cookie: string, scopes: string[]) {
@@ -134,13 +138,13 @@ describe('faq (authenticated, database-backed)', async () => {
       const created = await createGroup({
         description: both('About membership', 'Om medlemskab'),
         icon: 'i-lucide-info',
-        visibility: { public: true },
+        grants: PUBLIC,
       })
       expect(created).toMatchObject({
         title: { en: 'Membership', da: 'Medlemskab' },
         icon: 'i-lucide-info',
         owner: { type: 'platform', id: null },
-        visibility: { public: true },
+        grants: PUBLIC,
         public: true,
         itemCount: 0,
         publishedCount: 0,
@@ -150,8 +154,8 @@ describe('faq (authenticated, database-backed)', async () => {
 
       expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(created.id)))).toMatchObject({ slug: created.slug })
 
-      const patched = await ok(await json(staff.cookie, 'PATCH', faqApi.admin.group(created.id), { title: 'Renamed', description: null, visibility: null }))
-      expect(patched).toMatchObject({ title: 'Renamed', description: null, visibility: null, public: false, slug: created.slug })
+      const patched = await ok(await json(staff.cookie, 'PATCH', faqApi.admin.group(created.id), { title: 'Renamed', description: null, grants: [] }))
+      expect(patched).toMatchObject({ title: 'Renamed', description: null, grants: [], public: false, slug: created.slug })
 
       expect((await json(staff.cookie, 'DELETE', faqApi.admin.group(created.id))).status).toBe(204)
       await expectApiError(json(staff.cookie, 'GET', faqApi.admin.group(created.id)), 404, 'not_found')
@@ -201,23 +205,27 @@ describe('faq (authenticated, database-backed)', async () => {
         { ...base, slug: 'groups' },
         { ...base, slug: 'ok-slug', title: {} },
         { slug: 'ok-slug' },
-        { ...base, slug: 'ok-slug', visibility: { permission: 'faq:manage' } },
-        { ...base, slug: 'ok-slug', visibility: { globalRole: ['x'] } },
+        { ...base, slug: 'ok-slug', grants: { kind: 'public' } },
+        { ...base, slug: 'ok-slug', grants: [{ role: 'x' }] },
+        { ...base, slug: 'ok-slug', grants: [{ kind: 'galaxy' }] },
+        { ...base, slug: 'ok-slug', grants: [{ kind: 'role', roles: ['x'] }] },
+        { ...base, slug: 'ok-slug', grants: [{ kind: 'role', role: 'x', permission: 'faq:manage' }] },
         { ...base, slug: 'ok-slug', sort: -1 },
       ]) {
         expect((await json(staff.cookie, 'POST', faqApi.admin.groups, body)).status, JSON.stringify(body)).toBe(400)
       }
     })
 
-    it('refuses a visibility with an unknown key on a patch too, and keeps the stored one', async () => {
-      const group = await createGroup({ visibility: { public: true } })
-      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { visibility: { permission: 'x' } })).status).toBe(400)
-      expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(group.id)))).toMatchObject({ visibility: { public: true } })
+    it('refuses an unknown kind or an invalid grant on a patch too, and keeps the stored list', async () => {
+      const group = await createGroup({ grants: PUBLIC })
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { grants: [{ kind: 'galaxy' }] })).status).toBe(400)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { grants: [{ kind: 'role' }] })).status).toBe(400)
+      expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(group.id)))).toMatchObject({ grants: PUBLIC })
     })
 
-    it('stores an empty visibility as null (signed-in people)', async () => {
-      const group = await createGroup({ visibility: {} })
-      expect(group.visibility).toBeNull()
+    it('stores a new group without grants as the empty list: nobody but staff sees it', async () => {
+      const group = await createGroup()
+      expect(group).toMatchObject({ grants: [], public: false })
     })
 
     it('keeps slugs unique (409 conflict), also when renaming', async () => {
@@ -235,21 +243,21 @@ describe('faq (authenticated, database-backed)', async () => {
       await expectApiError(json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { icon: 'x' }), 404, 'not_found')
     })
 
-    it('checks a visibility operationId like an owner: an unknown operation is 400, also on items and patches', async () => {
+    it('checks what a grant points at through its kind: an unknown club is 400, also on items and patches', async () => {
       await asStaff()
       const slug = () => `vop-${++counter}`
-      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', visibility: { operationId: 'opr_unknown', minTeamRole: { kind: 'bar', role: 'lead' } } })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Good', visibility: { operationId: 'opr_known' } })).status).toBe(201)
+      await expectApiError(json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', grants: club('club_unknown') }), 400, 'validation_failed')
+      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Bad', grants: [...PUBLIC, ...club('club_unknown')] })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', faqApi.admin.groups, { slug: slug(), title: 'Good', grants: club('club_known') })).status).toBe(201)
 
       const group = await createGroup()
-      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
-      expect((await json(staff.cookie, 'POST', faqApi.admin.items(group.id), { question: 'Q', answer: 'A', visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.group(group.id), { grants: club('club_unknown') })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', faqApi.admin.items(group.id), { question: 'Q', answer: 'A', grants: club('club_unknown') })).status).toBe(400)
       const item = await createItem(group.id)
-      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { visibility: { operationId: 'opr_unknown' } })).status).toBe(400)
-      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { visibility: { operationId: 'opr_known' } })).status).toBe(200)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { grants: club('club_unknown') })).status).toBe(400)
+      expect((await json(staff.cookie, 'PATCH', faqApi.admin.item(item.id), { grants: club('club_known') })).status).toBe(200)
       // Nothing was stored by the refused calls.
-      expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(group.id)))).toMatchObject({ visibility: null })
+      expect(await ok(await json(staff.cookie, 'GET', faqApi.admin.group(group.id)))).toMatchObject({ grants: [] })
     })
 
     it('checks the owner: the platform has no id, others must be answered by their module', async () => {
@@ -284,7 +292,7 @@ describe('faq (authenticated, database-backed)', async () => {
       const group = await createGroup()
       const first = await createItem(group.id, { icon: 'i-lucide-coins', links: [{ label: 'Prices', to: '/prices' }] })
       const second = await createItem(group.id)
-      expect(first).toMatchObject({ groupId: group.id, status: 'draft', icon: 'i-lucide-coins', links: [{ label: 'Prices', to: '/prices' }], visibility: null, sort: 0 })
+      expect(first).toMatchObject({ groupId: group.id, status: 'draft', icon: 'i-lucide-coins', links: [{ label: 'Prices', to: '/prices' }], grants: null, sort: 0 })
       expect(first.id).toMatch(/^fqi_/)
       expect(first.updatedBy).toBeTruthy()
       expect(second.sort).toBe(1)
@@ -308,7 +316,7 @@ describe('faq (authenticated, database-backed)', async () => {
         { answer: 'A' },
         { question: {}, answer: 'A' },
         { question: 'Q', answer: 'A', links: [{ label: 'x', to: 'javascript:alert(1)' }] },
-        { question: 'Q', answer: 'A', visibility: { permission: 'faq:manage' } },
+        { question: 'Q', answer: 'A', grants: [{ kind: 'galaxy' }] },
       ]) {
         expect((await json(staff.cookie, 'POST', faqApi.admin.items(group.id), body)).status, JSON.stringify(body)).toBe(400)
       }
@@ -359,7 +367,7 @@ describe('faq (authenticated, database-backed)', async () => {
     })
 
     it('unpublishes an item back to a draft, and fires faq:group:updated', async () => {
-      const { group, items } = await publishedGroup({ visibility: { public: true } })
+      const { group, items } = await publishedGroup({ grants: PUBLIC })
       const before = (await getHookLog()).filter(entry => entry.groupId === group.id).length
       const draft = await ok(await json(staff.cookie, 'POST', faqApi.admin.unpublish(items[0]!.id)))
       expect(draft.status).toBe('draft')
@@ -416,7 +424,7 @@ describe('faq (authenticated, database-backed)', async () => {
     })
 
     it('shows the new order to visitors', async () => {
-      const { group, items } = await publishedGroup({ visibility: { public: true } }, [{}, {}])
+      const { group, items } = await publishedGroup({ grants: PUBLIC }, [{}, {}])
       await ok(await json(staff.cookie, 'POST', faqApi.admin.reorder(group.id), { itemIds: [items[1]!.id, items[0]!.id] }))
       const [shown] = await listPublic(undefined, `?slugs=${group.slug}`)
       expect(shown!.items.map((item: Json) => item.id)).toEqual([items[1]!.id, items[0]!.id])
@@ -426,9 +434,9 @@ describe('faq (authenticated, database-backed)', async () => {
   describe('public API', () => {
     it('shows anonymous visitors public groups and public items only, and 404s the rest', async () => {
       const marker = `pub${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } })
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC })
       const signedIn = await publishedGroup({ slug: `${marker}-signed-in` })
-      const draftOnly = await createGroup({ slug: `${marker}-drafts`, visibility: { public: true } })
+      const draftOnly = await createGroup({ slug: `${marker}-drafts`, grants: PUBLIC })
       await createItem(draftOnly.id)
 
       const anonymous = await listPublic(undefined)
@@ -444,18 +452,26 @@ describe('faq (authenticated, database-backed)', async () => {
       await expectApiError(json(undefined, 'GET', faqApi.group('does-not-exist')), 404, 'not_found')
     })
 
-    it('answers with an allowlisted DTO: no status, visibility or audit data', async () => {
-      const { group } = await publishedGroup({ visibility: { public: true } })
+    it('answers with an allowlisted DTO: no status, grants or audit data', async () => {
+      const { group } = await publishedGroup({ grants: PUBLIC })
       const [shown] = await listPublic(undefined, `?slugs=${group.slug}`)
       expect(Object.keys(shown!).sort()).toEqual(['description', 'icon', 'id', 'items', 'owner', 'public', 'slug', 'sort', 'title'])
       expect(Object.keys(shown!.items[0]).sort()).toEqual(['answer', 'groupId', 'icon', 'id', 'links', 'public', 'question', 'sort'])
     })
 
-    it('shows a signed-in user the signed-in groups as well', async () => {
+    it('shows a signed-in user the groups granted to them as well, and nobody a group with no grants', async () => {
       const marker = `sig${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } })
-      const signedIn = await publishedGroup({ slug: `${marker}-signed`, visibility: null })
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC })
+      const signedIn = await publishedGroup({ slug: `${marker}-signed`, grants: club(`club_${marker}`) })
+      const nobody = await publishedGroup({ slug: `${marker}-nobody`, grants: [] })
       const member = await user('Member')
+      await joinClub(member.cookie, `club_${marker}`)
+
+      // The empty list is nobody, never "every signed-in user": not even the member, not even staff on the public API.
+      expect(slugsOf(await listPublic(member.cookie))).not.toContain(nobody.group.slug)
+      expect(slugsOf(await listPublic(staff.cookie))).not.toContain(nobody.group.slug)
+      await expectApiError(json(member.cookie, 'GET', faqApi.group(nobody.group.slug)), 404, 'not_found')
+      expect(slugsOf(await listPublic((await user('Outsider')).cookie))).not.toContain(signedIn.group.slug)
 
       const mine = slugsOf(await listPublic(member.cookie))
       expect(mine).toContain(open.group.slug)
@@ -465,9 +481,9 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('filters by slugs, in the order asked for, and leaves out the ones that do not exist or are hidden', async () => {
       const marker = `slg${++counter}`
-      const a = await publishedGroup({ slug: `${marker}-a`, visibility: { public: true } })
-      const b = await publishedGroup({ slug: `${marker}-b`, visibility: { public: true } })
-      const hidden = await publishedGroup({ slug: `${marker}-hidden`, visibility: { globalRoles: ['supervisor'] } })
+      const a = await publishedGroup({ slug: `${marker}-a`, grants: PUBLIC })
+      const b = await publishedGroup({ slug: `${marker}-b`, grants: PUBLIC })
+      const hidden = await publishedGroup({ slug: `${marker}-hidden`, grants: SUPERVISORS })
 
       expect(slugsOf(await listPublic(undefined, `?slugs=${b.group.slug},${a.group.slug}`))).toEqual([b.group.slug, a.group.slug])
       expect(slugsOf(await listPublic(undefined, `?slugs=${a.group.slug},nope,${hidden.group.slug},${a.group.slug}`))).toEqual([a.group.slug])
@@ -475,7 +491,7 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('hides a group restricted by role from everybody but that role, and shows it to the role', async () => {
       const marker = `rol${++counter}`
-      const { group } = await publishedGroup({ slug: `${marker}-bar`, visibility: { globalRoles: ['supervisor'] } })
+      const { group } = await publishedGroup({ slug: `${marker}-bar`, grants: SUPERVISORS })
       const member = await user('Plain')
       const bar = await supervisor()
 
@@ -489,13 +505,13 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('lets an item narrow its group, and never widen it', async () => {
       const marker = `nar${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } }, [
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC }, [
         { question: both('For everyone?', 'Til alle?') },
-        { question: both('For supervisors?', 'Til supervisorer?'), visibility: { globalRoles: ['supervisor'] } },
-        { question: both('Inherits?', 'Arver?'), visibility: {} },
+        { question: both('For supervisors?', 'Til supervisorer?'), grants: SUPERVISORS },
+        { question: both('Inherits?', 'Arver?'), grants: null },
       ])
-      const restricted = await publishedGroup({ slug: `${marker}-restricted`, visibility: { globalRoles: ['supervisor'] } }, [
-        { question: both('Claims to be public?', 'Påstår at være offentlig?'), visibility: { public: true } },
+      const restricted = await publishedGroup({ slug: `${marker}-restricted`, grants: SUPERVISORS }, [
+        { question: both('Claims to be public?', 'Påstår at være offentlig?'), grants: PUBLIC },
       ])
       const member = await user('Narrow')
       const bar = await supervisor()
@@ -513,45 +529,31 @@ describe('faq (authenticated, database-backed)', async () => {
       expect((await listPublic(bar.cookie, `?slugs=${restricted.group.slug}`))[0]!.items[0]).toMatchObject({ public: false })
     })
 
-    it('does not show a public item in a signed-in group to visitors: an item never widens its group', async () => {
-      const group = await publishedGroup({ visibility: null }, [{ visibility: { public: true } }])
+    it('does not show a public item in a restricted group to visitors: an item never widens its group', async () => {
+      const group = await publishedGroup({ grants: club('club_any') }, [{ grants: PUBLIC }])
       expect((await listPublic(undefined, `?slugs=${group.group.slug}`))).toEqual([])
     })
 
-    it('uses team roles and operations that audience:viewer:resolve fills in', async () => {
+    it('uses the grant kinds other modules register, and admits on any one grant of the list', async () => {
       const marker = `tem${++counter}`
-      const leadOnly = await publishedGroup({ slug: `${marker}-lead`, visibility: { minTeamRole: { kind: 'bar', role: 'lead' } } })
-      const operationOnly = await publishedGroup({ slug: `${marker}-op`, visibility: { operationId: 'opr_known' } })
-      const operationLead = await publishedGroup({ slug: `${marker}-op-lead`, visibility: { operationId: 'opr_known', minTeamRole: { kind: 'bar', role: 'lead' } } })
+      const riders = await publishedGroup({ slug: `${marker}-riders`, grants: club(`riders_${marker}`) })
+      const either = await publishedGroup({ slug: `${marker}-either`, grants: [...club(`riders_${marker}`), ...SUPERVISORS] })
+      const supervisorsOnly = await createGroup({ slug: `${marker}-other`, grants: SUPERVISORS })
 
-      const volunteer = await user('Volunteer')
-      await setViewer(volunteer.cookie, {
-        operationIds: ['opr_known'],
-        teamRoles: [{ ownerType: 'operation', ownerId: 'opr_known', teamId: 'tem_1', kind: 'bar', role: 'volunteer', source: 'explicit' }],
-      })
-      const teamLead = await user('Lead')
-      await setViewer(teamLead.cookie, {
-        teamRoles: [{ ownerType: 'platform', ownerId: null, teamId: 'tem_2', kind: 'bar', role: 'lead', source: 'mapped' }],
-      })
-      const coordinatorAtOperation = await user('Coordinator')
-      await setViewer(coordinatorAtOperation.cookie, {
-        teamRoles: [{ ownerType: 'operation', ownerId: 'opr_known', teamId: 'tem_3', kind: 'bar', role: 'coordinator', source: 'explicit' }],
-      })
+      const rider = await user('Rider')
+      await joinClub(rider.cookie, `riders_${marker}`)
+      const bar = await supervisor()
 
-      const visible = async (session: Session) => slugsOf(await listPublic(session.cookie)).filter(slug => slug.startsWith(marker))
-      // Takes part in the operation, but only a volunteer on the bar ladder.
-      expect(await visible(volunteer)).toEqual([operationOnly.group.slug])
-      // A mapped lead role counts for a team role, but they do not take part in the operation.
-      expect(await visible(teamLead)).toEqual([leadOnly.group.slug])
-      // An explicit grant on a team of the operation counts as taking part, and a coordinator is above lead.
-      expect((await visible(coordinatorAtOperation)).sort()).toEqual([leadOnly.group.slug, operationLead.group.slug, operationOnly.group.slug].sort())
+      const visible = async (session: Session) => slugsOf(await listPublic(session.cookie)).filter(slug => slug.startsWith(marker)).sort()
+      expect(await visible(rider)).toEqual([either.group.slug, riders.group.slug].sort())
+      expect(await visible(bar)).toEqual([either.group.slug, supervisorsOnly.slug].sort())
       expect(await visible(await user('Nobody'))).toEqual([])
     })
 
     it('filters by operation', async () => {
       const marker = `opf${++counter}`
-      const owned = await publishedGroup({ slug: `${marker}-owned`, visibility: { public: true }, owner: { type: 'operation', id: 'opr_known' } })
-      const platform = await publishedGroup({ slug: `${marker}-platform`, visibility: { public: true } })
+      const owned = await publishedGroup({ slug: `${marker}-owned`, grants: PUBLIC, owner: { type: 'operation', id: 'opr_known' } })
+      const platform = await publishedGroup({ slug: `${marker}-platform`, grants: PUBLIC })
 
       const forOperation = slugsOf(await listPublic(undefined, '?operation=opr_known'))
       expect(forOperation).toContain(owned.group.slug)
@@ -561,8 +563,8 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('answers public=1 for everyone alike, signed in or not, with a cacheable response', async () => {
       const marker = `p1${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } })
-      const signedIn = await publishedGroup({ slug: `${marker}-signed` })
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC })
+      const signedIn = await publishedGroup({ slug: `${marker}-signed`, grants: SUPERVISORS })
       const bar = await supervisor()
 
       const anonymous = await listPublic(undefined, '?public=1')
@@ -570,7 +572,7 @@ describe('faq (authenticated, database-backed)', async () => {
       expect(slugsOf(anonymous)).toContain(open.group.slug)
       expect(slugsOf(anonymous)).not.toContain(signedIn.group.slug)
       expect(asBar).toEqual(anonymous)
-      // Without the flag the signed-in user does see the signed-in group.
+      // Without the flag the signed-in user does see the group granted to their role.
       expect(slugsOf(await listPublic(bar.cookie))).toContain(signedIn.group.slug)
 
       const response = await json(undefined, 'GET', `${faqApi.groups}?public=1`)
@@ -581,9 +583,10 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('treats a token without faq:read as anonymous', async () => {
       const marker = `tok${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } })
-      const signedIn = await publishedGroup({ slug: `${marker}-signed` })
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC })
+      const signedIn = await publishedGroup({ slug: `${marker}-signed`, grants: club(`club_${marker}`) })
       const member = await user('Token')
+      await joinClub(member.cookie, `club_${marker}`)
       // A token that holds some other scope, but not `faq:read`.
       const scopes = await ok(await json(member.cookie, 'GET', authApi.scopes)) as unknown as Array<{ name: string }>
       const other = scopes.map(scope => scope.name).find(name => !name.startsWith('faq'))!
@@ -607,11 +610,11 @@ describe('faq (authenticated, database-backed)', async () => {
   describe('search', () => {
     it('finds items by question or answer in either language, among the ones the viewer may read', async () => {
       const marker = `sea${++counter}`
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } }, [
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC }, [
         { question: both(`Where is the ${marker}wardrobe?`, `Hvor er ${marker}garderoben?`), answer: both('Behind the bar.', 'Bag baren.') },
         { question: both('Other?', 'Andet?'), answer: both(`See the ${marker}map.`, `Se ${marker}kortet.`) },
       ])
-      const restricted = await publishedGroup({ slug: `${marker}-restricted`, visibility: { globalRoles: ['supervisor'] } }, [
+      const restricted = await publishedGroup({ slug: `${marker}-restricted`, grants: SUPERVISORS }, [
         { question: both(`Secret ${marker}code?`, `Hemmelig ${marker}kode?`) },
       ])
       const draft = await createItem(open.group.id, { question: both(`Draft ${marker}?`, `Kladde ${marker}?`) })
@@ -642,7 +645,7 @@ describe('faq (authenticated, database-backed)', async () => {
     })
 
     it('never searches the locale keys: `da` and `en` match only text that contains them', async () => {
-      const group = await publishedGroup({ visibility: { public: true } }, [{ question: both('Alpha', 'Beta'), answer: both('Gamma', 'Delta') }])
+      const group = await publishedGroup({ grants: PUBLIC }, [{ question: both('Alpha', 'Beta'), answer: both('Gamma', 'Delta') }])
       const search = async (q: string) => await ok(await json(undefined, 'GET', `${faqApi.search}?q=${encodeURIComponent(q)}`)) as unknown as Json[]
       // The item is stored as `{ en, da }` for both fields, and none of its texts contains the keys.
       expect((await search('Alpha')).map(hit => hit.item.id)).toEqual([group.items[0]!.id])
@@ -653,7 +656,7 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('ignores case for Danish letters: øl finds ØL and Øl, and ØL finds øl', async () => {
       const marker = `dan${++counter}`
-      const { items } = await publishedGroup({ visibility: { public: true } }, [
+      const { items } = await publishedGroup({ grants: PUBLIC }, [
         { question: both(`Cold ØL ${marker}`, `Kold ØL ${marker}`), answer: both('Upper.', 'Store.') },
         { question: both(`Cold øl ${marker}`, `Kold øl ${marker}`), answer: both('Lower.', 'Små.') },
         { question: both(`Cold Øl ${marker}`, `Kold Øl ${marker}`), answer: both('Title.', 'Titel.') },
@@ -668,7 +671,7 @@ describe('faq (authenticated, database-backed)', async () => {
     it('reads on past hidden matches until it has the visible ones', async () => {
       const marker = `pag${++counter}`
       // 205 matching items in a group visitors may not read come first (a lower `sort`), then one they may.
-      const hidden = await createGroup({ slug: `${marker}-hidden`, visibility: { globalRoles: ['supervisor'] } })
+      const hidden = await createGroup({ slug: `${marker}-hidden`, grants: SUPERVISORS })
       const ids: string[] = []
       for (let start = 0; start < 205; start += 25) {
         const batch = await Promise.all(Array.from({ length: Math.min(25, 205 - start) }, async (_, index) =>
@@ -676,7 +679,7 @@ describe('faq (authenticated, database-backed)', async () => {
         ids.push(...batch)
       }
       for (let start = 0; start < ids.length; start += 25) await Promise.all(ids.slice(start, start + 25).map(publish))
-      const open = await publishedGroup({ slug: `${marker}-open`, visibility: { public: true } }, [{ question: both(`Visible ${marker}`, `Synlig ${marker}`) }])
+      const open = await publishedGroup({ slug: `${marker}-open`, grants: PUBLIC }, [{ question: both(`Visible ${marker}`, `Synlig ${marker}`) }])
 
       const search = async (cookie: string | undefined) => await ok(await json(cookie, 'GET', `${faqApi.search}?q=${marker}`)) as unknown as Json[]
       expect((await search(undefined)).map(hit => hit.item.id)).toEqual([open.items[0]!.id])
@@ -700,12 +703,12 @@ describe('faq (authenticated, database-backed)', async () => {
         title: both('Page group title', 'Sidegruppens titel'),
         description: both('Page group description', 'Sidegruppens beskrivelse'),
         icon: 'i-lucide-info',
-        visibility: { public: true },
+        grants: PUBLIC,
       }, [
         { question: both('How does the page work?', 'Hvordan virker siden?'), answer: both('It renders **managed** content.', 'Den viser administreret indhold.'), links: [{ label: 'Read more', to: '/read-more' }] },
-        { question: both('A restricted question?', 'Et begrænset spørgsmål?'), visibility: { globalRoles: ['supervisor'] } },
+        { question: both('A restricted question?', 'Et begrænset spørgsmål?'), grants: SUPERVISORS },
       ])
-      await publishedGroup({ slug: 'page-second', title: both('Second group', 'Anden gruppe'), visibility: { public: true } }, [{ question: both('Second question?', 'Andet spørgsmål?') }])
+      await publishedGroup({ slug: 'page-second', title: both('Second group', 'Anden gruppe'), grants: PUBLIC }, [{ question: both('Second question?', 'Andet spørgsmål?') }])
       expect(first.group.slug).toBe('page-managed')
 
       const visitor = await (await fetch('/test/managed')).text()
@@ -760,7 +763,7 @@ describe('faq (authenticated, database-backed)', async () => {
     }, 180_000)
 
     it('lets a custom page fetch with useFaq and render toFaqCardProps', async () => {
-      await publishedGroup({ slug: 'page-custom', title: both('Custom group', 'Brugerdefineret gruppe'), visibility: { public: true } }, [
+      await publishedGroup({ slug: 'page-custom', title: both('Custom group', 'Brugerdefineret gruppe'), grants: PUBLIC }, [
         { question: both('Custom question one?', 'Brugerdefineret spørgsmål et?') },
         { question: both('Custom question two?', 'Brugerdefineret spørgsmål to?') },
       ])
@@ -773,7 +776,7 @@ describe('faq (authenticated, database-backed)', async () => {
 
     it('shows a restricted group through the components to its role only, and never to the next visitor', async () => {
       const bar = await supervisor()
-      await publishedGroup({ slug: 'page-restricted-check', title: both('Restricted check', 'Begrænset tjek'), visibility: { globalRoles: ['supervisor'] } }, [
+      await publishedGroup({ slug: 'page-restricted-check', title: both('Restricted check', 'Begrænset tjek'), grants: SUPERVISORS }, [
         { question: both('Crew only question?', 'Spørgsmål kun for crew?') },
       ])
       const html = async (cookie?: string) => await (await fetch('/test/restricted', { headers: cookie ? { cookie } : {} })).text()
