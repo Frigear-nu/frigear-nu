@@ -5,6 +5,10 @@ import { SEED_OPERATION_TEAM_KIND as TEAM_KIND, missingSeedOperationValues, seed
 
 const sameText = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
+type SeedOperationResult
+  = | { seeded: false, missing: string[], message: string }
+    | { seeded: true, operation: { id: string, slug: string, created: boolean }, teams: { created: number, kept: number } }
+
 // Inserts our operation (server/seed/operation.ts) and its teams, or brings the stored operation up to date. Idempotent:
 // the operation is found by its slug and a team by its name within the operation, so a second run writes nothing new.
 // It never changes the status, never deletes a team and never touches the venue layout.
@@ -14,7 +18,7 @@ export default defineTask({
     name: 'seed:operation',
     description: 'Insert or update our own operation and its teams from server/seed/operation.ts.',
   },
-  async run() {
+  async run(): Promise<{ result: SeedOperationResult }> {
     const missing = missingSeedOperationValues(seedOperation)
     if (missing.length) {
       return { result: { seeded: false, missing, message: `Fill in server/seed/operation.ts first: ${missing.join(', ')}.` } }
@@ -64,7 +68,7 @@ export default defineTask({
     return {
       result: {
         seeded: true,
-        operation: { id: operation.id, slug: operation.slug, created: !existing },
+        operation: { id: String(operation.id), slug: String(operation.slug), created: !existing },
         teams: { created: createdTeams.length, kept: seedOperation.teams.length - createdTeams.length },
       },
     }
