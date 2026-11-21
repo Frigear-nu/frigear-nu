@@ -1,0 +1,103 @@
+{
+  "operations": {
+    "notFound": "Operation not found",
+    "tryAgain": "Try again",
+    "when": "When?",
+    "where": "Where?",
+    "hostedBy": "Hosted by {host}",
+    "hostWebsite": "Visit the host",
+    "menu": {
+      "admin": {
+        "label": "Operations",
+        "description": "Manage the occasions Frigear works at."
+      }
+    },
+    "permissions": {
+      "manage": "Manage operations",
+      "manageDescription": "Create and edit operations, move them through their statuses and delete them.",
+      "read": "Read operations",
+      "readDescription": "Read the public operations and the ones you take part in."
+    },
+    "scopes": {
+      "operations": "Operations"
+    },
+    "admin": {
+      "tabs": {
+        "details": "Details"
+      },
+      "title": "Operations",
+      "listDescription": "The occasions Frigear works at, whether or not Frigear hosts them.",
+      "create": "Add operation",
+      "createAction": "Create operation",
+      "createDescription": "It starts in planning. Move it along when the plans are final.",
+      "created": "Created {name}",
+      "editTitle": "Edit operation",
+      "edit": "Edit",
+      "saveOperation": "Save operation",
+      "saved": "Saved {name}",
+      "open": "Open",
+      "viewPublic": "View public page",
+      "keyFacts": "Operation",
+      "details": "Details",
+      "allOperations": "All operations",
+      "operationLoadFailed": "The operation could not be loaded",
+      "loadFailed": "Operations could not be loaded",
+      "forbidden": "You do not have access to operations",
+      "search": "Search operations",
+      "allStatuses": "All statuses",
+      "clearFilters": "Clear filters",
+      "noMatches": "No operations match your search",
+      "empty": "No operations yet",
+      "emptyDescription": "Add the first operation, such as a festival bar, to attach crew and shifts to it.",
+      "name": "Name",
+      "description": "Description",
+      "descriptionHelp": "Shown on the public page. Markdown is supported.",
+      "slug": "URL name",
+      "slugHelp": "Lowercase letters, numbers and dashes.",
+      "slugRequired": "Enter a URL name.",
+      "slugInvalid": "Use lowercase letters, numbers and dashes.",
+      "slugReserved": "This URL name is reserved.",
+      "nameRequired": "Enter a name.",
+      "starts": "Starts",
+      "ends": "Ends",
+      "startsRequired": "Enter when the operation starts.",
+      "endsBeforeStart": "The end cannot be before the start.",
+      "location": "Location",
+      "address": "Address",
+      "hostName": "Host",
+      "hostNameHelp": "Who hosts it: Frigear, or the festival or venue Frigear works at.",
+      "hostUrl": "Host website",
+      "hostUrlInvalid": "Enter a web address starting with https://.",
+      "eventId": "Event",
+      "eventIdHelp": "The id of the event this operation belongs to.",
+      "public": "Public",
+      "publicHelp": "A public operation has a public page and shows for everyone. Others show to the people who take part.",
+      "visibility": "Visibility",
+      "visibilityPublic": "Public",
+      "visibilityPrivate": "Participants only",
+      "status": "Status",
+      "statuses": {
+        "planning": "Planning",
+        "active": "Active",
+        "wrapped_up": "Wrapped up",
+        "archived": "Archived"
+      },
+      "statusActions": {
+        "active": "Start operation",
+        "wrapped_up": "Mark as wrapped up",
+        "archived": "Archive operation"
+      },
+      "changeStatus": "Change status…",
+      "statusChanged": "{name} is now {status}",
+      "statusFailed": "Could not change the status",
+      "archiveTitle": "Archive {name}?",
+      "archiveDescription": "An archived operation is final: it cannot be started or reopened.",
+      "archiveAction": "Archive operation",
+      "deleteTitle": "Delete {name}?",
+      "deleteDescription": "Crew, shifts and maps attached to it stay behind without an operation. Archive an operation that has been worked instead.",
+      "deleteAction": "Delete operation",
+      "deleted": "Deleted {name}",
+      "deleteFailed": "Could not delete the operation"
+    }
+  }
+}

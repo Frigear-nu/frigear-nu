@@ -1,0 +1,81 @@
+import type { H3Event } from 'h3'
+
+import type { Translated } from '@frigear-nu/ui/translated'
+import type { Schedule } from '@frigear-nu/module-kit/schedule'
+
+export type { Translated, Schedule }
+
+/** `planning -> active -> wrapped_up -> archived`, and `planning -> archived`. See `canTransition`. */
+export type OperationStatus = 'planning' | 'active' | 'wrapped_up' | 'archived'
+
+/** Where an operation takes place. `name` is shown; the rest is for maps and directions. */
+export type OperationLocation = {
+  name: Translated
+  address?: string
+  lat?: number
+  lng?: number
+}
+
+export type ModuleOptions = {
+  settings?: {
+    pages?: {
+      /** The public page of a public operation; must contain a `:slug` param. On by default (`/operations/:slug`), `false` turns it off. */
+      public?: string | boolean
+      /** Staff operation list (needs the `operations:manage` permission). `true` = `/admin/operations`. Off by default. */
+      admin?: string | boolean
+      /** Staff operation page (details and the tabs other modules add); must contain an `:id` param. `true` = `/admin/operations/:id`. Off by default. */
+      adminOperation?: string | boolean
+    }
+  }
+}
+
+export type PublicModuleOptions = {
+  pages: { public?: string, admin?: string, adminOperation?: string }
+  /** `@frigear-nu/events` is installed: the forms offer the `eventId` field. */
+  events: boolean
+}
+
+/** What anybody who may read an operation sees (`GET /api/operations`, `/me` and `/:slug`). */
+export type OperationDto = {
+  id: string
+  slug: string
+  name: Translated
+  description: Translated | null
+  hostName: string | null
+  hostUrl: string | null
+  startsAt: string
+  endsAt: string | null
+  schedule: Schedule | null
+  location: OperationLocation | null
+  status: OperationStatus
+  public: boolean
+  /** The `@frigear-nu/events` event this operation belongs to, when there is one. */
+  eventId: string | null
+}
+
+/** The staff view (`/api/admin/operations`): the same fields plus the audit dates. */
+export type AdminOperationDto = OperationDto & {
+  createdAt: string
+  updatedAt: string
+}
+
+/** Context of `operations:created`. */
+export type OperationCreatedContext = {
+  event: H3Event
+  operation: AdminOperationDto
+}
+
+/** Context of `operations:updated`: the fields were edited. A status move fires `operations:status-changed` only. */
+export type OperationUpdatedContext = {
+  event: H3Event
+  operation: AdminOperationDto
+  previous: AdminOperationDto
+}
+
+/** Context of `operations:status-changed`. */
+export type OperationStatusChangedContext = {
+  event: H3Event
+  operation: AdminOperationDto
+  from: OperationStatus
+  to: OperationStatus
+}
