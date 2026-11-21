@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { TeamRoleGrant } from '@frigear-nu/audience'
+import type { TeamRoleGrant, TeamRoleMappingDto, TeamsResolverTeam } from '../../src/types'
 import { grantsOfOwner, mappedGrantsFor, mappingCoversTeam, mergeTeamGrants } from '../../src/runtime/utils/resolve'
-import type { TeamRoleMappingDto, TeamsResolverTeam } from '../../src/types'
 
 const ladders = { bar: ['volunteer', 'bartender', 'lead', 'coordinator'], firstaid: ['helper', 'medic'] }
 const barA: TeamsResolverTeam = { id: 'tem_a', ownerType: 'operation', ownerId: 'opr_1', kind: 'bar' }

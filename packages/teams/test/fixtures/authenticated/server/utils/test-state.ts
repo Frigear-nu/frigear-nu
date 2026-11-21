@@ -1,6 +1,6 @@
 // In-memory state of the test fixture, shared by its plugin and its test routes.
 
-/** Operations that "exist" for `audience:owner:resolve` (operations itself is not installed here). */
+/** Operations that "exist" for `teams:owner:resolve` (operations itself is not installed here). */
 export const testOperations = new Map<string, string>([
   ['opr_summer', 'Summer Festival 2030'],
   ['opr_priority', 'Priority test operation'],

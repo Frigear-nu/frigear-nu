@@ -2325,12 +2325,12 @@ importers:
 
   packages/teams:
     dependencies:
-      '@frigear-nu/audience':
-        specifier: workspace:^
-        version: link:../audience
       '@frigear-nu/auth':
         specifier: workspace:^
         version: link:../auth
+      '@frigear-nu/grants':
+        specifier: workspace:^
+        version: link:../grants
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit
