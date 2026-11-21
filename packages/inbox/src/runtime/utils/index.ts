@@ -23,6 +23,7 @@ export type {
   InboxContactDto,
   InboxContactExportDto,
   InboxExtension,
+  InboxInboundContext,
   InboxInboundMessage,
   InboxMailboxDto,
   InboxMailboxOwnerType,

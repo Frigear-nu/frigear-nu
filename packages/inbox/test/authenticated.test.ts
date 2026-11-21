@@ -5,7 +5,7 @@ import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { formsApi } from '@frigear-nu/forms/api'
 import { inboxApi } from '../src/runtime/utils/api'
-import { backdate, createToken, getEmails, getHooks, getSent, makeLead, postEmail, postMeta, registerUser, runRetention } from './helpers'
+import { backdate, createToken, getEmails, getHooks, getSent, makeLead, postEmail, postMeta, registerUser, runRetention, withServerEnv } from './helpers'
 import type { Session } from './helpers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -236,11 +236,30 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(await detail(coord, threadId).then(thread => thread.messages[0])).not.toHaveProperty('cc')
       const exported = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(forAdmin.contact.id))
       expect(exported.threads.find((item: Json) => item.thread.id === threadId).messages[0].cc).toEqual(['ola@example.org', 'lise@example.org'])
-      // Notify's email has no cc: a reply goes to the contact only.
+      // A reply copies the same people again.
       await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Thanks, all.' })
       const sent = (await getEmails()).at(-1)! as Json
       expect(sent.to).toBe(forAdmin.contact.email)
-      expect(sent.cc).toBeUndefined()
+      expect(sent.cc).toEqual(['ola@example.org', 'lise@example.org'])
+    })
+
+    it('copies the cc of the person\'s latest email in a reply, without our own addresses', async () => {
+      const from = { email: `cc${++counter}@example.org`, name: 'Copy Person' }
+      // The person copies themselves, another of our mailboxes and the reply address: none of them is copied back.
+      const threadId = await emailThread({ from, cc: [from.email, 'board@inbox.test', 'Ola@Example.org'] })
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'First answer.' })
+      expect(((await getEmails()).at(-1)! as Json).cc).toEqual(['ola@example.org'])
+
+      // Their next email copies someone else: the next reply follows it.
+      const subject = ((await getEmails()).at(-1)! as Json).subject
+      await postEmail(email({ from, subject, cc: 'nina@example.org', text: 'Adding Nina.' }))
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Hi Nina.' })
+      expect(((await getEmails()).at(-1)! as Json).cc).toEqual(['nina@example.org'])
+
+      // An email that copies nobody: the reply has no cc at all.
+      await postEmail(email({ from, subject, text: 'Just me now.' }))
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Noted.' })
+      expect((await getEmails()).at(-1)!).not.toHaveProperty('cc')
     })
   })
 
@@ -546,17 +565,21 @@ describe('inbox (authenticated, database-backed)', async () => {
     let supportThread: string
     let boardThread: string
 
-    it('exports only the threads the caller reads: their mailboxes, not hidden from them', async () => {
+    it('refuses to export a contact with threads in a mailbox the caller does not read', async () => {
       const from = { email: `split${++counter}@example.org`, name: 'Split Person' }
       supportThread = await emailThread({ from, text: 'To support' })
       boardThread = (await (await postEmail(email({ from, to: 'board@inbox.test', text: 'To the board' }))).json() as Json).threadId
       contactId = (await detail(admin, supportThread)).contact.id
       expect((await detail(admin, boardThread)).contact.id).toBe(contactId)
 
-      // The privacy officer holds inbox:pii but reads only the support mailbox.
-      const forDpo = await as(dpo).json<Json>('GET', inboxApi.admin.contactExport(contactId))
-      expect(forDpo.threads.map((item: Json) => item.thread.id)).toEqual([supportThread])
-      expect(JSON.stringify(forDpo)).not.toContain('To the board')
+      // The privacy officer holds inbox:pii but reads only the support mailbox: a partial export would answer the access
+      // request incompletely, so it is refused, as an erase is. Someone who reads both mailboxes exports everything.
+      const refused = await as(dpo).fetch('GET', inboxApi.admin.contactExport(contactId))
+      expect(refused.status).toBe(409)
+      const refusal = await refused.text()
+      expect(refusal).toContain('contact_threads_hidden')
+      expect(refusal).not.toContain('To the board')
+      expect(refusal).not.toContain('To support')
       const forAdmin = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(contactId))
       expect(forAdmin.threads.map((item: Json) => item.thread.id).sort()).toEqual([supportThread, boardThread].sort())
 
@@ -585,17 +608,18 @@ describe('inbox (authenticated, database-backed)', async () => {
       await as(admin).json('POST', inboxApi.admin.hide(supportThread), { role: null })
     })
 
-    it('refuses to erase a contact with threads hidden from the caller', async () => {
+    it('refuses to export or erase a contact with threads hidden from the caller', async () => {
       // wild hides the support thread below its own role, which admin does not hold.
       await as(wild).json('POST', inboxApi.admin.hide(supportThread), { role: 'wild' })
-      const forAdmin = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(contactId))
-      expect(forAdmin.threads.map((item: Json) => item.thread.id)).toEqual([boardThread])
+      // A thread hidden below a role the caller lacks stops an export too, and the refusal holds nothing of the contact.
+      await expectApiError(as(admin).json('GET', inboxApi.admin.contactExport(contactId)), 409, 'contact_threads_hidden')
       await expectApiError(as(admin).json('POST', inboxApi.admin.contactErase(contactId)), 409, 'contact_threads_hidden')
       expect((await detail(admin, boardThread)).messages[0].body).toBe('To the board')
       // Without inbox:manage there is no erase at all.
       await expectApiError(as(dpo).json('POST', inboxApi.admin.contactErase(contactId)), 403, 'forbidden')
 
       await as(wild).json('POST', inboxApi.admin.hide(supportThread), { role: null })
+      expect((await as(admin).json<Json>('GET', inboxApi.admin.contactExport(contactId))).threads).toHaveLength(2)
       const erased = await as(admin).json<Json>('POST', inboxApi.admin.contactErase(contactId))
       expect(erased).toMatchObject({ id: contactId, threads: 2 })
     })
@@ -696,6 +720,56 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(await (await postEmail(payload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
       await runRetention(new Date(Date.now() + 400 * day))
       expect((await (await postEmail(payload)).json() as Json).status).toBe('received')
+    })
+  })
+
+  describe('channels fail closed', () => {
+    // Every inbound route needs its secret: without one it answers 501 `not_configured` before reading the request,
+    // never an unauthenticated default. The secrets are switched off per request through the environment override.
+    it('refuses inbound email without a webhook secret', async () => {
+      await withServerEnv('NUXT_INBOX_EMAIL_WEBHOOK_SECRET', '', async () => {
+        // Signed with the secret that was configured before, and unsigned: both refused.
+        await expectApiError(postEmail(email()), 501, 'not_configured')
+        await expectApiError(postEmail(email(), null), 501, 'not_configured')
+      })
+      expect((await postEmail(email())).status).toBe(200)
+    })
+
+    it('refuses WhatsApp, Messenger and Instagram messages without the Meta app secret', async () => {
+      await withServerEnv('NUXT_INBOX_META_APP_SECRET', '', async () => {
+        await expectApiError(postMeta(whatsapp('wamid.closed', '4520000000', 'Closed door')), 501, 'not_configured')
+        await expectApiError(postMeta({ object: 'instagram', entry: [] }, null), 501, 'not_configured')
+      })
+      expect((await threadsOf(admin, '&channel=whatsapp&status=all')).some(thread => thread.preview === 'Closed door')).toBe(false)
+    })
+
+    it('refuses the Meta subscription check without a verify token', async () => {
+      await withServerEnv('NUXT_INBOX_META_VERIFY_TOKEN', '', async () => {
+        await expectApiError(fetch(`${inboxApi.webhooks.meta}?hub.mode=subscribe&hub.verify_token=&hub.challenge=1`), 501, 'not_configured')
+      })
+    })
+
+    it('refuses a module channel\'s webhook without its inbound secret', async () => {
+      const post = () => fetch(inboxApi.webhooks.channel('test.fake'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-fake-token': '' },
+        body: JSON.stringify({ to: 'fake-1', from: 'closed-user', id: 'closed-1', text: 'Let me in' }),
+      })
+      await withServerEnv('NUXT_INBOX_SECRETS_FAKE_WEBHOOK', '', async () => {
+        // An empty token would match an empty secret: the inbox never asks the adapter.
+        await expectApiError(post(), 501, 'not_configured')
+      })
+      await expectApiError(post(), 401)
+      expect((await threadsOf(admin, '&channel=test.fake&status=all')).some(thread => thread.contact?.externalId === 'closed-user')).toBe(false)
+    })
+
+    it('has no open route for the contact form or the Meta channels', async () => {
+      // The contact form comes in through forms' own submit (its access rules and `forms:submitted`), the Meta channels
+      // through the signed Meta webhook. `email` has its own signed route at the same path.
+      for (const channel of ['form', 'email', 'whatsapp', 'messenger', 'instagram']) {
+        const response = await fetch(inboxApi.webhooks.channel(channel), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ to: 'contact', from: 'x', id: 'x', text: 'x' }) })
+        expect(response.status, channel).toBe(channel === 'email' ? 401 : 404)
+      }
     })
   })
 

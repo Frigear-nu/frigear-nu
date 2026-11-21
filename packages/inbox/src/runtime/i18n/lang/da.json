@@ -73,6 +73,7 @@
       "erased": "Slettede {name}",
       "erasedOn": "Slettet {date}",
       "export": "Eksportér kontaktdata",
+      "exportFailed": "Kontakten kunne ikke eksporteres",
       "exported": "Eksporterede {name}",
       "externalId": "Kanal-id",
       "name": "Navn",

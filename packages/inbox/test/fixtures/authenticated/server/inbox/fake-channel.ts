@@ -3,11 +3,12 @@ import { defineInboxChannel } from '../../../../../src/runtime/utils'
 import { testSent } from '../utils/test-state'
 
 // A channel a module would ship: `send` records the reply (and fails on "FAIL" in the body); `inbound` reads its own
-// webhook, checked with a shared token header.
+// webhook, checked with a shared token header against its `inboundSecret` (`FAKE_WEBHOOK` in the fixture's secrets).
 export default defineInboxChannel({
   id: 'test.fake',
-  async inbound(event) {
-    if (getRequestHeader(event, 'x-fake-token') !== 'let-me-in') throw createError({ statusCode: 401, statusMessage: 'Bad token' })
+  inboundSecret: 'FAKE_WEBHOOK',
+  async inbound(event, { secret }) {
+    if (getRequestHeader(event, 'x-fake-token') !== secret) throw createError({ statusCode: 401, statusMessage: 'Bad token' })
     const body = await readBody<{ to: string, from: string, name?: string, id: string, text: string }>(event)
     return [{ address: body.to, contact: { externalId: body.from, name: body.name ?? null }, externalId: body.id, body: body.text, subject: 'Fake channel' }]
   },

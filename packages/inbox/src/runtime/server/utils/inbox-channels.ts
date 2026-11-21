@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { apiError } from '@frigear-nu/module-kit/server'
-import { metaSendRequest, metaSentId } from '../../utils/payloads'
+import { metaSendRequest, metaSentId, replyCc } from '../../utils/payloads'
 import type { InboxMetaChannel } from '../../utils/payloads'
 import type { InboxChannelAccountDto, InboxContactDetails, InboxSendContext, InboxThreadDto } from '../../../types'
 
@@ -28,18 +28,43 @@ export function inboxReplySubject(thread: Pick<InboxThreadDto, 'id' | 'subject'>
   return `Re: ${inboxCleanSubject(thread.subject) || 'Your message'} [${thread.id}]`
 }
 
-/** Sends a reply by email to the contact (`409 no_reply_address` when they left no address). */
+/**
+ * Sends a reply by email to the contact (`409 no_reply_address` when they left no address), copying the people their
+ * last email copied (`inboxReplyCc`), as a reply-all would.
+ */
 export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string }): Promise<void> {
   const to = input.contact.email ?? (input.contact.channel === 'email' ? input.contact.externalId : null)
   if (!to) throw apiError(409, 'no_reply_address', 'The contact left no email address to reply to.')
+  const cc = await inboxReplyCc(input.thread.id, [to, input.replyTo])
   await dispatchEmailNotification({
     to,
+    ...(cc.length ? { cc } : {}),
     subject: inboxReplySubject(input.thread),
     body: inboxTextToHtml(input.body),
     text: input.body,
     ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     meta: { inboxThreadId: input.thread.id },
   })
+}
+
+/**
+ * The `Cc` of an email reply in a thread: the cc recipients stored with the thread's latest inbound message (what the
+ * person's last email copied), without our own addresses: every email account's address and `config.replyTo`, the
+ * notify sender, and `exclude` (the recipient and the reply's `Reply-To`). Empty when the person copied nobody.
+ */
+export async function inboxReplyCc(threadId: string, exclude: ReadonlyArray<string | null | undefined>): Promise<string[]> {
+  const [latest] = await db.select({ cc: schema.inboxMessages.cc }).from(schema.inboxMessages)
+    .where(and(eq(schema.inboxMessages.threadId, threadId), eq(schema.inboxMessages.direction, 'in')))
+    .orderBy(desc(schema.inboxMessages.createdAtMs)).limit(1)
+  if (!latest?.cc?.length) return []
+  const accounts = await db.select({ address: schema.inboxChannelAccounts.address, config: schema.inboxChannelAccounts.config })
+    .from(schema.inboxChannelAccounts).where(eq(schema.inboxChannelAccounts.channel, 'email'))
+  const from = (useRuntimeConfig() as { notify?: { email?: { from?: string } } }).notify?.email?.from
+  return replyCc(latest.cc, [
+    ...exclude,
+    from,
+    ...accounts.flatMap(account => [account.address, typeof account.config?.replyTo === 'string' ? account.config.replyTo : null]),
+  ])
 }
 
 /**

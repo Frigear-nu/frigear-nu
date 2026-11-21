@@ -73,6 +73,7 @@
       "erased": "Erased {name}",
       "erasedOn": "Erased {date}",
       "export": "Export contact data",
+      "exportFailed": "Could not export the contact",
       "exported": "Exported {name}",
       "externalId": "Channel id",
       "name": "Name",

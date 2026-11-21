@@ -53,7 +53,7 @@ export function useInboxThreadActions() {
   async function exportContact(contact: InboxContactDto): Promise<boolean> {
     const data = await run(
       () => $fetch<InboxContactExportDto>(inboxApi.admin.contactExport(contact.id)),
-      { success: t('contact.exported', 'Exported {name}', { name: contact.name ?? contact.id }) },
+      { success: t('contact.exported', 'Exported {name}', { name: contact.name ?? contact.id }), error: t('contact.exportFailed', 'Could not export the contact') },
     )
     if (!data) return false
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))

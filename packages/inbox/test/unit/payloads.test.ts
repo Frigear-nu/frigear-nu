@@ -11,6 +11,7 @@ import {
   metaSentId,
   normaliseEmail,
   parseMetaWebhook,
+  replyCc,
   threadIdFromSubject,
 } from '../../src/runtime/utils/payloads'
 
@@ -71,6 +72,13 @@ describe('email payloads', () => {
     expect(emailToInbound(payload, 'support@example.com').cc).toEqual(['ola@example.org', 'lise@example.org'])
     expect(emailCc(inboxEmailPayload.parse({ messageId: '1', from: 'a@b.c', to: 'x@y.z', cc: 'Ola <ola@example.org>' }))).toEqual(['ola@example.org'])
     expect(emailCc(inboxEmailPayload.parse({ messageId: '1', from: 'a@b.c', to: 'x@y.z' }))).toEqual([])
+  })
+
+  it('copies the stored cc in a reply, without our own addresses or repeats', () => {
+    const stored = ['ola@example.org', 'board@example.com', 'kari@example.org', 'Ola@Example.org', 'lise@example.org']
+    expect(replyCc(stored, ['kari@example.org', 'Support <Support@Example.com>', 'board@example.com', null, undefined])).toEqual(['ola@example.org', 'lise@example.org'])
+    expect(replyCc(null, ['kari@example.org'])).toEqual([])
+    expect(replyCc(['kari@example.org'], ['Kari@Example.org'])).toEqual([])
   })
 
   it('refuses a body that is not an email', () => {

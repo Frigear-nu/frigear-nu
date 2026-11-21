@@ -58,7 +58,8 @@ export default defineNuxtConfig({
     email: { webhookSecret: 'test-email-secret' },
     meta: { appSecret: 'test-app-secret', verifyToken: 'test-verify-token' },
     // `ENV_TOKEN` is declared empty and set by `NUXT_INBOX_SECRETS_ENV_TOKEN` in the test's environment.
-    secrets: { FAKE_TOKEN: 'fake-token-value', ENV_TOKEN: '' },
+    // `FAKE_WEBHOOK` is the fake channel's `inboundSecret`, the token its webhook checks.
+    secrets: { FAKE_TOKEN: 'fake-token-value', FAKE_WEBHOOK: 'let-me-in', ENV_TOKEN: '' },
     // The retention task runs from a test route with a fake `now`, never on a schedule here.
     retention: { days: 30, cron: false },
     mailboxes: [

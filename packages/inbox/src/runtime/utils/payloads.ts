@@ -105,6 +105,16 @@ export function emailCc(payload: InboxEmailPayload, exclude?: string): string[] 
   return [...new Set(list.map(entry => normaliseEmail(emailOf(entry))))].filter(email => email && email !== skip)
 }
 
+/**
+ * The `Cc` of a reply: the stored cc recipients of the message being answered, lower case, without repeats and without
+ * any of `own` (the inbox's own addresses and the person the reply goes to), so a reply never copies one of our
+ * mailboxes back into the inbox.
+ */
+export function replyCc(stored: readonly string[] | null | undefined, own: ReadonlyArray<string | null | undefined>): string[] {
+  const skip = new Set(own.filter((value): value is string => !!value).map(normaliseEmail))
+  return [...new Set((stored ?? []).map(normaliseEmail))].filter(email => email && !skip.has(email))
+}
+
 /** An email payload as an inbound message for the account at `address`. */
 export function emailToInbound(payload: InboxEmailPayload, accountAddress: string): InboxInboundMessage {
   const from = emailOf(payload.from)

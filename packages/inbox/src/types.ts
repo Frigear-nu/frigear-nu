@@ -68,6 +68,12 @@ export type InboxSendContext = {
   message: { id: string, body: string, attachments: InboxAttachment[] }
 }
 
+/** What a channel's `inbound` gets besides the request. */
+export type InboxInboundContext = {
+  /** The value of the adapter's `inboundSecret`, never empty: verify the request with it. */
+  secret: string
+}
+
 /** What a channel's `send` may return: the provider's id of the sent message. */
 export type InboxSendResult = { externalId?: string | null } | undefined
 
@@ -76,10 +82,17 @@ export type InboxChannelAdapter = {
   id: string
   label?: Translated
   /**
-   * Reads a webhook on `POST /api/inbox/webhooks/:channel` and returns the messages in it. Verify the request here
-   * (throw a 401 when the signature is wrong). Built-in channels have routes of their own instead.
+   * Reads a webhook on `POST /api/inbox/webhooks/:channel` and returns the messages in it. Verify the request here with
+   * `ctx.secret` (throw a 401 when the signature or token does not match). The inbox only calls it once
+   * `inboundSecret` names a configured secret: otherwise the webhook answers 501 `not_configured`, so a channel is never
+   * open by default. Built-in channels have routes of their own instead.
    */
-  inbound?: (event: H3Event) => InboxInboundMessage[] | Promise<InboxInboundMessage[]>
+  inbound?: (event: H3Event, ctx: InboxInboundContext) => InboxInboundMessage[] | Promise<InboxInboundMessage[]>
+  /**
+   * The name of the `inbox.secrets` entry `inbound` verifies requests with (a signing secret or a shared token, e.g.
+   * `ACME_SMS_WEBHOOK`, set by `NUXT_INBOX_SECRETS_ACME_SMS_WEBHOOK`). Required with `inbound`.
+   */
+  inboundSecret?: string
   /** Delivers a reply. Throw to fail the reply: nothing is stored then. */
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- an adapter may return nothing
   send: (ctx: InboxSendContext) => InboxSendResult | void | Promise<InboxSendResult | void>

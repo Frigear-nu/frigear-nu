@@ -50,3 +50,14 @@ export const getSent = () => $fetch<Array<{ threadId: string, to: string, body: 
 export const makeLead = (cookie: string, teamId: string) => $fetch('/api/test/lead', { method: 'POST', headers: { cookie }, body: { teamId } })
 export const backdate = (threadId: string, days: number) => $fetch('/api/test/backdate', { method: 'POST', body: { threadId, days } })
 export const runRetention = (now: Date, mode?: 'delete' | 'anonymise') => $fetch<{ result: { threads: number, contacts: number, mailboxes: number, mode: string } }>('/api/test/retention', { method: 'POST', body: { now: now.toISOString(), mode } })
+
+/** Runs `run` with the server's environment variable `name` set to `value` (`''` switches a secret off), then removes it. */
+export async function withServerEnv<T>(name: string, value: string, run: () => Promise<T>): Promise<T> {
+  await $fetch('/api/test/env', { method: 'POST', body: { name, value } })
+  try {
+    return await run()
+  }
+  finally {
+    await $fetch('/api/test/env', { method: 'POST', body: { name, value: null } })
+  }
+}
