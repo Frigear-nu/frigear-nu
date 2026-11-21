@@ -3,7 +3,7 @@ import type { PlaneFeatureCollection, PlaneUnderlay } from '@frigear-nu/maps/uti
 import { operationsApi } from '../../utils/api'
 import { OPERATIONS_VENUE_KINDS, OPERATIONS_VENUE_SURFACE } from '../../utils/venue'
 import type { StaffOperation } from '../utils/admin-operation'
-import { $fetch, computed, errorMessage, ref, useAction, useFetch, useModuleT, useOperationsTranslate, watch } from '#imports'
+import { $fetch, computed, errorMessage, ref, useAction, useFetch, useModuleT, useOperationsTranslate } from '#imports'
 
 defineOptions({ name: 'OperationsAdminVenueLayoutTab' })
 
@@ -22,14 +22,18 @@ const { data, status, error, refresh } = await useFetch<PlaneFeatureCollection>(
 
 const clone = (value: PlaneFeatureCollection | null | undefined): PlaneFeatureCollection =>
   value ? JSON.parse(JSON.stringify(value)) : { type: 'FeatureCollection', features: [] }
+// The editor's copy. It is reset from the saved layout only on load, save and discard, never while unsaved edits exist.
 const layout = ref<PlaneFeatureCollection>(clone(data.value))
-watch(data, value => layout.value = clone(value))
 const dirty = computed(() => JSON.stringify(layout.value) !== JSON.stringify(clone(data.value)))
 
 async function upload(file: File): Promise<PlaneUnderlay> {
   const body = new FormData()
   body.append('file', file)
-  return await $fetch<PlaneUnderlay>(operationsApi.admin.venueUnderlay(props.operation.id), { method: 'POST', body })
+  const underlay = await $fetch<PlaneUnderlay>(operationsApi.admin.venueUnderlay(props.operation.id), { method: 'POST', body })
+  // The image is stored (and the old one deleted) right away: the saved layout has it now, whether or not the drawing
+  // is saved, so discarding never brings back the old image's URL.
+  if (data.value) data.value = { ...data.value, underlay }
+  return underlay
 }
 
 async function save() {
@@ -37,7 +41,14 @@ async function save() {
     () => $fetch<PlaneFeatureCollection>(operationsApi.admin.venueLayout(props.operation.id), { method: 'PUT', body: { layout: layout.value } }),
     { success: t('admin.venueSaved', 'Saved the venue layout of {name}', { name: tr(props.operation.name) }) },
   )
-  if (saved) data.value = saved
+  if (!saved) return
+  data.value = saved
+  layout.value = clone(saved)
+}
+
+async function reload() {
+  await refresh()
+  layout.value = clone(data.value)
 }
 
 function discard() {
@@ -59,7 +70,7 @@ function discard() {
         icon="i-lucide-circle-alert"
         :title="t('admin.venueLoadFailed', 'The venue layout could not be loaded.')"
         :description="errorMessage(error, '')"
-        :actions="[{ label: t('admin.tryAgain', 'Try again'), color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
+        :actions="[{ label: t('admin.tryAgain', 'Try again'), color: 'neutral', variant: 'outline', onClick: reload }]"
       />
       <MapPlaneEditor
         v-else-if="data"
