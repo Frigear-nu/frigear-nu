@@ -10,8 +10,9 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The only package that exists today is [Audience](/modules/volunteering/audience), the shared visibility rules. Every
-other module adds its own page to this group in the pull request that adds the module.
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
+[Dashboard](/modules/volunteering/dashboard). Every other module adds its own page to this group in the pull request
+that adds the module.
 
 ## The modules
 
@@ -21,7 +22,7 @@ other module adds its own page to this group in the pull request that adds the m
 | `@frigear-nu/teams` | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |
-| `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
+| [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | `@frigear-nu/push` | Device registration and push notifications, with channel preferences. | B |
@@ -251,8 +252,10 @@ type DashboardItem = WidgetDefinition & {
 - The client `widgets:filter` hook keeps hiding items by `permission`.
 - Each user's layout is one [Preferences](/modules/identity/preferences) key, `dashboardLayouts`. Dashboard declares
   it with `definePreferences` (a zod schema of
-  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[] }>`) and registers it with
-  `addUserPreferences(nuxt, { path })` when Preferences is installed. Without Preferences the registered order applies.
+  `Record<dashboardName, { order: string[], hidden: string[], collapsed: string[], settings? }>`, where `settings`
+  holds per-item settings by item id) and registers it with `addUserPreferences(nuxt, { path })` when Preferences is
+  installed. Without Preferences, or signed out, changes last for the session and the registered order applies after a
+  reload. See [Dashboard](/modules/volunteering/dashboard#per-user-layout).
 
 A module adds items only when dashboard is installed:
 
@@ -279,7 +282,7 @@ registries, so each module also works alone. Arrows point one way: a lower modul
 ```text
 audience    (plain package, no Nuxt module)
 
-dashboard   ─► widget, menu, auth                    (soft: preferences, mobile, admin)
+dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
 operations  ─► auth, audience                        (soft: events, maps, dashboard)
 teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
