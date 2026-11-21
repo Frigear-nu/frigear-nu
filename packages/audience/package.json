@@ -1,0 +1,76 @@
+{
+  "name": "@frigear-nu/audience",
+  "version": "0.1.0",
+  "type": "module",
+  "private": false,
+  "description": "Shared visibility rules and owner references for Frigear modules: who may see a record, and which operation, team or user owns it.",
+  "author": {
+    "name": "Frigear",
+    "email": "kontakt@frigear.nu",
+    "url": "https://frigear.nu"
+  },
+  "homepage": "https://docs.frigear.dev/modules/volunteering/audience",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/audience"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.17.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "./server": {
+        "types": "./dist/server.d.mts",
+        "default": "./dist/server.mjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "prepack": "unbuild",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "h3": "^1.15.11",
+    "nitropack": "^2.13.6"
+  },
+  "peerDependenciesMeta": {
+    "h3": {
+      "optional": true
+    },
+    "nitropack": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@frigear-nu/eslint-config": "workspace:^",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "h3": "catalog:",
+    "hookable": "^5.5.3",
+    "nitropack": "^2.13.6",
+    "typescript": "catalog:",
+    "unbuild": "^3.6.1",
+    "vitest": "catalog:"
+  }
+}
