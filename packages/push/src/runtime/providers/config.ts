@@ -1,4 +1,4 @@
-import type { PushRuntimeConfig } from '../../types'
+import type { PushProvider, PushRuntimeConfig } from '../../types'
 import { createApnsSender } from './apns'
 import type { ApnsConfig } from './apns'
 import { createFcmSender, parseFcmServiceAccount } from './fcm'
@@ -43,13 +43,39 @@ export function apnsConfigOf(config: PushRuntimeConfig): ApnsConfig {
   }
 }
 
-export type PlatformSenders = { android?: DeviceSender, ios?: DeviceSender }
+/** Whether `value` names a provider. */
+export const isPushProvider = (value: unknown): value is PushProvider => value === 'fcm' || value === 'apns'
 
-/** One sender per configured provider (`android` is FCM, `ios` is APNs). Missing credentials leave the platform out. */
-export function createPlatformSenders(config: PushRuntimeConfig, env: ProviderEnvironment = {}): PlatformSenders {
+/**
+ * `push.ios`: the provider of an iOS token whose device did not say. `apns` (the default), because a client that does
+ * not say is one built on `@capacitor/push-notifications`, which hands out the APNs token on iOS. Guessing `fcm` for it
+ * would be worse than failing: FCM rejects an APNs token as invalid and the device would be revoked.
+ */
+export function resolveIosProvider(config: Pick<PushRuntimeConfig, 'ios'>): PushProvider {
+  const value = typeof config.ios === 'string' ? config.ios.trim().toLowerCase() : ''
+  if (!value) return 'apns'
+  if (isPushProvider(value)) return value
+  throw new Error(`[@frigear-nu/push] push.ios must be "fcm" or "apns", got "${config.ios}".`)
+}
+
+/**
+ * Where a device's pushes go: the provider it registered with, else FCM for Android and `ios` for iOS. `undefined` for
+ * a platform no provider serves (`web`).
+ */
+export function resolveDeviceProvider(device: { platform: string, provider?: string | null }, ios: PushProvider): PushProvider | undefined {
+  if (isPushProvider(device.provider)) return device.provider
+  if (device.platform === 'android') return 'fcm'
+  if (device.platform === 'ios') return ios
+  return undefined
+}
+
+export type ProviderSenders = { fcm?: DeviceSender, apns?: DeviceSender }
+
+/** One sender per configured provider. Missing credentials leave the provider out. */
+export function createProviderSenders(config: PushRuntimeConfig, env: ProviderEnvironment = {}): ProviderSenders {
   env = { timeoutMs: requestTimeoutMs(config), ...env }
   return {
-    android: hasFcmCredentials(config) ? createFcmSender(parseFcmServiceAccount(config.fcm.serviceAccount), env) : undefined,
-    ios: hasApnsCredentials(config) ? createApnsSender(apnsConfigOf(config), env) : undefined,
+    fcm: hasFcmCredentials(config) ? createFcmSender(parseFcmServiceAccount(config.fcm.serviceAccount), env) : undefined,
+    apns: hasApnsCredentials(config) ? createApnsSender(apnsConfigOf(config), env) : undefined,
   }
 }

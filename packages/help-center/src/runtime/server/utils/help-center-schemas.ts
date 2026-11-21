@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { visibilitySchema } from '@frigear-nu/audience'
+import { grantListShape } from '@frigear-nu/grants/core'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from '../../utils/slug'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
@@ -25,8 +25,8 @@ const categoryFields = z.object({
   description: helpTranslated.nullish(),
   parentId: z.string().trim().min(1).max(128).nullish(),
   owner: helpOwnerSchema.optional(),
-  // Strict: an unknown key (a `permission`, a typo) is a 400 instead of silently widening to "every signed-in user".
-  visibility: visibilitySchema.nullish(),
+  // Who may read it: the shape of a grant list. The handler checks each grant against its kind (`grantsValidate`).
+  grants: grantListShape.optional(),
   faqGroups: z.array(slugField).max(20).nullish(),
   sort: z.number().int().min(0).max(1_000_000).optional(),
 })
@@ -42,7 +42,8 @@ const articleFields = z.object({
   slug: slugField,
   title: helpTranslated,
   body: helpTranslated,
-  visibility: visibilitySchema.nullish(),
+  // `null` inherits the category; a list narrows it.
+  grants: grantListShape.nullish(),
   sort: z.number().int().min(0).max(1_000_000).optional(),
 })
 
@@ -75,7 +76,7 @@ const articleRef = z.string().trim().min(1).max(300)
 const checklistFields = z.object({
   name: helpTranslated,
   operationId: z.string().trim().min(1).max(128).nullish(),
-  visibility: visibilitySchema.nullish(),
+  grants: grantListShape.optional(),
   sort: z.number().int().min(0).max(1_000_000).optional(),
   /** The whole list of items, in order. Replaces the items the checklist has. */
   items: z.array(z.object({ articleId: articleRef, required: z.boolean().optional() })).max(200).optional(),
@@ -90,12 +91,11 @@ export const helpChecklistPatchSchema = checklistFields.partial()
 /** The body of `POST /api/admin/help-center/send`. */
 export const helpSendInput = z.object({
   articleIds: z.array(articleRef).min(1).max(20),
+  // Explicit people and/or a grant list: each grant kind lists its members (`@frigear-nu/grants`).
   audience: z.strictObject({
-    operationId: z.string().trim().min(1).max(128).optional(),
-    teamId: z.string().trim().min(1).max(128).optional(),
-    globalRoles: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+    grants: grantListShape.optional(),
     userIds: z.array(z.string().trim().min(1).max(64)).max(500).optional(),
-  }).refine(audience => Object.values(audience).some(value => value !== undefined), 'Name at least one person or group to send to.'),
+  }).refine(audience => !!audience.grants?.length || !!audience.userIds?.length, 'Name at least one person or group to send to.'),
   channels: z.array(z.enum(['email', 'sms'])).min(1).max(2),
   /** The language of the message. Defaults to the first required language. */
   locale: z.string().trim().min(2).max(16).optional(),

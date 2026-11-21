@@ -110,6 +110,10 @@
       "venueLive": "Live-visning",
       "venueLiveHelp": "Den gemte plantegning, som crew ser den, med live-lagene.",
       "tryAgain": "Prøv igen"
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Vælg en operation"
     }
   }
 }

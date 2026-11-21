@@ -1,8 +1,50 @@
 import type { H3Event } from 'h3'
-import type { OwnerType, TeamRoleGrant } from '@frigear-nu/audience'
 import type { Translated } from '@frigear-nu/ui/translated'
 
-export type { Translated, OwnerType, TeamRoleGrant }
+export type { Translated }
+
+/**
+ * Who owns a team, or any record a module keeps per owner (an FAQ group, a mailbox): `platform`, `operation`, `team`,
+ * or a type an app adds through `teams:owner:resolve`. Teams owns this type; other modules import it from
+ * `@frigear-nu/teams`. There is no global list of owner types.
+ */
+export type OwnerType = 'platform' | 'operation' | 'team' | (string & {})
+
+/**
+ * A reference to a record's owner, stored as the `ownerType` / `ownerId` columns. `type` is never null: a record with
+ * no other owner is `{ type: 'platform', id: null }`. `id` is text, and `null` for `platform`.
+ */
+export type OwnerRef = {
+  type: OwnerType
+  id: string | null
+}
+
+/** A team role a user holds, on one team of one owner. */
+export type TeamRoleGrant = {
+  ownerType: OwnerType
+  /** `null` for a team owned by the platform, as in {@link OwnerRef}. */
+  ownerId: string | null
+  teamId: string
+  kind: string
+  role: string
+  /** `explicit`: a stored membership. `mapped`: resolved at read time from a role mapping rule. */
+  source: 'explicit' | 'mapped'
+}
+
+/** The `team` grant of `@frigear-nu/grants`: the users holding `minRole` or a higher role on the team. */
+export type TeamGrant = { kind: 'team', teamId: string, minRole: string }
+
+/**
+ * Context of `teams:owner:resolve`: the module that knows `owner.type` sets `label` and `exists`. Teams answers
+ * `platform`, `team` and `operation` (when `@frigear-nu/operations` is installed) itself; both stay `null` when nobody
+ * answers.
+ */
+export type TeamsOwnerResolveContext = {
+  event: H3Event | undefined
+  owner: OwnerRef
+  label: Translated | null
+  exists: boolean | null
+}
 
 /** One role of a ladder: a lower-case `key` (stored on members and mapping rules) and its label. */
 export type TeamLadderRole = {
@@ -65,7 +107,7 @@ export type TeamDto = TeamOwner & {
 
 /** The staff view (`/api/admin/teams`): the same fields plus the audit dates, the owner's label and the member count. */
 export type AdminTeamDto = TeamDto & {
-  /** The owner's label from `audience:owner:resolve`, `null` for the platform or an owner nobody answers for. */
+  /** The owner's label from `teams:owner:resolve`, `null` for the platform or an owner nobody answers for. */
   ownerLabel: Translated | null
   /** Explicit members only: mapped members are resolved on demand. */
   memberCount: number
@@ -160,7 +202,7 @@ export type TeamMemberRoleChangedContext = TeamMemberContext & {
 /**
  * Context of `teams:roles:resolve`. Listeners push mapped grants into `grants` (give them the `priority` of the rule
  * they stand for; explicit memberships always win). `owner` is `null` when every owner is resolved at once (the
- * viewer, the claim). `event` is `undefined` outside a request (the OAuth claim).
+ * team grant kind, the claim). `event` is `undefined` outside a request (the OAuth claim).
  */
 export type TeamsRolesResolveContext = {
   event: H3Event | undefined

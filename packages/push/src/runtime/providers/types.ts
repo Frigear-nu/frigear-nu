@@ -1,5 +1,5 @@
 // Framework free: the provider senders only need `jose`, `fetch` and (for APNs) `node:http2`, so they run on Node and
-// the FCM side also on Workers.
+// the FCM side (Android, and iOS devices registered with their FCM token) also on Workers.
 
 /** One push to one device token. */
 export type DeviceMessage = {

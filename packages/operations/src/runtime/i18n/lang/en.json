@@ -110,6 +110,10 @@
       "venueLive": "Live view",
       "venueLiveHelp": "The saved layout as crew see it, with the live layers.",
       "tryAgain": "Try again"
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Choose an operation"
     }
   }
 }

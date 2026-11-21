@@ -150,6 +150,11 @@
       "removeMemberFailed": "Medlemmet kunne ikke fjernes",
       "status": "Status",
       "noOwner": "Åbn fanen fra en operations side."
+    },
+    "grants": {
+      "team": "Team",
+      "chooseTeam": "Vælg et team",
+      "minRole": "Mindst denne rolle"
     }
   }
 }

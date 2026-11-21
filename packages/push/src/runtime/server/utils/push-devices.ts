@@ -2,7 +2,8 @@ import { db, schema } from '@nuxthub/db'
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import type { PushDeviceDto, PushPlatform, RegisterDeviceInput } from '../../../types'
+import type { PushDeviceDto, PushPlatform, PushProvider, PushRuntimeConfig, RegisterDeviceInput } from '../../../types'
+import { isPushProvider, resolveDeviceProvider, resolveIosProvider } from '../../providers/config'
 
 type DeviceRow = typeof schema.pushDevices.$inferSelect
 
@@ -11,6 +12,7 @@ export function toPushDeviceDto(row: DeviceRow): PushDeviceDto {
     id: row.id,
     userId: row.userId,
     platform: row.platform as PushPlatform,
+    provider: isPushProvider(row.provider) ? row.provider : null,
     appId: row.appId,
     locale: row.locale,
     lastSeenAt: isoDate(row.lastSeenAt),
@@ -23,22 +25,26 @@ const newDeviceId = () => `psd_${crypto.randomUUID().replaceAll('-', '')}`
 
 /**
  * Registers a device for `userId`. A token that is already registered moves to this user (a phone changes hands) and
- * is active again, so registering is idempotent. Fires `push:device:registered`.
+ * is active again, so registering is idempotent. The provider is stored resolved (what the device said, else FCM on
+ * Android and `push.ios` on iOS), and registering again updates it. Fires `push:device:registered`.
  */
 export async function registerPushDevice(event: H3Event, userId: number, input: RegisterDeviceInput): Promise<PushDeviceDto> {
   const now = new Date()
+  // `platform` is `ios` or `android` here (the route refuses `web`), so a provider always resolves.
+  const provider: PushProvider = resolveDeviceProvider(input, resolveIosProvider(useRuntimeConfig().push as PushRuntimeConfig)) ?? 'fcm'
   const [row] = await db.insert(schema.pushDevices).values({
     id: newDeviceId(),
     userId,
     platform: input.platform,
     token: input.token,
+    provider,
     appId: input.appId ?? null,
     locale: input.locale ?? null,
     lastSeenAt: now,
     createdAt: now,
   }).onConflictDoUpdate({
     target: schema.pushDevices.token,
-    set: { userId, platform: input.platform, appId: input.appId ?? null, locale: input.locale ?? null, lastSeenAt: now, revokedAt: null },
+    set: { userId, platform: input.platform, provider, appId: input.appId ?? null, locale: input.locale ?? null, lastSeenAt: now, revokedAt: null },
   }).returning()
   const device = toPushDeviceDto(row!)
   await useNitroApp().hooks.callHook('push:device:registered', { event, device })
