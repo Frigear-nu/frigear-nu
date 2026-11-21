@@ -48,6 +48,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Audience, UI |
 | Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
 | Plan an operation's shifts, let volunteers swap them and check them in with a QR pass | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Audience, UI |
+| Show site maps and floor plans, and let staff draw on them | [Maps](/modules/volunteering/maps) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -141,6 +142,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | [Help center](/modules/volunteering/help-center) | Bilingual help articles in categories, public or per role, onboarding checklists with read tracking, and articles from the database or Nuxt Content. | ✓ | ✓ | ✓ |
 | [Push](/modules/volunteering/push) | Device registration, FCM and APNs delivery, and per-user channel choices (email, SMS, push) with a topic registry and `notifyUser`. | ✓ | ✓ | ✓ |
 | [Shifts](/modules/volunteering/shifts) | Schedules, shift roles, assignment with guards, swaps, QR check-in and who is on shift now, per operation. | ✓ | ✓ | ✓ |
+| [Maps](/modules/volunteering/maps) | Geographic and floor-plan maps owned by anything, with an editor, provider layers and map kinds other modules add. | ✓ | ✓ | ✓ |
 
 ## How they fit together
 
