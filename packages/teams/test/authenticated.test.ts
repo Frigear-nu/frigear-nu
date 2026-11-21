@@ -42,24 +42,25 @@ describe('teams (authenticated, database-backed)', async () => {
 
   const createTeam = async (overrides: Json = {}): Promise<Json> => ok(await json(staff.cookie, 'POST', teamsApi.admin.teams, {
     ownerType: 'operation',
-    ownerId: 'opr_roskilde',
+    ownerId: 'opr_summer',
     kind: 'bar',
     name: { en: `Bar ${++counter}`, da: `Bar ${counter}` },
     ...overrides,
   }))
-  const createRule = async (body: Json): Promise<Json> => ok(await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: 'opr_roskilde', ...body }))
+  const createRule = async (body: Json): Promise<Json> => ok(await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: 'opr_summer', ...body }))
   const addMember = (teamId: string, userId: number, role: string) => json(staff.cookie, 'POST', teamsApi.admin.members(teamId), { userId, role })
   const myTeams = async (cookie: string) => ok(await json(cookie, 'GET', teamsApi.me.teams)) as unknown as Promise<Json[]>
 
   describe('ladders', () => {
-    it('stores the option\'s ladders on the first request, the bar ladder by default', async () => {
+    it('stores the option\'s ladders and the shipped default one on the first request', async () => {
       const rows = await $fetch<Json[]>('/api/test/ladders')
       const bar = rows.find(row => row.kind === 'bar')
-      expect(bar?.roles.map((role: Json) => role.key)).toEqual(['volunteer', 'bartender', 'ba', 'coordinator'])
-      expect(bar?.leadFrom).toBe('ba')
+      expect(bar?.roles.map((role: Json) => role.key)).toEqual(['volunteer', 'bartender', 'lead', 'coordinator'])
+      expect(bar?.leadFrom).toBe('lead')
+      expect(rows.find(row => row.kind === 'default')?.roles.map((role: Json) => role.key)).toEqual(['member', 'lead'])
       expect(rows.find(row => row.kind === 'firstaid')?.roles.map((role: Json) => role.key)).toEqual(['helper', 'medic'])
       const listed = await ok(await json(staff.cookie, 'GET', teamsApi.admin.ladders)) as unknown as Json[]
-      expect(listed.find(ladder => ladder.kind === 'bar')).toMatchObject({ source: 'stored', leadFrom: 'ba' })
+      expect(listed.find(ladder => ladder.kind === 'bar')).toMatchObject({ source: 'stored', leadFrom: 'lead' })
     })
 
     it('edits a ladder, and refuses to remove a role still in use (409 team_role_in_use)', async () => {
@@ -76,7 +77,7 @@ describe('teams (authenticated, database-backed)', async () => {
       expect((await json(staff.cookie, 'PUT', teamsApi.admin.ladder('firstaid'), { roles: [{ key: 'Bad Key', label: 'x' }] })).status).toBe(400)
 
       // A rule for every team of an owner that has a firstaid team keeps its role on the ladder too.
-      await createRule({ match: { role: 'barmanager' }, teamRole: 'lead-medic' })
+      await createRule({ match: { role: 'supervisor' }, teamRole: 'lead-medic' })
       const withoutLead = { roles: [{ key: 'helper', label: 'Helper' }, { key: 'medic', label: 'Medic' }], leadFrom: 'medic' }
       const refused = await json(staff.cookie, 'PUT', teamsApi.admin.ladder('firstaid'), withoutLead)
       expect(refused.status).toBe(409)
@@ -172,12 +173,12 @@ describe('teams (authenticated, database-backed)', async () => {
       expect(platform).toMatchObject({ ownerType: 'platform', ownerId: null, ownerLabel: null, memberCount: 0 })
       expect(platform.id).toMatch(/^tem_/)
       const bar = await createTeam({ capacity: 12, description: { en: 'Main bar' } })
-      expect(bar).toMatchObject({ ownerType: 'operation', ownerId: 'opr_roskilde', ownerLabel: 'Roskilde 2027 bar operation', capacity: 12 })
+      expect(bar).toMatchObject({ ownerType: 'operation', ownerId: 'opr_summer', ownerLabel: 'Summer Festival 2030', capacity: 12 })
 
       const listed = await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.teams}?ownerType=platform&pageSize=100`))
       expect(listed.items.map((item: Json) => item.id)).toContain(platform.id)
       expect(listed.items.map((item: Json) => item.id)).not.toContain(bar.id)
-      const byOwner = await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.teams}?ownerType=operation&ownerId=opr_roskilde&pageSize=100`))
+      const byOwner = await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.teams}?ownerType=operation&ownerId=opr_summer&pageSize=100`))
       expect(byOwner.items.map((item: Json) => item.id)).toContain(bar.id)
 
       const patched = await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.team(bar.id), { name: 'Renamed bar', capacity: null }))
@@ -209,7 +210,7 @@ describe('teams (authenticated, database-backed)', async () => {
       const team = await createTeam()
       const someone = await user('Gone')
       await ok(await addMember(team.id, someone.id, 'volunteer'))
-      await createRule({ teamId: team.id, match: { role: 'barmanager' }, teamRole: 'bartender' })
+      await createRule({ teamId: team.id, match: { role: 'supervisor' }, teamRole: 'bartender' })
       const rows = () => $fetch<Json>('/api/test/member-rows', { query: { teamId: team.id } })
       expect(await rows()).toEqual({ members: 1, rules: 1 })
       expect((await json(staff.cookie, 'DELETE', teamsApi.admin.team(team.id))).status).toBe(204)
@@ -253,16 +254,16 @@ describe('teams (authenticated, database-backed)', async () => {
   })
 
   describe('role mapping', () => {
-    it('shows a global barmanager as BA in every bar team of the operation, mapped, and lets an explicit assignment override it', async () => {
+    it('shows a global supervisor as a lead in every bar team of the operation, mapped, and lets an explicit assignment override it', async () => {
       const team = await createTeam()
       const other = await createTeam()
-      const rule = await createRule({ match: { role: 'barmanager' }, teamRole: 'ba' })
-      expect(rule).toMatchObject({ teamId: null, match: { role: 'barmanager' }, teamRole: 'ba', priority: 0 })
+      const rule = await createRule({ match: { role: 'supervisor' }, teamRole: 'lead' })
+      expect(rule).toMatchObject({ teamId: null, match: { role: 'supervisor' }, teamRole: 'lead', priority: 0 })
 
       const manager = await user('Manager', 'bar.test')
       const grants = await myTeams(manager.cookie)
-      expect(grants.find(grant => grant.teamId === team.id)).toMatchObject({ ownerType: 'operation', ownerId: 'opr_roskilde', kind: 'bar', role: 'ba', source: 'mapped' })
-      expect(grants.find(grant => grant.teamId === other.id)).toMatchObject({ role: 'ba', source: 'mapped' })
+      expect(grants.find(grant => grant.teamId === team.id)).toMatchObject({ ownerType: 'operation', ownerId: 'opr_summer', kind: 'bar', role: 'lead', source: 'mapped' })
+      expect(grants.find(grant => grant.teamId === other.id)).toMatchObject({ role: 'lead', source: 'mapped' })
       // A plain member holds no mapped role from this rule.
       const member = await user('Plain', 'member.test')
       expect((await myTeams(member.cookie)).filter(grant => grant.teamId === team.id)).toEqual([])
@@ -271,12 +272,12 @@ describe('teams (authenticated, database-backed)', async () => {
       const plain = await ok(await json(staff.cookie, 'GET', teamsApi.members(team.id))) as unknown as Json[]
       expect(plain.find(item => item.userId === manager.id)).toBeUndefined()
       const withMapped = await ok(await json(staff.cookie, 'GET', `${teamsApi.members(team.id)}?include=mapped`)) as unknown as Json[]
-      expect(withMapped.find(item => item.userId === manager.id)).toMatchObject({ id: null, role: 'ba', source: 'mapped', status: null })
+      expect(withMapped.find(item => item.userId === manager.id)).toMatchObject({ id: null, role: 'lead', source: 'mapped', status: null })
 
       await ok(await addMember(team.id, manager.id, 'bartender'))
       const after = await myTeams(manager.cookie)
       expect(after.filter(grant => grant.teamId === team.id)).toEqual([expect.objectContaining({ role: 'bartender', source: 'explicit' })])
-      expect(after.find(grant => grant.teamId === other.id)).toMatchObject({ role: 'ba', source: 'mapped' })
+      expect(after.find(grant => grant.teamId === other.id)).toMatchObject({ role: 'lead', source: 'mapped' })
       // Explicit grants come first.
       expect(after[0]).toMatchObject({ source: 'explicit' })
 
@@ -287,11 +288,11 @@ describe('teams (authenticated, database-backed)', async () => {
     it('picks between matching rules by priority, then by the higher role', async () => {
       const owner = { ownerType: 'operation', ownerId: 'opr_priority' }
       const team = await createTeam(owner)
-      // `barmanager` inherits `member`, so both rules match a bar manager.
-      await createRule({ ...owner, match: { role: 'barmanager' }, teamRole: 'ba' })
+      // `supervisor` inherits `member`, so both rules match a supervisor.
+      await createRule({ ...owner, match: { role: 'supervisor' }, teamRole: 'lead' })
       const volunteerRule = await createRule({ ...owner, match: { role: 'member' }, teamRole: 'volunteer' })
       const manager = await user('Ranked', 'bar.test')
-      expect((await myTeams(manager.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'ba' })
+      expect((await myTeams(manager.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'lead' })
 
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.mapping(volunteerRule.id), { priority: 10 }))
       expect((await myTeams(manager.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'volunteer', source: 'mapped' })
@@ -313,34 +314,34 @@ describe('teams (authenticated, database-backed)', async () => {
       const team = await createTeam()
       const elsewhere = await createTeam({ ownerType: 'platform', ownerId: null })
       for (const body of [
-        { match: { role: 'x', plan: 'y' }, teamRole: 'ba' },
-        { match: { permission: 'x' }, teamRole: 'ba' },
-        { match: { role: 'barmanager' }, teamRole: 'medic', teamId: team.id },
-        { match: { role: 'barmanager' }, teamRole: 'nowhere' },
-        { match: { role: 'barmanager' }, teamRole: 'ba', teamId: elsewhere.id },
-        { match: { role: 'barmanager' }, teamRole: 'ba', ownerId: 'opr_unknown' },
+        { match: { role: 'x', plan: 'y' }, teamRole: 'lead' },
+        { match: { permission: 'x' }, teamRole: 'lead' },
+        { match: { role: 'supervisor' }, teamRole: 'medic', teamId: team.id },
+        { match: { role: 'supervisor' }, teamRole: 'nowhere' },
+        { match: { role: 'supervisor' }, teamRole: 'lead', teamId: elsewhere.id },
+        { match: { role: 'supervisor' }, teamRole: 'lead', ownerId: 'opr_unknown' },
       ]) {
-        expect((await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: 'opr_roskilde', ...body })).status, JSON.stringify(body)).toBe(400)
+        expect((await json(staff.cookie, 'POST', teamsApi.admin.mappings, { ownerType: 'operation', ownerId: 'opr_summer', ...body })).status, JSON.stringify(body)).toBe(400)
       }
       const listed = await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.mappings}?teamId=${team.id}`)) as unknown as Json[]
-      expect(listed.every(rule => rule.ownerId === 'opr_roskilde')).toBe(true)
+      expect(listed.every(rule => rule.ownerId === 'opr_summer')).toBe(true)
     })
   })
 
   describe('lead policy', () => {
-    it('lets a BA lead their team and not a volunteer, mapped grants included', async () => {
+    it('lets someone with the lead role lead their team and not a volunteer, mapped grants included', async () => {
       const team = await createTeam()
-      const ba = await user('Lead')
+      const leader = await user('Lead')
       const volunteer = await user('Helper')
-      await ok(await addMember(team.id, ba.id, 'ba'))
+      await ok(await addMember(team.id, leader.id, 'lead'))
       await ok(await addMember(team.id, volunteer.id, 'volunteer'))
       const lead = (cookie: string) => $fetch<Json>('/api/test/lead', { headers: { cookie }, query: { teamId: team.id } })
-      expect(await lead(ba.cookie)).toEqual({ allowed: true, isTeamLead: true })
+      expect(await lead(leader.cookie)).toEqual({ allowed: true, isTeamLead: true })
       expect(await lead(volunteer.cookie)).toEqual({ allowed: false, isTeamLead: false })
 
       const scoped = { ownerType: 'operation', ownerId: 'opr_priority' }
       const mappedTeam = await createTeam(scoped)
-      await createRule({ ...scoped, teamId: mappedTeam.id, match: { role: 'barmanager' }, teamRole: 'coordinator', priority: 100 })
+      await createRule({ ...scoped, teamId: mappedTeam.id, match: { role: 'supervisor' }, teamRole: 'coordinator', priority: 100 })
       const manager = await user('Mapped', 'bar.test')
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: manager.cookie }, query: { teamId: mappedTeam.id } })).toEqual({ allowed: true, isTeamLead: true })
     })
@@ -352,8 +353,8 @@ describe('teams (authenticated, database-backed)', async () => {
       const someone = await user('Viewer')
       await ok(await addMember(team.id, someone.id, 'bartender'))
       const viewer = await $fetch<Json>('/api/test/viewer', { headers: { cookie: someone.cookie } })
-      expect(viewer.teamRoles).toContainEqual({ ownerType: 'operation', ownerId: 'opr_roskilde', teamId: team.id, kind: 'bar', role: 'bartender', source: 'explicit' })
-      expect(viewer.ladders.bar).toEqual(['volunteer', 'bartender', 'ba', 'coordinator'])
+      expect(viewer.teamRoles).toContainEqual({ ownerType: 'operation', ownerId: 'opr_summer', teamId: team.id, kind: 'bar', role: 'bartender', source: 'explicit' })
+      expect(viewer.ladders.bar).toEqual(['volunteer', 'bartender', 'lead', 'coordinator'])
     })
   })
 
@@ -361,10 +362,10 @@ describe('teams (authenticated, database-backed)', async () => {
     it('lists a pending member without a grant: no read, no lead, nothing in the viewer or /me', async () => {
       const team = await createTeam()
       const pending = await user('Pending')
-      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: pending.id, role: 'ba', status: 'pending' }))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: pending.id, role: 'lead', status: 'pending' }))
 
       const listed = await ok(await json(staff.cookie, 'GET', teamsApi.members(team.id))) as unknown as Json[]
-      expect(listed.find(item => item.userId === pending.id)).toMatchObject({ role: 'ba', status: 'pending', source: 'explicit' })
+      expect(listed.find(item => item.userId === pending.id)).toMatchObject({ role: 'lead', status: 'pending', source: 'explicit' })
       expect((await myTeams(pending.cookie)).find(grant => grant.teamId === team.id)).toBeUndefined()
       await expectApiError(json(pending.cookie, 'GET', teamsApi.team(team.id)), 403, 'forbidden')
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: pending.cookie }, query: { teamId: team.id } })).toEqual({ allowed: false, isTeamLead: false })
@@ -373,7 +374,7 @@ describe('teams (authenticated, database-backed)', async () => {
 
       // `active` grants like `null`.
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, pending.id), { status: 'active' }))
-      expect((await myTeams(pending.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'ba', source: 'explicit' })
+      expect((await myTeams(pending.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'lead', source: 'explicit' })
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: pending.cookie }, query: { teamId: team.id } })).toEqual({ allowed: true, isTeamLead: true })
     })
 
@@ -384,7 +385,7 @@ describe('teams (authenticated, database-backed)', async () => {
       // A role change without a grant fires nothing; the grant starts with the role it has then.
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { role: 'bartender' }))
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: 'active' }))
-      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { role: 'ba' }))
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { role: 'lead' }))
       // `active` -> null both grant: nothing to tell.
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: null }))
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, someone.id), { status: 'inactive' }))
@@ -394,8 +395,8 @@ describe('teams (authenticated, database-backed)', async () => {
 
       expect((await getHooksFor(team.id)).map(hook => [hook.name, hook.role, hook.from, hook.to])).toEqual([
         ['added', 'bartender', undefined, undefined],
-        ['role-changed', 'ba', 'bartender', 'ba'],
-        ['removed', 'ba', undefined, undefined],
+        ['role-changed', 'lead', 'bartender', 'lead'],
+        ['removed', 'lead', undefined, undefined],
       ])
     })
   })
@@ -426,7 +427,7 @@ describe('teams (authenticated, database-backed)', async () => {
       const token = await createToken(someone.cookie, [teamsAccess.permissions.read])
       const viaBearer = await $fetch<Json>('/api/test/viewer', { headers: { authorization: `Bearer ${token}` } })
       expect(viaBearer.teamRoles.find((grant: Json) => grant.teamId === team.id)).toMatchObject({ role: 'bartender', source: 'explicit' })
-      expect(viaBearer.ladders.bar).toEqual(['volunteer', 'bartender', 'ba', 'coordinator'])
+      expect(viaBearer.ladders.bar).toEqual(['volunteer', 'bartender', 'lead', 'coordinator'])
 
       const ofOther = await $fetch<Json>('/api/test/viewer', { headers: { cookie: staff.cookie }, query: { userId: someone.id } })
       expect(ofOther.userId).toBe(someone.id)

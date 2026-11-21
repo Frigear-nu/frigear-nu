@@ -4,7 +4,7 @@ import { scopeAllowsTeamsClaim, teamsClaim } from '../../src/runtime/utils/claim
 
 const grants: TeamRoleGrant[] = [
   { ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_a', kind: 'bar', role: 'bartender', source: 'explicit' },
-  { ownerType: 'platform', ownerId: null, teamId: 'tem_b', kind: 'bar', role: 'ba', source: 'mapped' },
+  { ownerType: 'platform', ownerId: null, teamId: 'tem_b', kind: 'bar', role: 'lead', source: 'mapped' },
 ]
 
 // The plugin without a server: `defineNitroPlugin` is the identity and the resolver is a stub that records its call.
@@ -15,7 +15,7 @@ const { addTeamsClaim } = await import('../../src/runtime/server/plugins/oauth-c
 
 const ctx = (values: { scope: string[], tokenType?: 'id_token' | 'access_token' | 'userinfo', claims?: Record<string, unknown> }) => ({
   user: { id: 7 } as never,
-  roles: ['barmanager', 'member'],
+  roles: ['supervisor', 'member'],
   tokenType: values.tokenType ?? 'id_token' as const,
   scope: values.scope,
   claims: values.claims ?? {},
@@ -25,7 +25,7 @@ describe('teams claim', () => {
   it('has one entry per grant: the team id, owner, kind, role and source', () => {
     expect(teamsClaim(grants)).toEqual([
       { id: 'tem_a', ownerType: 'operation', ownerId: 'opr_1', kind: 'bar', role: 'bartender', source: 'explicit' },
-      { id: 'tem_b', ownerType: 'platform', ownerId: null, kind: 'bar', role: 'ba', source: 'mapped' },
+      { id: 'tem_b', ownerType: 'platform', ownerId: null, kind: 'bar', role: 'lead', source: 'mapped' },
     ])
   })
 
@@ -41,7 +41,7 @@ describe('teams claim', () => {
       await addTeamsClaim(context)
       expect(context.claims.teams).toEqual(teamsClaim(grants))
     }
-    expect(resolveAllTeamRoles).toHaveBeenCalledWith(undefined, 7, { globalRoles: ['barmanager', 'member'] })
+    expect(resolveAllTeamRoles).toHaveBeenCalledWith(undefined, 7, { globalRoles: ['supervisor', 'member'] })
   })
 
   it('leaves the claim out when the roles cannot be resolved (fail closed)', async () => {
