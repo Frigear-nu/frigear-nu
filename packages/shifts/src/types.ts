@@ -53,10 +53,12 @@ export type ShiftGuards = {
   minRestHours?: number | null
 }
 
-/** Where a shift takes place: a name, and optionally a feature of a map (the maps layer comes later). */
+/**
+ * Where a shift takes place: a name, and optionally a feature of the operation's venue layout (`featureId`, the stable
+ * id of a feature drawn with the plane editor of `@frigear-nu/maps`). The on-duty layer draws the shift there.
+ */
 export type ShiftLocation = {
   name?: Translated
-  mapId?: string
   featureId?: string
 }
 

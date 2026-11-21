@@ -15,6 +15,13 @@
       "when": 1795266778896,
       "tag": "0001_teams_maps",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795273646591,
+      "tag": "0002_teams_drop_maps",
+      "breakpoints": true
     }
   ]
 }

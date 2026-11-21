@@ -2,18 +2,33 @@ import type { H3Event } from 'h3'
 
 import type { Translated } from '@frigear-nu/ui/translated'
 import type { Schedule } from '@frigear-nu/module-kit/schedule'
+import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneUnderlay } from '@frigear-nu/maps/utils'
 
-export type { Translated, Schedule }
+export type { Translated, Schedule, GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneUnderlay }
 
 /** `planning -> active -> wrapped_up -> archived`, and `planning -> archived`. See `canTransition`. */
 export type OperationStatus = 'planning' | 'active' | 'wrapped_up' | 'archived'
 
-/** Where an operation takes place. `name` is shown; the rest is for maps and directions. */
-export type OperationLocation = {
-  name: Translated
+/**
+ * Where an operation takes place: a name and an address to show, and the value of the location picker of
+ * `@frigear-nu/maps` (`point`, with `radiusMeters` or an `area`). Any of them may be left out, not all.
+ */
+export type OperationLocation = Partial<MapLocation> & {
+  name?: Translated
   address?: string
-  lat?: number
-  lng?: number
+}
+
+/** The image under a venue layout, as stored: the blob pathname never leaves the server. */
+export type OperationVenueUnderlay = {
+  pathname: string
+  contentType: string
+  width: number
+  height: number
+}
+
+/** The venue layout as stored in `operations.venueLayout`: a plane layout whose underlay is a stored image. */
+export type OperationVenueLayout = Omit<PlaneFeatureCollection, 'underlay'> & {
+  underlay?: OperationVenueUnderlay | null
 }
 
 export type ModuleOptions = {

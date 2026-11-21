@@ -6,6 +6,7 @@ export * from './links'
 export * from './api'
 export * from './status'
 export * from './slug'
+export * from './venue'
 
 export type {
   AdminOperationDto,
@@ -16,6 +17,8 @@ export type {
   OperationStatus,
   OperationStatusChangedContext,
   OperationUpdatedContext,
+  OperationVenueLayout,
+  OperationVenueUnderlay,
   Schedule,
   Translated,
 } from '../../types'

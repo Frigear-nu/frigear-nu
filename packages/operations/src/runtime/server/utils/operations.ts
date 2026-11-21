@@ -13,6 +13,7 @@ import { operationEndsAfterStart } from './operations-schemas'
 import type { operationInput, operationPatchSchema } from './operations-schemas'
 import { toAdminOperationDto } from './operations-dto'
 import { isOperationUniqueViolation } from './operations-errors'
+import { operationsAccess } from '../../access'
 
 export type OperationRow = typeof schema.operations.$inferSelect
 type OperationInput = z.output<typeof operationInput>
@@ -27,6 +28,20 @@ export async function findOperationById(id: string): Promise<OperationRow | unde
 /** The row with this URL name, or `undefined`. */
 export async function findOperationBySlug(slug: string): Promise<OperationRow | undefined> {
   const [row] = await db.select().from(schema.operations).where(eq(schema.operations.slug, slug)).limit(1)
+  return row
+}
+
+/**
+ * The operation with this URL name when the caller may read it: public ones for everyone, any other only for those who
+ * take part in it and for staff (the policy of `operations:read`). Everybody else gets the same 404 as for an unknown
+ * name.
+ */
+export async function readableOperationBySlug(event: H3Event, slug: string): Promise<OperationRow> {
+  const row = await findOperationBySlug(slug)
+  if (!row) throw notFound('Operation not found.')
+  if (row.public) return row
+  const principal = await allows(event, operationsAccess.permissions.read) ? await getAuth(event) : null
+  if (!principal || !(await allows(event, operationsAccess.permissions.read, row))) throw notFound('Operation not found.')
   return row
 }
 

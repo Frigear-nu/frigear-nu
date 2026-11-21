@@ -7,7 +7,7 @@ type Translated = string | Record<string, string>
 // The guards of a schedule, see `ShiftGuards` in types.ts.
 type ShiftGuards = { maxShiftsPerDay?: number | null, minRestHours?: number | null }
 // Where a shift takes place, see `ShiftLocation` in types.ts.
-type ShiftLocation = { name?: Translated, mapId?: string, featureId?: string }
+type ShiftLocation = { name?: Translated, featureId?: string }
 
 // Operation, team and user ids carry no foreign key here: those tables belong to other modules. Shifts' own rows refer to
 // each other by id and are removed by shifts itself.
