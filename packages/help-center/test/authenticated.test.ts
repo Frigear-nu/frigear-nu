@@ -828,7 +828,7 @@ describe('help center (authenticated, database-backed)', async () => {
       const { article, category } = await publishedArticle({ grants: PUBLIC })
       const withPhone = await user('Phone')
       const without = await user('Nophone')
-      await setPhone(withPhone.id, '+4512345678')
+      await setPhone(withPhone.id, '+15550100105')
       const before = (await getTexts()).length
       const result = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, {
         articleIds: [article.id],
@@ -838,7 +838,7 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(result).toEqual({ recipients: 2, emailed: 0, texted: 1, skipped: 1 })
       const texts = (await getTexts()).slice(before)
       expect(texts).toHaveLength(1)
-      expect(texts[0]).toMatchObject({ to: '+4512345678' })
+      expect(texts[0]).toMatchObject({ to: '+15550100105' })
       expect(texts[0]!.body).toContain(`/help/${category.slug}/${article.slug}`)
     })
 
