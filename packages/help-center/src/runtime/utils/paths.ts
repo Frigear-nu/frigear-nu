@@ -1,0 +1,77 @@
+// Where the two areas of the help center live, and the path builders every link goes through. Framework-free, so
+// `module.ts`, server code (sent links), the app and tests share it. Nothing hard-codes `/help` or `/account/help`.
+
+const enc = encodeURIComponent
+
+export const DEFAULT_PUBLIC_PATH = '/help'
+export const DEFAULT_SIGNED_IN_PATH = '/account/help'
+
+/** The configured bases of the two areas. An area that is off has no base. */
+export type HelpCenterAreas = { public?: string, signedIn?: string }
+
+/**
+ * A usable base path: starts with a single `/`, has no query, hash, whitespace or empty segment, and is not the site
+ * root. A trailing `/` is dropped. Throws a message naming the option, so a typo fails the build.
+ */
+export function normalizeHelpCenterPath(value: string, option: string): string {
+  const path = value.trim().replace(/\/+$/, '')
+  if (!path || !path.startsWith('/') || path.startsWith('//') || /[\s?#]/.test(path) || path.includes('//') || path.split('/').some(segment => segment === '.' || segment === '..')) {
+    throw new Error(`[@frigear-nu/help-center] \`settings.pages.${option}\` must be a path starting with "/" such as "/help" (got "${value}").`)
+  }
+  return path
+}
+
+/**
+ * Turns the `pages` option into the bases of the two areas: a string is a custom path, `false` turns the area off and
+ * anything else (omitted, `true`) is the default (`/help`, `/account/help`). The areas cannot share a path.
+ */
+export function resolveHelpCenterAreas(pages: { public?: string | boolean, signedIn?: string | boolean } | undefined): HelpCenterAreas {
+  const one = (setting: string | boolean | undefined, fallback: string, option: string) => {
+    if (setting === false) return undefined
+    return normalizeHelpCenterPath(typeof setting === 'string' ? setting : fallback, option)
+  }
+  const areas: HelpCenterAreas = {
+    public: one(pages?.public, DEFAULT_PUBLIC_PATH, 'public'),
+    signedIn: one(pages?.signedIn, DEFAULT_SIGNED_IN_PATH, 'signedIn'),
+  }
+  if (areas.public && areas.public === areas.signedIn) {
+    throw new Error(`[@frigear-nu/help-center] \`settings.pages.public\` and \`settings.pages.signedIn\` are both "${areas.public}": the areas need paths of their own.`)
+  }
+  return areas
+}
+
+/** Whether `path` is `base` or below it. */
+export const isPathUnder = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
+
+/** The three page routes of an area, as Nuxt writes them. */
+export function helpCenterRoutePatterns(base: string) {
+  return { index: base, category: `${base}/:category`, article: `${base}/:category/:slug` }
+}
+
+/** The links of one area. Each returns `undefined` when the area is off, so a template can pass it straight to `to`. */
+export type HelpAreaPaths = {
+  base: string | undefined
+  index: () => string | undefined
+  category: (category: string) => string | undefined
+  article: (category: string, slug: string) => string | undefined
+}
+
+function areaPaths(base: string | undefined): HelpAreaPaths {
+  return {
+    base,
+    index: () => base,
+    category: category => base ? `${base}/${enc(category)}` : undefined,
+    article: (category, slug) => base ? `${base}/${enc(category)}/${enc(slug)}` : undefined,
+  }
+}
+
+/**
+ * The path builders of both areas for the given bases: `helpCenterPaths.public.article('safety', 'first-aid')`,
+ * `helpCenterPaths.signedIn.index()`. On a page use `useHelpCenterPaths()`, which reads the configured bases and keeps
+ * the locale prefix.
+ */
+export function createHelpCenterPaths(areas: HelpCenterAreas) {
+  return { public: areaPaths(areas.public), signedIn: areaPaths(areas.signedIn) }
+}
+
+export type HelpCenterPaths = ReturnType<typeof createHelpCenterPaths>
