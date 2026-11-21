@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AdminOperationDto, OperationStatus, Translated } from '../../../types'
+import type { AdminOperationDto, MapLocation, OperationStatus, Translated } from '../../../types'
 import { OPERATION_SLUG_PATTERN, isReservedOperationSlug } from '../../utils/slug'
 
 // The staff views of the admin API's DTOs (`AdminOperationDto` of `GET /api/admin/operations/:id`, ...).
@@ -42,6 +42,8 @@ export function operationFormSchema(t: Translate, tr: TranslateText) {
     endsAt: z.string().optional(),
     locationName: z.custom<Translated | undefined>().optional(),
     locationAddress: z.string().trim().max(300).optional(),
+    /** The location picker's value (`<MapLocationField>` of `@frigear-nu/maps`). */
+    locationMap: z.custom<MapLocation | null>().optional(),
     public: z.boolean(),
     eventId: z.string().trim().max(64).optional(),
   }).refine(value => !value.endsAt || !value.startsAt || new Date(value.endsAt) >= new Date(value.startsAt), {
@@ -54,7 +56,7 @@ export type OperationFormState = z.output<ReturnType<typeof operationFormSchema>
 
 /** An empty form, for a new operation. */
 export function emptyOperationForm(): OperationFormState {
-  return { name: undefined, slug: '', description: undefined, hostName: '', hostUrl: '', startsAt: '', endsAt: '', locationName: undefined, locationAddress: '', public: false, eventId: '' }
+  return { name: undefined, slug: '', description: undefined, hostName: '', hostUrl: '', startsAt: '', endsAt: '', locationName: undefined, locationAddress: '', locationMap: null, public: false, eventId: '' }
 }
 
 /** The form's state for a stored operation. */
@@ -69,8 +71,19 @@ export function operationToForm(operation: StaffOperation): OperationFormState {
     endsAt: toLocalInput(operation.endsAt),
     locationName: operation.location?.name ?? undefined,
     locationAddress: operation.location?.address ?? '',
+    locationMap: operationLocationMap(operation.location),
     public: operation.public,
     eventId: operation.eventId ?? '',
+  }
+}
+
+/** The location picker's value of a stored location: its point with the radius or the area, or `null`. */
+export function operationLocationMap(location: AdminOperationDto['location']): MapLocation | null {
+  if (!location?.point) return null
+  return {
+    point: location.point,
+    ...(location.radiusMeters ? { radiusMeters: location.radiusMeters } : {}),
+    ...(location.area?.length ? { area: location.area } : {}),
   }
 }
 
@@ -93,12 +106,21 @@ export function localToIso(value: string, stored?: string | null): string {
   return new Date(value).toISOString()
 }
 
-/**
- * The request body for a form state. The latitude and longitude of a stored location are not in the form: `previous`
- * keeps them while the place is only renamed.
- */
+/** The `location` of the request body: the name, the address and the picker's value; `null` when all are empty. */
+export function formToOperationLocation(data: Pick<OperationFormState, 'locationName' | 'locationAddress' | 'locationMap'>) {
+  const name = isEmptyTranslated(data.locationName) ? undefined : data.locationName
+  const address = data.locationAddress?.trim() || undefined
+  const map = data.locationMap ?? null
+  if (!name && !address && !map) return null
+  return {
+    ...(name ? { name } : {}),
+    ...(address ? { address } : {}),
+    ...(map ? { point: map.point, ...(map.radiusMeters ? { radiusMeters: map.radiusMeters } : {}), ...(map.area?.length ? { area: map.area } : {}) } : {}),
+  }
+}
+
+/** The request body for a form state. `previous` keeps the stored instants of dates the form shows to the minute. */
 export function formToOperationBody(data: OperationFormState, previous?: StaffOperation) {
-  const kept = previous?.location
   return {
     name: data.name,
     slug: data.slug,
@@ -107,9 +129,7 @@ export function formToOperationBody(data: OperationFormState, previous?: StaffOp
     hostUrl: data.hostUrl || null,
     startsAt: localToIso(data.startsAt, previous?.startsAt),
     endsAt: data.endsAt ? localToIso(data.endsAt, previous?.endsAt) : null,
-    location: !isEmptyTranslated(data.locationName)
-      ? { name: data.locationName, ...(data.locationAddress ? { address: data.locationAddress } : {}), ...(kept?.lat !== undefined ? { lat: kept.lat } : {}), ...(kept?.lng !== undefined ? { lng: kept.lng } : {}) }
-      : null,
+    location: formToOperationLocation(data),
     public: data.public,
     eventId: data.eventId || null,
   }

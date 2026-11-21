@@ -5,20 +5,14 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "generate": "nuxt generate",
-    "db:generate": "nuxt db generate",
-    "db:migrate": "nuxt db migrate"
+    "generate": "nuxt generate"
   },
   "dependencies": {
     "@frigear-nu/maps": "workspace:*",
     "@frigear-nu/module-kit": "workspace:*",
-    "@frigear-nu/users": "workspace:*",
-    "@libsql/client": "^0.18.0",
     "@nuxt/ui": "^4.11.0",
     "@nuxthub/core": "^0.10.8",
-    "drizzle-kit": "^0.31.11",
-    "drizzle-orm": "^0.45.3",
     "nuxt": "catalog:",
-    "unstorage": "^1.17.5"
+    "zod": "^4.6.7"
   }
 }

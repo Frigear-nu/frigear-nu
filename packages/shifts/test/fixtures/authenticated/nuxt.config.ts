@@ -17,8 +17,6 @@ export default defineNuxtConfig({
     // Installed so reminders, swaps and broadcasts go through `notifyUser` (push's log driver, the default, delivers the pushes).
     '@frigear-nu/push',
     '@frigear-nu/crew',
-    // Installed so the integrations with maps (the venue layouts of operations, the `shifts.on-duty` layer) are tested.
-    '@frigear-nu/maps',
     // Installed so the dashboard items of operations, crew, teams and shifts are rendered on one page (`pages/dashboard-test.vue`).
     '@frigear-nu/dashboard',
     ShiftsModule,

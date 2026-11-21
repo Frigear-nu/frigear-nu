@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { scheduleSchema } from '@frigear-nu/module-kit/schedule'
+import { MAX_AREA_CORNERS, MAX_RADIUS_METERS, geoPointSchema } from '@frigear-nu/maps/schemas'
 import { OPERATION_SLUG_PATTERN, OPERATION_STATUSES, isReservedOperationSlug } from '../../utils'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
@@ -14,6 +15,29 @@ export const operationTranslated = z.union([
 // server's time zone, and null, true or 0 must not become 1970.
 const date = z.iso.datetime({ offset: true }).transform(value => new Date(value))
 
+/**
+ * Where the operation takes place: a name and an address, and the location picker's value of `@frigear-nu/maps` (a
+ * `point`, with `radiusMeters` or an `area` around it). A radius or an area needs the point, never both, and an empty
+ * location is refused: send `null` to clear it.
+ */
+export const operationLocationSchema = z.object({
+  name: operationTranslated.optional(),
+  address: z.string().trim().max(300).optional(),
+  point: geoPointSchema.optional(),
+  radiusMeters: z.number().positive().max(MAX_RADIUS_METERS).optional(),
+  area: z.array(geoPointSchema).min(3).max(MAX_AREA_CORNERS).optional(),
+}).superRefine((location, ctx) => {
+  if (location.name === undefined && location.address === undefined && location.point === undefined) {
+    ctx.addIssue({ code: 'custom', message: 'Give the location a name, an address or a place on the map.', path: ['name'] })
+  }
+  if ((location.radiusMeters !== undefined || location.area !== undefined) && location.point === undefined) {
+    ctx.addIssue({ code: 'custom', message: 'A radius or an area needs a point.', path: ['point'] })
+  }
+  if (location.radiusMeters !== undefined && location.area !== undefined) {
+    ctx.addIssue({ code: 'custom', message: 'A location has a radius or an area, not both.', path: ['area'] })
+  }
+})
+
 const operationFields = z.object({
   // `me` is the static segment of `/api/operations/me`: h3's router never falls back to `:slug` past it.
   slug: z.string().min(1).max(128).regex(OPERATION_SLUG_PATTERN, 'Use lowercase letters, numbers and dashes.')
@@ -25,12 +49,7 @@ const operationFields = z.object({
   startsAt: date,
   endsAt: date.nullish(),
   schedule: scheduleSchema.nullish(),
-  location: z.object({
-    name: operationTranslated,
-    address: z.string().trim().max(300).optional(),
-    lat: z.number().min(-90).max(90).optional(),
-    lng: z.number().min(-180).max(180).optional(),
-  }).nullish(),
+  location: operationLocationSchema.nullish(),
   public: z.boolean().optional(),
   // Checked against the events table when `@frigear-nu/events` is installed (`operationsEventExists`).
   eventId: z.string().trim().min(1).max(64).nullish(),
@@ -52,3 +71,6 @@ export const operationStatusInput = z.object({ status: z.enum(OPERATION_STATUSES
 export const operationListQuery = z.object({ status: z.enum(OPERATION_STATUSES).optional() })
 
 export { endsAfterStart as operationEndsAfterStart }
+
+/** The body of `PUT /api/admin/operations/:id/venue-layout`; the layout itself is checked by `validatePlaneLayout`. */
+export const operationVenueLayoutInput = z.object({ layout: z.unknown() })

@@ -10,8 +10,6 @@ export default defineNuxtConfig({
     '@frigear-nu/menu',
     '@frigear-nu/widget',
     '@frigear-nu/admin',
-    // Installed so the teams integration with maps (a team's leads editing its maps) is tested.
-    '@frigear-nu/maps',
     TeamsModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`),
     // and a slice of the website's chain: `barmanager` inherits `member`. `coordinator` holds `teams:manage` and
@@ -37,7 +35,6 @@ export default defineNuxtConfig({
       applyMigrationsDuringBuild: false,
     },
     kv: true,
-    blob: true,
   },
   teams: {
     settings: { pages: { admin: true, adminTeam: true } },

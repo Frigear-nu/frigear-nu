@@ -1,6 +1,8 @@
 import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import type { AdminOperationDto, OperationDto, OperationStatus } from '../../../types'
+import type { PlaneFeatureCollection } from '@frigear-nu/maps/utils'
+import { operationsApi } from '../../utils/api'
+import type { AdminOperationDto, OperationDto, OperationStatus, OperationVenueLayout } from '../../../types'
 
 type OperationRow = typeof schema.operations.$inferSelect
 
@@ -29,5 +31,24 @@ export function toAdminOperationDto(row: OperationRow): AdminOperationDto {
     ...toOperationDto(row),
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),
+  }
+}
+
+/**
+ * The venue layout as clients see it: the stored plane layout, with the underlay's blob pathname replaced by the URL of
+ * the operation's underlay route (versioned by the stored file, so it may be cached). An operation without a layout has
+ * an empty one.
+ */
+export function toOperationVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venueLayout'>): PlaneFeatureCollection {
+  const layout = row.venueLayout as OperationVenueLayout | null
+  if (!layout) return { type: 'FeatureCollection', features: [], extent: null, underlay: null }
+  const underlay = layout.underlay
+  return {
+    type: 'FeatureCollection',
+    features: layout.features ?? [],
+    extent: layout.extent ?? null,
+    underlay: underlay
+      ? { url: `${operationsApi.venueUnderlay(row.slug)}?v=${encodeURIComponent(underlay.pathname.split('/').pop() ?? '')}`, width: underlay.width, height: underlay.height }
+      : null,
   }
 }
