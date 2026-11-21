@@ -100,7 +100,7 @@ async function save(event: FormSubmitEvent<State>) {
       <UFormField
         name="matchValue"
         :label="state.matchType === 'plan' ? t('admin.plan', 'Plan') : t('admin.globalRole', 'Global role')"
-        :description="state.matchType === 'plan' ? t('admin.planHelp', 'The plan key, such as yearly. Needs the subscriptions module.') : t('admin.globalRoleHelp', 'Such as barmanager. Roles that inherit it match too.')"
+        :description="state.matchType === 'plan' ? t('admin.planHelp', 'The plan key, such as yearly. Needs the subscriptions module.') : t('admin.globalRoleHelp', 'The key of a global role. Roles that inherit it match too.')"
         required
       >
         <UInput

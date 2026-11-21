@@ -13,10 +13,10 @@ export const teamsAccess = defineAccess('teams', {
       implicit: true,
     },
     // Held by everyone, narrowed by the policy to the teams where the user holds a lead role (the ladder's `leadFrom`
-    // and up, `ba` on a bar team). Other modules check it on a team record (`authorize(event, 'teams:lead', team)`).
+    // and up). Other modules check it on a team record (`authorize(event, 'teams:lead', team)`).
     lead: {
       label: 'Lead your teams',
-      description: 'Lead the teams where you hold a lead role, such as BA on a bar team.',
+      description: 'Lead the teams where you hold a lead role on the ladder.',
       implicit: true,
     },
     manage: {
