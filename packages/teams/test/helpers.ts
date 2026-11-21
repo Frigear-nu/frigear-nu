@@ -24,6 +24,6 @@ export async function getHooksFor(teamId: string) {
   return log.filter(entry => entry.teamId === teamId)
 }
 
-/** What `audience:owner:resolve` answers for an owner (fixture-only route). */
+/** What `teams:owner:resolve` answers for an owner (fixture-only route). */
 export const getOwner = (type: string, id: string) =>
   $fetch<{ label: string | Record<string, string> | null, exists: boolean | null }>('/api/test/owner', { query: { type, id } })

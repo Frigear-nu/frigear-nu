@@ -97,8 +97,8 @@
     "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
-    "@frigear-nu/audience": "workspace:^",
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/grants": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
@@ -119,6 +119,7 @@
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
     "@frigear-nu/push": "workspace:^",
+    "@frigear-nu/teams": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/content": "catalog:",
     "@nuxt/ui": "catalog:",
@@ -152,6 +153,9 @@
     "@frigear-nu/push": {
       "optional": true
     },
+    "@frigear-nu/teams": {
+      "optional": true
+    },
     "@frigear-nu/widget": {
       "optional": true
     },
@@ -172,6 +176,7 @@
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
     "@frigear-nu/push": "workspace:^",
+    "@frigear-nu/teams": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/devtools": "catalog:",

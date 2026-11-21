@@ -8,3 +8,6 @@ export const testSms: Array<{ to: string[], body: string }> = []
 
 /** Every email handed to notify, as the `notify:email` hook saw it. */
 export const testEmails: Array<{ to: string | string[], subject: string, body: string, text?: string, template?: { name: string, props?: Record<string, unknown>, locale?: string } }> = []
+
+/** When `off`, every request sees an empty `shifts.stationKey`, as a server without `NUXT_SHIFTS_STATION_KEY` would. */
+export const testStationKey = { off: false }

@@ -21,15 +21,16 @@ describe('category input', () => {
       description: 'About it',
       parentId: 'hlc_0',
       owner: { type: 'operation', id: 'opr_1' },
-      visibility: { globalRoles: ['supervisor'], minTeamRole: { kind: 'bar', role: 'lead' }, operationId: 'opr_1' },
+      grants: [{ kind: 'role', role: 'supervisor' }, { kind: 'team', teamId: 'tem_1', minRole: 'lead' }],
       faqGroups: ['volunteering', 'membership'],
       sort: 3,
     }).success).toBe(true)
   })
 
-  it('refuses a visibility with an unknown key, such as a permission', () => {
-    expect(helpCategoryInput.safeParse({ ...category, visibility: { permission: 'help-center:manage' } }).success).toBe(false)
-    expect(helpCategoryPatchSchema.safeParse({ visibility: { globalRole: ['x'] } }).success).toBe(false)
+  it('takes grants in the shape of a list (each kind is checked in the handler)', () => {
+    expect(helpCategoryInput.safeParse({ ...category, grants: { kind: 'public' } }).success).toBe(false)
+    expect(helpCategoryPatchSchema.safeParse({ grants: [{ role: 'x' }] }).success).toBe(false)
+    expect(helpCategoryPatchSchema.safeParse({ grants: null }).success).toBe(false)
   })
 
   it('refuses reserved and malformed slugs, also for FAQ groups', () => {
@@ -44,14 +45,14 @@ describe('category input', () => {
 
   it('lets a patch carry any of the fields, or none', () => {
     expect(helpCategoryPatchSchema.safeParse({}).success).toBe(true)
-    expect(helpCategoryPatchSchema.safeParse({ visibility: null, description: null, parentId: null }).success).toBe(true)
+    expect(helpCategoryPatchSchema.safeParse({ grants: [], description: null, parentId: null }).success).toBe(true)
   })
 })
 
 describe('article input', () => {
   it('accepts an article with a plain or translated body', () => {
     expect(helpArticleInput.safeParse(article).success).toBe(true)
-    expect(helpArticleInput.safeParse({ ...article, body: { da: 'Brødtekst', en: 'Body' }, visibility: { public: true } }).success).toBe(true)
+    expect(helpArticleInput.safeParse({ ...article, body: { da: 'Brødtekst', en: 'Body' }, grants: [{ kind: 'public' }] }).success).toBe(true)
   })
 
   it('needs a category, a slug and a title', () => {
@@ -61,12 +62,13 @@ describe('article input', () => {
     }
   })
 
-  it('refuses a visibility with an unknown key', () => {
-    expect(helpArticleInput.safeParse({ ...article, visibility: { permission: 'x' } }).success).toBe(false)
-    expect(helpArticlePatchSchema.safeParse({ visibility: { public: true } }).success).toBe(true)
+  it('takes grants in the shape of a list, or null to inherit the category', () => {
+    expect(helpArticleInput.safeParse({ ...article, grants: { kind: 'public' } }).success).toBe(false)
+    expect(helpArticlePatchSchema.safeParse({ grants: [{ kind: 'public' }] }).success).toBe(true)
+    expect(helpArticlePatchSchema.safeParse({ grants: null }).success).toBe(true)
   })
 
-  it('does not take a status or a public flag: the status has its own routes and public is visibility.public', () => {
+  it('does not take a status or a public flag: the status has its own routes and public is a `public` grant', () => {
     expect(helpArticlePatchSchema.parse({ status: 'published', public: true, title: 'T' })).toEqual({ title: 'T' })
   })
 })
@@ -104,7 +106,7 @@ describe('queries and bodies', () => {
     expect(helpSendInput.safeParse({ ...ok, channels: [] }).success).toBe(false)
     expect(helpSendInput.safeParse({ ...ok, channels: ['push'] }).success).toBe(false)
     expect(helpSendInput.safeParse({ ...ok, articleIds: [] }).success).toBe(false)
-    expect(helpSendInput.safeParse({ ...ok, audience: { operationId: 'opr_1', globalRoles: ['x'], teamId: 't' } }).success).toBe(true)
+    expect(helpSendInput.safeParse({ ...ok, audience: { grants: [{ kind: 'role', role: 'x' }, { kind: 'team', teamId: 't', minRole: 'lead' }] } }).success).toBe(true)
     // An unknown audience key is refused instead of silently widening what was meant.
     expect(helpSendInput.safeParse({ ...ok, audience: { everyone: true } }).success).toBe(false)
   })

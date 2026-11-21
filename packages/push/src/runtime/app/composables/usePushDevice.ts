@@ -29,7 +29,8 @@ const storage = {
 const flows = new WeakMap<object, PushDeviceActions>()
 
 /**
- * Push notifications of this device, for a Capacitor app (`@frigear-nu/mobile` with `@capacitor/push-notifications`).
+ * Push notifications of this device, for a Capacitor app (`@frigear-nu/mobile` with `@capacitor-firebase/messaging`,
+ * which registers the FCM token on iOS too, or `@capacitor/push-notifications`, which registers the APNs token there).
  * The sign-in plugin registers automatically (`push.settings.autoRegister`); use this to ask at a better moment, to
  * show the permission state, and to unregister.
  *
@@ -66,7 +67,7 @@ export function usePushDevice() {
   }
 
   return {
-    /** Whether this build can receive pushes: a native app with `@capacitor/push-notifications` installed. */
+    /** Whether this build can receive pushes: a native app with a push plugin installed. */
     supported: loadPushNotifications !== null,
     permission: readonly(permission),
     token: readonly(token),

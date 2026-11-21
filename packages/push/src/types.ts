@@ -10,6 +10,12 @@ export type Translated = string | Record<string, string>
 
 export type PushDriverName = 'log' | 'providers'
 
+/**
+ * Who a device token belongs to: `fcm` (Firebase Cloud Messaging, which also delivers to iOS through APNs) or `apns`
+ * (Apple, sent directly over HTTP/2). Android tokens are always FCM tokens.
+ */
+export type PushProvider = 'fcm' | 'apns'
+
 export type ModuleOptions = {
   settings?: {
     /**
@@ -43,6 +49,12 @@ export type PushRuntimeConfig = {
   driver: string
   /** How long a provider request may take, in milliseconds, before the device counts as failed. Defaults to 10000. */
   timeoutMs: number | string
+  /**
+   * The provider of an iOS token whose device did not say (`NUXT_PUSH_IOS`): `apns` (the default) or `fcm`. A device
+   * registered with a `provider` always goes there. The device side of this module always says, so this is only for
+   * other clients and rows registered before the column existed.
+   */
+  ios: string
   fcm: {
     /** The Firebase service account JSON (the whole file), for FCM HTTP v1. */
     serviceAccount: string
@@ -113,6 +125,8 @@ export type PushDeviceDto = {
   id: string
   userId: number
   platform: PushPlatform
+  /** Where its pushes go. `null` only for a device registered before providers were stored: `push.ios` decides. */
+  provider: PushProvider | null
   appId: string | null
   locale: string | null
   lastSeenAt: string
@@ -124,6 +138,11 @@ export type PushDeviceDto = {
 export type RegisterDeviceInput = {
   platform: Exclude<PushPlatform, 'web'>
   token: string
+  /**
+   * Who issued `token`. Unset: `fcm` on Android, `push.ios` on iOS (`apns` by default). An iOS app that registers its
+   * FCM token (`@capacitor-firebase/messaging`) sends `fcm`, so its pushes go through FCM.
+   */
+  provider?: PushProvider
   appId?: string
   locale?: string
 }

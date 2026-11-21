@@ -4,7 +4,7 @@ import type { Http2Request, Http2Response, Http2Transport } from './types'
 /** Thrown when the runtime has no HTTP/2 client (Cloudflare Workers): APNs cannot be reached from it. */
 export class Http2UnsupportedError extends Error {
   constructor(detail?: string) {
-    super(`HTTP/2 is not available on this runtime${detail ? ` (${detail})` : ''}: APNs needs it. Send iOS pushes from a Node runtime, or through a relay.`)
+    super(`HTTP/2 is not available on this runtime${detail ? ` (${detail})` : ''}: APNs needs it. Register the FCM token on iOS (pushes then go through FCM), send from a Node runtime, or use a relay.`)
     this.name = 'Http2UnsupportedError'
   }
 }

@@ -17,7 +17,7 @@ const querySchema = pageQuery({
   },
 })
 
-// Every article of every source, whatever its status or visibility: the database ones (editable) and, with Nuxt Content,
+// Every article of every source, whatever its status or grants: the database ones (editable) and, with Nuxt Content,
 // its files (read-only, always published and public). `q` searches the title in every language and the URL name;
 // `category` is a category's URL name; `source` limits to one source. Sorted and paged in memory over the newest
 // HELP_ADMIN_ARTICLE_CAP (5000) database rows; `total` is counted in SQL, so it stays right past the cap.

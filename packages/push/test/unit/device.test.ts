@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Ref } from 'vue'
 import { createPushDevice } from '../../src/runtime/app/utils/device'
 import type { PushDeviceState } from '../../src/runtime/app/utils/device'
-import { isInAppPath, withoutThen } from '../../src/runtime/app/utils/native'
-import type { PermissionState, PushNotificationsPluginLike } from '../../src/runtime/app/utils/native'
-import { nativeLoaderTemplate } from '../../src/build'
+import { capacitorPushProvider, fromFirebaseMessaging, isInAppPath, withoutThen } from '../../src/runtime/app/utils/native'
+import type { FirebaseMessagingPluginLike, PermissionState, PushNotificationsPluginLike } from '../../src/runtime/app/utils/native'
+import { detectNativePushPlugin, nativeLoaderTemplate } from '../../src/build'
 
 type Listeners = { registration?: (token: { value: string }) => void, registrationError?: (error: { error: string }) => void, pushNotificationActionPerformed?: (action: { notification: { data?: Record<string, unknown> } }) => void }
 
@@ -44,7 +44,7 @@ function setup(plugin: ReturnType<typeof fakePlugin>, overrides: Partial<Paramet
   const stored: { token: string | null } = { token: null }
   const deviceState = state()
   const device = createPushDevice({
-    load: async () => ({ plugin: plugin.plugin, platform: 'android' }),
+    load: async () => ({ plugin: plugin.plugin, platform: 'android', provider: 'fcm' }),
     request: async (path, options) => {
       requests.push({ path, body: options.body })
     },
@@ -65,7 +65,7 @@ describe('createPushDevice', () => {
     const { device, requests, stored, deviceState } = setup(plugin)
     expect(await device.register()).toBe(true)
     expect(plugin.calls).toEqual(['requestPermissions', 'listen:registration', 'listen:registrationError', 'listen:pushNotificationActionPerformed', 'register'])
-    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', token: 'token-1', appId: 'com.example.app', locale: 'da' } }])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', provider: 'fcm', token: 'token-1', appId: 'com.example.app', locale: 'da' } }])
     expect(stored.token).toBe('token-1')
     expect(deviceState).toMatchObject({ permission: { value: 'granted' }, token: { value: 'token-1' }, registered: { value: true } })
   })
@@ -98,7 +98,7 @@ describe('createPushDevice', () => {
     expect(await withoutPlugin.device.register()).toBe(false)
     expect(withoutPlugin.deviceState.permission.value).toBe('unsupported')
 
-    const web = setup(fakePlugin(), { load: async () => ({ plugin: fakePlugin().plugin, platform: 'web' }) })
+    const web = setup(fakePlugin(), { load: async () => ({ plugin: fakePlugin().plugin, platform: 'web', provider: 'fcm' }) })
     expect(await web.device.register()).toBe(false)
     expect(web.requests).toEqual([])
   })
@@ -210,9 +210,143 @@ describe('native helpers', () => {
 
   it('generates a loader only for an installed plugin', () => {
     const helper = '/x/native'
-    expect(nativeLoaderTemplate(false, helper)).toContain('export const loadPushNotifications = null')
-    const installed = nativeLoaderTemplate(true, helper)
-    expect(installed).toContain('import("@capacitor/push-notifications")')
-    expect(installed).toContain('withoutThen(push.PushNotifications)')
+    expect(nativeLoaderTemplate(null, helper)).toContain('export const loadPushNotifications = null')
+    const capacitor = nativeLoaderTemplate('capacitor', helper)
+    expect(capacitor).toContain('import("@capacitor/push-notifications")')
+    expect(capacitor).toContain('withoutThen(push.PushNotifications)')
+    expect(capacitor).toContain('provider: capacitorPushProvider(')
+    expect(capacitor).not.toContain('@capacitor-firebase/messaging')
+    const firebase = nativeLoaderTemplate('firebase', helper)
+    expect(firebase).toContain('import("@capacitor-firebase/messaging")')
+    expect(firebase).toContain('fromFirebaseMessaging(messaging.FirebaseMessaging)')
+    expect(firebase).toContain('provider: "fcm"')
+    expect(firebase).not.toContain('@capacitor/push-notifications')
+  })
+
+  it('picks Firebase Messaging over the Capacitor plugin, and nothing without @capacitor/core', () => {
+    const only = (...packages: string[]) => (pkg: string) => packages.includes(pkg)
+    expect(detectNativePushPlugin(only('@capacitor/core', '@capacitor-firebase/messaging', '@capacitor/push-notifications'))).toBe('firebase')
+    expect(detectNativePushPlugin(only('@capacitor/core', '@capacitor-firebase/messaging'))).toBe('firebase')
+    expect(detectNativePushPlugin(only('@capacitor/core', '@capacitor/push-notifications'))).toBe('capacitor')
+    expect(detectNativePushPlugin(only('@capacitor/core'))).toBeNull()
+    expect(detectNativePushPlugin(only('@capacitor-firebase/messaging'))).toBeNull()
+  })
+
+  it('says which provider issued a @capacitor/push-notifications token', () => {
+    expect(capacitorPushProvider('ios')).toBe('apns')
+    expect(capacitorPushProvider('android')).toBe('fcm')
+  })
+})
+
+type FirebaseListeners = { tokenReceived?: (event: { token: string }) => void, notificationActionPerformed?: (event: { notification: { data?: unknown } }) => void }
+
+function fakeFirebase(options: { permission?: PermissionState, token?: string, fail?: boolean } = {}) {
+  const listeners: FirebaseListeners = {}
+  const calls: string[] = []
+  let permission = options.permission ?? 'prompt'
+  let token = options.token ?? 'fcm-token-1'
+  const plugin = {
+    checkPermissions: async () => ({ receive: permission }),
+    requestPermissions: async () => {
+      calls.push('requestPermissions')
+      permission = 'granted'
+      return { receive: permission }
+    },
+    getToken: async () => {
+      calls.push('getToken')
+      if (options.fail) throw new Error('no APNs token')
+      return { token }
+    },
+    deleteToken: async () => {
+      calls.push('deleteToken')
+    },
+    addListener: async (event: keyof FirebaseListeners, listener: never) => {
+      calls.push(`listen:${event}`)
+      listeners[event] = listener
+      return { remove: async () => {} }
+    },
+  } as unknown as FirebaseMessagingPluginLike
+  return { plugin, listeners, calls, rotate: (next: string) => {
+    token = next
+    listeners.tokenReceived?.({ token: next })
+  } }
+}
+
+describe('Firebase Messaging (the FCM token on iOS)', () => {
+  function setupFirebase(firebase: ReturnType<typeof fakeFirebase>, platform = 'ios') {
+    const requests: Array<{ path: string, body: unknown }> = []
+    const navigated: string[] = []
+    const deviceState = state()
+    const device = createPushDevice({
+      load: async () => ({ plugin: fromFirebaseMessaging(firebase.plugin), platform, provider: 'fcm' }),
+      request: async (path, options) => {
+        requests.push({ path, body: options.body })
+      },
+      state: deviceState,
+      navigate: path => navigated.push(path),
+      log: { warn: vi.fn() },
+    })
+    return { device, requests, navigated, deviceState }
+  }
+
+  it('registers an iOS device with its FCM token and says so', async () => {
+    const firebase = fakeFirebase()
+    const { device, requests, deviceState } = setupFirebase(firebase)
+    expect(await device.register()).toBe(true)
+    expect(firebase.calls).toEqual(['requestPermissions', 'listen:notificationActionPerformed', 'listen:tokenReceived', 'getToken'])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'ios', provider: 'fcm', token: 'fcm-token-1' } }])
+    expect(deviceState.token.value).toBe('fcm-token-1')
+  })
+
+  it('registers again on every call, like the Capacitor plugin, and subscribes to rotations once', async () => {
+    const firebase = fakeFirebase({ permission: 'granted' })
+    const { device, requests } = setupFirebase(firebase)
+    await device.register()
+    await device.register()
+    expect(requests).toHaveLength(2)
+    expect(firebase.calls.filter(call => call === 'listen:tokenReceived')).toHaveLength(1)
+    // The loader runs on every call: it must hand back the adapter the flow subscribed to.
+    expect(fromFirebaseMessaging(firebase.plugin)).toBe(fromFirebaseMessaging(firebase.plugin))
+  })
+
+  it('sends a rotated token to the server, and ignores the token it already has', async () => {
+    const firebase = fakeFirebase({ permission: 'granted' })
+    const { device, requests } = setupFirebase(firebase)
+    await device.register()
+    firebase.listeners.tokenReceived!({ token: 'fcm-token-1' })
+    firebase.rotate('fcm-token-2')
+    await vi.waitFor(() => expect(requests).toHaveLength(2))
+    expect(requests[1]!.body).toEqual({ platform: 'ios', provider: 'fcm', token: 'fcm-token-2' })
+  })
+
+  it('rejects when Firebase hands out no token', async () => {
+    const { device, requests } = setupFirebase(fakeFirebase({ permission: 'granted', fail: true }))
+    await expect(device.register()).rejects.toThrow('no APNs token')
+    expect(requests).toEqual([])
+  })
+
+  it('opens a tapped notification\'s in-app url', async () => {
+    const firebase = fakeFirebase({ permission: 'granted' })
+    const { device, navigated } = setupFirebase(firebase)
+    await device.register()
+    firebase.listeners.notificationActionPerformed!({ notification: { data: { url: '/shifts/42' } } })
+    firebase.listeners.notificationActionPerformed!({ notification: { data: 'not an object' } })
+    firebase.listeners.notificationActionPerformed!({ notification: { data: { url: 'https://evil.example' } } })
+    expect(navigated).toEqual(['/shifts/42'])
+  })
+
+  it('deletes the token on unregister', async () => {
+    const firebase = fakeFirebase({ permission: 'granted' })
+    const { device, requests } = setupFirebase(firebase)
+    await device.register()
+    expect(await device.unregister()).toBe(true)
+    expect(requests.at(-1)).toEqual({ path: '/api/push/me/devices/unregister', body: { token: 'fcm-token-1' } })
+    expect(firebase.calls).toContain('deleteToken')
+  })
+
+  it('registers an Android device with its FCM token the same way', async () => {
+    const { device, requests } = setupFirebase(fakeFirebase({ permission: 'granted' }), 'android')
+    await device.register()
+    expect(requests[0]!.body).toEqual({ platform: 'android', provider: 'fcm', token: 'fcm-token-1' })
   })
 })
