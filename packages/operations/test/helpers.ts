@@ -13,8 +13,8 @@ export async function registerUser(name: string, email: string) {
 }
 
 /** Makes the signed-in user "take part in" an operation, the way crew would report it (fixture-only route). */
-export async function participate(cookie: string, operationId: string) {
-  await $fetch('/api/test/participate', { method: 'POST', headers: { cookie }, body: { operationId } })
+export async function participate(cookie: string, operationId: string, kind: 'id' | 'explicit' | 'mapped' = 'id') {
+  await $fetch('/api/test/participate', { method: 'POST', headers: { cookie }, body: { operationId, kind } })
 }
 
 /** What the `operations:status-changed` hook received so far (fixture-only route). */

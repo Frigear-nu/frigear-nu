@@ -344,6 +344,24 @@ describe('operations (authenticated, database-backed)', async () => {
       await expectApiError(json(undefined, 'GET', operationsApi.operation(mine.slug)), 404, 'not_found')
     })
 
+    it('counts an explicit team grant on the operation as taking part, and a mapped one not', async () => {
+      const explicit = await user('Explicit')
+      const mapped = await user('Mapped')
+      const marker = `grant${++counter}`
+      const closed = await createOperation({ slug: `${marker}-closed`, public: false })
+      await participate(explicit.cookie, closed.id, 'explicit')
+      await participate(mapped.cookie, closed.id, 'mapped')
+
+      // List, slug route and /me all follow `takesPart`.
+      expect(((await ok(await json(explicit.cookie, 'GET', operationsApi.list))) as unknown as Json[]).map(item => item.id)).toContain(closed.id)
+      expect(await ok(await json(explicit.cookie, 'GET', operationsApi.operation(closed.slug)))).toMatchObject({ id: closed.id })
+      expect(((await ok(await json(explicit.cookie, 'GET', operationsApi.me.operations))) as unknown as Json[]).map(item => item.id)).toEqual([closed.id])
+
+      expect(((await ok(await json(mapped.cookie, 'GET', operationsApi.list))) as unknown as Json[]).map(item => item.id)).not.toContain(closed.id)
+      await expectApiError(json(mapped.cookie, 'GET', operationsApi.operation(closed.slug)), 404, 'not_found')
+      expect(await ok(await json(mapped.cookie, 'GET', operationsApi.me.operations))).toEqual([])
+    })
+
     it('shows staff a non-public operation by its URL name', async () => {
       const closed = await createOperation({ public: false })
       expect(await ok(await json(staff.cookie, 'GET', operationsApi.operation(closed.slug)))).toMatchObject({ id: closed.id })

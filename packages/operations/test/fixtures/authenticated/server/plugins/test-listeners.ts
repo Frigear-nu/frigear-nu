@@ -2,7 +2,10 @@
 // a user works at, and anything may listen to `operations:status-changed`.
 export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('audience:viewer:resolve', (ctx) => {
-    ctx.viewer.operationIds.push(...testParticipationOf(ctx.user.id))
+    for (const { operationId, kind } of testParticipationOf(ctx.user.id)) {
+      if (kind === 'id') ctx.viewer.operationIds.push(operationId)
+      else ctx.viewer.teamRoles.push({ ownerType: 'operation', ownerId: operationId, teamId: `tem_${operationId}`, kind: 'bar', role: 'volunteer', source: kind })
+    }
   })
 
   nitro.hooks.hook('operations:status-changed', (ctx) => {

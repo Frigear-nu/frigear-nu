@@ -1,7 +1,7 @@
 import type { OperationRow } from './utils/operations'
 
 // The record rule of `operations:read` (registered with `addPolicies` in `module.ts`): an operation is readable when it
-// is public, when the viewer takes part in it (`viewer.operationIds`, filled through `audience:viewer:resolve` by the
+// is public, when the viewer takes part in it (`takesPart`: `viewer.operationIds` or an explicit team grant, filled through `audience:viewer:resolve` by the
 // modules that know participation) or when the caller holds `operations:manage`. A policy only narrows: signed-in
 // users hold `operations:read` implicitly, this decides which operations that covers.
 export default [

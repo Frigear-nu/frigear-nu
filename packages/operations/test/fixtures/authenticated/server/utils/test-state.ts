@@ -1,15 +1,18 @@
 // In-memory state of the test fixture, shared by its plugin and its test routes.
 
-/** user id -> the operations the user "takes part in", as a module like crew would report them. */
-const participation = new Map<string, Set<string>>()
+/** How a user "takes part": an operation id (crew), an explicit team grant, or a mapped team grant (which must not count). */
+export type TestParticipationKind = 'id' | 'explicit' | 'mapped'
 
-export function testParticipate(userId: string | number, operationId: string) {
+/** user id -> the operations the user takes part in, as a module like crew or teams would report them. */
+const participation = new Map<string, Array<{ operationId: string, kind: TestParticipationKind }>>()
+
+export function testParticipate(userId: string | number, operationId: string, kind: TestParticipationKind = 'id') {
   const key = String(userId)
-  participation.set(key, (participation.get(key) ?? new Set()).add(operationId))
+  participation.set(key, [...(participation.get(key) ?? []), { operationId, kind }])
 }
 
-export function testParticipationOf(userId: string | number): string[] {
-  return [...(participation.get(String(userId)) ?? [])]
+export function testParticipationOf(userId: string | number) {
+  return participation.get(String(userId)) ?? []
 }
 
 /** What the `operations:status-changed` hook received, in order. */

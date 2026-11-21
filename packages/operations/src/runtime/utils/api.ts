@@ -14,7 +14,7 @@ export const operationsApi = {
   /** `GET` one operation by its URL name: public ones for everyone, others for those who take part. */
   operation: (slug: string) => `${PUBLIC_BASE}/${enc(slug)}`,
   me: {
-    /** `GET` the operations the caller takes part in (`viewer.operationIds` of `@frigear-nu/audience`). */
+    /** `GET` the operations the caller takes part in (`takesPart` of `@frigear-nu/audience`). */
     operations: `${PUBLIC_BASE}/me`,
   },
   admin: {

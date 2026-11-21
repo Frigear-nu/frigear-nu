@@ -3,6 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, eq, inArray, ne, or } from 'drizzle-orm'
 import type { Column, SQL, Table } from 'drizzle-orm'
 import { resolveViewer } from '@frigear-nu/audience/server'
+import { takesPart } from '@frigear-nu/audience'
 import type { Viewer } from '@frigear-nu/audience'
 import { conflict, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { AdminOperationDto, OperationStatus } from '../../../types'
@@ -53,7 +54,19 @@ export async function resolveOperationsViewer(event: H3Event, user: { id: string
  * `canManage` is `allows(event, 'operations:manage')` of the caller.
  */
 export function operationReadable(row: Pick<OperationRow, 'id' | 'public'>, viewer: Viewer, canManage: boolean): boolean {
-  return canManage || row.public || viewer.operationIds.includes(row.id)
+  return canManage || row.public || takesPart(viewer, row.id)
+}
+
+/**
+ * The ids of the operations a viewer takes part in: `viewer.operationIds` plus the operations they hold an explicit
+ * team grant on. Mapped grants do not count, as in `takesPart`.
+ */
+export function participatingOperationIds(viewer: Viewer): string[] {
+  const ids = new Set(viewer.operationIds)
+  for (const grant of viewer.teamRoles) {
+    if (grant.source === 'explicit' && grant.ownerType === 'operation' && grant.ownerId) ids.add(grant.ownerId)
+  }
+  return [...ids]
 }
 
 /** The rows a viewer reads, filtered by `status`; archived ones only when asked for. Upcoming first (ascending start). */
@@ -63,16 +76,18 @@ export async function listReadableOperations(options: { viewer: Viewer, canManag
   if (status) conditions.push(eq(schema.operations.status, status))
   else conditions.push(ne(schema.operations.status, 'archived'))
   if (!canManage) {
-    const own = viewer.operationIds.length ? inArray(schema.operations.id, viewer.operationIds) : undefined
+    const ids = participatingOperationIds(viewer)
+    const own = ids.length ? inArray(schema.operations.id, ids) : undefined
     conditions.push(or(eq(schema.operations.public, true), own))
   }
   return db.select().from(schema.operations).where(and(...conditions)).orderBy(schema.operations.startsAt)
 }
 
-/** The rows of the operations a viewer takes part in (`viewer.operationIds`), whatever their status. */
+/** The rows of the operations a viewer takes part in (`participatingOperationIds`), whatever their status. */
 export async function listParticipatingOperations(viewer: Viewer): Promise<OperationRow[]> {
-  if (!viewer.operationIds.length) return []
-  return db.select().from(schema.operations).where(inArray(schema.operations.id, viewer.operationIds)).orderBy(schema.operations.startsAt)
+  const ids = participatingOperationIds(viewer)
+  if (!ids.length) return []
+  return db.select().from(schema.operations).where(inArray(schema.operations.id, ids)).orderBy(schema.operations.startsAt)
 }
 
 /** 409 when another operation already uses `slug`. */
