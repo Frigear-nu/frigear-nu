@@ -19,6 +19,7 @@ export type {
   PushDeviceRegisteredContext,
   PushMessage,
   PushPlatform,
+  PushProvider,
   RegisterDeviceInput,
   SendPushResult,
   Translated,
