@@ -4,7 +4,7 @@ import { categoryChain, isHelpArticlePublic, isHelpArticleVisible, isHelpArticle
 
 const anonymous = createViewer()
 const member = createViewer({ userId: 1 })
-const barManager = createViewer({ userId: 2, globalRoles: ['barmanager'] })
+const supervisor = createViewer({ userId: 2, globalRoles: ['supervisor'] })
 
 describe('the visibility of an article in its category', () => {
   it('is the category\'s when the article is empty (null or {})', () => {
@@ -16,16 +16,16 @@ describe('the visibility of an article in its category', () => {
 
   it('can narrow the category: a public category with a role-only article hides it from visitors and other members', () => {
     const category = { visibility: { public: true } }
-    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['barmanager'] } }, anonymous)).toBe(false)
-    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['barmanager'] } }, member)).toBe(false)
-    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['barmanager'] } }, barManager)).toBe(true)
+    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['supervisor'] } }, anonymous)).toBe(false)
+    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['supervisor'] } }, member)).toBe(false)
+    expect(isHelpArticleVisible(category, { visibility: { globalRoles: ['supervisor'] } }, supervisor)).toBe(true)
   })
 
   it('can never widen the category: a public article in a restricted category stays restricted', () => {
-    const category = { visibility: { globalRoles: ['barmanager'] } }
+    const category = { visibility: { globalRoles: ['supervisor'] } }
     expect(isHelpArticleVisible(category, { visibility: { public: true } }, anonymous)).toBe(false)
     expect(isHelpArticleVisible(category, { visibility: { public: true } }, member)).toBe(false)
-    expect(isHelpArticleVisible(category, { visibility: { public: true } }, barManager)).toBe(true)
+    expect(isHelpArticleVisible(category, { visibility: { public: true } }, supervisor)).toBe(true)
   })
 
   it('fails closed on a stored value with an unknown key', () => {
@@ -49,7 +49,7 @@ describe('the visibility of an article in its category', () => {
 
 describe('categories below categories', () => {
   const node = (id: string, parentId: string | null, visibility: unknown) => ({ id, parentId, visibility })
-  const nodes = [node('top', null, { globalRoles: ['barmanager'] }), node('mid', 'top', { public: true }), node('leaf', 'mid', null), node('orphan', 'gone', null)]
+  const nodes = [node('top', null, { globalRoles: ['supervisor'] }), node('mid', 'top', { public: true }), node('leaf', 'mid', null), node('orphan', 'gone', null)]
   const byId = new Map(nodes.map(entry => [entry.id, entry]))
 
   it('walks from a category up to the top', () => {
@@ -65,19 +65,19 @@ describe('categories below categories', () => {
 
   it('is visible only when every category in the chain is: a child narrows its parent and never widens it', () => {
     const chain = categoryChain(byId.get('mid')!, byId)
-    // `mid` says public, `top` says bar managers: visitors and other members stay out.
+    // `mid` says public, `top` says supervisors: visitors and other members stay out.
     expect(isHelpChainVisible(chain, anonymous)).toBe(false)
     expect(isHelpChainVisible(chain, member)).toBe(false)
-    expect(isHelpChainVisible(chain, barManager)).toBe(true)
+    expect(isHelpChainVisible(chain, supervisor)).toBe(true)
     expect(isHelpArticleVisibleIn(chain, { visibility: { public: true } }, anonymous)).toBe(false)
-    expect(isHelpArticleVisibleIn(chain, { visibility: null }, barManager)).toBe(true)
-    expect(isHelpArticleVisibleIn(chain, { visibility: { globalRoles: ['other'] } }, barManager)).toBe(false)
+    expect(isHelpArticleVisibleIn(chain, { visibility: null }, supervisor)).toBe(true)
+    expect(isHelpArticleVisibleIn(chain, { visibility: { globalRoles: ['other'] } }, supervisor)).toBe(false)
   })
 
   it('lets an ancestor that is public leave the child to its own rule', () => {
-    const open = new Map([['p', node('p', null, { public: true })], ['c', node('c', 'p', { globalRoles: ['barmanager'] })]])
+    const open = new Map([['p', node('p', null, { public: true })], ['c', node('c', 'p', { globalRoles: ['supervisor'] })]])
     const chain = categoryChain(open.get('c')!, open)
     expect(isHelpChainVisible(chain, anonymous)).toBe(false)
-    expect(isHelpChainVisible(chain, barManager)).toBe(true)
+    expect(isHelpChainVisible(chain, supervisor)).toBe(true)
   })
 })

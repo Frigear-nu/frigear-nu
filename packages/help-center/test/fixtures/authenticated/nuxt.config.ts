@@ -22,7 +22,7 @@ export default defineNuxtConfig({
     (_options, nuxt) => {
       addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: [] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['help-center:*'] })
-      addRole(nuxt, { name: 'barmanager', label: 'Bar manager', grant: [] })
+      addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
     },
   ],
