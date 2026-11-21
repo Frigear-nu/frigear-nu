@@ -67,14 +67,14 @@ describe('crew DTOs', () => {
 
   const row = { id: 'tmm_1', teamId: 'tem_1', userId: 7, role: 'volunteer', status: 'pending', addedBy: null, crewStatus: 'applied', appliedAt: new Date('2027-01-01T00:00:00.000Z'), decidedAt: null, decidedBy: null, submissionId: 'fsb_1', waitlistPosition: null, createdAt: new Date(), updatedAt: new Date() }
   const team = { id: 'tem_1', name: { en: 'Crew' }, ownerId: 'opr_1' }
-  const user = { name: 'Ada', email: 'ada@example.com', avatar: null, phone: '+4511223344' }
+  const user = { name: 'Ada', email: 'ada@example.com', avatar: null, phone: '+15550100101' }
 
   it('leaves the email and phone out of a member without pii', () => {
     const without = toCrewMemberDto({ member: row, team, user, previous: false, pii: false })
     expect(without).not.toHaveProperty('email')
     expect(without).not.toHaveProperty('phone')
     expect(without).toMatchObject({ operationId: 'opr_1', name: 'Ada', crewStatus: 'applied', appliedAt: '2027-01-01T00:00:00.000Z', submissionId: 'fsb_1' })
-    expect(toCrewMemberDto({ member: row, team, user, previous: true, pii: true })).toMatchObject({ email: 'ada@example.com', phone: '+4511223344', previousCrew: true })
+    expect(toCrewMemberDto({ member: row, team, user, previous: true, pii: true })).toMatchObject({ email: 'ada@example.com', phone: '+15550100101', previousCrew: true })
   })
 
   it('answers the defaults of an operation without saved settings', () => {

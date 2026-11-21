@@ -182,7 +182,7 @@ describe('crew (authenticated, database-backed)', async () => {
       // The operation is found by its id as well.
       expect(await ok(await json(alice.cookie, 'GET', crewApi.apply(crew.op.id)))).toMatchObject({ state: 'open', operationSlug: crew.op.slug })
 
-      await ok(await apply(alice, crew, { phone: '+4511223344', motivation: 'I love bars' }))
+      await ok(await apply(alice, crew, { phone: '+15550100101', motivation: 'I love bars' }))
 
       const mine = await ok(await json(alice.cookie, 'GET', crewApi.me.crew)) as unknown as Json[]
       expect(mine).toHaveLength(1)
@@ -197,7 +197,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(members.find(member => member.userId === alice.id)).toMatchObject({ role: 'volunteer', status: 'pending' })
 
       const row = await rowOf(crew, alice)
-      expect(row).toMatchObject({ crewStatus: 'applied', teamId: crew.teamId, role: 'volunteer', email: alice.email, phone: '+4511223344', previousCrew: false, decidedAt: null })
+      expect(row).toMatchObject({ crewStatus: 'applied', teamId: crew.teamId, role: 'volunteer', email: alice.email, phone: '+15550100101', previousCrew: false, decidedAt: null })
       expect(row.appliedAt).toBeTruthy()
       expect(row.submissionId).toBeTruthy()
 
@@ -550,19 +550,19 @@ describe('crew (authenticated, database-backed)', async () => {
     it('shows emails, phone numbers and answers only to people who hold crew:pii', async () => {
       const crew = await newCrew()
       const rae = await user('Rae')
-      const row = await applied(rae, crew, { phone: '+4599887766', motivation: 'Sunsets and pints' })
+      const row = await applied(rae, crew, { phone: '+15550100102', motivation: 'Sunsets and pints' })
 
       const coordinator = await registerUser('Coordinator', `coordinator${++counter}@coord.test`)
       const manager = await registerUser('Manager', `manager${++counter}@mgr.test`)
       const wild = await registerUser('Wild', `wild${++counter}@wild.test`)
 
       for (const reader of [staff, coordinator]) {
-        expect(await rowOf(crew, rae, reader.cookie)).toMatchObject({ email: rae.email, phone: '+4599887766' })
+        expect(await rowOf(crew, rae, reader.cookie)).toMatchObject({ email: rae.email, phone: '+15550100102' })
         const submission = await ok(await json(reader.cookie, 'GET', crewApi.admin.submission(row.id)))
         expect(submission).toMatchObject({ formSlug: crew.form.slug, locale: 'en' })
         expect(submission.answers).toEqual(expect.arrayContaining([
           expect.objectContaining({ key: 'motivation', label: 'Why do you want to join?', value: 'Sunsets and pints' }),
-          expect.objectContaining({ key: 'phone', value: '+4599887766' }),
+          expect.objectContaining({ key: 'phone', value: '+15550100102' }),
         ]))
         expect((await list(reader.cookie, crew, `&q=${encodeURIComponent(rae.email)}`)).items).toHaveLength(1)
       }
@@ -745,16 +745,16 @@ describe('crew (authenticated, database-backed)', async () => {
     it('ignores a submission that was delivered already, and keeps the first phone number', async () => {
       const crew = await newCrew()
       const rob = await user('Rob')
-      const row = await applied(rob, crew, { phone: '+4511111111' })
+      const row = await applied(rob, crew, { phone: '+15550100103' })
       const before = (await hookNames(rob)).length
       // Forms' own redelivery runs `forms:submitted` again for the stored submission.
       await ok(await json(staff.cookie, 'POST', formsApi.admin.redeliver(row.submissionId)))
       expect(await hookNames(rob)).toHaveLength(before)
       expect(await getEmailsTo(rob.email)).toHaveLength(1)
-      expect(await rowOf(crew, rob)).toMatchObject({ id: row.id, submissionId: row.submissionId, phone: '+4511111111' })
+      expect(await rowOf(crew, rob)).toMatchObject({ id: row.id, submissionId: row.submissionId, phone: '+15550100103' })
       // A second application of somebody already in does not overwrite their phone number either.
-      await ok(await apply(rob, crew, { phone: '+4522222222' }))
-      expect(await rowOf(crew, rob)).toMatchObject({ phone: '+4511111111' })
+      await ok(await apply(rob, crew, { phone: '+15550100104' }))
+      expect(await rowOf(crew, rob)).toMatchObject({ phone: '+15550100103' })
     })
 
     it('ignores an old submission redelivered after the person withdrew', async () => {

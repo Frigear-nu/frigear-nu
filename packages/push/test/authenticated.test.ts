@@ -293,7 +293,7 @@ describe('push (authenticated, database-backed)', async () => {
       ])
 
       await register(user.cookie, unique('fcm-ok'))
-      await setPhone('cleo@example.com', '+4511223344')
+      await setPhone('cleo@example.com', '+15550100101')
       expect(await apiClient({ cookie: user.cookie }).json('GET', pushApi.me.channels)).toMatchObject({ hasPhone: true, hasDevice: true })
     })
 
@@ -406,9 +406,9 @@ describe('push (authenticated, database-backed)', async () => {
       expect(await notify(content)).toMatchObject({ channels: [], skipped: { sms: 'unavailable' } })
       expect(await getTexts()).toEqual([])
 
-      await setPhone('ivy@example.com', '+4511223344')
+      await setPhone('ivy@example.com', '+15550100101')
       expect(await notify(content)).toMatchObject({ channels: ['sms'] })
-      expect(await getTexts()).toEqual([expect.objectContaining({ to: '+4511223344', body: 'You work 18:00' })])
+      expect(await getTexts()).toEqual([expect.objectContaining({ to: '+15550100101', body: 'You work 18:00' })])
 
       // A topic that does not offer SMS never sends it.
       await getTexts(true)
