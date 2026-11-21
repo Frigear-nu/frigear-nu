@@ -7,9 +7,12 @@ export type LeafletModule = typeof Leaflet
 let leaflet: Promise<LeafletModule> | undefined
 let geoman: Promise<void> | undefined
 
-/** Leaflet, imported once. */
+/**
+ * Leaflet, imported once, with its stylesheet. The stylesheet loads with the script, only on pages that show a map, and
+ * before the first map is created, so a map never draws unstyled.
+ */
 export function loadLeaflet(): Promise<LeafletModule> {
-  leaflet ??= import('leaflet').then((module) => {
+  leaflet ??= Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([module]) => {
     const L = ((module as unknown as { default?: LeafletModule }).default ?? module) as LeafletModule
     return L
   })
@@ -25,7 +28,7 @@ export async function loadLeafletWithGeoman(): Promise<LeafletModule> {
   geoman ??= (async () => {
     const global = window as unknown as { L?: LeafletModule }
     global.L ??= L
-    await import('@geoman-io/leaflet-geoman-free')
+    await Promise.all([import('@geoman-io/leaflet-geoman-free'), import('@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css')])
   })()
   await geoman
   return L
@@ -41,11 +44,23 @@ export const MAP_COLORS: Record<string, string> = {
   info: '#0891b2',
 }
 
-/** A colour for a feature: its `properties.color` (a semantic name or a CSS colour), its kind's, or the primary. */
+const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+const FUNCTION = /^(?:rgba?|hsla?)\([\d.]+%?(?:[\s,/]+[\d.]+%?){2,3}\)$/i
+
+/**
+ * A colour that is safe to put in SVG attributes and icon styles: a palette name (`primary`, ...), `#hex`, or an
+ * `rgb()` / `hsl()` value of plain numbers. Anything else (feature properties come from editors) is `null`.
+ */
+export function safeColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const color = value.trim()
+  if (Object.hasOwn(MAP_COLORS, color)) return MAP_COLORS[color]!
+  return HEX.test(color) || FUNCTION.test(color) ? color : null
+}
+
+/** A colour for a feature: its `properties.color`, else its kind's, else the primary; each only when `safeColor` allows it. */
 export function featureColor(propertiesColor: unknown, kindColor: string | null | undefined): string {
-  if (typeof propertiesColor === 'string' && propertiesColor) return MAP_COLORS[propertiesColor] ?? propertiesColor
-  if (kindColor) return MAP_COLORS[kindColor] ?? kindColor
-  return MAP_COLORS.primary!
+  return safeColor(propertiesColor) ?? safeColor(kindColor) ?? MAP_COLORS.primary!
 }
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }

@@ -140,7 +140,8 @@
       "snap": "Snap to grid",
       "snapHelp": "Rounds corners and points to the plan's grid.",
       "text": "Text",
-      "unsupported": "This property cannot be edited here."
+      "unsupported": "This property cannot be edited here.",
+      "viewFeature": "Feature"
     },
     "menu": {
       "admin": {

@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module'
 import {
   addComponentsDir,
   addImports,
@@ -234,12 +233,6 @@ declare module '#maps/server-registry' {
 }
 `,
     }, { nitro: true, nuxt: true })
-
-    // --- Leaflet ----------------------------------------------------------------------------------------------------
-    // Leaflet and leaflet-geoman load in the browser only (`onMounted`); their stylesheets are global, resolved from
-    // this package so a host does not need them as its own dependencies.
-    const require = createRequire(import.meta.url)
-    nuxt.options.css.push(require.resolve('leaflet/dist/leaflet.css'), require.resolve('@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'))
 
     // --- Database ---------------------------------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {

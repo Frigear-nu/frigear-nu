@@ -41,6 +41,9 @@ watch(editableLayers, (list) => {
 const draft = shallowRef<{ shape: string, geometry: MapGeometry } | null>(null)
 const selectedId = ref<string | null>(null)
 const selected = computed(() => features.value.find(feature => feature.id === selectedId.value) ?? null)
+// Callers without `maps:edit`, and features on a locked layer, get the form to read only.
+const readOnly = computed(() => !canEdit.value
+  || (!!selected.value && !layers.value.find(layer => layer.id === selected.value!.layerId)?.editable))
 const form = reactive<{ featureKind: string, label: Translated | null, properties: Record<string, unknown>, linkMapId: string }>({
   featureKind: '',
   label: null,
@@ -101,7 +104,7 @@ function close() {
 }
 
 async function save() {
-  if (!map.value) return
+  if (!map.value || readOnly.value) return
   const body = {
     featureKind: form.featureKind,
     label: form.label || null,
@@ -208,7 +211,7 @@ async function remove(featureId: string) {
         <template v-if="draft || selected">
           <div class="flex items-center justify-between gap-2">
             <p class="font-medium">
-              {{ draft ? t('editor.newFeature', 'New feature') : t('editor.editFeature', 'Edit feature') }}
+              {{ draft ? t('editor.newFeature', 'New feature') : readOnly ? t('editor.viewFeature', 'Feature') : t('editor.editFeature', 'Edit feature') }}
             </p>
             <UButton
               icon="i-lucide-x"
@@ -222,45 +225,53 @@ async function remove(featureId: string) {
           <UForm
             id="maps-feature-form"
             :state="form"
+            :disabled="readOnly"
+            :data-read-only="readOnly || undefined"
             class="flex flex-col gap-4"
             @submit="save"
           >
-            <UFormField
-              name="featureKind"
-              :label="t('editor.featureKind', 'Kind')"
-              required
+            <!-- A disabled fieldset turns every input inside off, also the ones of TranslatedInput. -->
+            <fieldset
+              :disabled="readOnly"
+              class="flex min-w-0 flex-col gap-4"
             >
-              <USelect
-                v-model="form.featureKind"
-                :items="kindOptions"
-                class="w-full"
+              <UFormField
+                name="featureKind"
+                :label="t('editor.featureKind', 'Kind')"
+                required
+              >
+                <USelect
+                  v-model="form.featureKind"
+                  :items="kindOptions"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField
+                name="label"
+                :label="form.featureKind === 'maps.label' ? t('editor.text', 'Text') : t('editor.label', 'Label')"
+                :description="t('editor.labelHelp', 'Shown in the popup and on labels.')"
+              >
+                <TranslatedInput v-model="form.label" />
+              </UFormField>
+              <MapsPropertyFields
+                v-model="form.properties"
+                :fields="fields"
               />
-            </UFormField>
-            <UFormField
-              name="label"
-              :label="form.featureKind === 'maps.label' ? t('editor.text', 'Text') : t('editor.label', 'Label')"
-              :description="t('editor.labelHelp', 'Shown in the popup and on labels.')"
-            >
-              <TranslatedInput v-model="form.label" />
-            </UFormField>
-            <MapsPropertyFields
-              v-model="form.properties"
-              :fields="fields"
-            />
-            <UFormField
-              name="linkMapId"
-              :label="t('editor.link', 'Links to map')"
-              :description="t('editor.linkHelp', 'Lets people open another map from this feature, such as a bar layout from the site map.')"
-            >
-              <USelect
-                v-model="form.linkMapId"
-                :items="linkOptions"
-                class="w-full"
-              />
-            </UFormField>
+              <UFormField
+                name="linkMapId"
+                :label="t('editor.link', 'Links to map')"
+                :description="t('editor.linkHelp', 'Lets people open another map from this feature, such as a bar layout from the site map.')"
+              >
+                <USelect
+                  v-model="form.linkMapId"
+                  :items="linkOptions"
+                  class="w-full"
+                />
+              </UFormField>
+            </fieldset>
             <div class="flex flex-wrap justify-end gap-2">
               <UButton
-                v-if="selected"
+                v-if="selected && !readOnly"
                 color="error"
                 variant="outline"
                 icon="i-lucide-trash-2"
@@ -270,10 +281,11 @@ async function remove(featureId: string) {
               <UButton
                 color="neutral"
                 variant="outline"
-                :label="t('editor.cancel', 'Cancel')"
+                :label="readOnly ? t('editor.close', 'Close') : t('editor.cancel', 'Cancel')"
                 @click="close"
               />
               <UButton
+                v-if="!readOnly"
                 type="submit"
                 :loading="busy"
                 :disabled="!form.featureKind"

@@ -140,7 +140,8 @@
       "snap": "Fastgør til gitter",
       "snapHelp": "Afrunder hjørner og punkter til planens gitter.",
       "text": "Tekst",
-      "unsupported": "Denne egenskab kan ikke redigeres her."
+      "unsupported": "Denne egenskab kan ikke redigeres her.",
+      "viewFeature": "Element"
     },
     "menu": {
       "admin": {
