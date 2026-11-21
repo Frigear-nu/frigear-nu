@@ -253,10 +253,10 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `maps:feature:created` | maps | `{ event, map, feature }` | 5 |
 | `maps:feature:updated` | maps | `{ event, map, feature, previous }` | 5 |
 | `maps:feature:deleted` | maps | `{ event, map, feature }` | 5 |
-| `inbox:message:received` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
-| `inbox:message:sent` | inbox | `{ event, thread, message }` | 6: platform mailboxes; 7: user mailboxes |
-| `inbox:thread:assigned` | inbox | `{ event, thread, assigneeId, previous }` | 6: platform mailboxes only |
-| `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6: platform mailboxes; 7: user mailboxes |
+| `inbox:message:received` | inbox | `{ event, thread, message }` | 6: platform and team mailboxes; 7: user mailboxes |
+| `inbox:message:sent` | inbox | `{ event, thread, message }` | 6: platform and team mailboxes; 7: user mailboxes |
+| `inbox:thread:assigned` | inbox | `{ event, thread, assigneeId, previous }` | 6: platform and team mailboxes |
+| `inbox:thread:status-changed` | inbox | `{ event, thread, from, to }` | 6: platform and team mailboxes; 7: user mailboxes |
 
 - **`teams:roles:resolve`.** Listeners push extra mapped grants into `grants`, for mapping sources teams does not
   know. Crew's presets are plain `team_role_mappings` rows instead. `owner` is `null`: one resolution covers every

@@ -9,7 +9,7 @@ import { verifySha256Signature } from '../../../utils/signature'
 export default defineEventHandler(async (event) => {
   const secret = inboxConfig(event).email.webhookSecret
   if (!secret) throw notConfigured('The email webhook has no secret (inbox.email.webhookSecret).')
-  const raw = (await readRawBody(event, 'utf8')) ?? ''
+  const raw = await inboxReadRawBody(event)
   if (!(await verifySha256Signature(secret, raw, getRequestHeader(event, 'x-inbox-signature')))) {
     throw apiError(401, 'invalid_signature', 'The signature does not match.')
   }

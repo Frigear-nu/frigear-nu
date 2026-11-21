@@ -21,6 +21,8 @@ const email = (overrides: Json = {}) => ({
   to: 'support@inbox.test',
   subject: 'Where is my ticket?',
   text: 'Hello, I never got my ticket.',
+  // The provider's verdict that SPF, DKIM or DMARC passed.
+  authenticated: true,
   ...overrides,
 })
 
@@ -131,7 +133,7 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(JSON.stringify(listed)).not.toContain('fake-token-value')
 
       await expectApiError(as(coord).json('GET', inboxApi.admin.channels), 403, 'forbidden')
-      const token = await createToken(admin.cookie, ['inbox'])
+      const token = await createToken(admin.cookie, ['*'])
       await expectApiError(bearer(token).json('GET', inboxApi.admin.channels), 403, 'session_required')
       await expectApiError(bearer(token).json('POST', inboxApi.admin.channels, { mailboxId: support.id, channel: 'email', address: 'z@inbox.test' }), 403, 'session_required')
     })
@@ -180,6 +182,37 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(thread.messages.map((message: Json) => message.direction)).toEqual(['in', 'out', 'in'])
       // An answer from the person reopens a pending thread.
       expect(thread.thread.status).toBe('open')
+    })
+  })
+
+  describe('unverified senders and subjects', () => {
+    it('never threads an unauthenticated email into an existing thread', async () => {
+      const threadId = await emailThread()
+      const { contact } = await detail(admin, threadId)
+      // A forged answer: the right sender address and marker, but the provider could not verify the sender.
+      const forged = await (await postEmail(email({ from: { email: contact.email, name: 'Someone Else' }, subject: `Re: Where is my ticket? [${threadId}]`, text: 'Send the tickets to me instead', authenticated: false }))).json() as Json
+      expect(forged.status).toBe('received')
+      expect(forged.threadId).not.toBe(threadId)
+      // Not even into the contact's open thread, and the contact keeps its name.
+      const noMarker = await (await postEmail(email({ from: { email: contact.email, name: 'Someone Else' }, authenticated: undefined }))).json() as Json
+      expect([threadId, forged.threadId]).not.toContain(noMarker.threadId)
+      expect((await detail(admin, threadId)).messages).toHaveLength(1)
+      expect((await detail(admin, forged.threadId)).contact.name).toBe('Kari Nordmann')
+    })
+
+    it('keeps control characters out of subjects, stored and sent', async () => {
+      const threadId = await emailThread({ subject: 'Tickets\r\nBcc: evil@example.org\tnow' })
+      expect((await detail(admin, threadId)).thread.subject).toBe('Tickets Bcc: evil@example.org now')
+      await as(coord).json('POST', inboxApi.admin.messages(threadId), { body: 'On it.' })
+      const sent = (await getEmails()).at(-1)!
+      expect(sent.subject).toBe(`Re: Tickets Bcc: evil@example.org now [${threadId}]`)
+      expect(sent.subject).not.toMatch(/[\r\n\t]/)
+    })
+
+    it('refuses webhook bodies over 1 MB', async () => {
+      const big = email({ text: 'x'.repeat(1_100_000) })
+      await expectApiError(postEmail(big), 413, 'payload_too_large')
+      await expectApiError(postMeta({ object: 'page', entry: [], padding: 'x'.repeat(1_100_000) }), 413, 'payload_too_large')
     })
   })
 
@@ -247,6 +280,28 @@ describe('inbox (authenticated, database-backed)', async () => {
       await as(admin).json('POST', inboxApi.admin.messages(thread!.id), { body: 'Yes, welcome!' })
       const sent = (await getEmails()).at(-1)!
       expect(sent).toMatchObject({ to: 'lise@example.org', replyTo: 'support@inbox.test', text: 'Yes, welcome!' })
+
+      // Lise answers the reply by email: a verified sender with the thread's marker and the contact's address.
+      const answer = await (await postEmail(email({ from: { email: 'lise@example.org', name: 'Lise' }, subject: sent.subject, text: 'Great, see you there!' }))).json() as Json
+      expect(answer.threadId).toBe(thread!.id)
+      const conversation = await detail(admin, thread!.id)
+      expect(conversation.messages.map((message: Json) => [message.direction, message.body])).toEqual([
+        ['in', 'Can I help at the bar?'],
+        ['out', 'Yes, welcome!'],
+        ['in', 'Great, see you there!'],
+      ])
+      expect(conversation.thread.channel).toBe('form')
+    })
+
+    it('treats a form submission with someone else\'s email as unverified', async () => {
+      const before = (await threadsOf(admin, '&channel=form&status=all')).map(thread => thread.id)
+      await as().json('POST', formsApi.submit('contact'), { answers: { name: 'Mallory', email: 'lise@example.org', subject: 'Change of plans', message: 'Please send everything to mallory@example.org' }, locale: 'en' })
+      const after = await threadsOf(admin, '&channel=form&status=all')
+      const created = after.filter(thread => !before.includes(thread.id))
+      // A new thread of its own, never one of Lise's, and Lise's contact keeps her name.
+      expect(created).toHaveLength(1)
+      expect(created[0]).toMatchObject({ subject: 'Change of plans', contact: { name: 'Lise', email: 'lise@example.org' } })
+      expect(after.filter(thread => thread.contact?.email === 'lise@example.org')).toHaveLength(2)
     })
   })
 
@@ -296,8 +351,12 @@ describe('inbox (authenticated, database-backed)', async () => {
       const threadId = await emailThread()
       const assigned = await as(coord).json<Json>('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id })
       expect(assigned.assigneeId).toBe(coord.id)
-      expect((await getHooks()).filter(hook => hook.threadId === threadId && hook.name === 'thread:assigned').map(hook => hook.data)).toEqual([{ assigneeId: coord.id, previous: null }])
+      expect((await getHooks()).filter(hook => hook.threadId === threadId && hook.name === 'thread:assigned').map(hook => hook.data)[0]).toEqual({ assigneeId: coord.id, previous: null })
       await expectApiError(as(coord).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: 999_999 }), 400)
+      // Evaluated for the assignee: crew reads no mailbox (it leads only the bar team's), wild manages every mailbox.
+      await expectApiError(as(coord).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: crew.id }), 409, 'assignee_no_access')
+      expect((await as(coord).json<Json>('PATCH', inboxApi.admin.thread(threadId), { assigneeId: wild.id })).assigneeId).toBe(wild.id)
+      await as(coord).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id })
       expect((await threadsOf(coord, '&assignee=me')).map(thread => thread.id)).toContain(threadId)
       const summary = await as(coord).json<Json>('GET', inboxApi.admin.summary)
       expect(summary.mine).toBeGreaterThanOrEqual(1)
@@ -323,7 +382,7 @@ describe('inbox (authenticated, database-backed)', async () => {
       await expectApiError(as(coord).json('POST', inboxApi.admin.messages(threadId), { body: 'x' }), 404, 'not_found')
       expect((await threadsOf(coord, '&status=all')).map(thread => thread.id)).not.toContain(threadId)
       expect((await threadsOf(admin, '&status=all')).map(thread => thread.id)).toContain(threadId)
-      await expectApiError(as(admin).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id }), 400)
+      await expectApiError(as(admin).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id }), 409, 'assignee_no_access')
 
       const shown = await as(admin).json<Json>('POST', inboxApi.admin.hide(threadId), { role: null })
       expect(shown.hiddenBelow).toBeNull()
@@ -363,7 +422,8 @@ describe('inbox (authenticated, database-backed)', async () => {
     })
 
     it('exports a contact without the internal notes, and erases them', async () => {
-      const threadId = await emailThread({ text: 'My phone is 12345678' })
+      const exportedEmail = email({ text: 'My phone is 12345678' })
+      const threadId = (await (await postEmail(exportedEmail)).json() as Json).threadId as string
       await as(coord).json('POST', inboxApi.admin.notes(threadId), { body: 'Internal: VIP' })
       await as(coord).json('POST', inboxApi.admin.messages(threadId), { body: 'Thanks!' })
       const { contact } = await detail(admin, threadId)
@@ -379,7 +439,12 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(erased.erasedAt).toBeTruthy()
       const after = await detail(admin, threadId)
       expect(after.messages.every((message: Json) => message.body === '')).toBe(true)
+      expect(after.thread).toMatchObject({ status: 'closed', subject: null })
       expect(after.thread.anonymisedAt).toBeTruthy()
+      // The provider ids are gone too: the same email delivered again is stored as a new message of a new contact.
+      const again = await (await postEmail(exportedEmail)).json() as Json
+      expect(again.status).toBe('received')
+      expect(again.threadId).not.toBe(threadId)
       await expectApiError(as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Hello?' }), 409, 'channel_unavailable')
       const log = await as(admin).json<Json>('GET', `${inboxApi.admin.audit}?contactId=${contact.id}`)
       expect((log.items as Json[]).map(entry => entry.action).sort()).toEqual(['erased', 'exported'])
@@ -387,16 +452,19 @@ describe('inbox (authenticated, database-backed)', async () => {
   })
 
   describe('tokens', () => {
-    it('reads with the inbox scope, and needs the permission as a scope for anything else', async () => {
-      const reader = await createToken(coord.cookie, ['inbox'])
-      const listed = await bearer(reader).json<Json>('GET', inboxApi.admin.threads)
-      expect(listed.total).toBeGreaterThan(0)
-      const threadId = listed.items[0].id
-      await expectApiError(bearer(reader).json('POST', inboxApi.admin.messages(threadId), { body: 'x' }), 403, 'insufficient_scope')
-      await expectApiError(bearer(reader).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id }), 403, 'insufficient_scope')
-
-      const noRead = await createToken(coord.cookie, ['inbox:reply'])
-      await expectApiError(bearer(noRead).json('GET', inboxApi.admin.threads), 403, 'insufficient_scope')
+    it('never exposes platform mailboxes to API tokens: every route is session only', async () => {
+      // No inbox permission can be put on a token at all.
+      await expectApiError(as(admin).json('POST', '/api/auth/me/tokens', { name: 'inbox', scopes: ['inbox:read'] }), 400, 'unknown_scope')
+      // A token with every scope its user may grant still gets nothing from the inbox.
+      const token = await createToken(admin.cookie, ['*'])
+      const threadId = (await threadsOf(admin))[0]!.id
+      await expectApiError(bearer(token).json('GET', inboxApi.admin.threads), 403, 'session_required')
+      await expectApiError(bearer(token).json('GET', inboxApi.admin.thread(threadId)), 403, 'session_required')
+      await expectApiError(bearer(token).json('GET', inboxApi.admin.mailboxes), 403, 'session_required')
+      await expectApiError(bearer(token).json('POST', inboxApi.admin.messages(threadId), { body: 'x' }), 403, 'session_required')
+      const contactId = (await detail(admin, threadId)).contact.id
+      await expectApiError(bearer(token).json('GET', inboxApi.admin.contactExport(contactId)), 403, 'session_required')
+      await expectApiError(bearer(token).json('POST', inboxApi.admin.contactErase(contactId)), 403, 'session_required')
       await expectApiError(apiClient({ bearer: 'not-a-token' }).json('GET', inboxApi.admin.threads), 401)
     })
   })
@@ -429,6 +497,26 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect((await detail(admin, stillOpen)).thread.status).toBe('open')
       const log = await as(admin).json<Json>('GET', `${inboxApi.admin.audit}?action=retention`)
       expect(log.total).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  describe('retention, anonymise mode', () => {
+    it('blanks old closed threads, keeps them, and erases contacts left with nothing', async () => {
+      const threadId = await emailThread()
+      const { contact } = await detail(admin, threadId)
+      await as(admin).json('PATCH', inboxApi.admin.thread(threadId), { status: 'closed' })
+      await backdate(threadId, 40)
+      const { result } = await runRetention(new Date(), 'anonymise')
+      expect(result).toMatchObject({ mode: 'anonymise' })
+      expect(result.threads).toBeGreaterThanOrEqual(1)
+      const after = await detail(admin, threadId)
+      expect(after.thread).toMatchObject({ status: 'closed', subject: null })
+      expect(after.thread.anonymisedAt).toBeTruthy()
+      expect(after.messages.every((message: Json) => message.body === '')).toBe(true)
+      expect(after.contact).toMatchObject({ id: contact.id, name: null, email: null })
+      expect(after.contact.erasedAt).toBeTruthy()
+      // A second run finds nothing new to blank.
+      expect((await runRetention(new Date(), 'anonymise')).result.threads).toBe(0)
     })
   })
 

@@ -49,4 +49,4 @@ export const getEmails = () => $fetch<Array<{ to: string, subject: string, body:
 export const getSent = () => $fetch<Array<{ threadId: string, to: string, body: string, secret?: string }>>('/api/test/sent')
 export const makeLead = (cookie: string, teamId: string) => $fetch('/api/test/lead', { method: 'POST', headers: { cookie }, body: { teamId } })
 export const backdate = (threadId: string, days: number) => $fetch('/api/test/backdate', { method: 'POST', body: { threadId, days } })
-export const runRetention = (now: Date) => $fetch<{ result: { threads: number, contacts: number, mailboxes: number } }>('/api/test/retention', { method: 'POST', body: { now: now.toISOString() } })
+export const runRetention = (now: Date, mode?: 'delete' | 'anonymise') => $fetch<{ result: { threads: number, contacts: number, mailboxes: number, mode: string } }>('/api/test/retention', { method: 'POST', body: { now: now.toISOString(), mode } })

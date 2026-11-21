@@ -80,6 +80,8 @@ export const inboxThreads = pgTable('inbox_threads', {
   assigneeId: integer(),
   /** `null`, or the lowest global role that sees the thread. */
   hiddenBelow: text(),
+  /** The start of the last message that is not a note, for the thread list. */
+  preview: text(),
   lastMessageAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   /** When retention or an erase blanked its messages. */
   anonymisedAt: timestamp({ withTimezone: true }),
@@ -124,5 +126,6 @@ export const inboxAudit = pgTable('inbox_audit', {
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('inbox_audit_thread_idx').on(t.threadId),
+  index('inbox_audit_contact_idx').on(t.contactId),
   index('inbox_audit_created_idx').on(t.createdAt),
 ])

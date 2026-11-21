@@ -80,6 +80,8 @@ export const inboxThreads = sqliteTable('inbox_threads', {
   assigneeId: integer(),
   /** `null`, or the lowest global role that sees the thread. */
   hiddenBelow: text(),
+  /** The start of the last message that is not a note, for the thread list. */
+  preview: text(),
   lastMessageAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   /** When retention or an erase blanked its messages. */
   anonymisedAt: integer({ mode: 'timestamp' }),
@@ -124,5 +126,6 @@ export const inboxAudit = sqliteTable('inbox_audit', {
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('inbox_audit_thread_idx').on(t.threadId),
+  index('inbox_audit_contact_idx').on(t.contactId),
   index('inbox_audit_created_idx').on(t.createdAt),
 ])

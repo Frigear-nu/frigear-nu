@@ -146,10 +146,6 @@
       "reply": "Answer in inboxes",
       "replyDescription": "Reply to the threads of the mailboxes you have access to, write internal notes and change their status."
     },
-    "scopes": {
-      "inbox": "Inbox",
-      "inboxDescription": "Read the threads of the mailboxes you have access to."
-    },
     "settings": {
       "addChannel": "Connect channel",
       "addMailbox": "Add mailbox",

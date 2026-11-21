@@ -19,10 +19,7 @@ export default defineEventHandler(async (event): Promise<InboxThreadDto> => {
   if ((thread.hiddenBelow ?? null) === input.role) return toInboxThreadDto(thread)
 
   let assigneeId = thread.assigneeId
-  if (input.role && assigneeId) {
-    const assignee = await loadAuthUser(assigneeId)
-    if (!assignee || !(await getEffectiveRoles(event, assignee)).includes(input.role)) assigneeId = null
-  }
+  if (input.role && assigneeId && !(await inboxUserCanAccessThread(event, assigneeId, { mailboxId: thread.mailboxId, hiddenBelow: input.role }))) assigneeId = null
   const [updated] = await db.update(schema.inboxThreads).set({ hiddenBelow: input.role, assigneeId }).where(eq(schema.inboxThreads.id, thread.id)).returning()
   await inboxAudit(event, { action: 'hidden', threadId: thread.id, data: { from: thread.hiddenBelow ?? null, to: input.role } })
   if (assigneeId !== thread.assigneeId) {

@@ -44,6 +44,12 @@ export type InboxInboundMessage = {
   attachments?: InboxAttachment[]
   /** A thread id the message answers (`[ibt_...]` in an email subject); used when it belongs to the same mailbox and contact. */
   threadId?: string | null
+  /**
+   * Whether the channel verified the sender: a signed-in user, Meta's signed webhook, an email that passed SPF, DKIM or
+   * DMARC. Only an authenticated message joins an existing thread or renames its contact; anything else (the default)
+   * starts a new thread.
+   */
+  authenticated?: boolean
 }
 
 /** What a channel's `send` gets to deliver a reply. */

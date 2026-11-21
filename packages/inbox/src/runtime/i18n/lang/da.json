@@ -146,10 +146,6 @@
       "reply": "Svare i indbakker",
       "replyDescription": "Svare i trådene i de postkasser, du har adgang til, skrive interne noter og ændre deres status."
     },
-    "scopes": {
-      "inbox": "Indbakke",
-      "inboxDescription": "Læse trådene i de postkasser, du har adgang til."
-    },
     "settings": {
       "addChannel": "Tilslut kanal",
       "addMailbox": "Tilføj postkasse",

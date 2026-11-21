@@ -11,6 +11,22 @@ export type InboxReceiveResult
     | { status: 'duplicate', messageId: string }
     | { status: 'ignored', reason: 'no_account' | 'disabled' }
 
+/** Control characters (CR, LF, tabs, ...) become a space, so a subject can never carry a header line. */
+export function inboxCleanText(value: string): string {
+  // eslint-disable-next-line no-control-regex -- matching control characters is the point
+  return value.replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim()
+}
+
+/** A stored subject: one line, at most 500 characters, `null` when empty. */
+export function inboxCleanSubject(value: string | null | undefined): string | null {
+  return value ? inboxCleanText(value).slice(0, 500) || null : null
+}
+
+/** The start of a message for the thread list. */
+export function inboxPreview(body: string): string | null {
+  return inboxCleanText(body).slice(0, 160) || null
+}
+
 /** Addresses are compared lower case for email (and the form slug), as stored. */
 export function inboxNormaliseAddress(channel: string, address: string): string {
   const trimmed = address.trim()
@@ -35,8 +51,11 @@ async function existingMessageId(externalId: string): Promise<string | undefined
   return row?.id
 }
 
-/** The contact behind a channel identity, created on first contact; a name or detail they did not have is filled in. */
-async function upsertContact(channel: string, input: InboxInboundMessage['contact']): Promise<InboxContactRow> {
+/**
+ * The contact behind a channel identity, created on first contact. A detail they did not have is filled in; their name
+ * is only replaced by an authenticated message, so an unverified sender cannot rename someone else's contact.
+ */
+async function upsertContact(channel: string, input: InboxInboundMessage['contact'], authenticated: boolean): Promise<InboxContactRow> {
   const where = and(eq(schema.inboxContacts.channel, channel), eq(schema.inboxContacts.externalId, input.externalId))
   await db.insert(schema.inboxContacts).values({
     id: newInboxId('icn'),
@@ -49,7 +68,7 @@ async function upsertContact(channel: string, input: InboxInboundMessage['contac
   }).onConflictDoNothing()
   const [row] = await db.select().from(schema.inboxContacts).where(where).limit(1)
   const changes: Partial<typeof schema.inboxContacts.$inferInsert> = {}
-  if (input.name && input.name !== row!.name) changes.name = input.name
+  if (input.name && input.name !== row!.name && (authenticated || !row!.name)) changes.name = input.name
   if (input.email && !row!.email) changes.email = input.email
   if (input.phone && !row!.phone) changes.phone = input.phone
   if (input.userId && !row!.userId) changes.userId = input.userId
@@ -59,34 +78,46 @@ async function upsertContact(channel: string, input: InboxInboundMessage['contac
 }
 
 /**
- * The thread a message belongs to: the one it names (same mailbox and contact), else the contact's latest thread in
- * the mailbox that is not closed, else a new one.
+ * The thread a message belongs to. Only an authenticated message (a verified sender) joins an existing thread: the one
+ * its `[ibt_...]` marker names, when it is in the same mailbox and the sender is the thread's contact or has the
+ * contact's email address (a contact form thread answered by email), else the contact's latest thread on this channel
+ * that is not closed. Anything else starts a new thread.
  */
-async function threadFor(account: InboxChannelAccountRow, contact: InboxContactRow, inbound: InboxInboundMessage, now: Date): Promise<{ thread: InboxThreadRow, created: boolean }> {
-  if (inbound.threadId) {
+async function threadFor(account: InboxChannelAccountRow, contact: InboxContactRow, inbound: InboxInboundMessage, authenticated: boolean, now: Date): Promise<InboxThreadRow> {
+  if (authenticated && inbound.threadId) {
     const [named] = await db.select().from(schema.inboxThreads)
-      .where(and(eq(schema.inboxThreads.id, inbound.threadId), eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxThreads.contactId, contact.id))).limit(1)
-    if (named) return { thread: named, created: false }
+      .where(and(eq(schema.inboxThreads.id, inbound.threadId), eq(schema.inboxThreads.mailboxId, account.mailboxId))).limit(1)
+    if (named && (named.contactId === contact.id || await sameEmail(named.contactId, contact.email))) return named
   }
-  const [latest] = await db.select().from(schema.inboxThreads)
-    .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxThreads.contactId, contact.id), eq(schema.inboxThreads.channel, account.channel), inArray(schema.inboxThreads.status, ['open', 'pending'])))
-    .orderBy(desc(schema.inboxThreads.lastMessageAt)).limit(1)
-  if (latest) return { thread: latest, created: false }
+  if (authenticated) {
+    const [latest] = await db.select().from(schema.inboxThreads)
+      .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxThreads.contactId, contact.id), eq(schema.inboxThreads.channel, account.channel), inArray(schema.inboxThreads.status, ['open', 'pending'])))
+      .orderBy(desc(schema.inboxThreads.lastMessageAt)).limit(1)
+    if (latest) return latest
+  }
   const [created] = await db.insert(schema.inboxThreads).values({
     id: newInboxId('ibt'),
     mailboxId: account.mailboxId,
     contactId: contact.id,
     channelAccountId: account.id,
     channel: account.channel,
-    subject: inbound.subject?.slice(0, 500) || null,
+    subject: inboxCleanSubject(inbound.subject),
     status: 'open',
     lastMessageAt: now,
   }).returning()
-  return { thread: created!, created: true }
+  return created!
+}
+
+/** Whether the contact `contactId` has this (non-empty) email address. */
+async function sameEmail(contactId: string, email: string | null): Promise<boolean> {
+  if (!email) return false
+  const [row] = await db.select({ email: schema.inboxContacts.email }).from(schema.inboxContacts).where(eq(schema.inboxContacts.id, contactId)).limit(1)
+  return !!row?.email && row.email.toLowerCase() === email.toLowerCase()
 }
 
 /**
- * Stores an inbound message of `channel`: finds the account, the contact and the thread, stores the message once per
+ * Stores an inbound message of `channel`: finds the account, the contact and the thread (`authenticated` decides
+ * whether it may join an existing one), stores the message once per
  * provider id, reopens a closed or pending thread and fires `inbox:message:received` (and
  * `inbox:thread:status-changed` when the status moved). A message delivered twice answers `duplicate`; one for an
  * address no enabled account has answers `ignored`, so a provider stops retrying either.
@@ -100,8 +131,9 @@ export async function inboxReceive(event: H3Event, channel: string, inbound: Inb
   if (known) return { status: 'duplicate', messageId: known }
 
   const now = new Date()
-  const contact = await upsertContact(channel, inbound.contact)
-  const { thread } = await threadFor(target, contact, inbound, now)
+  const authenticated = inbound.authenticated === true
+  const contact = await upsertContact(channel, inbound.contact, authenticated)
+  const thread = await threadFor(target, contact, inbound, authenticated, now)
 
   const [message] = await db.insert(schema.inboxMessages).values({
     id: newInboxId('ibm'),
@@ -119,7 +151,7 @@ export async function inboxReceive(event: H3Event, channel: string, inbound: Inb
   const from = thread.status as InboxThreadStatus
   const to: InboxThreadStatus = 'open'
   const [updated] = await db.update(schema.inboxThreads)
-    .set({ lastMessageAt: now, status: to, ...(!thread.subject && inbound.subject ? { subject: inbound.subject.slice(0, 500) } : {}) })
+    .set({ lastMessageAt: now, status: to, preview: inboxPreview(inbound.body), ...(!thread.subject && inbound.subject ? { subject: inboxCleanSubject(inbound.subject) } : {}) })
     .where(eq(schema.inboxThreads.id, thread.id)).returning()
   const threadDto = toInboxThreadDto(updated!)
   const messageDto = toInboxMessageDto(message)

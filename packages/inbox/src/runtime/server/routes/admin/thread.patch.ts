@@ -1,11 +1,11 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
-import { idParams, validationError } from '@frigear-nu/module-kit/server'
+import { idParams } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../../access'
 import type { InboxThreadDto } from '../../../../types'
 
-// Changes a thread's status (`inbox:reply`) or assignee (`inbox:assign`). The assignee must be a user who answers in
-// inboxes (`inbox:reply`) and holds the thread's `hiddenBelow` role. Fires `inbox:thread:status-changed` and
+// Changes a thread's status (`inbox:reply`) or assignee (`inbox:assign`). The assignee must be a user who could read
+// and answer the thread themselves (`inboxAssertAssignee`): 400 for an unknown user, 409 `assignee_no_access` otherwise. Fires `inbox:thread:status-changed` and
 // `inbox:thread:assigned`.
 export default defineEventHandler(async (event): Promise<InboxThreadDto> => {
   await authorize(event, inboxAccess.permissions.read)
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event): Promise<InboxThreadDto> => {
   if (input.assigneeId !== undefined) await authorize(event, inboxAccess.permissions.assign, thread)
 
   if (input.assigneeId !== undefined && input.assigneeId !== thread.assigneeId) {
-    if (input.assigneeId !== null) await inboxCheckAssignee(event, input.assigneeId, thread.hiddenBelow)
+    if (input.assigneeId !== null) await inboxAssertAssignee(event, input.assigneeId, thread)
     const previous = thread.assigneeId ?? null
     thread = (await db.update(schema.inboxThreads).set({ assigneeId: input.assigneeId }).where(eq(schema.inboxThreads.id, thread.id)).returning())[0]!
     await useNitroApp().hooks.callHook('inbox:thread:assigned', { event, thread: toInboxThreadDto(thread), assigneeId: input.assigneeId, previous })
@@ -27,12 +27,3 @@ export default defineEventHandler(async (event): Promise<InboxThreadDto> => {
   if (input.status !== undefined) thread = await inboxSetStatus(event, thread, input.status)
   return toInboxThreadDto(thread)
 })
-
-/** 400 unless the user exists, answers in inboxes and holds the thread's `hiddenBelow` role. */
-async function inboxCheckAssignee(event: Parameters<typeof userCan>[0], assigneeId: number, hiddenBelow: string | null) {
-  const user = await loadAuthUser(assigneeId)
-  const issue = (message: string) => validationError([{ path: ['assigneeId'], message }], 'Invalid assignee')
-  if (!user) throw issue('This user does not exist.')
-  if (!(await userCan(event, assigneeId, inboxAccess.permissions.reply))) throw issue('This user does not answer in inboxes.')
-  if (hiddenBelow && !(await getEffectiveRoles(event, user)).includes(hiddenBelow)) throw issue('The thread is hidden from this user.')
-}

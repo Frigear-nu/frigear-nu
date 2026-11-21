@@ -25,7 +25,7 @@ export async function inboxMailboxEmailAddress(mailboxId: string): Promise<strin
 
 /** The subject of a reply: `Re: <subject> [ibt_...]`, so an answer threads back by its subject. */
 export function inboxReplySubject(thread: Pick<InboxThreadDto, 'id' | 'subject'>): string {
-  return `Re: ${thread.subject || 'Your message'} [${thread.id}]`
+  return `Re: ${inboxCleanSubject(thread.subject) || 'Your message'} [${thread.id}]`
 }
 
 /** Sends a reply by email to the contact (`409 no_reply_address` when they left no address). */

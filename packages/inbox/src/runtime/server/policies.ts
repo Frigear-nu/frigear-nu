@@ -6,7 +6,8 @@ const isThread = (record: InboxRecord): record is InboxThreadRow => 'mailboxId' 
 
 /** A mailbox, or a thread (its `hiddenBelow`, then its mailbox). */
 function inboxRecordAllowed(event: Parameters<typeof inboxCanAccessMailbox>[0], user: { id: string | number }, record: InboxRecord) {
-  return isThread(record) ? inboxCanAccessThread(event, user, record) : inboxCanAccessMailbox(event, user, record)
+  const subject = inboxCallerSubject(event, user)
+  return isThread(record) ? inboxCanAccessThread(event, subject, record) : inboxCanAccessMailbox(event, subject, record)
 }
 
 // The record rules of the inbox (registered with `addPolicies` in `module.ts`). A policy only narrows: signed-in users

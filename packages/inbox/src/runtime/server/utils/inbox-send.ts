@@ -66,7 +66,7 @@ export async function inboxReply(event: H3Event, thread: InboxThreadRow, input: 
     createdAt: now,
     createdAtMs: now.getTime(),
   }).returning()
-  let updated = (await db.update(schema.inboxThreads).set({ lastMessageAt: now }).where(eq(schema.inboxThreads.id, thread.id)).returning())[0]!
+  let updated = (await db.update(schema.inboxThreads).set({ lastMessageAt: now, preview: inboxPreview(input.body) }).where(eq(schema.inboxThreads.id, thread.id)).returning())[0]!
   if (input.status) updated = await inboxSetStatus(event, updated, input.status)
 
   const threadDto = toInboxThreadDto(updated)

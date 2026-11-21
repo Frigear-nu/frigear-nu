@@ -9,7 +9,7 @@ import { verifySha256Signature } from '../../../utils/signature'
 export default defineEventHandler(async (event) => {
   const appSecret = inboxConfig(event).meta.appSecret
   if (!appSecret) throw notConfigured('The Meta webhook has no app secret (inbox.meta.appSecret).')
-  const raw = (await readRawBody(event, 'utf8')) ?? ''
+  const raw = await inboxReadRawBody(event)
   if (!(await verifySha256Signature(appSecret, raw, getRequestHeader(event, 'x-hub-signature-256')))) {
     throw apiError(401, 'invalid_signature', 'The signature does not match.')
   }

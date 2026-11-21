@@ -33,6 +33,11 @@ export const inboxEmailPayload = z.object({
   text: z.string().nullish(),
   html: z.string().nullish(),
   attachments: z.array(attachment).max(50).optional(),
+  /**
+   * The provider's verdict that the sender is who they say (SPF, DKIM or DMARC passed). Without it the email always
+   * starts a new thread: a forged sender cannot write into someone else's conversation.
+   */
+  authenticated: z.boolean().optional(),
 })
 export type InboxEmailPayload = z.infer<typeof inboxEmailPayload>
 
@@ -101,6 +106,7 @@ export function emailToInbound(payload: InboxEmailPayload, accountAddress: strin
     contact: { externalId: email, email, name: nameOf(payload.from) ?? displayNameOf(from) },
     externalId: payload.messageId,
     subject: cleanSubject(payload.subject),
+    authenticated: payload.authenticated === true,
     body: clip(body),
     attachments: (payload.attachments ?? []).map(file => ({ filename: file.filename, contentType: file.contentType, size: file.size, url: file.url })),
     threadId: threadIdFromSubject(payload.subject),
@@ -173,6 +179,7 @@ export function parseMetaWebhook(body: unknown): InboxMetaInbound[] {
             externalId: id,
             body: clip(text),
             attachments,
+            authenticated: true,
           })
         }
       }
@@ -189,7 +196,7 @@ export function parseMetaWebhook(body: unknown): InboxMetaInbound[] {
         const id = str(message?.mid)
         if (!message || !sender || !recipient || !id || message.is_echo === true) continue
         const { body: text, attachments } = messagingBody(message)
-        out.push({ channel, address: recipient, contact: { externalId: sender }, externalId: id, body: clip(text), attachments })
+        out.push({ channel, address: recipient, contact: { externalId: sender }, externalId: id, body: clip(text), attachments, authenticated: true })
       }
     }
   }

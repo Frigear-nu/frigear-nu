@@ -1,15 +1,31 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, asc, eq, inArray, isNull, lt } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
 import type { InboxRetentionMode, InboxRetentionResult } from '../../../types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Blanks the messages of threads (D1-sized chunks) and marks them anonymised: the threads stay, their content goes. */
+/**
+ * Blanks the messages of threads (D1-sized chunks) and closes them: bodies, attachments and provider ids
+ * (`erased:<message id>`) go, the subject and preview too. The threads stay, as a record that something was answered.
+ */
 export async function inboxAnonymiseThreads(threadIds: string[], now = new Date()): Promise<void> {
   for (const chunk of inboxChunks(threadIds)) {
-    await db.update(schema.inboxMessages).set({ body: '', attachments: [] }).where(inArray(schema.inboxMessages.threadId, chunk))
-    await db.update(schema.inboxThreads).set({ subject: null, anonymisedAt: now }).where(inArray(schema.inboxThreads.id, chunk))
+    await db.update(schema.inboxMessages)
+      .set({ body: '', attachments: [], externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
+      .where(inArray(schema.inboxMessages.threadId, chunk))
+    await db.update(schema.inboxThreads)
+      .set({ subject: null, preview: null, status: 'closed', anonymisedAt: now })
+      .where(inArray(schema.inboxThreads.id, chunk))
+  }
+}
+
+/** Removes a contact's details; a new message from the same identity starts a new contact. */
+async function eraseContactRows(contactIds: string[], now: Date): Promise<void> {
+  for (const id of contactIds) {
+    await db.update(schema.inboxContacts)
+      .set({ name: null, email: null, phone: null, userId: null, externalId: `erased:${id}`, erasedAt: now })
+      .where(eq(schema.inboxContacts.id, id))
   }
 }
 
@@ -34,16 +50,33 @@ async function deleteOrphanContacts(contactIds: string[]): Promise<number> {
   return deleted
 }
 
+/** Erases those of `contactIds` (not erased yet) whose every thread is anonymised: nothing of theirs is left to keep. */
+async function eraseFullyAnonymisedContacts(contactIds: string[], now: Date): Promise<number> {
+  const erase: string[] = []
+  for (const chunk of inboxChunks([...new Set(contactIds)])) {
+    const live = new Set((await db.select({ contactId: schema.inboxThreads.contactId }).from(schema.inboxThreads)
+      .where(and(inArray(schema.inboxThreads.contactId, chunk), isNull(schema.inboxThreads.anonymisedAt)))).map(row => row.contactId))
+    const candidates = chunk.filter(id => !live.has(id))
+    if (!candidates.length) continue
+    const open = await db.select({ id: schema.inboxContacts.id }).from(schema.inboxContacts)
+      .where(and(inArray(schema.inboxContacts.id, candidates), isNull(schema.inboxContacts.erasedAt)))
+    erase.push(...open.map(row => row.id))
+  }
+  await eraseContactRows(erase, now)
+  return erase.length
+}
+
 /**
  * One retention run: the closed threads whose last message is older than their mailbox keeps them (its
- * `retentionDays`, else `inbox.retention.days`) are deleted with their messages (`mode: 'delete'`, and contacts left
- * without a thread go too) or blanked (`mode: 'anonymise'`). At most `batch` threads per run, so a big backlog is
- * worked off over several runs within D1's limits; one audit entry per mailbox records what went.
+ * `retentionDays`, else `inbox.retention.days`) are deleted with their messages (`mode: 'delete'`; contacts left
+ * without a thread go too) or blanked (`mode: 'anonymise'`; contacts left with only anonymised threads are erased). At
+ * most `batch` threads per run, so a big backlog is worked off over several runs within D1's limits; one audit entry
+ * per mailbox records what went. `mode` overrides the configured one (manual runs and tests).
  */
-export async function inboxRunRetention(options: { now?: Date, event?: H3Event } = {}): Promise<InboxRetentionResult> {
+export async function inboxRunRetention(options: { now?: Date, event?: H3Event, mode?: InboxRetentionMode } = {}): Promise<InboxRetentionResult> {
   const config = inboxConfig(options.event).retention
   const now = options.now ?? new Date()
-  const mode: InboxRetentionMode = config.mode
+  const mode: InboxRetentionMode = options.mode ?? config.mode
   const result: InboxRetentionResult = { mailboxes: 0, threads: 0, contacts: 0, mode }
   let budget = Math.max(1, config.batch)
 
@@ -58,10 +91,14 @@ export async function inboxRunRetention(options: { now?: Date, event?: H3Event }
       .where(and(...conditions)).orderBy(asc(schema.inboxThreads.lastMessageAt)).limit(budget)
     if (!rows.length) continue
     const ids = rows.map(row => row.id)
-    if (mode === 'anonymise') await inboxAnonymiseThreads(ids, now)
+    const contactIds = rows.map(row => row.contactId)
+    if (mode === 'anonymise') {
+      await inboxAnonymiseThreads(ids, now)
+      result.contacts += await eraseFullyAnonymisedContacts(contactIds, now)
+    }
     else {
       await deleteThreads(ids)
-      result.contacts += await deleteOrphanContacts(rows.map(row => row.contactId))
+      result.contacts += await deleteOrphanContacts(contactIds)
     }
     budget -= rows.length
     result.threads += rows.length
@@ -72,15 +109,14 @@ export async function inboxRunRetention(options: { now?: Date, event?: H3Event }
 }
 
 /**
- * Erases a contact (GDPR): their name, email, phone and channel id are removed and every message of their threads is
- * blanked; the threads stay as a record that something was answered. A later message from the same person starts a
- * new contact.
+ * Erases a contact (GDPR): their name, email, phone and channel id are removed, and every thread of theirs is closed
+ * with its messages blanked (bodies, attachments, provider ids); the threads stay as a record that something was
+ * answered. A later message from the same person starts a new contact. Form submissions and their files are kept by
+ * Forms and erased there.
  */
 export async function inboxEraseContact(contactId: string, now = new Date()): Promise<{ threads: number }> {
   const threads = (await db.select({ id: schema.inboxThreads.id }).from(schema.inboxThreads).where(eq(schema.inboxThreads.contactId, contactId))).map(row => row.id)
   await inboxAnonymiseThreads(threads, now)
-  await db.update(schema.inboxContacts)
-    .set({ name: null, email: null, phone: null, userId: null, externalId: `erased:${contactId}`, erasedAt: now })
-    .where(eq(schema.inboxContacts.id, contactId))
+  await eraseContactRows([contactId], now)
   return { threads: threads.length }
 }

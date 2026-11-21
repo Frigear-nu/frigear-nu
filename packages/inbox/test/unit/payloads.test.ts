@@ -52,7 +52,9 @@ describe('email payloads', () => {
       body: 'Hi',
       attachments: [{ filename: 'ticket.pdf', contentType: 'application/pdf', size: 1200, url: 'https://files.example/ticket.pdf' }],
       threadId: THREAD,
+      authenticated: false,
     })
+    expect(emailToInbound({ ...payload, authenticated: true }, 'info@frigear.nu').authenticated).toBe(true)
   })
 
   it('refuses a body that is not an email', () => {
@@ -80,8 +82,8 @@ describe('meta payloads', () => {
       }],
     })
     expect(messages).toEqual([
-      { channel: 'whatsapp', address: 'PNID', contact: { externalId: '4511111111', phone: '+4511111111', name: 'Ola' }, externalId: 'wamid.1', body: 'Hej', attachments: [] },
-      { channel: 'whatsapp', address: 'PNID', contact: { externalId: '4511111111', phone: '+4511111111', name: 'Ola' }, externalId: 'wamid.2', body: 'Look', attachments: [{ filename: 'image-media1', contentType: 'image/jpeg' }] },
+      { channel: 'whatsapp', address: 'PNID', contact: { externalId: '4511111111', phone: '+4511111111', name: 'Ola' }, externalId: 'wamid.1', body: 'Hej', attachments: [], authenticated: true },
+      { channel: 'whatsapp', address: 'PNID', contact: { externalId: '4511111111', phone: '+4511111111', name: 'Ola' }, externalId: 'wamid.2', body: 'Look', attachments: [{ filename: 'image-media1', contentType: 'image/jpeg' }], authenticated: true },
     ])
   })
 
@@ -97,13 +99,13 @@ describe('meta payloads', () => {
         ],
       }],
     })
-    expect(page).toEqual([{ channel: 'messenger', address: 'PAGE', contact: { externalId: 'PSID' }, externalId: 'm1', body: 'Hi', attachments: [] }])
+    expect(page).toEqual([{ channel: 'messenger', address: 'PAGE', contact: { externalId: 'PSID' }, externalId: 'm1', body: 'Hi', attachments: [], authenticated: true }])
 
     const instagram = parseMetaWebhook({
       object: 'instagram',
       entry: [{ id: 'IG', messaging: [{ sender: { id: 'IGSID' }, recipient: { id: 'IG' }, message: { mid: 'ig1', attachments: [{ type: 'image', payload: { url: 'https://cdn.example/1.jpg' } }] } }] }],
     })
-    expect(instagram).toEqual([{ channel: 'instagram', address: 'IG', contact: { externalId: 'IGSID' }, externalId: 'ig1', body: '[image-1]', attachments: [{ filename: 'image-1', url: 'https://cdn.example/1.jpg' }] }])
+    expect(instagram).toEqual([{ channel: 'instagram', address: 'IG', contact: { externalId: 'IGSID' }, externalId: 'ig1', body: '[image-1]', attachments: [{ filename: 'image-1', url: 'https://cdn.example/1.jpg' }], authenticated: true }])
   })
 
   it('ignores anything it does not know', () => {

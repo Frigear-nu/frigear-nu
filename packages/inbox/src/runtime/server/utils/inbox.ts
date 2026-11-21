@@ -4,7 +4,7 @@ import { asc, eq, inArray } from 'drizzle-orm'
 import { isEmptyVisibility, isVisible, parseVisibility } from '@frigear-nu/audience'
 import type { Viewer } from '@frigear-nu/audience'
 import { resolveViewer } from '@frigear-nu/audience/server'
-import { notFound } from '@frigear-nu/module-kit/server'
+import { apiError, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../access'
 import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
 import type { InboxChannelAccountRow, InboxContactRow, InboxMailboxRow, InboxThreadRow } from './inbox-dto'
@@ -99,10 +99,47 @@ export function resolveInboxViewer(event: H3Event): Promise<Viewer> {
   return context.inboxViewer
 }
 
+/**
+ * Whoever a mailbox or thread rule is evaluated for: the caller (`inboxCallerSubject`) or another user, such as an
+ * assignee (`inboxUserSubject`). The rules never read the session from `event` themselves.
+ */
+export type InboxSubject = {
+  user: { id: string | number }
+  /** Holds `inbox:manage` (without a record). */
+  manages: () => Promise<boolean>
+  /** Global roles, closed over `inherit`. */
+  roles: () => Promise<string[]>
+  /** The audience viewer: team roles, ladders and operations. */
+  viewer: () => Promise<Viewer>
+}
+
+/** The caller as a subject, with the per-request caches. */
+export function inboxCallerSubject(event: H3Event, user: { id: string | number }): InboxSubject {
+  return {
+    user,
+    manages: () => allows(event, inboxAccess.permissions.manage),
+    roles: () => inboxCallerRoles(event),
+    viewer: () => resolveInboxViewer(event),
+  }
+}
+
+/** Another user as a subject: their own roles and viewer, and `inbox:manage` as their session would hold it. */
+export function inboxUserSubject(event: H3Event, user: Parameters<typeof subjectAllowed>[1]): InboxSubject {
+  let roles: Promise<string[]> | undefined
+  let viewer: Promise<Viewer> | undefined
+  const subject: InboxSubject = {
+    user,
+    manages: () => subjectAllowed(event, user, inboxAccess.permissions.manage),
+    roles: () => (roles ??= getEffectiveRoles(event, user)),
+    viewer: () => (viewer ??= subject.roles().then(globalRoles => resolveViewer(event, { hooks: useNitroApp().hooks, user: user as { id: string | number }, globalRoles }))),
+  }
+  return subject
+}
+
 /** A hidden thread is seen only by people who hold its `hiddenBelow` role (roles inherit along the host's chain). */
-export async function inboxSeesHidden(event: H3Event, hiddenBelow: string | null | undefined): Promise<boolean> {
+export async function inboxSeesHidden(subject: InboxSubject, hiddenBelow: string | null | undefined): Promise<boolean> {
   if (!hiddenBelow) return true
-  return (await inboxCallerRoles(event)).includes(hiddenBelow)
+  return (await subject.roles()).includes(hiddenBelow)
 }
 
 /**
@@ -110,20 +147,19 @@ export async function inboxSeesHidden(event: H3Event, hiddenBelow: string | null
  * leads read the team's, anyone else what its visibility lets in. An empty or public visibility lets nobody in: a
  * mailbox holds outsiders' messages, so it is never open to every signed-in user.
  */
-export async function inboxCanAccessMailbox(event: H3Event, user: { id: string | number }, mailbox: InboxMailboxRow): Promise<boolean> {
-  // Without a record, so this check does not run the record policies again.
-  if (await allows(event, inboxAccess.permissions.manage)) return true
-  if (mailbox.ownerType === 'team' && mailbox.ownerId && await inboxIsTeamLead(event, user.id, mailbox.ownerId)) return true
+export async function inboxCanAccessMailbox(event: H3Event, subject: InboxSubject, mailbox: InboxMailboxRow): Promise<boolean> {
+  if (await subject.manages()) return true
+  if (mailbox.ownerType === 'team' && mailbox.ownerId && await inboxIsTeamLead(event, subject.user.id, mailbox.ownerId)) return true
   const visibility = parseVisibility(mailbox.visibility)
   if (!visibility || isEmptyVisibility(visibility) || visibility.public) return false
-  return isVisible(visibility, await resolveInboxViewer(event))
+  return isVisible(visibility, await subject.viewer())
 }
 
 /** The same rule for a thread: its `hiddenBelow` first, then its mailbox. */
-export async function inboxCanAccessThread(event: H3Event, user: { id: string | number }, thread: InboxThreadRow, mailbox?: InboxMailboxRow): Promise<boolean> {
-  if (!(await inboxSeesHidden(event, thread.hiddenBelow))) return false
+export async function inboxCanAccessThread(event: H3Event, subject: InboxSubject, thread: InboxThreadRow, mailbox?: InboxMailboxRow): Promise<boolean> {
+  if (!(await inboxSeesHidden(subject, thread.hiddenBelow))) return false
   const box = mailbox ?? await findInboxMailbox(thread.mailboxId)
-  return !!box && inboxCanAccessMailbox(event, user, box)
+  return !!box && inboxCanAccessMailbox(event, subject, box)
 }
 
 /** The mailboxes the caller reads (`inbox:read` with each mailbox as the record). */
@@ -156,4 +192,23 @@ export async function inboxAbilities(event: H3Event, thread: InboxThreadRow): Pr
     allows(event, inboxAccess.permissions.manage),
   ])
   return { reply, assign, hide, pii, audit, erase: manage && pii }
+}
+
+/**
+ * Whether user `userId` could read and answer `thread` themselves: they hold `inbox:reply`, its `hiddenBelow` role
+ * and access to its mailbox, all evaluated for them, not for the caller. `false` for an unknown user.
+ */
+export async function inboxUserCanAccessThread(event: H3Event, userId: number, thread: Pick<InboxThreadRow, 'mailboxId' | 'hiddenBelow'>): Promise<boolean> {
+  const user = await loadAuthUser(userId)
+  if (!user) return false
+  if (!(await subjectAllowed(event, user, inboxAccess.permissions.reply))) return false
+  return inboxCanAccessThread(event, inboxUserSubject(event, user), thread as InboxThreadRow)
+}
+
+/** 400 `validation_error` for an unknown user, 409 `assignee_no_access` for one who could not read and answer the thread. */
+export async function inboxAssertAssignee(event: H3Event, userId: number, thread: Pick<InboxThreadRow, 'mailboxId' | 'hiddenBelow'>): Promise<void> {
+  if (!(await loadAuthUser(userId))) throw validationError([{ path: ['assigneeId'], message: 'This user does not exist.' }], 'Invalid assignee')
+  if (!(await inboxUserCanAccessThread(event, userId, thread))) {
+    throw apiError(409, 'assignee_no_access', 'This user cannot read and answer this thread: they lack access to its mailbox or the role it is hidden below.')
+  }
 }

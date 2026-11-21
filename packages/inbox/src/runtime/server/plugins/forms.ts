@@ -5,6 +5,7 @@ import { normaliseEmail } from '../../utils/payloads'
 // Only added when `@frigear-nu/forms` is installed. A form is connected to a mailbox by a `form` channel account whose
 // `address` is the form's slug (or id): each submission becomes an inbound message. `config.fields` names the answers
 // to read (defaults: `name`, `email`, `phone`, `subject`, `message`); without a message field every answer is listed.
+// A submission without a signed-in user is unverified: it always starts a new thread and never renames the contact.
 type FormFields = { name: string, email: string, phone: string, subject: string, message: string }
 const DEFAULT_FIELDS: FormFields = { name: 'name', email: 'email', phone: 'phone', subject: 'subject', message: 'message' }
 
@@ -38,7 +39,9 @@ export default defineNitroPlugin((nitro) => {
             userId: ctx.userId,
           },
           externalId: ctx.submissionId ?? crypto.randomUUID(),
-          subject: text(answers[fields.subject]) ?? ctx.form.name,
+          subject: inboxCleanSubject(text(answers[fields.subject]) ?? ctx.form.name),
+          // Only a signed-in submitter is verified: anybody can type someone else's email address into a form.
+          authenticated: ctx.userId !== null,
           body,
           attachments: ctx.files.map(file => ({ filename: file.filename, contentType: file.contentType, size: file.size, ...(file.pathname ? { pathname: file.pathname } : {}) })),
         }, account)

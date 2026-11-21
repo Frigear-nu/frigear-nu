@@ -1,5 +1,5 @@
 import { db, schema } from '@nuxthub/db'
-import { and, count, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { likeContains, orderByQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
@@ -46,20 +46,14 @@ export default defineEventHandler(async (event): Promise<Page<InboxThreadListIte
   const contacts = contactIds.length ? await db.select().from(schema.inboxContacts).where(inArray(schema.inboxContacts.id, contactIds)) : []
   const contactById = new Map(contacts.map(contact => [contact.id, contact]))
   const users = await inboxUserRefs(rows.map(row => row.assigneeId))
-  const previews = await Promise.all(rows.map(async (row) => {
-    const [last] = await db.select({ body: schema.inboxMessages.body }).from(schema.inboxMessages)
-      .where(and(eq(schema.inboxMessages.threadId, row.id), ne(schema.inboxMessages.direction, 'note')))
-      .orderBy(desc(schema.inboxMessages.createdAtMs)).limit(1)
-    return last?.body ? last.body.slice(0, 160) : null
-  }))
 
-  const items: InboxThreadListItemDto[] = rows.map((row, index) => {
+  const items: InboxThreadListItemDto[] = rows.map((row) => {
     const contact = contactById.get(row.contactId)
     return {
       ...toInboxThreadDto(row),
       contact: contact ? toInboxContactDto(contact, pii) : null,
       assignee: row.assigneeId ? users.get(row.assigneeId) ?? { id: row.assigneeId, name: null } : null,
-      preview: previews[index] ?? null,
+      preview: row.preview ?? null,
     }
   })
   return paginate({ total: Number(totals?.total ?? 0), query, items })
