@@ -1,5 +1,3 @@
-import { takesPart } from '@frigear-nu/audience'
-
 /**
  * What the shifts policies receive. An assignment is `{ userId, teamId }`; a shift of a published schedule adds
  * `published: true`; a team is `{ teamId }`; an operation (who is on shift now) is `{ operationId }`.
@@ -21,7 +19,7 @@ export default [
       if (record.published && (await teamGrantOf(event, user.id, record.teamId))?.source === 'explicit') return true
       return false
     }
-    if (record.operationId) return takesPart(await resolveOperationsViewer(event, user), record.operationId)
+    if (record.operationId) return operationsTakesPart(event, user.id, record.operationId)
     return false
   }),
   // Only your own assignments.

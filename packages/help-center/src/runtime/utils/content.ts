@@ -4,7 +4,7 @@ import type { Translated } from '../../types'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from './slug'
 
 /** Frontmatter keys that would restrict an article. Content is served to the browser as a whole, so it is always public. */
-export const FORBIDDEN_CONTENT_KEYS = ['visibility', 'public'] as const
+export const FORBIDDEN_CONTENT_KEYS = ['visibility', 'public', 'grants'] as const
 
 /** The id of a content article: `content:<collection>:<path>`, with the path without a locale prefix. */
 export const contentArticleId = (collection: string, path: string) => `content:${collection}:${path}`
@@ -147,7 +147,7 @@ export function frontmatterKeys(raw: string): string[] {
 export type ContentValidation = { errors: string[], warnings: string[] }
 
 /**
- * The build-time rules of one file of the help collection. A file fails the build when it sets `visibility` or `public`
+ * The build-time rules of one file of the help collection. A file fails the build when it sets `visibility`, `public` or `grants`
  * (content is public, restricted articles live in the database), has no `category`, or has an unusable `slug`; in the
  * single-collection mode it also needs a `locale`. `keys` is every frontmatter key found (parsed fields, `meta` and the
  * raw block), so a key the collection schema drops is still caught.

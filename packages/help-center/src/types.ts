@@ -1,10 +1,11 @@
 import type { H3Event } from 'h3'
-import type { OwnerRef, Viewer, Visibility } from '@frigear-nu/audience'
+import type { Grant } from '@frigear-nu/grants/core'
+import type { OwnerRef } from '@frigear-nu/teams'
 import type { Translated } from '@frigear-nu/ui/translated'
 
-export type { Translated, Visibility, OwnerRef, Viewer }
+export type { Translated, Grant, OwnerRef }
 
-/** `draft` articles are only seen by staff; `published` ones by everyone their visibility allows. */
+/** `draft` articles are only seen by staff; `published` ones by everyone their grants admit. */
 export type HelpArticleStatus = 'draft' | 'published'
 
 /** The id of a source: `database` and `content` ship with the module, a host registers more. */
@@ -19,7 +20,7 @@ export type ModuleOptions = {
        */
       public?: string | false
       /**
-       * The signed-in area: public and restricted articles for the viewer, onboarding checklists with read state.
+       * The signed-in area: public and restricted articles for the reader, onboarding checklists with read state.
        * Defaults to `/account/help`; `false` turns it off.
        */
       signedIn?: string | false
@@ -95,7 +96,7 @@ export type HelpCategoryDto = {
   description: Translated | null
   parentId: string | null
   sort: number
-  /** Anonymous visitors may read the category (`visibility.public`). */
+  /** Anonymous visitors may read the category (it and every ancestor hold a `public` grant). */
   public: boolean
   source: HelpSourceId
   /** Slugs of `@frigear-nu/faq` groups shown in the category. */
@@ -127,16 +128,17 @@ export type HelpArticleDetailDto = HelpArticleDto & {
   category: HelpCategoryDto | null
 }
 
-/** A category as staff see it: the visibility, the owner and the audit dates. */
+/** A category as staff see it: its grants, the owner and the audit dates. */
 export type AdminHelpCategoryDto = Omit<HelpCategoryDto, 'source'> & {
   owner: OwnerRef
-  visibility: Visibility | null
+  /** Who may read the category (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  grants: Grant[]
   articleCount: number
   createdAt: string
   updatedAt: string
 }
 
-/** An article as staff see it: every status, the visibility of its own and who changed it last. */
+/** An article as staff see it: every status, its own grants and who changed it last. */
 export type AdminHelpArticleDto = {
   id: string
   slug: string
@@ -145,7 +147,8 @@ export type AdminHelpArticleDto = {
   categoryId: string | null
   categorySlug: string
   status: HelpArticleStatus
-  visibility: Visibility | null
+  /** `null`: the article inherits its category. Otherwise it narrows the category. */
+  grants: Grant[] | null
   source: HelpSourceId
   /** Articles of a read-only source (Nuxt Content) cannot be edited in admin. */
   readOnly: boolean
@@ -193,7 +196,8 @@ export type AdminHelpChecklistDto = {
   id: string
   name: Translated
   operationId: string | null
-  visibility: Visibility | null
+  /** Who sees the checklist (`@frigear-nu/grants`); with an `operationId`, only people who take part in it too. */
+  grants: Grant[]
   sort: number
   items: AdminHelpChecklistItemDto[]
   createdAt: string
@@ -227,33 +231,37 @@ export type HelpSendResult = {
 /** The locales an article still lacks, by field, when it cannot be published. */
 export type MissingTranslations = { field: 'title' | 'body', locales: string[] }[]
 
-/** The audience of `POST /api/admin/help-center/send`. */
+/**
+ * The audience of `POST /api/admin/help-center/send`: explicit people and/or a grant list (`@frigear-nu/grants`). Each
+ * grant kind lists its members, so the send reaches the union of `userIds` and every grant's members. `public` lists
+ * nobody, so it cannot be sent to.
+ */
 export type HelpAudience = {
-  operationId?: string
-  teamId?: string
-  globalRoles?: string[]
-  /** Explicit people, next to whatever the hook resolves. */
+  grants?: Grant[]
   userIds?: string[]
-}
-
-/** Context of `help-center:audience:resolve`. */
-export type HelpAudienceResolveContext = {
-  event: H3Event
-  audience: HelpAudience
-  /** Listeners add the ids of the people the audience (`teamId`, `operationId`, `globalRoles`) stands for. */
-  userIds: string[]
 }
 
 // --- Sources -----------------------------------------------------------------------------------
 
+/**
+ * Who reads. `user` is `null` for an anonymous visitor (and for `?public=1`). `canRead` decides one record by its own
+ * `grants`: for the caller of a request it is `grantsCanRead` (a `public` grant needs no sign-in, anything else goes
+ * through `help-center:read` and its policy), for a send it is the recipient's grants match. It is cached per record
+ * for the request.
+ */
+export type HelpReader = {
+  user: { id: string | number } | null
+  canRead: (record: { grants: unknown }) => Promise<boolean>
+}
+
 export type HelpSourceContext = {
   event: H3Event
-  /** Who is looking. An anonymous visitor has an empty viewer. */
-  viewer: Viewer
+  /** Who reads. A source decides its own records with `reader.canRead`. */
+  reader: HelpReader
   requiredLocales: string[]
 }
 
-/** A category a source knows. `visible` says whether this viewer may read it; hidden ones still claim their slug. */
+/** A category a source knows. `visible` says whether this reader may read it; hidden ones still claim their slug. */
 export type HelpSourceCategory = HelpCategoryDto & { visible: boolean }
 
 export type HelpSourceListContext = HelpSourceContext & {
@@ -266,7 +274,7 @@ export type HelpSourceListContext = HelpSourceContext & {
 /**
  * Where articles come from. The database and Nuxt Content ship with the module; a host adds its own with
  * `registerHelpCenterSource`. A source returns published articles the viewer may read, and the merged list is
- * filtered by category visibility, searched and read-tracked the same way for every source.
+ * filtered by category grants, searched and read-tracked the same way for every source.
  */
 export type HelpCenterSource = {
   id: HelpSourceId

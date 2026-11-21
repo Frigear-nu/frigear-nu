@@ -15,7 +15,7 @@ type TeamRoleMatch = { role: string } | { plan: string }
 export const teams = sqliteTable('teams', {
   /** `tem_` + random id. */
   id: text().primaryKey(),
-  /** `operation`, `platform`, ... (see the owners contract of `@frigear-nu/audience`). Never null. */
+  /** `operation`, `platform`, ... (`OwnerType` of this module). Never null. */
   ownerType: text().notNull(),
   /** The owner's id as text; `null` for the platform. */
   ownerId: text(),

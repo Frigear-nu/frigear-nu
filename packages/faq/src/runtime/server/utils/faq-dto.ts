@@ -1,5 +1,5 @@
 import type { schema } from '@nuxthub/db'
-import { parseVisibility } from '@frigear-nu/audience'
+import { hasPublicGrant, readGrants } from '@frigear-nu/grants/core'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AdminFaqGroupDto, AdminFaqItemDto, FaqGroupDto, FaqItemDto, FaqItemStatus } from '../../../types'
 import { isFaqItemPublic } from '../../utils'
@@ -9,8 +9,8 @@ type ItemRow = typeof schema.faqItems.$inferSelect
 
 const ownerOf = (row: GroupRow) => ({ type: row.ownerType, id: row.ownerId ?? null })
 
-/** What anybody who may read the item sees: an allowlist of the row's fields (no status, visibility or audit data). */
-export function toFaqItemDto(group: Pick<GroupRow, 'visibility'>, row: ItemRow): FaqItemDto {
+/** What anybody who may read the item sees: an allowlist of the row's fields (no status, grants or audit data). */
+export function toFaqItemDto(group: Pick<GroupRow, 'grants'>, row: ItemRow): FaqItemDto {
   return {
     id: row.id,
     groupId: row.groupId,
@@ -33,12 +33,12 @@ export function toFaqGroupDto(row: GroupRow, items: ItemRow[]): FaqGroupDto {
     icon: row.icon ?? null,
     owner: ownerOf(row),
     sort: row.sort,
-    public: parseVisibility(row.visibility)?.public === true,
+    public: hasPublicGrant(row.grants),
     items: items.map(item => toFaqItemDto(row, item)),
   }
 }
 
-/** The staff view of a group: no items, but the visibility, the counts and the audit dates. */
+/** The staff view of a group: no items, but its grants, the counts and the audit dates. */
 export function toAdminFaqGroupDto(row: GroupRow, counts: { itemCount: number, publishedCount: number } = { itemCount: 0, publishedCount: 0 }): AdminFaqGroupDto {
   return {
     id: row.id,
@@ -48,8 +48,8 @@ export function toAdminFaqGroupDto(row: GroupRow, counts: { itemCount: number, p
     icon: row.icon ?? null,
     owner: ownerOf(row),
     sort: row.sort,
-    public: parseVisibility(row.visibility)?.public === true,
-    visibility: parseVisibility(row.visibility),
+    public: hasPublicGrant(row.grants),
+    grants: readGrants(row.grants),
     itemCount: counts.itemCount,
     publishedCount: counts.publishedCount,
     createdAt: isoDate(row.createdAt),
@@ -68,7 +68,7 @@ export function toAdminFaqItemDto(row: ItemRow): AdminFaqItemDto {
     links: row.links ?? [],
     sort: row.sort,
     status: row.status as FaqItemStatus,
-    visibility: parseVisibility(row.visibility),
+    grants: row.grants === null || row.grants === undefined ? null : readGrants(row.grants),
     updatedBy: row.updatedBy ?? null,
     createdAt: isoDate(row.createdAt),
     updatedAt: isoDate(row.updatedAt),

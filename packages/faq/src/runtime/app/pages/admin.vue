@@ -31,9 +31,9 @@ const forbidden = computed(() => error.value?.statusCode === 401 || error.value?
 const RowMenu = resolveComponent('RowMenu')
 const TableIdentity = resolveComponent('TableIdentity')
 
-const visibilityLabel = (group: StaffFaqGroup) => group.public
-  ? t('admin.visibility.public', 'Public')
-  : group.visibility ? t('admin.visibilityRestricted', 'Restricted') : t('admin.visibilitySignedIn', 'Signed-in people')
+const grantsLabel = (group: StaffFaqGroup) => group.public
+  ? t('admin.grantsPublic', 'Public')
+  : group.grants.length ? t('admin.grantsRestricted', 'Restricted') : t('admin.grantsNobody', 'Nobody yet')
 
 const columns = computed<TableColumn<StaffFaqGroup>[]>(() => [
   {
@@ -48,9 +48,9 @@ const columns = computed<TableColumn<StaffFaqGroup>[]>(() => [
     cell: ({ row }) => h('span', { class: 'tabular-nums' }, t('admin.itemCounts', '{published} of {total} published', { published: row.original.publishedCount, total: row.original.itemCount })),
   },
   {
-    id: 'visibility',
-    header: t('admin.visibilityLabel', 'Who can see it'),
-    cell: ({ row }) => h('span', { class: 'text-muted' }, visibilityLabel(row.original)),
+    id: 'grants',
+    header: t('admin.grantsLabel', 'Who can see it'),
+    cell: ({ row }) => h('span', { class: 'text-muted' }, grantsLabel(row.original)),
   },
   {
     id: 'owner',

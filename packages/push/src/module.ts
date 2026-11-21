@@ -6,6 +6,7 @@ import {
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  useLogger,
 } from '@nuxt/kit'
 import {
   addModulePages,
@@ -24,7 +25,7 @@ import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { extendUsersAdmin } from '@frigear-nu/users/utils'
 import type {} from './schema'
 import { pushAccess } from './runtime/access'
-import { isPackageInstalled, nativeLoaderTemplate, pushModuleDependencies, topicsTemplate } from './build'
+import { detectNativePushPlugin, isPackageInstalled, nativeLoaderTemplate, pushModuleDependencies, topicsTemplate } from './build'
 import type { ModuleOptions, NotificationTopic, PushDeviceRegisteredContext, PushPublicConfig, PushRuntimeConfig } from './types'
 
 export type {
@@ -42,6 +43,7 @@ export type {
   PushDeviceRegisteredContext,
   PushMessage,
   PushPlatform,
+  PushProvider,
   PushPublicConfig,
   PushRuntimeConfig,
   RegisterDeviceInput,
@@ -71,6 +73,7 @@ declare module 'nitropack' {
 }
 
 const MODULE_NAME = '@frigear-nu/push'
+const logger = useLogger(MODULE_NAME)
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'push' },
@@ -95,15 +98,19 @@ export default defineNuxtModule<ModuleOptions>({
     }
     inlineModuleRuntime(nuxt, resolver)
 
-    // --- Device side: the Capacitor plugin (optional peer), `usePushDevice` and the sign-in registration -------------
-    // `#push/native` only imports `@capacitor/push-notifications` when it is installed.
-    const nativeInstalled = isPackageInstalled('@capacitor/push-notifications', nuxt.options.rootDir, nuxt.options.modulesDir)
-      && isPackageInstalled('@capacitor/core', nuxt.options.rootDir, nuxt.options.modulesDir)
+    // --- Device side: the push plugin (optional peer), `usePushDevice` and the sign-in registration -----------------
+    // `#push/native` only imports the plugin that is installed: `@capacitor-firebase/messaging` (the FCM token on iOS
+    // too, so iOS pushes go through FCM and work from Cloudflare Workers), else `@capacitor/push-notifications`.
+    const installed = (pkg: string) => isPackageInstalled(pkg, nuxt.options.rootDir, nuxt.options.modulesDir)
+    const nativePlugin = detectNativePushPlugin(installed)
+    if (nativePlugin === 'firebase' && installed('@capacitor/push-notifications')) {
+      logger.warn('`@capacitor-firebase/messaging` and `@capacitor/push-notifications` are both installed: push uses Firebase Messaging. Remove `@capacitor/push-notifications`, the two must not run side by side.')
+    }
     defineVirtualRegistry(nuxt, {
       filename: 'push/native.mjs',
       alias: '#push/native',
-      collect: () => nativeInstalled,
-      contents: installed => nativeLoaderTemplate(installed, resolver.resolve('./runtime/app/utils/native')),
+      collect: () => nativePlugin,
+      contents: plugin => nativeLoaderTemplate(plugin, resolver.resolve('./runtime/app/utils/native')),
     })
     addTypeTemplate({
       filename: 'types/push-native.d.ts',
@@ -127,11 +134,13 @@ export default defineNuxtModule<ModuleOptions>({
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
-    // Credentials are private runtime config: NUXT_PUSH_DRIVER, NUXT_PUSH_FCM_SERVICE_ACCOUNT, NUXT_PUSH_APNS_*.
+    // Credentials are private runtime config: NUXT_PUSH_DRIVER, NUXT_PUSH_IOS, NUXT_PUSH_FCM_SERVICE_ACCOUNT,
+    // NUXT_PUSH_APNS_*.
     const existing = nuxt.options.runtimeConfig.push as Partial<PushRuntimeConfig> | undefined
     nuxt.options.runtimeConfig.push = {
       driver: existing?.driver ?? settings.driver ?? '',
       timeoutMs: existing?.timeoutMs ?? 10_000,
+      ios: existing?.ios ?? '',
       fcm: { serviceAccount: '', ...existing?.fcm },
       apns: { keyId: '', teamId: '', topic: '', privateKey: '', sandbox: false, ...existing?.apns },
     }

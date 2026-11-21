@@ -11,8 +11,8 @@ export type {
 } from '../../types'
 
 /**
- * Defines an article source: where articles come from. It returns the published articles the viewer may read
- * (`list`, `get`, `getById`) and the categories it knows (`categories`, each with whether the viewer may read it).
+ * Defines an article source: where articles come from. It returns the published articles the reader may read
+ * (`list`, `get`, `getById`) and the categories it knows (`categories`, each with whether the reader may read it).
  * Register it in a server plugin with `registerHelpCenterSource(source)` and list its id in `settings.sources`.
  *
  *     export default defineNitroPlugin(() => registerHelpCenterSource(defineHelpCenterSource({

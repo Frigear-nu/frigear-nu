@@ -8,10 +8,9 @@ navigation:
 The volunteering modules run crew work: the occasions Frigear staffs, the teams and crew that work them, their shifts,
 and the FAQ, help center, maps and inbox those people use. Each one is a separate module, and they plug into each
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
-volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
+volunteering module follows: roles, owners, grants, hook names, dashboard items and team roles.
 
-The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
-[Operations](/modules/volunteering/operations), [Dashboard](/modules/volunteering/dashboard),
+The packages that exist today are [Operations](/modules/volunteering/operations), [Dashboard](/modules/volunteering/dashboard),
 [Teams](/modules/volunteering/teams), [FAQ](/modules/volunteering/faq), [Crew](/modules/volunteering/crew),
 [Help center](/modules/volunteering/help-center), [Push](/modules/volunteering/push),
 [Shifts](/modules/volunteering/shifts) and [Maps](/modules/volunteering/maps). Every other module adds its own page to
@@ -26,12 +25,12 @@ this group in the pull request that adds the module.
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
 | [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, trades and releases, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and meal vouchers. | A |
 | [`@frigear-nu/dashboard`](/modules/volunteering/dashboard) | Customisable dashboards that modules add items to. | B |
-| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item visibility. | B |
+| [`@frigear-nu/faq`](/modules/volunteering/faq) | Managed FAQ groups with per-group and per-item grants. | B |
 | [`@frigear-nu/help-center`](/modules/volunteering/help-center) | Help articles and onboarding checklists from the database or Nuxt Content. | B |
 | [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
 | [`@frigear-nu/maps`](/modules/volunteering/maps) | A building block: a location picker, a plane layout editor, web and mobile viewers with live layers. No tables of its own. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
-| [`@frigear-nu/audience`](/modules/volunteering/audience) | Visibility rules, owner references and the two hooks below. Not a Nuxt module. | Shared |
+| [`@frigear-nu/grants`](/modules/platform/grants) | Grant lists: who may see a record, with kinds modules register. | Shared |
 
 The two tracks are built in parallel and never edit the same package.
 
@@ -63,88 +62,26 @@ An operation, a team, a user or the platform owns a record. Every table that has
 
 `ownerType` is never null. A record with no other owner is `ownerType: 'platform'` with `ownerId: null`.
 
-In code an owner is an `OwnerRef` (`{ type, id }`) from `@frigear-nu/audience`. The module that owns a type answers
-the `audience:owner:resolve` hook with the owner's label and whether it exists:
+Owner references belong to the module that stores them: Teams owns `ownerType` / `ownerId` and their type, and
+other modules import Teams' type. There is no global list of owner types. An owner answers no access questions: a
+consumer checks access with `authorize(event, permission, record)`, and the owning module adds a
+[policy](/guide/concepts/glossary).
 
-| Owner type | Answered by |
-| --- | --- |
-| `operation` | operations |
-| `team` | teams |
-| `user` | nobody yet: read the user through `@frigear-nu/users` |
-| `platform` | nobody: there is one platform, and the consumer labels it itself |
+## Who may see a record
 
-The hook answers no access questions. A consumer checks access with `authorize(event, permission, record)` and its
-own policies; no consumer imports an owner module.
+FAQ groups and items, help categories and articles, and mailboxes store who may see them as a grant list in one JSON
+column, `grants`. [Grants](/modules/platform/grants) owns the list and its rules:
 
-## Visibility
+- Any one grant admits, and an empty list admits nobody.
+- A grant of an unknown kind admits nobody.
+- Only a `public` grant serves a record without sign-in (`grantsCanRead`).
+- Each module declares a read permission, and a policy on it that evaluates the record's grants.
 
-FAQ groups and items, help categories and articles, and mailboxes store who may see them in one JSON column,
-`visibility`. [Audience](/modules/volunteering/audience) owns the shape and the resolver, so every module answers the
-same way.
-
-```ts
-type Visibility = {
-  public?: boolean
-  globalRoles?: string[]
-  minTeamRole?: { kind: string, role: string }
-  operationId?: string
-}
-```
-
-| Visibility | Who sees it |
-| --- | --- |
-| Empty (`null`, `{}`) | Signed-in viewers. Nothing is public unless it says so. |
-| `public: true` | Everyone, anonymous visitors included. The other keys are ignored. |
-| `globalRoles` | Signed-in viewers with at least one of these global roles. An empty list matches nobody. |
-| `minTeamRole` | Signed-in viewers with a team role of that kind at or above `role`. Explicit and mapped grants count. |
-| `operationId` | Signed-in viewers who take part in the operation: crew, or anyone with an explicit team role on it. Mapped grants do not count. |
-| `minTeamRole` and `operationId` | The team role must be on a team of that operation. |
-
-Several keys combine with AND. An unknown team kind or role fails closed.
-
-Participation leaves out mapped grants on purpose. A mapping rule such as "member with a plan is a volunteer" gives
-every plan member a team role, but it does not make them crew of the operation.
-
-The JSON holds only these keys. Read it with `parseVisibility`: its schema is strict, so an unknown key (a typo, or a
-`permission`) hides the record instead of showing it to every signed-in user. There is no `permission` key. Inbox
-stores `roles/permission` in the plan; it keeps only visibility keys in the JSON, and checks permissions with
-`authorize(event, permission, record)` and its policies.
-
-An item inside a group can only narrow the group: an FAQ item narrows its group, an article its category.
-
-- **Access decisions** check both: `isVisible(group, viewer)`, and `isVisible(item, viewer)` unless the item is empty
-  and inherits.
-- **Storing or showing** one effective value uses `narrowVisibility(group, item, ladders)`. It is a conservative
-  approximation of "group AND item": never wider, sometimes narrower.
-
-`narrowVisibility` combines like this:
-
-- An empty item inherits the group.
-- A public item in a restricted group stays restricted.
-- `globalRoles` intersect, which is stricter than "any of each" when the lists only overlap.
-- `operationId` must match. A group's `minTeamRole` with an item's `operationId` becomes scoped to that operation.
-- `minTeamRole` takes the higher role of the same kind.
-- A combination that one visibility cannot hold, such as two operations or two team kinds, matches nobody.
+Each module registers the kinds it owns: Grants ships `public` and `role`, Operations registers `operation` (the people
+who take part), and Teams registers `team` (a minimum role on one team). An item inside a group checks both the group
+and its own list, unless its list is `null` and it inherits the group.
 
 Nuxt Content articles are always public. Restricted content comes only from the database.
-
-## Who is looking
-
-`isVisible` needs a viewer: the user's global roles, team roles, ladders and the operations they take part in. No
-module knows all of that, so the viewer is filled in through one Nitro hook.
-
-```text
-faq / help-center / inbox
-        │  resolveViewer(event, { hooks, user, globalRoles })   globalRoles from auth's getEffectiveRoles
-        ▼
-audience:viewer:resolve ── teams      → viewer.teamRoles, viewer.ladders   (resolveTeamRoles)
-                        ── crew       → viewer.operationIds
-                        ── operations → viewer.operationIds                 (when it knows participation itself)
-```
-
-A module answers the hook from its own server plugin, whether or not a consumer is installed. Answering an unused hook
-is harmless. This hook replaces the plan's per-module `faq:visibility`, `help-center:visibility` and
-`operations:participation` hooks. A module may still add an override hook of its own later.
 
 ## Team-role contract
 
@@ -170,10 +107,9 @@ type TeamRoleGrant = {
   nothing in the viewer. Crew sets teams' `status` next to its own crew status. A mapping rule may still give such a
   person a mapped role.
 - Mapped grants are resolved per request: every call reads the mapping rules and the user's global roles and plans.
-  Call `resolveTeamRoles` (and `resolveViewer`) once per request and reuse the result, not once per record.
-- Teams answers `audience:viewer:resolve` with the grants on every owner, plus the ladder of each team kind in them.
-- Modules that only need visibility never call `resolveTeamRoles`. They call `resolveViewer` and get the grants
-  through the hook, so they do not import teams.
+  Call `resolveTeamRoles` once per request and reuse the result, not once per record.
+- Modules that only need to know who may see a record never call `resolveTeamRoles`: they store a `team` grant and
+  let Grants evaluate it, so they do not import teams.
 
 ## Notifications
 
@@ -209,11 +145,11 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 
 | Hook | Owner | Context | Phase |
 | --- | --- | --- | --- |
-| `audience:viewer:resolve` | audience | `{ event, user, viewer }` | 0 |
-| `audience:owner:resolve` | audience | `{ event, owner, label, exists }` | 0 |
 | `operations:created` | operations | `{ event, operation }` | 1 |
 | `operations:updated` | operations | `{ event, operation, previous }` | 1 |
 | `operations:status-changed` | operations | `{ event, operation, from, to }` | 1 |
+| `operations:participation:resolve` | operations | `{ event, user, operationIds }` | 1 |
+| `operations:participants:resolve` | operations | `{ event, operationIds, userIds }` | 1 |
 | `dashboard:summary:resolve` | dashboard | `{ event, user, name, cards }` | 1 |
 | `teams:member:added` | teams | `{ event, team, member }` | 2 |
 | `teams:member:removed` | teams | `{ event, team, member }` | 2 |
@@ -222,7 +158,6 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `teams:members:candidates` | teams | `{ event, team, rules, userIds }` | 2 |
 | `faq:group:updated` | faq | `{ event, group }` | 2 |
 | `faq:item:published` | faq | `{ event, group, item }` | 2 |
-| `help-center:audience:resolve` | help-center | `{ event, audience, userIds }` | 3 |
 | `crew:member:applied` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:approved` | crew | `{ event, operationId, member }` | 3 |
 | `crew:member:rejected` | crew | `{ event, operationId, member }` | 3 |
@@ -327,24 +262,24 @@ Hard dependencies go in `moduleDependencies` and `package.json`. Soft ones use `
 registries, so each module also works alone. Arrows point one way: a lower module never imports a higher one.
 
 ```text
-audience    (plain package, no Nuxt module)
+grants      ─► auth, ui
 
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
-operations  ─► auth, audience                        (soft: events, maps, dashboard)
-teams       ─► auth, users, audience                 (soft: authorization, subscriptions, oauth-server, dashboard)
+operations  ─► auth, grants                          (soft: events, maps, dashboard)
+teams       ─► auth, users, grants                   (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, audience                        (soft: menu, admin, forms, teams, crew, operations, mobile,
+faq         ─► auth, grants                          (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
-help-center ─► auth, audience                        (soft: teams, crew, operations, maps, notify, push, dashboard,
+help-center ─► auth, grants                          (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► ui, module-kit                        (modules register kinds and layers; maps imports none of them)
-inbox       ─► auth, notify, audience                (soft: forms, users, teams, push, mobile, dashboard)
+inbox       ─► auth, notify, grants                  (soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
 
-The soft links between visibility consumers and teams, crew or operations need no import at all: they meet in
-`audience:viewer:resolve`. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
+The soft links between grant consumers and teams, crew or operations need no import at all: they meet in the
+grants registry. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
 
 ## Documentation
 
