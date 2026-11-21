@@ -75,6 +75,13 @@ useHead({ title: () => t('lead.title', 'Lead {team}', { team: team.value ? tr(te
       >
         <template #links>
           <UButton
+            icon="i-lucide-megaphone"
+            color="neutral"
+            variant="outline"
+            :label="t('broadcast.leadAction', 'Message team')"
+            @click="actions.broadcastToTeam(teamId, team ? tr(team.teamName) : '')"
+          />
+          <UButton
             :to="links.checkIn(teamId)"
             icon="i-lucide-scan-line"
             :label="t('lead.scanner', 'Open the check-in scanner')"

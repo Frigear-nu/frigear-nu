@@ -8,6 +8,7 @@ import type { NitroRuntimeHooks } from 'nitropack'
 import type { ShiftAssigneeDto, ShiftsRuntimeConfig, ShiftWarning } from '../../../types'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { shiftGuardWarnings } from '../../utils/guards'
+import { DEFAULT_REMINDER_OFFSETS, normalizeReminderOffsets } from '../../utils/reminders'
 import type { GuardShift } from '../../utils/guards'
 import { toShiftAssignmentDto, toShiftPersonDto } from './shifts-dto'
 import type { ShiftAssignmentRow, ShiftRoleRow, ShiftRow, ShiftScheduleRow, ShiftUserLite } from './shifts-dto'
@@ -18,12 +19,16 @@ export type ShiftEntry = { shift: ShiftRow, schedule: ShiftScheduleRow }
 /** An assignment with its shift and schedule. */
 export type ShiftAssignmentEntry = ShiftEntry & { assignment: ShiftAssignmentRow }
 
-const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60 }
+const DEFAULTS: ShiftsRuntimeConfig = { timeZone: 'Europe/Copenhagen', checkInOpensMinutes: 60, reminders: { offsets: [...DEFAULT_REMINDER_OFFSETS], sms: false } }
 
-/** The module options shifts reads at runtime: the time zone and when check-in opens. */
+/** The module options shifts reads at runtime: the time zone, when check-in opens and the reminders. */
 export function shiftsConfig(event?: H3Event): ShiftsRuntimeConfig {
   const config = (useRuntimeConfig(event).shifts ?? {}) as Partial<ShiftsRuntimeConfig>
-  return { timeZone: config.timeZone || DEFAULTS.timeZone, checkInOpensMinutes: config.checkInOpensMinutes ?? DEFAULTS.checkInOpensMinutes }
+  return {
+    timeZone: config.timeZone || DEFAULTS.timeZone,
+    checkInOpensMinutes: config.checkInOpensMinutes ?? DEFAULTS.checkInOpensMinutes,
+    reminders: { offsets: normalizeReminderOffsets(config.reminders?.offsets), sms: config.reminders?.sms === true },
+  }
 }
 
 /** Calls a shifts hook. Listeners run after the change is written. */
@@ -125,7 +130,7 @@ export type ShiftsIneligibility = 'grant' | 'role'
  * sets a `teamRole`, at least that role on the team kind's ladder. People who hold the team role only through a mapping
  * rule are not assignable.
  */
-export async function shiftsEligibility(event: H3Event, userId: number, teamId: string, role: Pick<ShiftRoleRow, 'teamRole'> | null | undefined): Promise<{ eligible: boolean, reason: ShiftsIneligibility | null, role: string | null }> {
+export async function shiftsEligibility(event: H3Event | undefined, userId: number, teamId: string, role: Pick<ShiftRoleRow, 'teamRole'> | null | undefined): Promise<{ eligible: boolean, reason: ShiftsIneligibility | null, role: string | null }> {
   const grant = await teamGrantOf(event, userId, teamId)
   if (!grant || grant.source !== 'explicit') return { eligible: false, reason: 'grant', role: grant?.role ?? null }
   if (role?.teamRole) {

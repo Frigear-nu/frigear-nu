@@ -3,9 +3,14 @@ import { isoDate } from '@frigear-nu/module-kit/server'
 import type {
   ShiftAssignmentDto,
   ShiftAssignmentStatus,
+  ShiftBroadcastDto,
+  ShiftChannel,
   ShiftDto,
   ShiftGuards,
   ShiftLocation,
+  ShiftPerkDto,
+  ShiftPerkKind,
+  ShiftPerkRedemptionDto,
   ShiftPersonDto,
   ShiftRoleDto,
   ShiftScheduleDto,
@@ -96,6 +101,52 @@ export function toShiftPersonDto(userId: number, user: ShiftUserLite | undefined
     name: user?.name ?? null,
     avatar: user?.avatar ?? null,
     ...(pii ? { email: user?.email ?? null, phone: user?.phone ?? null } : {}),
+  }
+}
+
+export type ShiftBroadcastRow = typeof schema.shiftBroadcasts.$inferSelect
+export type ShiftPerkRow = typeof schema.shiftPerks.$inferSelect
+export type ShiftPerkRedemptionRow = typeof schema.shiftPerkRedemptions.$inferSelect
+
+export function toShiftBroadcastDto(row: ShiftBroadcastRow): ShiftBroadcastDto {
+  return {
+    id: row.id,
+    operationId: row.operationId,
+    teamId: row.teamId ?? null,
+    shiftId: row.shiftId ?? null,
+    teamRole: row.teamRole ?? null,
+    channels: row.channels as ShiftChannel[],
+    subject: row.subject as Translated,
+    message: row.message as Translated,
+    recipientCount: row.recipientCount,
+    sentBy: row.sentBy,
+    createdAt: isoDate(row.createdAt),
+  }
+}
+
+export function toShiftPerkDto(row: ShiftPerkRow, redeemed?: number): ShiftPerkDto {
+  return {
+    id: row.id,
+    operationId: row.operationId,
+    teamId: row.teamId ?? null,
+    kind: row.kind as ShiftPerkKind,
+    name: row.name as Translated,
+    perShift: row.perShift ?? null,
+    perPerson: row.perPerson ?? null,
+    createdAt: isoDate(row.createdAt),
+    updatedAt: isoDate(row.updatedAt),
+    ...(redeemed === undefined ? {} : { redeemed }),
+  }
+}
+
+export function toShiftPerkRedemptionDto(row: ShiftPerkRedemptionRow): ShiftPerkRedemptionDto {
+  return {
+    id: row.id,
+    perkId: row.perkId,
+    assignmentId: row.assignmentId,
+    userId: row.userId,
+    redeemedAt: isoDate(row.redeemedAt),
+    redeemedBy: row.redeemedBy,
   }
 }
 

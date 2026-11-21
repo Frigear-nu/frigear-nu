@@ -441,6 +441,17 @@ async function reject(swap: ShiftSwapDto) {
         v-if="hasOperation"
         :operation-id="operationId"
       />
+      <ShiftPerksCard
+        v-if="hasOperation"
+        :operation-id="operationId"
+        :teams="teams"
+      />
+      <ShiftBroadcastsCard
+        v-if="hasOperation"
+        :operation-id="operationId"
+        :teams="teams"
+        :ladders="ladders"
+      />
     </template>
   </div>
 </template>

@@ -128,3 +128,87 @@ export const shiftSwapOffers = sqliteTable('shift_swap_offers', {
   index('shift_swap_offer_swap_idx').on(t.swapId),
   index('shift_swap_offer_user_idx').on(t.userId),
 ])
+
+/** A reminder claimed (and sent) for an assignment at one offset: the unique key keeps it to one per offset. */
+export const shiftReminders = sqliteTable('shift_reminders', {
+  /** `srm_` + random id. */
+  id: text().primaryKey(),
+  assignmentId: text().notNull(),
+  /** How many minutes before the shift starts this reminder was for. */
+  offsetMinutes: integer().notNull(),
+  userId: integer().notNull(),
+  /** When it was claimed: a row stays when sending failed, so a broken address is not retried every run. */
+  sentAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  uniqueIndex('shift_reminder_unique').on(t.assignmentId, t.offsetMinutes),
+])
+
+/** The secret of a person's calendar feed (iCal): only its hash is stored, the URL carrying it is shown once. */
+export const shiftFeedTokens = sqliteTable('shift_feed_tokens', {
+  /** `sft_` + random id. */
+  id: text().primaryKey(),
+  userId: integer().notNull(),
+  tokenHash: text().notNull(),
+  /** The first characters of the token, to recognise it. */
+  prefix: text().notNull(),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  lastUsedAt: integer({ mode: 'timestamp' }),
+  revokedAt: integer({ mode: 'timestamp' }),
+}, t => [
+  uniqueIndex('shift_feed_token_hash_unique').on(t.tokenHash),
+  index('shift_feed_token_user_idx').on(t.userId),
+])
+
+/** A message to the people of an operation's teams or one shift, by email and optionally SMS. */
+export const shiftBroadcasts = sqliteTable('shift_broadcasts', {
+  /** `shb_` + random id. */
+  id: text().primaryKey(),
+  operationId: text().notNull(),
+  teamId: text(),
+  shiftId: text(),
+  /** The lowest team role that got it (on each team kind's ladder); `null` is every member. */
+  teamRole: text(),
+  /** `['email']`, `['sms']` or both. */
+  channels: text({ mode: 'json' }).$type<string[]>().notNull(),
+  subject: text({ mode: 'json' }).$type<Translated>().notNull(),
+  message: text({ mode: 'json' }).$type<Translated>().notNull(),
+  recipientCount: integer().notNull(),
+  sentBy: integer().notNull(),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+}, t => [
+  index('shift_broadcast_operation_idx').on(t.operationId, t.createdAt),
+])
+
+/** A perk of an operation (a meal, a drink voucher): per assignment (`perShift`) or per person over the operation (`perPerson`). */
+export const shiftPerks = sqliteTable('shift_perks', {
+  /** `spk_` + random id. */
+  id: text().primaryKey(),
+  operationId: text().notNull(),
+  /** The team it is for; `null` is every team of the operation. */
+  teamId: text(),
+  /** `meal`, `drink` or `other`. */
+  kind: text().notNull().default('meal'),
+  name: text({ mode: 'json' }).$type<Translated>().notNull(),
+  /** The allowance of each assignment. Exactly one of `perShift` and `perPerson` is set. */
+  perShift: integer(),
+  /** The budget of each person across the operation. */
+  perPerson: integer(),
+  createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
+}, t => [
+  index('shift_perk_operation_idx').on(t.operationId),
+])
+
+/** One redemption of a perk, with the assignment whose pass was scanned and the lead who scanned it. */
+export const shiftPerkRedemptions = sqliteTable('shift_perk_redemptions', {
+  /** `spr_` + random id. */
+  id: text().primaryKey(),
+  perkId: text().notNull(),
+  assignmentId: text().notNull(),
+  userId: integer().notNull(),
+  redeemedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  redeemedBy: integer().notNull(),
+}, t => [
+  index('shift_perk_redemption_assignment_idx').on(t.perkId, t.assignmentId),
+  index('shift_perk_redemption_user_idx').on(t.perkId, t.userId),
+])

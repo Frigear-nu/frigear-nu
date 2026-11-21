@@ -14,11 +14,17 @@ hold a shift when they hold an explicit role on its team. Part of the volunteeri
   reject and withdraw; conditional writes so two accepts carry out one.
 - A check-in code per assignment, shown as a QR pass from `checkInOpensMinutes` before the shift until its end; leads
   scan it or mark attendance.
+- Reminders: a `shifts:send-reminders` Nitro task emails people before a shift (a day and two hours by default, once per
+  offset; SMS only with `reminders.sms`). The cron is mirrored into Cloudflare's triggers.
+- A secret iCal feed of my shifts (`webcal://`), minted and revoked from a session.
+- Broadcasts: staff and leads message a team or a shift by email, and by SMS only on request.
+- Perks: meal and drink vouchers per shift or per person, redeemed by a lead scanning the QR pass.
 - Hooks `shifts:schedule:published`, `shifts:shift:created|updated`, `shifts:assignment:changed`,
-  `shifts:swap:offered|accepted|rejected|completed` and `shifts:attendance:marked`; listens to `teams:member:removed`
-  and `teams:member:role-changed`.
-- Permissions `shifts:read`, `shifts:swap`, `shifts:lead` (implicit, with policies), `shifts:manage` and `shifts:pii`;
-  the `shifts` scope.
+  `shifts:swap:offered|accepted|rejected|completed`, `shifts:attendance:marked`, `shifts:reminder:sent` (with
+  `event: undefined`), `shifts:broadcast:sent` and `shifts:perk:redeemed`; listens to `teams:member:removed` and
+  `teams:member:role-changed`.
+- Permissions `shifts:read`, `shifts:swap`, `shifts:lead` (implicit, with policies), `shifts:feed` (implicit, session
+  only), `shifts:broadcast`, `shifts:manage` and `shifts:pii`; the `shifts` scope.
 - Pages `/shifts`, `/shifts/:assignmentId`, `/shifts/swaps`, `/shifts/lead/:teamId` and `/shifts/check-in/:teamId`, and a Shifts tab on the
   operation page.
 
@@ -37,6 +43,7 @@ export default defineNuxtConfig({
 ```
 
 Generate and commit a migration in your app (see the repository `AGENTS.md`): shifts adds the `shift_schedules`,
-`shift_roles`, `shifts`, `shift_assignments`, `shift_swaps` and `shift_swap_offers` tables.
+`shift_roles`, `shifts`, `shift_assignments`, `shift_swaps`, `shift_swap_offers`, `shift_reminders`, `shift_feed_tokens`,
+`shift_broadcasts`, `shift_perks` and `shift_perk_redemptions` tables.
 
 Full documentation: <https://docs.frigear.dev/modules/volunteering/shifts>.

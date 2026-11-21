@@ -139,5 +139,58 @@ export const shiftsSwapsQuery = z.object({
   status: z.enum(SHIFT_SWAP_STATUSES).optional(),
 })
 
+/** A text for people to read, in one language or several, at most `max` characters each, with at least one non-empty. */
+const messageText = (max: number) => z.union([
+  z.string().trim().min(1).max(max),
+  z.record(z.string(), z.string().max(max))
+    .transform(value => Object.fromEntries(Object.entries(value).filter(([, text]) => text.trim())))
+    .refine(value => Object.keys(value).length > 0, 'Add a text in at least one language.'),
+])
+
+const broadcastFields = {
+  audience: z.strictObject({
+    teamId: key.optional(),
+    /** The lowest team role (on each team kind's ladder) that gets it; every member when left out. */
+    teamRole: key.optional(),
+    shiftId: key.optional(),
+  }).prefault({}),
+  // Email is the default; SMS costs money, so it is only sent when asked for.
+  channels: z.array(z.enum(['email', 'sms'])).min(1).max(2).default(['email']).transform(value => [...new Set(value)]),
+  subject: messageText(200),
+  message: messageText(1500),
+}
+
+/** The body of `POST /api/admin/shifts/broadcasts`. */
+export const shiftsBroadcastInput = z.object({ operationId: key, ...broadcastFields })
+
+/** The body of `POST /api/shifts/teams/:teamId/broadcasts`: the operation is the team's. */
+export const shiftsLeadBroadcastInput = z.object(broadcastFields)
+
+/** The query of `GET /api/admin/shifts/broadcasts`. */
+export const shiftsBroadcastsQuery = z.object({ operationId: key })
+
+const perkAmount = z.number().int().min(1).max(1000)
+
+/** The body of `POST /api/admin/shifts/operations/:operationId/perks`: exactly one of `perShift` and `perPerson`. */
+export const shiftsPerkInput = z.object({
+  teamId: key.nullish(),
+  kind: z.enum(['meal', 'drink', 'other']).default('meal'),
+  name: shiftsTranslated,
+  perShift: perkAmount.nullish(),
+  perPerson: perkAmount.nullish(),
+}).refine(value => (value.perShift == null) !== (value.perPerson == null), {
+  message: 'Set either an allowance per shift or a budget per person.',
+  path: ['perShift'],
+})
+
+/** The body of `PATCH /api/admin/shifts/perks/:perkId` (the one-of rule is checked against the stored perk). */
+export const shiftsPerkPatch = z.object({
+  teamId: key.nullish(),
+  kind: z.enum(['meal', 'drink', 'other']).optional(),
+  name: shiftsTranslated.optional(),
+  perShift: perkAmount.nullish(),
+  perPerson: perkAmount.nullish(),
+})
+
 /** The query of `GET /api/shifts/teams/:teamId/swaps`. */
 export const shiftsTeamSwapsQuery = z.object({ status: z.enum(SHIFT_SWAP_STATUSES).optional() })

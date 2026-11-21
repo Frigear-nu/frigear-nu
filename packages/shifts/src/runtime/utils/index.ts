@@ -4,6 +4,8 @@ import { translate } from '@frigear-nu/ui/translated'
 export { translate }
 export * from './api'
 export * from './guards'
+export * from './ics'
+export * from './reminders'
 export * from './links'
 export * from './status'
 export * from './time'
@@ -18,15 +20,29 @@ export type {
   ShiftAssignmentStatus,
   ShiftAssignResultDto,
   ShiftAttendanceContext,
+  ShiftBroadcastAudience,
+  ShiftBroadcastContext,
+  ShiftBroadcastDto,
+  ShiftBroadcastResultDto,
   ShiftCandidateDto,
+  ShiftChannel,
   ShiftCheckInDto,
   ShiftCopyResultDto,
   ShiftCreatedContext,
   ShiftDto,
+  ShiftFeedStatusDto,
+  ShiftFeedTokenDto,
   ShiftGuards,
   ShiftLocation,
   ShiftPassDto,
+  ShiftPassPerkDto,
+  ShiftPerkContext,
+  ShiftPerkDto,
+  ShiftPerkKind,
+  ShiftPerkRedeemDto,
+  ShiftPerkRedemptionDto,
   ShiftPersonDto,
+  ShiftReminderContext,
   ShiftRoleDto,
   ShiftScheduleContext,
   ShiftScheduleDto,
@@ -34,6 +50,7 @@ export type {
   ShiftsLedTeamDto,
   ShiftsNowDto,
   ShiftsOperationTeamDto,
+  ShiftsRemindersOptions,
   ShiftSwapContext,
   ShiftSwapDto,
   ShiftSwapMode,

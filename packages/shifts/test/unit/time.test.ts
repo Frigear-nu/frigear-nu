@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, clockOf, dayKey, isClock, isDay, shiftByDays, slotInstants, zonedTimeToUtc } from '../../src/runtime/utils/time'
+import { addDays, clockOf, countdownParts, dayKey, isClock, isDay, shiftByDays, slotInstants, zonedTimeToUtc } from '../../src/runtime/utils/time'
 
 const CPH = 'Europe/Copenhagen'
 
@@ -39,5 +39,15 @@ describe('wall-clock times in a time zone', () => {
     expect(isDay('2027-6-28')).toBe(false)
     expect(isClock('23:59')).toBe(true)
     expect(isClock('24:00')).toBe(false)
+  })
+})
+
+describe('countdown', () => {
+  it('splits a span into days, hours and minutes, rounding up to the next minute', () => {
+    expect(countdownParts(0)).toEqual({ days: 0, hours: 0, minutes: 0 })
+    expect(countdownParts(-5000)).toEqual({ days: 0, hours: 0, minutes: 0 })
+    expect(countdownParts(1)).toEqual({ days: 0, hours: 0, minutes: 1 })
+    expect(countdownParts(61_000)).toEqual({ days: 0, hours: 0, minutes: 2 })
+    expect(countdownParts((26 * 60 + 5) * 60_000)).toEqual({ days: 1, hours: 2, minutes: 5 })
   })
 })

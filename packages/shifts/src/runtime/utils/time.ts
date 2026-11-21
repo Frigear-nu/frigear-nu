@@ -108,6 +108,12 @@ export function slotInstants(day: string, slot: { start: string, end: string }, 
   return { startsAt, endsAt: zonedTimeToUtc(endDay, slot.end, timeZone) }
 }
 
+/** The whole days, hours and minutes left in a span, rounded up to the next minute (a countdown shows "1 min" until it is over). */
+export function countdownParts(ms: number): { days: number, hours: number, minutes: number } {
+  const total = Math.max(0, Math.ceil(ms / 60_000))
+  return { days: Math.floor(total / 1440), hours: Math.floor((total % 1440) / 60), minutes: total % 60 }
+}
+
 /** An instant moved by whole days at the same wall-clock time in a time zone (copying a schedule a year on). */
 export function shiftByDays(instant: Date, days: number, timeZone: string): Date {
   if (!days) return new Date(instant)

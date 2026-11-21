@@ -1,12 +1,15 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
+import ShiftBroadcastSlideover from '../components/ShiftBroadcastSlideover.vue'
 import ShiftBulkSlideover from '../components/ShiftBulkSlideover.vue'
 import ShiftCopySlideover from '../components/ShiftCopySlideover.vue'
+import ShiftFeedSlideover from '../components/ShiftFeedSlideover.vue'
+import ShiftPerkSlideover from '../components/ShiftPerkSlideover.vue'
 import ShiftRoleSlideover from '../components/ShiftRoleSlideover.vue'
 import ShiftScheduleSlideover from '../components/ShiftScheduleSlideover.vue'
 import ShiftSlideover from '../components/ShiftSlideover.vue'
 import type { ShiftsLadder, ShiftsTeamOption } from '../utils/admin-shifts'
 import { shiftsApi } from '../../utils/api'
-import type { ShiftCopyResultDto, ShiftDto, ShiftRoleDto, ShiftScheduleDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
+import type { ShiftBroadcastResultDto, ShiftCopyResultDto, ShiftDto, ShiftPerkDto, ShiftRoleDto, ShiftScheduleDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
 import { $fetch, useAction, useConfirmDialog, useModuleT, useOverlay, useShiftsTranslate } from '#imports'
 
 /** What the schedule forms need to know about the operation. */
@@ -120,6 +123,47 @@ export function useShiftsActions() {
     ) === true
   }
 
+  /** Opens "Subscribe in calendar": my secret iCal link, made or revoked there. */
+  const subscribe = async () => {
+    await overlay.create(ShiftFeedSlideover, { destroyOnClose: true }).open()
+  }
+
+  /** Staff: message the teams of an operation (resolves with the result, or `false`). */
+  const broadcast = async (operationId: string, context: Pick<ShiftsScheduleContext, 'teams' | 'ladders'>) =>
+    await overlay.create(ShiftBroadcastSlideover, { destroyOnClose: true, props: { operationId, teams: context.teams, ladders: context.ladders } }).open() as ShiftBroadcastResultDto | false
+
+  /** A lead: message their own team. */
+  const broadcastToTeam = async (teamId: string, teamName: string) =>
+    await overlay.create(ShiftBroadcastSlideover, { destroyOnClose: true, props: { teamId, teamName } }).open() as ShiftBroadcastResultDto | false
+
+  const createPerk = async (operationId: string, teams: ShiftsScheduleContext['teams']) =>
+    await overlay.create(ShiftPerkSlideover, { destroyOnClose: true, props: { operationId, teams } }).open() as ShiftPerkDto | false
+  const editPerk = async (perk: ShiftPerkDto, teams: ShiftsScheduleContext['teams']) =>
+    await overlay.create(ShiftPerkSlideover, { destroyOnClose: true, props: { operationId: perk.operationId, teams, perk } }).open() as ShiftPerkDto | false
+
+  async function deletePerk(perk: ShiftPerkDto): Promise<boolean> {
+    const name = tr(perk.name)
+    const confirmed = await confirm({
+      title: t('perks.deleteTitle', 'Delete {name}?', { name }),
+      description: t('perks.deleteDescription', 'Volunteers lose it from their pass, and the record of who got it is deleted too.'),
+      confirmText: t('perks.delete', 'Delete perk'),
+      destructive: true,
+    })
+    if (!confirmed) return false
+    return await run(
+      () => $fetch(shiftsApi.admin.perk(perk.id), { method: 'DELETE' }).then(() => true),
+      { success: t('perks.deleted', 'Deleted {name}', { name }), error: t('perks.deleteFailed', 'Could not delete the perk') },
+    ) === true
+  }
+
+  /** The row menu of a perk: Edit | Delete. */
+  function perkMenu(perk: ShiftPerkDto, context: { teams: ShiftsScheduleContext['teams'], changed: () => unknown }): DropdownMenuItem[][] {
+    return [
+      [{ label: t('perks.editTitle', 'Edit perk'), icon: 'i-lucide-pencil', onSelect: async () => (await editPerk(perk, context.teams)) && context.changed() }],
+      [{ label: t('perks.delete', 'Delete perk'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: async () => (await deletePerk(perk)) && context.changed() }],
+    ]
+  }
+
   /** The row menu of a schedule: Open | Edit, Copy from, Publish | Delete. */
   function scheduleMenu(schedule: ShiftScheduleDto, handlers: { open: () => unknown, changed: () => unknown }): DropdownMenuItem[][] {
     const after = async (result: unknown) => {
@@ -160,5 +204,12 @@ export function useShiftsActions() {
     rejectSwap,
     scheduleMenu,
     roleMenu,
+    subscribe,
+    broadcast,
+    broadcastToTeam,
+    createPerk,
+    editPerk,
+    deletePerk,
+    perkMenu,
   }
 }

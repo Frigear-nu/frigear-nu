@@ -164,6 +164,12 @@ export async function shiftsMarkAttendance(event: H3Event, entry: ShiftAssignmen
   return written
 }
 
+/** The assignment (with its shift and schedule) a QR pass code belongs to, if any. */
+export async function shiftsAssignmentByCode(code: string): Promise<ShiftAssignmentEntry | undefined> {
+  const [found] = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(eq(schema.shiftAssignments.checkInCode, code)).limit(1)
+  return found ? findShiftAssignmentEntry(found.id) : undefined
+}
+
 /**
  * Checks a person in with the code of their QR pass, for a team (a lead of it, or staff). An unknown code, or a code of
  * another team's shift, is a 404 (a lead learns nothing about other teams). A cancelled assignment is a 409
@@ -171,8 +177,7 @@ export async function shiftsMarkAttendance(event: H3Event, entry: ShiftAssignmen
  * reports `alreadyCheckedIn` with the first scan's time. Fires `shifts:attendance:marked` once.
  */
 export async function shiftsCheckIn(event: H3Event, teamId: string, code: string, by: number, pii: boolean): Promise<ShiftCheckInDto> {
-  const [found] = await db.select({ id: schema.shiftAssignments.id }).from(schema.shiftAssignments).where(eq(schema.shiftAssignments.checkInCode, code)).limit(1)
-  const entry = found ? await findShiftAssignmentEntry(found.id) : undefined
+  const entry = await shiftsAssignmentByCode(code)
   if (!entry || entry.shift.teamId !== teamId) throw notFound('Unknown check-in code.')
   const { assignment, shift, schedule } = entry
   if (assignment.status === 'cancelled') throw apiError(409, 'assignment_cancelled', 'This assignment was cancelled.')
@@ -232,7 +237,7 @@ export async function shiftsCancelFutureAssignments(event: H3Event, userId: numb
 }
 
 /** Whether a person still meets the shift role of an assignment with the team role they hold now. */
-export async function shiftsStillEligible(event: H3Event, assignment: ShiftAssignmentRow, teamId: string): Promise<boolean> {
+export async function shiftsStillEligible(event: H3Event | undefined, assignment: ShiftAssignmentRow, teamId: string): Promise<boolean> {
   const role = await shiftsRoleById(assignment.shiftRoleId)
   return (await shiftsEligibility(event, assignment.userId, teamId, role)).eligible
 }

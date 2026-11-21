@@ -45,12 +45,17 @@ export default defineNuxtConfig({
     kv: true,
     blob: true,
   },
+  // Emails: the log driver of notify (the default), captured by a `notify:email` listener of the fixture. SMS: a driver of
+  // the fixture that keeps what it was asked to send (`server/sms-driver.ts`).
+  notify: { sms: { driver: './server/sms-driver' } },
   operations: {
     settings: { pages: { admin: true, adminOperation: true } },
   },
-  // The log driver of notify (the default): the emails are captured by a `notify:email` listener of the fixture.
   shifts: {
     timeZone: 'Europe/Copenhagen',
     checkInOpensMinutes: 60,
+    // The task is run by a test route with a fake `now`, never by a schedule; SMS is on so the tests can tell it apart
+    // from a run that overrides it off.
+    reminders: { cron: false, offsets: [1440, 120], sms: true },
   },
 })

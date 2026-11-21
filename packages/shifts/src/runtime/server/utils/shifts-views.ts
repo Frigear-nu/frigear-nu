@@ -100,8 +100,11 @@ export async function shiftsMyShiftDetail(event: H3Event, entry: ShiftAssignment
   }
 }
 
-/** The QR pass of an assignment: the code (and its QR code as SVG) only while check-in is open and the assignment holds a place. */
-export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): ShiftPassDto {
+/**
+ * The QR pass of an assignment: the code (and its QR code as SVG) only while check-in is open and the assignment holds a
+ * place. The perks are added by the route (`shiftsPassPerks`).
+ */
+export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks'> {
   const { opensAt, closesAt } = shiftsPassWindow(event, entry.shift)
   const available = (entry.assignment.status === 'assigned' || entry.assignment.status === 'attended') && shiftsCheckInOpen(event, entry.shift)
   return {

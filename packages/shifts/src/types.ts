@@ -61,6 +61,20 @@ export type ModuleOptions = {
   timeZone?: string
   /** How many minutes before a shift starts its QR pass shows and check-in opens. Defaults to `60`. */
   checkInOpensMinutes?: number
+  /** Reminders before a shift starts (a Nitro task, `shifts:send-reminders`). */
+  reminders?: ShiftsRemindersOptions
+}
+
+export type ShiftsRemindersOptions = {
+  /**
+   * The cron expression the task runs on. Defaults to every ten minutes; `false` registers the task
+   * without a schedule (run it yourself). On Cloudflare the module adds it to the worker's cron triggers.
+   */
+  cron?: string | false
+  /** Minutes before a shift starts that a reminder goes out. Defaults to `[1440, 120]` (a day and two hours before). */
+  offsets?: number[]
+  /** Also send an SMS to people with a phone number. Defaults to `false`: SMS costs money. */
+  sms?: boolean
 }
 
 export type PublicModuleOptions = {
@@ -73,6 +87,8 @@ export type PublicModuleOptions = {
 export type ShiftsRuntimeConfig = {
   timeZone: string
   checkInOpensMinutes: number
+  /** The reminder offsets in minutes (largest first) and whether reminders also go out by SMS. */
+  reminders: { offsets: number[], sms: boolean }
 }
 
 /** A person as a shifts response shows them. `email` and `phone` only with `shifts:pii`. */
@@ -240,6 +256,8 @@ export type ShiftPassDto = {
   code: string | null
   /** The QR code as an SVG document. */
   svg: string | null
+  /** The perks of the operation this person may still get, with what is left of each (also while the pass is closed). */
+  perks: ShiftPassPerkDto[]
 }
 
 /** The answer of a check-in (`POST /api/shifts/teams/:teamId/check-in`). */
@@ -303,3 +321,104 @@ export type ShiftAssignmentChangedContext = { event: H3Event, assignment: ShiftA
 export type ShiftSwapContext = { event: H3Event, swap: ShiftSwapDto, offer: ShiftSwapOfferDto }
 /** Context of `shifts:attendance:marked`. `by` is the lead or staff user. */
 export type ShiftAttendanceContext = { event: H3Event, assignment: ShiftAssignmentDto, by: number }
+
+/** Context of `shifts:reminder:sent`. A scheduled task has no request: `event` is `undefined` there. */
+export type ShiftReminderContext = { event: H3Event | undefined, assignment: ShiftAssignmentDto, offset: number, channels: ShiftChannel[] }
+/** Context of `shifts:broadcast:sent`. */
+export type ShiftBroadcastContext = { event: H3Event, broadcast: ShiftBroadcastDto }
+/** Context of `shifts:perk:redeemed`. */
+export type ShiftPerkContext = { event: H3Event, perk: ShiftPerkDto, redemption: ShiftPerkRedemptionDto }
+
+/** How a reminder or broadcast reaches people. */
+export type ShiftChannel = 'email' | 'sms'
+
+/** The state of my calendar feed (`GET /api/shifts/me/feed-token`): the secret itself is never shown again. */
+export type ShiftFeedStatusDto = {
+  active: boolean
+  prefix: string | null
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
+/** A freshly minted calendar feed (`POST /api/shifts/me/feed-token`): shown once. */
+export type ShiftFeedTokenDto = {
+  token: string
+  /** The https address of the feed (`.ics`). */
+  url: string
+  /** The same address as `webcal://`, which calendar apps open as a subscription. */
+  webcalUrl: string
+}
+
+/** Who a broadcast goes to: members of the operation's teams (`teamId` narrows to one, `teamRole` to a role and up), or the people on one shift. */
+export type ShiftBroadcastAudience = {
+  teamId?: string
+  teamRole?: string
+  shiftId?: string
+}
+
+export type ShiftBroadcastDto = {
+  id: string
+  operationId: string
+  teamId: string | null
+  shiftId: string | null
+  teamRole: string | null
+  channels: ShiftChannel[]
+  subject: Translated
+  message: Translated
+  recipientCount: number
+  sentBy: number
+  createdAt: string
+}
+
+/** The answer of sending a broadcast: what was stored and how many messages went out per channel. */
+export type ShiftBroadcastResultDto = ShiftBroadcastDto & { sent: { email: number, sms: number } }
+
+export type ShiftPerkKind = 'meal' | 'drink' | 'other'
+
+/** A perk: `perShift` is the allowance of each assignment, `perPerson` the budget of each person across the operation (exactly one is set). */
+export type ShiftPerkDto = {
+  id: string
+  operationId: string
+  teamId: string | null
+  kind: ShiftPerkKind
+  name: Translated
+  perShift: number | null
+  perPerson: number | null
+  createdAt: string
+  updatedAt: string
+  /** In staff lists: how many times it was redeemed. */
+  redeemed?: number
+}
+
+export type ShiftPerkRedemptionDto = {
+  id: string
+  perkId: string
+  assignmentId: string
+  userId: number
+  redeemedAt: string
+  redeemedBy: number
+}
+
+/** A perk on a pass: the allowance that applies to me and what is left. */
+export type ShiftPassPerkDto = {
+  perkId: string
+  kind: ShiftPerkKind
+  name: Translated
+  /** `shift`: the allowance of this assignment. `person`: my budget across the operation. */
+  per: 'shift' | 'person'
+  limit: number
+  used: number
+  remaining: number
+}
+
+/** The answer of redeeming a perk (`POST /api/shifts/teams/:teamId/perks/:perkId/redeem`). */
+export type ShiftPerkRedeemDto = {
+  ok: true
+  perk: ShiftPerkDto
+  redemption: ShiftPerkRedemptionDto
+  /** What is left of the allowance that applied, after this redemption. */
+  remaining: number
+  limit: number
+  person: ShiftPersonDto
+  shift: ShiftDto
+}

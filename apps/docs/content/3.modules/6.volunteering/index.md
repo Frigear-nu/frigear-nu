@@ -22,7 +22,7 @@ module.
 | [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
 | [`@frigear-nu/teams`](/modules/volunteering/teams) | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | [`@frigear-nu/crew`](/modules/volunteering/crew) | Applications, approvals and invites that turn people into an operation's crew. | A |
-| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, swaps, attendance and who is on shift now; reminders and an iCal feed next. | A |
+| [`@frigear-nu/shifts`](/modules/volunteering/shifts) | Schedules, shifts, assignment, swaps, attendance and who is on shift now, with reminders, an iCal feed, broadcasts and meal vouchers. | A |
 | `@frigear-nu/dashboard` | Customisable dashboards that modules add items to. | B |
 | `@frigear-nu/faq` | Managed FAQ groups with per-group and per-item visibility. | B |
 | `@frigear-nu/help-center` | Help articles and onboarding checklists from the database or Nuxt Content. | B |
@@ -183,8 +183,9 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 - **Provider:** `resolve`, `check` or `filter`. Listeners mutate the context.
 - **Two segments** are allowed when the entity is the module's own main resource: `operations:created`, like the
   existing `forms:submitted`.
-- **The context** is always one mutable object with `event`. One exception: `teams:roles:resolve` has `event:
-  undefined` while teams builds an OAuth claim, which runs outside a request.
+- **The context** is always one mutable object with `event`. Two exceptions: `teams:roles:resolve` has `event:
+  undefined` while teams builds an OAuth claim, and `shifts:reminder:sent` has `event: undefined` because the reminder
+  task has no request. Both run outside a request, so a listener never reads the session from them.
 
 | Hook | Owner | Context | Phase |
 | --- | --- | --- | --- |
@@ -215,6 +216,9 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
 | `shifts:swap:rejected` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:swap:completed` | shifts | `{ event, swap, offer }` | 4 |
 | `shifts:attendance:marked` | shifts | `{ event, assignment, by }` | 4 |
+| `shifts:reminder:sent` | shifts | `{ event: undefined, assignment, offset, channels }` | 5 |
+| `shifts:broadcast:sent` | shifts | `{ event, broadcast }` | 5 |
+| `shifts:perk:redeemed` | shifts | `{ event, perk, redemption }` | 5 |
 | `push:device:registered` | push | `{ event, device }` | 4 |
 | `maps:seed:resolve` | maps | `{ event, maps }` | 5 |
 | `maps:feature:created` | maps | `{ event, map, feature }` | 5 |
@@ -239,6 +243,8 @@ Nitro runtime hooks are named `<module>:<entity>:<event>`, lower case, with keba
   shifts of a draft fire `shifts:shift:created` as they are created. In peer mode `shifts:swap:accepted` and
   `shifts:swap:completed` fire in the same request. Shifts listens to `teams:member:removed` and
   `teams:member:role-changed` to cancel the future shifts of people who left a team or lost the role a shift needs.
+  `shifts:reminder:sent` fires from the `shifts:send-reminders` task (so `event` is `undefined`), once per reminder that
+  went out; `shifts:broadcast:sent` and `shifts:perk:redeemed` fire in the request that sent or redeemed.
 - **`teams:members:candidates`.** Listeners add the ids of users who may hold a mapped role on a team, so mapped
   members can be listed. Teams adds Authorization's assigned roles and the subscribers of mapped plans itself.
 - **`maps:seed:resolve`.** Listeners push map definitions into `maps` on startup, and maps creates the missing ones.

@@ -22,12 +22,16 @@ import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { shiftsAccess } from './runtime/access'
 import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
 import { isValidTimeZone } from './runtime/utils/time'
+import { normalizeReminderOffsets } from './runtime/utils/reminders'
 import type {
   ModuleOptions,
   PublicModuleOptions,
   ShiftAssignmentChangedContext,
   ShiftAttendanceContext,
+  ShiftBroadcastContext,
   ShiftCreatedContext,
+  ShiftPerkContext,
+  ShiftReminderContext,
   ShiftScheduleContext,
   ShiftsRuntimeConfig,
   ShiftSwapContext,
@@ -66,6 +70,15 @@ declare module 'nitropack' {
     'shifts:swap:completed': (ctx: ShiftSwapContext) => void | Promise<void>
     /** A lead or staff marked attendance: a QR check-in, attended or a no-show. */
     'shifts:attendance:marked': (ctx: ShiftAttendanceContext) => void | Promise<void>
+    /**
+     * A reminder went out (`channels` says how). Fired by the `shifts:send-reminders` task, which has no request: `event`
+     * is `undefined` here, unlike every other shifts hook.
+     */
+    'shifts:reminder:sent': (ctx: ShiftReminderContext) => void | Promise<void>
+    /** A broadcast was sent to a team or shift. */
+    'shifts:broadcast:sent': (ctx: ShiftBroadcastContext) => void | Promise<void>
+    /** A lead redeemed a perk (a meal voucher, a drink) with a person's QR pass. */
+    'shifts:perk:redeemed': (ctx: ShiftPerkContext) => void | Promise<void>
   }
 }
 
@@ -89,14 +102,14 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/operations': { version: '>=0.0.0' },
     '@frigear-nu/teams': { version: '>=0.0.0' },
     '@frigear-nu/crew': { version: '>=0.0.0' },
-    // Swap emails go through notify.
+    // Swap, reminder and broadcast emails and texts go through notify.
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the operation page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
-    // Renders the `shifts-swap-*` emails from the templates this module ships.
+    // Renders the `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails from the templates this module ships.
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
   },
   async setup(options, nuxt) {
@@ -126,7 +139,8 @@ export default defineNuxtModule<ModuleOptions>({
       checkInOpensMinutes,
     }
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
-    runtime.shifts = { ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes } satisfies ShiftsRuntimeConfig
+    const reminders = { offsets: normalizeReminderOffsets(options.reminders?.offsets), sms: options.reminders?.sms === true }
+    runtime.shifts = { ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes, reminders } satisfies ShiftsRuntimeConfig
 
     // --- Database -------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {
@@ -141,10 +155,15 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'me', file: 'me/shifts.get' },
       // Static, so it wins over `me/:assignmentId`.
       { method: 'get', path: 'me/leads', file: 'me/leads.get' },
+      { method: 'get', path: 'me/feed-token', file: 'me/feed-token.get' },
+      { method: 'post', path: 'me/feed-token', file: 'me/feed-token.post' },
+      { method: 'delete', path: 'me/feed-token', file: 'me/feed-token.delete' },
       { method: 'get', path: 'me/:assignmentId', file: 'me/shift.get' },
       { method: 'get', path: 'me/:assignmentId/pass', file: 'me/pass.get' },
       { method: 'post', path: 'me/:assignmentId/swap', file: 'me/swap.post' },
       { method: 'delete', path: 'me/:assignmentId/swap', file: 'me/swap.delete' },
+      // The calendar feed: public, the secret in the path is the credential (`feed/<token>`, `.ics` suffix stripped by the handler).
+      { method: 'get', path: 'feed/:token', file: 'feed/feed.get' },
       { method: 'get', path: 'swaps', file: 'swaps/list.get' },
       { method: 'post', path: 'swaps/:swapId/offers', file: 'swaps/offer.post' },
       { method: 'delete', path: 'swaps/:swapId/offers/:offerId', file: 'swaps/offer.delete' },
@@ -155,6 +174,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'teams/:teamId/check-in', file: 'lead/check-in.post' },
       { method: 'get', path: 'teams/:teamId/shifts', file: 'lead/team-shifts.get' },
       { method: 'get', path: 'teams/:teamId/swaps', file: 'lead/team-swaps.get' },
+      { method: 'post', path: 'teams/:teamId/broadcasts', file: 'lead/broadcast.post' },
+      { method: 'get', path: 'teams/:teamId/perks', file: 'lead/perks.get' },
+      { method: 'post', path: 'teams/:teamId/perks/:perkId/redeem', file: 'lead/perk-redeem.post' },
       { method: 'post', path: 'assignments/:assignmentId/attended', file: 'lead/attended.post' },
       { method: 'post', path: 'assignments/:assignmentId/no-show', file: 'lead/no-show.post' },
       { method: 'get', path: 'operations/:operationId/now', file: 'lead/now.get' },
@@ -178,6 +200,12 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'swaps', file: 'admin/swaps.get' },
       { method: 'post', path: 'swaps/:swapId/cancel', file: 'admin/swap-cancel.post' },
       { method: 'get', path: 'operations/:operationId/teams', file: 'admin/operation-teams.get' },
+      { method: 'get', path: 'broadcasts', file: 'admin/broadcasts.get' },
+      { method: 'post', path: 'broadcasts', file: 'admin/broadcasts.post' },
+      { method: 'get', path: 'operations/:operationId/perks', file: 'admin/perks.get' },
+      { method: 'post', path: 'operations/:operationId/perks', file: 'admin/perks.post' },
+      { method: 'patch', path: 'perks/:perkId', file: 'admin/perk.patch' },
+      { method: 'delete', path: 'perks/:perkId', file: 'admin/perk.delete' },
       // A shift is the module's main resource: `/api/admin/shifts/:shiftId`. The static segments above win over it.
       { method: 'patch', path: ':shiftId', file: 'admin/shift.patch' },
       { method: 'delete', path: ':shiftId', file: 'admin/shift.delete' },
@@ -190,8 +218,37 @@ export default defineNuxtModule<ModuleOptions>({
     // Cancels future assignments when people leave a team or lose the role a shift needs.
     addServerPlugin(resolver.resolve('./runtime/server/plugins/teams'))
 
-    // The `shifts-swap-*` emails, as templates `@frigear-nu/email-templates` renders when installed.
+    // The `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails, as templates `@frigear-nu/email-templates` renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+
+    // --- Reminders ------------------------------------------------------------------------
+    // The `shifts:send-reminders` Nitro task, on `reminders.cron` (every ten minutes unless set; `false` registers the
+    // task without a schedule, to run it yourself). Like auth's housekeeping task it merges into `scheduledTasks`.
+    const cron = options.reminders?.cron === undefined ? '*/10 * * * *' : options.reminders.cron
+    nuxt.hook('nitro:config', (nitroConfig) => {
+      nitroConfig.experimental ||= {}
+      nitroConfig.experimental.tasks = true
+      nitroConfig.tasks ||= {}
+      nitroConfig.tasks['shifts:send-reminders'] = {
+        handler: resolver.resolve('./runtime/server/tasks/send-reminders'),
+        description: 'Email (and optionally text) people before their shifts start.',
+      }
+      if (cron) {
+        nitroConfig.scheduledTasks ||= {}
+        const existing = nitroConfig.scheduledTasks[cron]
+        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'shifts:send-reminders']
+      }
+    })
+    // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
+    // Cloudflare would never trigger them: mirror our cron into `triggers.crons` (a deduped union, so it works next to a
+    // host that mirrors all of its own, as `apps/website` does).
+    if (cron) {
+      nuxt.hook('nitro:init', (nitro) => {
+        if (!nitro.options.preset.startsWith('cloudflare')) return
+        const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
+        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), cron])] }
+      })
+    }
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([

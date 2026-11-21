@@ -103,6 +103,8 @@ async function shiftsDeleteShiftRows(shiftIds: string[]): Promise<void> {
       await db.delete(schema.shiftSwapOffers).where(inArray(schema.shiftSwapOffers.swapId, swaps.map(row => row.id)))
       await db.delete(schema.shiftSwaps).where(inArray(schema.shiftSwaps.id, swaps.map(row => row.id)))
     }
+    await db.delete(schema.shiftReminders).where(inArray(schema.shiftReminders.assignmentId, assignmentIds))
+    await db.delete(schema.shiftPerkRedemptions).where(inArray(schema.shiftPerkRedemptions.assignmentId, assignmentIds))
     await db.delete(schema.shiftAssignments).where(inArray(schema.shiftAssignments.id, assignmentIds))
   }
   await db.delete(schema.shifts).where(inArray(schema.shifts.id, shiftIds))

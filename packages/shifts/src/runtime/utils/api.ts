@@ -20,7 +20,11 @@ export const shiftsApi = {
     swap: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/swap`,
     /** `GET` the teams I lead. */
     leads: `${BASE}/me/leads`,
+    /** `GET` whether I have a calendar feed, `POST` to mint one (shown once, revokes the old one), `DELETE` to revoke it. Session only. */
+    feedToken: `${BASE}/me/feed-token`,
   },
+  /** `GET` a person's shifts as an iCal feed; the secret token is the credential (`.ics` suffix optional). Public. */
+  feed: (token: string) => `${BASE}/feed/${enc(token)}.ics`,
   /** `GET` the open swaps I can take. */
   swaps: `${BASE}/swaps`,
   /** `POST` `{ assignmentId? }` to offer to take a swap (optionally giving one of my shifts back). */
@@ -42,6 +46,12 @@ export const shiftsApi = {
     shifts: (teamId: string) => `${BASE}/teams/${enc(teamId)}/shifts`,
     /** `GET` (`?status`) the team's swaps, e.g. those waiting for approval (a lead of the team, or staff). */
     swaps: (teamId: string) => `${BASE}/teams/${enc(teamId)}/swaps`,
+    /** `POST` `{ audience?, channels?, subject, message }` to message the team (a lead of it, or staff). Email unless `channels` adds `sms`. */
+    broadcasts: (teamId: string) => `${BASE}/teams/${enc(teamId)}/broadcasts`,
+    /** `GET` the perks the team's leads can redeem (a lead of the team, or staff). */
+    perks: (teamId: string) => `${BASE}/teams/${enc(teamId)}/perks`,
+    /** `POST` `{ code }` to redeem a perk with a person's QR pass (a lead of the team, or staff). */
+    redeemPerk: (teamId: string, perkId: string) => `${BASE}/teams/${enc(teamId)}/perks/${enc(perkId)}/redeem`,
   },
   /** `POST` to mark an assignment attended (a lead of the team, or staff). */
   attended: (assignmentId: string) => `${BASE}/assignments/${enc(assignmentId)}/attended`,
@@ -80,5 +90,11 @@ export const shiftsApi = {
     cancelSwap: (swapId: string) => `${ADMIN_BASE}/swaps/${enc(swapId)}/cancel`,
     /** `GET` an operation's teams with their kind's ladder. */
     teams: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/teams`,
+    /** `GET` (`?operationId`) the broadcasts of an operation, `POST` `{ operationId, audience, channels, subject, message }` to send one (`shifts:broadcast`). */
+    broadcasts: `${ADMIN_BASE}/broadcasts`,
+    /** `GET` / `POST` an operation's perks (meal and drink vouchers). */
+    perks: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/perks`,
+    /** `PATCH` / `DELETE` one perk. */
+    perk: (perkId: string) => `${ADMIN_BASE}/perks/${enc(perkId)}`,
   },
 } as const

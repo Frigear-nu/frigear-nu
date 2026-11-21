@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
-import { dayKey } from '../../utils/time'
+import { countdownParts, dayKey } from '../../utils/time'
 import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapOfferDto } from '../../../types'
 import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
@@ -40,6 +40,16 @@ const { data: pass } = useLazyFetch<ShiftPassDto>(() => shiftsApi.me.pass(assign
   server: false,
 })
 const qr = computed(() => pass.value?.svg ? `data:image/svg+xml;utf8,${encodeURIComponent(pass.value.svg)}` : null)
+// "Show larger": the pass full screen, high contrast, with the screen kept awake.
+const large = ref(false)
+// Until the pass opens: days, hours and minutes left, refreshed with the page clock.
+const countdown = computed(() => {
+  if (!data.value || !now.value) return ''
+  const { days, hours, minutes } = countdownParts(Date.parse(data.value.passOpensAt) - now.value)
+  return [days ? t('shift.unitDays', '{count} d', { count: days }) : '', days || hours ? t('shift.unitHours', '{count} h', { count: hours }) : '', t('shift.unitMinutes', '{count} min', { count: minutes })].filter(Boolean).join(' ')
+})
+const perks = computed(() => pass.value?.perks ?? [])
+const leadNames = computed(() => (data.value?.leadsOnDuty ?? []).map(lead => lead.name ?? `#${lead.userId}`))
 
 const swap = computed(() => data.value?.swapDetail ?? null)
 const upcoming = computed(() => !!data.value && Date.parse(data.value.shift.startsAt) > now.value)
@@ -145,19 +155,66 @@ useHead({ title: () => t('shift.title', 'My shift') })
               <p class="text-muted text-center text-sm">
                 {{ t('shift.passHelp', 'Show this to the lead of your team when you arrive.') }}
               </p>
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-maximize-2"
+                :label="t('shift.passLarger', 'Show larger')"
+                @click="large = true"
+              />
             </div>
             <USkeleton
               v-else-if="passOpen"
               class="mx-auto size-60"
             />
-            <p
+            <div
               v-else
-              class="text-muted text-sm"
+              class="flex flex-col gap-1"
             >
-              {{ now < Date.parse(data.passOpensAt)
-                ? t('shift.passLater', 'Your pass shows here from {time}.', { time: format.dateTime(data.passOpensAt) })
-                : t('shift.passClosed', 'Check-in for this shift has closed.') }}
+              <p
+                v-if="now && now < Date.parse(data.passOpensAt)"
+                class="text-highlighted text-lg font-semibold tabular-nums"
+              >
+                {{ t('shift.passOpensIn', 'Opens in {time}', { time: countdown }) }}
+              </p>
+              <p class="text-muted text-sm">
+                {{ now < Date.parse(data.passOpensAt)
+                  ? t('shift.passLater', 'Your pass shows here from {time}.', { time: format.dateTime(data.passOpensAt) })
+                  : t('shift.passClosed', 'Check-in for this shift has closed.') }}
+              </p>
+            </div>
+            <p
+              v-if="leadNames.length"
+              class="text-muted mt-3 flex items-center gap-1.5 text-sm"
+            >
+              <UIcon
+                name="i-lucide-shield-check"
+                class="size-4"
+              />
+              {{ t('shift.leadOnDutyIs', 'Lead on duty: {names}', { names: leadNames.join(', ') }) }}
             </p>
+            <div
+              v-if="perks.length"
+              class="border-default mt-3 flex flex-col gap-1.5 border-t pt-3"
+            >
+              <h3 class="text-highlighted text-sm font-semibold">
+                {{ t('shift.perks', 'Your perks') }}
+              </h3>
+              <ul class="flex flex-col gap-1 text-sm">
+                <li
+                  v-for="perk in perks"
+                  :key="perk.perkId"
+                  class="flex items-center justify-between gap-2"
+                >
+                  <span>{{ tr(perk.name) }}</span>
+                  <UBadge
+                    :color="perk.remaining ? 'success' : 'neutral'"
+                    variant="subtle"
+                    :label="t('shift.perkLeft', '{left} of {limit} left', { left: perk.remaining, limit: perk.limit })"
+                  />
+                </li>
+              </ul>
+            </div>
           </SectionCard>
 
           <SectionCard :title="t('shift.details', 'Shift')">
@@ -288,5 +345,13 @@ useHead({ title: () => t('shift.title', 'My shift') })
         </div>
       </UPageBody>
     </UPage>
+    <ShiftPassFullscreen
+      v-if="large && qr"
+      :qr="qr"
+      :code="pass?.code"
+      :title="data ? `${tr(data.teamName)} · ${format.time(data.shift.startsAt)}–${format.time(data.shift.endsAt)}` : ''"
+      :leads="leadNames"
+      @close="large = false"
+    />
   </UContainer>
 </template>

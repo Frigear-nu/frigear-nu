@@ -24,6 +24,20 @@ export const shiftsAccess = defineAccess('shifts', {
       description: 'Check people in, mark attendance and approve swaps on the teams you lead.',
       implicit: true,
     },
+    // Held by everyone, but only through a signed-in session: the calendar feed URL is a secret that shows your shifts to
+    // whoever holds it, so a token (or an OAuth client) cannot mint or revoke one.
+    feed: {
+      label: 'Subscribe to your shifts in a calendar',
+      description: 'Create and revoke the secret calendar feed (iCal) of your own shifts.',
+      implicit: true,
+      sessionOnly: true,
+    },
+    // Messages people by email and SMS; leads send to their own team through `shifts:lead` instead.
+    broadcast: {
+      label: 'Message shift teams',
+      description: 'Send an email (and an SMS, on purpose) to the members of an operation\'s teams or the people on a shift.',
+      grantTo: ['admin', 'coordinator'],
+    },
     manage: {
       label: 'Manage shifts',
       description: 'Create and publish schedules, create shifts in bulk, assign people and handle every swap.',

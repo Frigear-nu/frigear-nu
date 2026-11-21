@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '../../utils/time'
 import type { MyShiftDto, ShiftsLedTeamDto } from '../../../types'
-import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsMinePage' })
 
@@ -13,6 +13,7 @@ const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
 const format = useShiftsFormat()
 const links = useShiftsLinks()
+const actions = useShiftsActions()
 const route = useRoute()
 
 const { data, error, refresh } = await useFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', default: () => [] })
@@ -64,6 +65,13 @@ useHead({ title: () => t('mine.title', 'My shifts') })
             color="neutral"
             variant="outline"
             :label="t('mine.lead', 'Lead {team}', { team: tr(team.teamName) })"
+          />
+          <UButton
+            icon="i-lucide-calendar-plus"
+            color="neutral"
+            variant="outline"
+            :label="t('feed.title', 'Subscribe in calendar')"
+            @click="actions.subscribe()"
           />
           <UButton
             :to="links.swaps()"

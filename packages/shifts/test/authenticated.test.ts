@@ -8,7 +8,7 @@ import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
 import { shiftsApi } from '../src/runtime/utils/api'
-import { getEmailsTo, getHooks, registerUser } from './helpers'
+import { addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, runReminders, setLocale, setPhone } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -693,6 +693,408 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(now.assignment.id)))).toMatchObject({ available: false, code: null })
       expect((await myShifts(ann)).map(item => item.assignment.id)).toEqual([now.assignment.id])
       expect((await getHooks()).find(hook => hook.assignmentId === later.assignment.id && hook.status === 'cancelled')).toBeDefined()
+    })
+  })
+
+  // --- Extras: reminders, the calendar feed, broadcasts and perks ----------------------------------------------------
+  // The reminder tests use their own far-away years (2031, 2032) and a fake `now`, so the shifts of the other tests (2027
+  // and today) never fall into a run.
+
+  describe('reminders', () => {
+    const remindersOf = async (who: Session) => (await getEmailsTo(who.email)).filter(email => email.template?.name === 'shifts-reminder')
+    const moveTo = (shiftId: string, day: string, from: string, to: string) => patchShift(shiftId, { startsAt: `${day}T${from}:00.000Z`, endsAt: `${day}T${to}:00.000Z` })
+    const reminderHooks = async (who: Session) => (await getHooks()).filter(hook => hook.name === 'reminder:sent' && hook.userId === who.id)
+
+    it('sends one reminder per offset to people who still hold a place on a published shift, by SMS only with the option and a phone number', async () => {
+      const setup = await newSetup()
+      const draft = await newSetup({}, { publish: false })
+      const [ann, bo, cy, eli, fay, dee] = await Promise.all([user('Rann'), user('Rbo'), user('Rcy'), user('Reli'), user('Rfay'), user('Rdee')])
+      for (const who of [ann, bo, cy, eli, fay]) await addMember(setup.team.id, who)
+      await addMember(draft.team.id, dee)
+      await moveTo(setup.shifts[0]!.id, '2031-03-10', '10:00', '14:00')
+      await moveTo(setup.shifts[1]!.id, '2031-03-10', '15:00', '19:00')
+      await moveTo(draft.shifts[0]!.id, '2031-03-10', '10:00', '14:00')
+      await assigned(setup.shifts[0]!.id, ann)
+      await assigned(setup.shifts[0]!.id, bo)
+      const cancelled = await assigned(setup.shifts[0]!.id, cy)
+      await ok(await json(staff.cookie, 'DELETE', shiftsApi.admin.assignment(cancelled.assignment.id)))
+      await assigned(setup.shifts[0]!.id, eli)
+      await assigned(draft.shifts[0]!.id, dee)
+      await assigned(setup.shifts[1]!.id, fay)
+      // Eli's membership stops granting without a hook: the assignment stays, but the person is not eligible any more.
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(setup.team.id, eli.id), { status: 'inactive' }))
+      await setPhone(ann.id, '+4511111111')
+      await setPhone(fay.id, '+4522222222')
+
+      // 26 hours ahead: nothing is inside the largest offset yet.
+      expect(await runReminders('2031-03-09T08:00:00.000Z')).toEqual({ checked: 0, sent: 0, spent: 0 })
+
+      // 24 hours ahead of the first shift: Ann and Bo get the day-before reminder, Eli (not eligible), Cy (cancelled) and
+      // Dee (a draft schedule) nothing.
+      expect(await runReminders('2031-03-09T10:00:00.000Z')).toEqual({ checked: 3, sent: 2, spent: 0 })
+      for (const who of [ann, bo]) {
+        const sent = await remindersOf(who)
+        expect(sent).toHaveLength(1)
+        expect(sent[0]).toMatchObject({ subject: 'Reminder: your shift starts in a day', template: { name: 'shifts-reminder', locale: 'en' } })
+      }
+      for (const who of [cy, eli, dee]) expect(await remindersOf(who)).toHaveLength(0)
+      // SMS is on in this fixture: Ann has a phone number, Bo has none.
+      expect(await getSmsTo('+4511111111')).toHaveLength(1)
+      expect((await getSmsTo('+4511111111'))[0]!.body).toContain('starts in a day')
+      expect(await reminderHooks(ann)).toMatchObject([{ offset: 1440, channels: ['email', 'sms'], eventless: true }])
+      expect(await reminderHooks(bo)).toMatchObject([{ offset: 1440, channels: ['email'], eventless: true }])
+      // A second run claims nothing again.
+      expect(await runReminders('2031-03-09T10:00:00.000Z')).toMatchObject({ sent: 0 })
+      expect(await remindersOf(ann)).toHaveLength(1)
+
+      // Fay's first shift is later: her reminder goes out as an email only when the run overrides SMS off.
+      expect(await runReminders('2031-03-09T15:30:00.000Z', { sms: false })).toMatchObject({ sent: 1 })
+      expect(await remindersOf(fay)).toHaveLength(1)
+      expect(await getSmsTo('+4522222222')).toHaveLength(0)
+      expect(await reminderHooks(fay)).toMatchObject([{ offset: 1440, channels: ['email'] }])
+
+      // An hour and a half before: the second reminder for Ann and Bo, once.
+      expect(await runReminders('2031-03-10T08:30:00.000Z')).toMatchObject({ sent: 2 })
+      expect((await remindersOf(ann)).map(email => email.subject)).toEqual(['Reminder: your shift starts in a day', 'Reminder: your shift starts in 2 hours'])
+      expect(await getSmsTo('+4511111111')).toHaveLength(2)
+      expect(await runReminders('2031-03-10T08:30:00.000Z')).toMatchObject({ sent: 0 })
+      expect(await remindersOf(ann)).toHaveLength(2)
+      expect(await remindersOf(bo)).toHaveLength(2)
+
+      // Fay's second reminder, with SMS on: she was already reminded a day ahead, so only the two-hour one is new.
+      expect(await runReminders('2031-03-10T13:30:00.000Z')).toMatchObject({ sent: 1 })
+      expect(await remindersOf(fay)).toHaveLength(2)
+      expect(await getSmsTo('+4522222222')).toHaveLength(1)
+      // Nothing for a shift that has started.
+      expect(await runReminders('2031-03-10T10:30:00.000Z')).toMatchObject({ sent: 0 })
+    })
+
+    it('sends one message when both offsets fall due together, and spends the larger one', async () => {
+      const setup = await newSetup()
+      const gus = await user('Rgus')
+      await addMember(setup.team.id, gus)
+      await moveTo(setup.shifts[0]!.id, '2032-05-04', '10:00', '14:00')
+      await assigned(setup.shifts[0]!.id, gus)
+      expect(await runReminders('2032-05-04T08:30:00.000Z')).toEqual({ checked: 1, sent: 1, spent: 1 })
+      const sent = await getEmailsTo(gus.email)
+      expect(sent.filter(email => email.template?.name === 'shifts-reminder').map(email => email.subject)).toEqual(['Reminder: your shift starts in 2 hours'])
+      expect((await getHooks()).filter(hook => hook.name === 'reminder:sent' && hook.userId === gus.id)).toHaveLength(1)
+      expect(await runReminders('2032-05-04T09:30:00.000Z')).toMatchObject({ sent: 0, spent: 0 })
+    })
+  })
+
+  describe('calendar feed', () => {
+    const mint = async (who: Session): Promise<Json> => ok(await json(who.cookie, 'POST', shiftsApi.me.feedToken))
+    const fetchFeed = (token: string) => fetch(shiftsApi.feed(token))
+    const unfold = (text: string) => text.replace(/\r\n /g, '')
+
+    it('mints a secret URL once, replaces it on the next mint, and revokes it', async () => {
+      const ann = await user('Fann')
+      expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.feedToken))).toMatchObject({ active: false, prefix: null })
+      const first = await mint(ann)
+      expect(first.token).toMatch(/^sfk_/)
+      expect(first.url).toMatch(/\/api\/shifts\/feed\/sfk_[\w-]+\.ics$/)
+      expect(first.webcalUrl).toMatch(/^webcal:\/\/.+\.ics$/)
+      expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.feedToken))).toMatchObject({ active: true, lastUsedAt: null, prefix: first.token.slice(0, 8) })
+
+      // Public: no cookie, with and without the `.ics` suffix.
+      const response = await fetchFeed(first.token)
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toBe('text/calendar; charset=utf-8')
+      expect(response.headers.get('cache-control')).toBe('private, max-age=300')
+      expect((await fetch(`/api/shifts/feed/${first.token}`)).status).toBe(200)
+      expect((await ok(await json(ann.cookie, 'GET', shiftsApi.me.feedToken))).lastUsedAt).not.toBeNull()
+
+      // A new one replaces the old one.
+      const second = await mint(ann)
+      expect(second.token).not.toBe(first.token)
+      expect((await fetchFeed(first.token)).status).toBe(404)
+      expect((await fetchFeed(second.token)).status).toBe(200)
+      // Revoked: 404, and the status says so. Unknown secrets are 404 too.
+      expect((await json(ann.cookie, 'DELETE', shiftsApi.me.feedToken)).status).toBe(204)
+      expect((await fetchFeed(second.token)).status).toBe(404)
+      expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.feedToken))).toMatchObject({ active: false })
+      expect((await fetchFeed('sfk_unknown')).status).toBe(404)
+    })
+
+    it('lists my published, non-cancelled shifts as iCal, and nobody else\'s', async () => {
+      const setup = await newSetup()
+      const draft = await newSetup({}, { publish: false })
+      const [ann, bo] = await Promise.all([user('Fann2'), user('Fbo2')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bo)
+      await addMember(draft.team.id, ann)
+      const role = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.roles(setup.schedule.id), { teamId: setup.team.id, name: { en: 'Bartender' } }))
+      await patchShift(setup.shifts[0]!.id, { location: { name: 'Main bar' }, notes: 'Bring a black shirt' })
+      const mine = await assigned(setup.shifts[0]!.id, ann, { shiftRoleId: role.id })
+      const cancelled = await assigned(setup.shifts[1]!.id, ann)
+      await ok(await json(staff.cookie, 'DELETE', shiftsApi.admin.assignment(cancelled.assignment.id)))
+      const drafted = await assigned(draft.shifts[0]!.id, ann)
+      const others = await assigned(setup.shifts[0]!.id, bo)
+
+      const { token } = await mint(ann)
+      const body = unfold(await (await fetchFeed(token)).text())
+      expect(body.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
+      expect(body.endsWith('END:VCALENDAR\r\n')).toBe(true)
+      expect(body.match(/BEGIN:VEVENT/g)).toHaveLength(1)
+      const teamName = setup.team.name.en ?? setup.team.name
+      expect(body).toContain(`SUMMARY:${teamName} · Bartender\r\n`)
+      expect(body).toContain('LOCATION:Main bar\r\n')
+      expect(body).toContain(`UID:${mine.assignment.id}@shifts.frigear-nu\r\n`)
+      expect(body).toContain('DTSTART:20270628T080000Z\r\n')
+      expect(body).toContain('DTEND:20270628T120000Z\r\n')
+      expect(body).toContain('DESCRIPTION:')
+      for (const gone of [cancelled.assignment.id, drafted.assignment.id, others.assignment.id]) expect(body).not.toContain(gone)
+      // Bo's feed has Bo's shift only.
+      const boBody = unfold(await (await fetchFeed((await mint(bo)).token)).text())
+      expect(boBody).toContain(others.assignment.id)
+      expect(boBody).not.toContain(mine.assignment.id)
+    })
+
+    it('can only be managed with a session, never with a token', async () => {
+      const ann = await user('Fann3')
+      const token = await createToken(ann.cookie, ['shifts'])
+      const bearer = apiClient({ bearer: token })
+      await expectApiError(bearer.fetch('POST', shiftsApi.me.feedToken), 403, 'session_required')
+      await expectApiError(bearer.fetch('GET', shiftsApi.me.feedToken), 403, 'session_required')
+      await expectApiError(bearer.fetch('DELETE', shiftsApi.me.feedToken), 403, 'session_required')
+      expect((await fetch(shiftsApi.me.feedToken)).status).toBe(401)
+    })
+  })
+
+  describe('broadcasts', () => {
+    const broadcast = (who: Session, body: Json) => json(who.cookie, 'POST', shiftsApi.admin.broadcasts, body)
+    const emailsWith = async (who: Session, subject: string) => (await getEmailsTo(who.email)).filter(email => email.template?.name === 'shifts-broadcast' && (email.subject === subject || String(email.template.props?.subject) === subject))
+
+    async function newBroadcastSetup() {
+      const setup = await newSetup()
+      const other = await createTeam(setup.op.id)
+      const [ann, bo, lead, cy] = await Promise.all([user('Bann'), user('Bbo'), user('Blead'), user('Bcy')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bo)
+      await addMember(setup.team.id, lead, 'ba')
+      await addMember(other.id, cy)
+      return { ...setup, other, ann, bo, lead, cy }
+    }
+
+    it('lets staff message the teams of an operation by email, in each person\'s locale, with SMS only on request', async () => {
+      const setup = await newBroadcastSetup()
+      const { ann, bo, lead, cy } = setup
+      await setLocale(ann.id, setup.team.id, 'da')
+      await setPhone(ann.id, '+4533333333')
+      const text = { subject: { en: 'Briefing', da: 'Briefing (dansk)' }, message: { en: 'Be there at nine', da: 'Mød op klokken ni' } }
+
+      const sent = await ok(await broadcast(staff, { operationId: setup.op.id, audience: {}, ...text }))
+      expect(sent).toMatchObject({ operationId: setup.op.id, teamId: null, shiftId: null, teamRole: null, channels: ['email'], recipientCount: 4, sentBy: staff.id, sent: { email: 4, sms: 0 } })
+      expect((await emailsWith(ann, 'Briefing (dansk)'))[0]).toMatchObject({ template: { locale: 'da' }, text: expect.stringContaining('Mød op klokken ni') })
+      expect((await emailsWith(bo, 'Briefing'))[0]).toMatchObject({ template: { locale: 'en' }, text: expect.stringContaining('Be there at nine') })
+      for (const who of [lead, cy]) expect(await emailsWith(who, 'Briefing')).toHaveLength(1)
+      // No SMS unless asked for.
+      expect(await getSmsTo('+4533333333')).toHaveLength(0)
+      expect((await getHooks()).filter(hook => hook.name === 'broadcast:sent' && hook.broadcastId === sent.id)).toMatchObject([{ recipientCount: 4, channels: ['email'], by: staff.id }])
+
+      // SMS on purpose: people with a phone number get one in their locale; the rest only the email.
+      const both = await ok(await broadcast(staff, { operationId: setup.op.id, channels: ['email', 'sms'], ...text, subject: { en: 'Door code', da: 'Dørkode' }, message: { en: 'It is 1234', da: 'Den er 1234' } }))
+      expect(both).toMatchObject({ channels: ['email', 'sms'], sent: { email: 4, sms: 1 } })
+      expect(await getSmsTo('+4533333333')).toMatchObject([{ body: 'Dørkode\nDen er 1234' }])
+
+      // The history lists both (newest first; times are whole seconds, so the order inside one second is not asserted), for
+      // staff with `shifts:broadcast` only.
+      const history = await ok(await json(staff.cookie, 'GET', `${shiftsApi.admin.broadcasts}?operationId=${setup.op.id}`)) as unknown as Json[]
+      expect(history.map(item => item.id).sort()).toEqual([both.id, sent.id].sort())
+      expect(history.find(item => item.id === both.id)).toMatchObject({ channels: ['email', 'sms'], recipientCount: 4 })
+      const manager = await user('Bmgr', 'mgr.test')
+      expect((await json(manager.cookie, 'GET', `${shiftsApi.admin.broadcasts}?operationId=${setup.op.id}`)).status).toBe(403)
+      expect((await broadcast(manager, { operationId: setup.op.id, ...text })).status).toBe(403)
+      expect((await broadcast(ann, { operationId: setup.op.id, ...text })).status).toBe(403)
+      // A coordinator may.
+      const coordinator = await user('Bcoord', 'coord.test')
+      expect((await broadcast(coordinator, { operationId: setup.op.id, audience: { teamId: setup.other.id }, ...text })).status).toBe(201)
+    })
+
+    it('narrows the audience to a team, a role and up, or the people on one shift, and refuses empty and huge ones', async () => {
+      const setup = await newBroadcastSetup()
+      const { ann, bo, lead, cy } = setup
+      const text = { subject: 'Hi', message: 'Hello' }
+      await assigned(setup.shifts[0]!.id, ann)
+      await assigned(setup.shifts[0]!.id, bo)
+
+      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.team.id, teamRole: 'ba' }, ...text }))).toMatchObject({ recipientCount: 1, teamId: setup.team.id, teamRole: 'ba' })
+      expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
+      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id }, ...text }))).toMatchObject({ recipientCount: 1 })
+      expect(await emailsWith(cy, 'Hi')).toHaveLength(1)
+      // The people on a shift, not the whole team.
+      expect(await ok(await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id }, ...text }))).toMatchObject({ recipientCount: 2, shiftId: setup.shifts[0]!.id, teamId: setup.team.id })
+      expect(await emailsWith(lead, 'Hi')).toHaveLength(1)
+      expect(await emailsWith(ann, 'Hi')).toHaveLength(1)
+
+      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id, teamRole: 'ba' }, ...text }), 400, 'audience_empty')
+      // A team or a shift of another operation, and a role together with a shift: 400.
+      const elsewhere = await newSetup()
+      expect((await broadcast(staff, { operationId: setup.op.id, audience: { teamId: elsewhere.team.id }, ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: elsewhere.shifts[0]!.id }, ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, audience: { shiftId: setup.shifts[0]!.id, teamRole: 'ba' }, ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, channels: ['push'], ...text })).status).toBe(400)
+      expect((await broadcast(staff, { operationId: setup.op.id, subject: '', message: 'x' })).status).toBe(400)
+
+      // 500 people is the cap.
+      await addBulkMembers(setup.other.id, 500)
+      await expectApiError(broadcast(staff, { operationId: setup.op.id, audience: { teamId: setup.other.id }, ...text }), 400, 'audience_too_large')
+    })
+
+    it('lets a lead message their own team only', async () => {
+      const setup = await newBroadcastSetup()
+      const { ann, lead, cy } = setup
+      const text = { subject: 'Team news', message: 'Short briefing at nine' }
+      const sent = await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), text))
+      expect(sent).toMatchObject({ operationId: setup.op.id, teamId: setup.team.id, recipientCount: 3, channels: ['email'], sentBy: lead.id })
+      expect(await emailsWith(ann, 'Team news')).toHaveLength(1)
+      expect(await emailsWith(cy, 'Team news')).toHaveLength(0)
+      expect(await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamRole: 'ba' } }))).toMatchObject({ recipientCount: 1 })
+      // Another team, another team through the audience, a volunteer, and a shift of another team: refused.
+      expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.other.id), text)).status).toBe(403)
+      expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { teamId: setup.other.id } })).status).toBe(403)
+      expect((await json(ann.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), text)).status).toBe(403)
+      expect((await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, audience: { shiftId: (await bulk((await createSchedule(setup.op.id)).id, { teamId: setup.other.id, days: ['2027-06-28'], slots: [{ start: '10:00', end: '12:00' }] }))[0]!.id } })).status).toBe(400)
+      // The lead's SMS needs asking for, too.
+      await setPhone(ann.id, '+4544444444')
+      await ok(await json(lead.cookie, 'POST', shiftsApi.teams.broadcasts(setup.team.id), { ...text, channels: ['sms'] }))
+      expect(await getSmsTo('+4544444444')).toHaveLength(1)
+      // Staff reach every team through the lead route as well.
+      expect((await json(staff.cookie, 'POST', shiftsApi.teams.broadcasts(setup.other.id), text)).status).toBe(201)
+    })
+  })
+
+  describe('perks', () => {
+    const redeem = (who: Session, teamId: string, perkId: string, code: string | null) => json(who.cookie, 'POST', shiftsApi.teams.redeemPerk(teamId, perkId), { code })
+    const createPerk = (operationId: string, body: Json): Promise<Json> => json(staff.cookie, 'POST', shiftsApi.admin.perks(operationId), { name: { en: 'Meal' }, ...body }).then(ok)
+    const passOf = (who: Session, assignmentId: string): Promise<Json> => json(who.cookie, 'GET', shiftsApi.me.pass(assignmentId)).then(ok)
+
+    async function newPerkSetup() {
+      const setup = await newSetup()
+      const other = await createTeam(setup.op.id)
+      const [ann, bo, lead, otherLead] = await Promise.all([user('Kann'), user('Kbo'), user('Klead'), user('Kother')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bo)
+      await addMember(setup.team.id, lead, 'ba')
+      await addMember(other.id, otherLead, 'ba')
+      // Both shifts run now (they overlap: guards only warn), so every pass is open.
+      for (const shift of setup.shifts) await patchShift(shift.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
+      return { ...setup, other, ann, bo, lead, otherLead }
+    }
+
+    it('lets staff manage an operation\'s perks: exactly one allowance, a team of the operation, staff only', async () => {
+      const setup = await newPerkSetup()
+      const perk = await createPerk(setup.op.id, { kind: 'meal', perShift: 1 })
+      expect(perk).toMatchObject({ operationId: setup.op.id, teamId: null, kind: 'meal', perShift: 1, perPerson: null, redeemed: 0 })
+      expect((await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'x', perShift: 1, perPerson: 2 })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'x' })).status).toBe(400)
+      expect((await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'x', perShift: 0 })).status).toBe(400)
+      const foreign = await createTeam((await createOperation()).id)
+      expect((await json(staff.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'x', perShift: 1, teamId: foreign.id })).status).toBe(400)
+      expect((await json(setup.ann.cookie, 'POST', shiftsApi.admin.perks(setup.op.id), { name: 'x', perShift: 1 })).status).toBe(403)
+      expect((await json(setup.ann.cookie, 'GET', shiftsApi.admin.perks(setup.op.id))).status).toBe(403)
+      const manager = await user('Kmgr', 'mgr.test')
+      expect((await json(manager.cookie, 'GET', shiftsApi.admin.perks(setup.op.id))).status).toBe(200)
+
+      // Switching to a budget per person clears the per-shift allowance; both at once is refused.
+      const patched = await ok(await json(staff.cookie, 'PATCH', shiftsApi.admin.perk(perk.id), { perPerson: 3, teamId: setup.team.id, kind: 'drink' }))
+      expect(patched).toMatchObject({ perShift: null, perPerson: 3, teamId: setup.team.id, kind: 'drink' })
+      expect((await json(staff.cookie, 'PATCH', shiftsApi.admin.perk(perk.id), { perShift: 1, perPerson: 1 })).status).toBe(400)
+      expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.perks(setup.op.id)))).toHaveLength(1)
+      expect((await json(staff.cookie, 'DELETE', shiftsApi.admin.perk(perk.id))).status).toBe(204)
+      expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.perks(setup.op.id)))).toEqual([])
+      expect((await json(staff.cookie, 'DELETE', shiftsApi.admin.perk(perk.id))).status).toBe(404)
+    })
+
+    it('redeems a per-shift allowance with the QR code, once, without checking anybody in', async () => {
+      const setup = await newPerkSetup()
+      const perk = await createPerk(setup.op.id, { perShift: 1 })
+      const { assignment } = await assigned(setup.shifts[0]!.id, setup.ann)
+      const before = await passOf(setup.ann, assignment.id)
+      expect(before.perks).toEqual([expect.objectContaining({ perkId: perk.id, per: 'shift', limit: 1, used: 0, remaining: 1 })])
+
+      // The leads of the team see the perk; a lead of another team and a volunteer do not.
+      expect((await ok(await json(setup.lead.cookie, 'GET', shiftsApi.teams.perks(setup.team.id))) as unknown as Json[]).map(item => item.id)).toEqual([perk.id])
+      expect((await json(setup.otherLead.cookie, 'GET', shiftsApi.teams.perks(setup.team.id))).status).toBe(403)
+      expect((await json(setup.ann.cookie, 'GET', shiftsApi.teams.perks(setup.team.id))).status).toBe(403)
+      expect((await redeem(setup.ann, setup.team.id, perk.id, before.code)).status).toBe(403)
+      expect((await redeem(setup.otherLead, setup.team.id, perk.id, before.code)).status).toBe(403)
+
+      const done = await ok(await redeem(setup.lead, setup.team.id, perk.id, before.code))
+      expect(done).toMatchObject({ ok: true, remaining: 0, limit: 1, perk: { id: perk.id }, redemption: { assignmentId: assignment.id, userId: setup.ann.id, redeemedBy: setup.lead.id }, person: { userId: setup.ann.id } })
+      await expectApiError(redeem(setup.lead, setup.team.id, perk.id, before.code), 409, 'perk_used_up')
+      // Nobody was checked in by it, and the pass shows what is left.
+      expect((await assignmentOf(setup.ann, setup.shifts[0]!.id))!.assignment).toMatchObject({ status: 'assigned', checkedInAt: null })
+      expect((await passOf(setup.ann, assignment.id)).perks).toEqual([expect.objectContaining({ used: 1, remaining: 0 })])
+      expect((await getHooks()).filter(hook => hook.name === 'perk:redeemed' && hook.perkId === perk.id)).toMatchObject([{ assignmentId: assignment.id, userId: setup.ann.id, by: setup.lead.id }])
+      // Another person on the shift has their own allowance.
+      const bo = await assigned(setup.shifts[0]!.id, setup.bo)
+      await ok(await redeem(setup.lead, setup.team.id, perk.id, (await passOf(setup.bo, bo.assignment.id)).code))
+      expect(((await ok(await json(staff.cookie, 'GET', shiftsApi.admin.perks(setup.op.id)))) as unknown as Json[])[0]).toMatchObject({ redeemed: 2 })
+    })
+
+    it('counts a per-person budget across every shift of the operation', async () => {
+      const setup = await newPerkSetup()
+      const perk = await createPerk(setup.op.id, { perPerson: 2, kind: 'drink' })
+      const first = await assigned(setup.shifts[0]!.id, setup.ann)
+      const second = await assigned(setup.shifts[1]!.id, setup.ann)
+      const codeOf = async (assignmentId: string) => (await passOf(setup.ann, assignmentId)).code as string
+      expect(await ok(await redeem(setup.lead, setup.team.id, perk.id, await codeOf(first.assignment.id)))).toMatchObject({ remaining: 1, limit: 2 })
+      expect(await ok(await redeem(setup.lead, setup.team.id, perk.id, await codeOf(second.assignment.id)))).toMatchObject({ remaining: 0 })
+      await expectApiError(redeem(setup.lead, setup.team.id, perk.id, await codeOf(first.assignment.id)), 409, 'perk_used_up')
+      await expectApiError(redeem(setup.lead, setup.team.id, perk.id, await codeOf(second.assignment.id)), 409, 'perk_used_up')
+      expect((await passOf(setup.ann, first.assignment.id)).perks).toEqual([expect.objectContaining({ per: 'person', limit: 2, used: 2, remaining: 0 })])
+    })
+
+    it('never hands out more than the allowance when scans arrive at once', async () => {
+      const setup = await newPerkSetup()
+      const perk = await createPerk(setup.op.id, { perShift: 1 })
+      const { assignment } = await assigned(setup.shifts[0]!.id, setup.bo)
+      const { code } = await passOf(setup.bo, assignment.id)
+      const responses = await Promise.all(Array.from({ length: 4 }, () => redeem(setup.lead, setup.team.id, perk.id, code)))
+      const statuses = responses.map(response => response.status)
+      const wins = statuses.filter(status => status === 200).length
+      expect(wins).toBeLessThanOrEqual(1)
+      expect(statuses.filter(status => status === 409)).toHaveLength(4 - wins)
+      for (const response of responses.filter(item => item.status === 409)) expect((await response.json()).data?.code).toBe('perk_used_up')
+      expect((await passOf(setup.bo, assignment.id)).perks[0]).toMatchObject({ used: wins, remaining: 1 - wins })
+    })
+
+    it('keeps perks inside their team, the pass window and the people who hold a place', async () => {
+      const setup = await newPerkSetup()
+      const onlyOther = await createPerk(setup.op.id, { perShift: 1, teamId: setup.other.id })
+      const everyone = await createPerk(setup.op.id, { perShift: 1 })
+      const ann = await assigned(setup.shifts[0]!.id, setup.ann)
+      const { code } = await passOf(setup.ann, ann.assignment.id)
+      // A perk of another team (and a lead of another team) is a 404, as is an unknown code or perk.
+      await expectApiError(redeem(setup.lead, setup.team.id, onlyOther.id, code), 404)
+      await expectApiError(redeem(setup.otherLead, setup.other.id, onlyOther.id, code), 404)
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, 'f'.repeat(64)), 404)
+      await expectApiError(redeem(setup.lead, setup.team.id, 'spk_unknown', code), 404)
+      // The pass of the volunteer lists only the perks that apply to the team.
+      expect((await passOf(setup.ann, ann.assignment.id)).perks.map((item: Json) => item.perkId)).toEqual([everyone.id])
+
+      // Outside the window: 409, early and late.
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(3 * HOUR), endsAt: iso(4 * HOUR) })
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, code), 409, 'outside_window')
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(-4 * HOUR), endsAt: iso(-2 * HOUR) })
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, code), 409, 'outside_window')
+
+      // A cancelled assignment and a no-show do not get one.
+      await patchShift(setup.shifts[1]!.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
+      const bo = await assigned(setup.shifts[1]!.id, setup.bo)
+      const boCode = (await passOf(setup.bo, bo.assignment.id)).code
+      await ok(await json(setup.lead.cookie, 'POST', shiftsApi.noShow(bo.assignment.id)))
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, boCode), 409, 'not_on_shift')
+      await ok(await json(staff.cookie, 'DELETE', shiftsApi.admin.assignment(bo.assignment.id)))
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, boCode), 409, 'assignment_cancelled')
+
+      // Deleting a perk takes it away from passes and from redeeming.
+      expect((await json(staff.cookie, 'DELETE', shiftsApi.admin.perk(everyone.id))).status).toBe(204)
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
+      await expectApiError(redeem(setup.lead, setup.team.id, everyone.id, code), 404)
+      expect((await passOf(setup.ann, ann.assignment.id)).perks).toEqual([])
     })
   })
 })

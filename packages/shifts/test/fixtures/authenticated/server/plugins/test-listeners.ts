@@ -29,6 +29,15 @@ export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('shifts:attendance:marked', (ctx) => {
     testHooks.push({ name: 'attendance:marked', assignmentId: ctx.assignment.id, userId: ctx.assignment.userId, status: ctx.assignment.status, by: ctx.by })
   })
+  nitro.hooks.hook('shifts:reminder:sent', (ctx) => {
+    testHooks.push({ name: 'reminder:sent', assignmentId: ctx.assignment.id, userId: ctx.assignment.userId, offset: ctx.offset, channels: ctx.channels, eventless: ctx.event === undefined })
+  })
+  nitro.hooks.hook('shifts:broadcast:sent', (ctx) => {
+    testHooks.push({ name: 'broadcast:sent', broadcastId: ctx.broadcast.id, by: ctx.broadcast.sentBy, channels: ctx.broadcast.channels, recipientCount: ctx.broadcast.recipientCount })
+  })
+  nitro.hooks.hook('shifts:perk:redeemed', (ctx) => {
+    testHooks.push({ name: 'perk:redeemed', perkId: ctx.perk.id, redemptionId: ctx.redemption.id, assignmentId: ctx.redemption.assignmentId, userId: ctx.redemption.userId, by: ctx.redemption.redeemedBy })
+  })
   nitro.hooks.hook('notify:email', (ctx) => {
     const { to, subject, body, text, template } = ctx.notification
     testEmails.push({ to, subject, body, text, template: template ? { name: template.name, props: template.props, locale: template.locale } : undefined })
