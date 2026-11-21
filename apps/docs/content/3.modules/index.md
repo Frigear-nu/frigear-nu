@@ -41,6 +41,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/volunteering/dashboard) | Widget, UI |
 | Decide who may see a record by role, team role or operation | [Audience](/modules/volunteering/audience) (a library, not a module) | Nothing else |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Audience, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -126,6 +127,7 @@ Crew and volunteer work: operations, teams, shifts and the content volunteers re
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
 | [Audience](/modules/volunteering/audience) | A library, not a module. Shared visibility rules and owner references, and the hooks that tell modules who is looking. | ✓ | ✓ |  |
+| [Operations](/modules/volunteering/operations) | The occasions Frigear works at, with a period, place and status, that crew, shifts and maps attach to. | ✓ | ✓ |  |
 | [Dashboard](/modules/volunteering/dashboard) | Dashboards that modules add cards to, with a per-user layout and a mobile Home tab. |  | ✓ | ✓ |
 
 ## How they fit together

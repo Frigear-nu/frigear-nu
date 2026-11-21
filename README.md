@@ -77,4 +77,5 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/forms](./packages/forms) - Dynamic, database-stored forms (single page or stepped) with conditional fields, file uploads, submissions and email delivery
 - [@frigear-nu/cookie-consent](./packages/cookie-consent) - GDPR cookie consent banner with categories other modules contribute to, `onCookieConsent` gating and consent stored as proof on the user
 - [@frigear-nu/audience](./packages/audience) - Shared visibility rules (`isVisible`, `narrowVisibility`), owner references and the `audience:viewer:resolve` / `audience:owner:resolve` hooks for the volunteering modules; a plain library, not a Nuxt module
+- [@frigear-nu/operations](./packages/operations) - The occasions Frigear works at (a festival bar, a venue season) with a period, place, status and public page; the anchor crew, shifts and maps attach to
 - [@frigear-nu/dashboard](./packages/dashboard) - Customisable dashboards that modules add items to (`extendDashboard`), rendered with `<Dashboard>` or a page's own layout (`useDashboard`), with a per-user layout (order, hidden, collapsed) and a mobile Home tab

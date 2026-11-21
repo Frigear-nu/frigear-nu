@@ -10,15 +10,15 @@ and the FAQ, help center, maps and inbox those people use. Each one is a separat
 other through hooks and registries instead of imports. This page is for module authors. It holds the contracts every
 volunteering module follows: roles, owners, visibility, hook names, dashboard items and team roles.
 
-The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules, and
-[Dashboard](/modules/volunteering/dashboard). Every other module adds its own page to this group in the pull request
+The packages that exist today are [Audience](/modules/volunteering/audience), the shared visibility rules,
+[Operations](/modules/volunteering/operations) and [Dashboard](/modules/volunteering/dashboard). Every other module adds its own page to this group in the pull request
 that adds the module.
 
 ## The modules
 
 | Module | What it does | Track |
 | --- | --- | --- |
-| `@frigear-nu/operations` | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
+| [`@frigear-nu/operations`](/modules/volunteering/operations) | An occasion Frigear works at (a festival bar, a venue season), with a period, location and status. | A |
 | `@frigear-nu/teams` | Generic teams with members, a role ladder per team kind and role mapping rules. | A |
 | `@frigear-nu/crew` | Applications, approvals and invites that turn people into an operation's crew. | A |
 | `@frigear-nu/shifts` | Schedules, shifts, assignment, swaps, attendance, reminders and an iCal feed. | A |

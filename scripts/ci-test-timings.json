@@ -161,6 +161,14 @@
     "test/schema-parity.test.ts": 1,
     "test/utils.test.ts": 1
   },
+  "@frigear-nu/operations": {
+    "test/authenticated.test.ts": 30,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/dto.test.ts": 1,
+    "test/unit/links.test.ts": 1,
+    "test/unit/slug.test.ts": 1,
+    "test/unit/status.test.ts": 1
+  },
   "@frigear-nu/payments": {
     "test/authenticated.test.ts": 54,
     "test/schema-parity.test.ts": 1
