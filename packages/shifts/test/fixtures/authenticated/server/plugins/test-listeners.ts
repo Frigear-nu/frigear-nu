@@ -23,7 +23,7 @@ export default defineNitroPlugin((nitro) => {
   })
   for (const name of ['offered', 'accepted', 'rejected', 'completed'] as const) {
     nitro.hooks.hook(`shifts:swap:${name}`, (ctx) => {
-      testHooks.push({ name: `swap:${name}`, swapId: ctx.swap.id, offerId: ctx.offer.id, userId: ctx.offer.userId, status: ctx.swap.status })
+      testHooks.push({ name: `swap:${name}`, swapId: ctx.swap.id, offerId: ctx.offer.id, userId: ctx.offer.userId, status: ctx.swap.status, kind: ctx.kind })
     })
   }
   nitro.hooks.hook('shifts:attendance:marked', (ctx) => {

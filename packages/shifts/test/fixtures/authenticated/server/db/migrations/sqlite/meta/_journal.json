@@ -12,8 +12,8 @@
     {
       "idx": 1,
       "version": "6",
-      "when": 1795241200162,
-      "tag": "0001_shifts_extras",
+      "when": 1795900000000,
+      "tag": "0001_shift_handover",
       "breakpoints": true
     }
   ]

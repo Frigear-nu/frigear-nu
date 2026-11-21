@@ -3,7 +3,7 @@ import { shiftsAccess } from '../../../access'
 import type { ShiftCopyResultDto } from '../../../../types'
 
 // Copies another schedule's roles and shifts into this one (`{ scheduleId, offsetDays }`), the shifts moved by whole
-// days at the same wall-clock time. Assignments are not copied. A schedule of another operation maps its teams by name.
+// days at the same wall-clock time, and its coverage, handover and approval. Assignments are not copied. A schedule of another operation maps its teams by name.
 export default defineEventHandler(async (event): Promise<ShiftCopyResultDto> => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { scheduleId } = await getValidatedRouterParams(event, idParams('scheduleId').parse)

@@ -6,8 +6,31 @@ export type { Translated }
 /** `draft`: staff only. `published`: volunteers see their shifts and can swap them. */
 export type ShiftScheduleStatus = 'draft' | 'published'
 
-/** `peer`: a swap completes when the owner accepts an offer. `approval`: a lead of the team or staff approves it too. */
-export type ShiftSwapMode = 'peer' | 'approval'
+/**
+ * Whether volunteers must work every shift they hold. `all`: nothing a volunteer does may lower how many shifts they hold
+ * (only `trade` handovers). `flexible`: volunteers may give shifts away and take others over.
+ */
+export type ShiftCoverage = 'all' | 'flexible'
+
+/** How shifts change hands between volunteers: `trade` (shift for shift), `release` (give away, or take over) or `both`. */
+export type ShiftHandover = 'trade' | 'release' | 'both'
+
+/** Who completes a swap the owner accepted: `peer` (the two volunteers' agreement is enough) or `lead` (a lead of the team or staff approves). */
+export type ShiftApproval = 'peer' | 'lead'
+
+/** How a schedule's shifts change hands. With `coverage: 'all'` only `handover: 'trade'` is valid. */
+export type ShiftScheduleSettings = {
+  coverage: ShiftCoverage
+  handover: ShiftHandover
+  approval: ShiftApproval
+}
+
+/**
+ * The kind of a swap. `trade`: shift for shift; every offer gives one of the offerer's shifts back and both change hands
+ * together, so each person's count stays the same. `release`: the owner gives the shift away and the offerer takes it over
+ * without giving one back.
+ */
+export type ShiftSwapKind = 'trade' | 'release'
 
 /** Where a person stands on a shift. Only `assigned` and `attended` count towards the capacity and the guards. */
 export type ShiftAssignmentStatus = 'assigned' | 'attended' | 'no_show' | 'cancelled'
@@ -110,7 +133,9 @@ export type ShiftScheduleDto = {
   operationId: string
   name: Translated
   status: ShiftScheduleStatus
-  swapMode: ShiftSwapMode
+  coverage: ShiftCoverage
+  handover: ShiftHandover
+  approval: ShiftApproval
   minPerShift: number | null
   maxPerShift: number | null
   guards: ShiftGuards
@@ -172,13 +197,19 @@ export type ShiftWithAssigneesDto = ShiftDto & {
   filled: number
 }
 
-/** A guard a new assignment (or a swap) would break, or the capacity. */
+/** A guard a new assignment (or a swap) would break, or the capacity. A swap answers 409 with the matching `ShiftSwapGuardCode`. */
 export type ShiftWarning = {
   code: 'shift_full' | 'below_min' | 'max_shifts_per_day' | 'min_rest' | 'overlap'
   message: string
   /** The other shift involved (`min_rest`, `overlap`). */
   shiftId?: string
 }
+
+/**
+ * The 409 codes of a swap one of the two people cannot take part in: two shifts at once, too little rest, too many shifts
+ * on one day, not eligible for the shift (team or role), or a shift over its capacity.
+ */
+export type ShiftSwapGuardCode = 'guard_overlap' | 'guard_rest' | 'guard_max_per_day' | 'guard_ineligible' | 'guard_capacity'
 
 /** The answer of assigning someone: the assignment and the guards it breaks (staff decide; only a full shift blocks). */
 export type ShiftAssignResultDto = {
@@ -199,6 +230,7 @@ export type ShiftCandidateDto = ShiftPersonDto & {
 export type ShiftSwapDto = {
   id: string
   assignmentId: string
+  kind: ShiftSwapKind
   status: ShiftSwapStatus
   openedAt: string
   decidedAt: string | null
@@ -206,7 +238,12 @@ export type ShiftSwapDto = {
   shift: ShiftDto & { teamName: Translated, scheduleName: Translated }
   /** The person giving it away (name only). */
   owner: ShiftPersonDto
-  swapMode: ShiftSwapMode
+  /** A trade aimed at one assignment: only its holder may offer, and only that shift. `null` is open to anybody. */
+  wantedAssignmentId: string | null
+  /** The shift the owner wants in return, for a targeted trade. */
+  wantedShift: (ShiftDto & { teamName: Translated }) | null
+  /** The schedule's settings now (they may have changed since the swap was opened). */
+  settings: ShiftScheduleSettings
   /** In the owner's and staff's views: the offers. */
   offers?: ShiftSwapOfferDto[]
   /** In the marketplace: the caller's own live offer, if any. */
@@ -237,14 +274,15 @@ export type MyShiftDto = {
   teamName: Translated
   roleName: Translated | null
   /** My live swap of it, if any. */
-  swap: Pick<ShiftSwapDto, 'id' | 'status'> | null
+  swap: Pick<ShiftSwapDto, 'id' | 'status' | 'kind'> | null
+  /** How the schedule lets this shift change hands. */
+  settings: ShiftScheduleSettings
 }
 
 /** One of my shifts with what the detail page shows (`GET /api/shifts/me/:assignmentId`). */
 export type MyShiftDetailDto = MyShiftDto & {
   /** The leads of the team on shift at the same time (names only). */
   leadsOnDuty: ShiftPersonDto[]
-  swapMode: ShiftSwapMode
   /** My live swap with its offers. */
   swapDetail: ShiftSwapDto | null
   /** When the QR pass shows: from `startsAt` minus `checkInOpensMinutes` to `endsAt`. */
@@ -322,8 +360,8 @@ export type ShiftCreatedContext = { event: H3Event, shift: ShiftDto }
 export type ShiftUpdatedContext = { event: H3Event, shift: ShiftDto, previous: ShiftDto }
 /** Context of `shifts:assignment:changed`. `previous` is `null` for a new assignment. */
 export type ShiftAssignmentChangedContext = { event: H3Event, assignment: ShiftAssignmentDto, previous: ShiftAssignmentDto | null }
-/** Context of `shifts:swap:offered`, `:accepted`, `:rejected` and `:completed`. */
-export type ShiftSwapContext = { event: H3Event, swap: ShiftSwapDto, offer: ShiftSwapOfferDto }
+/** Context of `shifts:swap:offered`, `:accepted`, `:rejected` and `:completed`. `kind` is the swap's (`swap.kind`). */
+export type ShiftSwapContext = { event: H3Event, kind: ShiftSwapKind, swap: ShiftSwapDto, offer: ShiftSwapOfferDto }
 /** Context of `shifts:attendance:marked`. `by` is the lead or staff user. */
 export type ShiftAttendanceContext = { event: H3Event, assignment: ShiftAssignmentDto, by: number }
 

@@ -15,12 +15,12 @@ import type {
   ShiftRoleDto,
   ShiftScheduleDto,
   ShiftScheduleStatus,
-  ShiftSwapMode,
   ShiftSwapOfferDto,
   ShiftSwapOfferStatus,
   Translated,
 } from '../../../types'
 import { effectiveCapacity } from '../../utils/guards'
+import { scheduleSettingsOf } from '../../utils/settings'
 
 export type ShiftScheduleRow = typeof schema.shiftSchedules.$inferSelect
 export type ShiftRoleRow = typeof schema.shiftRoles.$inferSelect
@@ -38,7 +38,7 @@ export function toShiftScheduleDto(row: ShiftScheduleRow, shiftCount?: number): 
     operationId: row.operationId,
     name: row.name as Translated,
     status: row.status as ShiftScheduleStatus,
-    swapMode: row.swapMode as ShiftSwapMode,
+    ...scheduleSettingsOf(row),
     minPerShift: row.minPerShift ?? null,
     maxPerShift: row.maxPerShift ?? null,
     guards: (row.guards ?? {}) as ShiftGuards,

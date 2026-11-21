@@ -12,7 +12,7 @@ type ShiftLocation = { name?: Translated, mapId?: string, featureId?: string }
 // Operation, team and user ids carry no foreign key here: those tables belong to other modules. Shifts' own rows refer to
 // each other by id and are removed by shifts itself.
 
-/** A schedule of an operation: its shifts, the roles they need, how swaps work and the guards. */
+/** A schedule of an operation: its shifts, the roles they need, how shifts change hands and the guards. */
 export const shiftSchedules = sqliteTable('shift_schedules', {
   /** `shs_` + random id. */
   id: text().primaryKey(),
@@ -20,8 +20,12 @@ export const shiftSchedules = sqliteTable('shift_schedules', {
   name: text({ mode: 'json' }).$type<Translated>().notNull(),
   /** `draft` (staff only) or `published` (volunteers see their shifts). */
   status: text().notNull().default('draft'),
-  /** `peer`: a swap completes when the owner accepts an offer. `approval`: a lead or staff approves it too. */
-  swapMode: text().notNull().default('peer'),
+  /** `all`: volunteers work every shift they hold, nothing they do lowers their count (trades only). `flexible`. */
+  coverage: text().notNull().default('flexible'),
+  /** How shifts change hands: `trade` (shift for shift), `release` (give away or take over) or `both`. */
+  handover: text().notNull().default('both'),
+  /** `peer`: a swap completes when the owner accepts an offer. `lead`: a lead of the team or staff approves it too. */
+  approval: text().notNull().default('peer'),
   /** Fewer people than this on a shift shows it as short-staffed. */
   minPerShift: integer(),
   /** The capacity of a shift that sets none; `null` is unlimited. */
@@ -98,6 +102,10 @@ export const shiftSwaps = sqliteTable('shift_swaps', {
   assignmentId: text().notNull(),
   /** The person who opened it: the assignment's holder then. */
   userId: integer().notNull(),
+  /** `trade` (shift for shift: every offer gives one back) or `release` (given away, taken over). */
+  kind: text().notNull().default('release'),
+  /** A trade aimed at one assignment: only its holder may offer, giving that shift. `null` is open to anybody. */
+  wantedAssignmentId: text(),
   /** `open`, `offered`, `accepted`, `pending_approval`, `completed`, `rejected` or `cancelled`. */
   status: text().notNull().default('open'),
   openedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
@@ -109,18 +117,18 @@ export const shiftSwaps = sqliteTable('shift_swaps', {
   index('shift_swap_status_idx').on(t.status),
 ])
 
-/** An offer on a swap: take the shift over, optionally giving one of your own shifts back. */
+/** An offer on a swap: one of the offerer's shifts in return (a trade), or none (taking a released shift over). */
 export const shiftSwapOffers = sqliteTable('shift_swap_offers', {
   /** `sho_` + random id. */
   id: text().primaryKey(),
   swapId: text().notNull(),
   userId: integer().notNull(),
-  /** The offerer's assignment the owner gets in return; `null` takes the shift over without giving one back. */
+  /** The offerer's assignment the owner gets in return (a trade); `null` takes a released shift over. */
   offeredAssignmentId: text(),
   /** `offered`, `accepted`, `rejected`, `withdrawn` or `superseded`. */
   status: text().notNull().default('offered'),
   decidedAt: integer({ mode: 'timestamp' }),
-  /** The lead or staff user who approved the swap (approval mode). */
+  /** The lead or staff user who approved the swap (`approval: 'lead'`). */
   approvedBy: integer(),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),

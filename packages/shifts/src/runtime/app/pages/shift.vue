@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
+import { allowedSwapKinds, allowsSwapKind, offerKind } from '../../utils/settings'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { countdownParts, dayKey } from '../../utils/time'
-import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapOfferDto } from '../../../types'
+import type { MyShiftDetailDto, ShiftPassDto, ShiftSwapKind, ShiftSwapOfferDto } from '../../../types'
 import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
-// One of my shifts: when and where, the lead on duty, the QR pass while check-in is open, and the swap (open one,
-// accept or reject offers, withdraw it).
+// One of my shifts: when and where, the lead on duty, the QR pass while check-in is open, and the swap (open a trade or
+// give the shift away, as far as the schedule allows; accept or reject offers; withdraw it).
 const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
 const format = useShiftsFormat()
@@ -55,11 +56,17 @@ const swap = computed(() => data.value?.swapDetail ?? null)
 const upcoming = computed(() => !!data.value && Date.parse(data.value.shift.startsAt) > now.value)
 const canOpenSwap = computed(() => !swap.value && data.value?.assignment.status === 'assigned' && upcoming.value)
 const waitingOffers = computed(() => (swap.value?.offers ?? []).filter(offer => offer.status === 'offered' || offer.status === 'accepted'))
+// What the schedule lets me do now: trade the shift, give it away, or both.
+const kinds = computed<ShiftSwapKind[]>(() => data.value ? allowedSwapKinds(data.value.settings) : [])
+const mustWorkAll = computed(() => data.value?.settings.coverage === 'all')
+const canAccept = (offer: ShiftSwapOfferDto) => !!data.value && allowsSwapKind(data.value.settings, offerKind(offer))
 
-async function openSwap() {
+async function openSwap(kind: ShiftSwapKind) {
   const done = await run(
-    () => $fetch(shiftsApi.me.swap(assignmentId.value), { method: 'POST' }).then(() => true),
-    { success: t('shift.swapOpened', 'Your shift is open for a swap'), error: t('shift.swapOpenFailed', 'Could not open a swap') },
+    () => $fetch(shiftsApi.me.swap(assignmentId.value), { method: 'POST', body: { kind } }).then(() => true),
+    kind === 'trade'
+      ? { success: t('shift.tradeOpened', 'Your shift is open for a trade'), error: t('shift.swapOpenFailed', 'Could not open a swap') }
+      : { success: t('shift.swapOpened', 'Your shift is up for grabs'), error: t('shift.swapOpenFailed', 'Could not open a swap') },
   )
   if (done) await refresh()
 }
@@ -89,7 +96,7 @@ async function decide(offer: ShiftSwapOfferDto, accept: boolean) {
       : { success: t('shift.offerRejected', 'Turned down the offer of {name}', { name }), error: t('shift.offerRejectFailed', 'Could not turn the offer down') },
   )
   if (done) {
-    if (accept && data.value?.swapMode === 'peer') return navigateTo(links.shifts())
+    if (accept && data.value?.settings.approval === 'peer') return navigateTo(links.shifts())
     await refresh()
   }
 }
@@ -247,17 +254,40 @@ useHead({ title: () => t('shift.title', 'My shift') })
           <SectionCard
             :title="t('shift.swap', 'Swap')"
             icon="i-lucide-arrow-left-right"
-            :description="data.swapMode === 'approval' ? t('shift.swapApprovalHelp', 'A lead of the team approves a swap you accept.') : t('shift.swapPeerHelp', 'A swap is done as soon as you accept an offer.')"
+            :description="data.settings.approval === 'lead' ? t('shift.swapApprovalHelp', 'A lead of the team approves a swap you accept.') : t('shift.swapPeerHelp', 'A swap is done as soon as you accept an offer.')"
           >
             <template
               v-if="swap"
               #actions
             >
-              <StatusBadge
-                :status="swap.status"
-                :label="t(`swapStatuses.${swap.status}`, SHIFT_SWAP_STATUS_LABELS[swap.status])"
-              />
+              <div class="flex items-center gap-2">
+                <UBadge
+                  color="neutral"
+                  variant="subtle"
+                  :label="swap.kind === 'trade' ? t('swapKinds.trade', 'Trade') : t('swapKinds.release', 'Give away')"
+                />
+                <StatusBadge
+                  :status="swap.status"
+                  :label="t(`swapStatuses.${swap.status}`, SHIFT_SWAP_STATUS_LABELS[swap.status])"
+                />
+              </div>
             </template>
+            <UAlert
+              v-if="mustWorkAll"
+              class="mb-3"
+              color="info"
+              variant="subtle"
+              icon="i-lucide-info"
+              :title="t('shift.tradeOnly', 'Trade only: you must work all your shifts.')"
+            />
+            <UAlert
+              v-if="swap && !allowsSwapKind(data.settings, swap.kind)"
+              class="mb-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :title="t('shift.swapNoLongerAllowed', 'The schedule no longer allows this kind of swap: withdraw it and open a new one.')"
+            />
             <div
               v-if="swap"
               class="flex flex-col gap-3"
@@ -266,7 +296,9 @@ useHead({ title: () => t('shift.title', 'My shift') })
                 v-if="!waitingOffers.length"
                 class="text-muted text-sm"
               >
-                {{ t('shift.noOffers', 'No offers yet. People who can take your shift see it in the open swaps.') }}
+                {{ swap.kind === 'trade'
+                  ? t('shift.noTradeOffers', 'No offers yet. People who can take your shift see it in the open swaps and offer one of theirs.')
+                  : t('shift.noOffers', 'No offers yet. People who can take your shift see it in the open swaps.') }}
               </p>
               <ul
                 v-else
@@ -286,7 +318,7 @@ useHead({ title: () => t('shift.title', 'My shift') })
                     </span>
                   </div>
                   <div
-                    v-if="offer.status === 'offered' && swap.status === 'offered'"
+                    v-if="offer.status === 'offered' && swap.status === 'offered' && canAccept(offer)"
                     class="flex gap-2"
                   >
                     <UButton
@@ -320,10 +352,10 @@ useHead({ title: () => t('shift.title', 'My shift') })
               {{ t('shift.cannotSwap', 'This shift cannot be swapped now.') }}
             </p>
             <template
-              v-if="(swap && swap.status !== 'accepted') || canOpenSwap"
+              v-if="(swap && swap.status !== 'accepted') || (canOpenSwap && kinds.length)"
               #footer
             >
-              <div class="flex justify-end gap-2">
+              <div class="flex flex-wrap justify-end gap-2">
                 <UButton
                   v-if="swap && swap.status !== 'accepted'"
                   color="neutral"
@@ -332,13 +364,24 @@ useHead({ title: () => t('shift.title', 'My shift') })
                   :label="t('shift.withdrawSwap', 'Withdraw swap')"
                   @click="withdrawSwap"
                 />
-                <UButton
-                  v-else-if="canOpenSwap"
-                  icon="i-lucide-arrow-left-right"
-                  :loading="busy"
-                  :label="t('shift.openSwap', 'Offer shift for swap')"
-                  @click="openSwap"
-                />
+                <template v-else-if="canOpenSwap">
+                  <UButton
+                    v-if="kinds.includes('release')"
+                    :color="kinds.includes('trade') ? 'neutral' : 'primary'"
+                    :variant="kinds.includes('trade') ? 'outline' : 'solid'"
+                    icon="i-lucide-hand"
+                    :loading="busy"
+                    :label="t('shift.openRelease', 'Give shift away')"
+                    @click="openSwap('release')"
+                  />
+                  <UButton
+                    v-if="kinds.includes('trade')"
+                    icon="i-lucide-arrow-left-right"
+                    :loading="busy"
+                    :label="t('shift.openTrade', 'Offer shift for a trade')"
+                    @click="openSwap('trade')"
+                  />
+                </template>
               </div>
             </template>
           </SectionCard>

@@ -8,6 +8,7 @@ export * from './guards'
 export * from './ics'
 export * from './reminders'
 export * from './links'
+export * from './settings'
 export * from './status'
 export * from './time'
 
@@ -15,6 +16,7 @@ export type {
   ModuleOptions,
   MyShiftDetailDto,
   MyShiftDto,
+  ShiftApproval,
   ShiftAssigneeDto,
   ShiftAssignmentChangedContext,
   ShiftAssignmentDto,
@@ -29,11 +31,13 @@ export type {
   ShiftChannel,
   ShiftCheckInDto,
   ShiftCopyResultDto,
+  ShiftCoverage,
   ShiftCreatedContext,
   ShiftDto,
   ShiftFeedStatusDto,
   ShiftFeedTokenDto,
   ShiftGuards,
+  ShiftHandover,
   ShiftLocation,
   ShiftPassDto,
   ShiftPassPerkDto,
@@ -47,6 +51,7 @@ export type {
   ShiftRoleDto,
   ShiftScheduleContext,
   ShiftScheduleDto,
+  ShiftScheduleSettings,
   ShiftScheduleStatus,
   ShiftsLedTeamDto,
   ShiftsNowDto,
@@ -54,7 +59,8 @@ export type {
   ShiftsRemindersOptions,
   ShiftSwapContext,
   ShiftSwapDto,
-  ShiftSwapMode,
+  ShiftSwapGuardCode,
+  ShiftSwapKind,
   ShiftSwapOfferDto,
   ShiftSwapOfferStatus,
   ShiftSwapStatus,

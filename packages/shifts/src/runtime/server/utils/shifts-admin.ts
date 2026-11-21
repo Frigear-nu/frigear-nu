@@ -5,6 +5,7 @@ import type { z } from 'zod'
 import { apiError, validationError } from '@frigear-nu/module-kit/server'
 import type { ShiftCopyResultDto, ShiftDto, ShiftScheduleDto, ShiftWithAssigneesDto, Translated } from '../../../types'
 import { newId } from '../../utils'
+import { validScheduleSettings } from '../../utils/settings'
 import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
 import { shiftByDays, slotInstants } from '../../utils/time'
 import { toShiftDto, toShiftRoleDto, toShiftScheduleDto } from './shifts-dto'
@@ -27,6 +28,13 @@ const cleanGuards = (guards: { maxShiftsPerDay?: number | null, minRestHours?: n
 
 // --- Schedules -------------------------------------------------------------------------------
 
+/** 400 `invalid_schedule_settings` unless the settings fit together (`coverage: 'all'` allows only `handover: 'trade'`). */
+function shiftsAssertScheduleSettings(settings: { coverage: string, handover: string }): void {
+  if (!validScheduleSettings(settings as Parameters<typeof validScheduleSettings>[0])) {
+    throw apiError(400, 'invalid_schedule_settings', 'With coverage "all" volunteers must work every shift they hold: the handover must be "trade".', { coverage: settings.coverage, handover: settings.handover })
+  }
+}
+
 /** The schedules of an operation (or every one), newest first, with how many shifts each has. */
 export async function shiftsListSchedules(operationId?: string): Promise<ShiftScheduleDto[]> {
   const rows = await db.select().from(schema.shiftSchedules)
@@ -40,14 +48,17 @@ export async function shiftsListSchedules(operationId?: string): Promise<ShiftSc
   return rows.map(row => toShiftScheduleDto(row, byId.get(row.id) ?? 0))
 }
 
-/** Creates a draft schedule. */
+/** Creates a draft schedule. 400 `invalid_schedule_settings` when the settings do not fit together. */
 export async function shiftsCreateSchedule(input: ScheduleInput): Promise<ShiftScheduleRow> {
+  shiftsAssertScheduleSettings(input)
   const [row] = await db.insert(schema.shiftSchedules).values({
     id: newId('shs'),
     operationId: input.operationId,
     name: input.name,
     status: 'draft',
-    swapMode: input.swapMode,
+    coverage: input.coverage,
+    handover: input.handover,
+    approval: input.approval,
     minPerShift: input.minPerShift ?? null,
     maxPerShift: input.maxPerShift ?? null,
     guards: cleanGuards(input.guards),
@@ -55,11 +66,18 @@ export async function shiftsCreateSchedule(input: ScheduleInput): Promise<ShiftS
   return row!
 }
 
-/** Changes a schedule's name, swap mode, sizes or guards (not its status: see publish). */
+/**
+ * Changes a schedule's name, settings, sizes or guards (not its status: see publish). The settings are checked merged
+ * with the stored ones (400 `invalid_schedule_settings`). Live swaps are not touched: accepting or approving one checks
+ * the settings of that moment.
+ */
 export async function shiftsPatchSchedule(existing: ShiftScheduleRow, patch: SchedulePatch): Promise<ShiftScheduleRow> {
   const values: Partial<typeof schema.shiftSchedules.$inferInsert> = {}
   if (patch.name !== undefined) values.name = patch.name
-  if (patch.swapMode !== undefined) values.swapMode = patch.swapMode
+  if (patch.coverage !== undefined) values.coverage = patch.coverage
+  if (patch.handover !== undefined) values.handover = patch.handover
+  if (patch.approval !== undefined) values.approval = patch.approval
+  shiftsAssertScheduleSettings({ coverage: values.coverage ?? existing.coverage, handover: values.handover ?? existing.handover })
   if (patch.minPerShift !== undefined) values.minPerShift = patch.minPerShift
   if (patch.maxPerShift !== undefined) values.maxPerShift = patch.maxPerShift
   if (patch.guards !== undefined) values.guards = cleanGuards(patch.guards)
@@ -279,7 +297,7 @@ export async function shiftsWithAssignees(rows: ShiftRow[], schedules: Map<strin
 
 /**
  * Copies the roles and shifts of another schedule into this one, the shifts moved by `offsetDays` at the same wall-clock
- * time. Assignments are not copied. A source of another operation maps its teams to this operation's teams by name;
+ * time, and its coverage, handover and approval. Assignments are not copied. A source of another operation maps its teams to this operation's teams by name;
  * teams without a match are skipped (`skippedTeamIds`). Fires `shifts:shift:created` per shift.
  */
 export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, sourceId: string, offsetDays: number): Promise<ShiftCopyResultDto> {
@@ -351,6 +369,9 @@ export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, s
   for (let index = 0; index < values.length; index += 25) {
     created.push(...await db.insert(schema.shifts).values(values.slice(index, index + 25)).returning())
   }
+  // The source's coverage, handover and approval come along (they are valid together already).
+  const [updated] = await db.update(schema.shiftSchedules).set({ coverage: source.coverage, handover: source.handover, approval: source.approval })
+    .where(eq(schema.shiftSchedules.id, target.id)).returning()
   for (const row of created) await shiftsFire('shifts:shift:created', { event, shift: toShiftDto(row, target) })
-  return { schedule: toShiftScheduleDto(target, undefined), roles: roleMap.size, shifts: created.length, skippedTeamIds, changedRoleIds }
+  return { schedule: toShiftScheduleDto(updated ?? target, undefined), roles: roleMap.size, shifts: created.length, skippedTeamIds, changedRoleIds }
 }

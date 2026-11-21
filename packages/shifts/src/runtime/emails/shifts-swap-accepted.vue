@@ -7,6 +7,8 @@ defineProps<{
   subject: string
   message: string
   url?: string | null
+  /** A trade: the message names both shifts. */
+  trade?: boolean
 }>()
 </script>
 
@@ -14,7 +16,7 @@ defineProps<{
   <EmailLayout :preview="subject">
     <ESubject>{{ subject }}</ESubject>
     <EmailHeading>
-      Your offer was accepted
+      {{ trade ? 'Your trade was accepted' : 'Your offer was accepted' }}
     </EmailHeading>
     <EmailDivider />
     <EmailText>

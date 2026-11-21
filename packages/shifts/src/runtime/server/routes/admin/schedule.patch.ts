@@ -2,7 +2,8 @@ import { idParams } from '@frigear-nu/module-kit/server'
 import { shiftsAccess } from '../../../access'
 import type { ShiftScheduleDto } from '../../../../types'
 
-// Changes a schedule's name, swap mode, sizes or guards. Publishing has its own route.
+// Changes a schedule's name, coverage, handover, approval, sizes or guards (400 `invalid_schedule_settings` when the
+// settings merged with the stored ones do not fit together). Publishing has its own route.
 export default defineEventHandler(async (event): Promise<ShiftScheduleDto> => {
   await authorize(event, shiftsAccess.permissions.manage)
   const { scheduleId } = await getValidatedRouterParams(event, idParams('scheduleId').parse)

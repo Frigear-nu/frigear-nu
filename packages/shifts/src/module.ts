@@ -60,13 +60,13 @@ declare module 'nitropack' {
     'shifts:shift:updated': (ctx: ShiftUpdatedContext) => void | Promise<void>
     /** An assignment was created (`previous: null`), cancelled, marked or changed hands in a swap. */
     'shifts:assignment:changed': (ctx: ShiftAssignmentChangedContext) => void | Promise<void>
-    /** Somebody offered to take a swap. */
+    /** Somebody offered on a swap: a shift in return (`kind: 'trade'`), or to take it over (`kind: 'release'`). */
     'shifts:swap:offered': (ctx: ShiftSwapContext) => void | Promise<void>
-    /** The owner accepted an offer (`peer`: it completes at once; `approval`: it waits for a lead or staff). */
+    /** The owner accepted an offer (`approval: 'peer'`: it completes at once; `'lead'`: it waits for a lead or staff). */
     'shifts:swap:accepted': (ctx: ShiftSwapContext) => void | Promise<void>
     /** The owner turned an offer down, or an approver rejected the swap. */
     'shifts:swap:rejected': (ctx: ShiftSwapContext) => void | Promise<void>
-    /** The two shifts changed hands. */
+    /** The shift changed hands: both shifts together in a trade, the one shift in a release. */
     'shifts:swap:completed': (ctx: ShiftSwapContext) => void | Promise<void>
     /** A lead or staff marked attendance: a QR check-in, attended or a no-show. */
     'shifts:attendance:marked': (ctx: ShiftAttendanceContext) => void | Promise<void>
