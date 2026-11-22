@@ -128,9 +128,15 @@ export function readGrants(value: unknown): Grant[] {
   return value.filter(isGrantShape).map(grant => ({ ...grant }))
 }
 
-/** Whether the list holds a `public` grant: the record is served to everyone, without sign-in. */
-export function hasPublicGrant(value: unknown): boolean {
-  return readGrants(value).some(grant => grant.kind === PUBLIC_GRANT_KIND)
+/**
+ * Whether the list holds a valid `public` grant: the record is served to everyone, without sign-in. Each grant is
+ * parsed first (through `registry` when given, otherwise by the built-in `publicGrantSchema`), so an invalid one such
+ * as `{ kind: 'public', x: 1 }` admits nobody, as in `matchGrantList`.
+ */
+export function hasPublicGrant(value: unknown, registry?: GrantRegistry): boolean {
+  return readGrants(value).some(grant => grant.kind === PUBLIC_GRANT_KIND && (registry
+    ? parseGrant(registry, grant)?.kind === PUBLIC_GRANT_KIND
+    : publicGrantSchema.safeParse(grant).success))
 }
 
 /** A registry of grant kinds by name. */

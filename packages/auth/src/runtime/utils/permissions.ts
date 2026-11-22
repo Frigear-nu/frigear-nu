@@ -701,13 +701,18 @@ export interface CollectRoleHoldersInput {
 
 /**
  * The core of `listRoleHolders`: asks `holders` for the users with a stored role granting one of `roles` (inheritance
- * included), then keeps those `holds` confirms. Empty without `holders` (fail closed).
+ * included), then keeps those `holds` confirms. Empty without `holders` (fail closed). The limit caps the stored
+ * candidates, not the confirmed holders: when the provider returns `limit` candidates, the list may be cut, which is
+ * logged as a warning.
  */
 export async function collectRoleHolders(input: CollectRoleHoldersInput): Promise<number[]> {
   const wanted = [...new Set(input.roles.filter(role => typeof role === 'string' && role.length > 0))]
   const limit = Math.min(ROLE_HOLDER_LIMIT, Math.max(0, Math.floor(input.limit ?? ROLE_HOLDER_LIMIT)))
   if (!input.holders || !wanted.length || !limit) return []
   const candidates = await input.holders(rolesGranting(input.table, wanted), { limit })
+  if (candidates.length >= limit) {
+    console.warn(`[auth] the role provider returned ${limit} holders of ${wanted.join(', ')}, the limit: the list may be incomplete`)
+  }
   const ids = [...new Set(candidates.map(Number))].filter(id => Number.isInteger(id) && id > 0).slice(0, limit)
   if (ids.length && input.prime) await input.prime(ids)
   const result: number[] = []
