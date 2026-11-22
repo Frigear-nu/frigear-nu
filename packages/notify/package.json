@@ -2,9 +2,9 @@
   "name": "@frigear-nu/notify",
   "version": "0.2.5",
   "type": "module",
-  "description": "Email, SMS and generic notification dispatch (pluggable drivers) Nuxt module, shared across Frigear modules.",
+  "description": "Email, SMS, push and generic notification dispatch (pluggable drivers), and notifyUser: per-user channel choices over a topic registry. Shared across Frigear modules.",
   "license": "MIT",
-  "homepage": "https://docs.frigear.dev/modules/platform/notify",
+  "homepage": "https://docs.frigear.dev/modules/communication/notify",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
@@ -13,7 +13,12 @@
   "main": "./src/module.ts",
   "exports": {
     ".": "./src/module.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    }
   },
   "publishConfig": {
     "exports": {
@@ -23,6 +28,11 @@
       },
       "./types": {
         "types": "./dist/types.d.mts"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
       }
     },
     "main": "./dist/module.mjs",

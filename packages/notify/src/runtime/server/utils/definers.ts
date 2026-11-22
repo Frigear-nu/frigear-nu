@@ -2,6 +2,8 @@ import type {
   SimpleDriver,
   SMSDriver,
   EmailDriver,
+  PushDriver,
+  PushNotification,
   SimpleNotification,
   SMSNotification,
   EmailNotification,
@@ -15,8 +17,10 @@ export const defineSimpleNotification = <T extends SimpleNotification>(notificat
 
 export const defineEmailNotification = <T extends EmailNotification>(notification: T) => notification
 export const defineSMSNotification = <T extends SMSNotification>(notification: T) => notification
+export const definePushNotification = <T extends PushNotification>(notification: T) => notification
 
 // Driver definers
 export const defineSimpleDriver = (driver: SimpleDriver) => driver
 export const defineSMSDriver = (driver: SMSDriver) => driver
 export const defineEmailDriver = (driver: EmailDriver) => driver
+export const definePushDriver = (driver: PushDriver) => driver
