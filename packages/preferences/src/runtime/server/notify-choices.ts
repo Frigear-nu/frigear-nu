@@ -19,11 +19,15 @@ const store: NotifyChoicesStore = {
     return (readPreference(getPreferenceRegistry(), row?.preferences, NOTIFICATION_CHOICES_KEY) as NotificationChoices | undefined) ?? {}
   },
 
+  // Merges per channel against a read made here, right before the write (not the caller's earlier one), so a change to
+  // another channel or topic that landed in between is kept.
   async writeChoices(userId, choices) {
     const row = await storedPreferences(userId)
     if (!row) return
     const current = (readPreference(getPreferenceRegistry(), row.preferences, NOTIFICATION_CHOICES_KEY) as NotificationChoices | undefined) ?? {}
-    const next = getPreferenceRegistry().get(NOTIFICATION_CHOICES_KEY)!.schema.parse({ ...current, ...choices })
+    const merged: NotificationChoices = { ...current }
+    for (const [topic, channels] of Object.entries(choices)) merged[topic] = { ...current[topic], ...channels }
+    const next = getPreferenceRegistry().get(NOTIFICATION_CHOICES_KEY)!.schema.parse(merged)
     await db.update(schema.users)
       .set({ preferences: applyPreferencePatch(row.preferences, { [NOTIFICATION_CHOICES_KEY]: next }) })
       .where(eq(schema.users.id, userId))

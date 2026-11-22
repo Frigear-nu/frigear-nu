@@ -1,10 +1,11 @@
 import type { AuthorizationResponse, AuthorizeMeta, RouteRule } from './types'
 
 /**
- * Match a route path against a pattern: `/admin/**` (prefix), `*` (single segment) or an exact path.
+ * Match a route path against a pattern: `/admin/**` (prefix), `*` (single segment) or an exact path. Case-insensitive,
+ * like vue-router's page matching, so `/ME` or `/DA/me` renders under the rule for `/me` or `/da/me`.
  */
 export function matchRoute(pattern: string, path: string): boolean {
-  const normalize = (value: string) => value.replace(/\/+$/, '') || '/'
+  const normalize = (value: string) => value.replace(/\/+$/, '').toLowerCase() || '/'
   const p = normalize(pattern)
   const s = normalize(path)
 
