@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from '@frigear-nu/users/api'
 import AccountChangeEmailSlideover from '../components/Account/AccountChangeEmailSlideover.vue'
 import { PROFILE_NO_LOCALE as NO_LOCALE, profileChanges } from '../utils/profile'
 import { computed, reactive, ref, useAccount, useAction, useModuleT, useNuxtApp, useOverlay, useRoute, useToast, useUserSession, watch } from '#imports'
@@ -27,8 +28,8 @@ const schema = z.object({
     z.literal(''),
     z.url({ protocol: /^https?$/, message: t('avatar.invalid', 'Enter a valid URL.') }).max(2048, t('avatar.invalid', 'Enter a valid URL.')),
   ]).optional(),
-  // The server's rule (`phoneField` of `@frigear-nu/users`): digits, spaces and `+-().`; empty clears it.
-  phone: z.string().trim().max(40).regex(/^(\+?[\d\s().-]{3,40})?$/, t('phone.invalid', 'Enter a phone number of digits, spaces and + - ( ).')).optional(),
+  // The server's rule, imported from `@frigear-nu/users`: digits, spaces and `+-().`; empty clears it.
+  phone: z.string().trim().max(USER_PHONE_MAX_LENGTH).regex(USER_PHONE_PATTERN, t('phone.invalid', 'Enter a phone number of digits, spaces and + - ( ).')).optional(),
 })
 type Schema = z.output<typeof schema>
 
