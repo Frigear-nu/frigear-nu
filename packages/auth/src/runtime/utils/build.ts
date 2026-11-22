@@ -209,6 +209,19 @@ export function addSessionUserFilter(nuxt: Nuxt, path: string) {
 }
 
 /**
+ * The source of `#auth/session-mapper`: each user passes through the filters at `filterPaths` in order, then through the
+ * host's mapper at `mapperPath` (or as it is, without one).
+ */
+export function sessionMapperContents(filterPaths: readonly string[], mapperPath?: string): string {
+  return [
+    ...filterPaths.map((path, index) => `import filter${index} from ${JSON.stringify(path)}`),
+    mapperPath ? `import mapper from ${JSON.stringify(mapperPath)}` : 'const mapper = user => user',
+    `const filters = [${filterPaths.map((_, index) => `filter${index}`).join(', ')}]`,
+    'export default user => mapper(filters.reduce((current, filter) => filter(current), user))',
+  ].join('\n')
+}
+
+/**
  * `patterns` (route rule patterns such as `/help` or `/help/**`) once more under each `@nuxtjs/i18n` locale prefix
  * (`/da/help`, ...), since with i18n every page also exists under `/<locale>/...`. Without i18n, `patterns` as given.
  * Read from `nuxt.options.i18n.locales` at call time.
