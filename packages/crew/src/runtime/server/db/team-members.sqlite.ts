@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 
 // What crew adds to a team membership. A row with a `crewStatus` is a crew membership: `applied`, `waitlisted`,
 // `approved`, `rejected` or `withdrawn`. Teams' own `status` follows it (`pending`, `active`, `inactive`), so only an
@@ -17,4 +17,8 @@ export const teamMembers = sqliteTable('team_members', {
   waitlistReason: text(),
   /** The locale of the application (or of the invite request), for the status emails. */
   locale: text(),
-})
+}, t => [
+  // Merged with teams' own indexes on the table (module-kit merges an extension's table-config argument).
+  index('team_member_submission_idx').on(t.submissionId),
+  index('team_member_crew_status_idx').on(t.crewStatus),
+])

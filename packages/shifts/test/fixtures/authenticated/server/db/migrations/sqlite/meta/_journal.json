@@ -85,6 +85,13 @@
       "when": 1795376805408,
       "tag": "0011_shifts_push_secret_crew_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795382255475,
+      "tag": "0012_search_text",
+      "breakpoints": true
     }
   ]
 }
