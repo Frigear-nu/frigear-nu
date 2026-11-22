@@ -5,6 +5,7 @@ import { chunkParams } from '@frigear-nu/module-kit/server'
 import type { InboxRetentionMode, InboxRetentionResult } from '../../../types'
 import type { InboxContactRow, InboxMailboxRow, InboxThreadRow } from './inbox-dto'
 import type { InboxTombstoneOptions } from './inbox-tombstones'
+import { inboxThreadSearchText } from './inbox-search'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -21,7 +22,7 @@ export async function inboxAnonymiseThreads(threadIds: string[], now = new Date(
       .set({ body: '', attachments: [], cc: null, externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
       .where(inArray(schema.inboxMessages.threadId, chunk))
     await db.update(schema.inboxThreads)
-      .set({ subject: null, searchText: '', preview: null, status: 'closed', anonymisedAt: now })
+      .set({ subject: null, searchText: inboxThreadSearchText({ subject: null, anonymisedAt: now }), preview: null, status: 'closed', anonymisedAt: now })
       .where(inArray(schema.inboxThreads.id, chunk))
   }
 }

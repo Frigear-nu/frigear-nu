@@ -32,13 +32,14 @@ function jsonLdRegistry() {
  * The cards of a component: the named categories (fetched through `useHelpCenterFaqs`) as `FaqCardProps` (one card per
  * category, or per article in a `cards` category), then the inline `items`. Also adds the public questions to the page's one `FAQPage` JSON-LD (as plain text), unless the
  * `schema` option is `false` or `jsonLd` is (the signed-in area is not for search engines). A `categories` that is set
- * later starts the fetch.
+ * later starts the fetch. `lazy: false` makes navigation wait for the cards: `await` the result so a client-side
+ * navigation does not flash a skeleton.
  */
-export function useHelpCenterFaqCards(source: () => FaqCardsSource, options: { jsonLd?: boolean } = {}) {
+export function useHelpCenterFaqCards(source: () => FaqCardsSource, options: { jsonLd?: boolean, lazy?: boolean } = {}) {
   const managed = computed(() => source().categories !== undefined)
   const fetched = useHelpCenterFaqs(() => source().categories ?? [], {
     public: source().public,
-    lazy: true,
+    lazy: options.lazy ?? true,
     enabled: managed,
   })
   const locale = useHelpCenterLocale()
@@ -66,7 +67,7 @@ export function useHelpCenterFaqCards(source: () => FaqCardsSource, options: { j
     })
   }
 
-  return {
+  const result = {
     cards,
     faqs,
     /** The first response of the managed categories is still on its way. */
@@ -74,4 +75,6 @@ export function useHelpCenterFaqCards(source: () => FaqCardsSource, options: { j
     error: fetched.error,
     refresh: fetched.refresh,
   }
+  // Awaitable (it waits for the first response, see `lazy: false`) and destructurable without `await`.
+  return Object.assign(fetched.then(() => result), result)
 }

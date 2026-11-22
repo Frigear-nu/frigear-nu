@@ -1,13 +1,14 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, count, eq, inArray } from 'drizzle-orm'
-import { conflict, isUniqueViolation, notFound, searchText, validationError } from '@frigear-nu/module-kit/server'
+import { conflict, isUniqueViolation, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { AdminTeamDto, OwnerRef, TeamMemberDto, TeamOwner, Translated } from '../../../types'
 import { newId } from '../../utils'
 import { sameTeamOwner } from '../../utils/resolve'
 import { toAdminTeamDto, toTeamMemberDto } from './teams-dto'
 import { getTeamLadderOr400 } from './teams-ladders'
+import { teamSearchText } from './teams-search'
 import type { teamInput, teamPatchSchema } from './teams-schemas'
 
 export type TeamRow = typeof schema.teams.$inferSelect
@@ -136,7 +137,7 @@ export async function createTeamRow(event: H3Event, input: TeamInput): Promise<T
     parentId: input.parentId ?? null,
     kind: input.kind,
     name: input.name,
-    searchText: searchText(input.name),
+    searchText: teamSearchText(input.name),
     description: input.description ?? null,
     capacity: input.capacity ?? null,
     sort: input.sort ?? 0,
@@ -150,7 +151,7 @@ export async function patchTeamRow(existing: TeamRow, patch: TeamPatch): Promise
   const values: Partial<typeof schema.teams.$inferInsert> = {}
   if (patch.name !== undefined) {
     values.name = patch.name
-    values.searchText = searchText(patch.name)
+    values.searchText = teamSearchText(patch.name)
   }
   if (patch.description !== undefined) values.description = patch.description
   if (patch.parentId !== undefined) values.parentId = patch.parentId
