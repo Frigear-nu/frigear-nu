@@ -6,6 +6,8 @@ Roles, role assignment and the roles admin, plus the client side of access contr
 - Server mode: roles (`authorization.roles`: `grant`, `inherit`, `requirements`, `auto`) compiled by Auth, assignments in
   `authorization_user_roles` (generate and commit a migration in your app), and the roles admin
   (`/api/admin/authorization/**`, `roles:read` / `roles:assign`).
+- The `role` kind of Auth's grant lists (`{ kind: 'role', role }`: users holding a global role), with its role picker
+  in `<GrantsEditor>`. Without this module there is no `role` kind.
 - Client: `useAuthorization()` (`access`, a synchronous `can` / `cannot`, `authorize`, `refresh`), `<Can>` / `<Cannot>`,
   and filters that hide menu items, widgets and tabs whose `permission` the viewer lacks. `access` comes from
   `GET /api/auth/me/access`; in client mode (`authentication.mode: 'client'`, such as `@frigear-nu/mobile`) from the
