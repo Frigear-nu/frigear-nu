@@ -42,6 +42,11 @@
       "import": "./src/runtime/access.ts",
       "default": "./src/runtime/access.ts"
     },
+    "./grants": {
+      "types": "./src/runtime/grants.ts",
+      "import": "./src/runtime/grants.ts",
+      "default": "./src/runtime/grants.ts"
+    },
     "./client-core": {
       "types": "./src/runtime/client/core/index.ts",
       "import": "./src/runtime/client/core/index.ts",
@@ -88,6 +93,11 @@
         "import": "./dist/runtime/access.js",
         "default": "./dist/runtime/access.js"
       },
+      "./grants": {
+        "types": "./dist/runtime/grants.d.ts",
+        "import": "./dist/runtime/grants.js",
+        "default": "./dist/runtime/grants.js"
+      },
       "./client-core": {
         "types": "./dist/runtime/client/core/index.d.ts",
         "import": "./dist/runtime/client/core/index.js",
@@ -116,6 +126,9 @@
         ],
         "access": [
           "./dist/runtime/access.d.ts"
+        ],
+        "grants": [
+          "./dist/runtime/grants.d.ts"
         ],
         "client-core": [
           "./dist/runtime/client/core/index.d.ts"

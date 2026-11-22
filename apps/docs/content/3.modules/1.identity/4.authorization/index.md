@@ -217,6 +217,20 @@ Removed options: `rbac`, `abilities`, `resolvers`, and `roles.{hierarchy, inheri
 definitions, defaultRole}`. See [Migrate access control](/guide/going-further/migrate-access-control).
 ::
 
+## Role grants
+
+Authorization registers the `role` kind of Auth's
+[record audiences](/contribute/writing-a-module/access-control#record-audiences): `{ kind: 'role', role: 'coordinator' }`
+admits signed-in users holding that global role (their effective roles, inheritance included). Its field in
+`<GrantsEditor>` lists the roles for a caller who may read them (`roles:read`), and takes a typed name otherwise.
+
+- **`members`** reads `authorization_user_roles`: the users with the role, or a role inheriting it, assigned, checked
+  against their effective roles. A role given only through `defaultRoles`, an `auto` role or the `authorization:roles`
+  hook is never stored, so its holders are not listed; `matches` still admits them.
+- **Without Authorization there is no `role` kind.** A stored `role` grant then admits nobody, and `grantsValidate`
+  refuses a new one as an unknown kind.
+- `roleGrantSchema`, `rolesGranting` and the `RoleGrant` type are exported from `@frigear-nu/authorization/utils`.
+
 ## Hooks
 
 Your app answers these Nitro hooks from a server plugin (`server/plugins/*.ts`).
