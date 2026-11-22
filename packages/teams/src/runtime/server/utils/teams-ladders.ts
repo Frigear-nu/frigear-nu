@@ -61,8 +61,8 @@ export async function assertTeamRoleOnLadder(event: H3Event, kind: string, role:
 let seeding: Promise<void> | undefined
 
 /**
- * Stores the option's ladders whose kind has no row yet, once per server (insert-if-missing: an edited row is never
- * replaced). Runs on the first request, after NuxtHub applied the migrations; a failure is retried on the next one.
+ * Stores the option's ladders whose kind has no row yet, once per server (insert-if-missing: a stored row, edited or
+ * not, is never replaced, so the option only seeds). Runs on the first request, after NuxtHub applied the migrations; a failure is retried on the next one.
  */
 export function ensureTeamLaddersSeeded(): Promise<void> {
   seeding ??= (async () => {

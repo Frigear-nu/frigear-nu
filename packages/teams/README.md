@@ -3,7 +3,8 @@
 Teams for the frigear ecosystem: teams owned by an operation or the platform, members with a role from the ladder of
 the team's kind, and role mapping rules that give people a team role from a global role or a subscription plan
 without adding them by hand. The app defines its kinds and ladders in the `ladders` option; the module ships one
-generic `default` ladder (`member`, `lead`).
+generic `default` ladder (`member`, `lead`). The option only seeds: a kind is stored once, and later changes to it in
+`nuxt.config` are ignored; edit a stored ladder in the admin.
 
 - Explicit memberships are rows; mapped ones are resolved at read time and never stored. An explicit membership always
   wins over a mapped role on the same team.
