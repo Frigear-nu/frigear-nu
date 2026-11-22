@@ -22,7 +22,7 @@ vi.mock('#imports', () => ({
   useErrorToast: () => (error: unknown, title?: string) => env.showError(error, title),
 }))
 vi.mock('#dashboard/optional', () => ({
-  useUserPreferences: () => env.prefs?.(),
+  useSavedDashboardLayouts: () => env.prefs?.(),
   useUserSession: () => env.session?.(),
 }))
 vi.mock('#dashboard/registry', () => ({
@@ -36,23 +36,32 @@ const { useDashboardLayout } = await import('../../src/runtime/app/composables/u
 
 const layout = (patch: Partial<DashboardLayout> = {}): DashboardLayout => ({ order: [], hidden: [], collapsed: [], ...patch })
 
-/** A Preferences stand-in: `set` resolves when `release()` is called (or at once with `auto`), or rejects with `fail`. */
+/**
+ * A stand-in for `useSavedDashboardLayouts` (the `/api/dashboard/me/layouts` routes): `save` merges like the server and
+ * resolves when `release()` is called (or at once with `auto`), or rejects with `fail`.
+ */
 function preferences(initial: Layouts, { auto = true } = {}) {
-  const stored = ref<{ dashboardLayouts?: Layouts }>({ dashboardLayouts: initial })
+  const stored = ref<Layouts>(initial)
+  const loaded = ref<string | null>(null)
   const releases: Array<() => void> = []
   let fail: Error | undefined
-  const set = vi.fn((_key: string, value: Layouts) => new Promise<void>((resolve, reject) => {
+  const load = vi.fn(async (owner: string) => {
+    loaded.value = owner
+  })
+  const set = vi.fn((_owner: string, change: Record<string, DashboardLayout | null>) => new Promise<void>((resolve, reject) => {
     const finish = () => {
       if (fail) return reject(fail)
-      stored.value = { dashboardLayouts: value }
+      stored.value = Object.fromEntries(Object.entries({ ...stored.value, ...change })
+        .filter((entry): entry is [string, DashboardLayout] => entry[1] !== null))
       resolve()
     }
     if (auto) finish()
     else releases.push(finish)
   }))
-  env.prefs = () => ({ preferences: stored, set })
+  env.prefs = () => ({ layouts: (owner: string) => loaded.value === owner ? stored.value : {}, load, save: set, owner: loaded })
   return {
     set,
+    load,
     stored,
     failWith: (error: Error) => { fail = error },
     release: () => releases.shift()?.(),
@@ -78,9 +87,11 @@ beforeEach(() => {
 
 describe('useDashboardLayout', () => {
   it('reads the saved preference over the default, and a session change over both', async () => {
-    preferences({ 'crew.home': layout({ hidden: ['a'] }) })
+    const prefs = preferences({ 'crew.home': layout({ hidden: ['a'] }) })
     signIn(1)
-    const { layout: current, update } = useDashboardLayout('crew.home')
+    const { layout: current, update, ready } = useDashboardLayout('crew.home')
+    await ready
+    expect(prefs.load).toHaveBeenCalledWith('user:1')
     expect(current.value.hidden).toEqual(['a'])
 
     await update(value => ({ ...value, collapsed: ['b'] }))
@@ -93,18 +104,18 @@ describe('useDashboardLayout', () => {
     expect(useDashboardLayout('crew.home').layout.value).toEqual(layout())
   })
 
-  it('saves the full map: the other dashboards stay as saved', async () => {
+  it('sends only the dashboards changed this session: the other dashboards stay as saved, never re-sent', async () => {
+    // `other` no longer parses on the server (say a limit changed): it is never sent back, so it cannot fail the save.
     const prefs = preferences({ 'other': layout({ hidden: ['x'] }), 'crew.home': layout() })
     signIn(1)
-    const { update, persisted } = useDashboardLayout('crew.home')
+    const { update, persisted, ready } = useDashboardLayout('crew.home')
+    await ready
     expect(persisted.value).toBe(true)
 
     await update(value => ({ ...value, hidden: ['b'] }))
     expect(prefs.set).toHaveBeenCalledTimes(1)
-    expect(prefs.set).toHaveBeenCalledWith('dashboardLayouts', {
-      'other': layout({ hidden: ['x'] }),
-      'crew.home': layout({ hidden: ['b'] }),
-    })
+    expect(prefs.set).toHaveBeenCalledWith('user:1', { 'crew.home': layout({ hidden: ['b'] }) })
+    expect(prefs.stored.value).toEqual({ 'other': layout({ hidden: ['x'] }), 'crew.home': layout({ hidden: ['b'] }) })
   })
 
   it('drops ids that are not items of the dashboard before saving', async () => {
@@ -126,7 +137,7 @@ describe('useDashboardLayout', () => {
   })
 
   it('keeps changes for the session only without a cookie session (Auth in client mode: no Preferences import)', async () => {
-    env.prefs = undefined // the module only makes `useUserPreferences` available for Auth in server mode
+    env.prefs = undefined // the module only makes `useSavedDashboardLayouts` available for Auth in server mode
     signIn(1)
     const { update, layout: current, persisted } = useDashboardLayout('crew.home')
     expect(persisted.value).toBe(false)
@@ -137,7 +148,8 @@ describe('useDashboardLayout', () => {
   it('rolls back to the last saved layout and shows an error when saving fails', async () => {
     const prefs = preferences({ 'crew.home': layout({ hidden: ['a'] }) })
     signIn(1)
-    const { update, layout: current, saving } = useDashboardLayout('crew.home')
+    const { update, layout: current, saving, ready } = useDashboardLayout('crew.home')
+    await ready
     prefs.failWith(new Error('400'))
 
     await update(value => ({ ...value, hidden: ['a', 'b'] }))

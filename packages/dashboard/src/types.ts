@@ -44,6 +44,11 @@ export interface DashboardLayout {
   settings?: Record<string, Record<string, unknown>>
 }
 
+/** What `GET` and `PATCH /api/dashboard/me/layouts` answer: the caller's layouts by dashboard name. */
+export interface DashboardLayoutsDto {
+  layouts: Record<string, DashboardLayout>
+}
+
 /** The Home tab of `@frigear-nu/mobile`. */
 export interface DashboardHomeTabOptions {
   /** The dashboard the tab renders. Default `crew.home`. */

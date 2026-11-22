@@ -23,6 +23,11 @@
       "import": "./src/runtime/utils/index.ts",
       "default": "./src/runtime/utils/index.ts"
     },
+    "./api": {
+      "types": "./src/runtime/utils/api.ts",
+      "import": "./src/runtime/utils/api.ts",
+      "default": "./src/runtime/utils/api.ts"
+    },
     "./types": "./src/types.ts"
   },
   "publishConfig": {
@@ -37,6 +42,11 @@
         "import": "./dist/runtime/utils/index.js",
         "default": "./dist/runtime/utils/index.js"
       },
+      "./api": {
+        "types": "./dist/runtime/utils/api.d.ts",
+        "import": "./dist/runtime/utils/api.js",
+        "default": "./dist/runtime/utils/api.js"
+      },
       "./types": {
         "types": "./dist/types.d.mts"
       }
@@ -50,6 +60,9 @@
         ],
         "utils": [
           "./dist/runtime/utils/index.d.ts"
+        ],
+        "api": [
+          "./dist/runtime/utils/api.d.ts"
         ],
         "types": [
           "./dist/types.d.mts"
@@ -74,6 +87,7 @@
     "@frigear-nu/ui": "workspace:^",
     "@frigear-nu/widget": "workspace:^",
     "@nuxt/kit": "catalog:",
+    "drizzle-orm": "catalog:",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
@@ -81,6 +95,7 @@
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/preferences": "workspace:^",
     "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:",
     "vue": "3.x"
   },
   "peerDependenciesMeta": {
@@ -92,18 +107,25 @@
     },
     "@frigear-nu/preferences": {
       "optional": true
+    },
+    "@nuxthub/core": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/preferences": "workspace:^",
+    "@frigear-nu/users": "workspace:^",
+    "@libsql/client": "^0.18.0",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",
     "@nuxt/schema": "catalog:",
     "@nuxt/test-utils": "catalog:",
     "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:",
     "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
     "eslint": "catalog:",
     "nuxt": "catalog:",
     "typescript": "catalog:",

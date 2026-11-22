@@ -7,6 +7,7 @@ export {
   filterByPlatform,
   hideItem,
   isOnPlatform,
+  minimalOrder,
   moveItem,
   normalizeLayout,
   orderItems,
