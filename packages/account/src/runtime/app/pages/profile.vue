@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import AccountChangeEmailSlideover from '../components/Account/AccountChangeEmailSlideover.vue'
+import { PROFILE_NO_LOCALE as NO_LOCALE, profileChanges } from '../utils/profile'
 import { computed, reactive, ref, useAccount, useAction, useModuleT, useNuxtApp, useOverlay, useRoute, useToast, useUserSession, watch } from '#imports'
 
 defineOptions({ name: 'AccountProfilePage' })
@@ -14,7 +15,6 @@ const { updateProfileDetails } = useAccount()
 const { $i18n } = useNuxtApp() as unknown as { $i18n?: { locales: { value: Array<string | { code: string, name?: string }> } } }
 
 // The app's languages (`@nuxtjs/i18n`): the only ones the server accepts for `locale`. Without i18n the row is hidden.
-const NO_LOCALE = '-'
 const localeItems = computed(() => {
   const locales = ($i18n?.locales.value ?? []).map(locale => typeof locale === 'string' ? { value: locale, label: locale } : { value: locale.code, label: locale.name || locale.code })
   return locales.length ? [{ value: NO_LOCALE, label: t('locale.none', 'Not set') }, ...locales] : []
@@ -62,10 +62,10 @@ const dirty = computed(() => state.name !== saved.value.name || state.avatar !==
 
 const profileAction = useAction()
 function onSubmitProfile(event: FormSubmitEvent<Schema>) {
-  // The language is only sent when the app offers a choice, so a page without i18n never clears it.
-  const locale = localeItems.value.length ? { locale: state.locale === NO_LOCALE ? null : state.locale } : {}
+  // The language is only sent when the app offers a choice and the user changed it (`profileChanges`).
+  const body = profileChanges({ ...event.data, avatar: event.data.avatar ?? '', phone: event.data.phone ?? '', locale: state.locale }, saved.value, { localeChoice: localeItems.value.length > 0 })
   return profileAction.run(
-    () => updateProfileDetails({ name: event.data.name, avatar: event.data.avatar || null, phone: event.data.phone || null, ...locale }),
+    () => updateProfileDetails(body),
     { success: t('saved', 'Profile updated'), error: t('saveFailed', 'Could not update your profile.') },
   )
 }
