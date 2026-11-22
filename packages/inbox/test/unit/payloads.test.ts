@@ -38,6 +38,16 @@ describe('email payloads', () => {
     expect(htmlToText('<p>Hello &amp; welcome</p><p>Line<br>two</p><script>x()</script>')).toBe('Hello & welcome\nLine\ntwo')
   })
 
+  it('routes an email on its To and Cc recipients, once each', () => {
+    const payload = inboxEmailPayload.parse({
+      messageId: '<cc@mail>',
+      from: 'kari@example.org',
+      to: 'Support@example.com',
+      cc: ['board@example.com', { email: 'SUPPORT@example.com' }, 'Ola <ola@example.org>'],
+    })
+    expect(emailRecipients(payload)).toEqual(['support@example.com', 'board@example.com', 'ola@example.org'])
+  })
+
   it('parses a provider-agnostic email into an inbound message', () => {
     const payload = inboxEmailPayload.parse({
       messageId: '<abc@mail>',

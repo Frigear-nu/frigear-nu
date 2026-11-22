@@ -108,6 +108,7 @@ export function toInboxMessageDto(row: InboxMessageRow, author: InboxUserRef | n
     body: row.body,
     attachments: row.attachments ?? [],
     ...(pii ? { cc: row.cc?.length ? row.cc : null } : {}),
+    contactId: row.contactId ?? null,
     createdAt: isoDate(row.createdAt),
   }
 }
