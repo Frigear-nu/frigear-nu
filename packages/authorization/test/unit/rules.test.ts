@@ -27,6 +27,16 @@ describe('route matching', () => {
     expect(resolveRule(routes, '/members')).toEqual({ guest: true, authenticated: true })
     expect(resolveRule(undefined, '/x')).toBeUndefined()
   })
+
+  it('matches paths case-insensitively, like vue-router, so case variants of a guarded page are guarded', () => {
+    // What auth's `guardPages(nuxt, ['/me'])` sets with the `da` locale.
+    const routes = { '/me': { authenticated: true }, '/da/me': { authenticated: true } }
+    for (const path of ['/me', '/ME', '/Me/', '/da/me', '/DA/me', '/da/ME']) {
+      expect(resolveRule(routes, path), path).toEqual({ authenticated: true })
+    }
+    expect(resolveRule(routes, '/men')).toBeUndefined()
+    expect(matchRoute('/Admin/**', '/admin/users')).toBe(true)
+  })
 })
 
 describe('rule evaluation', () => {

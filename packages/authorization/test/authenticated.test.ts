@@ -219,6 +219,18 @@ describe('authorization (authenticated)', async () => {
       expect((await evaluate(edith.cookie, [{ kind: 'role', roles: ['editor'] }, { kind: 'team', teamId: 't' }])).matches).toBe(false)
     })
 
+    it('matches a user given only by id with the whole user, so an email-allowlisted admin is an admin', async () => {
+      const allowlisted = await register('Alan', 'allowlisted@example.com')
+      const byId = (userId: number, grants: unknown[]) =>
+        $fetch<{ matches: boolean }>('/api/test/grants-by-id', { method: 'POST', body: { userId, grants } })
+      const admins = [{ kind: 'role', role: 'admin' }]
+      // The allowlist hook reads the email, which a bare `{ id }` does not carry.
+      expect(await byId(allowlisted.id, admins)).toEqual({ matches: true })
+      expect(await byId(ada.id, admins)).toEqual({ matches: false })
+      expect(await byId(edith.id, [{ kind: 'role', role: 'editor' }])).toEqual({ matches: true })
+      expect(await byId(999_999, admins)).toEqual({ matches: false })
+    })
+
     it('refuses to store a `role` grant naming a role that is not configured, unless it was stored already', async () => {
       const validate = (grants: unknown[], stored?: unknown[]) =>
         fetch('/api/test/grants-validate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ grants, stored }) })
