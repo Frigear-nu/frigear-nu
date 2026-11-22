@@ -11,6 +11,24 @@ export const MAX_UNDERLAY_BYTES = 10 * 1024 * 1024
 /** The widest and tallest underlay, in pixels: the limit of a stored layout's `underlay.width` and `underlay.height`. */
 export const MAX_UNDERLAY_DIMENSION = 100_000
 
+/**
+ * Whether `url` is a path on this app (`/api/operations/x/venue-layout/underlay?v=...`): the only kind of underlay URL a
+ * layout may hold. The image is stored by `storeMapUnderlay` and served by the owning module's own route, so an external
+ * URL (`https://...`, `//host/...`, `data:`, `javascript:`) is refused: it would show any image as the venue's plan and
+ * leak every viewer's IP address to a third party.
+ */
+export function isSameAppPath(url: unknown): url is string {
+  if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return false
+  // Browsers treat `\` as `/` (`/\host` is protocol-relative) and drop tabs and newlines: refuse them outright.
+  if (/[\\\s]/.test(url) || [...url].some(char => char <= '\u001F' || char === '\u007F')) return false
+  try {
+    return new URL(url, 'http://app.invalid').origin === 'http://app.invalid'
+  }
+  catch {
+    return false
+  }
+}
+
 /** File extension of each underlay type, for the blob pathname. */
 export const UNDERLAY_EXTENSIONS: Record<UnderlayType, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }
 

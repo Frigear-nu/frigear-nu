@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `sessionVersion` integer DEFAULT 0 NOT NULL;
