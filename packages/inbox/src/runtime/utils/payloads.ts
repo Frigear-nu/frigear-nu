@@ -92,10 +92,14 @@ export function htmlToText(html: string): string {
     .trim()
 }
 
-/** The recipients of an email payload, lower case. */
+/**
+ * The recipients of an email payload a mailbox can be found by: `To`, then `Cc` (a mailbox copied on an email gets it
+ * too), lower case, once each.
+ */
 export function emailRecipients(payload: InboxEmailPayload): string[] {
-  const list = Array.isArray(payload.to) ? payload.to : [payload.to]
-  return list.map(entry => normaliseEmail(emailOf(entry)))
+  const to = Array.isArray(payload.to) ? payload.to : [payload.to]
+  const cc = payload.cc ? (Array.isArray(payload.cc) ? payload.cc : [payload.cc]) : []
+  return [...new Set([...to, ...cc].map(entry => normaliseEmail(emailOf(entry))))]
 }
 
 /** The `Cc` recipients of an email payload, lower case, without `exclude` (the mailbox's own address) or repeats. */

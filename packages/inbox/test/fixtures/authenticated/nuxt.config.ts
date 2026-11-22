@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { addRole, extendGrants, setRoleProvider } from '@frigear-nu/auth/utils'
+import { setNotifyChoicesStore } from '@frigear-nu/notify/utils'
 import { extendInbox } from '../../../src/runtime/utils'
 import InboxModule from '../../../src/module'
 
@@ -30,6 +31,11 @@ export default defineNuxtConfig({
       setRoleProvider(nuxt, { path: here('./server/roles/provider') })
       // `role` grants without `@frigear-nu/authorization`: a stand-in kind that reads this provider (`grants/role.ts`).
       extendGrants(nuxt, { kind: 'role', label: 'Role', server: here('./grants/role') })
+    },
+    // Notification choices without `@frigear-nu/preferences`: an in-memory store (`choices-store.ts`), so a test can turn
+    // email on for the assignee's `inbox.message` topic.
+    (_options, nuxt) => {
+      setNotifyChoicesStore(nuxt, here('./choices-store'))
     },
     // A module with a channel of its own, registered with `extendInbox` only: its adapter records what it sends and reads
     // its webhook (`server/inbox/fake-channel.ts`).

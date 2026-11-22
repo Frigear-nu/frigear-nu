@@ -1,11 +1,24 @@
 import { apiError, notConfigured, validationError } from '@frigear-nu/module-kit/server'
 import { emailRecipients, emailToInbound, inboxEmailPayload } from '../../../utils/payloads'
 import { verifySha256Signature } from '../../../utils/signature'
+import type { InboxChannelAccountRow } from '../../utils/inbox-dto'
+
+type Delivery
+  = | { status: 'received', mailboxId: string, threadId: string, messageId: string }
+    | { status: 'duplicate', mailboxId: string, messageId: string }
+    | { status: 'ignored', mailboxId?: string, reason: string }
+
+const withoutMailbox = (delivery: Delivery) => {
+  const { mailboxId: _mailboxId, ...rest } = delivery
+  return rest
+}
 
 // An inbound email, posted by the host's email provider as provider-agnostic JSON and signed with
-// `X-Inbox-Signature: sha256=<HMAC-SHA256 of the raw body with inbox.email.webhookSecret>`. The recipient picks the
-// mailbox (an `email` channel account with that address). Answers 200 for a stored, duplicate or unroutable message so
-// the provider stops retrying, 401 for a bad signature, 400 for a body that is not an email.
+// `X-Inbox-Signature: sha256=<HMAC-SHA256 of the raw body with inbox.email.webhookSecret>`. The recipients pick the
+// mailboxes: every `email` channel account whose address is in `To` or `Cc` gets the message, stored once per account
+// (two connected mailboxes on one email are two threads). Answers 200 for a stored, duplicate or unroutable message so
+// the provider stops retrying, 401 for a bad signature, 400 for a body that is not an email. The answer describes the
+// first account's delivery; with more than one, `deliveries` lists each with its `mailboxId`.
 export default defineEventHandler(async (event) => {
   const secret = inboxConfig(event).email.webhookSecret
   if (!secret) throw notConfigured('The email webhook has no secret (inbox.email.webhookSecret).')
@@ -23,13 +36,20 @@ export default defineEventHandler(async (event) => {
   const parsed = inboxEmailPayload.safeParse(json)
   if (!parsed.success) throw validationError(parsed.error.issues, 'Invalid email')
 
+  const accounts = new Map<string, InboxChannelAccountRow>()
   for (const recipient of emailRecipients(parsed.data)) {
     const account = await inboxFindAccount('email', { address: recipient })
-    if (!account) continue
-    const result = await inboxReceive(event, 'email', emailToInbound(parsed.data, recipient), account)
-    if (result.status === 'received') return { status: 'received', threadId: result.thread.id, messageId: result.message.id }
-    if (result.status === 'duplicate') return { status: 'duplicate', messageId: result.messageId }
-    return { status: 'ignored', reason: result.reason }
+    if (account && !accounts.has(account.id)) accounts.set(account.id, account)
   }
-  return { status: 'ignored', reason: 'no_account' }
+  if (!accounts.size) return { status: 'ignored', reason: 'no_account' }
+
+  const deliveries: Delivery[] = []
+  for (const account of accounts.values()) {
+    const result = await inboxReceive(event, 'email', emailToInbound(parsed.data, account.address), account)
+    if (result.status === 'received') deliveries.push({ status: 'received', mailboxId: account.mailboxId, threadId: result.thread.id, messageId: result.message.id })
+    else if (result.status === 'duplicate') deliveries.push({ status: 'duplicate', mailboxId: account.mailboxId, messageId: result.messageId })
+    else deliveries.push({ status: 'ignored', mailboxId: account.mailboxId, reason: result.reason })
+  }
+  const first = withoutMailbox(deliveries[0]!)
+  return deliveries.length > 1 ? { ...first, deliveries } : first
 })

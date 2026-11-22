@@ -291,6 +291,38 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(replies.map((message: Json) => message.cc)).toEqual([['ola@example.org'], ['nina@example.org'], null])
     })
 
+    it('routes an email on To and Cc, stored for every mailbox it reaches', async () => {
+      const payload = email({ cc: ['Board@Inbox.test', 'ola@example.org'] })
+      const both = await (await postEmail(payload)).json() as Json
+      expect(both.status).toBe('received')
+      expect((both.deliveries as Json[]).map(delivery => [delivery.mailboxId, delivery.status])).toEqual([[support.id, 'received'], [board.id, 'received']])
+      const boardThread = (both.deliveries as Json[])[1]!.threadId
+      expect(boardThread).not.toBe(both.threadId)
+      expect((await detail(admin, boardThread)).thread.mailboxId).toBe(board.id)
+      // A redelivery is a duplicate for each.
+      expect(((await (await postEmail(payload)).json() as Json).deliveries as Json[]).map(delivery => delivery.status)).toEqual(['duplicate', 'duplicate'])
+
+      // A mailbox that is only copied still gets the email.
+      const copied = await (await postEmail(email({ to: 'someone@elsewhere.org', cc: 'board@inbox.test' }))).json() as Json
+      expect(copied).toMatchObject({ status: 'received' })
+      expect(copied).not.toHaveProperty('deliveries')
+      expect((await detail(admin, copied.threadId)).thread.mailboxId).toBe(board.id)
+    })
+
+    it('never copies the cc of an unverified email into a reply', async () => {
+      const threadId = await emailThread({ authenticated: false, cc: ['first@example.org', 'second@example.org'] })
+      // Kept and shown, as what the email said, but never sent to.
+      expect((await detail(admin, threadId)).messages[0].cc).toEqual(['first@example.org', 'second@example.org'])
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Who is this?' })
+      expect((await getEmails()).at(-1)!).not.toHaveProperty('cc')
+    })
+
+    it('replies only to one valid address', async () => {
+      const threadId = await emailThread({ from: 'one@example.org, two@example.org' })
+      await expectApiError(as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'To both?' }), 409, 'no_reply_address')
+      expect((await detail(admin, threadId)).messages.map((message: Json) => message.direction)).toEqual(['in'])
+    })
+
     it('never copies or stores a malformed cc address', async () => {
       const threadId = await emailThread({ cc: ['not an address', 'ola@example', 'Ola <ola@example.org>', 'a@b@example.org'] })
       expect((await detail(admin, threadId)).messages[0].cc).toEqual(['ola@example.org'])
@@ -328,6 +360,17 @@ describe('inbox (authenticated, database-backed)', async () => {
       const big = email({ text: 'x'.repeat(1_100_000) })
       await expectApiError(postEmail(big), 413, 'payload_too_large')
       await expectApiError(postMeta({ object: 'page', entry: [], padding: 'x'.repeat(1_100_000) }), 413, 'payload_too_large')
+      // A module channel's webhook too: the inbox reads the body for the adapter, with or without a content-length.
+      const headers = { 'content-type': 'application/json', 'x-fake-token': 'let-me-in' }
+      expect((await fetch(inboxApi.webhooks.channel('test.fake'), { method: 'POST', headers, body: 'x'.repeat(1_100_000) })).status).toBe(413)
+      const chunked = new ReadableStream({
+        start(controller) {
+          for (let i = 0; i < 11; i++) controller.enqueue(new TextEncoder().encode('x'.repeat(100_000)))
+          controller.close()
+        },
+      })
+      const streamed = await fetch(inboxApi.webhooks.channel('test.fake'), { method: 'POST', headers, body: chunked, duplex: 'half' } as RequestInit)
+      expect(streamed.status).toBe(413)
     })
   })
 
@@ -421,6 +464,62 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(created[0]).toMatchObject({ subject: 'Change of plans', contact: { name: 'Lise', email: 'lise@example.org' } })
       expect(after.filter(thread => thread.contact?.email === 'lise@example.org')).toHaveLength(2)
     })
+
+    it('verifies a signed-in submitter only by their own email address', async () => {
+      const submit = (session: Session | undefined, answers: Json) => as(session).json('POST', formsApi.submit('contact'), { answers, locale: 'en' })
+      const formThreads = async (address: string) => (await threadsOf(admin, '&channel=form&status=all')).filter(thread => thread.contact?.email === address)
+      const person = await registerUser('Former')
+      const victim = `victim${++counter}@example.org`
+
+      // Signed in, but with someone else's address: unverified, like an anonymous submission. It never joins the
+      // owner's thread, renames their contact or links it to the submitter's account.
+      await submit(undefined, { name: 'Victim', email: victim, subject: 'First', message: 'Hello from the owner' })
+      await submit(person, { name: 'Mallory', email: victim, subject: 'Second', message: 'Send everything to me' })
+      const victims = await formThreads(victim)
+      expect(victims).toHaveLength(2)
+      expect(victims.map(thread => thread.contact.name)).toEqual(['Victim', 'Victim'])
+      expect(victims.map(thread => thread.contact.userId)).toEqual([null, null])
+
+      // Their own address (in any case): verified, linked to their account, and the next one joins the open thread.
+      await submit(person, { name: 'Former', email: person.email.toUpperCase(), subject: 'Mine', message: 'First of mine' })
+      await submit(person, { name: 'Former', email: person.email, subject: 'Mine again', message: 'Second of mine' })
+      const mine = await formThreads(person.email)
+      expect(mine).toHaveLength(1)
+      expect(mine[0]!.contact.userId).toBe(person.id)
+      expect((await detail(admin, mine[0]!.id)).messages.map((message: Json) => message.body)).toEqual(['First of mine', 'Second of mine'])
+    })
+
+    it('files an email answer to a form thread under the person who sent it, for export and erase', async () => {
+      const address = `nora${++counter}@example.org`
+      await as().json('POST', formsApi.submit('contact'), { answers: { name: 'Nora', email: address, subject: 'Bar shifts', message: 'Asked in the form' }, locale: 'en' })
+      const formThread = (await threadsOf(admin, '&channel=form&status=all')).find(thread => thread.contact?.email === address)!
+      await as(admin).json('POST', inboxApi.admin.messages(formThread.id), { body: 'Answered by staff' })
+      const sent = (await getEmails()).at(-1)!
+      const answerPayload = email({ from: { email: address, name: 'Nora' }, subject: sent.subject, text: 'Answered by email' })
+      const answer = await (await postEmail(answerPayload)).json() as Json
+      expect(answer.threadId).toBe(formThread.id)
+
+      // The answer sits in the form contact's thread, but its sender is Nora's email contact.
+      const messages = (await detail(admin, formThread.id)).messages as Json[]
+      const emailContact = messages.at(-1)!.contactId
+      expect(messages.map(message => message.contactId)).toEqual([formThread.contactId, null, emailContact])
+      expect(emailContact).not.toBe(formThread.contactId)
+
+      // An export of the email contact covers the form contact with the same address, and the answer.
+      const exported = await as(admin).json<Json>('GET', inboxApi.admin.contactExport(emailContact))
+      expect(exported.contact).toMatchObject({ id: emailContact, channel: 'email', email: address })
+      expect((exported.related as Json[]).map(contact => contact.id)).toEqual([formThread.contactId])
+      expect((exported.threads as Json[]).map(item => item.thread.id)).toEqual([formThread.id])
+      expect(exported.threads[0].messages.map((message: Json) => message.body)).toEqual(['Asked in the form', 'Answered by staff', 'Answered by email'])
+
+      // So does an erase: both contacts go, the thread is blanked, and the answer never comes back.
+      const erased = await as(admin).json<Json>('POST', inboxApi.admin.contactErase(emailContact))
+      expect(erased).toMatchObject({ id: emailContact, threads: 1, contacts: 2 })
+      const after = await detail(admin, formThread.id)
+      expect(after.messages.every((message: Json) => message.body === '')).toBe(true)
+      expect(after.contact.erasedAt).toBeTruthy()
+      expect(await (await postEmail(answerPayload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+    })
   })
 
   describe('replies through a channel and notes', () => {
@@ -483,6 +582,28 @@ describe('inbox (authenticated, database-backed)', async () => {
       const closed = await as(coord).json<Json>('PATCH', inboxApi.admin.thread(threadId), { status: 'closed' })
       expect(closed.status).toBe('closed')
       expect((await getHooks()).filter(hook => hook.threadId === threadId && hook.name === 'thread:status-changed').map(hook => hook.data)).toEqual([{ from: 'open', to: 'closed' }])
+    })
+
+    it('tells the assignee about a new message only while they can still read the thread', async () => {
+      await $fetch('/api/test/choices', { method: 'POST', body: { userId: String(coord.id), topics: { 'inbox.message': { email: true } } } })
+      const from = { email: `assigned${++counter}@example.org`, name: 'Assigned Person' }
+      const threadId = await emailThread({ from })
+      await as(coord).json('PATCH', inboxApi.admin.thread(threadId), { assigneeId: coord.id })
+      const before = (await getEmails()).length
+      expect((await (await postEmail(email({ from, text: 'Any news?' }))).json() as Json).threadId).toBe(threadId)
+      expect((await getEmails()).slice(before).map(sent => [sent.to, sent.subject])).toEqual([[coord.email, 'New inbox message']])
+
+      // The support mailbox is narrowed to admins: coord can no longer read the thread they are assigned, and hears nothing.
+      await $fetch('/api/test/mailbox-grants', { method: 'POST', body: { id: support.id, grants: [{ kind: 'role', role: 'admin' }] } })
+      try {
+        const count = (await getEmails()).length
+        expect((await (await postEmail(email({ from, text: 'Hello again?' }))).json() as Json).threadId).toBe(threadId)
+        expect((await getEmails()).length).toBe(count)
+      }
+      finally {
+        await $fetch('/api/test/mailbox-grants', { method: 'POST', body: { id: support.id, grants: [{ kind: 'role', role: 'coordinator' }] } })
+        await as(coord).json('PATCH', inboxApi.admin.thread(threadId), { status: 'closed' })
+      }
     })
 
     it('hides a thread below a role: the same 404 as an unknown thread for everybody below it', async () => {
@@ -729,6 +850,25 @@ describe('inbox (authenticated, database-backed)', async () => {
       // A second run finds nothing new to blank.
       expect((await runRetention(new Date(), 'anonymise')).result.threads).toBe(0)
     })
+
+    it('starts a new thread for an answer to an anonymised thread', async () => {
+      const from = { email: `anon${++counter}@example.org`, name: 'Anon Person' }
+      const old = await emailThread({ from, subject: 'Old question' })
+      await as(admin).json('PATCH', inboxApi.admin.thread(old), { status: 'closed' })
+      const live = await emailThread({ from, subject: 'New question' })
+      expect(live).not.toBe(old)
+      await backdate(old, 40)
+      await runRetention(new Date(), 'anonymise')
+      expect((await detail(admin, old)).thread.anonymisedAt).toBeTruthy()
+
+      // The person still has a live thread, so their contact stays; their answer to the old one starts a new thread.
+      const answer = await (await postEmail(email({ from, subject: `Re: Old question [${old}]`, text: 'About the old one' }))).json() as Json
+      expect(answer.status).toBe('received')
+      expect([old, live]).not.toContain(answer.threadId)
+      const blanked = await detail(admin, old)
+      expect(blanked.messages.every((message: Json) => message.body === '')).toBe(true)
+      expect(blanked.thread.status).toBe('closed')
+    })
   })
 
   describe('replays after retention', () => {
@@ -757,6 +897,52 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(await (await postEmail(payload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
       await runRetention(new Date(Date.now() + 400 * day))
       expect((await (await postEmail(payload)).json() as Json).status).toBe('received')
+    })
+
+    it('keeps the tombstones of an erased contact for good, also of what retention removed before', async () => {
+      const day = 24 * 60 * 60 * 1000
+      const from = { email: `forgotten${++counter}@example.org`, name: 'Forgotten' }
+      const removedPayload = email({ from, text: 'Removed by retention' })
+      const removed = (await (await postEmail(removedPayload)).json() as Json).threadId as string
+      await as(admin).json('PATCH', inboxApi.admin.thread(removed), { status: 'closed' })
+      const erasedPayload = email({ from, text: 'Erased with the contact' })
+      const live = (await (await postEmail(erasedPayload)).json() as Json).threadId as string
+      expect(live).not.toBe(removed)
+      await backdate(removed, 40)
+      await runRetention(new Date())
+      await expectApiError(as(admin).json('GET', inboxApi.admin.thread(removed)), 404)
+
+      const { contact } = await detail(admin, live)
+      await as(admin).json('POST', inboxApi.admin.contactErase(contact.id))
+      // Far past `retention.tombstoneDays`: retention's own tombstones are gone by now, an erase's never go.
+      await runRetention(new Date(Date.now() + 800 * day))
+      for (const payload of [removedPayload, erasedPayload]) {
+        expect(await (await postEmail(payload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+      }
+    })
+  })
+
+  describe('retention budget', () => {
+    it('gives every mailbox its share of a run, so one busy mailbox never starves the rest', async () => {
+      // The board mailbox comes first and has a backlog; the support mailbox has one expired thread.
+      const boardThreads: string[] = []
+      for (let i = 0; i < 3; i++) boardThreads.push((await (await postEmail(email({ to: 'board@inbox.test' }))).json() as Json).threadId)
+      const supportThread = await emailThread()
+      for (const id of [...boardThreads, supportThread]) {
+        await as(admin).json('PATCH', inboxApi.admin.thread(id), { status: 'closed' })
+        await backdate(id, 1000)
+      }
+      const readable = async (ids: string[]) => (await Promise.all(ids.map(id => as(admin).fetch('GET', inboxApi.admin.thread(id))))).filter(response => response.ok).length
+
+      const { result } = await runRetention(new Date(), 'delete', 2)
+      expect(result).toMatchObject({ threads: 2, mailboxes: 2, more: true })
+      expect(await readable([supportThread])).toBe(0)
+      expect(await readable(boardThreads)).toBe(2)
+
+      // The next run works off the rest.
+      const next = await runRetention(new Date(), 'delete', 10)
+      expect(next.result).toMatchObject({ threads: 2, more: false })
+      expect(await readable(boardThreads)).toBe(0)
     })
   })
 

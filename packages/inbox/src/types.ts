@@ -73,6 +73,11 @@ export type InboxSendContext = {
 export type InboxInboundContext = {
   /** The value of the adapter's `inboundSecret`, never empty: verify the request with it. */
   secret: string
+  /**
+   * The request body as text, read by the inbox with its webhook size limit (1 MB; a larger body is a 413 before the
+   * adapter runs). Verify a signature over it and parse it.
+   */
+  rawBody: string
 }
 
 /** What a channel's `send` may return: the provider's id of the sent message. */
@@ -211,6 +216,11 @@ export type InboxMessageDto = {
   attachments: InboxAttachment[]
   /** Email `Cc` recipients of an inbound message, or the people a reply copied; only with `inbox:pii`. */
   cc?: string[] | null
+  /**
+   * The contact who sent an inbound message (`null` for replies and notes): usually the thread's contact, another one
+   * for a reply by email in a contact form thread.
+   */
+  contactId: string | null
   createdAt: string
 }
 
@@ -252,11 +262,24 @@ export type InboxSummaryDto = {
 
 export type InboxContactExportDto = {
   contact: InboxContactDetails & { createdAt: string, erasedAt: string | null }
+  /** The other contacts of the same person: every contact with the same email address (one per channel). */
+  related: Array<InboxContactDetails & { createdAt: string, erasedAt: string | null }>
+  /**
+   * Their threads with every message but internal notes, and the threads of other contacts they wrote in with only the
+   * messages they sent there.
+   */
   threads: Array<{ thread: InboxThreadDto, messages: Array<Omit<InboxMessageDto, 'author'>> }>
   exportedAt: string
 }
 
-export type InboxRetentionResult = { mailboxes: number, threads: number, contacts: number, mode: InboxRetentionMode }
+export type InboxRetentionResult = {
+  mailboxes: number
+  threads: number
+  contacts: number
+  mode: InboxRetentionMode
+  /** Whether a mailbox had more expired threads than this run's budget let it handle: the next run goes on. */
+  more: boolean
+}
 
 // --- Hooks -------------------------------------------------------------------------------------------------------------
 
