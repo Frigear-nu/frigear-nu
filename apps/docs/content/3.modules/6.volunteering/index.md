@@ -30,7 +30,6 @@ this group in the pull request that adds the module.
 | [`@frigear-nu/push`](/modules/volunteering/push) | Device registration and push notifications, with channel preferences. | B |
 | [`@frigear-nu/maps`](/modules/volunteering/maps) | A building block: a location picker, a plane layout editor, web and mobile viewers with live layers. No tables of its own. | B |
 | `@frigear-nu/inbox` | A two-way inbox: platform mailboxes for staff and a personal inbox per volunteer. | B |
-| [`@frigear-nu/grants`](/modules/platform/grants) | Grant lists: who may see a record, with kinds modules register. | Shared |
 
 The two tracks are built in parallel and never edit the same package.
 
@@ -70,14 +69,14 @@ consumer checks access with `authorize(event, permission, record)`, and the owni
 ## Who may see a record
 
 FAQ groups and items, help categories and articles, and mailboxes store who may see them as a grant list in one JSON
-column, `grants`. [Grants](/modules/platform/grants) owns the list and its rules:
+column, `grants`. Auth owns the list and its rules ([record audiences](/contribute/writing-a-module/access-control#record-audiences)):
 
 - Any one grant admits, and an empty list admits nobody.
 - A grant of an unknown kind admits nobody.
 - Only a `public` grant serves a record without sign-in (`grantsCanRead`).
 - Each module declares a read permission, and a policy on it that evaluates the record's grants.
 
-Each module registers the kinds it owns: Grants ships `public` and `role`, Operations registers `operation` (the people
+Each module registers the kinds it owns: Auth ships `public`, Authorization registers `role`, Operations registers `operation` (the people
 who take part), and Teams registers `team` (a minimum role on one team). An item inside a group checks both the group
 and its own list, unless its list is `null` and it inherits the group.
 
@@ -109,7 +108,7 @@ type TeamRoleGrant = {
 - Mapped grants are resolved per request: every call reads the mapping rules and the user's global roles and plans.
   Call `resolveTeamRoles` once per request and reuse the result, not once per record.
 - Modules that only need to know who may see a record never call `resolveTeamRoles`: they store a `team` grant and
-  let Grants evaluate it, so they do not import teams.
+  let Auth evaluate it, so they do not import teams.
 
 ## Notifications
 
@@ -299,24 +298,22 @@ Hard dependencies go in `moduleDependencies` and `package.json`. Soft ones use `
 registries, so each module also works alone. Arrows point one way: a lower module never imports a higher one.
 
 ```text
-grants      ─► auth, ui
-
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
-operations  ─► auth, grants  , maps                  (soft: events, dashboard)
-teams       ─► auth, users, grants                   (soft: authorization, subscriptions, oauth-server, dashboard)
+operations  ─► auth          , maps                  (soft: events, dashboard)
+teams       ─► auth, users                           (soft: authorization, subscriptions, oauth-server, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify, maps                    (soft: dashboard, push, mobile)
-faq         ─► auth, grants                          (soft: menu, admin, forms, teams, crew, operations, mobile,
+faq         ─► auth                                  (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
-help-center ─► auth, grants                          (soft: teams, crew, operations, maps, notify, push, dashboard,
+help-center ─► auth                                  (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► ui, module-kit                        (modules register kinds and layers; maps imports none of them)
-inbox       ─► auth, notify, grants                  (soft: forms, users, teams, push, mobile, dashboard)
+inbox       ─► auth, notify                          (soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
 
-The soft links between grant consumers and teams, crew or operations need no import at all: they meet in the
-grants registry. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
+The soft links between grant consumers and teams, crew or operations need no import at all: they meet in Auth's
+grant kind registry. SMS has no package of its own: modules call Notify's `dispatchSMSNotification`.
 
 ## Documentation
 

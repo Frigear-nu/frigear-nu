@@ -227,6 +227,11 @@ Full guide: `apps/docs/content/5.contribute/3.writing-a-module/5.access-control.
 - **Record rules** are policies: `definePolicy(permission, fn, { withoutRecord? })` in `server/policies.ts`, or
   `defineSharedPolicy` from `@frigear-nu/auth/policies` (synchronous, framework free) to run in the client's `can()`
   too. A policy only narrows (`false` denies, `undefined` keeps).
+- **Grant lists** (who may see a record) are auth's: a `grants` JSON column where any one grant admits, `[]` admits
+  nobody and an unknown kind fails closed. Read with `grantsCanRead(event, permission, record)` (the only anonymous
+  path, through `public`), evaluate `grantsMatch` in the read permission's policy, check input with `grantListShape`
+  (`@frigear-nu/auth/grants`) and `grantsValidate`. Register a kind with `extendGrants` (`@frigear-nu/auth/utils`) and
+  `defineGrantKind`; `role` comes from `@frigear-nu/authorization`, so a fixture without it registers its own.
 - **Host overrides** go in `authorization:before` (`{ event, principal, user, permission, record, allow(), deny() }`);
   inside it use `subjectAllowed(event, user, permission)`, never `allows`/`authorize` (they recurse). Roles come from
   `authorization.roles` and the `authorization:roles` hook (env allowlists). Hooks identify the user from `ctx.user`,

@@ -1,4 +1,4 @@
-import { hasPublicGrant } from '@frigear-nu/grants/core'
+import { hasPublicGrant } from '@frigear-nu/auth/grants'
 
 type WithGrants = { grants: unknown }
 

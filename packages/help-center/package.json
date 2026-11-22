@@ -98,7 +98,6 @@
   },
   "dependencies": {
     "@frigear-nu/auth": "workspace:^",
-    "@frigear-nu/grants": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
