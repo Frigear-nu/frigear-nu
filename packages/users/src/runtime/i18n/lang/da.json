@@ -33,7 +33,7 @@
       "filters": {
         "all": "Alle",
         "verified": "Verificeret",
-        "unverified": "Ikke verificerede",
+        "unverified": "Ikke verificeret",
         "role": "Præcis rolle",
         "clear": "Ryd filtre",
         "allRoles": "Alle roller"
