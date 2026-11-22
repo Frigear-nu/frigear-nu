@@ -27,7 +27,8 @@ The package is `@frigear-nu/authorization`. It works in both [modes of Auth](/mo
 - **Policies**: `definePolicy` on the server and `defineSharedPolicy` for the server and the client. See
   [Policies](/modules/identity/authorization/policies).
 - **The client**: `useAuthorization()`, `<Can>` and `<Cannot>`, route rules and `definePageMeta({ authorize })`, and
-  filtered menus, tabs and widgets. See [Client](/modules/identity/authorization/client).
+  filtered menus, tabs and widgets. Modules mark their signed-in pages with Auth's `guardPages`, which this module
+  enforces. See [Client](/modules/identity/authorization/client).
 - **Roles admin** (needs [Admin](/modules/interface/admin)): read-only role pages and a "Roles and permissions" tab
   on the admin user page. See [Admin](/modules/identity/authorization/admin).
 
@@ -216,6 +217,23 @@ otherwise.
 Removed options: `rbac`, `abilities`, `resolvers`, and `roles.{hierarchy, inherits, revoke, labels, descriptions,
 definitions, defaultRole}`. See [Migrate access control](/guide/going-further/migrate-access-control).
 ::
+
+## Role grants
+
+Authorization registers the `role` kind of Auth's
+[record audiences](/contribute/writing-a-module/access-control#record-audiences): `{ kind: 'role', role: 'coordinator' }`
+admits signed-in users holding that global role (their effective roles, inheritance included). Its field in
+`<GrantsEditor>` lists the roles for a caller who may read them (`roles:read`), and takes a typed name otherwise.
+
+- **`members`** is Auth's [`listRoleHolders`](/modules/identity/auth/server#who-holds-a-role): the users with the
+  role, or a role inheriting it, stored in `authorization_user_roles` (this module's role provider implements
+  `holders`), checked against their effective roles, at most 1000. Their stored roles load in one query per 90 users
+  (`assignedRolesOf`), not one per user. A role given only through `defaultRoles`, an `auto`
+  role or the `authorization:roles` hook is never stored, so its holders are not listed; `matches` still admits them.
+- **Without Authorization there is no `role` kind.** A stored `role` grant then admits nobody, and `grantsValidate`
+  refuses a new one as an unknown kind.
+- `roleGrantSchema` and the `RoleGrant` type are exported from `@frigear-nu/authorization/utils`. `rolesGranting` lives
+  in Auth now (`@frigear-nu/auth/access`) and is re-exported there for existing imports.
 
 ## Hooks
 

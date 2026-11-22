@@ -227,6 +227,11 @@ Full guide: `apps/docs/content/5.contribute/3.writing-a-module/5.access-control.
 - **Record rules** are policies: `definePolicy(permission, fn, { withoutRecord? })` in `server/policies.ts`, or
   `defineSharedPolicy` from `@frigear-nu/auth/policies` (synchronous, framework free) to run in the client's `can()`
   too. A policy only narrows (`false` denies, `undefined` keeps).
+- **Grant lists** (who may see a record) are auth's: a `grants` JSON column where any one grant admits, `[]` admits
+  nobody and an unknown kind fails closed. Read with `grantsCanRead(event, permission, record)` (the only anonymous
+  path, through `public`), evaluate `grantsMatch` in the read permission's policy, check input with `grantListShape`
+  (`@frigear-nu/auth/grants`) and `grantsValidate`. Register a kind with `extendGrants` (`@frigear-nu/auth/utils`) and
+  `defineGrantKind`; `role` comes from `@frigear-nu/authorization`, so a fixture without it registers its own.
 - **Host overrides** go in `authorization:before` (`{ event, principal, user, permission, record, allow(), deny() }`);
   inside it use `subjectAllowed(event, user, permission)`, never `allows`/`authorize` (they recurse). Roles come from
   `authorization.roles` and the `authorization:roles` hook (env allowlists). Hooks identify the user from `ctx.user`,
@@ -301,6 +306,8 @@ Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the t
 
 - Runtime code must work on both dialects: no `db.run`/`db.batch`/`PRAGMA`, `rowid` or sqlite-only SQL without a
   postgres branch (see `changeId` in `packages/users/src/runtime/server/user-store.ts`).
+- D1 binds at most 100 parameters per statement: lookups by a list of ids use `chunkParams` / `inChunks` from
+  `@frigear-nu/module-kit/server`, never a module's own chunk helper.
 
 ### Database extensions and authenticated test fixtures
 
@@ -328,7 +335,7 @@ Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the t
   on repeated runs. Assert the registration HTTP status and response body before checking the session cookie.
 - A missing session cookie can be a database error, not disabled authentication: a column added by an extending module
   without a matching fixture migration makes every write to that table fail. See
-  `apps/docs/content/3.modules/5.platform/1.module-kit/5.database.md` for the migration workflow.
+  `apps/docs/content/3.modules/8.platform/1.module-kit/5.database.md` for the migration workflow.
 
 ---
 
@@ -336,7 +343,7 @@ Full guide: `apps/docs/content/2.guide/3.best-practices/1.http-routes.md`; the t
 
 Every screen follows the same patterns so the app stays predictable as modules are added. Full guide:
 `apps/docs/content/2.guide/2.ux-patterns/` (docs site: `/guide/ux-patterns/*`). The building blocks
-live in `packages/ui` (reference: `apps/docs/content/3.modules/4.interface/1.ui/index.md`). Rules:
+live in `packages/ui` (reference: `apps/docs/content/3.modules/7.interface/1.ui/index.md`). Rules:
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a

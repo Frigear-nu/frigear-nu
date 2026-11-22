@@ -33,7 +33,7 @@ const { payment, url } = await createPayment({
 nitroApp.hooks.hook('payments:paid', ({ payment }) => { /* ... */ })
 ```
 
-Full documentation: `apps/docs/content/3.modules/2.commerce/2.payments.md`.
+Full documentation: `apps/docs/content/3.modules/3.commerce/2.payments.md`.
 
 ## Development
 
