@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { addTemplate, createResolver } from '@nuxt/kit'
 import type { Nuxt, NuxtTemplate } from '@nuxt/schema'
 import { registerDatabaseTable, extendDatabaseTable } from '../src/runtime/utils/server'
+import { compareSchemaDialects } from '../src/runtime/utils/schema-parity'
+import { getTableConfig } from 'drizzle-orm/sqlite-core'
 
 vi.mock('@nuxt/kit', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@nuxt/kit')>()
@@ -572,7 +574,7 @@ export const defaults = { id: text() }
 })
 
 describe('registerDatabaseTable (merging diagnostics)', () => {
-  it('warns once when an extension file drops a table-config argument, and keeps the base indexes', async () => {
+  it('merges the indexes an extension file declares with the base indexes', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { nuxt, write, run, contents } = setupHooks()
     registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/multi.sqlite' })
@@ -583,15 +585,60 @@ export const userPasskeys = sqliteTable('user_passkeys', {
 }, t => [index('extension_label_idx').on(t.label)])
 `)
     await run()
-    await run()
-    const messages = warn.mock.calls.map(call => String(call[0])).filter(text => text.includes('table-config argument'))
-    expect(messages).toHaveLength(1)
-    expect(messages[0]).toContain('userPasskeys')
+    expect(warn.mock.calls.filter(call => String(call[0]).includes('table-config'))).toHaveLength(0)
     const content = contents(0)
     expect(content).toContain('label: text(),')
-    expect(content).toContain('index(\'user_passkey_user_idx\').on(t.userId)')
-    expect(content).not.toContain('extension_label_idx')
+    expect(content).toContain('const tableConfigEntries = ')
+    expect(content).toContain('...tableConfigEntries((t => [\n  index(\'user_passkey_user_idx\').on(t.userId),\n])(table)),')
+    expect(content).toContain('...tableConfigEntries((t => [index(\'extension_label_idx\').on(t.label)])(table)),')
+    // The users table has no config of its own and no extension adds one: it is written as before.
+    expect(content).toContain('export const users = sqliteTable("users", {\n  id: integer().primaryKey({ autoIncrement: true }),\n  name: text().notNull(),\n})')
     warn.mockRestore()
+  })
+
+  it('keeps the base table-config argument as written when no extension declares one', async () => {
+    const { nuxt, run, contents } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: () => './fixtures/regular/multi.sqlite' })
+    await run()
+    expect(contents(0)).not.toContain('tableConfigEntries')
+    expect(contents(0)).toContain('}, t => [\n  index(\'user_passkey_user_idx\').on(t.userId),\n])')
+  })
+
+  it('builds the same indexes from an extension file on both dialects', async () => {
+    const { nuxt, write, run, contents } = setupHooks()
+    registerDatabaseTable(nuxt, { resolver: createResolver(import.meta.url), schema: dialect => `./fixtures/regular/indexed.${dialect}` })
+    write('extend.sqlite.ts', `
+import { sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
+export const members = sqliteTable('members', {
+  status: text(),
+  submissionId: text(),
+}, t => [
+  index('member_status_idx').on(t.status),
+  index('member_submission_idx').on(t.submissionId),
+])
+`)
+    write('extend.postgresql.ts', `
+import { pgTable, text, index } from 'drizzle-orm/pg-core'
+export const members = pgTable('members', {
+  status: text(),
+  submissionId: text(),
+}, t => [
+  index('member_status_idx').on(t.status),
+  index('member_submission_idx').on(t.submissionId),
+])
+`)
+    await run('sqlite')
+    await run('postgresql')
+    // Written next to the test so `drizzle-orm` resolves from this package.
+    const out = mkdtempSync(join(fileURLToPath(new URL('.', import.meta.url)), '.generated-'))
+    roots.push(out)
+    writeFileSync(join(out, 'schema.sqlite.ts'), contents(0))
+    writeFileSync(join(out, 'schema.postgresql.ts'), contents(1))
+    const sqlite = await import(join(out, 'schema.sqlite.ts'))
+    const postgresql = await import(join(out, 'schema.postgresql.ts'))
+    expect(compareSchemaDialects(sqlite, postgresql)).toEqual([])
+    const indexes = getTableConfig(sqlite.members).indexes.map(index => index.config.name).sort()
+    expect(indexes).toEqual(['member_status_idx', 'member_submission_idx', 'member_team_idx'])
   })
 
   it('warns when the extension declares a different SQL table name than the base', async () => {

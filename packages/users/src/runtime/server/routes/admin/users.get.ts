@@ -2,7 +2,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { escapeLike, likeEscaped as like, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
+import { likeContains, orderByQuery, pageQuery, pageRange, paginate, searchContains } from '@frigear-nu/module-kit/server'
 
 const querySchema = pageQuery({
   sort: ['id', 'name', 'email', 'role', 'createdAt', 'lastLoginAt'],
@@ -23,10 +23,8 @@ export default defineEventHandler(async (event) => {
   const userRoles = usersRoleAssignments()
 
   const conditions: (SQL | undefined)[] = []
-  if (query.q) {
-    const pattern = `%${escapeLike(query.q)}%`
-    conditions.push(or(like(schema.users.name, pattern), like(schema.users.email, pattern)))
-  }
+  // The name through its folded search column (`Ø`, `Æ` and `Å` match in any case on sqlite too); emails are stored lowercase.
+  if (query.q) conditions.push(or(searchContains(schema.users.searchText, query.q), likeContains(schema.users.email, query.q)))
   if (query.role && userRoles) {
     conditions.push(sql`exists (select 1 from ${userRoles} where ${userRoles.userId} = ${schema.users.id} and ${userRoles.role} = ${query.role})`)
   }
