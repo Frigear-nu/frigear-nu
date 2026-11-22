@@ -70,7 +70,13 @@ export function extendMaps(nuxt: Nuxt, extension: MapsExtension): void {
   list.push({ kinds: [...(extension.kinds ?? [])], layers: [...(extension.layers ?? [])] })
 }
 
-/** A random, prefixed id for a new feature (`ftr_...`), Web Crypto only so it works on Workers and in the browser. */
+/**
+ * A random, prefixed id for a new feature (`ftr_` and 20 hex digits), Web Crypto only so it works on Workers and in the
+ * browser. `crypto.randomUUID` exists only in secure contexts: on a plain-http origin (a phone testing against
+ * `http://192.168.x.x:3000`) the id is built from `crypto.getRandomValues`, which works everywhere.
+ */
 export function newFeatureId(prefix = 'ftr'): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`
+  if (typeof crypto.randomUUID === 'function') return `${prefix}_${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`
+  const bytes = crypto.getRandomValues(new Uint8Array(10))
+  return `${prefix}_${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`
 }
