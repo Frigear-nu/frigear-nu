@@ -28,7 +28,7 @@ import { addUserPreferences } from './runtime/utils/build'
 import type { PreferenceDefinitionSource } from './runtime/utils/build'
 import type { ModuleOptions, PreferencesPublicConfig } from './types'
 
-export type { ModuleOptions, PreferencesDto, PreferencesPublicConfig, UserPreferences } from './types'
+export type { ManagedUserPreferences, ModuleOptions, PreferencesDto, PreferencesPublicConfig, StoredUserPreferences, UserPreferences } from './types'
 export type { PreferenceDefinition, PreferenceDefinitions, PreferencesOf } from './runtime/define'
 
 declare module 'nuxt/schema' {
@@ -109,14 +109,15 @@ export default defineNuxtModule<ModuleOptions>({
       filename: 'types/preferences.d.ts',
       getContents: async () => {
         const sources = await collectSources()
-        const extend = sources.length
-          ? ` extends ${sources.map(source => `PreferencesOf<typeof import(${JSON.stringify(source.path)}).default>`).join(', ')}`
+        const extend = (type: string) => sources.length
+          ? ` extends ${sources.map(source => `${type}<typeof import(${JSON.stringify(source.path)}).default>`).join(', ')}`
           : ''
-        return `import type { PreferencesOf } from '${resolver.resolve('./runtime/define')}'
+        return `import type { ManagedPreferencesOf, PreferencesOf } from '${resolver.resolve('./runtime/define')}'
 import type { UserPreferences as RegisteredPreferences } from '@frigear-nu/preferences'
 
 declare module '@frigear-nu/preferences' {
-  interface UserPreferences${extend} {}
+  interface UserPreferences${extend('PreferencesOf')} {}
+  interface ManagedUserPreferences${extend('ManagedPreferencesOf')} {}
 }
 declare module '#auth-utils' {
   interface User {
