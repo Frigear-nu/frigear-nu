@@ -18,7 +18,8 @@ export async function addTeamsClaim(ctx: Pick<ClaimsContext, 'user' | 'scope' | 
   if ('teams' in ctx.claims) return
   // No request here: the token endpoint resolves the claims, and `ctx.roles` already holds the user's effective roles.
   try {
-    const grants = await resolveAllTeamRoles(undefined, ctx.user.id, { globalRoles: ctx.roles })
+    // `strict`: a failing `teams:roles:resolve` listener throws here rather than leaving its teams out of the list.
+    const grants = await resolveAllTeamRoles(undefined, ctx.user.id, { globalRoles: ctx.roles, strict: true })
     ctx.claims.teams = teamsClaim(grants)
   }
   catch (error) {

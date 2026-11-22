@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "721506a0-52c1-43c3-9473-b1d6d17273cf",
+  "id": "93fd52f4-3217-48b8-b3d7-45c91b015e63",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "auth_user_tokens": {
@@ -541,6 +541,20 @@
         },
         "avatar": {
           "name": "avatar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "locale": {
+          "name": "locale",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneGeometry } from '../types'
 import { MAX_PLANE_COORDINATE, validateGeometry } from './utils/geometry'
+import { MAX_UNDERLAY_DIMENSION } from './utils/image'
 
 /** The most corners an area may have. */
 export const MAX_AREA_CORNERS = 500
@@ -59,8 +60,8 @@ const extentSchema = z.object({
 
 const underlaySchema = z.object({
   url: z.string().min(1).max(2000),
-  width: z.number().int().positive().max(100_000),
-  height: z.number().int().positive().max(100_000),
+  width: z.number().int().positive().max(MAX_UNDERLAY_DIMENSION),
+  height: z.number().int().positive().max(MAX_UNDERLAY_DIMENSION),
 })
 
 export type PlaneLayoutSchemaOptions = {

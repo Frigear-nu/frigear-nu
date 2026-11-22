@@ -2,7 +2,7 @@
 import type { Circle, LatLng, Map as LeafletMap, Marker, Polygon } from 'leaflet'
 import { createMap, featureColor, loadLeafletWithGeoman, pinIcon } from '../utils/leaflet'
 import type { LeafletModule } from '../utils/leaflet'
-import { DEFAULT_GEO_CENTER, areaCentroid, locationBounds } from '../../utils/geo'
+import { DEFAULT_GEO_CENTER, areaCentroid, locationBounds, locationFieldMode, locationModeOf } from '../../utils/geo'
 import type { GeoPoint, MapLocation, MapLocationMode } from '../../../types'
 import { computed, onBeforeUnmount, onMounted, ref, useModuleT, useRuntimeConfig, useTemplateRef, watch } from '#imports'
 
@@ -27,10 +27,15 @@ const config = useRuntimeConfig().public.maps
 const el = useTemplateRef<HTMLElement>('el')
 const failed = ref(false)
 
-const modeOf = (value: MapLocation | null | undefined): MapLocationMode => value?.area?.length ? 'area' : value?.radiusMeters ? 'radius' : 'point'
-const mode = ref<MapLocationMode>(modeOf(model.value))
+const mode = ref<MapLocationMode>(locationModeOf(model.value))
+// The last value the field wrote itself: only an outside change sets the mode from the value.
+let written: MapLocation | null | undefined
+function write(value: MapLocation | null) {
+  written = value
+  model.value = value
+}
 watch(model, (value) => {
-  if (value) mode.value = modeOf(value)
+  mode.value = locationFieldMode(mode.value, value, written)
 })
 const modeItems = computed(() => props.modes.map(value => ({
   value,
@@ -42,7 +47,7 @@ const radius = computed({
   get: () => model.value?.radiusMeters ?? props.defaultRadius,
   set: (value: number | null | undefined) => {
     if (!model.value || !value || value <= 0) return
-    model.value = { point: model.value.point, radiusMeters: Math.round(value) }
+    write({ point: model.value.point, radiusMeters: Math.round(value) })
   },
 })
 
@@ -63,12 +68,12 @@ type PmLayer = { pm: { enable: (options?: Record<string, unknown>) => void } }
 function setPoint(point: GeoPoint) {
   if (props.disabled) return
   if (mode.value === 'area') return
-  model.value = mode.value === 'radius' ? { point, radiusMeters: model.value?.radiusMeters ?? props.defaultRadius } : { point }
+  write(mode.value === 'radius' ? { point, radiusMeters: model.value?.radiusMeters ?? props.defaultRadius } : { point })
 }
 
 function setArea(corners: GeoPoint[]) {
   if (corners.length < 3) return
-  model.value = { point: areaCentroid(corners), area: corners }
+  write({ point: areaCentroid(corners), area: corners })
 }
 
 function cornersOf(layer: Polygon): GeoPoint[] {
@@ -111,7 +116,7 @@ function render() {
   marker = L.marker(latLng, { icon: pinIcon(L, color), draggable: !props.disabled, pmIgnore: true } as Record<string, unknown>).addTo(map)
   marker.on('dragend', () => {
     const point = toPoint(marker!.getLatLng())
-    model.value = model.value ? { ...model.value, point } : { point }
+    write(model.value ? { ...model.value, point } : { point })
   })
   startDrawing()
 }
@@ -135,15 +140,15 @@ function setMode(next: MapLocationMode) {
     render()
     return
   }
-  if (next === 'point') model.value = { point: value.point }
-  else if (next === 'radius') model.value = { point: value.point, radiusMeters: value.radiusMeters ?? props.defaultRadius }
-  // An area is drawn anew: keep the point until the polygon is finished.
-  else model.value = value.area?.length ? value : { point: value.point }
+  if (next === 'point') write({ point: value.point })
+  else if (next === 'radius') write({ point: value.point, radiusMeters: value.radiusMeters ?? props.defaultRadius })
+  // An area is drawn anew: keep the point until the polygon is finished (the mode stays "Area" meanwhile).
+  else write(value.area?.length ? value : { point: value.point })
   render()
 }
 
 function clear() {
-  model.value = null
+  write(null)
 }
 
 onMounted(async () => {

@@ -3,7 +3,8 @@ import { teamsAccess } from '../../access'
 import type { TeamMemberDto } from '../../../types'
 
 // A team's members, for its members and staff: names and avatars; emails only with `teams:pii` (a sensitive
-// permission no wildcard covers); the membership `status` only for staff and the team's leads. `?include=mapped` adds
+// permission no wildcard covers). Staff and the team's leads see every row with its membership `status`; other members
+// see only the rows that grant (no pending applicants or inactive members), without the status. `?include=mapped` adds
 // the members a mapping rule gives a role, resolved on demand: staff (`teams:manage`) and leads (`teams:lead` on the
 // team) only, since it checks every candidate.
 export default defineEventHandler(async (event): Promise<TeamMemberDto[]> => {

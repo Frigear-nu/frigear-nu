@@ -19,8 +19,11 @@ const loading = computed(() => status.value === 'pending' && !data.value?.length
 const teams = computed(() => (data.value ?? []).slice(0, 6))
 const more = computed(() => Math.max(0, (data.value?.length ?? 0) - teams.value.length))
 
-// The role key as a word: the ladder's own label is not part of the answer.
-const roleName = (key: string) => key.replace(/[-_]+/g, ' ').replace(/^./, letter => letter.toUpperCase())
+// The ladder's label of the role, in the reader's language; the key as a word when there is none.
+const roleName = (team: MyTeamDto) => {
+  const label = team.roleLabel ? tr(team.roleLabel) : ''
+  return label && label !== team.role ? label : team.role.replace(/[-_]+/g, ' ').replace(/^./, letter => letter.toUpperCase())
+}
 </script>
 
 <template>
@@ -64,7 +67,7 @@ const roleName = (key: string) => key.replace(/[-_]+/g, ' ').replace(/^./, lette
           <UBadge
             color="primary"
             variant="subtle"
-            :label="roleName(team.role)"
+            :label="roleName(team)"
           />
         </span>
       </li>

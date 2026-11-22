@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deliverToDevices } from '../../src/runtime/providers/deliver'
-import { apnsConfigOf, createProviderSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, requestTimeoutMs, resolveDeviceProvider, resolveIosProvider, resolvePushDelivery } from '../../src/runtime/providers/config'
+import { apnsConfigOf, createProviderSenders, hasApnsCredentials, hasFcmCredentials, isApnsSandbox, pushConfigProblems, requestTimeoutMs, resolveDeviceProvider, resolveIosProvider, resolvePushDelivery } from '../../src/runtime/providers/config'
 import type { PushRuntimeConfig } from '../../src/types'
 import type { DeviceSender } from '../../src/runtime/providers/types'
 
@@ -199,5 +199,21 @@ describe('deliverToDevices', () => {
 describe('requestTimeoutMs', () => {
   it('reads a number or an env string and falls back to 10 seconds', () => {
     expect([2500, '3000', '', 0, 'abc', undefined as unknown as number].map(timeoutMs => requestTimeoutMs({ timeoutMs }))).toEqual([2500, 3000, 10000, 10000, 10000, 10000])
+  })
+})
+
+describe('pushConfigProblems', () => {
+  it('finds nothing wrong in usable settings', () => {
+    expect(pushConfigProblems(config())).toEqual([])
+    expect(pushConfigProblems(config({ delivery: 'providers', ios: 'fcm' }))).toEqual([])
+  })
+
+  it('names every invalid setting, without the module prefix', () => {
+    const problems = pushConfigProblems(config({ delivery: 'sns', ios: 'carrier-pigeon', fcm: { serviceAccount: '{not json' } }))
+    expect(problems).toHaveLength(3)
+    expect(problems[0]).toMatch(/^push\.delivery must be/)
+    expect(problems[1]).toMatch(/^push\.ios must be/)
+    expect(problems[2]).toMatch(/serviceAccount is not valid JSON/)
+    expect(pushConfigProblems(config({ fcm: { serviceAccount: '{"project_id":"p"}' } }))).toEqual(['push.fcm.serviceAccount has no "client_email".'])
   })
 })
