@@ -21,3 +21,22 @@ export function createCrewLinks(pages: CrewPages | undefined, localize: (path: s
     invite: (token: string) => localize((pages?.invite || CREW_DEFAULT_PAGES.invite).replace(':token', encodeURIComponent(token))),
   }
 }
+
+/** How the site's locales appear in paths: what `@nuxtjs/i18n` was configured with, as the module records it. */
+export type CrewI18n = { strategy: string, defaultLocale: string | null, locales: string[] }
+
+/**
+ * `path` with the prefix of `locale` when the site uses prefixed routes (`prefix`, `prefix_and_default`, and
+ * `prefix_except_default` for a locale other than the default). Links that leave the app (status emails, pushes) cannot
+ * ask `useLocaleLink`, so they use this. An unknown locale (`da-DK` is matched as `da`), or no i18n, leaves the path.
+ */
+export function localizeCrewPath(path: string, locale: string | undefined | null, i18n: CrewI18n | null | undefined): string {
+  if (!locale || !i18n || i18n.strategy === 'no_prefix') return path
+  const code = i18n.locales.includes(locale) ? locale : i18n.locales.find(item => item === locale.split(/[-_]/)[0])
+  if (!code) return path
+  if (i18n.strategy === 'prefix_except_default' && code === i18n.defaultLocale) return path
+  return `/${code}${path}`
+}
+
+/** How long an invite link lasts when staff set no expiry: 30 days. */
+export const CREW_INVITE_DEFAULT_DAYS = 30

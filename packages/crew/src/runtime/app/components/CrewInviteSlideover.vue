@@ -138,7 +138,7 @@ async function save(event: FormSubmitEvent<State>) {
       <UFormField
         name="expiresAt"
         :label="t('admin.expiresAt', 'Expires')"
-        :description="t('admin.expiresAtHelp', 'Leave empty for a link that does not expire.')"
+        :description="t('admin.expiresAtHelp', 'Leave empty for a link that expires in 30 days.')"
       >
         <UInput
           v-model="state.expiresAt"

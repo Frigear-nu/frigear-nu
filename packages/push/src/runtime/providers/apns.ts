@@ -1,6 +1,6 @@
 import { SignJWT, importPKCS8 } from 'jose'
 import { defaultHttp2Transport, Http2UnsupportedError } from './http2'
-import { DEFAULT_TIMEOUT_MS, describeError, normalizePemKey } from './types'
+import { DEFAULT_TIMEOUT_MS, describeError, isDeviceRejection, normalizePemKey } from './types'
 import type { DeliveryOutcome, DeviceMessage, DeviceSender, ProviderEnvironment } from './types'
 
 /** APNs wants a token no older than an hour and not renewed more often than every 20 minutes. */
@@ -95,7 +95,7 @@ export function createApnsSender(config: ApnsConfig, env: ProviderEnvironment = 
         if (isDeadApnsToken(response.status, reason)) return { status: 'dead', reason: description, ambiguous: reason === 'BadDeviceToken' }
         // A rejected provider token: sign a new one on the next send.
         if (reason === 'ExpiredProviderToken' || reason === 'InvalidProviderToken') cached = undefined
-        return { status: 'failed', reason: description }
+        return { status: 'failed', reason: description, ...(isDeviceRejection(response.status) ? { deviceError: true } : {}) }
       }
       catch (error) {
         if (error instanceof Http2UnsupportedError) {

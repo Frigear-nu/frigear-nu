@@ -36,7 +36,7 @@
       "everyone": "Alle",
       "expires": "Udløber",
       "expiresAt": "Udløber",
-      "expiresAtHelp": "Lad stå tomt for et link, der ikke udløber.",
+      "expiresAtHelp": "Lad stå tomt for et link, der udløber om 30 dage.",
       "form": "Ansøgningsformular",
       "formHelp": "Den skal kræve login og gemme sine besvarelser. En operation har sin egen formular.",
       "hideEmails": "Skjul e-mails",

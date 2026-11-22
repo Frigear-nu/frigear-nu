@@ -36,7 +36,7 @@
       "everyone": "Everyone",
       "expires": "Expires",
       "expiresAt": "Expires",
-      "expiresAtHelp": "Leave empty for a link that does not expire.",
+      "expiresAtHelp": "Leave empty for a link that expires in 30 days.",
       "form": "Application form",
       "formHelp": "It must ask people to sign in and store its submissions. An operation uses its own form.",
       "hideEmails": "Hide emails",

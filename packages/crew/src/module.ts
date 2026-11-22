@@ -102,7 +102,11 @@ export default defineNuxtModule<ModuleOptions>({
     const applyPath = resolvePagePath(settings.pages?.apply ?? true, CREW_DEFAULT_PAGES.apply)
     const statusPath = resolvePagePath(settings.pages?.status ?? true, CREW_DEFAULT_PAGES.status)
     const invitePath = resolvePagePath(settings.pages?.invite ?? true, CREW_DEFAULT_PAGES.invite)
-    nuxt.options.runtimeConfig.public.crew = { pages: { home: homePath, apply: applyPath, status: statusPath, invite: invitePath } }
+    // How `@nuxtjs/i18n` puts locales in paths, so the status link in emails and pushes gets the person's prefix.
+    const i18nOptions = (nuxt.options as { i18n?: { strategy?: string, defaultLocale?: string, locales?: Array<string | { code: string }> } }).i18n
+    const i18nLocales = (i18nOptions?.locales ?? []).map(locale => typeof locale === 'string' ? locale : locale.code)
+    const i18n = i18nLocales.length ? { strategy: i18nOptions?.strategy ?? 'prefix_except_default', defaultLocale: i18nOptions?.defaultLocale ?? null, locales: i18nLocales } : null
+    nuxt.options.runtimeConfig.public.crew = { pages: { home: homePath, apply: applyPath, status: statusPath, invite: invitePath }, i18n }
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
     runtime.crew = {
       ...(runtime.crew as Record<string, unknown> | undefined),

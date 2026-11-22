@@ -3,7 +3,7 @@ import type { EmailNotification } from '@frigear-nu/notify/types'
 import { CREW_TOPICS } from '../../notifications'
 
 /** The push notification of a status email: its subject, the template's message (else the subject) and the status link. */
-export function crewPushFromEmail(email: EmailNotification): { title: string, body: string, url?: string } {
+export function crewPushFromEmail(email: Pick<EmailNotification, 'subject' | 'template'>): { title: string, body: string, url?: string } {
   const props = email.template?.props ?? {}
   const message = typeof props.message === 'string' && props.message ? props.message : email.subject
   const url = typeof props.statusUrl === 'string' && props.statusUrl ? props.statusUrl : undefined
@@ -15,10 +15,10 @@ export type CrewSendResult = { channels: Array<'email' | 'sms' | 'push'>, failed
 
 /**
  * Sends the person their status message through notify's `notifyUser` on the `crew.status` topic: email and push, by the
- * person's own choice and as far as they can be reached. Never throws: a failure is logged and the attempted channels
+ * person's own choice and as far as they can be reached (a person without an email still gets the push). Never throws: a failure is logged and the attempted channels
  * are reported as `failed`.
  */
-export async function crewSend(_event: H3Event | undefined, userId: number, email: EmailNotification): Promise<CrewSendResult> {
+export async function crewSend(_event: H3Event | undefined, userId: number, email: Omit<EmailNotification, 'to'>): Promise<CrewSendResult> {
   try {
     const result = await notifyUser(userId, {
       topic: CREW_TOPICS.status,

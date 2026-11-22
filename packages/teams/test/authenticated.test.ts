@@ -330,6 +330,30 @@ describe('teams (authenticated, database-backed)', async () => {
       expect(listed.find(item => item.userId === outsider.id)).toBeUndefined()
     })
 
+    it('resolves mapped candidates in bulk: the statement count does not grow with the candidates', async () => {
+      const team = await createTeam({ ownerType: 'platform', ownerId: null, name: 'Bulk bar' })
+      await createRule({ ownerType: 'platform', ownerId: null, teamId: team.id, match: { role: 'member' }, teamRole: 'volunteer' })
+      await createRule({ ownerType: 'platform', ownerId: null, teamId: team.id, match: { plan: 'weekly' }, teamRole: 'bartender' })
+      const count = () => $fetch<{ statements: number, mapped: number[] }>('/api/test/mapped-statements', { query: { teamId: team.id } })
+      // One candidate of each source first (a role holder, a plan holder), then many more of both.
+      const first = await user('Bulkfirst', 'member.test')
+      const firstSubscriber = await user('Bulkfirstsub')
+      await givePlan(firstSubscriber.cookie, 'weekly')
+      const before = await count()
+      expect(before.mapped).toEqual(expect.arrayContaining([first.id, firstSubscriber.id]))
+
+      const more = []
+      for (let index = 0; index < 6; index++) more.push(await user(`Bulk${index}`, index % 2 ? 'member.test' : 'bar.test'))
+      const subscriber = await user('Bulksub')
+      await givePlan(subscriber.cookie, 'weekly')
+      const after = await count()
+      expect(after.mapped).toEqual(expect.arrayContaining([first.id, subscriber.id, ...more.map(item => item.id)]))
+      expect(after.mapped.length).toBeGreaterThanOrEqual(before.mapped.length + 7)
+      expect(after.statements).toBe(before.statements)
+      // And the listing agrees with each user's own resolution.
+      expect((await myTeams(subscriber.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'bartender', source: 'mapped' })
+    })
+
     it('validates rules: a strict match, the team of the owner and a role on the ladder (400)', async () => {
       const team = await createTeam()
       const elsewhere = await createTeam({ ownerType: 'platform', ownerId: null })
