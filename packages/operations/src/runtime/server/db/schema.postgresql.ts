@@ -24,6 +24,8 @@ export const operations = pgTable('operations', {
   id: text().primaryKey(),
   slug: text().notNull().unique(),
   name: jsonb().$type<Translated>().notNull(),
+  /** `name` in every language and `slug`, folded for search (`searchText` of `@frigear-nu/module-kit/server`). */
+  searchText: text().notNull().default(''),
   description: jsonb().$type<Translated>(),
   /** Who hosts the occasion: your organisation, or the venue or event it works at. */
   hostName: text(),
