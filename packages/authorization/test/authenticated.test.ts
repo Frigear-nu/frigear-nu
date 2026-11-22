@@ -201,6 +201,51 @@ describe('authorization (authenticated)', async () => {
       expect((await access(edith.cookie)).permissions).toContain('reports:write')
     })
 
+    it('registers the `role` grant kind: it matches effective roles and lists assigned holders', async () => {
+      const evaluate = (cookie: string | undefined, grants: unknown[]) =>
+        $fetch<{ matches: boolean, members: string[] }>('/api/test/grants', { method: 'POST', ...as(cookie), body: { grants } })
+      const editors = [{ kind: 'role', role: 'editor' }]
+      expect(await evaluate(edith.cookie, editors)).toMatchObject({ matches: true })
+      expect((await evaluate(ada.cookie, editors)).matches).toBe(false)
+      expect((await evaluate(undefined, editors)).matches).toBe(false)
+      expect((await evaluate(undefined, editors)).members).toContain(String(edith.id))
+      expect((await evaluate(undefined, editors)).members).not.toContain(String(ada.id))
+      // `user` is a default role: everyone matches, but only stored rows (here `editor`, which inherits it) are listed.
+      const users = await evaluate(ada.cookie, [{ kind: 'role', role: 'user' }])
+      expect(users.matches).toBe(true)
+      expect(users.members).toContain(String(edith.id))
+      expect(users.members).not.toContain(String(ada.id))
+      // An invalid `role` grant, and a kind nobody registers, admit nobody.
+      expect((await evaluate(edith.cookie, [{ kind: 'role', roles: ['editor'] }, { kind: 'team', teamId: 't' }])).matches).toBe(false)
+    })
+
+    it('lists role holders for auth\'s `listRoleHolders`, inheritance included', async () => {
+      const holders = async (roles: string[], limit?: number) =>
+        (await $fetch<{ holders: number[] }>('/api/test/role-holders', { method: 'POST', body: { roles, limit } })).holders
+      expect(await holders(['editor'])).toContain(edith.id)
+      expect(await holders(['editor'])).not.toContain(ada.id)
+      // `editor` inherits `user`: stored editors hold it. Ada only holds `user` as a default role, which is never stored.
+      expect(await holders(['user'])).toContain(edith.id)
+      expect(await holders(['user'])).not.toContain(ada.id)
+      expect(await holders(['writer'])).not.toContain(edith.id)
+      expect((await holders(['user', 'admin'], 1)).length).toBe(1)
+      expect(await holders([])).toEqual([])
+    })
+
+    it('reads the stored roles of many users in one chunked query, and primes role holders with it', async () => {
+      // More ids than D1 binds in one query (100): the read is cut in chunks.
+      const userIds = [...Array.from({ length: 250 }, (_, index) => 10_000 + index), edith.id, ada.id]
+      const result = await $fetch<{ roles: Record<string, string[]>, holders: number[], primed: number[] }>('/api/test/roles-of', {
+        method: 'POST',
+        body: { userIds, roles: ['editor'] },
+      })
+      expect(result.roles[String(edith.id)]).toContain('editor')
+      expect(result.roles[String(ada.id)]).toBeUndefined()
+      expect(result.roles['10000']).toBeUndefined()
+      expect(result.holders).toContain(edith.id)
+      expect(result.primed).toContain(edith.id)
+    })
+
     it('only lets staff assign roles strictly below their own (403)', async () => {
       const mine = await $fetch<AuthorizationUserRolesDto>(authorizationApi.admin.userRoles(ada.id), as(edith.cookie))
       expect(mine.assignable).toEqual(['writer'])
