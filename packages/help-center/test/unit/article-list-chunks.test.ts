@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
+import { searchText } from '@frigear-nu/module-kit/server'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { boundParams, client, db, schema } from './stubs/nuxthub-db'
 import { helpCenterDatabaseSource } from '../../src/runtime/server/utils/help-center-db'
@@ -12,8 +13,11 @@ const D1_MAX_PARAMS = 100
 const context = () => ({ event: { context: {} }, reader: { canRead: async () => true } }) as unknown as HelpSourceContext
 
 beforeAll(async () => {
-  const init = await readFile(new URL('../fixtures/authenticated/server/db/migrations/sqlite/0000_init.sql', import.meta.url), 'utf8')
-  await client.executeMultiple(init.replaceAll('--> statement-breakpoint', ''))
+  // Every committed migration of the fixture, in order.
+  const migrations = new URL('../fixtures/authenticated/server/db/migrations/sqlite/', import.meta.url)
+  for (const file of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+    await client.executeMultiple((await readFile(new URL(file, migrations), 'utf8')).replaceAll('--> statement-breakpoint', ''))
+  }
   const at = new Date('2027-01-01T00:00:00Z').getTime()
   await db.insert(schema.helpCategories).values(Array.from({ length: CATEGORIES }, (_, index) => ({
     id: `cat_${index}`,
@@ -29,6 +33,8 @@ beforeAll(async () => {
       slug: `article-${index}`,
       title: index % 50 === 7 ? `Needle ${index}` : `Article ${index}`,
       body: 'Text',
+      // What `createHelpArticleRow` writes with the title (the search reads it).
+      searchText: searchText(index % 50 === 7 ? `Needle ${index}` : `Article ${index}`, `article-${index}`),
       status: 'published',
       sort: CATEGORIES - index,
       createdAt: new Date(at + index),

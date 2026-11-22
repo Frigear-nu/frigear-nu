@@ -43,6 +43,10 @@ export const helpArticles = sqliteTable('help_articles', {
   title: text({ mode: 'json' }).$type<Translated>().notNull(),
   /** Markdown or MDC, per locale. */
   body: text({ mode: 'json' }).$type<Translated>().notNull(),
+  /** `title` in every language and `slug`, folded for search (`searchText` of `@frigear-nu/module-kit/server`). */
+  searchText: text().notNull().default(''),
+  /** `body` in every language, folded for search. */
+  searchBody: text().notNull().default(''),
   /** An icon name such as `i-lucide-info`, shown next to the title in an accordion. */
   icon: text(),
   /** Buttons under the text in an accordion. */
