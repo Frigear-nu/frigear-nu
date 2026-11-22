@@ -149,6 +149,8 @@ export type TeamMemberDto = {
 /** My team roles (`GET /api/teams/me`): the grant plus the team's name. */
 export type MyTeamDto = TeamRoleGrant & {
   name: Translated
+  /** The role's label on the team kind's ladder; the role key when the ladder does not have it. */
+  roleLabel: Translated
 }
 
 /** A role mapping rule (`/api/admin/teams/mappings`). */

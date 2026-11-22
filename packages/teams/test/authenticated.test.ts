@@ -277,6 +277,9 @@ describe('teams (authenticated, database-backed)', async () => {
       await ok(await addMember(team.id, manager.id, 'bartender'))
       const after = await myTeams(manager.cookie)
       expect(after.filter(grant => grant.teamId === team.id)).toEqual([expect.objectContaining({ role: 'bartender', source: 'explicit' })])
+      // The ladder's label of the role comes along, for the dashboard item.
+      expect(after.find(grant => grant.teamId === team.id)).toMatchObject({ roleLabel: 'Bartender' })
+      expect(after.find(grant => grant.teamId === other.id)).toMatchObject({ roleLabel: 'Lead' })
       expect(after.find(grant => grant.teamId === other.id)).toMatchObject({ role: 'lead', source: 'mapped' })
       // Explicit grants come first.
       expect(after[0]).toMatchObject({ source: 'explicit' })
@@ -456,6 +459,54 @@ describe('teams (authenticated, database-backed)', async () => {
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(team.id, pending.id), { status: 'active' }))
       expect((await myTeams(pending.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ role: 'lead', source: 'explicit' })
       expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: pending.cookie }, query: { teamId: team.id } })).toEqual({ allowed: true, isTeamLead: true })
+    })
+
+    it('lets an inactive or pending row override a mapped role on its team, so matches() and members() agree', async () => {
+      const owner = { ownerType: 'operation', ownerId: 'opr_summer' }
+      const team = await createTeam(owner)
+      const other = await createTeam(owner)
+      await createRule({ ...owner, teamId: team.id, match: { role: 'supervisor' }, teamRole: 'lead' })
+      await createRule({ ...owner, teamId: other.id, match: { role: 'supervisor' }, teamRole: 'lead' })
+      const mapped = await user('Overridden', 'bar.test')
+      expect((await myTeams(mapped.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ source: 'mapped' })
+
+      for (const status of ['inactive', 'pending']) {
+        await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: mapped.id, role: 'volunteer', status }))
+        const grants = await myTeams(mapped.cookie)
+        expect(grants.find(grant => grant.teamId === team.id), status).toBeUndefined()
+        // Only this team: the rule on the other team still maps.
+        expect(grants.find(grant => grant.teamId === other.id)).toMatchObject({ source: 'mapped' })
+        await expectApiError(json(mapped.cookie, 'GET', teamsApi.team(team.id)), 403, 'forbidden')
+        expect(await $fetch<Json>('/api/test/lead', { headers: { cookie: mapped.cookie }, query: { teamId: team.id } })).toEqual({ allowed: false, isTeamLead: false })
+        const asSelf = await $fetch<Json>('/api/test/grant', { headers: { cookie: mapped.cookie }, query: { teamId: team.id, minRole: 'volunteer' } })
+        const asStaff = await $fetch<Json>('/api/test/grant', { headers: { cookie: staff.cookie }, query: { teamId: team.id, minRole: 'volunteer', userId: mapped.id } })
+        expect(asSelf.matches).toBe(false)
+        expect(asStaff.matches).toBe(false)
+        expect(asStaff.members).not.toContain(mapped.id)
+        expect((await json(staff.cookie, 'DELETE', teamsApi.admin.member(team.id, mapped.id))).status).toBe(204)
+      }
+      // Without the row, the mapped role is back.
+      expect((await myTeams(mapped.cookie)).find(grant => grant.teamId === team.id)).toMatchObject({ source: 'mapped' })
+    })
+
+    it('shows pending and inactive rows to staff and leads only', async () => {
+      const team = await createTeam()
+      const member = await user('Rostermember')
+      const lead = await user('Rosterlead')
+      const pending = await user('Rosterpending')
+      const inactive = await user('Rosterinactive')
+      await ok(await addMember(team.id, member.id, 'volunteer'))
+      await ok(await addMember(team.id, lead.id, 'lead'))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: pending.id, role: 'volunteer', status: 'pending' }))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(team.id), { userId: inactive.id, role: 'bartender', status: 'inactive' }))
+
+      const asMember = await ok(await json(member.cookie, 'GET', teamsApi.members(team.id))) as unknown as Json[]
+      expect(asMember.map(item => item.userId).sort()).toEqual([member.id, lead.id].sort())
+      for (const viewer of [staff, lead]) {
+        const listed = await ok(await json(viewer.cookie, 'GET', teamsApi.members(team.id))) as unknown as Json[]
+        expect(listed.find(item => item.userId === pending.id)).toMatchObject({ status: 'pending' })
+        expect(listed.find(item => item.userId === inactive.id)).toMatchObject({ status: 'inactive' })
+      }
     })
 
     it('fires added and removed when the status starts or ends the grant, not for rows without one', async () => {
