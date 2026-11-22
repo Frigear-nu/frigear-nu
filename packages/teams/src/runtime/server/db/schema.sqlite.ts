@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
@@ -52,6 +53,10 @@ export const teamMembers = sqliteTable('team_members', {
 }, t => [
   uniqueIndex('team_member_unique').on(t.teamId, t.userId),
   index('team_member_user_idx').on(t.userId),
+  // Indexes on columns an extension adds (crew's `submissionId` and `crewStatus`). An extension file cannot declare
+  // indexes, so the base declares them, for whichever of these columns the merged table has.
+  ...('submissionId' in t ? [index('team_member_submission_idx').on(t.submissionId as AnySQLiteColumn)] : []),
+  ...('crewStatus' in t ? [index('team_member_crew_status_idx').on(t.crewStatus as AnySQLiteColumn)] : []),
 ])
 
 /** The role ladder of each team kind, lowest first. Seeded from the module option `ladders`; admins may edit it. */

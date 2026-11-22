@@ -2,9 +2,11 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 
 // There is deliberately no foreign key to `users` (that table is registered from another file).
 
-// One row per app installation that can receive pushes. Registering a token that already exists moves it to the
-// current user and clears `revokedAt`: a phone that changes hands belongs to whoever signed in last. A device the user
-// removes is deleted; a row is revoked only when FCM or APNs report its token dead, and is kept so it is not sent to again.
+// One row per app installation that can receive pushes, bound to the installation's secret (only its hash is stored).
+// Registering a token that already exists keeps it with its user, and moves it to another user only when the request
+// carries the installation's secret (a phone that changes hands); otherwise 409 `device_owned`. A device the user removes
+// is deleted; a row is revoked when FCM or APNs report its token dead, or after `PUSH_DEVICE_FAILURE_LIMIT` refused
+// pushes in a row, and is kept so it is not sent to again. Registering again clears both.
 export const pushDevices = sqliteTable('push_devices', {
   /** `psd_` + random id. */
   id: text().primaryKey(),
@@ -23,6 +25,10 @@ export const pushDevices = sqliteTable('push_devices', {
   lastSeenAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   revokedAt: integer({ mode: 'timestamp' }),
+  /** SHA-256 (hex) of the installation secret the app generated; `null` for a row registered without one. */
+  secretHash: text(),
+  /** Pushes the provider refused for this device in a row (0 after a delivered one): revoked at the limit. */
+  failures: integer().notNull().default(0),
 }, t => [
   index('push_device_user_idx').on(t.userId),
 ])

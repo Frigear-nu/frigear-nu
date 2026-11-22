@@ -166,7 +166,9 @@
       "scope": "Applies to",
       "oneTeam": "One team",
       "everyTeamOfKind": "Every team of a kind",
-      "chooseKind": "Choose a team kind"
+      "chooseKind": "Choose a team kind",
+      "searchTeams": "Search teams",
+      "platform": "Platform"
     }
   }
 }

@@ -40,6 +40,21 @@ describe('crewSend', () => {
     expect(dispatchEmail).not.toHaveBeenCalled()
   })
 
+  it('still sends the push to a person without an email (notifyUser skips the email itself)', async () => {
+    notifyUser.mockResolvedValue({ channels: ['push'], skipped: { email: 'unreachable' } })
+    const noEmail = buildCrewStatusEmail({
+      status: 'approved',
+      member: { email: null, name: 'Bo', teamName: 'Orange bar', role: 'volunteer' },
+      operationName: 'Summer Festival',
+      roleLabel: 'Volunteer',
+      settings: undefined,
+      locale: 'da',
+    })!
+    expect(await crewSend(undefined, 8, noEmail)).toEqual({ channels: ['push'], failed: [] })
+    const [, input] = notifyUser.mock.calls[0]!
+    expect(input.push).toMatchObject({ title: 'Du er med i crewet på Summer Festival', body: expect.stringContaining('Velkommen i crewet') })
+  })
+
   it('reports the attempted channels as failed when notifyUser throws, and does not throw', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     notifyUser.mockRejectedValue(new Error('unknown topic'))

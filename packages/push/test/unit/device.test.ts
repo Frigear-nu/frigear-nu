@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Ref } from 'vue'
-import { createPushDevice } from '../../src/runtime/app/utils/device'
+import { createPushDevice, newPushInstallationSecret } from '../../src/runtime/app/utils/device'
 import type { PushDeviceState } from '../../src/runtime/app/utils/device'
 import { capacitorPushProvider, fromFirebaseMessaging, isInAppPath, withoutThen } from '../../src/runtime/app/utils/native'
 import type { FirebaseMessagingPluginLike, PermissionState, PushNotificationsPluginLike } from '../../src/runtime/app/utils/native'
@@ -35,6 +35,8 @@ function fakePlugin(options: { permission?: PermissionState, afterPrompt?: Permi
   return { plugin, listeners, calls }
 }
 
+const SECRET = 'secret-of-this-installation'
+
 const ref = <T>(value: T) => ({ value }) as Ref<T>
 const state = (): PushDeviceState => ({ permission: ref('unknown'), token: ref(null), registered: ref(false) })
 
@@ -52,6 +54,7 @@ function setup(plugin: ReturnType<typeof fakePlugin>, overrides: Partial<Paramet
     appId: 'com.example.app',
     locale: () => 'da',
     storage: { get: () => stored.token, set: (token) => { stored.token = token } },
+    secret: () => SECRET,
     navigate: path => navigated.push(path),
     log: { warn: vi.fn() },
     ...overrides,
@@ -65,7 +68,7 @@ describe('createPushDevice', () => {
     const { device, requests, stored, deviceState } = setup(plugin)
     expect(await device.register()).toBe(true)
     expect(plugin.calls).toEqual(['requestPermissions', 'listen:registration', 'listen:registrationError', 'listen:pushNotificationActionPerformed', 'register'])
-    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', provider: 'fcm', token: 'token-1', appId: 'com.example.app', locale: 'da' } }])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'android', provider: 'fcm', token: 'token-1', secret: SECRET, appId: 'com.example.app', locale: 'da' } }])
     expect(stored.token).toBe('token-1')
     expect(deviceState).toMatchObject({ permission: { value: 'granted' }, token: { value: 'token-1' }, registered: { value: true } })
   })
@@ -130,7 +133,7 @@ describe('createPushDevice', () => {
     const { device, requests, stored } = setup(plugin, { load: async () => ({ plugin: plugin.plugin, platform: 'ios', provider: 'fcm' }) })
     stored.token = 'apns-token'
     await device.register()
-    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'ios', provider: 'fcm', token: 'fcm-token', replaces: 'apns-token', appId: 'com.example.app', locale: 'da' } }])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'ios', provider: 'fcm', token: 'fcm-token', secret: SECRET, replaces: 'apns-token', appId: 'com.example.app', locale: 'da' } }])
     expect(stored.token).toBe('fcm-token')
 
     // The same token again replaces nothing.
@@ -198,7 +201,7 @@ describe('createPushDevice', () => {
     const { device, requests, stored, deviceState } = setup(plugin)
     await device.register()
     expect(await device.unregister()).toBe(true)
-    expect(requests.at(-1)).toEqual({ path: '/api/push/me/devices/unregister', body: { token: 'token-1' } })
+    expect(requests.at(-1)).toEqual({ path: '/api/push/me/devices/unregister', body: { token: 'token-1', secret: SECRET } })
     expect(plugin.calls).toContain('unregister')
     expect(stored.token).toBeNull()
     expect(deviceState.registered.value).toBe(false)
@@ -206,7 +209,7 @@ describe('createPushDevice', () => {
     // A new launch only knows the stored token.
     const restarted = setup(fakePlugin(), { storage: { get: () => 'stored-token', set: () => {} } })
     expect(await restarted.device.unregister()).toBe(true)
-    expect(restarted.requests).toEqual([{ path: '/api/push/me/devices/unregister', body: { token: 'stored-token' } }])
+    expect(restarted.requests).toEqual([{ path: '/api/push/me/devices/unregister', body: { token: 'stored-token', secret: SECRET } }])
   })
 
   it('does not throw when the server refuses the unregister (signed out already)', async () => {
@@ -315,6 +318,7 @@ describe('Firebase Messaging (the FCM token on iOS)', () => {
         requests.push({ path, body: options.body })
       },
       state: deviceState,
+      secret: () => SECRET,
       navigate: path => navigated.push(path),
       log: { warn: vi.fn() },
     })
@@ -326,7 +330,7 @@ describe('Firebase Messaging (the FCM token on iOS)', () => {
     const { device, requests, deviceState } = setupFirebase(firebase)
     expect(await device.register()).toBe(true)
     expect(firebase.calls).toEqual(['requestPermissions', 'listen:notificationActionPerformed', 'listen:tokenReceived', 'getToken'])
-    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'ios', provider: 'fcm', token: 'fcm-token-1' } }])
+    expect(requests).toEqual([{ path: '/api/push/me/devices', body: { platform: 'ios', provider: 'fcm', token: 'fcm-token-1', secret: SECRET } }])
     expect(deviceState.token.value).toBe('fcm-token-1')
   })
 
@@ -348,7 +352,7 @@ describe('Firebase Messaging (the FCM token on iOS)', () => {
     firebase.listeners.tokenReceived!({ token: 'fcm-token-1' })
     firebase.rotate('fcm-token-2')
     await vi.waitFor(() => expect(requests).toHaveLength(2))
-    expect(requests[1]!.body).toEqual({ platform: 'ios', provider: 'fcm', token: 'fcm-token-2' })
+    expect(requests[1]!.body).toEqual({ platform: 'ios', provider: 'fcm', token: 'fcm-token-2', secret: SECRET })
   })
 
   it('rejects when Firebase hands out no token', async () => {
@@ -372,13 +376,33 @@ describe('Firebase Messaging (the FCM token on iOS)', () => {
     const { device, requests } = setupFirebase(firebase)
     await device.register()
     expect(await device.unregister()).toBe(true)
-    expect(requests.at(-1)).toEqual({ path: '/api/push/me/devices/unregister', body: { token: 'fcm-token-1' } })
+    expect(requests.at(-1)).toEqual({ path: '/api/push/me/devices/unregister', body: { token: 'fcm-token-1', secret: SECRET } })
     expect(firebase.calls).toContain('deleteToken')
   })
 
   it('registers an Android device with its FCM token the same way', async () => {
     const { device, requests } = setupFirebase(fakeFirebase({ permission: 'granted' }), 'android')
     await device.register()
-    expect(requests[0]!.body).toEqual({ platform: 'android', provider: 'fcm', token: 'fcm-token-1' })
+    expect(requests[0]!.body).toEqual({ platform: 'android', provider: 'fcm', token: 'fcm-token-1', secret: SECRET })
+  })
+})
+
+describe('installation secret', () => {
+  it('generates a random, URL-safe secret of 32 bytes', () => {
+    const a = newPushInstallationSecret()
+    const b = newPushInstallationSecret()
+    expect(a).toMatch(/^[\w-]{43}$/)
+    expect(a).not.toBe(b)
+  })
+
+  it('sends one secret per flow when the app keeps none', async () => {
+    const plugin = fakePlugin({ permission: 'granted' })
+    const { device, requests } = setup(plugin, { secret: undefined })
+    await device.register()
+    await device.unregister()
+    const sent = requests.map(request => (request.body as { secret: string }).secret)
+    expect(sent).toHaveLength(2)
+    expect(sent[0]).toMatch(/^[\w-]{43}$/)
+    expect(sent[1]).toBe(sent[0])
   })
 })
