@@ -20,6 +20,10 @@ const owner = await requireAuth(event, { sessionOnly: true })
   policies with `addPolicies` and credential types with `addAuthResolver` (`@frigear-nu/auth/utils`). Server code
   checks access with `authorize` / `allows` (auto-imported), refines it per record with `definePolicy`, and the host
   overrides it in the `authorization:before` hook.
+- Grant lists say who may see a record (a `grants` column; any one grant admits, `[]` admits nobody, an unknown kind
+  admits nobody): `grantsCanRead`, `grantsMatch`, `grantsMembers`, `grantsValidate` on the server, `<GrantsEditor>`,
+  `extendGrants` (`@frigear-nu/auth/utils`) and `defineGrantKind` (`@frigear-nu/auth/grants`) for a module's own kinds.
+  Auth ships the `public` kind; `@frigear-nu/authorization` adds `role`.
 - Auth knows users only through an `AuthUserStore`, which `@frigear-nu/users` registers (`setAuthUserStore`);
   `@frigear-nu/oauth-server` supplies the access-token resolver.
 - Sign-in is configured under `authentication.settings` (`password`, `magicLink`, `webAuthn`, `oauth`, `pages`, ...).
