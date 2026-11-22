@@ -73,4 +73,7 @@ export const operationListQuery = z.object({ status: z.enum(OPERATION_STATUSES).
 export { endsAfterStart as operationEndsAfterStart }
 
 /** The body of `PUT /api/admin/operations/:id/venue-layout`; the layout itself is checked by `validatePlaneLayout`. */
-export const operationVenueLayoutInput = z.object({ layout: z.unknown() })
+export const operationVenueLayoutInput = z.object({ layout: z.unknown(), revision: z.string().min(1).max(32).optional() })
+
+/** The query of the underlay upload: the layout revision the client read (optional, 409 when it changed). */
+export const operationVenueUnderlayQuery = z.object({ revision: z.string().min(1).max(32).optional() })

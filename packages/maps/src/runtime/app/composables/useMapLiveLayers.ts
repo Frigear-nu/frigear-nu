@@ -28,7 +28,8 @@ const statusOf = (error: unknown) => (error as { statusCode?: number, status?: n
  * fails otherwise keeps its last features.
  *
  * `hidden` holds the ids of the layers the viewer hides. A layer registered with `visible: false` starts there. A hidden
- * layer is not fetched or polled; showing it fetches it at once.
+ * layer is not fetched or polled; showing it fetches it at once. When `params` change, answers still in flight for the
+ * old URLs are dropped.
  */
 export function useMapLiveLayers(options: MapLiveLayersOptions) {
   const entries = computed(() => layersForSurface(registeredLayers, toValue(options.surface), toValue(options.only) ?? undefined)
@@ -50,17 +51,21 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
   const isHidden = (id: string) => hidden.value.includes(id)
   const timers: ReturnType<typeof setInterval>[] = []
   let active = false
+  // Bumped by every (re)start: a response to a request of an older generation (old params) is dropped, so a slow
+  // answer for the previous URL never overwrites the current layer.
+  let generation = 0
 
-  async function load(id: string, url: string) {
+  async function load(id: string, url: string, run = generation) {
     if (isHidden(id)) return
+    const current = () => active && run === generation
     try {
       const collection = await $fetch<MapLiveFeatureCollection>(url)
-      if (!active) return
+      if (!current()) return
       collections.value = { ...collections.value, [id]: collection?.type === 'FeatureCollection' ? collection : { type: 'FeatureCollection', features: [] } }
     }
     catch (error) {
       const status = statusOf(error)
-      if (active && (status === 401 || status === 403) && !refused.value.includes(id)) refused.value = [...refused.value, id]
+      if (current() && (status === 401 || status === 403) && !refused.value.includes(id)) refused.value = [...refused.value, id]
     }
   }
 
@@ -71,9 +76,10 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
   function start() {
     stop()
     active = true
+    const run = ++generation
     for (const { info, url } of entries.value) {
-      load(info.id, url)
-      if (info.refreshInterval) timers.push(setInterval(() => load(info.id, url), info.refreshInterval * 1000))
+      load(info.id, url, run)
+      if (info.refreshInterval) timers.push(setInterval(() => load(info.id, url, run), info.refreshInterval * 1000))
     }
   }
 
@@ -93,6 +99,7 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
   })
   onBeforeUnmount(() => {
     active = false
+    generation++
     stop()
   })
 
