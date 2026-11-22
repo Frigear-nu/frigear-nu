@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { defineGrantKind } from '@frigear-nu/grants/core'
+import { defineGrantKind } from '@frigear-nu/auth/grants'
 import { testParticipantsOf, testTakesPart } from '../server/utils/test-state'
 
 // Stands in for the `operation` grant kind of `@frigear-nu/operations`, with crew answering who takes part: users take

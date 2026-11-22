@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasPublicGrant } from '@frigear-nu/grants/core'
+import { hasPublicGrant } from '@frigear-nu/auth/grants'
 import { faqItemInherits, isFaqItemPublic, isFaqItemReadable } from '../../src/runtime/utils'
 
 const pub = [{ kind: 'public' }]
