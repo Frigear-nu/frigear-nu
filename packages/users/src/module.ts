@@ -136,9 +136,12 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.hook('modules:done', () => {
       const locales = (nuxt.options as { i18n?: { locales?: Array<string | { code: string }> } }).i18n?.locales ?? []
       nuxt.options.runtimeConfig.users!.locales = locales.map(locale => typeof locale === 'string' ? locale : locale.code)
+      // Fills an empty `users.locale` with the app's language at sign-in and on a language switch (never overwrites
+      // it). Only with i18n, whose plugin it waits for (`dependsOn`); without it there is no language to save.
+      if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
+        addPlugin({ src: resolver.resolve('./runtime/app/plugins/remember-locale.client'), mode: 'client' })
+      }
     })
-    // Fills an empty `users.locale` with the app's language at sign-in and on a language switch (never overwrites it).
-    addPlugin({ src: resolver.resolve('./runtime/app/plugins/remember-locale.client'), mode: 'client' })
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin
