@@ -211,6 +211,13 @@
       "when": 1795380367966,
       "tag": "0029_inbox_message_sender_permanent_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1795382719474,
+      "tag": "0030_search_text",
+      "breakpoints": true
     }
   ]
 }
