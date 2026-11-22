@@ -230,6 +230,8 @@ typed name otherwise.
   issue at the grant's index from `grantsValidate`). A grant already stored is kept as it is, so a role that was
   removed from the config does not make the record unsaveable.
 
+- **`matches`** checks the whole stored user: given only `{ id }` (a recipient, say), it loads the user first, so
+  `authorization:roles` listeners that read the email (an admin allowlist) still add their roles.
 - **`members`** is Auth's [`listRoleHolders`](/modules/identity/auth/server#who-holds-a-role): the users with the
   role, or a role inheriting it, stored in `authorization_user_roles` (this module's role provider implements
   `holders`), checked against their effective roles, at most 1000. Their stored roles load in one query per 90 users
