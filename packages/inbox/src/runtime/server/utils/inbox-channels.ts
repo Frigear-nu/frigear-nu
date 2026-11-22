@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { apiError } from '@frigear-nu/module-kit/server'
-import { metaSendRequest, metaSentId, replyCc } from '../../utils/payloads'
+import { isEmailAddress, metaSendRequest, metaSentId, normaliseEmail, replyCc } from '../../utils/payloads'
 import type { InboxMetaChannel } from '../../utils/payloads'
 import type { InboxChannelAccountDto, InboxContactDetails, InboxSendContext, InboxThreadDto } from '../../../types'
 
@@ -29,12 +29,25 @@ export function inboxReplySubject(thread: Pick<InboxThreadDto, 'id' | 'subject'>
 }
 
 /**
- * Sends a reply by email to the contact (`409 no_reply_address` when they left no address), copying the people their
- * last email copied (`inboxReplyCc`), as a reply-all would.
+ * The address a reply to the contact goes to: their email (or the email they wrote from) when it is one plain valid
+ * address, checked like cc recipients (`isEmailAddress`): a list (`a@x.org, b@y.org`) or a value with a line break is
+ * not one. `null` otherwise.
+ */
+export function inboxReplyAddress(contact: Pick<InboxContactDetails, 'email' | 'channel' | 'externalId'>): string | null {
+  const raw = contact.email ?? (contact.channel === 'email' ? contact.externalId : null)
+  if (!raw) return null
+  const address = normaliseEmail(raw)
+  return isEmailAddress(address) ? address : null
+}
+
+/**
+ * Sends a reply by email to the contact (`409 no_reply_address` when they left no valid address, see
+ * `inboxReplyAddress`), copying the people their last authenticated email copied (`inboxReplyCc`), as a reply-all
+ * would.
  */
 export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string }): Promise<{ cc: string[] }> {
-  const to = input.contact.email ?? (input.contact.channel === 'email' ? input.contact.externalId : null)
-  if (!to) throw apiError(409, 'no_reply_address', 'The contact left no email address to reply to.')
+  const to = inboxReplyAddress(input.contact)
+  if (!to) throw apiError(409, 'no_reply_address', 'The contact left no valid email address to reply to.')
   const cc = await inboxReplyCc(input.thread.id, [to, input.replyTo])
   await dispatchEmailNotification({
     to,
@@ -49,13 +62,14 @@ export async function inboxSendEmailReply(input: { thread: InboxThreadDto, conta
 }
 
 /**
- * The `Cc` of an email reply in a thread: the cc recipients stored with the thread's latest inbound message (what the
- * person's last email copied), without our own addresses: every email account's address and `config.replyTo`, the
+ * The `Cc` of an email reply in a thread: the cc recipients stored with the thread's latest authenticated inbound
+ * message (what the person's last verified email copied: the cc of an email with a forged sender is never sent to),
+ * without our own addresses: every email account's address and `config.replyTo`, the
  * notify sender, and `exclude` (the recipient and the reply's `Reply-To`). Empty when the person copied nobody.
  */
 export async function inboxReplyCc(threadId: string, exclude: ReadonlyArray<string | null | undefined>): Promise<string[]> {
   const [latest] = await db.select({ cc: schema.inboxMessages.cc }).from(schema.inboxMessages)
-    .where(and(eq(schema.inboxMessages.threadId, threadId), eq(schema.inboxMessages.direction, 'in')))
+    .where(and(eq(schema.inboxMessages.threadId, threadId), eq(schema.inboxMessages.direction, 'in'), eq(schema.inboxMessages.authenticated, true)))
     .orderBy(desc(schema.inboxMessages.createdAtMs)).limit(1)
   if (!latest?.cc?.length) return []
   const accounts = await db.select({ address: schema.inboxChannelAccounts.address, config: schema.inboxChannelAccounts.config })

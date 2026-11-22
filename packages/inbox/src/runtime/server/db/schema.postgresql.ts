@@ -116,12 +116,21 @@ export const inboxMessages = pgTable('inbox_messages', {
   channelAccountId: text(),
   /** `<channel>:<provider id>`, unique per channel account: a webhook delivered twice stores one message. */
   externalId: text(),
+  /**
+   * The contact who sent an inbound message (`null` for replies and notes). Usually the thread's contact; a reply by
+   * email to a contact form thread is filed under the form's contact but sent by the email contact, and exports and
+   * erases find it by this column.
+   */
+  contactId: text(),
+  /** Whether the channel verified the sender of an inbound message (see `InboxInboundMessage.authenticated`). */
+  authenticated: boolean().notNull().default(false),
   /** Epoch milliseconds: orders a thread's messages (`createdAt` has whole seconds on sqlite). */
   createdAtMs: bigint({ mode: 'number' }).notNull().$defaultFn(() => Date.now()),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('inbox_message_thread_idx').on(t.threadId, t.createdAtMs),
   uniqueIndex('inbox_message_external_idx').on(t.channelAccountId, t.externalId),
+  index('inbox_message_contact_idx').on(t.contactId),
 ])
 
 export const inboxAudit = pgTable('inbox_audit', {
@@ -146,12 +155,17 @@ export const inboxAudit = pgTable('inbox_audit', {
 
 /**
  * Provider ids of inbound messages that retention or an erase removed, so a webhook replayed later is not stored again.
- * Pruned `retention.tombstoneDays` after they were written.
+ * Retention's are pruned `retention.tombstoneDays` after they were written; an erase's are kept for good (`permanent`).
  */
 export const inboxTombstones = pgTable('inbox_tombstones', {
   /** Hex SHA-256 of `<channel account id>:<external id>`: no provider id or address is kept in the clear. */
   key: text().primaryKey(),
+  /** The contact who sent the message (no foreign key: the tombstone outlives the contact). */
+  contactId: text(),
+  /** Written by an erase (GDPR): never pruned, so a replay can never bring the message back. */
+  permanent: boolean().notNull().default(false),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
 }, t => [
   index('inbox_tombstone_created_idx').on(t.createdAt),
+  index('inbox_tombstone_contact_idx').on(t.contactId),
 ])

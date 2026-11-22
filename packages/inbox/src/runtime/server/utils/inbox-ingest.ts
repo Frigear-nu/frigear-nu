@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { newId } from '@frigear-nu/module-kit/id'
 import type { InboxInboundMessage, InboxMessageDto, InboxThreadDto, InboxThreadStatus } from '../../../types'
 import { toInboxMessageDto, toInboxThreadDto } from './inbox-dto'
@@ -54,7 +54,8 @@ async function existingMessageId(channelAccountId: string, externalId: string): 
 
 /**
  * The contact behind a channel identity, created on first contact. A detail they did not have is filled in; their name
- * is only replaced by an authenticated message, so an unverified sender cannot rename someone else's contact.
+ * is only replaced by an authenticated message, so an unverified sender cannot rename someone else's contact, and the
+ * user id is only taken from an authenticated message: an unverified one never links a contact to an account.
  */
 async function upsertContact(channel: string, input: InboxInboundMessage['contact'], authenticated: boolean): Promise<InboxContactRow> {
   const where = and(eq(schema.inboxContacts.channel, channel), eq(schema.inboxContacts.externalId, input.externalId))
@@ -65,14 +66,14 @@ async function upsertContact(channel: string, input: InboxInboundMessage['contac
     name: input.name ?? null,
     email: input.email ?? null,
     phone: input.phone ?? null,
-    userId: input.userId ?? null,
+    userId: authenticated ? input.userId ?? null : null,
   }).onConflictDoNothing()
   const [row] = await db.select().from(schema.inboxContacts).where(where).limit(1)
   const changes: Partial<typeof schema.inboxContacts.$inferInsert> = {}
   if (input.name && input.name !== row!.name && (authenticated || !row!.name)) changes.name = input.name
   if (input.email && !row!.email) changes.email = input.email
   if (input.phone && !row!.phone) changes.phone = input.phone
-  if (input.userId && !row!.userId) changes.userId = input.userId
+  if (authenticated && input.userId && !row!.userId) changes.userId = input.userId
   if (!Object.keys(changes).length) return row!
   const [updated] = await db.update(schema.inboxContacts).set(changes).where(eq(schema.inboxContacts.id, row!.id)).returning()
   return updated!
@@ -82,17 +83,22 @@ async function upsertContact(channel: string, input: InboxInboundMessage['contac
  * The thread a message belongs to. Only an authenticated message (a verified sender) joins an existing thread: the one
  * its `[ibt_...]` marker names, when it is in the same mailbox and the sender is the thread's contact or has the
  * contact's email address (a contact form thread answered by email), else the contact's latest thread on this channel
- * that is not closed. Anything else starts a new thread.
+ * that is not closed. An answer to a thread retention or an erase anonymised starts a new thread: a blanked thread
+ * never takes new content (retention would never look at it again). Anything else starts a new thread.
  */
 async function threadFor(account: InboxChannelAccountRow, contact: InboxContactRow, inbound: InboxInboundMessage, authenticated: boolean, now: Date): Promise<InboxThreadRow> {
+  let joinLatest = authenticated
   if (authenticated && inbound.threadId) {
     const [named] = await db.select().from(schema.inboxThreads)
       .where(and(eq(schema.inboxThreads.id, inbound.threadId), eq(schema.inboxThreads.mailboxId, account.mailboxId))).limit(1)
-    if (named && (named.contactId === contact.id || await sameEmail(named.contactId, contact.email))) return named
+    if (named && (named.contactId === contact.id || await sameEmail(named.contactId, contact.email))) {
+      if (!named.anonymisedAt) return named
+      joinLatest = false
+    }
   }
-  if (authenticated) {
+  if (joinLatest) {
     const [latest] = await db.select().from(schema.inboxThreads)
-      .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxThreads.contactId, contact.id), eq(schema.inboxThreads.channel, account.channel), inArray(schema.inboxThreads.status, ['open', 'pending'])))
+      .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxThreads.contactId, contact.id), eq(schema.inboxThreads.channel, account.channel), inArray(schema.inboxThreads.status, ['open', 'pending']), isNull(schema.inboxThreads.anonymisedAt)))
       .orderBy(desc(schema.inboxThreads.lastMessageAt)).limit(1)
     if (latest) return latest
   }
@@ -147,6 +153,9 @@ export async function inboxReceive(event: H3Event, channel: string, inbound: Inb
     cc: inbound.cc?.length ? inbound.cc : null,
     channelAccountId: target.id,
     externalId,
+    // Who sent it: the thread may be another contact's (an email answer to a contact form thread).
+    contactId: contact.id,
+    authenticated,
     createdAt: now,
     createdAtMs: now.getTime(),
   }).onConflictDoNothing().returning()
