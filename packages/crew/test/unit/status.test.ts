@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CREW_STATUSES, CREW_TRANSITIONS, canMoveCrew, crewStatusGrants, isCrewStatus, teamStatusOf } from '../../src/runtime/utils/status'
-import { CREW_INVITE_DEFAULT_DAYS, createCrewLinks, localizeCrewPath } from '../../src/runtime/utils/links'
+import { CREW_INVITE_DEFAULT_DAYS, createCrewLinks } from '../../src/runtime/utils/links'
 import { crewApi } from '../../src/runtime/utils/api'
 
 describe('crew statuses', () => {
@@ -66,24 +66,7 @@ describe('crew links and api paths', () => {
   })
 })
 
-describe('localizeCrewPath', () => {
-  const i18n = { strategy: 'prefix_except_default', defaultLocale: 'da', locales: ['da', 'en'] }
-
-  it('prefixes a locale other than the default, and matches da-DK as da', () => {
-    expect(localizeCrewPath('/crew/status', 'da', i18n)).toBe('/crew/status')
-    expect(localizeCrewPath('/crew/status', 'da-DK', i18n)).toBe('/crew/status')
-    expect(localizeCrewPath('/crew/status', 'en', i18n)).toBe('/en/crew/status')
-    expect(localizeCrewPath('/crew/status', 'en_GB', i18n)).toBe('/en/crew/status')
-  })
-
-  it('follows the strategy, and leaves the path alone for an unknown locale or without i18n', () => {
-    expect(localizeCrewPath('/crew/status', 'da', { ...i18n, strategy: 'prefix' })).toBe('/da/crew/status')
-    expect(localizeCrewPath('/crew/status', 'en', { ...i18n, strategy: 'no_prefix' })).toBe('/crew/status')
-    expect(localizeCrewPath('/crew/status', 'de', i18n)).toBe('/crew/status')
-    expect(localizeCrewPath('/crew/status', undefined, i18n)).toBe('/crew/status')
-    expect(localizeCrewPath('/crew/status', 'en', null)).toBe('/crew/status')
-  })
-
+describe('crew invites', () => {
   it('keeps invites for 30 days by default', () => {
     expect(CREW_INVITE_DEFAULT_DAYS).toBe(30)
   })

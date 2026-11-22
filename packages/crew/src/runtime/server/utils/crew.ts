@@ -3,7 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { aliasedTable, and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, max, ne, not, or, sql } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import type { z } from 'zod'
-import { apiError, chunkParams, conflict, isUniqueViolation, likeContains, notFound, orderByQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, conflict, isUniqueViolation, likeContains, notFound, orderByQuery, pageRange, paginate, searchContains } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import type { CrewApplyDto, CrewMemberDto, CrewStatus, MyCrewDto, Translated } from '../../../types'
 import { ladderKeys } from '@frigear-nu/teams/utils'
@@ -676,7 +676,7 @@ export async function crewMembersPage(operation: CrewOperationRow, query: Member
   if (scope.teamIds && !scope.teamIds.length) return paginate({ items: [], total: 0, query })
   const previous = crewPreviousExists(operation, schema.teamMembers.userId)
   const search = query.q
-    ? or(likeContains(schema.users.name, query.q), scope.pii ? likeContains(schema.users.email, query.q) : undefined)
+    ? or(searchContains(schema.users.searchText, query.q), scope.pii ? likeContains(schema.users.email, query.q) : undefined)
     : undefined
   const where = and(
     operationTeamOwned(operation.id),
