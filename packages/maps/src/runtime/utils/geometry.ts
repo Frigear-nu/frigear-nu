@@ -185,6 +185,14 @@ export function planeExtentOf(layout: Pick<PlaneFeatureCollection, 'extent' | 'u
   return { ...DEFAULT_PLANE_EXTENT }
 }
 
+/**
+ * A layout with a newly uploaded underlay: the plane takes the image's size as its extent, so a stored extent from an
+ * earlier image (or the default) no longer clips the new one.
+ */
+export function withPlaneUnderlay<T extends Pick<PlaneFeatureCollection, 'extent' | 'underlay'>>(layout: T, underlay: NonNullable<PlaneFeatureCollection['underlay']>): T {
+  return { ...layout, underlay, extent: { width: underlay.width, height: underlay.height } }
+}
+
 /** A GeoJSON position as a Leaflet `[lat, lng]` (`[y, x]`) pair. */
 export const toLatLng = (position: readonly [number, number]): [number, number] => [position[1], position[0]]
 

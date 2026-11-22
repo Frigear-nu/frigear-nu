@@ -51,10 +51,15 @@ export interface AppliedLayout<T> {
   collapsed: string[]
 }
 
-/** Orders the items and splits off the hidden ones. */
-export function applyLayout<T extends Identified>(items: T[], layout?: Partial<DashboardLayout> | null): AppliedLayout<T> {
+/**
+ * Orders the items and splits off the hidden ones. With `all` (every item id of the dashboard in registered order,
+ * `getDashboardItemIds`), the order is worked out over every item first and then narrowed to `items`, so an item
+ * filtered out here (another platform, a permission) still anchors the items registered after it. A layout that
+ * stores only the moved ids (`moveItem`) needs it to give the same order on every platform.
+ */
+export function applyLayout<T extends Identified>(items: T[], layout?: Partial<DashboardLayout> | null, all?: readonly string[]): AppliedLayout<T> {
   const normalized = normalizeLayout(layout)
-  const ordered = orderItems(items, normalized.order)
+  const ordered = all ? orderWithin(items, all, normalized.order) : orderItems(items, normalized.order)
   const hidden = new Set(normalized.hidden)
   const ids = new Set(items.map(item => item.id))
   return {
@@ -64,11 +69,37 @@ export function applyLayout<T extends Identified>(items: T[], layout?: Partial<D
   }
 }
 
+/** `items` in the order `order` gives every id of `all` (plus any item `all` lacks, at the end). */
+function orderWithin<T extends Identified>(items: T[], all: readonly string[], order: string[]): T[] {
+  const ids = [...new Set([...all, ...items.map(item => item.id)])]
+  const position = new Map(orderItems(ids.map(id => ({ id })), order).map((entry, index) => [entry.id, index]))
+  return [...items].sort((a, b) => position.get(a.id)! - position.get(b.id)!)
+}
+
+/**
+ * The fewest ids to store so that `orderItems` over `registered` gives `full` (a reordering of `registered`): an item
+ * is left out when it comes right after its registered predecessor (or first, for the first registered item), since
+ * `orderItems` puts it there by itself. So a layout holds only the items the user moved, however many items the
+ * dashboard has.
+ */
+export function minimalOrder(registered: readonly string[], full: readonly string[]): string[] {
+  const position = new Map(full.map((id, index) => [id, index]))
+  const index = new Map(registered.map((id, at) => [id, at]))
+  return full.filter((id) => {
+    const at = index.get(id)
+    if (at === undefined) return true
+    if (at === 0) return position.get(id) !== 0
+    const before = position.get(registered[at - 1]!)
+    return before === undefined || position.get(id) !== before + 1
+  })
+}
+
 /**
  * Moves an item to `toIndex` among the shown items (`shown`, in their current order). The move happens inside the
  * full order of every item of the dashboard (`all`, registered order, including items hidden or filtered out by
  * platform or permission): the item lands right before or after the shown item now at `toIndex`, and every other
  * item keeps its position relative to the rest. So moving an item on the web never reorders the mobile-only items.
+ * Only the moved ids are stored (`minimalOrder`); apply the layout with `all` (`applyLayout`).
  */
 export function moveItem(
   layout: Partial<DashboardLayout> | null | undefined,
@@ -81,12 +112,13 @@ export function moveItem(
   const from = shown.indexOf(id)
   if (from === -1) return normalized
   const target = shown[Math.max(0, Math.min(Math.trunc(toIndex), shown.length - 1))]!
-  const full = orderItems([...new Set([...all, ...shown])].map(entry => ({ id: entry })), normalized.order).map(entry => entry.id)
-  if (target === id) return { ...normalized, order: full }
+  const registered = [...new Set([...all, ...shown])]
+  const full = orderItems(registered.map(entry => ({ id: entry })), normalized.order).map(entry => entry.id)
+  if (target === id) return { ...normalized, order: minimalOrder(registered, full) }
   const order = full.filter(entry => entry !== id)
   const at = order.indexOf(target)
   order.splice(toIndex > from ? at + 1 : at, 0, id)
-  return { ...normalized, order }
+  return { ...normalized, order: minimalOrder(registered, order) }
 }
 
 /** The layout without ids that are not items of the dashboard (`ids`): removed or renamed items. */

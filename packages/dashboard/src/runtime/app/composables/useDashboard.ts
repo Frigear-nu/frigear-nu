@@ -67,7 +67,7 @@ export function useDashboard(name: string, context?: MaybeRefOrGetter<Record<str
   const platform = useDashboardPlatform()
   const registry: Record<string, DashboardRegistryEntry> = (dashboards as Record<string, Record<string, DashboardRegistryEntry>>)[name] ?? {}
   const widgets = useWidgets(dashboardArea(name), context)
-  const { layout, persisted, saving, update } = useDashboardLayout(name)
+  const { layout, persisted, ready, saving, update } = useDashboardLayout(name)
 
   // Widget meta joined with the dashboard registry by id. An item missing from the registry was dropped at build
   // time (`when.module`), so it is left out here too.
@@ -87,7 +87,8 @@ export function useDashboard(name: string, context?: MaybeRefOrGetter<Record<str
     })
     return filterByPlatform(joined, platform.value)
   })
-  const applied = computed(() => applyLayout(available.value, layout.value))
+  // Over every item of the dashboard, so an item this viewer does not see still anchors the ones after it.
+  const applied = computed(() => applyLayout(available.value, layout.value, getDashboardItemIds(name)))
 
   const items = computed(() => applied.value.items)
   const result: UseDashboard = {
@@ -110,6 +111,6 @@ export function useDashboard(name: string, context?: MaybeRefOrGetter<Record<str
   }
 
   // Like `useAsyncData`: usable as is, or awaited so the items are there before the page renders.
-  const promise = Promise.resolve(widgets).then(() => result)
+  const promise = Promise.all([widgets, ready]).then(() => result)
   return Object.assign(promise, result)
 }

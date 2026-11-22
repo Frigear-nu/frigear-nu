@@ -4,13 +4,17 @@ import { z } from 'zod'
 // `definePreferences({...})` returns (it is the identity function); written without it so the file does not import
 // `@frigear-nu/preferences`, an optional peer of this package.
 //
-// Preferences ride in the sealed session cookie (the session user carries them), and a cookie holds about 4 KB in
-// all. So the layout is bounded: at most 20 dashboards, 50 ids per list, ids of at most 100 characters and at most
-// 1 KB of item settings per dashboard (as UTF-8 encoded JSON).
+// The preference is `managed`: it stays out of the session cookie (Preferences' session filter) and `PATCH
+// /api/preferences` refuses it, so it is read and written only through `GET`/`PATCH /api/dashboard/me/layouts`. The
+// layout still has bounds, as one JSON column holds it: at most 20 dashboards, 200 ids per list (a move stores only
+// the moved ids), ids of at most 100 characters and at most 1 KB of item settings per dashboard (as UTF-8 encoded JSON).
+
+/** The preference key the layouts are stored under. */
+export const DASHBOARD_LAYOUTS_KEY = 'dashboardLayouts'
 
 export const DASHBOARD_LIMITS = {
   dashboards: 20,
-  idsPerList: 50,
+  idsPerList: 200,
   idLength: 100,
   settingsBytes: 1024,
 } as const
@@ -36,6 +40,10 @@ export const dashboardLayoutsSchema = z.record(id, dashboardLayoutSchema)
     message: `At most ${DASHBOARD_LIMITS.dashboards} dashboard layouts.`,
   })
 
+/** A dashboard name: the key of a layout. */
+export const dashboardNameSchema = id
+
+// The key is `DASHBOARD_LAYOUTS_KEY`, written out so the generated types know it.
 export default {
-  dashboardLayouts: dashboardLayoutsSchema,
+  dashboardLayouts: { schema: dashboardLayoutsSchema, managed: true as const },
 }
