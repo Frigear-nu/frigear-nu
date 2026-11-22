@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { created, idParams, validationError } from '@frigear-nu/module-kit/server'
 import { crewAccess } from '../../../access'
-import { newId } from '../../../utils'
+import { CREW_INVITE_DEFAULT_DAYS, newId } from '../../../utils'
 import type { CreatedCrewInviteDto } from '../../../../types'
 
 // Creates an invite link for a team of the operation and a role of its ladder (a lead role for "invite as lead"). The token is in
@@ -27,7 +27,8 @@ export default defineEventHandler(async (event): Promise<CreatedCrewInviteDto> =
     tokenHash,
     prefix,
     maxUses: input.maxUses,
-    expiresAt: input.expiresAt ?? null,
+    // Without an expiry the link lasts CREW_INVITE_DEFAULT_DAYS: no invite stays valid forever.
+    expiresAt: input.expiresAt ?? new Date(Date.now() + CREW_INVITE_DEFAULT_DAYS * 24 * 60 * 60 * 1000),
     createdBy: Number(principal.user.id),
   }).returning()
   const invitePath = (useRuntimeConfig(event).public.crew as { pages?: { invite?: string } } | undefined)?.pages?.invite
