@@ -122,7 +122,7 @@ async function send() {
         <UCheckbox
           v-model="state.sms"
           :label="t('admin.channelSms', 'SMS')"
-          :description="t('admin.channelSmsHelp', 'Only people with a phone number get a text.')"
+          :description="t('admin.channelSmsHelp', 'Only people with a phone number who turned on texts for help articles get one.')"
         />
       </div>
     </form>

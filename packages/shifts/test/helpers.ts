@@ -40,6 +40,8 @@ export const setUserLocale = (userId: number, locale: string | null) => $fetch('
 
 /** Adds `count` volunteers (ids of users that do not exist) to a team (fixture-only route). */
 export const addBulkMembers = (teamId: string, count: number) => $fetch('/api/test/members-bulk', { method: 'POST', body: { teamId, count } })
+/** Changes a membership's status in the database, firing no teams hook (fixture-only route). */
+export const setMemberStatus = (teamId: string, userId: number, status: string | null) => $fetch('/api/test/member-status', { method: 'POST', body: { teamId, userId, status } })
 
 export type SmsEntry = { to: string[], body: string }
 

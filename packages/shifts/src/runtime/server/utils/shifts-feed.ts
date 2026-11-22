@@ -27,12 +27,17 @@ export async function shiftsFeedStatus(userId: number): Promise<ShiftFeedStatusD
 /**
  * Mints my feed secret: any earlier one is revoked, so there is one live URL per person. The URL carries the token and
  * is shown once (only its hash is stored). It points at the configured site origin, else the origin of this request.
+ *
+ * Earlier rows are revoked before the new one goes in, and every other live row again after it, so two mints at once (a
+ * double click) cannot leave two live URLs: at most one stays live.
  */
 export async function shiftsMintFeedToken(event: H3Event, userId: number): Promise<ShiftFeedTokenDto> {
-  await db.update(schema.shiftFeedTokens).set({ revokedAt: new Date() })
-    .where(and(eq(schema.shiftFeedTokens.userId, userId), isNull(schema.shiftFeedTokens.revokedAt)))
+  const live = and(eq(schema.shiftFeedTokens.userId, userId), isNull(schema.shiftFeedTokens.revokedAt))
+  await db.update(schema.shiftFeedTokens).set({ revokedAt: new Date() }).where(live)
   const { token, tokenHash, prefix } = await generateUserToken(FEED_TOKEN_PREFIX)
-  await db.insert(schema.shiftFeedTokens).values({ id: newId('sft'), userId, tokenHash, prefix })
+  const id = newId('sft')
+  await db.insert(schema.shiftFeedTokens).values({ id, userId, tokenHash, prefix })
+  await db.update(schema.shiftFeedTokens).set({ revokedAt: new Date() }).where(and(live, ne(schema.shiftFeedTokens.id, id)))
   const origin = configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin
   const url = `${origin}/api/shifts/feed/${token}.ics`
   return { token, url, webcalUrl: url.replace(/^https?:\/\//, 'webcal://') }

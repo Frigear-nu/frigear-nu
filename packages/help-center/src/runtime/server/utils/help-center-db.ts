@@ -4,7 +4,7 @@ import { and, asc, count, desc, eq, inArray, is, or, sql } from 'drizzle-orm'
 import type { AnyColumn, SQL } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
 import type { Grant } from '@frigear-nu/auth/grants'
-import { apiError, conflict, escapeLike, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, conflict, escapeLike, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
@@ -472,11 +472,17 @@ export async function reorderHelpArticles(categoryId: string, articleIds: string
   if (!isValidReorder(problems)) {
     throw apiError(400, 'invalid_order', 'The order must list every article of the category exactly once.', problems)
   }
-  if (articleIds.length) {
-    // One statement, so the order changes completely or not at all (no transaction: see `deleteHelpCategoryRow`).
-    const position = sql.join(articleIds.map((id, index) => sql`when ${schema.helpArticles.id} = ${id} then cast(${index} as integer)`), sql` `)
-    await db.update(schema.helpArticles).set({ sort: sql`case ${position} end` })
-      .where(and(eq(schema.helpArticles.categoryId, categoryId), inArray(schema.helpArticles.id, articleIds)))
+  // A statement per chunk of ids, each binding the ids and the category id only: the position is an integer literal (it
+  // is the index, never input), and the category filter with `checkReorder` above already limits it to these articles.
+  // D1 binds at most 100 values per statement. Up to 90 articles (one chunk) the order changes in one statement; past
+  // that a failed chunk can leave part of the new order (no transaction: see `deleteHelpCategoryRow`).
+  let offset = 0
+  for (const part of chunkParams(articleIds)) {
+    const start = offset
+    const position = sql.join(part.map((id, index) => sql`when ${schema.helpArticles.id} = ${id} then ${sql.raw(String(start + index))}`), sql` `)
+    await db.update(schema.helpArticles).set({ sort: sql`case ${position} else ${schema.helpArticles.sort} end` })
+      .where(eq(schema.helpArticles.categoryId, categoryId))
+    offset += part.length
   }
   return listHelpCategoryArticleRows(categoryId)
 }

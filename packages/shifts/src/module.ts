@@ -191,6 +191,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: 'me/feed-token', file: 'me/feed-token.delete' },
       { method: 'get', path: 'me/:assignmentId', file: 'me/shift.get' },
       { method: 'get', path: 'me/:assignmentId/pass', file: 'me/pass.get' },
+      { method: 'post', path: 'me/:assignmentId/settle', file: 'me/settle.post' },
       { method: 'post', path: 'me/:assignmentId/check-in', file: 'me/check-in.post' },
       { method: 'post', path: 'me/:assignmentId/swap', file: 'me/swap.post' },
       { method: 'delete', path: 'me/:assignmentId/swap', file: 'me/swap.delete' },
