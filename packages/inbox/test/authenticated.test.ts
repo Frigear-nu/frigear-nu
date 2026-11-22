@@ -629,6 +629,17 @@ describe('inbox (authenticated, database-backed)', async () => {
       await expectApiError(as(crew).json('POST', inboxApi.admin.hide(threadId), { role: null }), 403, 'forbidden')
     })
 
+    it('searches subjects with capital Ø, Æ and Å in any case, and an erase clears the search text', async () => {
+      const marker = `dk${++counter}`
+      const threadId = await emailThread({ subject: `ØL TIL FESTEN ÆBLER ÅBNING ${marker}` })
+      const found = async (q: string) => (await threadsOf(admin, `&status=all&q=${encodeURIComponent(q)}`)).map(thread => thread.id)
+      for (const q of [`øl til festen`, `ÆBLER åbning ${marker}`, `Øl Til`]) expect(await found(q), q).toContain(threadId)
+      expect(await found(`æbler åbning ${marker}`)).toEqual([threadId])
+      const contactId = (await detail(admin, threadId)).contact.id
+      await as(admin).json('POST', inboxApi.admin.contactErase(contactId))
+      expect(await found(`æbler åbning ${marker}`)).toEqual([])
+    })
+
     it('lists everybody a thread can be assigned to: the people with access to its mailbox', async () => {
       const threadId = await emailThread()
       const ids = async (session: Session, query = '') => (await as(session).json<Json[]>('GET', `${inboxApi.admin.assignees(threadId)}${query}`)).map(person => person.id)

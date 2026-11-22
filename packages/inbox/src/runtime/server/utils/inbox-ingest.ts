@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { newId } from '@frigear-nu/module-kit/id'
+import { searchText } from '@frigear-nu/module-kit/server'
 import type { InboxInboundMessage, InboxMessageDto, InboxThreadDto, InboxThreadStatus } from '../../../types'
 import { toInboxMessageDto, toInboxThreadDto } from './inbox-dto'
 import type { InboxChannelAccountRow, InboxContactRow, InboxThreadRow } from './inbox-dto'
@@ -109,6 +110,7 @@ async function threadFor(account: InboxChannelAccountRow, contact: InboxContactR
     channelAccountId: account.id,
     channel: account.channel,
     subject: inboxCleanSubject(inbound.subject),
+    searchText: searchText(inboxCleanSubject(inbound.subject)),
     status: 'open',
     lastMessageAt: now,
   }).returning()
@@ -165,7 +167,7 @@ export async function inboxReceive(event: H3Event, channel: string, inbound: Inb
   const from = thread.status as InboxThreadStatus
   const to: InboxThreadStatus = 'open'
   const [updated] = await db.update(schema.inboxThreads)
-    .set({ lastMessageAt: now, status: to, preview: inboxPreview(inbound.body), ...(!thread.subject && inbound.subject ? { subject: inboxCleanSubject(inbound.subject) } : {}) })
+    .set({ lastMessageAt: now, status: to, preview: inboxPreview(inbound.body), ...(!thread.subject && inbound.subject ? { subject: inboxCleanSubject(inbound.subject), searchText: searchText(inboxCleanSubject(inbound.subject)) } : {}) })
     .where(eq(schema.inboxThreads.id, thread.id)).returning()
   const threadDto = toInboxThreadDto(updated!)
   const messageDto = toInboxMessageDto(message)

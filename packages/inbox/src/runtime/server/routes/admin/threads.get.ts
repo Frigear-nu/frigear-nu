@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { and, count, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { likeContains, orderByQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
+import { orderByQuery, pageRange, paginate, searchContains } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../../access'
 import type { InboxThreadListItemDto } from '../../../../types'
@@ -27,7 +27,8 @@ export default defineEventHandler(async (event): Promise<Page<InboxThreadListIte
   else if (query.assignee === 'none') conditions.push(isNull(schema.inboxThreads.assigneeId))
   else if (typeof query.assignee === 'number') conditions.push(eq(schema.inboxThreads.assigneeId, query.assignee))
   if (query.channel) conditions.push(eq(schema.inboxThreads.channel, query.channel))
-  if (query.q) conditions.push(likeContains(schema.inboxThreads.subject, query.q))
+  // The folded search column: `Ø`, `Æ` and `Å` match in any case on sqlite too.
+  if (query.q) conditions.push(searchContains(schema.inboxThreads.searchText, query.q))
   const where = and(...conditions)
 
   const orderBy = orderByQuery({

@@ -75,6 +75,8 @@ export const inboxThreads = sqliteTable('inbox_threads', {
   channelAccountId: text().references(() => inboxChannelAccounts.id, { onDelete: 'set null' }),
   channel: text().notNull(),
   subject: text(),
+  /** `subject` folded for search (`searchText` of `@frigear-nu/module-kit/server`); cleared with it. */
+  searchText: text().notNull().default(''),
   /** `open | pending | closed`. */
   status: text().notNull().default('open'),
   assigneeId: integer(),
