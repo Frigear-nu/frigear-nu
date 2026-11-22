@@ -6,9 +6,11 @@ import type { z } from 'zod'
  * - `claim` forwards the value to OAuth applications under that claim name (ID token and `userinfo`).
  *   Nothing is forwarded without it, so a preference stays private to this app unless it opts in.
  * - `scope` is the OAuth scope an application must have been granted to receive the claim (default `profile`).
+ * - `managed` hands the value to the module that registered it: it is written only through that module's own routes,
+ *   and `PATCH /api/preferences` refuses the key (400 `preference_managed`).
  */
 export type PreferenceDefinition<S extends z.ZodType = z.ZodType>
-  = S | { schema: S, claim?: string, scope?: string }
+  = S | { schema: S, claim?: string, scope?: string, managed?: boolean }
 
 export type PreferenceDefinitions = Record<string, PreferenceDefinition>
 

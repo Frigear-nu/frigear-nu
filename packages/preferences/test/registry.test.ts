@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { definePreferences } from '../src/runtime/define'
-import { applyPreferencePatch, parsePreferencePatch, preferenceClaims, preferencePatchSchema, readPreference, resolvePreferences } from '../src/runtime/utils/registry'
+import { applyPreferencePatch, managedPreferenceKeys, parsePreferencePatch, preferenceClaims, preferencePatchSchema, readPreference, resolvePreferences } from '../src/runtime/utils/registry'
 
 const registry = resolvePreferences([
   definePreferences({
@@ -11,16 +11,25 @@ const registry = resolvePreferences([
   // A second definer file, as another module would register.
   definePreferences({
     digest: { schema: z.enum(['daily', 'weekly']), claim: 'digest', scope: 'email' },
+    // Written only through the module's own route.
+    choices: { schema: z.record(z.string(), z.boolean()), managed: true },
   }),
 ])
 
 describe('resolvePreferences', () => {
   it('merges definer files and normalises both shapes', () => {
-    expect([...registry.keys()]).toEqual(['compactTables', 'colorMode', 'digest'])
+    expect([...registry.keys()]).toEqual(['compactTables', 'colorMode', 'digest', 'choices'])
     expect(registry.get('compactTables')?.claim).toBeUndefined()
     expect(registry.get('compactTables')?.scope).toBe('profile')
     expect(registry.get('colorMode')).toMatchObject({ claim: 'color_mode', scope: 'profile' })
     expect(registry.get('digest')).toMatchObject({ claim: 'digest', scope: 'email' })
+    expect(registry.get('choices')?.managed).toBe(true)
+    expect(registry.get('digest')?.managed).toBeUndefined()
+  })
+
+  it('names the managed keys of an update', () => {
+    expect(managedPreferenceKeys(registry, { colorMode: 'dark', choices: {} })).toEqual(['choices'])
+    expect(managedPreferenceKeys(registry, { colorMode: 'dark', nope: 1 })).toEqual([])
   })
 
   it('refuses the same key in two files', () => {

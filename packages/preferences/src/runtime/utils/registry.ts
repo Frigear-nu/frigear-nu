@@ -8,6 +8,8 @@ export interface ResolvedPreference {
   claim?: string
   /** Scope an application needs to receive the claim. */
   scope: string
+  /** Written only through the registering module's own routes, never through `PATCH /api/preferences`. */
+  managed?: boolean
 }
 
 const isSchema = (value: unknown): value is z.ZodType =>
@@ -21,7 +23,7 @@ export function resolvePreferences(sources: PreferenceDefinitions[]): Map<string
       if (registry.has(key)) throw new Error(`[preferences] "${key}" is defined more than once.`)
       const resolved = isSchema(definition)
         ? { key, schema: definition, scope: 'profile' }
-        : { key, schema: definition.schema, claim: definition.claim, scope: definition.scope ?? 'profile' }
+        : { key, schema: definition.schema, claim: definition.claim, scope: definition.scope ?? 'profile', managed: definition.managed }
       registry.set(key, resolved)
     }
   }
@@ -45,6 +47,11 @@ export function preferencePatchSchema(registry: Map<string, ResolvedPreference>)
 export function parsePreferencePatch(registry: Map<string, ResolvedPreference>, body: unknown): Record<string, unknown> {
   const parsed: Record<string, unknown> = preferencePatchSchema(registry).parse(body)
   return Object.fromEntries(Object.keys(body as object).map(key => [key, parsed[key]]))
+}
+
+/** The keys of `body` that are `managed` (see `PreferenceDefinition`): `PATCH /api/preferences` refuses them. */
+export function managedPreferenceKeys(registry: Map<string, ResolvedPreference>, body: Record<string, unknown>): string[] {
+  return Object.keys(body).filter(key => registry.get(key)?.managed)
 }
 
 /** Applies a validated patch to the stored preferences: values set, `null` clears. */

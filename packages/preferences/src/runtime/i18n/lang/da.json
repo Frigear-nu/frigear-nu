@@ -1,0 +1,36 @@
+{
+  "preferences": {
+    "menu": {
+      "notifications": {
+        "label": "Notifikationer",
+        "description": "Vælg, hvordan vi kontakter dig: e-mail, SMS eller push."
+      }
+    },
+    "notifications": {
+      "title": "Kanaler",
+      "description": "Vælg for hver type besked, hvilke kanaler der må nå dig.",
+      "topic": "Besked",
+      "channels": {
+        "email": "E-mail",
+        "sms": "SMS",
+        "push": "Push"
+      },
+      "notOffered": "Denne besked bruger ikke kanalen.",
+      "noPhone": "Tilføj et telefonnummer til din profil for at få SMS.",
+      "pushHint": "Pushnotifikationer kommer i appen, når du logger ind der og tillader notifikationer.",
+      "empty": "Intet at vælge endnu",
+      "emptyDescription": "Beskeder, du kan vælge kanaler for, vises her.",
+      "loadFailed": "Dine notifikationsindstillinger kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
+      "updated": "Notifikationer opdateret",
+      "saveFailed": "Dine notifikationer kunne ikke opdateres"
+    },
+    "permissions": {
+      "notifications": "Dine notifikationsindstillinger",
+      "notificationsDescription": "Se og ændr, hvilke kanaler (e-mail, SMS, push) der når dig for hver slags besked."
+    },
+    "scopes": {
+      "notifications": "Dine notifikationsindstillinger"
+    }
+  }
+}

@@ -11,6 +11,19 @@ export type ModuleOptions = {
    * is picked up on its own. Other modules register theirs with `addUserPreferences`.
    */
   definitions?: string | string[]
+  pages?: {
+    /**
+     * The account page where users choose their channels per notification topic (`notifyUser` of
+     * `@frigear-nu/notify`). `true` mounts it at `/account/notifications` (the default), a string at that path, `false`
+     * leaves it out.
+     */
+    notifications?: string | boolean
+  }
+}
+
+/** Public runtime config (`runtimeConfig.public.preferences`). */
+export type PreferencesPublicConfig = {
+  pages: { notifications?: string }
 }
 
 /**
