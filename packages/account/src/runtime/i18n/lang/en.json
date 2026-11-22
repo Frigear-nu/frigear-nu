@@ -44,8 +44,8 @@
     },
     "profile": {
       "details": {
-        "title": "Name and avatar",
-        "description": "How you appear to others."
+        "title": "Your details",
+        "description": "How you appear to others and how we reach you."
       },
       "name": {
         "label": "Name",
@@ -78,7 +78,17 @@
       },
       "save": "Save profile",
       "saved": "Profile updated",
-      "saveFailed": "Could not update your profile."
+      "saveFailed": "Could not update your profile.",
+      "phone": {
+        "label": "Phone",
+        "description": "For text messages. Only staff who need it can see it.",
+        "invalid": "Enter a phone number of digits, spaces and + - ( )."
+      },
+      "locale": {
+        "label": "Language",
+        "description": "The language we write to you in: emails, texts and notifications.",
+        "none": "Not set"
+      }
     },
     "documents": {
       "title": "Documents",
