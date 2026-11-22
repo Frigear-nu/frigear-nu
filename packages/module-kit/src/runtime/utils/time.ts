@@ -58,25 +58,45 @@ export function zoneOffset(instant: Date | number, timeZone: string): number {
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
-/** Whether a value is a `YYYY-MM-DD` day. */
-export const isDay = (value: string) => DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+/** Whether a value is a `YYYY-MM-DD` day that exists on the calendar (`2027-02-30` and `2026-02-29` are not). */
+export function isDay(value: string): boolean {
+  const [, y, m, d] = DATE_PATTERN.exec(value) ?? []
+  if (!y) return false
+  const date = new Date(0)
+  date.setUTCFullYear(Number(y), Number(m) - 1, Number(d))
+  return date.toISOString().slice(0, 10) === value
+}
 /** Whether a value is an `HH:mm` time. */
 export const isClock = (value: string) => TIME_PATTERN.test(value)
 
 /**
- * The instant of a wall-clock time in a time zone: `2027-06-28` at `18:00` in `Europe/Berlin` is 16:00 UTC. A time
- * that daylight saving skips or repeats (a night in March or October) resolves to one of the instants next to it.
+ * The instant of a wall-clock time in a time zone: `2027-06-28` at `18:00` in `Europe/Berlin` is 16:00 UTC.
+ *
+ * Around a daylight saving change it behaves like Temporal's `compatible` disambiguation:
+ * - a time the clocks skip (the spring-forward gap, 02:30 on 2027-03-28 in Berlin) moves forward by the length of the
+ *   gap: it is read with the offset in force before the change, so it lands on 03:30 summer time (01:30 UTC);
+ * - a time the clocks repeat (the fall-back overlap, 02:30 on 2027-10-31 in Berlin) is the earlier of the two
+ *   instants, the first time the clock shows it (00:30 UTC).
+ *
+ * Throws on a malformed day or time, and on a day that does not exist (`2027-02-30`).
  */
 export function zonedTimeToUtc(day: string, clock: string, timeZone: string): Date {
   const [, y, m, d] = DATE_PATTERN.exec(day) ?? []
   const [, hh, mm] = TIME_PATTERN.exec(clock) ?? []
-  if (!y || !hh) throw new Error(`Invalid day or time: ${day} ${clock}`)
-  const wall = Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm))
-  let guess = wall - zoneOffset(wall, timeZone)
-  // A second pass settles the offset when the first guess crossed a daylight saving change.
-  const second = wall - zoneOffset(guess, timeZone)
-  if (second !== guess) guess = Math.min(guess, second)
-  return new Date(guess)
+  if (!y || !hh || !isDay(day)) throw new Error(`Invalid day or time: ${day} ${clock}`)
+  const date = new Date(0)
+  date.setUTCFullYear(Number(y), Number(m) - 1, Number(d))
+  date.setUTCHours(Number(hh), Number(mm), 0, 0)
+  const wall = date.getTime()
+  // The offsets on either side of any change near this time. A candidate instant is real only when the zone's offset
+  // at that instant is the offset it was computed with.
+  const before = zoneOffset(wall - DAY, timeZone)
+  const after = zoneOffset(wall + DAY, timeZone)
+  const candidates = [...new Set([before, after])]
+    .map(offset => wall - offset)
+    .filter(time => zoneOffset(time, timeZone) === wall - time)
+  // Two real instants: the overlap, take the earlier. None: the gap, read it with the offset before the change.
+  return new Date(candidates.length ? Math.min(...candidates) : wall - before)
 }
 
 /** The `YYYY-MM-DD` day an instant falls on in a time zone. */
