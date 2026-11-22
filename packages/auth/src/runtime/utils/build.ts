@@ -198,9 +198,13 @@ export function setAuthUserStore(nuxt: Nuxt, path: string) {
 
 /**
  * Register a session user filter: `path` (absolute) default-exports a synchronous `(user) => user` that every stored user
- * passes through on its way into the session (`mapUserToSession`), before the host's `session.mapper`. A module drops
- * what must stay out of the sealed cookie (about 4 KB in all) and of `useUserSession()`, such as a large JSON value.
- * Filters run in registration order and must not throw.
+ * passes through on its way into the session cookie (`mapUserToSession`), before the host's `session.mapper`. A module
+ * drops what must stay out of the sealed cookie (about 4 KB in all) and of `useUserSession()`, such as a large JSON value.
+ * Filters only shape what is written to the cookie: the request's user (`getAuth(event).user`, policies, role checks)
+ * keeps every field. Filters run in registration order and must not throw.
+ *
+ * A filter must drop a key unconditionally (always, or never), not depending on its value: routes refresh the cookie
+ * with `setUserSession`, which merges, so a key dropped only sometimes would keep its old value in the cookie.
  */
 export function addSessionUserFilter(nuxt: Nuxt, path: string) {
   nuxt.hook('auth:session-filters', (filters) => {
@@ -209,8 +213,9 @@ export function addSessionUserFilter(nuxt: Nuxt, path: string) {
 }
 
 /**
- * The source of `#auth/session-mapper`: each user passes through the filters at `filterPaths` in order, then through the
- * host's mapper at `mapperPath` (or as it is, without one).
+ * The source of `#auth/session-mapper`. Its default export (the session cookie's user) passes each user through the
+ * filters at `filterPaths` in order, then through the host's mapper at `mapperPath` (or as it is, without one);
+ * `mapPrincipalUser` (the request's user) only through the host's mapper.
  */
 export function sessionMapperContents(filterPaths: readonly string[], mapperPath?: string): string {
   return [
@@ -218,6 +223,7 @@ export function sessionMapperContents(filterPaths: readonly string[], mapperPath
     mapperPath ? `import mapper from ${JSON.stringify(mapperPath)}` : 'const mapper = user => user',
     `const filters = [${filterPaths.map((_, index) => `filter${index}`).join(', ')}]`,
     'export default user => mapper(filters.reduce((current, filter) => filter(current), user))',
+    'export const mapPrincipalUser = user => mapper(user)',
   ].join('\n')
 }
 
@@ -243,7 +249,10 @@ export interface GuardPagesOptions {
  * pattern keeps its keys. Returns the patterns it set.
  *
  * `@frigear-nu/authorization` enforces the rule on pages (auth's server middleware only covers `/api/**`); without it
- * auth warns at build time that nothing checks the rule.
+ * auth warns at build time that nothing checks the rule. Paths match case-insensitively (`/ME` is `/me`).
+ *
+ * Only locale prefixes are derived: a translated path (`@nuxtjs/i18n` `customRoutes` / `defineI18nRoute`, such as
+ * `/da/hjaelp` for `/help`) is not, so list it in `patterns` too, or guard the page with `definePageMeta({ authorize })`.
  */
 export function guardPages(nuxt: Nuxt, patterns: readonly string[], options: GuardPagesOptions = {}): string[] {
   const rules = nuxt.options.routeRules ||= {}

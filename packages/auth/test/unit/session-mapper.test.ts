@@ -15,10 +15,12 @@ const file = async (name: string, source: string) => {
   await writeFile(path, source)
   return path
 }
-const load = async (name: string, filterPaths: string[], mapperPath?: string) => {
+type MapUser = (user: Record<string, unknown>) => Record<string, unknown>
+const loadModule = async (name: string, filterPaths: string[], mapperPath?: string) => {
   const path = await file(name, sessionMapperContents(filterPaths, mapperPath))
-  return (await import(pathToFileURL(path).href)).default as (user: Record<string, unknown>) => Record<string, unknown>
+  return await import(pathToFileURL(path).href) as { default: MapUser, mapPrincipalUser: MapUser }
 }
+const load = async (name: string, filterPaths: string[], mapperPath?: string) => (await loadModule(name, filterPaths, mapperPath)).default
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'auth-session-mapper-'))
@@ -39,6 +41,23 @@ describe('sessionMapperContents', () => {
     const mapper = await file('mapper.mjs', 'export default user => ({ id: user.id, seen: user.seen, hasProfile: \'profile\' in user })')
     const map = await load('composed.mjs', [dropProfile, tag], mapper)
     expect(map({ id: 7, profile: { bio: 'long' } })).toEqual({ id: 7, seen: ['drop-profile', 'tag'], hasProfile: false })
+  })
+})
+
+describe('mapPrincipalUser', () => {
+  it('runs only the host mapper, so the request\'s user keeps what the filters drop from the cookie', async () => {
+    const dropProfile = await file('drop-profile-principal.mjs', 'export default ({ profile, ...user }) => user')
+    const mapper = await file('mapper-principal.mjs', 'export default user => ({ ...user, mapped: true })')
+    const mapped = await loadModule('principal.mjs', [dropProfile], mapper)
+    const user = { id: 7, profile: { bio: 'long' } }
+    expect(mapped.default(user)).toEqual({ id: 7, mapped: true })
+    expect(mapped.mapPrincipalUser(user)).toEqual({ id: 7, profile: { bio: 'long' }, mapped: true })
+  })
+
+  it('passes the user through as it is without a mapper', async () => {
+    const dropProfile = await file('drop-profile-plain.mjs', 'export default ({ profile, ...user }) => user')
+    const { mapPrincipalUser } = await loadModule('principal-plain.mjs', [dropProfile])
+    expect(mapPrincipalUser({ id: 1, profile: { bio: 'x' } })).toEqual({ id: 1, profile: { bio: 'x' } })
   })
 })
 
