@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { addRole, extendGrants, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import { setNotifyChoicesStore } from '@frigear-nu/notify/utils'
 import HelpCenterModule from '../../../src/module'
 
 export default defineNuxtConfig({
@@ -13,6 +14,8 @@ export default defineNuxtConfig({
     '@frigear-nu/widget',
     '@frigear-nu/admin',
     '@frigear-nu/notify',
+    // Emails render from their templates (`help-center-articles`), the way they do in an app with email templates.
+    '@frigear-nu/email-templates',
     HelpCenterModule,
     // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`).
     // `coordinator` is the role `help-center:manage`, `:send` and `:pii` are granted to (`grantTo`); a role the host does
@@ -27,6 +30,11 @@ export default defineNuxtConfig({
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
       // `role` grants without `@frigear-nu/authorization`: a stand-in kind that reads this provider (`grants/role.ts`).
       extendGrants(nuxt, { kind: 'role', label: 'Role', server: fileURLToPath(new URL('./grants/role', import.meta.url)) })
+    },
+    // Notification choices without `@frigear-nu/preferences`: an in-memory store (`choices-store.ts`), so a test can turn
+    // a topic's SMS on for one person.
+    (_options, nuxt) => {
+      setNotifyChoicesStore(nuxt, fileURLToPath(new URL('./choices-store', import.meta.url)))
     },
     // The `operation` grant kind, standing in for `@frigear-nu/operations` with crew: who takes part is test state.
     (_options, nuxt) => {
@@ -57,7 +65,8 @@ export default defineNuxtConfig({
     },
   },
   notify: {
-    // Emails are captured by a `notify:email` listener; texts by this driver.
+    // Emails are captured by a `notify:email` listener, and as delivered (rendered) by this driver; texts by this one.
+    email: { driver: './server/utils/mail-driver' },
     sms: { driver: './server/utils/sms-driver' },
   },
 })

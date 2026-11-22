@@ -2,19 +2,22 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpArticleFormState, type StaffHelpArticle, type StaffHelpCategory, articleToForm, emptyHelpArticleForm, formToArticleBody, helpArticleFormSchema, missingLocales, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, watch } from '#imports'
+import { useHelpArticlePublish } from '../composables/useHelpArticlePublish'
+import { $fetch, computed, reactive, ref, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useUiT, watch } from '#imports'
 
 defineOptions({ name: 'HelpArticleFormSlideover' })
 
 // Create and edit form of an article, opened with `useOverlay()` by `useHelpArticleActions()`: it closes with the saved
-// article, or `false` when cancelled. A new article is a draft; publishing is its own action, which checks the required
-// languages.
-const props = defineProps<{ article?: StaffHelpArticle, categories: StaffHelpCategory[], categoryId?: string }>()
+// article, or `false` when cancelled. A new article is a draft. Editing a draft offers "Publish" too, enabled once every
+// required language is filled in: it saves, then publishes. `highlightMissing` (opened from "Publish" on an incomplete
+// article) marks the fields that still lack a language.
+const props = defineProps<{ article?: StaffHelpArticle, categories: StaffHelpCategory[], categoryId?: string, highlightMissing?: boolean }>()
 const emit = defineEmits<{ close: [saved: StaffHelpArticle | false] }>()
 
 const t = useModuleT('helpCenter')
 const tr = useHelpCenterTranslate()
 const { busy, run } = useAction()
+const actions = useUiT('actions')
 const requiredLocales = useRuntimeConfig().public.helpCenter?.requiredLocales ?? ['da', 'en']
 
 const schema = helpArticleFormSchema(t, tr)
@@ -38,20 +41,39 @@ const inherit = computed({
   },
 })
 
-// What the article still lacks to be published, shown while editing.
+// What the article still lacks to be published, shown while editing (marked as an error when opened from "Publish").
 const missing = () => ({ title: missingLocales(state.title, requiredLocales), body: missingLocales(state.body, requiredLocales) })
+const missingError = (locales: string[]) => props.highlightMissing && locales.length
+  ? t('admin.missingToPublish', 'Needed to publish: {locales}', { locales: locales.join(', ') })
+  : undefined
+
+// "Publish" in the footer: a draft being edited, enabled once nothing is missing. It submits the form; `save` then
+// publishes what it saved.
+const publisher = useHelpArticlePublish()
+const canPublish = computed(() => !!props.article && props.article.status !== 'published')
+const complete = computed(() => !missing().title.length && !missing().body.length)
+const publishAfterSave = ref(false)
 
 async function save(event: FormSubmitEvent<HelpArticleFormState>) {
+  const publishing = publishAfterSave.value
+  publishAfterSave.value = false
   const body = formToArticleBody(event.data)
   const saved = await run(
     () => props.article
       ? $fetch<StaffHelpArticle>(helpCenterApi.admin.article(props.article.id), { method: 'PATCH', body })
       : $fetch<StaffHelpArticle>(helpCenterApi.admin.articles, { method: 'POST', body }),
-    { success: props.article
-      ? t('admin.articleSaved', 'Saved {name}', { name: tr(event.data.title) })
-      : t('admin.articleCreated', 'Added {name} as a draft', { name: tr(event.data.title) }) },
+    // Publishing says so itself.
+    { success: publishing
+      ? undefined
+      : props.article
+        ? t('admin.articleSaved', 'Saved {name}', { name: tr(event.data.title) })
+        : t('admin.articleCreated', 'Added {name} as a draft', { name: tr(event.data.title) }) },
   )
-  if (saved) emit('close', saved)
+  if (!saved) return
+  if (!publishing) return emit('close', saved)
+  // A refused publish keeps the slideover open with the saved changes (the toast says what is missing).
+  const published = await publisher.publish(saved)
+  if (published) emit('close', published)
 }
 </script>
 
@@ -61,9 +83,38 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
     :title="article ? t('admin.editArticleTitle', 'Edit article') : t('admin.createArticle', 'Add article')"
     :description="article ? undefined : t('admin.createArticleDescription', 'It starts as a draft. Publish it when every language is filled in.')"
     :submit-label="article ? t('admin.saveArticle', 'Save article') : t('admin.createArticleAction', 'Add article')"
-    :loading="busy"
+    :loading="busy || publisher.busy.value"
     @close="emit('close', false)"
   >
+    <template #footer="{ cancel }">
+      <UButton
+        :label="actions('cancel', 'Cancel')"
+        color="neutral"
+        variant="outline"
+        :disabled="busy || publisher.busy.value"
+        @click="cancel"
+      />
+      <UButton
+        v-if="canPublish"
+        type="submit"
+        form="help-article-form"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-send"
+        :label="t('admin.saveAndPublish', 'Publish article')"
+        :disabled="!complete || busy || publisher.busy.value"
+        :loading="publisher.busy.value"
+        @click="publishAfterSave = true"
+      />
+      <UButton
+        type="submit"
+        form="help-article-form"
+        :label="article ? t('admin.saveArticle', 'Save article') : t('admin.createArticleAction', 'Add article')"
+        :loading="busy"
+        :disabled="publisher.busy.value"
+        @click="publishAfterSave = false"
+      />
+    </template>
     <UForm
       id="help-article-form"
       :schema="schema"
@@ -86,6 +137,7 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
         name="title"
         :label="t('admin.articleTitle', 'Title')"
         :description="missing().title.length ? t('admin.missingLocales', 'Still missing: {locales}', { locales: missing().title.join(', ') }) : undefined"
+        :error="missingError(missing().title)"
         required
       >
         <TranslatedInput v-model="state.title" />
@@ -105,6 +157,7 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
         name="body"
         :label="t('admin.body', 'Article')"
         :description="missing().body.length ? t('admin.missingLocales', 'Still missing: {locales}', { locales: missing().body.join(', ') }) : t('admin.bodyHelp', 'Markdown is supported.')"
+        :error="missingError(missing().body)"
         required
       >
         <TranslatedInput

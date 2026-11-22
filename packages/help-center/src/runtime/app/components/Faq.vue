@@ -28,6 +28,7 @@ const { cards, loading } = useHelpCenterFaqCards(() => ({ categories: [props.cat
       v-for="(card, index) in cards"
       :key="index"
       v-bind="card"
+      :public="props.public"
     />
   </template>
 </template>
