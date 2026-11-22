@@ -15,7 +15,10 @@ export default defineAppConfig({
     timeZone: 'Europe/Copenhagen',
   },
   // The help-center categories (slugs) whose FAQ cards a page shows (`::page-faq-section{page="board"}`). Staff write
-  // them at /admin/help-center as public accordion categories; until one exists, the page leaves its FAQ section out.
+  // them at /admin/help-center/faq as public categories shown as question cards (`cards`: a card per question, with
+  // `::faq-details` and `::faq-link` blocks in the text); until one exists, the page leaves its FAQ section out. The
+  // contact cards under the /funding application section are the `funding-contact` category (`::faq-grid` in
+  // content/*/pages/funding.md).
   pageFaqs: {
     board: ['board'],
     funding: ['funding'],

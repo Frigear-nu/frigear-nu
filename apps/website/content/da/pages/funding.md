@@ -3,26 +3,6 @@ title: Projektansøgning
 seo:
   title: Projektansøgning
   description: Information om ansøgningskriterier til Frigear fonden.
-
-bottomCards:
-  - title: Kontakt Frigear om tvivlspørgsmål eller sparring på projektidéer
-    icon: i-lucide-mail
-    description: |
-      Brug kontaktformularen herunder hvis du har enkeltspørgsmål til ansøgningsprocessen, en idé til et projekt, som du gerne vil have sparring på, inden du sender en ansøgning:
-    contact:
-      label: Kontakt os for sparring & spørgsmål
-      initial:
-        subject: other
-        subjectOther: Projektstøtte spørgsmål
-  - title: Hvad hvis jeg vil klage over noget?
-    icon: i-lucide-heart-crack
-    description: |
-      Klager kan sendes til bestyrelsen via knappen herunder og/eller kræves taget op på kommende generalforsamling af medlemmer.
-    contact:
-      label: Kontakt bestyrelsen for at klage
-      initial:
-        subject: complaint
-    
 ---
 
 ::u-page-hero
@@ -93,6 +73,6 @@ Er du klar til at ansøge?
   :::
 
 #default
-  :::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+  :::faq-grid{categories="funding-contact" public .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
   :::
 ::

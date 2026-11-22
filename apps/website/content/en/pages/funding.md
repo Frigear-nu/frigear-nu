@@ -3,25 +3,6 @@ title: Project Application
 seo:
   title: Project application
   description: Information about application criteria for the Frigear fund.
-bottomCards: 
-  - title: Contact Frigear about questions or sparring on project ideas
-    icon: i-lucide-mail
-    description: |
-      Use the contact form below if you have simple questions about the application process, an idea for a project you would like input on before you submit an application:
-    contact:
-      label: Contact us for input & questions
-      initial:
-        subject: other
-        subjectOther: Project support questions
-  - title: What if I want to complain about something?
-    icon: i-lucide-heart-crack
-    description: |
-      Complaints can be sent to the board via the button below and/or can be required to be taken up at a coming general assembly by members.
-    contact:
-      label: Contact the board to complain
-      initial:
-        subject: complaint
-    
 ---
 
 ::u-page-hero
@@ -92,6 +73,6 @@ Are you ready to apply?
   :::
 
 #default
-  :::faq-grid{:items='meta.bottomCards' .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
+  :::faq-grid{categories="funding-contact" public .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-2}
   :::
 ::
