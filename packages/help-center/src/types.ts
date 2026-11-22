@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 import type { Translated } from '@frigear-nu/ui/translated'
 
@@ -131,7 +131,7 @@ export type HelpArticleDetailDto = HelpArticleDto & {
 /** A category as staff see it: its grants, the owner and the audit dates. */
 export type AdminHelpCategoryDto = Omit<HelpCategoryDto, 'source'> & {
   owner: OwnerRef
-  /** Who may read the category (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  /** Who may read the category (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: Grant[]
   articleCount: number
   createdAt: string
@@ -196,7 +196,7 @@ export type AdminHelpChecklistDto = {
   id: string
   name: Translated
   operationId: string | null
-  /** Who sees the checklist (`@frigear-nu/grants`); with an `operationId`, only people who take part in it too. */
+  /** Who sees the checklist (`@frigear-nu/auth`); with an `operationId`, only people who take part in it too. */
   grants: Grant[]
   sort: number
   items: AdminHelpChecklistItemDto[]
@@ -234,7 +234,7 @@ export type HelpSendResult = {
 export type MissingTranslations = { field: 'title' | 'body', locales: string[] }[]
 
 /**
- * The audience of `POST /api/admin/help-center/send`: explicit people and/or a grant list (`@frigear-nu/grants`). Each
+ * The audience of `POST /api/admin/help-center/send`: explicit people and/or a grant list (`@frigear-nu/auth`). Each
  * grant kind lists its members, so the send reaches the union of `userIds` and every grant's members. `public` lists
  * nobody, so it cannot be sent to.
  */

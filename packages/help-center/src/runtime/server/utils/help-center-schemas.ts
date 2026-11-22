@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { grantListShape } from '@frigear-nu/grants/core'
+import { grantListShape } from '@frigear-nu/auth/grants'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from '../../utils/slug'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.
@@ -91,7 +91,7 @@ export const helpChecklistPatchSchema = checklistFields.partial()
 /** The body of `POST /api/admin/help-center/send`. */
 export const helpSendInput = z.object({
   articleIds: z.array(articleRef).min(1).max(20),
-  // Explicit people and/or a grant list: each grant kind lists its members (`@frigear-nu/grants`).
+  // Explicit people and/or a grant list: each grant kind lists its members (`@frigear-nu/auth`).
   audience: z.strictObject({
     grants: grantListShape.optional(),
     userIds: z.array(z.string().trim().min(1).max(64)).max(500).optional(),

@@ -3,7 +3,7 @@
 The occasions an organisation works at, whether or not it hosts them (such as a festival bar). An operation has a
 period, a place, a host and a status (`planning`, `active`, `wrapped_up`, `archived`), and is the anchor that crew,
 shifts, maps and help content attach to. Part of the volunteering modules. It registers the `operation` grant kind of
-[`@frigear-nu/grants`](../grants): the people who take part in an operation.
+[`@frigear-nu/auth`](../auth): the people who take part in an operation.
 
 ## Quick Setup
 
