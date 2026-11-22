@@ -1,17 +1,27 @@
 import type { H3Event } from 'h3'
-import mapSessionUser from '#auth/session-mapper'
+import mapSessionUser, { mapPrincipalUser } from '#auth/session-mapper'
 
 type SafeUser = Record<string, unknown>
 
 /**
- * Strips the password hash (and the internal `sessionVersion`) from an already-loaded stored user and passes it through
- * the (possibly host-overridden) session mapper. Used at sign-in for the session's user, and by `getAuth` on every
- * request for the fresh one.
+ * The user to write into the session cookie: strips the password hash (and the internal `sessionVersion`) from an
+ * already-loaded stored user and passes it through the session user filters (`addSessionUserFilter`) and the (possibly
+ * host-overridden) session mapper. Used at sign-in and by every route that refreshes the session's user.
  */
 export function mapUserToSession(dbUser: SafeUser & { password?: string | null }) {
   const { password: _password, sessionVersion: _sessionVersion, ...safeUser } = dbUser
 
   return mapSessionUser(safeUser)
+}
+
+/**
+ * The request's user (`getAuth(event).user`, bearer credentials, role checks): like `mapUserToSession` but without the
+ * session user filters, which only keep fields out of the cookie, so policies and role requirements see every field.
+ */
+export function mapUserToPrincipal(dbUser: SafeUser & { password?: string | null }) {
+  const { password: _password, sessionVersion: _sessionVersion, ...safeUser } = dbUser
+
+  return mapPrincipalUser(safeUser)
 }
 
 /** The user's `sessionVersion` (`users` column added by this module); `0` for a store without it. */
