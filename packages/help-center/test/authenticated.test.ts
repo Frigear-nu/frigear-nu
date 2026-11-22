@@ -7,7 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { helpCenterApi } from '../src/runtime/utils/api'
 import { helpCenterAccess } from '../src/runtime/access'
-import { getEmails, getTexts, registerUser, setPhone, takePart } from './helpers'
+import { getDelivered, getEmails, getTexts, registerUser, setChoices, setPhone, takePart } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -847,19 +847,24 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(sent[0]!.subject).toBe(restricted.article.title.da)
     })
 
-    it('texts people who have a phone number', async () => {
+    it('texts only the people with a phone number who turned SMS on for the topic', async () => {
       await asStaff()
       const { article, category } = await publishedArticle({ grants: PUBLIC })
-      const withPhone = await user('Phone')
+      const optedIn = await user('Phone')
+      const optedOut = await user('Quiet')
       const without = await user('Nophone')
-      await setPhone(withPhone.id, '+15550100105')
+      await setPhone(optedIn.id, '+15550100105')
+      await setPhone(optedOut.id, '+15550100106')
+      // SMS is off by default on `help-center.send`: only Phone turns it on (Nophone too, but has no number).
+      await setChoices(optedIn.id, { 'help-center.send': { sms: true } })
+      await setChoices(without.id, { 'help-center.send': { sms: true } })
       const before = (await getTexts()).length
       const result = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, {
         articleIds: [article.id],
-        audience: { userIds: [withPhone.id, without.id] },
+        audience: { userIds: [optedIn.id, optedOut.id, without.id] },
         channels: ['sms'],
       }))
-      expect(result).toEqual({ recipients: 2, emailed: 0, texted: 1, pushed: 0, skipped: 1 })
+      expect(result).toEqual({ recipients: 3, emailed: 0, texted: 1, pushed: 0, skipped: 2 })
       const texts = (await getTexts()).slice(before)
       expect(texts).toHaveLength(1)
       expect(texts[0]).toMatchObject({ to: '+15550100105' })
@@ -898,7 +903,13 @@ describe('help center (authenticated, database-backed)', async () => {
       const [mail] = (await getEmails()).slice(before)
       expect(mail!.subject).toBe('2 hjælpeartikler')
       expect(mail!.body).toContain('Første guide')
-      expect(mail!.template).toMatchObject({ name: 'help-center-articles', locale: 'da' })
+      expect(mail!.template).toMatchObject({ name: 'help-center-articles', locale: 'da', props: { subject: '2 hjælpeartikler', heading: 'Hjælpeartikler til dig', greeting: 'Hej Dansker,' } })
+      // As delivered, rendered by `@frigear-nu/email-templates` (installed in this fixture): Danish throughout.
+      const delivered = (await getDelivered()).find(item => item.to === `dansker${counter}@example.com`)
+      expect(delivered).toMatchObject({ subject: '2 hjælpeartikler' })
+      expect(delivered!.body).toContain('<!DOCTYPE html')
+      for (const text of ['Hjælpeartikler til dig', 'Hej Dansker,', 'Tag et kig på disse artikler:', 'Første guide', 'Anden guide']) expect(delivered!.body).toContain(text)
+      for (const text of ['Help articles for you', 'Hi Dansker', 'Have a look']) expect(delivered!.body).not.toContain(text)
     })
 
     it('validates the request and needs help-center:send', async () => {

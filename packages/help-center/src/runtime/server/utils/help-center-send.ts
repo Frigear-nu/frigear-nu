@@ -24,6 +24,38 @@ const SUBJECTS: Record<string, (count: number) => string> = {
 }
 export const helpSendSubject = (locale: string, count: number) => (SUBJECTS[locale] ?? SUBJECTS.en!)(count)
 
+type HelpSendEmailTexts = { heading: string, greeting: (name: string) => string, intro: (count: number) => string }
+
+/** The texts of the `help-center-articles` email in the language of the person (English for any other). */
+const EMAIL_TEXTS: Record<string, HelpSendEmailTexts> = {
+  da: {
+    heading: 'Hjælpeartikler til dig',
+    greeting: name => name ? `Hej ${name},` : 'Hej,',
+    intro: count => count === 1 ? 'Tag et kig på denne artikel:' : 'Tag et kig på disse artikler:',
+  },
+  en: {
+    heading: 'Help articles for you',
+    greeting: name => name ? `Hi ${name},` : 'Hi,',
+    intro: count => count === 1 ? 'Have a look at this article:' : 'Have a look at these articles:',
+  },
+}
+
+/**
+ * The props of the `help-center-articles` email for one person: the subject, heading, greeting and intro in their
+ * language, so the template (with `@frigear-nu/email-templates`) writes in it too.
+ */
+export function helpSendEmailProps(locale: string, name: string, links: Array<{ title: string, url: string }>) {
+  const texts = EMAIL_TEXTS[locale] ?? EMAIL_TEXTS.en!
+  return {
+    name,
+    links,
+    subject: links.length === 1 ? links[0]!.title : helpSendSubject(locale, links.length),
+    heading: texts.heading,
+    greeting: texts.greeting(name),
+    intro: texts.intro(links.length),
+  }
+}
+
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[char]!)
 
 /**
@@ -100,7 +132,8 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
     }
 
     try {
-      const subject = links.length === 1 ? links[0]!.title : helpSendSubject(locale, links.length)
+      const props = helpSendEmailProps(locale, person.name ?? '', links)
+      const subject = props.subject
       const names = links.map(link => link.title).join(', ')
       const delivered = await helpCenterDeliver(event, {
         userId: Number(id),
@@ -112,7 +145,7 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
           subject,
           body: `<p>${escapeHtml(person.name ?? '')}</p><ul>${links.map(link => `<li><a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a></li>`).join('')}</ul>`,
           text: `${person.name ?? ''}\n\n${links.map(link => `${link.title}: ${link.url}`).join('\n')}`,
-          template: { name: 'help-center-articles', props: { name: person.name ?? '', links }, locale },
+          template: { name: 'help-center-articles', props, locale },
           meta: { helpCenter: { articleIds: input.articleIds } },
         },
         smsBody: links.map(link => `${link.title}: ${link.url}`).join('\n'),

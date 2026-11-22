@@ -41,6 +41,7 @@ const layout = computed(() => faqSectionListLayout(count.value))
           v-for="(card, index) in cards"
           :key="index"
           v-bind="{ ...card, ...layout.card }"
+          :public="props.public"
         />
       </template>
     </div>

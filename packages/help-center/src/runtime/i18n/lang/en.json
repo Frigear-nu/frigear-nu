@@ -33,7 +33,7 @@
       "categorySaved": "Saved {name}",
       "channelEmail": "Email",
       "channelSms": "SMS",
-      "channelSmsHelp": "Only people with a phone number get a text.",
+      "channelSmsHelp": "Only people with a phone number who turned on texts for help articles get one.",
       "checklistArticles": "Articles",
       "checklistArticlesDescription": "In this order. People mark an article as read by opening it.",
       "checklistCreated": "Created {name}",
@@ -185,7 +185,10 @@
       "orderLoadFailed": "The articles could not be loaded",
       "orderDone": "Done",
       "reorderFailed": "Could not save the new order",
-      "dragToReorder": "Drag to reorder"
+      "dragToReorder": "Drag to reorder",
+      "publishMissing": "Still missing: {fields}",
+      "missingToPublish": "Needed to publish: {locales}",
+      "saveAndPublish": "Publish article"
     },
     "article": {
       "loadFailed": "The article could not be loaded",

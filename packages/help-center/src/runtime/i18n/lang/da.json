@@ -33,7 +33,7 @@
       "categorySaved": "Gemte {name}",
       "channelEmail": "Mail",
       "channelSms": "Sms",
-      "channelSmsHelp": "Kun folk med et telefonnummer får en sms.",
+      "channelSmsHelp": "Kun personer med et telefonnummer, der har slået sms for hjælpeartikler til, får en.",
       "checklistArticles": "Artikler",
       "checklistArticlesDescription": "I denne rækkefølge. Folk markerer en artikel som læst ved at åbne den.",
       "checklistCreated": "Oprettede {name}",
@@ -185,7 +185,10 @@
       "orderLoadFailed": "Artiklerne kunne ikke indlæses",
       "orderDone": "Færdig",
       "reorderFailed": "Den nye rækkefølge kunne ikke gemmes",
-      "dragToReorder": "Træk for at ændre rækkefølgen"
+      "dragToReorder": "Træk for at ændre rækkefølgen",
+      "publishMissing": "Mangler stadig: {fields}",
+      "missingToPublish": "Skal udfyldes før udgivelse: {locales}",
+      "saveAndPublish": "Udgiv artikel"
     },
     "article": {
       "loadFailed": "Artiklen kunne ikke indlæses",
