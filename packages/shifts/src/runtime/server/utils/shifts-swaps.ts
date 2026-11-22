@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, desc, eq, gt, inArray, is, ne } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
-import { apiError, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { ShiftScheduleSettings, ShiftSwapDto, ShiftSwapGuardCode, ShiftSwapKind, ShiftSwapOfferDto, ShiftSwapStatus, ShiftWarning, Translated } from '../../../types'
 import { newCheckInCode, newId } from '../../utils'
 import { effectiveCapacity } from '../../utils/guards'
@@ -100,9 +100,9 @@ export async function shiftsSwapDtos(rows: ShiftSwapRow[], options: { offers?: b
     const entry = await findShiftAssignmentEntry(row.assignmentId)
     if (entry) entries.set(row.assignmentId, entry)
   }
-  const offers = await db.select().from(schema.shiftSwapOffers)
-    .where(inArray(schema.shiftSwapOffers.swapId, rows.map(row => row.id)))
-    .orderBy(asc(schema.shiftSwapOffers.createdAt), asc(schema.shiftSwapOffers.id))
+  const offers = (await Promise.all(chunkParams(rows.map(row => row.id)).map(part => db.select().from(schema.shiftSwapOffers)
+    .where(inArray(schema.shiftSwapOffers.swapId, part))))).flat()
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const offered = new Map<string, ShiftAssignmentEntry>()
   for (const id of [...offers.map(offer => offer.offeredAssignmentId), ...rows.map(row => row.wantedAssignmentId)]) {
     if (id && !offered.has(id)) {
@@ -514,7 +514,8 @@ export async function shiftsAcceptOffer(event: H3Event, swap: ShiftSwapRow, offe
     const offerDto = await shiftsOfferDtoOf(dto, accepted)
     await shiftsFire('shifts:swap:accepted', { event, kind: dto.kind, swap: dto, offer: offerDto })
     await shiftsSendSwapEmail(event, 'accepted', { swap: dto, offer: offerDto, to: accepted.userId })
-    for (const [lead, teamId] of await shiftsSwapApprovers(event, [owner.shift.teamId, ...(back ? [back.shift.teamId] : [])])) {
+    for (const [lead, teamId] of await shiftsSwapApprovers(event, shiftsApprovingTeamIds(owner, back))) {
+      if (lead === swap.userId || lead === accepted.userId) continue
       await shiftsSendSwapEmail(event, 'pending', { swap: dto, offer: offerDto, to: lead, teamId })
     }
     return dto
@@ -660,6 +661,8 @@ async function shiftsCompleteSwap(event: H3Event, swap: ShiftSwapRow, offer: Shi
     throw apiError(409, 'swap_changed', 'One of the shifts changed meanwhile, so the swap could not be carried out.')
   }
   const { ownerNew, backNew } = result
+  // Reminders are claimed per assignment: the ones the previous holder got (or skipped) are the new holder's to get.
+  await db.delete(schema.shiftReminders).where(inArray(schema.shiftReminders.assignmentId, [ownerNew.id, ...(backNew ? [backNew.id] : [])]))
 
   // What the two assignments had in play elsewhere.
   if (back) {
@@ -745,19 +748,42 @@ export async function shiftsCancelSwap(swap: ShiftSwapRow): Promise<ShiftSwapDto
 
 /** The teams whose leads may approve a swap: the swap's shift's team and the team of the shift given back. */
 export async function shiftsSwapTeamIds(swap: ShiftSwapRow): Promise<string[]> {
+  const { owner, back } = await shiftsSwapSides(swap)
+  return [...new Set([owner.shift.teamId, ...(back ? [back.shift.teamId] : [])])]
+}
+
+/** The owner's assignment, the accepted offer (if any) and the shift it gives back. */
+async function shiftsSwapSides(swap: ShiftSwapRow): Promise<{ owner: ShiftAssignmentEntry, offer: ShiftSwapOfferRow | undefined, back: ShiftAssignmentEntry | null }> {
   const owner = await getShiftAssignmentEntryOr404(swap.assignmentId)
   const [offer] = await db.select().from(schema.shiftSwapOffers)
     .where(and(eq(schema.shiftSwapOffers.swapId, swap.id), eq(schema.shiftSwapOffers.status, 'accepted'))).limit(1)
   const back = offer?.offeredAssignmentId ? await findShiftAssignmentEntry(offer.offeredAssignmentId) : null
-  return [...new Set([owner.shift.teamId, ...(back ? [back.shift.teamId] : [])])]
+  return { owner, offer, back }
 }
 
 /**
- * 403 unless the caller may approve or reject a swap: a lead of the swap's team or of the team of the shift given back
- * (`shifts:lead` with that team), or staff (the lead policy lets `shifts:manage` through).
+ * The teams whose leads decide a swap: the side(s) whose schedule says `approval: 'lead'`. A lead of a `peer` schedule's
+ * team does not approve for the other side. When neither side asks for approval (the swap is not waiting), both teams.
  */
-export async function shiftsAuthorizeSwapApprover(event: H3Event, swap: ShiftSwapRow): Promise<void> {
-  const teamIds = await shiftsSwapTeamIds(swap)
+function shiftsApprovingTeamIds(owner: ShiftAssignmentEntry, back: ShiftAssignmentEntry | null | undefined): string[] {
+  const sides = [owner, ...(back ? [back] : [])]
+  const approving = sides.filter(side => side.schedule.approval === 'lead')
+  return [...new Set((approving.length ? approving : sides).map(side => side.shift.teamId))]
+}
+
+/**
+ * 403 unless the caller may approve or reject a swap: a lead (`shifts:lead` with that team) of a team whose schedule
+ * asks for lead approval, or staff (the lead policy lets `shifts:manage` through). A party of the swap (its owner or the
+ * offerer whose offer was accepted) never decides it, even as a lead (403 `swap_party`), unless they hold
+ * `shifts:manage`.
+ */
+export async function shiftsAuthorizeSwapApprover(event: H3Event, swap: ShiftSwapRow, by: number): Promise<void> {
+  const { owner, offer, back } = await shiftsSwapSides(swap)
+  if (await allows(event, 'shifts:manage')) return
+  if (by === swap.userId || (offer && by === offer.userId)) {
+    throw apiError(403, 'swap_party', 'You take part in this swap, so a lead of the team or staff decides it.')
+  }
+  const teamIds = shiftsApprovingTeamIds(owner, back)
   for (const teamId of teamIds) {
     if (await allows(event, 'shifts:lead', { teamId })) return
   }

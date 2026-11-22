@@ -22,6 +22,12 @@ type RolePatch = z.output<typeof shiftsRolePatch>
 type BulkInput = z.output<typeof shiftsBulkInput>
 type ShiftPatch = z.output<typeof shiftsShiftPatch>
 
+/**
+ * Shift rows per insert. A row binds 11 parameters (`closedAt` is the only `null` literal; `createdAt`/`updatedAt` come
+ * from `$defaultFn`), so 8 rows (88) stay within 90 bound parameters, under D1's 100 per statement.
+ */
+export const SHIFT_INSERT_ROWS = Math.floor(90 / 11)
+
 const cleanGuards = (guards: { maxShiftsPerDay?: number | null, minRestHours?: number | null } | null | undefined) => ({
   ...(guards?.maxShiftsPerDay ? { maxShiftsPerDay: guards.maxShiftsPerDay } : {}),
   ...(guards?.minRestHours ? { minRestHours: guards.minRestHours } : {}),
@@ -43,8 +49,8 @@ export async function shiftsListSchedules(operationId?: string, event?: H3Event)
     .orderBy(desc(schema.shiftSchedules.createdAt), asc(schema.shiftSchedules.id))
     .limit(500)
   if (!rows.length) return []
-  const counts = await db.select({ scheduleId: schema.shifts.scheduleId, total: count() }).from(schema.shifts)
-    .where(inArray(schema.shifts.scheduleId, rows.map(row => row.id))).groupBy(schema.shifts.scheduleId)
+  const counts = (await Promise.all(chunkParams(rows.map(row => row.id)).map(part => db.select({ scheduleId: schema.shifts.scheduleId, total: count() })
+    .from(schema.shifts).where(inArray(schema.shifts.scheduleId, part)).groupBy(schema.shifts.scheduleId)))).flat()
   const byId = new Map(counts.map(row => [row.scheduleId, Number(row.total)]))
   return rows.map(row => toShiftScheduleDto(row, byId.get(row.id) ?? 0, event))
 }
@@ -235,10 +241,7 @@ export async function shiftsBulkCreate(event: H3Event, schedule: ShiftScheduleRo
     }
   }))
   const rows: ShiftRow[] = []
-  // In chunks, so a big bulk stays under the bound-parameter limit of sqlite and D1.
-  for (let index = 0; index < values.length; index += 25) {
-    rows.push(...await db.insert(schema.shifts).values(values.slice(index, index + 25)).returning())
-  }
+  for (const part of chunkParams(values, SHIFT_INSERT_ROWS)) rows.push(...await db.insert(schema.shifts).values(part).returning())
   rows.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
   const dtos = rows.map(row => toShiftDto(row, schedule))
   for (const shift of dtos) await shiftsFire('shifts:shift:created', { event, shift })
@@ -310,13 +313,14 @@ export async function shiftsScheduleShifts(schedule: ShiftScheduleRow, query: { 
 /** Shifts with their team names and assignments (cancelled ones left out). */
 export async function shiftsWithAssignees(rows: ShiftRow[], schedules: Map<string, Pick<ShiftScheduleRow, 'operationId' | 'maxPerShift'>>, pii: boolean): Promise<ShiftWithAssigneesDto[]> {
   if (!rows.length) return []
-  const [assignments, teams] = await Promise.all([
-    db.select().from(schema.shiftAssignments).where(and(
-      inArray(schema.shiftAssignments.shiftId, rows.map(row => row.id)),
+  const [chunks, teams] = await Promise.all([
+    Promise.all(chunkParams(rows.map(row => row.id)).map(part => db.select().from(schema.shiftAssignments).where(and(
+      inArray(schema.shiftAssignments.shiftId, part),
       ne(schema.shiftAssignments.status, 'cancelled'),
-    )).orderBy(asc(schema.shiftAssignments.createdAt), asc(schema.shiftAssignments.id)),
+    )))),
     shiftsTeamsById(rows.map(row => row.teamId)),
   ])
+  const assignments = chunks.flat().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const assignees = await shiftsAssigneeDtos(assignments, pii)
   return rows.map((row) => {
     const own = assignees.filter(item => item.shiftId === row.id)
@@ -400,9 +404,7 @@ export async function shiftsCopyFrom(event: H3Event, target: ShiftScheduleRow, s
     }]
   })
   const created: ShiftRow[] = []
-  for (let index = 0; index < values.length; index += 25) {
-    created.push(...await db.insert(schema.shifts).values(values.slice(index, index + 25)).returning())
-  }
+  for (const part of chunkParams(values, SHIFT_INSERT_ROWS)) created.push(...await db.insert(schema.shifts).values(part).returning())
   // The source's coverage, handover and approval come along (they are valid together already).
   const [updated] = await db.update(schema.shiftSchedules).set({ coverage: source.coverage, handover: source.handover, approval: source.approval })
     .where(eq(schema.shiftSchedules.id, target.id)).returning()

@@ -16,6 +16,8 @@ export const shiftsApi = {
     shift: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}`,
     /** `GET` the QR pass of one of my shifts (the code only while check-in is open). */
     pass: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/pass`,
+    /** `POST` after a pass said `eligible: false`: cancels my future shifts on the team my role no longer meets, answers the pass. */
+    settle: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/settle`,
     /** `POST` `{ mode: 'station', token }` or `{ mode: 'location', latitude, longitude, accuracy }` to check in on one of my shifts myself. */
     checkIn: (assignmentId: string) => `${BASE}/me/${enc(assignmentId)}/check-in`,
     /** `GET` (`?status=unclaimed|claimed|all`) the perks I earned (`perks:read`). */
