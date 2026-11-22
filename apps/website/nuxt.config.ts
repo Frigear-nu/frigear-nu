@@ -117,11 +117,11 @@ export default defineNuxtConfig({
       forceId: false,
       // frigear.nu decides the single sign-on roles here: these roles carry over as they are (stored as `sso` roles;
       // roles assigned here stay), any other (or none) becomes `user`
-      // (NUXT_FRIGEAR_ROLE_MAP, JSON, is merged in).
+      // (NUXT_FRIGEAR_ROLE_MAP, JSON, is merged in). Listed in the order of the ladder (`authorization.roles`).
       roleMap: {
         admin: 'admin',
-        manager: 'manager',
         coordinator: 'coordinator',
+        manager: 'manager',
         eventmanager: 'eventmanager',
         barmanager: 'barmanager',
         crew: 'crew',
@@ -233,7 +233,8 @@ export default defineNuxtConfig({
   },
   admin: {
     settings: {
-      // `admin:access` (the default): coordinator and above, the old `canViewAdminArea` roles (`authorization.roles`).
+      // `admin:access` (the default): manager and above (manager, coordinator, admin), the old `canViewAdminArea` roles
+      // (`authorization.roles`).
       permission: 'admin:access',
     },
   },
@@ -270,43 +271,48 @@ export default defineNuxtConfig({
     // Guests on a guarded page (e.g. /account/**) are sent to the login page instead of a 401 error.
     redirectTo: '/sign-in',
     defaultRoles: ['user'],
-    // The old RBAC chain (admin > manager > coordinator > eventmanager > barmanager > crew > member, each holding the
-    // permissions of the next) as `inherit`; supplier and partner are outside groups that only hold what `user` holds.
-    // Self-service (tickets, profile, payments, forms:submit, ...) is `implicit` in the modules, so `user` grants
-    // nothing. Old grant -> new permissions:
+    // The ladder, each role inheriting the one below: admin > coordinator > manager > eventmanager > barmanager > crew >
+    // member > user. Supplier and partner are outside groups that only hold what `user` holds. Self-service (tickets,
+    // profile, payments, forms:submit, ...) is `implicit` in the modules, so `user` grants nothing. Old grant -> new
+    // permissions (the old chain had manager above coordinator; coordinator now sits above manager and adds the
+    // volunteering staff permissions):
     // - eventmanager `events:manage`, `events:pii` -> + `events:refund` (refunds were part of `events:manage`);
-    // - coordinator `users:read` -> `users:read` + `users:list` (listing is its own permission now); `forms:manage`
-    //   -> + `forms:credentials` (form tokens and secrets were part of it); `forms:pii`, `payments:manage` as they were;
-    //   the admin area (`admin.settings.roles`) -> `admin:access`;
-    // - manager `users:manage` (every user write) -> `users:create`, `users:update`, `users:delete`, `users:manage`,
+    // - manager: the old coordinator's base staff set, `users:read` -> `users:read` + `users:list` (listing is its own
+    //   permission now), `forms:manage` -> + `forms:credentials` (form tokens and secrets were part of it), `forms:pii`
+    //   and `payments:manage` as they were, the admin area (`admin.settings.roles`) -> `admin:access`; and the old
+    //   manager's `users:manage` (every user write) -> `users:create`, `users:update`, `users:delete`, `users:manage`,
     //   `subscriptions:manage` (free memberships and payment links were user writes) and `roles:read` + `roles:assign`
-    //   (setting a user's role was a user write; a manager assigns only roles strictly below manager);
+    //   (setting a user's role was a user write; a role is assigned only by someone strictly above it, so a manager
+    //   assigns event manager and below, a coordinator manager and below);
+    // - coordinator: the volunteering staff permissions only, which the modules grant to `admin` (`grantTo`):
+    //   operations, teams, crew, shifts and help-center management with their `:pii` (`crew:pii` included), crew
+    //   invites, shift broadcasts, and inbox assign/hide; inbox manage/channels/`:pii`/audit and push manage/send stay
+    //   with `admin`;
     // - admin `*` plus every sensitive permission by name (`*` never covers them), so admin holds every registered
     //   permission and may assign admin. Add new sensitive permissions here when a module registers one.
-    // The volunteering modules grant their staff permissions to `admin` only (`grantTo`). `coordinator` names its own:
-    // operations, teams, crew, shifts and help-center management with their `:pii` (`crew:pii` included), crew
-    // invites, shift broadcasts, and inbox assign/hide; inbox manage/channels/`:pii`/audit and push manage/send stay
-    // with `admin`.
     // Team leads (`ba` and up on the bar ladder) get lead rights through the teams policies, not through a role here.
     // NUXT_ACL_ADMINS adds `admin` (server/plugins/authorization-roles.ts). `defineRoles` types the grants and parents
-    // against the registered permissions and roles (`.nuxt/types/auth-access.d.ts`).
+    // against the registered permissions and roles (`.nuxt/types/auth-access.d.ts`). The `role` claim of single sign-on
+    // (server/plugins/oauth-policy.ts) lists the roles in this order too.
     roles: defineRoles({
-      admin: { label: 'Administrator', labelKey: 'roles.admin', grant: ['*', 'events:pii', 'forms:pii'], inherit: ['manager'] },
-      manager: {
-        label: 'Manager',
-        labelKey: 'roles.manager',
-        grant: ['users:create', 'users:update', 'users:delete', 'users:manage', 'subscriptions:manage', 'roles:read', 'roles:assign'],
-        inherit: ['coordinator'],
-      },
+      admin: { label: 'Administrator', labelKey: 'roles.admin', grant: ['*', 'events:pii', 'forms:pii'], inherit: ['coordinator'] },
       coordinator: {
         label: 'Coordinator',
         labelKey: 'roles.coordinator',
+        // The volunteering staff permissions (the modules grant them to `admin` only).
         grant: [
-          'admin:access', 'users:read', 'users:list', 'forms:manage', 'forms:credentials', 'forms:pii', 'payments:manage',
-          // The volunteering staff permissions (the modules grant them to `admin` only).
           'operations:manage', 'teams:manage', 'teams:pii', 'crew:manage', 'crew:invite', 'crew:pii',
           'shifts:manage', 'shifts:broadcast', 'shifts:pii', 'help-center:manage', 'help-center:send', 'help-center:pii',
           'inbox:assign', 'inbox:hide',
+        ],
+        inherit: ['manager'],
+      },
+      manager: {
+        label: 'Manager',
+        labelKey: 'roles.manager',
+        grant: [
+          'users:create', 'users:update', 'users:delete', 'users:manage', 'subscriptions:manage', 'roles:read', 'roles:assign',
+          'admin:access', 'users:read', 'users:list', 'forms:manage', 'forms:credentials', 'forms:pii', 'payments:manage',
         ],
         inherit: ['eventmanager'],
       },

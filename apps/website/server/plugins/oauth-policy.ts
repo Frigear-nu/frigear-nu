@@ -1,7 +1,8 @@
 // Host claims for `@frigear-nu/oauth-server`. Who manages applications is a role question (`oauth:manage`: admins).
 
-// Most senior first: `role` is the first of these the user holds, as the other Frigear apps read one role.
-const seniority = ['admin', 'manager', 'coordinator', 'eventmanager', 'barmanager', 'crew', 'member', 'supplier', 'partner', 'user']
+// Most senior first, the ladder of `authorization.roles` (nuxt.config.ts): `role` is the first of these the user holds,
+// as the other Frigear apps read one role.
+const seniority = ['admin', 'coordinator', 'manager', 'eventmanager', 'barmanager', 'crew', 'member', 'supplier', 'partner', 'user']
 
 export default defineNitroPlugin((nitro) => {
   // Applications that sign people in with frigear.nu (the other Frigear apps) map these to their own users, so an admin
