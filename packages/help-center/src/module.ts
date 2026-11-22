@@ -16,6 +16,7 @@ import {
   defineVirtualRegistry,
   inlineModuleRuntime,
   registerDatabaseTable,
+  registerSearchIndex,
   registerLocales,
   registerModule,
   registerTailwindSource,
@@ -165,6 +166,8 @@ export default defineNuxtModule<ModuleOptions>({
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
+    // `help_articles.searchText` and `searchBody`, recomputed by the `search:reindex` task.
+    registerSearchIndex(nuxt, { name: 'help_articles', handler: resolver.resolve('./runtime/server/search-index') })
 
     // --- API routes -----------------------------------------------------------------------
     addModuleRoutes(resolver, [

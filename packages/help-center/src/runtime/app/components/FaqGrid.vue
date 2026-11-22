@@ -8,7 +8,8 @@ defineOptions({ name: 'FaqGrid' })
 
 // The cards in a grid. Help-center categories (`categories="a,b"`) and inline `items` (cards written in page frontmatter)
 // can be mixed: the categories come first. `loading` forces the skeleton, for a page that fetches with
-// `useHelpCenterFaqs()` itself.
+// `useHelpCenterFaqs()` itself. The fetch is awaited, so a client-side navigation waits for the cards instead of
+// flashing a skeleton; the grid renders nothing when there are no cards.
 const props = defineProps<{
   items?: FaqCardProps[]
   categories?: string | string[]
@@ -17,11 +18,14 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const { cards, loading: fetching } = useHelpCenterFaqCards(() => props)
+const { cards, loading: fetching } = await useHelpCenterFaqCards(() => props, { lazy: false })
 </script>
 
 <template>
-  <UPageGrid :ui="{ base: $attrs.class }">
+  <UPageGrid
+    v-if="loading || fetching || cards.length"
+    :ui="{ base: $attrs.class }"
+  >
     <template v-if="loading || fetching">
       <USkeleton
         v-for="n in 3"

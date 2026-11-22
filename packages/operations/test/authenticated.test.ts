@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '../src/runtime/utils/api'
@@ -194,6 +194,24 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(await found(`ÅKANDE ${marker}`)).toEqual([caps.id])
       expect(await found(`${marker}-akande`)).toEqual([caps.id])
       expect(await found(`ølbar æblegård ${marker}`)).toEqual([])
+    })
+
+    it('search:reindex refolds operations.searchText left by the ASCII-only SQL backfill, and a second run changes nothing', async () => {
+      const marker = `rx${++counter}`
+      const found = async (q: string) => ((await ok(await json(staff.cookie, 'GET', `${operationsApi.admin.operations}?q=${encodeURIComponent(q)}`))).items as Json[]).map(item => item.id)
+      const op = await createOperation({ slug: `${marker}-op`, name: { da: `ØLBAR ÆBLEGÅRD ${marker}`, en: `Beer ${marker}` } })
+      const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+      // The backfill of the migration that added the column: sqlite's lower() keeps Æ, Ø and Å.
+      sqlite.exec('update operations set searchText = lower(coalesce((select group_concat(value, char(10)) from json_each(operations.name)), \'\') || char(10) || slug) where id = ?', op.id)
+      expect(await found(`ølbar ${marker}`)).toEqual([])
+
+      const first = reindexOf(await runSearchReindex(), 'operations')!
+      expect(first.updated).toBeGreaterThanOrEqual(1)
+      expect(sqlite.query<{ searchText: string }>('select searchText from operations where id = ?', op.id)[0]!.searchText)
+        .toBe(`ølbar æblegård ${marker}\nbeer ${marker}\n${marker}-op`)
+      expect(await found(`ølbar æblegård ${marker}`)).toEqual([op.id])
+
+      expect(reindexOf(await runSearchReindex(), 'operations')).toEqual({ ...first, updated: 0 })
     })
 
     it('validates the body', async () => {
