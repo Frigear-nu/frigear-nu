@@ -1,5 +1,5 @@
 // Geographic helpers for `GeoPoint`s and `MapLocation`s: distances, radius and area checks, anchors and bounds. Pure.
-import type { GeoPoint, MapLocation } from '../../types'
+import type { GeoPoint, MapLocation, MapLocationMode } from '../../types'
 
 /** The mean radius of the earth, in metres. */
 export const EARTH_RADIUS_METERS = 6_371_008.8
@@ -99,4 +99,21 @@ export function locationBounds(location: MapLocation): [[number, number], [numbe
   const dLat = (radius / EARTH_RADIUS_METERS) * (180 / Math.PI)
   const dLng = dLat / Math.max(Math.cos(radians(location.point.lat)), 1e-6)
   return [[location.point.lat - dLat, location.point.lng - dLng], [location.point.lat + dLat, location.point.lng + dLng]]
+}
+
+/** The kind of a location: an area when it has corners, a radius when it has one, a point otherwise. */
+export const locationModeOf = (location: MapLocation | null | undefined): MapLocationMode =>
+  location?.area?.length ? 'area' : location?.radiusMeters ? 'radius' : 'point'
+
+const sameLocation = (a: MapLocation | null | undefined, b: MapLocation | null | undefined): boolean =>
+  JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/**
+ * The location picker's mode after its value changed. A change the picker wrote itself (`written`) keeps the chosen
+ * mode: choosing "Area" keeps the point until the polygon is drawn, and that `{ point }` must not switch back to
+ * "Point". A change from outside (a loaded or reset value) takes the value's own mode; clearing keeps the mode.
+ */
+export function locationFieldMode(mode: MapLocationMode, value: MapLocation | null | undefined, written: MapLocation | null | undefined): MapLocationMode {
+  if (!value || sameLocation(value, written)) return mode
+  return locationModeOf(value)
 }
