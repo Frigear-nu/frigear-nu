@@ -277,7 +277,7 @@ describe('operations (authenticated, database-backed)', async () => {
 
     it('saves a venue layout of the allowed kinds, with properties their schemas accept', async () => {
       const operation = await createOperation({ public: true })
-      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null })
+      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null, revision: expect.any(String) })
 
       const layout = {
         features: [
@@ -294,7 +294,9 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(saved.features[2].properties).toEqual({ cooled: false })
       expect(saved.extent).toEqual({ width: 800, height: 600 })
       // Whoever may read the operation reads its layout; a public operation is everyone's.
-      expect(await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).toEqual(saved)
+      const { revision, ...publicLayout } = saved
+      expect(revision).toEqual(expect.any(String))
+      expect(await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).toEqual(publicLayout)
 
       const invalid = await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1', { taps: -1 }), { ...station('seat'), kind: 'seating.seat' }, station('bar-1')] } })
       expect(invalid.status).toBe(400)
@@ -329,7 +331,7 @@ describe('operations (authenticated, database-backed)', async () => {
       const response = await upload(staff.cookie, operation.id, pngBytes(40, 30))
       expect(response.status, await response.clone().text()).toBe(200)
       const underlay = await response.json() as Json
-      expect(underlay).toMatchObject({ width: 40, height: 30 })
+      expect(underlay).toMatchObject({ width: 40, height: 30, revision: expect.any(String) })
       expect(underlay.url).toMatch(new RegExp(`^/api/operations/${operation.slug}/venue-layout/underlay\\?v=`))
       expect(JSON.stringify(underlay)).not.toContain(`operations/${operation.id}`)
       const image = await fetch(underlay.url)
@@ -337,13 +339,45 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(image.headers.get('content-type')).toBe('image/png')
       expect(image.headers.get('x-content-type-options')).toBe('nosniff')
 
-      // Saving the layout keeps the stored image, whatever underlay the client sends.
-      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')], underlay: { url: 'https://evil.example/x.png', width: 1, height: 1 } } }))
-      expect(saved.underlay).toEqual(underlay)
-      const removed = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { ...saved, underlay: null } }))
+      // Saving the layout keeps the stored image, whatever underlay the client sends; an external image is refused.
+      const external = await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')], underlay: { url: 'https://evil.example/x.png', width: 1, height: 1 } } })
+      expect(external.status).toBe(400)
+      expect(JSON.stringify(await external.json())).toContain('underlay')
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')], underlay: { url: '/api/elsewhere.png', width: 1, height: 1 } } }))
+      expect(saved.underlay).toEqual({ url: underlay.url, width: 40, height: 30 })
+      const { revision: _revision, ...savedLayout } = saved
+      const removed = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { ...savedLayout, underlay: null } }))
       expect(removed.underlay).toBeNull()
       expect(removed.features).toHaveLength(1)
       expect((await fetch(underlay.url)).status).toBe(404)
+    })
+
+    it('refuses a save or an upload when the layout changed since the client read it (409), and keeps both changes apart', async () => {
+      const operation = await createOperation({ public: true })
+      const read = await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))
+      // A second editor saves first, with the revision both read.
+      const first = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')] }, revision: read.revision }))
+      expect(first.revision).not.toBe(read.revision)
+
+      // The first editor's save and upload, still on the old revision, are refused and change nothing.
+      await expectApiError(json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-2')] }, revision: read.revision }), 409, 'venue_layout_changed')
+      const body = new FormData()
+      body.append('file', new Blob([pngBytes(20, 10) as BlobPart], { type: 'image/png' }), 'plan.png')
+      const stale = await fetch(`${operationsApi.admin.venueUnderlay(operation.id)}?revision=${encodeURIComponent(read.revision)}`, { method: 'POST', body, headers: { cookie: staff.cookie } })
+      expect(stale.status).toBe(409)
+      expect((await stale.json() as Json).data?.code).toBe('venue_layout_changed')
+      const now = await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))
+      expect(now).toEqual(first)
+
+      // With the current revision both go through, and the upload answers the next one.
+      const fresh = new FormData()
+      fresh.append('file', new Blob([pngBytes(20, 10) as BlobPart], { type: 'image/png' }), 'plan.png')
+      const uploaded = await fetch(`${operationsApi.admin.venueUnderlay(operation.id)}?revision=${encodeURIComponent(first.revision)}`, { method: 'POST', body: fresh, headers: { cookie: staff.cookie } })
+      expect(uploaded.status, await uploaded.clone().text()).toBe(200)
+      const underlay = await uploaded.json() as Json
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1'), station('bar-2')] }, revision: underlay.revision }))
+      expect(saved.features).toHaveLength(2)
+      expect(saved.underlay).toEqual({ url: underlay.url, width: 20, height: 10 })
     })
   })
 

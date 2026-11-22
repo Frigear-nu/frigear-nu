@@ -40,6 +40,10 @@
     "save": {
       "error": "Your dashboard layout could not be saved."
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "permissions": {
+      "layouts": "Your dashboard layouts",
+      "layoutsDescription": "See and change the order, hidden and collapsed items of your dashboards."
+    }
   }
 }
