@@ -137,6 +137,18 @@
         "offline": "The sign-in server could not be reached. Check the connection and try again.",
         "generic": "The sign-in could not be completed."
       }
+    },
+    "grants": {
+      "kinds": {
+        "public": "Everyone"
+      },
+      "editor": {
+        "any": "Anyone who matches one of these sees it.",
+        "nobody": "Nobody sees it yet: add who may.",
+        "unknown": "No installed module knows this kind, so it lets nobody in.",
+        "remove": "Remove {kind}",
+        "add": "Add who may see it"
+      }
     }
   }
 }

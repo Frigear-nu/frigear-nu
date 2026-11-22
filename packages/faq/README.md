@@ -2,7 +2,7 @@
 
 Short, bilingual questions and answers, managed once in an admin area and shown anywhere: in Markdown (MDC) pages, in
 custom pages, in the help center (later) and in the mobile app. It replaces hand-written FAQ cards in page frontmatter.
-Every group and item stores who may read it as a grant list of [`@frigear-nu/grants`](../grants): a group with a
+Every group and item stores who may read it as a grant list of [`@frigear-nu/auth`](../auth): a group with a
 `public` grant needs no sign-in, anything else goes through the `faq:read` permission and its policy. An empty list
 admits nobody, and an item without a list of its own inherits its group.
 

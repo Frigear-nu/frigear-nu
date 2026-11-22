@@ -40,12 +40,12 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Send email and SMS | [Notify](/modules/platform/notify) | Nothing else |
 | Write a module of your own | [Module Kit](/modules/platform/module-kit) | Nothing else |
 | Give users a home screen of cards that modules fill and they can rearrange | [Dashboard](/modules/volunteering/dashboard) | Widget, UI |
-| Decide who may see a record by role, team role or operation | [Grants](/modules/platform/grants) | Auth, UI |
-| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, Grants, UI |
-| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, Grants, UI |
-| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, Grants, UI |
-| Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, Grants, UI |
-| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, Grants, UI |
+| Decide who may see a record by role, team role or operation | [Auth](/contribute/writing-a-module/access-control#record-audiences) | Notify (server mode); add [Authorization](/modules/identity/authorization) for `role` grants |
+| Track the occasions you work at, such as a festival bar, for crew and shifts to attach to | [Operations](/modules/volunteering/operations) | Auth, UI |
+| Put people in teams with roles, by hand or from their global role or plan | [Teams](/modules/volunteering/teams) | Auth, Users, UI |
+| Manage questions and answers once and show them on pages, in the app and on custom pages | [FAQ](/modules/volunteering/faq) | Auth, UI |
+| Take applications for an operation's crew, approve them and invite people straight onto a team | [Crew](/modules/volunteering/crew) | Operations, Teams, Forms, Notify, Auth, Users, UI |
+| Publish help articles, public or per role, and track an onboarding checklist | [Help center](/modules/volunteering/help-center) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -120,7 +120,6 @@ The foundations that other modules and apps stand on.
 | --- | --- | :---: | :---: | :---: |
 | [Module Kit](/modules/platform/module-kit) | Helpers for writing modules, the server toolkit and extendable database tables. | ✓ |  |  |
 | [Notify](/modules/platform/notify) | Email, SMS and simple notification drivers and dispatch. | ✓ |  |  |
-| [Grants](/modules/platform/grants) | Who may see a record, as a list of grants where any one admits, with kinds modules register and a list editor. | ✓ | ✓ |  |
 | [Email Templates](/modules/platform/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
 | [Base Layer](/modules/platform/base-layer) | A Nuxt layer, not a module. Your app extends it to get the modules, styling and content conventions of Frigear websites. |  | ✓ |  |
 
