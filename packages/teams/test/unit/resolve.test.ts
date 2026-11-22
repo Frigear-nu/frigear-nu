@@ -45,6 +45,13 @@ describe('mappedGrantsFor', () => {
 })
 
 describe('mergeTeamGrants', () => {
+  it('gives no mapped grant on a team where an explicit row grants nothing (pending, inactive)', () => {
+    const mapped = mappedGrantsFor([barA, barB], [rule({})], ladders)
+    expect(mergeTeamGrants([], mapped, ladders, ['tem_a'])).toEqual([
+      { ownerType: 'operation', ownerId: 'opr_1', teamId: 'tem_b', kind: 'bar', role: 'lead', source: 'mapped' },
+    ])
+  })
+
   it('keeps explicit grants first, and an explicit grant beats a mapped one on the same team', () => {
     const mapped = mappedGrantsFor([barA, barB], [rule({})], ladders)
     const merged = mergeTeamGrants([explicit(barA, 'volunteer')], mapped, ladders)
