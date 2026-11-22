@@ -185,6 +185,16 @@ describe('teams (authenticated, database-backed)', async () => {
       expect(patched).toMatchObject({ name: 'Renamed bar', capacity: null, kind: 'bar' })
     })
 
+    it('searches names with capital Ø, Æ and Å in any language and case (teams.searchText)', async () => {
+      const marker = `dk${++counter}`
+      const team = await createTeam({ name: { da: `ØLTELT ÆBLE ${marker}`, en: `Beer tent ${marker}` } })
+      const found = async (q: string) => ((await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.teams}?q=${encodeURIComponent(q)}&pageSize=100`))).items as Json[]).map(item => item.id)
+      for (const q of [`øltelt æble ${marker}`, `Øltelt ÆBLE ${marker}`, `BEER TENT ${marker}`]) expect(await found(q), q).toEqual([team.id])
+      await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.team(team.id), { name: `Årets bar ${marker}` }))
+      expect(await found(`ÅRETS BAR ${marker}`)).toEqual([team.id])
+      expect(await found(`øltelt æble ${marker}`)).toEqual([])
+    })
+
     it('validates the owner, the kind and the parent (400)', async () => {
       const base = { kind: 'bar', name: 'Nope' }
       for (const body of [

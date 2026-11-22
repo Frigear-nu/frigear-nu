@@ -20,11 +20,11 @@ export default defineEventHandler(async (event) => {
 
   await assertEmailAvailable(input.email)
 
-  const [user] = await db.insert(schema.users).values({
+  const [user] = await db.insert(schema.users).values(withUserSearchText({
     name: input.name,
     email: input.email,
     emailVerifiedAt: input.emailVerified ? new Date() : null,
-  } as typeof schema.users.$inferInsert).returning()
+  }) as typeof schema.users.$inferInsert).returning()
 
   if (!user) {
     throw apiError(500, 'internal_error', 'Failed to create the user.')

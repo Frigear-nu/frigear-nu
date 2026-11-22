@@ -77,17 +77,3 @@ export function createHelpCenterPaths(areas: HelpCenterAreas) {
 }
 
 export type HelpCenterPaths = ReturnType<typeof createHelpCenterPaths>
-
-/** How the site's locales appear in paths: what `@nuxtjs/i18n` was configured with, as the module records it. */
-export type HelpCenterI18n = { strategy: string, defaultLocale: string | null, locales: string[] }
-
-/**
- * `path` with the prefix of `locale` when the site uses prefixed routes (`prefix`, `prefix_and_default`, and
- * `prefix_except_default` for a locale other than the default). Links that leave the app (emails) cannot ask
- * `useLocaleLink`, so they use this. An unknown locale, or no i18n, leaves the path as it is.
- */
-export function localizeHelpCenterPath(path: string, locale: string | undefined, i18n: HelpCenterI18n | null | undefined): string {
-  if (!locale || !i18n || !i18n.locales.includes(locale) || i18n.strategy === 'no_prefix') return path
-  if (i18n.strategy === 'prefix_except_default' && locale === i18n.defaultLocale) return path
-  return `/${locale}${path}`
-}

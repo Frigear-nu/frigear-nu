@@ -50,6 +50,13 @@
       "when": 1795380031235,
       "tag": "0006_inbox_message_sender_permanent_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1795382552470,
+      "tag": "0007_search_text",
+      "breakpoints": true
     }
   ]
 }

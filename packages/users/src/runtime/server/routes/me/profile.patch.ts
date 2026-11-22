@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
   const [updated] = await db.update(schema.users)
     .set({
-      ...(name !== undefined ? { name } : {}),
+      ...(name !== undefined ? withUserSearchText({ name }) : {}),
       ...(avatar !== undefined ? { avatar } : {}),
       ...(phone !== undefined ? { phone } : {}),
       ...(locale !== undefined ? { locale } : {}),

@@ -183,6 +183,17 @@ describe('operations (authenticated, database-backed)', async () => {
       // A capital inside the name.
       expect(await found(`århus ${marker}`)).toEqual([aarhus.id])
       expect(await found(`Århus ${marker}`)).toEqual([aarhus.id])
+      // Capitals in the middle of a word, and names stored in capitals (operations.searchText is folded on write).
+      const caps = await createOperation({ slug: `${marker}-caps`, name: { da: `STORE ØLBAR ÆBLEGÅRD ${marker}` } })
+      expect(await found(`ølbar æblegård ${marker}`)).toEqual([caps.id])
+      expect(await found(`æblegård ${marker}`)).toEqual([caps.id])
+      expect(await found(`ÆbleGÅRD ${marker}`)).toEqual([caps.id])
+      expect(await found(`${marker}-caps`)).toEqual([caps.id])
+      // A rename or a new slug is searchable at once, the old name no longer.
+      expect((await json(staff.cookie, 'PATCH', operationsApi.admin.operation(caps.id), { name: { da: `Åkande ${marker}` }, slug: `${marker}-akande` })).status).toBe(200)
+      expect(await found(`ÅKANDE ${marker}`)).toEqual([caps.id])
+      expect(await found(`${marker}-akande`)).toEqual([caps.id])
+      expect(await found(`ølbar æblegård ${marker}`)).toEqual([])
     })
 
     it('validates the body', async () => {
