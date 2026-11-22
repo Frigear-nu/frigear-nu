@@ -66,11 +66,11 @@ const store: AuthUserStore = {
     return await findUserByEmail(email)
   },
   async create(values) {
-    const [user] = await db.insert(schema.users).values(withNormalizedEmail(values)).returning()
+    const [user] = await db.insert(schema.users).values(withUserSearchText(withNormalizedEmail(values))).returning()
     return user!
   },
   async update(id, values) {
-    const [user] = await db.update(schema.users).set(withNormalizedEmail(values)).where(eq(schema.users.id, id)).returning()
+    const [user] = await db.update(schema.users).set(withUserSearchText(withNormalizedEmail(values))).where(eq(schema.users.id, id)).returning()
     return user ?? null
   },
   async remove(id) {

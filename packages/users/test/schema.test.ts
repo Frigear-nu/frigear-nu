@@ -10,6 +10,7 @@ describe.each(dialects)('users schema ($dialect)', ({ users }) => {
     expect(Object.keys(getTableColumns(users))).toEqual([
       'id',
       'name',
+      'searchText',
       'email',
       'avatar',
       'phone',

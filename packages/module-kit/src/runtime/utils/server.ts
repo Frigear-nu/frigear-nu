@@ -125,6 +125,10 @@ export type TableExtensionOptions = {
  * or a plain columns object) and is merged into every table it has a matching export for; omit `name` unless you
  * need to restrict it. A file that does not exist for the active dialect is skipped. Hooks into
  * `module-kit:db:table:extend`, which `registerDatabaseTable` fires once per table.
+ *
+ * An extension written as a table call can declare indexes on the columns it adds, in its table-config argument
+ * (`sqliteTable('team_members', { ... }, t => [index('team_member_submission_idx').on(t.submissionId)])`), in both
+ * dialect files: they are merged with the base table's own.
  */
 export const extendDatabaseTable = (nuxt: Nuxt, options: TableExtensionOptions): void => {
   const names = options.name === undefined ? undefined : (Array.isArray(options.name) ? options.name : [options.name])
@@ -264,6 +268,25 @@ const mergeSpecifier = (specifiers: Map<string, string>, specifier: string) => {
   if (existing === undefined || (existing.startsWith('type ') && !specifier.startsWith('type '))) specifiers.set(bare, specifier)
 }
 
+/** Turns a table-config result (an array, or drizzle's older object of named entries) into an array. */
+const TABLE_CONFIG_HELPER = `
+const tableConfigEntries = (config: unknown) => (Array.isArray(config) ? config : Object.values(config ?? {})) as never[]
+`
+
+/**
+ * The table-config argument of a generated table: the base's own arguments when no extension adds one, else one
+ * callback that calls the base's and every extension's callback with the merged table and joins their entries, so an
+ * extension file can declare indexes on the columns it adds. Each callback is called right away with `table`, which
+ * types its parameter.
+ */
+const tableConfigSource = (baseArgs: string[] | undefined, configs: string[]) => {
+  if (configs.length <= (baseArgs?.length ? 1 : 0)) return baseArgs?.length ? { source: baseArgs.join(', '), merged: false } : undefined
+  return {
+    source: `table => [\n${configs.map(config => `  ...tableConfigEntries((${config})(table)),`).join('\n')}\n]`,
+    merged: true,
+  }
+}
+
 const buildRegularTableTemplate = (options: {
   names: string[]
   dialect: string
@@ -300,6 +323,8 @@ const buildRegularTableTemplate = (options: {
 
     const properties = new Map(base.properties)
     addImports(base.imports)
+    // The table-config callbacks (indexes, constraints) of the base and of every extension, merged into one below.
+    const configs: string[] = base.tableCall.extraArgs?.length ? [base.tableCall.extraArgs[0]!] : []
 
     for (const { file, legacy, perTable } of extensionsByName.get(name) ?? []) {
       const parsed = parseRegularTableExport(file, name) ?? (legacy ? parseRegularTableExport(file, 'default') : undefined)
@@ -311,7 +336,10 @@ const buildRegularTableTemplate = (options: {
       }
 
       if (parsed.tableCall?.extraArgs?.length) {
-        warnOnce(`indexes:${file}:${name}`, `"${file}" (table "${name}"): the table-config argument (indexes, constraints) of an extension file is ignored. Declare it in the base schema, or add it in a migration.`)
+        if (parsed.tableCall.extraArgs.length > 1) {
+          warnOnce(`indexes:${file}:${name}`, `"${file}" (table "${name}"): only the first table-config argument (indexes, constraints) of an extension file is merged.`)
+        }
+        configs.push(parsed.tableCall.extraArgs[0]!)
       }
       if (parsed.tableCall && parsed.tableCall.tableName !== base.tableCall.tableName) {
         warnOnce(`table-name:${file}:${name}`, `"${file}" (table "${name}") declares the SQL table "${parsed.tableCall.tableName}" but the base schema declares "${base.tableCall.tableName}"; the base name is used.`)
@@ -324,17 +352,17 @@ const buildRegularTableTemplate = (options: {
       addImports(parsed.imports)
     }
 
-    return { name, tableCall: base.tableCall, properties }
+    return { name, tableCall: base.tableCall, properties, config: tableConfigSource(base.tableCall.extraArgs, configs) }
   })
 
   return addTemplate({
     filename: templateFilename(tables.map(({ name }) => name), dialect),
     write: true,
     getContents: () => `${[...importsByModule].map(([module, specifiers]) => `import { ${[...specifiers.values()].join(', ')} } from ${JSON.stringify(module)}`).join('\n')}
-${tables.map(({ name, tableCall, properties }) => `
+${tables.some(({ config }) => config?.merged) ? TABLE_CONFIG_HELPER : ''}${tables.map(({ name, tableCall, properties, config }) => `
 export const ${name} = ${tableCall.callee}(${JSON.stringify(tableCall.tableName)}, {
 ${[...properties.values()].map(property => `  ${property},`).join('\n')}
-}${tableCall.extraArgs?.length ? `, ${tableCall.extraArgs.join(', ')}` : ''})
+}${config ? `, ${config.source}` : ''})
 `).join('')}`,
   })
 }
