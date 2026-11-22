@@ -51,8 +51,10 @@ const redirects: Record<string, string> = {
   "/modules/platform/email-templates/components": "/modules/communication/email-templates/components",
   "/modules/platform/email-templates/server": "/modules/communication/email-templates/server",
   "/modules/platform/email-templates/module-emails": "/modules/communication/email-templates/module-emails",
-  "/modules/volunteering/audience": "/modules/platform/grants",
-  "/modules/organisation/audience": "/modules/platform/grants",
+  "/modules/volunteering/audience": "/contribute/writing-a-module/access-control#record-audiences",
+  "/modules/organisation/audience": "/contribute/writing-a-module/access-control#record-audiences",
+  // Grant lists moved into Auth (`@frigear-nu/auth/grants`); the page became a section of Access control.
+  "/modules/platform/grants": "/contribute/writing-a-module/access-control#record-audiences",
   // The volunteering overview page was removed; its contracts live on each module's page.
   "/modules/volunteering": "/modules#volunteering",
 };

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { grantFields } from '#grants/fields'
+import { grantFields } from '#auth/grant-fields'
 import { computed, defineAsyncComponent, useModuleT, useNuxtApp } from '#imports'
 import type { Component } from 'vue'
-import type { Grant } from '../../../types'
+import type { Grant } from '../../utils/grants'
 
 defineOptions({ name: 'GrantsEditor' })
 
@@ -15,7 +15,7 @@ const props = defineProps<{
 }>()
 const model = defineModel<Grant[]>({ default: () => [] })
 
-const t = useModuleT('grants')
+const t = useModuleT('auth')
 // A kind's `labelKey` is a full i18n key of the module that registers it (`teams.grants.team`).
 const i18n = useNuxtApp().$i18n as { t: (key: string) => string, te?: (key: string) => boolean } | undefined
 const translated = (key: string | undefined, fallback: string) => key && i18n?.te?.(key) ? i18n.t(key) : fallback
@@ -62,8 +62,8 @@ function remove(index: number) {
   <div class="flex w-full flex-col gap-3">
     <p class="text-muted text-sm">
       {{ model.length
-        ? t('editor.any', 'Anyone who matches one of these sees it.')
-        : t('editor.nobody', 'Nobody sees it yet: add who may.') }}
+        ? t('grants.editor.any', 'Anyone who matches one of these sees it.')
+        : t('grants.editor.nobody', 'Nobody sees it yet: add who may.') }}
     </p>
 
     <div
@@ -88,7 +88,7 @@ function remove(index: number) {
           v-else-if="!fields.has(grant.kind)"
           class="text-error text-sm"
         >
-          {{ t('editor.unknown', 'No installed module knows this kind, so it lets nobody in.') }}
+          {{ t('grants.editor.unknown', 'No installed module knows this kind, so it lets nobody in.') }}
         </p>
       </div>
       <UButton
@@ -97,7 +97,7 @@ function remove(index: number) {
         variant="ghost"
         size="sm"
         :disabled="disabled"
-        :aria-label="t('editor.remove', 'Remove {kind}', { kind: labelOf(grant.kind) })"
+        :aria-label="t('grants.editor.remove', 'Remove {kind}', { kind: labelOf(grant.kind) })"
         @click="remove(index)"
       />
     </div>
@@ -111,7 +111,7 @@ function remove(index: number) {
         color="neutral"
         variant="outline"
         class="self-start"
-        :label="t('editor.add', 'Add who may see it')"
+        :label="t('grants.editor.add', 'Add who may see it')"
         :disabled="disabled || !addItems.length"
       />
     </UDropdownMenu>

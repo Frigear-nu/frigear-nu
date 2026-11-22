@@ -3,7 +3,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpChecklistFormState, type StaffHelpChecklist, checklistToForm, emptyHelpChecklistForm, formToChecklistBody, helpChecklistFormSchema } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, reactive, useAction, useHelpCenterTranslate, useModuleT } from '#imports'
-import { grantFields } from '#grants/fields'
+import { grantFields } from '#auth/grant-fields'
 
 defineOptions({ name: 'HelpChecklistFormSlideover' })
 

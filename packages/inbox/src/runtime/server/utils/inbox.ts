@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { asc, eq, inArray } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { readGrants } from '@frigear-nu/grants/core'
+import { readGrants } from '@frigear-nu/auth/grants'
 import { apiError, likeContains, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../access'
 import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
@@ -122,7 +122,7 @@ export async function inboxSeesHidden(subject: InboxSubject, hiddenBelow: string
 
 /**
  * The record rule of `inbox:read` and `inbox:reply` for a mailbox: staff with `inbox:manage` read every one, a team's
- * leads read the team's, anyone else whom its grants (`@frigear-nu/grants`) admit. An empty list lets nobody else in, and
+ * leads read the team's, anyone else whom its grants (`@frigear-nu/auth`) admit. An empty list lets nobody else in, and
  * a `public` grant never counts: a mailbox holds outsiders' messages, so it is never open to everyone.
  */
 export async function inboxCanAccessMailbox(event: H3Event, subject: InboxSubject, mailbox: InboxMailboxRow): Promise<boolean> {

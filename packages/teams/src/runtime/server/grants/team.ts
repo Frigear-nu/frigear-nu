@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { defineGrantKind } from '@frigear-nu/grants/core'
+import { defineGrantKind } from '@frigear-nu/auth/grants'
 import type { TeamGrant } from '../../../types'
 import { ladderKeys, roleAtLeast } from '../../utils/ladders'
 
-// The `team` grant kind of `@frigear-nu/grants`: the users holding `minRole`, or a role above it on the ladder of the
+// The `team` grant kind of `@frigear-nu/auth`: the users holding `minRole`, or a role above it on the ladder of the
 // team's kind, on one team. Explicit and mapped roles both count; a pending or inactive membership does not. The
 // ladders are the app's (the module option), so a role off the ladder admits nobody.
 export default defineGrantKind<TeamGrant>('team', {

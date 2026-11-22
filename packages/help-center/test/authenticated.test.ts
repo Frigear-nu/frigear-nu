@@ -22,7 +22,7 @@ const ok = async (response: Response) => {
 }
 
 const both = (en: string, da: string) => ({ en, da })
-// Grant lists (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. Every signed-in user of the
+// Grant lists (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. Every signed-in user of the
 // fixture holds the default role `member`, so MEMBERS is "every signed-in user".
 const PUBLIC = [{ kind: 'public' }]
 const MEMBERS = [{ kind: 'role', role: 'member' }]

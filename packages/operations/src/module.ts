@@ -17,8 +17,7 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
-import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
-import { extendGrants } from '@frigear-nu/grants/utils'
+import { addPolicies, extendGrants, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
 import { OPERATIONS_DASHBOARD, operationsDashboardItems } from './runtime/dashboard'
 import { defineMapFeatureKind, extendMaps } from '@frigear-nu/maps/utils'
@@ -72,8 +71,6 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-    // Registers the `operation` grant kind: who takes part in an operation.
-    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Items on the `crew.home` dashboard.
@@ -143,7 +140,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // The `operation` grant kind (`@frigear-nu/grants`): the users who take part in the operation, answered by the
+    // The `operation` grant kind (`@frigear-nu/auth`): the users who take part in the operation, answered by the
     // `operations:participation:resolve` and `operations:participants:resolve` hooks.
     extendGrants(nuxt, {
       kind: 'operation',

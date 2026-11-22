@@ -1,6 +1,6 @@
 import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import { readGrants } from '@frigear-nu/grants/core'
+import { readGrants } from '@frigear-nu/auth/grants'
 import type {
   InboxAuditAction,
   InboxAuditDto,

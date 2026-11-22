@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { grantListShape } from '@frigear-nu/grants/core'
+import { grantListShape } from '@frigear-nu/auth/grants'
 import { pageQuery } from '@frigear-nu/module-kit/server'
 import { INBOX_CHANNEL_ID } from '../../utils/registry'
 

@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import { validationError } from '@frigear-nu/module-kit/server'
 
 /**
@@ -21,7 +21,7 @@ export async function inboxCheckMailboxOwner(event: H3Event, ownerType: 'platfor
 }
 
 /**
- * Who reads a mailbox besides staff: its grants (`@frigear-nu/grants`), checked by their kinds. A mailbox holds outsiders'
+ * Who reads a mailbox besides staff: its grants (`@frigear-nu/auth`), checked by their kinds. A mailbox holds outsiders'
  * messages, so a `public` grant is refused, and a platform mailbox must name who reads it (an empty list would be staff
  * only, which is never what a platform mailbox is for). A team mailbox may leave it empty: its leads read it.
  */

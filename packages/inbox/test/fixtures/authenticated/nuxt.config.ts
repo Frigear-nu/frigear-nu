@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
+import { addRole, extendGrants, setRoleProvider } from '@frigear-nu/auth/utils'
 import { extendInbox } from '../../../src/runtime/utils'
 import InboxModule from '../../../src/module'
 
@@ -27,6 +27,8 @@ export default defineNuxtConfig({
       // A privacy officer: contact details, exports and the audit log, but only the mailboxes a coordinator reads.
       addRole(nuxt, { name: 'dpo', label: 'Privacy officer', grant: ['inbox:pii', 'inbox-audit:pii'], inherit: ['coordinator'] })
       setRoleProvider(nuxt, { path: here('./server/roles/provider') })
+      // `role` grants without `@frigear-nu/authorization`: a stand-in kind that reads this provider (`grants/role.ts`).
+      extendGrants(nuxt, { kind: 'role', label: 'Role', server: here('./grants/role') })
     },
     // A module with a channel of its own, registered with `extendInbox` only: its adapter records what it sends and reads
     // its webhook (`server/inbox/fake-channel.ts`).

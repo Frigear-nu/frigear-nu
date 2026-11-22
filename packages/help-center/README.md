@@ -3,7 +3,7 @@
 Bilingual help articles in categories, public or visible per role, with onboarding checklists that track what each
 volunteer has read. Articles come from the database (edited in an admin area) or from Nuxt Content, behind one source
 interface. Every category, article and checklist stores who may read it as a grant list of
-[`@frigear-nu/grants`](../grants), read through `help-center:read` and its policy; a `public` grant needs no sign-in, and
+[`@frigear-nu/auth`](../auth), read through `help-center:read` and its policy; a `public` grant needs no sign-in, and
 an empty list admits nobody. A send reaches the members of a grant list.
 
 - **Public area** (`/help`): public articles only, the same for every visitor, so it caches and indexes the same way.

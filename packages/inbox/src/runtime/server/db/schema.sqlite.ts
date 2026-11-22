@@ -3,7 +3,7 @@ import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqli
 // (declared here, not imported: this file is merged into the generated schema as plain text)
 // A text in one language, or a `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 type Translated = string | Record<string, string>
-// Who may read a record, see `Grant` of `@frigear-nu/grants`.
+// Who may read a record, see `Grant` of `@frigear-nu/auth`.
 type Grant = { kind: string } & Record<string, unknown>
 // A file on a message: a Blob pathname or a provider URL, never the bytes.
 type InboxAttachment = { filename: string, contentType?: string, size?: number, pathname?: string, url?: string }
@@ -18,7 +18,7 @@ export const inboxMailboxes = sqliteTable('inbox_mailboxes', {
   /** The owner's id as text; `null` for `platform`. */
   ownerId: text(),
   name: text({ mode: 'json' }).$type<Translated>().notNull(),
-  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  /** Who may read it (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: text({ mode: 'json' }).$type<Grant[]>().notNull().default([]),
   /** Days a closed thread is kept; `null` takes the module's `retention.days`. */
   retentionDays: integer(),
