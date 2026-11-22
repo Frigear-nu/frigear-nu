@@ -164,10 +164,11 @@
       "unpublished": "Trak {name} tilbage",
       "updatedAt": "Opdateret",
       "display": "Vises som",
-      "displayHelp": "En artikelliste linker til hver artikel. Spørgsmål folder svaret ud på stedet, som en FAQ.",
+      "displayHelp": "En artikelliste linker til hver artikel. Spørgsmål åbner svaret på stedet, som en FAQ. Spørgsmålskort viser hver artikel som sit eget kort.",
       "displays": {
         "list": "Artikelliste",
-        "accordion": "Spørgsmål (FAQ)"
+        "accordion": "Spørgsmål (FAQ)",
+        "cards": "Spørgsmålskort (FAQ)"
       },
       "icon": "Ikon",
       "iconHelp": "Et ikonnavn som i-lucide-info.",
@@ -188,7 +189,19 @@
       "dragToReorder": "Træk for at ændre rækkefølgen",
       "publishMissing": "Mangler stadig: {fields}",
       "missingToPublish": "Skal udfyldes før udgivelse: {locales}",
-      "saveAndPublish": "Udgiv artikel"
+      "saveAndPublish": "Udgiv artikel",
+      "faqBodyHelp": "I spørgsmålskort er teksten før den første blok kortets beskrivelse. Et spørgsmål, der åbner i kortet: {details}, en liste, og så {end} på sin egen linje. En knap: {link}, og så {end}.",
+      "faq": {
+        "title": "FAQ",
+        "description": "Spørgsmål og svar på sidens sider: hjælpecentrets kategorier vist som spørgsmål.",
+        "openHelpCenter": "Åbn hjælpecenter",
+        "createCategory": "Tilføj FAQ-kategori",
+        "empty": "Ingen FAQ-kategorier endnu",
+        "emptyDescription": "Tilføj en kategori vist som spørgsmål, og tilføj så dens spørgsmål.",
+        "question": "Spørgsmål",
+        "addQuestion": "Tilføj spørgsmål",
+        "questionsEmpty": "Ingen spørgsmål endnu"
+      }
     },
     "article": {
       "loadFailed": "Artiklen kunne ikke indlæses",
@@ -227,6 +240,10 @@
       "signedIn": {
         "description": "Guider, introduktion og svar til dig.",
         "label": "Hjælpecenter"
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Administrer spørgsmål og svar, der vises på sidens sider."
       }
     },
     "mobile": {

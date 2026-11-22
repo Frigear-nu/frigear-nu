@@ -5,8 +5,8 @@ import { computed, errorMessage, setResponseStatus, useRequestEvent, useHelpCent
 defineOptions({ name: 'HelpCenterCategoryView' })
 
 // One category: its subcategories and its articles. A `list` category links to each article's page; an `accordion`
-// category shows each article as a question whose text opens in place and, in the public area, adds the public ones to
-// the page's `FAQPage` JSON-LD.
+// category shows each article as a question whose text opens in place, a `cards` category each article as a card of its
+// own (`FaqCard`); both add the public ones to the page's `FAQPage` JSON-LD in the public area.
 const props = defineProps<{ area: 'public' | 'signedIn', category: string }>()
 
 const isPublic = props.area === 'public'
@@ -24,9 +24,10 @@ const current = computed(() => categories.value.find(category => category.slug =
 const children = computed(() => current.value ? categories.value.filter(category => category.parentId === current.value!.id) : [])
 const parent = computed(() => current.value?.parentId ? categories.value.find(category => category.id === current.value!.parentId) : undefined)
 
-// An accordion needs the articles' text: fetched only for an accordion category, with the JSON-LD in the public area.
+// An accordion or cards needs the articles' text: fetched only for such a category, with the JSON-LD in the public area.
 const accordion = computed(() => current.value?.display === 'accordion')
-const { faqs, loading: faqsLoading } = useHelpCenterFaqCards(() => ({ categories: accordion.value ? [props.category] : undefined, public: isPublic }), { jsonLd: isPublic })
+const asCards = computed(() => current.value?.display === 'cards')
+const { faqs, cards, loading: faqsLoading } = useHelpCenterFaqCards(() => ({ categories: accordion.value || asCards.value ? [props.category] : undefined, public: isPublic }), { jsonLd: isPublic })
 const accordionArticles = computed(() => faqs.value[0]?.articles ?? [])
 
 const breadcrumb = computed(() => [
@@ -64,7 +65,27 @@ useSeoMeta({ title: () => current.value ? tr(current.value.name) : t('title', 'H
         />
       </UPageGrid>
 
-      <template v-if="accordion && articles.length">
+      <UPageGrid
+        v-if="asCards && articles.length"
+        data-test="help-center-cards"
+      >
+        <template v-if="faqsLoading">
+          <USkeleton
+            v-for="n in Math.min(articles.length, 3)"
+            :key="n"
+            class="h-40"
+          />
+        </template>
+        <template v-else>
+          <FaqCard
+            v-for="(card, index) in cards"
+            :key="index"
+            v-bind="card"
+            :public="isPublic"
+          />
+        </template>
+      </UPageGrid>
+      <template v-else-if="accordion && articles.length">
         <div
           v-if="faqsLoading"
           class="flex flex-col gap-2"
