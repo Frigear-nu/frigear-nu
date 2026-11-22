@@ -1,5 +1,4 @@
 import { pgTable, text, integer, jsonb, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
-import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 // Texts that can be shown in several languages are stored as json: either a plain string, or a
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
@@ -25,6 +24,8 @@ export const teams = pgTable('teams', {
   /** The team kind, whose ladder holds the members' roles (`default`, or a kind the app defines). */
   kind: text().notNull(),
   name: jsonb().$type<Translated>().notNull(),
+  /** `name` in every language, folded for search (`searchText` of `@frigear-nu/module-kit/server`). */
+  searchText: text().notNull().default(''),
   description: jsonb().$type<Translated>(),
   /** How many people the team needs; informational. */
   capacity: integer(),
@@ -53,10 +54,6 @@ export const teamMembers = pgTable('team_members', {
 }, t => [
   uniqueIndex('team_member_unique').on(t.teamId, t.userId),
   index('team_member_user_idx').on(t.userId),
-  // Indexes on columns an extension adds (crew's `submissionId` and `crewStatus`). An extension file cannot declare
-  // indexes, so the base declares them, for whichever of these columns the merged table has.
-  ...('submissionId' in t ? [index('team_member_submission_idx').on(t.submissionId as AnyPgColumn)] : []),
-  ...('crewStatus' in t ? [index('team_member_crew_status_idx').on(t.crewStatus as AnyPgColumn)] : []),
 ])
 
 /** The role ladder of each team kind, lowest first. Seeded from the module option `ladders`; admins may edit it. */

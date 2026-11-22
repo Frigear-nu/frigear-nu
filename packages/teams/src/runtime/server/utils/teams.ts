@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, count, eq, inArray } from 'drizzle-orm'
-import { conflict, isUniqueViolation, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { conflict, isUniqueViolation, notFound, searchText, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { AdminTeamDto, OwnerRef, TeamMemberDto, TeamOwner, Translated } from '../../../types'
 import { newId } from '../../utils'
@@ -136,6 +136,7 @@ export async function createTeamRow(event: H3Event, input: TeamInput): Promise<T
     parentId: input.parentId ?? null,
     kind: input.kind,
     name: input.name,
+    searchText: searchText(input.name),
     description: input.description ?? null,
     capacity: input.capacity ?? null,
     sort: input.sort ?? 0,
@@ -147,7 +148,10 @@ export async function createTeamRow(event: H3Event, input: TeamInput): Promise<T
 export async function patchTeamRow(existing: TeamRow, patch: TeamPatch): Promise<TeamRow> {
   if (patch.parentId !== undefined) await assertTeamParent(patch.parentId, { ownerType: existing.ownerType, ownerId: existing.ownerId ?? null }, existing.id)
   const values: Partial<typeof schema.teams.$inferInsert> = {}
-  if (patch.name !== undefined) values.name = patch.name
+  if (patch.name !== undefined) {
+    values.name = patch.name
+    values.searchText = searchText(patch.name)
+  }
   if (patch.description !== undefined) values.description = patch.description
   if (patch.parentId !== undefined) values.parentId = patch.parentId
   if (patch.capacity !== undefined) values.capacity = patch.capacity
