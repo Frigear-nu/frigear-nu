@@ -31,7 +31,7 @@ export type TeamRoleGrant = {
   source: 'explicit' | 'mapped'
 }
 
-/** The `team` grant of `@frigear-nu/grants`: the users holding `minRole` or a higher role on the team. */
+/** The `team` grant of `@frigear-nu/auth`: the users holding `minRole` or a higher role on the team. */
 export type TeamGrant = { kind: 'team', teamId: string, minRole: string }
 
 /**

@@ -1,5 +1,5 @@
 // Test-only: how a `team` grant (`?teamId=&minRole=`) evaluates, the way a content module asks through
-// `@frigear-nu/grants`: for the caller (cookie or bearer), or for `?userId=` (another user, as a send does), and who it
+// `@frigear-nu/auth`: for the caller (cookie or bearer), or for `?userId=` (another user, as a send does), and who it
 // lists.
 export default defineEventHandler(async (event) => {
   const principal = await requireAuth(event)

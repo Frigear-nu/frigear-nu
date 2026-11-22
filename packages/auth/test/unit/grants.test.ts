@@ -12,11 +12,13 @@ import {
   matchGrantList,
   publicGrantSchema,
   readGrants,
-  roleGrantSchema,
-} from '../../src/runtime/utils/core'
+} from '../../src/runtime/grants'
+import { extendGrants, registeredGrantKinds } from '../../src/runtime/utils/grants-build'
 
 const event = {} as H3Event
 const roles: Record<number, string[]> = { 1: ['admin'], 2: ['member'] }
+// A stand-in for the `role` kind of `@frigear-nu/authorization`, which auth does not ship.
+const roleGrantSchema = z.strictObject({ kind: z.literal('role'), role: z.string().trim().min(1).max(64) })
 
 const registry = createGrantRegistry([
   defineGrantKind('public', { schema: publicGrantSchema, matches: () => true, members: () => [] }),
@@ -111,5 +113,15 @@ describe('defineGrantKind and chunkGrantParams', () => {
     const chunks = chunkGrantParams(ids)
     expect(chunks.map(chunk => chunk.length)).toEqual([GRANT_PARAM_CHUNK, GRANT_PARAM_CHUNK, 200 - 2 * GRANT_PARAM_CHUNK])
     expect(chunks.flat()).toEqual(ids)
+  })
+})
+
+describe('extendGrants', () => {
+  it('collects kinds, replaces one registered again and refuses a bad name', () => {
+    const nuxt = { options: {} } as Parameters<typeof extendGrants>[0]
+    extendGrants(nuxt, [{ kind: 'public', label: 'Everyone', server: '/public' }, { kind: 'team', label: 'Team', server: '/team' }])
+    extendGrants(nuxt, { kind: 'team', label: 'Teams', server: '/team-2' })
+    expect(registeredGrantKinds(nuxt).map(kind => [kind.kind, kind.server])).toEqual([['public', '/public'], ['team', '/team-2']])
+    expect(() => extendGrants(nuxt, { kind: 'Team', label: 'Team', server: '/x' })).toThrow()
   })
 })
