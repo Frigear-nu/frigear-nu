@@ -1,4 +1,5 @@
 import { defineGrantKind } from '@frigear-nu/auth/grants'
+import { table } from '#auth/roles'
 import { roleGrantSchema } from '../../utils/grants'
 
 /** The most users the `role` kind checks when it lists members. */
@@ -20,5 +21,10 @@ export default defineGrantKind('role', {
   async members({ event, grants }) {
     const wanted = [...new Set(grants.map(grant => grant.role))]
     return listRoleHolders(event, wanted, { limit: AUTHORIZATION_ROLE_GRANT_MEMBER_LIMIT })
+  },
+  // A role that is not configured would be stored and admit nobody, without a word: refuse it when it is saved. Stored
+  // grants skip this (`grantsValidate`), so a record whose role was since removed from the config can still be edited.
+  validate({ grant }) {
+    return Object.hasOwn(table.roles, grant.role) ? undefined : `"${grant.role}" is not a role.`
   },
 })
