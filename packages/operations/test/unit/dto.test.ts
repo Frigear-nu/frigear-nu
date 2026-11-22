@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { toAdminOperationDto, toOperationDto, toOperationVenueLayoutDto } from '../../src/runtime/server/utils/operations-dto'
+import { toAdminOperationDto, toOperationAdminVenueLayoutDto, toOperationDto, toOperationVenueLayoutDto } from '../../src/runtime/server/utils/operations-dto'
+import { operationVenueRevision } from '../../src/runtime/utils/venue'
 
 // A stored row, with a column the DTOs must never invent or pass on if the table grows one.
 const row = {
@@ -59,5 +60,15 @@ describe('operation DTOs', () => {
     })
     expect(JSON.stringify(dto)).not.toContain('operations/opr_1')
     expect(toOperationVenueLayoutDto({ slug: 'x', venueLayout: null })).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null })
+  })
+
+  it('gives staff the layout\'s revision, which changes with the stored layout only', () => {
+    const layout = { type: 'FeatureCollection' as const, features: [], extent: { width: 10, height: 10 } }
+    const revision = operationVenueRevision(layout)
+    expect(revision).toMatch(/^[0-9a-z]{1,12}$/)
+    expect(operationVenueRevision(JSON.parse(JSON.stringify(layout)))).toBe(revision)
+    expect(operationVenueRevision({ ...layout, extent: { width: 11, height: 10 } })).not.toBe(revision)
+    expect(operationVenueRevision(null)).toBe(operationVenueRevision(undefined))
+    expect(toOperationAdminVenueLayoutDto({ slug: 'x', venueLayout: layout })).toEqual({ ...toOperationVenueLayoutDto({ slug: 'x', venueLayout: layout }), revision })
   })
 })

@@ -5,6 +5,7 @@ import {
   filterByPlatform,
   hideItem,
   isOnPlatform,
+  minimalOrder,
   moveItem,
   normalizeLayout,
   orderItems,
@@ -14,9 +15,12 @@ import {
   showItem,
   toggleCollapsed,
 } from '../../src/runtime/shared/layout'
+import { DASHBOARD_LIMITS, dashboardLayoutSchema } from '../../src/runtime/preferences'
 
 const items = ['a', 'b', 'c', 'd'].map(id => ({ id }))
 const ids = (list: { id: string }[]) => list.map(item => item.id)
+/** The order a layout gives every registered item. */
+const fullOrder = (layout: { order: string[] }, all: string[]) => ids(orderItems(all.map(id => ({ id })), layout.order))
 
 describe('orderItems', () => {
   it('keeps the registered order without a saved order', () => {
@@ -55,16 +59,22 @@ describe('applyLayout', () => {
 })
 
 describe('layout edits', () => {
-  it('moves an item among the shown ones, clamped to the list', () => {
+  it('moves an item among the shown ones, clamped to the list, and stores only the moved ids', () => {
     const all = ['a', 'b', 'c']
-    expect(moveItem(null, all, all, 'c', 0).order).toEqual(['c', 'a', 'b'])
-    expect(moveItem(null, all, all, 'a', 99).order).toEqual(['b', 'c', 'a'])
-    expect(moveItem(null, all, all, 'b', -5).order).toEqual(['b', 'a', 'c'])
+    const first = moveItem(null, all, all, 'c', 0)
+    expect(fullOrder(first, all)).toEqual(['c', 'a', 'b'])
+    expect(first.order).toEqual(['c', 'a'])
+    const last = moveItem(null, all, all, 'a', 99)
+    expect(fullOrder(last, all)).toEqual(['b', 'c', 'a'])
+    expect(last.order).toEqual(['b', 'a'])
+    expect(fullOrder(moveItem(null, all, all, 'b', -5), all)).toEqual(['b', 'a', 'c'])
   })
 
   it('keeps a hidden item where it was', () => {
-    const layout = moveItem({ order: ['a', 'x', 'b'], hidden: ['x'], collapsed: [] }, ['a', 'x', 'b'], ['a', 'b'], 'b', 0)
-    expect(layout.order).toEqual(['b', 'a', 'x'])
+    const all = ['a', 'x', 'b']
+    const layout = moveItem({ order: ['a', 'x', 'b'], hidden: ['x'], collapsed: [] }, all, ['a', 'b'], 'b', 0)
+    expect(fullOrder(layout, all)).toEqual(['b', 'a', 'x'])
+    expect(layout.order).toEqual(['b', 'a'])
     expect(layout.hidden).toEqual(['x'])
   })
 
@@ -72,10 +82,40 @@ describe('layout edits', () => {
     // `m` is mobile-only: moving items on the web keeps it right after `a`, as registered.
     const all = ['a', 'm', 'b', 'c']
     const shown = ['a', 'b', 'c']
-    expect(moveItem(null, all, shown, 'c', 1).order).toEqual(['a', 'm', 'c', 'b'])
-    const swapped = moveItem(null, all, shown, 'b', 2).order
+    const moved = moveItem(null, all, shown, 'c', 1)
+    expect(fullOrder(moved, all)).toEqual(['a', 'm', 'c', 'b'])
+    expect(moved.order).toEqual(['c', 'b'])
+    const swapped = fullOrder(moveItem(null, all, shown, 'b', 2), all)
     expect(swapped).toEqual(['a', 'm', 'c', 'b'])
     expect(swapped.indexOf('m')).toBe(swapped.indexOf('a') + 1)
+    // Applied on either platform with every id, the stored ids give the same order.
+    expect(ids(applyLayout(shown.map(id => ({ id })), moved, all).items)).toEqual(['a', 'c', 'b'])
+    expect(ids(applyLayout(['a', 'm', 'c'].map(id => ({ id })), moved, all).items)).toEqual(['a', 'm', 'c'])
+  })
+
+  it('works on a dashboard with more items than a list may hold', () => {
+    const count = DASHBOARD_LIMITS.idsPerList + 10
+    const all = Array.from({ length: count }, (_, index) => `item-${index}`)
+    let layout = moveItem(null, all, all, `item-${count - 1}`, 0)
+    layout = moveItem(layout, all, fullOrder(layout, all), 'item-10', 40)
+    expect(layout.order.length).toBeLessThanOrEqual(6)
+    expect(dashboardLayoutSchema.safeParse(layout).success).toBe(true)
+    const order = fullOrder(layout, all)
+    expect(order[0]).toBe(`item-${count - 1}`)
+    expect(order[40]).toBe('item-10')
+    expect(order).toHaveLength(count)
+  })
+
+  it('stores the fewest ids that give back the same order', () => {
+    const registered = ['a', 'b', 'c', 'd', 'e', 'f']
+    let seed = 7
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    for (let run = 0; run < 200; run++) {
+      const full = [...registered].sort(() => random() - 0.5)
+      const stored = minimalOrder(registered, full)
+      expect(ids(orderItems(registered.map(id => ({ id })), stored))).toEqual(full)
+    }
+    expect(minimalOrder(registered, registered)).toEqual([])
   })
 
   it('leaves the layout as it is for an unknown id', () => {

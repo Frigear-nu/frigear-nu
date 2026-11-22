@@ -2,7 +2,8 @@ import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { PlaneFeatureCollection } from '@frigear-nu/maps/utils'
 import { operationsApi } from '../../utils/api'
-import type { AdminOperationDto, OperationDto, OperationStatus, OperationVenueLayout } from '../../../types'
+import { operationVenueRevision } from '../../utils/venue'
+import type { AdminOperationDto, OperationDto, OperationStatus, OperationVenueLayout, OperationVenueLayoutDto } from '../../../types'
 
 type OperationRow = typeof schema.operations.$inferSelect
 
@@ -51,4 +52,9 @@ export function toOperationVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venu
       ? { url: `${operationsApi.venueUnderlay(row.slug)}?v=${encodeURIComponent(underlay.pathname.split('/').pop() ?? '')}`, width: underlay.width, height: underlay.height }
       : null,
   }
+}
+
+/** The venue layout for the staff editor: `toOperationVenueLayoutDto` plus the stored layout's `revision`. */
+export function toOperationAdminVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venueLayout'>): OperationVenueLayoutDto {
+  return { ...toOperationVenueLayoutDto(row), revision: operationVenueRevision(row.venueLayout) }
 }

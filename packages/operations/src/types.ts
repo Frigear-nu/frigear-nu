@@ -31,6 +31,16 @@ export type OperationVenueLayout = Omit<PlaneFeatureCollection, 'underlay'> & {
   underlay?: OperationVenueUnderlay | null
 }
 
+/**
+ * The venue layout for the staff editor (`GET`/`PUT` of `operationsApi.admin.venueLayout`): the plane layout plus its
+ * `revision`. Send the revision back with a change (`PUT { layout, revision }`, `POST underlay?revision=`) to get 409
+ * `venue_layout_changed` instead of overwriting a change someone made since.
+ */
+export type OperationVenueLayoutDto = PlaneFeatureCollection & { revision: string }
+
+/** What an underlay upload answers: where the image is, and the layout's new `revision`. */
+export type OperationVenueUnderlayDto = PlaneUnderlay & { revision: string }
+
 export type ModuleOptions = {
   settings?: {
     pages?: {
