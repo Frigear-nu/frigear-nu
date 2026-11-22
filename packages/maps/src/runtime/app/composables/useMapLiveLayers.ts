@@ -26,6 +26,9 @@ const statusOf = (error: unknown) => (error as { statusCode?: number, status?: n
  * Fetches the live layers of a surface in the browser, and refetches each one every `refreshInterval` seconds while the
  * component is mounted. A layer whose route answers 401 or 403 is dropped: the caller may not see it. A layer that
  * fails otherwise keeps its last features.
+ *
+ * `hidden` holds the ids of the layers the viewer hides. A layer registered with `visible: false` starts there. A hidden
+ * layer is not fetched or polled; showing it fetches it at once.
  */
 export function useMapLiveLayers(options: MapLiveLayersOptions) {
   const entries = computed(() => layersForSurface(registeredLayers, toValue(options.surface), toValue(options.only) ?? undefined)
@@ -33,10 +36,23 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
     .filter((entry): entry is { info: MapLayerInfo, url: string } => !!entry.url))
   const collections = shallowRef<Record<string, MapLiveFeatureCollection>>({})
   const refused = ref<string[]>([])
+  const hidden = ref<string[]>([])
+  const known = new Set<string>()
+  watch(entries, (list) => {
+    const start: string[] = []
+    for (const { info } of list) {
+      if (known.has(info.id)) continue
+      known.add(info.id)
+      if (!info.visible) start.push(info.id)
+    }
+    if (start.length) hidden.value = [...new Set([...hidden.value, ...start])]
+  }, { immediate: true })
+  const isHidden = (id: string) => hidden.value.includes(id)
   const timers: ReturnType<typeof setInterval>[] = []
   let active = false
 
   async function load(id: string, url: string) {
+    if (isHidden(id)) return
     try {
       const collection = await $fetch<MapLiveFeatureCollection>(url)
       if (!active) return
@@ -68,6 +84,13 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
     collections.value = {}
     start()
   })
+  // A layer that is shown again is fetched at once rather than at its next tick.
+  watch(hidden, (now, before) => {
+    if (!active) return
+    for (const { info, url } of entries.value) {
+      if (before?.includes(info.id) && !now.includes(info.id)) load(info.id, url)
+    }
+  })
   onBeforeUnmount(() => {
     active = false
     stop()
@@ -77,8 +100,8 @@ export function useMapLiveLayers(options: MapLiveLayersOptions) {
     .filter(entry => !refused.value.includes(entry.info.id))
     .map(entry => ({ ...entry.info, url: entry.url, collection: collections.value[entry.info.id] ?? null })))
 
-  /** Refetches every layer now. */
+  /** Refetches every shown layer now. */
   const refresh = () => Promise.all(entries.value.map(entry => load(entry.info.id, entry.url)))
 
-  return { layers, refresh }
+  return { layers, hidden, refresh }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { areaCentroid, geoBounds, haversineMeters, isGeoPoint, isInLocation, isInsideArea, isWithinRadius, locationBounds } from '../../src/runtime/utils/geo'
+import { areaCentroid, geoBounds, haversineMeters, isGeoPoint, isInLocation, isInsideArea, isWithinRadius, locationBounds, locationFieldMode, locationModeOf } from '../../src/runtime/utils/geo'
 
 const site = { lat: 10.5, lng: 20.25 }
 const town = { lat: 10.75, lng: 20.5 }
@@ -59,5 +59,28 @@ describe('locations', () => {
     expect(haversineMeters({ lat: south, lng: site.lng }, { lat: north, lng: site.lng })).toBeCloseTo(2000, -1)
     expect(east - site.lng).toBeCloseTo(site.lng - west, 9)
     expect(geoBounds([])).toBeNull()
+  })
+})
+
+describe('location picker mode', () => {
+  it('reads the mode of a location', () => {
+    expect(locationModeOf(null)).toBe('point')
+    expect(locationModeOf({ point: site })).toBe('point')
+    expect(locationModeOf({ point: site, radiusMeters: 50 })).toBe('radius')
+    expect(locationModeOf({ point: areaCentroid(square), area: square })).toBe('area')
+  })
+
+  it('keeps "Area" while the point waits for a polygon', () => {
+    // Choosing "Area" with a point writes `{ point }`; the value comes back through v-model as a new object.
+    const written = { point: site }
+    expect(locationFieldMode('area', { point: { ...site } }, written)).toBe('area')
+    // The same from a radius.
+    expect(locationFieldMode('area', { point: site }, { point: site })).toBe('area')
+  })
+
+  it('takes the mode of a value set from outside, and keeps it when cleared', () => {
+    expect(locationFieldMode('area', { point: site, radiusMeters: 20 }, { point: site })).toBe('radius')
+    expect(locationFieldMode('point', { point: site, area: square }, undefined)).toBe('area')
+    expect(locationFieldMode('radius', null, null)).toBe('radius')
   })
 })

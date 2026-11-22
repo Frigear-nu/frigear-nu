@@ -18,7 +18,18 @@ export const toLocalInput = (value: string | null) => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 
-export const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+const TRANSLITERATIONS: Record<string, string> = { æ: 'ae', ø: 'oe', å: 'aa', ß: 'ss', œ: 'oe', ð: 'd', þ: 'th', ł: 'l', đ: 'd' }
+
+/**
+ * A URL name suggested from a name: Danish letters spelled out (`Æblefest` -> `aeblefest`, `Øl-bar` -> `oel-bar`),
+ * accents dropped (`Crème` -> `creme`), anything else between words a dash.
+ */
+export const slugify = (value: string) => value.toLowerCase()
+  .replace(/[æøåßœðþłđ]/g, letter => TRANSLITERATIONS[letter] ?? letter)
+  .normalize('NFKD')
+  .replace(/\p{M}/gu, '')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
 
 type Translate = (key: string, fallback: string, params?: Record<string, string | number>) => string
 type TranslateText = (value: Translated | null | undefined) => string

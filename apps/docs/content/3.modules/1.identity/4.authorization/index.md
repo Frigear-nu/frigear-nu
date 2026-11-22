@@ -223,7 +223,12 @@ definitions, defaultRole}`. See [Migrate access control](/guide/going-further/mi
 Authorization registers the `role` kind of Auth's
 [record audiences](/contribute/writing-a-module/access-control#record-audiences): `{ kind: 'role', role: 'coordinator' }`
 admits signed-in users holding that global role (their effective roles, inheritance included). Its field in
-`<GrantsEditor>` lists the roles for a caller who may read them (`roles:read`), and takes a typed name otherwise.
+`<GrantsEditor>` lists the roles for a caller who may read them (`roles:read`), with their translated labels, and takes a
+typed name otherwise.
+
+- **`validate`** refuses a role that is not configured (`"<role>" is not a role.`, a `400 validation_failed` with the
+  issue at the grant's index from `grantsValidate`). A grant already stored is kept as it is, so a role that was
+  removed from the config does not make the record unsaveable.
 
 - **`members`** is Auth's [`listRoleHolders`](/modules/identity/auth/server#who-holds-a-role): the users with the
   role, or a role inheriting it, stored in `authorization_user_roles` (this module's role provider implements
@@ -265,8 +270,8 @@ Routes the module registers, and who may call them. Paths come from `authorizati
 
 | Permission | Flags | Default grant | Allows |
 | --- | --- | --- | --- |
-| `roles:read` | | `admin` through `*` | See the roles, what each may do and who has them. |
-| `roles:assign` | `sessionOnly` | `admin` through `*` | Give users roles and take them away, within your own permissions. |
+| `roles:read` | | `admin` (`grantTo`) | See the roles, what each may do and who has them. |
+| `roles:assign` | `sessionOnly` | `admin` (`grantTo`) | Give users roles and take them away, within your own permissions. |
 
 The sensitive permissions of other modules (`events:pii`, `forms:pii`) are sensitive (MCP only): they gate personal data
 in MCP tool output, while the admin HTTP API is gated by `events:manage` and `forms:manage`. Grant them by name.
