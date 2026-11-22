@@ -2,6 +2,7 @@
 import { computed, useFetch, useModuleT } from '#imports'
 import type { RoleGrant } from '../../utils/grants'
 import { authorizationApi } from '../../utils/api'
+import { useRoleLabel } from '../composables/useRoleLabel'
 
 defineOptions({ name: 'GrantRoleField' })
 
@@ -11,17 +12,20 @@ defineOptions({ name: 'GrantRoleField' })
 defineProps<{ disabled?: boolean }>()
 const model = defineModel<RoleGrant>({ required: true })
 const t = useModuleT('authorization')
+const { roleLabel } = useRoleLabel()
 
-const { data: roles } = useFetch<{ name: string, label: string }[]>(authorizationApi.admin.roles, {
+const { data: roles, status } = useFetch<{ name: string, label: string, labelKey?: string | null }[]>(authorizationApi.admin.roles, {
   key: 'authorization:role-grant-options',
   server: false,
   lazy: true,
   default: () => [],
   onResponseError: () => {},
 })
-// A stored role the list does not know stays selectable.
+// Until the list answers, a disabled select stands in, so the field does not swap from a text input to a select.
+const loading = computed(() => status.value === 'idle' || status.value === 'pending')
+// Labels as the roles admin shows them (`labelKey`). A stored role the list does not know stays selectable.
 const items = computed(() => {
-  const known = (roles.value ?? []).map(role => ({ label: role.label || role.name, value: role.name }))
+  const known = (roles.value ?? []).map(role => ({ label: roleLabel({ label: role.label || role.name, labelKey: role.labelKey }), value: role.name }))
   const current = model.value.role
   return current && !known.some(item => item.value === current) ? [...known, { label: current, value: current }] : known
 })
@@ -33,12 +37,13 @@ const set = (role: string) => {
 
 <template>
   <USelectMenu
-    v-if="(roles ?? []).length"
+    v-if="loading || (roles ?? []).length"
     :model-value="model.role"
     :items="items"
     value-key="value"
     class="w-full"
-    :disabled="disabled"
+    :loading="loading"
+    :disabled="disabled || loading"
     :placeholder="t('grants.role.placeholder', 'Choose a role')"
     @update:model-value="(value: string) => set(value)"
   />
