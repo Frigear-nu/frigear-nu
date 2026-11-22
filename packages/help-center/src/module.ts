@@ -103,6 +103,8 @@ export default defineNuxtModule<ModuleOptions>({
       adminPath = resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'help-center'))
     }
     const adminChecklistPath = adminPath ? `${adminPath.replace(/\/+$/, '')}/checklists/:id` : undefined
+    // The FAQ: the accordion and cards categories with their questions, on a page of their own.
+    const adminFaqPath = adminPath ? `${adminPath.replace(/\/+$/, '')}/faq` : undefined
 
     const withMobile = settings.mobileTab !== false && !!areas.signedIn && hasNuxtModule('@frigear-nu/mobile')
     // A page of its own for the tab: it must not sit inside either area.
@@ -137,7 +139,7 @@ export default defineNuxtModule<ModuleOptions>({
     const i18nConfig = i18nLocales.length ? { strategy: i18nOptions?.strategy ?? 'prefix_except_default', defaultLocale: i18nOptions?.defaultLocale ?? null, locales: i18nLocales } : null
 
     nuxt.options.runtimeConfig.public.helpCenter = {
-      pages: { public: areas.public, signedIn: areas.signedIn, admin: adminPath, adminChecklist: adminChecklistPath, mobile: mobilePath },
+      pages: { public: areas.public, signedIn: areas.signedIn, admin: adminPath, adminChecklist: adminChecklistPath, adminFaq: adminFaqPath, mobile: mobilePath },
       requiredLocales,
       cta: settings.cta !== false,
       schema: settings.schema !== false,
@@ -213,6 +215,24 @@ export default defineNuxtModule<ModuleOptions>({
           : 'export const queryCollection = () => { throw new Error(\'[@frigear-nu/help-center] @nuxt/content is not installed\') }',
       ].join('\n'),
     })
+    // `@nuxtjs/mdc` is optional too (Nuxt Content brings it): the FAQ cards split the text of a `cards` article with its
+    // `parseMarkdown` through one virtual module, `undefined` without it (the whole text is then the description).
+    defineVirtualRegistry(nuxt, {
+      filename: 'help-center/mdc.mjs',
+      alias: '#help-center/mdc',
+      collect: () => ({ mdc: hasNuxtModule('@nuxtjs/mdc', nuxt) }),
+      contents: ({ mdc }) => mdc
+        ? 'export { parseMarkdown, stringifyMarkdown } from \'#imports\''
+        : 'export const parseMarkdown = undefined\nexport const stringifyMarkdown = undefined',
+    })
+    addTypeTemplate({
+      filename: 'types/help-center-mdc.d.ts',
+      getContents: () => `declare module '#help-center/mdc' {
+  export const parseMarkdown: ((markdown: string) => Promise<unknown>) | undefined
+  export const stringifyMarkdown: ((body: unknown, data: Record<string, unknown>) => Promise<string | null>) | undefined
+}
+`,
+    }, { nuxt: true })
     addTypeTemplate({
       filename: 'types/help-center-optional.d.ts',
       getContents: () => `declare module '#help-center/optional' {
@@ -244,7 +264,9 @@ export default defineNuxtModule<ModuleOptions>({
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
     // Global so MDC (Nuxt Content) resolves `::faq{category="..."}`, `::faq-grid{categories="..."}` and the rest in any
     // collection without a local wrapper.
-    for (const name of ['Faq', 'FaqCard', 'FaqGrid', 'FaqSectionList']) {
+    // `FaqDetails`, `FaqLink` and `FaqContact` are the blocks of a `cards` article's text (`::faq-details{...}`), `FaqCards`
+    // the cards alone for a grid the parent lays out (the `#features` slot of `UPageSection`).
+    for (const name of ['Faq', 'FaqCard', 'FaqCards', 'FaqGrid', 'FaqSectionList', 'FaqDetails', 'FaqLink', 'FaqContact']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`), global: true, priority: 1 })
     }
 
@@ -259,6 +281,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'help-center-signed-in-article', path: signedInRoutes?.article, file: './runtime/app/pages/signed-in-article.vue' },
       { name: 'help-center-admin', path: adminPath, file: './runtime/app/pages/admin.vue' },
       { name: 'help-center-admin-checklist', path: adminChecklistPath, file: './runtime/app/pages/admin-checklist.vue' },
+      { name: 'help-center-admin-faq', path: adminFaqPath, file: './runtime/app/pages/admin-faq.vue' },
       { name: 'help-center-mobile', path: mobilePath, file: './runtime/app/pages/mobile.vue' },
     ])
 

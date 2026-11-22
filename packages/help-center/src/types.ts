@@ -14,9 +14,35 @@ export type HelpSourceId = string
 
 /**
  * How a category page shows its articles: `list` links to each article's page, `accordion` shows each article as a
- * question whose text opens in place (an FAQ).
+ * question whose text opens in place (an FAQ), `cards` shows each article as a card of its own (an FAQ too): the text
+ * before the first block is the card's description, each `::faq-details` block a question that opens in the card and
+ * each `::faq-link` / `::faq-contact` block a button at its foot (see `splitFaqBody`).
  */
-export type HelpCategoryDisplay = 'list' | 'accordion'
+export type HelpCategoryDisplay = 'list' | 'accordion' | 'cards'
+
+/** A button of a `cards` article, from a `::faq-link{...}` block of its text: the props Nuxt UI's `UButton` takes. */
+export type FaqBodyLink = {
+  label?: string
+  to?: string
+  icon?: string
+  trailingIcon?: string
+  variant?: string
+  size?: string
+  color?: string
+  target?: string
+}
+
+/** What `splitFaqBody` reads out of the text of a `cards` article: the parts of its card. */
+export type FaqBodyParts = {
+  /** The Markdown before the first block, the card's description. */
+  description: string
+  /** Each `::faq-details{label icon}` block: a question of the card, one line per item of its list. */
+  details: Array<{ label: string, icon?: string, lines: string[] }>
+  /** Each `::faq-link{...}` block: a full-width button at the foot of the card. */
+  links: FaqBodyLink[]
+  /** The last `::faq-contact{label :initial}` block: the card's contact button. */
+  contact?: { label?: string, initial?: Record<string, unknown> }
+}
 
 /** A button under an article's text in an accordion, the shape Nuxt UI's `ButtonProps` takes (`label`, `to`, `icon`). */
 export type HelpLink = {
@@ -122,6 +148,8 @@ export type PublicModuleOptions = {
     signedIn?: string
     admin?: string
     adminChecklist?: string
+    /** The staff FAQ page (`<admin>/faq`): the accordion and cards categories with their questions. */
+    adminFaq?: string
     /** The path of the mobile Help tab page, or `undefined` when there is none. */
     mobile?: string
   }

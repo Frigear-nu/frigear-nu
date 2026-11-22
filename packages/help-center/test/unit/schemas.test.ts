@@ -36,7 +36,17 @@ describe('category input', () => {
 
   it('refuses reserved and malformed slugs, and an unknown display', () => {
     for (const slug of ['search', 'articles', 'Not Valid', '']) expect(helpCategoryInput.safeParse({ ...category, slug }).success, slug).toBe(false)
-    expect(helpCategoryInput.safeParse({ ...category, display: 'cards' }).success).toBe(false)
+    expect(helpCategoryInput.safeParse({ ...category, display: 'grid' }).success).toBe(false)
+  })
+
+  it('takes every display: an article list, questions and question cards', () => {
+    for (const display of ['list', 'accordion', 'cards']) expect(helpCategoryInput.safeParse({ ...category, display }).success, display).toBe(true)
+    expect(helpCategoryPatchSchema.safeParse({ display: 'cards' }).success).toBe(true)
+  })
+
+  it('reads a stored display back, anything unknown as a list', async () => {
+    const { helpCategoryDisplay } = await import('../../src/runtime/server/utils/help-center-dto')
+    expect(['list', 'accordion', 'cards', 'grid', null].map(helpCategoryDisplay)).toEqual(['list', 'accordion', 'cards', 'list', 'list'])
   })
 
   it('drops empty translations and needs one text', () => {

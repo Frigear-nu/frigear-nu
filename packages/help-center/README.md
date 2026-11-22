@@ -10,8 +10,10 @@ an empty list admits nobody. A send reaches the members of a grant list.
 - **Signed-in area** (`/account/help`): the articles the person is granted, onboarding checklists with read state,
   "recently updated for you". Both paths are options.
 - **Coordinators** see who has read what (`help-center:pii`) and send article links by email and SMS.
-- **FAQ**: a category shown as an `accordion` lists its articles as questions that open in place, and the global
-  `Faq`, `FaqGrid` and `FaqSectionList` components show such categories (or inline cards) on any page or in Markdown.
+- **FAQ**: a category shown as an `accordion` lists its articles as questions that open in place, one shown as `cards`
+  makes each article a card of its own (`::faq-details` and `::faq-link` blocks in the text become the card's questions
+  and buttons), and the global `Faq`, `FaqCards`, `FaqGrid` and `FaqSectionList` components show such categories (or
+  inline cards) on any page or in Markdown. Staff manage them on the help center page and on its FAQ page.
 
 ## Quick Setup
 

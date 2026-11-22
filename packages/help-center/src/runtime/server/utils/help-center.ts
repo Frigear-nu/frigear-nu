@@ -143,14 +143,14 @@ export async function helpCenterArticleById(ctx: HelpSourceContext, id: string):
 /**
  * Categories with the published articles the reader may read, text included: what the FAQ cards show. `slugs` names the
  * categories in the order to show them (one the reader may not read, or that does not exist, is left out); without
- * slugs every accordion category the reader may read, in their order. Articles follow their own order.
+ * slugs every accordion and cards category (the FAQs) the reader may read, in their order. Articles follow their own order.
  */
 export async function helpCenterFaqs(ctx: HelpSourceContext, slugs: string[] = []): Promise<HelpFaqDto[]> {
   const categories = (await helpCenterMergedCategories(ctx)).filter(category => category.visible).map(toCategoryDto)
   const bySlug = new Map(categories.map(category => [category.slug, category]))
   const wanted = slugs.length
     ? slugs.map(slug => bySlug.get(slug)).filter((category): category is HelpCategoryDto => !!category)
-    : categories.filter(category => category.display === 'accordion')
+    : categories.filter(category => category.display === 'accordion' || category.display === 'cards')
   return Promise.all(wanted.map(async (category) => {
     const lists = await Promise.all(helpCenterSources().map(async source => source.list({ ...ctx, category: category.slug })))
     const articles = mergeBySlug(lists)
