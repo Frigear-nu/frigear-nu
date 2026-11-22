@@ -1,6 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { addRole, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
-import { extendGrants } from '@frigear-nu/grants/utils'
+import { addRole, extendGrants, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
 import FaqModule from '../../../../faq/src/module'
 import HelpCenterModule from '../../../src/module'
 
@@ -28,6 +27,8 @@ export default defineNuxtConfig({
       addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
       setDefaultRoles(nuxt, ['member'])
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+      // `role` grants without `@frigear-nu/authorization`: a stand-in kind that reads this provider (`grants/role.ts`).
+      extendGrants(nuxt, { kind: 'role', label: 'Role', server: fileURLToPath(new URL('./grants/role', import.meta.url)) })
     },
     // The `operation` grant kind, standing in for `@frigear-nu/operations` with crew: who takes part is test state.
     (_options, nuxt) => {
