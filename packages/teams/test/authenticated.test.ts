@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { teamsApi } from '../src/runtime/utils/api'
@@ -193,6 +193,24 @@ describe('teams (authenticated, database-backed)', async () => {
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.team(team.id), { name: `Årets bar ${marker}` }))
       expect(await found(`ÅRETS BAR ${marker}`)).toEqual([team.id])
       expect(await found(`øltelt æble ${marker}`)).toEqual([])
+    })
+
+    it('search:reindex refolds teams.searchText left by the ASCII-only SQL backfill, and a second run changes nothing', async () => {
+      const marker = `rx${++counter}`
+      const team = await createTeam({ name: { da: `ØLTELT ÆBLE ÅS ${marker}`, en: `Beer tent ${marker}` } })
+      const found = async (q: string) => ((await ok(await json(staff.cookie, 'GET', `${teamsApi.admin.teams}?q=${encodeURIComponent(q)}&pageSize=100`))).items as Json[]).map(item => item.id)
+      const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+      // The backfill of the migration that added the column: sqlite's lower() keeps Æ, Ø and Å.
+      sqlite.exec('update teams set searchText = lower(coalesce((select group_concat(value, char(10)) from json_each(teams.name)), \'\')) where id = ?', team.id)
+      expect(await found(`øltelt æble ${marker}`)).toEqual([])
+
+      const first = reindexOf(await runSearchReindex(), 'teams')!
+      expect(first.updated).toBeGreaterThanOrEqual(1)
+      expect(sqlite.query<{ searchText: string }>('select searchText from teams where id = ?', team.id)[0]!.searchText)
+        .toBe(`øltelt æble ås ${marker}\nbeer tent ${marker}`)
+      expect(await found(`øltelt æble ås ${marker}`)).toEqual([team.id])
+
+      expect(reindexOf(await runSearchReindex(), 'teams')).toEqual({ ...first, updated: 0 })
     })
 
     it('validates the owner, the kind and the parent (400)', async () => {

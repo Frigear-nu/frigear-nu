@@ -3,7 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { and, asc, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import type { Grant } from '@frigear-nu/auth/grants'
-import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, searchContains, searchText, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, searchContains, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
@@ -11,6 +11,7 @@ import { checkReorder, isValidReorder } from '../../utils/faq'
 import { categoryChain, isHelpArticleReadableIn, isHelpChainReadable } from '../../utils/grants'
 import type { HelpRecordReader } from '../../utils/grants'
 import { toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
+import { helpArticleSearchBody, helpArticleSearchText } from './help-center-search'
 import type { HelpArticleRow, HelpCategoryRow } from './help-center-dto'
 import type { helpArticleInput, helpArticlePatchSchema, helpCategoryInput, helpCategoryPatchSchema } from './help-center-schemas'
 import { newId } from '@frigear-nu/module-kit/id'
@@ -394,8 +395,8 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
     slug: input.slug,
     title: input.title,
     body: input.body,
-    searchText: searchText(input.title, input.slug),
-    searchBody: searchText(input.body),
+    searchText: helpArticleSearchText(input),
+    searchBody: helpArticleSearchBody(input.body),
     status: 'draft',
     grants,
     icon: input.icon ?? null,
@@ -428,8 +429,8 @@ export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleR
   )
   if (!Object.keys(changed).length) return existing
   if (existing.status === 'published') assertHelpArticlePublishable({ title: changed.title ?? existing.title, body: changed.body ?? existing.body })
-  if (changed.title !== undefined || changed.slug !== undefined) changed.searchText = searchText(changed.title ?? existing.title, changed.slug ?? existing.slug)
-  if (changed.body !== undefined) changed.searchBody = searchText(changed.body)
+  if (changed.title !== undefined || changed.slug !== undefined) changed.searchText = helpArticleSearchText({ title: changed.title ?? existing.title, slug: changed.slug ?? existing.slug })
+  if (changed.body !== undefined) changed.searchBody = helpArticleSearchBody(changed.body)
   const [row] = await db.update(schema.helpArticles).set({ ...changed, updatedBy: String(userId) }).where(eq(schema.helpArticles.id, existing.id)).returning().catch(rethrowSlugConflict('article'))
   return row!
 }
