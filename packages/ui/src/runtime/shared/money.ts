@@ -1,6 +1,6 @@
 // Money helpers for `CurrencyInput` / `MoneyInput`. Lives outside `runtime/utils` on purpose: that folder is
 // auto-imported into host apps, and these names (`fromCents`, `toCents`) are generic enough to clash.
-import { plainSpaces } from './spaces'
+import { NO_BREAK_SPACE, allNoBreakSpaces } from './spaces'
 
 export type Currency = {
   name?: string
@@ -20,16 +20,16 @@ export function currencyDigits(code: string): number {
 
 /**
  * Formats an amount in a currency's minor unit (cents, øre) for display, e.g. `formatMoney(15000, 'DKK', 'da')` ->
- * `150,00 kr.` and `formatMoney(1234550, 'DKK', 'da')` -> `12.345,50 kr.`. Like the date formatters it returns plain
- * spaces (no U+202F or U+00A0 from ICU), so server and browser render the same text.
+ * `150,00 kr.` and `formatMoney(1234550, 'DKK', 'da')` -> `12.345,50 kr.`. Every space in it is U+00A0 (no-break),
+ * whatever space ICU used, so server and browser render the same text and the amount stays on one line.
  */
 export function formatMoney(amount: number, currency: string, locale?: string): string {
   const code = currency.toUpperCase()
   try {
-    return plainSpaces(new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(amount / 10 ** currencyDigits(code)))
+    return allNoBreakSpaces(new Intl.NumberFormat(locale, { style: 'currency', currency: code }).format(amount / 10 ** currencyDigits(code)))
   }
   catch {
-    return `${(amount / 100).toFixed(2)} ${code}`
+    return `${(amount / 100).toFixed(2)}${NO_BREAK_SPACE}${code}`
   }
 }
 

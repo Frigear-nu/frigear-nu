@@ -20,9 +20,23 @@ export type PreferenceSchema<D>
     : D extends { schema: infer S extends z.ZodType } ? S
       : never
 
-/** `{ key: value }` as the preferences of a user: every key is optional because a user may not have chosen yet. */
+/** The keys of `T` declared `managed: true`. */
+export type ManagedPreferenceKeys<T extends PreferenceDefinitions> = {
+  [K in keyof T]: T[K] extends { managed: true } ? K : never
+}[keyof T]
+
+/**
+ * `{ key: value }` as the preferences of a user: every key is optional because a user may not have chosen yet. `managed`
+ * keys are left out: `PATCH /api/preferences` refuses them and the session never carries them, so `useUserPreferences()`
+ * can neither `set` nor `get` them. Their module reads and writes them through its own routes.
+ */
 export type PreferencesOf<T extends PreferenceDefinitions> = {
-  [K in keyof T]?: z.output<PreferenceSchema<T[K]>>
+  [K in Exclude<keyof T, ManagedPreferenceKeys<T>>]?: z.output<PreferenceSchema<T[K]>>
+}
+
+/** `{ key: value }` of the `managed` keys of `T` only: the counterpart of `PreferencesOf`. */
+export type ManagedPreferencesOf<T extends PreferenceDefinitions> = {
+  [K in ManagedPreferenceKeys<T>]?: z.output<PreferenceSchema<T[K]>>
 }
 
 /**
