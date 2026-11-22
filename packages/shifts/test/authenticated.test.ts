@@ -10,7 +10,7 @@ import { teamsApi } from '@frigear-nu/teams/api'
 import { preferencesApi } from '@frigear-nu/preferences/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { dayKey } from '@frigear-nu/module-kit/time'
-import { addBulkAssignments, addBulkMembers, getEmailsTo, getHooks, getSmsTo, registerUser, optInSms, registerDevice, runCloseShifts, runReminders, setChannels, setLocale, setUserLocale, setPhone, setStationKey, stationToken } from './helpers'
+import { addBulkAssignments, addBulkMembers, setMemberStatus, getEmailsTo, getHooks, getSmsTo, registerUser, optInSms, registerDevice, runCloseShifts, runReminders, setChannels, setLocale, setUserLocale, setPhone, setStationKey, stationToken } from './helpers'
 
 type Session = Awaited<ReturnType<typeof registerUser>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed JSON responses
@@ -585,6 +585,65 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await assignmentOf(s.ann, leadSchedule.shift.id)).toBeDefined()
     })
 
+    it('never lets a party of the swap approve it, even as a lead; staff may', async () => {
+      const s = await tradeSetup({ approval: 'lead' }, true)
+      const [cid, dot] = await Promise.all([user('Pcid'), user('Pdot')])
+      await addMember(s.team.id, cid, 'lead')
+      await addMember(s.team.id, dot, 'lead')
+      // The owner leads the team: opening, accepting and approving their own swap is refused.
+      const cidShift = await assigned(s.shifts[1]!.id, cid)
+      const own = await ok(await open(cid, cidShift.assignment.id))
+      const ownOffer = await ok(await offerOn(s.bo, own.id))
+      expect((await ok(await json(cid.cookie, 'POST', shiftsApi.acceptOffer(own.id, ownOffer.id)))).status).toBe('pending_approval')
+      // The approval email goes to the other leads, not to the owner.
+      expect((await getEmailsTo(cid.email)).map(email => email.template?.name)).not.toContain('shifts-swap-pending')
+      await expectApiError(json(cid.cookie, 'POST', shiftsApi.approveSwap(own.id)), 403, 'swap_party')
+      await expectApiError(json(cid.cookie, 'POST', shiftsApi.rejectSwap(own.id)), 403, 'swap_party')
+      expect((await ok(await json(staff.cookie, 'POST', shiftsApi.approveSwap(own.id)))).status).toBe('completed')
+
+      // The offerer leads the team: approving the swap they offered on is refused; another lead approves.
+      const swap = await ok(await open(s.ann, s.annShift.assignment.id))
+      const offer = await ok(await offerOn(dot, swap.id))
+      await ok(await json(s.ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))
+      await expectApiError(json(dot.cookie, 'POST', shiftsApi.approveSwap(swap.id)), 403, 'swap_party')
+      expect(await assignmentOf(s.ann, s.shifts[0]!.id)).toBeDefined()
+      expect((await ok(await json(s.boss.cookie, 'POST', shiftsApi.approveSwap(swap.id)))).status).toBe('completed')
+      expect(await assignmentOf(dot, s.shifts[0]!.id)).toBeDefined()
+    })
+
+    it('lets only leads of the team whose schedule asks for approval approve, not a lead of the team given back', async () => {
+      // Team A works a schedule with lead approval; team B a peer schedule of the same operation.
+      const a = await newSetup({ approval: 'lead' })
+      const teamB = await createTeam(a.op.id)
+      const scheduleB = await createSchedule(a.op.id, { approval: 'peer' })
+      const [shiftB] = await bulk(scheduleB.id, { teamId: teamB.id, days: ['2027-07-02'], slots: [{ start: '10:00', end: '14:00' }] })
+      await publish(scheduleB.id)
+      const [ann, bea, ben, ali] = await Promise.all([user('Bann'), user('Bbea'), user('Bben'), user('Bali')])
+      // Both people work both teams; Bea and Ben lead team B, Ali leads team A.
+      await addMember(a.team.id, ann)
+      await addMember(teamB.id, ann)
+      await addMember(a.team.id, bea)
+      await addMember(teamB.id, bea, 'lead')
+      await addMember(teamB.id, ben, 'lead')
+      await addMember(a.team.id, ali, 'lead')
+      const annShift = await assigned(a.shifts[0]!.id, ann)
+      const beaShift = await assigned(shiftB!.id, bea)
+      const swap = await ok(await open(ann, annShift.assignment.id, { kind: 'trade' }))
+      const offer = await ok(await offerOn(bea, swap.id, beaShift.assignment.id))
+      expect((await ok(await json(ann.cookie, 'POST', shiftsApi.acceptOffer(swap.id, offer.id)))).status).toBe('pending_approval')
+      // Only team A's leads are asked.
+      expect((await getEmailsTo(ali.email)).map(email => email.template?.name)).toContain('shifts-swap-pending')
+      expect((await getEmailsTo(ben.email)).map(email => email.template?.name)).not.toContain('shifts-swap-pending')
+      // The offerer, a lead of team B, cannot approve as "lead of the team given back"; nor can another lead of team B.
+      await expectApiError(json(bea.cookie, 'POST', shiftsApi.approveSwap(swap.id)), 403, 'swap_party')
+      expect((await json(ben.cookie, 'POST', shiftsApi.approveSwap(swap.id))).status).toBe(403)
+      expect(await assignmentOf(ann, a.shifts[0]!.id)).toBeDefined()
+      // Team A's lead approves.
+      expect((await ok(await json(ali.cookie, 'POST', shiftsApi.approveSwap(swap.id)))).status).toBe('completed')
+      expect(await assignmentOf(bea, a.shifts[0]!.id)).toBeDefined()
+      expect(await assignmentOf(ann, shiftB!.id)).toBeDefined()
+    })
+
     it('replaces a stale open swap on reopening, and refuses while offers wait on it', async () => {
       const s = await tradeSetup({})
       const swapStatus = async (id: string) => (await ok(await json(staff.cookie, 'GET', `${shiftsApi.admin.swaps}?operationId=${s.op.id}`)) as unknown as Json[]).find(item => item.id === id)!.status
@@ -986,7 +1045,29 @@ describe('shifts (authenticated, database-backed)', async () => {
       // The membership stops granting (a status, not a removal): teams fires no hook for it.
       await ok(await json(staff.cookie, 'PATCH', teamsApi.admin.member(setup.team.id, ann.id), { status: 'inactive' }))
       await expectApiError(json(lead.cookie, 'POST', shiftsApi.teams.checkIn(setup.team.id), { code }), 409, 'not_eligible')
-      expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(now.assignment.id)))).toMatchObject({ available: false, code: null })
+      expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(now.assignment.id)))).toMatchObject({ available: false, eligible: false, code: null })
+      expect((await myShifts(ann)).map(item => item.assignment.id)).toEqual([now.assignment.id])
+      expect((await getHooks()).find(hook => hook.assignmentId === later.assignment.id && hook.status === 'cancelled')).toBeDefined()
+    })
+
+    it('answers the pass read-only; settling it (a POST) cancels the future shifts of somebody who lost their role', async () => {
+      const setup = await newSetup()
+      const [ann, bo] = await Promise.all([user('Sann'), user('Sbo')])
+      await addMember(setup.team.id, ann)
+      const now = await assigned(setup.shifts[0]!.id, ann)
+      const later = await assigned(setup.shifts[1]!.id, ann)
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(-HOUR / 6), endsAt: iso(3 * HOUR) })
+      // The membership stops granting without a hook (teams' own routes fire one, which cancels the shifts at once).
+      await setMemberStatus(setup.team.id, ann.id, 'inactive')
+      // Reading the pass, twice, changes nothing.
+      for (let index = 0; index < 2; index++) {
+        expect(await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(now.assignment.id)))).toMatchObject({ available: false, eligible: false, code: null, perks: [] })
+      }
+      expect((await myShifts(ann)).map(item => item.assignment.id).sort()).toEqual([now.assignment.id, later.assignment.id].sort())
+      expect((await getHooks()).find(hook => hook.assignmentId === later.assignment.id && hook.status === 'cancelled')).toBeUndefined()
+      // Only the person settles their own pass.
+      expect((await json(bo.cookie, 'POST', shiftsApi.me.settle(now.assignment.id))).status).toBe(404)
+      expect(await ok(await json(ann.cookie, 'POST', shiftsApi.me.settle(now.assignment.id)))).toMatchObject({ available: false, eligible: false, code: null })
       expect((await myShifts(ann)).map(item => item.assignment.id)).toEqual([now.assignment.id])
       expect((await getHooks()).find(hook => hook.assignmentId === later.assignment.id && hook.status === 'cancelled')).toBeDefined()
     })
@@ -1681,7 +1762,7 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(cyFeed).not.toContain(annShift.assignment.id)
     })
 
-    it('does not remind the new owner of an offset the old owner already got, but of the later ones', async () => {
+    it('reminds the new owner again after a handover, of the offset the old owner already got and of the later ones', async () => {
       const setup = await newSetup()
       const [ann, bo] = await Promise.all([user('Yann'), user('Ybo')])
       for (const who of [ann, bo]) await addMember(setup.team.id, who)
@@ -1691,12 +1772,14 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await runReminders('2035-01-09T10:00:00.000Z')).toMatchObject({ sent: 1 })
       expect(await reminders(ann)).toHaveLength(1)
       await handOver(ann, bo, annShift.assignment.id)
-      // The claim is keyed by assignment and offset: the day-before reminder is not sent again to the new owner...
+      // The claims of the assignment go with the handover: the new owner gets the reminder of the offset that is due now
+      // (worded with the real time left)...
+      expect(await runReminders('2035-01-09T12:00:00.000Z')).toMatchObject({ sent: 1 })
+      expect((await reminders(bo)).map(email => email.subject)).toEqual(['Reminder: your shift starts in 22 hours'])
       expect(await runReminders('2035-01-09T12:00:00.000Z')).toMatchObject({ sent: 0 })
-      expect(await reminders(bo)).toHaveLength(0)
-      // ...and the next offset goes to whoever holds the shift then.
+      // ...and the next offset too; the old owner gets nothing more.
       expect(await runReminders('2035-01-10T08:30:00.000Z')).toMatchObject({ sent: 1 })
-      expect(await reminders(bo)).toHaveLength(1)
+      expect(await reminders(bo)).toHaveLength(2)
       expect(await reminders(ann)).toHaveLength(1)
     })
 

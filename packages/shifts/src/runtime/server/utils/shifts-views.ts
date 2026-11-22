@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 import { renderSVG } from 'uqr'
+import { inChunks } from '@frigear-nu/module-kit/server'
 import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsMyNowDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapKind, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
 import { shiftsAccess } from '../../access'
 import { scheduleSettingsOf } from '../../utils/settings'
@@ -10,7 +11,10 @@ import { toShiftAssignmentDto, toShiftDto, toShiftPersonDto } from './shifts-dto
 import type { ShiftRow, ShiftScheduleRow } from './shifts-dto'
 import { shiftsActiveAssignmentOf, shiftsEligibility, shiftsGuardWarningsFor, shiftsRoleById, shiftsRoleOfOr400, shiftsTeamsById, shiftsUsersById } from './shifts-core'
 import type { ShiftAssignmentEntry } from './shifts-core'
-import { shiftsCheckInOpen, shiftsPassWindow } from './shifts-assign'
+import { shiftsCheckInOpen, shiftsPassWindow, shiftsStillEligible } from './shifts-assign'
+import { shiftsPassPerks } from './shifts-perks'
+import { shiftsStationKeyConfigured } from './shifts-station-key'
+import { checkInRuleFor } from '../../utils/checkin'
 import { shiftsWithAssignees } from './shifts-admin'
 import { findLiveShiftSwapOf, shiftsSwapDtos } from './shifts-swaps'
 
@@ -41,13 +45,13 @@ export async function shiftsMyShiftDtos(rows: ShiftAssignmentEntry[]): Promise<M
   const operationIds = [...new Set(rows.map(row => row.schedule.operationId))]
   const roleIds = [...new Set(rows.flatMap(row => row.assignment.shiftRoleId ? [row.assignment.shiftRoleId] : []))]
   const [operations, roles, teams, swaps] = await Promise.all([
-    db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations).where(inArray(schema.operations.id, operationIds)),
-    roleIds.length ? db.select().from(schema.shiftRoles).where(inArray(schema.shiftRoles.id, roleIds)) : Promise.resolve([]),
+    inChunks(operationIds, part => db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations).where(inArray(schema.operations.id, part))),
+    inChunks(roleIds, part => db.select().from(schema.shiftRoles).where(inArray(schema.shiftRoles.id, part))),
     shiftsTeamsById(rows.map(row => row.shift.teamId)),
-    db.select().from(schema.shiftSwaps).where(and(
-      inArray(schema.shiftSwaps.assignmentId, rows.map(row => row.assignment.id)),
+    inChunks(rows.map(row => row.assignment.id), part => db.select().from(schema.shiftSwaps).where(and(
+      inArray(schema.shiftSwaps.assignmentId, part),
       inArray(schema.shiftSwaps.status, ['open', 'offered', 'accepted', 'pending_approval']),
-    )),
+    ))),
   ])
   return rows.map(({ assignment, shift, schedule }) => {
     const swap = swaps.find(item => item.assignmentId === assignment.id)
@@ -106,7 +110,7 @@ export async function shiftsMyShiftDetail(event: H3Event, entry: ShiftAssignment
  * The QR pass of an assignment: the code (and its QR code as SVG) only while check-in is open and the assignment holds a
  * place. The perks are added by the route (`shiftsPassPerks`).
  */
-export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks' | 'checkIn'> {
+export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks' | 'checkIn' | 'eligible'> {
   const { opensAt, closesAt } = shiftsPassWindow(event, entry.shift)
   const available = (entry.assignment.status === 'assigned' || entry.assignment.status === 'attended') && shiftsCheckInOpen(event, entry.shift)
   return {
@@ -117,6 +121,21 @@ export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<
     code: available ? entry.assignment.checkInCode : null,
     svg: available ? renderSVG(entry.assignment.checkInCode, { border: 1 }) : null,
   }
+}
+
+/**
+ * The pass of an assignment as `GET /api/shifts/me/:assignmentId/pass` answers it. Read-only: when the person no longer
+ * holds a role on the team, it is `available: false, eligible: false` with no code and no perks (`POST .../settle`
+ * cancels their future shifts there). Without a station key `checkIn.modes` leaves `station` out.
+ */
+export async function shiftsPassDto(event: H3Event, entry: ShiftAssignmentEntry): Promise<ShiftPassDto> {
+  const rule = checkInRuleFor(entry.schedule.checkIn, entry.shift.teamId)
+  const checkIn = shiftsStationKeyConfigured(event) ? rule : { ...rule, modes: rule.modes.filter(mode => mode !== 'station') }
+  const pass = { ...shiftsPassOf(event, entry), checkIn, eligible: true }
+  if (pass.available && !await shiftsStillEligible(event, entry.assignment, entry.shift.teamId)) {
+    return { ...pass, available: false, eligible: false, code: null, svg: null, perks: [] }
+  }
+  return { ...pass, perks: entry.assignment.status === 'cancelled' ? [] : await shiftsPassPerks(entry) }
 }
 
 /** A team's shifts in published schedules (`from`, `to` narrow it), with who works them; contact details only with `pii`. */
