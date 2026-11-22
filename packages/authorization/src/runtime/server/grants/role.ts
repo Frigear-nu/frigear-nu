@@ -16,7 +16,12 @@ export default defineGrantKind('role', {
   schema: roleGrantSchema,
   async matches({ event, user, grant }) {
     if (!user) return false
-    return (await getEffectiveRoles(event, user as Parameters<typeof getEffectiveRoles>[1])).includes(grant.role)
+    // A caller may pass a bare `{ id }` (a recipient, say). Role resolution needs the whole user: `authorization:roles`
+    // listeners read its email (an admin allowlist), and the roles are cached per request by id, so a partial user would
+    // also cut the roles of a later check on the same id.
+    const full = typeof (user as { email?: unknown }).email === 'string' ? user : await loadAuthUser(user.id)
+    if (!full) return false
+    return (await getEffectiveRoles(event, full as Parameters<typeof getEffectiveRoles>[1])).includes(grant.role)
   },
   async members({ event, grants }) {
     const wanted = [...new Set(grants.map(grant => grant.role))]

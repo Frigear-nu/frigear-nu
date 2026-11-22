@@ -16,14 +16,14 @@ describe('money helpers', () => {
     expect(toCents(0.1 + 0.2, 'EUR')).toBe(30)
   })
 
-  it('formats minor units with plain spaces, never ICU\'s narrow or no-break ones', () => {
-    expect(formatMoney(15000, 'DKK', 'da')).toBe('150,00 kr.')
-    expect(formatMoney(1234550, 'DKK', 'da')).toBe('12.345,50 kr.')
+  it('formats minor units with no-break spaces only, never plain, thin or narrow ones', () => {
+    expect(formatMoney(15000, 'DKK', 'da')).toBe('150,00\u00A0kr.')
+    expect(formatMoney(1234550, 'DKK', 'da')).toBe('12.345,50\u00A0kr.')
     // French groups digits with U+202F and puts U+00A0 before the symbol.
     const french = formatMoney(123450, 'EUR', 'fr')
-    expect(french).toBe('1 234,50 €')
-    expect(french).not.toMatch(/[\u00A0\u2009\u202F]/)
-    expect(formatMoney(150000, 'DKK', 'en')).not.toMatch(/[\u00A0\u2009\u202F]/)
+    expect(french).toBe('1\u00A0234,50\u00A0€')
+    expect(french).not.toMatch(/[ \u2009\u202F]/)
+    expect(formatMoney(150000, 'DKK', 'en')).not.toMatch(/[ \u2009\u202F]/)
   })
 
   it('passes empty values through', () => {
