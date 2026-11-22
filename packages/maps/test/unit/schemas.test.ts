@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isSameAppPath } from '../../src/runtime/utils/image'
 import { emptyPlaneLayout, mapLocationSchema, planeFeatureCollectionSchema, planeLayoutSchema } from '../../src/runtime/schemas'
 
 describe('mapLocationSchema', () => {
@@ -43,5 +44,23 @@ describe('planeFeatureCollectionSchema', () => {
     expect(narrowed.error?.issues[0]?.path).toEqual(['features', 0, 'kind'])
     expect(planeFeatureCollectionSchema({ maxFeatures: 1 }).safeParse({ features: [seat('a1'), seat('a2')] }).success).toBe(false)
     expect(planeLayoutSchema.safeParse({ features: [{ ...seat('a1'), geometry: { type: 'Point', coordinates: ['x', 1] } }] }).success).toBe(false)
+  })
+})
+
+describe('underlay url', () => {
+  it('accepts only a path on this app', () => {
+    for (const url of ['/api/operations/fest/venue-layout/underlay?v=underlay-abc.png', '/api/demo/underlay/venue%2Fx.png']) {
+      expect(isSameAppPath(url)).toBe(true)
+    }
+    for (const url of ['https://tracker.example/x.png', '//tracker.example/x.png', '/\\tracker.example/x.png', '/\ttracker', 'data:image/png;base64,AAAA', 'javascript:alert(1)', 'x.png', '', 42]) {
+      expect(isSameAppPath(url)).toBe(false)
+    }
+  })
+
+  it('refuses a layout whose underlay is an external image', () => {
+    const external = planeLayoutSchema.safeParse({ features: [], underlay: { url: 'https://tracker.example/x.png', width: 800, height: 600 } })
+    expect(external.success).toBe(false)
+    expect(external.error?.issues[0]?.path).toEqual(['underlay', 'url'])
+    expect(planeLayoutSchema.safeParse({ features: [], underlay: { url: '//tracker.example/x.png', width: 800, height: 600 } }).success).toBe(false)
   })
 })

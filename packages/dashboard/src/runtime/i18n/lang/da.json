@@ -40,6 +40,10 @@
     "save": {
       "error": "Dit oversigtslayout kunne ikke gemmes."
     },
-    "retry": "Prøv igen"
+    "retry": "Prøv igen",
+    "permissions": {
+      "layouts": "Dine oversigter",
+      "layoutsDescription": "Se og ændr rækkefølgen og de skjulte og sammenklappede elementer på dine oversigter."
+    }
   }
 }

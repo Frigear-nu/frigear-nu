@@ -10,6 +10,7 @@ import {
 import type { Nuxt } from '@nuxt/schema'
 import {
   addModulePages,
+  addModuleRoutes,
   addOptionalImports,
   defineVirtualRegistry,
   inlineModuleRuntime,
@@ -48,11 +49,13 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/widget': { version: '>=0.0.0' },
     // `StatCard`, `ListCard`, `surfaceClass`, `useConfirmDialog` (and Nuxt UI through it).
     '@frigear-nu/ui': { version: '>=0.0.0' },
-    // Soft: the per-user layout is stored as a preference when installed, else kept for the session.
+    // Soft: the per-user layout is stored as a `managed` preference when installed (read and written through
+    // `/api/dashboard/me/layouts`), else kept for the session.
     '@frigear-nu/preferences': { version: '>=0.0.0', optional: true },
     // Soft: the Home tab and the `mobile` platform.
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
-    // Soft: whether someone is signed in, so a layout is only saved for a user.
+    // Soft: whether someone is signed in, so a layout is only saved for a user; with Preferences, the `authorize` of
+    // the layout routes and their `dashboard:layouts` permission.
     '@frigear-nu/auth': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
@@ -68,13 +71,14 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useDashboardLayout', from: resolver.resolve('./runtime/app/composables/useDashboardLayout') },
       { name: 'useDashboardPlatform', from: resolver.resolve('./runtime/app/composables/useDashboardPlatform') },
       { name: 'dashboardSpanClass', from: resolver.resolve('./runtime/app/utils/span') },
+      { name: 'useSavedDashboardLayouts', from: resolver.resolve('./runtime/app/composables/useSavedDashboardLayouts') },
     ])
     for (const name of ['Dashboard', 'DashboardGrid', 'DashboardItem', 'ChartCard', 'ActionCard', 'EmptyCard']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
     }
 
-    // Layouts are saved through Preferences' `PATCH /api/preferences`, which only accepts a cookie session: with Auth in
-    // client mode (a Capacitor app, a bearer token) there is none, so the layout stays a session one there.
+    // Layouts are saved through `/api/dashboard/me/layouts`, called with the cookie session: with Auth in client mode (a
+    // Capacitor app, a bearer token) there is none, so the layout stays a session one there.
     // Auth may be installed only later (as a dependency of Preferences), so its mode helper is loaded whenever the
     // package resolves, and the mode is read once every module is done.
     const resolveAuthMode = await import('@frigear-nu/auth/mode').then(mod => mod.resolveAuthMode, () => undefined)
@@ -85,10 +89,10 @@ export default defineNuxtModule<ModuleOptions>({
     // Optional modules' composables, with stand-ins when they are not installed.
     addOptionalImports(nuxt, '#dashboard/optional', [
       {
-        name: 'useUserPreferences',
+        name: 'useSavedDashboardLayouts',
         available: persistable,
         fallback: 'undefined',
-        fallbackType: `undefined | (() => { preferences: import('vue').ComputedRef<Record<string, unknown>>, set: (key: 'dashboardLayouts', value: unknown) => Promise<void> })`,
+        fallbackType: `undefined | typeof import(${JSON.stringify(resolver.resolve('./runtime/app/composables/useSavedDashboardLayouts'))}).useSavedDashboardLayouts`,
       },
       {
         name: 'useUserSession',
@@ -124,11 +128,22 @@ export default defineNuxtModule<ModuleOptions>({
 `,
     })
 
-    // Per-user layout: one preference key, when Preferences is installed (its definitions are collected lazily, so
-    // the order of the modules does not matter).
+    // Per-user layout: one `managed` preference key, when Preferences is installed (its definitions are collected
+    // lazily, so the order of the modules does not matter). It stays out of the session cookie and `PATCH
+    // /api/preferences` refuses it: the caller's own layouts are read and written through `/api/dashboard/me/layouts`
+    // (`dashboard:layouts`, implicit for every signed-in user). Preferences needs Auth, so both are there.
     if (hasNuxtModule('@frigear-nu/preferences', nuxt)) {
       const { addUserPreferences } = await import('@frigear-nu/preferences/utils')
       addUserPreferences(nuxt, { path: resolver.resolve('./runtime/preferences') })
+      const [{ registerAccess }, { dashboardAccess }] = await Promise.all([
+        import('@frigear-nu/auth/utils'),
+        import('./runtime/access'),
+      ])
+      registerAccess(nuxt, dashboardAccess)
+      addModuleRoutes(resolver, [
+        { method: 'get', path: 'me/layouts', file: 'me/layouts.get' },
+        { method: 'patch', path: 'me/layouts', file: 'me/layouts.patch' },
+      ], { base: '/api/dashboard' })
     }
 
     // Mobile: a Home tab and its page. Without mobile a web app places `<Dashboard>` itself.

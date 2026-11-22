@@ -1,0 +1,1 @@
+ALTER TABLE `auth_user_tokens` ADD `permissions` text;
