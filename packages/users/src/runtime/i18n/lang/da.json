@@ -32,7 +32,7 @@
       "created": "Oprettet",
       "filters": {
         "all": "Alle",
-        "verified": "Verificerede",
+        "verified": "Verificeret",
         "unverified": "Ikke verificerede",
         "role": "Præcis rolle",
         "clear": "Ryd filtre",
@@ -52,7 +52,8 @@
         "loadFailed": "Brugeren kunne ikke indlæses",
         "never": "Aldrig",
         "saveProfile": "Gem profil",
-        "notFoundHint": "Den er måske slettet."
+        "notFoundHint": "Den er måske slettet.",
+        "phoneHelp": "Bruges til sms'er. Lad feltet stå tomt for at fjerne det."
       },
       "tabs": {
         "overview": "Oversigt"
@@ -74,7 +75,9 @@
       "deleteTitle": "Slet {name}?",
       "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
       "deleted": "Brugeren er slettet.",
-      "roles": "Roller"
+      "roles": "Roller",
+      "phone": "Telefon",
+      "phoneInvalid": "Angiv et telefonnummer med cifre, mellemrum og + - ( )."
     },
     "emailChange": {
       "verify": {
@@ -125,7 +128,8 @@
       "create": "Tilføje brugere",
       "update": "Redigere brugere",
       "delete": "Slette brugere",
-      "manage": "Administrere brugeres login"
+      "manage": "Administrere brugeres login",
+      "pii": "Se brugeres telefonnumre"
     }
   }
 }

@@ -7,6 +7,10 @@ export const users = sqliteTable('users', {
   name: text().notNull(),
   email: text().notNull().unique(),
   avatar: text(),
+  // Personal data: shown to staff with `users:pii` only, and to other modules' staff through their own `:pii`.
+  phone: text(),
+  // The user's language (an i18n locale code such as `da`, or a short BCP-47 tag): messages to them use it.
+  locale: text(),
   acceptedTermsAt: integer('accepted_terms_at'),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$onUpdateFn(() => new Date()),

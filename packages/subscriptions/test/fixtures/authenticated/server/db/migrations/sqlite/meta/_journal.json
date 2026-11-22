@@ -50,6 +50,20 @@
       "when": 1794491079987,
       "tag": "0006_auth_user_tokens_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1795315701212,
+      "tag": "0007_users_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795354547627,
+      "tag": "0008_users_locale",
+      "breakpoints": true
     }
   ]
 }

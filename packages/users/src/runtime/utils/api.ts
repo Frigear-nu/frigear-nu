@@ -11,8 +11,13 @@ const adminBase = '/api/admin/users'
 /** The users API: self-service under `/api/users`, staff under `/api/admin/users`. */
 export const usersApi = {
   me: {
-    /** `PATCH { name, avatar? }`: updates the caller's profile, answers the profile DTO. `profile:write` (implicit). */
+    /** `PATCH { name?, avatar?, phone?, locale? }`: updates the caller's profile, answers the profile DTO. `profile:write` (implicit). */
     profile: `${base}/me`,
+    /**
+     * `PUT { locale, ifUnset? }`: sets the caller's language, answers the profile DTO. With `ifUnset: true` it only fills
+     * an empty one (what the app does at sign-in and on a language switch). `profile:write` (implicit).
+     */
+    locale: `${base}/me/locale`,
     /** `PUT { email }`: changes the caller's email (or emails a confirmation link with `verifyEmailChange`). Session only. */
     email: `${base}/me/email`,
     /** `PUT { currentPassword, newPassword, confirmNewPassword }`: changes the caller's password. Session only. */

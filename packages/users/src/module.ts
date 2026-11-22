@@ -1,4 +1,5 @@
 import {
+  addPlugin,
   addServerImportsDir,
   createResolver,
   defineNuxtModule,
@@ -6,6 +7,7 @@ import {
 } from '@nuxt/kit'
 import { addModuleRoutes, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { registerAccess, setAuthUserStore } from '@frigear-nu/auth/utils'
+import { setNotifyRecipientStore } from '@frigear-nu/notify/utils'
 import { USERS_SELF_SERVICE, usersAccess } from './runtime/access'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -18,7 +20,11 @@ declare module 'nuxt/schema' {
   }
 
   interface RuntimeConfig {
-    users?: { verifyEmailChange: boolean }
+    users?: {
+      verifyEmailChange: boolean
+      /** The app's i18n locale codes (filled at `modules:done`): the languages `users.locale` accepts. Empty: any short BCP-47 tag. */
+      locales: string[]
+    }
   }
 
   interface PublicRuntimeConfig {
@@ -75,6 +81,8 @@ export default defineNuxtModule<ModuleOptions>({
 
     // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
     setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
+    // Lets `notifyUser` of `@frigear-nu/notify` find a user's email address and phone number.
+    setNotifyRecipientStore(nuxt, resolver.resolve('./runtime/server/notify-recipients'))
 
     // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
@@ -86,6 +94,7 @@ export default defineNuxtModule<ModuleOptions>({
     // `usersApi` in `runtime/utils/api.ts` builds the same URLs for app code and tests).
     const selfRoutes: ModuleRoute[] = [
       { method: 'patch', path: 'me', file: 'me/profile.patch' },
+      { method: 'put', path: 'me/locale', file: 'me/locale.put' },
       { method: 'put', path: 'me/email', file: 'me/email.put' },
       { method: 'put', path: 'me/password', file: 'me/password.put' },
     ]
@@ -122,7 +131,14 @@ export default defineNuxtModule<ModuleOptions>({
       addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     }
 
-    nuxt.options.runtimeConfig.users = { verifyEmailChange: settings.verifyEmailChange === true }
+    nuxt.options.runtimeConfig.users = { verifyEmailChange: settings.verifyEmailChange === true, locales: [] }
+    // The user's language is one of the app's i18n locales; read once every module had the chance to add some.
+    nuxt.hook('modules:done', () => {
+      const locales = (nuxt.options as { i18n?: { locales?: Array<string | { code: string }> } }).i18n?.locales ?? []
+      nuxt.options.runtimeConfig.users!.locales = locales.map(locale => typeof locale === 'string' ? locale : locale.code)
+    })
+    // Fills an empty `users.locale` with the app's language at sign-in and on a language switch (never overwrites it).
+    addPlugin({ src: resolver.resolve('./runtime/app/plugins/remember-locale.client'), mode: 'client' })
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin

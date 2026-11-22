@@ -37,9 +37,25 @@ export type AdminUserDto = {
   name: string
   email: string
   avatar: string | null
+  /** Only in the detail and edit responses, and only for a caller with `users:pii`. */
+  phone?: string | null
   emailVerifiedAt: string | null
   lastLoginAt: string | null
   createdAt: string
+}
+
+/**
+ * A user as other modules show them (`loadUserRefs`, `searchUserRefs`): never a DTO on its own. `email` and `phone`
+ * are personal data: copy them into a response only behind the caller's `:pii` permission.
+ */
+export type UserRef = {
+  id: number
+  name: string | null
+  email: string | null
+  avatar: string | null
+  phone: string | null
+  /** The user's language (`da`, `en-GB`), or `null`: messages to them use it, English when it is not set. */
+  locale: string | null
 }
 
 /** The signed-in user's own profile, as the self-service routes return it. */
@@ -48,5 +64,8 @@ export type ProfileDto = {
   name: string
   email: string
   avatar: string | null
+  phone: string | null
+  /** The user's language (`da`, `en-GB`), or `null`. Filled from the app's language at sign-in when unset. */
+  locale: string | null
   emailVerifiedAt: string | null
 }

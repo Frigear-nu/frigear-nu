@@ -52,7 +52,8 @@
         "loadFailed": "The user could not be loaded",
         "never": "Never",
         "saveProfile": "Save profile",
-        "notFoundHint": "It may have been deleted."
+        "notFoundHint": "It may have been deleted.",
+        "phoneHelp": "Used for text messages. Leave it empty to remove it."
       },
       "tabs": {
         "overview": "Overview"
@@ -74,7 +75,9 @@
       "deleteTitle": "Delete {name}?",
       "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
       "deleted": "User deleted.",
-      "roles": "Roles"
+      "roles": "Roles",
+      "phone": "Phone",
+      "phoneInvalid": "Enter a phone number of digits, spaces and + - ( )."
     },
     "emailChange": {
       "verify": {
@@ -125,7 +128,8 @@
       "create": "Add users",
       "update": "Edit users",
       "delete": "Delete users",
-      "manage": "Manage sign-in of users"
+      "manage": "Manage sign-in of users",
+      "pii": "See users' phone numbers"
     }
   }
 }

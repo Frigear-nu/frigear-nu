@@ -31,6 +31,8 @@ beforeAll(async () => {
       name text not null,
       email text not null unique,
       avatar text,
+      phone text,
+      locale text,
       accepted_terms_at bigint,
       created_at timestamptz not null,
       updated_at timestamptz not null

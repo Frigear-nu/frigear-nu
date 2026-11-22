@@ -29,8 +29,8 @@ export type UserDetail = AdminUserDto & {
   hasPassword: boolean
   passkeys: number
   subscription: UserSubscription | null
-  /** `manage`: change or verify the email address (`users:manage`). */
-  can: { update: boolean, delete: boolean, manage: boolean }
+  /** `manage`: change or verify the email address (`users:manage`). `pii`: see and change the phone number (`users:pii`). */
+  can: { update: boolean, delete: boolean, manage: boolean, pii: boolean }
 }
 
 /** What the actions need of a user: the list rows and the detail both satisfy it. */

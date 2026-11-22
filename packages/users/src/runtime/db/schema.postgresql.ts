@@ -7,6 +7,10 @@ export const users = pgTable('users', {
   name: text().notNull(),
   email: text().notNull().unique(),
   avatar: text(),
+  // Personal data: shown to staff with `users:pii` only, and to other modules' staff through their own `:pii`.
+  phone: text(),
+  // The user's language (an i18n locale code such as `da`, or a short BCP-47 tag): messages to them use it.
+  locale: text(),
   acceptedTermsAt: bigint('accepted_terms_at', { mode: 'number' }),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),
   updatedAt: timestamp({ withTimezone: true }).notNull().$onUpdateFn(() => new Date()),

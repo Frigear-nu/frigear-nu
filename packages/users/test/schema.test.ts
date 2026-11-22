@@ -12,6 +12,8 @@ describe.each(dialects)('users schema ($dialect)', ({ users }) => {
       'name',
       'email',
       'avatar',
+      'phone',
+      'locale',
       'acceptedTermsAt',
       'createdAt',
       'updatedAt',
