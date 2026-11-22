@@ -30,7 +30,8 @@
       "notificationsDescription": "See and change which channels (email, SMS, push) reach you for each kind of message."
     },
     "scopes": {
-      "notifications": "Your notification settings"
+      "notifications": "Your notification settings",
+      "notificationsDescription": "See and change how you are notified."
     }
   }
 }

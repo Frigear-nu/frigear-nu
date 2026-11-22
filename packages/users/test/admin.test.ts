@@ -290,6 +290,9 @@ describe('users admin', () => {
       expect(detail.can).toEqual({ update: true, delete: true, manage: true, pii: false })
       expect(detail).not.toHaveProperty('phone')
       await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: '+1 555 0100' }), 403)
+      // Resending the stored value (here: no number) is refused too, so the status never confirms a guess.
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: null }), 403)
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: '' }), 403)
       expect(await coordinator.json<Row>('PATCH', usersApi.admin.user(plain.id), { name: 'Plain' })).not.toHaveProperty('phone')
       expect((await coordinator.fetch('DELETE', usersApi.admin.user(plain.id))).status).toBe(204)
     })
