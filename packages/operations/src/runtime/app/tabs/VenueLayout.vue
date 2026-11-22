@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PlaneFeatureCollection, PlaneUnderlay } from '@frigear-nu/maps/utils'
+import type { OperationVenueLayoutDto, OperationVenueUnderlayDto } from '../../../types'
 import { operationsApi } from '../../utils/api'
 import { OPERATIONS_VENUE_KINDS, OPERATIONS_VENUE_SURFACE } from '../../utils/venue'
 import type { StaffOperation } from '../utils/admin-operation'
@@ -16,12 +17,16 @@ const t = useModuleT('operations')
 const tr = useOperationsTranslate()
 const { busy, run } = useAction()
 
-const { data, status, error, refresh } = await useFetch<PlaneFeatureCollection>(() => operationsApi.admin.venueLayout(props.operation.id), {
+const { data, status, error, refresh } = await useFetch<OperationVenueLayoutDto>(() => operationsApi.admin.venueLayout(props.operation.id), {
   key: `operations:venue-layout:${props.operation.id}`,
 })
 
-const clone = (value: PlaneFeatureCollection | null | undefined): PlaneFeatureCollection =>
-  value ? JSON.parse(JSON.stringify(value)) : { type: 'FeatureCollection', features: [] }
+// The editor's copy leaves out the `revision`: it goes back with a save, from `data` (what was last read or written).
+const clone = (value: OperationVenueLayoutDto | null | undefined): PlaneFeatureCollection => {
+  if (!value) return { type: 'FeatureCollection', features: [] }
+  const { revision: _revision, ...layout } = JSON.parse(JSON.stringify(value)) as OperationVenueLayoutDto
+  return layout
+}
 // The editor's copy. It is reset from the saved layout only on load, save and discard, never while unsaved edits exist.
 const layout = ref<PlaneFeatureCollection>(clone(data.value))
 const dirty = computed(() => JSON.stringify(layout.value) !== JSON.stringify(clone(data.value)))
@@ -29,16 +34,26 @@ const dirty = computed(() => JSON.stringify(layout.value) !== JSON.stringify(clo
 async function upload(file: File): Promise<PlaneUnderlay> {
   const body = new FormData()
   body.append('file', file)
-  const underlay = await $fetch<PlaneUnderlay>(operationsApi.admin.venueUnderlay(props.operation.id), { method: 'POST', body })
+  // With the revision read, so an upload never replaces a layout someone else changed meanwhile (409).
+  const { revision, ...underlay } = await $fetch<OperationVenueUnderlayDto>(operationsApi.admin.venueUnderlay(props.operation.id), {
+    method: 'POST',
+    body,
+    query: { revision: data.value?.revision },
+  })
   // The image is stored (and the old one deleted) right away: the saved layout has it now, whether or not the drawing
-  // is saved, so discarding never brings back the old image's URL.
-  if (data.value) data.value = { ...data.value, underlay }
+  // is saved, so discarding never brings back the old image's URL. Its new revision is what the next save sends.
+  if (data.value) data.value = { ...data.value, underlay, revision }
   return underlay
 }
 
 async function save() {
   const saved = await run(
-    () => $fetch<PlaneFeatureCollection>(operationsApi.admin.venueLayout(props.operation.id), { method: 'PUT', body: { layout: layout.value } }),
+    // A layout someone changed since it was loaded is not overwritten: 409, shown as an error; "Discard changes" and a
+    // reload bring the current one.
+    () => $fetch<OperationVenueLayoutDto>(operationsApi.admin.venueLayout(props.operation.id), {
+      method: 'PUT',
+      body: { layout: layout.value, revision: data.value?.revision },
+    }),
     { success: t('admin.venueSaved', 'Saved the venue layout of {name}', { name: tr(props.operation.name) }) },
   )
   if (!saved) return
