@@ -102,6 +102,11 @@ export type RegisterDeviceInput = {
    * FCM token, or a rotated token). That device of the caller is removed, so the installation is not notified twice.
    */
   replaces?: string
+  /**
+   * The installation secret: a random value the app generated once and keeps (only its hash is stored). Proves that the
+   * caller holds the installation, so a registered token moves to another user only with it, and `replaces` needs it.
+   */
+  secret?: string
   appId?: string
   locale?: string
 }

@@ -7,7 +7,8 @@ import type { JWTPayload } from 'jose'
 // public half of the configured test key, with the right algorithm, issuer and audience.
 //
 // Tokens steer the answer: one containing `dead` is a dead token (FCM 404 UNREGISTERED, APNs 410 Unregistered), one
-// containing `broken` is a provider failure (500).
+// containing `broken` is a provider failure (500), one containing `rejected` is refused for the device (FCM 400, APNs
+// 400 DeviceTokenNotForTopic). A token in `healed` (`POST /api/test/heal`) is accepted whatever it contains.
 export type FakeCall = {
   provider: 'google-oauth' | 'fcm' | 'apns'
   url: string
@@ -26,6 +27,12 @@ export const resetFakeProviderCalls = () => {
 }
 
 const FCM_ACCESS_TOKEN = 'ya29.fake-access-token'
+
+const healed = new Set<string>()
+export const setFakeTokenHealed = (token: string, value: boolean) => {
+  if (value) healed.add(token)
+  else healed.delete(token)
+}
 
 const lower = (headers: HeadersInit | undefined): Record<string, string> =>
   Object.fromEntries([...new Headers(headers).entries()].map(([key, value]) => [key.toLowerCase(), value]))
@@ -67,6 +74,8 @@ export default defineNitroPlugin(() => {
       const body = JSON.parse(raw) as { message: { token: string } }
       calls.push({ provider: 'fcm', url: url.href, headers, body, verified: headers.authorization === `Bearer ${FCM_ACCESS_TOKEN}` })
       if (headers.authorization !== `Bearer ${FCM_ACCESS_TOKEN}`) return json(401, { error: { status: 'UNAUTHENTICATED', message: 'Bad token.' } })
+      if (healed.has(body.message.token)) return json(200, { name: 'projects/test-project/messages/1' })
+      if (body.message.token.includes('rejected')) return json(400, { error: { code: 400, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.' } })
       if (body.message.token.includes('dead')) return json(404, { error: { code: 404, status: 'NOT_FOUND', message: 'Requested entity was not found.', details: [{ '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError', 'errorCode': 'UNREGISTERED' }] } })
       if (body.message.token.includes('broken')) return json(500, { error: { code: 500, status: 'INTERNAL', message: 'Backend error.' } })
       return json(200, { name: 'projects/test-project/messages/1' })
@@ -97,6 +106,8 @@ export default defineNitroPlugin(() => {
     }
     if (!call.verified) return { status: 403, body: JSON.stringify({ reason: 'InvalidProviderToken' }) }
     const token = path.split('/').pop() ?? ''
+    if (healed.has(token)) return { status: 200, body: '' }
+    if (token.includes('rejected')) return { status: 400, body: JSON.stringify({ reason: 'DeviceTokenNotForTopic' }) }
     if (token.includes('dead')) return { status: 410, body: JSON.stringify({ reason: 'Unregistered' }) }
     if (token.includes('baddevice')) return { status: 400, body: JSON.stringify({ reason: 'BadDeviceToken' }) }
     if (token.includes('broken')) return { status: 500, body: JSON.stringify({ reason: 'InternalServerError' }) }

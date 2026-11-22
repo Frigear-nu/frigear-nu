@@ -12,11 +12,22 @@ export type DeviceMessage = {
 
 /**
  * What a provider said about one device: `sent` (accepted), `dead` (the token is no longer valid: revoke it) or
- * `failed` (anything else: a provider outage, a timeout, bad credentials, a rejected payload; the token stays).
+ * `failed` (anything else: a provider outage, a timeout, bad credentials, a rejected payload; the token stays;
+ * `deviceError` when the provider refused this device's request, see `isDeviceRejection`).
  * A `dead` outcome with `ambiguous` can also mean a wrong environment (APNs `BadDeviceToken` for a sandbox token sent
  * to production), so `deliverToDevices` does not revoke it when every iOS device of a call gets it.
  */
-export type DeliveryOutcome = { status: 'sent' } | { status: 'failed', reason: string } | { status: 'dead', reason: string, ambiguous?: boolean }
+export type DeliveryOutcome = { status: 'sent' } | { status: 'failed', reason: string, deviceError?: boolean } | { status: 'dead', reason: string, ambiguous?: boolean }
+
+/**
+ * Whether a provider's HTTP status refuses this one device's push (a 4xx about the request), rather than saying
+ * something about the provider or the credentials (401, 403), the payload size (413), the rate (429), a timeout (408)
+ * or an outage (5xx). Such failures count toward the device's consecutive failures (`deviceError`), which revoke it
+ * after a few in a row.
+ */
+export function isDeviceRejection(status: number): boolean {
+  return status >= 400 && status < 500 && ![401, 403, 408, 413, 429].includes(status)
+}
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 
