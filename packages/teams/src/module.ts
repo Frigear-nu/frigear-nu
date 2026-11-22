@@ -9,6 +9,7 @@ import {
 } from '@nuxt/kit'
 import {
   registerDatabaseTable,
+  registerSearchIndex,
   registerModule,
   registerLocales,
   registerTailwindSource,
@@ -121,6 +122,8 @@ export default defineNuxtModule<ModuleOptions>({
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
+    // `teams.searchText`, recomputed by the `search:reindex` task.
+    registerSearchIndex(nuxt, { name: 'teams', handler: resolver.resolve('./runtime/server/search-index') })
 
     // --- API routes -----------------------------------------------------------------------
     // Static segments (`me`, `mappings`, `ladders`, `users`) win over `:id` in h3's radix router.
