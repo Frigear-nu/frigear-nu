@@ -5,6 +5,7 @@ import type {
   NotificationChannel,
   NotificationChannelsDto,
   NotificationChannelsRow,
+  NotificationChoices,
   NotificationTopic,
   NotifyUserInput,
   NotifyUserResult,
@@ -50,19 +51,20 @@ export async function readNotificationChannels(userId: number): Promise<Notifica
 
 /**
  * Stores changes to the user's channels through the registered choices store. `changes` maps a topic id to the channels
- * to set; an unknown topic and a channel the topic does not offer are ignored. What is stored per topic is complete (its
- * other channels keep what applied before). Throws when no choices store is registered.
+ * to set; an unknown topic and a channel the topic does not offer are ignored. Only the channels given are passed on:
+ * the store merges them per channel into what it has stored (read fresh), so two changes made at once to different
+ * channels both stick, and channels never set keep following the topic's defaults. Throws when no choices store is
+ * registered.
  */
 export async function saveNotificationChannels(userId: number, changes: Record<string, Partial<ChannelSettings>>): Promise<void> {
   if (!choicesStore) throw new Error('[@frigear-nu/notify] No choices store is registered: install @frigear-nu/preferences to store notification choices.')
-  const stored = await choicesStore.readChoices(userId)
-  const next: Record<string, ChannelSettings> = {}
+  const next: NotificationChoices = {}
   for (const [id, change] of Object.entries(changes)) {
     const topic = findNotificationTopic(id)
     if (!topic) continue
     const offered = topicChannels(topic)
-    const allowed = Object.fromEntries(Object.entries(change).filter(([channel]) => offered.includes(channel as NotificationChannel)))
-    next[id] = { ...resolveChannelSettings(topic, stored[id]), ...allowed }
+    const allowed = Object.fromEntries(Object.entries(change).filter(([channel, value]) => offered.includes(channel as NotificationChannel) && typeof value === 'boolean'))
+    if (Object.keys(allowed).length) next[id] = allowed
   }
   if (Object.keys(next).length) await choicesStore.writeChoices(userId, next)
 }
@@ -76,12 +78,12 @@ export async function saveNotificationChannels(userId: number, changes: Record<s
  * The contacts come from the registered recipient store (`@frigear-nu/users`) and the choices from the registered
  * choices store (`@frigear-nu/preferences`; without it the defaults apply). Without a recipient store nothing is sent and
  * a warning is logged. An error on one channel is logged and does not stop the others or throw; the result says which
- * channels went out and why the others did not. An error reading the user's choices is logged as a warning and the
- * topic's defaults apply, so it does not throw either.
+ * channels went out and why the others did not.
  *
- * It throws only for an unknown topic (register it with `extendNotificationTopics`) and when the recipient store's
- * `findRecipient` throws (a database error looking up the user's contacts), so callers in hooks and tasks should still
- * catch.
+ * It throws for an unknown topic (register it with `extendNotificationTopics`) and when a store fails: an error from the
+ * recipient store's `findRecipient` or the choices store's `readChoices` (a database error) rejects the call before any
+ * channel is sent, so nothing goes out on defaults the user may have turned off. Callers in hooks and tasks catch and log
+ * it so their own work goes on.
  */
 export async function notifyUser(userId: number, input: NotifyUserInput): Promise<NotifyUserResult> {
   const topic = findNotificationTopic(input.topic)
@@ -99,14 +101,8 @@ export async function notifyUser(userId: number, input: NotifyUserInput): Promis
     return result
   }
 
-  const [recipient, choices] = await Promise.all([
-    recipientStore.findRecipient(userId),
-    // Choices only narrow the defaults: a store that fails should not cost the user the notification.
-    readStoredChoices(userId).catch((error: unknown) => {
-      console.warn(`[@frigear-nu/notify] notifyUser: reading the choices of user ${userId} failed, the defaults of ${topic.id} apply:`, error)
-      return {}
-    }),
-  ])
+  // A store error rejects the call: sending on the defaults could reach a user on a channel they turned off.
+  const [recipient, choices] = await Promise.all([recipientStore.findRecipient(userId), readStoredChoices(userId)])
   const settings = resolveChannelSettings(topic, choices[topic.id])
   const locale = recipient?.locale || 'en'
 
