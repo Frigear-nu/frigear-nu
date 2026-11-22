@@ -111,7 +111,7 @@ export async function resolveAuthSession(event: H3Event): Promise<AuthPrincipal 
     return null
   }
   // A session is no delegated credential: it has no scopes, and `authorize` checks its user's roles.
-  return { kind: 'session', user: mapUserToSession(stored) as AuthUser, scopes: [] }
+  return { kind: 'session', user: mapUserToPrincipal(stored) as AuthUser, scopes: [] }
 }
 
 /**

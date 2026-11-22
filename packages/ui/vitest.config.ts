@@ -5,6 +5,8 @@ export default defineConfig({
     passWithNoTests: true,
     projects: [
       {
+        // Nuxt defines `import.meta.dev`; the unit tests run the runtime code as in development.
+        define: { 'import.meta.dev': 'true' },
         test: {
           name: 'unit',
           include: ['test/unit/*.{test,spec}.ts'],

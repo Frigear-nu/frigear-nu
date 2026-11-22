@@ -5,6 +5,9 @@ import type { AdminUserDto, ProfileDto } from '../../types'
 
 export type { AdminUserDto, ProfileDto }
 
+// The phone number rule, so another module's form checks a number as the users routes do.
+export { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from './phone'
+
 const base = '/api/users'
 const adminBase = '/api/admin/users'
 
