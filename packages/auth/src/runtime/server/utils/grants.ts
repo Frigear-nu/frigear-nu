@@ -28,8 +28,8 @@ export function grantsRegistry(): GrantRegistry {
 /** Reads a stored grant list (see `readGrants`): not an array is the empty list, which admits nobody. */
 export const grantsRead = (value: unknown): Grant[] => readGrants(value)
 
-/** Whether the list holds a `public` grant. */
-export const grantsArePublic = (value: unknown): boolean => hasPublicGrant(value)
+/** Whether the list holds a valid `public` grant (parsed through the registry: an invalid one admits nobody). */
+export const grantsArePublic = (value: unknown): boolean => hasPublicGrant(value, grantsRegistry())
 
 /**
  * Whether `user` (`null` when anonymous) matches the list: ANY one grant admits; the empty list admits nobody; an
@@ -46,14 +46,14 @@ export function grantsMembers(event: H3Event, value: unknown): Promise<string[]>
 }
 
 /**
- * Whether the caller may read `record`: a record whose `grants` hold a `public` grant is served to everyone, signed in
+ * Whether the caller may read `record`: a record whose `grants` hold a valid `public` grant is served to everyone, signed in
  * or not. Every other record goes through `allows(event, permission, record)`, so the permission's roles, token scopes,
  * `authorization:before` and the module's policy (which evaluates the grants with `grantsMatch`) decide. Anonymous
  * callers are only ever admitted by a `public` grant. This is the one place that exception lives: call it, do not
  * re-implement it.
  */
 export async function grantsCanRead(event: H3Event, permission: Parameters<typeof allows>[1], record: { grants: unknown }): Promise<boolean> {
-  if (hasPublicGrant(record.grants)) return true
+  if (hasPublicGrant(record.grants, grantsRegistry())) return true
   return allows(event, permission, record)
 }
 

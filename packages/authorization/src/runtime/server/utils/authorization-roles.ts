@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, count, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, ne, sql } from 'drizzle-orm'
 import { chunkParams, inChunks, isoDate } from '@frigear-nu/module-kit/server'
 import type { AuthRoleSource, AuthUser } from '@frigear-nu/auth/utils'
 import { registry } from '#auth/permissions'
@@ -91,19 +91,21 @@ export function rekeyAuthorizationUserRoles(from: number, to: number, executor: 
 }
 
 /**
- * The users with at least one of `roles` stored (any source), at most `limit` of them: the role provider's `holders`
- * (auth's `listRoleHolders` passes the roles inheriting the wanted ones too, and checks effective roles afterwards).
+ * The users with at least one of `roles` stored (any source), at most `limit` of them, lowest user ids first: the role
+ * provider's `holders` (auth's `listRoleHolders` passes the roles inheriting the wanted ones too, and checks effective
+ * roles afterwards). Ordered by user id, so a list cut at `limit` is always the same one.
  */
 export async function listAuthorizationRoleHolders(roles: readonly string[], limit: number): Promise<number[]> {
   const ids = new Set<number>()
-  // In chunks: D1 allows 100 bound parameters per query.
+  // In chunks: D1 allows 100 bound parameters per query. Every chunk is read, so the lowest ids win across chunks too.
+  // Ordered by user id only: postgres refuses a SELECT DISTINCT ordered by a column it does not select.
   for (const chunk of chunkParams([...new Set(roles)])) {
-    if (ids.size >= limit) break
     const rows = await db.selectDistinct({ userId: userRoles().userId }).from(userRoles()).where(inArray(userRoles().role, chunk))
+      .orderBy(asc(userRoles().userId))
       .limit(limit)
     for (const row of rows) ids.add(Number(row.userId))
   }
-  return [...ids].slice(0, limit)
+  return [...ids].sort((a, b) => a - b).slice(0, limit)
 }
 
 /** How many users have an assigned row, per role. */
