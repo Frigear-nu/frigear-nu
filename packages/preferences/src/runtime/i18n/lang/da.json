@@ -30,7 +30,8 @@
       "notificationsDescription": "Se og ændr, hvilke kanaler (e-mail, SMS, push) der når dig for hver slags besked."
     },
     "scopes": {
-      "notifications": "Dine notifikationsindstillinger"
+      "notifications": "Dine notifikationsindstillinger",
+      "notificationsDescription": "Se og ændr, hvordan du får besked."
     }
   }
 }
