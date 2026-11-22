@@ -1,10 +1,9 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, asc, count, desc, eq, inArray, is, or, sql } from 'drizzle-orm'
-import type { AnyColumn, SQL } from 'drizzle-orm'
-import { PgTable } from 'drizzle-orm/pg-core'
+import { and, asc, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import type { Grant } from '@frigear-nu/auth/grants'
-import { apiError, chunkParams, conflict, escapeLike, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, searchContains, searchText, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
@@ -79,25 +78,6 @@ export function helpCenterRequiredLocales(): string[] {
 }
 
 // --- Search ---------------------------------------------------------------------------------
-
-/**
- * Search of a translated json column (a plain string, or a locale -> text map) for `value` in any language, ignoring
- * case. Matches the texts only, never the locale keys. sqlite reads the json with `json_each` (a json string scalar
- * yields one row); postgresql with `jsonb_each_text`, wrapping a string scalar in an object first.
- *
- * The needle is folded in JavaScript with `toLocaleLowerCase()`, which knows Danish letters. postgresql then lowercases
- * the stored text too (`lower()`, aware of non-ASCII letters). sqlite's `lower()` and `LIKE` only fold ASCII, so there
- * the stored text is compared with the lowercase and the uppercase needle: `øl` finds `ØL` and `Øl`. A stored text that
- * mixes cases of non-ASCII letters differently from the needle can still be missed on sqlite.
- */
-export function helpTranslatedContains(column: AnyColumn, value: string): SQL {
-  const lower = `%${escapeLike(value.toLocaleLowerCase())}%`
-  const upper = `%${escapeLike(value.toLocaleUpperCase())}%`
-  if (is(schema.helpArticles, PgTable)) {
-    return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like ${lower} escape '\\')`
-  }
-  return sql`exists (select 1 from json_each(${column}) as t where t.value like ${lower} escape '\\' or t.value like ${upper} escape '\\')`
-}
 
 /** Rows fetched per round trip of a read, and how many visible articles a search or a list answers. */
 const BATCH = 200
@@ -187,7 +167,8 @@ export const helpCenterDatabaseSource: HelpCenterSource = {
       const where = and(
         eq(schema.helpArticles.status, 'published'),
         inArray(schema.helpArticles.categoryId, categoryIds),
-        q ? or(helpTranslatedContains(schema.helpArticles.title, q), helpTranslatedContains(schema.helpArticles.body, q)) : undefined,
+        // The folded search columns: `Ø`, `Æ` and `Å` match in any case on sqlite too.
+        q ? or(searchContains(schema.helpArticles.searchText, q), searchContains(schema.helpArticles.searchBody, q)) : undefined,
       )
       const readableRows: Array<{ row: HelpArticleRow, owner: HelpCategoryRow, chain: HelpCategoryRow[] }> = []
       let exhausted = false
@@ -413,6 +394,8 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
     slug: input.slug,
     title: input.title,
     body: input.body,
+    searchText: searchText(input.title, input.slug),
+    searchBody: searchText(input.body),
     status: 'draft',
     grants,
     icon: input.icon ?? null,
@@ -445,6 +428,8 @@ export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleR
   )
   if (!Object.keys(changed).length) return existing
   if (existing.status === 'published') assertHelpArticlePublishable({ title: changed.title ?? existing.title, body: changed.body ?? existing.body })
+  if (changed.title !== undefined || changed.slug !== undefined) changed.searchText = searchText(changed.title ?? existing.title, changed.slug ?? existing.slug)
+  if (changed.body !== undefined) changed.searchBody = searchText(changed.body)
   const [row] = await db.update(schema.helpArticles).set({ ...changed, updatedBy: String(userId) }).where(eq(schema.helpArticles.id, existing.id)).returning().catch(rethrowSlugConflict('article'))
   return row!
 }
@@ -501,10 +486,7 @@ function adminArticleWhere(options: AdminArticleFilter) {
   if (options.status) conditions.push(eq(schema.helpArticles.status, options.status))
   if (options.categorySlug) conditions.push(eq(schema.helpCategories.slug, options.categorySlug))
   if (options.q) {
-    conditions.push(or(
-      helpTranslatedContains(schema.helpArticles.title, options.q),
-      sql`lower(${schema.helpArticles.slug}) like ${`%${escapeLike(options.q.toLocaleLowerCase())}%`} escape '\\'`,
-    ))
+    conditions.push(searchContains(schema.helpArticles.searchText, options.q))
   }
   return conditions.length ? and(...conditions) : undefined
 }

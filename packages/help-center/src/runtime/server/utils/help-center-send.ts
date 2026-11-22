@@ -1,10 +1,10 @@
 import type { H3Event } from 'h3'
 import type { Grant } from '@frigear-nu/auth/grants'
-import { apiError, notConfigured, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, localizePath, notConfigured, validationError } from '@frigear-nu/module-kit/server'
+import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
 import type { HelpArticleDto, HelpSendResult } from '../../../types'
-import { createHelpCenterPaths, localizeHelpCenterPath } from '../../utils/paths'
-import type { HelpCenterI18n } from '../../utils/paths'
+import { createHelpCenterPaths } from '../../utils/paths'
 import { translate } from '../../utils/index'
 import { helpCenterArticleById, helpCenterReaderFor } from './help-center'
 import { loadHelpUsers } from './help-center-checklists'
@@ -82,7 +82,7 @@ export async function resolveHelpAudience(event: H3Event, audience: SendInput['a
  * address for the channels asked for, are skipped. The paths come from the configured areas, never hard-coded.
  */
 export async function sendHelpArticles(event: H3Event, input: SendInput): Promise<HelpSendResult> {
-  const config = useRuntimeConfig().public.helpCenter as { pages?: { public?: string, signedIn?: string }, i18n?: HelpCenterI18n | null } | undefined
+  const config = useRuntimeConfig().public.helpCenter as { pages?: { public?: string, signedIn?: string }, i18n?: LocaleRouting | null } | undefined
   const paths = createHelpCenterPaths({ public: config?.pages?.public, signedIn: config?.pages?.signedIn })
   if (!paths.public.base && !paths.signedIn.base) throw notConfigured('Both areas of the help center are off, so there is nowhere to link to.')
 
@@ -124,7 +124,7 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
       const path = article.public && paths.public.base
         ? paths.public.article(article.categorySlug, article.slug)
         : paths.signedIn.article(article.categorySlug, article.slug)
-      if (path) links.push({ title: translate(article.title, locale, requiredLocales[0]), url: `${origin}${localizeHelpCenterPath(path, locale, config?.i18n)}` })
+      if (path) links.push({ title: translate(article.title, locale, requiredLocales[0]), url: `${origin}${localizePath(path, locale, config?.i18n)}` })
     }
     if (!links.length) {
       result.skipped++

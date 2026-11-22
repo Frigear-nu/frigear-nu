@@ -5,6 +5,9 @@ import { pgTable, text, serial, bigint, timestamp } from 'drizzle-orm/pg-core'
 export const users = pgTable('users', {
   id: serial().primaryKey(),
   name: text().notNull(),
+  // `name` folded for search (`searchText` of `@frigear-nu/module-kit/server`), written with it: `searchUserRefs` and
+  // other modules' user searches match it.
+  searchText: text().notNull().default(''),
   email: text().notNull().unique(),
   avatar: text(),
   // Personal data: shown to staff with `users:pii` only, and to other modules' staff through their own `:pii`.

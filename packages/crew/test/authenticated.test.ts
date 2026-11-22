@@ -648,6 +648,16 @@ describe('crew (authenticated, database-backed)', async () => {
   })
 
   describe('earlier crew', () => {
+    it('searches crew names with capital Ø, Æ and Å in any case (users.searchText)', async () => {
+      const crew = await newCrew()
+      const ostergaard = await registerUser('ØSTERGÅRD Æbelø', `ostergaard${++counter}@example.com`)
+      const other = await user('Other')
+      await applied(ostergaard, crew)
+      await applied(other, crew)
+      const found = async (q: string) => (await list(staff.cookie, crew, `&q=${encodeURIComponent(q)}`)).items.map((item: Json) => item.userId)
+      for (const q of ['østergård', 'ØSTERGÅRD æbelø', 'Æbelø']) expect(await found(q), q).toEqual([ostergaard.id])
+    })
+
     it('knows who was approved in an earlier operation, filters and sorts by it, and promotes them first when asked', async () => {
       const past = await newCrew({}, { startsAt: '2026-06-27T10:00:00.000Z' })
       const veteran = await user('Veteran')
@@ -938,7 +948,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(appliedEmail!.text).toContain('Tak for din ansøgning.')
       // `{{status}}` is the Danish label.
       expect(approvedEmail).toMatchObject({ subject: `Du er med i crewet på ${crew.op.name.en}`, template: { props: { message: 'Status: Godkendt' } } })
-      // The fixture has no i18n, so the link has no locale prefix (`localizeCrewPath` is unit-tested).
+      // The fixture has no i18n, so the link has no locale prefix (`localizePath` of module-kit is unit-tested).
       expect(appliedEmail!.template!.props!.statusUrl).toMatch(/^http.*\/crew\/status$/)
       const brit = await user('Englishman')
       await ok(await json(brit.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Englishman' }, locale: 'en' }))

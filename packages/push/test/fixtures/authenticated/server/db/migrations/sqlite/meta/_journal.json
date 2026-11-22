@@ -36,6 +36,13 @@
       "when": 1795375998032,
       "tag": "0004_push_device_secret_failures",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795382061805,
+      "tag": "0005_search_text",
+      "breakpoints": true
     }
   ]
 }
