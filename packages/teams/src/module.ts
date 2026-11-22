@@ -18,8 +18,7 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
 } from '@frigear-nu/module-kit/utils'
-import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
-import { extendGrants } from '@frigear-nu/grants/utils'
+import { addPolicies, extendGrants, registerAccess } from '@frigear-nu/auth/utils'
 import { teamsAccess } from './runtime/access'
 import { mergeTeamLadders, teamLadderIssues } from './runtime/utils/ladders'
 import { TEAMS_DASHBOARD, teamsDashboardItems } from './runtime/dashboard'
@@ -79,8 +78,6 @@ export default defineNuxtModule<ModuleOptions>({
     // Members are users: the members list and the user lookup read the `users` table.
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-    // Registers the `team` grant kind.
-    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Items on the `crew.home` dashboard.
@@ -156,7 +153,7 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     // Answers `teams:owner:resolve` for `team`, and for `operation` when the operations table is there.
     addServerPlugin(resolver.resolve('./runtime/server/plugins/owners'))
-    // The `team` grant kind (`@frigear-nu/grants`): the users holding a minimum role on one team.
+    // The `team` grant kind (`@frigear-nu/auth`): the users holding a minimum role on one team.
     extendGrants(nuxt, {
       kind: 'team',
       label: 'Team',

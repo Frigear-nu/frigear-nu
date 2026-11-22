@@ -23,7 +23,7 @@ They build on modules in other categories, which other apps use without them:
 | Module | Category | What the crew modules use it for |
 | --- | --- | --- |
 | [Teams](/modules/organisation/teams) | Organisation | The teams crew work in, and the team roles of the role ladder below. |
-| [Grants](/modules/platform/grants) | Platform | Who may see a record: grant lists, where any one grant admits. Operations registers `operation`, Teams `team`. |
+| [Auth](/contribute/writing-a-module/access-control#record-audiences) | Identity | Who may see a record: grant lists, where any one grant admits. Authorization registers `role`, Operations registers `operation`, Teams `team`. |
 | [FAQ](/modules/content/faq) and [Help center](/modules/content/help-center) | Content | What volunteers read, visible per team role or operation. |
 | [Push](/modules/communication/push) | Communication | The [notification topics](#notifications) crew and shifts send on. |
 | [Dashboard](/modules/interface/dashboard) and [Maps](/modules/interface/maps) | Interface | The `crew.home` [dashboard](#dashboard-items) and the [maps](#maps-integrations) of an operation. |
@@ -184,19 +184,17 @@ The crew modules and the modules they build on. Hard dependencies go in `moduleD
 ones use `hasNuxtModule()` plus hooks and registries, so each module also works alone. Arrows point one way: a lower module never imports a higher one.
 
 ```text
-grants      ─► auth, ui
-
 dashboard   ─► widget, ui                            (soft: preferences, mobile, auth)
-operations  ─► auth, grants                          (soft: events, maps, dashboard)
-teams       ─► auth, users, grants                   (soft: authorization, subscriptions, oauth-server, maps, dashboard)
+operations  ─► auth                                  (soft: events, maps, dashboard)
+teams       ─► auth, users                           (soft: authorization, subscriptions, oauth-server, maps, dashboard)
 crew        ─► operations, teams, forms, notify      (soft: dashboard, mobile)
 shifts      ─► crew, notify                          (soft: dashboard, push, mobile, maps)
-faq         ─► auth, grants                          (soft: menu, admin, forms, teams, crew, operations, mobile,
+faq         ─► auth                                  (soft: menu, admin, forms, teams, crew, operations, mobile,
                                                             dashboard)
-help-center ─► auth, grants                          (soft: teams, crew, operations, maps, notify, push, dashboard,
+help-center ─► auth                                  (soft: teams, crew, operations, maps, notify, push, dashboard,
                                                             @nuxt/content, faq, menu, admin, widget, account, mobile)
 maps        ─► auth                                  (owners register kinds and layers; maps imports none of them)
-inbox       ─► auth, notify, grants                  (planned; soft: forms, users, teams, push, mobile, dashboard)
+inbox       ─► auth, notify                          (planned; soft: forms, users, teams, push, mobile, dashboard)
 push        ─► auth, users                           (soft: mobile, preferences)
 ```
 
@@ -211,7 +209,7 @@ Content, Communication or Interface. Follow the module page templates in [Docume
 
 ## Next steps
 
-- [Grants](/modules/platform/grants) – who may see a record, with the kinds the crew modules register.
+- [Record audiences](/contribute/writing-a-module/access-control#record-audiences) – who may see a record, with the kinds the crew modules register.
 - [Teams](/modules/organisation/teams) – the team roles of the role ladder.
 - [Extension points](/guide/concepts/extension-points) – how hooks and registries let modules extend each other.
 - [Access control](/guide/concepts/auth-and-scopes) – the policies owner modules add.

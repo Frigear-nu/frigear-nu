@@ -4,7 +4,7 @@ import { pgTable, text, integer, boolean, jsonb, timestamp, index, uniqueIndex }
 // `{ da: '...', en: '...' }` map (see `Translated` in types.ts).
 // (declared here, not imported: this file is merged into the generated schema as plain text)
 type Translated = string | Record<string, string>
-// Who may read a record, see `Grant` of `@frigear-nu/grants`.
+// Who may read a record, see `Grant` of `@frigear-nu/auth`.
 type Grant = { kind: string } & Record<string, unknown>
 
 export const helpCategories = pgTable('help_categories', {
@@ -19,7 +19,7 @@ export const helpCategories = pgTable('help_categories', {
   ownerType: text().notNull().default('platform'),
   /** `null` for the platform. */
   ownerId: text(),
-  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  /** Who may read it (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: jsonb().$type<Grant[]>().notNull().default([]),
   /** Slugs of `@frigear-nu/faq` groups shown in the category (when faq is installed). */
   faqGroups: jsonb().$type<string[]>(),
@@ -41,7 +41,7 @@ export const helpArticles = pgTable('help_articles', {
   body: jsonb().$type<Translated>().notNull(),
   /** `draft | published`. */
   status: text().notNull().default('draft'),
-  /** Narrows the parent: `null` inherits it, a list must admit too (`@frigear-nu/grants`). */
+  /** Narrows the parent: `null` inherits it, a list must admit too (`@frigear-nu/auth`). */
   grants: jsonb().$type<Grant[]>(),
   sort: integer().notNull().default(0),
   publishedAt: timestamp({ withTimezone: true }),
@@ -59,7 +59,7 @@ export const helpChecklists = pgTable('help_checklists', {
   /** The operation the checklist is for, or `null` for every volunteer. */
   operationId: text(),
   name: jsonb().$type<Translated>().notNull(),
-  /** Who may read it (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  /** Who may read it (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: jsonb().$type<Grant[]>().notNull().default([]),
   sort: integer().notNull().default(0),
   createdAt: timestamp({ withTimezone: true }).notNull().$defaultFn(() => new Date()),

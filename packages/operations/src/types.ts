@@ -108,7 +108,7 @@ export type OperationsParticipationContext = {
 
 /**
  * Context of `operations:participants:resolve`: listeners add the ids (as text) of the users who take part in any of
- * `operationIds`. Keep every query under D1's 100 bound parameters (`chunkGrantParams` of `@frigear-nu/grants/core`).
+ * `operationIds`. Keep every query under D1's 100 bound parameters (`chunkGrantParams` of `@frigear-nu/auth/grants`).
  */
 export type OperationsParticipantsContext = {
   event: H3Event | undefined
@@ -116,5 +116,5 @@ export type OperationsParticipantsContext = {
   userIds: Set<string>
 }
 
-/** The `operation` grant of `@frigear-nu/grants`: the users who take part in the operation. */
+/** The `operation` grant of `@frigear-nu/auth`: the users who take part in the operation. */
 export type OperationGrant = { kind: 'operation', operationId: string }

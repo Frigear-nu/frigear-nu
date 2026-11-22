@@ -99,6 +99,15 @@
         "fromSso": "Givet af single sign-on",
         "locked": "Den har rettigheder du ikke har"
       }
+    },
+    "grants": {
+      "kinds": {
+        "role": "Rolle"
+      },
+      "role": {
+        "placeholder": "Vælg en rolle",
+        "typed": "Rollens navn, for eksempel admin"
+      }
     }
   }
 }
