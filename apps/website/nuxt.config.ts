@@ -378,7 +378,8 @@ export default defineNuxtConfig({
       // Staff write in Danish first: an article can be published with Danish only. English readers see the Danish text
       // until an English one is added (the help center falls back to the default locale).
       requiredLocales: ['da'],
-      // The FAQ cards' contact button opens the site's own contact modal (components/content), prefilled from `initial`.
+      // The FAQ cards' contact button opens the site's own contact modal (components/global, so the cards resolve it by
+      // name), prefilled from `initial`.
       faq: { contactComponent: 'ContactFormModal' },
     },
   },
