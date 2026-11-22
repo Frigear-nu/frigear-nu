@@ -1,5 +1,5 @@
 import type { schema } from '@nuxthub/db'
-import { readGrants } from '@frigear-nu/grants/core'
+import { readGrants } from '@frigear-nu/auth/grants'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AdminHelpArticleDto, AdminHelpCategoryDto, HelpArticleDto, HelpArticleStatus, HelpArticleSummaryDto, HelpCategoryDto } from '../../../types'
 import { isHelpArticlePublic, isHelpChainPublic } from '../../utils/grants'
