@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { readFile, rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { usersApi } from '../src/runtime/utils/api'
 import type { AdminUserDto } from '../src/types'
@@ -591,5 +591,22 @@ describe('user lookups for other modules (loadUserRefs, searchUserRefs)', () => 
     await apiClient({ cookie }).json('PATCH', usersApi.me.profile, { name: 'Åse Ørsted' })
     expect((await lookup({ q: 'åSE' })).found.map(ref => ref.name)).toEqual(['Åse Ørsted'])
     expect((await lookup({ q: 'æble' })).found).toEqual([])
+  })
+
+  it('search:reindex refolds users.searchText left by an ASCII-only lower() backfill, and a second run changes nothing', async () => {
+    await registerAndGetCookie({ name: 'ÆRØ ÅSEN', email: 'aero@example.com', password: 'supersecret123' })
+    const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+    // What the migration's backfill stores: sqlite's lower() keeps Æ, Ø and Å.
+    sqlite.exec('update users set searchText = lower(name)')
+    const stale = () => sqlite.query<{ searchText: string }>('select searchText from users where email = ?', 'aero@example.com')[0]!.searchText
+    expect(stale()).toBe('ÆrØ Åsen')
+    expect((await lookup({ q: 'ærø' })).found).toEqual([])
+
+    const first = reindexOf(await runSearchReindex(), 'users')!
+    expect(first.updated).toBeGreaterThanOrEqual(1)
+    expect(stale()).toBe('ærø åsen')
+    expect((await lookup({ q: 'ærø' })).found.map(ref => ref.name)).toEqual(['ÆRØ ÅSEN'])
+
+    expect(reindexOf(await runSearchReindex(), 'users')).toEqual({ ...first, updated: 0 })
   })
 })
