@@ -19,7 +19,8 @@
       "readDescription": "Læs de offentlige operationer og dem, du deltager i."
     },
     "scopes": {
-      "operations": "Operationer"
+      "operations": "Operationer",
+      "operationsDescription": "Læs de offentlige operationer og dem, du deltager i."
     },
     "admin": {
       "tabs": {

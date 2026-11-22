@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyTranslatedToNull, formToOperationBody, isEmptyTranslated, localToIso, operationLocationMap, operationToForm, toLocalInput } from '../../src/runtime/app/utils/admin-operation'
+import { emptyTranslatedToNull, formToOperationBody, isEmptyTranslated, localToIso, operationLocationMap, operationToForm, slugify, toLocalInput } from '../../src/runtime/app/utils/admin-operation'
 import type { OperationFormState, StaffOperation } from '../../src/runtime/app/utils/admin-operation'
 
 const form = (overrides: Partial<OperationFormState> = {}): OperationFormState => ({
@@ -43,5 +43,20 @@ describe('operation form body', () => {
     const stored = { name: 'Bar', slug: 'bar', startsAt: '2027-06-27T08:00:00.000Z', endsAt: null, location: { name: 'Main Street', point: { lat: 10, lng: 20 }, radiusMeters: 50 } } as StaffOperation
     expect(operationToForm(stored).locationMap).toEqual({ point: { lat: 10, lng: 20 }, radiusMeters: 50 })
     expect(operationLocationMap({ name: 'Only a name' })).toBeNull()
+  })
+})
+
+describe('slugify', () => {
+  it('spells out Danish letters and drops accents', () => {
+    expect(slugify('Æblefest')).toBe('aeblefest')
+    expect(slugify('Øl-bar')).toBe('oel-bar')
+    expect(slugify('Bar i Århus 2030')).toBe('bar-i-aarhus-2030')
+    expect(slugify('Crème brûlée')).toBe('creme-brulee')
+    expect(slugify('Straße')).toBe('strasse')
+  })
+
+  it('joins everything else with single dashes', () => {
+    expect(slugify('  Summer -- Festival!  ')).toBe('summer-festival')
+    expect(slugify('!!!')).toBe('')
   })
 })

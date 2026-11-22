@@ -2,6 +2,7 @@ import {
   addImports,
   addPlugin,
   addServerImportsDir,
+  addServerPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
@@ -176,5 +177,7 @@ export default defineNuxtModule<ModuleOptions>({
     if (devicesPath) addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    // Logs invalid push settings once at startup (see `pushConfigProblems`).
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/config-check'))
   },
 })

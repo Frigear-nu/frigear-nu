@@ -25,6 +25,19 @@ export function toPushDeviceDto(row: DeviceRow): PushDeviceDto {
 const newDeviceId = () => newId('psd')
 
 /**
+ * `push.ios`, or its default (`apns`) while the setting is invalid: a bad setting is logged at startup and must not
+ * make every registration fail. Registering again after the fix stores the right provider.
+ */
+function iosProviderOf(config: PushRuntimeConfig): PushProvider {
+  try {
+    return resolveIosProvider(config)
+  }
+  catch {
+    return 'apns'
+  }
+}
+
+/**
  * Registers a device for `userId`. A token that is already registered moves to this user (a phone changes hands) and
  * is active again, so registering is idempotent. The provider is stored resolved (what the device said, else FCM on
  * Android and `push.ios` on iOS), and registering again updates it. `input.replaces` is the token the installation
@@ -34,7 +47,7 @@ const newDeviceId = () => newId('psd')
 export async function registerPushDevice(event: H3Event, userId: number, input: RegisterDeviceInput): Promise<PushDeviceDto> {
   const now = new Date()
   // `platform` is `ios` or `android` here (the route refuses `web`), so a provider always resolves.
-  const provider: PushProvider = resolveDeviceProvider(input, resolveIosProvider(useRuntimeConfig().push as PushRuntimeConfig)) ?? 'fcm'
+  const provider: PushProvider = resolveDeviceProvider(input, iosProviderOf(useRuntimeConfig().push as PushRuntimeConfig)) ?? 'fcm'
   const [row] = await db.insert(schema.pushDevices).values({
     id: newDeviceId(),
     userId,

@@ -6,7 +6,7 @@ import { z } from 'zod'
 //
 // Preferences ride in the sealed session cookie (the session user carries them), and a cookie holds about 4 KB in
 // all. So the layout is bounded: at most 20 dashboards, 50 ids per list, ids of at most 100 characters and at most
-// 1 KB of item settings per dashboard (as JSON).
+// 1 KB of item settings per dashboard (as UTF-8 encoded JSON).
 
 export const DASHBOARD_LIMITS = {
   dashboards: 20,
@@ -24,7 +24,7 @@ export const dashboardLayoutSchema = z.object({
   hidden: ids,
   collapsed: ids,
   settings: z.record(id, z.record(z.string(), z.unknown()))
-    .refine(value => JSON.stringify(value).length <= DASHBOARD_LIMITS.settingsBytes, {
+    .refine(value => new TextEncoder().encode(JSON.stringify(value)).length <= DASHBOARD_LIMITS.settingsBytes, {
       message: `Item settings take at most ${DASHBOARD_LIMITS.settingsBytes} bytes per dashboard.`,
     })
     .optional(),
