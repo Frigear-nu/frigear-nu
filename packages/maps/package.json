@@ -1,0 +1,123 @@
+{
+  "name": "@frigear-nu/maps",
+  "version": "0.0.0",
+  "description": "Maps as a building block for other modules: a location picker on OpenStreetMap, a plane layout editor with underlay and snapping, web and mobile viewers with live layers, feature kinds, zod schemas and geometry helpers. No tables of its own.",
+  "homepage": "https://docs.frigear.dev/modules/interface/maps",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/maps"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    },
+    "./schemas": {
+      "types": "./src/runtime/schemas.ts",
+      "import": "./src/runtime/schemas.ts",
+      "default": "./src/runtime/schemas.ts"
+    },
+    "./properties": {
+      "types": "./src/runtime/utils/properties.ts",
+      "import": "./src/runtime/utils/properties.ts",
+      "default": "./src/runtime/utils/properties.ts"
+    },
+    "./composables": "./src/runtime/app/composables/index.ts",
+    "./composables/*": "./src/runtime/app/composables/*.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      },
+      "./schemas": {
+        "types": "./dist/runtime/schemas.d.ts",
+        "import": "./dist/runtime/schemas.js",
+        "default": "./dist/runtime/schemas.js"
+      },
+      "./properties": {
+        "types": "./dist/runtime/utils/properties.d.ts",
+        "import": "./dist/runtime/utils/properties.js",
+        "default": "./dist/runtime/utils/properties.js"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "workspaces": [
+    "playground"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "npm run dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@geoman-io/leaflet-geoman-free": "^2.20.8",
+    "@nuxt/kit": "catalog:",
+    "h3": "catalog:",
+    "leaflet": "^1.9.4",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@nuxthub/core": "catalog:",
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

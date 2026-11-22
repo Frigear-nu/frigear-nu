@@ -1,0 +1,54 @@
+{
+  "maps": {
+    "editor": {
+      "close": "Luk",
+      "deleteAction": "Slet element",
+      "deleteDescription": "Det fjernes fra plantegningen, når du gemmer. Det, der henviser til det med dets id, mister sin plads.",
+      "deleteTitle": "Slet {name}?",
+      "done": "Færdig",
+      "featureId": "Id: {id}",
+      "featureKind": "Type",
+      "features": "Elementer ({count})",
+      "hint": "Tegn med værktøjerne til venstre, eller tryk på et element for at redigere det.",
+      "hintReadOnly": "Tryk på et element for at se det.",
+      "label": "Navn",
+      "labelHelp": "Vises på plantegningen og i detaljerne.",
+      "noKinds": "Der kan ikke tegnes nogen elementtyper her.",
+      "none": "Ingen",
+      "removeUnderlayAction": "Fjern baggrund",
+      "removeUnderlayDescription": "Billedet vises ikke længere under plantegningen. De tegnede elementer bliver, hvor de er.",
+      "removeUnderlayTitle": "Fjern baggrunden?",
+      "replaceUnderlay": "Erstat baggrund",
+      "snap": "Fastgør til gitter",
+      "snapHelp": "Runder hjørner og punkter til et gitter på {size} enheder.",
+      "text": "Tekst",
+      "underlay": "Baggrund",
+      "underlayFailed": "Billedet kunne ikke uploades",
+      "underlayHelp": "Et billede af en plantegning at tegne på: PNG, JPEG eller WebP.",
+      "underlaySaved": "Baggrunden er uploadet",
+      "underlaySize": "{width} gange {height} pixels, én enhed pr. pixel.",
+      "underlayTooLarge": "Billedet er større end {size}.",
+      "underlayType": "Vælg et PNG-, JPEG- eller WebP-billede.",
+      "unsupported": "Denne egenskab kan ikke redigeres her.",
+      "uploadUnderlay": "Upload baggrund",
+      "wrongGeometry": "Denne type kan ikke have denne form: vælg en anden type."
+    },
+    "location": {
+      "area": "Område",
+      "clear": "Ryd placering",
+      "corners": "{count} hjørner",
+      "drawArea": "Tegn området på kortet, hjørne for hjørne.",
+      "point": "Punkt",
+      "radius": "Radius",
+      "radiusLabel": "Radius (m)",
+      "tap": "Tryk på kortet for at sætte placeringen."
+    },
+    "view": {
+      "details": "Detaljer",
+      "empty": "Der er ikke tegnet noget her endnu",
+      "fit": "Vis alt",
+      "liveLayers": "Live-lag",
+      "loadFailed": "Kortet kunne ikke indlæses."
+    }
+  }
+}

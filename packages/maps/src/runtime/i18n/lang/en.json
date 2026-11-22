@@ -1,0 +1,54 @@
+{
+  "maps": {
+    "editor": {
+      "close": "Close",
+      "deleteAction": "Delete feature",
+      "deleteDescription": "It is removed from the layout when you save. Anything that refers to it by its id loses its place.",
+      "deleteTitle": "Delete {name}?",
+      "done": "Done",
+      "featureId": "Id: {id}",
+      "featureKind": "Kind",
+      "features": "Features ({count})",
+      "hint": "Draw with the tools on the left, or tap a feature to edit it.",
+      "hintReadOnly": "Tap a feature to see it.",
+      "label": "Label",
+      "labelHelp": "Shown on the layout and in the details.",
+      "noKinds": "No feature kinds may be drawn here.",
+      "none": "None",
+      "removeUnderlayAction": "Remove underlay",
+      "removeUnderlayDescription": "The image is no longer shown under the layout. Drawn features stay where they are.",
+      "removeUnderlayTitle": "Remove the underlay?",
+      "replaceUnderlay": "Replace underlay",
+      "snap": "Snap to grid",
+      "snapHelp": "Rounds corners and points to a grid of {size} units.",
+      "text": "Text",
+      "underlay": "Underlay",
+      "underlayFailed": "Could not upload the image",
+      "underlayHelp": "A floor plan image to draw on: PNG, JPEG or WebP.",
+      "underlaySaved": "Underlay uploaded",
+      "underlaySize": "{width} by {height} pixels, one unit per pixel.",
+      "underlayTooLarge": "The image is larger than {size}.",
+      "underlayType": "Choose a PNG, JPEG or WebP image.",
+      "unsupported": "This property cannot be edited here.",
+      "uploadUnderlay": "Upload underlay",
+      "wrongGeometry": "This kind cannot have this shape: choose another kind."
+    },
+    "location": {
+      "area": "Area",
+      "clear": "Clear location",
+      "corners": "{count} corners",
+      "drawArea": "Draw the area on the map, corner by corner.",
+      "point": "Point",
+      "radius": "Radius",
+      "radiusLabel": "Radius (m)",
+      "tap": "Tap the map to place the location."
+    },
+    "view": {
+      "details": "Details",
+      "empty": "Nothing is drawn here yet",
+      "fit": "Show everything",
+      "liveLayers": "Live layers",
+      "loadFailed": "The map could not be loaded."
+    }
+  }
+}
