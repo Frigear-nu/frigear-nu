@@ -8,7 +8,8 @@ describe('account pages (guarded with @frigear-nu/authorization)', async () => {
     setupTimeout: 240_000,
   })
 
-  it.each(['/account', '/account/profile', '/account/security', '/account/documents', '/account/api-tokens', '/account/membership'])(
+  // `/da/...`: the guard covers every i18n locale prefix (auth's `guardPages`).
+  it.each(['/account', '/account/profile', '/account/security', '/account/documents', '/account/api-tokens', '/account/membership', '/da/account', '/da/account/profile'])(
     'does not serve %s to guests',
     async (path) => {
       const response = await fetch(path, { redirect: 'manual' })
