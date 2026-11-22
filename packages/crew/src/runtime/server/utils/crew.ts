@@ -36,13 +36,15 @@ export async function crewUsersById(ids: number[]): Promise<Map<number, NonNulla
 
 /**
  * The crew membership of a user in an operation, or `undefined`: a `team_members` row with a `crewStatus` on a team the
- * operation owns. Rows teams staff added by hand (no `crewStatus`) are not crew memberships.
+ * operation owns. Rows teams staff added by hand (no `crewStatus`) are not crew memberships. When a person has more than
+ * one (an invite filled a row on its own team and withdrew the older one), a live row wins over a withdrawn one, then
+ * the oldest.
  */
 export async function findCrewEntry(userId: number, operationId: string): Promise<CrewEntry | undefined> {
   const [row] = await db.select({ member: schema.teamMembers, team: schema.teams }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
     .where(and(eq(schema.teamMembers.userId, userId), operationTeamOwned(operationId), isNotNull(schema.teamMembers.crewStatus)))
-    .orderBy(asc(schema.teamMembers.createdAt), asc(schema.teamMembers.id)).limit(1)
+    .orderBy(sql`case when ${schema.teamMembers.crewStatus} = 'withdrawn' then 1 else 0 end`, asc(schema.teamMembers.createdAt), asc(schema.teamMembers.id)).limit(1)
   return row
 }
 
@@ -294,7 +296,11 @@ async function crewWrite(event: H3Event, before: CrewEntry, patch: CrewColumns &
   const [member] = await db.update(schema.teamMembers).set(values).where(and(
     eq(schema.teamMembers.id, before.member.id),
     current === null ? isNull(schema.teamMembers.crewStatus) : eq(schema.teamMembers.crewStatus, current),
-  )).returning()
+  )).returning().catch((error: unknown) => {
+    // Moving to a team the person joined meanwhile (through teams or an invite): the unique (team, user) index.
+    if (patch.teamId && isUniqueViolation(error)) throw conflict('This user is a member of the team already.', { field: 'teamId' })
+    throw error
+  })
   if (!member) return undefined
   forgetTeamRoles(event)
   const team = patch.teamId && patch.teamId !== before.team.id ? (await findTeamById(patch.teamId)) ?? before.team : before.team
@@ -518,7 +524,8 @@ export async function crewMove(event: H3Event, id: string, input: { teamId?: str
  * only with people who were waitlisted because the crew was full (`waitlistReason: 'capacity'`): staff waitlisting is
  * sticky. Previous crew go first when the setting is on, then in the order people joined the list. Each candidate is
  * claimed with a conditional update and the capacity is checked again after the claim, so two requests promoting at once
- * cannot overfill the crew: the claim that went over is put back. A promotion fires the same hooks and email as an approval.
+ * cannot overfill the crew: the claim that went over is put back, and the loop reads the count again (both requests may
+ * have put theirs back, so a place may still be free). A promotion fires the same hooks and email as an approval.
  */
 export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperationRow, settings: CrewSettingsRow | undefined): Promise<CrewEntry[]> {
   if (!settings || settings.capacity === null || !settings.waitlist) return []
@@ -544,7 +551,9 @@ export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperati
         waitlistPosition: candidate.member.waitlistPosition,
         waitlistReason: 'capacity',
       })
-      break
+      // Not `break`: another request may have put its own claim back at the same time, leaving a place free. The next
+      // round reads the count again and stops when the crew is full.
+      continue
     }
     await crewFireTeamsHooks(event, candidate, claimed)
     await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(claimed, operation, true))
@@ -558,11 +567,18 @@ export async function crewPromoteWaitlist(event: H3Event, operation: CrewOperati
 
 const gone = (code: 'invite_revoked' | 'invite_expired' | 'invite_used' | 'invite_unavailable', message: string) => apiError(410, code, message)
 
+/** Whether an operation is over for crew: wrapped up, archived, or past its end. Invites to it no longer work. */
+export function crewOperationEnded(operation: Pick<CrewOperationRow, 'status' | 'endsAt'>, now = new Date()): boolean {
+  if (operation.status === 'archived' || operation.status === 'wrapped_up') return true
+  return !!operation.endsAt && operation.endsAt.getTime() <= now.getTime()
+}
+
 /**
  * Accepts an invite link for a signed-in user: the invite's team, approved, with the invite's role. A use is claimed
  * atomically (`uses < maxUses`, not revoked, not expired), so a link with one use adds exactly one person even when it
  * is opened twice at once; the use is given back only when writing the membership itself fails, not when a hook listener
- * throws afterwards. 404 for an unknown token, 410 for a link that is revoked, expired or used up. 409
+ * throws afterwards. 404 for an unknown token, 410 for a link that is revoked, expired or used up, or whose operation
+ * has ended (wrapped up, archived or past its end: `invite_unavailable`). 409
  * `crew_already_member` when the user is approved anywhere in the operation (or holds a role there through teams), and 409
  * `crew_rejected` for a rejected applicant: staff's decision wins. An applicant who is waiting or withdrawn is moved onto
  * the team. An invite does not check the capacity.
@@ -581,6 +597,7 @@ export async function crewAcceptInvite(event: H3Event, token: string, userId: nu
   const team = await findCrewOperationTeam(invite.operationId, invite.teamId)
   if (!team) throw gone('invite_unavailable', 'The team of this invite no longer exists.')
   const operation = await getOperationOr404(invite.operationId)
+  if (crewOperationEnded(operation)) throw gone('invite_unavailable', 'This operation has ended, so the invite link no longer works.')
   await assertTeamRoleOnLadder(event, team.kind, invite.role)
 
   const existing = await findCrewEntry(userId, invite.operationId)

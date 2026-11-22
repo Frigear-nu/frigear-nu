@@ -8,6 +8,14 @@ export type DeviceTarget = { id: string, platform: PushPlatform | string, token:
 export type DeliveryReport = SendPushResult & {
   /** The ids of the devices whose token the provider reported as dead. */
   revokedIds: string[]
+  /** The ids of the devices the provider accepted the push for (their consecutive failures reset). */
+  sentIds: string[]
+  /**
+   * The ids of the devices the provider refused for a reason about the device (`deviceError`, or a `BadDeviceToken` that
+   * was not revoked): each counts toward the device's consecutive failures. Outages, credentials and missing senders do
+   * not.
+   */
+  failedIds: string[]
   /** One line per failed device, for the log. */
   problems: string[]
 }
@@ -33,7 +41,7 @@ export async function deliverToDevices(
   senders: ProviderSenders,
   options: DeliveryOptions = {},
 ): Promise<DeliveryReport> {
-  const report: DeliveryReport = { sent: 0, failed: 0, revoked: 0, revokedIds: [], problems: [] }
+  const report: DeliveryReport = { sent: 0, failed: 0, revoked: 0, revokedIds: [], sentIds: [], failedIds: [], problems: [] }
   const ios = options.ios ?? 'apns'
   // Dead tokens the provider could not tell from a wrong environment (APNs `BadDeviceToken`).
   const ambiguous: DeviceTarget[] = []
@@ -53,6 +61,7 @@ export async function deliverToDevices(
     }))
     if (outcome.status === 'sent') {
       report.sent++
+      report.sentIds.push(device.id)
     }
     else if (outcome.status === 'dead') {
       if (outcome.ambiguous) {
@@ -65,6 +74,7 @@ export async function deliverToDevices(
     }
     else {
       report.failed++
+      if ('deviceError' in outcome && outcome.deviceError) report.failedIds.push(device.id)
       report.problems.push(`${device.id}: ${outcome.reason}`)
     }
   }
@@ -81,6 +91,9 @@ export async function deliverToDevices(
   for (const device of ambiguous) {
     if (everyApnsDevice) {
       report.failed++
+      // Counted per device all the same: a token that keeps getting it is revoked after a few pushes in a row (the
+      // usual case of one user with one iOS device, where it is the only APNs device of every call).
+      report.failedIds.push(device.id)
       report.problems.push(`${device.id}: BadDeviceToken for every APNs device, not revoked: check \`push.apns.sandbox\` (sandbox and production tokens differ)`)
     }
     else {

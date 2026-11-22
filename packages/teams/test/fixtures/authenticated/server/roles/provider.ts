@@ -14,11 +14,20 @@ const ROLES: Record<string, string[]> = {
   '@wild.test': ['wild'],
 }
 
+const rolesOfEmail = (email: string | undefined): string[] => {
+  const domain = Object.keys(ROLES).find(suffix => email?.endsWith(suffix))
+  return domain ? ROLES[domain]! : []
+}
+
 const provider: AuthRoleProvider = {
   getAssignedRoles: async (_event, userId) => {
     const actor = await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, Number(userId)) })
-    const domain = Object.keys(ROLES).find(suffix => actor?.email.endsWith(suffix))
-    return domain ? ROLES[domain]! : []
+    return rolesOfEmail(actor?.email)
+  },
+  // Many users at once (auth's `primeAssignedRoles`), as `@frigear-nu/authorization` does: one statement.
+  assignedRolesOf: async (userIds) => {
+    const users = await db.query.users.findMany({ columns: { id: true, email: true }, where: (t, { inArray }) => inArray(t.id, userIds) })
+    return new Map(users.map(user => [user.id, rolesOfEmail(user.email)]))
   },
   setRoles: async () => {},
   // Who has one of `roles` (auth's `listRoleHolders`, which teams reads its role candidates from).

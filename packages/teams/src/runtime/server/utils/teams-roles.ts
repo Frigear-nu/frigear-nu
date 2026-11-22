@@ -5,7 +5,7 @@ import type { SQL } from 'drizzle-orm'
 import type { OwnerRef, TeamRoleGrant, TeamMemberDto, TeamOwner, TeamRoleMappingDto, TeamsMembersCandidatesContext, TeamsResolverTeam, TeamsRolesResolveContext } from '../../../types'
 import { isLeadRole } from '../../utils/ladders'
 import { grantsOfOwner, isPlanMatch, isRoleMatch, mappedGrantsFor, mappingCoversTeam, mergeTeamGrants } from '../../utils/resolve'
-import { teamsSubscriptionCandidatesQuery } from '../candidates'
+import { teamsSubscriptionCandidatesQuery, teamsSubscriptionEntitles, teamsSubscriptionRowsQuery } from '../candidates'
 import { toMappedTeamMemberDto, toTeamMemberDto, toTeamRoleMappingDto } from './teams-dto'
 import { loadTeamLadders, teamLadderKeyMap } from './teams-ladders'
 import { chunkParams, inChunks } from '@frigear-nu/module-kit/server'
@@ -211,7 +211,7 @@ async function usersById(ids: number[]): Promise<Map<number, UserFields>> {
 }
 
 type CandidateTables = {
-  subscriptions?: Parameters<typeof teamsSubscriptionCandidatesQuery>[1]
+  subscriptions?: Parameters<typeof teamsSubscriptionRowsQuery>[1]
 }
 
 /** Runs one candidate source; a failing source is logged and adds nobody. */
@@ -242,6 +242,88 @@ async function builtInCandidates(event: H3Event, rules: readonly TeamRoleMapping
   return ids
 }
 
+/** The plans each of `userIds` holds an entitled subscription to, among `plans`: one statement per chunk of users. */
+async function entitledPlansOf(table: NonNullable<CandidateTables['subscriptions']>, userIds: readonly number[], plans: readonly string[]): Promise<Map<number, Set<string>>> {
+  const held = new Map<number, Set<string>>()
+  // The statement binds the plans and two statuses next to the ids.
+  const rows = await inChunks(userIds, chunk => teamsSubscriptionRowsQuery(db, table, chunk, plans) as unknown as Promise<Array<{ userId: unknown, planKey: unknown, source?: unknown, currentPeriodEnd?: unknown }>>, Math.max(1, 90 - plans.length - 2))
+  for (const row of rows) {
+    if (typeof row.planKey !== 'string' || !teamsSubscriptionEntitles(row)) continue
+    const userId = Number(row.userId)
+    const set = held.get(userId) ?? new Set<string>()
+    set.add(row.planKey)
+    held.set(userId, set)
+  }
+  return held
+}
+
+/**
+ * The mapped role each of `candidates` holds on `team` (none of them has an explicit row there), resolved in bulk: a
+ * small, fixed number of statements however many candidates there are (each chunked for D1). The users and their
+ * assigned roles are loaded at once (`loadAuthUsers`, `primeAssignedRoles`), role rules are checked in memory, `plan`
+ * rules with one subscriptions query when `@frigear-nu/subscriptions` is installed; any other rule (or a `plan` rule
+ * without subscriptions) goes to the `teams:roles:resolve` listeners, once per candidate, for this one team. It agrees
+ * with `teamGrantOf` for these users.
+ */
+async function mappedRolesOn(event: H3Event, team: TeamsResolverTeam, rules: readonly TeamRoleMappingDto[], candidates: readonly number[]): Promise<Map<number, string>> {
+  const roles = new Map<number, string>()
+  if (!candidates.length || !rules.length) return roles
+  const ladders = teamLadderKeyMap(await loadTeamLadders(event))
+  const users = await loadAuthUsers(candidates)
+  await primeAssignedRoles(event, [...users.keys()])
+
+  const subscriptions = (schema as unknown as CandidateTables).subscriptions
+  const roleRules = rules.filter(rule => isRoleMatch(rule.match))
+  const planRules = subscriptions ? rules.filter(rule => isPlanMatch(rule.match)) : []
+  const listenerRules = rules.filter(rule => !isRoleMatch(rule.match) && !planRules.includes(rule))
+  const plans = [...new Set(planRules.map(rule => (rule.match as { plan: string }).plan))]
+  let held = new Map<number, Set<string>>()
+  if (plans.length && subscriptions) {
+    try {
+      held = await entitledPlansOf(subscriptions, [...users.keys()], plans)
+    }
+    catch (error) {
+      // Fail closed, as the per-user listener does: a plan that cannot be checked is not held.
+      console.error('[teams] the subscriptions of mapped candidates could not be checked; their plan rules give no role', error)
+    }
+  }
+
+  for (const userId of candidates) {
+    const user = users.get(userId)
+    if (!user) continue
+    const globalRoles = await getEffectiveRoles(event, user)
+    const has = new Set(globalRoles)
+    const met = [
+      ...roleRules.filter(rule => has.has((rule.match as { role: string }).role)),
+      ...planRules.filter(rule => held.get(userId)?.has((rule.match as { plan: string }).plan)),
+    ]
+    const own = mappedGrantsFor([team], met, ladders)
+    let grants = own
+    if (listenerRules.length) {
+      const ctx: TeamsRolesResolveContext = {
+        event,
+        user: { id: userId },
+        owner: { ownerType: team.ownerType, ownerId: team.ownerId },
+        globalRoles: [...globalRoles],
+        rules: [...listenerRules],
+        teams: [team],
+        ladders,
+        grants: [...own],
+      }
+      try {
+        await useNitroApp().hooks.callHook('teams:roles:resolve', ctx)
+        grants = ctx.grants.filter(grant => grant.teamId === team.id)
+      }
+      catch (error) {
+        console.error('[teams] a teams:roles:resolve listener failed; its mapped grants are left out', error)
+      }
+    }
+    const [grant] = mergeTeamGrants([], grants, ladders)
+    if (grant) roles.set(userId, grant.role)
+  }
+  return roles
+}
+
 export type TeamMembersOptions = {
   /** Also list the mapped members (on demand: every candidate is resolved). */
   mapped?: boolean
@@ -260,7 +342,7 @@ export type TeamMembersOptions = {
  * role on it. Mapped candidates come from the role holders (auth's `listRoleHolders`), the subscribers of mapped plans and
  * `teams:members:candidates` listeners; a role granted only through `defaultRoles`, an `auto` role or the
  * `authorization:roles` hook cannot be enumerated and is not listed. At most {@link TEAMS_MAPPED_CANDIDATE_LIMIT}
- * candidates are checked.
+ * candidates are checked, in bulk: the number of statements does not grow with the candidates (beyond D1 chunking).
  */
 export async function teamMembers(event: H3Event, teamId: string, options: TeamMembersOptions = {}): Promise<TeamMemberDto[]> {
   const pii = options.pii ?? false
@@ -283,10 +365,7 @@ export async function teamMembers(event: H3Event, teamId: string, options: TeamM
         console.error('[teams] a teams:members:candidates listener failed; the candidates found so far are checked', error)
       }
       const candidates = [...ctx.userIds].filter(id => Number.isInteger(id) && id > 0 && !explicitIds.has(id)).slice(0, TEAMS_MAPPED_CANDIDATE_LIMIT)
-      for (const userId of candidates) {
-        const grant = await teamGrantOf(event, userId, teamId)
-        if (grant?.source === 'mapped') mapped.push({ userId, role: grant.role })
-      }
+      for (const [userId, role] of await mappedRolesOn(event, resolverTeam, rules, candidates)) mapped.push({ userId, role })
     }
   }
 

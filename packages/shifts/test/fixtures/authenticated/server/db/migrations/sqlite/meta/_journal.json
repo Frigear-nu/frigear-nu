@@ -78,6 +78,13 @@
       "when": 1795354541413,
       "tag": "0010_users_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795376805408,
+      "tag": "0011_shifts_push_secret_crew_indexes",
+      "breakpoints": true
     }
   ]
 }

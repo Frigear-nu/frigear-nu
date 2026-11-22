@@ -3,7 +3,7 @@ import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailText } from 
 
 // Sent when somebody applied to an operation's crew. `subject` and `message` are the operation's own texts or the
 // built-in ones (see `buildCrewStatusEmail`); `statusUrl` is the page that shows the application.
-defineProps<{
+withDefaults(defineProps<{
   name: string
   operationName: string
   teamName?: string
@@ -11,18 +11,29 @@ defineProps<{
   subject: string
   message: string
   statusUrl?: string | null
-}>()
+  /** The person's language: the greeting line, the heading and the button. English by default. */
+  greeting?: string
+  heading?: string
+  button?: string
+}>(), {
+  teamName: undefined,
+  role: undefined,
+  statusUrl: null,
+  greeting: undefined,
+  heading: 'We received your application',
+  button: 'See your application',
+})
 </script>
 
 <template>
   <EmailLayout :preview="subject">
     <ESubject>{{ subject }}</ESubject>
     <EmailHeading>
-      We received your application
+      {{ heading }}
     </EmailHeading>
     <EmailDivider />
     <EmailText>
-      Hi {{ name }},
+      {{ greeting ?? `Hi ${name},` }}
     </EmailText>
     <EmailText
       v-for="(part, index) in message.split(/\n{2,}/)"
@@ -34,7 +45,7 @@ defineProps<{
       v-if="statusUrl"
       :href="statusUrl"
     >
-      See your application
+      {{ button }}
     </EmailButton>
   </EmailLayout>
 </template>

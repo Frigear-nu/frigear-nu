@@ -166,7 +166,9 @@
       "scope": "Gælder",
       "oneTeam": "Ét team",
       "everyTeamOfKind": "Alle teams af en type",
-      "chooseKind": "Vælg en teamtype"
+      "chooseKind": "Vælg en teamtype",
+      "searchTeams": "Søg i teams",
+      "platform": "Platform"
     }
   }
 }

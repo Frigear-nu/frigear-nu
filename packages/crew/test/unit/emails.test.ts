@@ -10,7 +10,8 @@ describe('crew status emails', () => {
     for (const status of CREW_STATUSES) {
       const email = buildCrewStatusEmail({ ...base, status })
       expect(email, status).not.toBeNull()
-      expect(email!.to).toBe('ada@example.com')
+      // notify's `notifyUser` sends to the user's own address: none is set here.
+      expect(email).not.toHaveProperty('to')
       expect(email!.template).toMatchObject({ name: `crew-status-${status}`, locale: 'en', props: { operationName: 'Summer Festival 2030', teamName: 'Bar A', role: 'Volunteer' } })
       expect(email!.subject).toContain('Summer Festival 2030')
       expect(email!.subject).not.toContain('{{')
@@ -38,9 +39,9 @@ describe('crew status emails', () => {
     expect(email.template?.props).toMatchObject({ subject: email.subject, message: 'Du er Volunteer på Bar A.\n\nVi ses!' })
   })
 
-  it('sends nothing for a status that is turned off, or to a person without an email', () => {
+  it('sends nothing for a status that is turned off, and still builds one for a person without an email (push)', () => {
     expect(buildCrewStatusEmail({ ...base, status: 'rejected', settings: { statusEmails: { rejected: { enabled: false } } } })).toBeNull()
-    expect(buildCrewStatusEmail({ ...base, status: 'approved', member: { ...member, email: null as unknown as string } })).toBeNull()
+    expect(buildCrewStatusEmail({ ...base, status: 'approved', member: { ...member, email: null } })).toMatchObject({ subject: 'You are on the crew of Summer Festival 2030' })
     // Turning one status off leaves the others alone.
     expect(buildCrewStatusEmail({ ...base, status: 'approved', settings: { statusEmails: { rejected: { enabled: false } } } })).not.toBeNull()
   })
@@ -50,5 +51,26 @@ describe('crew status emails', () => {
     expect(email.body).toContain('href="https://example.com/crew/status"')
     expect(email.template?.props?.statusUrl).toBe('https://example.com/crew/status')
     expect(buildCrewStatusEmail({ ...base, status: 'applied' })!.template?.props?.statusUrl).toBeNull()
+  })
+
+  it('writes the built-in texts in Danish for a Danish locale, the {{status}} label and the template texts included', () => {
+    const email = buildCrewStatusEmail({ ...base, status: 'approved', locale: 'da-DK', settings: { statusEmails: { approved: { body: { da: 'Din status: {{status}}' } } } } })!
+    expect(email.subject).toBe('Du er med i crewet på Summer Festival 2030')
+    expect(email.text).toBe('Hej Ada <Lovelace>,\n\nDin status: Godkendt')
+    expect(email.body).toContain('<p>Hej Ada &lt;Lovelace&gt;,</p>')
+    expect(email.template).toMatchObject({ locale: 'da-DK', props: { greeting: 'Hej Ada <Lovelace>,', heading: 'Du er med i crewet', button: 'Se din crewstatus' } })
+    const waitlisted = buildCrewStatusEmail({ ...base, status: 'waitlisted', locale: 'da' })!
+    expect(waitlisted.text).toContain('du er på ventelisten')
+    // The rejected email has no button.
+    expect(buildCrewStatusEmail({ ...base, status: 'rejected', locale: 'da' })!.template!.props).not.toHaveProperty('button')
+  })
+
+  it('falls back to English for any other locale', () => {
+    for (const locale of ['en', 'de', 'xx-YY', undefined]) {
+      const email = buildCrewStatusEmail({ ...base, status: 'applied', locale })!
+      expect(email.subject, String(locale)).toBe('We received your application for Summer Festival 2030')
+      expect(email.template?.props).toMatchObject({ greeting: 'Hi Ada <Lovelace>,', heading: 'We received your application', button: 'See your application' })
+    }
+    expect(buildCrewStatusEmail({ ...base, status: 'approved', settings: { statusEmails: { approved: { body: { en: '{{status}}' } } } } })!.text).toContain('Approved')
   })
 })
