@@ -76,6 +76,10 @@ export type ModuleOptions = {
    * The built-in ladders, by team kind. They are stored in `team_role_ladders` on the first request when the kind has
    * no row yet, and admins may edit the row later. Merged over the one generic ladder the module ships, the `default`
    * kind (`member`, `lead`; `lead` leads). The app defines its own kinds and roles here.
+   *
+   * Seed only: once a kind's row is stored, the stored row wins, whether or not an admin edited it. Changing a kind
+   * here later (a new role, another `leadFrom`) does not change the stored ladder: edit it in the admin
+   * (`PUT /api/admin/teams/ladders/:kind`). A new kind is still stored on the next start.
    */
   ladders?: Record<string, TeamLadder>
   settings?: {
@@ -213,7 +217,10 @@ export type TeamMemberRoleChangedContext = TeamMemberContext & {
 /**
  * Context of `teams:roles:resolve`. Listeners push mapped grants into `grants` (give them the `priority` of the rule
  * they stand for; explicit memberships always win). `owner` is `null` when every owner is resolved at once (the
- * team grant kind, the claim). `event` is `undefined` outside a request (the OAuth claim).
+ * team grant kind, the claim). `event` is `undefined` outside a request (the OAuth claim). When mapped members are
+ * listed (`teamMembers(..., { mapped: true })`), listeners are called once per candidate with `teams` holding that one
+ * team, its `owner`, and only the rules teams cannot answer in bulk itself (not `role` rules, nor `plan` rules when
+ * `@frigear-nu/subscriptions` is installed): a listener should not query per call there.
  */
 export type TeamsRolesResolveContext = {
   event: H3Event | undefined

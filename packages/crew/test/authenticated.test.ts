@@ -527,6 +527,32 @@ describe('crew (authenticated, database-backed)', async () => {
       await expectApiError(accept(pia, double.token), 410, 'invite_used')
     })
 
+    it('expires in 30 days unless staff set an expiry', async () => {
+      const crew = await newCrew()
+      const before = Date.now()
+      const created = await invite(crew)
+      const expires = new Date(created.expiresAt).getTime()
+      expect(expires).toBeGreaterThanOrEqual(before + 30 * 86_400_000 - 2_000)
+      expect(expires).toBeLessThanOrEqual(Date.now() + 30 * 86_400_000 + 2_000)
+      const chosen = new Date(Math.floor(Date.now() / 1000) * 1000 + 3 * 86_400_000).toISOString()
+      expect(await invite(crew, { expiresAt: chosen })).toMatchObject({ expiresAt: chosen })
+    })
+
+    it('answers 410 for an operation that wrapped up, was archived or has ended, and spends no use', async () => {
+      const wrapped = await newCrew()
+      const archived = await newCrew()
+      const ended = await newCrew({}, { startsAt: '2020-06-01T10:00:00.000Z', endsAt: '2020-06-03T10:00:00.000Z' })
+      const links = [await invite(wrapped), await invite(archived), await invite(ended)]
+      await ok(await json(staff.cookie, 'POST', operationsApi.admin.status(wrapped.op.id), { status: 'active' }))
+      await ok(await json(staff.cookie, 'POST', operationsApi.admin.status(wrapped.op.id), { status: 'wrapped_up' }))
+      await ok(await json(staff.cookie, 'POST', operationsApi.admin.status(archived.op.id), { status: 'archived' }))
+      const late = await user('Toolate')
+      for (const [index, crew] of [wrapped, archived, ended].entries()) {
+        await expectApiError(accept(late, links[index]!.token), 410, 'invite_unavailable')
+        expect((await ok(await json(staff.cookie, 'GET', crewApi.admin.invites(crew.op.id))) as unknown as Json[])[0]).toMatchObject({ uses: 0 })
+      }
+    })
+
     it('refuses an expired, revoked or unknown link, and one with no signed-in user', async () => {
       const crew = await newCrew()
       const soon = await invite(crew, { expiresAt: new Date(Date.now() + 2_000).toISOString() })
@@ -725,6 +751,71 @@ describe('crew (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('races', () => {
+    const race = (body: Json) => $fetch('/api/test/race', { method: 'POST', body })
+
+    it('fills a free place when two promotions both put their claim back', async () => {
+      const crew = await newCrew({ capacity: 2, waitlist: true })
+      const [first, second, third, fourth] = [await user('Racefirst'), await user('Racesecond'), await user('Racethird'), await user('Racefourth')] as [Session, Session, Session, Session]
+      const firstRow = await approve(await applied(first, crew))
+      await approve(await applied(second, crew))
+      const thirdRow = await applied(third, crew)
+      const fourthRow = await applied(fourth, crew)
+      expect([thirdRow.crewStatus, fourthRow.crewStatus]).toEqual(['waitlisted', 'waitlisted'])
+
+      // Another request claims the fourth person while this one claims the third, and both see the crew overfull.
+      await race({ kind: 'promote', otherId: fourthRow.id })
+      try {
+        await reject(firstRow)
+      }
+      finally {
+        await race({ clear: true })
+      }
+
+      // The place is filled after all: this request read the count again after putting its claim back.
+      expect(await rowOf(crew, third)).toMatchObject({ crewStatus: 'approved' })
+      expect(await rowOf(crew, fourth)).toMatchObject({ crewStatus: 'waitlisted' })
+      expect((await list(staff.cookie, crew, '&status=approved')).total).toBe(2)
+    })
+
+    it('answers 409 when a move meets a membership added meanwhile', async () => {
+      const crew = await newCrew()
+      const other = await createTeam(crew)
+      const mover = await user('Mover')
+      const row = await approve(await applied(mover, crew))
+      await race({ kind: 'move' })
+      try {
+        await expectApiError(json(staff.cookie, 'PATCH', crewApi.admin.member(row.id), { teamId: other.id }), 409, 'conflict')
+      }
+      finally {
+        await race({ clear: true })
+      }
+      // Nothing changed: still on the first team, and the added row was rolled back with the failed move.
+      expect(await rowOf(crew, mover)).toMatchObject({ id: row.id, teamId: crew.teamId, crewStatus: 'approved' })
+      expect(await ok(await json(staff.cookie, 'PATCH', crewApi.admin.member(row.id), { teamId: other.id }))).toMatchObject({ teamId: other.id })
+    })
+
+    it('reads the live row when a person has a withdrawn one too', async () => {
+      const crew = await newCrew()
+      const barB = await createTeam(crew, 'Bar B')
+      const both = await user('Bothrows')
+      // A crew row on the default team, then a pending row teams staff added by hand on another team.
+      await applied(both, crew)
+      // The database keeps whole seconds: the crew row is the older one.
+      await sleep(1_100)
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(barB.id), { userId: both.id, role: 'volunteer', status: 'pending' }))
+      const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: barB.id, role: 'bartender' }))
+      // The invite fills the row on its own team and withdraws the older crew row.
+      expect(await ok(await json(both.cookie, 'POST', crewApi.acceptInvite(created.token)))).toMatchObject({ crewStatus: 'approved', teamId: barB.id })
+
+      const mine = await ok(await json(both.cookie, 'GET', crewApi.me.crew)) as unknown as Json[]
+      expect(mine).toContainEqual(expect.objectContaining({ operationId: crew.op.id, crewStatus: 'approved', teamId: barB.id }))
+      expect(await ok(await json(both.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ crewStatus: 'approved' })
+      // Withdrawing takes the live row off the crew.
+      expect(await ok(await json(both.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))).toMatchObject({ crewStatus: 'withdrawn', teamId: barB.id })
+    })
+  })
+
   describe('private operations', () => {
     it('answers 404 for a private operation and registers nobody who may not read it', async () => {
       const crew = await newCrew({}, { public: false })
@@ -833,6 +924,28 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await getEmailsTo(english.email))[0]).toMatchObject({ subject: 'English Brit', template: { locale: 'en' } })
     })
 
+    it('writes the built-in texts, the status, the greeting and the template\'s texts in Danish', async () => {
+      const crew = await newCrew({ statusEmails: { approved: { body: { da: 'Status: {{status}}', en: 'Status: {{status}}' } } } })
+      const dane = await user('Dansker')
+      await ok(await json(dane.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Dansker' }, locale: 'da-DK' }))
+      await approve(await rowOf(crew, dane))
+      const [appliedEmail, approvedEmail] = await getEmailsTo(dane.email)
+      expect(appliedEmail).toMatchObject({
+        subject: `Vi har modtaget din ansøgning til ${crew.op.name.en}`,
+        template: { name: 'crew-status-applied', locale: 'da', props: { heading: 'Vi har modtaget din ansøgning', button: 'Se din ansøgning', greeting: expect.stringMatching(/^Hej /) } },
+      })
+      expect(appliedEmail!.text).toMatch(/^Hej /)
+      expect(appliedEmail!.text).toContain('Tak for din ansøgning.')
+      // `{{status}}` is the Danish label.
+      expect(approvedEmail).toMatchObject({ subject: `Du er med i crewet på ${crew.op.name.en}`, template: { props: { message: 'Status: Godkendt' } } })
+      // The fixture has no i18n, so the link has no locale prefix (`localizeCrewPath` is unit-tested).
+      expect(appliedEmail!.template!.props!.statusUrl).toMatch(/^http.*\/crew\/status$/)
+      const brit = await user('Englishman')
+      await ok(await json(brit.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Englishman' }, locale: 'en' }))
+      const [english] = await getEmailsTo(brit.email)
+      expect(english).toMatchObject({ subject: `We received your application for ${crew.op.name.en}`, template: { props: { heading: 'We received your application' } } })
+    })
+
     it('sends the invite email in the language of the request that accepted it', async () => {
       const crew = await newCrew({ statusEmails: { approved: texts } })
       const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'bartender' }))
@@ -840,6 +953,13 @@ describe('crew (authenticated, database-backed)', async () => {
       const response = await fetch(crewApi.acceptInvite(created.token), { method: 'POST', headers: { 'cookie': hans.cookie, 'accept-language': 'da-DK,da;q=0.9,en;q=0.8' } })
       expect(response.status, await response.clone().text()).toBeLessThan(300)
       expect((await getEmailsTo(hans.email))[0]).toMatchObject({ subject: 'Dansk Hans', template: { locale: 'da' } })
+    })
+  })
+
+  describe('forms to recruit with (query)', () => {
+    it('validates the query', async () => {
+      await expectApiError(json(staff.cookie, 'GET', `${crewApi.admin.forms}?operationId=${'x'.repeat(65)}`), 400)
+      expect(await ok(await json(staff.cookie, 'GET', `${crewApi.admin.forms}?operationId=`))).toBeDefined()
     })
   })
 

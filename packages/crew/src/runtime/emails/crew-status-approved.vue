@@ -3,7 +3,7 @@ import { EmailButton, EmailDivider, EmailHeading, EmailLayout, EmailText } from 
 
 // Sent when somebody joined an operation's crew (approved by staff, promoted off the waiting list or through an invite).
 // `subject` and `message` are the operation's own texts or the built-in ones (see `buildCrewStatusEmail`).
-defineProps<{
+withDefaults(defineProps<{
   name: string
   operationName: string
   teamName?: string
@@ -11,18 +11,29 @@ defineProps<{
   subject: string
   message: string
   statusUrl?: string | null
-}>()
+  /** The person's language: the greeting line, the heading and the button. English by default. */
+  greeting?: string
+  heading?: string
+  button?: string
+}>(), {
+  teamName: undefined,
+  role: undefined,
+  statusUrl: null,
+  greeting: undefined,
+  heading: 'You are on the crew',
+  button: 'See your crew status',
+})
 </script>
 
 <template>
   <EmailLayout :preview="subject">
     <ESubject>{{ subject }}</ESubject>
     <EmailHeading>
-      You are on the crew
+      {{ heading }}
     </EmailHeading>
     <EmailDivider />
     <EmailText>
-      Hi {{ name }},
+      {{ greeting ?? `Hi ${name},` }}
     </EmailText>
     <EmailText
       v-for="(part, index) in message.split(/\n{2,}/)"
@@ -34,7 +45,7 @@ defineProps<{
       v-if="statusUrl"
       :href="statusUrl"
     >
-      See your crew status
+      {{ button }}
     </EmailButton>
   </EmailLayout>
 </template>

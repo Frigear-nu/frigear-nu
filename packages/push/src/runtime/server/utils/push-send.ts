@@ -1,5 +1,5 @@
 import { db, schema } from '@nuxthub/db'
-import { and, inArray, isNull } from 'drizzle-orm'
+import { and, gt, gte, inArray, isNull, sql } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import type { PushMessage, PushRuntimeConfig, SendPushResult } from '../../../types'
 import { chunkParams } from '@frigear-nu/module-kit/server'
@@ -88,7 +88,7 @@ export async function sendPush(_event: H3Event | undefined, message: PushMessage
     return { sent: devices.length, failed: 0, revoked: 0 }
   }
 
-  const { revokedIds, problems, ...result } = await deliverToDevices(devices, device => ({
+  const { revokedIds, sentIds, failedIds, problems, ...result } = await deliverToDevices(devices, device => ({
     title: text(message.title, device.locale ?? null),
     body: text(message.body, device.locale ?? null),
     url: message.url,
@@ -98,6 +98,31 @@ export async function sendPush(_event: H3Event | undefined, message: PushMessage
   for (const ids of chunkParams(revokedIds)) {
     await db.update(schema.pushDevices).set({ revokedAt: new Date() }).where(inArray(schema.pushDevices.id, ids))
   }
+  const worn = await countPushDeviceOutcomes(sentIds, failedIds)
   for (const problem of problems) console.warn(`[@frigear-nu/push] Delivery failed for ${problem}`)
-  return result
+  return { ...result, failed: result.failed - worn, revoked: result.revoked + worn }
+}
+
+/** Consecutive refused pushes after which a device is revoked (`push_devices.failures`). */
+export const PUSH_DEVICE_FAILURE_LIMIT = 3
+
+/**
+ * Keeps the consecutive-failure counter of each device: a device the provider accepted starts again at 0, one it refused
+ * (`failedIds` of the delivery) counts one up and is revoked when it reaches {@link PUSH_DEVICE_FAILURE_LIMIT}. Returns how
+ * many devices were revoked now. Registering the device again clears both.
+ */
+export async function countPushDeviceOutcomes(sentIds: readonly string[], failedIds: readonly string[]): Promise<number> {
+  const table = schema.pushDevices
+  for (const ids of chunkParams([...sentIds])) {
+    await db.update(table).set({ failures: 0 }).where(and(inArray(table.id, ids), gt(table.failures, 0)))
+  }
+  let revoked = 0
+  for (const ids of chunkParams([...failedIds])) {
+    await db.update(table).set({ failures: sql`${table.failures} + 1` }).where(inArray(table.id, ids))
+    const rows = await db.update(table).set({ revokedAt: new Date() })
+      .where(and(inArray(table.id, ids), gte(table.failures, PUSH_DEVICE_FAILURE_LIMIT), isNull(table.revokedAt)))
+      .returning({ id: table.id })
+    revoked += rows.length
+  }
+  return revoked
 }
