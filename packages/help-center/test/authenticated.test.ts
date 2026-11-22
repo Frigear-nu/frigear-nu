@@ -170,7 +170,7 @@ describe('help center (authenticated, database-backed)', async () => {
 
       const edited = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { name: both('Safe', 'Sikker'), grants: [], display: 'list', icon: null }))
       expect(edited).toMatchObject({ name: both('Safe', 'Sikker'), public: false, grants: [], display: 'list', icon: null })
-      await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { display: 'cards' }), 400)
+      await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { display: 'grid' }), 400)
 
       expect((await json(staff.cookie, 'DELETE', helpCenterApi.admin.category(created.id))).status).toBe(204)
       expect(slugsOf(await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.categories)) as unknown as Json[])).not.toContain(created.slug)
@@ -1071,10 +1071,10 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(titles(visitor)).toEqual([`Public question ${suffix}`])
       expect(titles(await faqs(bar.cookie, '&public=1'))).toEqual([`Public question ${suffix}`])
       expect(titles(await faqs(bar.cookie))).toEqual([`Public question ${suffix}`, `Bar question ${suffix}`])
-      // Without names: every accordion category the reader may read, and no list category.
+      // Without names: every accordion and cards category the reader may read, and no list category.
       const all = await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[]
       expect(slugsOf(all)).toContain(category.slug)
-      expect(all.every(entry => entry.display === 'accordion')).toBe(true)
+      expect(all.every(entry => entry.display === 'accordion' || entry.display === 'cards')).toBe(true)
       // A category nobody may read is left out, like one that does not exist.
       const hidden = await createCategory({ grants: [], display: 'accordion' })
       expect(await ok(await json(bar.cookie, 'GET', `${helpCenterApi.faqs}?categories=${hidden.slug},missing-${suffix}`))).toEqual([])
@@ -1093,6 +1093,59 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(inside.html).toContain(`Bar question ${suffix}`)
       // The signed-in version carries no JSON-LD: it is not for search engines.
       expect(inside.html).not.toContain('"@type":"FAQPage"')
+    })
+
+    it('shows a cards category as a card per article: description, questions and buttons from the blocks of its text', async () => {
+      const suffix = ++counter
+      const body = (lang: string) => [
+        `Card description ${lang} ${suffix}.`,
+        '',
+        `::faq-details{label="More about it ${lang}..." icon="i-lucide-check-circle"}`,
+        `- ✅ First line ${lang}. :br :br Still the first.`,
+        `- ❌ Second line ${lang}.`,
+        '::',
+        '',
+        `::faq-link{label="Become a member ${lang}" to="/membership" icon="i-lucide-user-plus" trailing-icon="i-lucide-arrow-right" variant="subtle" size="lg"}`,
+        '::',
+      ].join('\n')
+      const { category } = await publishedArticle(
+        { grants: PUBLIC, display: 'cards' },
+        { title: both(`Card question ${suffix}`, `Kortspørgsmål ${suffix}`), body: both(body('en'), body('da')), icon: 'i-lucide-coins' },
+      )
+      await publish((await createArticle(category.id, { title: both(`Plain card ${suffix}`, `Enkelt kort ${suffix}`), body: both(`Just text ${suffix}.`, `Bare tekst ${suffix}.`) })).id)
+
+      const faqs = await ok(await json(undefined, 'GET', `${helpCenterApi.faqs}?categories=${category.slug}`)) as unknown as Json[]
+      expect(faqs[0]).toMatchObject({ slug: category.slug, display: 'cards' })
+      expect(slugsOf(await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[])).toContain(category.slug)
+
+      const { status, html } = await page(`/help/${category.slug}`)
+      expect(status).toBe(200)
+      expect(html).toContain('data-test="help-center-cards"')
+      expect(html).toContain(`Card question ${suffix}`)
+      expect(html).toContain(`Card description en ${suffix}.`)
+      expect(html).toContain(`More about it en...`)
+      expect(html).toContain(`First line en.`)
+      expect(html).toContain(`Become a member en`)
+      expect(html).toContain(`Plain card ${suffix}`)
+      // The JSON-LD answer is plain text: no block fences, no `:br`.
+      const ld = html.match(/<script[^>]*application\/ld\+json[^>]*>(.*?)<\/script>/s)?.[1] ?? ''
+      expect(ld).toContain('"@type":"FAQPage"')
+      expect(ld).toContain(`Card description en ${suffix}. ✅ First line en. Still the first. ❌ Second line en.`)
+      expect(ld).not.toContain(':br')
+      expect(ld).not.toContain('faq-details')
+    })
+
+    it('renders the FAQ blocks of an article on their own on its page', async () => {
+      const suffix = ++counter
+      const body = `Intro ${suffix}.\n\n::faq-details{label="Standalone details ${suffix}"}\n- Inside ${suffix}.\n::\n\n::faq-link{label="Standalone link ${suffix}" to="/membership"}\n::`
+      const { category, article } = await publishedArticle({ grants: PUBLIC, display: 'list' }, { body: both(body, body) })
+      const { status, html } = await page(`/help/${category.slug}/${article.slug}`)
+      expect(status).toBe(200)
+      expect(html).toContain('data-test="faq-details"')
+      expect(html).toContain(`Standalone details ${suffix}`)
+      expect(html).toContain(`Inside ${suffix}.`)
+      expect(html).toContain('data-test="faq-link"')
+      expect(html).toContain(`Standalone link ${suffix}`)
     })
 
     it('renders embedded FAQ components as what visitors read in the public area, and as the person in the signed-in one', async () => {
@@ -1130,6 +1183,20 @@ describe('help center (authenticated, database-backed)', async () => {
       const { status, html } = await page('/admin/help-center', staff.cookie)
       expect(status).toBe(200)
       expect(html).toContain('Help center')
+    })
+
+    it('opens the FAQ page for a coordinator: the accordion and cards categories with their questions', async () => {
+      await asStaff()
+      const suffix = ++counter
+      const cards = await publishedArticle({ grants: PUBLIC, display: 'cards', name: both(`Cards FAQ ${suffix}`, `Kort FAQ ${suffix}`) }, { title: both(`Cards question ${suffix}`, `Kortspørgsmål ${suffix}`) })
+      const list = await createCategory({ grants: PUBLIC, display: 'list', name: both(`List category ${suffix}`, `Liste ${suffix}`) })
+      const { status, html } = await page('/admin/help-center/faq', staff.cookie)
+      expect(status).toBe(200)
+      expect(html).toContain(`data-test="help-admin-faq-${cards.category.slug}"`)
+      expect(html).toContain(`Cards question ${suffix}`)
+      expect(html).not.toContain(`help-admin-faq-${list.slug}"`)
+      // Only staff: a member gets no FAQ page.
+      expect((await page('/admin/help-center/faq', (await user('Member')).cookie)).html).not.toContain(`Cards question ${suffix}`)
     })
   })
 })

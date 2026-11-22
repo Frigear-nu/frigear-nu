@@ -2,13 +2,15 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpCategoryFormState, type StaffHelpCategory, OWNER_TYPE_OPTIONS, categoryToForm, emptyHelpCategoryForm, formToCategoryBody, helpCategoryFormSchema, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
+import type { HelpCategoryDisplay } from '../../../types'
 import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'HelpCategoryFormSlideover' })
 
 // Create and edit form of a category, opened with `useOverlay()` by `useHelpCategoryActions()`: it closes with the saved
 // category, or `false` when cancelled.
-const props = defineProps<{ category?: StaffHelpCategory, categories: StaffHelpCategory[] }>()
+// `display` presets how a new category shows (`cards` from the FAQ page).
+const props = defineProps<{ category?: StaffHelpCategory, categories: StaffHelpCategory[], display?: HelpCategoryDisplay }>()
 const emit = defineEmits<{ close: [saved: StaffHelpCategory | false] }>()
 
 const t = useModuleT('helpCenter')
@@ -16,7 +18,7 @@ const tr = useHelpCenterTranslate()
 const { busy, run } = useAction()
 
 const schema = helpCategoryFormSchema(t, tr)
-const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm())
+const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm(props.display))
 
 // For a new category the URL name follows the name (in the current locale) until it is edited by hand.
 const draftName = computed(() => tr(state.name))
@@ -27,6 +29,7 @@ watch(draftName, (name, previous) => {
 const displays = computed(() => [
   { value: 'list', label: t('admin.displays.list', 'Article list') },
   { value: 'accordion', label: t('admin.displays.accordion', 'Questions (FAQ)') },
+  { value: 'cards', label: t('admin.displays.cards', 'Question cards (FAQ)') },
 ])
 
 const ownerTypes = computed(() => OWNER_TYPE_OPTIONS.map(value => ({ value, label: t(`admin.ownerTypes.${value}`, value) })))
@@ -110,7 +113,7 @@ async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
       <UFormField
         name="display"
         :label="t('admin.display', 'Shown as')"
-        :description="t('admin.displayHelp', 'An article list links to each article. Questions open their answer in place, like an FAQ.')"
+        :description="t('admin.displayHelp', 'An article list links to each article. Questions open their answer in place, like an FAQ. Question cards show each article as a card of its own.')"
       >
         <USelect
           v-model="state.display"

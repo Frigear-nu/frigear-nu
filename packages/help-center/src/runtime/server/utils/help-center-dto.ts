@@ -10,7 +10,7 @@ export type HelpArticleRow = typeof schema.helpArticles.$inferSelect
 const iso = (value: Date | null | undefined) => value ? isoDate(value) : null
 
 /** The stored display of a category; anything unknown reads as `list`. */
-export const helpCategoryDisplay = (value: string | null | undefined): HelpCategoryDisplay => value === 'accordion' ? 'accordion' : 'list'
+export const helpCategoryDisplay = (value: string | null | undefined): HelpCategoryDisplay => value === 'accordion' || value === 'cards' ? value : 'list'
 
 /** What anybody who may read the category sees: an allowlist of the row's fields (no owner, grants or audit data). */
 export function toHelpCategoryDto(row: HelpCategoryRow, chain: HelpCategoryRow[] = [row]): HelpCategoryDto {

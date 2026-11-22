@@ -17,6 +17,8 @@ export type {
   AdminHelpCategoryDto,
   AdminHelpChecklistDto,
   AdminHelpChecklistItemDto,
+  FaqBodyLink,
+  FaqBodyParts,
   FaqCardProps,
   HelpArticleDetailDto,
   HelpArticleDto,

@@ -25,6 +25,7 @@ export function useHelpCenterPaths() {
     signedIn: area(base.signedIn),
     admin: () => local(pages?.admin),
     adminChecklist: (id: string) => local(pages?.adminChecklist?.replace(':id', encodeURIComponent(id))),
+    adminFaq: () => local(pages?.adminFaq),
   }
 }
 

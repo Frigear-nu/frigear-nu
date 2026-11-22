@@ -40,7 +40,7 @@ const categoryFields = z.object({
   owner: helpOwnerSchema.optional(),
   // Who may read it: the shape of a grant list. The handler checks each grant against its kind (`grantsValidate`).
   grants: grantListShape.optional(),
-  display: z.enum(['list', 'accordion']).optional(),
+  display: z.enum(['list', 'accordion', 'cards']).optional(),
   icon: iconField,
   sort: z.number().int().min(0).max(1_000_000).optional(),
 })

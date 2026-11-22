@@ -2,6 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import HelpCategoryFormSlideover from '../components/HelpCategoryFormSlideover.vue'
 import HelpCategoryOrderSlideover from '../components/HelpCategoryOrderSlideover.vue'
 import type { StaffHelpCategory } from '../utils/admin'
+import type { HelpCategoryDisplay } from '../../../types'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay } from '#imports'
 
@@ -24,8 +25,9 @@ export function useHelpCategoryActions() {
   const { run } = useAction()
   const tr = useHelpCenterTranslate()
 
-  async function create(categories: StaffHelpCategory[]): Promise<StaffHelpCategory | false> {
-    return await overlay.create(HelpCategoryFormSlideover, { destroyOnClose: true, props: { category: undefined, categories } }).open() as StaffHelpCategory | false
+  /** `display` presets how the new category shows (the FAQ page starts at `cards`). */
+  async function create(categories: StaffHelpCategory[], display?: HelpCategoryDisplay): Promise<StaffHelpCategory | false> {
+    return await overlay.create(HelpCategoryFormSlideover, { destroyOnClose: true, props: { category: undefined, categories, display } }).open() as StaffHelpCategory | false
   }
 
   async function edit(category: StaffHelpCategory, categories: StaffHelpCategory[]): Promise<StaffHelpCategory | false> {

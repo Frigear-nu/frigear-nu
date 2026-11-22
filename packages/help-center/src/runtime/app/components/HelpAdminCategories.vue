@@ -31,6 +31,8 @@ const rows = computed<Row[]>(() => {
   return ordered
 })
 
+const DISPLAY_FALLBACKS: Record<string, string> = { list: 'Article list', accordion: 'Questions (FAQ)', cards: 'Question cards (FAQ)' }
+
 const RowMenu = resolveComponent('RowMenu')
 const TableIdentity = resolveComponent('TableIdentity')
 
@@ -54,7 +56,7 @@ const columns = computed<TableColumn<Row>[]>(() => [
   {
     id: 'display',
     header: t('admin.display', 'Shown as'),
-    cell: ({ row }) => h('span', { class: 'text-muted' }, t(`admin.displays.${row.original.display}`, row.original.display === 'accordion' ? 'Questions (FAQ)' : 'Article list')),
+    cell: ({ row }) => h('span', { class: 'text-muted' }, t(`admin.displays.${row.original.display}`, DISPLAY_FALLBACKS[row.original.display] ?? 'Article list')),
   },
   {
     id: 'grants',

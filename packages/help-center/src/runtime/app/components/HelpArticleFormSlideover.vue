@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { type HelpArticleFormState, type StaffHelpArticle, type StaffHelpCategory, articleToForm, emptyHelpArticleForm, formToArticleBody, helpArticleFormSchema, missingLocales, slugify } from '../utils/admin'
+import { type HelpArticleFormState, type StaffHelpArticle, type StaffHelpCategory, articleToForm, emptyHelpArticleForm, formToArticleBody, helpArticleFormSchema, isFaqDisplay, missingLocales, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { useHelpArticlePublish } from '../composables/useHelpArticlePublish'
 import { $fetch, computed, reactive, ref, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useUiT, watch } from '#imports'
@@ -30,8 +30,8 @@ watch(draftTitle, (title, previous) => {
 })
 
 const categoryItems = computed(() => props.categories.map(category => ({ value: category.id, label: tr(category.name) })))
-// The icon and the buttons show in a questions (FAQ) category, where the text opens under the title.
-const inAccordion = computed(() => props.categories.find(category => category.id === state.categoryId)?.display === 'accordion')
+// The icon and the buttons show in a questions (FAQ) category, where the text opens under the title or is a card.
+const inAccordion = computed(() => isFaqDisplay(props.categories.find(category => category.id === state.categoryId)?.display))
 // "Same as the category" is an article without a list of its own (`grants: null`). Turning it off starts an empty list,
 // which admits nobody until a grant is added; the article can only narrow its category.
 const inherit = computed({
@@ -49,6 +49,20 @@ const missingError = (locales: string[]) => props.highlightMissing && locales.le
 
 // "Publish" in the footer: a draft being edited, enabled once nothing is missing. It submits the form; `save` then
 // publishes what it saved.
+// Under the text: Markdown, and in an FAQ category the blocks of a question card (they render on their own elsewhere).
+// The syntax goes in as parameters, so the translations need no escaped braces.
+const FAQ_SYNTAX = {
+  details: '::faq-details{label="..." icon="i-lucide-check-circle"}',
+  link: '::faq-link{label="..." to="/..." icon="..." trailing-icon="i-lucide-arrow-right" variant="subtle" size="lg"}',
+  end: '::',
+}
+const bodyHelp = computed(() => [
+  t('admin.bodyHelp', 'Markdown is supported.'),
+  inAccordion.value
+    ? t('admin.faqBodyHelp', 'In question cards the text before the first block is the card\'s description. A question that opens in the card: {details}, a list, then {end} on a line of its own. A button: {link}, then {end}.', FAQ_SYNTAX)
+    : undefined,
+].filter(Boolean).join(' '))
+
 const publisher = useHelpArticlePublish()
 const canPublish = computed(() => !!props.article && props.article.status !== 'published')
 const complete = computed(() => !missing().title.length && !missing().body.length)
@@ -156,7 +170,7 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
       <UFormField
         name="body"
         :label="t('admin.body', 'Article')"
-        :description="missing().body.length ? t('admin.missingLocales', 'Still missing: {locales}', { locales: missing().body.join(', ') }) : t('admin.bodyHelp', 'Markdown is supported.')"
+        :description="missing().body.length ? t('admin.missingLocales', 'Still missing: {locales}', { locales: missing().body.join(', ') }) : bodyHelp"
         :error="missingError(missing().body)"
         required
       >
