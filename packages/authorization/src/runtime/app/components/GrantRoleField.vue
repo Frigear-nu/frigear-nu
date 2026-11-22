@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, useFetch, useModuleT } from '#imports'
-import type { RoleGrant } from '../../../types'
+import type { RoleGrant } from '../../utils/grants'
+import { authorizationApi } from '../../utils/api'
 
 defineOptions({ name: 'GrantRoleField' })
 
-// The field of the built-in `role` kind: one global role. The roles admin route of `@frigear-nu/authorization` lists
-// them when it is installed and the caller may read it; otherwise the role is typed in.
-const ROLES_PATH = '/api/admin/authorization/roles'
+// The field of the `role` grant kind: one global role. The roles admin route (`roles:read`) lists
+// them when the caller may read it; otherwise the role is typed in.
 
 defineProps<{ disabled?: boolean }>()
 const model = defineModel<RoleGrant>({ required: true })
-const t = useModuleT('grants')
+const t = useModuleT('authorization')
 
-const { data: roles } = useFetch<{ name: string, label: string }[]>(ROLES_PATH, {
-  key: 'grants:role-options',
+const { data: roles } = useFetch<{ name: string, label: string }[]>(authorizationApi.admin.roles, {
+  key: 'authorization:role-grant-options',
   server: false,
   lazy: true,
   default: () => [],
@@ -39,7 +39,7 @@ const set = (role: string) => {
     value-key="value"
     class="w-full"
     :disabled="disabled"
-    :placeholder="t('role.placeholder', 'Choose a role')"
+    :placeholder="t('grants.role.placeholder', 'Choose a role')"
     @update:model-value="(value: string) => set(value)"
   />
   <UInput
@@ -47,7 +47,7 @@ const set = (role: string) => {
     :model-value="model.role"
     class="w-full"
     :disabled="disabled"
-    :placeholder="t('role.typed', 'Role name, for example admin')"
+    :placeholder="t('grants.role.typed', 'Role name, for example admin')"
     @update:model-value="(value: string | number) => set(String(value).trim())"
   />
 </template>
