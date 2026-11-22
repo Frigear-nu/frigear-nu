@@ -1,0 +1,132 @@
+import type { H3Event } from 'h3'
+import type { Translated } from '@frigear-nu/notify/types'
+
+export type { Translated }
+
+/** `web` exists in the data model for later; v1 registers `ios` and `android` only. */
+export type PushPlatform = 'ios' | 'android' | 'web'
+
+export type PushDeliveryName = 'log' | 'providers'
+
+/**
+ * Who a device token belongs to: `fcm` (Firebase Cloud Messaging, which also delivers to iOS through APNs) or `apns`
+ * (Apple, sent directly over HTTP/2). Android tokens are always FCM tokens.
+ */
+export type PushProvider = 'fcm' | 'apns'
+
+export type ModuleOptions = {
+  settings?: {
+    /**
+     * How `sendPush` delivers: `log` writes the push to the server log, `providers` sends it to FCM and APNs. Unset
+     * (the default) it is `providers` once credentials are configured and `log` otherwise, so development needs no
+     * setup. `NUXT_PUSH_DELIVERY` overrides it at runtime.
+     */
+    delivery?: PushDeliveryName
+    /**
+     * Register the device as soon as someone is signed in (a Capacitor app with `@frigear-nu/mobile`). `false` leaves
+     * it to the app: call `usePushDevice().register()` at a better moment than right after sign-in. Defaults to `true`.
+     */
+    autoRegister?: boolean
+  }
+  pages?: {
+    /**
+     * The account page where users see and remove their own devices (server mode). `true` mounts it at
+     * `/account/devices` (the default), a string at that path, `false` leaves it out.
+     */
+    devices?: string | boolean
+  }
+}
+
+export type PushPublicConfig = {
+  /** `server` or `client`, the app's `authentication.mode`. */
+  mode: 'server' | 'client'
+  autoRegister: boolean
+  /** The account devices page, when it is mounted (server mode). */
+  pages: { devices?: string }
+}
+
+/** Credentials are private runtime config: set them with `NUXT_PUSH_*` environment variables. */
+export type PushRuntimeConfig = {
+  /** `log`, `providers` or empty for the automatic choice (see `ModuleOptions`). */
+  delivery: string
+  /** How long a provider request may take, in milliseconds, before the device counts as failed. Defaults to 10000. */
+  timeoutMs: number | string
+  /**
+   * The provider of an iOS token whose device did not say (`NUXT_PUSH_IOS`): `apns` (the default) or `fcm`. A device
+   * registered with a `provider` always goes there. The device side of this module always says, so this is only for
+   * other clients and rows registered before the column existed.
+   */
+  ios: string
+  fcm: {
+    /** The Firebase service account JSON (the whole file), for FCM HTTP v1. */
+    serviceAccount: string
+  }
+  apns: {
+    /** The key id of the `.p8` authentication key. */
+    keyId: string
+    /** The Apple developer team id. */
+    teamId: string
+    /** The app's bundle id (the `apns-topic`). */
+    topic: string
+    /** The `.p8` private key (PEM). Literal `\n` are accepted, so it fits one env line. */
+    privateKey: string
+    /** `true` sends to the sandbox (`api.sandbox.push.apple.com`), for development builds of the app. */
+    sandbox: boolean | string
+  }
+}
+
+export type PushDeviceDto = {
+  id: string
+  userId: number
+  platform: PushPlatform
+  /** Where its pushes go. `null` only for a device registered before providers were stored: `push.ios` decides. */
+  provider: PushProvider | null
+  appId: string | null
+  locale: string | null
+  lastSeenAt: string
+  createdAt: string
+  revokedAt: string | null
+}
+
+/** `POST /api/push/me/devices`. */
+export type RegisterDeviceInput = {
+  platform: Exclude<PushPlatform, 'web'>
+  token: string
+  /**
+   * Who issued `token`. Unset: `fcm` on Android, `push.ios` on iOS (`apns` by default). An iOS app that registers its
+   * FCM token (`@capacitor-firebase/messaging`) sends `fcm`, so its pushes go through FCM.
+   */
+  provider?: PushProvider
+  /**
+   * The token this installation registered before, when it differs (an iOS app that moved from its APNs token to its
+   * FCM token, or a rotated token). That device of the caller is removed, so the installation is not notified twice.
+   */
+  replaces?: string
+  appId?: string
+  locale?: string
+}
+
+export type PushMessage = {
+  userIds: number[]
+  /** Text, or one text per locale (`{ da, en }`): each device gets the one for its registered locale, else `en`. */
+  title: Translated
+  body: Translated
+  /** Where the app goes when the notification is opened (a path in the app or a URL). */
+  url?: string
+  /** Extra string data delivered with the notification. */
+  data?: Record<string, string>
+}
+
+export type SendPushResult = {
+  /** Devices the provider accepted. */
+  sent: number
+  /** Devices that failed for a reason other than a dead token. */
+  failed: number
+  /** Devices whose token the provider reported as dead, now revoked. */
+  revoked: number
+}
+
+export type PushDeviceRegisteredContext = {
+  event: H3Event
+  device: PushDeviceDto
+}
