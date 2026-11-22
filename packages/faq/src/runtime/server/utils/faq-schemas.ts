@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { grantListShape } from '@frigear-nu/grants/core'
+import { grantListShape } from '@frigear-nu/auth/grants'
 import { FAQ_SLUG_PATTERN, isReservedFaqSlug } from '../../utils'
 
 // One text for every language, or a locale -> text map. Empty entries are dropped and a map needs at least one text.

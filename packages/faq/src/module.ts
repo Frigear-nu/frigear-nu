@@ -65,8 +65,6 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-    // Who may read a group or an item: a grant list (`grants` column).
-    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },

@@ -25,7 +25,7 @@ import {
   registerModule,
   registerTailwindSource,
 } from '@frigear-nu/module-kit/utils'
-import { addPolicies, addRole, registerAccess, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
+import { addPolicies, addRole, extendGrants, registerAccess, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
 import { authorizationAccess } from './runtime/access'
 import type { PermissionRegistry } from '@frigear-nu/auth/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
@@ -193,6 +193,21 @@ export default defineNuxtModule<ModuleOptions>({
       addRole(nuxt, ...Object.entries(options.roles ?? {}).map(([name, role]) => ({ ...role, name, source: 'host' as const, replace: role.replace ?? false })))
       if (options.defaultRoles?.length) setDefaultRoles(nuxt, options.defaultRoles)
       setRoleProvider(nuxt, { path: resolver.resolve('./runtime/server/role-provider') })
+      // The `role` grant kind of auth's grant lists: callers holding a global role. Without this module there is no `role`
+      // kind, and a stored `role` grant admits nobody.
+      extendGrants(nuxt, {
+        kind: 'role',
+        label: 'Role',
+        labelKey: 'authorization.grants.kinds.role',
+        icon: 'i-lucide-shield',
+        server: resolver.resolve('./runtime/server/grants/role'),
+        field: resolver.resolve('./runtime/app/components/GrantRoleField.vue'),
+        defaults: { role: '' },
+        order: 10,
+      })
+      // Its field and the roles admin are translated.
+      registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
+      registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
 
       const serverPolicies = policyFile(nuxt, options.policies?.server, 'server/policies')
       if (serverPolicies) addPolicies(nuxt, { path: serverPolicies, host: true })
@@ -221,8 +236,6 @@ export default defineNuxtModule<ModuleOptions>({
       if (hasNuxtModule('@frigear-nu/admin', nuxt)) {
         const { adminRoute } = await import('@frigear-nu/admin/utils')
         const rolesPath = adminRoute(nuxt, 'roles')
-        registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
-        registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
         addModulePages('@frigear-nu/authorization', resolver, [
           { name: 'authorization-admin-roles', path: rolesPath, file: './runtime/app/pages/admin-roles.vue' },
           { name: 'authorization-admin-role', path: `${rolesPath}/:name`, file: './runtime/app/pages/admin-role.vue' },

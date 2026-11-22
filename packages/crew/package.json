@@ -79,7 +79,6 @@
   "dependencies": {
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/forms": "workspace:^",
-    "@frigear-nu/grants": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
     "@frigear-nu/operations": "workspace:^",
