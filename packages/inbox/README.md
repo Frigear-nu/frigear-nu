@@ -13,7 +13,8 @@ pnpm add @frigear-nu/inbox
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['@nuxthub/core', '@frigear-nu/users', '@frigear-nu/forms', '@frigear-nu/inbox'],
+  // `@frigear-nu/authorization` brings the `role` grant kind.
+  modules: ['@nuxthub/core', '@frigear-nu/users', '@frigear-nu/authorization', '@frigear-nu/forms', '@frigear-nu/inbox'],
   hub: { db: 'sqlite' },
   inbox: {
     mailboxes: [{ key: 'support', name: 'Support', grants: [{ kind: 'role', role: 'coordinator' }] }],

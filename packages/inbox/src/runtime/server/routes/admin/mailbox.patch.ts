@@ -1,7 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { eq } from 'drizzle-orm'
 import { idParams } from '@frigear-nu/module-kit/server'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import { inboxAccess } from '../../../access'
 import type { InboxMailboxDto } from '../../../../types'
 

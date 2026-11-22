@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { checkGrantList, readGrants } from '@frigear-nu/grants/core'
+import { checkGrantList, readGrants } from '@frigear-nu/auth/grants'
 import { newInboxId } from '../../utils'
 import type { InboxMailboxSeed } from '../../../types'
 

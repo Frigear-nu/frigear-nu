@@ -101,8 +101,6 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-    // Who reads a mailbox besides staff and a team's leads: a grant list.
-    '@frigear-nu/grants': { version: '>=0.0.0' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the staff pages live in; the page components come from `@frigear-nu/ui`.

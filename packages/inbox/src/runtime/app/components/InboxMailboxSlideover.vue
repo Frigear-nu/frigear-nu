@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Grant, InboxMailboxDto, Translated } from '../../../types'
 import { inboxApi } from '../../utils/api'
 import { $fetch, reactive, useAction, useInboxTranslate, useModuleT } from '#imports'
-import { grantFields } from '#grants/fields'
+import { grantFields } from '#auth/grant-fields'
 
 defineOptions({ name: 'InboxMailboxSlideover' })
 
@@ -16,10 +16,12 @@ const t = useModuleT('inbox')
 const tr = useInboxTranslate()
 const { busy, run } = useAction()
 
+// A new mailbox starts readable by admins when the `role` kind is installed (`@frigear-nu/authorization`), else by staff only.
+const hasRoleKind = grantFields.some(field => field.kind === 'role')
 type State = { name: Translated | null, key: string, ownerType: 'platform' | 'team', ownerId: string, grants: Grant[], retentionDays: number | undefined }
 const state = reactive<State>(props.mailbox
   ? { name: props.mailbox.name, key: props.mailbox.key, ownerType: props.mailbox.ownerType === 'team' ? 'team' : 'platform', ownerId: props.mailbox.ownerId ?? '', grants: props.mailbox.grants, retentionDays: props.mailbox.retentionDays ?? undefined }
-  : { name: null, key: '', ownerType: 'platform', ownerId: '', grants: [{ kind: 'role', role: 'admin' }], retentionDays: undefined })
+  : { name: null, key: '', ownerType: 'platform', ownerId: '', grants: hasRoleKind ? [{ kind: 'role', role: 'admin' }] : [], retentionDays: undefined })
 
 // A mailbox holds outsiders' messages: `public` is not offered.
 const grantKinds = grantFields.map(field => field.kind).filter(kind => kind !== 'public')

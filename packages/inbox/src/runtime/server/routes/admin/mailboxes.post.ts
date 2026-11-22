@@ -1,6 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { conflict, created } from '@frigear-nu/module-kit/server'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import { newInboxId } from '../../../utils'
 import { inboxAccess } from '../../../access'
 import type { InboxMailboxDto } from '../../../../types'

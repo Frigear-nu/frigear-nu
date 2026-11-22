@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 
 export type { Grant, OwnerRef }
