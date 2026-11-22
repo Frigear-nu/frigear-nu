@@ -51,7 +51,7 @@ export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
     ownerType: z.string().trim().min(1).max(64),
     ownerId: z.string().trim().max(128).optional(),
     grants: z.custom<Grant[] | null>(),
-    display: z.enum(['list', 'accordion']),
+    display: z.enum(['list', 'accordion', 'cards']),
     icon: z.string().trim().max(100).optional(),
   }).refine(value => value.ownerType === 'platform' || !!value.ownerId, {
     message: t('admin.ownerIdRequired', 'Enter the id of the owner.'),
@@ -61,9 +61,13 @@ export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
 
 export type HelpCategoryFormState = z.output<ReturnType<typeof helpCategoryFormSchema>>
 
-export function emptyHelpCategoryForm(): HelpCategoryFormState {
-  return { name: undefined, slug: '', description: undefined, parentId: '', ownerType: 'platform', ownerId: '', grants: [], display: 'list' as HelpCategoryDisplay, icon: '' }
+/** An empty category form; `display` presets how it shows (`cards` from the FAQ page). */
+export function emptyHelpCategoryForm(display: HelpCategoryDisplay = 'list'): HelpCategoryFormState {
+  return { name: undefined, slug: '', description: undefined, parentId: '', ownerType: 'platform', ownerId: '', grants: [], display, icon: '' }
 }
+
+/** A category whose articles are questions: an FAQ (`accordion` or `cards`). */
+export const isFaqDisplay = (display: HelpCategoryDisplay | string | null | undefined) => display === 'accordion' || display === 'cards'
 
 export function categoryToForm(category: StaffHelpCategory): HelpCategoryFormState {
   return {

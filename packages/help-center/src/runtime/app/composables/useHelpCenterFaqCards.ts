@@ -1,5 +1,5 @@
 import type { FaqCardProps, HelpFaqDto } from '../../../types'
-import { faqCardProps, faqJsonLdQuestions, faqPageFromQuestions } from '../../utils/faq'
+import { faqCardsProps, faqJsonLdQuestions, faqPageFromQuestions } from '../../utils/faq'
 import { useHelpCenterFaqs } from './useHelpCenterFaqs'
 import { useHelpCenterFallbackLocale, useHelpCenterLocale } from './useHelpCenterLocale'
 import { computed, getCurrentInstance, onScopeDispose, shallowReactive, useHead, useNuxtApp, useRuntimeConfig } from '#imports'
@@ -29,8 +29,8 @@ function jsonLdRegistry() {
 }
 
 /**
- * The cards of a component: the named categories (fetched through `useHelpCenterFaqs`) as `FaqCardProps`, then the
- * inline `items`. Also adds the public questions to the page's one `FAQPage` JSON-LD (as plain text), unless the
+ * The cards of a component: the named categories (fetched through `useHelpCenterFaqs`) as `FaqCardProps` (one card per
+ * category, or per article in a `cards` category), then the inline `items`. Also adds the public questions to the page's one `FAQPage` JSON-LD (as plain text), unless the
  * `schema` option is `false` or `jsonLd` is (the signed-in area is not for search engines). A `categories` that is set
  * later starts the fetch.
  */
@@ -47,10 +47,8 @@ export function useHelpCenterFaqCards(source: () => FaqCardsSource, options: { j
   const faqs = computed<HelpFaqDto[]>(() => managed.value ? fetched.faqs.value : [])
   const cards = computed<FaqCardProps[]>(() => {
     const { contact, items = [] } = source()
-    const mapped = faqs.value.map((faq) => {
-      const card = faqCardProps(faq, locale.value, fallback.value)
-      return contact ? { ...card, contact } : card
-    })
+    const mapped = faqs.value.flatMap(faq => faqCardsProps(faq, locale.value, fallback.value, fetched.parts.value)
+      .map(card => contact && !card.contact ? { ...card, contact } : card))
     return [...mapped, ...items]
   })
 

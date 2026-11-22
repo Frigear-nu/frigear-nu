@@ -24,7 +24,7 @@ const forcePublic = (name: string) => defineComponent({
   },
 })
 const components = props.public
-  ? Object.fromEntries([['Faq', 'faq'], ['FaqGrid', 'faq-grid'], ['FaqSectionList', 'faq-section-list']].flatMap(([pascal, kebab]) => {
+  ? Object.fromEntries([['Faq', 'faq'], ['FaqCards', 'faq-cards'], ['FaqGrid', 'faq-grid'], ['FaqSectionList', 'faq-section-list']].flatMap(([pascal, kebab]) => {
       const wrapped = forcePublic(pascal!)
       return [[pascal, wrapped], [kebab, wrapped]]
     }))

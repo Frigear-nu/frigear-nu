@@ -164,10 +164,11 @@
       "unpublished": "Unpublished {name}",
       "updatedAt": "Updated",
       "display": "Shown as",
-      "displayHelp": "An article list links to each article. Questions open their answer in place, like an FAQ.",
+      "displayHelp": "An article list links to each article. Questions open their answer in place, like an FAQ. Question cards show each article as a card of its own.",
       "displays": {
         "list": "Article list",
-        "accordion": "Questions (FAQ)"
+        "accordion": "Questions (FAQ)",
+        "cards": "Question cards (FAQ)"
       },
       "icon": "Icon",
       "iconHelp": "An icon name such as i-lucide-info.",
@@ -188,7 +189,19 @@
       "dragToReorder": "Drag to reorder",
       "publishMissing": "Still missing: {fields}",
       "missingToPublish": "Needed to publish: {locales}",
-      "saveAndPublish": "Publish article"
+      "saveAndPublish": "Publish article",
+      "faqBodyHelp": "In question cards the text before the first block is the card's description. A question that opens in the card: {details}, a list, then {end} on a line of its own. A button: {link}, then {end}.",
+      "faq": {
+        "title": "FAQ",
+        "description": "The questions and answers on the site's pages: the help center categories shown as questions.",
+        "openHelpCenter": "Open help center",
+        "createCategory": "Add FAQ category",
+        "empty": "No FAQ categories yet",
+        "emptyDescription": "Add a category shown as questions, then add its questions.",
+        "question": "Question",
+        "addQuestion": "Add question",
+        "questionsEmpty": "No questions yet"
+      }
     },
     "article": {
       "loadFailed": "The article could not be loaded",
@@ -227,6 +240,10 @@
       "signedIn": {
         "description": "Guides, onboarding and answers for you.",
         "label": "Help center"
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Manage the questions and answers shown on the site's pages."
       }
     },
     "mobile": {

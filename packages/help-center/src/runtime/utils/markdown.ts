@@ -1,12 +1,16 @@
 /**
- * Plain text of a Markdown or MDC body, for JSON-LD and search snippets: code blocks, MDC component fences, HTML tags and
- * the Markdown marks (links keep their text, images their alt text, headings, quotes, lists, emphasis) are removed. A
- * simple strip, not a Markdown parser: a bold word loses its stars, an unusual construct may keep a stray character.
+ * Plain text of a Markdown or MDC body, for JSON-LD and search snippets: code blocks, MDC component fences (`::name{...}`
+ * and the closing `::`), inline components such as `:br`, HTML tags and the Markdown marks (links keep their text, images
+ * their alt text, headings, quotes, lists, emphasis) are removed. A simple strip, not a Markdown parser: a bold word loses
+ * its stars, an unusual construct may keep a stray character.
  */
 export function stripMarkdown(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/^\s*:{2,}[\w-]*(?:\{[^}]*\})?\s*$/gm, ' ')
+    .replace(/^\s*:{2,}[\w-]*(?:\{.*\})?\s*$/gm, ' ')
+    // An inline component (`:br`, `:icon{name="..."}`) on its own: a colon after a space or a line start, then a name.
+    // Its `[text]`, if any, stays.
+    .replace(/(^|\s):[a-z][\w-]*(?:\[([^\]]*)\])?(?:\{[^}]*\})?(?=\s|$)/gim, '$1$2 ')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/<[^>]+>/g, ' ')
