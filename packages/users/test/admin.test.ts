@@ -575,4 +575,21 @@ describe('user lookups for other modules (loadUserRefs, searchUserRefs)', () => 
     expect((await lookup({ q: '   ' })).found).toEqual([])
     expect((await lookup({ q: 'a', limit: 1 })).found).toHaveLength(1)
   })
+
+  it('folds capital Ø, Æ and Å in names on sqlite (users.searchText), also after a rename', async () => {
+    const cookie = await registerAndGetCookie({ name: 'ØRSTED ÆBLE', email: 'orsted@example.com', password: 'supersecret123' })
+    for (const q of ['ørsted', 'ØRSTED', 'Ørsted æble', 'æble']) {
+      expect((await lookup({ q })).found.map(ref => ref.name)).toEqual(['ØRSTED ÆBLE'])
+    }
+    // The admin list searches the same column.
+    const login = await apiClient().fetch('POST', authApi.login, { email: 'staff@example.com', password: 'supersecret123' })
+    expect(login.status, await login.clone().text()).toBe(200)
+    const admin = apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
+    const page = await admin.json<{ items: Array<{ name: string }> }>('GET', `${usersApi.admin.users}?q=${encodeURIComponent('ørsted')}`)
+    expect(page.items.map(item => item.name)).toEqual(['ØRSTED ÆBLE'])
+
+    await apiClient({ cookie }).json('PATCH', usersApi.me.profile, { name: 'Åse Ørsted' })
+    expect((await lookup({ q: 'åSE' })).found.map(ref => ref.name)).toEqual(['Åse Ørsted'])
+    expect((await lookup({ q: 'æble' })).found).toEqual([])
+  })
 })

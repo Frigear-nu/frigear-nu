@@ -57,6 +57,13 @@
       "when": 1795354544286,
       "tag": "0007_users_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795381569115,
+      "tag": "0008_users_search_text",
+      "breakpoints": true
     }
   ]
 }
