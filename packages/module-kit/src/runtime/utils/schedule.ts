@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidTimeZone, zonedParts } from './time'
 
 /** A recurring yearly moment in wall-clock time of the schedule's timezone. */
 export type ScheduleMoment = {
@@ -34,15 +35,7 @@ export const scheduleSchema = z.discriminatedUnion('type', [
     type: z.literal('yearly'),
     from: scheduleMoment,
     to: scheduleMoment,
-    timezone: z.string().refine((tz) => {
-      try {
-        new Intl.DateTimeFormat('en', { timeZone: tz })
-        return true
-      }
-      catch {
-        return false
-      }
-    }, 'Unknown timezone.'),
+    timezone: z.string().refine(isValidTimeZone, 'Unknown timezone.'),
   }),
 ]).superRefine((schedule, ctx) => {
   if (schedule.type === 'range' && schedule.from && schedule.to && Date.parse(schedule.from) >= Date.parse(schedule.to)) {
@@ -52,15 +45,6 @@ export const scheduleSchema = z.discriminatedUnion('type', [
     ctx.addIssue({ code: 'custom', message: 'The season must end after it starts.', path: ['to'] })
   }
 })
-
-/** Wall-clock parts of an instant in a timezone. */
-function zonedParts(date: Date, timeZone: string) {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
-      .formatToParts(date).map(p => [p.type, Number(p.value)]),
-  ) as Record<'month' | 'day' | 'hour' | 'minute', number>
-  return parts
-}
 
 /** Orders a month/day/time within a year as one number (the year cancels out, so Feb 29 needs no special case). */
 const slot = (month: number, day: number, hour: number, minute: number) => ((month * 100 + day) * 100 + hour) * 100 + minute

@@ -72,7 +72,9 @@ packages/cookie-consent/test/fixtures/authenticated/.data
 packages/events/test/fixtures/authenticated/.data
 packages/forms/test/fixtures/authenticated/.data
 packages/oauth-server/test/fixtures/authenticated/.data
+packages/operations/test/fixtures/authenticated/.data
 packages/payments/test/fixtures/authenticated/.data
+packages/push/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/custom-path/.data
 packages/subscriptions/test/fixtures/authenticated/.data
@@ -82,7 +84,25 @@ packages/users/test/fixtures/password-enabled/.data
 packages/module-kit/playground/.data
 packages/oauth-server/playground/.data
 packages/payments/playground/.data
+packages/push/playground/.data
 packages/stripe/playground/.data
 packages/subscriptions/playground/.data
 
 .turbo
+
+packages/auth/test/fixtures/api-tokens-custom/.data
+packages/auth/test/fixtures/oauth-tokens/.data
+packages/auth/test/fixtures/auth-db/.data
+packages/authorization/test/fixtures/authenticated/.data
+packages/crew/test/fixtures/authenticated/.data
+packages/help-center/test/fixtures/authenticated/.data
+packages/inbox/test/fixtures/authenticated/.data
+packages/mcp/test/fixtures/mcp-db/.data
+packages/oauth-resource/test/fixtures/basic/.data
+packages/preferences/test/fixtures/basic/.data
+packages/preferences/test/fixtures/oauth/.data
+packages/shifts/test/fixtures/authenticated/.data
+packages/teams/test/fixtures/authenticated/.data
+packages/users/test/fixtures/admin-db/.data
+packages/users/test/fixtures/magic-link-db/.data
+packages/users/test/fixtures/verified-email-change/.data

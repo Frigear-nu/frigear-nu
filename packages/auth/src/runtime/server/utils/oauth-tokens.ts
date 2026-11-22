@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq } from 'drizzle-orm'
+import { base64UrlToBytes, bytesToBase64Url, deriveHkdfKey } from '@frigear-nu/module-kit/crypto'
 import { loadOAuthOpenIdConfiguration, resolveFrigearSso } from './frigear-sso'
 
 /** A provider's tokens kept for a user (`keepTokens`), decrypted. */
@@ -20,23 +21,13 @@ const EXPIRY_MARGIN_MS = 30_000
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
-const toBase64Url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-const fromBase64Url = (value: string) => Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), char => char.charCodeAt(0))
-
 const derivedKeys = new Map<string, Promise<CryptoKey>>()
 
 /** The AES-GCM key for a secret: HKDF-SHA-256, so any secret string (a token key, a session password) works. */
 export function deriveOAuthTokensKey(secret: string): Promise<CryptoKey> {
   let key = derivedKeys.get(secret)
   if (!key) {
-    key = crypto.subtle.importKey('raw', encoder.encode(secret), 'HKDF', false, ['deriveKey']).then(material =>
-      crypto.subtle.deriveKey(
-        { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('@frigear-nu/auth'), info: encoder.encode('auth_oauth_tokens') },
-        material,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt'],
-      ))
+    key = deriveHkdfKey(secret, { salt: '@frigear-nu/auth', info: 'auth_oauth_tokens' }, { name: 'AES-GCM', length: 256 }, ['encrypt', 'decrypt'])
     derivedKeys.set(secret, key)
   }
   return key
@@ -53,7 +44,7 @@ function oauthTokensKey() {
 export async function sealOAuthToken(key: CryptoKey, value: string, context: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const sealed = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: encoder.encode(context) }, key, encoder.encode(value))
-  return `v1.${toBase64Url(iv)}.${toBase64Url(new Uint8Array(sealed))}`
+  return `v1.${bytesToBase64Url(iv)}.${bytesToBase64Url(sealed)}`
 }
 
 /** Decrypts `sealOAuthToken` output; `null` when it does not open (another key, another provider, tampered). */
@@ -61,7 +52,7 @@ export async function openOAuthToken(key: CryptoKey, sealed: string, context: st
   const [version, iv, data] = sealed.split('.')
   if (version !== 'v1' || !iv || !data) return null
   try {
-    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64Url(iv), additionalData: encoder.encode(context) }, key, fromBase64Url(data))
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64UrlToBytes(iv), additionalData: encoder.encode(context) }, key, base64UrlToBytes(data))
     return decoder.decode(plain)
   }
   catch {

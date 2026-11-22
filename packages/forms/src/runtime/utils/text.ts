@@ -11,7 +11,5 @@ export function interpolate(text: string, params: TranslateParams = {}): string 
 /** English-only translator, used on the server and wherever no i18n is available. */
 export const defaultMessages: MessageTranslator = (_key, fallback, params) => interpolate(fallback, params)
 
-/** Random, prefixed id (`frm_...`), Web Crypto only so it works on Workers. */
-export function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`
-}
+/** Random, prefixed id (`<prefix>_<32 hex>`): the one of `@frigear-nu/module-kit/id`. */
+export { newId } from '@frigear-nu/module-kit/id'

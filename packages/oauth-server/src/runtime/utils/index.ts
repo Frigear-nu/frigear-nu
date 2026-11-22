@@ -261,10 +261,8 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   return false
 }
 
-/** Prefixed random id, e.g. `newId('app')` -> `app_3f9c…`. */
-export function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`
-}
+/** Random, prefixed id (`<prefix>_<32 hex>`): the one of `@frigear-nu/module-kit/id`. */
+export { newId } from '@frigear-nu/module-kit/id'
 
 /** `scheme://host[:port]`, nothing else. `capacitor://localhost` is one even though `URL.origin` calls it "null". */
 export function isExactOrigin(origin: string): boolean {

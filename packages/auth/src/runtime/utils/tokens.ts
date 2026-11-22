@@ -1,21 +1,20 @@
+import { sha256Hex } from '@frigear-nu/module-kit/crypto'
+import { randomToken } from '@frigear-nu/module-kit/id'
+
 /** The default prefix of user API tokens; a host sets its own with `authentication.apiTokens.prefix`. */
 export const USER_TOKEN_PREFIX = 'fnu_'
 
 /** `lastUsedAt` is only written this often, so reads do not turn into writes. */
 export const LAST_USED_THROTTLE_MS = 5 * 60 * 1000
 
-const toHex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('')
-
 /** SHA-256 hex. Unsalted on purpose: tokens are 256-bit random secrets, and lookups are by hash. */
 export async function hashToken(token: string): Promise<string> {
-  return toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))
+  return sha256Hex(token)
 }
-
-const base64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
 
 /** A new random token (shown once) with what is stored: its hash and display fragments. */
 export async function generateUserToken(prefix: string = USER_TOKEN_PREFIX) {
-  const token = `${prefix}${base64url(crypto.getRandomValues(new Uint8Array(32)))}`
+  const token = `${prefix}${randomToken(32)}`
   return { token, ...await describeToken(token, prefix) }
 }
 
