@@ -59,6 +59,7 @@ defineExpose({ fit: () => canvas.value?.fit(), focus: (id: string) => canvas.val
     >
       <ClientOnly>
         <MapsCanvas
+          :key="props.layout ? 'plane' : 'geo'"
           ref="canvas"
           :layout="props.layout"
           :locations="props.locations"

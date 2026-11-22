@@ -3,13 +3,13 @@ import type { FeatureGroup, Layer, Map as LeafletMap } from 'leaflet'
 import { kinds as registeredKinds, propertySchemas } from '#maps/registry'
 import { createMap, featureColor, geometryLayer, geometryOfLayer, isLabelFeature, loadLeafletWithGeoman, pinIcon, planeBounds, underlayLayer } from '../utils/leaflet'
 import type { LeafletModule } from '../utils/leaflet'
-import { PLANE_GRID_SIZE, planeExtentOf, snapGeometry, toolsForGeometries } from '../../utils/geometry'
-import { UNDERLAY_TYPES } from '../../utils/image'
+import { PLANE_GRID_SIZE, planeExtentOf, snapGeometry, toolsForGeometries, withPlaneUnderlay } from '../../utils/geometry'
+import { UNDERLAY_TYPES, isSameAppPath } from '../../utils/image'
 import { cleanPropertyValues, initialPropertyValues, propertyFields } from '../../utils/fields'
 import type { MapPropertyField } from '../../utils/fields'
 import { newFeatureId } from '../../utils'
 import type { MapFeatureKindInfo, MapGeometryType, PlaneFeature, PlaneFeatureCollection, PlaneGeometry, PlaneUnderlay, Translated } from '../../../types'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useAction, useConfirmDialog, useMapsTranslate, useModuleT, useRuntimeConfig, useTemplateRef, watch } from '#imports'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useAction, useConfirmDialog, useMapsTranslate, useModuleT, useRuntimeConfig, useTemplateRef, watch } from '#imports'
 
 defineOptions({ name: 'MapPlaneEditor' })
 
@@ -157,7 +157,9 @@ async function onFile(event: Event) {
     error: t('editor.underlayFailed', 'Could not upload the image'),
   })
   if (!underlay) return
-  model.value = { ...model.value, type: 'FeatureCollection', underlay }
+  model.value = withPlaneUnderlay({ ...model.value, type: 'FeatureCollection' as const }, underlay)
+  // With a parent `v-model` the new value arrives after the parent re-renders: fit to it, not to the old extent.
+  await nextTick()
   fit()
 }
 
@@ -192,7 +194,7 @@ function render() {
   group?.remove()
   underlay?.remove()
   underlay = undefined
-  if (model.value?.underlay) underlay = underlayLayer(L, model.value.underlay).addTo(map)
+  if (model.value?.underlay && isSameAppPath(model.value.underlay.url)) underlay = underlayLayer(L, model.value.underlay).addTo(map)
   group = L.featureGroup().addTo(map)
   for (const feature of features.value) {
     const kind = registeredKinds[feature.kind]
