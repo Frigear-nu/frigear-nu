@@ -1,6 +1,6 @@
 {
   "auth": {
-    "signIn": "Sign In",
+    "signIn": "Sign in",
     "signUp": "Sign Up",
     "signOut": "Sign Out",
     "signedInAs": "Signed in as",
@@ -50,7 +50,7 @@
       "submit": "Send link",
       "modal": {
         "in": {
-          "title": "Sign In with Magic Link",
+          "title": "Sign in with Magic Link",
           "description": "You can sign in with your e-mail, we'll send you a link."
         },
         "up": {
@@ -136,6 +136,19 @@
         "denied": "The sign-in was cancelled.",
         "offline": "The sign-in server could not be reached. Check the connection and try again.",
         "generic": "The sign-in could not be completed."
+      }
+    },
+    "grants": {
+      "kinds": {
+        "public": "Everyone",
+        "signedIn": "Signed-in people"
+      },
+      "editor": {
+        "any": "Anyone who matches one of these sees it.",
+        "nobody": "Nobody sees it yet: add who may.",
+        "unknown": "No installed module knows this kind, so it lets nobody in.",
+        "remove": "Remove {kind}",
+        "add": "Add who may see it"
       }
     }
   }

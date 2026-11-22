@@ -26,12 +26,17 @@ export {
   addRole,
   addRoleRequirement,
   addScope,
+  addSessionUserFilter,
+  guardPages,
+  localizedRoutePatterns,
   registerAccess,
   setAuthUserStore,
   setDefaultRoles,
   setRoleProvider,
 } from './build'
-export type { PolicyFileRegistration, RegisterAccessOptions, RoleProviderRegistration, RoleRequirementRegistration } from './build'
+export type { GuardPagesOptions, PolicyFileRegistration, RegisterAccessOptions, RoleProviderRegistration, RoleRequirementRegistration, SessionUserFilterRegistration } from './build'
+export { extendGrants, registeredGrantKinds } from './grants-build'
+export type { GrantFieldMeta, GrantKindRegistration } from './grants'
 export { defineAccess, defineRoles } from './access'
 export type { Access, AccessInput, AccessPermission, AccessPermissionName, AccessRole, AccessScope, HostRole, Permission, PermissionGrant, RoleName } from './access'
 export { compileAccess, routeRulePermissions } from './access-compile'
@@ -51,6 +56,8 @@ export {
 export type { TokenStatus } from './tokens'
 export {
   ANY_PERMISSION,
+  ROLE_HOLDER_LIMIT,
+  collectRoleHolders,
   combineBefore,
   combinePolicies,
   compileRoles,
@@ -74,6 +81,7 @@ export {
   resolvePermission,
   roleScopeCap,
   rolePermissions,
+  rolesGranting,
   runSharedPolicies,
   scopeGrantable,
   validateGrant,
@@ -85,6 +93,7 @@ export type {
   AccessDto,
   BeforeVote,
   BuildResult,
+  CollectRoleHoldersInput,
   CompileRolesInput,
   CompiledRole,
   DecideInput,

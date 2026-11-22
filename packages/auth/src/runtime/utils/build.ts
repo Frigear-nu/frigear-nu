@@ -31,6 +31,11 @@ export interface PolicyFileRegistration {
   shared?: boolean
 }
 
+/** A session user filter (`addSessionUserFilter`): `path`'s default export is `(user) => user`, synchronous. */
+export interface SessionUserFilterRegistration {
+  path: string
+}
+
 export interface RoleProviderRegistration {
   /** Absolute path to a module whose default export is an `AuthRoleProvider`. */
   path?: string
@@ -40,6 +45,7 @@ declare module '@nuxt/schema' {
   interface NuxtHooks {
     'auth:resolvers': (resolvers: AuthResolverDefinition[]) => void | Promise<void>
     'auth:user-store': (registration: AuthUserStoreRegistration) => void | Promise<void>
+    'auth:session-filters': (filters: SessionUserFilterRegistration[]) => void | Promise<void>
     'auth:permissions': (permissions: PermissionDefinition[]) => void | Promise<void>
     'auth:named-scopes': (scopes: ScopeDefinition[]) => void | Promise<void>
     'auth:role-definitions': (roles: RoleRegistration[]) => void | Promise<void>
@@ -188,6 +194,51 @@ export function setAuthUserStore(nuxt: Nuxt, path: string) {
   nuxt.hook('auth:user-store', (registration) => {
     registration.path ||= path
   })
+}
+
+/**
+ * Register a session user filter: `path` (absolute) default-exports a synchronous `(user) => user` that every stored user
+ * passes through on its way into the session (`mapUserToSession`), before the host's `session.mapper`. A module drops
+ * what must stay out of the sealed cookie (about 4 KB in all) and of `useUserSession()`, such as a large JSON value.
+ * Filters run in registration order and must not throw.
+ */
+export function addSessionUserFilter(nuxt: Nuxt, path: string) {
+  nuxt.hook('auth:session-filters', (filters) => {
+    if (!filters.some(filter => filter.path === path)) filters.push({ path })
+  })
+}
+
+/**
+ * `patterns` (route rule patterns such as `/help` or `/help/**`) once more under each `@nuxtjs/i18n` locale prefix
+ * (`/da/help`, ...), since with i18n every page also exists under `/<locale>/...`. Without i18n, `patterns` as given.
+ * Read from `nuxt.options.i18n.locales` at call time.
+ */
+export function localizedRoutePatterns(nuxt: Nuxt, patterns: readonly string[]): string[] {
+  const locales = (nuxt.options as { i18n?: { locales?: Array<string | { code: string }> } }).i18n?.locales ?? []
+  const prefixes = ['', ...locales.map(locale => `/${typeof locale === 'string' ? locale : locale.code}`)]
+  return [...new Set(prefixes.flatMap(prefix => patterns.map(pattern => `${prefix}${pattern}`)))]
+}
+
+export interface GuardPagesOptions {
+  /** Also render these pages in this app layout (`appLayout`). */
+  layout?: string
+}
+
+/**
+ * Marks pages as signed-in only: an `authenticated: true` route rule (and `appLayout` with `layout`) for every pattern
+ * under every i18n locale prefix ({@link localizedRoutePatterns}). A rule the app or another module already set for a
+ * pattern keeps its keys. Returns the patterns it set.
+ *
+ * `@frigear-nu/authorization` enforces the rule on pages (auth's server middleware only covers `/api/**`); without it
+ * auth warns at build time that nothing checks the rule.
+ */
+export function guardPages(nuxt: Nuxt, patterns: readonly string[], options: GuardPagesOptions = {}): string[] {
+  const rules = nuxt.options.routeRules ||= {}
+  const localized = localizedRoutePatterns(nuxt, patterns)
+  for (const pattern of localized) {
+    rules[pattern] = { authenticated: true, ...(options.layout ? { appLayout: options.layout } : {}), ...rules[pattern] } as (typeof rules)[string]
+  }
+  return localized
 }
 
 export type { RoleRegistration } from './access-compile'

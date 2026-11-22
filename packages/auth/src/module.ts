@@ -46,6 +46,7 @@ import type {
 } from './types'
 import type {
   AuthUserStoreRegistration,
+  SessionUserFilterRegistration,
   PolicyFileRegistration,
   RoleProviderRegistration,
   RoleRequirementRegistration,
@@ -56,6 +57,8 @@ import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-co
 import type { PermissionDefinition, ScopeDefinition } from './runtime/utils/permissions'
 import type { AuthorizationBeforeContext, AuthorizationRolesContext } from './runtime/types'
 import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
+import { extendGrants, registeredGrantKinds } from './runtime/utils/grants-build'
+import type { GrantFieldMeta, GrantKindRegistration } from './runtime/utils/grants'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
@@ -262,6 +265,67 @@ const serverDependencies = (nuxt: Nuxt) => ({
   },
 })
 
+const byGrantOrder = (kinds: GrantKindRegistration[]) =>
+  [...kinds].sort((a, b) => (a.order ?? 100) - (b.order ?? 100) || a.kind.localeCompare(b.kind))
+
+// Grant lists: who may see a record. Auth ships the `public` and `signed-in` kinds; other modules add theirs with `extendGrants`
+// (`@frigear-nu/authorization`: `role`). The kinds are bundled once every module is done, as `#auth/grant-kinds` (the
+// server half: schema, matches, members) and `#auth/grant-fields` (the editor's menu and each kind's field component).
+function setupGrants(nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
+  extendGrants(nuxt, {
+    kind: 'public',
+    label: 'Everyone',
+    labelKey: 'auth.grants.kinds.public',
+    icon: 'i-lucide-globe',
+    server: resolver.resolve('./runtime/server/grants/public'),
+    order: 0,
+  })
+  extendGrants(nuxt, {
+    kind: 'signed-in',
+    label: 'Signed-in people',
+    labelKey: 'auth.grants.kinds.signedIn',
+    icon: 'i-lucide-user-check',
+    server: resolver.resolve('./runtime/server/grants/signed-in'),
+    order: 1,
+  })
+
+  addTypeTemplate({
+    filename: 'types/auth-grants.d.ts',
+    getContents: () => `declare module '#auth/grant-kinds' {
+  import type { GrantKindDefinition } from ${JSON.stringify(resolver.resolve('./runtime/utils/grants'))}
+  export const kinds: GrantKindDefinition<any>[]
+}
+declare module '#auth/grant-fields' {
+  import type { Component } from 'vue'
+  import type { GrantFieldMeta } from ${JSON.stringify(resolver.resolve('./runtime/utils/grants'))}
+  export const grantFields: Array<GrantFieldMeta & { field?: () => Promise<{ default: Component }> }>
+}
+`,
+  }, { nitro: true, nuxt: true })
+
+  defineVirtualRegistry(nuxt, {
+    filename: '#auth/grant-kinds',
+    target: 'server',
+    collect: () => byGrantOrder(registeredGrantKinds(nuxt)),
+    contents: kinds => `${kinds.map((kind, index) => `import kind${index} from ${JSON.stringify(kind.server)}`).join('\n')}
+export const kinds = [${kinds.map((_, index) => `kind${index}`).join(', ')}]
+`,
+  })
+
+  defineVirtualRegistry(nuxt, {
+    filename: 'auth/grant-fields.mjs',
+    alias: '#auth/grant-fields',
+    collect: () => byGrantOrder(registeredGrantKinds(nuxt)),
+    contents: kinds => `export const grantFields = [${kinds.map(({ server: _server, field, ...meta }) => {
+      const entry: GrantFieldMeta = { ...meta, hasField: !!field }
+      return field
+        ? `{ ...${JSON.stringify(entry)}, field: () => import(${JSON.stringify(field)}) }`
+        : JSON.stringify(entry)
+    }).join(', ')}]
+`,
+  })
+}
+
 const hasHubKv = (nuxt: Nuxt) => !!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv
 
 // Defaults of `settings.rateLimit`; `0` turns one limit off, `false` all of them. Off under `nuxt dev`.
@@ -422,13 +486,22 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     },
   })
 
-  // Session enrichment: re-exports the host's mapper (or a pass-through default) so routes can import it statically.
+  // Session enrichment: the modules' session user filters (`addSessionUserFilter`), then the host's mapper (or a
+  // pass-through default), composed into one function routes can import statically.
   addServerTemplate({
     filename: '#auth/session-mapper',
     getContents: async () => {
-      if (!settings.session?.mapper) return 'export default (user) => user'
-      const mapperPath = await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
-      return `export { default } from ${JSON.stringify(mapperPath)}`
+      const filters: SessionUserFilterRegistration[] = []
+      await nuxt.callHook('auth:session-filters', filters)
+      const mapperPath = settings.session?.mapper
+        ? await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
+        : undefined
+      return [
+        ...filters.map((filter, index) => `import filter${index} from ${JSON.stringify(filter.path)}`),
+        mapperPath ? `import mapper from ${JSON.stringify(mapperPath)}` : 'const mapper = user => user',
+        `const filters = [${filters.map((_, index) => `filter${index}`).join(', ')}]`,
+        'export default user => mapper(filters.reduce((current, filter) => filter(current), user))',
+      ].join('\n')
     },
   })
 
@@ -548,6 +621,7 @@ export {}
   nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
   addServerImportsDir(resolver.resolve('./runtime/server/utils'))
   inlineModuleRuntime(nuxt, resolver)
+  setupGrants(nuxt, resolver)
 
   addServerHandler({
     middleware: true,
@@ -651,6 +725,8 @@ export {}
     if (loginPath || localRegisterPath || withUi) {
       addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
     }
+    // The grant list editor (`<GrantsEditor v-model="grants" />`) is built from Nuxt UI components.
+    if (withUi) addComponent({ name: 'GrantsEditor', filePath: resolver.resolve('./runtime/app/components/GrantsEditor.vue') })
     if (!withMagicLink && !withVerifyEmail) return
     if (!withUi) {
       console.warn('[@frigear-nu/auth] Magic links / email verification are on, but `@nuxt/ui` is not installed: add your own page at `/auth/magic-link` that posts the `code` to `/api/auth/magic-link/confirm`.')

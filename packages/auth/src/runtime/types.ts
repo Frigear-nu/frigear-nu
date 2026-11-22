@@ -81,6 +81,12 @@ export type AuthUserUpdate = Partial<Pick<AuthStoredUser, 'name' | 'email' | 'av
 export interface AuthUserStore {
   /** Accepts the text ids of tokens; resolves `null` for ids that are not a user. */
   findById: (id: string | number) => Promise<AuthStoredUser | null>
+  /**
+   * Optional: many users at once, ids as `findById` takes them (unknown ones are left out, in any order).
+   * `listRoleHolders` loads its candidates through it in one go instead of one `findById` per person. Keep every query
+   * under D1's 100 bound parameters.
+   */
+  findByIds?: (ids: Array<string | number>) => Promise<AuthStoredUser[]>
   findByEmail: (email: string) => Promise<AuthStoredUser | null>
   create: (values: AuthUserCreate) => Promise<AuthStoredUser>
   update: (id: number, values: AuthUserUpdate) => Promise<AuthStoredUser | null>
@@ -109,6 +115,18 @@ export interface AuthRoleProvider {
   getAssignedRoles: (event: H3Event | undefined, userId: number) => Promise<string[]>
   /** Replaces the user's roles of one `source` only (single sign-on passes `sso` and never touches manual rows). */
   setRoles: (userId: number, roles: string[], options: { source: AuthRoleSource, grantedBy?: number }) => Promise<void>
+  /**
+   * Optional: the users with at least one of `roles` stored, at most `options.limit` of them (`listRoleHolders`).
+   * `roles` already includes the roles inheriting the wanted ones; auth then checks each user's effective roles. A
+   * provider without it lists nobody: `listRoleHolders` returns an empty list.
+   */
+  holders?: (roles: string[], options: { limit: number }) => Promise<number[]>
+  /**
+   * Optional: the stored roles of many users at once, by user id (a user without rows may be left out). `listRoleHolders`
+   * loads its candidates' roles through it in one go instead of calling `getAssignedRoles` once per user. Keep every
+   * query under D1's 100 bound parameters.
+   */
+  assignedRolesOf?: (userIds: number[]) => Promise<Map<number, string[]>>
 }
 
 /** What a role requirement (`addRoleRequirement`) decides on. */
