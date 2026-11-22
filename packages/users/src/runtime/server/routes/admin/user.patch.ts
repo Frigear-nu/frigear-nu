@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   const pii = input.phone !== undefined || await allows(event, usersAccess.permissions.pii, target)
 
   const changes = {
-    ...(input.name ? { name: input.name } : {}),
+    ...(input.name ? withUserSearchText({ name: input.name }) : {}),
     ...(phoneChanged ? { phone: input.phone } : {}),
     // A changed address was typed in by staff, so it is unverified until its owner confirms it (unless staff
     // explicitly marks it verified in the same request).

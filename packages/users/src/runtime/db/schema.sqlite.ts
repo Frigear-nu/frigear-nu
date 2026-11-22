@@ -5,6 +5,9 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 export const users = sqliteTable('users', {
   id: integer().primaryKey({ autoIncrement: true }),
   name: text().notNull(),
+  // `name` folded for search (`searchText` of `@frigear-nu/module-kit/server`), written with it: `searchUserRefs` and
+  // other modules' user searches match it.
+  searchText: text().notNull().default(''),
   email: text().notNull().unique(),
   avatar: text(),
   // Personal data: shown to staff with `users:pii` only, and to other modules' staff through their own `:pii`.

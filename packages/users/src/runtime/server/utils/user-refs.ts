@@ -1,6 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { asc, inArray, or } from 'drizzle-orm'
-import { inChunks, likeContains } from '@frigear-nu/module-kit/server'
+import { inChunks, likeContains, searchContains } from '@frigear-nu/module-kit/server'
 import type { UserRef } from '../../../types'
 
 // The user lookups other modules need to show people: by id, and a name search for pickers. They only read; the routes
@@ -49,7 +49,7 @@ export async function loadUserRefs(ids: Iterable<number | string | null | undefi
 }
 
 /**
- * Users whose name contains `q` (case-insensitively), by name, at most `limit` (20, at most 100). With `pii` the email
+ * Users whose name contains `q` (case-insensitively, `Ø`/`Æ`/`Å` too: the folded `users.searchText`), by name, at most `limit` (20, at most 100). With `pii` the email
  * matches too and the refs carry `email` and `phone`; without it both are `null`, so the search cannot probe addresses.
  */
 export async function searchUserRefs(q: string, options: { pii?: boolean, limit?: number } = {}): Promise<UserRef[]> {
@@ -57,7 +57,7 @@ export async function searchUserRefs(q: string, options: { pii?: boolean, limit?
   if (!term) return []
   const limit = Math.min(100, Math.max(1, Math.floor(options.limit ?? 20)))
   const rows = await db.select(userRefColumns()).from(schema.users)
-    .where(options.pii ? or(likeContains(schema.users.name, term), likeContains(schema.users.email, term)) : likeContains(schema.users.name, term))
+    .where(options.pii ? or(searchContains(schema.users.searchText, term), likeContains(schema.users.email, term)) : searchContains(schema.users.searchText, term))
     .orderBy(asc(schema.users.name), asc(schema.users.id))
     .limit(limit)
   return rows.map(row => options.pii ? toUserRef(row) : { ...toUserRef(row), email: null, phone: null })
