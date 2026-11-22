@@ -78,7 +78,6 @@
   },
   "dependencies": {
     "@frigear-nu/auth": "workspace:^",
-    "@frigear-nu/grants": "workspace:^",
     "@frigear-nu/maps": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/ui": "workspace:^",

@@ -45,6 +45,8 @@ const redirects: Record<string, string> = {
   "/modules/module-kit": "/modules/platform/module-kit",
   "/modules/notify": "/modules/platform/notify",
   "/modules/email-templates": "/modules/platform/email-templates",
+  // Grant lists moved into Auth (`@frigear-nu/auth/grants`); the page became a section of Access control.
+  "/modules/platform/grants": "/contribute/writing-a-module/access-control#record-audiences",
 };
 
 export default defineNuxtConfig({

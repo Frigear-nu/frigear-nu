@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { hasPublicGrant } from '@frigear-nu/grants/core'
+import { hasPublicGrant } from '@frigear-nu/auth/grants'
 import { helpCenterAccess } from '../../access'
 import type { HelpArticleDetailDto, HelpArticleDto, HelpArticleSummaryDto, HelpCategoryDto, HelpCenterSource, HelpReader, HelpSourceCategory, HelpSourceContext, PublicModuleOptions } from '../../../types'
 import { helpCenterContentSource } from './help-center-content'
