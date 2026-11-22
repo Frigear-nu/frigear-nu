@@ -22,10 +22,11 @@ export default defineEventHandler(async (event) => {
   // The address someone signs in with is theirs: changing or verifying it is `users:manage` (session only).
   if (emailChanged || input.emailVerified !== undefined) await authorize(event, USERS_MANAGE_PERMISSION, target)
   if (emailChanged) await assertEmailAvailable(input.email!, { exceptUserId: target.id })
-  // The phone number is personal data: reading or changing it is `users:pii`.
+  // The phone number is personal data: reading or changing it is `users:pii`. Checked whenever the body names it,
+  // before it is compared with the stored number, so the answer (200 or 403) never tells whether a guess matched.
+  if (input.phone !== undefined) await authorize(event, usersAccess.permissions.pii, target)
   const phoneChanged = input.phone !== undefined && input.phone !== (target.phone ?? null)
-  if (phoneChanged) await authorize(event, usersAccess.permissions.pii, target)
-  const pii = phoneChanged || await allows(event, usersAccess.permissions.pii, target)
+  const pii = input.phone !== undefined || await allows(event, usersAccess.permissions.pii, target)
 
   const changes = {
     ...(input.name ? { name: input.name } : {}),
