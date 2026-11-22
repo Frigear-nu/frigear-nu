@@ -9,8 +9,17 @@ export function pageFaqSlugs(config: PageFaqsConfig | null | undefined, page: st
 }
 
 /**
+ * How many of the loaded categories have something to show: a category without a published article (staff made it
+ * but published nothing yet, or unpublished everything) does not count.
+ */
+export function pageFaqsFound(faqs: ReadonlyArray<{ articles?: readonly unknown[] | null }> | null | undefined): number {
+  return (faqs ?? []).filter(faq => (faq.articles?.length ?? 0) > 0).length
+}
+
+/**
  * Whether a page's FAQ section shows: while its categories load (the cards render their skeleton), and afterwards only
- * when at least one of them exists and is public. A missing category, or a failed request, hides the section.
+ * when at least one of them exists, is public and has a published article (`pageFaqsFound`). A missing or empty
+ * category, or a failed request, hides the section.
  */
 export function showPageFaqs(state: { slugs: readonly string[], status: string, found: number }): boolean {
   if (!state.slugs.length) return false

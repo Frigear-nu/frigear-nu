@@ -369,6 +369,9 @@ export default defineNuxtConfig({
     // Public area `/help`, signed-in area `/account/help` (the defaults), staff pages under `/admin/help-center`.
     settings: {
       pages: { admin: true },
+      // Staff write in Danish first: an article can be published with Danish only. English readers see the Danish text
+      // until an English one is added (the help center falls back to the default locale).
+      requiredLocales: ['da'],
       // The FAQ cards' contact button opens the site's own contact modal (components/content), prefilled from `initial`.
       faq: { contactComponent: 'ContactFormModal' },
     },

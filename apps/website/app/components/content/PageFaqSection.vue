@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // A page's FAQ section: the public help-center categories `appConfig.pageFaqs[page]` names, with questions that open
 // in place. One category reads at the section's full width, several share a grid (`FaqSectionList` decides). Staff
-// write the questions at /admin/help-center. When none of the categories exists (or the request fails) the whole
-// section is hidden. In Markdown:
+// write the questions at /admin/help-center. When none of the categories exists or has a published article (or the
+// request fails) the whole section is hidden. In Markdown:
 //
 //   ::page-faq-section{page="board" icon="i-lucide-message-circle-question-mark" id="good-to-know"}
 //   #title
@@ -23,7 +23,7 @@ const appConfig = useAppConfig()
 const slugs = computed(() => pageFaqSlugs(appConfig.pageFaqs, props.page))
 // The same request (and key) as the cards below, so the page fetches once.
 const { faqs, status } = useHelpCenterFaqs(slugs, { public: true, lazy: true, enabled: () => slugs.value.length > 0 })
-const visible = computed(() => showPageFaqs({ slugs: slugs.value, status: status.value, found: faqs.value.length }))
+const visible = computed(() => showPageFaqs({ slugs: slugs.value, status: status.value, found: pageFaqsFound(faqs.value) }))
 const wrapper = props.card ? resolveComponent('UCard') : 'div'
 </script>
 

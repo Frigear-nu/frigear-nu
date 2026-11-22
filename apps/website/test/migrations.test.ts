@@ -50,3 +50,26 @@ describe('0027_users_locale_without_default', () => {
     client.close()
   })
 })
+
+describe('0029_inbox_message_sender_permanent_tombstones', () => {
+  it('files every stored inbound message under the contact of its thread, and leaves replies without one', async () => {
+    const client = createClient({ url: ':memory:' })
+    for (const file of await migrationsBefore('0029_')) {
+      for (const sql of await statements(file)) await client.execute(sql)
+    }
+    const now = Math.floor(Date.now() / 1000)
+    await client.execute({ sql: 'INSERT INTO inbox_mailboxes (id, key, owner_type, name, grants, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', args: ['ibx_1', 'support', 'platform', '"Support"', '[]', now, now] })
+    await client.execute({ sql: 'INSERT INTO inbox_contacts (id, channel, external_id, created_at) VALUES (?, ?, ?, ?)', args: ['icn_1', 'email', 'kari@example.org', now] })
+    await client.execute({ sql: 'INSERT INTO inbox_threads (id, mailbox_id, contact_id, channel, status, last_message_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', args: ['ibt_1', 'ibx_1', 'icn_1', 'email', 'open', now, now, now] })
+    for (const [id, direction] of [['ibm_1', 'in'], ['ibm_2', 'out']] as const) {
+      await client.execute({ sql: 'INSERT INTO inbox_messages (id, thread_id, direction, body, attachments, created_at_ms, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [id, 'ibt_1', direction, 'Hello', '[]', Date.now(), now] })
+    }
+    for (const sql of await statements('0029_inbox_message_sender_permanent_tombstones.sql')) await client.execute(sql)
+
+    const rows = (await client.execute('SELECT id, contact_id, authenticated FROM inbox_messages ORDER BY id')).rows
+    expect(rows.map(row => [row.id, row.contact_id, row.authenticated])).toEqual([['ibm_1', 'icn_1', 0], ['ibm_2', null, 0]])
+    await client.execute({ sql: 'INSERT INTO inbox_tombstones (key, created_at) VALUES (?, ?)', args: ['k', now] })
+    expect((await client.execute('SELECT permanent, contact_id FROM inbox_tombstones')).rows.map(row => [row.permanent, row.contact_id])).toEqual([[0, null]])
+    client.close()
+  })
+})

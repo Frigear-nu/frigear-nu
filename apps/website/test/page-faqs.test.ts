@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pageFaqSlugs, showPageFaqs } from '../app/utils/page-faqs'
+import { pageFaqSlugs, pageFaqsFound, showPageFaqs } from '../app/utils/page-faqs'
 
 describe('pageFaqSlugs', () => {
   it('reads a page\'s category slugs from the config, as a list or a comma separated string', () => {
@@ -24,5 +24,17 @@ describe('showPageFaqs', () => {
     expect(showPageFaqs({ slugs, status: 'success', found: 0 })).toBe(false)
     expect(showPageFaqs({ slugs, status: 'error', found: 0 })).toBe(false)
     expect(showPageFaqs({ slugs: [], status: 'success', found: 0 })).toBe(false)
+  })
+})
+
+describe('pageFaqsFound', () => {
+  it('counts only the categories with published articles', () => {
+    const article = { id: 'hca_1' }
+    expect(pageFaqsFound([{ articles: [article] }, { articles: [] }])).toBe(1)
+    // A category staff made but published nothing in yet: the section stays hidden.
+    expect(showPageFaqs({ slugs: ['board'], status: 'success', found: pageFaqsFound([{ articles: [] }]) })).toBe(false)
+    expect(pageFaqsFound([{ articles: [article, article] }, { articles: [article] }])).toBe(2)
+    expect(pageFaqsFound([])).toBe(0)
+    expect(pageFaqsFound(undefined)).toBe(0)
   })
 })
