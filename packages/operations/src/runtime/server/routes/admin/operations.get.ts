@@ -15,13 +15,17 @@ import type { AdminOperationDto } from '../../../../types'
  * postgresql with `jsonb_each_text`, wrapping a string scalar in an object first.
  */
 function translatedContains(column: typeof schema.operations.name, value: string) {
-  // Lowercased here, in JS: sqlite's `lower()` and LIKE only fold ASCII, so `ØLBAR` would never match `ølbar` there.
-  // (A stored non-ASCII capital such as `Ølbar` is still not folded by sqlite; postgresql folds both sides.)
-  const pattern = `%${escapeLike(value.toLocaleLowerCase())}%`
+  const lowered = value.toLocaleLowerCase()
   if (is(schema.operations, PgTable)) {
-    return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like lower(${pattern}) escape '\\')`
+    // postgresql folds every letter on both sides.
+    return sql`exists (select 1 from jsonb_each_text(case when jsonb_typeof(${column}) = 'object' then ${column} else jsonb_build_object('_', ${column}) end) as t where lower(t.value) like lower(${`%${escapeLike(lowered)}%`}) escape '\\')`
   }
-  return sql`exists (select 1 from json_each(${column}) as t where lower(t.value) like lower(${pattern}) escape '\\')`
+  // sqlite's LIKE folds ASCII only, so a stored `Ølbar` matches neither `ølbar` nor `ØLBAR`. Match the query as typed,
+  // lowercased (in JS) and with its first letter capitalised, which finds `Ølfestival`, `Århus Bar` or `Bar i Århus` for
+  // `ølfestival`, `ØLFESTIVAL` or `århus`.
+  const variants = [...new Set([value, lowered, lowered.charAt(0).toLocaleUpperCase() + lowered.slice(1)])]
+  const matches = sql.join(variants.map(variant => sql`t.value like ${`%${escapeLike(variant)}%`} escape '\\'`), sql` or `)
+  return sql`exists (select 1 from json_each(${column}) as t where ${matches})`
 }
 
 const querySchema = pageQuery({

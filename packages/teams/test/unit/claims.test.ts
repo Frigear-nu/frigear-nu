@@ -41,7 +41,8 @@ describe('teams claim', () => {
       await addTeamsClaim(context)
       expect(context.claims.teams).toEqual(teamsClaim(grants))
     }
-    expect(resolveAllTeamRoles).toHaveBeenCalledWith(undefined, 7, { globalRoles: ['supervisor', 'member'] })
+    // strict: a failing teams:roles:resolve listener makes the resolver throw, so the claim is never a partial list.
+    expect(resolveAllTeamRoles).toHaveBeenCalledWith(undefined, 7, { globalRoles: ['supervisor', 'member'], strict: true })
   })
 
   it('leaves the claim out when the roles cannot be resolved (fail closed)', async () => {

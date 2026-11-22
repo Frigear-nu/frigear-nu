@@ -82,6 +82,8 @@ CREATE TABLE `users` (
 	`name` text NOT NULL,
 	`email` text NOT NULL,
 	`avatar` text,
+	`phone` text,
+	`locale` text,
 	`accepted_terms_at` integer,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
