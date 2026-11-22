@@ -76,7 +76,12 @@ export async function saveNotificationChannels(userId: number, changes: Record<s
  * The contacts come from the registered recipient store (`@frigear-nu/users`) and the choices from the registered
  * choices store (`@frigear-nu/preferences`; without it the defaults apply). Without a recipient store nothing is sent and
  * a warning is logged. An error on one channel is logged and does not stop the others or throw; the result says which
- * channels went out and why the others did not. An unknown topic throws: register it with `extendNotificationTopics`.
+ * channels went out and why the others did not. An error reading the user's choices is logged as a warning and the
+ * topic's defaults apply, so it does not throw either.
+ *
+ * It throws only for an unknown topic (register it with `extendNotificationTopics`) and when the recipient store's
+ * `findRecipient` throws (a database error looking up the user's contacts), so callers in hooks and tasks should still
+ * catch.
  */
 export async function notifyUser(userId: number, input: NotifyUserInput): Promise<NotifyUserResult> {
   const topic = findNotificationTopic(input.topic)
@@ -94,7 +99,14 @@ export async function notifyUser(userId: number, input: NotifyUserInput): Promis
     return result
   }
 
-  const [recipient, choices] = await Promise.all([recipientStore.findRecipient(userId), readStoredChoices(userId)])
+  const [recipient, choices] = await Promise.all([
+    recipientStore.findRecipient(userId),
+    // Choices only narrow the defaults: a store that fails should not cost the user the notification.
+    readStoredChoices(userId).catch((error: unknown) => {
+      console.warn(`[@frigear-nu/notify] notifyUser: reading the choices of user ${userId} failed, the defaults of ${topic.id} apply:`, error)
+      return {}
+    }),
+  ])
   const settings = resolveChannelSettings(topic, choices[topic.id])
   const locale = recipient?.locale || 'en'
 

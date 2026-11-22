@@ -29,6 +29,12 @@ vi.mock('../src/runtime/server/utils/dispatch', () => dispatch)
 
 const { notifyUser, readNotificationChannels, saveNotificationChannels } = await import('../src/runtime/server/utils/notify-user')
 
+// The warnings are once per module instance: a fresh import makes a test that counts them independent of test order.
+async function freshNotifyUser() {
+  vi.resetModules()
+  return (await import('../src/runtime/server/utils/notify-user')).notifyUser
+}
+
 function recipients(map: Record<number, NotifyRecipient>): NotifyRecipientStore {
   return { findRecipient: async userId => map[userId] ?? null }
 }
@@ -96,18 +102,39 @@ describe('notifyUser', () => {
     await expect(notifyUser(1, { topic: 'nope', ...content })).rejects.toThrow(/Unknown notification topic "nope"/)
   })
 
-  it('sends nothing and warns without a recipient store', async () => {
+  it('sends nothing and warns once without a recipient store', async () => {
+    const notify = await freshNotifyUser()
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     state.recipientStore = null
-    expect(await notifyUser(1, { topic: 'broadcast', ...content })).toEqual({ channels: [], skipped: { email: 'unavailable', push: 'unavailable' } })
+    expect(await notify(1, { topic: 'broadcast', ...content })).toEqual({ channels: [], skipped: { email: 'unavailable', push: 'unavailable' } })
+    expect(await notify(2, { topic: 'broadcast', ...content })).toEqual({ channels: [], skipped: { email: 'unavailable', push: 'unavailable' } })
+    expect(warn).toHaveBeenCalledTimes(1)
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/No recipient store/))
     for (const fn of Object.values(dispatch)) expect(fn).not.toHaveBeenCalled()
   })
 
-  it('applies the topic defaults without a choices store', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('applies the topic defaults without a choices store, and warns once', async () => {
+    const notify = await freshNotifyUser()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     state.choicesStore = null
-    expect(await notifyUser(1, { topic: 'broadcast', ...content })).toEqual({ channels: ['email'], skipped: { sms: 'disabled', push: 'disabled' } })
+    expect(await notify(1, { topic: 'broadcast', ...content })).toEqual({ channels: ['email'], skipped: { sms: 'disabled', push: 'disabled' } })
+    expect(await notify(2, { topic: 'broadcast', ...content })).toEqual({ channels: ['email'], skipped: { sms: 'disabled', push: 'disabled' } })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/No choices store/))
+  })
+
+  it('applies the topic defaults when reading the choices fails, and does not throw', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    state.choicesStore = { readChoices: () => Promise.reject(new Error('D1 down')), writeChoices: async () => {} }
+    expect(await notifyUser(1, { topic: 'shifts.reminder', ...content })).toEqual({ channels: ['email', 'push'], skipped: { sms: 'disabled' } })
+    expect(dispatch.dispatchEmailNotification).toHaveBeenCalledOnce()
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/reading the choices of user 1 failed/), expect.objectContaining({ message: 'D1 down' }))
+  })
+
+  it('throws when looking up the recipient fails', async () => {
+    state.recipientStore = { findRecipient: () => Promise.reject(new Error('D1 down')) }
+    await expect(notifyUser(1, { topic: 'shifts.reminder', ...content })).rejects.toThrow('D1 down')
+    for (const fn of Object.values(dispatch)) expect(fn).not.toHaveBeenCalled()
   })
 })
 
