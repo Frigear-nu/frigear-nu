@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import type { Column, SQL, Table } from 'drizzle-orm'
-import { chunkParams, conflict, notFound, searchText, validationError } from '@frigear-nu/module-kit/server'
+import { chunkParams, conflict, notFound, validationError } from '@frigear-nu/module-kit/server'
 import type { AdminOperationDto, OperationStatus } from '../../../types'
 import { newId } from '../../utils'
 import type { z } from 'zod'
@@ -10,6 +10,7 @@ import { operationEndsAfterStart } from './operations-schemas'
 import type { operationInput, operationPatchSchema } from './operations-schemas'
 import { toAdminOperationDto } from './operations-dto'
 import { rethrowOperationSlugConflict } from './operations-errors'
+import { operationSearchText } from './operations-search'
 import { operationsAccess } from '../../access'
 
 export type OperationRow = typeof schema.operations.$inferSelect
@@ -170,7 +171,7 @@ export async function createOperationRow(input: OperationInput): Promise<Operati
     id: newId('opr'),
     slug: input.slug,
     name: input.name,
-    searchText: searchText(input.name, input.slug),
+    searchText: operationSearchText(input),
     description: input.description ?? null,
     hostName: blankToNull(input.hostName),
     hostUrl: input.hostUrl ?? null,
@@ -211,7 +212,7 @@ export async function patchOperationRow(existing: OperationRow, patch: Operation
     Object.entries(values).filter(([key, value]) => !sameValue(value, existing[key as keyof OperationRow])),
   )
   if (!Object.keys(changed).length) return existing
-  if (changed.name !== undefined || changed.slug !== undefined) changed.searchText = searchText(changed.name ?? existing.name, changed.slug ?? existing.slug)
+  if (changed.name !== undefined || changed.slug !== undefined) changed.searchText = operationSearchText({ name: changed.name ?? existing.name, slug: changed.slug ?? existing.slug })
   const [row] = await db.update(schema.operations).set(changed).where(eq(schema.operations.id, existing.id)).returning().catch(rethrowOperationSlugConflict)
   return row!
 }
