@@ -56,10 +56,25 @@ describe('collectRoleHolders', () => {
   })
 
   it('caps the limit at ROLE_HOLDER_LIMIT and applies a lower one', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const holders = vi.fn(async (_roles: string[], { limit }: { limit: number }) => Array.from({ length: limit + 5 }, (_, i) => i + 1))
     expect(await collectRoleHolders({ roles: ['guest'], table, holders, holds: async () => true, limit: 3 })).toEqual([1, 2, 3])
     await collectRoleHolders({ roles: ['guest'], table, holders, holds: async () => true, limit: 50_000 })
     expect(holders).toHaveBeenLastCalledWith(['guest'], { limit: ROLE_HOLDER_LIMIT })
+    warn.mockRestore()
+  })
+
+  it('warns when the provider returns as many candidates as the limit, since the list may be cut', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const holders = async (_roles: string[], { limit }: { limit: number }) => Array.from({ length: limit }, (_, i) => i + 1)
+    expect(await collectRoleHolders({ roles: ['guest'], table, holders, holds: async () => true, limit: 3 })).toEqual([1, 2, 3])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toMatch(/may be incomplete/)
+    // Fewer candidates than the limit: the list is whole, nothing to warn about.
+    warn.mockClear()
+    await collectRoleHolders({ roles: ['guest'], table, holders: async () => [1, 2], holds: async () => true, limit: 3 })
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it('lists nobody for no roles or a zero limit', async () => {
