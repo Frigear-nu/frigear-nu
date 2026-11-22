@@ -302,9 +302,6 @@ importers:
       '@frigear-nu/forms':
         specifier: workspace:*
         version: link:../../packages/forms
-      '@frigear-nu/grants':
-        specifier: workspace:*
-        version: link:../../packages/grants
       '@frigear-nu/help-center':
         specifier: workspace:*
         version: link:../../packages/help-center

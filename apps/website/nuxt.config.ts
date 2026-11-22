@@ -40,7 +40,6 @@ export default defineNuxtConfig({
     '@frigear-nu/preferences',
     // Volunteering. Order matters where a module checks for another in its setup: dashboard and push come before the
     // modules that add dashboard items and notification topics, teams before faq and help-center (team grants).
-    '@frigear-nu/grants',
     '@frigear-nu/maps',
     '@frigear-nu/dashboard',
     '@frigear-nu/push',

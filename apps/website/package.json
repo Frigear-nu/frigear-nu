@@ -29,7 +29,6 @@
     "@frigear-nu/events": "workspace:*",
     "@frigear-nu/faq": "workspace:*",
     "@frigear-nu/forms": "workspace:*",
-    "@frigear-nu/grants": "workspace:*",
     "@frigear-nu/help-center": "workspace:*",
     "@frigear-nu/inbox": "workspace:*",
     "@frigear-nu/maps": "workspace:*",
