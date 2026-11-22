@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { grantFields } from '#auth/grant-fields'
-import { computed, defineAsyncComponent, useModuleT, useNuxtApp } from '#imports'
+import { computed, defineAsyncComponent, toRaw, useModuleT, useNuxtApp } from '#imports'
 import type { Component } from 'vue'
 import type { Grant } from '../../utils/grants'
 
@@ -47,9 +47,25 @@ const addItems = computed(() => grantFields
     },
   })))
 
+// Each row keeps a stable key, so removing a grant does not hand its field component (and that component's local state)
+// to the grant after it. Keys follow the grant object; an edited grant is a new object and inherits its row's key.
+const rowKeys = new WeakMap<Grant, number>()
+let nextRowKey = 0
+function rowKey(grant: Grant): number {
+  const raw = toRaw(grant)
+  let key = rowKeys.get(raw)
+  if (key === undefined) {
+    key = nextRowKey++
+    rowKeys.set(raw, key)
+  }
+  return key
+}
+
 function update(index: number, grant: Grant) {
   const next = [...model.value]
-  next[index] = { ...grant }
+  const edited = { ...grant }
+  rowKeys.set(edited, rowKey(next[index]!))
+  next[index] = edited
   model.value = next
 }
 
@@ -68,7 +84,7 @@ function remove(index: number) {
 
     <div
       v-for="(grant, index) in model"
-      :key="index"
+      :key="rowKey(grant)"
       class="border-default flex items-start gap-2 rounded-md border p-3"
     >
       <UIcon
