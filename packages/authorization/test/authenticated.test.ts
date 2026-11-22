@@ -229,6 +229,10 @@ describe('authorization (authenticated)', async () => {
       expect(await holders(['user'])).not.toContain(ada.id)
       expect(await holders(['writer'])).not.toContain(edith.id)
       expect((await holders(['user', 'admin'], 1)).length).toBe(1)
+      // Ordered by user id: a list cut at the limit is always the lowest ids.
+      const all = await holders(['user', 'admin'])
+      expect(all).toEqual([...all].sort((a, b) => a - b))
+      expect(await holders(['user', 'admin'], 1)).toEqual(all.slice(0, 1))
       expect(await holders([])).toEqual([])
     })
 
