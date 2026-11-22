@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChannelSettings, NotificationChoices, NotifyChoicesStore, NotifyRecipient, NotifyRecipientStore } from '../src/types'
+import type { NotificationChoices, NotifyChoicesStore, NotifyRecipient, NotifyRecipientStore } from '../src/types'
 
 // `#notify/topics` and `#notify/stores` are generated at build time; here they are stubs the tests change.
 const state = vi.hoisted(() => ({
@@ -43,8 +43,10 @@ function memoryChoices(initial: Record<number, NotificationChoices> = {}) {
   const data = structuredClone(initial)
   const store: NotifyChoicesStore = {
     readChoices: async userId => structuredClone(data[userId] ?? {}),
-    writeChoices: async (userId, choices: Record<string, ChannelSettings>) => {
-      data[userId] = { ...data[userId], ...choices }
+    // Merges per channel, as the store contract asks.
+    writeChoices: async (userId, choices) => {
+      const current = data[userId] ?? {}
+      data[userId] = { ...current, ...Object.fromEntries(Object.entries(choices).map(([id, channels]) => [id, { ...current[id], ...channels }])) }
     },
   }
   return { store, data }
@@ -123,12 +125,10 @@ describe('notifyUser', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/No choices store/))
   })
 
-  it('applies the topic defaults when reading the choices fails, and does not throw', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('throws and sends nothing when reading the choices fails', async () => {
     state.choicesStore = { readChoices: () => Promise.reject(new Error('D1 down')), writeChoices: async () => {} }
-    expect(await notifyUser(1, { topic: 'shifts.reminder', ...content })).toEqual({ channels: ['email', 'push'], skipped: { sms: 'disabled' } })
-    expect(dispatch.dispatchEmailNotification).toHaveBeenCalledOnce()
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/reading the choices of user 1 failed/), expect.objectContaining({ message: 'D1 down' }))
+    await expect(notifyUser(1, { topic: 'shifts.reminder', ...content })).rejects.toThrow('D1 down')
+    for (const fn of Object.values(dispatch)) expect(fn).not.toHaveBeenCalled()
   })
 
   it('throws when looking up the recipient fails', async () => {
@@ -150,15 +150,27 @@ describe('the channels of a user', () => {
     expect((await readNotificationChannels(1)).hasPhone).toBe(true)
   })
 
-  it('stores complete settings per topic, ignoring unknown topics and channels a topic does not offer', async () => {
+  it('passes on only the channels set, ignoring unknown topics and channels a topic does not offer', async () => {
     const { store, data } = memoryChoices()
     state.choicesStore = store
     await saveNotificationChannels(1, { 'shifts.reminder': { sms: true }, 'broadcast': { sms: true, push: true }, 'nope': { email: false } })
+    // Only the channels set (and offered) are passed on; the others keep following the defaults.
     expect(data[1]).toEqual({
-      'shifts.reminder': { email: true, sms: true, push: true },
-      'broadcast': { email: true, sms: false, push: true },
+      'shifts.reminder': { sms: true },
+      'broadcast': { push: true },
     })
     expect((await readNotificationChannels(1)).topics.map(row => row.custom)).toEqual([true, true])
+  })
+
+  it('keeps two changes to different channels of a topic made one after the other', async () => {
+    const { store, data } = memoryChoices()
+    state.choicesStore = store
+    await Promise.all([
+      saveNotificationChannels(1, { 'shifts.reminder': { sms: true } }),
+      saveNotificationChannels(1, { 'shifts.reminder': { push: false } }),
+    ])
+    expect(data[1]).toEqual({ 'shifts.reminder': { sms: true, push: false } })
+    expect((await readNotificationChannels(1)).topics[0]!.settings).toEqual({ email: true, sms: true, push: false })
   })
 
   it('cannot store choices without a choices store', async () => {
