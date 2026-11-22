@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import { apiError, notConfigured, validationError } from '@frigear-nu/module-kit/server'
 import { dispatchEmailNotification, dispatchSMSNotification, notifyAvailable } from '#help-center/optional'
 import type { z } from 'zod'

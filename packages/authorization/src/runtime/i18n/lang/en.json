@@ -99,6 +99,15 @@
         "fromSso": "Given by single sign-on",
         "locked": "It holds permissions you do not have"
       }
+    },
+    "grants": {
+      "kinds": {
+        "role": "Role"
+      },
+      "role": {
+        "placeholder": "Choose a role",
+        "typed": "Role name, for example admin"
+      }
     }
   }
 }

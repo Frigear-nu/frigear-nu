@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3'
 import { validationError } from '@frigear-nu/module-kit/server'
-import { kinds } from '#grants/kinds'
-import type { Grant, GrantUser } from '../../../types'
+import { kinds } from '#auth/grant-kinds'
 import {
   checkGrantList,
   createGrantRegistry,
@@ -11,12 +10,17 @@ import {
   matchGrantList,
   parseGrant,
   readGrants,
-} from '../../utils/core'
-import type { GrantRegistry } from '../../utils/core'
+} from '../../utils/grants'
+import type { Grant, GrantRegistry, GrantUser } from '../../utils/grants'
+import { allows } from './access'
+
+// Grant lists on the server: who may see a record. Any one grant admits; the empty list admits nobody; a grant of an
+// unknown kind, or one its kind's schema refuses, admits nobody. Kinds come from `extendGrants`: `public` is built in,
+// `@frigear-nu/authorization` adds `role`, and other modules add theirs.
 
 let registry: GrantRegistry | undefined
 
-/** Every registered grant kind, by name (`public`, `role` and the kinds modules add with `extendGrants`). */
+/** Every registered grant kind, by name (`public` and the kinds modules add with `extendGrants`). */
 export function grantsRegistry(): GrantRegistry {
   return registry ??= createGrantRegistry(kinds)
 }
@@ -69,7 +73,7 @@ export function grantsListSchema() {
  * Checks a submitted list (already in the shape of `grantListShape`) and returns it as stored: 400 when a grant is of an
  * unknown kind, fails its kind's schema, or fails its kind's `validate` (a team or an operation that does not exist).
  * Grants already in `stored` skip `validate`, so a record whose team was deleted can still be edited. `field` is the body
- * key the list came in (`grants`). Request schemas keep to the shape (`grantListShape` of `@frigear-nu/grants/core`)
+ * key the list came in (`grants`). Request schemas keep to the shape (`grantListShape` of `@frigear-nu/auth/grants`)
  * so they stay testable without Nitro; the handler calls this.
  */
 export async function grantsValidate(event: H3Event, value: readonly Grant[], options: { stored?: unknown, field?: string } = {}): Promise<Grant[]> {
