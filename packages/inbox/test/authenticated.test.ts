@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import { formsApi } from '@frigear-nu/forms/api'
 import { inboxApi } from '../src/runtime/utils/api'
 import { backdate, createToken, getEmails, getHooks, getSent, makeLead, postEmail, postMeta, registerUser, runRetention, withServerEnv } from './helpers'
@@ -638,6 +638,32 @@ describe('inbox (authenticated, database-backed)', async () => {
       const contactId = (await detail(admin, threadId)).contact.id
       await as(admin).json('POST', inboxApi.admin.contactErase(contactId))
       expect(await found(`æbler åbning ${marker}`)).toEqual([])
+    })
+
+    it('search:reindex refolds inbox_threads.searchText left by the ASCII-only SQL backfill, keeps anonymised threads empty, and a second run changes nothing', async () => {
+      const marker = `rx${++counter}`
+      const found = async (q: string) => (await threadsOf(admin, `&status=all&q=${encodeURIComponent(q)}`)).map(thread => thread.id)
+      const kept = await emailThread({ subject: `ØL OG ÆBLER ÅBNER ${marker}` })
+      const erased = await emailThread({ subject: `ÅBENT HUS ${marker}` })
+      await as(admin).json('POST', inboxApi.admin.contactErase((await detail(admin, erased)).contact.id))
+      expect((await detail(admin, erased)).thread.anonymisedAt).toBeTruthy()
+
+      const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+      // The backfill of the migration that added the column (sqlite's lower() keeps Æ, Ø and Å), and a value an
+      // anonymised thread must never keep.
+      sqlite.exec('update inbox_threads set searchText = lower(coalesce(subject, \'\')) where id = ?', kept)
+      sqlite.exec('update inbox_threads set searchText = ? where id = ?', `åbent hus ${marker}`, erased)
+      expect(await found(`øl og æbler åbner ${marker}`)).toEqual([])
+
+      const first = reindexOf(await runSearchReindex(), 'inbox_threads')!
+      expect(first.updated).toBeGreaterThanOrEqual(2)
+      const stored = (id: string) => sqlite.query<{ searchText: string }>('select searchText from inbox_threads where id = ?', id)[0]!.searchText
+      expect(stored(kept)).toBe(`øl og æbler åbner ${marker}`)
+      expect(stored(erased)).toBe('')
+      expect(await found(`øl og æbler åbner ${marker}`)).toEqual([kept])
+      expect(await found(`åbent hus ${marker}`)).toEqual([])
+
+      expect(reindexOf(await runSearchReindex(), 'inbox_threads')).toEqual({ ...first, updated: 0 })
     })
 
     it('lists everybody a thread can be assigned to: the people with access to its mailbox', async () => {

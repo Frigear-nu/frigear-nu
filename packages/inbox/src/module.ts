@@ -16,6 +16,7 @@ import {
   defineVirtualRegistry,
   inlineModuleRuntime,
   registerDatabaseTable,
+  registerSearchIndex,
   registerLocales,
   registerModule,
   registerTailwindSource,
@@ -211,6 +212,8 @@ declare module '#inbox/server-registry' {
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
+    // `inbox_threads.searchText`, recomputed by the `search:reindex` task (empty for anonymised threads).
+    registerSearchIndex(nuxt, { name: 'inbox_threads', handler: resolver.resolve('./runtime/server/search-index') })
 
     // --- API routes -------------------------------------------------------------------------------------------------
     addModuleRoutes(resolver, [
