@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { helpCenterApi } from '../src/runtime/utils/api'
@@ -606,6 +606,33 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(slugsOf(await listArticles(undefined, '?q=æblemost'))).not.toContain(article.slug)
     })
 
+    it('search:reindex refolds searchText and searchBody left by the ASCII-only SQL backfill, and a second run changes nothing', async () => {
+      await asStaff()
+      const marker = `rx${++counter}`
+      const { article } = await publishedArticle({ grants: PUBLIC }, {
+        title: both(`CIDER ${marker}`, `ØLTELTET ${marker}`),
+        body: both('Text', 'ÆBLEMOST og ÅBNINGSTIDER.'),
+      })
+      const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+      // The backfill of the migration that added the columns: sqlite's lower() keeps Æ, Ø and Å.
+      sqlite.exec(`update help_articles set
+        searchText = lower(coalesce((select group_concat(value, char(10)) from json_each(help_articles.title)), '') || char(10) || slug),
+        searchBody = lower(coalesce((select group_concat(value, char(10)) from json_each(help_articles.body)), ''))
+        where id = ?`, article.id)
+      expect(slugsOf(await listArticles(undefined, `?q=${encodeURIComponent(`øltelt`)}`))).not.toContain(article.slug)
+
+      const first = reindexOf(await runSearchReindex(), 'help_articles')!
+      expect(first.updated).toBeGreaterThanOrEqual(1)
+      const [row] = sqlite.query<{ searchText: string, searchBody: string }>('select searchText, searchBody from help_articles where id = ?', article.id)
+      expect(row!.searchText.split('\n')).toEqual(expect.arrayContaining([`ølteltet ${marker}`, `cider ${marker}`, article.slug]))
+      expect(row!.searchBody).toContain('æblemost og åbningstider.')
+      for (const q of [`øltelt`, 'æblemost', 'ÅBNINGSTIDER']) {
+        expect(slugsOf(await listArticles(undefined, `?q=${encodeURIComponent(q)}`)), q).toContain(article.slug)
+      }
+
+      expect(reindexOf(await runSearchReindex(), 'help_articles')).toEqual({ ...first, updated: 0 })
+    })
+
     it('never finds what the viewer may not read, nor a draft', async () => {
       const marker = `zebra${++counter}`
       const restricted = await publishedArticle({ grants: SUPERVISORS }, { title: both(`Hidden ${marker}`, `Skjult ${marker}`) })
@@ -1195,6 +1222,12 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(html).toContain(`data-test="help-admin-faq-${cards.category.slug}"`)
       expect(html).toContain(`Cards question ${suffix}`)
       expect(html).not.toContain(`help-admin-faq-${list.slug}"`)
+      // The sidebar highlights FAQ only (not its parent path, the help center) and the eyebrow names it.
+      const eyebrow = /<p[^>]*data-slot="eyebrow"[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? ''
+      expect(eyebrow).toContain('FAQ')
+      expect(eyebrow).not.toContain('Help center')
+      const active = [...html.matchAll(/<a[^>]*aria-current="page"[^>]*>/g)].map(match => /href="([^"]*)"/.exec(match[0])?.[1])
+      expect(active).toEqual(['/admin/help-center/faq'])
       // Only staff: a member gets no FAQ page.
       expect((await page('/admin/help-center/faq', (await user('Member')).cookie)).html).not.toContain(`Cards question ${suffix}`)
     })
