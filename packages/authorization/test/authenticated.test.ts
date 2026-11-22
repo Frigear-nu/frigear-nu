@@ -219,6 +219,16 @@ describe('authorization (authenticated)', async () => {
       expect((await evaluate(edith.cookie, [{ kind: 'role', roles: ['editor'] }, { kind: 'team', teamId: 't' }])).matches).toBe(false)
     })
 
+    it('refuses to store a `role` grant naming a role that is not configured, unless it was stored already', async () => {
+      const validate = (grants: unknown[], stored?: unknown[]) =>
+        fetch('/api/test/grants-validate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ grants, stored }) })
+      expect(await (await validate([{ kind: 'role', role: 'editor' }])).json()).toEqual([{ kind: 'role', role: 'editor' }])
+      const typo = JSON.parse(await expectError(await validate([{ kind: 'role', role: 'editor' }, { kind: 'role', role: 'admn' }]), 400, 'validation_failed'))
+      expect(typo.data.issues).toEqual([{ path: ['grants', 1], message: '"admn" is not a role.' }])
+      // A role removed from the config after the record was saved: the record can still be edited.
+      expect((await validate([{ kind: 'role', role: 'gone' }], [{ kind: 'role', role: 'gone' }])).status).toBe(200)
+    })
+
     it('lists role holders for auth\'s `listRoleHolders`, inheritance included', async () => {
       const holders = async (roles: string[], limit?: number) =>
         (await $fetch<{ holders: number[] }>('/api/test/role-holders', { method: 'POST', body: { roles, limit } })).holders
