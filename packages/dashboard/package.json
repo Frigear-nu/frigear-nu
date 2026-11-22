@@ -1,0 +1,114 @@
+{
+  "name": "@frigear-nu/dashboard",
+  "version": "0.0.0",
+  "description": "Customisable dashboards: modules add items to a named dashboard (extendDashboard), pages render them with <Dashboard> or their own layout (useDashboard), and each user reorders, hides and collapses items.",
+  "homepage": "https://docs.frigear.dev/modules/interface/dashboard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/dashboard"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "types": "./src/module.ts",
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./utils": {
+      "types": "./src/runtime/utils/index.ts",
+      "import": "./src/runtime/utils/index.ts",
+      "default": "./src/runtime/utils/index.ts"
+    },
+    "./types": "./src/types.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./utils": {
+        "types": "./dist/runtime/utils/index.d.ts",
+        "import": "./dist/runtime/utils/index.js",
+        "default": "./dist/runtime/utils/index.js"
+      },
+      "./types": {
+        "types": "./dist/types.d.mts"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "types": "./dist/types.d.mts",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ],
+        "utils": [
+          "./dist/runtime/utils/index.d.ts"
+        ],
+        "types": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt-module-build prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
+    "@frigear-nu/widget": "workspace:^",
+    "@nuxt/kit": "catalog:",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/preferences": "workspace:^",
+    "@nuxt/ui": "catalog:",
+    "vue": "3.x"
+  },
+  "peerDependenciesMeta": {
+    "@frigear-nu/auth": {
+      "optional": true
+    },
+    "@frigear-nu/mobile": {
+      "optional": true
+    },
+    "@frigear-nu/preferences": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/mobile": "workspace:^",
+    "@frigear-nu/preferences": "workspace:^",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue": "^3.5.45",
+    "vue-tsc": "catalog:"
+  }
+}
