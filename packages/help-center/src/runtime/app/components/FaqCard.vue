@@ -2,11 +2,13 @@
 import type { ButtonProps, PageCardProps } from '@nuxt/ui'
 import { objectPick } from '@vueuse/core'
 import { computed, resolveComponent, useRuntimeConfig } from '#imports'
+import HelpCenterArticleBody from './HelpCenterArticleBody.vue'
 
 defineOptions({ name: 'FaqCard' })
 
 // A card of questions that open in place. Question and answer texts are Markdown; they render through `<MDC>` (Nuxt
-// Content) when the app has it, and as plain text otherwise.
+// Content) when the app has it, and as plain text otherwise. An answer renders through `HelpCenterArticleBody`, so an FAQ
+// component inside it (`::faq{category="..."}`) asks as a visitor too when the card is `public` (the public area).
 // The props are spelled out here (the same as `FaqCardProps` in types.ts) because Vue resolves the type of `defineProps`
 // when the app compiles this file, and cannot always follow an import into a published package.
 type ForwardedProps = Pick<PageCardProps, 'title' | 'description' | 'icon' | 'to' | 'spotlight' | 'variant' | 'class'>
@@ -22,11 +24,14 @@ const props = withDefaults(defineProps<ForwardedProps & {
   }[]
   links?: ButtonProps[]
   contact?: ButtonProps & { initial?: Record<string, unknown> }
+  /** The public area: FAQ components inside an answer read what visitors read, whoever looks. */
+  public?: boolean
 }>(), {
   spotlight: true,
   faqs: () => [],
   links: () => [],
   contact: undefined,
+  public: false,
 })
 
 const hasMdc = typeof resolveComponent('MDC') !== 'string'
@@ -121,10 +126,10 @@ const builtInContact = !contactName && !!config?.forms
                     :is="blockquote"
                     v-if="details"
                   >
-                    <MDC
+                    <HelpCenterArticleBody
                       v-if="hasMdc"
-                      :value="details"
-                      unwrap
+                      :body="details"
+                      :public="props.public"
                     />
                     <span
                       v-else

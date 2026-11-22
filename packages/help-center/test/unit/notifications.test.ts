@@ -15,11 +15,12 @@ describe('the help center notification topic', () => {
     expect(topics.map(topic => topic.id)).toEqual(['help-center.send'])
   })
 
-  it('defaults to email and push, does not offer SMS, and has Danish and English labels', () => {
+  it('defaults to email and push, offers SMS off by default, and has Danish and English labels', () => {
     const [topic] = topics
     expect(topic!.defaults).toEqual({ email: true, sms: false, push: true })
-    expect(topic!.channels).toEqual(['email', 'push'])
-    expect(resolveChannelSettings(topic!, { sms: true })).toEqual({ email: true, sms: false, push: true })
+    expect(topic!.channels).toEqual(['email', 'sms', 'push'])
+    expect(resolveChannelSettings(topic!, {})).toEqual({ email: true, sms: false, push: true })
+    expect(resolveChannelSettings(topic!, { sms: true })).toEqual({ email: true, sms: true, push: true })
     expect(topic!.label).toEqual({ da: expect.any(String), en: expect.any(String) })
   })
 })

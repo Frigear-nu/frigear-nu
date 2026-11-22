@@ -27,7 +27,6 @@
       "import": "./src/runtime/utils/api.ts",
       "default": "./src/runtime/utils/api.ts"
     },
-    "./composables": "./src/runtime/app/composables/index.ts",
     "./composables/*": "./src/runtime/app/composables/*.ts",
     "./paths": {
       "types": "./src/runtime/utils/paths.ts",

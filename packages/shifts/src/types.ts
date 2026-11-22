@@ -369,6 +369,11 @@ export type ShiftPassDto = {
   perks: ShiftPassPerkDto[]
   /** How the person can check in on this shift themselves (`station`, `location`), besides showing the pass to a lead. */
   checkIn: ShiftCheckInRule
+  /**
+   * `false` when the window is open but the person no longer holds a role on the team: no code, no perks. The GET changes
+   * nothing; `POST /api/shifts/me/:assignmentId/settle` cancels their future shifts on the team.
+   */
+  eligible: boolean
 }
 
 /** The answer of a check-in (`POST /api/shifts/teams/:teamId/check-in`). */

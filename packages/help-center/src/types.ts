@@ -37,7 +37,7 @@ export type FaqCardProps = ForwardedCardProps & {
     trailingIcon?: string
     /** The question. Rendered as MDC. */
     title: string
-    /** The answer. Rendered as MDC inside a blockquote. */
+    /** The answer. Rendered as MDC (through `HelpCenterArticleBody`) inside a blockquote. */
     details?: string
     lines?: string[]
     as?: string
@@ -49,6 +49,8 @@ export type FaqCardProps = ForwardedCardProps & {
   contact?: ButtonProps & {
     initial?: Record<string, unknown>
   }
+  /** The public area: FAQ components inside an answer read what visitors read, whoever looks. */
+  public?: boolean
 }
 
 export type ModuleOptions = {

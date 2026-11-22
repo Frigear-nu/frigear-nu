@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_REQUIRED_LOCALES, describeMissingTranslations, hasLocaleText, missingTranslations } from '../../src/runtime/utils'
+import { DEFAULT_REQUIRED_LOCALES, describeMissingTranslations, hasLocaleText, missingTranslations, translate } from '../../src/runtime/utils'
 
 describe('the publish rule', () => {
   it('requires da and en by default', () => {
@@ -43,5 +43,15 @@ describe('the publish rule', () => {
   it('describes what is missing in the error message', () => {
     expect(describeMissingTranslations([{ field: 'title', locales: ['da'] }, { field: 'body', locales: ['da', 'en'] }]))
       .toBe('An article needs text in every required language before it is published. Missing: title (da); body (da, en).')
+  })
+
+  it('publishes a Danish-only article with requiredLocales [\'da\'], which an English reader sees in Danish, never blank', () => {
+    const article = { title: { da: 'Hvad?' }, body: { da: 'Det' } }
+    expect(missingTranslations(article, ['da'])).toEqual([])
+    // `tr` of the pages: the reader's locale, the site's default, `en`, then any text there is.
+    for (const fallback of ['da', 'en', undefined]) {
+      expect(translate(article.title, 'en', fallback)).toBe('Hvad?')
+      expect(translate(article.body, 'en', fallback)).toBe('Det')
+    }
   })
 })

@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { helpCenterDeliver } from '../../src/runtime/server/utils/help-center-deliver'
 import type { HelpDelivery } from '../../src/runtime/server/utils/help-center-deliver'
 
-// An email goes through notify's `notifyUser` on the `help-center.send` topic, with a push. The topic does not offer SMS,
-// so a text is still dispatched directly. Both are notify's auto-imports, stubbed as globals here.
+// Every channel goes through notify's `notifyUser` on the `help-center.send` topic: the email with a push, and a text,
+// which the person's choice for the topic decides (SMS is off by default). Never `dispatchSMSNotification` directly.
+// They are notify's auto-imports, stubbed as globals here.
 const optional = {
   notifyUser: vi.fn(),
   dispatchEmailNotification: vi.fn(),
@@ -51,15 +52,38 @@ describe('helpCenterDeliver', () => {
     error.mockRestore()
   })
 
-  it('texts directly when the sender chose SMS, whatever the person chose for the topic', async () => {
-    optional.notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: {} })
+  it('asks notifyUser for the text too, and reports it only when it went out (the person turned SMS on)', async () => {
+    optional.notifyUser.mockResolvedValue({ channels: ['email', 'sms', 'push'], skipped: {} })
     expect(await helpCenterDeliver(undefined, delivery({ sms: true }))).toEqual({ emailed: true, texted: true, pushed: true, failed: [] })
-    expect(optional.dispatchSMSNotification).toHaveBeenCalledWith({ to: '+4512345678', body: 'Handbook: https://example.com/h' })
+    expect(optional.notifyUser).toHaveBeenCalledWith(7, {
+      topic: 'help-center.send',
+      email: message,
+      sms: { body: 'Handbook: https://example.com/h' },
+      push: { title: 'Handbook', body: 'Handbook', url: 'https://example.com/h' },
+    })
+    expect(optional.dispatchSMSNotification).not.toHaveBeenCalled()
   })
 
-  it('does not use notifyUser for a send by SMS alone: a push belongs with the email', async () => {
+  it('texts nobody who left SMS off for the topic', async () => {
+    optional.notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: { sms: 'disabled' } })
+    expect(await helpCenterDeliver(undefined, delivery({ sms: true }))).toEqual({ emailed: true, texted: false, pushed: true, failed: [] })
+    expect(optional.dispatchSMSNotification).not.toHaveBeenCalled()
+  })
+
+  it('sends by SMS alone without a push (a push belongs with the email)', async () => {
+    optional.notifyUser.mockResolvedValue({ channels: ['sms'], skipped: {} })
     expect(await helpCenterDeliver(undefined, delivery({ email: false, sms: true }))).toEqual({ emailed: false, texted: true, pushed: false, failed: [] })
+    expect(optional.notifyUser).toHaveBeenCalledWith(7, { topic: 'help-center.send', sms: { body: 'Handbook: https://example.com/h' } })
+  })
+
+  it('does not call notifyUser for a send by SMS to a person without a phone number', async () => {
+    expect(await helpCenterDeliver(undefined, delivery({ email: false, sms: true, phone: null }))).toEqual({ emailed: false, texted: false, pushed: false, failed: [] })
     expect(optional.notifyUser).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed text', async () => {
+    optional.notifyUser.mockResolvedValue({ channels: ['email', 'push'], skipped: { sms: 'failed' } })
+    expect(await helpCenterDeliver(undefined, delivery({ sms: true }))).toEqual({ emailed: true, texted: false, pushed: true, failed: ['sms'] })
   })
 
   it('sends the push alone to a person without an address', async () => {

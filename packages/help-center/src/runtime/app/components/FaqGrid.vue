@@ -34,6 +34,7 @@ const { cards, loading: fetching } = useHelpCenterFaqCards(() => props)
         v-for="(card, index) in cards"
         :key="index"
         v-bind="card"
+        :public="props.public"
       />
     </template>
   </UPageGrid>

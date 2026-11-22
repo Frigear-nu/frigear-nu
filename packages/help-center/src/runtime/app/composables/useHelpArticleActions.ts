@@ -3,8 +3,8 @@ import HelpArticleFormSlideover from '../components/HelpArticleFormSlideover.vue
 import HelpSendSlideover from '../components/HelpSendSlideover.vue'
 import type { StaffHelpArticle, StaffHelpCategory } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import { missingTranslations } from '../../utils/publish'
-import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay, useRuntimeConfig } from '#imports'
+import { useHelpArticlePublish } from './useHelpArticlePublish'
+import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay } from '#imports'
 
 export type HelpArticleMenuOptions = {
   /** The categories, for the category picker of the form. */
@@ -18,8 +18,9 @@ export type HelpArticleMenuOptions = {
 /**
  * What staff can do with articles: `create` and `edit` (a slideover), `publish`, `unpublish`, `remove` (confirms
  * first), `send` and `menu(article, options)`: Edit | Publish or Unpublish, Send | Delete. Each resolves with the
- * result, or `false` when cancelled or refused (a failed publish shows the missing languages in a toast). An article of a
- * read-only source (Nuxt Content) gets no menu.
+ * result, or `false` when cancelled or refused (a failed publish lists the missing languages in a toast). "Publish" of an
+ * article that still lacks a required language names them and opens the edit slideover with those fields marked, where
+ * it can be published once complete. An article of a read-only source (Nuxt Content) gets no menu.
  */
 export function useHelpArticleActions() {
   const t = useModuleT('helpCenter')
@@ -27,23 +28,19 @@ export function useHelpArticleActions() {
   const confirm = useConfirmDialog()
   const { run } = useAction()
   const tr = useHelpCenterTranslate()
-  const requiredLocales = useRuntimeConfig().public.helpCenter?.requiredLocales ?? ['da', 'en']
+  const publishing = useHelpArticlePublish()
 
   async function create(categories: StaffHelpCategory[], categoryId?: string): Promise<StaffHelpArticle | false> {
     return await overlay.create(HelpArticleFormSlideover, { destroyOnClose: true, props: { article: undefined, categories, categoryId } }).open() as StaffHelpArticle | false
   }
 
-  async function edit(article: StaffHelpArticle, categories: StaffHelpCategory[]): Promise<StaffHelpArticle | false> {
-    return await overlay.create(HelpArticleFormSlideover, { destroyOnClose: true, props: { article, categories } }).open() as StaffHelpArticle | false
+  /** `highlightMissing` marks the fields that still lack a required language (opened from "Publish"). */
+  async function edit(article: StaffHelpArticle, categories: StaffHelpCategory[], options: { highlightMissing?: boolean } = {}): Promise<StaffHelpArticle | false> {
+    return await overlay.create(HelpArticleFormSlideover, { destroyOnClose: true, props: { article, categories, highlightMissing: options.highlightMissing } }).open() as StaffHelpArticle | false
   }
 
-  async function publish(article: StaffHelpArticle): Promise<StaffHelpArticle | false> {
-    const published = await run(
-      () => $fetch<StaffHelpArticle>(helpCenterApi.admin.publish(article.id), { method: 'POST' }),
-      { success: t('admin.published', 'Published {name}', { name: tr(article.title) }), error: t('admin.publishFailed', 'Could not publish the article') },
-    )
-    return published ?? false
-  }
+  /** Publishes the article; a refused publish (`409 missing_translations`) lists `data.missing` in the toast. */
+  const publish = (article: StaffHelpArticle) => publishing.publish(article)
 
   async function unpublish(article: StaffHelpArticle): Promise<StaffHelpArticle | false> {
     const draft = await run(
@@ -86,13 +83,7 @@ export function useHelpArticleActions() {
     }]
     const state: DropdownMenuItem[] = [article.status === 'published'
       ? { label: t('admin.unpublish', 'Unpublish'), icon: 'i-lucide-eye-off', onSelect: async () => changed(await unpublish(article)) }
-      : {
-          label: t('admin.publish', 'Publish'),
-          icon: 'i-lucide-send',
-          // Publishing needs every required language: edit the article first.
-          disabled: missingTranslations(article, requiredLocales).length > 0,
-          onSelect: async () => changed(await publish(article)),
-        }]
+      : publishItem(article, options)]
     if (options.send && article.status === 'published') {
       state.push({
         label: t('admin.sendArticle', 'Send to people'),
@@ -109,6 +100,23 @@ export function useHelpArticleActions() {
       onSelect: async () => changed(await remove(article)),
     }]
     return [edits, state, destructive]
+  }
+
+  // "Publish" stays enabled: an article that still lacks a required language says which in the item, and selecting it
+  // opens the edit slideover with those fields marked (it has its own Publish button for when they are filled in).
+  function publishItem(article: StaffHelpArticle, options: HelpArticleMenuOptions): DropdownMenuItem {
+    const missing = publishing.missing(article)
+    return {
+      label: t('admin.publish', 'Publish'),
+      icon: 'i-lucide-send',
+      ...(missing.length ? { description: t('admin.publishMissing', 'Still missing: {fields}', { fields: publishing.describe(missing) }) } : {}),
+      onSelect: async () => {
+        const done = missing.length
+          ? await edit(article, options.categories(), { highlightMissing: true })
+          : await publish(article)
+        if (done) await options.onChanged?.()
+      },
+    }
   }
 
   return { create, edit, publish, unpublish, remove, send, menu }

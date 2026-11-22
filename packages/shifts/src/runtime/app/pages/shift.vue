@@ -5,7 +5,7 @@ import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_S
 import { dayKey } from '@frigear-nu/module-kit/time'
 import { countdownParts } from '../../utils/time'
 import type { MyShiftDetailDto, ShiftPassDto, ShiftPassPerkDto, ShiftSelfCheckInDto, ShiftSwapKind, ShiftSwapOfferDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
@@ -41,6 +41,21 @@ const { data: pass, refresh: refreshPass } = useLazyFetch<ShiftPassDto>(() => sh
   key: computed(() => `shifts:pass:${assignmentId.value}`),
   watch: [passOpen],
   server: false,
+})
+// A pass that says I no longer hold my role on the team: settle it (a POST; the GET changes nothing), which cancels my
+// future shifts there, then show the shift as it is now.
+let settled = false
+watch(() => pass.value?.eligible, async (eligible) => {
+  if (eligible !== false || settled) return
+  settled = true
+  try {
+    pass.value = await $fetch<ShiftPassDto>(shiftsApi.me.settle(assignmentId.value), { method: 'POST' })
+    await refresh()
+  }
+  catch {
+    // The page still shows no pass; the next visit settles again.
+    settled = false
+  }
 })
 const qr = computed(() => pass.value?.svg ? `data:image/svg+xml;utf8,${encodeURIComponent(pass.value.svg)}` : null)
 // "Show larger": the pass full screen, high contrast, with the screen kept awake.
