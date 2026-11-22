@@ -1,7 +1,10 @@
 import type { DateValue } from '../types'
+import { plainSpaces } from '../shared/spaces'
 
 // Date and time formatting with `Intl`. Pages use these (or `useFormat()`, which binds the active locale)
 // instead of ad-hoc `toLocaleString()` calls. Empty or invalid values format as an empty string.
+//
+// Every helper returns plain spaces (`plainSpaces`), so server and browser render the same text.
 
 const asDate = (value: DateValue | null | undefined): Date | undefined => {
   if (value === null || value === undefined || value === '') return undefined
@@ -11,7 +14,7 @@ const asDate = (value: DateValue | null | undefined): Date | undefined => {
 
 const format = (value: DateValue | null | undefined, locale: string | undefined, options: Intl.DateTimeFormatOptions) => {
   const date = asDate(value)
-  return date ? new Intl.DateTimeFormat(locale, options).format(date) : ''
+  return date ? plainSpaces(new Intl.DateTimeFormat(locale, options).format(date)) : ''
 }
 
 /** "15 Oct 2026" */
@@ -39,5 +42,15 @@ export function formatDateRange(start: DateValue | null | undefined, end: DateVa
   const resolved: Intl.DateTimeFormatOptions = { dateStyle: 'medium', ...options }
   if (!from) return to ? format(to, locale, resolved) : ''
   if (!to || to.getTime() < from.getTime()) return format(from, locale, resolved)
-  return new Intl.DateTimeFormat(locale, resolved).formatRange(from, to)
+  return plainSpaces(new Intl.DateTimeFormat(locale, resolved).formatRange(from, to))
+}
+
+/**
+ * The app's time zone, `appConfig.frigearUi.timeZone` (an IANA zone such as `America/New_York`), or `undefined` when
+ * the app sets none. Pass the app config: `useAppConfig()` in the Vue app, `useAppConfig(event)` in Nitro, so server
+ * code (emails, tasks) formats in the same zone as the pages.
+ */
+export function appTimeZoneOf(appConfig: unknown): string | undefined {
+  const timeZone = (appConfig as { frigearUi?: { timeZone?: unknown } } | null | undefined)?.frigearUi?.timeZone
+  return typeof timeZone === 'string' && timeZone ? timeZone : undefined
 }
