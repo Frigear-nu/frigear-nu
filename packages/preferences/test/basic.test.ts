@@ -126,10 +126,22 @@ describe('preferences API', async () => {
       expect((await channels(other)).topics.every(topic => !topic.custom)).toBe(true)
 
       // The choices are one preference, so the general preferences API reads them back; the session leaves them out.
+      // Only the channels the user set are stored: the others follow the topic's defaults.
       const response = await patch(cookie, {})
-      expect(await response.json()).toEqual({ notificationChannels: { 'shifts.reminder': { email: false, sms: true, push: false }, 'broadcast': { email: true, sms: false, push: true } } })
+      expect(await response.json()).toEqual({ notificationChannels: { 'shifts.reminder': { email: false, sms: true, push: false }, 'broadcast': { push: true } } })
       const session = await $fetch<{ user: { preferences: Record<string, unknown> } }>('/api/_auth/session', { headers: { cookie: response.headers.get('set-cookie')! } })
       expect(session.user.preferences).toEqual({})
+    })
+
+    it('keeps changes to different channels of one topic made at the same time', async () => {
+      const cookie = await register('notify-max@example.com')
+      await Promise.all([
+        change(cookie, { 'shifts.reminder': { sms: true } }),
+        change(cookie, { 'shifts.reminder': { push: false } }),
+        change(cookie, { broadcast: { push: true } }),
+      ])
+      const after = await channels(cookie)
+      expect(after.topics.map(topic => topic.settings)).toEqual([{ email: true, sms: true, push: false }, { email: true, sms: false, push: true }])
     })
 
     it('keeps any number of topics, without growing the session cookie', async () => {

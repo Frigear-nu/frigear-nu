@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { NotificationChannel, NotificationChannelsDto, NotificationChannelsRow } from '@frigear-nu/notify/types'
 import { NOTIFICATION_CHANNELS, readTranslated } from '@frigear-nu/notify/utils'
 import { preferencesApi } from '../../utils/api'
-import { $fetch, computed, errorMessage, tableUi, useCachedFetch, useErrorToast, useModuleT, useNuxtApp, useToast } from '#imports'
+import { $fetch, computed, errorMessage, reactive, tableUi, useCachedFetch, useErrorToast, useModuleT, useNuxtApp, useToast } from '#imports'
 
 defineOptions({ name: 'PreferencesNotificationsPage' })
 
@@ -30,8 +30,10 @@ const topicText = (key: string | undefined, value: NotificationChannelsRow['labe
 const offered = (row: NotificationChannelsRow, channel: NotificationChannel) => row.channels.includes(channel)
 // SMS needs a phone number; a channel the topic does not use cannot be switched. Push is never blocked: the choice also
 // applies to a device registered later.
+// A row's switches wait while a change to it is saved, so its changes reach the server one at a time.
+const saving = reactive(new Set<string>())
 const disabled = (row: NotificationChannelsRow, channel: NotificationChannel) =>
-  !offered(row, channel) || (channel === 'sms' && matrix.value?.hasPhone === false)
+  saving.has(row.id) || !offered(row, channel) || (channel === 'sms' && matrix.value?.hasPhone === false)
 
 const columns = computed<TableColumn<NotificationChannelsRow>[]>(() => [
   { id: 'topic', header: t('topic', 'Message') },
@@ -39,6 +41,8 @@ const columns = computed<TableColumn<NotificationChannelsRow>[]>(() => [
 ])
 
 async function change(row: NotificationChannelsRow, channel: NotificationChannel, value: boolean) {
+  if (saving.has(row.id)) return
+  saving.add(row.id)
   const previous = row.settings[channel]
   row.settings[channel] = value
   try {
@@ -48,6 +52,9 @@ async function change(row: NotificationChannelsRow, channel: NotificationChannel
   catch (e) {
     row.settings[channel] = previous
     showError(e, t('saveFailed', 'Could not update your notifications'))
+  }
+  finally {
+    saving.delete(row.id)
   }
 }
 </script>
