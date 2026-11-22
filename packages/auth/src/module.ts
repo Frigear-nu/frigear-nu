@@ -558,8 +558,11 @@ declare module '#auth/rate-limit-kv' {
   } | undefined
 }
 declare module '#auth/session-mapper' {
+  /** The session cookie's user: the session user filters, then the host's \`session.mapper\`. */
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
   export default mapSessionUser
+  /** The request's user: the host's \`session.mapper\` only, so it keeps the fields the filters drop. */
+  export const mapPrincipalUser: (user: Record<string, unknown>) => Record<string, unknown>
 }
 declare module '#auth/oauth' {
   type OAuthHandlerOptions = {
