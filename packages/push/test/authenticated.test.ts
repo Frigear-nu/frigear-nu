@@ -8,10 +8,14 @@ import type { PushDeviceDto, SendPushResult } from '../src/types'
 import { createToken, deviceRows, getHookCalls, getProviderCalls, registerUser } from './helpers'
 
 let counter = 0
-const unique = (prefix: string) => `${prefix}-${++counter}`
+const unique = (prefix: string) => `${prefix}-u${++counter}`
 
 const register = (cookie: string, token: string, platform: 'ios' | 'android' = 'android', extra: Record<string, unknown> = {}) =>
   apiClient({ cookie }).json<PushDeviceDto>('POST', pushApi.me.devices, { platform, token, ...extra })
+
+// An installation secret, as the app generates it once per installation (at least 16 characters).
+const secretOf = (name: string) => `installation-secret-${name}-0123456789`
+const heal = (token: string, healed = true) => $fetch('/api/test/heal', { method: 'POST', body: { token, healed } })
 
 const send = (body: Record<string, unknown>) => $fetch<SendPushResult>('/api/test/send', { method: 'POST', body })
 
@@ -151,6 +155,53 @@ describe('push (authenticated, database-backed)', async () => {
       expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 1, failed: 0, revoked: 2 })
     })
 
+    it('revokes a device after 3 refused pushes in a row; a delivered push or registering again starts over', async () => {
+      const user = await registerUser('Refused', 'refused@example.com')
+      const token = unique('fcm-rejected')
+      const device = await register(user.cookie, token, 'android', { secret: secretOf('refused') })
+      const failures = async () => (await deviceRows()).find(row => row.id === device.id)!
+
+      // Two refusals, then a delivered push: the count starts over.
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '1' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '2' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+      expect((await failures()).failures).toBe(2)
+      await heal(token)
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '3' })).toEqual({ sent: 1, failed: 0, revoked: 0 })
+      expect((await failures()).failures).toBe(0)
+      await heal(token, false)
+
+      // Two refusals, then registering again starts over too.
+      await send({ userIds: [user.id], title: 'Hi', body: '4' })
+      await send({ userIds: [user.id], title: 'Hi', body: '5' })
+      await register(user.cookie, token, 'android', { secret: secretOf('refused') })
+      expect((await failures()).failures).toBe(0)
+
+      // Three in a row revoke it.
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '6' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '7' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '8' })).toEqual({ sent: 0, failed: 0, revoked: 1 })
+      expect((await failures()).revokedAt).not.toBeNull()
+      expect(await send({ userIds: [user.id], title: 'Hi', body: '9' })).toEqual({ sent: 0, failed: 0, revoked: 0 })
+    })
+
+    it('revokes the only iOS device of a user after 3 BadDeviceToken answers, and not for an outage', async () => {
+      const user = await registerUser('Lone iOS', 'lone-ios@example.com')
+      const bad = await register(user.cookie, unique('apns-baddevice'), 'ios')
+      const other = await registerUser('Outage', 'outage@example.com')
+      const broken = await register(other.cookie, unique('fcm-broken'), 'android')
+      for (let index = 0; index < 2; index++) {
+        expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 1, revoked: 0 })
+      }
+      expect(await send({ userIds: [user.id], title: 'Hi', body: 'There' })).toEqual({ sent: 0, failed: 0, revoked: 1 })
+      expect((await deviceRows()).find(row => row.id === bad.id)!.revokedAt).not.toBeNull()
+
+      // A provider outage (500) says nothing about the device: never counted.
+      for (let index = 0; index < 4; index++) await send({ userIds: [other.id], title: 'Hi', body: 'There' })
+      const row = (await deviceRows()).find(item => item.id === broken.id)!
+      expect(row.failures).toBe(0)
+      expect(row.revokedAt).toBeNull()
+    })
+
     it('picks the text of each device\'s locale', async () => {
       const user = await registerUser('Locale', 'locale@example.com')
       await register(user.cookie, unique('fcm-ok'), 'android', { locale: 'da-DK' })
@@ -215,16 +266,26 @@ describe('push (authenticated, database-backed)', async () => {
       const api = apiClient({ cookie: user.cookie })
       const apnsToken = unique('apns-ok')
       const otherToken = unique('apns-ok')
-      const apns = await register(user.cookie, apnsToken, 'ios', { provider: 'apns' })
-      await register(other.cookie, otherToken, 'ios')
+      const secret = secretOf('switch')
+      const apns = await register(user.cookie, apnsToken, 'ios', { provider: 'apns', secret })
+      await register(other.cookie, otherToken, 'ios', { secret: secretOf('bystander') })
 
-      const fcm = await register(user.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: apnsToken })
+      // `replaces` needs the installation secret.
+      await expectApiError(apiClient({ cookie: user.cookie }).json('POST', pushApi.me.devices, { platform: 'ios', provider: 'fcm', token: unique('fcm-ok'), replaces: apnsToken }), 400)
+      // Another installation (another secret) of the same user does not remove it either.
+      await register(user.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: apnsToken, secret: secretOf('another-phone') })
+      expect((await deviceRows()).some(row => row.token === apnsToken)).toBe(true)
+      for (const device of await api.json<PushDeviceDto[]>('GET', pushApi.me.devices)) {
+        if (device.id !== apns.id) await api.json('DELETE', pushApi.me.device(device.id))
+      }
+
+      const fcm = await register(user.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: apnsToken, secret })
       expect(fcm.id).not.toBe(apns.id)
       expect(await api.json<PushDeviceDto[]>('GET', pushApi.me.devices)).toEqual([expect.objectContaining({ id: fcm.id, provider: 'fcm' })])
       expect((await deviceRows()).some(row => row.token === apnsToken)).toBe(false)
 
       // Another user's token is never removed this way.
-      await register(user.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: otherToken })
+      await register(user.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: otherToken, secret })
       expect(await apiClient({ cookie: other.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
     })
 
@@ -283,23 +344,54 @@ describe('push (authenticated, database-backed)', async () => {
       await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios', token: 'x', provider: 'sns' }), 400)
       await expectApiError(apiClient().json('GET', pushApi.me.devices), 401)
       await expectApiError(apiClient().json('POST', pushApi.me.devices, { platform: 'ios', token: 'x' }), 401)
-      await expectApiError(apiClient().json('POST', pushApi.me.unregister, { token: 'x' }), 401)
+      await expectApiError(apiClient().json('POST', pushApi.me.unregister, { token: 'x', secret: secretOf('x') }), 401)
+      // A secret too short to be one.
+      await expectApiError(api.json('POST', pushApi.me.devices, { platform: 'ios', token: 'x', secret: 'short' }), 400)
     })
 
-    it('moves a token to the user who registers it last, and keeps other users\' devices out of reach', async () => {
+    it('moves a token to another user only with the installation secret, else 409 device_owned', async () => {
       const first = await registerUser('First', 'first@example.com')
       const second = await registerUser('Second', 'second@example.com')
       const token = unique('apns-ok')
+      const secret = secretOf('shared-phone')
 
-      const firstDevice = await register(first.cookie, token, 'ios')
-      const moved = await register(second.cookie, token, 'ios')
+      const firstDevice = await register(first.cookie, token, 'ios', { secret })
+      // The same user again, with or without the secret: the same row.
+      expect(await register(first.cookie, token, 'ios')).toMatchObject({ id: firstDevice.id, userId: first.id })
+      expect(await register(first.cookie, token, 'ios', { secret })).toMatchObject({ id: firstDevice.id, userId: first.id })
+
+      // Someone who only knows the token cannot take it over (nor through a wrong secret), and nothing changes.
+      const takeover = (extra: Record<string, unknown>) => apiClient({ cookie: second.cookie }).json('POST', pushApi.me.devices, { platform: 'ios', token, ...extra })
+      await expectApiError(takeover({}), 409, 'device_owned')
+      await expectApiError(takeover({ secret: secretOf('attacker') }), 409, 'device_owned')
+      expect(await apiClient({ cookie: first.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toEqual([expect.objectContaining({ id: firstDevice.id })])
+      expect(await apiClient({ cookie: second.cookie }).json('GET', pushApi.me.devices)).toEqual([])
+      // Nor remove it: unregistering or replacing it as someone else leaves it alone.
+      expect(await apiClient({ cookie: second.cookie }).json('POST', pushApi.me.unregister, { token, secret: secretOf('attacker') })).toBeNull()
+      await register(second.cookie, unique('fcm-ok'), 'ios', { provider: 'fcm', replaces: token, secret: secretOf('attacker') })
+      expect((await deviceRows()).find(row => row.id === firstDevice.id)).toMatchObject({ userId: first.id })
+
+      // The phone changes hands: the next user signs in on the same installation, which sends its secret.
+      const moved = await register(second.cookie, token, 'ios', { secret })
       expect(moved).toMatchObject({ id: firstDevice.id, userId: second.id })
       expect(await apiClient({ cookie: first.cookie }).json('GET', pushApi.me.devices)).toEqual([])
-      expect(await apiClient({ cookie: second.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
+      // Only the hash of the secret is stored.
+      const stored = (await deviceRows()).find(row => row.id === firstDevice.id)!
+      expect(stored.secretHash).toMatch(/^[0-9a-f]{64}$/)
+      expect(JSON.stringify(stored)).not.toContain(secret)
 
       // The previous owner can no longer remove it, and learns nothing about it.
       await expectApiError(apiClient({ cookie: first.cookie }).json('DELETE', pushApi.me.device(moved.id)), 404)
-      expect(await apiClient({ cookie: second.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
+      expect(await apiClient({ cookie: second.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toContainEqual(expect.objectContaining({ id: moved.id, userId: second.id }))
+    })
+
+    it('refuses to move a token registered without a secret to another user', async () => {
+      const first = await registerUser('Nosecret', 'nosecret@example.com')
+      const second = await registerUser('Nosecret two', 'nosecret2@example.com')
+      const token = unique('fcm-ok')
+      const device = await register(first.cookie, token)
+      await expectApiError(apiClient({ cookie: second.cookie }).json('POST', pushApi.me.devices, { platform: 'android', token, secret: secretOf('guess') }), 409, 'device_owned')
+      expect((await deviceRows()).find(row => row.id === device.id)).toMatchObject({ userId: first.id, secretHash: null })
     })
 
     it('unregisters by token, idempotently, and never touches another user\'s token', async () => {
@@ -307,16 +399,22 @@ describe('push (authenticated, database-backed)', async () => {
       const other = await registerUser('Other', 'other@example.com')
       const myToken = unique('fcm-ok')
       const otherToken = unique('fcm-ok')
-      await register(mine.cookie, myToken)
-      await register(other.cookie, otherToken)
+      const secret = secretOf('mine')
+      await register(mine.cookie, myToken, 'android', { secret })
+      await register(other.cookie, otherToken, 'android', { secret: secretOf('other') })
       const api = apiClient({ cookie: mine.cookie })
 
-      expect(await api.json('POST', pushApi.me.unregister, { token: myToken })).toBeNull()
-      expect(await api.json('GET', pushApi.me.devices)).toEqual([])
-      expect(await api.json('POST', pushApi.me.unregister, { token: myToken })).toBeNull()
-      expect(await api.json('POST', pushApi.me.unregister, { token: unique('unknown') })).toBeNull()
+      // The secret is required, and a wrong one leaves the device alone.
+      await expectApiError(api.json('POST', pushApi.me.unregister, { token: myToken }), 400)
+      expect(await api.json('POST', pushApi.me.unregister, { token: myToken, secret: secretOf('wrong') })).toBeNull()
+      expect(await api.json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
 
-      expect(await api.json('POST', pushApi.me.unregister, { token: otherToken })).toBeNull()
+      expect(await api.json('POST', pushApi.me.unregister, { token: myToken, secret })).toBeNull()
+      expect(await api.json('GET', pushApi.me.devices)).toEqual([])
+      expect(await api.json('POST', pushApi.me.unregister, { token: myToken, secret })).toBeNull()
+      expect(await api.json('POST', pushApi.me.unregister, { token: unique('unknown'), secret })).toBeNull()
+
+      expect(await api.json('POST', pushApi.me.unregister, { token: otherToken, secret: secretOf('other') })).toBeNull()
       expect(await apiClient({ cookie: other.cookie }).json<PushDeviceDto[]>('GET', pushApi.me.devices)).toHaveLength(1)
       await expectApiError(api.json('POST', pushApi.me.unregister, {}), 400)
     })

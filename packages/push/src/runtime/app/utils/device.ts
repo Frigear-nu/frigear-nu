@@ -29,6 +29,12 @@ export type PushDeviceDeps = {
    * a new token replaces the old one.
    */
   storage?: { get: () => string | null, set: (token: string | null) => void }
+  /**
+   * The installation secret: generated once per installation and kept (`usePushDevice` keeps it in local storage). It
+   * is sent with every registration and unregistration; the server stores its hash and moves a token to another user
+   * only with it. Defaults to one secret per flow (this launch), from {@link newPushInstallationSecret}.
+   */
+  secret?: () => string
   /** Called with the in-app path of a tapped notification. */
   navigate?: (path: string) => void
   log?: Pick<Console, 'warn'>
@@ -42,12 +48,23 @@ export type PushDeviceActions = {
 }
 
 /**
+ * A new installation secret: 32 random bytes, base64url. Generate it once per installation and keep it: it proves to
+ * the server that a later registration comes from the same installation.
+ */
+export function newPushInstallationSecret(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/**
  * The device side of push, without Nuxt: asks for permission, registers through the push plugin and tells the server
  * the token and who issued it. `usePushDevice()` and the sign-in plugin are thin wrappers over it.
  */
 export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
   const { state } = deps
   const log = deps.log ?? console
+  let launchSecret: string | undefined
+  const secret = () => deps.secret?.() ?? (launchSecret ??= newPushInstallationSecret())
   let listening = false
   let waiting: { resolve: (token: string) => void, reject: (error: Error) => void } | undefined
 
@@ -64,7 +81,7 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
     const replaces = previous && previous !== token ? previous : undefined
     await deps.request(pushApi.me.devices, {
       method: 'POST',
-      body: { platform, provider, token, ...(replaces ? { replaces } : {}), ...(deps.appId ? { appId: deps.appId } : {}), ...(deps.locale?.() ? { locale: deps.locale() } : {}) },
+      body: { platform, provider, token, secret: secret(), ...(replaces ? { replaces } : {}), ...(deps.appId ? { appId: deps.appId } : {}), ...(deps.locale?.() ? { locale: deps.locale() } : {}) },
     })
     deps.storage?.set(token)
     state.registered.value = true
@@ -150,7 +167,7 @@ export function createPushDevice(deps: PushDeviceDeps): PushDeviceActions {
     let removed = false
     if (token) {
       try {
-        await deps.request(pushApi.me.unregister, { method: 'POST', body: { token } })
+        await deps.request(pushApi.me.unregister, { method: 'POST', body: { token, secret: secret() } })
         removed = true
       }
       catch (error) {

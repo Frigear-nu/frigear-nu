@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, useFetch, useModuleT } from '#imports'
+import { refDebounced } from '@vueuse/core'
+import { $fetch, computed, ref, useFetch, useId, useModuleT, watch } from '#imports'
 import { teamsApi } from '../../utils/api'
 import { isTeamKindGrant } from '../../utils/grants'
 import { useTeamsTranslate } from '../composables/useTeamsTranslate'
@@ -14,9 +15,13 @@ const model = defineModel<TeamGrant>({ required: true })
 const t = useModuleT('teams')
 const tr = useTeamsTranslate()
 
-const { data: teams } = useFetch<{ items: AdminTeamDto[] }>(teamsApi.admin.teams, {
-  key: 'teams:grant-teams',
-  query: { pageSize: 100 },
+// Teams are searched on the server (name in any language), so every team can be picked, not only the first page.
+const search = ref('')
+const q = refDebounced(search, 250)
+const { data: teams, status: teamsStatus } = useFetch<{ items: AdminTeamDto[] }>(teamsApi.admin.teams, {
+  // One key per field: several grant rows search on their own.
+  key: `teams:grant-teams:${useId()}`,
+  query: computed(() => ({ pageSize: 50, ...(q.value.trim() ? { q: q.value.trim() } : {}) })),
   server: false,
   lazy: true,
   default: () => ({ items: [] }),
@@ -42,13 +47,36 @@ const teamKind = computed(() => isTeamKindGrant(model.value) ? model.value.teamK
 const keepCurrent = (known: Array<{ label: string, value: string }>, current: string) =>
   current && !known.some(item => item.value === current) ? [...known, { label: current, value: current }] : known
 
-const teamItems = computed(() => keepCurrent((teams.value?.items ?? []).map(team => ({ label: tr(team.name), value: team.id })), teamId.value))
+// The chosen team, kept outside the search results so its name, owner and kind stay known while searching. A stored
+// grant's team is loaded once.
+const selected = ref<AdminTeamDto>()
+watch(teamId, async (id) => {
+  if (!id || selected.value?.id === id) return
+  const listed = teams.value?.items.find(item => item.id === id)
+  if (listed) {
+    selected.value = listed
+    return
+  }
+  selected.value = await $fetch<AdminTeamDto>(teamsApi.admin.team(id)).catch(() => undefined)
+}, { immediate: true })
+
+// Teams of several operations often share a name ("Bar"): the owner tells them apart.
+const ownerOf = (team: AdminTeamDto) => team.ownerLabel
+  ? tr(team.ownerLabel)
+  : team.ownerType === 'platform' ? t('grants.platform', 'Platform') : [team.ownerType, team.ownerId].filter(Boolean).join(' ')
+const teamItem = (team: AdminTeamDto) => ({ label: tr(team.name), description: ownerOf(team), value: team.id })
+const teamItems = computed(() => {
+  const items = (teams.value?.items ?? []).map(teamItem)
+  const current = selected.value?.id === teamId.value ? selected.value : undefined
+  if (current && !items.some(item => item.value === current.id)) items.push(teamItem(current))
+  return keepCurrent(items, teamId.value)
+})
 const kindItems = computed(() => keepCurrent((ladders.value ?? []).map(ladder => ({ label: ladder.kind, value: ladder.kind })), teamKind.value))
 
 // The kind whose ladder the role comes from: the chosen kind, or the chosen team's kind.
 const ladderKind = computed(() => scope.value === 'kind'
   ? teamKind.value
-  : teams.value?.items.find(item => item.id === teamId.value)?.kind)
+  : (teams.value?.items.find(item => item.id === teamId.value) ?? (selected.value?.id === teamId.value ? selected.value : undefined))?.kind)
 const roleItems = computed(() => {
   const ladder = ladderKind.value ? ladders.value?.find(item => item.kind === ladderKind.value) : undefined
   return keepCurrent((ladder?.roles ?? []).map(role => ({ label: tr(role.label), value: role.key })), model.value.minRole)
@@ -59,6 +87,7 @@ const setScope = (value: Scope) => {
   model.value = value === 'kind' ? { kind: 'team', teamKind: '', minRole: '' } : { kind: 'team', teamId: '', minRole: '' }
 }
 const setTarget = (value: string) => {
+  if (scope.value === 'team') selected.value = teams.value?.items.find(item => item.id === value) ?? selected.value
   model.value = scope.value === 'kind' ? { kind: 'team', teamKind: value, minRole: '' } : { kind: 'team', teamId: value, minRole: '' }
 }
 const setRole = (minRole: string) => {
@@ -79,12 +108,16 @@ const setRole = (minRole: string) => {
     />
     <USelectMenu
       v-if="scope === 'team'"
+      v-model:search-term="search"
       :model-value="teamId"
       :items="teamItems"
       value-key="value"
+      ignore-filter
+      :loading="teamsStatus === 'pending'"
       class="w-full"
       :disabled="disabled"
       :placeholder="t('grants.chooseTeam', 'Choose a team')"
+      :search-input="{ placeholder: t('grants.searchTeams', 'Search teams') }"
       @update:model-value="(value: string) => setTarget(value)"
     />
     <USelectMenu

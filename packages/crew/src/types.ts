@@ -62,6 +62,8 @@ export type ModuleOptions = {
 
 export type PublicModuleOptions = {
   pages: { home?: string, apply?: string, status?: string, invite?: string }
+  /** How `@nuxtjs/i18n` puts locales in paths (`null` without it), for the links in status emails and pushes. */
+  i18n?: { strategy: string, defaultLocale: string | null, locales: string[] } | null
 }
 
 /** The private runtime config of crew (`runtimeConfig.crew`). */
