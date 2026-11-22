@@ -6,7 +6,10 @@ import type { AdminOperationDto, OperationGrant } from '../../../types'
 
 defineOptions({ name: 'OperationGrantField' })
 
-// The field of the `operation` grant kind in `<GrantsEditor>`: the people who take part in one operation.
+// The field of the `operation` grant kind in `<GrantsEditor>`: the people who take part in one operation. The options
+// come from the staff list (`GET /api/admin/operations`, `operations:manage`), so only operations managers can pick an
+// operation: anyone else editing grants (`faq:manage`, say) gets an empty list, and an existing grant keeps its id. This
+// is on purpose: who takes part in which operation is the operations staff's call. The first 100 operations are listed.
 defineProps<{ disabled?: boolean }>()
 const model = defineModel<OperationGrant>({ required: true })
 const t = useModuleT('operations')

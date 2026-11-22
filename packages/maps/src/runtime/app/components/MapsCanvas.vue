@@ -6,6 +6,7 @@ import type { LeafletModule } from '../utils/leaflet'
 import type { MapLiveLayer } from '../composables/useMapLiveLayers'
 import { geometryAnchor, planeExtentOf } from '../../utils/geometry'
 import { DEFAULT_GEO_CENTER, geoBounds, locationBounds } from '../../utils/geo'
+import { isSameAppPath } from '../../utils/image'
 import type { MapSelection, MapViewerLocation, PlaneFeature, PlaneFeatureCollection, Translated } from '../../../types'
 import { onBeforeUnmount, onMounted, ref, useMapsTranslate, useModuleT, useRuntimeConfig, useTemplateRef, watch } from '#imports'
 
@@ -58,7 +59,7 @@ function renderContent() {
   targets.clear()
   content = L.featureGroup().addTo(map)
   if (props.layout) {
-    if (props.layout.underlay) underlay = underlayLayer(L, props.layout.underlay).addTo(map)
+    if (props.layout.underlay && isSameAppPath(props.layout.underlay.url)) underlay = underlayLayer(L, props.layout.underlay).addTo(map)
     for (const feature of props.layout.features) {
       const kind = kinds[feature.kind]
       const label = title(feature.label, tr(kind?.label) || feature.kind)
@@ -120,7 +121,9 @@ function renderLive() {
         style: () => ({ color, weight: 3 }),
         onEachFeature: (feature, leafletLayer) => {
           const properties = (feature.properties ?? {}) as Record<string, unknown>
-          const label = tr((properties.label ?? properties.name) as Translated | undefined)
+          // A live route may send any JSON: a label that is not text (`{ en: 5 }`) is shown as text, never thrown on.
+          const raw = tr((properties.label ?? properties.name) as Translated | undefined) as unknown
+          const label = raw === null || raw === undefined ? '' : String(raw)
           if (label) leafletLayer.bindPopup(`<strong>${escapeHtml(label)}</strong>`)
           leafletLayer.on('click', (event) => {
             L!.DomEvent.stopPropagation(event)
@@ -146,9 +149,17 @@ function renderLive() {
   }
 }
 
+/** What `fit()` fits to: the plane extent, or the bounds of the locations. A content change refits when it changes. */
+function boundsKey(): string {
+  if (props.layout) return JSON.stringify(planeExtentOf(props.layout))
+  return JSON.stringify((props.locations ?? []).map(entry => locationBounds(entry.location)))
+}
+let fitted: string | undefined
+
 /** Fits the view to the layout's plane, or to the locations (the default centre without any). */
 function fit() {
   if (!map) return
+  fitted = boundsKey()
   if (props.layout) {
     map.fitBounds(planeBounds(planeExtentOf(props.layout)), { padding: [16, 16] })
     return
@@ -198,7 +209,11 @@ onMounted(async () => {
   if (props.focus) focusOn(props.focus)
 })
 
-watch(() => [props.layout, props.locations], () => renderContent(), { deep: true })
+// The CRS (plane or geographic) is chosen at mount: the viewers key this canvas on it, so switching remounts.
+watch(() => [props.layout, props.locations], () => {
+  renderContent()
+  if (map && boundsKey() !== fitted) fit()
+}, { deep: true })
 watch(() => [props.liveLayers, props.hiddenLayers], () => renderLive())
 watch(() => props.focus, (id) => {
   if (id) focusOn(id)
