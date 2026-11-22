@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import type { ButtonProps, PageCardProps } from '@nuxt/ui'
-import type { Grant } from '@frigear-nu/grants/core'
+import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 import type { Translated } from '@frigear-nu/ui/translated'
 
@@ -109,7 +109,7 @@ export type FaqGroupDto = {
 
 /** A group as staff see it: who may read it, the audit dates and how many items it has. */
 export type AdminFaqGroupDto = Omit<FaqGroupDto, 'items'> & {
-  /** Who may read the group (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody. */
+  /** Who may read the group (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: Grant[]
   itemCount: number
   publishedCount: number

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { defineGrantKind } from '@frigear-nu/grants/core'
+import { defineGrantKind } from '@frigear-nu/auth/grants'
 import { testClubMembers, testClubsOf } from '../server/utils/test-state'
 
 // A grant kind the app adds, the way teams adds `team` and operations adds `operation`: the members of a club. Users join

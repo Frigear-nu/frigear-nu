@@ -17,7 +17,7 @@ describe('package exports', () => {
   it('publishes every subpath it exports in development', () => {
     expect(Object.keys(pkg.publishConfig.exports).sort()).toEqual(Object.keys(pkg.exports).sort())
     // Older TypeScript resolution reads `typesVersions`; the client mode's subpaths ship one.
-    for (const subpath of ['./mode', './policies', './access', './client-core', './capacitor', './client-types']) {
+    for (const subpath of ['./mode', './policies', './access', './grants', './client-core', './capacitor', './client-types']) {
       expect(pkg.publishConfig.typesVersions['*']).toHaveProperty(subpath.slice(2))
     }
   })
@@ -54,5 +54,14 @@ describe('package exports', () => {
     expect(source).not.toMatch(/from '(@nuxt\/|nuxt|#|h3|vue)/)
     const access = await import('../../src/runtime/access')
     expect(Object.keys(access).sort()).toEqual(['defineAccess', 'defineRoles'])
+  })
+
+  it('keeps `@frigear-nu/auth/grants` framework-free, so grant kinds and request schemas load in the client and tests', async () => {
+    const source = readFileSync(`${root}/src/runtime/grants.ts`, 'utf8') + readFileSync(`${root}/src/runtime/utils/grants.ts`, 'utf8')
+    // `h3` only for types: `import type` is erased.
+    expect(source.replace(/^import type .*$/gm, '')).not.toMatch(/from '(@nuxt\/|nuxt|#|h3|vue|@nuxthub)/)
+    const grants = await import('../../src/runtime/grants')
+    expect(Object.keys(grants)).toContain('defineGrantKind')
+    expect(Object.keys(grants)).not.toContain('roleGrantSchema')
   })
 })

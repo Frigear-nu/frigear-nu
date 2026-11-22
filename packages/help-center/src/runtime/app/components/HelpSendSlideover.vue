@@ -3,7 +3,7 @@ import { helpCenterApi } from '../../utils/api'
 import type { HelpSendResult, Grant } from '../../../types'
 import type { StaffHelpArticle, StaffHelpArticlesPage } from '../utils/admin'
 import { $fetch, computed, reactive, ref, useAction, useFetch, useHelpCenterTranslate, useModuleT, useToast } from '#imports'
-import { grantFields } from '#grants/fields'
+import { grantFields } from '#auth/grant-fields'
 
 defineOptions({ name: 'HelpSendSlideover' })
 

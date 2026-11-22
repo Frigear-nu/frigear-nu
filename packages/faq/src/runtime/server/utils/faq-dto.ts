@@ -1,5 +1,5 @@
 import type { schema } from '@nuxthub/db'
-import { hasPublicGrant, readGrants } from '@frigear-nu/grants/core'
+import { hasPublicGrant, readGrants } from '@frigear-nu/auth/grants'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AdminFaqGroupDto, AdminFaqItemDto, FaqGroupDto, FaqItemDto, FaqItemStatus } from '../../../types'
 import { isFaqItemPublic } from '../../utils'

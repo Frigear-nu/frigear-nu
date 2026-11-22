@@ -21,7 +21,7 @@ const ok = async (response: Response) => {
 }
 
 const both = (en: string, da: string) => ({ en, da })
-// Grant lists (`@frigear-nu/grants`): any one grant admits, an empty list admits nobody.
+// Grant lists (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody.
 const PUBLIC = [{ kind: 'public' }]
 const SUPERVISORS = [{ kind: 'role', role: 'supervisor' }]
 const club = (clubId: string) => [{ kind: 'club', clubId }]

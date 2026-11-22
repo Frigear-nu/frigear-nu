@@ -32,6 +32,8 @@ export {
   setRoleProvider,
 } from './build'
 export type { PolicyFileRegistration, RegisterAccessOptions, RoleProviderRegistration, RoleRequirementRegistration } from './build'
+export { extendGrants, registeredGrantKinds } from './grants-build'
+export type { GrantFieldMeta, GrantKindRegistration } from './grants'
 export { defineAccess, defineRoles } from './access'
 export type { Access, AccessInput, AccessPermission, AccessPermissionName, AccessRole, AccessScope, HostRole, Permission, PermissionGrant, RoleName } from './access'
 export { compileAccess, routeRulePermissions } from './access-compile'
