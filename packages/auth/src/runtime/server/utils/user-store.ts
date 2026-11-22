@@ -10,19 +10,19 @@ export function useAuthUserStore() {
   return store
 }
 
-/** A user by id as the session sees them, or `null`. Used for bearer credentials, which name the user by id. */
+/** A user by id as a request sees them (`mapUserToPrincipal`), or `null`. Used for bearer credentials, which name the user by id. */
 export async function loadAuthUser(id: string | number): Promise<AuthUser | null> {
   const user = await store.findById(id)
-  return user ? mapUserToSession(user) as AuthUser : null
+  return user ? mapUserToPrincipal(user) as AuthUser : null
 }
 
 /**
- * Users by id as the session sees them, `loadAuthUser` for many: one `findByIds` of the store (users reads them in
+ * Users by id as a request sees them, `loadAuthUser` for many: one `findByIds` of the store (users reads them in
  * chunks), or one `findById` per id for a store without it. Unknown ids are missing from the map.
  */
 export async function loadAuthUsers(ids: Iterable<string | number>): Promise<Map<number, AuthUser>> {
   const users = await findStoredUsers(store, ids)
-  return new Map(users.map(user => [Number(user.id), mapUserToSession(user) as AuthUser]))
+  return new Map(users.map(user => [Number(user.id), mapUserToPrincipal(user) as AuthUser]))
 }
 
 /**

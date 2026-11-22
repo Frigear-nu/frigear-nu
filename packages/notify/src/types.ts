@@ -202,8 +202,12 @@ export interface NotifyRecipientStore {
 export interface NotifyChoicesStore {
   /** What the user chose, per topic id. */
   readChoices(userId: number): Promise<NotificationChoices>
-  /** Stores complete settings for the topics given; other topics keep what they had. */
-  writeChoices(userId: number, choices: Record<string, ChannelSettings>): Promise<void>
+  /**
+   * Merges the channels given into what is stored for each topic, per channel and against a fresh read of the stored
+   * choices (not one the caller made earlier), so concurrent changes to other channels or topics are kept. Channels and
+   * topics left out keep what they had.
+   */
+  writeChoices(userId: number, choices: NotificationChoices): Promise<void>
 }
 
 /** A topic as the account page shows it. */
