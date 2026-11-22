@@ -586,6 +586,26 @@ describe('help center (authenticated, database-backed)', async () => {
       expect((await json(undefined, 'GET', `${helpCenterApi.articles}?q=%20%20`)).status).toBe(400)
     })
 
+    it('folds capital Ø, Æ and Å in titles and texts on sqlite (searchText, searchBody), also after an edit', async () => {
+      await asStaff()
+      const marker = `dk${++counter}`
+      const { article } = await publishedArticle({ grants: PUBLIC }, {
+        title: both(`BEER ${marker}`, `ØLTELTET ${marker}`),
+        body: both('Text', 'ÆBLEMOST og ÅBNINGSTIDER.'),
+      })
+      for (const q of [`øltelt`, `ØlTelTet ${marker}`, 'æblemost', 'ÅBNINGSTIDER', 'åbningstider']) {
+        expect(slugsOf(await listArticles(undefined, `?q=${encodeURIComponent(q)}`)), q).toContain(article.slug)
+      }
+      // The admin list searches the title and the slug.
+      const admin = async (q: string) => (await ok(await json(staff.cookie, 'GET', `${helpCenterApi.admin.articles}?q=${encodeURIComponent(q)}`))).items.map((item: Json) => item.slug)
+      expect(await admin(`øltelTET ${marker}`)).toEqual([article.slug])
+      expect(await admin(article.slug.toUpperCase())).toEqual([article.slug])
+      await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.article(article.id), { title: both(`Cider ${marker}`, `ÅKANDE ${marker}`), body: both('Text', 'Ingen æbler.') }))
+      expect(await admin(`åkande ${marker}`)).toEqual([article.slug])
+      expect(await admin(`øltelt`)).not.toContain(article.slug)
+      expect(slugsOf(await listArticles(undefined, '?q=æblemost'))).not.toContain(article.slug)
+    })
+
     it('never finds what the viewer may not read, nor a draft', async () => {
       const marker = `zebra${++counter}`
       const restricted = await publishedArticle({ grants: SUPERVISORS }, { title: both(`Hidden ${marker}`, `Skjult ${marker}`) })

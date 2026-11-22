@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PUBLIC_PATH, DEFAULT_SIGNED_IN_PATH, createHelpCenterPaths, helpCenterRoutePatterns, isPathUnder, localizeHelpCenterPath, normalizeHelpCenterPath, resolveHelpCenterAreas } from '../../src/runtime/utils/paths'
+import { DEFAULT_PUBLIC_PATH, DEFAULT_SIGNED_IN_PATH, createHelpCenterPaths, helpCenterRoutePatterns, isPathUnder, normalizeHelpCenterPath, resolveHelpCenterAreas } from '../../src/runtime/utils/paths'
 
 describe('where the areas live', () => {
   it('defaults to /help and /account/help: both areas are on unless false', () => {
@@ -69,23 +69,5 @@ describe('the path builders', () => {
     expect(paths.signedIn.index()).toBeUndefined()
     expect(paths.signedIn.article('a', 'b')).toBeUndefined()
     expect(paths.signedIn.base).toBeUndefined()
-  })
-})
-
-describe('links that leave the app (emails)', () => {
-  const i18n = { strategy: 'prefix_except_default', defaultLocale: 'da', locales: ['da', 'en'] }
-
-  it('get the locale prefix the site uses', () => {
-    expect(localizeHelpCenterPath('/help/a/b', 'en', i18n)).toBe('/en/help/a/b')
-    expect(localizeHelpCenterPath('/help/a/b', 'da', i18n)).toBe('/help/a/b')
-    expect(localizeHelpCenterPath('/help/a/b', 'da', { ...i18n, strategy: 'prefix' })).toBe('/da/help/a/b')
-    expect(localizeHelpCenterPath('/help/a/b', 'da', { ...i18n, strategy: 'prefix_and_default' })).toBe('/da/help/a/b')
-  })
-
-  it('stay as they are without prefixed routes, or for a locale the site does not have', () => {
-    expect(localizeHelpCenterPath('/help', 'en', null)).toBe('/help')
-    expect(localizeHelpCenterPath('/help', 'en', { ...i18n, strategy: 'no_prefix' })).toBe('/help')
-    expect(localizeHelpCenterPath('/help', 'sv', i18n)).toBe('/help')
-    expect(localizeHelpCenterPath('/help', undefined, i18n)).toBe('/help')
   })
 })

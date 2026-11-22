@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { boundParams, client, db, schema } from './stubs/nuxthub-db'
@@ -10,8 +10,11 @@ const ARTICLES = 250
 const D1_MAX_PARAMS = 100
 
 beforeAll(async () => {
-  const init = await readFile(new URL('../fixtures/authenticated/server/db/migrations/sqlite/0000_init.sql', import.meta.url), 'utf8')
-  await client.executeMultiple(init.replaceAll('--> statement-breakpoint', ''))
+  // Every committed migration of the fixture, in order.
+  const migrations = new URL('../fixtures/authenticated/server/db/migrations/sqlite/', import.meta.url)
+  for (const file of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+    await client.executeMultiple((await readFile(new URL(file, migrations), 'utf8')).replaceAll('--> statement-breakpoint', ''))
+  }
   await db.insert(schema.helpCategories).values([
     { id: 'cat_big', slug: 'big', name: 'Big', sort: 0 },
     { id: 'cat_other', slug: 'other', name: 'Other', sort: 1 },

@@ -3,7 +3,7 @@ import { db, schema } from '@nuxthub/db'
 import { asc, eq } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { PUBLIC_GRANT_KIND, SIGNED_IN_GRANT_KIND, readGrants } from '@frigear-nu/auth/grants'
-import { apiError, likeContains, notFound, validationError } from '@frigear-nu/module-kit/server'
+import { apiError, notFound, searchContains, validationError } from '@frigear-nu/module-kit/server'
 import { inboxAccess } from '../../access'
 import type { InboxThreadAbilities, InboxUserRef } from '../../../types'
 import type { InboxChannelAccountRow, InboxContactRow, InboxMailboxRow, InboxThreadRow } from './inbox-dto'
@@ -201,7 +201,7 @@ const INBOX_ASSIGNEE_SCAN = 1000
  */
 export async function inboxAssigneeCandidates(event: H3Event, thread: Pick<InboxThreadRow, 'mailboxId' | 'hiddenBelow'>, options: { q?: string } = {}): Promise<InboxUserRef[]> {
   const users = schema.users
-  const where: SQL | undefined = options.q ? likeContains(users.name, options.q) : undefined
+  const where: SQL | undefined = options.q ? searchContains(users.searchText, options.q) : undefined
   const found: InboxUserRef[] = []
   for (let offset = 0; offset < INBOX_ASSIGNEE_SCAN && found.length < INBOX_ASSIGNEE_LIMIT; offset += INBOX_CHUNK) {
     const rows = await db.select({ id: users.id, name: users.name }).from(users).where(where).orderBy(asc(users.name), asc(users.id)).limit(INBOX_CHUNK).offset(offset)

@@ -21,7 +21,7 @@ export async function inboxAnonymiseThreads(threadIds: string[], now = new Date(
       .set({ body: '', attachments: [], cc: null, externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
       .where(inArray(schema.inboxMessages.threadId, chunk))
     await db.update(schema.inboxThreads)
-      .set({ subject: null, preview: null, status: 'closed', anonymisedAt: now })
+      .set({ subject: null, searchText: '', preview: null, status: 'closed', anonymisedAt: now })
       .where(inArray(schema.inboxThreads.id, chunk))
   }
 }
