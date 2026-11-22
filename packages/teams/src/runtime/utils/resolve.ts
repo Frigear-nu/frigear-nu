@@ -69,10 +69,11 @@ const strip = ({ ownerType, ownerId, teamId, kind, role }: TeamRoleGrant, source
 /**
  * Explicit grants first (as they are), then at most one mapped grant per team that has no explicit one: the highest
  * priority wins, then the higher role on the ladder. Mapped grants for a role that is not on the team kind's ladder are
- * dropped. The result carries no `priority`.
+ * dropped. `blocked` are teams with an explicit row that grants nothing (a `pending` or `inactive` membership): the row
+ * overrides mapping there too, so they get no mapped grant. The result carries no `priority`.
  */
-export function mergeTeamGrants(explicit: readonly TeamRoleGrant[], mapped: readonly TeamsMappedGrant[], ladders: Ladders): TeamRoleGrant[] {
-  const explicitTeams = new Set(explicit.map(grant => grant.teamId))
+export function mergeTeamGrants(explicit: readonly TeamRoleGrant[], mapped: readonly TeamsMappedGrant[], ladders: Ladders, blocked: Iterable<string> = []): TeamRoleGrant[] {
+  const explicitTeams = new Set([...explicit.map(grant => grant.teamId), ...blocked])
   const best = new Map<string, TeamsMappedGrant>()
   for (const grant of mapped) {
     if (explicitTeams.has(grant.teamId)) continue

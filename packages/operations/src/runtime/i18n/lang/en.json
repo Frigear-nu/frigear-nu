@@ -19,7 +19,8 @@
       "readDescription": "Read the public operations and the ones you take part in."
     },
     "scopes": {
-      "operations": "Operations"
+      "operations": "Operations",
+      "operationsDescription": "Read the public operations and the ones you take part in."
     },
     "admin": {
       "tabs": {
