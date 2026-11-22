@@ -1,0 +1,125 @@
+{
+  "operations": {
+    "notFound": "Operationen blev ikke fundet",
+    "tryAgain": "Prøv igen",
+    "when": "Hvornår?",
+    "where": "Hvor?",
+    "hostedBy": "Vært: {host}",
+    "hostWebsite": "Besøg værten",
+    "menu": {
+      "admin": {
+        "label": "Operationer",
+        "description": "Administrer de lejligheder jeres organisation arbejder ved."
+      }
+    },
+    "permissions": {
+      "manage": "Administrer operationer",
+      "manageDescription": "Opret og rediger operationer, flyt dem mellem statusser og slet dem.",
+      "read": "Læs operationer",
+      "readDescription": "Læs de offentlige operationer og dem, du deltager i."
+    },
+    "scopes": {
+      "operations": "Operationer"
+    },
+    "admin": {
+      "tabs": {
+        "details": "Detaljer",
+        "venue": "Plantegning"
+      },
+      "title": "Operationer",
+      "listDescription": "De lejligheder jeres organisation arbejder ved, uanset om den er vært.",
+      "create": "Tilføj operation",
+      "createAction": "Opret operation",
+      "createDescription": "Den starter i planlægning. Flyt den videre, når planerne er endelige.",
+      "created": "Oprettede {name}",
+      "editTitle": "Rediger operation",
+      "edit": "Rediger",
+      "saveOperation": "Gem operation",
+      "saved": "Gemte {name}",
+      "open": "Åbn",
+      "viewPublic": "Se offentlig side",
+      "keyFacts": "Operation",
+      "details": "Detaljer",
+      "allOperations": "Alle operationer",
+      "operationLoadFailed": "Operationen kunne ikke indlæses",
+      "loadFailed": "Operationer kunne ikke indlæses",
+      "forbidden": "Du har ikke adgang til operationer",
+      "search": "Søg i operationer",
+      "allStatuses": "Alle statusser",
+      "clearFilters": "Ryd filtre",
+      "noMatches": "Ingen operationer matcher din søgning",
+      "empty": "Ingen operationer endnu",
+      "emptyDescription": "Tilføj den første operation, fx en festivalbar, og knyt crew og vagter til den.",
+      "name": "Navn",
+      "description": "Beskrivelse",
+      "descriptionHelp": "Vises på den offentlige side. Markdown understøttes.",
+      "slug": "URL-navn",
+      "slugHelp": "Små bogstaver, tal og bindestreger.",
+      "slugRequired": "Angiv et URL-navn.",
+      "slugInvalid": "Brug små bogstaver, tal og bindestreger.",
+      "slugReserved": "Dette URL-navn er reserveret.",
+      "nameRequired": "Angiv et navn.",
+      "starts": "Starter",
+      "ends": "Slutter",
+      "startsRequired": "Angiv hvornår operationen starter.",
+      "endsBeforeStart": "Slutningen kan ikke ligge før starten.",
+      "location": "Sted",
+      "address": "Adresse",
+      "hostName": "Vært",
+      "hostNameHelp": "Hvem der er vært: jeres organisation, eller det spillested eller arrangement I arbejder ved.",
+      "hostUrl": "Værtens hjemmeside",
+      "hostUrlInvalid": "Angiv en webadresse, der starter med https://.",
+      "eventId": "Begivenhed",
+      "eventIdHelp": "Id på den begivenhed, operationen hører til.",
+      "public": "Offentlig",
+      "publicHelp": "En offentlig operation har en offentlig side og vises for alle. Andre vises for dem, der deltager.",
+      "visibility": "Synlighed",
+      "visibilityPublic": "Offentlig",
+      "visibilityPrivate": "Kun deltagere",
+      "status": "Status",
+      "statuses": {
+        "planning": "Planlægning",
+        "active": "Aktiv",
+        "wrapped_up": "Afsluttet",
+        "archived": "Arkiveret"
+      },
+      "statusActions": {
+        "active": "Start operation",
+        "wrapped_up": "Markér som afsluttet",
+        "archived": "Arkivér operation"
+      },
+      "changeStatus": "Skift status…",
+      "statusChanged": "{name} er nu {status}",
+      "statusFailed": "Statussen kunne ikke ændres",
+      "archiveTitle": "Arkivér {name}?",
+      "archiveDescription": "En arkiveret operation er endelig: den kan ikke startes eller genåbnes.",
+      "archiveAction": "Arkivér operation",
+      "deleteTitle": "Slet {name}?",
+      "deleteDescription": "Dens plantegning slettes med den; crew og vagter knyttet til den bliver tilbage uden en operation. Arkivér en operation, der er afviklet, i stedet.",
+      "deleteAction": "Slet operation",
+      "deleted": "Slettede {name}",
+      "deleteFailed": "Operationen kunne ikke slettes",
+      "locationMap": "På kortet",
+      "locationMapHelp": "Tryk på kortet for at placere operationen, og giv den en radius eller tegn dens område.",
+      "venueLayout": "Plantegning",
+      "venueLayoutHelp": "Hvor stationer, containere og områder er. Vagter peger på dem, og live-lagene tegnes på dem.",
+      "venueLoadFailed": "Plantegningen kunne ikke indlæses.",
+      "venueSaved": "Plantegningen for {name} er gemt",
+      "discardVenue": "Kassér ændringer",
+      "saveVenue": "Gem plantegning",
+      "venueLive": "Live-visning",
+      "venueLiveHelp": "Den gemte plantegning, som crew ser den, med live-lagene.",
+      "tryAgain": "Prøv igen"
+    },
+    "dashboard": {
+      "upcoming": "Kommende operationer",
+      "upcomingEmpty": "Ingen kommende operationer",
+      "upcomingEmptyDescription": "De operationer, du arbejder ved, vises her.",
+      "upcomingFailed": "Kunne ikke hente dine operationer."
+    },
+    "grants": {
+      "operation": "Operation",
+      "choose": "Vælg en operation"
+    }
+  }
+}
