@@ -8,6 +8,9 @@ export type UnderlayType = typeof UNDERLAY_TYPES[number]
 /** The default largest underlay: 10 MB. */
 export const MAX_UNDERLAY_BYTES = 10 * 1024 * 1024
 
+/** The widest and tallest underlay, in pixels: the limit of a stored layout's `underlay.width` and `underlay.height`. */
+export const MAX_UNDERLAY_DIMENSION = 100_000
+
 /** File extension of each underlay type, for the blob pathname. */
 export const UNDERLAY_EXTENSIONS: Record<UnderlayType, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }
 

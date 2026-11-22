@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { blob } from '@nuxthub/blob'
 import { apiError, badRequest, notFound, validationError } from '@frigear-nu/module-kit/server'
-import { MAX_UNDERLAY_BYTES, UNDERLAY_EXTENSIONS, UNDERLAY_TYPES, imageSize, sniffImageType } from '../../utils/image'
+import { MAX_UNDERLAY_BYTES, MAX_UNDERLAY_DIMENSION, UNDERLAY_EXTENSIONS, UNDERLAY_TYPES, imageSize, sniffImageType } from '../../utils/image'
 import type { UnderlayType } from '../../utils/image'
 
 /** Room for the multipart boundary and part headers around the image. */
@@ -21,7 +21,8 @@ const maxBytesOf = (event: H3Event, override?: number) =>
 /**
  * Reads an underlay image from a multipart request (field `file`) and stores it in NuxtHub Blob under `prefix`. The
  * image must be a PNG, JPEG or WebP by its bytes (415 otherwise) and at most `maxBytes` (`maps.maxUnderlayBytes`,
- * 10 MB by default; 413 above). Its size is read from the bytes. Authorize the caller before calling it.
+ * 10 MB by default; 413 above). Its size is read from the bytes and may be at most `MAX_UNDERLAY_DIMENSION` pixels
+ * each way (400 `image_too_large` above, as a layout could not store it). Authorize the caller before calling it.
  */
 export async function storeMapUnderlay(event: H3Event, options: { prefix: string, maxBytes?: number }): Promise<StoredMapUnderlay> {
   if (!(getRequestHeader(event, 'content-type') ?? '').includes('multipart/form-data')) throw badRequest('Send the image as multipart/form-data.')
@@ -39,6 +40,9 @@ export async function storeMapUnderlay(event: H3Event, options: { prefix: string
   if (!type) throw apiError(415, 'unsupported_media_type', 'The image must be a PNG, JPEG or WebP.')
   const size = imageSize(bytes)
   if (!size || !size.width || !size.height) throw apiError(400, 'unreadable_image', 'The size of the image could not be read.')
+  if (size.width > MAX_UNDERLAY_DIMENSION || size.height > MAX_UNDERLAY_DIMENSION) {
+    throw apiError(400, 'image_too_large', `The image may be at most ${MAX_UNDERLAY_DIMENSION} pixels wide and high.`)
+  }
   const saved = await blob.put(`underlay.${UNDERLAY_EXTENSIONS[type]}`, file.data, { contentType: type, prefix: options.prefix, addRandomSuffix: true })
   return { pathname: saved.pathname, contentType: type, width: size.width, height: size.height }
 }

@@ -24,8 +24,7 @@ const emit = defineEmits<{ select: [selection: MapSelection | null] }>()
 const t = useModuleT('maps')
 const tr = useMapsTranslate()
 const canvas = useTemplateRef<{ fit: () => void, focus: (id: string) => boolean }>('canvas')
-const { layers } = useMapLiveLayers({ surface: () => props.surface, params: () => props.params, only: () => props.liveLayers })
-const hidden = ref<string[]>([])
+const { layers, hidden } = useMapLiveLayers({ surface: () => props.surface, params: () => props.params, only: () => props.liveLayers })
 const selection = ref<MapSelection | null>(null)
 const sheetOpen = computed({
   get: () => !!selection.value,

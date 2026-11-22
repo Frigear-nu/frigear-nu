@@ -168,6 +168,23 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(await found(`BEER BAR ${marker}`)).toEqual([bar.id])
     })
 
+    it('finds stored names that start with a Danish capital', async () => {
+      const marker = `dkc${++counter}`
+      const found = async (q: string) => ((await ok(await json(staff.cookie, 'GET', `${operationsApi.admin.operations}?q=${encodeURIComponent(q)}`))).items as Json[]).map(item => item.id)
+      const ol = await createOperation({ slug: `${marker}-ol`, name: { da: `Ølfestival ${marker}` } })
+      const aeble = await createOperation({ slug: `${marker}-aeble`, name: `Æblefest ${marker}` })
+      const aarhus = await createOperation({ slug: `${marker}-aarhus`, name: { da: `Bar i Århus ${marker}`, en: `Bar in Aarhus ${marker}` } })
+      // As stored, lowercase, all capitals.
+      expect(await found(`Ølfestival ${marker}`)).toEqual([ol.id])
+      expect(await found(`ølfestival ${marker}`)).toEqual([ol.id])
+      expect(await found(`ØLFESTIVAL ${marker}`)).toEqual([ol.id])
+      expect(await found(`Æblefest ${marker}`)).toEqual([aeble.id])
+      expect(await found(`æblefest ${marker}`)).toEqual([aeble.id])
+      // A capital inside the name.
+      expect(await found(`århus ${marker}`)).toEqual([aarhus.id])
+      expect(await found(`Århus ${marker}`)).toEqual([aarhus.id])
+    })
+
     it('validates the body', async () => {
       staff ??= await registerUser('Staff', 'staff@staff.test')
       const base = { name: 'Valid', startsAt: future(3) }
