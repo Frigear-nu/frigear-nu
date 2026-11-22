@@ -1,5 +1,5 @@
 import { SignJWT, importPKCS8 } from 'jose'
-import { DEFAULT_TIMEOUT_MS, callFetch, describeError, describeResponse, normalizePemKey } from './types'
+import { DEFAULT_TIMEOUT_MS, callFetch, describeError, describeResponse, isDeviceRejection, normalizePemKey } from './types'
 import type { DeliveryOutcome, DeviceMessage, DeviceSender, ProviderEnvironment } from './types'
 
 const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
@@ -137,7 +137,7 @@ export function createFcmSender(account: FcmServiceAccount, env: ProviderEnviron
         if (isDeadFcmToken(response.status, body)) return { status: 'dead', reason }
         // An expired access token the cache did not know about: forget it, the next send gets a fresh one.
         if (response.status === 401) cached = undefined
-        return { status: 'failed', reason }
+        return { status: 'failed', reason, ...(isDeviceRejection(response.status) ? { deviceError: true } : {}) }
       }
       catch (error) {
         return { status: 'failed', reason: describeError(error, timeoutMs) }

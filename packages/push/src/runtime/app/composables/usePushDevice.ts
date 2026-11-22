@@ -1,9 +1,29 @@
 import { loadPushNotifications } from '#push/native'
-import { createPushDevice } from '../utils/device'
+import { createPushDevice, newPushInstallationSecret } from '../utils/device'
 import type { PushDeviceActions, PushDeviceDeps, PushPermission } from '../utils/device'
 import { $fetch, navigateTo, readonly, useNuxtApp, useRuntimeConfig, useState } from '#imports'
 
 const TOKEN_KEY = 'frigear-push-token'
+const SECRET_KEY = 'frigear-push-installation'
+let memorySecret: string | undefined
+
+/**
+ * This installation's secret, generated on first use and kept in local storage, so every later launch (and the next
+ * user signing in on this phone) sends the same one. Without storage it lasts for this launch.
+ */
+function installationSecret(): string {
+  try {
+    const stored = globalThis.localStorage?.getItem(SECRET_KEY)
+    if (stored) return stored
+    const created = memorySecret ?? newPushInstallationSecret()
+    globalThis.localStorage?.setItem(SECRET_KEY, created)
+    memorySecret = created
+    return created
+  }
+  catch {
+    return memorySecret ??= newPushInstallationSecret()
+  }
+}
 
 const storage = {
   get: () => {
@@ -60,6 +80,7 @@ export function usePushDevice() {
       appId: (useRuntimeConfig().public.mobile as { appId?: string } | undefined)?.appId,
       locale: () => provided().$i18n?.locale.value,
       storage,
+      secret: installationSecret,
       // A native listener runs outside the Nuxt context.
       navigate: path => void nuxtApp.runWithContext(() => navigateTo(path)),
     })
