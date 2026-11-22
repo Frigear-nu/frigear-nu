@@ -1249,9 +1249,6 @@ importers:
       '@frigear-nu/forms':
         specifier: workspace:^
         version: link:../forms
-      '@frigear-nu/grants':
-        specifier: workspace:^
-        version: link:../grants
       '@frigear-nu/module-kit':
         specifier: workspace:^
         version: link:../module-kit
