@@ -53,6 +53,15 @@ describe('readGrants', () => {
     expect(hasPublicGrant([{ kind: 'role', role: 'admin' }])).toBe(false)
     expect(hasPublicGrant(undefined)).toBe(false)
   })
+
+  it('does not count an invalid public grant, with or without a registry (fail closed)', () => {
+    const invalid = [{ kind: 'public', x: 1 }]
+    expect(hasPublicGrant(invalid)).toBe(false)
+    expect(hasPublicGrant(invalid, registry)).toBe(false)
+    expect(hasPublicGrant([{ kind: 'public' }], registry)).toBe(true)
+    // A registry without the `public` kind knows no public grant.
+    expect(hasPublicGrant([{ kind: 'public' }], createGrantRegistry([signedInKind]))).toBe(false)
+  })
 })
 
 describe('matchGrantList', () => {
