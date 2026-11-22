@@ -51,6 +51,7 @@ import type {
   RoleProviderRegistration,
   RoleRequirementRegistration,
 } from './runtime/utils/build'
+import { sessionMapperContents } from './runtime/utils/build'
 import { accessTypes, compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
 import { pickAccessRouteRules } from './runtime/utils/route-rules'
 import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-compile'
@@ -496,12 +497,7 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       const mapperPath = settings.session?.mapper
         ? await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
         : undefined
-      return [
-        ...filters.map((filter, index) => `import filter${index} from ${JSON.stringify(filter.path)}`),
-        mapperPath ? `import mapper from ${JSON.stringify(mapperPath)}` : 'const mapper = user => user',
-        `const filters = [${filters.map((_, index) => `filter${index}`).join(', ')}]`,
-        'export default user => mapper(filters.reduce((current, filter) => filter(current), user))',
-      ].join('\n')
+      return sessionMapperContents(filters.map(filter => filter.path), mapperPath)
     },
   })
 
