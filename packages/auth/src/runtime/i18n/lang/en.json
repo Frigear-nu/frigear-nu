@@ -1,8 +1,8 @@
 {
   "auth": {
     "signIn": "Sign in",
-    "signUp": "Sign Up",
-    "signOut": "Sign Out",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
     "signedInAs": "Signed in as",
     "signInReason": {
       "title": "You need to be signed in to do this",
@@ -50,11 +50,11 @@
       "submit": "Send link",
       "modal": {
         "in": {
-          "title": "Sign in with Magic Link",
+          "title": "Sign in with magic link",
           "description": "You can sign in with your e-mail, we'll send you a link."
         },
         "up": {
-          "title": "Sign up with Magic Link",
+          "title": "Sign up with magic link",
           "description": "Your account will have no password, you can sign in with your e-mail."
         }
       },
