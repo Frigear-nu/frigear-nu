@@ -8,6 +8,7 @@ import {
 } from '@nuxt/kit'
 import {
   registerDatabaseTable,
+  registerSearchIndex,
   registerModule,
   registerLocales,
   registerTailwindSource,
@@ -115,6 +116,8 @@ export default defineNuxtModule<ModuleOptions>({
       resolver,
       schema: dialect => `./runtime/server/db/schema.${dialect}`,
     })
+    // `operations.searchText`, recomputed by the `search:reindex` task.
+    registerSearchIndex(nuxt, { name: 'operations', handler: resolver.resolve('./runtime/server/search-index') })
 
     // --- API routes -----------------------------------------------------------------------
     // The static segment `me` wins over `:slug` in h3's radix router, whatever the registration order.
