@@ -79,3 +79,23 @@ export function createProviderSenders(config: PushRuntimeConfig, env: ProviderEn
     apns: hasApnsCredentials(config) ? createApnsSender(apnsConfigOf(config), env) : undefined,
   }
 }
+
+/**
+ * What is wrong with the push settings, one sentence per problem: an unknown `delivery` or `ios`, or a Firebase service
+ * account that does not parse. Empty when they are usable. The module checks this once at startup and logs it.
+ */
+export function pushConfigProblems(config: PushRuntimeConfig): string[] {
+  const problems: string[] = []
+  const check = (run: () => unknown) => {
+    try {
+      run()
+    }
+    catch (error) {
+      problems.push((error instanceof Error ? error.message : String(error)).replace(/^\[@frigear-nu\/push\] /, ''))
+    }
+  }
+  check(() => resolvePushDelivery(config))
+  check(() => resolveIosProvider(config))
+  if (hasFcmCredentials(config)) check(() => parseFcmServiceAccount(config.fcm.serviceAccount))
+  return problems
+}

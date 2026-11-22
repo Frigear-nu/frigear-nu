@@ -31,12 +31,22 @@ export function setPushHttp2Transport(transport: Http2Transport | undefined): vo
 }
 
 let warnedLogDriver = false
+let warnedConfig: string | undefined
+
+/** Logs a configuration error once per message, so a bad setting does not flood the log on every push. */
+function reportConfigError(error: unknown) {
+  const message = (error instanceof Error ? error.message : String(error)).replace(/^\[@frigear-nu\/push\] /, '')
+  if (warnedConfig === message) return
+  warnedConfig = message
+  console.error(`[@frigear-nu/push] Pushes cannot be sent until the push settings are fixed: ${message}`)
+}
 
 /**
  * Sends a push notification to every active device of `message.userIds`: FCM for Android, and for iOS FCM or APNs (over
  * HTTP/2), whichever issued the device's token (`push.ios` for a device that did not say). A device whose token the
  * provider reports as dead is revoked. Nothing here throws for a single device: failures are counted (and logged) and
- * the result tells how many devices were reached.
+ * the result tells how many devices were reached. Invalid settings (`push.delivery`, `push.ios`, the FCM service
+ * account) do not throw either: they are logged once and every device counts as failed.
  *
  * `title` and `body` can be one text per locale: each device gets the text for the locale it registered with.
  *
@@ -57,7 +67,17 @@ export async function sendPush(_event: H3Event | undefined, message: PushMessage
 
   const text = (value: PushMessage['title'], locale: string | null) => readTranslated(value, locale ?? 'en')
   const config = pushConfig()
-  if (resolvePushDelivery(config) === 'log') {
+  let delivery: 'log' | 'providers'
+  let route: { senders: ProviderSenders, ios: ReturnType<typeof resolveIosProvider> } | undefined
+  try {
+    delivery = resolvePushDelivery(config)
+    if (delivery === 'providers') route = { senders: providerSenders(config), ios: resolveIosProvider(config) }
+  }
+  catch (error) {
+    reportConfigError(error)
+    return { sent: 0, failed: devices.length, revoked: 0 }
+  }
+  if (delivery === 'log') {
     if (!warnedLogDriver && process.env.NODE_ENV === 'production') {
       warnedLogDriver = true
       console.warn('[@frigear-nu/push] The log delivery is active in production: pushes are only logged, not sent. Set the FCM / APNs credentials (NUXT_PUSH_*) or `push.settings.delivery`.')
@@ -73,7 +93,7 @@ export async function sendPush(_event: H3Event | undefined, message: PushMessage
     body: text(message.body, device.locale ?? null),
     url: message.url,
     data: message.data,
-  }), providerSenders(config), { ios: resolveIosProvider(config) })
+  }), route!.senders, { ios: route!.ios })
 
   for (const ids of chunkParams(revokedIds)) {
     await db.update(schema.pushDevices).set({ revokedAt: new Date() }).where(inArray(schema.pushDevices.id, ids))

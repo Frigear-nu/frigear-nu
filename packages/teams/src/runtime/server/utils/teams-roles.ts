@@ -8,7 +8,7 @@ import { grantsOfOwner, isPlanMatch, isRoleMatch, mappedGrantsFor, mappingCovers
 import { teamsSubscriptionCandidatesQuery } from '../candidates'
 import { toMappedTeamMemberDto, toTeamMemberDto, toTeamRoleMappingDto } from './teams-dto'
 import { loadTeamLadders, teamLadderKeyMap } from './teams-ladders'
-import { chunkParams } from '@frigear-nu/module-kit/server'
+import { chunkParams, inChunks } from '@frigear-nu/module-kit/server'
 
 // Role resolution. Explicit memberships are rows; mapped ones come from `team_role_mappings` at read time and are never
 // stored. Everything is cached per request (`event`), so call these freely within one request.
@@ -43,18 +43,26 @@ export function loadTeamMappingRules(event?: H3Event): Promise<TeamRoleMappingDt
 const ownerCondition = (table: typeof schema.teams, owner: TeamOwner): SQL =>
   and(eq(table.ownerType, owner.ownerType), owner.ownerId === null ? isNull(table.ownerId) : eq(table.ownerId, owner.ownerId))!
 
-/** The teams any of `rules` can apply to (the rule's team, or every team of the rule's owner). */
+/** Owners per statement in `teamsCoveredBy`: each binds two parameters, so a chunk stays under D1's 100. */
+const OWNERS_PER_QUERY = 40
+
+/**
+ * The teams any of `rules` can apply to (the rule's team, or every team of the rule's owner). The team ids and the
+ * owners are read in chunks, so any number of rules stays under D1's bound-parameter limit.
+ */
 async function teamsCoveredBy(rules: readonly TeamRoleMappingDto[]): Promise<TeamsResolverTeam[]> {
   if (!rules.length) return []
-  const conditions: SQL[] = []
+  const columns = { id: schema.teams.id, ownerType: schema.teams.ownerType, ownerId: schema.teams.ownerId, kind: schema.teams.kind }
   const teamIds = [...new Set(rules.flatMap(rule => rule.teamId ? [rule.teamId] : []))]
-  if (teamIds.length) conditions.push(inArray(schema.teams.id, teamIds))
   const owners = new Map<string, TeamOwner>()
   for (const rule of rules) if (!rule.teamId) owners.set(`${rule.ownerType}\u0000${rule.ownerId ?? ''}`, rule)
-  for (const owner of owners.values()) conditions.push(ownerCondition(schema.teams, owner))
-  const rows = await db.select({ id: schema.teams.id, ownerType: schema.teams.ownerType, ownerId: schema.teams.ownerId, kind: schema.teams.kind })
-    .from(schema.teams).where(or(...conditions))
-  return rows.map(row => ({ ...row, ownerId: row.ownerId ?? null })).filter(team => rules.some(rule => mappingCoversTeam(rule, team)))
+  const rows = [
+    ...await inChunks(teamIds, chunk => db.select(columns).from(schema.teams).where(inArray(schema.teams.id, chunk))),
+    ...await inChunks([...owners.values()], chunk => db.select(columns).from(schema.teams)
+      .where(or(...chunk.map(owner => ownerCondition(schema.teams, owner)))), OWNERS_PER_QUERY),
+  ]
+  const byId = new Map(rows.map(row => [row.id, { ...row, ownerId: row.ownerId ?? null }]))
+  return [...byId.values()].filter(team => rules.some(rule => mappingCoversTeam(rule, team)))
 }
 
 /** The global roles of a user (closed over `inherit`): auth's `getEffectiveRoles`, `[]` for an unknown user. */
@@ -65,29 +73,46 @@ export async function teamsGlobalRolesOf(event: H3Event | undefined, userId: str
 
 /**
  * Whether a membership row grants its role: `status` null or `'active'`. Any other status (crew's `pending`,
- * `inactive`, ...) keeps the row listed on the team but gives no grant: no read, no lead, no `team` grant.
+ * `inactive`, ...) keeps the row listed on the team but gives no grant: no read, no lead, no `team` grant, and no
+ * mapped role on that team either (the row overrides mapping).
  */
 export function teamMemberStatusGrants(status: string | null | undefined): boolean {
   return status === null || status === undefined || status === 'active'
 }
 
-/** The explicit grants of a user: their membership rows that grant (`teamMemberStatusGrants`), on every owner. */
-async function explicitGrantsOf(userId: number): Promise<TeamRoleGrant[]> {
+/**
+ * The explicit memberships of a user, on every owner: the rows that grant (`teamMemberStatusGrants`) as grants, and the
+ * teams of the rows that do not (`blocked`). Any explicit row overrides mapping on its team, so a `pending` or
+ * `inactive` member gets no mapped role there either.
+ */
+async function explicitGrantsOf(userId: number): Promise<{ grants: TeamRoleGrant[], blocked: string[] }> {
   const rows = await db.select({
     teamId: schema.teamMembers.teamId,
     role: schema.teamMembers.role,
+    status: schema.teamMembers.status,
     ownerType: schema.teams.ownerType,
     ownerId: schema.teams.ownerId,
     kind: schema.teams.kind,
   }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
-    .where(and(eq(schema.teamMembers.userId, userId), or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active'))))
-  return rows.map(row => ({ ownerType: row.ownerType, ownerId: row.ownerId ?? null, teamId: row.teamId, kind: row.kind, role: row.role, source: 'explicit' as const }))
+    .where(eq(schema.teamMembers.userId, userId))
+  const grants: TeamRoleGrant[] = []
+  const blocked: string[] = []
+  for (const row of rows) {
+    if (teamMemberStatusGrants(row.status)) grants.push({ ownerType: row.ownerType, ownerId: row.ownerId ?? null, teamId: row.teamId, kind: row.kind, role: row.role, source: 'explicit' })
+    else blocked.push(row.teamId)
+  }
+  return { grants, blocked }
 }
 
 export type TeamsGrantOptions = {
   /** The user's global roles when the caller already has them (the OAuth claim). */
   globalRoles?: string[]
+  /**
+   * Throw when a `teams:roles:resolve` listener fails, instead of leaving its grants out. For callers that must not
+   * pass on a list that looks complete but is not (the OAuth `teams` claim). Not cached.
+   */
+  strict?: boolean
 }
 
 /**
@@ -96,6 +121,7 @@ export type TeamsGrantOptions = {
  * on the same team; between mapped rules the highest `priority` wins, then the higher role. Cached per request.
  */
 export function resolveAllTeamRoles(event: H3Event | undefined, userId: string | number, options: TeamsGrantOptions = {}): Promise<TeamRoleGrant[]> {
+  if (options.strict) return computeTeamGrants(event, Number(userId), options)
   const cache = cacheOf(event)
   const key = String(userId)
   const cached = cache?.grants.get(key)
@@ -107,7 +133,7 @@ export function resolveAllTeamRoles(event: H3Event | undefined, userId: string |
 
 async function computeTeamGrants(event: H3Event | undefined, userId: number, options: TeamsGrantOptions): Promise<TeamRoleGrant[]> {
   if (!Number.isInteger(userId) || userId <= 0) return []
-  const [explicit, rules, ladderRows] = await Promise.all([explicitGrantsOf(userId), loadTeamMappingRules(event), loadTeamLadders(event)])
+  const [{ grants: explicit, blocked }, rules, ladderRows] = await Promise.all([explicitGrantsOf(userId), loadTeamMappingRules(event), loadTeamLadders(event)])
   const ladders = teamLadderKeyMap(ladderRows)
   if (!rules.length) return mergeTeamGrants(explicit, [], ladders)
 
@@ -135,12 +161,13 @@ async function computeTeamGrants(event: H3Event | undefined, userId: number, opt
     await useNitroApp().hooks.callHook('teams:roles:resolve', ctx)
   }
   catch (error) {
+    if (options.strict) throw error
     // Fail closed: a listener that throws gives nobody anything. Its grants (and those of listeners after it) are
     // dropped; the explicit memberships and teams' own role rules still count.
     console.error('[teams] a teams:roles:resolve listener failed; its mapped grants are left out', error)
-    return mergeTeamGrants(explicit, own, ladders)
+    return mergeTeamGrants(explicit, own, ladders, blocked)
   }
-  return mergeTeamGrants(explicit, ctx.grants, ladders)
+  return mergeTeamGrants(explicit, ctx.grants, ladders, blocked)
 }
 
 /**
@@ -221,8 +248,9 @@ export type TeamMembersOptions = {
   /** Copy the members' emails into the DTOs (the caller holds `teams:pii`). */
   pii?: boolean
   /**
-   * `false` leaves the membership `status` out of the DTOs (for a caller who neither manages nor leads the team). The
-   * status is kept by default.
+   * `false` is the view of a caller who neither manages nor leads the team: only the rows that grant their role
+   * (`teamMemberStatusGrants`) are listed, so pending applicants and inactive members stay hidden, and the `status` is
+   * left out of the DTOs. By default every row is listed, with its status.
    */
   status?: boolean
 }
@@ -264,8 +292,9 @@ export async function teamMembers(event: H3Event, teamId: string, options: TeamM
 
   const users = await usersById([...explicitIds, ...mapped.map(item => item.userId)])
   const keys = (await loadTeamLadders(event))[team.kind]?.roles.map(role => role.key) ?? []
+  const listed = options.status === false ? rows.filter(row => teamMemberStatusGrants(row.status)) : rows
   const all = [
-    ...rows.map(row => toTeamMemberDto(row, users.get(row.userId), pii)),
+    ...listed.map(row => toTeamMemberDto(row, users.get(row.userId), pii)),
     ...mapped.map(item => toMappedTeamMemberDto(teamId, item.userId, item.role, users.get(item.userId), pii)),
   ]
   const members = options.status === false ? all.map(({ status: _status, ...member }) => member as TeamMemberDto) : all
