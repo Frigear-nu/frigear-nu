@@ -17,4 +17,4 @@ Roles, role assignment and the roles admin, plus the client side of access contr
   (`definePageMeta({ authorize })`, `authorize: false` opens a page). Auth's anonymous sign-in pages and endpoints are
   always exempt from less specific rules (`'/**': { authenticated: true }`).
 
-See the [documentation](../../apps/docs/content/3.modules/1.identity/4.authorization.md) for usage.
+See the [documentation](../../apps/docs/content/3.modules/1.identity/4.authorization/index.md) for usage.
