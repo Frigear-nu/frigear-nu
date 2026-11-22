@@ -1,6 +1,7 @@
 import {
   addComponent,
   addComponentsDir,
+  addTemplate,
   addImports,
   addServerImportsDir,
   addTypeTemplate,
@@ -216,15 +217,35 @@ export default defineNuxtModule<ModuleOptions>({
       ].join('\n'),
     })
     // `@nuxtjs/mdc` is optional too (Nuxt Content brings it): the FAQ cards split the text of a `cards` article with its
-    // `parseMarkdown` through one virtual module, `undefined` without it (the whole text is then the description).
-    defineVirtualRegistry(nuxt, {
-      filename: 'help-center/mdc.mjs',
-      alias: '#help-center/mdc',
-      collect: () => ({ mdc: hasNuxtModule('@nuxtjs/mdc', nuxt) }),
-      contents: ({ mdc }) => mdc
-        ? 'export { parseMarkdown, stringifyMarkdown } from \'#imports\''
-        : 'export const parseMarkdown = undefined\nexport const stringifyMarkdown = undefined',
+    // `parseMarkdown` through one virtual module, `undefined` without it (the whole text is then the description). The
+    // files come from the auto-imports `@nuxtjs/mdc` registers (`imports:extend` runs on `modules:done`, before the
+    // templates are written), so the module imports them directly and not through `#imports`.
+    // The list is read from the auto-import context when the template is written, once every module added its entries.
+    // Imported by file, not through `#imports`, where the name may belong to another module.
+    let importsContext: { getImports: () => Promise<Array<{ name: string, as?: string, from: string }>> } | undefined
+    nuxt.hook('imports:context', (context) => {
+      importsContext = context
     })
+    const mdcTemplate = addTemplate({
+      filename: 'help-center/mdc.mjs',
+      write: true,
+      getContents: async () => {
+        const imports = await importsContext?.getImports() ?? []
+        return ['parseMarkdown', 'stringifyMarkdown']
+          .map((name) => {
+            // The one of `@nuxtjs/mdc`: another module may register a `parseMarkdown` of its own under the same name.
+            const from = imports.find(entry => entry.name === name && entry.from.includes('@nuxtjs/mdc'))?.from
+            // Loaded on the first call: the parser's own imports lead back to the app's auto-imports, and a static import
+            // here would make a cycle with top-level awaits that never settles.
+            // One import shared by concurrent first calls (two FAQ components rendering at once).
+            return from
+              ? `let ${name}Module\nexport const ${name} = (...args) => (${name}Module ??= import(${JSON.stringify(from)})).then(module => module.${name}(...args))`
+              : `export const ${name} = undefined`
+          })
+          .join('\n')
+      },
+    })
+    nuxt.options.alias['#help-center/mdc'] = mdcTemplate.dst
     addTypeTemplate({
       filename: 'types/help-center-mdc.d.ts',
       getContents: () => `declare module '#help-center/mdc' {
