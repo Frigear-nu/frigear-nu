@@ -2,7 +2,7 @@
 import type { OperationDto } from '../../../types'
 import { operationsApi } from '../../utils/api'
 import { OPERATION_STATUS_LABELS } from '../../utils/status'
-import { computed, createError, resolveComponent, useFetch, useFormat, useModuleT, useOperationsTranslate, useRoute, useSeoMeta } from '#imports'
+import { computed, createError, resolveComponent, surfaceClass, useFetch, useFormat, useModuleT, useOperationsTranslate, useRoute, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'OperationDetailPage' })
 
