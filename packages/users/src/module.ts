@@ -5,7 +5,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { addModuleRoutes, registerDatabaseTable, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, registerDatabaseTable, registerSearchIndex, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { registerAccess, setAuthUserStore } from '@frigear-nu/auth/utils'
 import { setNotifyRecipientStore } from '@frigear-nu/notify/utils'
 import { USERS_SELF_SERVICE, usersAccess } from './runtime/access'
@@ -78,6 +78,8 @@ export default defineNuxtModule<ModuleOptions>({
       resolver,
       schema: dialect => `./runtime/db/schema.${dialect}`,
     })
+    // `users.searchText`, recomputed by the `search:reindex` task.
+    registerSearchIndex(nuxt, { name: 'users', handler: resolver.resolve('./runtime/server/search-index') })
 
     // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
     setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
