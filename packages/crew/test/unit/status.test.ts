@@ -84,8 +84,8 @@ describe('the apply notice', () => {
   }
 
   it('tells a waitlisted person they are on the waiting list, not that they applied', () => {
-    expect(rendered('waitlisted', 'en')).toEqual({ color: 'neutral', title: 'You\'re on the waiting list', description: 'You\'re on the waiting list. We will email you if a place opens up.' })
-    expect(rendered('waitlisted', 'da')).toEqual({ color: 'neutral', title: 'Du er på ventelisten', description: 'Du er på ventelisten. Vi sender dig en e-mail, hvis der bliver en plads.' })
+    expect(rendered('waitlisted', 'en')).toEqual({ color: 'neutral', title: 'You\'re on the waiting list', description: 'We will email you if a place opens up.' })
+    expect(rendered('waitlisted', 'da')).toEqual({ color: 'neutral', title: 'Du er på ventelisten', description: 'Vi sender dig en e-mail, hvis der bliver en plads.' })
     expect(rendered('waitlisted', 'en', true).title).toBe('You\'re on the waiting list')
   })
 

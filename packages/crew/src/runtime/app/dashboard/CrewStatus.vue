@@ -27,7 +27,7 @@ const entries = computed(() => {
 })
 
 const label = (value: CrewStatus) => t(`admin.statuses.${value}`, CREW_STATUS_LABELS[value])
-const color = (value: CrewStatus) => ({ approved: 'success', applied: 'info', waitlisted: 'warning', rejected: 'error', withdrawn: 'neutral' } as const)[value]
+const color = (value: CrewStatus) => ({ approved: 'success', applied: 'info', waitlisted: 'neutral', rejected: 'error', withdrawn: 'neutral' } as const)[value]
 </script>
 
 <template>
