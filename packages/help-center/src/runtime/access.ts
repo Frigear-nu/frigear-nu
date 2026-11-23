@@ -22,7 +22,7 @@ export const helpCenterAccess = defineAccess('help-center', {
     // Who read what exposes people, so no wildcard covers it.
     pii: {
       label: 'See who read what',
-      description: 'See the onboarding progress of people: which articles each person read. Never covered by a wildcard.',
+      description: 'See the onboarding progress of people: which articles each person read, and their emails in the search of the send form. Never covered by a wildcard.',
       sensitive: true,
       grantTo: ['admin'],
     },

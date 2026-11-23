@@ -55,7 +55,9 @@ export const helpCenterApi = {
     checklist: (id: string) => `${ADMIN_BASE}/checklists/${enc(id)}`,
     /** `GET` (paginated, needs `help-center:pii`) who read what for a checklist. */
     progress: (id: string) => `${ADMIN_BASE}/checklists/${enc(id)}/progress`,
-    /** `POST` `{ articleIds, audience, channels }` to send article links. */
+    /** `POST` `{ articleIds, audience, channels, fallbackToEmail? }` to send article links. */
     send: `${ADMIN_BASE}/send`,
+    /** `GET` `?q=` people for the send form's picker (`help-center:send`; emails with `help-center:pii`). */
+    users: `${ADMIN_BASE}/users`,
   },
 } as const
