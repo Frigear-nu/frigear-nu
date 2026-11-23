@@ -154,7 +154,6 @@
     },
     "apply": {
       "alreadyApplied": "You have applied already",
-      "appliedDescription": "Your application is {status}. We will email you when something changes.",
       "approved": "You are on the crew.",
       "closed": "Applications are closed",
       "description": "Tell us a little about yourself to join the crew.",
@@ -162,13 +161,16 @@
       "member": "You are on this crew already",
       "notFound": "Operation not found",
       "opensAt": "They open {date}.",
+      "receivedDescription": "We have received your application. We will email you when something changes.",
       "rejected": "Your application was not accepted",
       "rejectedDescription": "Thank you for applying. Contact the organisers if you have questions.",
       "scheduled": "Applications are not open yet",
       "seeStatus": "See your status",
       "thanks": "Thank you for applying",
       "title": "Apply to {operation}",
-      "unavailable": "This crew is not taking applications"
+      "unavailable": "This crew is not taking applications",
+      "waitlisted": "You're on the waiting list",
+      "waitlistedDescription": "You're on the waiting list. We will email you if a place opens up."
     },
     "dashboard": {
       "status": "My crew status",
