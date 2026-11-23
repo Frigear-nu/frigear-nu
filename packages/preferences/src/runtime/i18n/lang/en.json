@@ -1,0 +1,37 @@
+{
+  "preferences": {
+    "menu": {
+      "notifications": {
+        "label": "Notifications",
+        "description": "Choose how we reach you: email, SMS or push."
+      }
+    },
+    "notifications": {
+      "title": "Channels",
+      "description": "For each kind of message, choose which channels may reach you.",
+      "topic": "Message",
+      "channels": {
+        "email": "Email",
+        "sms": "SMS",
+        "push": "Push"
+      },
+      "notOffered": "This message does not use this channel.",
+      "noPhone": "Add a phone number to your profile to receive SMS.",
+      "pushHint": "Push notifications arrive in the app once you sign in there and allow notifications.",
+      "empty": "Nothing to choose yet",
+      "emptyDescription": "Messages you can choose channels for will show up here.",
+      "loadFailed": "Your notification settings could not be loaded",
+      "tryAgain": "Try again",
+      "updated": "Notifications updated",
+      "saveFailed": "Could not update your notifications"
+    },
+    "permissions": {
+      "notifications": "Your notification settings",
+      "notificationsDescription": "See and change which channels (email, SMS, push) reach you for each kind of message."
+    },
+    "scopes": {
+      "notifications": "Your notification settings",
+      "notificationsDescription": "See and change how you are notified."
+    }
+  }
+}

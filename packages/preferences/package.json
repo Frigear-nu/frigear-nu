@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/preferences",
   "version": "0.3.1",
-  "description": "Typed per-user preferences that modules and the host app register, stored on the user and optionally forwarded to OAuth applications as claims.",
+  "description": "Typed per-user preferences that modules and the host app register, stored on the user and optionally forwarded to OAuth applications as claims. Stores notification channel choices for notify and serves the account notifications page.",
   "homepage": "https://docs.frigear.dev/modules/identity/preferences",
   "repository": {
     "type": "git",
@@ -77,6 +77,8 @@
   "dependencies": {
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
+    "@frigear-nu/notify": "workspace:^",
+    "@frigear-nu/ui": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
@@ -85,16 +87,23 @@
     "zod": "^4.6.7"
   },
   "peerDependencies": {
+    "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/oauth-server": ">=0.0.1",
+    "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@frigear-nu/menu": {
+      "optional": true
+    },
     "@frigear-nu/oauth-server": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/oauth-server": "workspace:^",
+    "@nuxt/ui": "catalog:",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",
     "@nuxt/module-builder": "catalog:",
