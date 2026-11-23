@@ -2,10 +2,9 @@
 // so a module's server routes, its forms and its tests can all use them (`@frigear-nu/maps/schemas`).
 import { z } from 'zod'
 import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneGeometry, PlaneGeoreference, PlanePlacement } from '../types'
-import { MAX_PLANE_COORDINATE, validateGeometry } from './utils/geometry'
+import { MAX_PLANE_COORDINATE, validateGeometry, geometryPositions } from './utils/geometry'
 import { MAX_UNDERLAY_DIMENSION, isSameAppPath } from './utils/image'
 import { MAX_METERS_PER_UNIT, MIN_METERS_PER_UNIT, MIN_UNDERLAY_OPACITY, normalizeRotation } from './utils/georeference'
-import { geometryPositions } from './utils/geometry'
 
 /** The most corners an area may have. */
 export const MAX_AREA_CORNERS = 500

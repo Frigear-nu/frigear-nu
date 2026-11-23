@@ -29,6 +29,15 @@ export const isGeoLayout = (layout: Pick<PlaneFeatureCollection, 'crs'> | null |
 export const isPlacedLayout = (layout: Pick<PlaneFeatureCollection, 'crs'> | null | undefined, placement?: PlanePlacement | null) =>
   !!layout && (isGeoLayout(layout) || !!placement?.georeference)
 
+/**
+ * Whether a map showing `layout` is a plane or a geographic map: no layout or a `geo` layout is geographic, and a plane
+ * layout stays a plane unless its placement puts it on map tiles. The viewers key their canvas on it.
+ */
+export function canvasBase(layout: Pick<PlaneFeatureCollection, 'crs'> | null | undefined, placement: PlanePlacement | null | undefined): 'plane' | 'geo' {
+  if (!layout || layout.crs === 'geo') return 'geo'
+  return placement?.georeference && placement.underlayMode === 'tiles' ? 'geo' : 'plane'
+}
+
 /** The grid steps the editor offers in metres. */
 export const METRE_GRID_SIZES = [0.5, 1] as const
 
