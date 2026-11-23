@@ -216,7 +216,7 @@ const auditColumns = computed<TableColumn<InboxAuditDto>[]>(() => [
                 @click="async () => { if (data?.contact && await actions.eraseContact(data.contact)) await refreshAll() }"
               />
             </div>
-            <!-- Other modules' actions on the thread's person (crew's "Add to crew"): `extendWidgets(nuxt, 'inbox.thread.actions', ...)`. -->
+            <!-- Other modules' actions on the thread's person (crew's "Add to crew"): the `inbox.thread.actions` widget area (`extendWidgets` in a module). -->
             <WidgetArea
               v-if="!data.contact.erasedAt"
               name="inbox.thread.actions"
