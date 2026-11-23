@@ -126,6 +126,7 @@ Options go under the `authentication` key.
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
 | `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |
+| `settings.inviteTtl` | `number` | `604800` | Seconds an invite link stays valid: the single-use link staff email when they create a user (`POST /api/admin/users` of [Users](/modules/identity/users#create-a-user)). Default 7 days. Sign-in and sign-up links keep 2 hours. |
 | `settings.rateLimit` | `false \| { … }` | on | Throttles the anonymous sign-in routes, counted in NuxtHub KV. See below. |
 | `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
 | `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
