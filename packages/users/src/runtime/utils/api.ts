@@ -1,9 +1,9 @@
 // Typed paths of the module's HTTP routes, for app code, tests and docs (no string literals elsewhere).
 // Also published as `@frigear-nu/users/api`: unlike `@frigear-nu/users/utils` (which carries the build-time
 // `extendUsersAdmin`), it is safe to import from another module's app code.
-import type { AdminUserDto, ProfileDto } from '../../types'
+import type { AdminUserDto, ProfileDto, UserPickerOption } from '../../types'
 
-export type { AdminUserDto, ProfileDto }
+export type { AdminUserDto, ProfileDto, UserPickerOption }
 
 // The phone number rule, so another module's form checks a number as the users routes do.
 export { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from './phone'
