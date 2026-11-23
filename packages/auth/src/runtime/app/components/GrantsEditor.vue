@@ -12,6 +12,8 @@ const props = defineProps<{
   /** Only offer these kinds in the "Add" menu (a mailbox leaves out `public`). Grants already in the list stay. */
   kinds?: string[]
   disabled?: boolean
+  /** The line shown while the list is empty, for a list that is not about who sees a record (a send's recipients). */
+  emptyText?: string
 }>()
 const model = defineModel<Grant[]>({ default: () => [] })
 
@@ -79,7 +81,7 @@ function remove(index: number) {
     <p class="text-muted text-sm">
       {{ model.length
         ? t('grants.editor.any', 'Anyone who matches one of these sees it.')
-        : t('grants.editor.nobody', 'Nobody sees it yet: add who may.') }}
+        : emptyText ?? t('grants.editor.nobody', 'Nobody sees it yet: add who may.') }}
     </p>
 
     <div
