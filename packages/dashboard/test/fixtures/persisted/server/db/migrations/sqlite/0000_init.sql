@@ -6,6 +6,7 @@ CREATE TABLE `auth_user_tokens` (
 	`prefix` text NOT NULL,
 	`last4` text NOT NULL,
 	`scopes` text NOT NULL,
+	`permissions` text,
 	`expiresAt` integer,
 	`lastUsedAt` integer,
 	`revokedAt` integer,
@@ -20,8 +21,7 @@ CREATE TABLE `password_resets` (
 	`code` text NOT NULL,
 	`expiresAt` integer NOT NULL,
 	`usedAt` integer,
-	`createdAt` integer NOT NULL,
-	FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+	`createdAt` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `password_resets_code_unique` ON `password_resets` (`code`);--> statement-breakpoint
@@ -29,14 +29,19 @@ CREATE INDEX `password_reset_user_idx` ON `password_resets` (`userId`);--> state
 CREATE TABLE `users` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,
+	`searchText` text DEFAULT '' NOT NULL,
 	`email` text NOT NULL,
-	`password` text,
 	`avatar` text,
-	`emailVerifiedAt` integer,
-	`lastLoginAt` integer,
+	`phone` text,
+	`locale` text,
+	`accepted_terms_at` integer,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
-	`preferences` text
+	`preferences` text,
+	`password` text,
+	`emailVerifiedAt` integer,
+	`lastLoginAt` integer,
+	`sessionVersion` integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);
