@@ -1901,6 +1901,22 @@ describe('shifts (authenticated, database-backed)', async () => {
       // Titles fall back to the plain `title` without translations; each frame has its own.
       for (const title of ['My crew status', 'My next shift', 'My team on shift now', 'Open swaps', 'Upcoming operations', 'My teams']) expect(rendered).toContain(title)
     }, 180_000)
+
+    it('adds My shifts and Swaps to the crew home in the hub, and redirects /shifts and /shifts/swaps to them', async () => {
+      const volunteer = await user('Tabvol')
+      const home = await (await fetch('/dashboard/crew', { headers: { cookie: volunteer.cookie } })).text()
+      const tabs = [...home.matchAll(/id="tab-crew\.dashboard-([\w-]+)"/g)].map(match => match[1])
+      expect(tabs).toEqual(['overview', 'status', 'shifts', 'swaps'])
+      const mine = await (await fetch('/dashboard/crew?tab=shifts', { headers: { cookie: volunteer.cookie } })).text()
+      expect(mine).toContain('No shifts yet')
+      const swaps = await (await fetch('/dashboard/crew?tab=swaps', { headers: { cookie: volunteer.cookie } })).text()
+      expect(swaps).toContain('No open swaps for you')
+      for (const [path, location] of [['/shifts', '/dashboard/crew?tab=shifts'], ['/shifts/swaps', '/dashboard/crew?tab=swaps']]) {
+        const response = await fetch(path!, { redirect: 'manual' })
+        expect(response.status, path).toBe(302)
+        expect(response.headers.get('location'), path).toBe(location)
+      }
+    }, 180_000)
   })
 
   describe('notifyUser (notify, with preferences and push installed in this fixture)', () => {

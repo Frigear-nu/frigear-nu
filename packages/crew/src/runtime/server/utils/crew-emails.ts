@@ -3,7 +3,8 @@ import type { EmailNotification } from '@frigear-nu/notify/types'
 import { localizePath } from '@frigear-nu/module-kit/server'
 import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 import type { CrewMemberDto, CrewStatus, Translated } from '../../../types'
-import { CREW_STATUS_LABELS, translate } from '../../utils'
+import { CREW_STATUS_LABELS, crewStatusPath, translate } from '../../utils'
+import type { CrewPages } from '../../utils'
 import type { CrewSettingsRow } from './crew-settings'
 import { crewSend } from './crew-send'
 
@@ -178,8 +179,9 @@ export function buildCrewStatusEmail(input: {
 export async function crewSendStatusEmail(event: H3Event, input: Omit<Parameters<typeof buildCrewStatusEmail>[0], 'statusUrl'> & { userId: number }): Promise<void> {
   try {
     const { userId, ...rest } = input
-    const config = useRuntimeConfig(event).public.crew as { pages?: { status?: string }, i18n?: LocaleRouting | null } | undefined
-    const statusPath = config?.pages?.status
+    const config = useRuntimeConfig(event).public.crew as { pages?: CrewPages, i18n?: LocaleRouting | null } | undefined
+    // The status page, or the My crew tab of the crew home when the status lives there.
+    const statusPath = crewStatusPath(config?.pages)
     // The page in the person's language: the locale prefix the site's routes use for it.
     const statusUrl = statusPath ? `${configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin}${localizePath(statusPath, rest.locale, config?.i18n)}` : undefined
     const notification = buildCrewStatusEmail({ ...rest, statusUrl })

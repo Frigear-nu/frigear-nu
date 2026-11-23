@@ -195,9 +195,9 @@
       "unknown": "This invite link is not valid"
     },
     "menu": {
-      "status": {
-        "description": "Your applications and crew places.",
-        "label": "My crew"
+      "home": {
+        "label": "Crew",
+        "description": "Your crew places, your shifts and swaps."
       }
     },
     "mobile": {
@@ -231,7 +231,11 @@
     "tryAgain": "Try again",
     "home": {
       "title": "Crew",
-      "description": "What is happening for you on the crew."
+      "description": "Your crew places, your shifts and what is happening for you.",
+      "tabs": {
+        "overview": "Overview",
+        "status": "My crew"
+      }
     }
   }
 }
