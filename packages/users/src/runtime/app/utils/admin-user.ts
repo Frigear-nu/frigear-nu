@@ -1,5 +1,5 @@
 // The shapes of the users admin API, shared by the admin pages, their tabs and `useUserActions`.
-import type { AdminUserDto } from '../../../types'
+import type { AdminUserDto, UserPickerOption } from '../../../types'
 
 export type UserSubscription = { planKey: string | null, status: string }
 
@@ -38,3 +38,6 @@ export type UserSubject = Pick<UserRow, 'id' | 'name' | 'emailVerifiedAt'>
 
 /** The key of the list's `useFetch`, refreshed after a user is created or deleted. */
 export const ADMIN_USERS_KEY = 'admin-users'
+
+/** What the create form closes with: the created user, the existing user staff chose after a 409, or `false` (cancelled). */
+export type UserCreateResult = UserRow | { existing: UserPickerOption } | false
