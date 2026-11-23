@@ -419,6 +419,21 @@ describe('operations (authenticated, database-backed)', async () => {
       expect((await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).placement).toBeNull()
     })
 
+    it('draws the placed venue layout over the site map of the public page', async () => {
+      const operation = await createOperation({ public: true, location: { point: { lat: 10.5, lng: 20.25 }, radiusMeters: 150 } })
+      const siteMap = async () => {
+        const html = await (await fetch(`/operations/${operation.slug}`)).text()
+        return html.match(/<div[^>]*data-maps-viewer[^>]*>/)?.[0] ?? ''
+      }
+      await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')] } }))
+      // Not placed yet: the site map shows the location only.
+      expect(await siteMap()).toContain('data-overlay-count="0"')
+      await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement: { georeference: { origin: { lat: 10.5, lng: 20.25 }, rotation: 15, metersPerUnit: 0.1 } } }))
+      const placed = await siteMap()
+      expect(placed).toContain('data-base="geo"')
+      expect(placed).toContain('data-overlay-count="1"')
+    })
+
     it('keeps the placement to staff with operations:manage', async () => {
       const operation = await createOperation({ public: true })
       const plain = await user('Placementplain')
