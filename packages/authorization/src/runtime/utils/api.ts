@@ -3,9 +3,11 @@
 // The caller's own access (`GET /api/auth/me/access`) belongs to `@frigear-nu/auth`: `authApi.me.access`.
 import type {
   AuthorizationAssignedRoleDto,
+  AuthorizationMatrixPermissionDto,
   AuthorizationPermissionGrant,
   AuthorizationPermissionSource,
   AuthorizationRoleDto,
+  AuthorizationRoleMatrixDto,
   AuthorizationRolePermissionDto,
   AuthorizationRoleSummaryDto,
   AuthorizationRoleUserDto,
@@ -16,9 +18,11 @@ import type {
 
 export type {
   AuthorizationAssignedRoleDto,
+  AuthorizationMatrixPermissionDto,
   AuthorizationPermissionGrant,
   AuthorizationPermissionSource,
   AuthorizationRoleDto,
+  AuthorizationRoleMatrixDto,
   AuthorizationRolePermissionDto,
   AuthorizationRoleSummaryDto,
   AuthorizationRoleUserDto,
@@ -35,6 +39,8 @@ export const authorizationApi = {
   admin: {
     /** `GET`: every configured role (`roles:read`). */
     roles: `${adminBase}/roles`,
+    /** `GET`: every role against every registered permission, with why each role holds each (`roles:read`). */
+    matrix: `${adminBase}/matrix`,
     /** `GET`: one role with every registered permission and why it holds it; 404 for an unknown role. */
     role,
     /** `GET`: the users with an assigned row for `name`, paginated (`useTableQuery` keys). */

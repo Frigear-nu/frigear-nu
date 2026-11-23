@@ -1,9 +1,11 @@
 import { matches } from '@frigear-nu/auth/utils'
 import type { CompiledRole, PermissionRegistry, ResolvedPermission, RoleTable } from '@frigear-nu/auth/utils'
 import type {
+  AuthorizationMatrixPermissionDto,
   AuthorizationPermissionGrant,
   AuthorizationPermissionSource,
   AuthorizationRoleDto,
+  AuthorizationRoleMatrixDto,
   AuthorizationRolePermissionDto,
   AuthorizationRoleSummaryDto,
 } from '../../types'
@@ -59,6 +61,7 @@ export function toRoleSummary(role: CompiledRole, userCount: number, table: Role
     assignable: role.assignable,
     userCount,
     permissionCount: heldPermissionCount(role, table, registry),
+    from: role.from ?? null,
   }
 }
 
@@ -68,7 +71,8 @@ export function permissionSources(role: CompiledRole, permission: string): Autho
   return sources.map(source => (source.from ? { via: source.via, from: source.from } : { via: source.via }))
 }
 
-export function toRolePermission(role: CompiledRole, permission: ResolvedPermission, table: RoleTable, registry: PermissionRegistry): AuthorizationRolePermissionDto {
+/** A registered permission without a role's view of it (the matrix rows). */
+export function toMatrixPermission(permission: ResolvedPermission): AuthorizationMatrixPermissionDto {
   return {
     name: permission.name,
     label: permission.label ?? null,
@@ -79,8 +83,35 @@ export function toRolePermission(role: CompiledRole, permission: ResolvedPermiss
     sensitive: permission.sensitive,
     sessionOnly: permission.sessionOnly,
     implicit: permission.implicit,
+    from: permission.from ?? null,
+  }
+}
+
+export function toRolePermission(role: CompiledRole, permission: ResolvedPermission, table: RoleTable, registry: PermissionRegistry): AuthorizationRolePermissionDto {
+  return {
+    ...toMatrixPermission(permission),
     grant: permissionGrant(role, permission, table, registry),
     sources: permissionSources(role, permission.name),
+  }
+}
+
+/** Every role against every registered permission, in display order; a cell only where the role holds the permission. */
+export function toRoleMatrix(table: RoleTable, registry: PermissionRegistry, userCounts: ReadonlyMap<string, number> = new Map()): AuthorizationRoleMatrixDto {
+  const roles = sortedRoles(table)
+  const permissions = sortedPermissions(registry)
+  const cells: AuthorizationRoleMatrixDto['cells'] = {}
+  for (const role of roles) {
+    const row: Record<string, AuthorizationPermissionGrant> = {}
+    for (const permission of permissions) {
+      const grant = permissionGrant(role, permission, table, registry)
+      if (grant) row[permission.name] = grant
+    }
+    cells[role.name] = row
+  }
+  return {
+    roles: roles.map(role => toRoleSummary(role, userCounts.get(role.name) ?? 0, table, registry)),
+    permissions: permissions.map(toMatrixPermission),
+    cells,
   }
 }
 

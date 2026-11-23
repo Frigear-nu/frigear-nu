@@ -92,6 +92,8 @@ export interface AuthorizationRoleSummaryDto {
   userCount: number
   /** Registered permissions it holds: granted, inherited and implicit (the role detail's held rows). */
   permissionCount: number
+  /** The module that defines the role; `null` when only the app defines it. */
+  from: string | null
 }
 
 /** A registered permission as one role sees it. */
@@ -108,6 +110,8 @@ export interface AuthorizationRolePermissionDto {
   sessionOnly: boolean
   /** Every signed-in user holds it. */
   implicit: boolean
+  /** The module that registered it; `null` for the app's own permissions. */
+  from: string | null
   grant: AuthorizationPermissionGrant | null
   /** Where the role's grant of it comes from (host config, a module, a module's `grantTo`, an inherited role). */
   sources: AuthorizationPermissionSource[]
@@ -118,6 +122,17 @@ export interface AuthorizationPermissionSource {
   via: 'host' | 'module' | 'grantTo' | 'inherit'
   /** The module name (`module`, `grantTo`) or role name (`inherit`). */
   from?: string
+}
+
+/** A registered permission as a row of the role matrix. */
+export type AuthorizationMatrixPermissionDto = Omit<AuthorizationRolePermissionDto, 'grant' | 'sources'>
+
+/** `GET /api/admin/authorization/matrix`: every role against every registered permission. */
+export interface AuthorizationRoleMatrixDto {
+  roles: AuthorizationRoleSummaryDto[]
+  permissions: AuthorizationMatrixPermissionDto[]
+  /** Role name -> permission name -> why the role holds it. A permission the role does not hold is left out. */
+  cells: Record<string, Record<string, AuthorizationPermissionGrant>>
 }
 
 /** `GET /api/admin/authorization/roles/:name`. */

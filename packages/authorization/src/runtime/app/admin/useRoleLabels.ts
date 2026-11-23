@@ -46,18 +46,21 @@ export function useRoleLabels() {
   }
   const grantColors = { granted: 'primary', inherited: 'neutral', implicit: 'info' } as const
 
+  /** The module behind a role or permission, without its npm scope (`@frigear-nu/events` reads `events`); `App` for the app's own. */
+  const moduleLabel = (from: string | null | undefined) => from ? from.replace(/^@[^/]+\//, '') : t('admin.app', 'App')
+
   /** Where a role's grant comes from (auth's provenance): Host config, Module events, Inherited from User. */
   const provenanceLabel = (source: AuthorizationPermissionSource, labelOf: (name: string) => string = name => name) => {
     switch (source.via) {
       case 'host': return t('admin.provenance.host', 'Host config')
-      case 'module': return t('admin.provenance.module', 'Module {module}', { module: source.from ?? '' }).trim()
-      case 'grantTo': return t('admin.provenance.grantTo', 'Default of {module}', { module: source.from ?? '' }).trim()
+      case 'module': return t('admin.provenance.module', 'Module {module}', { module: moduleLabel(source.from) })
+      case 'grantTo': return t('admin.provenance.grantTo', 'Default of {module}', { module: moduleLabel(source.from) })
       case 'inherit': return t('admin.provenance.inherit', 'Inherited from {role}', { role: source.from ? labelOf(source.from) : '' }).trim()
     }
   }
   const provenanceColors = { host: 'primary', module: 'info', grantTo: 'success', inherit: 'neutral' } as const
 
-  return { t, translated, provenanceLabel, provenanceColors, rolesPath, rolePath, userPath, roleLabel, kindOf, kindLabel, kindColors, sourceLabel, sourceColors, grantLabel, grantColors }
+  return { t, translated, moduleLabel, provenanceLabel, provenanceColors, rolesPath, rolePath, userPath, roleLabel, kindOf, kindLabel, kindColors, sourceLabel, sourceColors, grantLabel, grantColors }
 }
 
 /** A tab kept in the URL (`?tab=`), so a tab can be linked and survives a reload. The first value is the default. */
