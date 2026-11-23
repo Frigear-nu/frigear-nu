@@ -8,6 +8,13 @@
       "when": 1795437959106,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1795442237939,
+      "tag": "0001_operations_venue_placement",
+      "breakpoints": true
     }
   ]
 }
