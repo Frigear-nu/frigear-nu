@@ -218,6 +218,13 @@
       "when": 1795382719474,
       "tag": "0030_search_text",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1795436346010,
+      "tag": "0031_help_category_kind",
+      "breakpoints": true
     }
   ]
 }
