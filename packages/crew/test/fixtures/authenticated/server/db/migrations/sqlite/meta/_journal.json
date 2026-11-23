@@ -43,6 +43,13 @@
       "when": 1795382155110,
       "tag": "0005_search_text",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795439576240,
+      "tag": "0006_operations_venue_placement",
+      "breakpoints": true
     }
   ]
 }
