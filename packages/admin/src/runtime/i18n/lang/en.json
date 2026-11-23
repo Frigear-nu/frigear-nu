@@ -24,7 +24,23 @@
     },
     "permissions": {
       "access": "Access the admin area",
-      "accessDescription": "Open the pages under the admin area. The data behind them checks its own permissions."
+      "accessDescription": "Open the pages under the admin area. The data behind them checks its own permissions.",
+      "reindex": "Rebuild search",
+      "reindexDescription": "Recompute the search columns of every table that has them."
+    },
+    "searchIndex": {
+      "title": "Search",
+      "description": "Rebuild the search columns after an update.",
+      "section": "Search index",
+      "action": "Rebuild search",
+      "hint": "Run it once after a deploy whose notes ask for it, or when a search for a name with æ, ø or å misses records. It changes no data, only the columns search reads.",
+      "confirm": {
+        "title": "Rebuild search?",
+        "description": "Every row of the searchable tables is read again, and its search columns are rewritten where they differ. On large tables it takes a while; search keeps working meanwhile."
+      },
+      "done": "Search rebuilt: {updated} rows updated",
+      "table": "{table}: {scanned} read, {updated} updated",
+      "error": "Could not rebuild search."
     }
   }
 }
