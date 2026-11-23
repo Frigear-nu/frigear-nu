@@ -1,26 +1,36 @@
 <script setup lang="ts">
 import type { FeatureGroup, GeoJSON, Layer, Map as LeafletMap } from 'leaflet'
 import { kinds } from '#maps/registry'
-import { createMap, dotIcon, escapeHtml, featureColor, geometryLayer, isLabelFeature, loadLeaflet, planeBounds, underlayLayer } from '../utils/leaflet'
+import { createMap, dotIcon, escapeHtml, featureColor, geometryLayer, isLabelFeature, loadLeaflet, placedImageLayer, planeBounds, underlayCorners, underlayLayer } from '../utils/leaflet'
 import type { LeafletModule } from '../utils/leaflet'
 import type { MapLiveLayer } from '../composables/useMapLiveLayers'
-import { geometryAnchor, planeExtentOf } from '../../utils/geometry'
+import { geometryAnchor, geometryPositions, planeExtentOf } from '../../utils/geometry'
 import { DEFAULT_GEO_CENTER, geoBounds, locationBounds } from '../../utils/geo'
+import { canvasBase, geometryToGeo, isGeoLayout, layoutToGeo, underlayModeOf, underlayOpacityOf } from '../../utils/georeference'
 import { isSameAppPath } from '../../utils/image'
-import type { MapSelection, MapViewerLocation, PlaneFeature, PlaneFeatureCollection, Translated } from '../../../types'
+import type { MapSelection, MapViewerLocation, MapViewerOverlay, PlaneFeature, PlaneFeatureCollection, PlaneGeometry, PlaneGeoreference, PlanePlacement, Translated } from '../../../types'
 import { onBeforeUnmount, onMounted, ref, useMapsTranslate, useModuleT, useRuntimeConfig, useTemplateRef, watch } from '#imports'
 
 defineOptions({ name: 'MapsCanvas' })
 
-// The read-only Leaflet canvas behind `<MapViewer>` and `<MapMobileViewer>`: a plane layout (`layout`) or geographic
-// locations (`locations`), plus the live layers the parent fetched. Browser only: the parent renders it inside
-// `<ClientOnly>`, and Leaflet is imported in `onMounted`.
+// The read-only Leaflet canvas behind `<MapViewer>` and `<MapMobileViewer>`. It is a plane (`CRS.Simple`) for a plane
+// layout, and a geographic map with tiles for locations, overlays, a `geo` layout, or a placed plane layout shown on
+// map tiles (`placement.underlayMode: 'tiles'`). Browser only: the parent renders it inside `<ClientOnly>`, and
+// Leaflet is imported in `onMounted`.
 const props = defineProps<{
   layout?: PlaneFeatureCollection | null
+  /** The plane layout's placement: its underlay, and where it lies when shown on tiles. */
+  placement?: PlanePlacement | null
   locations?: MapViewerLocation[]
+  /** Layouts drawn over the geographic map (placed plane layouts and `geo` layouts). */
+  overlays?: MapViewerOverlay[]
+  /** Ids of overlays that are turned off. */
+  hiddenOverlays?: string[]
   liveLayers?: MapLiveLayer[]
   /** Ids of live layers that are turned off. */
   hiddenLayers?: string[]
+  /** Live layers return plane positions: place them through this georeference (a placed plane on a geographic map). */
+  liveGeoreference?: PlaneGeoreference | null
   /** A feature or location id to focus. */
   focus?: string | null
 }>()
@@ -36,40 +46,61 @@ const failed = ref(false)
 let L: LeafletModule | undefined
 let map: LeafletMap | undefined
 let content: FeatureGroup | undefined
-let underlay: Layer | undefined
+const background: Layer[] = []
 const live = new Map<string, GeoJSON>()
 const targets = new Map<string, Layer & { getLatLng?: () => unknown, getBounds?: () => unknown, openPopup?: () => void }>()
 let disposed = false
 
-const isPlane = () => !!props.layout
+/** Whether the canvas is a plane (`CRS.Simple`); the viewers key it on `canvasBase`, so this is fixed per mount. */
+const isPlane = () => canvasBase(props.layout, props.placement) === 'plane'
 
 function title(label: Translated | null | undefined, fallback: string) {
   return tr(label) || fallback
 }
 
-function selectFeature(feature: PlaneFeature) {
-  emit('select', { source: 'feature', id: feature.id, kind: feature.kind, label: feature.label ?? null, properties: feature.properties })
+function selectFeature(feature: PlaneFeature, overlay?: string) {
+  emit('select', { source: 'feature', id: feature.id, kind: feature.kind, label: feature.label ?? null, properties: feature.properties, ...(overlay ? { overlay } : {}) })
+}
+
+/** The layout's features in the canvas's coordinates: as stored on a plane, placed through the georeference on tiles. */
+function layoutGeometry(geometry: PlaneGeometry): PlaneGeometry {
+  const georeference = props.placement?.georeference
+  if (isPlane() || isGeoLayout(props.layout) || !georeference) return geometry
+  return geometryToGeo(geometry, georeference)
+}
+
+function featureLayer(feature: PlaneFeature, geometry: PlaneGeometry, opacity = 1): Layer {
+  const kind = kinds[feature.kind]
+  const label = title(feature.label, tr(kind?.label) || feature.kind)
+  const layer = geometryLayer(L!, geometry, {
+    color: featureColor(feature.properties.color, kind?.color),
+    label,
+    labelSize: feature.properties.size,
+    asLabel: isLabelFeature(feature),
+  })
+  if (opacity < 1) {
+    const styled = layer as Layer & { setStyle?: (style: Record<string, number>) => void, setOpacity?: (value: number) => void }
+    if (styled.setStyle) styled.setStyle({ opacity, fillOpacity: 0.25 * opacity })
+    else styled.setOpacity?.(opacity)
+  }
+  layer.bindPopup(`<strong>${escapeHtml(label)}</strong>`)
+  return layer
 }
 
 function renderContent() {
   if (!L || !map) return
   content?.remove()
-  underlay?.remove()
-  underlay = undefined
+  for (const layer of background.splice(0)) layer.remove()
   targets.clear()
   content = L.featureGroup().addTo(map)
-  if (props.layout) {
-    if (props.layout.underlay && isSameAppPath(props.layout.underlay.url)) underlay = underlayLayer(L, props.layout.underlay).addTo(map)
-    for (const feature of props.layout.features) {
-      const kind = kinds[feature.kind]
-      const label = title(feature.label, tr(kind?.label) || feature.kind)
-      const layer = geometryLayer(L, feature.geometry, {
-        color: featureColor(feature.properties.color, kind?.color),
-        label,
-        labelSize: feature.properties.size,
-        asLabel: isLabelFeature(feature),
-      })
-      layer.bindPopup(`<strong>${escapeHtml(label)}</strong>`)
+  const layout = props.layout
+  if (layout) {
+    const mode = isGeoLayout(layout) ? 'none' : underlayModeOf(layout, props.placement)
+    if (isPlane() && mode === 'image' && layout.underlay && isSameAppPath(layout.underlay.url)) {
+      background.push(underlayLayer(L, layout.underlay, underlayOpacityOf(props.placement)).addTo(map))
+    }
+    for (const feature of layout.features) {
+      const layer = featureLayer(feature, layoutGeometry(feature.geometry))
       layer.on('click', (event) => {
         L!.DomEvent.stopPropagation(event)
         selectFeature(feature)
@@ -77,7 +108,27 @@ function renderContent() {
       content.addLayer(layer)
       targets.set(feature.id, layer)
     }
-    return
+  }
+  if (isPlane()) return
+  for (const overlay of props.overlays ?? []) {
+    if (props.hiddenOverlays?.includes(overlay.id)) continue
+    const placed = layoutToGeo(overlay.layout, overlay.placement)
+    if (!placed) continue
+    const georeference = overlay.placement?.georeference
+    const image = overlay.layout.underlay
+    if (overlay.image !== false && georeference && image && isSameAppPath(image.url) && underlayModeOf(overlay.layout, overlay.placement) === 'image') {
+      background.push(placedImageLayer(L, image, underlayCorners(image, georeference), { opacity: underlayOpacityOf(overlay.placement) }).addTo(map))
+    }
+    const opacity = Math.min(1, Math.max(0.1, overlay.opacity ?? 1))
+    for (const feature of placed.features) {
+      const layer = featureLayer(feature, feature.geometry, opacity)
+      layer.on('click', (event) => {
+        L!.DomEvent.stopPropagation(event)
+        selectFeature(feature, overlay.id)
+      })
+      content.addLayer(layer)
+      targets.set(`${overlay.id}:${feature.id}`, layer)
+    }
   }
   for (const entry of props.locations ?? []) {
     const color = featureColor(entry.color, null)
@@ -140,8 +191,12 @@ function renderLive() {
       live.set(layer.id, group)
     }
     group.clearLayers()
-    // Draw what is valid on this surface: anything else is dropped rather than breaking the map.
-    const features = (layer.collection?.features ?? []).filter(feature => geometryAnchor(feature?.geometry) !== null)
+    // Draw what is valid on this surface: anything else is dropped rather than breaking the map. Plane positions on a
+    // geographic map go through the placement.
+    const georeference = isPlane() ? null : props.liveGeoreference
+    const features = (layer.collection?.features ?? [])
+      .filter(feature => geometryAnchor(feature?.geometry) !== null)
+      .map(feature => georeference ? { ...feature, geometry: geometryToGeo(feature.geometry, georeference) } : feature)
     group.addData({ type: 'FeatureCollection', features } as Parameters<GeoJSON['addData']>[0])
     const hidden = props.hiddenLayers?.includes(layer.id)
     if (hidden && map.hasLayer(group)) group.remove()
@@ -149,32 +204,49 @@ function renderLive() {
   }
 }
 
-/** What `fit()` fits to: the plane extent, or the bounds of the locations. A content change refits when it changes. */
+/** Every `[lng, lat]` the geographic canvas shows, for fitting the view. */
+function geoPoints() {
+  const points: { lat: number, lng: number }[] = []
+  for (const entry of props.locations ?? []) {
+    const [[south, west], [north, east]] = locationBounds(entry.location)
+    points.push({ lat: south, lng: west }, { lat: north, lng: east })
+  }
+  const add = (geometry: PlaneGeometry) => {
+    for (const [lng, lat] of geometryPositions(geometry)) points.push({ lat, lng })
+  }
+  for (const feature of props.layout?.features ?? []) add(layoutGeometry(feature.geometry))
+  for (const overlay of props.overlays ?? []) {
+    if (props.hiddenOverlays?.includes(overlay.id)) continue
+    for (const feature of layoutToGeo(overlay.layout, overlay.placement)?.features ?? []) add(feature.geometry)
+  }
+  return points
+}
+
+/** What `fit()` fits to; a content change refits only when it changes. */
 function boundsKey(): string {
-  if (props.layout) return JSON.stringify(planeExtentOf(props.layout))
-  return JSON.stringify((props.locations ?? []).map(entry => locationBounds(entry.location)))
+  if (isPlane()) return JSON.stringify(planeExtentOf(props.layout))
+  return JSON.stringify(geoBounds(geoPoints()))
 }
 let fitted: string | undefined
 
-/** Fits the view to the layout's plane, or to the locations (the default centre without any). */
+/** Fits the view to the layout's plane, or to everything on the geographic map (the default centre without anything). */
 function fit() {
   if (!map) return
   fitted = boundsKey()
-  if (props.layout) {
+  if (isPlane()) {
     map.fitBounds(planeBounds(planeExtentOf(props.layout)), { padding: [16, 16] })
     return
   }
-  const bounds = (props.locations ?? []).map(entry => locationBounds(entry.location))
-  const all = geoBounds(bounds.flatMap(([[south, west], [north, east]]) => [{ lat: south, lng: west }, { lat: north, lng: east }]))
+  const all = geoBounds(geoPoints())
   if (!all) {
     map.setView((config?.defaultCenter?.center ?? DEFAULT_GEO_CENTER.center) as [number, number], config?.defaultCenter?.zoom ?? DEFAULT_GEO_CENTER.zoom)
     return
   }
   if (all[0][0] === all[1][0] && all[0][1] === all[1][1]) map.setView(all[0], 17)
-  else map.fitBounds(all, { padding: [24, 24], maxZoom: 18 })
+  else map.fitBounds(all, { padding: [24, 24], maxZoom: 19 })
 }
 
-/** Centres on a feature or location and opens its popup. */
+/** Centres on a feature or location (an overlay's feature is `<overlay>:<feature>`) and opens its popup. */
 function focusOn(id: string): boolean {
   const target = targets.get(id)
   if (!map || !target) return false
@@ -210,11 +282,11 @@ onMounted(async () => {
 })
 
 // The CRS (plane or geographic) is chosen at mount: the viewers key this canvas on it, so switching remounts.
-watch(() => [props.layout, props.locations], () => {
+watch(() => [props.layout, props.placement, props.locations, props.overlays, props.hiddenOverlays], () => {
   renderContent()
   if (map && boundsKey() !== fitted) fit()
 }, { deep: true })
-watch(() => [props.liveLayers, props.hiddenLayers], () => renderLive())
+watch(() => [props.liveLayers, props.hiddenLayers, props.liveGeoreference], () => renderLive())
 watch(() => props.focus, (id) => {
   if (id) focusOn(id)
 })
