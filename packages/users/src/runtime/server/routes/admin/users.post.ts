@@ -44,8 +44,10 @@ export default defineEventHandler(async (event) => {
     throw apiError(500, 'internal_error', 'Failed to create the user.')
   }
 
-  // The user has no password: the emailed single-use invite link (which also verifies the address) signs them in.
-  if (input.sendWelcomeEmail) {
+  // The user has no password: the emailed single-use invite link (which also verifies the address) signs them in. In
+  // Auth's resource mode people sign in at the issuer, which matches them to this user by their verified email, so no
+  // link is sent.
+  if (input.sendWelcomeEmail && useRuntimeConfig(event).public.authentication?.mode !== 'resource') {
     await sendVerificationLink(event, user, { invite: true })
   }
 

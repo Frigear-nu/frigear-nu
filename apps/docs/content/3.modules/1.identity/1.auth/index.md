@@ -13,7 +13,9 @@ through yours, add [OAuth Server](/modules/identity/oauth-server) as well.
 The package is `@frigear-nu/auth`. It runs in [server mode](/guide/concepts/glossary) by default: people sign in on your
 app's own server and stay signed in through a cookie [session](/guide/concepts/glossary). An app without a server of
 its own, such as a single-page application (SPA) or a Capacitor app, uses
-[client mode](/modules/identity/auth/client-mode).
+[client mode](/modules/identity/auth/client-mode). An app with its own server but no sign-in of its own, such as a
+desktop app that bundles its server, uses [resource mode](/modules/identity/auth/resource-mode): people sign in at an
+issuer, and the server accepts the issuer's access tokens.
 
 ## What you get
 
@@ -36,9 +38,10 @@ its own, such as a single-page application (SPA) or a Capacitor app, uses
 
 ::note
 **Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/communication/notify) and
-`nuxt-auth-utils`; in client mode, `@frigear-nu/module-kit` only.
+`nuxt-auth-utils`; in client mode, `@frigear-nu/module-kit` only; in resource mode, `@frigear-nu/module-kit` and Notify.
 
-**You add:** `@nuxthub/core` in server mode.
+**You add:** `@nuxthub/core` in server mode; `@nuxthub/core` and
+[`@frigear-nu/oauth-resource`](/modules/identity/oauth-resource) in resource mode.
 
 **Optional:** [`@frigear-nu/menu`](/modules/interface/menu) (the sign-out item), `@nuxt/ui` (the shipped pages),
 `@simplewebauthn/browser` and `@simplewebauthn/server` (passkeys), and
@@ -111,8 +114,8 @@ Options go under the `authentication` key.
 
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `mode` | `'server' \| 'client'` | `'server'` | Server mode or [client mode](/modules/identity/auth/client-mode). |
-| `client` | `ClientModuleOptions` | – | Client mode only: the issuer and how the app talks to it. |
+| `mode` | `'server' \| 'client' \| 'resource'` | `'server'` | Server mode, [client mode](/modules/identity/auth/client-mode) or [resource mode](/modules/identity/auth/resource-mode). |
+| `client` | `ClientModuleOptions` | – | Client and resource mode: the issuer and how the app talks to it. |
 | `apiTokens` | `boolean \| { prefix?: string }` | `true` | API tokens. `false` turns them off. |
 | `apiTokens.prefix` | `string` | `'fnu_'` | What new API tokens start with. See [API tokens](/modules/identity/auth/server#user-api-tokens). |
 | `apiTokens.revokeOnReset` | `boolean` | `true` | Revoke a user's API tokens when their password is reset by email or an email change is undone. |
@@ -228,6 +231,7 @@ Without `@nuxt/ui`, add your own page at that path that posts the `code`.
 | [Reference](/modules/identity/auth/reference) | Composables, hooks, routes, database tables and translations. | App developers, server mode |
 | [OAuth providers](/modules/identity/auth/oauth-providers) | Sign-in through GitHub, Google, frigear.nu or any OpenID Connect provider, and kept provider tokens. | App developers, server mode |
 | [Client mode](/modules/identity/auth/client-mode) | Sign-in for an SPA or a Capacitor app at an issuer, with tokens instead of a session. | App developers, client mode |
+| [Resource mode](/modules/identity/auth/resource-mode) | Client mode's sign-in, plus a server of your own that accepts the issuer's access tokens. | App developers, resource mode |
 
 ## Next steps
 

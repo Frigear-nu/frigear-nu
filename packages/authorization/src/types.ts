@@ -31,8 +31,8 @@ export interface ModuleOptions {
   /** Roles every signed-in user holds (never `auto` roles). They cannot be assigned. */
   defaultRoles?: RoleName[]
   /**
-   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
-   * server mode, or set `false` in client mode, to show a 401 error instead.
+   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client and resource
+   * mode; omit it in server mode, or set `false` in client or resource mode, to show a 401 error instead.
    */
   redirectTo?: string | false
   /**
@@ -58,7 +58,10 @@ export interface PublicModuleOptions {
   /** Auth's anonymous entry points (`public.authentication.publicPaths`): less specific guards stop there. */
   exempt?: string[]
   redirectTo?: string
-  /** Client mode: there is no server here, access comes from the issuer. */
+  /**
+   * Client and resource mode: the session lives in the browser and `access` comes through Auth's `$authAccess` (the
+   * issuer in client mode, this app's own server in resource mode).
+   */
   client?: boolean
   /** The admin pages (with `@frigear-nu/admin`). */
   pages?: { roles?: string }

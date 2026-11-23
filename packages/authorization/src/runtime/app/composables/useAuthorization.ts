@@ -23,7 +23,8 @@ type AuthClientAccess = () => Promise<AccessDto | null>
  *
  * In client mode (`authentication.mode: 'client'`, such as `@frigear-nu/mobile`) `access` comes from the issuer's
  * `GET /api/auth/me/access` with the bearer access token, or, when the issuer has no such endpoint (a 404, offline),
- * from the access token's `permissions` claim, decoded without verification.
+ * from the access token's `permissions` claim, decoded without verification. In resource mode (`'resource'`) it comes
+ * from this app's own `GET /api/auth/me/access`, with the bearer access token.
  *
  * Every check here is UI only (what to show, which page to open): the server enforces the permissions on each request.
  */

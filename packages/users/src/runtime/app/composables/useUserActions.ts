@@ -79,7 +79,8 @@ export function useUserActions() {
     if (options.open !== false) {
       first.push({ label: t('admin.open', 'Open'), icon: 'i-lucide-arrow-right', to: userPath(user.id) })
     }
-    if (canUpdate) {
+    // Auth's resource mode sends no sign-in links: people sign in at the issuer.
+    if (canUpdate && useRuntimeConfig().public.authentication?.mode !== 'resource') {
       first.push({
         label: user.emailVerifiedAt ? t('admin.resendLink', 'Resend sign-in link') : t('admin.sendVerification', 'Resend verification email'),
         icon: 'i-lucide-mail',

@@ -115,7 +115,7 @@ export interface OAuthProviderButton {
 /** The subset of `settings` the client reads, exposed through `runtimeConfig.public.authentication`. */
 export type PublicModuleOptions = {
   mode: AuthMode
-  /** All `false` in client mode. */
+  /** All `false` in client and resource mode. */
   password: boolean
   passwordReset: boolean
   webAuthn: boolean
@@ -135,7 +135,7 @@ export type PublicModuleOptions = {
    * always let them through.
    */
   publicPaths: string[]
-  /** Client mode only. */
+  /** Client and resource mode only. */
   client?: AuthClientPublicConfig
 }
 
@@ -245,11 +245,13 @@ export interface AuthSettings {
 export interface ModuleOptions {
   /**
    * `server` (default): sign-in on this app's server, with a cookie session. `client`: a public OAuth client (PKCE)
-   * for SPAs and Capacitor apps that signs in at `client.issuer`, with no server or database. Set it in the app's own
-   * config; it cannot come from another module.
+   * for SPAs and Capacitor apps that signs in at `client.issuer`, with no server or database. `resource`: `client`'s
+   * sign-in, plus a server of its own that accepts only the issuer's access tokens (through `@frigear-nu/oauth-resource`):
+   * access control, users and server modules, without cookie sessions or sign-in routes. Set it in the app's own config;
+   * it cannot come from another module.
    */
   mode?: AuthMode
-  /** Client mode: the issuer and how this app talks to it. */
+  /** Client and resource mode: the issuer and how this app talks to it. */
   client?: ClientModuleOptions
   /**
    * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/me/tokens`.
