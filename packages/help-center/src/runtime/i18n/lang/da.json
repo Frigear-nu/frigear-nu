@@ -243,7 +243,8 @@
       "moveToFaqChecklistDescription": "Et FAQ-spørgsmål er aldrig på en tjekliste: alle tjeklister med denne artikel mister den.",
       "movedToFaq": "{name} er flyttet til FAQ'en",
       "movedToHelp": "{name} er flyttet til hjælpecenteret",
-      "moveFailed": "Artiklen kunne ikke flyttes"
+      "moveFailed": "Artiklen kunne ikke flyttes",
+      "displayNotForKind": "Vælg, hvordan denne slags kategori vises."
     },
     "article": {
       "loadFailed": "Artiklen kunne ikke indlæses",

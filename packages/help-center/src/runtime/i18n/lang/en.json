@@ -243,7 +243,8 @@
       "moveToFaqChecklistDescription": "An FAQ question is never on a checklist: every checklist that lists this article loses it.",
       "movedToFaq": "Moved {name} to the FAQ",
       "movedToHelp": "Moved {name} to the help center",
-      "moveFailed": "Could not move the article"
+      "moveFailed": "Could not move the article",
+      "displayNotForKind": "Choose how this kind of category is shown."
     },
     "article": {
       "loadFailed": "The article could not be loaded",
