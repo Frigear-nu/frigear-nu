@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { formBusInjectionKey, formFieldInjectionKey } from '@nuxt/ui/composables/useFormField'
 import { authApi } from '@frigear-nu/auth/api'
 import { usersApi } from '../../utils/api'
 import type { UserPickerOption } from '../../../types'
 import type { UserCreateResult } from '../utils/admin-user'
 import UserCreateSlideover from './UserCreateSlideover.vue'
-import { computed, onBeforeUnmount, ref, useLazyFetch, useModuleT, useOverlay, watch } from '#imports'
+import { computed, inject, nextTick, onBeforeUnmount, ref, useLazyFetch, useModuleT, useOverlay, watch } from '#imports'
 
 defineOptions({ name: 'UserPicker' })
 
@@ -111,6 +112,16 @@ const current = computed<Item | Item[] | undefined>({
   },
 })
 
+// A selection made in code (from the create form: the created user, or the existing one it offered) is no input event of
+// the menu, so the enclosing `UFormField` would keep a "choose a person" error until submit: report it as a change, which
+// revalidates the field. (Not `useFormField`: it hides the field from the menu inside.)
+const formBus = inject(formBusInjectionKey, undefined)
+const formField = inject(formFieldInjectionKey, undefined)
+const notifyFormField = () => nextTick(() => {
+  const name = formField?.value?.name
+  if (formBus && name) formBus.emit({ type: 'change', name })
+})
+
 const select = (user: UserPickerOption) => {
   remember([user])
   if (props.multiple) {
@@ -123,6 +134,7 @@ const select = (user: UserPickerOption) => {
   emit('picked', user)
   search.value = ''
   renderKey.value++
+  void notifyFormField()
 }
 
 async function createUser(term: string) {
