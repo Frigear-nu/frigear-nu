@@ -13,6 +13,10 @@ describe('admin area wiring with @frigear-nu/authorization', () => {
     await nuxt.callHook('auth:permissions' as never, permissions as never)
     expect(permissions.find(permission => permission.name === 'admin:access')).toMatchObject({ grantTo: ['admin'] })
     expect(permissions.find(permission => permission.name === 'admin:access')?.implicit).toBeFalsy()
+    // The Settings > Search rebuild: session only, for admins (its route and page need `@frigear-nu/auth` and a
+    // registered search index, which this fixture has neither of; `@frigear-nu/users`' admin-db fixture covers them).
+    expect(permissions.find(permission => permission.name === 'search:reindex')).toMatchObject({ grantTo: ['admin'], sessionOnly: true })
+    expect(nuxt.options.serverHandlers.some(handler => handler.route === '/api/admin/search/reindex')).toBe(false)
 
     const rules = nuxt.options.routeRules as Record<string, Record<string, unknown>>
     expect(rules['/admin/**']).toMatchObject({ permission: 'admin:access' })
