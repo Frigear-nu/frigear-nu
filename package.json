@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "pnpm --filter \"./packages/*\" run --if-present dev:stub",
     "cli": "node ./packages/cli/bin/cli.mjs",
+    "dev": "pnpm --filter @frigear-nu/website dev",
     "build": "turbo run build --concurrency=4",
     "test": "turbo run test --concurrency=4",
     "test:shard": "node scripts/ci-test-shard.mjs",

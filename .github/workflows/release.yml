@@ -30,21 +30,30 @@ on:
           - cli
           - create-frigear-app
           - cookie-consent
+          - crew
+          - dashboard
           - email-templates
           - eslint-config
           - events
           - forms
-          - oauth-resource
+          - help-center
+          - inbox
+          - maps
           - mcp
           - menu
           - mobile
           - module-kit
           - notify
+          - oauth-resource
           - oauth-server
+          - operations
           - payments
           - preferences
+          - push
+          - shifts
           - stripe
           - subscriptions
+          - teams
           - ui
           - users
           - widget
@@ -85,8 +94,9 @@ jobs:
         env:
           PACKAGE: ${{ inputs.package }}
           PACKAGES: ${{ inputs.packages }}
-          # Every releasable package, in dependency order. Keep in sync with the `package` choices.
-          ALL: '["module-kit","stripe","subscriptions","payments","events","forms","cookie-consent","menu","notify","email-templates","ui","users","oauth-server","account","authorization","widget","admin","base-layer","auth","mcp","preferences","oauth-resource","mobile","eslint-config","cli","create-frigear-app"]'
+          # Every releasable package, in dependency order (each after the workspace packages in its dependencies and
+          # peerDependencies). Keep in sync with the `package` choices.
+          ALL: '["module-kit","menu","notify","email-templates","ui","widget","base-layer","auth","admin","mcp","users","stripe","subscriptions","payments","events","forms","cookie-consent","oauth-server","authorization","account","preferences","mobile","maps","dashboard","push","operations","teams","crew","help-center","shifts","inbox","oauth-resource","eslint-config","cli","create-frigear-app"]'
         run: |
           if [ -n "${PACKAGES//[ ,]/}" ]; then
             # A set: the named packages in the order of ALL, failing on a name that is not in it.

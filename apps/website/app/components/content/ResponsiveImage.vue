@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// One image for desktop, a differently cropped one for mobile.
+// One image for desktop, a differently cropped one for mobile, each cropped (`object-cover`) to its width:height, so a
+// tall photo shows as a banner instead of at its natural height.
 withDefaults(defineProps<{
   desktop: string
   mobile: string
@@ -23,14 +24,18 @@ withDefaults(defineProps<{
       :alt="alt"
       :width="desktopWidth"
       :height="desktopHeight"
-      class="hidden w-full rounded-xl md:block"
+      fit="cover"
+      class="hidden w-full rounded-xl object-cover md:block"
+      :style="{ aspectRatio: `${desktopWidth} / ${desktopHeight}` }"
     />
     <NuxtImg
       :src="mobile"
       :alt="alt"
       :width="mobileWidth"
       :height="mobileHeight"
-      class="block w-full rounded-xl md:hidden"
+      fit="cover"
+      class="block w-full rounded-xl object-cover md:hidden"
+      :style="{ aspectRatio: `${mobileWidth} / ${mobileHeight}` }"
     />
   </div>
 </template>
