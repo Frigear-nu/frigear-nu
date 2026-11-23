@@ -94,6 +94,7 @@ The starters are templates for a **new project outside this repo**, each a pnpm 
 | `.starters/workspace` | `apps/web`: users, auth, account, admin | `apps/docs/content/4.examples/1.starters/1.workspace.md` |
 | `.starters/mobile` | `apps/mobile`: a Capacitor app on `@frigear-nu/mobile` against any issuer | `apps/docs/content/4.examples/1.starters/2.mobile.md` |
 | `.starters/mobile-standalone` | `workspace` + `apps/mobile`; `apps/web` adds `@frigear-nu/oauth-server` and the API | `apps/docs/content/4.examples/1.starters/3.mobile-standalone.md` |
+| `.starters/desktop` | `apps/desktop`: a Tauri app on `@frigear-nu/desktop`, remote (any issuer) or local (own server) | `apps/docs/content/4.examples/1.starters/4.desktop.md` |
 
 - They are not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): they depend on
   the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and have their own `AGENTS.md`.
@@ -107,10 +108,11 @@ The starters are templates for a **new project outside this repo**, each a pnpm 
 - Work on a starter in a copy outside the repo (`cp -R .starters/<starter> "$TMPDIR/<starter>"`, then `pnpm install`
   there) and copy the changes back. To try unreleased packages, point `@frigear-nu/*` at packed or linked builds with
   `overrides` in the copy only. Never commit its `node_modules`, `.nuxt`, `.output`, `.data`, `.env`,
-  `pnpm-lock.yaml`, `capacitor.config.json` or the native `ios/` / `android/` folders.
+  `pnpm-lock.yaml`, `capacitor.config.json`, the native `ios/` / `android/` folders or the desktop starter's
+  `src-tauri/` (its guide documents `pnpm desktop:init` instead).
 - After releasing a module that changes a schema, or bumping a starter's versions, regenerate the migrations of every
-  starter with `apps/web` in the copy (`pnpm db:generate`) and commit `apps/web/server/db/migrations` back. CI fails
-  when they are out of date.
+  starter with a database in the copy (`pnpm db:generate`) and commit `apps/web/server/db/migrations` (or
+  `apps/desktop/server/db/migrations` of `desktop`) back. CI fails when they are out of date.
 - A starter that needs an unreleased `@frigear-nu` version is skipped with a warning on pull requests and fails on
   `main`: release the packages before merging.
 - Keep each guide in step with its starter's files and commands.

@@ -1,0 +1,24 @@
+{
+  "name": "frigear-desktop-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.10.0",
+  "scripts": {
+    "dev": "pnpm --filter ./apps/desktop dev",
+    "build": "pnpm -r build",
+    "build:local": "pnpm --filter ./apps/desktop run build:local",
+    "prepare:env": "node scripts/prepare-env.mjs",
+    "db:generate": "pnpm --filter ./apps/desktop run db:generate",
+    "desktop:doctor": "pnpm --filter ./apps/desktop run doctor",
+    "desktop:init": "pnpm --filter ./apps/desktop run native",
+    "desktop:sync": "pnpm --filter ./apps/desktop run native:sync",
+    "desktop:dev": "pnpm --filter ./apps/desktop run native:dev",
+    "desktop:build": "pnpm --filter ./apps/desktop run native:build",
+    "desktop:sidecar": "pnpm --filter ./apps/desktop run sidecar",
+    "test": "pnpm -r --parallel test",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "typecheck:local": "pnpm --filter ./apps/desktop run typecheck:local",
+    "lint": "pnpm -r --parallel lint",
+    "lint:fix": "pnpm -r --parallel lint:fix",
+    "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules"
+  }
+}
