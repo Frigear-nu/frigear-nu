@@ -69,6 +69,9 @@ export type UserPickerOption = {
   avatar?: string | null
 }
 
+/** What `UserPicker`'s "Create user" prefills: the search term, or what the host knows of the person (`openCreate(initial)`). */
+export type UserPickerCreateInitial = { name?: string, email?: string, phone?: string }
+
 /** The signed-in user's own profile, as the self-service routes return it. */
 export type ProfileDto = {
   id: number
