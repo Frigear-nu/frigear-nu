@@ -19,7 +19,8 @@ const toast = useToast()
 const { busy, run } = useAction()
 
 const { data: page } = useFetch<StaffHelpArticlesPage>(helpCenterApi.admin.articles, {
-  query: { status: 'published', pageSize: 100, sort: 'title', order: 'asc' },
+  // Help articles only: FAQ questions are not pages a link can point at.
+  query: { status: 'published', kind: 'help', pageSize: 100, sort: 'title', order: 'asc' },
   key: 'help-center:send:articles',
 })
 const articles = computed<StaffHelpArticle[]>(() => page.value?.items ?? [])

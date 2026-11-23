@@ -2,7 +2,7 @@ import type { HelpFaqDto } from '../../../../types'
 
 // Categories with the published articles the caller may read, text included: what the FAQ cards show.
 //   ?categories=a,b   these categories, in this order (one the caller may not read, or that does not exist, is left out);
-//                     none: every accordion category
+//                     none: every `faq` category
 //   ?public=1         only what anonymous visitors read: no sign-in, the answer is the same for everyone and cacheable
 // Anonymous visitors, and tokens without `help-center:read`, see public categories and articles only.
 export default defineEventHandler(async (event): Promise<HelpFaqDto[]> => {

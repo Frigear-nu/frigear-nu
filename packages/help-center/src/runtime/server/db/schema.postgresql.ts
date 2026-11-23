@@ -23,6 +23,8 @@ export const helpCategories = pgTable('help_categories', {
   ownerId: text(),
   /** Who may read it (`@frigear-nu/auth`): any one grant admits, an empty list admits nobody. */
   grants: jsonb().$type<Grant[]>().notNull().default([]),
+  /** `help` (the help center's own categories) or `faq` (the FAQs embedded on the site's pages). Set when the category is created, fixed afterwards. */
+  kind: text().notNull().default('help'),
   /** How the category page shows its articles: `list` (links to article pages), `accordion` (questions that open in place) or `cards` (a card per article). */
   display: text().notNull().default('list'),
   /** An icon name such as `i-lucide-info`, shown on cards. */

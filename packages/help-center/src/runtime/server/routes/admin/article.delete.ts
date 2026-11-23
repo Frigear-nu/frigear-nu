@@ -5,7 +5,9 @@ import { helpCenterAccess } from '../../../access'
 export default defineEventHandler(async (event) => {
   await authorize(event, helpCenterAccess.permissions.manage)
   const { id } = await getValidatedRouterParams(event, idParams().parse)
+  const scope = await readHelpKindScope(event)
   const existing = await getHelpArticleOr404(id)
+  await assertHelpArticleKindScope(existing, scope)
   await authorize(event, helpCenterAccess.permissions.manage, existing)
   await deleteHelpArticleRow(existing)
   return noContent(event)

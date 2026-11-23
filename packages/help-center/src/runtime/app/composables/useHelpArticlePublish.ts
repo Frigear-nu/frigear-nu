@@ -28,7 +28,7 @@ export function useHelpArticlePublish() {
   async function publish(article: StaffHelpArticle): Promise<StaffHelpArticle | false> {
     busy.value = true
     try {
-      const published = await $fetch<StaffHelpArticle>(helpCenterApi.admin.publish(article.id), { method: 'POST' })
+      const published = await $fetch<StaffHelpArticle>(helpCenterApi.admin.publish(article.id), { method: 'POST', query: { kind: article.kind } })
       toast.add({ title: t('admin.published', 'Published {name}', { name: tr(published.title ?? article.title) }), color: 'success', icon: 'i-lucide-check' })
       return published
     }

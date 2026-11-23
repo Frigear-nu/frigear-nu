@@ -213,7 +213,7 @@ export async function toAdminHelpChecklistDto(event: H3Event, row: HelpChecklist
 
 // --- Staff: writing --------------------------------------------------------------------------
 
-/** 400 naming the first item that points at an article that does not exist, or that is listed twice. */
+/** 400 naming the first item that points at an article that does not exist, is listed twice or is an FAQ question. */
 async function assertChecklistItems(event: H3Event, items: NonNullable<ChecklistInput['items']>): Promise<void> {
   const ids = items.map(item => item.articleId)
   const duplicate = ids.findIndex((id, index) => ids.indexOf(id) !== index)
@@ -221,6 +221,9 @@ async function assertChecklistItems(event: H3Event, items: NonNullable<Checklist
   const found = await adminArticleSummaries(event, ids)
   const missing = ids.findIndex(id => !found.has(id))
   if (missing !== -1) throw validationError([{ path: ['items', missing, 'articleId'], message: 'This article does not exist.' }], 'Unknown article')
+  // Checklists are help center reading: FAQ questions are not pages of their own and cannot be on one.
+  const faq = ids.findIndex(id => found.get(id)?.kind === 'faq')
+  if (faq !== -1) throw validationError([{ path: ['items', faq, 'articleId'], message: 'An FAQ question cannot be on a checklist.' }], 'FAQ article')
 }
 
 async function replaceChecklistItems(checklistId: string, items: NonNullable<ChecklistInput['items']>): Promise<void> {
