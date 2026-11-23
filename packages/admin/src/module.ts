@@ -4,9 +4,9 @@ import {
   extendPages,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, getSearchIndexes, inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
-import { adminAccess } from './runtime/access'
+import { adminAccess, searchAccess } from './runtime/access'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import { ADMIN_NAV_GROUPS } from './runtime/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -134,7 +134,34 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // Settings > Search: a button that runs module-kit's `search:reindex` task (`POST /api/admin/search/reindex`). The
+    // permission is registered in `setup()`, since `@frigear-nu/auth` compiles permissions at `modules:done`; the
+    // route, page and menu entry only once every module has had the chance to `registerSearchIndex`.
+    const searchPath = `${base}/search`
+    let withSearch = false
+    // (A registration without `@frigear-nu/auth` is inert: nothing collects it.)
+    registerAccess(nuxt, searchAccess)
+    nuxt.hook('modules:done', () => {
+      if (!hasNuxtModule('@frigear-nu/auth') || !getSearchIndexes(nuxt).length) return
+      withSearch = true
+      addModuleRoutes(resolver, [{ method: 'post', path: 'reindex', file: 'search/reindex.post' }], { base: '/api/admin/search' })
+      extendMenu(nuxt, ADMIN_NAV_GROUPS.settings, {
+        id: 'admin-search',
+        label: 'Search',
+        labelKey: 'admin.searchIndex.title',
+        description: 'Rebuild the search columns after an update.',
+        descriptionKey: 'admin.searchIndex.description',
+        icon: 'i-lucide-search',
+        to: searchPath,
+        order: 90,
+        permission: searchAccess.permissions.reindex,
+      })
+    })
+
     extendPages((pages) => {
+      if (withSearch && !pages.some(page => page.path === searchPath)) {
+        pages.push({ name: 'admin-search', path: searchPath, file: resolver.resolve('./runtime/app/pages/search.vue'), meta: { moduleName: '@frigear-nu/admin' } })
+      }
       if (dashboardPath && !pages.some(page => page.path === dashboardPath)) {
         // `moduleName` marks the page as module-owned, so it is never looked up in `@nuxt/content`.
         pages.push({ name: 'admin-dashboard', path: dashboardPath, file: resolver.resolve('./runtime/app/pages/dashboard.vue'), meta: { moduleName: '@frigear-nu/admin' } })
