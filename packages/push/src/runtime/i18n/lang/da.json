@@ -1,0 +1,71 @@
+{
+  "push": {
+    "admin": {
+      "tab": "Enheder",
+      "title": "Pushenheder",
+      "platform": "Platform",
+      "provider": "Udbyder",
+      "app": "App",
+      "locale": "Sprog",
+      "lastSeen": "Sidst set",
+      "registered": "Registreret",
+      "statusColumn": "Status",
+      "active": "Aktiv",
+      "revoked": "Tilbagekaldt",
+      "empty": "Ingen enheder registreret",
+      "emptyDescription": "Brugeren har ikke logget ind i appen med notifikationer tilladt.",
+      "loadFailed": "Enhederne kunne ikke indlæses",
+      "sendTest": "Send test-push",
+      "testSent": "Test-push sendt",
+      "testResult": "{sent} sendt, {failed} fejlet, {revoked} tilbagekaldt.",
+      "testNone": "Brugeren har ingen aktive enheder.",
+      "testFailed": "Test-push kunne ikke sendes"
+    },
+    "account": {
+      "title": "Dine enheder",
+      "description": "Fjern en enhed, du ikke længere bruger, eller en, du ikke kender.",
+      "device": "Enhed",
+      "provider": "Udbyder",
+      "lastSeen": "Sidst set",
+      "registered": "Registreret",
+      "remove": "Fjern enhed",
+      "removeConfirm": {
+        "title": "Fjern denne {platform}-enhed?",
+        "description": "Den får ikke længere pushnotifikationer. Log ind i appen igen med notifikationer tilladt for at tilføje den igen."
+      },
+      "removed": "Enhed fjernet",
+      "removeFailed": "Enheden kunne ikke fjernes",
+      "empty": "Ingen enheder endnu",
+      "emptyDescription": "Log ind i appen og tillad notifikationer for at få pushnotifikationer på din telefon.",
+      "loadFailed": "Dine enheder kunne ikke indlæses",
+      "tryAgain": "Prøv igen"
+    },
+    "menu": {
+      "devices": {
+        "label": "Enheder",
+        "description": "De telefoner, der får dine pushnotifikationer."
+      }
+    },
+    "platforms": {
+      "ios": "iOS",
+      "android": "Android",
+      "web": "Web"
+    },
+    "providers": {
+      "fcm": "FCM",
+      "apns": "APNs",
+      "default": "Serverens standard"
+    },
+    "permissions": {
+      "devices": "Administrér dine pushenheder",
+      "devicesDescription": "Registrér og fjern dine egne pushenheder.",
+      "manage": "Se brugeres pushenheder",
+      "manageDescription": "Se de pushenheder, andre brugere har registreret.",
+      "send": "Send test-push",
+      "sendDescription": "Send en test-pushnotifikation til en brugers enheder."
+    },
+    "scopes": {
+      "push": "Dine pushenheder"
+    }
+  }
+}

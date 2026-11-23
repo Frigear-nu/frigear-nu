@@ -1,0 +1,71 @@
+{
+  "push": {
+    "admin": {
+      "tab": "Devices",
+      "title": "Push devices",
+      "platform": "Platform",
+      "provider": "Provider",
+      "app": "App",
+      "locale": "Language",
+      "lastSeen": "Last seen",
+      "registered": "Registered",
+      "statusColumn": "Status",
+      "active": "Active",
+      "revoked": "Revoked",
+      "empty": "No devices registered",
+      "emptyDescription": "The user has not signed in to the app with notifications allowed.",
+      "loadFailed": "The devices could not be loaded",
+      "sendTest": "Send test push",
+      "testSent": "Test push sent",
+      "testResult": "{sent} sent, {failed} failed, {revoked} revoked.",
+      "testNone": "The user has no active devices.",
+      "testFailed": "Could not send the test push"
+    },
+    "account": {
+      "title": "Your devices",
+      "description": "Remove a device you no longer use, or one you do not recognise.",
+      "device": "Device",
+      "provider": "Provider",
+      "lastSeen": "Last seen",
+      "registered": "Registered",
+      "remove": "Remove device",
+      "removeConfirm": {
+        "title": "Remove this {platform} device?",
+        "description": "It stops getting push notifications. Signing in to the app again with notifications allowed adds it back."
+      },
+      "removed": "Device removed",
+      "removeFailed": "Could not remove the device",
+      "empty": "No devices yet",
+      "emptyDescription": "Sign in to the app and allow notifications to get push notifications on your phone.",
+      "loadFailed": "Your devices could not be loaded",
+      "tryAgain": "Try again"
+    },
+    "menu": {
+      "devices": {
+        "label": "Devices",
+        "description": "The phones that get your push notifications."
+      }
+    },
+    "platforms": {
+      "ios": "iOS",
+      "android": "Android",
+      "web": "Web"
+    },
+    "providers": {
+      "fcm": "FCM",
+      "apns": "APNs",
+      "default": "Server default"
+    },
+    "permissions": {
+      "devices": "Manage your push devices",
+      "devicesDescription": "Register and remove your own push devices.",
+      "manage": "See users' push devices",
+      "manageDescription": "See the push devices registered by other users.",
+      "send": "Send test pushes",
+      "sendDescription": "Send a test push notification to a user's devices."
+    },
+    "scopes": {
+      "push": "Your push devices"
+    }
+  }
+}
