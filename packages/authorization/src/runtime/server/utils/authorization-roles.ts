@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
-import { and, count, eq, inArray, ne, sql } from 'drizzle-orm'
-import { isoDate } from '@frigear-nu/module-kit/server'
+import { and, asc, count, eq, inArray, ne, sql } from 'drizzle-orm'
+import { chunkParams, inChunks, isoDate } from '@frigear-nu/module-kit/server'
 import type { AuthRoleSource, AuthUser } from '@frigear-nu/auth/utils'
 import { registry } from '#auth/permissions'
 import { table } from '#auth/roles'
@@ -29,6 +29,23 @@ const INSERT_CHUNK = 100
 export async function listAuthorizationUserRoles(userId: number): Promise<AuthorizationUserRoleRow[]> {
   const rows = await db.select().from(userRoles()).where(eq(userRoles().userId, userId)).orderBy(userRoles().createdAt, userRoles().role)
   return rows as AuthorizationUserRoleRow[]
+}
+
+/**
+ * The stored roles (every source) of many users, by user id, in one query per chunk of ids (D1 allows 100 bound
+ * parameters per query): the role provider's `assignedRolesOf`. A user without rows is left out.
+ */
+export async function listAuthorizationRolesOf(userIds: readonly number[]): Promise<Map<number, string[]>> {
+  const rows = await inChunks([...new Set(userIds)], chunk => db.select({ userId: userRoles().userId, role: userRoles().role })
+    .from(userRoles())
+    .where(inArray(userRoles().userId, chunk))
+    .orderBy(userRoles().createdAt, userRoles().role))
+  const byUser = new Map<number, string[]>()
+  for (const row of rows) {
+    const id = Number(row.userId)
+    byUser.set(id, [...(byUser.get(id) ?? []), row.role])
+  }
+  return byUser
 }
 
 /**
@@ -71,6 +88,24 @@ export async function deleteAuthorizationUserRoles(userId: number) {
 /** The statement that points a user's role rows at a new id (`AuthUserStore.changeId`). Pass a transaction as `executor`. */
 export function rekeyAuthorizationUserRoles(from: number, to: number, executor: Pick<typeof db, 'update'> = db) {
   return executor.update(userRoles()).set({ userId: to }).where(eq(userRoles().userId, from))
+}
+
+/**
+ * The users with at least one of `roles` stored (any source), at most `limit` of them, lowest user ids first: the role
+ * provider's `holders` (auth's `listRoleHolders` passes the roles inheriting the wanted ones too, and checks effective
+ * roles afterwards). Ordered by user id, so a list cut at `limit` is always the same one.
+ */
+export async function listAuthorizationRoleHolders(roles: readonly string[], limit: number): Promise<number[]> {
+  const ids = new Set<number>()
+  // In chunks: D1 allows 100 bound parameters per query. Every chunk is read, so the lowest ids win across chunks too.
+  // Ordered by user id only: postgres refuses a SELECT DISTINCT ordered by a column it does not select.
+  for (const chunk of chunkParams([...new Set(roles)])) {
+    const rows = await db.selectDistinct({ userId: userRoles().userId }).from(userRoles()).where(inArray(userRoles().role, chunk))
+      .orderBy(asc(userRoles().userId))
+      .limit(limit)
+    for (const row of rows) ids.add(Number(row.userId))
+  }
+  return [...ids].sort((a, b) => a - b).slice(0, limit)
 }
 
 /** How many users have an assigned row, per role. */

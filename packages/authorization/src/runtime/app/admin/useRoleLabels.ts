@@ -1,6 +1,7 @@
 import type { AuthRoleSource } from '@frigear-nu/auth/utils'
 import type { AuthorizationPermissionGrant, AuthorizationPermissionSource, AuthorizationRoleSummaryDto } from '../../utils/api'
-import { computed, useLocaleLink, useModuleT, useNuxtApp, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { computed, useLocaleLink, useModuleT, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { useRoleLabel } from '../composables/useRoleLabel'
 
 type RoleKind = 'assignable' | 'default' | 'auto' | 'fixed'
 
@@ -16,11 +17,7 @@ export function useRoleLabels() {
   const userPath = (id: number) => usersAdmin ? `${localize(usersAdmin.replace(/\/+$/, ''))}/${id}` : undefined
 
   // Roles and permissions name full i18n keys (`labelKey`), in any namespace.
-  const i18n = useNuxtApp().$i18n as { t: (key: string) => string, te?: (key: string) => boolean } | undefined
-  /** `key` through `@nuxtjs/i18n` when the host has it, else `fallback`. */
-  const translated = (key: string | null | undefined, fallback: string) => key && i18n?.te?.(key) ? i18n.t(key) : fallback
-  /** A role's label: its i18n key when it has one, else the configured label. */
-  const roleLabel = (role: Pick<AuthorizationRoleSummaryDto, 'label' | 'labelKey'>) => translated(role.labelKey, role.label)
+  const { translated, roleLabel } = useRoleLabel()
 
   const kindOf = (role: Pick<AuthorizationRoleSummaryDto, 'auto' | 'default' | 'assignable'>): RoleKind =>
     role.auto ? 'auto' : role.default ? 'default' : role.assignable ? 'assignable' : 'fixed'
