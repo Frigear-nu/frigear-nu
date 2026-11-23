@@ -14,8 +14,8 @@ export const adminAccess = defineAccess('admin', {
 
 // The Settings page "Search" (`<base>/search`) and its `POST /api/admin/search/reindex`, which runs module-kit's
 // `search:reindex` task on demand (after a deploy that changed how a search column is computed). Registered in
-// `module.ts` whenever `@frigear-nu/auth` is installed; the route and page only exist once a module registered a search
-// index (`registerSearchIndex`). Session only: it rewrites every row of the indexed tables.
+// `module.ts` only when a module registered a search index (`registerSearchIndex`), like the route, page and menu
+// entry: an app without one has no `search:reindex`. Session only: it rewrites every row of the indexed tables.
 export const searchAccess = defineAccess('search', {
   i18n: 'admin',
   permissions: {
