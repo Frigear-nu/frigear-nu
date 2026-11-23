@@ -347,7 +347,10 @@ live in `packages/ui` (reference: `apps/docs/content/3.modules/7.interface/1.ui/
 
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a
-  settings page inside the site: site header and footer, a left section list, `PageSectionSwitcher` on narrow screens).
+  settings page inside the site: site header and footer, a left section list, `PageSectionSwitcher` on narrow screens);
+  `/dashboard/**` = `dashboard` (the same frame with the `dashboard` menu, where signed-in users land). Account holds
+  settings about the user; things the user does (crew, shifts, tickets, help) go in the dashboard menu under
+  `resolveDashboardHubPath`, with `WidgetTabs` when other modules add views (`crew.dashboard`).
   `/admin/**` = `admin`, the shared `AppShell` (`@frigear-nu/ui`): no site header or footer, the account menu in both
   the sidebar footer and the top bar next to the language flag (every screen width; `AppShell`'s `navbar-actions`
   slot). New features go into an existing nav group; a new group needs a reason. Colour mode lives in the account menu,
