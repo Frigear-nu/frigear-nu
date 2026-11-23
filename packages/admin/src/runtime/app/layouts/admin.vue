@@ -51,7 +51,9 @@ const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(grou
 
 <template>
   <!-- The dashboard chrome (brand, sidebar, eyebrow navbar, language select) is the shared `AppShell`; this layout only
-       feeds it the admin menus and the account menu. Paths are passed raw: the shell localises them. -->
+       feeds it the admin menus and the account menu, which sits in two places: in the sidebar footer (avatar and name,
+       just the avatar when collapsed) and in the top bar next to the language select, on every screen width, so it is
+       reachable on narrow screens without opening the sidebar. Paths are passed raw: the shell localises them. -->
   <AppShell
     id="admin"
     :title="t('title', 'Administration')"
@@ -67,6 +69,13 @@ const searchGroups = computed<CommandPaletteGroup[]>(() => groups.value.map(grou
         v-if="optional(AccountMenu)"
         block
         :collapsed="collapsed"
+      />
+    </template>
+
+    <template #navbar-actions>
+      <component
+        :is="optional(AccountMenu)"
+        v-if="optional(AccountMenu)"
       />
     </template>
 
