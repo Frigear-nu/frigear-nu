@@ -63,7 +63,7 @@ export function crewApplyNotice(status: CrewStatus | null, submitted = false): C
       icon: 'i-lucide-hourglass',
       color: 'neutral',
       title: { key: 'apply.waitlisted', fallback: 'You\'re on the waiting list' },
-      description: { key: 'apply.waitlistedDescription', fallback: 'You\'re on the waiting list. We will email you if a place opens up.' },
+      description: { key: 'apply.waitlistedDescription', fallback: 'We will email you if a place opens up.' },
     }
   }
   return {
