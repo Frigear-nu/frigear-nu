@@ -1,0 +1,30 @@
+// In-memory state of the test fixture, shared by its plugin and its test routes.
+
+/** Operations that "exist" for `teams:owner:resolve` (operations itself is not installed here). */
+export const testOperations = new Map<string, string>([
+  ['opr_summer', 'Summer Festival 2030'],
+  ['opr_priority', 'Priority test operation'],
+])
+
+/** user id -> the plan keys the user holds, standing in for active subscriptions. */
+const plans = new Map<string, Set<string>>()
+
+export function testGivePlan(userId: string | number, plan: string) {
+  const key = String(userId)
+  plans.set(key, new Set([...(plans.get(key) ?? []), plan]))
+}
+
+/** The users holding one of `wanted`, as subscriptions would enumerate them. */
+export function testPlanHolders(wanted: readonly string[]): number[] {
+  return [...plans].filter(([, held]) => wanted.some(plan => held.has(plan))).map(([userId]) => Number(userId))
+}
+
+export function testHoldsPlan(userId: string | number, plan: string) {
+  return plans.get(String(userId))?.has(plan) ?? false
+}
+
+/** Every teams hook that fired, in order. */
+export const testTeamsHooks: Array<{ name: string, teamId: string, userId: number, role: string, from?: string, to?: string }> = []
+
+/** Users for whom the stand-in `teams:roles:resolve` listener throws, to check that teams fails closed. */
+export const testFailingUsers = new Set<string>()
