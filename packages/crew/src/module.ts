@@ -77,7 +77,8 @@ export default defineNuxtModule<ModuleOptions>({
     // The status message goes through notify's `notifyUser` (email and push, by the person's choice).
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
-    '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // The Crew tab of the operation page and the "Add to crew" action of an inbox thread (`inbox.thread.actions`).
+    '@frigear-nu/widget': { version: '>=0.0.0' },
     // The `crew.home` dashboard: this module's items, and the crew home page that renders it.
     '@frigear-nu/dashboard': { version: '>=0.0.0' },
     // Provides the admin route and shell the operation page lives in.
@@ -199,6 +200,16 @@ export default defineNuxtModule<ModuleOptions>({
         permission: crewAccess.permissions.manage,
       })
     }
+
+    // "Add to crew" on an inbox thread: the `inbox.thread.actions` slot of `@frigear-nu/inbox`, by name, so crew does not
+    // depend on inbox (an area nobody renders is harmless). Staff with `crew:manage` see it.
+    const { extendWidgets } = await import('@frigear-nu/widget/utils')
+    extendWidgets(nuxt, 'inbox.thread.actions', {
+      id: 'crew-add-to-crew',
+      component: resolver.resolve('./runtime/app/widgets/InboxAddToCrew.vue'),
+      order: 10,
+      permission: crewAccess.permissions.manage,
+    })
 
     // A "Crew" tab in the mobile tab bar, on the status page.
     if (statusPath && hasNuxtModule('@frigear-nu/mobile')) {
