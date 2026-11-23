@@ -1,4 +1,6 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
+import type { UserPickerCreateInitial, UserPickerOption } from '@frigear-nu/users/api'
+import CrewAddMemberSlideover from '../components/CrewAddMemberSlideover.vue'
 import CrewInviteSlideover from '../components/CrewInviteSlideover.vue'
 import CrewMemberSlideover from '../components/CrewMemberSlideover.vue'
 import type { CrewLadder, CrewTeamOption, StaffCrewMember } from '../utils/admin-crew'
@@ -17,8 +19,18 @@ export type CrewMenuOptions = {
   onChanged?: () => unknown
 }
 
+/** Who the "Add crew member" form starts with: a person to preselect, or what is known of someone without an account. */
+export type CrewAddMemberOptions = Pick<CrewMenuOptions, 'teams' | 'ladders'> & {
+  /** Preselects this user (`selected` gives their name). */
+  userId?: number
+  selected?: UserPickerOption[]
+  /** Offers "Create user" prefilled with these (an inbox contact without an account). */
+  prefill?: UserPickerCreateInitial
+}
+
 /**
- * What staff can do with an operation's crew, shared by the Crew tab's list and member form: `approve`, `reject` (confirms
+ * What staff can do with an operation's crew, shared by the Crew tab's list and member form: `add` (a person, approved at
+ * once), `approve`, `reject` (confirms
  * first) and `waitlist` a person, `approveMany`, `open` (the member form: team, role and the application's answers),
  * `createInvite` (a form that shows the link once), `revokeInvite` (confirms first) and `menu(member)`, the row menu: Open |
  * Approve, Put on the waiting list | Reject.
@@ -88,6 +100,11 @@ export function useCrewActions() {
     return await overlay.create(CrewMemberSlideover, { destroyOnClose: true, props: { member, teams: options.teams, ladders: options.ladders, pii: options.pii ?? false } }).open() as StaffCrewMember | false
   }
 
+  /** Opens the "Add crew member" form. Resolves with the added member, or `false` when cancelled. */
+  async function add(operationId: string, options: CrewAddMemberOptions): Promise<StaffCrewMember | false> {
+    return await overlay.create(CrewAddMemberSlideover, { destroyOnClose: true, props: { operationId, ...options } }).open() as StaffCrewMember | false
+  }
+
   /** Opens the invite form; once created it shows the link. Resolves with the new invite, or `false`. */
   async function createInvite(operationId: string, options: Pick<CrewMenuOptions, 'teams' | 'ladders'>): Promise<CreatedCrewInviteDto | false> {
     return await overlay.create(CrewInviteSlideover, { destroyOnClose: true, props: { operationId, teams: options.teams, ladders: options.ladders } }).open() as CreatedCrewInviteDto | false
@@ -130,5 +147,5 @@ export function useCrewActions() {
     return [main, moves, destructive].filter(group => group.length)
   }
 
-  return { approve, reject, waitlist, approveMany, open, createInvite, revokeInvite, menu }
+  return { add, approve, reject, waitlist, approveMany, open, createInvite, revokeInvite, menu }
 }

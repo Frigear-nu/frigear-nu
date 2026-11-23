@@ -101,6 +101,14 @@ export type CrewMemberDto = {
   submissionId: string | null
 }
 
+/** A user the "Add crew member" picker found (`GET /api/admin/crew/users?q=`); `email` only with `crew:pii`. */
+export type CrewUserLookupDto = {
+  id: number
+  name: string | null
+  avatar: string | null
+  email?: string | null
+}
+
 /** My crew status in one operation (`GET /api/crew/me`). */
 export type MyCrewDto = {
   operationId: string

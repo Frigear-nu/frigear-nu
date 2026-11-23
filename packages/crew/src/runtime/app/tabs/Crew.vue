@@ -179,6 +179,10 @@ const columns = computed<TableColumn<StaffCrewMember>[]>(() => [
   },
 ])
 
+async function addMember() {
+  if (await actions.add(operationId.value, { teams: teams.value, ladders: ladders.value })) await refreshAll()
+}
+
 async function openMember(member: StaffCrewMember) {
   if (await actions.open(member, menuOptions.value)) await refreshAll()
 }
@@ -387,8 +391,17 @@ function jumpToSettings() {
               v-if="selectedIds.length"
               icon="i-lucide-user-check"
               size="sm"
+              color="neutral"
+              variant="outline"
               :label="t('admin.approveSelected', 'Approve {count} selected', { count: selectedIds.length })"
               @click="approveSelected"
+            />
+            <UButton
+              icon="i-lucide-user-plus"
+              size="sm"
+              :label="t('admin.addMember', 'Add crew member')"
+              data-crew-add-member
+              @click="addMember"
             />
           </template>
           <UTable
