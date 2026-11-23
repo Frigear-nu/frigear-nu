@@ -6,6 +6,7 @@ import {
 } from '@nuxt/kit'
 import { addModuleRoutes, getSearchIndexes, inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
+import type { PermissionDefinition } from '@frigear-nu/auth/utils'
 import { adminAccess, searchAccess } from './runtime/access'
 import { extendMenu } from '@frigear-nu/menu/utils'
 import { ADMIN_NAV_GROUPS } from './runtime/utils'
@@ -134,13 +135,18 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
-    // Settings > Search: a button that runs module-kit's `search:reindex` task (`POST /api/admin/search/reindex`). The
-    // permission is registered in `setup()`, since `@frigear-nu/auth` compiles permissions at `modules:done`; the
-    // route, page and menu entry only once every module has had the chance to `registerSearchIndex`.
+    // Settings > Search: a button that runs module-kit's `search:reindex` task (`POST /api/admin/search/reindex`). All of
+    // it (the permission, the route, the page and the menu entry) exists only when a module registered a search index
+    // (`registerSearchIndex`): an app without one gets none of it. Indexes may be registered by modules set up after
+    // this one, so it is decided once every module is set up: `@frigear-nu/auth` collects permissions from its
+    // `modules:done` (the `auth:permissions` hook), and the route, menu entry and page are added at `modules:done` too.
+    // (Without `@frigear-nu/auth` nothing collects the permission.)
     const searchPath = `${base}/search`
     let withSearch = false
-    // (A registration without `@frigear-nu/auth` is inert: nothing collects it.)
-    registerAccess(nuxt, searchAccess)
+    const searchPermissions = Object.values(searchAccess.definitions.permissions) as unknown as PermissionDefinition[]
+    nuxt.hook('auth:permissions', (list) => {
+      if (getSearchIndexes(nuxt).length) list.push(...searchPermissions)
+    })
     nuxt.hook('modules:done', () => {
       if (!hasNuxtModule('@frigear-nu/auth') || !getSearchIndexes(nuxt).length) return
       withSearch = true
