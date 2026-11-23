@@ -140,7 +140,13 @@
       "waitlistFailed": "Could not change the status",
       "waitlistHelp": "Applications over the capacity wait on a list, and move up when a place frees.",
       "waitlisted": "Put {name} on the waiting list",
-      "yes": "Yes"
+      "yes": "Yes",
+      "withdrawTitle": "Mark {name} as withdrawn?",
+      "withdrawApprovedDescription": "{name} stepped down: they lose their place on the crew and are told by email. The next person on the waiting list may move up.",
+      "withdrawDescription": "{name} stepped down: their application is withdrawn and they are told by email.",
+      "withdrawAction": "Mark as withdrawn",
+      "withdrawnToast": "Marked {name} as withdrawn",
+      "withdrawFailed": "Could not change the status"
     },
     "apply": {
       "alreadyApplied": "You have applied already",
@@ -193,7 +199,7 @@
     },
     "permissions": {
       "apply": "Apply to crew",
-      "applyDescription": "Apply to an operation's crew, see your own status and withdraw.",
+      "applyDescription": "Apply to an operation's crew and see your own status.",
       "invite": "Create crew invites",
       "inviteDescription": "Create invite links that add people to a team, optionally as a lead.",
       "manage": "Manage crew",
@@ -214,12 +220,7 @@
       "loadFailed": "Your crew status could not be loaded",
       "position": "Place on the waiting list",
       "title": "My crew",
-      "withdrawAction": "Withdraw",
-      "withdrawApprovedDescription": "You give up your place on the crew. You can apply again while applications are open.",
-      "withdrawDescription": "Your application is withdrawn. You can apply again while applications are open.",
-      "withdrawFailed": "Could not withdraw",
-      "withdrawTitle": "Withdraw from {operation}?",
-      "withdrawn": "You withdrew from {operation}"
+      "stepDown": "Need to step down? Contact your coordinator."
     },
     "tryAgain": "Try again",
     "home": {
