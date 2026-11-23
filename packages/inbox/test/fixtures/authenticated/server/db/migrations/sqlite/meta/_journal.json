@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1795268254116,
+      "when": 1795438303783,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1795269544968,
-      "tag": "0001_inbox_preview_audit_contact",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1795288418750,
-      "tag": "0002_inbox_cc_tombstones_message_account",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1795299841120,
-      "tag": "0003_inbox_grants",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1795315665504,
-      "tag": "0004_users_phone",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1795354511612,
-      "tag": "0005_users_locale",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1795380031235,
-      "tag": "0006_inbox_message_sender_permanent_tombstones",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1795382552470,
-      "tag": "0007_search_text",
       "breakpoints": true
     }
   ]
