@@ -3,7 +3,7 @@ import { getTabComponent } from '../utils/tabs'
 import { computed, nextTick, ref, useRoute, useTabs, watch } from '#imports'
 
 // Renders every tab registered for `name` as a tab list with the active tab's component below it. The active
-// tab is kept in the `?tab=` query parameter. Each tab component receives its static `props`, then every entry
+// tab is kept in the `?tab=` query parameter (the first tab, the default, leaves it out). Each tab component receives its static `props`, then every entry
 // of `context` as a prop, and may emit `refresh`.
 const props = defineProps<{ name: string, context?: Record<string, unknown> }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -27,7 +27,9 @@ function select(id: string) {
   selected.value = id
   if (!import.meta.client) return
   const url = new URL(window.location.href)
-  url.searchParams.set('tab', id)
+  // The first tab is the default: the URL without `?tab=` opens it, so it stays out of the query.
+  if (id === tabs.value?.[0]?.id) url.searchParams.delete('tab')
+  else url.searchParams.set('tab', id)
   window.history.replaceState(window.history.state, '', url)
 }
 

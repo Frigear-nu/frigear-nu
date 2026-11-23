@@ -164,6 +164,9 @@ These helpers run in your module's `setup()`.
 | `defineModulePage` | `(moduleName: string, page: NuxtPage) => NuxtPage` | Tags a page with `meta.moduleName`. |
 | `resolvePagePath` | `(setting: string \| boolean \| undefined, defaultPath: string) => string \| undefined` | A string is a custom path, `true` the default path, anything else no page. |
 | `addModulePages` | `(moduleName: string, resolver, pages: ModulePageDefinition[]) => void` | Registers pages tagged with the module name. |
+| `addPageRedirects` | `(nuxt: Nuxt, redirects: Record<string, string>, options?: { statusCode? }) => string[]` | A `redirect` route rule (`302` by default) from each old path to its new one, under every i18n locale prefix. A rule the app set keeps its own `redirect`. A `/**` pair keeps the rest of the path on the server. |
+| `resolveDashboardHubPath` | `(nuxt: Nuxt, options?: { dependency?: boolean }) => string \| undefined` | The path of the signed-in hub of [Dashboard](/modules/interface/dashboard#the-hub) (`/dashboard`), or `undefined` without one. `dependency: true` when the module requires Dashboard and Auth (Nuxt installs dependencies after the module). |
+| `isPathUnder`, `joinPagePath` | `(path, base) => boolean`, `(base, path) => string` | Whether a path is a base or below it; a path below a base. |
 | `registerTailwindSource` | `(nuxt: Nuxt, dir: string) => void` | Makes Tailwind scan a folder of your module, usually `./runtime/app`. |
 
 ```ts
@@ -190,6 +193,17 @@ interface ModulePageDefinition {
 
 **`addModulePages`** skips a page whose path is unset or already taken by the host app or another module. So a host
 app replaces a shipped page by adding its own page at that path.
+
+**A signed-in area in the hub.** A module whose page belongs to the signed-in user puts its default below the hub when
+there is one, and redirects the path it had before, as Crew, Events and Help Center do:
+
+```ts
+const hub = resolveDashboardHubPath(nuxt)
+const ticketsPath = resolvePagePath(options.settings?.pages?.tickets, hub ? joinPagePath(hub, 'tickets') : '/account/tickets')
+if (options.settings?.pages?.tickets === true && ticketsPath !== '/account/tickets') {
+  addPageRedirects(nuxt, { '/account/tickets': ticketsPath! })
+}
+```
 
 **`registerTailwindSource`** exists because Tailwind only scans the host app and its layers. Without it, classes in
 your components are never generated. It appends the folder to the `ui.css` that `@nuxt/ui` generates, and does

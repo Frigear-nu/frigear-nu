@@ -9,7 +9,7 @@ const kit = vi.hoisted(() => ({
 }))
 vi.mock('@nuxt/kit', () => kit)
 
-const { addModulePages, addMenuSource, addOptionalMenuSource, defineVirtualRegistry, resolvePagePath } = await import('../src/runtime/utils')
+const { addModulePages, addMenuSource, addOptionalMenuSource, addPageRedirects, defineVirtualRegistry, isPathUnder, joinPagePath, resolveDashboardHubPath, resolvePagePath } = await import('../src/runtime/utils')
 
 const resolver = { resolve: (path: string) => `/pkg/${path.replace('./', '')}` } as never
 
@@ -23,6 +23,49 @@ function fakeNuxt() {
 }
 
 beforeEach(() => vi.clearAllMocks())
+
+describe('resolveDashboardHubPath', () => {
+  const nuxtWith = (dashboard?: unknown) => ({ options: { dashboard } }) as unknown as Nuxt
+
+  it('is /dashboard by default, a custom path, or nothing when the hub is off', () => {
+    kit.hasNuxtModule.mockReturnValue(true)
+    expect(resolveDashboardHubPath(nuxtWith())).toBe('/dashboard')
+    expect(resolveDashboardHubPath(nuxtWith({ settings: { pages: { home: true } } }))).toBe('/dashboard')
+    expect(resolveDashboardHubPath(nuxtWith({ settings: { pages: { home: 'me/' } } }))).toBe('/me')
+    expect(resolveDashboardHubPath(nuxtWith({ settings: { pages: { home: false } } }))).toBeUndefined()
+    expect(resolveDashboardHubPath(nuxtWith(false))).toBeUndefined()
+  })
+
+  it('needs the dashboard and auth modules', () => {
+    kit.hasNuxtModule.mockImplementation((name: string) => name === '@frigear-nu/auth')
+    expect(resolveDashboardHubPath(nuxtWith())).toBeUndefined()
+    kit.hasNuxtModule.mockImplementation((name: string) => name === '@frigear-nu/dashboard')
+    expect(resolveDashboardHubPath(nuxtWith())).toBeUndefined()
+    // A module that depends on both: Nuxt installs dependencies after it, so they are taken as there.
+    kit.hasNuxtModule.mockReturnValue(false)
+    expect(resolveDashboardHubPath(nuxtWith(), { dependency: true })).toBe('/dashboard')
+  })
+
+  it('joins and compares paths below the hub', () => {
+    expect(joinPagePath('/dashboard/', '/crew')).toBe('/dashboard/crew')
+    expect(isPathUnder('/dashboard/crew', '/dashboard')).toBe(true)
+    expect(isPathUnder('/dashboardx', '/dashboard')).toBe(false)
+    expect(isPathUnder('/anything', '/')).toBe(true)
+  })
+})
+
+describe('addPageRedirects', () => {
+  it('redirects each old path under every locale prefix, keeping a rule the app set', () => {
+    const nuxt = { options: { i18n: { locales: ['da', { code: 'en' }] }, routeRules: { '/da/old': { redirect: '/mine' }, '/en/old': { ssr: false } } } } as unknown as Nuxt
+    const set = addPageRedirects(nuxt, { '/old': '/new?tab=a', '/same': '/same' })
+    expect(set).toEqual(['/old', '/da/old', '/en/old'])
+    expect(nuxt.options.routeRules).toEqual({
+      '/old': { redirect: { to: '/new?tab=a', statusCode: 302 } },
+      '/da/old': { redirect: '/mine' },
+      '/en/old': { ssr: false, redirect: { to: '/en/new?tab=a', statusCode: 302 } },
+    })
+  })
+})
 
 describe('resolvePagePath', () => {
   it('maps the opt-in page setting to a path', () => {
