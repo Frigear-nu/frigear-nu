@@ -24,14 +24,21 @@ export type FrigearSsoConfig = {
   stepUpScopes: string[]
   url: string
   clientId: string
+  /** Empty for a public client: the login then authenticates with PKCE alone (`token_endpoint_auth_method: none`). */
   clientSecret: string
   openidConfig: string
+  /**
+   * The browser handoff (`oauth.frigear.handoff`): sign-in in the system browser while the window waits. `returnUrl`
+   * (`frigear.handoff.returnUrl`) is a deep link the browser's "signed in" page offers to bring the app forward.
+   */
+  handoff: { enabled: boolean, returnUrl: string }
 }
 
 /**
  * Resolves how "Log in with frigear.nu" is configured *at request time*. It is active when
- * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` has credentials. The credentials come
- * from `frigear.sso`, falling back to nuxt-auth-utils' own `oauth.oidc` config (`NUXT_OAUTH_OIDC_*`).
+ * `runtimeConfig.previewDeployment` is true or `runtimeConfig.frigear.sso` has a client id. The credentials come
+ * from `frigear.sso`, falling back to nuxt-auth-utils' own `oauth.oidc` config (`NUXT_OAUTH_OIDC_*`). Without a client
+ * secret the app is a public client: the login authenticates with PKCE (S256) alone.
  */
 export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
   const config = useRuntimeConfig(event)
@@ -41,12 +48,15 @@ export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
   const oidcConfig = typeof oidc?.openidConfig === 'string' ? oidc.openidConfig : ''
   const url = (sso?.url || (oidcConfig && new URL(oidcConfig).origin) || DEFAULT_SSO_URL).replace(/\/+$/, '')
   const clientId = sso?.clientId || oidc?.clientId || ''
-  const clientSecret = sso?.clientSecret || oidc?.clientSecret || ''
+  // Id and secret come as a pair: a client id of `frigear.sso` never borrows the secret of `oauth.oidc` (a public
+  // client has none).
+  const clientSecret = (sso?.clientId ? sso.clientSecret : oidc?.clientSecret) || ''
 
   const roleMap = parseRoleMap(config.frigear?.roleMap)
+  const handoff = config.frigear?.handoff as { enabled?: boolean, returnUrl?: string } | undefined
 
   return {
-    enabled: config.previewDeployment === true || !!(sso?.clientId && sso?.clientSecret),
+    enabled: config.previewDeployment === true || !!sso?.clientId,
     forceId: config.frigear?.forceId === true,
     syncRole: Object.keys(roleMap).length > 0 && config.frigear?.syncRole !== false,
     roleMap,
@@ -58,6 +68,7 @@ export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
     clientId,
     clientSecret,
     openidConfig: sso?.url || !oidcConfig ? `${url}/.well-known/openid-configuration` : oidcConfig,
+    handoff: { enabled: handoff?.enabled === true, returnUrl: typeof handoff?.returnUrl === 'string' ? handoff.returnUrl.trim() : '' },
   }
 }
 
@@ -96,7 +107,7 @@ export function frigearLoginScopes(sso: FrigearSsoConfig, requested?: unknown): 
 
 /** An OpenID provider's discovery document, cached for an hour. */
 export const loadOAuthOpenIdConfiguration = cachedFunction(async (url: string) => {
-  return $fetch<{ jwks_uri?: string, token_endpoint?: string }>(url)
+  return $fetch<{ issuer?: string, jwks_uri?: string, token_endpoint?: string, authorization_endpoint?: string, userinfo_endpoint?: string }>(url)
 }, { name: 'frigear-openid-configuration', getKey: url => url, maxAge: 3600 })
 
 const loadJwks = cachedFunction(async (url: string) => {

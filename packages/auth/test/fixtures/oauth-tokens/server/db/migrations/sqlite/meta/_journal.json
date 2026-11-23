@@ -15,6 +15,13 @@
       "when": 1794489629455,
       "tag": "0001_auth_token_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795476656513,
+      "tag": "0002_auth_frigear_handoffs",
+      "breakpoints": true
     }
   ]
 }

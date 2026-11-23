@@ -3,7 +3,7 @@ import { apiError, sha256Hex } from '@frigear-nu/module-kit/server'
 import { kv } from '#auth/rate-limit-kv'
 
 /** The anonymous auth routes counted per client IP (`rateLimit.requests`). */
-export type AuthRateLimitRoute = 'register' | 'forgot-password' | 'magic-link' | 'webauthn'
+export type AuthRateLimitRoute = 'register' | 'forgot-password' | 'magic-link' | 'webauthn' | 'frigear-handoff'
 
 type RateLimitConfig = {
   enabled: boolean

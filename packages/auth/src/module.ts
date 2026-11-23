@@ -97,6 +97,9 @@ export type {
   AuthScopeDto,
   AuthSettings,
   AuthTokenDto,
+  FrigearHandoffDto,
+  FrigearHandoffOpenContext,
+  FrigearHandoffStartDto,
   ModuleOptions,
   OAuthProvider,
   OAuthProviderButton,
@@ -152,6 +155,9 @@ declare module 'nuxt/schema' {
       defaultRole?: string
       // Keep the frigear.nu tokens in `auth_oauth_tokens` (`getOAuthAccessToken`). Defaults to `oauth.frigear.keepTokens`.
       keepTokens?: boolean
+      // The browser handoff (`oauth.frigear.handoff`, set at build time). `returnUrl` (`NUXT_FRIGEAR_HANDOFF_RETURN_URL`):
+      // a deep link the browser's "signed in" page offers to bring the app forward, e.g. `myapp:/auth/return`.
+      handoff?: { enabled?: boolean, returnUrl?: string }
     }
   }
 
@@ -413,6 +419,10 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   }
   const keepsOAuthTokens = oauthProviders.some(keepsTokens)
   if (keepsOAuthTokens) tables.push('authOAuthTokens')
+  // "Log in with frigear.nu" in the system browser while the window waits (`oauth.frigear.handoff`, desktop apps).
+  const frigearOptions = oauthSettings.frigear
+  const withFrigearHandoff = oauthProviders.includes('frigear') && typeof frigearOptions === 'object' && frigearOptions.handoff === true
+  if (withFrigearHandoff) tables.push('authFrigearHandoffs')
 
   registerDatabaseTable(nuxt, {
     name: tables,
@@ -554,6 +564,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       { method: 'get', path: 'frigear-status', file: 'oauth/frigear-status.get' },
     )
   }
+  // The browser handoff: the window starts an attempt, polls it and collects the session (or cancels).
+  if (withFrigearHandoff) {
+    routes.push(
+      { method: 'post', path: 'frigear/handoffs', file: 'oauth/frigear-handoffs.post' },
+      { method: 'get', path: 'frigear/handoffs/:id', file: 'oauth/frigear-handoff.get' },
+      { method: 'post', path: 'frigear/handoffs/:id/complete', file: 'oauth/frigear-handoff-complete.post' },
+      { method: 'delete', path: 'frigear/handoffs/:id', file: 'oauth/frigear-handoff.delete' },
+    )
+  }
   // Every nuxt-auth-utils provider, answering 404 until it is configured (decided per request, credentials are
   // runtime secrets). It is also each provider's registered callback URL, so the path never moves.
   routes.push({ method: 'get', path: ':provider', file: 'oauth/provider.get' })
@@ -567,11 +586,28 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     'useRegistration',
     'useAuthPages',
     'useAfterLogin',
+    'useFrigearHandoff',
     // The client API both modes share (client mode registers its own).
     'useAuth',
     'useApi',
   ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
   addPlugin(resolver.resolve('./runtime/app/plugins/api'))
+  // The seam a desktop shell plugs into to open frigear.nu in the system browser (`oauth.frigear.handoff`).
+  addTypeTemplate({
+    filename: 'types/auth-frigear-handoff.d.ts',
+    getContents: () => `declare module '#app' {
+  interface RuntimeNuxtHooks {
+    /**
+     * "Log in with frigear.nu" hands off to the system browser: open \`ctx.url\` outside the window and set
+     * \`ctx.handled = true\`; otherwise it opens with \`window.open(url, '_blank')\`.
+     */
+    'auth:frigear:open': (ctx: import(${JSON.stringify(resolver.resolve('./types'))}).FrigearHandoffOpenContext) => void | Promise<void>
+  }
+}
+
+export {}
+`,
+  }, { nuxt: true })
 
   // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
   // default, since they require `@nuxt/ui` to be installed in the consuming app.
@@ -621,10 +657,13 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     defaultRole: 'user',
     ...runtimeConfig.frigear,
     sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
+    // `enabled` follows the build (the table and routes exist only then); `returnUrl` is a runtime value.
+    handoff: { returnUrl: '', ...runtimeConfig.frigear?.handoff, enabled: withFrigearHandoff },
   }
   const frigearSso = runtimeConfig.frigear.sso!
+  // A client id is enough: without a secret the login is a public client (PKCE).
   const frigearSsoEnabled = oauthProviders.includes('frigear')
-    && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
+    && (runtimeConfig.previewDeployment === true || !!frigearSso.clientId)
   if (oauthProviders.includes('frigear')) {
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
     const roleMap = runtimeConfig.frigear.roleMap
@@ -664,6 +703,7 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     oauth: oauthProviders,
     apiTokens: withApiTokens,
     frigearSso: frigearSsoEnabled,
+    frigearHandoff: withFrigearHandoff,
     pages: { login: loginPath, register: registerPath },
     afterLogin: resolveAfterLogin(settings.afterLogin),
     publicPaths: serverPublicPaths({ loginPath, registerPath: localRegisterPath, withPasswordReset }),
