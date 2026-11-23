@@ -118,6 +118,8 @@ declare module 'nuxt/schema' {
       revokeTokensOnReset: boolean
       magicLinkSignUp: boolean
       magicLinkCooldown: number
+      // Seconds an invite link (staff created the account) stays valid (`settings.inviteTtl`, default 7 days).
+      inviteTtl: number
       // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
       trustRequestOrigin: boolean
       // Minimum seconds between two password reset emails for one user (`settings.passwordReset.cooldown`).
@@ -345,6 +347,8 @@ function resolveRateLimit(option: AuthSettings['rateLimit'], dev: boolean) {
 
 /** How long a cookie session lasts by default, in seconds (`settings.session.maxAge`): 30 days. */
 const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60
+// `settings.inviteTtl`: an invite link staff send when they create a user stays valid for 7 days.
+const DEFAULT_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 // Today's Auth: sign-in on this app's server, a nuxt-auth-utils cookie session, the database tables and routes.
 function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
@@ -427,6 +431,7 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     revokeTokensOnReset: (typeof options.apiTokens === 'object' ? options.apiTokens.revokeOnReset : undefined) !== false,
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    inviteTtl: settings.inviteTtl && settings.inviteTtl > 0 ? Math.floor(settings.inviteTtl) : DEFAULT_INVITE_TTL_SECONDS,
     trustRequestOrigin: settings.trustRequestOrigin === true,
     passwordResetCooldown: (typeof settings.passwordReset === 'object' ? settings.passwordReset.cooldown : undefined) ?? 60,
     rateLimit: resolveRateLimit(settings.rateLimit, nuxt.options.dev),

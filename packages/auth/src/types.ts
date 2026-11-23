@@ -160,6 +160,12 @@ export interface AuthSettings {
    */
   verifyEmail?: boolean
   /**
+   * How long an invite link stays valid, in seconds: the single-use link staff email when they create a user
+   * (`sendVerificationLink(event, user, { invite: true })`, as `POST /api/admin/users` of `@frigear-nu/users` does).
+   * Defaults to 604800 (7 days). Links people ask for themselves (sign-in, sign-up verification) keep 2 hours.
+   */
+  inviteTtl?: number
+  /**
    * Throttling of the anonymous sign-in routes, counted in NuxtHub KV (`hub.kv`; without it nothing is throttled and the
    * build warns). Past a limit a route answers `429 rate_limited` with `retry-after`. `0` turns one limit off, `false`
    * all of them. Off under `nuxt dev`.
