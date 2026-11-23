@@ -44,6 +44,28 @@
     "permissions": {
       "layouts": "Dine oversigter",
       "layoutsDescription": "Se og ændr rækkefølgen og de skjulte og sammenklappede elementer på dine oversigter."
+    },
+    "hub": {
+      "title": "Dit dashboard",
+      "greeting": "Hej {name}",
+      "description": "Dine genveje og hvad der sker.",
+      "empty": {
+        "title": "Intet her endnu",
+        "description": "Genveje og overblik dukker op her, efterhånden som jeres organisation slår flere funktioner til."
+      }
+    },
+    "nav": {
+      "label": "Dashboardnavigation"
+    },
+    "menu": {
+      "dashboard": {
+        "label": "Dashboard",
+        "description": "Dine genveje og dit overblik."
+      },
+      "overview": {
+        "label": "Overblik",
+        "description": "Dine genveje og dit overblik."
+      }
     }
   }
 }

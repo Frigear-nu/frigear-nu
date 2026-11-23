@@ -92,6 +92,7 @@
   },
   "peerDependencies": {
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/preferences": "workspace:^",
     "@nuxt/ui": "catalog:",
@@ -100,6 +101,9 @@
   },
   "peerDependenciesMeta": {
     "@frigear-nu/auth": {
+      "optional": true
+    },
+    "@frigear-nu/menu": {
       "optional": true
     },
     "@frigear-nu/mobile": {
@@ -114,6 +118,8 @@
   },
   "devDependencies": {
     "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/authorization": "workspace:^",
+    "@frigear-nu/menu": "workspace:^",
     "@frigear-nu/mobile": "workspace:^",
     "@frigear-nu/preferences": "workspace:^",
     "@frigear-nu/users": "workspace:^",

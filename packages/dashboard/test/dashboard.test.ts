@@ -67,4 +67,8 @@ describe('dashboard (two modules, one dashboard)', async () => {
     expect(html).toContain('hidden:faq.web')
     expect(html).not.toContain('item-staff')
   })
+
+  it('has no hub without @frigear-nu/auth', async () => {
+    expect((await fetch('/dashboard')).status).toBe(404)
+  })
 })

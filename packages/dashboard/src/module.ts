@@ -12,6 +12,7 @@ import {
   addModulePages,
   addModuleRoutes,
   addOptionalImports,
+  addOptionalMenuSource,
   defineVirtualRegistry,
   inlineModuleRuntime,
   registerLocales,
@@ -23,6 +24,7 @@ import type { DashboardPublicConfig, DashboardRegistryEntry, ModuleOptions } fro
 import { getDashboardItems } from './runtime/utils/dashboard'
 import { dashboardOfArea, dashboardRegistryTemplate, isModuleConditionMet, resolveDashboardRegistry } from './runtime/shared/registry'
 import { resolveHomeTab } from './runtime/shared/home-tab'
+import { resolveHub } from './runtime/shared/hub'
 
 export type * from './types'
 
@@ -57,6 +59,11 @@ export default defineNuxtModule<ModuleOptions>({
     // Soft: whether someone is signed in, so a layout is only saved for a user; with Preferences, the `authorize` of
     // the layout routes and their `dashboard:layouts` permission.
     '@frigear-nu/auth': { version: '>=0.0.0', optional: true },
+    // Soft: the hub's navigation is the `dashboard` menu (other modules add their areas to it), and its entry in
+    // `account.dropdown`. Without it the hub lists only its Overview.
+    '@frigear-nu/menu': { version: '>=0.0.0', optional: true },
+    // Soft: guards the hub (signed-in only, through `guardPages`).
+    '@frigear-nu/authorization': { version: '>=0.0.0', optional: true },
   },
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -72,6 +79,7 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useDashboardPlatform', from: resolver.resolve('./runtime/app/composables/useDashboardPlatform') },
       { name: 'dashboardSpanClass', from: resolver.resolve('./runtime/app/utils/span') },
       { name: 'useSavedDashboardLayouts', from: resolver.resolve('./runtime/app/composables/useSavedDashboardLayouts') },
+      { name: 'useDashboardNav', from: resolver.resolve('./runtime/app/composables/useDashboardNav') },
     ])
     for (const name of ['Dashboard', 'DashboardGrid', 'DashboardItem', 'ChartCard', 'ActionCard', 'EmptyCard']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
@@ -99,6 +107,12 @@ export default defineNuxtModule<ModuleOptions>({
         available: () => hasNuxtModule('@frigear-nu/auth', nuxt),
         fallback: 'undefined',
         fallbackType: `undefined | (() => { loggedIn: import('vue').Ref<boolean> | import('vue').ComputedRef<boolean>, user: import('vue').Ref<{ id?: string | number } | null | undefined> })`,
+      },
+      {
+        name: 'useMenu',
+        available: () => hasNuxtModule('@frigear-nu/menu', nuxt),
+        fallback: 'undefined',
+        fallbackType: `undefined | ((path: string) => PromiseLike<unknown> & { data: import('vue').Ref<import('@frigear-nu/menu').MenuItem[] | null | undefined> })`,
       },
       {
         name: 'useCapacitor',
@@ -149,14 +163,69 @@ export default defineNuxtModule<ModuleOptions>({
     // Mobile: a Home tab and its page. Without mobile a web app places `<Dashboard>` itself.
     const home = resolveHomeTab(options.homeTab, { mobile: hasNuxtModule('@frigear-nu/mobile', nuxt) })
     const publicConfig = nuxt.options.runtimeConfig.public as { dashboard?: Partial<DashboardPublicConfig> }
-    publicConfig.dashboard = { home: home?.dashboard ?? '', ...publicConfig.dashboard }
+    publicConfig.dashboard = { home: home?.dashboard ?? '', pages: {}, homeDashboard: '', ...publicConfig.dashboard }
     if (home) {
       addModulePages(MODULE_NAME, resolver, [{ name: 'dashboard-home', path: home.path, file: './runtime/app/pages/home.vue' }])
       const { extendMobileTabs } = await import('@frigear-nu/mobile/utils')
       extendMobileTabs(nuxt, home.tab)
     }
+
+    // The signed-in hub (`settings.pages.home`).
+    await setupHub(nuxt, resolver, options)
   },
 })
+
+/**
+ * The hub page, its `dashboard` layout, the area's route rules and guard, and the `dashboard` menu. Nothing when the
+ * hub is off (`settings.pages.home: false`, or no `@frigear-nu/auth`).
+ */
+async function setupHub(nuxt: Nuxt, resolver: ReturnType<typeof createResolver>, options: ModuleOptions) {
+  // Whether Auth is installed is only known once every module is done (it may come in later, as a dependency of another
+  // module), but Authorization collects the guard's route rules in its own `modules:done` hook, which may run first. So
+  // the rules are set now, whenever Auth's package resolves, and the rest waits. Without the Auth module nothing reads
+  // the rules, and there is no page for them to match.
+  const planned = resolveHub(options.settings, { auth: true })
+  if (!planned) return
+  const authUtils = await import('@frigear-nu/auth/utils').catch(() => undefined)
+  if (!authUtils) return
+
+  // Every page under the hub (modules add their areas there) gets the hub layout unless it chose one itself, and is for
+  // signed-in users only. With @nuxtjs/i18n every page also exists under `/<locale>/...`.
+  const areaBase = [planned.path, `${planned.path}/**`]
+  const rules = nuxt.options.routeRules ||= {}
+  for (const pattern of authUtils.localizedRoutePatterns(nuxt, areaBase)) {
+    rules[pattern] = { appLayout: 'dashboard', ...rules[pattern] } as (typeof rules)[string]
+  }
+  authUtils.guardPages(nuxt, areaBase)
+
+  nuxt.hook('modules:done', () => {
+    const logger = useLogger('dashboard')
+    const hub = resolveHub(options.settings, { auth: hasNuxtModule('@frigear-nu/auth', nuxt) })
+    if (!hub) {
+      if (typeof options.settings?.pages?.home === 'string') {
+        logger.warn('`dashboard.settings.pages.home` was set, but `@frigear-nu/auth` is not installed - skipping the hub.')
+      }
+      return
+    }
+    if (!hasNuxtModule('@frigear-nu/authorization', nuxt)) {
+      logger.warn(`@frigear-nu/authorization is not installed: the hub is not guarded. Install it and guard \`${hub.path}/**\` yourself.`)
+    }
+
+    const publicConfig = nuxt.options.runtimeConfig.public.dashboard
+    publicConfig.pages = { ...publicConfig.pages, home: hub.path }
+    publicConfig.homeDashboard = hub.dashboard
+
+    addModulePages(MODULE_NAME, resolver, [{ name: 'dashboard-hub', path: hub.path, file: './runtime/app/pages/hub.vue' }])
+
+    // A `dashboard` layout of the app (`app/layouts/dashboard.vue`) or a layer wins: Nuxt scans the layouts into
+    // `app.layouts` before `app:resolve`, so ours only fills the gap (the same as the account layout).
+    nuxt.hook('app:resolve', (app) => {
+      app.layouts.dashboard ||= { name: 'dashboard', file: resolver.resolve('./runtime/app/layouts/dashboard.vue') }
+    })
+
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard' })
+  })
+}
 
 /** Removes items whose `when.module` is absent from their dashboard's widget area, before the widget registry is written. */
 function pruneWidgetsByCondition(nuxt: Nuxt, hasModule: (name: string) => boolean) {

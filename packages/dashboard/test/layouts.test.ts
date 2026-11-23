@@ -130,4 +130,29 @@ describe('dashboard layouts API', async () => {
     // Gone from the row too; the other preferences are kept.
     expect((await stored(email)).preferences).toEqual({ colorMode: 'dark', dashboardLayouts: { 'crew.home': layout(['a']), 'admin.home': layout(['x']) } })
   })
+
+  describe('the hub (settings.pages.home)', () => {
+    it.each(['/dashboard', '/dashboard/crew'])('does not serve %s to guests', async (path) => {
+      const response = await fetch(path, { redirect: 'manual' })
+      expect(response.status).not.toBe(200)
+      expect(response.status === 401 || response.headers.get('location')?.includes('/sign-in')).toBe(true)
+    })
+
+    it('greets a signed-in user, with the dashboard menu as navigation and shortcuts', async () => {
+      const cookie = await register('hub-ada@example.com')
+      const response = await fetch('/dashboard', { headers: { cookie } })
+      expect(response.status).toBe(200)
+      const html = await response.text()
+      expect(html).toContain('Hi Ada')
+      expect(html).toContain('aria-label="Dashboard navigation"')
+      // The stand-in area is a shortcut (not the Overview, which is the page itself) and a navigation entry.
+      const shortcuts = html.slice(html.indexOf('data-dashboard-shortcuts'), html.indexOf('data-dashboard="home"'))
+      expect(shortcuts).toContain('Your shifts and teams.')
+      expect(shortcuts).not.toContain('Overview')
+      expect(html).toContain('href="/dashboard/crew"')
+      // The `home` dashboard has no items here, and the shortcuts above say enough: no empty state.
+      expect(html).toContain('data-dashboard="home"')
+      expect(html).not.toContain('Nothing here yet')
+    })
+  })
 })
