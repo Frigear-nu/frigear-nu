@@ -58,6 +58,17 @@ export type UserRef = {
   locale: string | null
 }
 
+/**
+ * One person in `UserPicker`: what its search route answers (an array of these, or a page with `items`). `email` is
+ * there only where the route lets the caller see it (`users:list` for the users route, a module's `:pii` elsewhere).
+ */
+export type UserPickerOption = {
+  id: number
+  name: string | null
+  email?: string | null
+  avatar?: string | null
+}
+
 /** The signed-in user's own profile, as the self-service routes return it. */
 export type ProfileDto = {
   id: number
