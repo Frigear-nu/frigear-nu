@@ -1,10 +1,13 @@
 // Where the two areas of the help center live, and the path builders every link goes through. Framework-free, so
-// `module.ts`, server code (sent links), the app and tests share it. Nothing hard-codes `/help` or `/account/help`.
+// `module.ts`, server code (sent links), the app and tests share it. Nothing hard-codes `/help` or `/dashboard/help`.
 
 const enc = encodeURIComponent
 
 export const DEFAULT_PUBLIC_PATH = '/help'
+/** The signed-in area without the signed-in hub of `@frigear-nu/dashboard`; with it the default is `<hub>/help`. */
 export const DEFAULT_SIGNED_IN_PATH = '/account/help'
+/** The segment of the signed-in area below the hub: `/dashboard/help`. */
+export const HUB_SIGNED_IN_SEGMENT = 'help'
 
 /** The configured bases of the two areas. An area that is off has no base. */
 export type HelpCenterAreas = { public?: string, signedIn?: string }
@@ -23,17 +26,17 @@ export function normalizeHelpCenterPath(value: string, option: string): string {
 
 /**
  * Turns the `pages` option into the bases of the two areas: a string is a custom path, `false` turns the area off and
- * anything else (omitted, `true`) is the default (`/help`, `/account/help`). The areas cannot share a path or sit inside
- * one another.
+ * anything else (omitted, `true`) is the default (`/help`; `defaults.signedIn`, else `/account/help`). The areas cannot
+ * share a path or sit inside one another.
  */
-export function resolveHelpCenterAreas(pages: { public?: string | boolean, signedIn?: string | boolean } | undefined): HelpCenterAreas {
+export function resolveHelpCenterAreas(pages: { public?: string | boolean, signedIn?: string | boolean } | undefined, defaults: { signedIn?: string } = {}): HelpCenterAreas {
   const one = (setting: string | boolean | undefined, fallback: string, option: string) => {
     if (setting === false) return undefined
     return normalizeHelpCenterPath(typeof setting === 'string' ? setting : fallback, option)
   }
   const areas: HelpCenterAreas = {
     public: one(pages?.public, DEFAULT_PUBLIC_PATH, 'public'),
-    signedIn: one(pages?.signedIn, DEFAULT_SIGNED_IN_PATH, 'signedIn'),
+    signedIn: one(pages?.signedIn, defaults.signedIn || DEFAULT_SIGNED_IN_PATH, 'signedIn'),
   }
   if (areas.public && areas.signedIn && (isPathUnder(areas.public, areas.signedIn) || isPathUnder(areas.signedIn, areas.public))) {
     // Equal, or one below the other: the pages of the outer area (`<base>/:category`) would swallow the inner one's.

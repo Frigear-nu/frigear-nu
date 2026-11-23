@@ -4,7 +4,7 @@ import type { BreadcrumbItem } from '@nuxt/ui'
 defineOptions({ name: 'HelpCenterFrame' })
 
 // The page frame of the two areas. The public area is a page of the site (`UContainer > UPage > UPageHeader`, inside the
-// host's layout); the signed-in area is an app page (`PageHeading`, the account layout supplies the container). The
+// host's layout); the signed-in area is an app page (`PageHeading`, the dashboard or account layout supplies the container). The
 // `links` slot holds the buttons next to the title.
 defineProps<{
   area: 'public' | 'signedIn'

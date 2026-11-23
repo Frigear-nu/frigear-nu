@@ -6,6 +6,10 @@ describe('where the areas live', () => {
     expect(resolveHelpCenterAreas(undefined)).toEqual({ public: DEFAULT_PUBLIC_PATH, signedIn: DEFAULT_SIGNED_IN_PATH })
     expect(resolveHelpCenterAreas({})).toEqual({ public: '/help', signedIn: '/account/help' })
     expect(resolveHelpCenterAreas({ public: true, signedIn: true })).toEqual({ public: '/help', signedIn: '/account/help' })
+    // With the signed-in hub of @frigear-nu/dashboard the module passes `<hub>/help` as the signed-in default.
+    expect(resolveHelpCenterAreas({}, { signedIn: '/dashboard/help' })).toEqual({ public: '/help', signedIn: '/dashboard/help' })
+    expect(resolveHelpCenterAreas({ signedIn: '/account/help' }, { signedIn: '/dashboard/help' }).signedIn).toBe('/account/help')
+    expect(resolveHelpCenterAreas({ signedIn: false }, { signedIn: '/dashboard/help' }).signedIn).toBeUndefined()
   })
 
   it('takes a second option set: custom paths for both areas', () => {

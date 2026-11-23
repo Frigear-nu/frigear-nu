@@ -25,7 +25,10 @@ export type ModuleOptions = {
       events?: string | boolean
       /** Event detail; must contain a `:slug` param. `true` = `/events/:slug`. */
       event?: string | boolean
-      /** The signed-in user's tickets. `true` = `/account/tickets`. */
+      /**
+       * The signed-in user's tickets. `true` = `/dashboard/tickets` with the signed-in hub of `@frigear-nu/dashboard`
+       * (its layout and `dashboard` menu; `/account/tickets` redirects there), else `/account/tickets`. Off by default.
+       */
       tickets?: string | boolean
       /** Staff event list (needs the `events:manage` permission). `true` = `/admin/events`. Off by default. */
       admin?: string | boolean
@@ -43,6 +46,8 @@ export type EventsRuntimeConfig = {
 
 export type PublicModuleOptions = {
   pages: { events?: string, event?: string, tickets?: string, admin?: string, adminEvent?: string }
+  /** The menu the tickets page is listed in: `dashboard` when it is in the signed-in hub, else `account`. */
+  ticketsMenu?: 'dashboard' | 'account'
 }
 
 export type AddonDto = {

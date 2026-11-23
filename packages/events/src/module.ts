@@ -18,6 +18,10 @@ import {
   inlineModuleRuntime,
   registerBootstrapProvider,
   addModuleRoutes,
+  addPageRedirects,
+  isPathUnder,
+  joinPagePath,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
@@ -69,6 +73,9 @@ declare module 'nitropack' {
 
 const MODULE_NAME = '@frigear-nu/events'
 
+/** Where the tickets were before the signed-in hub, and still are without it. */
+const ACCOUNT_TICKETS_PATH = '/account/tickets'
+
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'events' },
   defaults: {
@@ -104,7 +111,11 @@ export default defineNuxtModule<ModuleOptions>({
 
     const eventsPath = resolvePagePath(settings.pages?.events, '/events')
     const eventPath = resolvePagePath(settings.pages?.event, '/events/:slug')
-    const ticketsPath = resolvePagePath(settings.pages?.tickets, '/account/tickets')
+    // The tickets are an area of the signed-in hub of `@frigear-nu/dashboard` when there is one (`/dashboard/tickets`, in
+    // its layout, guard and `dashboard` menu), else a section of the account (`/account/tickets`).
+    const hub = resolveDashboardHubPath(nuxt)
+    const ticketsPath = resolvePagePath(settings.pages?.tickets, hub ? joinPagePath(hub, 'tickets') : ACCOUNT_TICKETS_PATH)
+    const ticketsMenu = ticketsPath && hub && isPathUnder(ticketsPath, hub) ? 'dashboard' : 'account'
     // The admin pages live in the shell of `@frigear-nu/admin`, so they only exist with it.
     const withAdmin = hasNuxtModule('@frigear-nu/admin')
     const adminPath = withAdmin ? resolvePagePath(settings.pages?.admin, adminRoute(nuxt, 'events')) : undefined
@@ -115,6 +126,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
     nuxt.options.runtimeConfig.public.events = {
       pages: { events: eventsPath, event: eventPath, tickets: ticketsPath, admin: adminPath, adminEvent: adminEventPath },
+      ticketsMenu,
+    }
+    // The tickets moved into the hub by default: the old address redirects there.
+    if (settings.pages?.tickets === true && ticketsPath && ticketsPath !== ACCOUNT_TICKETS_PATH) {
+      addPageRedirects(nuxt, { [ACCOUNT_TICKETS_PATH]: ticketsPath })
     }
 
     // --- Database -------------------------------------------------------------------------
