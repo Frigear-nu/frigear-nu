@@ -77,7 +77,15 @@
       "deleted": "Brugeren er slettet.",
       "roles": "Roller",
       "phone": "Telefon",
-      "phoneInvalid": "Angiv et telefonnummer med cifre, mellemrum og + - ( )."
+      "phoneInvalid": "Angiv et telefonnummer med cifre, mellemrum og + - ( ).",
+      "createdNamed": "{name} er oprettet",
+      "createFailed": "Brugeren kunne ikke oprettes",
+      "emailTaken": "Denne e-mail har allerede en konto",
+      "emailTakenHint": "{email} tilhører en eksisterende bruger. Vælg den bruger i stedet for at oprette en ny.",
+      "selectExisting": "Vælg eksisterende bruger",
+      "createPhoneHelp": "Valgfrit. Bruges til sms.",
+      "sendInvite": "Send invitation på e-mail",
+      "sendInviteHelp": "Et engangslink til at logge ind og bekræfte adressen, gyldigt i flere dage."
     },
     "emailChange": {
       "verify": {
@@ -130,6 +138,12 @@
       "delete": "Slette brugere",
       "manage": "Administrere brugeres login",
       "pii": "Se brugeres telefonnumre"
+    },
+    "picker": {
+      "placeholder": "Søg efter personer",
+      "create": "Opret bruger \"{term}\"",
+      "empty": "Ingen matcher",
+      "hint": "Skriv et navn for at søge"
     }
   }
 }
