@@ -661,6 +661,67 @@ export function rolePermissions(roles: readonly string[], table: RoleTable, regi
   return [...held].sort()
 }
 
+/**
+ * The roles that grant any of `wanted`: the roles themselves and every role inheriting one, directly or through
+ * another role (when `editor` inherits `user`, the holders of `user` include those of `editor`). `roles` is the compiled
+ * role table (`#auth/roles` `table.roles`) or any map of `inherit` lists.
+ */
+export function rolesGranting(roles: Readonly<Record<string, { inherit?: readonly string[] }>>, wanted: readonly string[]): string[] {
+  const result = new Set(wanted)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const [name, role] of Object.entries(roles)) {
+      if (!result.has(name) && (role.inherit ?? []).some(parent => result.has(parent))) {
+        result.add(name)
+        grew = true
+      }
+    }
+  }
+  return [...result].sort()
+}
+
+/** The most users `listRoleHolders` returns (and asks the role provider for) unless the caller passes a lower limit. */
+export const ROLE_HOLDER_LIMIT = 1000
+
+export interface CollectRoleHoldersInput {
+  /** The roles asked about. */
+  roles: readonly string[]
+  /** The compiled roles, for inheritance (`#auth/roles` `table.roles`). */
+  table: Readonly<Record<string, { inherit?: readonly string[] }>>
+  /** At most this many holders (capped at {@link ROLE_HOLDER_LIMIT}). */
+  limit?: number
+  /** The role provider's `holders`; `undefined` when there is no provider or it cannot list holders. */
+  holders?: (roles: string[], options: { limit: number }) => Promise<Array<number | string>>
+  /** Whether the user still holds one of `roles` once every source is applied (their effective roles). */
+  holds: (userId: number) => Promise<boolean>
+  /** Called once with every candidate before `holds`, to load what `holds` reads in bulk. */
+  prime?: (userIds: number[]) => Promise<void>
+}
+
+/**
+ * The core of `listRoleHolders`: asks `holders` for the users with a stored role granting one of `roles` (inheritance
+ * included), then keeps those `holds` confirms. Empty without `holders` (fail closed). The limit caps the stored
+ * candidates, not the confirmed holders: when the provider returns `limit` candidates, the list may be cut, which is
+ * logged as a warning.
+ */
+export async function collectRoleHolders(input: CollectRoleHoldersInput): Promise<number[]> {
+  const wanted = [...new Set(input.roles.filter(role => typeof role === 'string' && role.length > 0))]
+  const limit = Math.min(ROLE_HOLDER_LIMIT, Math.max(0, Math.floor(input.limit ?? ROLE_HOLDER_LIMIT)))
+  if (!input.holders || !wanted.length || !limit) return []
+  const candidates = await input.holders(rolesGranting(input.table, wanted), { limit })
+  if (candidates.length >= limit) {
+    console.warn(`[auth] the role provider returned ${limit} holders of ${wanted.join(', ')}, the limit: the list may be incomplete`)
+  }
+  const ids = [...new Set(candidates.map(Number))].filter(id => Number.isInteger(id) && id > 0).slice(0, limit)
+  if (ids.length && input.prime) await input.prime(ids)
+  const result: number[] = []
+  for (const id of ids) {
+    if (await input.holds(id)) result.push(id)
+  }
+  return result
+}
+
 /** Build errors of `oauthServer.settings.roleScopes`: role names that are not configured. */
 export function validateRoleScopes(roleScopes: Readonly<Record<string, readonly string[]>>, table: RoleTable): string[] {
   return Object.keys(roleScopes)

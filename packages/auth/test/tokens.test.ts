@@ -260,6 +260,12 @@ describe('auth tokens', async () => {
     expect((await call('GET', '/api/test/role', { bearer: token })).status).toBe(403)
   })
 
+  it('lists no role holders when the role provider cannot enumerate them (no `holders`)', async () => {
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'admin' } } })
+    expect(await (await call('GET', '/api/test/role-holders')).json()).toEqual({ holders: [] })
+    await call('PATCH', '/api/test/user', { body: { id: 2, patch: { role: 'user' } } })
+  })
+
   it('stops working when the user is gone', async () => {
     const carol = await call('POST', '/api/test/login', { body: { id: 1 } })
     expect(carol.status).toBe(200)

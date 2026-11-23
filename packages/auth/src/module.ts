@@ -46,16 +46,20 @@ import type {
 } from './types'
 import type {
   AuthUserStoreRegistration,
+  SessionUserFilterRegistration,
   PolicyFileRegistration,
   RoleProviderRegistration,
   RoleRequirementRegistration,
 } from './runtime/utils/build'
+import { sessionMapperContents } from './runtime/utils/build'
 import { accessTypes, compileAccess, routeRulePermissions, sharedPolicyImportErrors } from './runtime/utils/access-compile'
 import { pickAccessRouteRules } from './runtime/utils/route-rules'
 import type { CompiledAccess, RoleRegistration } from './runtime/utils/access-compile'
 import type { PermissionDefinition, ScopeDefinition } from './runtime/utils/permissions'
 import type { AuthorizationBeforeContext, AuthorizationRolesContext } from './runtime/types'
 import { USER_TOKEN_PREFIX } from './runtime/utils/tokens'
+import { extendGrants, registeredGrantKinds } from './runtime/utils/grants-build'
+import type { GrantFieldMeta, GrantKindRegistration } from './runtime/utils/grants'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
@@ -114,6 +118,8 @@ declare module 'nuxt/schema' {
       revokeTokensOnReset: boolean
       magicLinkSignUp: boolean
       magicLinkCooldown: number
+      // Seconds an invite link (staff created the account) stays valid (`settings.inviteTtl`, default 7 days).
+      inviteTtl: number
       // Build emailed links from the request origin when no site URL is set (`settings.trustRequestOrigin`).
       trustRequestOrigin: boolean
       // Minimum seconds between two password reset emails for one user (`settings.passwordReset.cooldown`).
@@ -262,6 +268,67 @@ const serverDependencies = (nuxt: Nuxt) => ({
   },
 })
 
+const byGrantOrder = (kinds: GrantKindRegistration[]) =>
+  [...kinds].sort((a, b) => (a.order ?? 100) - (b.order ?? 100) || a.kind.localeCompare(b.kind))
+
+// Grant lists: who may see a record. Auth ships the `public` and `signed-in` kinds; other modules add theirs with `extendGrants`
+// (`@frigear-nu/authorization`: `role`). The kinds are bundled once every module is done, as `#auth/grant-kinds` (the
+// server half: schema, matches, members) and `#auth/grant-fields` (the editor's menu and each kind's field component).
+function setupGrants(nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
+  extendGrants(nuxt, {
+    kind: 'public',
+    label: 'Everyone',
+    labelKey: 'auth.grants.kinds.public',
+    icon: 'i-lucide-globe',
+    server: resolver.resolve('./runtime/server/grants/public'),
+    order: 0,
+  })
+  extendGrants(nuxt, {
+    kind: 'signed-in',
+    label: 'Signed-in people',
+    labelKey: 'auth.grants.kinds.signedIn',
+    icon: 'i-lucide-user-check',
+    server: resolver.resolve('./runtime/server/grants/signed-in'),
+    order: 1,
+  })
+
+  addTypeTemplate({
+    filename: 'types/auth-grants.d.ts',
+    getContents: () => `declare module '#auth/grant-kinds' {
+  import type { GrantKindDefinition } from ${JSON.stringify(resolver.resolve('./runtime/utils/grants'))}
+  export const kinds: GrantKindDefinition<any>[]
+}
+declare module '#auth/grant-fields' {
+  import type { Component } from 'vue'
+  import type { GrantFieldMeta } from ${JSON.stringify(resolver.resolve('./runtime/utils/grants'))}
+  export const grantFields: Array<GrantFieldMeta & { field?: () => Promise<{ default: Component }> }>
+}
+`,
+  }, { nitro: true, nuxt: true })
+
+  defineVirtualRegistry(nuxt, {
+    filename: '#auth/grant-kinds',
+    target: 'server',
+    collect: () => byGrantOrder(registeredGrantKinds(nuxt)),
+    contents: kinds => `${kinds.map((kind, index) => `import kind${index} from ${JSON.stringify(kind.server)}`).join('\n')}
+export const kinds = [${kinds.map((_, index) => `kind${index}`).join(', ')}]
+`,
+  })
+
+  defineVirtualRegistry(nuxt, {
+    filename: 'auth/grant-fields.mjs',
+    alias: '#auth/grant-fields',
+    collect: () => byGrantOrder(registeredGrantKinds(nuxt)),
+    contents: kinds => `export const grantFields = [${kinds.map(({ server: _server, field, ...meta }) => {
+      const entry: GrantFieldMeta = { ...meta, hasField: !!field }
+      return field
+        ? `{ ...${JSON.stringify(entry)}, field: () => import(${JSON.stringify(field)}) }`
+        : JSON.stringify(entry)
+    }).join(', ')}]
+`,
+  })
+}
+
 const hasHubKv = (nuxt: Nuxt) => !!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv
 
 // Defaults of `settings.rateLimit`; `0` turns one limit off, `false` all of them. Off under `nuxt dev`.
@@ -280,6 +347,8 @@ function resolveRateLimit(option: AuthSettings['rateLimit'], dev: boolean) {
 
 /** How long a cookie session lasts by default, in seconds (`settings.session.maxAge`): 30 days. */
 const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60
+// `settings.inviteTtl`: an invite link staff send when they create a user stays valid for 7 days.
+const DEFAULT_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 // Today's Auth: sign-in on this app's server, a nuxt-auth-utils cookie session, the database tables and routes.
 function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
@@ -362,6 +431,7 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     revokeTokensOnReset: (typeof options.apiTokens === 'object' ? options.apiTokens.revokeOnReset : undefined) !== false,
     magicLinkSignUp: magicLinkSettings.signUp === true,
     magicLinkCooldown: magicLinkSettings.cooldown ?? 60,
+    inviteTtl: settings.inviteTtl && settings.inviteTtl > 0 ? Math.floor(settings.inviteTtl) : DEFAULT_INVITE_TTL_SECONDS,
     trustRequestOrigin: settings.trustRequestOrigin === true,
     passwordResetCooldown: (typeof settings.passwordReset === 'object' ? settings.passwordReset.cooldown : undefined) ?? 60,
     rateLimit: resolveRateLimit(settings.rateLimit, nuxt.options.dev),
@@ -422,13 +492,17 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     },
   })
 
-  // Session enrichment: re-exports the host's mapper (or a pass-through default) so routes can import it statically.
+  // Session enrichment: the modules' session user filters (`addSessionUserFilter`), then the host's mapper (or a
+  // pass-through default), composed into one function routes can import statically.
   addServerTemplate({
     filename: '#auth/session-mapper',
     getContents: async () => {
-      if (!settings.session?.mapper) return 'export default (user) => user'
-      const mapperPath = await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
-      return `export { default } from ${JSON.stringify(mapperPath)}`
+      const filters: SessionUserFilterRegistration[] = []
+      await nuxt.callHook('auth:session-filters', filters)
+      const mapperPath = settings.session?.mapper
+        ? await resolver.resolvePath(settings.session.mapper, { cwd: nuxt.options.rootDir })
+        : undefined
+      return sessionMapperContents(filters.map(filter => filter.path), mapperPath)
     },
   })
 
@@ -489,8 +563,11 @@ declare module '#auth/rate-limit-kv' {
   } | undefined
 }
 declare module '#auth/session-mapper' {
+  /** The session cookie's user: the session user filters, then the host's \`session.mapper\`. */
   const mapSessionUser: (user: Record<string, unknown>) => Record<string, unknown>
   export default mapSessionUser
+  /** The request's user: the host's \`session.mapper\` only, so it keeps the fields the filters drop. */
+  export const mapPrincipalUser: (user: Record<string, unknown>) => Record<string, unknown>
 }
 declare module '#auth/oauth' {
   type OAuthHandlerOptions = {
@@ -548,6 +625,7 @@ export {}
   nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
   addServerImportsDir(resolver.resolve('./runtime/server/utils'))
   inlineModuleRuntime(nuxt, resolver)
+  setupGrants(nuxt, resolver)
 
   addServerHandler({
     middleware: true,
@@ -651,6 +729,8 @@ export {}
     if (loginPath || localRegisterPath || withUi) {
       addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
     }
+    // The grant list editor (`<GrantsEditor v-model="grants" />`) is built from Nuxt UI components.
+    if (withUi) addComponent({ name: 'GrantsEditor', filePath: resolver.resolve('./runtime/app/components/GrantsEditor.vue') })
     if (!withMagicLink && !withVerifyEmail) return
     if (!withUi) {
       console.warn('[@frigear-nu/auth] Magic links / email verification are on, but `@nuxt/ui` is not installed: add your own page at `/auth/magic-link` that posts the `code` to `/api/auth/magic-link/confirm`.')

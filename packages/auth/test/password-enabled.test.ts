@@ -177,4 +177,8 @@ describe('oauth providers (any nuxt-auth-utils provider, on through its credenti
     expect(response.headers.get('location')).toBe('/?error=oauth-unverified')
     expect(response.headers.get('set-cookie')).toBeNull()
   })
+
+  it('lists no role holders without a role provider', async () => {
+    expect(await $fetch('/test/role-holders')).toEqual({ holders: [] })
+  })
 })

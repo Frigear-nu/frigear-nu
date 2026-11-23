@@ -53,6 +53,8 @@ interface AccessCache {
   decisions: Map<string, Promise<Decision>>
   /** Permissions the caller may delegate (`canGrantScope`), by user id. */
   grantable: Map<string, Promise<Set<string>>>
+  /** Assigned roles loaded for many users at once (`primeAssignedRoles`), by user id. */
+  assigned: Map<string, string[]>
 }
 
 declare module 'h3' {
@@ -63,7 +65,7 @@ declare module 'h3' {
 
 /** Per-request caches; outside a request (`event` missing) nothing is cached. */
 function cacheOf(event: H3Event | undefined): AccessCache {
-  const fresh = (): AccessCache => ({ roles: new Map(), granted: new Map(), requirements: new Map(), decisions: new Map(), grantable: new Map() })
+  const fresh = (): AccessCache => ({ roles: new Map(), granted: new Map(), requirements: new Map(), decisions: new Map(), grantable: new Map(), assigned: new Map() })
   if (!event) return fresh()
   return event.context.authAccess ??= fresh()
 }
@@ -181,7 +183,8 @@ function resolveRoles(event: H3Event | undefined, user: AuthUser): Promise<Resol
     let assigned: string[] = []
     if (hasProvider) {
       try {
-        assigned = (await provider.getAssignedRoles(event, Number(user.id))).filter(role => typeof role === 'string')
+        const preloaded = cacheOf(event).assigned.get(idOf(user))
+        assigned = (preloaded ?? await provider.getAssignedRoles(event, Number(user.id))).filter(role => typeof role === 'string')
       }
       catch (error) {
         console.error('[auth] the role provider failed, the user holds no assigned roles', error)
@@ -222,6 +225,25 @@ function resolveRoles(event: H3Event | undefined, user: AuthUser): Promise<Resol
     if (import.meta.dev && unknown.length) console.warn(`[auth] user ${idOf(user)} holds roles that are not configured (ignored): ${unknown.join(', ')}`)
     return { roles, failed }
   })
+}
+
+/**
+ * Loads the assigned roles of many users in one go (the role provider's optional `assignedRolesOf`) and keeps them for
+ * the request, so resolving each one's roles afterwards does not ask the provider once per user. Without an event, or a
+ * provider without `assignedRolesOf`, it does nothing. A provider that throws is logged and leaves the per-user path.
+ */
+export async function primeAssignedRoles(event: H3Event | undefined, userIds: readonly number[]): Promise<void> {
+  if (!event || !hasProvider || !provider.assignedRolesOf) return
+  const cache = cacheOf(event)
+  const missing = [...new Set(userIds)].filter(id => !cache.assigned.has(String(id)) && !cache.roles.has(String(id)))
+  if (!missing.length) return
+  try {
+    const loaded = await provider.assignedRolesOf(missing)
+    for (const id of missing) cache.assigned.set(String(id), loaded.get(id) ?? [])
+  }
+  catch (error) {
+    console.error('[auth] the role provider could not load assigned roles in bulk; they are read per user', error)
+  }
 }
 
 /**

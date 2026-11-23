@@ -137,6 +137,19 @@
         "offline": "Login-serveren kunne ikke nås. Tjek forbindelsen og prøv igen.",
         "generic": "Login kunne ikke gennemføres."
       }
+    },
+    "grants": {
+      "kinds": {
+        "public": "Alle",
+        "signedIn": "Alle der er logget ind"
+      },
+      "editor": {
+        "any": "Alle, der matcher en af disse, kan se det.",
+        "nobody": "Ingen kan se det endnu: tilføj hvem der må.",
+        "unknown": "Intet installeret modul kender denne type, så den giver ingen adgang.",
+        "remove": "Fjern {kind}",
+        "add": "Tilføj hvem der må se det"
+      }
     }
   }
 }
