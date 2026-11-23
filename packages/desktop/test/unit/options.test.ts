@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { appIdScheme, FALLBACK_APP_ID, resolveDesktopOptions, resolveSchemes } from '../../src/runtime/shared/config'
-import { assertClientAuth, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
+import { assertClientAuth, assertServerAuth, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
 
 describe('resolveDesktopOptions', () => {
   it('fills in the defaults', () => {
@@ -19,6 +19,7 @@ describe('resolveDesktopOptions', () => {
       autostart: false,
       updater: false,
       devUrl: 'http://localhost:3000',
+      local: null,
     })
   })
 
@@ -64,8 +65,31 @@ describe('resolveDesktopOptions', () => {
     expect(resolveDesktopOptions({ appId: 'a.b', deepLinks: { schemes: false } }).options.deepLinks.schemes).toEqual([])
   })
 
-  it('throws for local mode', () => {
-    expect(() => resolveDesktopOptions({ appId: 'a.b', mode: 'local' })).toThrow(/not implemented yet/)
+  it('resolves local mode with its defaults', () => {
+    const { options, errors, warnings } = resolveDesktopOptions({ appId: 'nu.frigear.Crew-Desk', mode: 'local' })
+    expect(errors).toEqual([])
+    expect(warnings).toEqual([])
+    expect(options.mode).toBe('local')
+    // The bundled server renders the pages.
+    expect(options.spa).toBe(false)
+    expect(options.local).toEqual({ binaryName: 'crew-desk-server', port: 0, secureCookie: true, dataDirName: 'data' })
+    expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local', spa: true }).options.spa).toBe(true)
+    expect(resolveDesktopOptions({ appId: 'a.b', local: { port: 4000 } }).options.local).toBeNull()
+  })
+
+  it('takes and checks the local options', () => {
+    const { options } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' } })
+    expect(options.local).toEqual({ binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' })
+    const { errors, warnings } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', singleInstance: false, local: { binaryName: 'my server', port: 70000, dataDirName: '../up' } })
+    expect(errors.join('\n')).toMatch(/`local.binaryName` "my server"/)
+    expect(errors.join('\n')).toMatch(/`local.port`/)
+    expect(errors.join('\n')).toMatch(/`local.dataDirName` "..\/up"/)
+    expect(warnings).toEqual([expect.stringMatching(/second server on the same database/)])
+    expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { dataDirName: '..' } }).errors).toEqual([expect.stringMatching(/dataDirName/)])
+  })
+
+  it('rejects an unknown mode', () => {
+    expect(resolveDesktopOptions({ appId: 'a.b', mode: 'cloud' as 'local' }).errors).toEqual([expect.stringMatching(/`mode` must be 'remote' or 'local'/)])
   })
 
   it('requires the app id, except while preparing', () => {
@@ -115,6 +139,11 @@ describe('module rules', () => {
   it('requires client auth', () => {
     expect(() => assertClientAuth('server')).toThrow(/authentication.mode: 'client'/)
     expect(() => assertClientAuth('client')).not.toThrow()
+  })
+
+  it('requires server auth in local mode', () => {
+    expect(() => assertServerAuth('client')).toThrow(/local.*server is the default/s)
+    expect(() => assertServerAuth('server')).not.toThrow()
   })
 
   it('imports only installed Tauri packages', () => {

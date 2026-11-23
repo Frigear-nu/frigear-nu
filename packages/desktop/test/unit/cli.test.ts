@@ -12,7 +12,7 @@ const options = resolveDesktopOptions({ appId: 'nu.frigear.crew', appName: 'Crew
 const manifest: DesktopManifest = {
   appId: 'nu.frigear.crew', appName: 'Crew', version: '1.0.0', mode: 'remote', devUrl: 'http://localhost:3000',
   redirectUri: 'nu.frigear.crew:/auth/callback', schemes: ['nu.frigear.crew'], singleInstance: true, autostart: false,
-  updater: false, plugins: [{ name: '@tauri-apps/api', required: true, feature: 'window' }],
+  updater: false, plugins: [{ name: '@tauri-apps/api', required: true, feature: 'window' }], local: null,
 }
 const generated = { config: tauriConfig(options), capabilities: capabilities(options), manifest }
 

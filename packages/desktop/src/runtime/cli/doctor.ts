@@ -18,6 +18,14 @@ export interface DoctorInput {
   readFile: (path: string) => string | null
   /** `.nuxt/desktop/manifest.json`, `null` when the app was not prepared. */
   manifest: DesktopManifest | null
+  /** The environment (`BUN`). */
+  env?: Record<string, string | undefined>
+}
+
+/** The Bun command local mode compiles the server with: `BUN` when set, else `bun` on the PATH. `null` when neither runs. */
+export function resolveBun(env: Record<string, string | undefined>, exec: DoctorInput['exec']): string | null {
+  const command = env.BUN?.trim() || 'bun'
+  return exec(command, ['--version']).ok ? command : null
 }
 
 /**
@@ -66,6 +74,14 @@ export function runDoctor(input: DoctorInput): DoctorFinding[] {
     }
     if (manifest.autostart && !cargo.includes('tauri-plugin-autostart')) error(`\`desktop.autostart\` is on but ${CARGO_TOML} has no \`tauri-plugin-autostart\`.`)
     if (manifest.updater && !cargo.includes('tauri-plugin-updater')) error(`\`desktop.updater\` is set but ${CARGO_TOML} has no \`tauri-plugin-updater\`.`)
+    if (manifest.local && !cargo.includes('tauri-plugin-shell')) {
+      error(`\`desktop.mode\` is \`local\` but ${CARGO_TOML} has no \`tauri-plugin-shell\`, which starts the bundled server: run \`frigear-desktop init --force\` in a clean checkout, or add it and the \`local_server\` code of a fresh src/lib.rs.`)
+    }
+  }
+  if (manifest?.local && !resolveBun(input.env ?? {}, input.exec)) {
+    error(input.env?.BUN
+      ? `\`BUN\` is set to "${input.env.BUN}", which does not run: local mode compiles the server with Bun.`
+      : 'Bun was not found: local mode compiles the server with it. Install it from https://bun.sh, or set `BUN` to its path.')
   }
 
   if (!manifest) {

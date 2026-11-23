@@ -1,6 +1,6 @@
 ---
 title: Desktop
-description: Turns a Nuxt app into a Tauri desktop app for macOS, Windows and Linux that signs in at a remote issuer.
+description: Turns a Nuxt app into a Tauri desktop app for macOS, Windows and Linux, either a static SPA that signs in at a remote issuer or the whole app with its own offline server.
 navigation:
   title: Overview
 ---
@@ -9,14 +9,15 @@ Desktop turns a Nuxt app into a desktop app for macOS, Windows and Linux with [T
 the desktop sibling of [Mobile](/modules/interface/mobile): the module writes the parts of the Tauri config it can
 derive from your Nuxt config, and the `frigear-desktop` CLI creates and updates the `src-tauri/` project.
 
-The package is `@frigear-nu/desktop`. Users sign in through [Auth in client mode](/modules/identity/auth/client-mode).
+The package is `@frigear-nu/desktop`. In remote mode, users sign in through
+[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server.
 
 ## Modes
 
 | `mode` | What ships in the app |
 | --- | --- |
 | `remote` (default) | A static SPA (`nuxt generate`). It talks to a remote API and signs in at a remote issuer with OAuth PKCE. |
-| `local` | Not available yet: the build fails with a message saying so. |
+| `local` | The whole app (SSR, API routes and server modules) compiled into one executable that runs offline on `127.0.0.1`, with a sqlite database in the app-data folder and cookie sessions. See [Local mode](/modules/interface/desktop/local-mode). |
 
 ## What you get
 
@@ -27,6 +28,8 @@ The package is `@frigear-nu/desktop`. Users sign in through [Auth in client mode
 - **Deep links**: links with the app's scheme open a page of the app. OAuth callbacks are left to Auth.
 - **Styling hooks**: `<html class="desktop" data-desktop="macos">` inside the desktop app.
 - **Sign-in** (opt-in): through Auth in client mode, in the system browser with the redirect back as a deep link.
+- **Local mode**: a bundled server started by the shell, with startup migrations, generated secrets and offline
+  defaults.
 
 Everything does nothing in a plain browser, so the same app also runs as a website.
 
@@ -96,8 +99,9 @@ Options go under the `desktop` key.
 | `appId` | `string` | required | The reverse-DNS app id: Tauri's `identifier` and, in lowercase, the default scheme. |
 | `appName` | `string` | `appId` | The product name and the default window title. |
 | `version` | `string` | `package.json` version, else `0.1.0` | The app version (semver). |
-| `mode` | `'remote' \| 'local'` | `'remote'` | See [Modes](#modes). `local` fails the build for now. |
-| `spa` | `boolean` | `true` | Sets `ssr: false`, because Tauri serves a static build. |
+| `mode` | `'remote' \| 'local'` | `'remote'` | See [Modes](#modes). |
+| `spa` | `boolean` | `true` (remote), `false` (local) | Sets `ssr: false`, because Tauri serves a static build in remote mode. |
+| `local` | `object` | see [Local mode](/modules/interface/desktop/local-mode#options) | `binaryName`, `port`, `secureCookie` and `dataDirName` of the bundled server. |
 | `window.title` | `string` | `appName` | The window title. |
 | `window.width`, `window.height` | `number` | `1280`, `800` | The window size at start. |
 | `window.minWidth`, `window.minHeight` | `number` | none | The smallest size. |
@@ -152,12 +156,15 @@ capability file. It grants:
 
 ## Sign-in
 
+This section covers remote mode. In local mode Auth runs in server mode on the bundled server, see
+[Local mode](/modules/interface/desktop/local-mode).
+
 When the app configures `authentication`, Desktop installs Auth and fills in `client.native.scheme` from `appId`. It
 never sets the mode: the app sets `authentication.mode: 'client'` itself.
 
 ::warning
-With Auth in server mode the build fails. A Tauri app in remote mode cannot send a same-origin session cookie to the
-API.
+In remote mode, Auth in server mode fails the build: a Tauri app in remote mode cannot send a same-origin session
+cookie to the API. In local mode, it is the other way around: client mode fails the build.
 ::
 
 A production build signs in through the user's default browser and gets the redirect back as a deep link. Under
