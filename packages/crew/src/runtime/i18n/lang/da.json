@@ -150,7 +150,6 @@
     },
     "apply": {
       "alreadyApplied": "Du har allerede ansøgt",
-      "appliedDescription": "Din ansøgning er {status}. Vi sender dig en e-mail, når der sker noget.",
       "approved": "Du er på crewet.",
       "closed": "Ansøgningerne er lukket",
       "description": "Fortæl os lidt om dig selv for at komme med på crewet.",
@@ -158,13 +157,16 @@
       "member": "Du er allerede på dette crew",
       "notFound": "Operationen blev ikke fundet",
       "opensAt": "De åbner {date}.",
+      "receivedDescription": "Vi har modtaget din ansøgning. Vi sender dig en e-mail, når der sker noget.",
       "rejected": "Din ansøgning blev ikke godkendt",
       "rejectedDescription": "Tak fordi du ansøgte. Kontakt arrangørerne, hvis du har spørgsmål.",
       "scheduled": "Ansøgningerne er ikke åbnet endnu",
       "seeStatus": "Se din status",
       "thanks": "Tak fordi du ansøgte",
       "title": "Ansøg til {operation}",
-      "unavailable": "Dette crew tager ikke imod ansøgninger"
+      "unavailable": "Dette crew tager ikke imod ansøgninger",
+      "waitlisted": "Du er på ventelisten",
+      "waitlistedDescription": "Du er på ventelisten. Vi sender dig en e-mail, hvis der bliver en plads."
     },
     "dashboard": {
       "status": "Min crew-status",
