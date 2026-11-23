@@ -109,6 +109,7 @@
         "implicit": "Everyone (implicit)",
         "via": "via {grant}",
         "count": "{count} permissions",
+        "countOne": "1 permission",
         "sensitiveHint": "Sensitive: only granted by name, never by a wildcard",
         "sessionOnlyHint": "Session only: never held by an API or OAuth token",
         "loadFailed": "The matrix could not be loaded",

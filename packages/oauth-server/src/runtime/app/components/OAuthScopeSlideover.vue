@@ -62,7 +62,8 @@ const translated = (key: string | null, fallback: string) => key && i18n?.te?.(k
 const permissionItems = computed<InputMenuItem[][]>(() => {
   const groups = new Map<string, InputMenuItem[]>()
   for (const option of permissionOptions.value ?? []) {
-    const group = option.from ?? option.group
+    // Module names read like the roles admin: the npm scope is dropped (`@frigear-nu/events` reads "events").
+    const group = (option.from ?? option.group).replace(/^@[^/]+\//, '')
     if (!groups.has(group)) groups.set(group, [{ type: 'label', label: group }])
     groups.get(group)!.push({
       label: translated(option.labelKey, option.label ?? option.name),

@@ -109,6 +109,7 @@
         "implicit": "Alle (implicit)",
         "via": "via {grant}",
         "count": "{count} rettigheder",
+        "countOne": "1 rettighed",
         "sensitiveHint": "Følsom: tildeles kun ved navn, aldrig via et wildcard",
         "sessionOnlyHint": "Kun session: aldrig til API- eller OAuth-tokens",
         "loadFailed": "Matrixen kunne ikke indlæses",

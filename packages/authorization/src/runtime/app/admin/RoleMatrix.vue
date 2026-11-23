@@ -102,7 +102,7 @@ const columns = computed<TableColumn<MatrixRow>[]>(() => {
         if (value.kind === 'group') {
           return h('div', { class: 'flex items-center gap-2' }, [
             h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm', label: value.label }),
-            h('span', { class: 'text-muted text-xs' }, t('admin.matrix.count', '{count} permissions', { count: value.count })),
+            h('span', { class: 'text-muted text-xs' }, countLabel(value.count)),
           ])
         }
         const { permission } = value
@@ -139,6 +139,9 @@ function clearFilters() {
   search.value = ''
   module.value = null
 }
+const countLabel = (count: number) => count === 1
+  ? t('admin.matrix.countOne', '1 permission')
+  : t('admin.matrix.count', '{count} permissions', { count })
 const permissionCount = computed(() => rows.value.filter(row => row.kind === 'permission').length)
 </script>
 
@@ -172,7 +175,7 @@ const permissionCount = computed(() => rows.value.filter(row => row.kind === 'pe
         />
         <template #right>
           <span class="text-muted text-sm">
-            {{ t('admin.matrix.count', '{count} permissions', { count: permissionCount }) }}
+            {{ countLabel(permissionCount) }}
           </span>
         </template>
       </PageToolbar>
