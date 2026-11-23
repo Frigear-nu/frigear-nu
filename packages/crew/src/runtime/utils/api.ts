@@ -28,6 +28,8 @@ export const crewApi = {
     settings: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/settings`,
     /** `GET` (paginated, `?status&team&previous&q`) an operation's whole crew, for staff. */
     members: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/members`,
+    /** `POST` `{ userId, teamId?, role? }` to add a person to the crew, approved at once (201; 200 when a withdrawn or rejected row is reused). */
+    addMember: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/members`,
     /** `POST` `{ ids }` to approve several people at once. */
     approveMany: (operationId: string) => `${ADMIN_BASE}/operations/${enc(operationId)}/members/approve`,
     /** `PATCH` `{ teamId?, role? }` to move a crew member. */
@@ -40,6 +42,8 @@ export const crewApi = {
     waitlist: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/waitlist`,
     /** `GET` the application's answers (needs `crew:pii`). */
     submission: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/submission`,
+    /** `GET` `?q=` users to add to a crew (at most 20; emails and email matches only with `crew:pii`). */
+    users: `${ADMIN_BASE}/users`,
     /** `GET` the forms an operation can recruit with (`?operationId=` keeps its own). */
     forms: `${ADMIN_BASE}/forms`,
     /** `GET` / `POST` an operation's invite links. */

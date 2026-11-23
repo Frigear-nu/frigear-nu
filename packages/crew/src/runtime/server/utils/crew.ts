@@ -458,6 +458,56 @@ export async function crewDecide(event: H3Event, id: string, to: 'approved' | 'r
 }
 
 /**
+ * Adds a person to an operation's crew, approved at once: staff picked them, so there is no application to decide. A
+ * person with no crew row in the operation gets one (on `teamId`, else the default team; `role`, else the lowest of the
+ * ladder). A withdrawn or rejected person's row is reused (`created: false`) and approved, on the given team and role
+ * when set. A person who is applied, waitlisted or approved already is a 409 with their `status` (and `memberId`), and
+ * so is someone who works on a team of the operation through teams. Fires the teams hooks and `crew:member:approved`
+ * and sends the approval message (`notifyUser`), like a staff approval. Staff adding does not check the capacity.
+ */
+export async function crewAddMember(event: H3Event, input: { operation: CrewOperationRow, userId: number, teamId?: string, role?: string, by: number | null }): Promise<{ entry: CrewEntry, created: boolean }> {
+  const { operation, userId, by } = input
+  const existing = await findCrewEntry(userId, operation.id)
+  const status = existing?.member.crewStatus as CrewStatus | undefined
+  if (existing && status && status !== 'withdrawn' && status !== 'rejected') {
+    throw conflict(`This person is ${status} in this crew already.`, { field: 'userId', status, memberId: existing.member.id })
+  }
+  if (!existing && await crewHasPlainMembership(userId, operation.id)) {
+    throw conflict('This person is on a team of this operation already.', { field: 'userId', status: null })
+  }
+  const settings = await findCrewSettings(operation.id)
+  const team = input.teamId
+    ? await getCrewOperationTeamOr400(operation.id, input.teamId)
+    : existing?.team ?? await crewDefaultTeamOf(event, operation.id, settings)
+  let role = input.role ?? (existing && existing.team.id === team.id ? existing.member.role : undefined)
+  if (role) await assertTeamRoleOnLadder(event, team.kind, role)
+  else role = await crewLowestRole(event, team.kind)
+
+  const now = new Date()
+  const decided = { crewStatus: 'approved' as const, decidedAt: now, decidedBy: by, waitlistPosition: null, waitlistReason: null }
+  let entry: CrewEntry
+  if (existing) {
+    if (team.id !== existing.team.id && await findTeamMember(team.id, userId)) throw conflict('This person is on that team already.', { field: 'teamId' })
+    const result = await crewUpdateMember(event, existing, {
+      ...decided,
+      ...(team.id !== existing.team.id ? { teamId: team.id } : {}),
+      ...(role !== existing.member.role ? { role } : {}),
+    })
+    if (!result.changed) {
+      const current = result.entry.member.crewStatus
+      throw conflict(`This person is ${current} in this crew already.`, { field: 'userId', status: current, memberId: result.entry.member.id })
+    }
+    entry = result.entry
+  }
+  else {
+    entry = await crewInsertMember(event, { team, userId, role, appliedAt: now, addedBy: by, locale: null, ...decided })
+  }
+  await crewFire(event, 'crew:member:approved', operation.id, await crewMemberDtoOf(entry, operation, true))
+  await crewNotify(event, entry, operation, settings, 'approved')
+  return { entry, created: !existing }
+}
+
+/**
  * Approves people in turn. People who cannot be approved because of what they are (unknown, another operation's, in a
  * status that cannot become approved: a 4xx) come back in `skipped`; any other failure is thrown.
  */
