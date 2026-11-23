@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { isoDate } from '@frigear-nu/module-kit/server'
 import type { AuthTokenDto } from '../../../types'
 import { tokenStatus } from '../../utils/tokens'
+import { newId } from '@frigear-nu/module-kit/id'
 
 type TokenRow = typeof schema.authUserTokens.$inferSelect
 
@@ -23,7 +24,7 @@ export function toAuthTokenDto(row: TokenRow): AuthTokenDto {
   }
 }
 
-export const newTokenId = () => `aut_${crypto.randomUUID().replaceAll('-', '')}`
+export const newTokenId = () => newId('aut')
 
 export const createTokenSchema = z.object({
   name: z.string().trim().min(1).max(80),

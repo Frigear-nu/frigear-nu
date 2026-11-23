@@ -44,10 +44,8 @@ export function normalizeMembership(value: MembershipRequirement | undefined): M
   return null
 }
 
-/** Random, prefixed id (`tkt_...`), Web Crypto only so it works on Workers. */
-export function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`
-}
+/** Random, prefixed id (`<prefix>_<32 hex>`): the one of `@frigear-nu/module-kit/id`. */
+export { newId } from '@frigear-nu/module-kit/id'
 
 /** A longer random token for ticket QR codes. */
 export function newTicketCode(): string {

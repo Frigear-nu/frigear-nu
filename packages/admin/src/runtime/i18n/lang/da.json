@@ -24,7 +24,23 @@
     },
     "permissions": {
       "access": "Adgang til administrationen",
-      "accessDescription": "Åbn siderne i administrationen. Dataene bag dem tjekker deres egne rettigheder."
+      "accessDescription": "Åbn siderne i administrationen. Dataene bag dem tjekker deres egne rettigheder.",
+      "reindex": "Genopbyg søgning",
+      "reindexDescription": "Genberegn søgekolonnerne i alle tabeller, der har dem."
+    },
+    "searchIndex": {
+      "title": "Søgning",
+      "description": "Genopbyg søgekolonnerne efter en opdatering.",
+      "section": "Søgeindeks",
+      "action": "Genopbyg søgning",
+      "hint": "Kør den én gang efter en udrulning, hvis noterne beder om det, eller når en søgning efter et navn med æ, ø eller å ikke finder alt. Den ændrer ingen data, kun de kolonner søgningen læser.",
+      "confirm": {
+        "title": "Genopbyg søgning?",
+        "description": "Alle rækker i de søgbare tabeller læses igen, og deres søgekolonner skrives om, hvor de afviger. På store tabeller tager det lidt tid; søgning virker imens."
+      },
+      "done": "Søgning genopbygget: {updated} rækker opdateret",
+      "table": "{table}: {scanned} læst, {updated} opdateret",
+      "error": "Kunne ikke genopbygge søgningen."
     }
   }
 }

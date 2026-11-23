@@ -1,38 +1,25 @@
 import type { H3Event } from 'h3'
+import { sha256Base64Url, sha256Hex as moduleKitSha256Hex, timingSafeEqual } from '@frigear-nu/module-kit/crypto'
+import { randomToken } from '@frigear-nu/module-kit/id'
 
-const encoder = new TextEncoder()
-
-function toHex(bytes: Uint8Array): string {
-  return [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-/** Random, URL-safe secret (codes, refresh tokens, client secrets). */
+/** Random, URL-safe secret (codes, refresh tokens, client secrets): `bytes` random bytes as hex. */
 export function generateSecret(bytes = 32): string {
-  return toHex(crypto.getRandomValues(new Uint8Array(bytes)))
+  return randomToken(bytes, 'hex')
 }
 
-export async function sha256Hex(value: string): Promise<string> {
-  return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))))
+/** SHA-256 hex (`@frigear-nu/module-kit/crypto`). */
+export function sha256Hex(value: string): Promise<string> {
+  return moduleKitSha256Hex(value)
 }
 
-/** Constant-time string comparison. */
+/** Constant-time string comparison (`timingSafeEqual` of `@frigear-nu/module-kit/crypto`). */
 export function safeEqual(a: string, b: string): boolean {
-  const left = encoder.encode(a)
-  const right = encoder.encode(b)
-  let diff = left.length ^ right.length
-  for (let i = 0; i < Math.max(left.length, right.length); i++) diff |= (left[i] ?? 0) ^ (right[i] ?? 0)
-  return diff === 0
+  return timingSafeEqual(a, b)
 }
 
 /** PKCE S256: `BASE64URL(SHA256(verifier))`. */
-export async function computeCodeChallenge(verifier: string): Promise<string> {
-  return toBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(verifier))))
+export function computeCodeChallenge(verifier: string): Promise<string> {
+  return sha256Base64Url(verifier)
 }
 
 export async function verifyCodeChallenge(verifier: string, challenge: string): Promise<boolean> {

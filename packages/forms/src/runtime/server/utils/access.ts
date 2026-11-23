@@ -1,4 +1,4 @@
-import { apiError, isoDate } from '@frigear-nu/module-kit/server'
+import { apiError, isoDate, randomToken, sha256Hex } from '@frigear-nu/module-kit/server'
 import type { H3Event } from 'h3'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema } from '@nuxthub/db'
@@ -11,16 +11,13 @@ export const TOKEN_HEADER = 'x-form-token'
 export const PASSWORD_HEADER = 'x-form-password'
 const TOKEN_PREFIX = 'ffk_'
 
-const toHex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('')
-
 export async function hashToken(token: string): Promise<string> {
-  return toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))
+  return sha256Hex(token)
 }
 
 /** A new random token (shown once), its hash and its display prefix. */
 export async function generateToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  const token = `${TOKEN_PREFIX}${btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')}`
+  const token = `${TOKEN_PREFIX}${randomToken(32)}`
   return { id: newId('fat'), token, tokenHash: await hashToken(token), prefix: token.slice(0, 8) }
 }
 

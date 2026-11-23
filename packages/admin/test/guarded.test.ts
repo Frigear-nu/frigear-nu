@@ -13,6 +13,11 @@ describe('admin area wiring with @frigear-nu/authorization', () => {
     await nuxt.callHook('auth:permissions' as never, permissions as never)
     expect(permissions.find(permission => permission.name === 'admin:access')).toMatchObject({ grantTo: ['admin'] })
     expect(permissions.find(permission => permission.name === 'admin:access')?.implicit).toBeFalsy()
+    // The Settings > Search rebuild needs a registered search index, which this fixture has none of: no permission, no
+    // route, no page and no menu entry (`@frigear-nu/users`' admin-db fixture covers the app with an index).
+    expect(permissions.find(permission => permission.name === 'search:reindex')).toBeUndefined()
+    expect(nuxt.options.serverHandlers.some(handler => handler.route === '/api/admin/search/reindex')).toBe(false)
+    expect(nuxt.apps.default?.pages?.some(page => page.path === '/admin/search') ?? false).toBe(false)
 
     const rules = nuxt.options.routeRules as Record<string, Record<string, unknown>>
     expect(rules['/admin/**']).toMatchObject({ permission: 'admin:access' })
@@ -22,6 +27,15 @@ describe('admin area wiring with @frigear-nu/authorization', () => {
     const entry = Object.values(extensions?.account ?? {}).flat().find(item => item.id === 'admin')
     expect(entry?.permission).toBe('admin:access')
     expect(entry?.meta).toBeUndefined()
+    const settingsEntries = Object.values(extensions?.['admin.nav.settings'] ?? {}).flat()
+    expect(settingsEntries.some(item => item.id === 'admin-search')).toBe(false)
+
+    // The permission is decided when auth collects permissions (its `modules:done`), so an index any module registered
+    // during setup counts: with one, `search:reindex` is there (session only, for admins).
+    nuxt.options._searchIndexes = [{ name: 'test', handler: '/dev/null' }]
+    const withIndex: typeof permissions = []
+    await nuxt.callHook('auth:permissions' as never, withIndex as never)
+    expect(withIndex.find(permission => permission.name === 'search:reindex')).toMatchObject({ grantTo: ['admin'], sessionOnly: true })
     await nuxt.close()
   })
 

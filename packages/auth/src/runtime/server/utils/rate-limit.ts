@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { apiError } from '@frigear-nu/module-kit/server'
+import { apiError, sha256Hex } from '@frigear-nu/module-kit/server'
 import { kv } from '#auth/rate-limit-kv'
 
 /** The anonymous auth routes counted per client IP (`rateLimit.requests`). */
@@ -32,9 +32,9 @@ export function authClientIp(event: H3Event): string {
   return fromHeader || getRequestIP(event, { xForwardedFor: config?.xForwardedFor === true }) || 'unknown'
 }
 
+/** The first 16 bytes of the SHA-256, as hex. */
 async function hashKey(value: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return [...new Uint8Array(digest)].slice(0, 16).map(byte => byte.toString(16).padStart(2, '0')).join('')
+  return (await sha256Hex(value)).slice(0, 32)
 }
 
 /** A fixed window: the counter key for the current window and the seconds until it ends. */

@@ -4,6 +4,7 @@ import type { H3Event } from 'h3'
 import type { CheckoutBeforeContext, CreatePaymentInput, InvoicePaymentInput, CreatePaymentResult, PaymentDto, PaymentItem, PaymentReference, PaymentStatus } from '../../../types'
 import { apiError, badRequest, conflict, notFound, resolveSameOriginUrl } from '@frigear-nu/module-kit/server'
 import { sumItems } from '../../utils'
+import { newId } from '@frigear-nu/module-kit/id'
 
 type PaymentRow = typeof schema.payments.$inferSelect
 
@@ -23,7 +24,7 @@ export function toPaymentDto(row: PaymentRow): PaymentDto {
   }
 }
 
-const newPaymentId = () => `pay_${crypto.randomUUID().replaceAll('-', '')}`
+const newPaymentId = () => newId('pay')
 
 function safeReturnUrl(input: string, event: H3Event | undefined, name: string): string {
   if (!event) {
