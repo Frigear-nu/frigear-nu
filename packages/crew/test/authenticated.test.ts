@@ -441,6 +441,35 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await getEmailsTo(ada.email)).map(email => email.template?.name)).toEqual(['crew-status-approved'])
     })
 
+    it('takes part by one rule: a member added in teams and an approved crew member both see their crew, apply and participation', async () => {
+      const crew = await newCrew()
+      const viaTeams = await user('Teamsadded')
+      const viaCrew = await user('Crewadded')
+      const pending = await user('Pendingteams')
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: viaTeams.id, role: 'volunteer' }))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: pending.id, role: 'volunteer', status: 'pending' }))
+      expect((await add(crew, { userId: viaCrew.id })).status).toBe(201)
+
+      for (const [person, source] of [[viaTeams, 'teams'], [viaCrew, 'crew']] as const) {
+        // My crew (the status page, the account menu, the mobile tab and the dashboard widget all read /api/crew/me).
+        expect(await ok(await json(person.cookie, 'GET', crewApi.me.crew))).toEqual([expect.objectContaining({
+          operationId: crew.op.id, crewStatus: 'approved', source, teamId: crew.teamId, role: 'volunteer',
+        })])
+        // Participation, as shifts, grants and the operation's pages see it.
+        const participation = await getParticipation(person.cookie, crew.op.id)
+        expect(participation).toMatchObject({ operationIds: [crew.op.id], matches: true })
+        expect(participation.members).toContain(person.id)
+      }
+      // The apply page: a teams member is a member; an approved crew member has applied and is approved.
+      expect(await ok(await json(viaTeams.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'member', crewStatus: null })
+      expect(await ok(await json(viaCrew.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'applied', crewStatus: 'approved' })
+      // A membership that does not grant (pending in teams) is no crew place.
+      expect(await ok(await json(pending.cookie, 'GET', crewApi.me.crew))).toEqual([])
+      expect(await getParticipation(pending.cookie, crew.op.id)).toMatchObject({ matches: false })
+      // Withdraw ends crew rows only: a teams place is ended in teams.
+      expect((await json(viaTeams.cookie, 'POST', crewApi.me.withdraw(crew.op.id))).status).toBe(404)
+    })
+
     it('adds into a team and role of the operation, and refuses a team of another operation', async () => {
       const crew = await newCrew()
       const bar = await createTeam(crew)

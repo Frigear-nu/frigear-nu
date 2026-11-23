@@ -114,7 +114,10 @@ export type MyCrewDto = {
   operationId: string
   operationSlug: string
   operationName: Translated
+  /** `approved` for a place added in teams (`source: 'teams'`). */
   crewStatus: CrewStatus
+  /** `crew`: an application or a crew place (withdraw works). `teams`: added by teams staff, who alone can end it. */
+  source: 'crew' | 'teams'
   teamId: string
   teamName: Translated
   role: string
