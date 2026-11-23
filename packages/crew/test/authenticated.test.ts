@@ -423,6 +423,99 @@ describe('crew (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('adding people directly', () => {
+    const add = (crew: Crew, body: Json, cookie: string | undefined = staff.cookie) => json(cookie, 'POST', crewApi.admin.addMember(crew.op.id), body)
+
+    it('adds a person approved at once: 201, the role, participation, the hooks and the approval message', async () => {
+      const crew = await newCrew()
+      const ada = await user('Ada')
+      const response = await add(crew, { userId: ada.id })
+      expect(response.status).toBe(201)
+      const added = await response.json() as Json
+      expect(added).toMatchObject({ userId: ada.id, crewStatus: 'approved', role: 'volunteer', teamId: crew.teamId, decidedBy: staff.id, submissionId: null })
+      expect(added.appliedAt).toBeTruthy()
+      expect(await rowOf(crew, ada)).toMatchObject({ id: added.id, crewStatus: 'approved' })
+      expect((await myOperations(ada.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
+      expect(await hookNames(ada)).toEqual(['teams:added', 'crew:approved'])
+      // The usual approval message, through notifyUser.
+      expect((await getEmailsTo(ada.email)).map(email => email.template?.name)).toEqual(['crew-status-approved'])
+    })
+
+    it('adds into a team and role of the operation, and refuses a team of another operation', async () => {
+      const crew = await newCrew()
+      const bar = await createTeam(crew)
+      const ben = await user('Ben')
+      expect(await ok(await add(crew, { userId: ben.id, teamId: bar.id, role: 'lead' }))).toMatchObject({ teamId: bar.id, role: 'lead', crewStatus: 'approved' })
+      const other = await newCrew()
+      await expectApiError(add(other, { userId: (await user('Bo')).id, teamId: bar.id }), 400)
+      await expectApiError(add(crew, { userId: 999_999 }), 400, 'validation_failed')
+    })
+
+    it('answers 409 with the status for a person who applied, is on the waiting list or is approved', async () => {
+      const crew = await newCrew()
+      const [pia, wes, abe] = [await user('Pia'), await user('Wes'), await user('Abe')] as [Session, Session, Session]
+      const piaRow = await applied(pia, crew)
+      const wesRow = await applied(wes, crew)
+      await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(wesRow.id)))
+      await approve(await applied(abe, crew))
+      for (const [who, status] of [[pia, 'applied'], [wes, 'waitlisted'], [abe, 'approved']] as Array<[Session, string]>) {
+        const error = await expectApiError(add(crew, { userId: who.id }), 409, 'conflict')
+        expect(error.data, status).toMatchObject({ status, field: 'userId' })
+      }
+      expect((await expectApiError(add(crew, { userId: pia.id }), 409)).data).toMatchObject({ memberId: piaRow.id })
+      // Nothing changed for them.
+      expect(await rowOf(crew, pia)).toMatchObject({ crewStatus: 'applied' })
+      expect(await rowOf(crew, wes)).toMatchObject({ crewStatus: 'waitlisted' })
+    })
+
+    it('reuses the row of a withdrawn or rejected person and approves it (200)', async () => {
+      const crew = await newCrew()
+      const [wil, rex] = [await user('Wil'), await user('Rex')] as [Session, Session]
+      const wilRow = await applied(wil, crew)
+      await ok(await json(wil.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      const rexRow = await applied(rex, crew)
+      await reject(rexRow)
+      for (const [who, row] of [[wil, wilRow], [rex, rexRow]] as Array<[Session, Json]>) {
+        const response = await add(crew, { userId: who.id })
+        expect(response.status, who.email).toBe(200)
+        expect(await response.json()).toMatchObject({ id: row.id, crewStatus: 'approved', decidedBy: staff.id })
+        expect((await hookNames(who)).slice(-2)).toEqual(['teams:added', 'crew:approved'])
+        expect((await getEmailsTo(who.email)).at(-1)?.template?.name).toBe('crew-status-approved')
+      }
+      expect((await list(staff.cookie, crew)).items.filter((item: Json) => item.userId === wil.id)).toHaveLength(1)
+    })
+
+    it('checks access before the operation: 401, 403, insufficient_scope, then 404', async () => {
+      const crew = await newCrew()
+      const nobody = await user('Nobody')
+      const target = await user('Target')
+      for (const operationId of [crew.op.id, 'op_missing']) {
+        const path = crewApi.admin.addMember(operationId)
+        expect((await json(undefined, 'POST', path, { userId: target.id })).status).toBe(401)
+        await expectApiError(json(nobody.cookie, 'POST', path, { userId: target.id }), 403, 'forbidden')
+      }
+      const readOnly = apiClient({ bearer: await createToken(staff.cookie, [crewAccess.permissions.read]) })
+      await expectApiError(readOnly.fetch('POST', crewApi.admin.addMember(crew.op.id), { userId: target.id }), 403, 'insufficient_scope')
+      await expectApiError(json(staff.cookie, 'POST', crewApi.admin.addMember('op_missing'), { userId: target.id }), 404)
+      // A token with crew:manage may add people (it is no credential).
+      const manage = apiClient({ bearer: await createToken(staff.cookie, [crewAccess.permissions.manage]) })
+      expect((await manage.fetch('POST', crewApi.admin.addMember(crew.op.id), { userId: (await user('Tok')).id })).status).toBe(201)
+    })
+
+    it('finds users for the picker: staff only, emails only with crew:pii', async () => {
+      const zed = await user('Zedekiah')
+      const found = await ok(await json(staff.cookie, 'GET', `${crewApi.admin.users}?q=zedekiah`)) as unknown as Json[]
+      expect(found).toEqual([expect.objectContaining({ id: zed.id, name: 'Zedekiah', email: zed.email })])
+      expect((await json(undefined, 'GET', `${crewApi.admin.users}?q=zed`)).status).toBe(401)
+      await expectApiError(json(zed.cookie, 'GET', `${crewApi.admin.users}?q=zed`), 403, 'forbidden')
+      const noPii = apiClient({ bearer: await createToken(staff.cookie, [crewAccess.permissions.manage]) })
+      const withoutPii = await noPii.json<Json[]>('GET', `${crewApi.admin.users}?q=zedekiah`)
+      expect(withoutPii).toEqual([expect.objectContaining({ id: zed.id })])
+      expect(withoutPii[0]).not.toHaveProperty('email')
+      expect(await noPii.json<Json[]>('GET', `${crewApi.admin.users}?q=${encodeURIComponent(zed.email)}`)).toEqual([])
+    })
+  })
+
   describe('emails', () => {
     it('sends the operation\'s own text, with variables, and nothing for a status that is turned off', async () => {
       const crew = await newCrew({
