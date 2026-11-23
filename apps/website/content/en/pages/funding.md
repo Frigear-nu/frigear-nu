@@ -34,7 +34,7 @@ seo:
 
 ::page-faq-section{page="funding" icon="i-lucide-message-circle-question-mark" id="good-to-know"}
 #title
-Some stuff, before you apply . . .
+A few things, before you apply . . .
 
 #description
 

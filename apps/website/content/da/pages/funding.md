@@ -34,7 +34,7 @@ seo:
 
 ::page-faq-section{page="funding" icon="i-lucide-message-circle-question-mark" id="good-to-know"}
 #title
-Lidt stuff, inden i ansøger . . .
+Lidt stuff, inden du ansøger . . .
 
 #description
 
