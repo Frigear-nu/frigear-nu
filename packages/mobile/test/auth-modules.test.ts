@@ -91,4 +91,9 @@ describe('mobile with auth and authorization', () => {
     await expect(load({ modules: [mobile], authentication: { mode: 'server' } }))
       .rejects.toThrow(/runs in server mode, which needs a same-origin session cookie/)
   })
+
+  it('refuses Auth in resource mode, naming it', async () => {
+    await expect(load({ modules: [mobile], authentication: { mode: 'resource' } }))
+      .rejects.toThrow(/runs in resource mode, which needs a server of the app's own/)
+  })
 })

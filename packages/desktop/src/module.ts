@@ -7,11 +7,11 @@ import { defu } from 'defu'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import type { DesktopDeepLinkContext, DesktopManifest, DesktopPublicConfig, ModuleOptions } from './types'
 import {
-  applyLocalNitroConfig, assertClientAuth, assertServerAuth, isCheckedNuxtHubVersion, isPackageInstalled, localBootstrapTemplate,
-  localDbTemplate, localEntryTemplate, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM, appHasUnstorage, type LocalNitroConfig,
+  applyLocalNitroConfig, assertClientAuth, assertLocalAuth, desktopDependencies, isCheckedNuxtHubVersion, isPackageInstalled,
+  localBootstrapTemplate, localDbTemplate, localEntryTemplate, localSecretNames, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM,
+  appHasUnstorage, type DesktopAuthMode, type LocalNitroConfig,
 } from './build'
-import type { SecretName } from './runtime/shared/local-secrets'
-import { appIdScheme, capabilities, resolveDesktopOptions, resolveSchemes, tauriConfig, toJson, usedPlugins } from './runtime/shared/config'
+import { capabilities, resolveDesktopOptions, resolveSchemes, tauriConfig, toJson, usedPlugins } from './runtime/shared/config'
 import { TAURI_PLUGINS, type TauriPluginName } from './runtime/shared/native'
 
 export type * from './types'
@@ -62,40 +62,12 @@ export default defineNuxtModule<ModuleOptions>({
     doctor: true,
   },
   moduleDependencies: (nuxt: Nuxt): Record<string, ModuleDependencyMeta> => {
-    // Auth when the app configures it. Never its mode: that is the app's own `authentication.mode`, and setup checks it
-    // (`client` in remote mode, `server` in local mode).
+    // Auth when the app configures it. Never its mode: that is the app's own `authentication.mode`, read here for the
+    // defaults it needs (`desktopDependencies`), and checked in setup (`client` in remote mode, `server` or `resource`
+    // in local mode).
     const authConfigured = (nuxt.options as { authentication?: unknown }).authentication !== undefined
     const desktop = desktopOptionsOf(nuxt)
-    if (desktop?.mode === 'local') {
-      // Offline defaults the app can override: no emailed verification (nobody receives the email), emailed links from
-      // the request origin (the port changes every start), and NuxtHub KV for sign-in throttling (fs-lite in
-      // `.data/kv`, inside the data folder at runtime; the app depends on `unstorage`, see `appHasUnstorage`). Scalars
-      // only: array defaults would be appended to the app's own (defu).
-      return {
-        '@frigear-nu/module-kit': { version: '>=0.0.1' },
-        '@frigear-nu/auth': {
-          version: '>=0.0.1',
-          optional: !authConfigured,
-          defaults: { settings: { verifyEmail: false, trustRequestOrigin: true } },
-        },
-        '@nuxthub/core': { optional: true, defaults: { kv: true } },
-      }
-    }
-    // Remote mode: the app id is Auth's deep-link scheme.
-    const appId = desktop?.appId
-    const scheme = appId ? appIdScheme(appId) : undefined
-    return {
-      '@frigear-nu/module-kit': { version: '>=0.0.1' },
-      ...(authConfigured
-        ? {
-            '@frigear-nu/auth': {
-              version: '>=0.0.1',
-              // Scalars only: array defaults would be appended to the app's own (defu).
-              defaults: { client: { ...(scheme ? { native: { scheme } } : {}) } },
-            },
-          }
-        : {}),
-    }
+    return desktopDependencies({ mode: desktop?.mode, appId: desktop?.appId, authConfigured, authMode: resolveAuthMode(nuxt) })
   },
   setup(moduleOptions, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -104,34 +76,45 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     const prepare = !!nuxt.options._prepare
 
+    // The app's own `authentication.mode` (`server` when unset); it only counts once Auth is installed.
+    const authMode = resolveAuthMode(nuxt)
+    const authConfigured = (nuxt.options as { authentication?: unknown }).authentication !== undefined
     const { options, errors, warnings } = resolveDesktopOptions(moduleOptions, {
       packageVersion: readPackageVersion(nuxt.options.rootDir),
       devPort: nuxt.options.devServer?.port,
       prepare,
+      authMode: authConfigured ? authMode : undefined,
     })
     if (errors.length) throw new Error(`[${MODULE_NAME}] Invalid desktop options:\n- ${errors.join('\n- ')}`)
     if (!prepare) for (const warning of warnings) logger.warn(warning)
 
-    // Remote mode: Tauri serves the static build (`nuxt generate`) from the app bundle.
+    // Remote mode: Tauri serves the static build (`nuxt generate`) from the app bundle. Local mode with resource auth:
+    // the bundled server serves the SPA shell (Auth turns `ssr` off too).
     if (options.spa) nuxt.options.ssr = false
 
     // Checked once every module is installed (Auth may be installed after this module, as its dependency).
+    // `clientAuth`: Auth signs in at an issuer in the window (client mode, or resource mode in local mode), through the
+    // system browser and a deep link.
     let clientAuth = false
     nuxt.hook('modules:done', () => {
       if (!hasNuxtModule('@frigear-nu/auth', nuxt)) return
       if (options.local) {
-        assertServerAuth(resolveAuthMode(nuxt))
+        assertLocalAuth(authMode)
+        if (authMode === 'resource') {
+          clientAuth = true
+          return
+        }
         const settings = (nuxt.options as { authentication?: { settings?: { verifyEmail?: boolean } } }).authentication?.settings
         if (settings?.verifyEmail === true && !prepare) {
           logger.warn('`authentication.settings.verifyEmail` is on in local mode: the verification email cannot reach anyone offline, so new accounts cannot sign in. Turn it off for the desktop build.')
         }
         return
       }
-      assertClientAuth(resolveAuthMode(nuxt))
+      assertClientAuth(authMode)
       clientAuth = true
     })
 
-    if (options.local) setupLocalMode(nuxt, options.local, resolver, prepare)
+    if (options.local) setupLocalMode(nuxt, options.local, resolver, prepare, authConfigured ? authMode : 'server')
 
     const publicDefaults: DesktopPublicConfig = {
       appId: options.appId,
@@ -211,12 +194,13 @@ interface HubRuntimeConfig {
 }
 
 /**
- * Local mode. Always: the session cookie option. In a production build (`nuxt build`, what `frigear-desktop build`
- * runs): the bundled server, see `applyLocalNitroConfig`. `nuxt dev` keeps NuxtHub's own driver and migrations.
+ * Local mode. Always: the session cookie option (not in resource mode, which has no session cookie). In a production
+ * build (`nuxt build`, what `frigear-desktop build` runs): the bundled server, see `applyLocalNitroConfig`. `nuxt dev`
+ * keeps NuxtHub's own driver and migrations.
  */
-function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolveDesktopOptions>['options']['local']>, resolver: ReturnType<typeof createResolver>, prepare: boolean) {
+function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolveDesktopOptions>['options']['local']>, resolver: ReturnType<typeof createResolver>, prepare: boolean, authMode: DesktopAuthMode) {
   const logger = useLogger('desktop')
-  if (!local.secureCookie) {
+  if (!local.secureCookie && authMode !== 'resource') {
     // The fallback for a webview that drops a `Secure` cookie on http://127.0.0.1 (nuxt-auth-utils' session cookie).
     const config = nuxt.options.runtimeConfig as { session?: { cookie?: Record<string, unknown> } }
     const session = config.session ??= {}
@@ -225,8 +209,10 @@ function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolve
 
   if (!prepare) {
     nuxt.hook('modules:done', () => {
+      // Resource mode does not turn KV on (`desktopDependencies`), but an app that does needs `unstorage` all the same.
       if (!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv || appHasUnstorage(nuxt.options.rootDir)) return
-      throw new Error('[@frigear-nu/desktop] Local mode turns on NuxtHub KV (`hub.kv`), whose generated client imports `unstorage` from the app: add it to the app\'s dependencies (`pnpm add unstorage`), or set `hub.kv: false`.')
+      const why = authMode === 'resource' ? 'NuxtHub KV (`hub.kv`) is on' : 'Local mode turns on NuxtHub KV (`hub.kv`)'
+      throw new Error(`[@frigear-nu/desktop] ${why}, whose generated client imports \`unstorage\` from the app: add it to the app's dependencies (\`pnpm add unstorage\`), or set \`hub.kv: false\`.`)
     })
   }
 
@@ -255,12 +241,10 @@ function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolve
   })
 
   // The secrets of one installation, generated on its first start (see `prepareLocalServer`).
-  const secrets = (): SecretName[] => {
-    const names: SecretName[] = ['NUXT_APP_SECRET']
-    if (hasNuxtModule('@frigear-nu/auth', nuxt)) names.push('NUXT_AUTH_TOKENS_KEY')
-    if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) names.push('NUXT_OAUTH_SERVER_PRIVATE_KEY')
-    return names
-  }
+  const secrets = () => localSecretNames({
+    authMode: hasNuxtModule('@frigear-nu/auth', nuxt) ? authMode : null,
+    oauthServer: hasNuxtModule('@frigear-nu/oauth-server', nuxt),
+  })
   const localDb = addTemplate({
     filename: 'desktop/local/db.mjs',
     write: true,

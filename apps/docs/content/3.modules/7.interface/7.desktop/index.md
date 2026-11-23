@@ -10,14 +10,15 @@ the desktop sibling of [Mobile](/modules/interface/mobile): the module writes th
 derive from your Nuxt config, and the `frigear-desktop` CLI creates and updates the `src-tauri/` project.
 
 The package is `@frigear-nu/desktop`. In remote mode, users sign in through
-[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server.
+[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server,
+or at a remote issuer with [Auth in resource mode](/modules/identity/auth/resource-mode).
 
 ## Modes
 
 | `mode` | What ships in the app |
 | --- | --- |
 | `remote` (default) | A static SPA (`nuxt generate`). It talks to a remote API and signs in at a remote issuer with OAuth PKCE. |
-| `local` | The whole app (SSR, API routes and server modules) compiled into one executable that runs offline on `127.0.0.1`, with a sqlite database in the app-data folder and cookie sessions. See [Local mode](/modules/interface/desktop/local-mode). |
+| `local` | The whole app (SSR, API routes and server modules) compiled into one executable that runs offline on `127.0.0.1`, with a sqlite database in the app-data folder. Users sign in with cookie sessions (Auth in server mode), or at a remote issuer whose access tokens the server accepts (Auth in resource mode). See [Local mode](/modules/interface/desktop/local-mode). |
 
 ## What you get
 
@@ -100,7 +101,7 @@ Options go under the `desktop` key.
 | `appName` | `string` | `appId` | The product name and the default window title. |
 | `version` | `string` | `package.json` version, else `0.1.0` | The app version (semver). |
 | `mode` | `'remote' \| 'local'` | `'remote'` | See [Modes](#modes). |
-| `spa` | `boolean` | `true` (remote), `false` (local) | Sets `ssr: false`, because Tauri serves a static build in remote mode. |
+| `spa` | `boolean` | `true` (remote and local with resource auth), `false` (local) | Sets `ssr: false`, because Tauri serves a static build in remote mode. |
 | `local` | `object` | see [Local mode](/modules/interface/desktop/local-mode#options) | `binaryName`, `port`, `secureCookie` and `dataDirName` of the bundled server. |
 | `window.title` | `string` | `appName` | The window title. |
 | `window.width`, `window.height` | `number` | `1280`, `800` | The window size at start. |
@@ -156,15 +157,16 @@ capability file. It grants:
 
 ## Sign-in
 
-This section covers remote mode. In local mode Auth runs in server mode on the bundled server, see
-[Local mode](/modules/interface/desktop/local-mode).
+This section covers remote mode. In local mode Auth runs on the bundled server, in server mode or in resource mode, see
+[Local mode](/modules/interface/desktop/local-mode#sign-in-at-a-remote-issuer).
 
 When the app configures `authentication`, Desktop installs Auth and fills in `client.native.scheme` from `appId`. It
 never sets the mode: the app sets `authentication.mode: 'client'` itself.
 
 ::warning
 In remote mode, Auth in server mode fails the build: a Tauri app in remote mode cannot send a same-origin session
-cookie to the API. In local mode, it is the other way around: client mode fails the build.
+cookie to the API. Resource mode fails it too: it needs a server of the app's own, which remote mode does not bundle.
+In local mode, client mode fails the build: it has no server half.
 ::
 
 A production build signs in through the user's default browser and gets the redirect back as a deep link. Under

@@ -46,6 +46,11 @@ describe('usedPlugins', () => {
       ['@tauri-apps/plugin-store', false],
     ])
   })
+  it('needs the store in local mode with a port picked on every start (localStorage follows the origin)', () => {
+    const local = (port?: number) => usedPlugins(resolved({ mode: 'local', local: { port } }), true).find(plugin => plugin.name === '@tauri-apps/plugin-store')
+    expect(local()).toMatchObject({ required: true, feature: expect.stringMatching(/port.*changes every start/) })
+    expect(local(4000)).toMatchObject({ required: false })
+  })
   it('adds autostart and the updater, and drops the deep link without schemes or sign-in', () => {
     const names = usedPlugins(resolved({ deepLinks: { schemes: false }, autostart: true, updater: { endpoints: ['https://u'], pubkey: 'k' } }), false).map(plugin => plugin.name)
     expect(names).toEqual(['@tauri-apps/api', '@tauri-apps/plugin-autostart', '@tauri-apps/plugin-updater', '@tauri-apps/plugin-opener'])

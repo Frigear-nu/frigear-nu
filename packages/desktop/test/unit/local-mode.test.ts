@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopManifest } from '../../src/types'
-import { capabilities, capabilityPermissions, resolveDesktopOptions, tauriConfig } from '../../src/runtime/shared/config'
+import { capabilities, capabilityPermissions, resolveDesktopOptions, resolveSchemes, tauriConfig, usedPlugins } from '../../src/runtime/shared/config'
 import { baseTauriConfig, cargoToml, libRs, loadingPage } from '../../src/runtime/cli/templates'
 import { bunTarget, buildSidecar, hostTriple, init, main, parseArgs, passthroughTarget, sidecarPath, type Io } from '../../src/runtime/cli/main'
 import { runDoctor } from '../../src/runtime/cli/doctor'
@@ -31,6 +31,17 @@ describe('local tauri config', () => {
     expect(capability.permissions).toEqual(capabilityPermissions(options))
     expect((capability.permissions as string[]).some(permission => permission.startsWith('shell:'))).toBe(false)
     expect(capabilities({ autostart: false, updater: false }).remote).toBeUndefined()
+  })
+
+  it('lets the server\'s pages sign in at an issuer with resource auth (system browser, deep link, store)', () => {
+    const resource = resolveDesktopOptions({ appId: 'nu.frigear.crew', mode: 'local' }, { authMode: 'resource' }).options
+    const capability = capabilities(resource)
+    expect(capability.remote).toEqual({ urls: ['http://127.0.0.1:*'] })
+    expect(capability.permissions).toEqual(expect.arrayContaining(['opener:default', 'deep-link:default', 'store:default', 'core:window:allow-set-focus']))
+    expect(usedPlugins(resource, true).filter(plugin => plugin.required).map(plugin => plugin.name)).toEqual(expect.arrayContaining([
+      '@tauri-apps/plugin-deep-link', '@tauri-apps/plugin-opener', '@tauri-apps/plugin-store',
+    ]))
+    expect(tauriConfig(resource, resolveSchemes('nu.frigear.crew:/auth/callback', resource.deepLinks.schemes)).plugins).toEqual({ 'deep-link': { desktop: { schemes: ['nu.frigear.crew'] } } })
   })
 })
 

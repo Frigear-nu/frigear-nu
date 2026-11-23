@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { TAURI_PLUGINS, type TauriPluginName } from './runtime/shared/native'
+import { appIdScheme } from './runtime/shared/config'
+import type { SecretName } from './runtime/shared/local-secrets'
 
 // Build-time helpers of the module, pure so they can be tested without a Nuxt build.
 
@@ -27,14 +29,19 @@ export function isPackageInstalled(pkg: string, rootDir: string, modulesDirs: st
   return [...dirs].some(dir => existsSync(join(dir, pkg, 'package.json')))
 }
 
+/** `@frigear-nu/auth`'s modes (`@frigear-nu/auth/mode`), repeated so these helpers stay free of it. */
+export type DesktopAuthMode = 'server' | 'client' | 'resource'
+
 /**
- * A desktop app in remote mode cannot carry a same-origin session cookie to the API: Auth has to run as an OAuth
- * client. Throws for any other mode.
+ * A desktop app in remote mode cannot carry a same-origin session cookie to the API, and has no server of its own for
+ * resource mode: Auth has to run as an OAuth client. Throws for any other mode.
  */
 export function assertClientAuth(mode: string): void {
-  if (mode !== 'client') {
-    throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in server mode, which needs a same-origin session cookie a Tauri app in remote mode cannot send: set `authentication.mode: \'client\'` in the app\'s config.')
+  if (mode === 'client') return
+  if (mode === 'resource') {
+    throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in resource mode, which needs a server of the app\'s own, and a Tauri app in remote mode has none: set `authentication.mode: \'client\'`, or bundle the server with `desktop.mode: \'local\'`.')
   }
+  throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in server mode, which needs a same-origin session cookie a Tauri app in remote mode cannot send: set `authentication.mode: \'client\'` in the app\'s config.')
 }
 
 /** Warnings about Tauri packages the enabled features need but the app has not installed. */
@@ -45,13 +52,62 @@ export function missingPluginWarnings(plugins: { name: string, required: boolean
 }
 
 /**
- * Local mode bundles the app's own server, with cookie sessions on its origin: Auth has to run in server mode. Throws
- * for any other mode.
+ * Local mode bundles the app's own server, so Auth runs on it: in server mode (sign-in and cookie sessions on that
+ * server) or resource mode (sign-in at an issuer, the server accepts its access tokens). Throws for client mode, which
+ * has no server half.
  */
-export function assertServerAuth(mode: string): void {
-  if (mode !== 'server') {
-    throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` bundles the app\'s own server and signs in with a cookie session on it, but `@frigear-nu/auth` runs in client mode: remove `authentication.mode: \'client\'` (server is the default).')
+export function assertLocalAuth(mode: string): void {
+  if (mode === 'server' || mode === 'resource') return
+  throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` bundles the app\'s own server, but `@frigear-nu/auth` runs in client mode, which has no server half: remove `authentication.mode` for sign-in on the bundled server (server is the default), or set `authentication.mode: \'resource\'` to sign in at an issuer.')
+}
+
+/**
+ * What the desktop module asks of other modules (`moduleDependencies`). Only scalar defaults: array defaults would be
+ * appended to the app's own (defu).
+ *
+ * - Remote mode and local mode with resource auth: the app id is Auth's deep-link scheme (`client.native.scheme`), as
+ *   sign-in returns from the system browser through a deep link.
+ * - Local mode with server auth: offline defaults the app can override: no emailed verification (nobody receives the
+ *   email), emailed links from the request origin (the port changes every start), and NuxtHub KV for sign-in throttling
+ *   (fs-lite in `.data/kv`, inside the data folder at runtime; the app depends on `unstorage`, see `appHasUnstorage`).
+ *   Resource mode signs in at the issuer: none of it applies, and it throttles nothing.
+ */
+export function desktopDependencies(input: { mode?: string, appId?: string, authConfigured: boolean, authMode: DesktopAuthMode }): Record<string, { version?: string, optional?: boolean, defaults?: Record<string, unknown> }> {
+  const scheme = input.appId ? appIdScheme(input.appId) : undefined
+  const nativeScheme = { client: { ...(scheme ? { native: { scheme } } : {}) } }
+  const moduleKit = { '@frigear-nu/module-kit': { version: '>=0.0.1' } }
+  if (input.mode === 'local') {
+    if (input.authMode === 'resource') {
+      return { ...moduleKit, '@frigear-nu/auth': { version: '>=0.0.1', optional: !input.authConfigured, defaults: nativeScheme } }
+    }
+    return {
+      ...moduleKit,
+      '@frigear-nu/auth': {
+        version: '>=0.0.1',
+        optional: !input.authConfigured,
+        defaults: { settings: { verifyEmail: false, trustRequestOrigin: true } },
+      },
+      '@nuxthub/core': { optional: true, defaults: { kv: true } },
+    }
   }
+  return {
+    ...moduleKit,
+    ...(input.authConfigured ? { '@frigear-nu/auth': { version: '>=0.0.1', defaults: nativeScheme } } : {}),
+  }
+}
+
+/**
+ * The secrets the bundled server generates on its first start. `NUXT_APP_SECRET` always: it is Nuxt's root secret
+ * (`runtimeConfig.appSecret`), which nuxt-auth-utils seals sessions with and any module may derive its own from
+ * (`deriveSecret`). Server auth: `NUXT_AUTH_TOKENS_KEY` (kept OAuth tokens) and, with OAuth Server, its signing key.
+ * Resource auth keeps no tokens and signs none.
+ */
+export function localSecretNames(input: { authMode: DesktopAuthMode | null, oauthServer: boolean }): SecretName[] {
+  const names: SecretName[] = ['NUXT_APP_SECRET']
+  if (input.authMode === 'resource') return names
+  if (input.authMode) names.push('NUXT_AUTH_TOKENS_KEY')
+  if (input.oauthServer) names.push('NUXT_OAUTH_SERVER_PRIVATE_KEY')
+  return names
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

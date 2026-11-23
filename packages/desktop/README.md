@@ -8,7 +8,9 @@ A Tauri v2 desktop shell for Nuxt (macOS, Windows, Linux), the desktop sibling o
 - `useDesktop()`: `isDesktop`, the OS, the app version, window controls, `openExternal`, lazy Tauri packages
 - deep links with the app's scheme routed to pages (`desktop:deep-link` hook), `<html class="desktop" data-desktop>`
 - **local mode**: the whole app (SSR, server modules) compiled with Bun into one sidecar the shell starts on
-  `127.0.0.1`, offline, with sqlite in the app-data folder, startup migrations and cookie sessions (Auth in server mode)
+  `127.0.0.1`, offline, with sqlite in the app-data folder, startup migrations and cookie sessions (Auth in server mode),
+  or sign-in at a remote issuer whose access tokens the server accepts (Auth in resource mode, with
+  [`@frigear-nu/oauth-resource`](../oauth-resource))
 - the `frigear-desktop` CLI: `init` (creates `src-tauri/`), `sync`, `dev`, `build`, `sidecar`, `doctor`
 
 Everything does nothing in a plain browser.
