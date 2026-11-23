@@ -10,6 +10,7 @@ export * from './geometry'
 export * from './fields'
 export * from './properties'
 export * from './image'
+export * from './georeference'
 export { buildMapsRegistry, layersForSurface, layerUrl, MAPS_ID_PATTERN, MIN_REFRESH_INTERVAL } from './registry'
 export type { BuiltMapsRegistry } from './registry'
 
@@ -23,21 +24,27 @@ export type {
   MapLiveFeature,
   MapLiveFeatureCollection,
   MapLocation,
+  MapLayoutCrs,
   MapLocationMode,
   MapsExtension,
   MapSelection,
   MapViewerLocation,
+  MapViewerOverlay,
   MapTilesOptions,
   ModuleOptions,
   PlaneExtent,
   PlaneFeature,
   PlaneFeatureCollection,
   PlaneGeometry,
+  PlaneGeoreference,
+  PlaneGridUnit,
+  PlanePlacement,
   PlaneLineStringGeometry,
   PlanePointGeometry,
   PlanePolygonGeometry,
   PlanePosition,
   PlaneUnderlay,
+  PlaneUnderlayMode,
   Translated,
 } from '../../types'
 

@@ -1,9 +1,11 @@
 // zod schemas of the values modules store: a geographic location and a plane layout. Imports only zod and pure helpers,
 // so a module's server routes, its forms and its tests can all use them (`@frigear-nu/maps/schemas`).
 import { z } from 'zod'
-import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneGeometry } from '../types'
+import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneGeometry, PlaneGeoreference, PlanePlacement } from '../types'
 import { MAX_PLANE_COORDINATE, validateGeometry } from './utils/geometry'
 import { MAX_UNDERLAY_DIMENSION, isSameAppPath } from './utils/image'
+import { MAX_METERS_PER_UNIT, MIN_METERS_PER_UNIT, MIN_UNDERLAY_OPACITY, normalizeRotation } from './utils/georeference'
+import { geometryPositions } from './utils/geometry'
 
 /** The most corners an area may have. */
 export const MAX_AREA_CORNERS = 500
@@ -65,6 +67,32 @@ const underlaySchema = z.object({
   height: z.number().int().positive().max(MAX_UNDERLAY_DIMENSION),
 })
 
+/** Where a plane layout lies on the earth; the rotation is normalised to `(-180, 180]`. */
+export const planeGeoreferenceSchema: z.ZodType<PlaneGeoreference> = z.object({
+  origin: geoPointSchema,
+  rotation: z.number().finite().transform(normalizeRotation),
+  metersPerUnit: z.number().min(MIN_METERS_PER_UNIT).max(MAX_METERS_PER_UNIT),
+}) as unknown as z.ZodType<PlaneGeoreference>
+
+/**
+ * How a plane layout is placed and shown (`PlanePlacement`). Tiles under the plane and a metre grid need the
+ * georeference. Whether the image exists is the layout's business: without one, `image` shows nothing.
+ */
+export const planePlacementSchema: z.ZodType<PlanePlacement> = z.object({
+  georeference: planeGeoreferenceSchema.nullish(),
+  underlayMode: z.enum(['none', 'tiles', 'image']).nullish(),
+  underlayOpacity: z.number().min(MIN_UNDERLAY_OPACITY).max(1).nullish(),
+  gridUnit: z.enum(['plane', 'metres']).nullish(),
+  gridSize: z.number().positive().max(MAX_PLANE_COORDINATE).nullish(),
+}).superRefine((placement, ctx) => {
+  if (placement.underlayMode === 'tiles' && !placement.georeference) {
+    ctx.addIssue({ code: 'custom', message: 'Map tiles under a plane need its placement on the map.', path: ['underlayMode'] })
+  }
+  if (placement.gridUnit === 'metres' && !placement.georeference) {
+    ctx.addIssue({ code: 'custom', message: 'A grid in metres needs the placement on the map.', path: ['gridUnit'] })
+  }
+}) as unknown as z.ZodType<PlanePlacement>
+
 export type PlaneLayoutSchemaOptions = {
   /** The feature kinds this layout may hold. Default: any kind (check them with `validatePlaneLayout` on the server). */
   kinds?: readonly string[]
@@ -81,9 +109,21 @@ export function planeFeatureCollectionSchema(options: PlaneLayoutSchemaOptions =
   return z.object({
     type: z.literal('FeatureCollection').default('FeatureCollection'),
     features: z.array(planeFeatureSchema).max(options.maxFeatures ?? MAX_PLANE_FEATURES),
+    crs: z.enum(['plane', 'geo']).nullish(),
     extent: extentSchema.nullish(),
     underlay: underlaySchema.nullish(),
   }).superRefine((layout, ctx) => {
+    if (layout.crs === 'geo') {
+      // A geo layout is drawn on the map itself: positions are `[lng, lat]`, and a plane's image or placement means nothing.
+      for (const key of ['extent', 'underlay'] as const) {
+        if (layout[key]) ctx.addIssue({ code: 'custom', message: 'A layout drawn on the map has no plane extent or image.', path: [key] })
+      }
+      layout.features.forEach((feature, index) => {
+        if (geometryPositions(feature.geometry).some(([lng, lat]) => Math.abs(lng) > 180 || Math.abs(lat) > 90)) {
+          ctx.addIssue({ code: 'custom', message: 'A position on the map is [longitude, latitude] in degrees.', path: ['features', index, 'geometry'] })
+        }
+      })
+    }
     const seen = new Set<string>()
     layout.features.forEach((feature, index) => {
       if (seen.has(feature.id)) ctx.addIssue({ code: 'custom', message: `The feature id "${feature.id}" is used twice.`, path: ['features', index, 'id'] })
