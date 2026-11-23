@@ -7,7 +7,7 @@ export { shouldAttachToken } from '../core/urls'
 // Pure helpers of the Nuxt runtime, kept apart so they can be tested without Nuxt.
 
 /**
- * The redirect URI of this run: the native one inside a Capacitor app, else the configured web one or
+ * The redirect URI of this run: the native one when callbacks come as deep links (Capacitor, Tauri), else the configured web one or
  * `<origin><callbackPath>`.
  */
 export function resolveRedirectUri(input: {
@@ -25,6 +25,16 @@ export function resolveRedirectUri(input: {
   }
   if (input.redirectUri) return input.redirectUri
   return `${input.origin.replace(/\/+$/, '')}/${input.callbackPath.replace(/^\/+/, '')}`
+}
+
+/**
+ * Whether a Tauri app signs in through the system browser and a deep link (`native.desktopFlow`): always with
+ * `deep-link`, never with `redirect`, and with `auto` only outside `nuxt dev`. In development the webview loads the dev
+ * server (`http://localhost:3000`), so a redirect inside it works, while deep links usually do not reach an unbundled
+ * app.
+ */
+export function tauriUsesDeepLinks(flow: 'auto' | 'deep-link' | 'redirect' | undefined, dev: boolean): boolean {
+  return flow === 'deep-link' || ((flow ?? 'auto') === 'auto' && !dev)
 }
 
 /** A same-app path to return to after sign-in (`isSafeRedirect`); anything else is dropped. */

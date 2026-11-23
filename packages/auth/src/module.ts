@@ -73,11 +73,15 @@ import {
   findGuardRules,
   isPackageInstalled,
   mergeClientPublicConfig,
+  NATIVE_PLUGIN_PACKAGES,
   nativeLoaderTemplate,
+  nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
   SECRET_ENV_NAMES,
+  TAURI_PLUGIN_KEYS,
 } from './client-build'
+import type { NativePluginKey } from './client-build'
 
 export type {
   AuthAppConfig,
@@ -992,13 +996,6 @@ function serverPublicPaths(input: { loginPath?: string, registerPath?: string, w
   return [...pages, '/auth/**', '/api/auth/**', '/api/_auth/**']
 }
 
-const NATIVE_PLUGINS = {
-  app: '@capacitor/app',
-  browser: '@capacitor/browser',
-  preferences: '@capacitor/preferences',
-  secureStorage: '@aparajita/capacitor-secure-storage',
-} as const
-
 /**
  * Who installs `name`: the app itself, or the modules that list it in their `moduleDependencies` (which may be
  * async). Nuxt keeps no record of who pulled a dependency in, so their dependency functions run once more; this only
@@ -1057,6 +1054,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     onUnauthorized: client.onUnauthorized ?? 'signOut',
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
+    desktopFlow: client.native?.desktopFlow ?? 'auto',
     callbackPath,
     discovery: client.discovery !== false,
     endpoints: client.endpoints ?? {},
@@ -1112,18 +1110,26 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
 
   // Native plugins are optional peers: `#auth/native` only imports the installed ones.
   const installed = (pkg: string) => isPackageInstalled(pkg, nuxt.options.rootDir, nuxt.options.modulesDir)
-  const plugins = Object.fromEntries(Object.entries(NATIVE_PLUGINS).map(([key, pkg]) => [key, installed(pkg)])) as Record<keyof typeof NATIVE_PLUGINS, boolean>
+  const plugins = Object.fromEntries(Object.entries(NATIVE_PLUGIN_PACKAGES).map(([key, [pkg]]) => [key, installed(pkg)])) as Record<NativePluginKey, boolean>
+  const tauri = TAURI_PLUGIN_KEYS.some(key => plugins[key])
   const { warning } = checkNativeStorage({
     mode: storage,
     dev: nuxt.options.dev,
     prepare,
     capacitor: installed('@capacitor/core'),
+    tauri,
     secureStorage: plugins.secureStorage,
     preferences: plugins.preferences,
   })
   if (warning) logger.warn(warning)
   if (installed('@capacitor/core') && !plugins.browser) logger.warn('`@capacitor/browser` is not installed: a native app signs in by leaving the app for the system browser\'s redirect, which cannot come back. Install it.')
   if (installed('@capacitor/core') && !plugins.app) logger.warn('`@capacitor/app` is not installed: the app cannot receive the OAuth redirect. Install it.')
+  if (tauri && !prepare) {
+    // In a production build the Tauri app signs in through the system browser and a deep link (`native.desktopFlow`).
+    if (!plugins.opener) logger.warn('`@tauri-apps/plugin-opener` is not installed: a Tauri app cannot open the system browser to sign in and falls back to a redirect inside the webview. Install it.')
+    if (!plugins.deepLink) logger.warn('`@tauri-apps/plugin-deep-link` is not installed: a Tauri app cannot receive the OAuth redirect and falls back to a redirect inside the webview. Install it.')
+    if (!nativeRedirectUri && client.native?.desktopFlow !== 'redirect') logger.warn('Set `authentication.client.native.scheme` (the deep link scheme of the Tauri app): a production build signs in with a custom-scheme redirect URI.')
+  }
   const customStorage = storageFile && (isAbsolute(storageFile) || storageFile.startsWith('.') ? resolve(nuxt.options.rootDir, storageFile) : storageFile)
 
   defineVirtualRegistry(nuxt, {
@@ -1140,16 +1146,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   addTemplate({
     filename: 'auth/native.d.mts',
     write: true,
-    getContents: () => `import type { AppPluginLike, BrowserPluginLike, PreferencesPluginLike, SecureStoragePluginLike } from ${clientTypes('capacitor/adapters')}
-import type { TokenStorage } from ${clientTypes('core/types')}
-export declare const plugins: {
-  app: (() => Promise<AppPluginLike>) | null
-  browser: (() => Promise<BrowserPluginLike>) | null
-  preferences: (() => Promise<PreferencesPluginLike>) | null
-  secureStorage: (() => Promise<SecureStoragePluginLike>) | null
-}
-export declare const customStorage: (() => Promise<TokenStorage | (() => TokenStorage | Promise<TokenStorage>)>) | null
-`,
+    getContents: () => nativeLoaderTypes(clientTypes),
   })
   addTypeTemplate({
     filename: 'types/auth-client.d.ts',
