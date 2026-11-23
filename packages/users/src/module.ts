@@ -1,4 +1,5 @@
 import {
+  addComponent,
   addPlugin,
   addServerImportsDir,
   createResolver,
@@ -73,6 +74,10 @@ export default defineNuxtModule<ModuleOptions>({
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
+
+    // The one user picker other modules use (`<UserPicker v-model="userId" />`): search by name (and email where the
+    // search route shows it), single or multiple, with "Create user" for callers holding `users:create`.
+    addComponent({ name: 'UserPicker', filePath: resolver.resolve('./runtime/app/components/UserPicker.vue') })
 
     registerDatabaseTable(nuxt, {
       resolver,
