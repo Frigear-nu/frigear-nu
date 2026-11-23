@@ -185,6 +185,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: 'categories/:id', file: 'admin/category.patch' },
       { method: 'delete', path: 'categories/:id', file: 'admin/category.delete' },
       { method: 'get', path: 'categories/:id/articles', file: 'admin/category-articles.get' },
+      { method: 'get', path: 'categories/:id/kind-change', file: 'admin/category-kind-change.get' },
       { method: 'post', path: 'categories/:id/reorder', file: 'admin/category-reorder.post' },
       { method: 'get', path: 'articles', file: 'admin/articles.get' },
       { method: 'post', path: 'articles', file: 'admin/articles.post' },

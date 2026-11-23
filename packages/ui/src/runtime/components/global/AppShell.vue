@@ -11,7 +11,7 @@ import { computed, resolveComponent, useHead, useNuxtApp, useRoute, useRuntimeCo
  * `max-w-7xl` unless `wide` (or `definePageMeta({ wide: true })`). Collapse and width persist per `id` in the
  * `dashboard-sidebar-<id>` cookie; on small screens the navbar opens the sidebar as a slideover, which closes on
  * navigation. Menus, identity and the account menu arrive through slots; `LanguageSelect` is shown on the right
- * when the app has one and more than one locale. Hosts can style the area through `[data-area=app]`.
+ * when the app has one and more than one locale, followed by `navbar-actions` (the account menu, on every width). Hosts can style the area through `[data-area=app]`.
  */
 const props = defineProps<AppShellProps>()
 
@@ -26,6 +26,8 @@ defineSlots<{
   'navbar-left'?: () => unknown
   /** Right side of the navbar; defaults to `LanguageSelect` when there is more than one locale. */
   'navbar-right'?: () => unknown
+  /** After the navbar's right side, on every screen width: e.g. the account menu next to the language select. */
+  'navbar-actions'?: () => unknown
   'default'?: () => unknown
 }>()
 
@@ -185,6 +187,7 @@ useHead({ title: () => section.value ?? props.title }, { tagPriority: 'low' })
                 v-if="languageSelect && multiLocale"
               />
             </slot>
+            <slot name="navbar-actions" />
           </template>
         </UDashboardNavbar>
       </template>

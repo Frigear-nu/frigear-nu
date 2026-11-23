@@ -5,10 +5,10 @@ import { defineAccess } from '@frigear-nu/auth/access'
 // (`server/policies.ts`) receives a CREW MEMBER (`{ userId, teamId }`: a `team_members` row).
 export const crewAccess = defineAccess('crew', {
   permissions: {
-    // Self-service: every signed-in user holds it. Apply, see your own status, withdraw, accept an invite.
+    // Self-service: every signed-in user holds it. Apply, see your own status, accept an invite.
     apply: {
       label: 'Apply to crew',
-      description: 'Apply to an operation\'s crew, see your own status and withdraw.',
+      description: 'Apply to an operation\'s crew and see your own status.',
       implicit: true,
     },
     // Held by everyone, narrowed by the policy to the person\'s own row, the teams they lead, and staff.
