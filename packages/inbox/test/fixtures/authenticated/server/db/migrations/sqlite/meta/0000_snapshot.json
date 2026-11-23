@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "429866a3-0c35-40e7-a3b6-6d400c01179d",
+  "id": "76813df6-21c4-41e0-98bc-46fec9d076db",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "auth_user_tokens": {
@@ -584,6 +584,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "mailboxId": {
+          "name": "mailboxId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "contactId": {
           "name": "contactId",
           "type": "text",
@@ -625,6 +632,20 @@
           "name": "inbox_audit_thread_idx",
           "columns": [
             "threadId"
+          ],
+          "isUnique": false
+        },
+        "inbox_audit_contact_idx": {
+          "name": "inbox_audit_contact_idx",
+          "columns": [
+            "contactId"
+          ],
+          "isUnique": false
+        },
+        "inbox_audit_mailbox_idx": {
+          "name": "inbox_audit_mailbox_idx",
+          "columns": [
+            "mailboxId"
           ],
           "isUnique": false
         },
@@ -872,12 +893,13 @@
           "notNull": true,
           "autoincrement": false
         },
-        "visibility": {
-          "name": "visibility",
+        "grants": {
+          "name": "grants",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "retentionDays": {
           "name": "retentionDays",
@@ -968,12 +990,41 @@
           "notNull": true,
           "autoincrement": false
         },
+        "cc": {
+          "name": "cc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "channelAccountId": {
+          "name": "channelAccountId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "externalId": {
           "name": "externalId",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "contactId": {
+          "name": "contactId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "authenticated": {
+          "name": "authenticated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "createdAtMs": {
           "name": "createdAtMs",
@@ -991,18 +1042,26 @@
         }
       },
       "indexes": {
-        "inbox_messages_externalId_unique": {
-          "name": "inbox_messages_externalId_unique",
-          "columns": [
-            "externalId"
-          ],
-          "isUnique": true
-        },
         "inbox_message_thread_idx": {
           "name": "inbox_message_thread_idx",
           "columns": [
             "threadId",
             "createdAtMs"
+          ],
+          "isUnique": false
+        },
+        "inbox_message_external_idx": {
+          "name": "inbox_message_external_idx",
+          "columns": [
+            "channelAccountId",
+            "externalId"
+          ],
+          "isUnique": true
+        },
+        "inbox_message_contact_idx": {
+          "name": "inbox_message_contact_idx",
+          "columns": [
+            "contactId"
           ],
           "isUnique": false
         }
@@ -1071,6 +1130,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "searchText": {
+          "name": "searchText",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -1088,6 +1155,13 @@
         },
         "hiddenBelow": {
           "name": "hiddenBelow",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "preview": {
+          "name": "preview",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -1198,6 +1272,60 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "inbox_tombstones": {
+      "name": "inbox_tombstones",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contactId": {
+          "name": "contactId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "permanent": {
+          "name": "permanent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "inbox_tombstone_created_idx": {
+          "name": "inbox_tombstone_created_idx",
+          "columns": [
+            "createdAt"
+          ],
+          "isUnique": false
+        },
+        "inbox_tombstone_contact_idx": {
+          "name": "inbox_tombstone_contact_idx",
+          "columns": [
+            "contactId"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "password_resets": {
       "name": "password_resets",
       "columns": {
@@ -1282,6 +1410,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "searchText": {
+          "name": "searchText",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "email": {
           "name": "email",
           "type": "text",
@@ -1291,6 +1427,20 @@
         },
         "avatar": {
           "name": "avatar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "locale": {
+          "name": "locale",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

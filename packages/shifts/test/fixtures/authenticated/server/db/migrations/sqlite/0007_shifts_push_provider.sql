@@ -1,1 +1,0 @@
-ALTER TABLE `push_devices` ADD `provider` text;

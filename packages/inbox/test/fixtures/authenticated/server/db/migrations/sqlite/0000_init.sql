@@ -86,6 +86,7 @@ CREATE UNIQUE INDEX `forms_slug_unique` ON `forms` (`slug`);--> statement-breakp
 CREATE TABLE `inbox_audit` (
 	`id` text PRIMARY KEY NOT NULL,
 	`threadId` text,
+	`mailboxId` text,
 	`contactId` text,
 	`actorId` integer,
 	`action` text NOT NULL,
@@ -94,6 +95,8 @@ CREATE TABLE `inbox_audit` (
 );
 --> statement-breakpoint
 CREATE INDEX `inbox_audit_thread_idx` ON `inbox_audit` (`threadId`);--> statement-breakpoint
+CREATE INDEX `inbox_audit_contact_idx` ON `inbox_audit` (`contactId`);--> statement-breakpoint
+CREATE INDEX `inbox_audit_mailbox_idx` ON `inbox_audit` (`mailboxId`);--> statement-breakpoint
 CREATE INDEX `inbox_audit_created_idx` ON `inbox_audit` (`createdAt`);--> statement-breakpoint
 CREATE TABLE `inbox_channel_accounts` (
 	`id` text PRIMARY KEY NOT NULL,
@@ -130,7 +133,7 @@ CREATE TABLE `inbox_mailboxes` (
 	`ownerType` text NOT NULL,
 	`ownerId` text,
 	`name` text NOT NULL,
-	`visibility` text,
+	`grants` text DEFAULT '[]' NOT NULL,
 	`retentionDays` integer,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL
@@ -145,14 +148,19 @@ CREATE TABLE `inbox_messages` (
 	`authorId` integer,
 	`body` text NOT NULL,
 	`attachments` text NOT NULL,
+	`cc` text,
+	`channelAccountId` text,
 	`externalId` text,
+	`contactId` text,
+	`authenticated` integer DEFAULT false NOT NULL,
 	`createdAtMs` integer NOT NULL,
 	`createdAt` integer NOT NULL,
 	FOREIGN KEY (`threadId`) REFERENCES `inbox_threads`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `inbox_messages_externalId_unique` ON `inbox_messages` (`externalId`);--> statement-breakpoint
 CREATE INDEX `inbox_message_thread_idx` ON `inbox_messages` (`threadId`,`createdAtMs`);--> statement-breakpoint
+CREATE UNIQUE INDEX `inbox_message_external_idx` ON `inbox_messages` (`channelAccountId`,`externalId`);--> statement-breakpoint
+CREATE INDEX `inbox_message_contact_idx` ON `inbox_messages` (`contactId`);--> statement-breakpoint
 CREATE TABLE `inbox_threads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`mailboxId` text NOT NULL,
@@ -160,9 +168,11 @@ CREATE TABLE `inbox_threads` (
 	`channelAccountId` text,
 	`channel` text NOT NULL,
 	`subject` text,
+	`searchText` text DEFAULT '' NOT NULL,
 	`status` text DEFAULT 'open' NOT NULL,
 	`assigneeId` integer,
 	`hiddenBelow` text,
+	`preview` text,
 	`lastMessageAt` integer NOT NULL,
 	`anonymisedAt` integer,
 	`createdAt` integer NOT NULL,
@@ -176,6 +186,15 @@ CREATE INDEX `inbox_thread_mailbox_idx` ON `inbox_threads` (`mailboxId`,`status`
 CREATE INDEX `inbox_thread_assignee_idx` ON `inbox_threads` (`assigneeId`);--> statement-breakpoint
 CREATE INDEX `inbox_thread_contact_idx` ON `inbox_threads` (`contactId`);--> statement-breakpoint
 CREATE INDEX `inbox_thread_last_idx` ON `inbox_threads` (`lastMessageAt`);--> statement-breakpoint
+CREATE TABLE `inbox_tombstones` (
+	`key` text PRIMARY KEY NOT NULL,
+	`contactId` text,
+	`permanent` integer DEFAULT false NOT NULL,
+	`createdAt` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `inbox_tombstone_created_idx` ON `inbox_tombstones` (`createdAt`);--> statement-breakpoint
+CREATE INDEX `inbox_tombstone_contact_idx` ON `inbox_tombstones` (`contactId`);--> statement-breakpoint
 CREATE TABLE `password_resets` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`userId` integer NOT NULL,
@@ -190,8 +209,11 @@ CREATE INDEX `password_reset_user_idx` ON `password_resets` (`userId`);--> state
 CREATE TABLE `users` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,
+	`searchText` text DEFAULT '' NOT NULL,
 	`email` text NOT NULL,
 	`avatar` text,
+	`phone` text,
+	`locale` text,
 	`accepted_terms_at` integer,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
