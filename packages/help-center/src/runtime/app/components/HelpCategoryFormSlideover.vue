@@ -2,15 +2,17 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpCategoryFormState, type StaffHelpCategory, OWNER_TYPE_OPTIONS, categoryToForm, emptyHelpCategoryForm, formToCategoryBody, helpCategoryFormSchema, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import type { HelpCategoryDisplay } from '../../../types'
+import type { HelpCategoryKind } from '../../../types'
 import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'HelpCategoryFormSlideover' })
 
 // Create and edit form of a category, opened with `useOverlay()` by `useHelpCategoryActions()`: it closes with the saved
 // category, or `false` when cancelled.
-// `display` presets how a new category shows (`cards` from the FAQ page).
-const props = defineProps<{ category?: StaffHelpCategory, categories: StaffHelpCategory[], display?: HelpCategoryDisplay }>()
+// `kind` is the kind of a new category (`faq` from the FAQ page, shown as cards to start with); an existing category keeps
+// its own. `categories` are those of the same kind: the parent picker offers nothing else.
+const props = defineProps<{ category?: StaffHelpCategory, categories: StaffHelpCategory[], kind?: HelpCategoryKind }>()
+const kind = computed<HelpCategoryKind>(() => props.category?.kind ?? props.kind ?? 'help')
 const emit = defineEmits<{ close: [saved: StaffHelpCategory | false] }>()
 
 const t = useModuleT('helpCenter')
@@ -18,7 +20,7 @@ const tr = useHelpCenterTranslate()
 const { busy, run } = useAction()
 
 const schema = helpCategoryFormSchema(t, tr)
-const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm(props.display))
+const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm(kind.value === 'faq' ? 'cards' : 'list'))
 
 // For a new category the URL name follows the name (in the current locale) until it is edited by hand.
 const draftName = computed(() => tr(state.name))
@@ -36,18 +38,19 @@ const ownerTypes = computed(() => OWNER_TYPE_OPTIONS.map(value => ({ value, labe
 // A category cannot be its own parent; the API also refuses a parent below it.
 const parents = computed(() => [
   { value: '', label: t('admin.noParent', 'Top level') },
-  ...props.categories.filter(entry => entry.id !== props.category?.id).map(entry => ({ value: entry.id, label: tr(entry.name) })),
+  ...props.categories.filter(entry => entry.id !== props.category?.id && entry.kind === kind.value).map(entry => ({ value: entry.id, label: tr(entry.name) })),
 ])
 
 // A subcategory can only narrow its parent: an ancestor that hides it keeps it hidden whatever it says itself.
 const hasParent = computed(() => !!state.parentId)
 
 async function save(event: FormSubmitEvent<HelpCategoryFormState>) {
-  const body = formToCategoryBody(event.data)
+  const body = { ...formToCategoryBody(event.data), kind: kind.value }
+  const query = { kind: kind.value }
   const saved = await run(
     () => props.category
-      ? $fetch<StaffHelpCategory>(helpCenterApi.admin.category(props.category.id), { method: 'PATCH', body })
-      : $fetch<StaffHelpCategory>(helpCenterApi.admin.categories, { method: 'POST', body }),
+      ? $fetch<StaffHelpCategory>(helpCenterApi.admin.category(props.category.id), { method: 'PATCH', query, body })
+      : $fetch<StaffHelpCategory>(helpCenterApi.admin.categories, { method: 'POST', query, body }),
     { success: props.category
       ? t('admin.categorySaved', 'Saved {name}', { name: tr(event.data.name) })
       : t('admin.categoryCreated', 'Created {name}', { name: tr(event.data.name) }) },

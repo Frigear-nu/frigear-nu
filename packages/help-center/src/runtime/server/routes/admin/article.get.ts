@@ -8,13 +8,16 @@ import type { AdminHelpArticleDto } from '../../../../types'
 export default defineEventHandler(async (event): Promise<AdminHelpArticleDto> => {
   await authorize(event, helpCenterAccess.permissions.manage)
   const { id } = await getValidatedRouterParams(event, idParams().parse, { decode: true })
+  const scope = await readHelpKindScope(event)
   if (!id.startsWith('hlp_')) {
     // Sources only serve articles somebody may read, and the others are public by nature: read it as a visitor.
     const article = await helpCenterArticleById(await helpCenterRequest(event, { public: true }), id)
     if (!article) throw notFound('Help article not found.')
+    assertHelpKindScope(article.kind, scope, 'article')
     return toAdminContentArticleDto(article)
   }
   const row = await getHelpArticleOr404(id)
+  await assertHelpArticleKindScope(row, scope)
   await authorize(event, helpCenterAccess.permissions.manage, row)
   return toAdminHelpArticleDto(await getHelpCategoryOr404(row.categoryId), row)
 })

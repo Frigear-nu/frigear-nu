@@ -8,6 +8,7 @@ import { useLocaleLink, useRuntimeConfig } from '#imports'
  *
  *     const paths = useHelpCenterPaths()
  *     paths.signedIn.article('safety', 'first-aid')
+ *     paths.public.faq('board', 'board-who-is-on-the-board') // an FAQ question, on the start page
  */
 export function useHelpCenterPaths() {
   const { localize } = useLocaleLink()
@@ -19,6 +20,14 @@ export function useHelpCenterPaths() {
     index: () => local(paths.index()),
     category: (category: string) => local(paths.category(category)),
     article: (category: string, slug: string) => local(paths.article(category, slug)),
+    /**
+     * Where an FAQ question shows in this area: the FAQ section of the start page, scrolled to its category
+     * (`#faq-<category>`) with the question open (`?faq=<slug>`). FAQ questions have no page of their own.
+     */
+    faq: (category: string, slug?: string) => {
+      const index = local(paths.index())
+      return index ? `${index}${slug ? `?faq=${encodeURIComponent(slug)}` : ''}#faq-${encodeURIComponent(category)}` : undefined
+    },
   })
   return {
     public: area(base.public),

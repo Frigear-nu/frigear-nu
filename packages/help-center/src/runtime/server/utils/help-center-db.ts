@@ -5,12 +5,12 @@ import type { SQL } from 'drizzle-orm'
 import type { Grant } from '@frigear-nu/auth/grants'
 import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, searchContains, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
+import type { HelpCategoryKind, HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
 import { checkReorder, isValidReorder } from '../../utils/faq'
 import { categoryChain, isHelpArticleReadableIn, isHelpChainReadable } from '../../utils/grants'
 import type { HelpRecordReader } from '../../utils/grants'
-import { toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
+import { helpCategoryKind, toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
 import { helpArticleSearchBody, helpArticleSearchText } from './help-center-search'
 import type { HelpArticleRow, HelpCategoryRow } from './help-center-dto'
 import type { helpArticleInput, helpArticlePatchSchema, helpCategoryInput, helpCategoryPatchSchema } from './help-center-schemas'
@@ -273,13 +273,14 @@ export async function assertHelpOperation(event: H3Event, operationId: string | 
   }
 }
 
-/** The parent must exist, not be the category itself and not be one of its descendants. */
-async function assertHelpParent(parentId: string | null | undefined, categoryId?: string): Promise<void> {
+/** The parent must exist, be of the same kind, not be the category itself and not be one of its descendants. */
+async function assertHelpParent(parentId: string | null | undefined, kind: HelpCategoryKind, categoryId?: string): Promise<void> {
   if (!parentId) return
   if (categoryId && parentId === categoryId) throw validationError([{ path: ['parentId'], message: 'A category cannot be its own parent.' }])
   const rows = await listHelpCategoryRows()
   const byId = new Map(rows.map(row => [row.id, row]))
   if (!byId.has(parentId)) throw validationError([{ path: ['parentId'], message: 'This parent category does not exist.' }])
+  if (helpCategoryKind(byId.get(parentId)!.kind) !== kind) throw validationError([{ path: ['parentId'], message: 'The parent category must be of the same kind.' }])
   for (let cursor = byId.get(parentId), depth = 0; cursor && depth < 50; cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined, depth++) {
     if (categoryId && cursor.id === categoryId) throw validationError([{ path: ['parentId'], message: 'A category cannot sit below one of its own subcategories.' }])
   }
@@ -301,7 +302,8 @@ async function nextArticleSort(categoryId: string): Promise<number> {
 /** Inserts a category after the slug, parent, owner and grants checks. */
 export async function createHelpCategoryRow(event: H3Event, input: CategoryInput): Promise<HelpCategoryRow> {
   await assertHelpCategorySlugFree(input.slug)
-  await assertHelpParent(input.parentId)
+  const kind = input.kind ?? 'help'
+  await assertHelpParent(input.parentId, kind)
   const owner = ownerValue(input.owner)
   await assertHelpOwner(event, owner)
   const grants = await grantsValidate(event, (input.grants ?? []) as Grant[])
@@ -314,17 +316,40 @@ export async function createHelpCategoryRow(event: H3Event, input: CategoryInput
     ownerType: owner.type,
     ownerId: owner.id,
     grants,
-    display: input.display ?? 'list',
+    kind,
+    // An FAQ shows as question cards and a help category as an article list, unless the input says otherwise.
+    display: input.display ?? (kind === 'faq' ? 'cards' : 'list'),
     icon: input.icon ?? null,
     sort: input.sort ?? await nextCategorySort(),
   }).returning().catch(rethrowSlugConflict('category'))
   return row!
 }
 
+/** `400 kind_fixed` when a patch names another kind than the category's: the kind is set at create time only. */
+export function assertHelpKindUnchanged(kind: HelpCategoryKind, wanted: HelpCategoryKind | undefined): void {
+  if (wanted && wanted !== kind) throw apiError(400, 'kind_fixed', 'The kind of a category cannot be changed. Create a category of the other kind and move the articles by hand.', { kind })
+}
+
+/**
+ * `404` when `?kind=` names another kind than the record's: the help center admin only reaches `help` records and the
+ * FAQ admin only `faq` ones, even by id.
+ */
+export function assertHelpKindScope(kind: HelpCategoryKind, scope: HelpCategoryKind | undefined, what: 'category' | 'article'): void {
+  if (scope && scope !== kind) throw notFound(what === 'category' ? 'Help category not found.' : 'Help article not found.')
+}
+
+/** `404` when `?kind=` names another kind than the article's category's (see `assertHelpKindScope`). */
+export async function assertHelpArticleKindScope(article: HelpArticleRow, scope: HelpCategoryKind | undefined): Promise<void> {
+  if (!scope) return
+  assertHelpKindScope(helpCategoryKind((await findHelpCategoryById(article.categoryId))?.kind), scope, 'article')
+}
+
 /** Applies a partial update to `existing`; returns the updated row (or `existing` when nothing changed). */
 export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategoryRow, patch: CategoryPatch): Promise<HelpCategoryRow> {
+  const kind = helpCategoryKind(existing.kind)
+  assertHelpKindUnchanged(kind, patch.kind)
   if (patch.slug) await assertHelpCategorySlugFree(patch.slug, existing.id)
-  if (patch.parentId !== undefined && patch.parentId !== existing.parentId) await assertHelpParent(patch.parentId, existing.id)
+  if (patch.parentId !== undefined && patch.parentId !== existing.parentId) await assertHelpParent(patch.parentId, kind, existing.id)
   const owner = patch.owner ? ownerValue(patch.owner) : undefined
   // An unchanged owner is not checked again: a category whose operation was deleted can still be edited.
   if (owner && !(owner.type === existing.ownerType && owner.id === (existing.ownerId ?? null))) await assertHelpOwner(event, owner)
@@ -372,10 +397,13 @@ export function assertHelpArticlePublishable(article: Pick<HelpArticleRow, 'titl
   if (missing.length) throw apiError(409, 'missing_translations', describeMissingTranslations(missing), { missing })
 }
 
-/** The category an article is filed in, or a 400. */
-async function requireHelpCategory(id: string): Promise<HelpCategoryRow> {
+/** The category an article is filed in, or a 400. With `kind`, a category of another kind is a 400 too. */
+async function requireHelpCategory(id: string, kind?: HelpCategoryKind): Promise<HelpCategoryRow> {
   const category = await findHelpCategoryById(id)
   if (!category) throw validationError([{ path: ['categoryId'], message: 'This category does not exist.' }], 'Unknown category')
+  if (kind && helpCategoryKind(category.kind) !== kind) {
+    throw validationError([{ path: ['categoryId'], message: kind === 'faq' ? 'Pick an FAQ category.' : 'Pick a help category.' }], 'Category of another kind')
+  }
   return category
 }
 
@@ -385,9 +413,9 @@ const linksValue = (links: ArticleInput['links']) => links?.length
   : null
 
 /** Inserts a draft article at the end of its category. */
-export async function createHelpArticleRow(event: H3Event, input: ArticleInput, userId: string | number): Promise<HelpArticleRow> {
+export async function createHelpArticleRow(event: H3Event, input: ArticleInput, userId: string | number, kind?: HelpCategoryKind): Promise<HelpArticleRow> {
   await assertHelpArticleSlugFree(input.slug)
-  const category = await requireHelpCategory(input.categoryId)
+  const category = await requireHelpCategory(input.categoryId, kind)
   const grants = input.grants ? await grantsValidate(event, input.grants as Grant[]) : null
   const [row] = await db.insert(schema.helpArticles).values({
     id: newId('hlp'),
@@ -413,7 +441,11 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
  */
 export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleRow, patch: ArticlePatch, userId: string | number): Promise<HelpArticleRow> {
   if (patch.slug) await assertHelpArticleSlugFree(patch.slug, existing.id)
-  if (patch.categoryId && patch.categoryId !== existing.categoryId) await requireHelpCategory(patch.categoryId)
+  // An article stays with its kind: it moves only to another category of the same kind.
+  if (patch.categoryId && patch.categoryId !== existing.categoryId) {
+    const current = await findHelpCategoryById(existing.categoryId)
+    await requireHelpCategory(patch.categoryId, helpCategoryKind(current?.kind))
+  }
   const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : patch.grants
   const values: Partial<typeof schema.helpArticles.$inferInsert> = {}
   if (patch.categoryId !== undefined) values.categoryId = patch.categoryId
@@ -480,10 +512,11 @@ export async function deleteHelpArticleRow(existing: HelpArticleRow): Promise<vo
   await db.delete(schema.helpArticles).where(eq(schema.helpArticles.id, existing.id))
 }
 
-type AdminArticleFilter = { q?: string, status?: 'draft' | 'published', categorySlug?: string }
+type AdminArticleFilter = { q?: string, status?: 'draft' | 'published', categorySlug?: string, kind?: HelpCategoryKind }
 
 function adminArticleWhere(options: AdminArticleFilter) {
   const conditions: (SQL | undefined)[] = []
+  if (options.kind) conditions.push(eq(schema.helpCategories.kind, options.kind))
   if (options.status) conditions.push(eq(schema.helpArticles.status, options.status))
   if (options.categorySlug) conditions.push(eq(schema.helpCategories.slug, options.categorySlug))
   if (options.q) {

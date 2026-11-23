@@ -19,6 +19,7 @@ const articleActions = useHelpArticleActions()
 const categoryActions = useHelpCategoryActions()
 
 const { data, status, refresh } = await useFetch<StaffHelpArticle[]>(() => helpCenterApi.admin.categoryArticles(props.category.id), {
+  query: { kind: 'faq' },
   key: `help-center:admin:faq:${props.category.id}`,
   default: () => [],
 })

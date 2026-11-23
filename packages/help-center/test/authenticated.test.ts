@@ -1098,10 +1098,12 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(titles(visitor)).toEqual([`Public question ${suffix}`])
       expect(titles(await faqs(bar.cookie, '&public=1'))).toEqual([`Public question ${suffix}`])
       expect(titles(await faqs(bar.cookie))).toEqual([`Public question ${suffix}`, `Bar question ${suffix}`])
-      // Without names: every accordion and cards category the reader may read, and no list category.
+      // Without names: every `faq` category the reader may read. This one is a help category shown as questions.
+      const faqKind = await publishedArticle({ grants: PUBLIC, kind: 'faq', display: 'accordion' })
       const all = await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[]
-      expect(slugsOf(all)).toContain(category.slug)
-      expect(all.every(entry => entry.display === 'accordion' || entry.display === 'cards')).toBe(true)
+      expect(slugsOf(all)).toContain(faqKind.category.slug)
+      expect(slugsOf(all)).not.toContain(category.slug)
+      expect(all.every(entry => entry.kind === 'faq')).toBe(true)
       // A category nobody may read is left out, like one that does not exist.
       const hidden = await createCategory({ grants: [], display: 'accordion' })
       expect(await ok(await json(bar.cookie, 'GET', `${helpCenterApi.faqs}?categories=${hidden.slug},missing-${suffix}`))).toEqual([])
@@ -1142,8 +1144,9 @@ describe('help center (authenticated, database-backed)', async () => {
       await publish((await createArticle(category.id, { title: both(`Plain card ${suffix}`, `Enkelt kort ${suffix}`), body: both(`Just text ${suffix}.`, `Bare tekst ${suffix}.`) })).id)
 
       const faqs = await ok(await json(undefined, 'GET', `${helpCenterApi.faqs}?categories=${category.slug}`)) as unknown as Json[]
-      expect(faqs[0]).toMatchObject({ slug: category.slug, display: 'cards' })
-      expect(slugsOf(await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[])).toContain(category.slug)
+      expect(faqs[0]).toMatchObject({ slug: category.slug, display: 'cards', kind: 'help' })
+      // Named, any kind shows; unnamed, only `faq` categories do.
+      expect(slugsOf(await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[])).not.toContain(category.slug)
 
       const { status, html } = await page(`/help/${category.slug}`)
       expect(status).toBe(200)
@@ -1212,10 +1215,10 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(html).toContain('Help center')
     })
 
-    it('opens the FAQ page for a coordinator: the accordion and cards categories with their questions', async () => {
+    it('opens the FAQ page for a coordinator: the faq categories with their questions', async () => {
       await asStaff()
       const suffix = ++counter
-      const cards = await publishedArticle({ grants: PUBLIC, display: 'cards', name: both(`Cards FAQ ${suffix}`, `Kort FAQ ${suffix}`) }, { title: both(`Cards question ${suffix}`, `Kortspørgsmål ${suffix}`) })
+      const cards = await publishedArticle({ grants: PUBLIC, kind: 'faq', name: both(`Cards FAQ ${suffix}`, `Kort FAQ ${suffix}`) }, { title: both(`Cards question ${suffix}`, `Kortspørgsmål ${suffix}`) })
       const list = await createCategory({ grants: PUBLIC, display: 'list', name: both(`List category ${suffix}`, `Liste ${suffix}`) })
       const { status, html } = await page('/admin/help-center/faq', staff.cookie)
       expect(status).toBe(200)
@@ -1230,6 +1233,150 @@ describe('help center (authenticated, database-backed)', async () => {
       expect(active).toEqual(['/admin/help-center/faq'])
       // Only staff: a member gets no FAQ page.
       expect((await page('/admin/help-center/faq', (await user('Member')).cookie)).html).not.toContain(`Cards question ${suffix}`)
+    })
+
+    describe('category kind (help or faq)', () => {
+      const scoped = (path: string, kind: string) => `${path}?kind=${kind}`
+      const adminCategories = async (kind?: string) => await ok(await json(staff.cookie, 'GET', kind ? scoped(helpCenterApi.admin.categories, kind) : helpCenterApi.admin.categories)) as unknown as Json[]
+      const adminArticles = async (query: string) => (await ok(await json(staff.cookie, 'GET', `${helpCenterApi.admin.articles}?pageSize=100&${query}`))).items as Json[]
+
+      it('defaults to help, shown as a list; an faq category starts as cards; the kind is in every DTO', async () => {
+        const help = await createCategory()
+        expect(help).toMatchObject({ kind: 'help', display: 'list' })
+        const faq = await createCategory({ kind: 'faq' })
+        expect(faq).toMatchObject({ kind: 'faq', display: 'cards' })
+        expect(await createCategory({ kind: 'faq', display: 'accordion' })).toMatchObject({ kind: 'faq', display: 'accordion' })
+        await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `bad-kind-${++counter}`, name: 'Bad', kind: 'wiki' }), 400)
+        const article = await createArticle(faq.id)
+        expect(article.kind).toBe('faq')
+        expect((await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.article(article.id)))).kind).toBe('faq')
+      })
+
+      it('fixes the kind at create time: a PATCH that changes it is 400 kind_fixed, one that repeats it is fine', async () => {
+        const help = await createCategory()
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(help.id), { kind: 'faq' }), 400, 'kind_fixed')
+        const faq = await createCategory({ kind: 'faq' })
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { kind: 'help', name: 'Renamed' }), 400, 'kind_fixed')
+        const renamed = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { kind: 'faq', name: 'Renamed', display: 'list' }))
+        expect(renamed).toMatchObject({ kind: 'faq', name: 'Renamed', display: 'list' })
+      })
+
+      it('filters with ?kind= on the admin and public lists', async () => {
+        const suffix = ++counter
+        const help = await publishedArticle({ grants: PUBLIC }, { title: both(`Kindtest${suffix} help`, `Kindtest${suffix} hjaelp`) })
+        const faq = await publishedArticle({ grants: PUBLIC, kind: 'faq' }, { title: both(`Kindtest${suffix} faq`, `Kindtest${suffix} faq da`) })
+
+        const helpOnly = slugsOf(await adminCategories('help'))
+        const faqOnly = slugsOf(await adminCategories('faq'))
+        expect(helpOnly).toContain(help.category.slug)
+        expect(helpOnly).not.toContain(faq.category.slug)
+        expect(faqOnly).toContain(faq.category.slug)
+        expect(faqOnly).not.toContain(help.category.slug)
+        expect(slugsOf(await adminCategories())).toEqual(expect.arrayContaining([help.category.slug, faq.category.slug]))
+        await expectApiError(json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categories, 'wiki')), 400)
+
+        // The admin article list, and the pickers built on it (checklists, send: `status=published&kind=help`).
+        for (const query of [`q=kindtest${suffix}&kind=help`, `q=kindtest${suffix}&kind=help&status=published`]) {
+          expect(slugsOf(await adminArticles(query))).toEqual([help.article.slug])
+        }
+        expect(slugsOf(await adminArticles(`q=kindtest${suffix}&kind=faq`))).toEqual([faq.article.slug])
+        expect(slugsOf(await adminArticles(`q=kindtest${suffix}`)).sort()).toEqual([help.article.slug, faq.article.slug].sort())
+
+        expect(slugsOf(await listCategories(undefined, '?kind=faq'))).toContain(faq.category.slug)
+        expect(slugsOf(await listCategories(undefined, '?kind=faq'))).not.toContain(help.category.slug)
+        expect(slugsOf(await listCategories(undefined, '?kind=help'))).not.toContain(faq.category.slug)
+        expect(slugsOf(await listArticles(undefined, `?q=kindtest${suffix}&kind=help`))).toEqual([help.article.slug])
+        expect(slugsOf(await listArticles(undefined, `?q=kindtest${suffix}&kind=faq`))).toEqual([faq.article.slug])
+      })
+
+      it('keeps each admin to its kind by id: the other kind is a 404, a category of the other kind a 400', async () => {
+        const help = await createCategory()
+        const faq = await createCategory({ kind: 'faq' })
+        const helpArticle = await createArticle(help.id)
+        const faqArticle = await createArticle(faq.id)
+        await createArticle(faq.id)
+
+        for (const [method, path, body] of [
+          ['GET', helpCenterApi.admin.article(faqArticle.id), undefined],
+          ['PATCH', helpCenterApi.admin.article(faqArticle.id), { sort: 3 }],
+          ['DELETE', helpCenterApi.admin.article(faqArticle.id), undefined],
+          ['POST', helpCenterApi.admin.publish(faqArticle.id), undefined],
+          ['POST', helpCenterApi.admin.unpublish(faqArticle.id), undefined],
+          ['PATCH', helpCenterApi.admin.category(faq.id), { sort: 3 }],
+          ['DELETE', helpCenterApi.admin.category(faq.id), undefined],
+          ['GET', helpCenterApi.admin.categoryArticles(faq.id), undefined],
+          ['POST', helpCenterApi.admin.reorder(faq.id), { articleIds: [] }],
+        ] as const) {
+          await expectApiError(json(staff.cookie, method, scoped(path, 'help'), body), 404)
+        }
+        await expectApiError(json(staff.cookie, 'GET', scoped(helpCenterApi.admin.article(helpArticle.id), 'faq')), 404)
+        await expectApiError(json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categoryArticles(help.id), 'faq')), 404)
+        // The same kind passes.
+        expect((await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.article(faqArticle.id), 'faq')))).id).toBe(faqArticle.id)
+        expect((await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categoryArticles(faq.id), 'faq')))).length).toBe(2)
+
+        // Creating in, or moving to, a category of the other kind; a parent of the other kind.
+        await expectApiError(json(staff.cookie, 'POST', scoped(helpCenterApi.admin.articles, 'help'), { categoryId: faq.id, slug: `wrong-${++counter}`, title: 'Wrong', body: 'Wrong' }), 400)
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.article(helpArticle.id), { categoryId: faq.id }), 400)
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { parentId: help.id }), 400)
+        await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `child-${++counter}`, name: 'Child', parentId: faq.id }), 400)
+        // An FAQ question is not help center reading: never on a checklist.
+        await publish(faqArticle.id)
+        await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'With FAQ', items: [{ articleId: faqArticle.id }] }), 400)
+      })
+
+      it('shows FAQs on /help in a section of their own, labels them FAQ in search, and has no pages for them', async () => {
+        const suffix = ++counter
+        const help = await publishedArticle({ grants: PUBLIC, name: both(`Helpcat ${suffix}`, `Hjaelpkat ${suffix}`) }, { title: both(`Zebra${suffix} help`, `Zebra${suffix} hjaelp`) })
+        const faq = await publishedArticle(
+          { grants: PUBLIC, kind: 'faq', name: both(`Faqcat ${suffix}`, `Faqkat ${suffix}`) },
+          { title: both(`Zebra${suffix} question`, `Zebra${suffix} spørgsmål`), body: both(`Zebra answer ${suffix}.`, `Zebra svar ${suffix}.`) },
+        )
+
+        // Search finds both, the FAQ one labelled by its kind.
+        const hits = await listArticles(undefined, `?q=zebra${suffix}&public=1`)
+        expect(hits.map(hit => [hit.slug, hit.kind]).sort()).toEqual([[faq.article.slug, 'faq'], [help.article.slug, 'help']].sort())
+
+        const { status, html } = await page('/help')
+        expect(status).toBe(200)
+        expect(html).toContain('data-test="help-center-faq"')
+        expect(html).toContain(`id="faq-${faq.category.slug}"`)
+        expect(html).toContain(`Zebra${suffix} question`)
+        // The category grid has the help category only.
+        expect(html).toContain(`/help/${help.category.slug}"`)
+        expect(html).not.toContain(`/help/${faq.category.slug}"`)
+
+        // An FAQ category or question by its old address goes to its place on the start page.
+        const toCategory = await fetch(`/help/${faq.category.slug}`, { redirect: 'manual' })
+        expect(toCategory.status).toBe(301)
+        expect(toCategory.headers.get('location')).toBe(`/help#faq-${faq.category.slug}`)
+        const toQuestion = await fetch(`/help/${faq.category.slug}/${faq.article.slug}`, { redirect: 'manual' })
+        expect(toQuestion.status).toBe(301)
+        expect(toQuestion.headers.get('location')).toBe(`/help?faq=${faq.article.slug}#faq-${faq.category.slug}`)
+        // A help article keeps its page.
+        expect((await page(`/help/${help.category.slug}/${help.article.slug}`)).status).toBe(200)
+      })
+
+      it('never shows the other kind on either admin page', async () => {
+        await asStaff()
+        const suffix = ++counter
+        const help = await publishedArticle({ grants: PUBLIC, name: both(`Adminhelp ${suffix}`, `Adminhjaelp ${suffix}`) }, { title: both(`Adminhelp question ${suffix}`, `Adminhjaelp q ${suffix}`) })
+        const faq = await publishedArticle({ grants: PUBLIC, kind: 'faq', name: both(`Adminfaq ${suffix}`, `Adminfaq da ${suffix}`) }, { title: both(`Adminfaq question ${suffix}`, `Adminfaq q da ${suffix}`) })
+
+        const articles = await page('/admin/help-center', staff.cookie)
+        expect(articles.html).toContain(`Adminhelp question ${suffix}`)
+        expect(articles.html).not.toContain(`Adminfaq question ${suffix}`)
+        expect(articles.html).not.toContain(`Adminfaq ${suffix}`)
+        const categories = await page('/admin/help-center?tab=categories', staff.cookie)
+        expect(categories.html).toContain(`Adminhelp ${suffix}`)
+        expect(categories.html).not.toContain(`Adminfaq ${suffix}`)
+
+        const faqPage = await page('/admin/help-center/faq', staff.cookie)
+        expect(faqPage.html).toContain(`help-admin-faq-${faq.category.slug}"`)
+        expect(faqPage.html).toContain(`Adminfaq question ${suffix}`)
+        expect(faqPage.html).not.toContain(`help-admin-faq-${help.category.slug}"`)
+        expect(faqPage.html).not.toContain(`Adminhelp question ${suffix}`)
+      })
     })
   })
 })

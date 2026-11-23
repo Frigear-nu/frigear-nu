@@ -37,6 +37,8 @@ export const contentArticleDto = (article: HelpContentArticle): HelpArticleDto =
   title: article.title,
   body: article.body,
   categorySlug: article.categorySlug,
+  // Content files are help articles; a database category with the same slug decides when the sources are merged.
+  kind: 'help',
   source: 'content',
   public: true,
   icon: null,

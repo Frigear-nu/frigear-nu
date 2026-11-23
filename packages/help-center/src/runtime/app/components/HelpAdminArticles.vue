@@ -21,7 +21,8 @@ const { page, pageSize, search, sort: sortState, filters, query, filtered, reset
 })
 const { sorting, header } = useTableSort(null, sortState)
 
-const { data, status, refresh } = await useFetch<StaffHelpArticlesPage>(helpCenterApi.admin.articles, { query, key: 'help-center:admin:articles' })
+// The help center admin lists help articles only: FAQ questions live on the FAQ admin page.
+const { data, status, refresh } = await useFetch<StaffHelpArticlesPage>(helpCenterApi.admin.articles, { query: computed(() => ({ ...query.value, kind: 'help' })), key: 'help-center:admin:articles' })
 const rows = computed(() => data.value?.items ?? [])
 const pending = computed(() => status.value === 'pending')
 const loading = computed(() => pending.value && !data.value)

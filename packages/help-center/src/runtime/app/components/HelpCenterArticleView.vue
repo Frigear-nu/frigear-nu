@@ -25,8 +25,12 @@ const { article, error, refresh } = await useHelpCenterArticle(() => props.slug,
 // Not found is a 404 for crawlers too; a failed request is an error, not "not found".
 if (import.meta.server && !article.value && !error.value) setResponseStatus(useRequestEvent(), 404)
 
+// An FAQ question has no page: it goes to its place in the FAQ section of the start page.
+const faqHome = article.value?.kind === 'faq' ? links.faq(article.value.categorySlug, article.value.slug) : undefined
+if (faqHome) await navigateTo(faqHome, { replace: true, redirectCode: 301 })
+
 // The address of an article is `<base>/<its category>/<slug>`: another category in the URL goes to the real one.
-if (article.value && article.value.categorySlug !== props.category) {
+else if (article.value && article.value.categorySlug !== props.category) {
   const canonical = links.article(article.value.categorySlug, article.value.slug)
   if (canonical) await navigateTo(canonical, { replace: true, redirectCode: 301 })
 }

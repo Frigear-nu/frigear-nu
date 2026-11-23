@@ -8,7 +8,9 @@ import type { AdminHelpArticleDto } from '../../../../types'
 export default defineEventHandler(async (event): Promise<AdminHelpArticleDto> => {
   const principal = await authorize(event, helpCenterAccess.permissions.manage)
   const { id } = await getValidatedRouterParams(event, idParams().parse)
+  const scope = await readHelpKindScope(event)
   const existing = await getHelpArticleOr404(id)
+  await assertHelpArticleKindScope(existing, scope)
   await authorize(event, helpCenterAccess.permissions.manage, existing)
   const category = await getHelpCategoryOr404(existing.categoryId)
   if (existing.status === 'published') return toAdminHelpArticleDto(category, existing)

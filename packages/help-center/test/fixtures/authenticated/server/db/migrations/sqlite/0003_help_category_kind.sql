@@ -1,0 +1,1 @@
+ALTER TABLE `help_categories` ADD `kind` text DEFAULT 'help' NOT NULL;

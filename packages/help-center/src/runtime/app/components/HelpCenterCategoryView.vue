@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useHelpCenterFaqCards } from '../composables/useHelpCenterFaqCards'
-import { computed, errorMessage, setResponseStatus, useRequestEvent, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useSeoMeta } from '#imports'
+import { computed, errorMessage, navigateTo, setResponseStatus, useRequestEvent, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterPaths, useHelpCenterTranslate, useModuleT, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'HelpCenterCategoryView' })
 
@@ -21,6 +21,9 @@ const error = computed(() => categoriesError.value ?? articlesError.value)
 const refresh = () => Promise.all([refreshCategories(), refreshArticles()])
 
 const current = computed(() => categories.value.find(category => category.slug === props.category))
+// An FAQ category has no page here: it goes to its place in the FAQ section of the start page.
+const faqHome = current.value?.kind === 'faq' ? links.faq(current.value.slug) : undefined
+if (faqHome) await navigateTo(faqHome, { replace: true, redirectCode: 301 })
 const children = computed(() => current.value ? categories.value.filter(category => category.parentId === current.value!.id) : [])
 const parent = computed(() => current.value?.parentId ? categories.value.find(category => category.id === current.value!.parentId) : undefined)
 
