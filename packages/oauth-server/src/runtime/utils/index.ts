@@ -504,3 +504,12 @@ export function configuredClientWarnings(clients: readonly OAuthNormalizedClient
     .filter(client => !client.allowLongBrowserSessions && isLongBrowserSession(client, client.refreshToken.idleTtl ?? global.idleTtl))
     .map(client => `Client "${client.id}" is a browser client (it has a web redirect URI) whose refresh tokens live ${Math.round((client.refreshToken.idleTtl ?? global.idleTtl) / DAY)} days unused. Browsers keep them where any XSS can read them; keep it at 7 days or less, or set allowLongBrowserSessions: true.`)
 }
+
+/**
+ * Whether a registered permission may go in an OAuth scope: never a sensitive one (it must be granted by name, and a
+ * scope would hand it to an application) nor a `sessionOnly` one (no token may hold it). The scope form's picker and
+ * the validation of database scopes both use it, so they cannot disagree.
+ */
+export function isOAuthScopePermission(permission: { sensitive?: boolean, sessionOnly?: boolean }): boolean {
+  return !permission.sensitive && !permission.sessionOnly
+}
