@@ -7,7 +7,7 @@ import { capabilities, capabilityPermissions, resolveDesktopOptions, tauriConfig
 import { baseTauriConfig, cargoToml, libRs, loadingPage } from '../../src/runtime/cli/templates'
 import { bunTarget, buildSidecar, hostTriple, init, main, parseArgs, passthroughTarget, sidecarPath, type Io } from '../../src/runtime/cli/main'
 import { runDoctor } from '../../src/runtime/cli/doctor'
-import { applyLocalNitroConfig, localBootstrapTemplate, localDbTemplate, localEntryTemplate, type LocalNitroConfig } from '../../src/build'
+import { applyLocalNitroConfig, localBootstrapTemplate, localDbTemplate, appHasUnstorage, localEntryTemplate, type LocalNitroConfig } from '../../src/build'
 
 const options = resolveDesktopOptions({ appId: 'nu.frigear.crew', appName: 'Crew', mode: 'local' }, { packageVersion: '1.0.0' }).options
 const manifest: DesktopManifest = {
@@ -249,5 +249,15 @@ describe('local build', () => {
     expect(localBootstrapTemplate('/pkg/bootstrap', { port: 0, secrets: ['NUXT_APP_SECRET'] })).toContain('prepareLocalServer({"port":0,"secrets":["NUXT_APP_SECRET"]})')
     const entry = localEntryTemplate('/app/.nuxt/desktop/local/bootstrap.mjs', '/nitro/presets/bun/runtime/bun.mjs')
     expect(entry.indexOf('bootstrap.mjs')).toBeLessThan(entry.indexOf('bun.mjs'))
+  })
+})
+
+describe('appHasUnstorage', () => {
+  it('is true only when the app resolves unstorage itself (NuxtHub KV imports it from the app)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'desktop-unstorage-'))
+    expect(appHasUnstorage(root)).toBe(false)
+    mkdirSync(join(root, 'node_modules', 'unstorage'), { recursive: true })
+    writeFileSync(join(root, 'node_modules', 'unstorage', 'package.json'), '{"name":"unstorage"}')
+    expect(appHasUnstorage(root)).toBe(true)
   })
 })

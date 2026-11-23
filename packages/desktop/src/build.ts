@@ -195,3 +195,11 @@ import ${JSON.stringify(entry)}
 export function isCheckedNuxtHubVersion(version: string | undefined): boolean {
   return !!version && NUXTHUB_SEAM.versions.some(prefix => version === prefix || version.startsWith(`${prefix}.`))
 }
+
+/**
+ * Local mode: NuxtHub writes its KV client (`hub.kv`) into the app's `node_modules/@nuxthub/kv`, importing `unstorage`
+ * from there, so the app must depend on `unstorage` itself (pnpm does not hoist it). `true` when it resolves.
+ */
+export function appHasUnstorage(rootDir: string): boolean {
+  return existsSync(join(rootDir, 'node_modules', 'unstorage', 'package.json'))
+}

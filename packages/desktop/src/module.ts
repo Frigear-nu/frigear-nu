@@ -8,7 +8,7 @@ import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import type { DesktopDeepLinkContext, DesktopManifest, DesktopPublicConfig, ModuleOptions } from './types'
 import {
   applyLocalNitroConfig, assertClientAuth, assertServerAuth, isCheckedNuxtHubVersion, isPackageInstalled, localBootstrapTemplate,
-  localDbTemplate, localEntryTemplate, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM, type LocalNitroConfig,
+  localDbTemplate, localEntryTemplate, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM, appHasUnstorage, type LocalNitroConfig,
 } from './build'
 import type { SecretName } from './runtime/shared/local-secrets'
 import { appIdScheme, capabilities, resolveDesktopOptions, resolveSchemes, tauriConfig, toJson, usedPlugins } from './runtime/shared/config'
@@ -68,10 +68,9 @@ export default defineNuxtModule<ModuleOptions>({
     const desktop = desktopOptionsOf(nuxt)
     if (desktop?.mode === 'local') {
       // Offline defaults the app can override: no emailed verification (nobody receives the email), emailed links from
-      // the request origin (the port changes every start), and in builds NuxtHub KV for sign-in throttling (fs-lite in
-      // `.data/kv`, inside the data folder at runtime). Not under `nuxt dev`, where throttling is off and NuxtHub's
-      // generated KV would import `unstorage` from the app, which pnpm apps do not have. Scalars only: array defaults
-      // would be appended to the app's own (defu).
+      // the request origin (the port changes every start), and NuxtHub KV for sign-in throttling (fs-lite in
+      // `.data/kv`, inside the data folder at runtime; the app depends on `unstorage`, see `appHasUnstorage`). Scalars
+      // only: array defaults would be appended to the app's own (defu).
       return {
         '@frigear-nu/module-kit': { version: '>=0.0.1' },
         '@frigear-nu/auth': {
@@ -79,7 +78,7 @@ export default defineNuxtModule<ModuleOptions>({
           optional: !authConfigured,
           defaults: { settings: { verifyEmail: false, trustRequestOrigin: true } },
         },
-        ...(nuxt.options.dev ? {} : { '@nuxthub/core': { optional: true, defaults: { kv: true } } }),
+        '@nuxthub/core': { optional: true, defaults: { kv: true } },
       }
     }
     // Remote mode: the app id is Auth's deep-link scheme.
@@ -222,6 +221,13 @@ function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolve
     const config = nuxt.options.runtimeConfig as { session?: { cookie?: Record<string, unknown> } }
     const session = config.session ??= {}
     session.cookie = { ...session.cookie, secure: false }
+  }
+
+  if (!prepare) {
+    nuxt.hook('modules:done', () => {
+      if (!(nuxt.options as { hub?: { kv?: unknown } }).hub?.kv || appHasUnstorage(nuxt.options.rootDir)) return
+      throw new Error('[@frigear-nu/desktop] Local mode turns on NuxtHub KV (`hub.kv`), whose generated client imports `unstorage` from the app: add it to the app\'s dependencies (`pnpm add unstorage`), or set `hub.kv: false`.')
+    })
   }
 
   if (nuxt.options.dev || prepare || nuxt.options.test) return
