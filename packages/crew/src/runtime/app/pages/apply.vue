@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { crewApi } from '../../utils/api'
-import { CREW_STATUS_LABELS } from '../../utils/status'
+import { crewApplyNotice } from '../../utils/status'
 import type { CrewApplyDto } from '../../../types'
 import { computed, createError, errorMessage, navigateTo, ref, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useFormat, useHead, useModuleT, useRoute } from '#imports'
 
@@ -31,6 +31,9 @@ async function onSubmitted() {
   await refresh()
 }
 
+// Where an applicant stands: waitlisted people get their own notice, applied and approved people the "applied" one.
+const notice = computed(() => data.value?.state === 'applied' ? crewApplyNotice(data.value.crewStatus, submitted.value) : null)
+
 useHead({ title: computed(() => data.value ? t('apply.title', 'Apply to {operation}', { operation: tr(data.value.operationName) }) : '') })
 </script>
 
@@ -59,14 +62,12 @@ useHead({ title: computed(() => data.value ? t('apply.title', 'Apply to {operati
           />
 
           <UAlert
-            v-else-if="data.state === 'applied'"
-            icon="i-lucide-circle-check"
-            color="success"
+            v-else-if="data.state === 'applied' && notice"
+            :icon="notice.icon"
+            :color="notice.color"
             variant="subtle"
-            :title="submitted ? t('apply.thanks', 'Thank you for applying') : t('apply.alreadyApplied', 'You have applied already')"
-            :description="data.crewStatus === 'approved'
-              ? t('apply.approved', 'You are on the crew.')
-              : t('apply.appliedDescription', 'Your application is {status}. We will email you when something changes.', { status: t(`admin.statuses.${data.crewStatus}`, CREW_STATUS_LABELS[data.crewStatus!]).toLowerCase() })"
+            :title="t(notice.title.key, notice.title.fallback)"
+            :description="t(notice.description.key, notice.description.fallback)"
             :actions="[{ label: t('apply.seeStatus', 'See your status'), to: links.status(), color: 'neutral', variant: 'outline' }]"
           />
           <UAlert
