@@ -170,7 +170,7 @@
       "title": "Ansøg til {operation}",
       "unavailable": "Dette crew tager ikke imod ansøgninger",
       "waitlisted": "Du er på ventelisten",
-      "waitlistedDescription": "Du er på ventelisten. Vi sender dig en e-mail, hvis der bliver en plads."
+      "waitlistedDescription": "Vi sender dig en e-mail, hvis der bliver en plads."
     },
     "dashboard": {
       "status": "Min crew-status",
