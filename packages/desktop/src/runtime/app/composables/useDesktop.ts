@@ -44,6 +44,8 @@ export function useDesktop() {
     toggleMaximize: () => withWindow(window => window.toggleMaximize()),
     close: () => withWindow(window => window.close()),
     setFullscreen: (fullscreen: boolean) => withWindow(window => window.setFullscreen(fullscreen)),
+    /** Brings the window to the front (`core:window:allow-set-focus`). */
+    focus: () => withWindow(window => window.setFocus()),
     /** Opens a link in the user's default browser (`@tauri-apps/plugin-opener`), or a new tab outside the desktop app. */
     async openExternal(url: string): Promise<void> {
       const opener = await load('opener')

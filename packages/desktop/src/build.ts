@@ -70,9 +70,10 @@ export function assertLocalAuth(mode: string): void {
  * - Local mode with server auth: offline defaults the app can override: no emailed verification (nobody receives the
  *   email), emailed links from the request origin (the port changes every start), and NuxtHub KV for sign-in throttling
  *   (fs-lite in `.data/kv`, inside the data folder at runtime; the app depends on `unstorage`, see `appHasUnstorage`).
- *   Resource mode signs in at the issuer: none of it applies, and it throttles nothing.
+ *   Resource mode signs in at the issuer: none of it applies, and it throttles nothing. Plus the browser handoff of
+ *   "Log in with frigear.nu" (`frigearHandoffDefaults`).
  */
-export function desktopDependencies(input: { mode?: string, appId?: string, authConfigured: boolean, authMode: DesktopAuthMode }): Record<string, { version?: string, optional?: boolean, defaults?: Record<string, unknown> }> {
+export function desktopDependencies(input: { mode?: string, appId?: string, authConfigured: boolean, authMode: DesktopAuthMode, frigear?: unknown }): Record<string, { version?: string, optional?: boolean, defaults?: Record<string, unknown>, overrides?: Record<string, unknown> }> {
   const scheme = input.appId ? appIdScheme(input.appId) : undefined
   const nativeScheme = { client: { ...(scheme ? { native: { scheme } } : {}) } }
   const moduleKit = { '@frigear-nu/module-kit': { version: '>=0.0.1' } }
@@ -80,12 +81,15 @@ export function desktopDependencies(input: { mode?: string, appId?: string, auth
     if (input.authMode === 'resource') {
       return { ...moduleKit, '@frigear-nu/auth': { version: '>=0.0.1', optional: !input.authConfigured, defaults: nativeScheme } }
     }
+    const handoff = frigearHandoffDefaults(input.frigear)
+    const defaults = { settings: { verifyEmail: false, trustRequestOrigin: true } }
     return {
       ...moduleKit,
       '@frigear-nu/auth': {
         version: '>=0.0.1',
         optional: !input.authConfigured,
-        defaults: { settings: { verifyEmail: false, trustRequestOrigin: true } },
+        defaults: handoff.defaults ? { settings: { ...defaults.settings, ...handoff.defaults.settings } } : defaults,
+        ...(handoff.overrides ? { overrides: handoff.overrides } : {}),
       },
       '@nuxthub/core': { optional: true, defaults: { kv: true } },
     }
@@ -94,6 +98,37 @@ export function desktopDependencies(input: { mode?: string, appId?: string, auth
     ...moduleKit,
     ...(input.authConfigured ? { '@frigear-nu/auth': { version: '>=0.0.1', defaults: nativeScheme } } : {}),
   }
+}
+
+/**
+ * Local mode with server auth: "Log in with frigear.nu" signs in in the system browser while the window waits
+ * (`authentication.settings.oauth.frigear.handoff`), so passkeys at frigear.nu work and no client secret ships in the
+ * app. Turned on only where the app enables the frigear provider itself (`settings.oauth.frigear`), as any key there
+ * enables it; `handoff: false` keeps it off.
+ *
+ * - `frigear: true`: an override (`{ handoff: true }`), since a default object would lose to the app's `true` (defu).
+ *   The two mean the same provider, only with the handoff.
+ * - `frigear: { ... }` without `handoff`: a default.
+ * - Anything else (not enabled, `false`, `handoff` set): nothing.
+ */
+export function frigearHandoffDefaults(frigear: unknown): { defaults?: { settings: Record<string, unknown> }, overrides?: { settings: Record<string, unknown> } } {
+  const value = { settings: { oauth: { frigear: { handoff: true } } } }
+  if (frigear === true) return { overrides: value }
+  if (frigear && typeof frigear === 'object' && !Array.isArray(frigear) && !('handoff' in frigear)) return { defaults: value }
+  return {}
+}
+
+/** The deep link the browser's "signed in" page opens to bring the app forward: `<scheme>:/auth/return`. */
+export const HANDOFF_RETURN_PATH = '/auth/return'
+
+/**
+ * Local mode with server auth: the default `frigear.handoff.returnUrl` (`NUXT_FRIGEAR_HANDOFF_RETURN_URL` overrides it).
+ * The app id's scheme when it is registered, else the first deep-link scheme; none without deep-link schemes.
+ */
+export function handoffReturnUrl(appId: string, schemes: string[]): string | undefined {
+  const own = appIdScheme(appId)
+  const scheme = own && schemes.includes(own) ? own : schemes[0]
+  return scheme ? `${scheme}:${HANDOFF_RETURN_PATH}` : undefined
 }
 
 /**

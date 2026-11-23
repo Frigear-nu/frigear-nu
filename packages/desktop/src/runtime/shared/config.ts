@@ -131,7 +131,7 @@ export function resolveDesktopOptions(input: ModuleOptions, context: ResolveCont
     local = {
       binaryName: input.local?.binaryName?.trim() || `${crateName(appId)}-server`,
       port: input.local?.port ?? 0,
-      secureCookie: input.local?.secureCookie !== false,
+      secureCookie: input.local?.secureCookie === true,
       dataDirName: input.local?.dataDirName?.trim() || 'data',
     }
     if (!BINARY_NAME.test(local.binaryName)) errors.push(`\`local.binaryName\` "${local.binaryName}" must be letters, digits, "-" and "_".`)
@@ -250,15 +250,26 @@ export function capabilities(options: Pick<ResolvedDesktopOptions, 'autostart' |
 
 /**
  * The JavaScript Tauri packages the enabled features use, required ones first. `oauth`: Auth signs in at an issuer
- * (client mode, or resource mode in local mode). In local mode with a free port picked on every start, the window's
+ * (client mode, or resource mode in local mode). `handoff`: local mode with server auth signs in at frigear.nu in the
+ * system browser (Auth's `oauth.frigear.handoff`): the opener opens it, the deep link brings the window back. In local mode with a free port picked on every start, the window's
  * origin changes each time, and with it `localStorage`: the sign-in only survives a restart in the Tauri store.
  */
-export function usedPlugins(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater' | 'deepLinks'> & { local?: ResolvedDesktopOptions['local'] }, oauth: boolean): DesktopManifest['plugins'] {
+export function usedPlugins(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater' | 'deepLinks'> & { local?: ResolvedDesktopOptions['local'] }, oauth: boolean, handoff = false): DesktopManifest['plugins'] {
   const plugins: DesktopManifest['plugins'] = [
     { name: '@tauri-apps/api', required: true, feature: TAURI_PLUGINS.window.feature },
   ]
-  if (oauth || options.deepLinks.schemes.length) plugins.push({ name: TAURI_PLUGINS.deepLink.pkg, required: true, feature: TAURI_PLUGINS.deepLink.feature })
-  plugins.push({ name: TAURI_PLUGINS.opener.pkg, required: oauth, feature: TAURI_PLUGINS.opener.feature })
+  if (oauth || handoff || options.deepLinks.schemes.length) {
+    plugins.push({
+      name: TAURI_PLUGINS.deepLink.pkg,
+      required: true,
+      feature: handoff && !oauth ? `${TAURI_PLUGINS.deepLink.feature}; the return link of "Log in with frigear.nu"` : TAURI_PLUGINS.deepLink.feature,
+    })
+  }
+  plugins.push({
+    name: TAURI_PLUGINS.opener.pkg,
+    required: oauth || handoff,
+    feature: handoff && !oauth ? `${TAURI_PLUGINS.opener.feature} ("Log in with frigear.nu")` : TAURI_PLUGINS.opener.feature,
+  })
   if (oauth) {
     const changingOrigin = !!options.local && options.local.port === 0
     plugins.push({

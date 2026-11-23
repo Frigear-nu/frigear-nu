@@ -72,7 +72,7 @@ describe('resolveDesktopOptions', () => {
     expect(options.mode).toBe('local')
     // The bundled server renders the pages.
     expect(options.spa).toBe(false)
-    expect(options.local).toEqual({ binaryName: 'crew-desk-server', port: 0, secureCookie: true, dataDirName: 'data' })
+    expect(options.local).toEqual({ binaryName: 'crew-desk-server', port: 0, secureCookie: false, dataDirName: 'data' })
     expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local', spa: true }).options.spa).toBe(true)
     expect(resolveDesktopOptions({ appId: 'a.b', local: { port: 4000 } }).options.local).toBeNull()
   })
@@ -90,8 +90,8 @@ describe('resolveDesktopOptions', () => {
   })
 
   it('takes and checks the local options', () => {
-    const { options } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' } })
-    expect(options.local).toEqual({ binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' })
+    const { options } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { binaryName: 'srv', port: 4321, secureCookie: true, dataDirName: 'server' } })
+    expect(options.local).toEqual({ binaryName: 'srv', port: 4321, secureCookie: true, dataDirName: 'server' })
     const { errors, warnings } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', singleInstance: false, local: { binaryName: 'my server', port: 70000, dataDirName: '../up' } })
     expect(errors.join('\n')).toMatch(/`local.binaryName` "my server"/)
     expect(errors.join('\n')).toMatch(/`local.port`/)

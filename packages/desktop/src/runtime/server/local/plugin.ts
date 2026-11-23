@@ -3,11 +3,14 @@ import net from 'node:net'
 import { defineNitroPlugin, useStorage } from 'nitropack/runtime'
 import { sqlite } from '#desktop/local-db'
 import { applyMigrations, selectMigrations } from '../../shared/local-db'
+import { CLIENT_IP_HEADER, withClientAddress, type BunServeOptions, type BunServerLike } from '../../shared/client-address'
 
 // Local mode: applies the bundled migrations before the first request, then prints `READY <port>` on stdout, the line
 // the Tauri shell waits for before it opens the window on the server.
 
 const MIGRATIONS = 'assets:desktop-migrations'
+
+interface BunLike { serve: (options: BunServeOptions) => BunServerLike }
 
 async function migrate(): Promise<void> {
   if (!sqlite) return
@@ -20,16 +23,14 @@ async function migrate(): Promise<void> {
   console.log(`[desktop] Database ready (${applied.length} of ${migrations.length} migrations applied, ${Date.now() - started} ms)`)
 }
 
-interface BunLike { serve: (options: unknown) => { port: number } }
-
 /** Resolves with the port the server listens on: `Bun.serve` under the bun preset, `net.Server#listen` under Node. */
 function listeningPort(): Promise<number> {
   return new Promise((resolve) => {
     const bun = (globalThis as { Bun?: BunLike }).Bun
     if (bun) {
       const serve = bun.serve.bind(bun)
-      bun.serve = (options: unknown) => {
-        const server = serve(options)
+      bun.serve = (options: BunServeOptions) => {
+        const server = serve(withClientAddress(options))
         bun.serve = serve
         resolve(server.port)
         return server
@@ -51,8 +52,18 @@ export default defineNitroPlugin((nitroApp) => {
     console.error(`[desktop] ${(error as Error).message}`)
     process.exit(1)
   })
-  // Nitro listens before the plugins' promises settle: hold every request until the database is ready.
-  nitroApp.hooks.hook('request', () => migrated)
+  const bun = !!(globalThis as { Bun?: unknown }).Bun
+  nitroApp.hooks.hook('request', (event) => {
+    // Under Bun the client's address comes from `withClientAddress` (only ever set by this server).
+    if (bun) {
+      const headers = event.node.req.headers
+      const address = headers[CLIENT_IP_HEADER]
+      Reflect.deleteProperty(headers, CLIENT_IP_HEADER)
+      if (typeof address === 'string' && address && !event.context.clientAddress) event.context.clientAddress = address
+    }
+    // Nitro listens before the plugins' promises settle: hold every request until the database is ready.
+    return migrated
+  })
   void Promise.all([migrated, port]).then(([, value]) => {
     process.stdout.write(`READY ${value}\n`)
   })

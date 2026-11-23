@@ -10,8 +10,9 @@ the desktop sibling of [Mobile](/modules/interface/mobile): the module writes th
 derive from your Nuxt config, and the `frigear-desktop` CLI creates and updates the `src-tauri/` project.
 
 The package is `@frigear-nu/desktop`. In remote mode, users sign in through
-[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server,
-or at a remote issuer with [Auth in resource mode](/modules/identity/auth/resource-mode).
+[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server
+(locally, or at an issuer such as frigear.nu through the system browser), or at a remote issuer with
+[Auth in resource mode](/modules/identity/auth/resource-mode).
 
 ## Modes
 
@@ -157,8 +158,9 @@ capability file. It grants:
 
 ## Sign-in
 
-This section covers remote mode. In local mode Auth runs on the bundled server, in server mode or in resource mode, see
-[Local mode](/modules/interface/desktop/local-mode#sign-in-at-a-remote-issuer).
+This section covers remote mode. In local mode Auth runs on the bundled server, in server mode (see
+[Sign in at an issuer with server auth](/modules/interface/desktop/local-mode#sign-in-at-an-issuer-with-server-auth)) or
+in resource mode (see [Sign in at a remote issuer](/modules/interface/desktop/local-mode#sign-in-at-a-remote-issuer)).
 
 When the app configures `authentication`, Desktop installs Auth and fills in `client.native.scheme` from `appId`. It
 never sets the mode: the app sets `authentication.mode: 'client'` itself.
@@ -215,7 +217,7 @@ const { isDesktop, os, getVersion, minimize, toggleMaximize, close, setFullscree
 | `isDesktop` | `true` inside the Tauri window. `false` in a browser and on the server. |
 | `os`, `isMacos`, `isWindows`, `isLinux` | The OS, from the webview's user agent: `macos`, `windows`, `linux` or `unknown`. |
 | `getVersion()` | The running app's version, else `desktop.version`. |
-| `minimize()`, `maximize()`, `unmaximize()`, `toggleMaximize()`, `close()`, `setFullscreen(on)` | Window controls (need `@tauri-apps/api`). They do nothing in a browser. |
+| `minimize()`, `maximize()`, `unmaximize()`, `toggleMaximize()`, `close()`, `setFullscreen(on)`, `focus()` | Window controls (need `@tauri-apps/api`). They do nothing in a browser. |
 | `openExternal(url)` | Opens the link in the default browser, or in a new tab outside the desktop app. |
 | `has(name)`, `load(name)` | Whether a Tauri package is installed, and the package inside the desktop app (`null` elsewhere): `window`, `app`, `deepLink`, `opener`, `store`, `autostart`, `updater`. |
 
@@ -226,7 +228,8 @@ the build.
 
 A link with one of `deepLinks.schemes` opens the matching page, on a cold start and while the app runs:
 `nu.frigear.crew:/shifts/12` and `nu.frigear.crew://shifts/12` both open `/shifts/12`. OAuth callbacks are left to
-Auth, and other links are ignored. Change the path, or handle the link yourself, in the `desktop:deep-link` hook:
+Auth, and other links are ignored. In local mode with server auth, `<scheme>:/auth/return` only brings the window to
+the front (the return link of "Log in with frigear.nu"). Change the path, or handle the link yourself, in the `desktop:deep-link` hook:
 
 ```ts [app/plugins/deep-links.client.ts]
 export default defineNuxtPlugin((nuxtApp) => {

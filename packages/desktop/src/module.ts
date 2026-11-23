@@ -9,7 +9,7 @@ import type { DesktopDeepLinkContext, DesktopManifest, DesktopPublicConfig, Modu
 import {
   applyLocalNitroConfig, assertClientAuth, assertLocalAuth, desktopDependencies, isCheckedNuxtHubVersion, isPackageInstalled,
   localBootstrapTemplate, localDbTemplate, localEntryTemplate, localSecretNames, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM,
-  appHasUnstorage, type DesktopAuthMode, type LocalNitroConfig,
+  appHasUnstorage, handoffReturnUrl, HANDOFF_RETURN_PATH, type DesktopAuthMode, type LocalNitroConfig,
 } from './build'
 import { capabilities, resolveDesktopOptions, resolveSchemes, tauriConfig, toJson, usedPlugins } from './runtime/shared/config'
 import { TAURI_PLUGINS, type TauriPluginName } from './runtime/shared/native'
@@ -34,6 +34,10 @@ declare module '#app' {
 }
 
 const MODULE_NAME = '@frigear-nu/desktop'
+
+/** The app's `authentication.settings.oauth.frigear` (the frigear provider and its options), as configured. */
+const frigearSettingOf = (nuxt: Nuxt): unknown =>
+  (nuxt.options as { authentication?: { settings?: { oauth?: Record<string, unknown> } } }).authentication?.settings?.oauth?.frigear
 
 const desktopOptionsOf = (nuxt: Nuxt): ModuleOptions | undefined => {
   const value = (nuxt.options as { desktop?: ModuleOptions | false }).desktop
@@ -67,7 +71,7 @@ export default defineNuxtModule<ModuleOptions>({
     // in local mode).
     const authConfigured = (nuxt.options as { authentication?: unknown }).authentication !== undefined
     const desktop = desktopOptionsOf(nuxt)
-    return desktopDependencies({ mode: desktop?.mode, appId: desktop?.appId, authConfigured, authMode: resolveAuthMode(nuxt) })
+    return desktopDependencies({ mode: desktop?.mode, appId: desktop?.appId, authConfigured, authMode: resolveAuthMode(nuxt), frigear: frigearSettingOf(nuxt) })
   },
   setup(moduleOptions, nuxt) {
     registerModule(MODULE_NAME, nuxt)
@@ -96,6 +100,9 @@ export default defineNuxtModule<ModuleOptions>({
     // `clientAuth`: Auth signs in at an issuer in the window (client mode, or resource mode in local mode), through the
     // system browser and a deep link.
     let clientAuth = false
+    // `handoff`: local mode with server auth signs in at frigear.nu in the system browser (Auth's `oauth.frigear.handoff`,
+    // on by default there, see `frigearHandoffDefaults`).
+    let handoff = false
     nuxt.hook('modules:done', () => {
       if (!hasNuxtModule('@frigear-nu/auth', nuxt)) return
       if (options.local) {
@@ -104,6 +111,8 @@ export default defineNuxtModule<ModuleOptions>({
           clientAuth = true
           return
         }
+        handoff = (nuxt.options.runtimeConfig.public as { authentication?: { frigearHandoff?: boolean } }).authentication?.frigearHandoff === true
+        if (handoff) addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-handoff.client'), mode: 'client' })
         const settings = (nuxt.options as { authentication?: { settings?: { verifyEmail?: boolean } } }).authentication?.settings
         if (settings?.verifyEmail === true && !prepare) {
           logger.warn('`authentication.settings.verifyEmail` is on in local mode: the verification email cannot reach anyone offline, so new accounts cannot sign in. Turn it off for the desktop build.')
@@ -116,12 +125,23 @@ export default defineNuxtModule<ModuleOptions>({
 
     if (options.local) setupLocalMode(nuxt, options.local, resolver, prepare, authConfigured ? authMode : 'server')
 
+    // Local mode with server auth: the browser's "signed in" page of the frigear handoff opens `<scheme>:/auth/return`,
+    // which only brings the window forward (the deep-links plugin never navigates on it).
+    const returnUrl = options.local && authConfigured && authMode === 'server' ? handoffReturnUrl(options.appId, options.deepLinks.schemes) : undefined
+    if (returnUrl) {
+      const config = nuxt.options.runtimeConfig as { frigear?: { handoff?: { returnUrl?: string } } }
+      const frigear = config.frigear ??= {}
+      // A default: the app's own value wins, and so does `NUXT_FRIGEAR_HANDOFF_RETURN_URL` at runtime. Auth fills in
+      // `''` when it runs first.
+      frigear.handoff = { ...frigear.handoff, returnUrl: frigear.handoff?.returnUrl || returnUrl }
+    }
+
     const publicDefaults: DesktopPublicConfig = {
       appId: options.appId,
       appName: options.appName,
       version: options.version,
       mode: options.mode,
-      deepLinks: { schemes: options.deepLinks.schemes },
+      deepLinks: { schemes: options.deepLinks.schemes, focusPath: returnUrl ? HANDOFF_RETURN_PATH : '' },
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { desktop?: Partial<DesktopPublicConfig> }
     publicConfig.desktop = defu(publicConfig.desktop, publicDefaults) as DesktopPublicConfig
@@ -170,7 +190,7 @@ export default defineNuxtModule<ModuleOptions>({
         singleInstance: options.singleInstance,
         autostart: options.autostart,
         updater: !!options.updater,
-        plugins: usedPlugins(options, clientAuth),
+        plugins: usedPlugins(options, clientAuth, handoff),
         local: options.local ? { binaryName: options.local.binaryName, port: options.local.port, dataDirName: options.local.dataDirName } : null,
       }
     }
@@ -194,14 +214,16 @@ interface HubRuntimeConfig {
 }
 
 /**
- * Local mode. Always: the session cookie option (not in resource mode, which has no session cookie). In a production
+ * Local mode. Always: the session cookie without `Secure` unless `local.secureCookie` (not in resource mode, which has
+ * no session cookie). In a production
  * build (`nuxt build`, what `frigear-desktop build` runs): the bundled server, see `applyLocalNitroConfig`. `nuxt dev`
  * keeps NuxtHub's own driver and migrations.
  */
 function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolveDesktopOptions>['options']['local']>, resolver: ReturnType<typeof createResolver>, prepare: boolean, authMode: DesktopAuthMode) {
   const logger = useLogger('desktop')
   if (!local.secureCookie && authMode !== 'resource') {
-    // The fallback for a webview that drops a `Secure` cookie on http://127.0.0.1 (nuxt-auth-utils' session cookie).
+    // nuxt-auth-utils' session cookie is `Secure` (h3's default), which WKWebView and WebKitGTK drop on
+    // http://127.0.0.1 (and on http://localhost under `nuxt dev`): off unless `local.secureCookie` keeps it.
     const config = nuxt.options.runtimeConfig as { session?: { cookie?: Record<string, unknown> } }
     const session = config.session ??= {}
     session.cookie = { ...session.cookie, secure: false }
