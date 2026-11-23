@@ -182,6 +182,7 @@ async function send() {
         <GrantsEditor
           v-model="state.grants"
           :kinds="sendKinds"
+          :empty-text="t('admin.sendGroupsEmpty', 'No groups yet: add the groups to send to, or pick people above.')"
         />
       </UFormField>
       <div class="flex flex-col gap-2">

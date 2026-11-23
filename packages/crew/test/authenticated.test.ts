@@ -104,6 +104,11 @@ describe('crew (authenticated, database-backed)', async () => {
     expect(row, `${who.email} is in the crew`).toBeDefined()
     return row
   }
+  /** Staff mark a person who stepped down as withdrawn (volunteers cannot withdraw themselves), on their live row. */
+  const withdrawRow = async (crew: Crew, who: Session) => {
+    const live = (await list(staff.cookie, crew)).items.find((item: Json) => item.userId === who.id && item.crewStatus !== 'withdrawn')
+    return json(staff.cookie, 'POST', crewApi.admin.withdraw((live ?? await rowOf(crew, who)).id))
+  }
   const applied = async (who: Session, crew: Crew, answers: Json = {}): Promise<Json> => {
     await ok(await apply(who, crew, answers))
     return rowOf(crew, who)
@@ -269,7 +274,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(await myOperations(second.cookie)).toEqual([])
 
       // The first one gives up their place: the second moves up, the third waits on.
-      await ok(await json(first.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, first))
       expect(await rowOf(crew, first)).toMatchObject({ crewStatus: 'withdrawn' })
       expect(await rowOf(crew, second)).toMatchObject({ crewStatus: 'approved', waitlistPosition: null })
       expect(await rowOf(crew, third)).toMatchObject({ crewStatus: 'waitlisted' })
@@ -377,27 +382,33 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(await hookNames(fay)).toEqual(['crew:applied', 'crew:waitlisted'])
 
       // A withdrawn person has left: only they can come back, by applying again.
-      await ok(await json(gus.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, gus))
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.reject(gusRow.id)), 409, 'crew_invalid_transition')
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.waitlist(gusRow.id)), 409, 'crew_invalid_transition')
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.approve(gusRow.id), {}), 409, 'crew_invalid_transition')
       await expectApiError(json(staff.cookie, 'POST', crewApi.admin.approve('tmm_missing'), {}), 404)
     })
 
-    it('lets people withdraw, and apply again afterwards', async () => {
+    it('lets staff mark a person who stepped down as withdrawn (never the person), who can apply again afterwards', async () => {
       const crew = await newCrew()
       const hal = await user('Hal')
-      await expectApiError(json(hal.cookie, 'POST', crewApi.me.withdraw(crew.op.id)), 404)
       const row = await applied(hal, crew)
       await approve(row)
       expect((await myOperations(hal.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
 
-      expect(await ok(await json(hal.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))).toMatchObject({ crewStatus: 'withdrawn', operationId: crew.op.id })
+      // Volunteers have no withdraw of their own: the old route is gone, and the staff route is not theirs.
+      expect((await json(hal.cookie, 'POST', `/api/crew/me/${crew.op.id}/withdraw`)).status).toBeGreaterThanOrEqual(404)
+      await expectApiError(json(hal.cookie, 'POST', crewApi.admin.withdraw(row.id)), 403)
+      expect(await rowOf(crew, hal)).toMatchObject({ crewStatus: 'approved' })
+
+      expect(await ok(await withdrawRow(crew, hal))).toMatchObject({ crewStatus: 'withdrawn' })
       expect(await myOperations(hal.cookie)).toEqual([])
       expect(await myTeams(hal.cookie)).toEqual([])
       expect(await hookNames(hal)).toEqual(['crew:applied', 'teams:added', 'crew:approved', 'teams:removed', 'crew:withdrawn'])
       expect((await getEmailsTo(hal.email)).at(-1)?.template?.name).toBe('crew-status-withdrawn')
-      await expectApiError(json(hal.cookie, 'POST', crewApi.me.withdraw(crew.op.id)), 409, 'crew_not_withdrawable')
+      // A second click is a no-op.
+      expect(await ok(await withdrawRow(crew, hal))).toMatchObject({ crewStatus: 'withdrawn' })
+      expect((await hookNames(hal)).filter(name => name === 'crew:withdrawn')).toHaveLength(1)
       expect(await ok(await json(hal.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'open' })
 
       // Applying again reopens the same row.
@@ -466,8 +477,6 @@ describe('crew (authenticated, database-backed)', async () => {
       // A membership that does not grant (pending in teams) is no crew place.
       expect(await ok(await json(pending.cookie, 'GET', crewApi.me.crew))).toEqual([])
       expect(await getParticipation(pending.cookie, crew.op.id)).toMatchObject({ matches: false })
-      // Withdraw ends crew rows only: a teams place is ended in teams.
-      expect((await json(viaTeams.cookie, 'POST', crewApi.me.withdraw(crew.op.id))).status).toBe(404)
     })
 
     it('adds into a team and role of the operation, and refuses a team of another operation', async () => {
@@ -501,7 +510,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const crew = await newCrew()
       const [wil, rex] = [await user('Wil'), await user('Rex')] as [Session, Session]
       const wilRow = await applied(wil, crew)
-      await ok(await json(wil.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, wil))
       const rexRow = await applied(rex, crew)
       await reject(rexRow)
       for (const [who, row] of [[wil, wilRow], [rex, rexRow]] as Array<[Session, Json]>) {
@@ -801,7 +810,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await list(staff.cookie, crew, '&status=waitlisted&sort=waitlistPosition&order=asc')).items.map((item: Json) => item.userId)).toEqual([newcomer.id, veteran.id])
 
       // A place frees up: the veteran moves up although the newcomer was first in line.
-      await ok(await json(holder.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, holder))
       expect(await rowOf(crew, veteran)).toMatchObject({ crewStatus: 'approved' })
       expect(await rowOf(crew, newcomer)).toMatchObject({ crewStatus: 'waitlisted' })
 
@@ -812,7 +821,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const next = await user('Next')
       await applied(next, plain)
       await applied(veteran, plain)
-      await ok(await json(keeper.cookie, 'POST', crewApi.me.withdraw(plain.op.id)))
+      await ok(await withdrawRow(plain, keeper))
       expect(await rowOf(plain, next)).toMatchObject({ crewStatus: 'approved' })
       expect(await rowOf(plain, veteran)).toMatchObject({ crewStatus: 'waitlisted' })
     })
@@ -847,7 +856,7 @@ describe('crew (authenticated, database-backed)', async () => {
       const row = await applied(one, crew)
       await ok(await json(staff.cookie, 'POST', crewApi.admin.waitlist(row.id)))
       await approve(await applied(two, crew))
-      await ok(await json(two.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, two))
       expect(await rowOf(crew, one)).toMatchObject({ crewStatus: 'waitlisted' })
     })
 
@@ -863,7 +872,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect((await getEmailsTo(racer.email)).filter(email => email.template?.name === 'crew-status-approved')).toHaveLength(1)
 
       // Two withdrawals at once: one wins, the other is told it is over or sees it done, and the hook fires once.
-      const withdrawals = await Promise.all([json(racer.cookie, 'POST', crewApi.me.withdraw(crew.op.id)), json(racer.cookie, 'POST', crewApi.me.withdraw(crew.op.id))])
+      const withdrawals = await Promise.all([withdrawRow(crew, racer), withdrawRow(crew, racer)])
       expect(withdrawals.map(result => result.status).sort()).toContain(200)
       expect((await hookNames(racer)).filter(name => name === 'crew:withdrawn')).toHaveLength(1)
     })
@@ -875,7 +884,7 @@ describe('crew (authenticated, database-backed)', async () => {
       for (const person of people.slice(0, 2)) rows.push(await applied(person, crew))
       for (const row of rows) await approve(row)
       for (const person of people.slice(2)) await ok(await apply(person, crew))
-      await Promise.all(people.slice(0, 2).map(person => json(person.cookie, 'POST', crewApi.me.withdraw(crew.op.id))))
+      await Promise.all(people.slice(0, 2).map(person => withdrawRow(crew, person)))
       const members = (await list(staff.cookie, crew)).items as Json[]
       expect(members.filter(member => member.crewStatus === 'approved')).toHaveLength(2)
       expect(members.filter(member => member.crewStatus === 'waitlisted')).toHaveLength(1)
@@ -944,7 +953,7 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(mine).toContainEqual(expect.objectContaining({ operationId: crew.op.id, crewStatus: 'approved', teamId: barB.id }))
       expect(await ok(await json(both.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ crewStatus: 'approved' })
       // Withdrawing takes the live row off the crew.
-      expect(await ok(await json(both.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))).toMatchObject({ crewStatus: 'withdrawn', teamId: barB.id })
+      expect(await ok(await withdrawRow(crew, both))).toMatchObject({ crewStatus: 'withdrawn', teamId: barB.id })
     })
   })
 
@@ -964,6 +973,31 @@ describe('crew (authenticated, database-backed)', async () => {
       const created = await ok(await json(staff.cookie, 'POST', crewApi.admin.invites(crew.op.id), { teamId: crew.teamId, role: 'bartender' }))
       await ok(await json(insider.cookie, 'POST', crewApi.acceptInvite(created.token)))
       expect(await ok(await json(insider.cookie, 'GET', crewApi.apply(crew.op.slug)))).toMatchObject({ state: 'applied', crewStatus: 'approved' })
+    })
+  })
+
+  describe('who takes part, on the surfaces of other modules', () => {
+    it('lets a teams-added member and a crew-added approved member read a private operation and its venue layout, and hold the team grant', async () => {
+      const crew = await newCrew({}, { public: false })
+      const [viaTeams, viaCrew, pending, outsider] = [await user('Vteams'), await user('Vcrew'), await user('Vpending'), await user('Voutsider')]
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: viaTeams.id, role: 'volunteer' }))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: pending.id, role: 'volunteer', status: 'pending' }))
+      expect((await json(staff.cookie, 'POST', crewApi.admin.addMember(crew.op.id), { userId: viaCrew.id })).status).toBe(201)
+      for (const person of [viaTeams, viaCrew]) {
+        // The venue layout (maps visibility by operation) and the operation itself follow participation.
+        expect((await json(person.cookie, 'GET', operationsApi.venueLayout(crew.op.slug))).status).toBe(200)
+        expect((await myOperations(person.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
+        // The team grant (help-center and inbox `team` grants, shifts' roles) comes from the same membership row.
+        expect((await myTeams(person.cookie)).map(grant => grant.teamId)).toContain(crew.teamId)
+        // The `operation` grant (help-center grants and checklists, sends) admits them and lists them.
+        expect(await getParticipation(person.cookie, crew.op.id)).toMatchObject({ matches: true })
+      }
+      for (const person of [pending, outsider]) {
+        expect((await json(person.cookie, 'GET', operationsApi.venueLayout(crew.op.slug))).status).toBeGreaterThanOrEqual(400)
+        expect(await myOperations(person.cookie)).toEqual([])
+        expect((await myTeams(person.cookie)).map(grant => grant.teamId)).not.toContain(crew.teamId)
+        expect(await getParticipation(person.cookie, crew.op.id)).toMatchObject({ matches: false })
+      }
     })
   })
 
@@ -1001,7 +1035,7 @@ describe('crew (authenticated, database-backed)', async () => {
       await new Promise(resolve => setTimeout(resolve, 1_200))
       // A second submission replaces the first on the row, so the first is no longer the stored one.
       await ok(await apply(sue, crew, { motivation: 'second' }))
-      await ok(await json(sue.cookie, 'POST', crewApi.me.withdraw(crew.op.id)))
+      await ok(await withdrawRow(crew, sue))
       await ok(await json(staff.cookie, 'POST', formsApi.admin.redeliver(first.id)))
       expect(await rowOf(crew, sue)).toMatchObject({ crewStatus: 'withdrawn' })
     })
@@ -1163,7 +1197,6 @@ describe('crew (authenticated, database-backed)', async () => {
       const row = await applied(await user('Subject'), crew)
       for (const [method, path] of [
         ['GET', crewApi.me.crew],
-        ['POST', crewApi.me.withdraw(crew.op.id)],
         ['GET', crewApi.admin.settings(crew.op.id)],
         ['GET', crewApi.admin.members(crew.op.id)],
         ['GET', crewApi.member(row.id)],

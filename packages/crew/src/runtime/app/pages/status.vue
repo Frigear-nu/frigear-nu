@@ -2,18 +2,17 @@
 import { crewApi } from '../../utils/api'
 import { CREW_STATUS_LABELS } from '../../utils/status'
 import type { MyCrewDto } from '../../../types'
-import { $fetch, errorMessage, navigateTo, useAction, useAuthPages, useConfirmDialog, useCrewLinks, useCrewTranslate, useFetch, useFormat, useHead, useModuleT, useRoute } from '#imports'
+import { errorMessage, navigateTo, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useFormat, useHead, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'CrewStatusPage' })
 
-// A volunteer's own crew status: every operation they applied to or work at, with their status, team and role, and a way
-// to withdraw. Signed-out visitors go to the sign-in page and come back.
+// A volunteer's own crew status: every operation they applied to or work at, with their status, team and role. Volunteers
+// do not withdraw themselves: stepping down goes through their coordinator, who changes the status in the admin.
+// Signed-out visitors go to the sign-in page and come back.
 const t = useModuleT('crew')
 const tr = useCrewTranslate()
 const format = useFormat()
 const links = useCrewLinks()
-const confirm = useConfirmDialog()
-const { run } = useAction()
 const route = useRoute()
 
 const { data, error, refresh } = await useFetch<MyCrewDto[]>(crewApi.me.crew, { key: 'crew:me', default: () => [] })
@@ -22,26 +21,6 @@ if (error.value?.statusCode === 401) {
 }
 
 const label = (status: MyCrewDto['crewStatus']) => t(`admin.statuses.${status}`, CREW_STATUS_LABELS[status])
-// A place added in teams has no Withdraw: crew's withdraw only ends crew rows, teams staff end the others.
-const withdrawable = (entry: MyCrewDto) => entry.source === 'crew' && (entry.crewStatus === 'applied' || entry.crewStatus === 'waitlisted' || entry.crewStatus === 'approved')
-
-async function withdraw(entry: MyCrewDto) {
-  const operation = tr(entry.operationName)
-  const confirmed = await confirm({
-    title: t('status.withdrawTitle', 'Withdraw from {operation}?', { operation }),
-    description: entry.crewStatus === 'approved'
-      ? t('status.withdrawApprovedDescription', 'You give up your place on the crew. You can apply again while applications are open.')
-      : t('status.withdrawDescription', 'Your application is withdrawn. You can apply again while applications are open.'),
-    confirmText: t('status.withdrawAction', 'Withdraw'),
-    destructive: true,
-  })
-  if (!confirmed) return
-  const done = await run(
-    () => $fetch(crewApi.me.withdraw(entry.operationId), { method: 'POST' }).then(() => true),
-    { success: t('status.withdrawn', 'You withdrew from {operation}', { operation }), error: t('status.withdrawFailed', 'Could not withdraw') },
-  )
-  if (done) await refresh()
-}
 
 useHead({ title: () => t('status.title', 'My crew') })
 </script>
@@ -91,25 +70,20 @@ useHead({ title: () => t('status.title', 'My crew') })
               ]"
             />
             <template
-              v-if="withdrawable(entry) || entry.crewStatus === 'withdrawn'"
+              v-if="entry.crewStatus === 'withdrawn'"
               #footer
             >
               <div class="flex justify-end gap-2">
                 <UButton
-                  v-if="withdrawable(entry)"
-                  color="neutral"
-                  variant="outline"
-                  :label="t('status.withdrawAction', 'Withdraw')"
-                  @click="withdraw(entry)"
-                />
-                <UButton
-                  v-else
                   :to="links.apply(entry.operationSlug)"
                   :label="t('status.applyAgain', 'Apply again')"
                 />
               </div>
             </template>
           </SectionCard>
+          <p class="text-muted text-sm">
+            {{ t('status.stepDown', 'Need to step down? Contact your coordinator.') }}
+          </p>
         </div>
       </UPageBody>
     </UPage>

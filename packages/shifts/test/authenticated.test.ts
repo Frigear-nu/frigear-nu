@@ -7,6 +7,7 @@ import type { ApiMethod } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
 import { operationsApi } from '@frigear-nu/operations/api'
 import { teamsApi } from '@frigear-nu/teams/api'
+import { crewApi } from '@frigear-nu/crew/api'
 import { preferencesApi } from '@frigear-nu/preferences/api'
 import { shiftsApi } from '../src/runtime/utils/api'
 import { dayKey } from '@frigear-nu/module-kit/time'
@@ -88,6 +89,45 @@ describe('shifts (authenticated, database-backed)', async () => {
     if (options.publish !== false) await publish(created.id)
     return { op, team, schedule: created, shifts }
   }
+
+  describe('who takes part (crew\'s one rule)', () => {
+    // A member added in Teams and an approved crew member (added in Crew) both take part; a membership that does not grant
+    // (pending in Teams) does not. Every shifts surface follows the same rule.
+    it('treats a teams-added member and a crew-added approved member alike: candidates, assignment, my shifts, swaps and broadcasts', async () => {
+      const setup = await newSetup()
+      const [viaTeams, viaCrew, pending] = await Promise.all([user('Rteams'), user('Rcrew'), user('Rpending')])
+      await addMember(setup.team.id, viaTeams)
+      expect((await json(staff.cookie, 'POST', crewApi.admin.addMember(setup.op.id), { userId: viaCrew.id, teamId: setup.team.id })).status).toBe(201)
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(setup.team.id), { userId: pending.id, role: 'volunteer', status: 'pending' }))
+
+      // The candidates list, and eligibility when staff assign.
+      const candidates = await ok(await json(staff.cookie, 'GET', shiftsApi.admin.candidates(setup.shifts[0]!.id))) as unknown as Json[]
+      expect(candidates.map(item => item.userId).sort()).toEqual([viaTeams.id, viaCrew.id].sort())
+      expect(candidates.every(item => item.eligible)).toBe(true)
+      await assigned(setup.shifts[0]!.id, viaTeams)
+      await assigned(setup.shifts[1]!.id, viaCrew)
+      await expectApiError(assign(setup.shifts[1]!.id, pending), 409, 'not_eligible')
+
+      // My shifts.
+      expect((await myShifts(viaTeams)).map(item => item.shift.id)).toEqual([setup.shifts[0]!.id])
+      expect((await myShifts(viaCrew)).map(item => item.shift.id)).toEqual([setup.shifts[1]!.id])
+
+      // Swaps: an open swap of one is offered to the other (the open shifts they can take); not to a pending member.
+      const swap = await ok(await json(viaTeams.cookie, 'POST', shiftsApi.me.swap((await assignmentOf(viaTeams, setup.shifts[0]!.id))!.assignment.id)))
+      expect((await ok(await json(viaCrew.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).map(item => item.id)).toContain(swap.id)
+      expect((await ok(await json(pending.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).map(item => item.id)).not.toContain(swap.id)
+      const crewSwap = await ok(await json(viaCrew.cookie, 'POST', shiftsApi.me.swap((await assignmentOf(viaCrew, setup.shifts[1]!.id))!.assignment.id)))
+      expect((await ok(await json(viaTeams.cookie, 'GET', shiftsApi.swaps)) as unknown as Json[]).map(item => item.id)).toContain(crewSwap.id)
+
+      // Broadcast recipients: both, never the pending member.
+      const sent = await ok(await json(staff.cookie, 'POST', shiftsApi.admin.broadcasts, { operationId: setup.op.id, audience: {}, subject: { en: `Rule ${counter}` }, message: { en: 'Hello' } }))
+      expect(sent).toMatchObject({ recipientCount: 2 })
+      for (const who of [viaTeams, viaCrew]) {
+        expect((await getEmailsTo(who.email)).some(email => email.template?.name === 'shifts-broadcast')).toBe(true)
+      }
+      expect((await getEmailsTo(pending.email)).some(email => email.template?.name === 'shifts-broadcast')).toBe(false)
+    })
+  })
 
   describe('schedules and shifts', () => {
     it('creates shifts in bulk at the local times of the time zone, night slots ending the next day', async () => {

@@ -5,9 +5,9 @@ import type { SQL } from 'drizzle-orm'
 import type { Grant } from '@frigear-nu/auth/grants'
 import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUniqueViolation, notFound, searchContains, validationError } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { HelpCategoryKind, HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
+import type { AdminHelpCategoryKindChangeDto, HelpCategoryDisplay, HelpCategoryKind, HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
-import { checkReorder, isValidReorder } from '../../utils/faq'
+import { checkReorder, defaultHelpDisplay, helpDisplayForKind, isValidReorder } from '../../utils/faq'
 import { categoryChain, isHelpArticleReadableIn, isHelpChainReadable } from '../../utils/grants'
 import type { HelpRecordReader } from '../../utils/grants'
 import { helpCategoryKind, toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
@@ -318,16 +318,81 @@ export async function createHelpCategoryRow(event: H3Event, input: CategoryInput
     grants,
     kind,
     // An FAQ shows as question cards and a help category as an article list, unless the input says otherwise.
-    display: input.display ?? (kind === 'faq' ? 'cards' : 'list'),
+    display: input.display ?? defaultHelpDisplay(kind),
     icon: input.icon ?? null,
     sort: input.sort ?? await nextCategorySort(),
   }).returning().catch(rethrowSlugConflict('category'))
   return row!
 }
 
-/** `400 kind_fixed` when a patch names another kind than the category's: the kind is set at create time only. */
-export function assertHelpKindUnchanged(kind: HelpCategoryKind, wanted: HelpCategoryKind | undefined): void {
-  if (wanted && wanted !== kind) throw apiError(400, 'kind_fixed', 'The kind of a category cannot be changed. Create a category of the other kind and move the articles by hand.', { kind })
+const otherHelpKind = (kind: HelpCategoryKind): HelpCategoryKind => kind === 'faq' ? 'help' : 'faq'
+
+/** The ids of a category and of every category below it, the category first. */
+function helpCategorySubtree(rows: HelpCategoryRow[], rootId: string): string[] {
+  const children = new Map<string, string[]>()
+  for (const row of rows) if (row.parentId) children.set(row.parentId, [...(children.get(row.parentId) ?? []), row.id])
+  const ids: string[] = []
+  const seen = new Set<string>()
+  for (const queue = [rootId]; queue.length;) {
+    const id = queue.shift()!
+    if (seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+    queue.push(...children.get(id) ?? [])
+  }
+  return ids
+}
+
+async function articleIdsIn(categoryIds: string[]): Promise<string[]> {
+  return (await inChunks(categoryIds, ids => db.select({ id: schema.helpArticles.id }).from(schema.helpArticles)
+    .where(inArray(schema.helpArticles.categoryId, ids)))).map(row => row.id)
+}
+
+async function checklistItemCountOf(articleIds: string[]): Promise<number> {
+  let total = 0
+  for (const ids of chunkParams(articleIds)) {
+    const [row] = await db.select({ total: count() }).from(schema.helpChecklistItems).where(inArray(schema.helpChecklistItems.articleId, ids))
+    total += Number(row?.total ?? 0)
+  }
+  return total
+}
+
+/** Takes articles off every checklist: an FAQ question is never on one. */
+async function removeFromHelpChecklists(articleIds: string[]): Promise<void> {
+  for (const ids of chunkParams(articleIds)) await db.delete(schema.helpChecklistItems).where(inArray(schema.helpChecklistItems.articleId, ids))
+}
+
+/** What changing the category to the other kind affects: its subcategories, their articles and checklist entries. */
+export async function helpCategoryKindChange(existing: HelpCategoryRow): Promise<AdminHelpCategoryKindChangeDto> {
+  const kind = otherHelpKind(helpCategoryKind(existing.kind))
+  const categoryIds = helpCategorySubtree(await listHelpCategoryRows(), existing.id)
+  const articleIds = await articleIdsIn(categoryIds)
+  return {
+    kind,
+    categoryCount: categoryIds.length,
+    articleCount: articleIds.length,
+    checklistItemCount: kind === 'faq' ? await checklistItemCountOf(articleIds) : 0,
+    leavesParent: Boolean(existing.parentId),
+  }
+}
+
+/**
+ * Carries a category's new kind down to every category below it (a tree never mixes kinds), defaulting a display that
+ * does not suit the kind, and takes their articles off the checklists when the kind is `faq`. The category itself was
+ * updated already. No transaction: NuxtHub's D1 driver has none.
+ */
+async function cascadeHelpCategoryKind(categoryId: string, kind: HelpCategoryKind): Promise<void> {
+  const rows = await listHelpCategoryRows()
+  const byId = new Map(rows.map(row => [row.id, row]))
+  const categoryIds = helpCategorySubtree(rows, categoryId)
+  for (const id of categoryIds.slice(1)) {
+    const row = byId.get(id)!
+    const display = helpDisplayForKind(kind, row.display as HelpCategoryDisplay)
+    if (helpCategoryKind(row.kind) !== kind || display !== row.display) {
+      await db.update(schema.helpCategories).set({ kind, display }).where(eq(schema.helpCategories.id, id))
+    }
+  }
+  if (kind === 'faq') await removeFromHelpChecklists(await articleIdsIn(categoryIds))
 }
 
 /**
@@ -346,10 +411,13 @@ export async function assertHelpArticleKindScope(article: HelpArticleRow, scope:
 
 /** Applies a partial update to `existing`; returns the updated row (or `existing` when nothing changed). */
 export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategoryRow, patch: CategoryPatch): Promise<HelpCategoryRow> {
-  const kind = helpCategoryKind(existing.kind)
-  assertHelpKindUnchanged(kind, patch.kind)
+  // A change of kind takes the subcategories and articles along (`cascadeHelpCategoryKind`). A subcategory leaves its
+  // parent, of the old kind, for the top level unless the patch names a parent of the new kind.
+  const kind = patch.kind ?? helpCategoryKind(existing.kind)
+  const kindChanged = kind !== helpCategoryKind(existing.kind)
+  const parentId = patch.parentId !== undefined ? patch.parentId : kindChanged ? null : undefined
   if (patch.slug) await assertHelpCategorySlugFree(patch.slug, existing.id)
-  if (patch.parentId !== undefined && patch.parentId !== existing.parentId) await assertHelpParent(patch.parentId, kind, existing.id)
+  if (parentId !== undefined && (parentId !== existing.parentId || kindChanged)) await assertHelpParent(parentId, kind, existing.id)
   const owner = patch.owner ? ownerValue(patch.owner) : undefined
   // An unchanged owner is not checked again: a category whose operation was deleted can still be edited.
   if (owner && !(owner.type === existing.ownerType && owner.id === (existing.ownerId ?? null))) await assertHelpOwner(event, owner)
@@ -358,13 +426,15 @@ export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategor
   if (patch.slug !== undefined) values.slug = patch.slug
   if (patch.name !== undefined) values.name = patch.name
   if (patch.description !== undefined) values.description = patch.description
-  if (patch.parentId !== undefined) values.parentId = patch.parentId ?? null
+  if (parentId !== undefined) values.parentId = parentId ?? null
+  if (kindChanged) values.kind = kind
   if (owner) {
     values.ownerType = owner.type
     values.ownerId = owner.id
   }
   if (grants) values.grants = grants
   if (patch.display !== undefined) values.display = patch.display
+  else if (kindChanged) values.display = helpDisplayForKind(kind, existing.display as HelpCategoryDisplay)
   if (patch.icon !== undefined) values.icon = patch.icon ?? null
   if (patch.sort !== undefined) values.sort = patch.sort
   const changed: Partial<typeof schema.helpCategories.$inferInsert> = Object.fromEntries(
@@ -372,6 +442,7 @@ export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategor
   )
   if (!Object.keys(changed).length) return existing
   const [row] = await db.update(schema.helpCategories).set(changed).where(eq(schema.helpCategories.id, existing.id)).returning().catch(rethrowSlugConflict('category'))
+  if (kindChanged) await cascadeHelpCategoryKind(existing.id, kind)
   return row!
 }
 
@@ -441,10 +512,12 @@ export async function createHelpArticleRow(event: H3Event, input: ArticleInput, 
  */
 export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleRow, patch: ArticlePatch, userId: string | number): Promise<HelpArticleRow> {
   if (patch.slug) await assertHelpArticleSlugFree(patch.slug, existing.id)
-  // An article stays with its kind: it moves only to another category of the same kind.
+  // An article takes the kind of its category, so a move to a category of the other kind changes its kind. A move to
+  // an FAQ takes it off the checklists (after the update below): an FAQ question is never on one.
+  let leavesChecklists = false
   if (patch.categoryId && patch.categoryId !== existing.categoryId) {
-    const current = await findHelpCategoryById(existing.categoryId)
-    await requireHelpCategory(patch.categoryId, helpCategoryKind(current?.kind))
+    const target = await requireHelpCategory(patch.categoryId)
+    leavesChecklists = helpCategoryKind(target.kind) === 'faq' && helpCategoryKind((await findHelpCategoryById(existing.categoryId))?.kind) !== 'faq'
   }
   const grants = patch.grants ? await grantsValidate(event, patch.grants as Grant[], { stored: existing.grants }) : patch.grants
   const values: Partial<typeof schema.helpArticles.$inferInsert> = {}
@@ -464,6 +537,7 @@ export async function patchHelpArticleRow(event: H3Event, existing: HelpArticleR
   if (changed.title !== undefined || changed.slug !== undefined) changed.searchText = helpArticleSearchText({ title: changed.title ?? existing.title, slug: changed.slug ?? existing.slug })
   if (changed.body !== undefined) changed.searchBody = helpArticleSearchBody(changed.body)
   const [row] = await db.update(schema.helpArticles).set({ ...changed, updatedBy: String(userId) }).where(eq(schema.helpArticles.id, existing.id)).returning().catch(rethrowSlugConflict('article'))
+  if (leavesChecklists) await removeFromHelpChecklists([existing.id])
   return row!
 }
 

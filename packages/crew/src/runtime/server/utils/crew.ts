@@ -417,7 +417,7 @@ export async function crewApply(event: H3Event, input: { operation: CrewOperatio
  * first, the current row comes back and no hook fires and no email goes out. Fires the crew hook and sends the status email;
  * a person leaving `approved` frees a place on the waiting list. Staff approval does not check the capacity.
  */
-export async function crewDecide(event: H3Event, id: string, to: 'approved' | 'rejected' | 'waitlisted', options: { by: number | null, teamId?: string, role?: string } = { by: null }): Promise<CrewEntry> {
+export async function crewDecide(event: H3Event, id: string, to: 'approved' | 'rejected' | 'waitlisted' | 'withdrawn', options: { by: number | null, teamId?: string, role?: string } = { by: null }): Promise<CrewEntry> {
   const entry = await getCrewEntryOr404(id)
   const from = entry.member.crewStatus as CrewStatus
   const operationId = entry.team.ownerId!
@@ -532,22 +532,6 @@ export async function crewApproveMany(event: H3Event, operationId: string, ids: 
     }
   }
   return { approved, skipped }
-}
-
-/** Withdraws the caller's own application or place. 404 when they have none, 409 when it is over already. */
-export async function crewWithdraw(event: H3Event, userId: number, operationId: string): Promise<CrewEntry> {
-  const entry = await findCrewEntry(userId, operationId)
-  if (!entry) throw notFound('You have not applied to this crew.')
-  const from = entry.member.crewStatus as CrewStatus
-  if (from === 'rejected' || from === 'withdrawn') throw apiError(409, 'crew_not_withdrawable', `Your application is ${from}.`)
-  const operation = await getOperationOr404(operationId)
-  const settings = await findCrewSettings(operationId)
-  const result = await crewUpdateMember(event, entry, { crewStatus: 'withdrawn', decidedAt: new Date(), decidedBy: null, waitlistPosition: null, waitlistReason: null })
-  if (!result.changed) return result.entry
-  await crewFire(event, 'crew:member:withdrawn', operationId, await crewMemberDtoOf(result.entry, operation, true))
-  await crewNotify(event, result.entry, operation, settings, 'withdrawn')
-  if (from === 'approved') await crewPromoteWaitlist(event, operation, settings)
-  return result.entry
 }
 
 /** Moves a crew member to another team and/or role of the same operation (an approved person keeps their grant). */

@@ -131,7 +131,6 @@ export default defineNuxtModule<ModuleOptions>({
     // --- API routes -----------------------------------------------------------------------
     addModuleRoutes(resolver, [
       { method: 'get', path: 'me', file: 'me/crew.get' },
-      { method: 'post', path: 'me/:operationId/withdraw', file: 'me/withdraw.post' },
       { method: 'get', path: 'operations/:operation/apply', file: 'public/apply.get' },
       { method: 'post', path: 'invites/:token/accept', file: 'public/invite-accept.post' },
       // `:operation` like the apply route: h3's router wants one parameter name per segment.
@@ -152,6 +151,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: 'members/:id', file: 'admin/member.patch' },
       { method: 'post', path: 'members/:id/approve', file: 'admin/member-approve.post' },
       { method: 'post', path: 'members/:id/reject', file: 'admin/member-reject.post' },
+      { method: 'post', path: 'members/:id/withdraw', file: 'admin/member-withdraw.post' },
       { method: 'post', path: 'members/:id/waitlist', file: 'admin/member-waitlist.post' },
       { method: 'get', path: 'members/:id/submission', file: 'admin/member-submission.get' },
       { method: 'delete', path: 'invites/:id', file: 'admin/invite.delete' },

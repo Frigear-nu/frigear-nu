@@ -1,5 +1,6 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import HelpArticleFormSlideover from '../components/HelpArticleFormSlideover.vue'
+import HelpArticleMoveModal from '../components/HelpArticleMoveModal.vue'
 import HelpSendSlideover from '../components/HelpSendSlideover.vue'
 import type { StaffHelpArticle, StaffHelpCategory } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
@@ -16,8 +17,9 @@ export type HelpArticleMenuOptions = {
 }
 
 /**
- * What staff can do with articles: `create` and `edit` (a slideover), `publish`, `unpublish`, `remove` (confirms
- * first), `send` and `menu(article, options)`: Edit | Publish or Unpublish, Send | Delete. Each resolves with the
+ * What staff can do with articles: `create` and `edit` (a slideover), `move` (to a category of the other kind: "Move to
+ * FAQ" / "Move to help center"), `publish`, `unpublish`, `remove` (confirms first), `send` and
+ * `menu(article, options)`: Edit, Move | Publish or Unpublish, Send | Delete. Each resolves with the
  * result, or `false` when cancelled or refused (a failed publish lists the missing languages in a toast). "Publish" of an
  * article that still lacks a required language names them and opens the edit slideover with those fields marked, where
  * it can be published once complete. An article of a read-only source (Nuxt Content) gets no menu.
@@ -71,6 +73,11 @@ export function useHelpArticleActions() {
     return await overlay.create(HelpSendSlideover, { destroyOnClose: true, props: { articleIds } }).open() as Awaited<ReturnType<typeof $fetch>> | false
   }
 
+  /** Moves the article to a category of the other kind; it then leaves this admin page. */
+  async function move(article: StaffHelpArticle): Promise<StaffHelpArticle | false> {
+    return await overlay.create(HelpArticleMoveModal, { destroyOnClose: true, props: { article } }).open() as StaffHelpArticle | false
+  }
+
   function menu(article: StaffHelpArticle, options: HelpArticleMenuOptions): DropdownMenuItem[][] {
     if (article.readOnly) return []
     const changed = async (ok: unknown) => {
@@ -80,6 +87,10 @@ export function useHelpArticleActions() {
       label: t('admin.edit', 'Edit'),
       icon: 'i-lucide-pencil',
       onSelect: async () => changed(await edit(article, options.categories())),
+    }, {
+      label: article.kind === 'faq' ? t('admin.moveToHelp', 'Move to help center') : t('admin.moveToFaq', 'Move to FAQ'),
+      icon: article.kind === 'faq' ? 'i-lucide-life-buoy' : 'i-lucide-message-circle-question-mark',
+      onSelect: async () => changed(await move(article)),
     }]
     const state: DropdownMenuItem[] = [article.status === 'published'
       ? { label: t('admin.unpublish', 'Unpublish'), icon: 'i-lucide-eye-off', onSelect: async () => changed(await unpublish(article)) }
@@ -119,5 +130,5 @@ export function useHelpArticleActions() {
     }
   }
 
-  return { create, edit, publish, unpublish, remove, send, menu }
+  return { create, edit, move, publish, unpublish, remove, send, menu }
 }

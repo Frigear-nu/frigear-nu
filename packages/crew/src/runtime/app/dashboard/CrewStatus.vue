@@ -7,7 +7,7 @@ import { computed, surfaceClass, useCrewLinks, useCrewTranslate, useLazyFetch, u
 defineOptions({ name: 'CrewStatusItem' })
 
 // The `crew.status` item of the `crew.home` dashboard: where the person applied or works, with the status of each, and a
-// link to `/crew/status` (the page that lets them withdraw). `GET /api/crew/me` lists every status, withdrawn ones too.
+// link to `/crew/status`. `GET /api/crew/me` lists every status, withdrawn ones too.
 const t = useModuleT('crew')
 const tr = useCrewTranslate()
 const links = useCrewLinks()

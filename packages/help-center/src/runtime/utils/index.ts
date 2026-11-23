@@ -15,6 +15,7 @@ export * from './faq'
 export type {
   AdminHelpArticleDto,
   AdminHelpCategoryDto,
+  AdminHelpCategoryKindChangeDto,
   AdminHelpChecklistDto,
   AdminHelpChecklistItemDto,
   FaqBodyLink,

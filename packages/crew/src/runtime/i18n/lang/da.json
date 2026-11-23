@@ -144,7 +144,13 @@
       "waitlistFailed": "Statussen kunne ikke ændres",
       "waitlistHelp": "Ansøgninger ud over kapaciteten venter på en liste og rykker op, når en plads bliver ledig.",
       "waitlisted": "Satte {name} på ventelisten",
-      "yes": "Ja"
+      "yes": "Ja",
+      "withdrawTitle": "Markér {name} som trukket tilbage?",
+      "withdrawApprovedDescription": "{name} er trådt ud: de mister deres plads i crewet og får besked på e-mail. Den næste på ventelisten kan rykke op.",
+      "withdrawDescription": "{name} er trådt ud: ansøgningen trækkes tilbage, og de får besked på e-mail.",
+      "withdrawAction": "Markér som trukket tilbage",
+      "withdrawnToast": "{name} er markeret som trukket tilbage",
+      "withdrawFailed": "Status kunne ikke ændres"
     },
     "apply": {
       "alreadyApplied": "Du har allerede ansøgt",
@@ -197,7 +203,7 @@
     },
     "permissions": {
       "apply": "Ansøg til crew",
-      "applyDescription": "Ansøg til en operations crew, se din egen status og træk dig tilbage.",
+      "applyDescription": "Ansøg til en operations crew og se din egen status.",
       "invite": "Opret crewinvitationer",
       "inviteDescription": "Opret invitationslinks, der sætter folk på et team, eventuelt som leder.",
       "manage": "Administrér crew",
@@ -218,12 +224,7 @@
       "loadFailed": "Din crewstatus kunne ikke hentes",
       "position": "Plads på ventelisten",
       "title": "Mit crew",
-      "withdrawAction": "Træk ansøgning tilbage",
-      "withdrawApprovedDescription": "Du opgiver din plads på crewet. Du kan ansøge igen, mens ansøgningerne er åbne.",
-      "withdrawDescription": "Din ansøgning trækkes tilbage. Du kan ansøge igen, mens ansøgningerne er åbne.",
-      "withdrawFailed": "Kunne ikke trække tilbage",
-      "withdrawTitle": "Træk dig fra {operation}?",
-      "withdrawn": "Du trak dig fra {operation}"
+      "stepDown": "Skal du træde ud? Kontakt din koordinator."
     },
     "tryAgain": "Prøv igen",
     "home": {

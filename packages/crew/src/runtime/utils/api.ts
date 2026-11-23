@@ -12,8 +12,6 @@ export const crewApi = {
   me: {
     /** `GET` my crew status in every operation I applied to or work at. */
     crew: `${BASE}/me`,
-    /** `POST` to withdraw my application or my place in an operation's crew. */
-    withdraw: (operationId: string) => `${BASE}/me/${enc(operationId)}/withdraw`,
   },
   /** `GET` what the apply page needs for an operation (its id or URL name): the form to render, or why not. */
   apply: (operation: string) => `${BASE}/operations/${enc(operation)}/apply`,
@@ -38,6 +36,8 @@ export const crewApi = {
     approve: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/approve`,
     /** `POST` to reject. */
     reject: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/reject`,
+    /** `POST` to mark a person who stepped down as withdrawn (volunteers cannot withdraw themselves). */
+    withdraw: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/withdraw`,
     /** `POST` to put on the waiting list. */
     waitlist: (id: string) => `${ADMIN_BASE}/members/${enc(id)}/waitlist`,
     /** `GET` the application's answers (needs `crew:pii`). */

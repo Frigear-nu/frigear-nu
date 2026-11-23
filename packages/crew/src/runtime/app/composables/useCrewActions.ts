@@ -72,6 +72,24 @@ export function useCrewActions() {
     return rejected ?? false
   }
 
+  async function withdraw(member: StaffCrewMember): Promise<StaffCrewMember | false> {
+    const name = nameOf(member)
+    const confirmed = await confirm({
+      title: t('admin.withdrawTitle', 'Mark {name} as withdrawn?', { name }),
+      description: member.crewStatus === 'approved'
+        ? t('admin.withdrawApprovedDescription', '{name} stepped down: they lose their place on the crew and are told by email. The next person on the waiting list may move up.', { name })
+        : t('admin.withdrawDescription', '{name} stepped down: their application is withdrawn and they are told by email.', { name }),
+      confirmText: t('admin.withdrawAction', 'Mark as withdrawn'),
+      destructive: true,
+    })
+    if (!confirmed) return false
+    const withdrawn = await run(
+      () => $fetch<StaffCrewMember>(crewApi.admin.withdraw(member.id), { method: 'POST' }),
+      { success: t('admin.withdrawnToast', 'Marked {name} as withdrawn', { name }), error: t('admin.withdrawFailed', 'Could not change the status') },
+    )
+    return withdrawn ?? false
+  }
+
   async function waitlist(member: StaffCrewMember): Promise<StaffCrewMember | false> {
     const waitlisted = await run(
       () => $fetch<StaffCrewMember>(crewApi.admin.waitlist(member.id), { method: 'POST' }),
@@ -146,11 +164,15 @@ export function useCrewActions() {
     if (canMoveCrew(member.crewStatus, 'waitlisted')) {
       moves.push({ label: t('admin.waitlistAction', 'Move to waiting list'), icon: 'i-lucide-hourglass', onSelect: async () => changed(await waitlist(member)) })
     }
-    const destructive: DropdownMenuItem[] = canMoveCrew(member.crewStatus, 'rejected')
-      ? [{ label: t('admin.rejectAction', 'Reject application'), icon: 'i-lucide-user-x', color: 'error', onSelect: async () => changed(await reject(member)) }]
-      : []
+    const destructive: DropdownMenuItem[] = []
+    if (canMoveCrew(member.crewStatus, 'withdrawn')) {
+      destructive.push({ label: t('admin.withdrawAction', 'Mark as withdrawn'), icon: 'i-lucide-log-out', color: 'error', onSelect: async () => changed(await withdraw(member)) })
+    }
+    if (canMoveCrew(member.crewStatus, 'rejected')) {
+      destructive.push({ label: t('admin.rejectAction', 'Reject application'), icon: 'i-lucide-user-x', color: 'error', onSelect: async () => changed(await reject(member)) })
+    }
     return [main, moves, destructive].filter(group => group.length)
   }
 
-  return { add, approve, reject, waitlist, approveMany, open, createInvite, revokeInvite, menu }
+  return { add, approve, reject, withdraw, waitlist, approveMany, open, createInvite, revokeInvite, menu }
 }

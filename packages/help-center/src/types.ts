@@ -248,6 +248,20 @@ export type AdminHelpCategoryDto = Omit<HelpCategoryDto, 'source'> & {
   updatedAt: string
 }
 
+/** What a change of a category's kind affects (`GET .../categories/:id/kind-change`), for the confirm dialog. */
+export type AdminHelpCategoryKindChangeDto = {
+  /** The kind it changes to: always the other one. */
+  kind: HelpCategoryKind
+  /** The category and every category below it: they all change. */
+  categoryCount: number
+  /** The articles in them: they go with their categories. */
+  articleCount: number
+  /** Checklist entries of those articles, removed by a change to `faq` (an FAQ question is never on a checklist). */
+  checklistItemCount: number
+  /** Whether the category leaves its parent (of the other kind) for the top level. */
+  leavesParent: boolean
+}
+
 /** An article as staff see it: every status, its own grants and who changed it last. */
 export type AdminHelpArticleDto = {
   id: string
