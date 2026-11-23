@@ -32,6 +32,13 @@ const KIND_DISPLAYS: Record<HelpCategoryKind, readonly HelpCategoryDisplay[]> = 
   faq: ['cards', 'accordion'],
 }
 
+/** The displays a category of `kind` may have, the default first: `cards` or `accordion` for `faq`, `list` or `accordion` for `help`. */
+export const helpDisplaysForKind = (kind: HelpCategoryKind): readonly HelpCategoryDisplay[] => KIND_DISPLAYS[kind]
+
+/** Whether a category of `kind` may show as `display`. */
+export const isHelpDisplayForKind = (kind: HelpCategoryKind, display: string | null | undefined): display is HelpCategoryDisplay =>
+  (KIND_DISPLAYS[kind] as readonly string[]).includes(display ?? '')
+
 /** The display a category of `kind` starts with: `cards` for `faq`, `list` for `help`. */
 export const defaultHelpDisplay = (kind: HelpCategoryKind): HelpCategoryDisplay => KIND_DISPLAYS[kind][0]!
 

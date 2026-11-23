@@ -110,7 +110,12 @@
       "saveVenue": "Save venue layout",
       "venueLive": "Live view",
       "venueLiveHelp": "The saved layout as crew see it, with the live layers.",
-      "tryAgain": "Try again"
+      "tryAgain": "Try again",
+      "venueNoLocation": "Set where it takes place in Details: the map opens there, with the site shown while you place or draw.",
+      "venueNoLocationTitle": "This operation has no location yet",
+      "venueSetLocation": "Set the location",
+      "venueSiteMap": "On the site map",
+      "venueSiteMapHelp": "The saved layout over the map of the operation, as the operation page shows it."
     },
     "dashboard": {
       "upcoming": "Upcoming operations",
@@ -121,6 +126,7 @@
     "grants": {
       "operation": "Operation",
       "choose": "Choose an operation"
-    }
+    },
+    "venueLayout": "Venue layout"
   }
 }
