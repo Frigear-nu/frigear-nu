@@ -3,8 +3,9 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { oauthServerApi } from '@frigear-nu/oauth-server/api'
-import { preferencesApi } from '../src/runtime/utils/api'
+import { oauthServerApi } from '../src/runtime/utils/api'
+// Preferences is not a dependency of this package (it depends on this one): reached by path, like the fixture does.
+import { preferencesApi } from '../../preferences/src/runtime/utils/api'
 
 // The key pair only exists for this run.
 const { privateKey } = generateKeyPairSync('rsa', {
@@ -33,12 +34,12 @@ async function ok(response: Response): Promise<Json> {
 const claimsOf = (jwt: string): Json => JSON.parse(Buffer.from(jwt.split('.')[1]!, 'base64url').toString())
 
 describe('preferences as OAuth claims', async () => {
-  const dataDir = fileURLToPath(new URL('./fixtures/oauth/.data', import.meta.url))
+  const dataDir = fileURLToPath(new URL('./fixtures/preferences/.data', import.meta.url))
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
 
   await setup({
-    rootDir: fileURLToPath(new URL('./fixtures/oauth', import.meta.url)),
+    rootDir: fileURLToPath(new URL('./fixtures/preferences', import.meta.url)),
     dev: true, serverStartTimeout: 180_000, setupTimeout: 240_000,
   })
 

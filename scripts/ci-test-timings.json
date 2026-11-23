@@ -256,6 +256,7 @@
     "test/claims.test.ts": 1,
     "test/configured-clients.test.ts": 1,
     "test/issuer.test.ts": 1,
+    "test/preferences-claims.test.ts": 44,
     "test/schema-parity.test.ts": 1,
     "test/utils.test.ts": 1
   },
@@ -278,7 +279,6 @@
   },
   "@frigear-nu/preferences": {
     "test/basic.test.ts": 34,
-    "test/oauth.test.ts": 44,
     "test/registry.test.ts": 1,
     "test/schema-parity.test.ts": 1
   },
