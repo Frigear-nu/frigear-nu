@@ -44,7 +44,7 @@ export default [
 Tickets (`tickets:read`, `tickets:write`) are self-service: every signed-in user holds them. The named scope `tickets`
 offers both to API tokens and OAuth clients.
 
-Full documentation: `apps/docs/content/3.modules/3.features/1.events/index.md`.
+Full documentation: `apps/docs/content/3.modules/5.features/1.events/index.md`.
 
 ## Development
 

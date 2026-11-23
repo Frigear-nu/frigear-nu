@@ -30,19 +30,19 @@ its own, such as a single-page application (SPA) or a Capacitor app, uses
   the sign-in and sign-out actions, and `$api` / `useApi()` call your API. The same names work in both modes. Roles
   and the guards of the interface come from [Authorization](/modules/identity/authorization) in both.
 - **Emails**: the emailed sign-in link, address verification and password reset, sent through
-  [Notify](/modules/platform/notify) when those flows are on.
+  [Notify](/modules/communication/notify) when those flows are on.
 
 :module-runtime{server client mobile}
 
 ::note
-**Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/platform/notify) and
+**Installed for you:** in server mode, `@frigear-nu/module-kit`, [`@frigear-nu/notify`](/modules/communication/notify) and
 `nuxt-auth-utils`; in client mode, `@frigear-nu/module-kit` only.
 
 **You add:** `@nuxthub/core` in server mode.
 
 **Optional:** [`@frigear-nu/menu`](/modules/interface/menu) (the sign-out item), `@nuxt/ui` (the shipped pages),
 `@simplewebauthn/browser` and `@simplewebauthn/server` (passkeys), and
-[`@frigear-nu/email-templates`](/modules/platform/email-templates) (rendered emails).
+[`@frigear-nu/email-templates`](/modules/communication/email-templates) (rendered emails).
 ::
 
 ## Quick setup
@@ -126,6 +126,7 @@ Options go under the `authentication` key.
 | `settings.magicLink.signUp` | `boolean` | – | `true` creates accounts for unknown addresses. |
 | `settings.magicLink.cooldown` | `number` | `60` | Minimum seconds between two links for one user. |
 | `settings.verifyEmail` | `boolean` | `false` | Users verify their address before they can sign in, with a password or a passkey. |
+| `settings.inviteTtl` | `number` | `604800` | Seconds an invite link stays valid: the single-use link staff email when they create a user (`POST /api/admin/users` of [Users](/modules/identity/users#create-a-user)). Default 7 days. Sign-in and sign-up links keep 2 hours. |
 | `settings.rateLimit` | `false \| { … }` | on | Throttles the anonymous sign-in routes, counted in NuxtHub KV. See below. |
 | `settings.cleanup` | `string \| false` | `'0 3 * * *'` | When the `auth:clear-expired-tokens` task removes expired links and resets. |
 | `settings.pages.login` | `string \| boolean` | off | The sign-in page. `true` means `/login`. |
