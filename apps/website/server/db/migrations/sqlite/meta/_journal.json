@@ -173,57 +173,15 @@
     {
       "idx": 24,
       "version": "6",
-      "when": 1795312739681,
+      "when": 1795437537063,
       "tag": "0024_volunteering_modules",
       "breakpoints": true
     },
     {
       "idx": 25,
       "version": "6",
-      "when": 1795351847135,
-      "tag": "0025_drop_push_channel_preferences",
-      "breakpoints": true
-    },
-    {
-      "idx": 26,
-      "version": "6",
-      "when": 1795353138623,
-      "tag": "0026_shifts_earned_perks",
-      "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "6",
-      "when": 1795357730692,
-      "tag": "0027_users_locale_without_default",
-      "breakpoints": true
-    },
-    {
-      "idx": 28,
-      "version": "6",
-      "when": 1795377035562,
-      "tag": "0028_push_device_secret_crew_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 29,
-      "version": "6",
-      "when": 1795380367966,
-      "tag": "0029_inbox_message_sender_permanent_tombstones",
-      "breakpoints": true
-    },
-    {
-      "idx": 30,
-      "version": "6",
-      "when": 1795382719474,
-      "tag": "0030_search_text",
-      "breakpoints": true
-    },
-    {
-      "idx": 31,
-      "version": "6",
-      "when": 1795436346010,
-      "tag": "0031_help_category_kind",
+      "when": 1795437538063,
+      "tag": "0025_users_locale_and_search",
       "breakpoints": true
     }
   ]

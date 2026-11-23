@@ -8,10 +8,10 @@ const dir = fileURLToPath(new URL('../server/db/migrations/sqlite/', import.meta
 const statements = async (file: string) => (await readFile(`${dir}${file}`, 'utf8')).split('--> statement-breakpoint').map(sql => sql.trim()).filter(Boolean)
 const migrationsBefore = async (tag: string) => (await readdir(dir)).filter(file => file.endsWith('.sql') && file < tag).sort()
 
-describe('0027_users_locale_without_default', () => {
-  it('keeps every user, clears the old default language and keeps ids from being reused', async () => {
+describe('0025_users_locale_and_search', () => {
+  it('keeps every user, clears the old default language, fills search_text, adds phone and keeps ids from being reused', async () => {
     const client = createClient({ url: ':memory:' })
-    for (const file of await migrationsBefore('0027_')) {
+    for (const file of await migrationsBefore('0024_')) {
       for (const sql of await statements(file)) await client.execute(sql)
     }
     const now = Date.now()
@@ -23,10 +23,12 @@ describe('0027_users_locale_without_default', () => {
     const before = (await client.execute('SELECT * FROM users ORDER BY id')).rows.map(row => ({ ...row }))
     expect(before.map(row => row.locale)).toEqual(['da', 'da'])
 
-    for (const sql of await statements('0027_users_locale_without_default.sql')) await client.execute(sql)
+    for (const file of ['0024_volunteering_modules.sql', '0025_users_locale_and_search.sql']) {
+      for (const sql of await statements(file)) await client.execute(sql)
+    }
 
     const after = (await client.execute('SELECT * FROM users ORDER BY id')).rows.map(row => ({ ...row }))
-    expect(after).toEqual(before.map(row => ({ ...row, locale: null })))
+    expect(after).toEqual(before.map(row => ({ ...row, locale: null, phone: null, search_text: String(row.name).toLowerCase() })))
     const columns = (await client.execute('PRAGMA table_info(users)')).rows
     expect(columns.find(column => column.name === 'locale')).toMatchObject({ dflt_value: null, notnull: 0 })
     const indexes = (await client.execute('PRAGMA index_list(users)')).rows.map(row => row.name)
@@ -43,33 +45,10 @@ describe('0027_users_locale_without_default', () => {
 
   it('applies to an empty users table', async () => {
     const client = createClient({ url: ':memory:' })
-    for (const file of await migrationsBefore('0028_')) {
+    for (const file of await migrationsBefore('0026_')) {
       for (const sql of await statements(file)) await client.execute(sql)
     }
     expect((await client.execute('SELECT count(*) AS n FROM users')).rows[0]!.n).toBe(0)
-    client.close()
-  })
-})
-
-describe('0029_inbox_message_sender_permanent_tombstones', () => {
-  it('files every stored inbound message under the contact of its thread, and leaves replies without one', async () => {
-    const client = createClient({ url: ':memory:' })
-    for (const file of await migrationsBefore('0029_')) {
-      for (const sql of await statements(file)) await client.execute(sql)
-    }
-    const now = Math.floor(Date.now() / 1000)
-    await client.execute({ sql: 'INSERT INTO inbox_mailboxes (id, key, owner_type, name, grants, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', args: ['ibx_1', 'support', 'platform', '"Support"', '[]', now, now] })
-    await client.execute({ sql: 'INSERT INTO inbox_contacts (id, channel, external_id, created_at) VALUES (?, ?, ?, ?)', args: ['icn_1', 'email', 'kari@example.org', now] })
-    await client.execute({ sql: 'INSERT INTO inbox_threads (id, mailbox_id, contact_id, channel, status, last_message_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', args: ['ibt_1', 'ibx_1', 'icn_1', 'email', 'open', now, now, now] })
-    for (const [id, direction] of [['ibm_1', 'in'], ['ibm_2', 'out']] as const) {
-      await client.execute({ sql: 'INSERT INTO inbox_messages (id, thread_id, direction, body, attachments, created_at_ms, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', args: [id, 'ibt_1', direction, 'Hello', '[]', Date.now(), now] })
-    }
-    for (const sql of await statements('0029_inbox_message_sender_permanent_tombstones.sql')) await client.execute(sql)
-
-    const rows = (await client.execute('SELECT id, contact_id, authenticated FROM inbox_messages ORDER BY id')).rows
-    expect(rows.map(row => [row.id, row.contact_id, row.authenticated])).toEqual([['ibm_1', 'icn_1', 0], ['ibm_2', null, 0]])
-    await client.execute({ sql: 'INSERT INTO inbox_tombstones (key, created_at) VALUES (?, ?)', args: ['k', now] })
-    expect((await client.execute('SELECT permanent, contact_id FROM inbox_tombstones')).rows.map(row => [row.permanent, row.contact_id])).toEqual([[0, null]])
     client.close()
   })
 })

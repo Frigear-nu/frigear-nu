@@ -36,6 +36,8 @@ CREATE TABLE `help_articles` (
 	`slug` text NOT NULL,
 	`title` text NOT NULL,
 	`body` text NOT NULL,
+	`search_text` text DEFAULT '' NOT NULL,
+	`search_body` text DEFAULT '' NOT NULL,
 	`icon` text,
 	`links` text,
 	`status` text DEFAULT 'draft' NOT NULL,
@@ -59,6 +61,7 @@ CREATE TABLE `help_categories` (
 	`owner_type` text DEFAULT 'platform' NOT NULL,
 	`owner_id` text,
 	`grants` text DEFAULT '[]' NOT NULL,
+	`kind` text DEFAULT 'help' NOT NULL,
 	`display` text DEFAULT 'list' NOT NULL,
 	`icon` text,
 	`sort` integer DEFAULT 0 NOT NULL,
@@ -168,6 +171,8 @@ CREATE TABLE `inbox_messages` (
 	`cc` text,
 	`channel_account_id` text,
 	`external_id` text,
+	`contact_id` text,
+	`authenticated` integer DEFAULT false NOT NULL,
 	`created_at_ms` integer NOT NULL,
 	`created_at` integer NOT NULL,
 	FOREIGN KEY (`thread_id`) REFERENCES `inbox_threads`(`id`) ON UPDATE no action ON DELETE cascade
@@ -175,6 +180,7 @@ CREATE TABLE `inbox_messages` (
 --> statement-breakpoint
 CREATE INDEX `inbox_message_thread_idx` ON `inbox_messages` (`thread_id`,`created_at_ms`);--> statement-breakpoint
 CREATE UNIQUE INDEX `inbox_message_external_idx` ON `inbox_messages` (`channel_account_id`,`external_id`);--> statement-breakpoint
+CREATE INDEX `inbox_message_contact_idx` ON `inbox_messages` (`contact_id`);--> statement-breakpoint
 CREATE TABLE `inbox_threads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`mailbox_id` text NOT NULL,
@@ -182,6 +188,7 @@ CREATE TABLE `inbox_threads` (
 	`channel_account_id` text,
 	`channel` text NOT NULL,
 	`subject` text,
+	`search_text` text DEFAULT '' NOT NULL,
 	`status` text DEFAULT 'open' NOT NULL,
 	`assignee_id` integer,
 	`hidden_below` text,
@@ -201,14 +208,18 @@ CREATE INDEX `inbox_thread_contact_idx` ON `inbox_threads` (`contact_id`);--> st
 CREATE INDEX `inbox_thread_last_idx` ON `inbox_threads` (`last_message_at`);--> statement-breakpoint
 CREATE TABLE `inbox_tombstones` (
 	`key` text PRIMARY KEY NOT NULL,
+	`contact_id` text,
+	`permanent` integer DEFAULT false NOT NULL,
 	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `inbox_tombstone_created_idx` ON `inbox_tombstones` (`created_at`);--> statement-breakpoint
+CREATE INDEX `inbox_tombstone_contact_idx` ON `inbox_tombstones` (`contact_id`);--> statement-breakpoint
 CREATE TABLE `operations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
 	`name` text NOT NULL,
+	`search_text` text DEFAULT '' NOT NULL,
 	`description` text,
 	`host_name` text,
 	`host_url` text,
@@ -227,17 +238,6 @@ CREATE TABLE `operations` (
 CREATE UNIQUE INDEX `operations_slug_unique` ON `operations` (`slug`);--> statement-breakpoint
 CREATE INDEX `operation_status_idx` ON `operations` (`status`);--> statement-breakpoint
 CREATE INDEX `operation_starts_idx` ON `operations` (`starts_at`);--> statement-breakpoint
-CREATE TABLE `push_channel_preferences` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer NOT NULL,
-	`topic` text NOT NULL,
-	`email` integer NOT NULL,
-	`sms` integer NOT NULL,
-	`push` integer NOT NULL,
-	`updated_at` integer NOT NULL
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `push_channel_user_topic_idx` ON `push_channel_preferences` (`user_id`,`topic`);--> statement-breakpoint
 CREATE TABLE `push_devices` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` integer NOT NULL,
@@ -248,7 +248,9 @@ CREATE TABLE `push_devices` (
 	`locale` text,
 	`last_seen_at` integer NOT NULL,
 	`created_at` integer NOT NULL,
-	`revoked_at` integer
+	`revoked_at` integer,
+	`secret_hash` text,
+	`failures` integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `push_devices_token_unique` ON `push_devices` (`token`);--> statement-breakpoint
@@ -295,19 +297,7 @@ CREATE TABLE `shift_digest_items` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `shift_digest_item_unique` ON `shift_digest_items` (`kind`,`assignment_id`);--> statement-breakpoint
-CREATE TABLE `shift_feed_tokens` (
-	`id` text PRIMARY KEY NOT NULL,
-	`user_id` integer NOT NULL,
-	`token_hash` text NOT NULL,
-	`prefix` text NOT NULL,
-	`created_at` integer NOT NULL,
-	`last_used_at` integer,
-	`revoked_at` integer
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `shift_feed_token_hash_unique` ON `shift_feed_tokens` (`token_hash`);--> statement-breakpoint
-CREATE INDEX `shift_feed_token_user_idx` ON `shift_feed_tokens` (`user_id`);--> statement-breakpoint
-CREATE TABLE `shift_perk_grants` (
+CREATE TABLE `shift_earned_perks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`perk_id` text NOT NULL,
 	`assignment_id` text NOT NULL,
@@ -320,9 +310,21 @@ CREATE TABLE `shift_perk_grants` (
 	`revoked_at` integer
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `shift_perk_grant_unique` ON `shift_perk_grants` (`perk_id`,`assignment_id`);--> statement-breakpoint
-CREATE INDEX `shift_perk_grant_user_idx` ON `shift_perk_grants` (`user_id`,`claimed_at`);--> statement-breakpoint
-CREATE INDEX `shift_perk_grant_assignment_idx` ON `shift_perk_grants` (`assignment_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `shift_earned_perk_unique` ON `shift_earned_perks` (`perk_id`,`assignment_id`);--> statement-breakpoint
+CREATE INDEX `shift_earned_perk_user_idx` ON `shift_earned_perks` (`user_id`,`claimed_at`);--> statement-breakpoint
+CREATE INDEX `shift_earned_perk_assignment_idx` ON `shift_earned_perks` (`assignment_id`);--> statement-breakpoint
+CREATE TABLE `shift_feed_tokens` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` integer NOT NULL,
+	`token_hash` text NOT NULL,
+	`prefix` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`last_used_at` integer,
+	`revoked_at` integer
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `shift_feed_token_hash_unique` ON `shift_feed_tokens` (`token_hash`);--> statement-breakpoint
+CREATE INDEX `shift_feed_token_user_idx` ON `shift_feed_tokens` (`user_id`);--> statement-breakpoint
 CREATE TABLE `shift_perks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`operation_id` text NOT NULL,
@@ -454,6 +456,8 @@ CREATE TABLE `team_members` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `team_member_unique` ON `team_members` (`team_id`,`user_id`);--> statement-breakpoint
 CREATE INDEX `team_member_user_idx` ON `team_members` (`user_id`);--> statement-breakpoint
+CREATE INDEX `team_member_submission_idx` ON `team_members` (`submission_id`);--> statement-breakpoint
+CREATE INDEX `team_member_crew_status_idx` ON `team_members` (`crew_status`);--> statement-breakpoint
 CREATE TABLE `team_role_ladders` (
 	`kind` text PRIMARY KEY NOT NULL,
 	`roles` text NOT NULL,
@@ -483,6 +487,7 @@ CREATE TABLE `teams` (
 	`parent_id` text,
 	`kind` text NOT NULL,
 	`name` text NOT NULL,
+	`search_text` text DEFAULT '' NOT NULL,
 	`description` text,
 	`capacity` integer,
 	`sort` integer DEFAULT 0 NOT NULL,
@@ -490,5 +495,4 @@ CREATE TABLE `teams` (
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `team_owner_idx` ON `teams` (`owner_type`,`owner_id`);--> statement-breakpoint
-ALTER TABLE `users` ADD `phone` text;
+CREATE INDEX `team_owner_idx` ON `teams` (`owner_type`,`owner_id`);
