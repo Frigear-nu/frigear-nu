@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMapLiveLayers } from '../composables/useMapLiveLayers'
-import type { MapSelection, MapViewerLocation, PlaneFeatureCollection } from '../../../types'
+import { useMapOverlays } from '../composables/useMapOverlays'
+import type { MapSelection, MapViewerLocation, MapViewerOverlay, PlaneFeatureCollection, PlanePlacement } from '../../../types'
 import { computed, ref, useMapsTranslate, useModuleT, useTemplateRef } from '#imports'
 
 defineOptions({ name: 'MapViewer' })
@@ -9,10 +10,14 @@ defineOptions({ name: 'MapViewer' })
 // registered for `surface` with toggles, and a panel for what was tapped. Works on props only: the module that owns
 // the value loads it. Leaflet loads in the browser; the server renders the frame and a skeleton.
 const props = withDefaults(defineProps<{
-  /** A plane layout to show (the viewer is then a plane). */
+  /** A layout to show: a plane (shown on map tiles when its placement says so) or a `geo` layout. */
   layout?: PlaneFeatureCollection | null
-  /** Geographic locations to show, when there is no `layout`. */
+  /** The plane layout's placement (`PlanePlacement`): its underlay, and where it lies on the earth. */
+  placement?: PlanePlacement | null
+  /** Geographic locations to show (on a geographic map). */
   locations?: MapViewerLocation[]
+  /** Layouts drawn over the geographic map: placed plane layouts or `geo` layouts, each with a toggle. */
+  overlays?: MapViewerOverlay[]
   /** The surface name live layers apply to (`operations.venue-layout`). */
   surface?: string
   /** The values of the live layers' endpoint `:params` (`{ operationId }`). */
@@ -30,9 +35,10 @@ const emit = defineEmits<{ select: [selection: MapSelection | null] }>()
 const t = useModuleT('maps')
 const tr = useMapsTranslate()
 const canvas = useTemplateRef<{ fit: () => void, focus: (id: string) => boolean }>('canvas')
-const { layers, hidden } = useMapLiveLayers({ surface: () => props.surface, params: () => props.params, only: () => props.liveLayers })
+const { base, overlays, hiddenOverlays, toggleOverlay, live } = useMapOverlays(props)
+const { layers, hidden } = useMapLiveLayers({ surface: () => live.value.surface, params: () => live.value.params, only: () => props.liveLayers })
 const selection = ref<MapSelection | null>(null)
-const empty = computed(() => props.layout ? !props.layout.features.length && !props.layout.underlay : !props.locations?.length)
+const empty = computed(() => props.layout ? !props.layout.features.length && !props.layout.underlay : !props.locations?.length && !overlays.value.length)
 
 function toggle(id: string) {
   hidden.value = hidden.value.includes(id) ? hidden.value.filter(other => other !== id) : [...hidden.value, id]
@@ -50,7 +56,8 @@ defineExpose({ fit: () => canvas.value?.fit(), focus: (id: string) => canvas.val
   <div
     class="flex flex-col gap-3"
     data-maps-viewer
-    :data-base="props.layout ? 'plane' : 'geo'"
+    :data-base="base"
+    :data-overlay-count="overlays.length"
     :data-feature-count="props.layout ? props.layout.features.length : (props.locations?.length ?? 0)"
   >
     <div
@@ -59,10 +66,14 @@ defineExpose({ fit: () => canvas.value?.fit(), focus: (id: string) => canvas.val
     >
       <ClientOnly>
         <MapsCanvas
-          :key="props.layout ? 'plane' : 'geo'"
+          :key="base"
           ref="canvas"
           :layout="props.layout"
+          :placement="props.placement"
           :locations="props.locations"
+          :overlays="overlays"
+          :hidden-overlays="hiddenOverlays"
+          :live-georeference="live.georeference"
           :live-layers="layers"
           :hidden-layers="hidden"
           :focus="props.focus"
@@ -85,6 +96,26 @@ defineExpose({ fit: () => canvas.value?.fit(), focus: (id: string) => canvas.val
           :label="t('view.empty', 'Nothing is drawn here yet')"
         />
       </div>
+    </div>
+
+    <div
+      v-if="overlays.length"
+      class="flex flex-wrap items-center gap-2"
+      data-testid="maps-overlays"
+    >
+      <span class="text-sm text-muted">{{ t('view.overlays', 'Layouts') }}</span>
+      <UButton
+        v-for="overlay in overlays"
+        :key="overlay.id"
+        size="xs"
+        :color="hiddenOverlays.includes(overlay.id) ? 'neutral' : 'primary'"
+        :variant="hiddenOverlays.includes(overlay.id) ? 'outline' : 'soft'"
+        :icon="hiddenOverlays.includes(overlay.id) ? 'i-lucide-eye-off' : 'i-lucide-map'"
+        :label="tr(overlay.label) || overlay.id"
+        :aria-pressed="!hiddenOverlays.includes(overlay.id)"
+        :data-overlay="overlay.id"
+        @click="toggleOverlay(overlay.id)"
+      />
     </div>
 
     <div

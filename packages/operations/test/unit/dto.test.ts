@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toAdminOperationDto, toOperationAdminVenueLayoutDto, toOperationDto, toOperationVenueLayoutDto } from '../../src/runtime/server/utils/operations-dto'
+import { toAdminOperationDto, toOperationAdminVenueLayoutDto, toOperationDto, toOperationVenueLayoutDto, toOperationVenuePlacement } from '../../src/runtime/server/utils/operations-dto'
 import { operationVenueRevision } from '../../src/runtime/utils/venue'
 
 // A stored row, with a column the DTOs must never invent or pass on if the table grows one.
@@ -69,6 +69,18 @@ describe('operation DTOs', () => {
     expect(operationVenueRevision(JSON.parse(JSON.stringify(layout)))).toBe(revision)
     expect(operationVenueRevision({ ...layout, extent: { width: 11, height: 10 } })).not.toBe(revision)
     expect(operationVenueRevision(null)).toBe(operationVenueRevision(undefined))
-    expect(toOperationAdminVenueLayoutDto({ slug: 'x', venueLayout: layout })).toEqual({ ...toOperationVenueLayoutDto({ slug: 'x', venueLayout: layout }), revision })
+    expect(toOperationAdminVenueLayoutDto({ slug: 'x', venueLayout: layout, venuePlacement: null })).toEqual({
+      ...toOperationVenueLayoutDto({ slug: 'x', venueLayout: layout }),
+      revision,
+      placement: null,
+      placementRevision: operationVenueRevision(null),
+    })
+  })
+
+  it('gives the placement with only its own keys', () => {
+    const georeference = { origin: { lat: 1, lng: 2 }, rotation: 15, metersPerUnit: 0.5 }
+    const venuePlacement = { georeference, underlayMode: 'tiles' as const, extra: 'dropped' } as unknown as Parameters<typeof toOperationVenuePlacement>[0]['venuePlacement']
+    expect(toOperationVenuePlacement({ venuePlacement })).toEqual({ georeference, underlayMode: 'tiles', underlayOpacity: null, gridUnit: null, gridSize: null })
+    expect(toOperationVenuePlacement({ venuePlacement: null })).toBeNull()
   })
 })
