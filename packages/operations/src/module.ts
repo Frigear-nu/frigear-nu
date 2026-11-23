@@ -139,6 +139,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: ':id/venue-layout', file: 'admin/venue-layout.get' },
       { method: 'put', path: ':id/venue-layout', file: 'admin/venue-layout.put' },
       { method: 'post', path: ':id/venue-layout/underlay', file: 'admin/venue-underlay.post' },
+      { method: 'put', path: ':id/venue-layout/placement', file: 'admin/venue-placement.put' },
     ], { base: '/api/admin/operations' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))

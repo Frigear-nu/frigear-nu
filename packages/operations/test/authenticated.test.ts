@@ -306,7 +306,7 @@ describe('operations (authenticated, database-backed)', async () => {
 
     it('saves a venue layout of the allowed kinds, with properties their schemas accept', async () => {
       const operation = await createOperation({ public: true })
-      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null, revision: expect.any(String) })
+      expect(await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).toEqual({ type: 'FeatureCollection', features: [], extent: null, underlay: null, revision: expect.any(String), placement: null, placementRevision: expect.any(String) })
 
       const layout = {
         features: [
@@ -323,7 +323,7 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(saved.features[2].properties).toEqual({ cooled: false })
       expect(saved.extent).toEqual({ width: 800, height: 600 })
       // Whoever may read the operation reads its layout; a public operation is everyone's.
-      const { revision, ...publicLayout } = saved
+      const { revision, placementRevision: _placementRevision, ...publicLayout } = saved
       expect(revision).toEqual(expect.any(String))
       expect(await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).toEqual(publicLayout)
 
@@ -379,6 +379,66 @@ describe('operations (authenticated, database-backed)', async () => {
       expect(removed.underlay).toBeNull()
       expect(removed.features).toHaveLength(1)
       expect((await fetch(underlay.url)).status).toBe(404)
+    })
+
+    it('saves the placement apart from the layout, with its own revision, and serves it with the layout', async () => {
+      const operation = await createOperation({ public: true })
+      const read = await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))
+      expect(read.placement).toBeNull()
+      const layout = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-1')] }, revision: read.revision }))
+
+      const placement = { georeference: { origin: { lat: 10.5, lng: 20.25 }, rotation: 370, metersPerUnit: 0.05 }, underlayMode: 'tiles', underlayOpacity: 0.7, gridUnit: 'metres', gridSize: 0.5 }
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement, revision: read.placementRevision }))
+      const stored = { ...placement, georeference: { ...placement.georeference, rotation: 10 } }
+      expect(saved).toEqual({ placement: stored, revision: expect.any(String) })
+      expect(saved.revision).not.toBe(read.placementRevision)
+
+      // The layout is untouched, and both come back together: to staff with both revisions, to readers without.
+      const now = await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))
+      expect(now).toMatchObject({ revision: layout.revision, placement: stored, placementRevision: saved.revision })
+      expect(now.features.map((feature: Json) => feature.id)).toEqual(['bar-1'])
+      const publicLayout = await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))
+      expect(publicLayout.placement).toEqual(stored)
+      expect(publicLayout.placementRevision).toBeUndefined()
+
+      // A layout save does not need the placement's revision, and does not move it.
+      await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { features: [station('bar-2')] }, revision: layout.revision }))
+      expect((await ok(await json(staff.cookie, 'GET', operationsApi.admin.venueLayout(operation.id)))).placementRevision).toBe(saved.revision)
+
+      // A placement someone moved since it was read is not overwritten.
+      await expectApiError(json(staff.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement: { ...placement, underlayMode: 'none' }, revision: read.placementRevision }), 409, 'venue_placement_changed')
+
+      // Tiles or a metre grid need the georeference; the scale must be positive.
+      for (const invalid of [{ underlayMode: 'tiles' }, { gridUnit: 'metres' }, { georeference: { ...placement.georeference, metersPerUnit: 0 } }, { underlayOpacity: 3 }]) {
+        expect((await json(staff.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement: invalid })).status, JSON.stringify(invalid)).toBe(400)
+      }
+
+      // `null` removes it.
+      const removed = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement: null, revision: saved.revision }))
+      expect(removed.placement).toBeNull()
+      expect((await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).placement).toBeNull()
+    })
+
+    it('keeps the placement to staff with operations:manage', async () => {
+      const operation = await createOperation({ public: true })
+      const plain = await user('Placementplain')
+      const placement = { georeference: { origin: { lat: 1, lng: 2 }, rotation: 0, metersPerUnit: 1 } }
+      expect((await json(undefined, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement })).status).toBe(401)
+      await expectApiError(json(plain.cookie, 'PUT', operationsApi.admin.venuePlacement(operation.id), { placement }), 403, 'forbidden')
+      const readOnly = apiClient({ bearer: await createToken(staff.cookie, [operationsAccess.permissions.read]) })
+      await expectApiError(readOnly.json('PUT', operationsApi.admin.venuePlacement(operation.id), { placement }), 403, 'insufficient_scope')
+      const manager = apiClient({ bearer: await createToken(staff.cookie, [operationsAccess.permissions.manage]) })
+      expect((await manager.json<Json>('PUT', operationsApi.admin.venuePlacement(operation.id), { placement })).placement).toMatchObject(placement)
+    })
+
+    it('saves a layout drawn on the map in real coordinates', async () => {
+      const operation = await createOperation({ public: true })
+      const layout = { crs: 'geo', features: [{ id: 'gate', kind: 'maps.marker', geometry: { type: 'Point', coordinates: [20.25, 10.5] } }] }
+      const saved = await ok(await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout }))
+      expect(saved.crs).toBe('geo')
+      expect(saved.features[0].geometry.coordinates).toEqual([20.25, 10.5])
+      expect((await ok(await json(undefined, 'GET', operationsApi.venueLayout(operation.slug)))).crs).toBe('geo')
+      expect((await json(staff.cookie, 'PUT', operationsApi.admin.venueLayout(operation.id), { layout: { ...layout, features: [{ ...layout.features[0], geometry: { type: 'Point', coordinates: [500, 10] } }] } })).status).toBe(400)
     })
 
     it('refuses a save or an upload when the layout changed since the client read it (409), and keeps both changes apart', async () => {
