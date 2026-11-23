@@ -37,7 +37,7 @@ export type ModuleOptions = {
       home?: string | boolean
       /** The page volunteers apply on, with the operation's form; must contain an `:operationSlug` param. On by default (`/crew/apply/:operationSlug`), `false` turns it off. */
       apply?: string | boolean
-      /** The page that shows a volunteer's crew status per operation and lets them withdraw. On by default (`/crew/status`), `false` turns it off. */
+      /** The page that shows a volunteer's crew status per operation and how to step down. On by default (`/crew/status`), `false` turns it off. */
       status?: string | boolean
       /** The page that accepts an invite link; must contain a `:token` param. On by default (`/crew/invite/:token`), `false` turns it off. */
       invite?: string | boolean
@@ -116,7 +116,7 @@ export type MyCrewDto = {
   operationName: Translated
   /** `approved` for a place added in teams (`source: 'teams'`). */
   crewStatus: CrewStatus
-  /** `crew`: an application or a crew place (withdraw works). `teams`: added by teams staff, who alone can end it. */
+  /** `crew`: an application or a crew place (crew staff change it). `teams`: added by teams staff, who end it in teams. */
   source: 'crew' | 'teams'
   teamId: string
   teamName: Translated
