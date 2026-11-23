@@ -39,3 +39,39 @@ export const canMoveCrew = (from: CrewStatus, to: CrewStatus) => CREW_TRANSITION
 
 /** Statuses that count as "has applied and is still in the running". */
 export const OPEN_CREW_STATUSES = ['applied', 'waitlisted', 'approved'] as const satisfies readonly CrewStatus[]
+
+/** An i18n key of the crew namespace and its English fallback. */
+export type CrewText = { key: string, fallback: string }
+
+/** How the apply page tells a person who has applied where they stand (`CrewApplyDto` state `applied`). */
+export type CrewApplyNotice = {
+  icon: string
+  color: 'success' | 'neutral'
+  title: CrewText
+  description: CrewText
+}
+
+/**
+ * The apply page's notice for the person's crew status when the state is `applied`. Waitlisted people get their own
+ * heading, in the neutral colour of their status badge; applied and approved people get the green "applied" notice.
+ * Crew sends a status message on each change the texts promise (approved, rejected, waitlisted, and approved again
+ * when a place opens up), unless an operation turns that status's message off. `submitted`: the form was sent just now.
+ */
+export function crewApplyNotice(status: CrewStatus | null, submitted = false): CrewApplyNotice {
+  if (status === 'waitlisted') {
+    return {
+      icon: 'i-lucide-hourglass',
+      color: 'neutral',
+      title: { key: 'apply.waitlisted', fallback: 'You\'re on the waiting list' },
+      description: { key: 'apply.waitlistedDescription', fallback: 'You\'re on the waiting list. We will email you if a place opens up.' },
+    }
+  }
+  return {
+    icon: 'i-lucide-circle-check',
+    color: 'success',
+    title: submitted ? { key: 'apply.thanks', fallback: 'Thank you for applying' } : { key: 'apply.alreadyApplied', fallback: 'You have applied already' },
+    description: status === 'approved'
+      ? { key: 'apply.approved', fallback: 'You are on the crew.' }
+      : { key: 'apply.receivedDescription', fallback: 'We have received your application. We will email you when something changes.' },
+  }
+}

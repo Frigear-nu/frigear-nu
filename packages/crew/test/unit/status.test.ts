@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { CREW_STATUSES, CREW_TRANSITIONS, canMoveCrew, crewStatusGrants, isCrewStatus, teamStatusOf } from '../../src/runtime/utils/status'
+import { CREW_STATUSES, CREW_TRANSITIONS, canMoveCrew, crewApplyNotice, crewStatusGrants, isCrewStatus, teamStatusOf } from '../../src/runtime/utils/status'
+import type { CrewStatus } from '../../src/types'
 import { CREW_INVITE_DEFAULT_DAYS, createCrewLinks } from '../../src/runtime/utils/links'
 import { crewApi } from '../../src/runtime/utils/api'
 
@@ -69,5 +72,35 @@ describe('crew links and api paths', () => {
 describe('crew invites', () => {
   it('keeps invites for 30 days by default', () => {
     expect(CREW_INVITE_DEFAULT_DAYS).toBe(30)
+  })
+})
+
+describe('the apply notice', () => {
+  const lang = (code: 'en' | 'da') => JSON.parse(readFileSync(fileURLToPath(new URL(`../../src/runtime/i18n/lang/${code}.json`, import.meta.url)), 'utf8')).crew as Record<string, unknown>
+  const text = (code: 'en' | 'da', key: string) => key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], lang(code)) as string | undefined
+  const rendered = (status: CrewStatus | null, code: 'en' | 'da', submitted = false) => {
+    const notice = crewApplyNotice(status, submitted)
+    return { color: notice.color, title: text(code, notice.title.key), description: text(code, notice.description.key) }
+  }
+
+  it('tells a waitlisted person they are on the waiting list, not that they applied', () => {
+    expect(rendered('waitlisted', 'en')).toEqual({ color: 'neutral', title: 'You\'re on the waiting list', description: 'You\'re on the waiting list. We will email you if a place opens up.' })
+    expect(rendered('waitlisted', 'da')).toEqual({ color: 'neutral', title: 'Du er på ventelisten', description: 'Du er på ventelisten. Vi sender dig en e-mail, hvis der bliver en plads.' })
+    expect(rendered('waitlisted', 'en', true).title).toBe('You\'re on the waiting list')
+  })
+
+  it('tells an applicant their application is received, and an approved person they are on the crew', () => {
+    expect(rendered('applied', 'en')).toEqual({ color: 'success', title: 'You have applied already', description: 'We have received your application. We will email you when something changes.' })
+    expect(rendered('applied', 'da')).toEqual({ color: 'success', title: 'Du har allerede ansøgt', description: 'Vi har modtaget din ansøgning. Vi sender dig en e-mail, når der sker noget.' })
+    expect(rendered('applied', 'en', true).title).toBe('Thank you for applying')
+    expect(rendered('approved', 'en')).toMatchObject({ color: 'success', description: 'You are on the crew.' })
+  })
+
+  it('falls back to the English texts', () => {
+    for (const status of ['applied', 'waitlisted', 'approved'] as const) {
+      const notice = crewApplyNotice(status)
+      expect(notice.title.fallback).toBe(text('en', notice.title.key))
+      expect(notice.description.fallback).toBe(text('en', notice.description.key))
+    }
   })
 })
