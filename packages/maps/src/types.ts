@@ -60,14 +60,59 @@ export type PlaneUnderlay = {
 export type PlaneExtent = { width: number, height: number }
 
 /**
- * A plane layout, as the plane editor (`<MapPlaneEditor>`) edits it: a GeoJSON FeatureCollection in plane units with
- * an optional underlay image and extent. Layout only: it says where things are, never who sits where.
+ * Where a plane layout lies on the earth: plane `[0, 0]` is at `origin`, the plane's `+y` axis points `rotation`
+ * degrees clockwise from north, and one plane unit is `metersPerUnit` metres. The plane keeps its own units and grid.
+ */
+export type PlaneGeoreference = {
+  origin: GeoPoint
+  /** Degrees clockwise from north, `-180` to `180`. */
+  rotation: number
+  /** Metres per plane unit (with a floor plan image: per pixel). */
+  metersPerUnit: number
+}
+
+/**
+ * What a layout's positions are: `plane` (plane units, `CRS.Simple`) or `geo` (`[lng, lat]` in degrees, drawn on map
+ * tiles). Default `plane`.
+ */
+export type MapLayoutCrs = 'plane' | 'geo'
+
+/** What is shown under a plane layout, one at a time: nothing, the map tiles (needs a georeference) or the floor plan image. */
+export type PlaneUnderlayMode = 'none' | 'tiles' | 'image'
+
+/** The grid of a plane: plane units, or real metres once the plane is placed on the earth. */
+export type PlaneGridUnit = 'plane' | 'metres'
+
+/**
+ * How a plane layout is placed and shown, kept apart from the layout (the module that owns it stores it on its own):
+ * where it lies on the earth, what is under it, and the grid the editor snaps to.
+ */
+export type PlanePlacement = {
+  /** Where the plane lies on the earth; `null` while it is not placed. */
+  georeference?: PlaneGeoreference | null
+  /** What is shown under the plane (default: `image` with an underlay image, else `none`). */
+  underlayMode?: PlaneUnderlayMode | null
+  /** The underlay's opacity, `0.1` to `1` (default `1`). */
+  underlayOpacity?: number | null
+  /** `metres` snaps to real metres (needs `georeference`). Default `plane`. */
+  gridUnit?: PlaneGridUnit | null
+  /** The grid step in `gridUnit`s (`0.5` or `1` in metres). */
+  gridSize?: number | null
+}
+
+/**
+ * A layout, as the plane editor (`<MapPlaneEditor>`) edits it: a GeoJSON FeatureCollection in plane units (or, with
+ * `crs: 'geo'`, in `[lng, lat]`) with an optional underlay image and extent. Layout only: it says where things are,
+ * never who sits where. Its placement on the earth is a `PlanePlacement`, stored apart.
  */
 export type PlaneFeatureCollection = {
   type: 'FeatureCollection'
   features: PlaneFeature[]
-  /** The plane's size; defaults to the underlay's size, then to 1000 by 1000. */
+  /** `geo`: the positions are `[lng, lat]`, drawn on map tiles. Default `plane`. */
+  crs?: MapLayoutCrs | null
+  /** The plane's size; defaults to the underlay's size, then to 1000 by 1000. Plane layouts only. */
   extent?: PlaneExtent | null
+  /** The floor plan image. Plane layouts only. */
   underlay?: PlaneUnderlay | null
 }
 
@@ -80,10 +125,32 @@ export type MapViewerLocation = {
   color?: string
 }
 
+/**
+ * A layout drawn over a geographic viewer (`<MapViewer :overlays>`): a georeferenced plane layout, placed by its
+ * georeference, or a `geo` layout. A plane layout without a georeference is skipped.
+ */
+export type MapViewerOverlay = {
+  id: string
+  layout: PlaneFeatureCollection
+  /** The plane layout's placement; a `geo` layout needs none. */
+  placement?: PlanePlacement | null
+  label?: Translated | null
+  /** Its features' opacity, `0.1` to `1` (default `1`). The floor plan image uses the placement's `underlayOpacity`. */
+  opacity?: number
+  /** Draw the layout's floor plan image when the placement's `underlayMode` is `image` (default `true`). */
+  image?: boolean
+  /** The surface the layout's live layers apply to, drawn through its georeference (`operations.venue-layout`). */
+  surface?: string
+  /** The values of those live layers' endpoint `:params`. */
+  params?: Record<string, string | number | null | undefined>
+}
+
 /** What the viewers report when someone taps something on the map. */
 export type MapSelection = {
   /** A feature of the layout, a location, or a feature of a live layer. */
   source: 'feature' | 'location' | 'live'
+  /** The overlay the feature belongs to (`<MapViewer :overlays>`). */
+  overlay?: string
   id: string
   label: Translated | null
   /** The feature kind (`source: 'feature'`). */

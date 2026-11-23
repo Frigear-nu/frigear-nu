@@ -110,7 +110,12 @@
       "saveVenue": "Gem plantegning",
       "venueLive": "Live-visning",
       "venueLiveHelp": "Den gemte plantegning, som crew ser den, med live-lagene.",
-      "tryAgain": "Prøv igen"
+      "tryAgain": "Prøv igen",
+      "venueNoLocation": "Angiv, hvor den foregår, under Detaljer: kortet åbner der og viser stedet, mens du placerer eller tegner.",
+      "venueNoLocationTitle": "Denne operation har ingen placering endnu",
+      "venueSetLocation": "Angiv placeringen",
+      "venueSiteMap": "På oversigtskortet",
+      "venueSiteMapHelp": "Det gemte layout over kortet for operationen, som operationens side viser det."
     },
     "dashboard": {
       "upcoming": "Kommende operationer",
@@ -121,6 +126,7 @@
     "grants": {
       "operation": "Operation",
       "choose": "Vælg en operation"
-    }
+    },
+    "venueLayout": "Layout"
   }
 }

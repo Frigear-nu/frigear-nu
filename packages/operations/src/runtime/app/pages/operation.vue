@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import type { OperationDto } from '../../../types'
+import type { MapViewerOverlay } from '@frigear-nu/maps/utils'
+import { isPlacedLayout } from '@frigear-nu/maps/utils'
+import type { OperationDto, OperationPublicVenueLayoutDto } from '../../../types'
 import { operationsApi } from '../../utils/api'
 import { OPERATION_STATUS_LABELS } from '../../utils/status'
+import { OPERATIONS_VENUE_SURFACE } from '../../utils/venue'
 import { computed, createError, resolveComponent, surfaceClass, useFetch, useFormat, useModuleT, useOperationsTranslate, useRoute, useSeoMeta } from '#imports'
 
 defineOptions({ name: 'OperationDetailPage' })
@@ -23,6 +26,21 @@ if (!operation.value || !operation.value.public) {
 }
 
 useSeoMeta({ title: () => (operation.value ? tr(operation.value.name) : 'Operation') })
+
+// The venue layout over the site map, once staff placed it on the map (or drew it there). A layout that cannot be read
+// only leaves the map without it.
+const { data: venue } = await useFetch<OperationPublicVenueLayoutDto>(() => operationsApi.venueLayout(slug.value), { key: `operations:venue:${slug.value}` })
+const overlays = computed<MapViewerOverlay[]>(() => {
+  const value = venue.value
+  if (!value || !value.features.length || !isPlacedLayout(value, value.placement) || !operation.value) return []
+  const { placement, ...layout } = value
+  return [{ id: 'venue', layout, placement, label: t('venueLayout', 'Venue layout'), surface: OPERATIONS_VENUE_SURFACE, params: { operationId: operation.value.id } }]
+})
+const siteLocations = computed(() => {
+  const value = operation.value
+  if (!value?.location?.point) return []
+  return [{ id: value.id, label: value.location.name ?? value.name, location: { point: value.location.point, radiusMeters: value.location.radiusMeters, area: value.location.area } }]
+})
 </script>
 
 <template>
@@ -88,9 +106,11 @@ useSeoMeta({ title: () => (operation.value ? tr(operation.value.name) : 'Operati
         </div>
 
         <MapViewer
-          v-if="operation.location?.point"
-          :locations="[{ id: operation.id, label: operation.location.name ?? operation.name, location: { point: operation.location.point, radiusMeters: operation.location.radiusMeters, area: operation.location.area } }]"
-          height="18rem"
+          v-if="siteLocations.length || overlays.length"
+          :locations="siteLocations"
+          :overlays="overlays"
+          :height="overlays.length ? '26rem' : '18rem'"
+          data-testid="operation-site-map"
         />
 
         <UButton

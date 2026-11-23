@@ -2,9 +2,9 @@ import type { H3Event } from 'h3'
 
 import type { Translated } from '@frigear-nu/ui/translated'
 import type { Schedule } from '@frigear-nu/module-kit/schedule'
-import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneUnderlay } from '@frigear-nu/maps/utils'
+import type { GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlanePlacement, PlaneUnderlay } from '@frigear-nu/maps/utils'
 
-export type { Translated, Schedule, GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlaneUnderlay }
+export type { Translated, Schedule, GeoPoint, MapLocation, PlaneFeature, PlaneFeatureCollection, PlanePlacement, PlaneUnderlay }
 
 /** `planning -> active -> wrapped_up -> archived`, and `planning -> archived`. See `canTransition`. */
 export type OperationStatus = 'planning' | 'active' | 'wrapped_up' | 'archived'
@@ -36,7 +36,22 @@ export type OperationVenueLayout = Omit<PlaneFeatureCollection, 'underlay'> & {
  * `revision`. Send the revision back with a change (`PUT { layout, revision }`, `POST underlay?revision=`) to get 409
  * `venue_layout_changed` instead of overwriting a change someone made since.
  */
-export type OperationVenueLayoutDto = PlaneFeatureCollection & { revision: string }
+export type OperationVenueLayoutDto = PlaneFeatureCollection & {
+  revision: string
+  /** The layout's placement on the map (saved apart: `PUT operationsApi.admin.venuePlacement`). */
+  placement: PlanePlacement | null
+  /** The placement's revision, sent back with `PUT .../placement` (409 `venue_placement_changed` when it moved since). */
+  placementRevision: string
+}
+
+/** The venue layout as anyone who may read the operation sees it (`GET operationsApi.venueLayout`): with its placement. */
+export type OperationPublicVenueLayoutDto = PlaneFeatureCollection & { placement: PlanePlacement | null }
+
+/** The placement as stored in `operations.venuePlacement`. */
+export type OperationVenuePlacement = PlanePlacement
+
+/** What `PUT .../venue-layout/placement` answers: the saved placement and its new `revision`. */
+export type OperationVenuePlacementDto = { placement: PlanePlacement | null, revision: string }
 
 /** What an underlay upload answers: where the image is, and the layout's new `revision`. */
 export type OperationVenueUnderlayDto = PlaneUnderlay & { revision: string }
