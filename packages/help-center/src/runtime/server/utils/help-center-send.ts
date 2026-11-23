@@ -3,12 +3,13 @@ import type { Grant } from '@frigear-nu/auth/grants'
 import { apiError, localizePath, notConfigured, validationError } from '@frigear-nu/module-kit/server'
 import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 import type { z } from 'zod'
-import type { HelpArticleDto, HelpSendResult } from '../../../types'
+import type { HelpArticleDto, HelpSendResult, HelpSendSkip, HelpSendSkipReason, HelpUserLookupDto } from '../../../types'
 import { createHelpCenterPaths } from '../../utils/paths'
 import { translate } from '../../utils/index'
 import { helpCenterArticleById, helpCenterReaderFor } from './help-center'
 import { loadHelpUsers } from './help-center-checklists'
-import { helpCenterDeliver } from './help-center-deliver'
+import { helpCenterDeliver, helpSendEmailSkipReason, helpSendSmsSkipReason } from './help-center-deliver'
+import type { HelpDelivered } from './help-center-deliver'
 import { helpCenterRequiredLocales } from './help-center-db'
 import type { helpSendInput } from './help-center-schemas'
 
@@ -76,10 +77,27 @@ export async function resolveHelpAudience(event: H3Event, audience: SendInput['a
   return [...new Set(userIds)]
 }
 
+/** A person of the send form's picker: the email only for a caller with `help-center:pii`. */
+export function toHelpUserLookupDto(ref: { id: number | string, name: string | null, avatar?: string | null, email?: string | null }, pii: boolean): HelpUserLookupDto {
+  return { id: Number(ref.id), name: ref.name, avatar: ref.avatar ?? null, ...(pii ? { email: ref.email ?? null } : {}) }
+}
+
+/** The response of `POST /api/admin/help-center/send`: only these fields. */
+export function toHelpSendResultDto(result: HelpSendResult): HelpSendResult {
+  return {
+    recipients: result.recipients,
+    counts: { sms: result.counts.sms, email: result.counts.email, none: result.counts.none },
+    fallback: result.fallback,
+    pushed: result.pushed,
+    skipped: result.skipped.map(({ userId, name, reason }) => ({ userId, name, reason })),
+  }
+}
+
 /**
  * Sends links to articles by email and SMS. Recipients come from the audience; each gets the articles they may read, as
- * a link into the public area (a public article) or the signed-in area. People without a readable article, or without an
- * address for the channels asked for, are skipped. The paths come from the configured areas, never hard-coded.
+ * a link into the public area (a public article) or the signed-in area. With `fallbackToEmail` (on by default) a person
+ * a text cannot reach (no phone number, SMS off for the topic) is emailed instead. People who get neither an email nor a
+ * text are listed in `skipped` with why. The paths come from the configured areas, never hard-coded.
  */
 export async function sendHelpArticles(event: H3Event, input: SendInput): Promise<HelpSendResult> {
   const config = useRuntimeConfig().public.helpCenter as { pages?: { public?: string, signedIn?: string }, i18n?: LocaleRouting | null } | undefined
@@ -102,17 +120,22 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
   const fallbackLocale = input.locale ?? requiredLocales[0] ?? 'en'
   // The configured site, never a header the client chooses (`authSiteOrigin`).
   const origin = authSiteOrigin(event)
-  const result: HelpSendResult = { recipients: ids.length, emailed: 0, texted: 0, pushed: 0, skipped: 0 }
+  const result: HelpSendResult = { recipients: ids.length, counts: { sms: 0, email: 0, none: 0 }, fallback: 0, pushed: 0, skipped: [] }
+  const skip = (userId: string, name: string | null | undefined, reason: HelpSendSkipReason) => {
+    const entry: HelpSendSkip = { userId, name: name ?? null, reason }
+    result.skipped.push(entry)
+    result.counts.none++
+  }
+  const byEmail = input.channels.includes('email')
+  const bySms = input.channels.includes('sms')
 
   for (const id of ids) {
     const person = people.get(id)
-    const locale = person?.locale || fallbackLocale
-    const wantsEmail = input.channels.includes('email') && !!person?.email
-    const wantsSms = input.channels.includes('sms') && !!person?.phone
-    if (!person || (!wantsEmail && !wantsSms)) {
-      result.skipped++
+    if (!person) {
+      skip(id, null, 'unknown_user')
       continue
     }
+    const locale = person.locale || fallbackLocale
     // The user as stored (numeric id, email), the way a request's own user is, so role providers and grant kinds see
     // the same: each article is checked against the recipient's grants, never the sender's.
     const ctx = { event, reader: helpCenterReaderFor(event, person.user as { id: string | number }), requiredLocales }
@@ -127,40 +150,51 @@ export async function sendHelpArticles(event: H3Event, input: SendInput): Promis
       if (path) links.push({ title: translate(article.title, locale, requiredLocales[0]), url: `${origin}${localizePath(path, locale, config?.i18n)}` })
     }
     if (!links.length) {
-      result.skipped++
+      skip(id, person.name, 'no_access')
       continue
     }
 
-    try {
-      const props = helpSendEmailProps(locale, person.name ?? '', links)
-      const subject = props.subject
-      const names = links.map(link => link.title).join(', ')
-      const delivered = await helpCenterDeliver(event, {
-        userId: Number(id),
-        email: input.channels.includes('email'),
-        sms: input.channels.includes('sms'),
-        to: person.email ?? null,
-        phone: person.phone ?? null,
-        message: {
-          subject,
-          body: `<p>${escapeHtml(person.name ?? '')}</p><ul>${links.map(link => `<li><a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a></li>`).join('')}</ul>`,
-          text: `${person.name ?? ''}\n\n${links.map(link => `${link.title}: ${link.url}`).join('\n')}`,
-          template: { name: 'help-center-articles', props, locale },
-          meta: { helpCenter: { articleIds: input.articleIds } },
-        },
-        smsBody: links.map(link => `${link.title}: ${link.url}`).join('\n'),
-        push: { title: subject, body: names.length > 200 ? `${names.slice(0, 197)}...` : names, url: links[0]!.url },
-      })
-      if (delivered.emailed) result.emailed++
-      if (delivered.texted) result.texted++
-      if (delivered.pushed) result.pushed++
-      // Somebody who turned the channels off, or cannot be reached on them, is skipped like a person without an address.
-      if (!delivered.emailed && !delivered.texted && !delivered.pushed) result.skipped++
+    const props = helpSendEmailProps(locale, person.name ?? '', links)
+    const subject = props.subject
+    const names = links.map(link => link.title).join(', ')
+    const deliver = (channels: { email: boolean, sms: boolean }) => helpCenterDeliver(event, {
+      userId: Number(id),
+      ...channels,
+      to: person.email ?? null,
+      phone: person.phone ?? null,
+      message: {
+        subject,
+        body: `<p>${escapeHtml(person.name ?? '')}</p><ul>${links.map(link => `<li><a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a></li>`).join('')}</ul>`,
+        text: `${person.name ?? ''}\n\n${links.map(link => `${link.title}: ${link.url}`).join('\n')}`,
+        template: { name: 'help-center-articles', props, locale },
+        meta: { helpCenter: { articleIds: input.articleIds } },
+      },
+      smsBody: links.map(link => `${link.title}: ${link.url}`).join('\n'),
+      push: { title: subject, body: names.length > 200 ? `${names.slice(0, 197)}...` : names, url: links[0]!.url },
+    })
+
+    // The channels asked for, in one `notifyUser` call: it decides each by the person's choices for the topic.
+    // `helpCenterDeliver` never throws.
+    const first = await deliver({ email: byEmail, sms: bySms && !!person.phone })
+    let emailed = first.emailed
+    const texted = first.texted
+    let pushed = first.pushed
+    let emailOutcome: HelpDelivered | null = byEmail ? first : null
+    // "Fall back to email": a text that cannot reach the person (no number, SMS off for the topic) becomes an email,
+    // which still follows their email choice. A failed text is not retried by email.
+    const smsReason = bySms && !texted ? helpSendSmsSkipReason(person.phone, person.phone ? first : null) : null
+    if (smsReason && smsReason !== 'failed' && input.fallbackToEmail && !byEmail) {
+      const second = await deliver({ email: true, sms: false })
+      emailOutcome = second
+      emailed = second.emailed
+      pushed = pushed || second.pushed
+      if (emailed) result.fallback++
     }
-    catch (error) {
-      console.error(`[@frigear-nu/help-center] could not send articles to user ${id}:`, error)
-      result.skipped++
-    }
+    if (texted) result.counts.sms++
+    if (emailed) result.counts.email++
+    if (pushed) result.pushed++
+    // The reason of the last channel tried: the email when it was asked for or fallen back to, the text otherwise.
+    if (!texted && !emailed) skip(id, person.name, emailOutcome ? helpSendEmailSkipReason(person.email, emailOutcome) : smsReason ?? 'failed')
   }
-  return result
+  return toHelpSendResultDto(result)
 }

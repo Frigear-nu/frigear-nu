@@ -866,7 +866,7 @@ describe('help center (authenticated, database-backed)', async () => {
         locale: 'en',
       }))
       // `pushed`: no push module here, so notify's log driver takes the push (and reports nothing, which counts as sent).
-      expect(result).toEqual({ recipients: 1, emailed: 1, texted: 0, pushed: 1, skipped: 0 })
+      expect(result).toEqual({ recipients: 1, counts: { sms: 0, email: 1, none: 0 }, fallback: 0, pushed: 1, skipped: [] })
       const [mail] = recipientEmails(await getEmails(), memberEmail).slice(-1)
       expect(mail).toBeDefined()
       expect(mail!.subject).toBe('2 help articles')
@@ -887,35 +887,90 @@ describe('help center (authenticated, database-backed)', async () => {
         audience: { userIds: [member.id, bar.id] },
         channels: ['email'],
       }))
-      expect(result).toEqual({ recipients: 2, emailed: 1, texted: 0, pushed: 1, skipped: 1 })
+      expect(result).toEqual({ recipients: 2, counts: { sms: 0, email: 1, none: 1 }, fallback: 0, pushed: 1, skipped: [{ userId: member.id, name: 'Plain', reason: 'no_access' }] })
       const sent = (await getEmails()).slice(before)
       expect(sent).toHaveLength(1)
       expect(sent[0]!.to).toBe(`bar${counter}@bar.test`)
       expect(sent[0]!.subject).toBe(restricted.article.title.da)
     })
 
-    it('texts only the people with a phone number who turned SMS on for the topic', async () => {
-      await asStaff()
-      const { article, category } = await publishedArticle({ grants: PUBLIC })
-      const optedIn = await user('Phone')
-      const optedOut = await user('Quiet')
-      const without = await user('Nophone')
-      await setPhone(optedIn.id, '+15550100105')
-      await setPhone(optedOut.id, '+15550100106')
+    // Three people for a send by SMS: one who turned texts on, one with a number who did not, one without a number.
+    const smsAudience = async () => {
+      const emails = { optedIn: `phone${++counter}@example.com`, optedOut: `quiet${++counter}@example.com`, without: `nophone${++counter}@example.com` }
+      const optedIn = { ...await registerUser('Phone', emails.optedIn), email: emails.optedIn }
+      const optedOut = { ...await registerUser('Quiet', emails.optedOut), email: emails.optedOut }
+      const without = { ...await registerUser('Nophone', emails.without), email: emails.without }
+      await setPhone(optedIn.id, `+1555010${String(++counter).padStart(4, '0')}`)
+      await setPhone(optedOut.id, `+1555010${String(++counter).padStart(4, '0')}`)
       // SMS is off by default on `help-center.send`: only Phone turns it on (Nophone too, but has no number).
       await setChoices(optedIn.id, { 'help-center.send': { sms: true } })
       await setChoices(without.id, { 'help-center.send': { sms: true } })
-      const before = (await getTexts()).length
+      return { optedIn, optedOut, without }
+    }
+
+    it('texts only the people with a phone number who turned SMS on, and with "Fall back to email" off skips the rest with why', async () => {
+      await asStaff()
+      const { article, category } = await publishedArticle({ grants: PUBLIC })
+      const { optedIn, optedOut, without } = await smsAudience()
+      const beforeTexts = (await getTexts()).length
+      const beforeEmails = (await getEmails()).length
+      const result = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, {
+        articleIds: [article.id],
+        audience: { userIds: [optedIn.id, optedOut.id, without.id] },
+        channels: ['sms'],
+        fallbackToEmail: false,
+      }))
+      expect(result).toEqual({
+        recipients: 3,
+        counts: { sms: 1, email: 0, none: 2 },
+        fallback: 0,
+        pushed: 0,
+        skipped: [
+          { userId: optedOut.id, name: 'Quiet', reason: 'no_sms_consent' },
+          { userId: without.id, name: 'Nophone', reason: 'no_phone' },
+        ],
+      })
+      const texts = (await getTexts()).slice(beforeTexts)
+      expect(texts).toHaveLength(1)
+      expect(texts[0]!.body).toContain(`/help/${category.slug}/${article.slug}`)
+      expect((await getEmails()).slice(beforeEmails)).toHaveLength(0)
+    })
+
+    it('emails the people a text cannot reach with "Fall back to email" (on by default)', async () => {
+      await asStaff()
+      const { article } = await publishedArticle({ grants: PUBLIC })
+      const { optedIn, optedOut, without } = await smsAudience()
+      const beforeTexts = (await getTexts()).length
+      const beforeEmails = (await getEmails()).length
       const result = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, {
         articleIds: [article.id],
         audience: { userIds: [optedIn.id, optedOut.id, without.id] },
         channels: ['sms'],
       }))
-      expect(result).toEqual({ recipients: 3, emailed: 0, texted: 1, pushed: 0, skipped: 2 })
-      const texts = (await getTexts()).slice(before)
-      expect(texts).toHaveLength(1)
-      expect(texts[0]).toMatchObject({ to: '+15550100105' })
-      expect(texts[0]!.body).toContain(`/help/${category.slug}/${article.slug}`)
+      // The two emails carry their push (the push belongs with the email); the text goes alone.
+      expect(result).toEqual({ recipients: 3, counts: { sms: 1, email: 2, none: 0 }, fallback: 2, pushed: 2, skipped: [] })
+      expect((await getTexts()).slice(beforeTexts)).toHaveLength(1)
+      expect((await getEmails()).slice(beforeEmails).map(mail => mail.to).sort()).toEqual([optedOut.email, without.email].sort())
+    })
+
+    it('skips a person who turned email off for help articles (opted_out), with the fallback too, and an unknown user', async () => {
+      await asStaff()
+      const { article } = await publishedArticle({ grants: PUBLIC })
+      const quiet = await user('Mailless')
+      await setChoices(quiet.id, { 'help-center.send': { email: false, push: false } })
+      const before = (await getEmails()).length
+      const byEmail = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { userIds: [quiet.id, '987654'] }, channels: ['email'] }))
+      expect(byEmail).toEqual({
+        recipients: 2,
+        counts: { sms: 0, email: 0, none: 2 },
+        fallback: 0,
+        pushed: 0,
+        skipped: [{ userId: quiet.id, name: 'Mailless', reason: 'opted_out' }, { userId: '987654', name: null, reason: 'unknown_user' }],
+      })
+      // A text to someone without a number falls back to the email, which they turned off: the email's reason is kept.
+      const bySms = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { userIds: [quiet.id] }, channels: ['sms'] }))
+      expect(bySms).toMatchObject({ counts: { sms: 0, email: 0, none: 1 }, fallback: 0, skipped: [{ userId: quiet.id, reason: 'opted_out' }] })
+      expect((await getEmails()).slice(before)).toHaveLength(0)
     })
 
     it('resolves grants through each kind\'s members, and merges them with explicit people', async () => {
@@ -930,7 +985,7 @@ describe('help center (authenticated, database-backed)', async () => {
         audience: { grants: operation('opr_send'), userIds: [explicit.id] },
         channels: ['email'],
       }))
-      expect(result).toMatchObject({ recipients: 2, emailed: 2 })
+      expect(result).toMatchObject({ recipients: 2, counts: { email: 2, none: 0 } })
       expect((await getEmails()).slice(before).map(mail => mail.to).sort()).toEqual([`explicit${counter}@example.com`, `granted${counter - 1}@example.com`].sort())
       // Grants that list nobody are said to, not reported as "sent to nobody".
       await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.send, { articleIds: [article.id], audience: { grants: operation('opr_empty') }, channels: ['email'] }), 400, 'audience_not_resolved')
@@ -968,10 +1023,39 @@ describe('help center (authenticated, database-backed)', async () => {
       expect((await json(staff.cookie, 'POST', helpCenterApi.admin.send, { ...ok1, channels: ['push'] })).status).toBe(400)
       expect((await json(staff.cookie, 'POST', helpCenterApi.admin.send, { ...ok1, articleIds: [] })).status).toBe(400)
 
+      expect((await json(staff.cookie, 'POST', helpCenterApi.admin.send, { ...ok1, fallbackToEmail: 'yes' })).status).toBe(400)
+
       const withManage = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.manage]) })
       await expectApiError(withManage.json('POST', helpCenterApi.admin.send, ok1), 403, 'insufficient_scope')
       const member = await user('Member')
       await expectApiError(json(member.cookie, 'POST', helpCenterApi.admin.send, ok1), 403, 'forbidden')
+    })
+
+    it('sends for a token with help-center:send as for the cookie session', async () => {
+      await asStaff()
+      const { article } = await publishedArticle({ grants: PUBLIC })
+      const person = await user('Tokened')
+      const withSend = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.send]) })
+      const body = { articleIds: [article.id], audience: { userIds: [person.id] }, channels: ['email'] }
+      expect(await withSend.json('POST', helpCenterApi.admin.send, body)).toMatchObject({ recipients: 1, counts: { sms: 0, email: 1, none: 0 } })
+      expect(await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.send, body))).toMatchObject({ recipients: 1, counts: { sms: 0, email: 1, none: 0 } })
+    })
+
+    it('finds people for the picker with help-center:send, matching and showing emails only with help-center:pii', async () => {
+      await asStaff()
+      const person = await registerUser('Pickable Person', `pickable${++counter}@example.com`)
+      const lookup = (q: string) => `${helpCenterApi.admin.users}?q=${encodeURIComponent(q)}`
+      // The staff session holds :pii: the name and the email both match, and the email is in the answer.
+      expect(await ok(await json(staff.cookie, 'GET', lookup('Pickable')))).toEqual(expect.arrayContaining([{ id: Number(person.id), name: 'Pickable Person', avatar: null, email: `pickable${counter}@example.com` }]))
+      expect(await ok(await json(staff.cookie, 'GET', lookup(`pickable${counter}@`)))).toHaveLength(1)
+      // `send` without :pii: by name only, without the email.
+      const withSend = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.send]) })
+      const found = await withSend.json('GET', lookup('Pickable')) as Array<Record<string, unknown>>
+      expect(found).toEqual(expect.arrayContaining([{ id: Number(person.id), name: 'Pickable Person', avatar: null }]))
+      expect(await withSend.json('GET', lookup(`pickable${counter}@`))).toEqual([])
+      const withManage = apiClient({ bearer: await createToken(staff.cookie, [helpCenterAccess.permissions.manage]) })
+      await expectApiError(withManage.json('GET', lookup('Pickable')), 403, 'insufficient_scope')
+      expect((await json(staff.cookie, 'GET', helpCenterApi.admin.users)).status).toBe(400)
     })
   })
 
