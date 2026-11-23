@@ -4,6 +4,8 @@ import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
+import { adminApi } from '@frigear-nu/admin/api'
+import type { AdminSearchReindexDto } from '@frigear-nu/admin/api'
 import { usersApi } from '../src/runtime/utils/api'
 import type { AdminUserDto } from '../src/types'
 
@@ -445,6 +447,35 @@ describe('users admin', () => {
       expect((await wildcard.json() as { data: { code: string } }).data.code).toBe('insufficient_permission')
       const token = await tokenClient(member, ['profile:read'])
       await expectApiError(token.json('GET', usersApi.admin.users), 403, 'insufficient_scope')
+    })
+  })
+
+  // `@frigear-nu/admin`'s Settings > Search button: this fixture has the admin module, auth and a search index (users).
+  describe('rebuilding search (POST /api/admin/search/reindex)', () => {
+    it('runs search:reindex for an admin session and answers the rows read and rewritten per table', async () => {
+      const { tables } = await staff.json<AdminSearchReindexDto>('POST', adminApi.search.reindex)
+      expect(tables.find(table => table.table === 'users')).toEqual({ table: 'users', scanned: expect.any(Number), updated: expect.any(Number) })
+      expect(tables.find(table => table.table === 'users')!.scanned).toBeGreaterThan(0)
+      // Idempotent: a second run rewrites nothing.
+      const again = await staff.json<AdminSearchReindexDto>('POST', adminApi.search.reindex)
+      expect(again.tables.every(table => table.updated === 0)).toBe(true)
+    })
+
+    it('refuses guests, users without the permission and every API token (session only)', async () => {
+      await expectApiError(anonymous.json('POST', adminApi.search.reindex), 401)
+      await expectApiError(member.json('POST', adminApi.search.reindex), 403, 'forbidden')
+      // `search:reindex` is session only: a token cannot be given it by name (400), and a staff `*` token, which covers
+      // everything its admin holds, is still turned away.
+      const named = await staff.fetch('POST', authApi.me.tokens, { name: 'reindex', scopes: ['search:reindex'] })
+      expect(named.status).toBe(400)
+      const minted = await staff.fetch('POST', authApi.me.tokens, { name: 'everything', scopes: ['*'] })
+      expect(minted.status, await minted.clone().text()).toBe(201)
+      const holder = apiClient({ bearer: (await minted.json() as { token: string }).token })
+      await expectApiError(holder.json('POST', adminApi.search.reindex), 403, 'session_required')
+      // A token without it.
+      const other = await staff.fetch('POST', authApi.me.tokens, { name: 'read', scopes: ['users:read'] })
+      const reader = apiClient({ bearer: (await other.json() as { token: string }).token })
+      await expectApiError(reader.json('POST', adminApi.search.reindex), 403)
     })
   })
 })
