@@ -62,7 +62,7 @@ describe('crew links and api paths', () => {
   it('encodes ids in the api paths', () => {
     expect(crewApi.admin.approve('tmm_a/b')).toBe('/api/admin/crew/members/tmm_a%2Fb/approve')
     expect(crewApi.apply('summer 2030')).toBe('/api/crew/operations/summer%202030/apply')
-    expect(crewApi.me.withdraw('opr_1')).toBe('/api/crew/me/opr_1/withdraw')
+    expect(crewApi.admin.withdraw('tmm_1')).toBe('/api/admin/crew/members/tmm_1/withdraw')
   })
 })
 

@@ -27,12 +27,19 @@ export const helpCenterApi = {
     reads: `${PUBLIC_BASE}/me/reads`,
   },
   // Every admin route takes `?kind=help|faq`: lists keep to that kind, and a record of the other kind is a 404 (an
-  // article created with it must go in a category of that kind). The help center admin passes `help`, the FAQ admin `faq`.
+  // article created with it must go in a category of that kind). A `PATCH` may still move an article to a category of
+  // the other kind, or change a category's kind: the scope is the kind the record has before the change. The help center
+  // admin passes `help`, the FAQ admin `faq`.
   admin: {
-    /** `GET` (all, or `?kind=`) / `POST` categories (`kind` in the body, fixed afterwards). */
+    /** `GET` (all, or `?kind=`) / `POST` categories (`kind` in the body). */
     categories: `${ADMIN_BASE}/categories`,
-    /** `PATCH` / `DELETE` one category. */
+    /**
+     * `PATCH` / `DELETE` one category. A `PATCH` with the other `kind` changes the kind of the category, its subcategories
+     * and their articles; a change to `faq` takes those articles off the checklists.
+     */
     category: (id: string) => `${ADMIN_BASE}/categories/${enc(id)}`,
+    /** `GET` what a change of the category to the other kind affects (counts for the confirm dialog). */
+    categoryKindChange: (id: string) => `${ADMIN_BASE}/categories/${enc(id)}/kind-change`,
     /** `GET` every article of a category (drafts too), in their order. */
     categoryArticles: (id: string) => `${ADMIN_BASE}/categories/${enc(id)}/articles`,
     /** `POST` `{ articleIds }`: every article of the category, in the new order. */

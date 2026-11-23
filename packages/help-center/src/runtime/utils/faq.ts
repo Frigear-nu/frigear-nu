@@ -1,5 +1,5 @@
 import { translate } from '@frigear-nu/ui/translated'
-import type { FaqBodyLink, FaqBodyParts, FaqCardProps, HelpArticleDto, HelpFaqDto } from '../../types'
+import type { FaqBodyLink, FaqBodyParts, FaqCardProps, HelpArticleDto, HelpCategoryDisplay, HelpCategoryKind, HelpFaqDto } from '../../types'
 import { stripMarkdown } from './markdown'
 
 /**
@@ -25,6 +25,22 @@ export function faqCardProps(faq: HelpFaqDto, locale = 'en', fallback?: string):
     })),
   }
 }
+
+/** The displays that suit each kind: questions for `faq`, an article list or questions for `help`. */
+const KIND_DISPLAYS: Record<HelpCategoryKind, readonly HelpCategoryDisplay[]> = {
+  help: ['list', 'accordion'],
+  faq: ['cards', 'accordion'],
+}
+
+/** The display a category of `kind` starts with: `cards` for `faq`, `list` for `help`. */
+export const defaultHelpDisplay = (kind: HelpCategoryKind): HelpCategoryDisplay => KIND_DISPLAYS[kind][0]!
+
+/**
+ * The display a category keeps when it changes to `kind`: its own when it suits the kind, the kind's default otherwise
+ * (a `list` becomes `cards` in an FAQ, `cards` a `list` in the help center; `accordion` suits both).
+ */
+export const helpDisplayForKind = (kind: HelpCategoryKind, display: HelpCategoryDisplay): HelpCategoryDisplay =>
+  KIND_DISPLAYS[kind].includes(display) ? display : defaultHelpDisplay(kind)
 
 /** The text of an article as the parts of its card, by the text (any locale): what `splitFaqBody` made of each. */
 export type FaqBodyPartsMap = Record<string, FaqBodyParts>

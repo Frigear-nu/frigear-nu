@@ -1336,13 +1336,101 @@ describe('help center (authenticated, database-backed)', async () => {
         expect((await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.article(article.id)))).kind).toBe('faq')
       })
 
-      it('fixes the kind at create time: a PATCH that changes it is 400 kind_fixed, one that repeats it is fine', async () => {
+      it('changes a category\'s kind with its subcategories and articles, and says first what that affects', async () => {
+        const root = await createCategory()
+        const child = await createCategory({ parentId: root.id, display: 'accordion' })
+        const grandchild = await createCategory({ parentId: child.id })
+        const other = await createCategory()
+        const a = await publish((await createArticle(root.id)).id)
+        const b = await publish((await createArticle(grandchild.id)).id)
+        const outside = await publish((await createArticle(other.id)).id)
+        const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, {
+          grants: MEMBERS, name: 'Kind change', items: [{ articleId: a.id }, { articleId: b.id }, { articleId: outside.id }],
+        }))
+
+        // The preview counts the subtree, and the checklist entries a change to faq removes.
+        expect(await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categoryKindChange(root.id), 'help')))).toEqual({
+          kind: 'faq', categoryCount: 3, articleCount: 2, checklistItemCount: 2, leavesParent: false,
+        })
+        await expectApiError(json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categoryKindChange(root.id), 'faq')), 404)
+
+        // Scoped to the kind the category has before the change. A display that does not suit faq (list) becomes cards;
+        // an accordion suits both kinds and stays.
+        const changed = await ok(await json(staff.cookie, 'PATCH', scoped(helpCenterApi.admin.category(root.id), 'help'), { kind: 'faq' }))
+        expect(changed).toMatchObject({ kind: 'faq', display: 'cards' })
+        const faqs = new Map((await adminCategories('faq')).map(category => [category.id, category]))
+        expect(faqs.get(child.id)).toMatchObject({ kind: 'faq', display: 'accordion', parentId: root.id })
+        expect(faqs.get(grandchild.id)).toMatchObject({ kind: 'faq', display: 'cards', parentId: child.id })
+        expect(slugsOf(await adminCategories('help'))).not.toContain(root.slug)
+        for (const article of [a, b]) {
+          expect((await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.article(article.id), 'faq')))).kind).toBe('faq')
+        }
+        // Their checklist entries are gone; the one outside the tree stays.
+        const items = (await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.checklist(checklist.id)))).items as Json[]
+        expect(items.map(item => item.articleId)).toEqual([outside.id])
+
+        // Back to help: an explicit display wins, the subcategories' cards become a list, the accordion stays.
+        expect(await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.categoryKindChange(root.id)))).toMatchObject({ kind: 'help', checklistItemCount: 0 })
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(root.id), { kind: 'help', display: 'accordion' }))).toMatchObject({ kind: 'help', display: 'accordion' })
+        const helps = new Map((await adminCategories('help')).map(category => [category.id, category]))
+        expect(helps.get(child.id)).toMatchObject({ kind: 'help', display: 'accordion' })
+        expect(helps.get(grandchild.id)).toMatchObject({ kind: 'help', display: 'list' })
+        // Repeating the kind changes nothing else.
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(root.id), { kind: 'help', name: 'Renamed' }))).toMatchObject({ kind: 'help', name: 'Renamed' })
+      })
+
+      it('defaults the display on a kind change only when it does not suit the new kind', async () => {
+        const accordion = await createCategory({ kind: 'faq', display: 'accordion' })
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(accordion.id), { kind: 'help' }))).toMatchObject({ kind: 'help', display: 'accordion' })
+        const cards = await createCategory({ kind: 'faq' })
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(cards.id), { kind: 'help' }))).toMatchObject({ kind: 'help', display: 'list' })
+        const list = await createCategory()
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(list.id), { kind: 'faq' }))).toMatchObject({ kind: 'faq', display: 'cards' })
+      })
+
+      it('moves a subcategory whose kind changes to the top level, or below a parent of the new kind; a cross-kind parent is a 400', async () => {
         const help = await createCategory()
-        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(help.id), { kind: 'faq' }), 400, 'kind_fixed')
         const faq = await createCategory({ kind: 'faq' })
-        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { kind: 'help', name: 'Renamed' }), 400, 'kind_fixed')
-        const renamed = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { kind: 'faq', name: 'Renamed', display: 'list' }))
-        expect(renamed).toMatchObject({ kind: 'faq', name: 'Renamed', display: 'list' })
+        const child = await createCategory({ parentId: help.id })
+        expect(await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.categoryKindChange(child.id)))).toMatchObject({ leavesParent: true })
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(child.id), { kind: 'faq' }))).toMatchObject({ kind: 'faq', parentId: null })
+        const second = await createCategory({ parentId: help.id })
+        expect(await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(second.id), { kind: 'faq', parentId: faq.id }))).toMatchObject({ kind: 'faq', parentId: faq.id })
+        const third = await createCategory({ parentId: help.id })
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(third.id), { kind: 'faq', parentId: help.id }), 400)
+        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(third.id), { parentId: faq.id }), 400)
+      })
+
+      it('moves an article to a category of the other kind, which takes it off the checklists', async () => {
+        const help = await createCategory()
+        const faq = await createCategory({ kind: 'faq' })
+        const article = await publish((await createArticle(help.id)).id)
+        const checklist = await ok(await json(staff.cookie, 'POST', helpCenterApi.admin.checklists, { grants: MEMBERS, name: 'Move', items: [{ articleId: article.id }] }))
+        const moved = await ok(await json(staff.cookie, 'PATCH', scoped(helpCenterApi.admin.article(article.id), 'help'), { categoryId: faq.id }))
+        expect(moved).toMatchObject({ categoryId: faq.id, kind: 'faq' })
+        expect((await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.checklist(checklist.id)))).items).toEqual([])
+        expect(slugsOf(await adminArticles(`kind=help&q=${article.slug}`))).toEqual([])
+        expect(slugsOf(await adminArticles(`kind=faq&q=${article.slug}`))).toEqual([article.slug])
+        // And back.
+        expect(await ok(await json(staff.cookie, 'PATCH', scoped(helpCenterApi.admin.article(article.id), 'faq'), { categoryId: help.id }))).toMatchObject({ categoryId: help.id, kind: 'help' })
+      })
+
+      it('sends old links to where a category of the other kind now is', async () => {
+        const { category, article } = await publishedArticle({ grants: PUBLIC })
+        await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(category.id), { kind: 'faq' }))
+        const toQuestion = await fetch(`/help/${category.slug}/${article.slug}`, { redirect: 'manual' })
+        expect(toQuestion.status).toBe(301)
+        expect(toQuestion.headers.get('location')).toBe(`/help?faq=${article.slug}#faq-${category.slug}`)
+        const toCategory = await fetch(`/help/${category.slug}`, { redirect: 'manual' })
+        expect(toCategory.status).toBe(301)
+        expect(toCategory.headers.get('location')).toBe(`/help#faq-${category.slug}`)
+
+        // Back to help: the FAQ link of the question goes to its page again.
+        await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(category.id), { kind: 'help' }))
+        const fromFaq = await fetch(`/help?faq=${article.slug}`, { redirect: 'manual' })
+        expect(fromFaq.status).toBe(301)
+        expect(fromFaq.headers.get('location')).toBe(`/help/${category.slug}/${article.slug}`)
+        expect((await fetch(`/help/${category.slug}/${article.slug}`, { redirect: 'manual' })).status).toBe(200)
       })
 
       it('filters with ?kind= on the admin and public lists', async () => {
@@ -1399,9 +1487,8 @@ describe('help center (authenticated, database-backed)', async () => {
         expect((await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.article(faqArticle.id), 'faq')))).id).toBe(faqArticle.id)
         expect((await ok(await json(staff.cookie, 'GET', scoped(helpCenterApi.admin.categoryArticles(faq.id), 'faq')))).length).toBe(2)
 
-        // Creating in, or moving to, a category of the other kind; a parent of the other kind.
+        // Creating in a category of the other kind; a parent of the other kind. (Moving an article across kinds is allowed.)
         await expectApiError(json(staff.cookie, 'POST', scoped(helpCenterApi.admin.articles, 'help'), { categoryId: faq.id, slug: `wrong-${++counter}`, title: 'Wrong', body: 'Wrong' }), 400)
-        await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.article(helpArticle.id), { categoryId: faq.id }), 400)
         await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(faq.id), { parentId: help.id }), 400)
         await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `child-${++counter}`, name: 'Child', parentId: faq.id }), 400)
         // An FAQ question is not help center reading: never on a checklist.
