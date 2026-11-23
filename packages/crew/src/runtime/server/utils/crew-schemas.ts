@@ -54,6 +54,18 @@ export const crewMemberPatchSchema = z.object({
   role: key.optional(),
 }).refine(value => value.teamId !== undefined || value.role !== undefined, 'Change the team or the role.')
 
+/** The body of `POST /api/admin/crew/operations/:operationId/members`: who to add, and optionally the team and role. */
+export const crewAddMemberInput = z.object({
+  userId: z.number().int().positive(),
+  teamId: key.optional(),
+  role: key.optional(),
+  /** The inbox thread the person was added from: the addition goes on its audit trail (`inbox:thread:linked`). */
+  inboxThreadId: key.optional(),
+})
+
+/** The query of `GET /api/admin/crew/users`: the user search of the "Add crew member" picker. */
+export const crewUserLookupQuery = z.object({ q: z.string().trim().min(1).max(200) })
+
 /** The body of `POST /api/admin/crew/operations/:operationId/members/approve`. */
 export const crewBulkApproveInput = z.object({
   ids: z.array(key).min(1).max(200),

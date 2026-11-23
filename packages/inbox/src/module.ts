@@ -30,6 +30,7 @@ import type { BuiltInboxRegistry } from './runtime/utils/registry'
 import type {
   InboxExtension,
   InboxMessageContext,
+  InboxThreadLinkedContext,
   InboxRuntimeConfig,
   InboxThreadAssignedContext,
   InboxThreadStatusContext,
@@ -63,6 +64,12 @@ declare module 'nitropack' {
     'inbox:thread:assigned': (ctx: InboxThreadAssignedContext) => void | Promise<void>
     /** A thread's status changed: by staff, or a closed thread reopened by a new message. */
     'inbox:thread:status-changed': (ctx: InboxThreadStatusContext) => void | Promise<void>
+    /**
+     * Another module did something for the thread's person from the thread (an action on the `inbox.thread.actions`
+     * slot, such as crew's "Add to crew"). Inbox records it on the thread's audit trail (`linked`) when the actor can
+     * read and answer the thread. Modules call it without depending on inbox: nothing listens when inbox is absent.
+     */
+    'inbox:thread:linked': (ctx: InboxThreadLinkedContext) => void | Promise<void>
   }
 }
 
@@ -106,7 +113,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
-    '@frigear-nu/widget': { version: '>=0.0.0', optional: true },
+    // Renders the `inbox.thread.actions` slot of the thread page, which other modules fill (`extendWidgets`).
+    '@frigear-nu/widget': { version: '>=0.0.0' },
     // Provides the admin route and shell the staff pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
   },
@@ -266,6 +274,8 @@ declare module '#inbox/server-registry' {
       channels: ['email', 'push'],
     }])
     addServerPlugin(resolver.resolve('./runtime/server/plugins/notify'))
+    // `inbox:thread:linked`: another module's action on a thread goes on the thread's audit trail.
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/links'))
 
     // --- Retention --------------------------------------------------------------------------------------------------
     // The `inbox:retention` Nitro task, on `retention.cron` (nightly unless set; `false` registers it without a

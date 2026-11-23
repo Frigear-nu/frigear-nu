@@ -722,6 +722,14 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(actions.filter(([action]) => action === 'viewed')).toHaveLength(1)
     })
 
+    it('records another module\'s action on the thread (inbox:thread:linked) only for someone who can read it', async () => {
+      const threadId = await emailThread()
+      await as(coord).json('POST', '/api/test/link', { threadId, label: 'Summer crew' })
+      await as(crew).json('POST', '/api/test/link', { threadId, label: 'Not allowed' })
+      const log = await as(admin).json<Json>('GET', `${inboxApi.admin.audit}?threadId=${threadId}&action=linked`)
+      expect(log.items).toEqual([expect.objectContaining({ action: 'linked', actorId: coord.id, data: expect.objectContaining({ module: 'crew', kind: 'crew-member', label: 'Summer crew', userId: 42 }) })])
+    })
+
     it('exports a contact without the internal notes, and erases them', async () => {
       const exportedEmail = email({ text: 'My phone is 12345678' })
       const threadId = (await (await postEmail(exportedEmail)).json() as Json).threadId as string

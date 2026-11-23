@@ -90,7 +90,12 @@ const contactFacts = computed(() => {
 })
 
 const auditColumns = computed<TableColumn<InboxAuditDto>[]>(() => [
-  { id: 'action', header: t('audit.action', 'What'), cell: ({ row }) => t(`audit.actions.${row.original.action}`, INBOX_AUDIT_LABELS[row.original.action] ?? row.original.action) },
+  { id: 'action', header: t('audit.action', 'What'), cell: ({ row }) => {
+    const label = t(`audit.actions.${row.original.action}`, INBOX_AUDIT_LABELS[row.original.action] ?? row.original.action)
+    // A linked action (`inbox:thread:linked`) says what the other module did.
+    const detail = row.original.action === 'linked' && typeof row.original.data?.label === 'string' ? row.original.data.label : null
+    return detail ? `${label}: ${detail}` : label
+  } },
   { id: 'actor', header: t('audit.actor', 'Who'), cell: ({ row }) => row.original.actor?.name ?? (row.original.actorId ? `#${row.original.actorId}` : t('audit.system', 'System')) },
   { accessorKey: 'createdAt', header: t('audit.when', 'When'), cell: ({ row }) => h('span', { class: 'tabular-nums text-muted' }, format.dateTime(row.original.createdAt)) },
 ])
@@ -211,6 +216,13 @@ const auditColumns = computed<TableColumn<InboxAuditDto>[]>(() => [
                 @click="async () => { if (data?.contact && await actions.eraseContact(data.contact)) await refreshAll() }"
               />
             </div>
+            <!-- Other modules' actions on the thread's person (crew's "Add to crew"): `extendWidgets(nuxt, 'inbox.thread.actions', ...)`. -->
+            <WidgetArea
+              v-if="!data.contact.erasedAt"
+              name="inbox.thread.actions"
+              :context="{ threadId: thread.id, contact: data.contact, onChanged: refreshAll }"
+              grid-class="mt-3 flex flex-wrap gap-2"
+            />
           </SectionCard>
           <TableCard
             v-if="can?.audit"
