@@ -41,6 +41,14 @@ describe('resend', () => {
     await createResendDriver({ apiToken: 't', from: 'f@x.test' })({ ...mail, to: 'a@x.test' })
     expect(call(f).json.to).toEqual(['a@x.test'])
   })
+  it('passes cc on as an array, and leaves it out when there is none', async () => {
+    const f = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'f@x.test' })({ ...mail, cc: 'c@x.test' })
+    expect(call(f).json.cc).toEqual(['c@x.test'])
+    const g = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'f@x.test' })(mail)
+    expect(call(g).json).not.toHaveProperty('cc')
+  })
 })
 
 describe('cloudflare', () => {
@@ -55,6 +63,14 @@ describe('cloudflare', () => {
   })
   it('names the missing env var', async () => {
     await expect(createCloudflareDriver({ apiToken: 't', from: 'f' })(mail)).rejects.toThrow('NUXT_NOTIFY_EMAIL_CLOUDFLARE_ACCOUNT_ID')
+  })
+  it('passes cc on as an array, and leaves it out when there is none', async () => {
+    const f = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })({ ...mail, cc: ['c@x.test', 'd@x.test'] })
+    expect(call(f).json.cc).toEqual(['c@x.test', 'd@x.test'])
+    const g = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })(mail)
+    expect(call(g).json).not.toHaveProperty('cc')
   })
 })
 
@@ -74,6 +90,14 @@ describe('ses', () => {
   })
   it('names the missing env var', async () => {
     await expect(createSesDriver({ ...config, region: '' })(mail)).rejects.toThrow('NUXT_NOTIFY_EMAIL_SES_REGION')
+  })
+  it('passes cc on as CcAddresses, and leaves it out when there is none', async () => {
+    const f = mockFetch()
+    await createSesDriver(config)({ ...mail, cc: 'c@x.test' })
+    expect(call(f).json.Destination).toEqual({ ToAddresses: mail.to, CcAddresses: ['c@x.test'] })
+    const g = mockFetch()
+    await createSesDriver(config)(mail)
+    expect(call(g).json.Destination).toEqual({ ToAddresses: mail.to })
   })
 })
 

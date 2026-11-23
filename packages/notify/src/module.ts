@@ -5,19 +5,37 @@ import {
   createResolver,
   defineNuxtModule,
 } from '@nuxt/kit'
-import { inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
-import type { EmailTemplateSource, ModuleOptions, NotifyRuntimeConfig } from './types'
+import { defineVirtualRegistry, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import type { EmailTemplateSource, ModuleOptions, NotificationTopic, NotifyRuntimeConfig } from './types'
+import { notifyBuildState, storesTemplate, topicsTemplate } from './runtime/utils/topics'
 import { defu } from 'defu'
 import { joinURL } from 'ufo'
 
 export type {
+  ChannelSettings,
+  NotificationChannel,
+  NotificationChannelsDto,
+  NotificationChannelsRow,
+  NotificationChoices,
+  NotificationTopic,
+  NotificationTopicDto,
+  NotifyChoicesStore,
+  NotifyRecipient,
+  NotifyRecipientStore,
+  NotifyUserInput,
+  NotifyUserResult,
+  Translated,
   ModuleOptions,
   SimpleNotification,
   SMSNotification,
   EmailNotification,
+  PushNotification,
+  PushDispatchResult,
+  PushText,
   SimpleDriver,
   SMSDriver,
   EmailDriver,
+  PushDriver,
   EmailTemplateRef,
   EmailTemplateSource,
   NotifyEmailContext,
@@ -40,7 +58,7 @@ declare module '@nuxt/schema' {
 }
 
 // Name -> built-in driver implementation (path relative to this file + its export name). Shared
-// by every server-side notification type (email, sms, simple) since `log` means the same thing
+// by every server-side notification type (email, sms, simple, push) since `log` means the same thing
 // for all of them: log the notification instead of sending it.
 const BUILTIN_SERVER_DRIVERS: Record<string, { path: string, exportName: string }> = {
   log: { path: './runtime/drivers/log', exportName: 'logDriver' },
@@ -57,11 +75,12 @@ export default defineNuxtModule<ModuleOptions>({
     email: { driver: 'log' },
     sms: { driver: 'log' },
     simple: { driver: 'log' },
+    push: { driver: 'log' },
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
 
-    // Email/SMS/Simple Drivers
+    // Email/SMS/Simple/Push Drivers
     // Resolves each configured driver into its own virtual module any server code - in this
     // module or any consumer, e.g. `@frigear-nu/users` - can import to actually deliver that kind
     // of notification. Picking the driver is done here, once, for the whole app, rather than per
@@ -118,6 +137,7 @@ export default defineNuxtModule<ModuleOptions>({
     registerServerDriver('email-driver', 'EmailDriver', emailBuiltin ? 'auto' : emailDriver, { auto: AUTO_EMAIL_DRIVER })
     registerServerDriver('sms-driver', 'SMSDriver', options.sms?.driver ?? 'log')
     registerServerDriver('simple-driver', 'SimpleDriver', options.simple?.driver ?? 'log')
+    registerServerDriver('push-driver', 'PushDriver', options.push?.driver ?? 'log')
 
     // The `notify:email` runtime hook, generated so every server program (host and modules) sees it.
     addTypeTemplate({
@@ -133,6 +153,37 @@ export default defineNuxtModule<ModuleOptions>({
 }
 
 export {}
+`,
+    }, { nitro: true, nuxt: true })
+
+    // --- notifyUser: the topic registry and the stores ------------------------------------------------------------
+    // Modules add topics with `extendNotificationTopics`, and the stores with `setNotifyRecipientStore` (users) and
+    // `setNotifyChoicesStore` (preferences), all from `@frigear-nu/notify/utils`. Once every module is done they are
+    // bundled into virtual modules for Nitro.
+    defineVirtualRegistry(nuxt, {
+      filename: '#notify/topics',
+      target: 'server',
+      collect: (): NotificationTopic[] => notifyBuildState(nuxt)._topics ?? [],
+      contents: topics => topicsTemplate(topics),
+    })
+    defineVirtualRegistry(nuxt, {
+      filename: '#notify/stores',
+      target: 'server',
+      collect: () => ({ recipient: notifyBuildState(nuxt)._recipientStore, choices: notifyBuildState(nuxt)._choicesStore }),
+      contents: stores => storesTemplate(stores),
+    })
+    const types = JSON.stringify(resolver.resolve('./types'))
+    addTypeTemplate({
+      filename: 'types/notify-registry.d.ts',
+      getContents: () => `declare module '#notify/topics' {
+  export const topics: import(${types}).NotificationTopic[]
+}
+declare module '#notify/stores' {
+  /** The registered recipient store, or \`null\` when no module registered one. */
+  export const recipientStore: import(${types}).NotifyRecipientStore | null
+  /** The registered choices store, or \`null\` when no module registered one. */
+  export const choicesStore: import(${types}).NotifyChoicesStore | null
+}
 `,
     }, { nitro: true, nuxt: true })
 

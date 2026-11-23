@@ -29,8 +29,13 @@ export default defineNuxtConfig({
       driver: '~/server/utils/twilio-sms-driver',
     },
     simple: {
-      // Same idea, matching the `SimpleDriver` signature, for generic push notifications.
+      // Same idea, matching the `SimpleDriver` signature, for generic notifications.
       driver: 'log',
+    },
+    push: {
+      // Same idea, matching the `PushDriver` signature, for `dispatchPushNotification`.
+      // Leave it unset with `@frigear-nu/push` installed: push sets itself here, and a value set here wins.
+      // driver: '~/server/utils/my-push-driver',
     },
   },
 })
@@ -78,6 +83,13 @@ await dispatchSimpleNotification({
   text: `${user.email} just signed up.`,
 })
 ```
+
+### notifyUser
+
+`notifyUser(userId, { topic, email?, sms?, push? })` sends one user a message on the channels they chose for a topic.
+Modules declare their topics with `extendNotificationTopics(nuxt, topics)` from `@frigear-nu/notify/utils`. The
+contacts come from the recipient store `@frigear-nu/users` registers, the choices from the choices store
+`@frigear-nu/preferences` registers. See https://docs.frigear.dev/modules/communication/notify#notifying-a-user.
 
 ## Built-in email drivers: `resend`, `ses`, `cloudflare`
 

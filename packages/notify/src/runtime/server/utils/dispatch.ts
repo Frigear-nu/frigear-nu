@@ -1,6 +1,14 @@
 import smsDriver from '#notify/sms-driver'
 import simpleDriver from '#notify/simple-driver'
-import type { EmailNotification, NotifyEmailContext, SMSNotification, SimpleNotification } from '../../../types'
+import pushDriver from '#notify/push-driver'
+import type {
+  EmailNotification,
+  NotifyEmailContext,
+  PushDispatchResult,
+  PushNotification,
+  SMSNotification,
+  SimpleNotification,
+} from '../../../types'
 /**
  * Dispatches an email notification through the driver configured on the `@frigear-nu/notify`
  * module (`notify.email.driver`, see `#notify/email-driver`). Auto-imported wherever this module
@@ -33,4 +41,15 @@ export async function dispatchSMSNotification(notification: SMSNotification) {
  */
 export async function dispatchSimpleNotification(notification: SimpleNotification) {
   await simpleDriver(notification)
+}
+
+/**
+ * Dispatches a push notification to the devices of `notification.userIds` through the driver configured on the
+ * `@frigear-nu/notify` module (`notify.push.driver`, see `#notify/push-driver`; `@frigear-nu/push` when it is
+ * installed). Auto-imported wherever this module is installed, so consumers only ever build a `PushNotification` and
+ * call this. Resolves to what the driver reports (devices sent, failed), or `undefined` when it reports nothing (`log`).
+ */
+export async function dispatchPushNotification(notification: PushNotification): Promise<PushDispatchResult | undefined> {
+  if (!notification.userIds.length) return { sent: 0, failed: 0 }
+  return (await pushDriver(notification)) ?? undefined
 }
