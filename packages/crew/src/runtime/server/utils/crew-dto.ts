@@ -44,7 +44,9 @@ export function toMyCrewDto(input: { member: MemberRow, team: CrewTeamLite, oper
     operationId: team.ownerId ?? '',
     operationSlug: operation.slug,
     operationName: operation.name,
-    crewStatus: member.crewStatus as CrewStatus,
+    // A row added in teams has no crew status: it is a place on the crew, as an approved one is.
+    crewStatus: (member.crewStatus ?? 'approved') as CrewStatus,
+    source: member.crewStatus ? 'crew' : 'teams',
     teamId: team.id,
     teamName: team.name,
     role: member.role,
