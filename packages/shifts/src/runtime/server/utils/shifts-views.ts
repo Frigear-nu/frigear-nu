@@ -1,0 +1,287 @@
+import type { H3Event } from 'h3'
+import { db, schema } from '@nuxthub/db'
+import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
+import { renderSVG } from 'uqr'
+import { inChunks } from '@frigear-nu/module-kit/server'
+import type { MyShiftDetailDto, MyShiftDto, ShiftCandidateDto, ShiftPassDto, ShiftPersonDto, ShiftsLedTeamDto, ShiftsMyNowDto, ShiftsNowDto, ShiftsOperationTeamDto, ShiftSwapKind, ShiftSwapStatus, ShiftWithAssigneesDto, Translated } from '../../../types'
+import { shiftsAccess } from '../../access'
+import { scheduleSettingsOf } from '../../utils/settings'
+import { ACTIVE_ASSIGNMENT_STATUSES } from '../../utils/status'
+import { toShiftAssignmentDto, toShiftDto, toShiftPersonDto } from './shifts-dto'
+import type { ShiftRow, ShiftScheduleRow } from './shifts-dto'
+import { shiftsActiveAssignmentOf, shiftsEligibility, shiftsGuardWarningsFor, shiftsRoleById, shiftsRoleOfOr400, shiftsTeamsById, shiftsUsersById } from './shifts-core'
+import type { ShiftAssignmentEntry } from './shifts-core'
+import { shiftsCheckInOpen, shiftsPassWindow, shiftsStillEligible } from './shifts-assign'
+import { shiftsPassPerks } from './shifts-perks'
+import { shiftsStationKeyConfigured } from './shifts-station-key'
+import { checkInRuleFor } from '../../utils/checkin'
+import { shiftsWithAssignees } from './shifts-admin'
+import { findLiveShiftSwapOf, shiftsSwapDtos } from './shifts-swaps'
+
+/**
+ * My shifts in published schedules, soonest first (`from`, `to` narrow it to shifts that overlap the range). Cancelled
+ * assignments are left out.
+ */
+export async function shiftsMyShifts(userId: number, range: { from?: Date, to?: Date } = {}): Promise<MyShiftDto[]> {
+  const rows = await db.select({ assignment: schema.shiftAssignments, shift: schema.shifts, schedule: schema.shiftSchedules })
+    .from(schema.shiftAssignments)
+    .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
+    .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
+    .where(and(
+      eq(schema.shiftAssignments.userId, userId),
+      ne(schema.shiftAssignments.status, 'cancelled'),
+      eq(schema.shiftSchedules.status, 'published'),
+      range.from ? gt(schema.shifts.endsAt, range.from) : undefined,
+      range.to ? lt(schema.shifts.startsAt, range.to) : undefined,
+    ))
+    .orderBy(asc(schema.shifts.startsAt), asc(schema.shiftAssignments.id))
+    .limit(1000)
+  return shiftsMyShiftDtos(rows)
+}
+
+/** My shift DTOs of assignment entries: the operation, schedule, team and role names, and my live swap. */
+export async function shiftsMyShiftDtos(rows: ShiftAssignmentEntry[]): Promise<MyShiftDto[]> {
+  if (!rows.length) return []
+  const operationIds = [...new Set(rows.map(row => row.schedule.operationId))]
+  const roleIds = [...new Set(rows.flatMap(row => row.assignment.shiftRoleId ? [row.assignment.shiftRoleId] : []))]
+  const [operations, roles, teams, swaps] = await Promise.all([
+    inChunks(operationIds, part => db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations).where(inArray(schema.operations.id, part))),
+    inChunks(roleIds, part => db.select().from(schema.shiftRoles).where(inArray(schema.shiftRoles.id, part))),
+    shiftsTeamsById(rows.map(row => row.shift.teamId)),
+    inChunks(rows.map(row => row.assignment.id), part => db.select().from(schema.shiftSwaps).where(and(
+      inArray(schema.shiftSwaps.assignmentId, part),
+      inArray(schema.shiftSwaps.status, ['open', 'offered', 'accepted', 'pending_approval']),
+    ))),
+  ])
+  return rows.map(({ assignment, shift, schedule }) => {
+    const swap = swaps.find(item => item.assignmentId === assignment.id)
+    return {
+      assignment: toShiftAssignmentDto(assignment),
+      shift: toShiftDto(shift, schedule),
+      operationId: schedule.operationId,
+      operationName: (operations.find(item => item.id === schedule.operationId)?.name ?? schedule.operationId) as Translated,
+      scheduleName: schedule.name as Translated,
+      teamName: (teams.get(shift.teamId)?.name ?? shift.teamId) as Translated,
+      roleName: (roles.find(role => role.id === assignment.shiftRoleId)?.name ?? null) as Translated | null,
+      swap: swap ? { id: swap.id, status: swap.status as ShiftSwapStatus, kind: swap.kind as ShiftSwapKind } : null,
+      settings: scheduleSettingsOf(schedule),
+    }
+  })
+}
+
+/**
+ * The leads (lead role and up) of a team who hold a place on one of its shifts overlapping `[startsAt, endsAt)`, names only.
+ * `exclude` leaves a person out (yourself).
+ */
+export async function shiftsLeadsOnDuty(event: H3Event | undefined, teamId: string, startsAt: Date, endsAt: Date, exclude?: number): Promise<ShiftPersonDto[]> {
+  const rows = await db.select({ userId: schema.shiftAssignments.userId }).from(schema.shiftAssignments)
+    .innerJoin(schema.shifts, eq(schema.shifts.id, schema.shiftAssignments.shiftId))
+    .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
+    .where(and(
+      eq(schema.shifts.teamId, teamId),
+      eq(schema.shiftSchedules.status, 'published'),
+      inArray(schema.shiftAssignments.status, [...ACTIVE_ASSIGNMENT_STATUSES]),
+      lt(schema.shifts.startsAt, endsAt),
+      gt(schema.shifts.endsAt, startsAt),
+    ))
+  const ids = [...new Set(rows.map(row => row.userId))].filter(id => id !== exclude)
+  const leads: number[] = []
+  for (const id of ids) if (await isTeamLead(event, id, teamId)) leads.push(id)
+  const users = await shiftsUsersById(leads)
+  return leads.map(id => toShiftPersonDto(id, users.get(id), false))
+}
+
+/** One of my shifts with the leads on duty, my live swap (with its offers) and the pass window. */
+export async function shiftsMyShiftDetail(event: H3Event, entry: ShiftAssignmentEntry): Promise<MyShiftDetailDto> {
+  const [base] = await shiftsMyShiftDtos([entry])
+  const swap = await findLiveShiftSwapOf(entry.assignment.id)
+  const [swapDetail] = swap ? await shiftsSwapDtos([swap], { offers: true }) : []
+  const { opensAt, closesAt } = shiftsPassWindow(event, entry.shift)
+  return {
+    ...base!,
+    leadsOnDuty: await shiftsLeadsOnDuty(event, entry.shift.teamId, entry.shift.startsAt, entry.shift.endsAt, entry.assignment.userId),
+    swapDetail: swapDetail ?? null,
+    passOpensAt: opensAt.toISOString(),
+    passClosesAt: closesAt.toISOString(),
+  }
+}
+
+/**
+ * The QR pass of an assignment: the code (and its QR code as SVG) only while check-in is open and the assignment holds a
+ * place. The perks are added by the route (`shiftsPassPerks`).
+ */
+export function shiftsPassOf(event: H3Event, entry: ShiftAssignmentEntry): Omit<ShiftPassDto, 'perks' | 'checkIn' | 'eligible'> {
+  const { opensAt, closesAt } = shiftsPassWindow(event, entry.shift)
+  const available = (entry.assignment.status === 'assigned' || entry.assignment.status === 'attended') && shiftsCheckInOpen(event, entry.shift)
+  return {
+    assignmentId: entry.assignment.id,
+    available,
+    opensAt: opensAt.toISOString(),
+    closesAt: closesAt.toISOString(),
+    code: available ? entry.assignment.checkInCode : null,
+    svg: available ? renderSVG(entry.assignment.checkInCode, { border: 1 }) : null,
+  }
+}
+
+/**
+ * The pass of an assignment as `GET /api/shifts/me/:assignmentId/pass` answers it. Read-only: when the person no longer
+ * holds a role on the team, it is `available: false, eligible: false` with no code and no perks (`POST .../settle`
+ * cancels their future shifts there). Without a station key `checkIn.modes` leaves `station` out.
+ */
+export async function shiftsPassDto(event: H3Event, entry: ShiftAssignmentEntry): Promise<ShiftPassDto> {
+  const rule = checkInRuleFor(entry.schedule.checkIn, entry.shift.teamId)
+  const checkIn = shiftsStationKeyConfigured(event) ? rule : { ...rule, modes: rule.modes.filter(mode => mode !== 'station') }
+  const pass = { ...shiftsPassOf(event, entry), checkIn, eligible: true }
+  if (pass.available && !await shiftsStillEligible(event, entry.assignment, entry.shift.teamId)) {
+    return { ...pass, available: false, eligible: false, code: null, svg: null, perks: [] }
+  }
+  return { ...pass, perks: entry.assignment.status === 'cancelled' ? [] : await shiftsPassPerks(entry) }
+}
+
+/** A team's shifts in published schedules (`from`, `to` narrow it), with who works them; contact details only with `pii`. */
+export async function shiftsTeamShifts(teamId: string, range: { from?: Date, to?: Date }, pii: boolean): Promise<ShiftWithAssigneesDto[]> {
+  const rows = await db.select({ shift: schema.shifts, schedule: schema.shiftSchedules }).from(schema.shifts)
+    .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
+    .where(and(
+      eq(schema.shifts.teamId, teamId),
+      eq(schema.shiftSchedules.status, 'published'),
+      range.from ? gt(schema.shifts.endsAt, range.from) : undefined,
+      range.to ? lt(schema.shifts.startsAt, range.to) : undefined,
+    ))
+    .orderBy(asc(schema.shifts.startsAt), asc(schema.shifts.id))
+    .limit(1000)
+  const schedules = new Map<string, ShiftScheduleRow>(rows.map(row => [row.schedule.id, row.schedule]))
+  return shiftsWithAssignees(rows.map(row => row.shift), schedules, pii)
+}
+
+/**
+ * Who is on shift now in an operation: the shifts of its published schedules running at `at`, with the people on them
+ * (`assigned` and `attended`) and, per team, the leads among them. Contact details only with `pii`.
+ * `teamIds` narrows it to those teams in the query, so the people and leads of other teams are never loaded or resolved
+ * (finding a lead resolves the person's team roles, which costs queries per person).
+ */
+export async function shiftsNow(event: H3Event, operationId: string, pii: boolean, at = new Date(), teamIds?: string[]): Promise<ShiftsNowDto> {
+  // A short list goes into the query; a long one would pass D1's bound parameters, so it is applied below instead.
+  const inQuery = teamIds && teamIds.length <= 50
+  const rows = await db.select({ shift: schema.shifts, schedule: schema.shiftSchedules }).from(schema.shifts)
+    .innerJoin(schema.shiftSchedules, eq(schema.shiftSchedules.id, schema.shifts.scheduleId))
+    .where(and(
+      eq(schema.shiftSchedules.operationId, operationId),
+      eq(schema.shiftSchedules.status, 'published'),
+      lte(schema.shifts.startsAt, at),
+      gte(schema.shifts.endsAt, at),
+      inQuery ? inArray(schema.shifts.teamId, teamIds) : undefined,
+    ))
+    .orderBy(asc(schema.shifts.startsAt), asc(schema.shifts.id))
+    .limit(1000)
+  if (teamIds && !inQuery) rows.splice(0, rows.length, ...rows.filter(row => teamIds.includes(row.shift.teamId)))
+  const schedules = new Map<string, ShiftScheduleRow>(rows.map(row => [row.schedule.id, row.schedule]))
+  const shifts = await shiftsWithAssignees(rows.map(row => row.shift), schedules, pii)
+  const teams = await shiftsTeamsById(shifts.map(shift => shift.teamId))
+  const byTeam = new Map<string, ShiftsNowDto['teams'][number]>()
+  for (const shift of shifts) {
+    let team = byTeam.get(shift.teamId)
+    if (!team) byTeam.set(shift.teamId, team = { teamId: shift.teamId, teamName: (teams.get(shift.teamId)?.name ?? shift.teamId) as Translated, leads: [], shifts: [] })
+    const assignees = shift.assignees.filter(item => item.status === 'assigned' || item.status === 'attended')
+    const { teamName: _teamName, filled: _filled, ...rest } = shift
+    team.shifts.push({ ...rest, assignees })
+    for (const assignee of assignees) {
+      if (team.leads.some(lead => lead.userId === assignee.userId)) continue
+      if (await isTeamLead(event, assignee.userId, shift.teamId)) team.leads.push(assignee.person)
+    }
+  }
+  return { operationId, at: at.toISOString(), teams: [...byTeam.values()] }
+}
+
+/**
+ * The teams of mine that have a shift running now: for each operation I hold a team role in (explicit or mapped), the
+ * "on shift now" view narrowed to my teams. An operation I may not read the view of is left out. Names only.
+ */
+export async function shiftsMyNow(event: H3Event, userId: number, at = new Date()): Promise<ShiftsMyNowDto> {
+  const grants = (await resolveAllTeamRoles(event, userId)).filter(grant => grant.ownerType === 'operation' && grant.ownerId)
+  if (!grants.length) return { at: at.toISOString(), teams: [] }
+  const myTeamIds = new Set(grants.map(grant => grant.teamId))
+  const operationIds = [...new Set(grants.map(grant => grant.ownerId!))]
+  const operations = await db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations)
+    .where(inArray(schema.operations.id, operationIds))
+  const names = new Map(operations.map(operation => [operation.id, operation.name as Translated]))
+  const teams: ShiftsMyNowDto['teams'] = []
+  for (const operationId of operationIds) {
+    if (!names.has(operationId)) continue
+    if (!(await allows(event, shiftsAccess.permissions.read, { operationId }))) continue
+    const now = await shiftsNow(event, operationId, false, at, [...myTeamIds])
+    for (const team of now.teams) {
+      const people = new Map<number, ShiftPersonDto>()
+      for (const shift of team.shifts) for (const assignee of shift.assignees) people.set(assignee.userId, assignee.person)
+      teams.push({ operationId, operationName: names.get(operationId)!, teamId: team.teamId, teamName: team.teamName, leads: team.leads, people: [...people.values()] })
+    }
+  }
+  return { at: at.toISOString(), teams }
+}
+
+/**
+ * The people staff could assign to a shift: the explicit members of its team who hold their role (approved crew and
+ * members added in Teams), `q` matching the name, with whether they are eligible for the shift role, and the guards they
+ * would break. Mapped-only people are not listed: they cannot be assigned.
+ */
+export async function shiftsCandidates(event: H3Event, entry: { shift: ShiftRow, schedule: ShiftScheduleRow }, q: string | undefined, pii: boolean, shiftRoleId?: string): Promise<ShiftCandidateDto[]> {
+  const { shift, schedule } = entry
+  const members = await db.select({ userId: schema.teamMembers.userId, role: schema.teamMembers.role, status: schema.teamMembers.status })
+    .from(schema.teamMembers).where(eq(schema.teamMembers.teamId, shift.teamId)).limit(1000)
+  const holding = members.filter(member => teamMemberStatusGrants(member.status))
+  const users = await shiftsUsersById(holding.map(member => member.userId))
+  const needle = q?.toLowerCase()
+  // The role the person would hold: the one asked for, else the shift's own.
+  const role = shiftRoleId ? await shiftsRoleOfOr400(schedule.id, shift.teamId, shiftRoleId) : await shiftsRoleById(shift.shiftRoleId)
+  const result: ShiftCandidateDto[] = []
+  for (const member of holding) {
+    const user = users.get(member.userId)
+    if (needle && !(user?.name ?? '').toLowerCase().includes(needle) && !(pii && (user?.email ?? '').toLowerCase().includes(needle))) continue
+    const eligibility = await shiftsEligibility(event, member.userId, shift.teamId, role)
+    const assigned = !!await shiftsActiveAssignmentOf(shift.id, member.userId)
+    result.push({
+      ...toShiftPersonDto(member.userId, user, pii),
+      role: eligibility.role ?? member.role,
+      eligible: eligibility.eligible && !assigned,
+      reason: assigned ? 'assigned' : eligibility.reason === 'role' ? 'role' : null,
+      warnings: assigned ? [] : await shiftsGuardWarningsFor(event, member.userId, entry),
+    })
+  }
+  return result.sort((a, b) => Number(b.eligible) - Number(a.eligible) || (a.name ?? '').localeCompare(b.name ?? ''))
+}
+
+/** The teams of operations a user leads (a role at or above the ladder's `leadFrom`, explicit or mapped). */
+export async function shiftsLedTeams(event: H3Event, userId: number): Promise<ShiftsLedTeamDto[]> {
+  const grants = (await resolveAllTeamRoles(event, userId)).filter(grant => grant.ownerType === 'operation' && grant.ownerId)
+  const led: typeof grants = []
+  for (const grant of grants) if (await isTeamLead(event, userId, grant.teamId)) led.push(grant)
+  if (!led.length) return []
+  const [teams, operations] = await Promise.all([
+    shiftsTeamsById(led.map(grant => grant.teamId)),
+    db.select({ id: schema.operations.id, name: schema.operations.name }).from(schema.operations).where(inArray(schema.operations.id, led.map(grant => grant.ownerId!))),
+  ])
+  return led.map(grant => ({
+    teamId: grant.teamId,
+    teamName: (teams.get(grant.teamId)?.name ?? grant.teamId) as Translated,
+    operationId: grant.ownerId!,
+    operationName: (operations.find(item => item.id === grant.ownerId)?.name ?? grant.ownerId!) as Translated,
+  }))
+}
+
+/** The teams of an operation, in the order staff set, with their kind's ladder: what the Shifts tab's forms need. */
+export async function shiftsOperationTeams(event: H3Event, operationId: string): Promise<ShiftsOperationTeamDto[]> {
+  const [rows, ladders] = await Promise.all([
+    db.select().from(schema.teams).where(and(eq(schema.teams.ownerType, 'operation'), eq(schema.teams.ownerId, operationId)))
+      .orderBy(asc(schema.teams.sort), asc(schema.teams.createdAt), asc(schema.teams.id)),
+    loadTeamLadders(event),
+  ])
+  return rows.map((team) => {
+    const ladder = ladders[team.kind]
+    return {
+      id: team.id,
+      kind: team.kind,
+      name: team.name as Translated,
+      ladder: ladder ? { roles: ladder.roles.map(role => ({ key: role.key, label: role.label as Translated })), leadFrom: ladder.leadFrom ?? null } : null,
+    }
+  })
+}
