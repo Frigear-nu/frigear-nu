@@ -24,8 +24,8 @@ export const useAccount = () => {
     }
   }
 
-  /** `avatar: null` clears the avatar; leaving it out keeps it. */
-  function updateProfileDetails(payload: { name?: string, avatar?: string | null }) {
+  /** `avatar: null` (or `phone: null`, `locale: null`) clears it; leaving it out keeps it. */
+  function updateProfileDetails(payload: { name?: string, avatar?: string | null, phone?: string | null, locale?: string | null }) {
     return withRequest(
       () => $fetch<ProfileDto>(usersApi.me.profile, { method: 'PATCH', body: payload }),
       'Failed to update your profile.',

@@ -44,8 +44,8 @@
     },
     "profile": {
       "details": {
-        "title": "Navn og avatar",
-        "description": "Sådan ser andre dig."
+        "title": "Dine oplysninger",
+        "description": "Sådan ser andre dig, og sådan når vi dig."
       },
       "name": {
         "label": "Navn",
@@ -78,7 +78,17 @@
       },
       "save": "Gem profil",
       "saved": "Profil opdateret",
-      "saveFailed": "Kunne ikke opdatere din profil."
+      "saveFailed": "Kunne ikke opdatere din profil.",
+      "phone": {
+        "label": "Telefon",
+        "description": "Til sms'er. Kun personale, der har brug for det, kan se det.",
+        "invalid": "Angiv et telefonnummer med cifre, mellemrum og + - ( )."
+      },
+      "locale": {
+        "label": "Sprog",
+        "description": "Det sprog, vi skriver til dig på: e-mails, sms'er og notifikationer.",
+        "none": "Ikke valgt"
+      }
     },
     "documents": {
       "title": "Dokumenter",

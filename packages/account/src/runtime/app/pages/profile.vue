@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from '@frigear-nu/users/api'
 import AccountChangeEmailSlideover from '../components/Account/AccountChangeEmailSlideover.vue'
-import { computed, reactive, ref, useAccount, useAction, useModuleT, useOverlay, useRoute, useToast, useUserSession, watch } from '#imports'
+import { PROFILE_NO_LOCALE as NO_LOCALE, profileChanges } from '../utils/profile'
+import { computed, reactive, ref, useAccount, useAction, useModuleT, useNuxtApp, useOverlay, useRoute, useToast, useUserSession, watch } from '#imports'
 
 defineOptions({ name: 'AccountProfilePage' })
 
@@ -11,6 +13,13 @@ const toast = useToast()
 const route = useRoute()
 const { user } = useUserSession()
 const { updateProfileDetails } = useAccount()
+const { $i18n } = useNuxtApp() as unknown as { $i18n?: { locales: { value: Array<string | { code: string, name?: string }> } } }
+
+// The app's languages (`@nuxtjs/i18n`): the only ones the server accepts for `locale`. Without i18n the row is hidden.
+const localeItems = computed(() => {
+  const locales = ($i18n?.locales.value ?? []).map(locale => typeof locale === 'string' ? { value: locale, label: locale } : { value: locale.code, label: locale.name || locale.code })
+  return locales.length ? [{ value: NO_LOCALE, label: t('locale.none', 'Not set') }, ...locales] : []
+})
 
 const schema = z.object({
   name: z.string().trim().min(1, t('name.required', 'Please enter your name.')),
@@ -19,31 +28,45 @@ const schema = z.object({
     z.literal(''),
     z.url({ protocol: /^https?$/, message: t('avatar.invalid', 'Enter a valid URL.') }).max(2048, t('avatar.invalid', 'Enter a valid URL.')),
   ]).optional(),
+  // The server's rule, imported from `@frigear-nu/users`: digits, spaces and `+-().`; empty clears it.
+  phone: z.string().trim().max(USER_PHONE_MAX_LENGTH).regex(USER_PHONE_PATTERN, t('phone.invalid', 'Enter a phone number of digits, spaces and + - ( ).')).optional(),
 })
 type Schema = z.output<typeof schema>
 
-const state = reactive<{ name: string, avatar: string }>({
+// The session carries the stored user, so the phone number and the language (`users` columns) are read from it like
+// the avatar.
+const sessionText = (key: 'phone' | 'locale') => {
+  const value = (user.value as Record<string, unknown> | null)?.[key]
+  return typeof value === 'string' ? value : ''
+}
+const state = reactive<{ name: string, avatar: string, phone: string, locale: string }>({
   name: user.value?.name ?? '',
   avatar: user.value?.avatar ?? '',
+  phone: sessionText('phone'),
+  locale: sessionText('locale') || NO_LOCALE,
 })
 
 // Only sync from the session when the user has no unsaved edits, so a background refresh never clobbers typing.
-const saved = computed(() => ({ name: user.value?.name ?? '', avatar: user.value?.avatar ?? '' }))
+const saved = computed(() => ({ name: user.value?.name ?? '', avatar: user.value?.avatar ?? '', phone: sessionText('phone'), locale: sessionText('locale') || NO_LOCALE }))
 let lastSynced = { ...saved.value }
 watch(saved, (next) => {
-  const pristine = state.name === lastSynced.name && state.avatar === lastSynced.avatar
+  const pristine = state.name === lastSynced.name && state.avatar === lastSynced.avatar && state.phone === lastSynced.phone && state.locale === lastSynced.locale
   lastSynced = { ...next }
   if (pristine) {
     state.name = next.name
     state.avatar = next.avatar
+    state.phone = next.phone
+    state.locale = next.locale
   }
 })
-const dirty = computed(() => state.name !== saved.value.name || state.avatar !== saved.value.avatar)
+const dirty = computed(() => state.name !== saved.value.name || state.avatar !== saved.value.avatar || state.phone.trim() !== saved.value.phone || state.locale !== saved.value.locale)
 
 const profileAction = useAction()
 function onSubmitProfile(event: FormSubmitEvent<Schema>) {
+  // The language is only sent when the app offers a choice and the user changed it (`profileChanges`).
+  const body = profileChanges({ ...event.data, avatar: event.data.avatar ?? '', phone: event.data.phone ?? '', locale: state.locale }, saved.value, { localeChoice: localeItems.value.length > 0 })
   return profileAction.run(
-    () => updateProfileDetails({ name: event.data.name, avatar: event.data.avatar || null }),
+    () => updateProfileDetails(body),
     { success: t('saved', 'Profile updated'), error: t('saveFailed', 'Could not update your profile.') },
   )
 }
@@ -93,8 +116,8 @@ async function onChangeEmail() {
     />
 
     <SectionCard
-      :title="t('details.title', 'Name and avatar')"
-      :description="t('details.description', 'How you appear to others.')"
+      :title="t('details.title', 'Your details')"
+      :description="t('details.description', 'How you appear to others and how we reach you.')"
     >
       <UForm
         id="account-profile"
@@ -135,6 +158,30 @@ async function onChangeEmail() {
               />
             </template>
           </UInput>
+        </FormRow>
+        <FormRow
+          name="phone"
+          :label="t('phone.label', 'Phone')"
+          :description="t('phone.description', 'For text messages. Only staff who need it can see it.')"
+        >
+          <UInput
+            v-model="state.phone"
+            type="tel"
+            autocomplete="tel"
+            class="w-full"
+          />
+        </FormRow>
+        <FormRow
+          v-if="localeItems.length"
+          name="locale"
+          :label="t('locale.label', 'Language')"
+          :description="t('locale.description', 'The language we write to you in: emails, texts and notifications.')"
+        >
+          <USelect
+            v-model="state.locale"
+            :items="localeItems"
+            class="w-full"
+          />
         </FormRow>
       </UForm>
       <template #footer>

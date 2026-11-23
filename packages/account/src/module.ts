@@ -20,6 +20,7 @@ import {
   inlineModuleRuntime,
   addOptionalImports,
 } from '@frigear-nu/module-kit/utils'
+import { guardPages, localizedRoutePatterns } from '@frigear-nu/auth/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 import { withAppMiddleware, type AppMiddlewareRule } from './route-middleware'
 
@@ -135,14 +136,12 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'account-api-tokens', path: apiTokensPath, file: './runtime/app/pages/api-tokens.vue' },
     ])
 
-    // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
-    const prefixes = ['', ...(nuxt.options.i18n?.locales ?? [])
-      .map(locale => typeof locale === 'string' ? locale : locale.code)
-      .map(code => `/${code}`)]
     // Configured pages outside `/account` (e.g. `pages.profile: '/me'`) belong to the area as well.
     const outside = [indexPath, profilePath, securityPath, documentsPath, apiTokensPath]
       .filter((path): path is string => !!path && path !== '/account' && !path.startsWith('/account/'))
-    const areaPatterns = prefixes.flatMap(prefix => [`${prefix}/account`, `${prefix}/account/**`, ...outside.map(path => `${prefix}${path}`)])
+    // With @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
+    const areaBase = ['/account', '/account/**', ...outside]
+    const areaPatterns = localizedRoutePatterns(nuxt, areaBase)
 
     // Every account page (including those other modules add under /account: membership, tickets, applications) gets
     // the account shell unless it chose a layout itself. A route rule rather than page meta, so registration order
@@ -165,10 +164,7 @@ export default defineNuxtModule<ModuleOptions>({
     // (membership, tickets, applications). Route rules are enforced by @frigear-nu/authorization (also on the
     // server); with @nuxtjs/i18n every page also exists under `/<locale>/...`, so rules apply to each prefix.
     if (hasNuxtModule('@frigear-nu/authorization')) {
-      const rules = nuxt.options.routeRules ||= {}
-      for (const pattern of areaPatterns) {
-        rules[pattern] = { authenticated: true, ...rules[pattern] } as (typeof rules)[string]
-      }
+      guardPages(nuxt, areaBase)
     }
     else {
       console.warn('[@frigear-nu/account] @frigear-nu/authorization is not installed: the account pages are not guarded. Install it and guard `/account/**` yourself.')
