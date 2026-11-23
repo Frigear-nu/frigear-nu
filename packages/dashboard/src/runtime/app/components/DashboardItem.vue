@@ -10,8 +10,8 @@ import { dashboardSpanClass } from '../utils/span'
 
 /**
  * The frame of one dashboard item: its title with a collapse toggle, the item's component, a skeleton while the item
- * reports `loading` and an error with a retry. Provides `useDashboardItem()` to the component. In `editing` mode it
- * shows the buttons to move and hide the item (the dashboard handles the events).
+ * reports `loading`, an error with a retry, and nothing while it reports `empty`. Provides `useDashboardItem()` to the
+ * component. In `editing` mode it shows the buttons to move and hide the item (the dashboard handles the events).
  */
 const props = defineProps<{
   item: DashboardEntry
@@ -36,6 +36,7 @@ const label = computed(() => props.item.title ?? props.item.id)
 
 const loading = ref(false)
 const error = ref<unknown>(null)
+const empty = ref(false)
 const renderKey = ref(0)
 let refreshHandler: (() => unknown) | undefined
 
@@ -45,6 +46,7 @@ const itemContext: DashboardItemContext = {
   id: props.item.id,
   loading,
   error,
+  empty,
   collapsed,
   settings: computed(() => layout.value.settings?.[props.item.id] ?? {}),
   setSettings: value => update(current => setItemSettings(current, props.item.id, value)),
@@ -70,7 +72,9 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
 </script>
 
 <template>
+  <!-- An item with nothing to show (`empty`) stays mounted, so it can come back, but takes no place in the grid. -->
   <div
+    v-show="editing || !empty || !!error"
     :class="['flex min-w-0 flex-col gap-2', dashboardSpanClass(item.span)]"
     :data-dashboard-item="item.id"
   >

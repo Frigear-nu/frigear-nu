@@ -19,12 +19,15 @@ which roles may sign in where and which scopes a user may hand to an application
 
 - **Pages.**
   - The consent screen at `/authorize`, where a person allows an app to sign them in. On by default.
-  - The signed-in user's applications at `/account/applications`. Opt-in.
+  - The signed-in user's applications at `/account/applications`, or `/dashboard/apps` in the hub of
+    [Dashboard](/modules/interface/dashboard). Opt-in.
+- **Dashboard item.** **Your apps** first on the hub's dashboard: a card per application the user may sign in to,
+  opening it in a new tab. On when Dashboard is installed with its hub.
 - **Admin area.**
   - An **OAuth** area with two tabs: **Applications** at `/admin/oauth` to create, edit and disable applications, and
     **Scopes** at `/admin/oauth/scopes` to define scopes. Opt-in, and only with [Admin](/modules/interface/admin).
-  - Menu items in the account menu and the admin sidebar, with [Menu](/modules/interface/menu). On when Menu is
-    installed.
+  - Menu items in the account menu (or the hub's `dashboard` menu) and the admin sidebar, with
+    [Menu](/modules/interface/menu). On when Menu is installed.
 - **Server routes.**
   - The standard OAuth and OIDC endpoints: discovery, signing keys, authorize, token, revoke and userinfo. On by
     default.
@@ -147,7 +150,8 @@ Options go under the `oauthServer` key.
 | `clients` | `OAuthConfiguredClient[]` | `[]` | [Configured clients](/guide/concepts/glossary): public OAuth applications with a fixed `client_id`. |
 | `settings.pages.authorize` | `string \| boolean` | `true` (`/authorize`) | The consent screen. `false` lets you put your own page at `/authorize`. |
 | `settings.pages.admin` | `string \| boolean` | off | The admin screen for OAuth applications. `true` is `/admin/oauth`. |
-| `settings.pages.applications` | `string \| boolean` | off | The signed-in user's applications. `true` is `/account/applications`. |
+| `settings.pages.applications` | `string \| boolean` | off | The signed-in user's applications. `true` is `/dashboard/apps` with the Dashboard hub, else `/account/applications`. |
+| `settings.dashboard` | `string \| false` | the hub's dashboard | Where the **Your apps** item goes, with Dashboard installed. `false` adds none. |
 | `settings.signInPath` | `string` | the Auth login page | Where signed-out people are sent to sign in. |
 | `settings.pages.scopes` | `string \| boolean` | `<admin>/scopes` | The admin screen for scopes. On when the applications screen is. `false` turns it off. |
 | `settings.roleScopes` | `Record<string, string[]>` | unset | The most each role may grant to an application. Unset means no cap. |
@@ -189,6 +193,17 @@ origin](/modules/identity/oauth-server/routes-and-clients#calling-from-a-browser
 [Configured clients](/modules/identity/oauth-server/routes-and-clients#configured-clients).
 
 **`settings.pages.admin`** is registered only when [Admin](/modules/interface/admin) is installed.
+
+**`settings.pages.applications`** set to `true` puts the page in the signed-in hub of
+[Dashboard](/modules/interface/dashboard) when its hub is on: `/dashboard/apps`, titled **Apps** and listed in the hub's
+`dashboard` menu, while `/account/applications` redirects there. Without the hub it is `/account/applications`, listed
+in the account menu. A path of your own is kept as it is, in the hub's menu only when it is below the hub. Link to the
+page with `useRuntimeConfig().public.oauthServer.pages.applications`.
+
+**`settings.dashboard`** places **Your apps** (`oauth-server.apps`, order 5, the full width, web only). It is a card per
+application the user may sign in to, sorted by priority, that opens the application in a new tab. With no applications
+the item leaves the dashboard. Dashboard is not a package dependency of OAuth Server: the module loads it from your app
+when you install it.
 
 ### Runtime config
 

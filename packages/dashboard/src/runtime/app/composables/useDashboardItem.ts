@@ -9,6 +9,11 @@ export interface DashboardItemContext {
   loading: Ref<boolean>
   /** Set by the item when its data failed: the frame shows the error with a retry button. */
   error: Ref<unknown>
+  /**
+   * Set by the item when it has nothing to show this viewer (no apps, no mailbox): the frame, title included, is left
+   * out of the grid until it has something, except while the user edits the layout.
+   */
+  empty: Ref<boolean>
   /** Whether the user collapsed the item. A collapsed item is not rendered. */
   collapsed: ComputedRef<boolean>
   /** The user's settings of this item (stored in their layout). */
@@ -33,6 +38,7 @@ function standalone(): DashboardItemContext {
     id: '',
     loading: ref(false),
     error,
+    empty: ref(false),
     collapsed: computed(() => false),
     settings: computed(() => settings.value),
     setSettings: async (value) => {

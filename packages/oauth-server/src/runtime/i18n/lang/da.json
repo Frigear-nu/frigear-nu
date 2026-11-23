@@ -5,6 +5,10 @@
         "label": "Applikationer",
         "description": "Applikationer du kan logge ind på."
       },
+      "apps": {
+        "label": "Apps",
+        "description": "Applikationer du kan logge ind på."
+      },
       "admin": {
         "label": "OAuth",
         "description": "Applikationer, der logger ind med dette site, og de scopes, de kan bede om."
@@ -213,6 +217,9 @@
         "version": "Version {version}",
         "permissionsPlaceholder": "Søg i tilladelser..."
       }
+    },
+    "dashboard": {
+      "apps": "Dine apps"
     }
   }
 }

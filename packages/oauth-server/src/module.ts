@@ -6,8 +6,11 @@ import {
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
+  tryResolveModule,
   useLogger,
 } from '@nuxt/kit'
+import type { Nuxt } from '@nuxt/schema'
+import { pathToFileURL } from 'node:url'
 import {
   addModuleRoutes,
   registerDatabaseTable,
@@ -19,15 +22,19 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   registerBootstrapProvider,
+  addPageRedirects,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addScope, isKnownScope, registerAccess, validateRoleScopes } from '@frigear-nu/auth/utils'
 import { oauthAccess } from './runtime/access'
+import { oauthDashboardItems, type OAuthDashboardUtils } from './runtime/dashboard'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
 import { OIDC_SCOPES, configuredClientWarnings, isExactOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
 import { loadOrCreateDevSigningKey } from './dev-key'
+import { resolveApplicationsPage } from './applications-page'
 import type {
   ApplicationAccessContext,
   ClaimsContext,
@@ -87,6 +94,21 @@ function useDevSigningKey(rootDir: string): string | undefined {
   }
 }
 
+/**
+ * The build-time utils of `@frigear-nu/dashboard`, resolved from the app (where the module is installed) rather than
+ * declared as a dependency: dashboard's own tests depend on Preferences, whose tests depend on this module, so a package
+ * dependency back on dashboard would be a workspace cycle.
+ */
+async function importDashboardUtils(nuxt: Nuxt): Promise<OAuthDashboardUtils | undefined> {
+  const from = [nuxt.options.rootDir, ...nuxt.options.modulesDir].map(dir => pathToFileURL(`${dir.replace(/\/$/, '')}/`).href)
+  const path = await tryResolveModule('@frigear-nu/dashboard/utils', from)
+  if (!path) {
+    useLogger(MODULE_NAME).warn('`@frigear-nu/dashboard` is installed but its utils could not be resolved from the app: skipping the "Your apps" item.')
+    return undefined
+  }
+  return await import(path) as OAuthDashboardUtils
+}
+
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'oauthServer' },
   defaults: {
@@ -110,8 +132,10 @@ export default defineNuxtModule<ModuleOptions>({
     // Provides the admin shell (layout, nav groups) the admin page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    // The signed-in hub: the applications page lives in it, and its dashboard gets the "Your apps" item.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
   },
-  setup(options, nuxt) {
+  async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     // `oauth:read` (self-service) and `oauth:manage` (`runtime/access.ts`).
     registerAccess(nuxt, oauthAccess)
@@ -139,7 +163,13 @@ export default defineNuxtModule<ModuleOptions>({
     const scopesPath = hasNuxtModule('@frigear-nu/admin')
       ? resolvePagePath(settings.pages?.scopes ?? (adminPath ? `${adminPath.replace(/\/+$/, '')}/scopes` : undefined), adminRoute(nuxt, 'oauth', 'scopes'))
       : undefined
-    const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
+    // The applications are an area of the signed-in hub of `@frigear-nu/dashboard` when there is one (`/dashboard/apps`,
+    // in its layout, guard and `dashboard` menu), else a section of the account (`/account/applications`).
+    const hub = resolveDashboardHubPath(nuxt)
+    const applicationsPage = resolveApplicationsPage(settings.pages?.applications, hub)
+    const applicationsPath = applicationsPage.path
+    // The page moved into the hub by default: the old address redirects there.
+    if (applicationsPage.redirectFrom && applicationsPath) addPageRedirects(nuxt, { [applicationsPage.redirectFrom]: applicationsPath })
 
     const accessTokenTtl = options.accessTokenTtl ?? 900
     if (!Number.isSafeInteger(accessTokenTtl) || accessTokenTtl <= 0) {
@@ -257,6 +287,7 @@ export default defineNuxtModule<ModuleOptions>({
         scopes: scopesPath,
         applications: applicationsPath,
       },
+      applicationsMenu: applicationsPage.menu,
     }
 
     // --- Database -------------------------------------------------------------------------
@@ -334,5 +365,12 @@ export default defineNuxtModule<ModuleOptions>({
     ])
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
+
+    // "Your apps" on the hub's dashboard (or `settings.dashboard`), the applications the user can open from there.
+    if (settings.dashboard !== false && hasNuxtModule('@frigear-nu/dashboard')) {
+      const dashboardUtils = await importDashboardUtils(nuxt)
+      const dashboard = settings.dashboard ?? (hub && dashboardUtils ? dashboardUtils.resolveHubDashboardName(nuxt) : undefined)
+      if (dashboard && dashboardUtils) dashboardUtils.extendDashboard(nuxt, dashboard, oauthDashboardItems(path => resolver.resolve(path)))
+    }
   },
 })

@@ -325,6 +325,28 @@ describe('upgradeWorkspace', () => {
     expect(await read('apps/web/app/components/TicketsLink.vue')).toContain('/account/tickets')
   })
 
+  it('lists links to /account/applications and an applications page that moves into the dashboard hub', async () => {
+    await write('apps/web/package.json', '{ "dependencies": { "@frigear-nu/oauth-server": "0.8.0" } }\n')
+    await write('apps/web/nuxt.config.ts', [
+      'export default defineNuxtConfig({',
+      '  modules: [\'@frigear-nu/oauth-server\', \'@frigear-nu/dashboard\'],',
+      '  oauthServer: { settings: { pages: { applications: true } } },',
+      '})',
+      '',
+    ].join('\n'))
+    await write('apps/web/app/components/AppsLink.vue', '<template><ULink to="/account/applications">Apps</ULink></template>\n')
+    await write('apps/site/package.json', '{ "dependencies": { "@frigear-nu/oauth-server": "0.8.0" } }\n')
+    await write('apps/site/nuxt.config.ts', 'export default defineNuxtConfig({ modules: [\'@frigear-nu/oauth-server\'], oauthServer: { settings: { pages: { applications: true } } } })\n')
+    const { report } = await upgradeWorkspace({ cwd: root, resolveLatest: async name => ({ ...latest, '@frigear-nu/oauth-server': '0.9.0' })[name], dryRun: true })
+    expect(report).toContain('The applications page moved to /dashboard/apps')
+    expect(report).toContain('apps/web/app/components/AppsLink.vue:1')
+    expect(report).toContain('apps/web/nuxt.config.ts: `oauthServer.settings.pages.applications: true` is `/dashboard/apps` now')
+    // Without the dashboard the page stays in the account.
+    expect(report).not.toContain('apps/site/nuxt.config.ts')
+    // A dry run lists, it never rewrites (and this rule only lists).
+    expect(await read('apps/web/app/components/AppsLink.vue')).toContain('/account/applications')
+  })
+
   it('moves patched dependencies and their patch files', async () => {
     await write('pnpm-workspace.yaml', 'packages:\n  - \'apps/*\'\npatchedDependencies:\n  \'@frigear-nu/auth@0.5.0\': patches/@frigear-nu__auth@0.5.0.patch\n')
     await write('patches/@frigear-nu__auth@0.5.0.patch', 'diff\n')

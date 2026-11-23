@@ -10,7 +10,7 @@ import {
   menuPermission,
   usersPermissions,
 } from './permissions.ts'
-import { authRoutes, eventsTicketsPage, usersRoutes } from './routes.ts'
+import { authRoutes, eventsTicketsPage, oauthServerApplicationsPage, usersRoutes } from './routes.ts'
 import { authSessionSecret } from './session.ts'
 
 /**
@@ -32,4 +32,5 @@ export const migrations: Migration[] = [
   accountPermission,
   usersPermissions,
   eventsTicketsPage,
+  oauthServerApplicationsPage,
 ]

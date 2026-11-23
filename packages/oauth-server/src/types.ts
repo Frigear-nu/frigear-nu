@@ -195,9 +195,17 @@ export type ModuleOptions = {
       admin?: string | boolean
       /** Admin UI for scopes. Defaults to `<admin>/scopes` when the applications admin is on; `false` turns it off. */
       scopes?: string | boolean
-      /** The signed-in user's applications. `true` = `/account/applications`. Needs `@nuxt/ui`. */
+      /**
+       * The signed-in user's applications. `true` = `<hub>/apps` (`/dashboard/apps`) when the signed-in hub of
+       * `@frigear-nu/dashboard` is on, else `/account/applications`. Needs `@nuxt/ui`.
+       */
       applications?: string | boolean
     }
+    /**
+     * The "Your apps" item (`oauth-server.apps`) goes on this dashboard when `@frigear-nu/dashboard` is installed.
+     * Defaults to the hub's dashboard (`dashboard.settings.home.dashboard`) when the hub is on; `false` adds none.
+     */
+    dashboard?: string | false
     /** Where unauthenticated users are sent to sign in. Defaults to the `@frigear-nu/users` login page. */
     signInPath?: string
     /**
@@ -313,6 +321,8 @@ export type OAuthServerRuntimeConfig = {
 
 export type PublicModuleOptions = {
   pages: { authorize?: string, admin?: string, scopes?: string, applications?: string }
+  /** The menu the applications page is listed in: `dashboard` when it lives in the signed-in hub, else `account`. */
+  applicationsMenu?: 'account' | 'dashboard'
 }
 
 /** The user as read from the `users` table (including columns the host added through `extend.sqlite.ts`). */
