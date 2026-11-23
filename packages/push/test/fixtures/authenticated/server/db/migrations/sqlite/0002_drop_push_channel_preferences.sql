@@ -1,1 +1,0 @@
-DROP TABLE `push_channel_preferences`;
