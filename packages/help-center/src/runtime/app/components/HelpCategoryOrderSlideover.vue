@@ -15,6 +15,7 @@ const tr = useHelpCenterTranslate()
 const changed = ref(false)
 
 const { data, status, error, refresh } = useFetch<StaffHelpArticle[]>(helpCenterApi.admin.categoryArticles(props.category.id), {
+  query: { kind: props.category.kind },
   key: `help-center:admin:category-articles:${props.category.id}`,
   default: () => [],
 })

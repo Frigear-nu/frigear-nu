@@ -7,7 +7,7 @@ import { useHelpArticlePublish } from './useHelpArticlePublish'
 import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay } from '#imports'
 
 export type HelpArticleMenuOptions = {
-  /** The categories, for the category picker of the form. */
+  /** The categories, for the category picker of the form: only those of the page's kind. */
   categories: () => StaffHelpCategory[]
   /** Runs after the article was changed, deleted, published or unpublished (refresh the list). */
   onChanged?: () => unknown
@@ -44,7 +44,7 @@ export function useHelpArticleActions() {
 
   async function unpublish(article: StaffHelpArticle): Promise<StaffHelpArticle | false> {
     const draft = await run(
-      () => $fetch<StaffHelpArticle>(helpCenterApi.admin.unpublish(article.id), { method: 'POST' }),
+      () => $fetch<StaffHelpArticle>(helpCenterApi.admin.unpublish(article.id), { method: 'POST', query: { kind: article.kind } }),
       { success: t('admin.unpublished', 'Unpublished {name}', { name: tr(article.title) }), error: t('admin.unpublishFailed', 'Could not unpublish the article') },
     )
     return draft ?? false
@@ -60,7 +60,7 @@ export function useHelpArticleActions() {
     })
     if (!confirmed) return false
     const done = await run(
-      () => $fetch(helpCenterApi.admin.article(article.id), { method: 'DELETE' }).then(() => true),
+      () => $fetch(helpCenterApi.admin.article(article.id), { method: 'DELETE', query: { kind: article.kind } }).then(() => true),
       { success: t('admin.articleDeleted', 'Deleted {name}', { name }), error: t('admin.articleDeleteFailed', 'Could not delete the article') },
     )
     return done === true

@@ -20,6 +20,13 @@ export type HelpSourceId = string
  */
 export type HelpCategoryDisplay = 'list' | 'accordion' | 'cards'
 
+/**
+ * What a category is for: `help` holds the help center's own articles (its pages, search and checklists), `faq` the
+ * questions embedded on the site's pages (shown on the help center home in an FAQ section of their own). Set when the
+ * category is created and fixed afterwards. The help center admin works with `help` only, the FAQ admin with `faq`.
+ */
+export type HelpCategoryKind = 'help' | 'faq'
+
 /** A button of a `cards` article, from a `::faq-link{...}` block of its text: the props Nuxt UI's `UButton` takes. */
 export type FaqBodyLink = {
   label?: string
@@ -184,6 +191,8 @@ export type HelpCategoryDto = {
   /** Anonymous visitors may read the category (it and every ancestor hold a `public` grant). */
   public: boolean
   source: HelpSourceId
+  /** `help` or `faq`, fixed when the category is created. */
+  kind: HelpCategoryKind
   /** How the category page shows its articles. */
   display: HelpCategoryDisplay
   /** An icon name such as `i-lucide-info`, or `null`. */
@@ -196,6 +205,8 @@ export type HelpArticleSummaryDto = {
   slug: string
   title: Translated
   categorySlug: string
+  /** The kind of its category: `faq` articles are questions of an FAQ, not pages of their own. */
+  kind: HelpCategoryKind
   source: HelpSourceId
   /** Anonymous visitors may read the article (its category is public and it does not narrow that). */
   public: boolean
@@ -245,6 +256,8 @@ export type AdminHelpArticleDto = {
   body: Translated
   categoryId: string | null
   categorySlug: string
+  /** The kind of its category. */
+  kind: HelpCategoryKind
   status: HelpArticleStatus
   /** `null`: the article inherits its category. Otherwise it narrows the category. */
   grants: Grant[] | null
@@ -365,7 +378,14 @@ export type HelpSourceContext = {
 }
 
 /** A category a source knows. `visible` says whether this reader may read it; hidden ones still claim their slug. */
-export type HelpSourceCategory = HelpCategoryDto & { visible: boolean }
+export type HelpSourceCategory = Omit<HelpCategoryDto, 'kind'> & {
+  visible: boolean
+  /** `help` when left out: a source's own categories are help categories unless it says otherwise. */
+  kind?: HelpCategoryKind
+}
+
+/** An article a source returns. `kind` is filled in from its category when the sources are merged. */
+export type HelpSourceArticle = Omit<HelpArticleDto, 'kind'> & { kind?: HelpCategoryKind }
 
 export type HelpSourceListContext = HelpSourceContext & {
   /** Only articles whose title or text contains this, in any language. */
@@ -384,11 +404,11 @@ export type HelpCenterSource = {
   /** Read-only sources cannot be edited in admin. */
   readOnly: boolean
   /** The published articles the viewer may read. */
-  list: (ctx: HelpSourceListContext) => Promise<HelpArticleDto[]> | HelpArticleDto[]
+  list: (ctx: HelpSourceListContext) => Promise<HelpSourceArticle[]> | HelpSourceArticle[]
   /** One article by its URL name, when the viewer may read it. */
-  get: (slug: string, ctx: HelpSourceContext) => Promise<HelpArticleDto | undefined> | HelpArticleDto | undefined
+  get: (slug: string, ctx: HelpSourceContext) => Promise<HelpSourceArticle | undefined> | HelpSourceArticle | undefined
   /** One article by its id (read state and checklists store ids). Without it the list is searched. */
-  getById?: (id: string, ctx: HelpSourceContext) => Promise<HelpArticleDto | undefined> | HelpArticleDto | undefined
+  getById?: (id: string, ctx: HelpSourceContext) => Promise<HelpSourceArticle | undefined> | HelpSourceArticle | undefined
   /** Every category the source knows, with whether the viewer may read it. */
   categories: (ctx: HelpSourceContext) => Promise<HelpSourceCategory[]> | HelpSourceCategory[]
 }

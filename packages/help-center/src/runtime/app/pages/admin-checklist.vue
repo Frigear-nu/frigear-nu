@@ -35,7 +35,8 @@ watch(checklist, value => (items.value = readItems(value)))
 const contentItems = computed(() => (checklist.value?.items ?? []).filter(item => item.fromContent))
 
 const { data: articlePage } = useFetch<StaffHelpArticlesPage>(helpCenterApi.admin.articles, {
-  query: { status: 'published', pageSize: 100, sort: 'title', order: 'asc' },
+  // Help articles only: an FAQ question cannot be on a checklist.
+  query: { status: 'published', kind: 'help', pageSize: 100, sort: 'title', order: 'asc' },
   key: 'help-center:checklist:articles',
 })
 const available = computed(() => (articlePage.value?.items ?? [] as StaffHelpArticle[])

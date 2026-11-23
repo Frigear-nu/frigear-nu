@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { hasPublicGrant } from '@frigear-nu/auth/grants'
 import { helpCenterAccess } from '../../access'
-import type { HelpArticleDetailDto, HelpArticleDto, HelpArticleSummaryDto, HelpCategoryDto, HelpCenterSource, HelpFaqDto, HelpReader, HelpSourceCategory, HelpSourceContext, PublicModuleOptions } from '../../../types'
+import type { HelpArticleDetailDto, HelpArticleDto, HelpArticleSummaryDto, HelpCategoryDto, HelpCategoryKind, HelpCenterSource, HelpFaqDto, HelpReader, HelpSourceArticle, HelpSourceCategory, HelpSourceContext, PublicModuleOptions } from '../../../types'
 import { helpCenterContentSource } from './help-center-content'
 import { helpCenterDatabaseSource, helpCenterRequiredLocales } from './help-center-db'
 import { toHelpArticleSummary } from './help-center-dto'
@@ -91,11 +91,19 @@ export function helpCenterReaderFor(event: H3Event, user: { id: string | number 
  * Every category of every source, merged by slug (the first source wins), with whether the reader may read it. A
  * category the reader may not read still claims its slug, so a content-derived category cannot replace it.
  */
-export async function helpCenterMergedCategories(ctx: HelpSourceContext): Promise<HelpSourceCategory[]> {
+export async function helpCenterMergedCategories(ctx: HelpSourceContext): Promise<Array<HelpSourceCategory & { kind: HelpCategoryKind }>> {
   return mergeBySlug(await Promise.all(helpCenterSources('categories').map(async source => source.categories(ctx))))
+    .map(category => ({ ...category, kind: category.kind ?? 'help' }))
 }
 
-const toCategoryDto = ({ visible: _visible, ...category }: HelpSourceCategory): HelpCategoryDto => category
+const toCategoryDto = ({ visible: _visible, ...category }: HelpSourceCategory & { kind: HelpCategoryKind }): HelpCategoryDto => category
+
+/** A source's article with the kind of its category (`help` when the category is unknown). */
+function withHelpKind(article: HelpSourceArticle, kinds: Map<string, HelpCategoryKind>): HelpArticleDto {
+  return { ...article, kind: kinds.get(article.categorySlug) ?? article.kind ?? 'help' }
+}
+
+const kindsOf = (categories: Array<{ slug: string, kind: HelpCategoryKind }>) => new Map(categories.map(category => [category.slug, category.kind]))
 
 /** The categories the reader may read, in their order. */
 export async function helpCenterCategories(ctx: HelpSourceContext): Promise<HelpCategoryDto[]> {
@@ -107,26 +115,28 @@ export async function helpCenterCategories(ctx: HelpSourceContext): Promise<Help
  * An article whose category the reader may not read is left out of the listing: that is how a content article (always
  * public) in a restricted database category stays out of the category's pages. It can still be opened by its URL.
  */
-export async function helpCenterArticles(ctx: HelpSourceContext, query: { q?: string, category?: string } = {}): Promise<HelpArticleSummaryDto[]> {
+export async function helpCenterArticles(ctx: HelpSourceContext, query: { q?: string, category?: string, kind?: HelpCategoryKind } = {}): Promise<HelpArticleSummaryDto[]> {
   const categories = await helpCenterMergedCategories(ctx)
-  const visible = new Map(categories.filter(category => category.visible).map((category, index) => [category.slug, index]))
-  const lists = await Promise.all(helpCenterSources().map(async source => source.list({ ...ctx, ...query })))
+  const kinds = kindsOf(categories)
+  const visible = new Map(categories.filter(category => category.visible && (!query.kind || category.kind === query.kind)).map((category, index) => [category.slug, index]))
+  const lists = await Promise.all(helpCenterSources().map(async source => source.list({ ...ctx, q: query.q, category: query.category })))
   return mergeBySlug(lists)
     .filter(article => visible.has(article.categorySlug) && (!query.category || article.categorySlug === query.category))
     .sort((a, b) => visible.get(a.categorySlug)! - visible.get(b.categorySlug)! || a.sort - b.sort || a.slug.localeCompare(b.slug))
-    .map(toHelpArticleSummary)
+    .map(article => toHelpArticleSummary(withHelpKind(article, kinds)))
 }
 
 /** One article by its URL name with its category, or `undefined` when it does not exist or the reader may not read it. */
 export async function helpCenterArticle(ctx: HelpSourceContext, slug: string): Promise<HelpArticleDetailDto | undefined> {
-  let article: HelpArticleDto | undefined
+  let article: HelpSourceArticle | undefined
   for (const source of helpCenterSources()) {
     article = await source.get(slug, ctx)
     if (article) break
   }
   if (!article) return undefined
-  const category = (await helpCenterMergedCategories(ctx)).find(entry => entry.slug === article!.categorySlug && entry.visible)
-  return { ...article, category: category ? toCategoryDto(category) : null }
+  const categories = await helpCenterMergedCategories(ctx)
+  const category = categories.find(entry => entry.slug === article!.categorySlug && entry.visible)
+  return { ...withHelpKind(article, kindsOf(categories)), category: category ? toCategoryDto(category) : null }
 }
 
 /** One article by its id (`hlp_...`, `content:...`), or `undefined` when it does not exist or the reader may not read it. */
@@ -135,7 +145,7 @@ export async function helpCenterArticleById(ctx: HelpSourceContext, id: string):
     const article = source.getById
       ? await source.getById(id, ctx)
       : (await source.list(ctx)).find(entry => entry.id === id)
-    if (article) return article
+    if (article) return withHelpKind(article, kindsOf(await helpCenterMergedCategories(ctx)))
   }
   return undefined
 }
@@ -143,19 +153,20 @@ export async function helpCenterArticleById(ctx: HelpSourceContext, id: string):
 /**
  * Categories with the published articles the reader may read, text included: what the FAQ cards show. `slugs` names the
  * categories in the order to show them (one the reader may not read, or that does not exist, is left out); without
- * slugs every accordion and cards category (the FAQs) the reader may read, in their order. Articles follow their own order.
+ * slugs every `faq` category the reader may read, in their order. Articles follow their own order.
  */
 export async function helpCenterFaqs(ctx: HelpSourceContext, slugs: string[] = []): Promise<HelpFaqDto[]> {
   const categories = (await helpCenterMergedCategories(ctx)).filter(category => category.visible).map(toCategoryDto)
   const bySlug = new Map(categories.map(category => [category.slug, category]))
   const wanted = slugs.length
     ? slugs.map(slug => bySlug.get(slug)).filter((category): category is HelpCategoryDto => !!category)
-    : categories.filter(category => category.display === 'accordion' || category.display === 'cards')
+    : categories.filter(category => category.kind === 'faq')
   return Promise.all(wanted.map(async (category) => {
     const lists = await Promise.all(helpCenterSources().map(async source => source.list({ ...ctx, category: category.slug })))
     const articles = mergeBySlug(lists)
       .filter(article => article.categorySlug === category.slug)
       .sort((a, b) => a.sort - b.sort || a.slug.localeCompare(b.slug))
+      .map(article => ({ ...article, kind: category.kind }))
     return { ...category, articles }
   }))
 }

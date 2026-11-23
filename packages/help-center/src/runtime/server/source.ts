@@ -5,6 +5,7 @@ export type {
   HelpArticleDto,
   HelpCategoryDto,
   HelpCenterSource,
+  HelpSourceArticle,
   HelpSourceCategory,
   HelpSourceContext,
   HelpSourceListContext,

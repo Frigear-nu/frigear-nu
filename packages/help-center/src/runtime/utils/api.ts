@@ -9,15 +9,15 @@ const PUBLIC_BASE = '/api/help-center'
 const ADMIN_BASE = '/api/admin/help-center'
 
 export const helpCenterApi = {
-  /** `GET` the categories the viewer may read (`?public=1` for what anonymous visitors read). */
+  /** `GET` the categories the viewer may read (`?public=1` for what anonymous visitors read, `?kind=help|faq`). */
   categories: `${PUBLIC_BASE}/categories`,
-  /** `GET` the articles the viewer may read, without their text. `?q=`, `?category=<slug>`, `?public=1`. */
+  /** `GET` the articles the viewer may read, without their text. `?q=`, `?category=<slug>`, `?kind=help|faq`, `?public=1`. */
   articles: `${PUBLIC_BASE}/articles`,
   /** `GET` one article with its text and category, by its URL name. `?public=1` reads it as an anonymous visitor. */
   article: (slug: string) => `${PUBLIC_BASE}/articles/${enc(slug)}`,
   /**
    * `GET` categories with their published articles and text, for the FAQ cards. `?categories=a,b` (in that order; none
-   * for every accordion category), `?public=1`.
+   * for every `faq` category), `?public=1`.
    */
   faqs: `${PUBLIC_BASE}/faqs`,
   me: {
@@ -26,8 +26,10 @@ export const helpCenterApi = {
     /** `POST` `{ articleId }` to mark an article the viewer may read as read. */
     reads: `${PUBLIC_BASE}/me/reads`,
   },
+  // Every admin route takes `?kind=help|faq`: lists keep to that kind, and a record of the other kind is a 404 (an
+  // article created with it must go in a category of that kind). The help center admin passes `help`, the FAQ admin `faq`.
   admin: {
-    /** `GET` (all) / `POST` categories. */
+    /** `GET` (all, or `?kind=`) / `POST` categories (`kind` in the body, fixed afterwards). */
     categories: `${ADMIN_BASE}/categories`,
     /** `PATCH` / `DELETE` one category. */
     category: (id: string) => `${ADMIN_BASE}/categories/${enc(id)}`,

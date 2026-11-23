@@ -1,28 +1,29 @@
 <script setup lang="ts">
-import { type StaffHelpCategory, isFaqDisplay } from '../utils/admin'
+import type { StaffHelpCategory } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { computed, errorMessage, useFetch, useHelpCategoryActions, useHelpCenterPaths, useModuleT } from '#imports'
 
 defineOptions({ name: 'HelpCenterAdminFaqPage' })
 
-// The staff FAQ page (`<admin>/faq`, with `pages.admin`): the help-center categories shown as questions (`accordion`
-// and `cards`, the FAQs of the site's pages), each with its questions. Questions are help-center articles and FAQ
-// categories help-center categories: the same routes, slideovers and actions as the help center page.
+// The staff FAQ page (`<admin>/faq`, with `pages.admin`): the `faq` categories (the FAQs of the site's pages), each with
+// its questions. Questions are help-center articles and FAQ categories help-center categories of kind `faq`: the same
+// routes, slideovers and actions as the help center page, scoped with `?kind=faq` so nothing of kind `help` shows here.
 const t = useModuleT('helpCenter')
 const paths = useHelpCenterPaths()
 const categoryActions = useHelpCategoryActions()
 
 const { data: categories, status, error, refresh } = await useFetch<StaffHelpCategory[]>(helpCenterApi.admin.categories, {
-  key: 'help-center:admin:categories',
+  query: { kind: 'faq' },
+  key: 'help-center:admin:categories:faq',
   default: () => [],
 })
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
 const loading = computed(() => status.value === 'pending' && !categories.value?.length)
-const faqCategories = computed(() => (categories.value ?? []).filter(category => isFaqDisplay(category.display)))
+const faqCategories = computed(() => (categories.value ?? []).filter(category => category.kind === 'faq'))
 
 async function createCategory() {
-  // A new FAQ category shows as question cards, like the site's pages; the form can change it.
-  if (await categoryActions.create(categories.value ?? [], 'cards')) await refresh()
+  // A new FAQ category is of kind `faq` and shows as question cards, like the site's pages; the form can change the display.
+  if (await categoryActions.create(faqCategories.value, 'faq')) await refresh()
 }
 </script>
 
@@ -30,7 +31,7 @@ async function createCategory() {
   <div class="flex flex-col gap-4">
     <PageHeading
       :title="t('admin.faq.title', 'FAQ')"
-      :description="t('admin.faq.description', 'The questions and answers on the site\'s pages: the help center categories shown as questions.')"
+      :description="t('admin.faq.description', 'The questions and answers on the site\'s pages: the FAQ categories and their questions.')"
     >
       <template #actions>
         <UButton
@@ -65,7 +66,7 @@ async function createCategory() {
       v-else-if="!faqCategories.length"
       icon="i-lucide-message-circle-question-mark"
       :title="t('admin.faq.empty', 'No FAQ categories yet')"
-      :description="t('admin.faq.emptyDescription', 'Add a category shown as questions, then add its questions.')"
+      :description="t('admin.faq.emptyDescription', 'Add an FAQ category, then add its questions.')"
       :actions="[{ label: t('admin.faq.createCategory', 'Add FAQ category'), icon: 'i-lucide-plus', onClick: createCategory }]"
     />
     <template v-else>
