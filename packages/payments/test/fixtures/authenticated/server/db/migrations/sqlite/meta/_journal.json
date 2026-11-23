@@ -57,6 +57,27 @@
       "when": 1794491482762,
       "tag": "0007_green_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795315681503,
+      "tag": "0008_users_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1795354527618,
+      "tag": "0009_users_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795381557858,
+      "tag": "0010_users_search_text",
+      "breakpoints": true
     }
   ]
 }

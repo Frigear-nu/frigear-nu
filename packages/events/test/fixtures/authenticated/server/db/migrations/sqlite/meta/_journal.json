@@ -85,6 +85,27 @@
       "when": 1794490897692,
       "tag": "0011_solid_tyger_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795315655146,
+      "tag": "0012_users_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1795354500935,
+      "tag": "0013_users_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1795381541392,
+      "tag": "0014_users_search_text",
+      "breakpoints": true
     }
   ]
 }

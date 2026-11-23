@@ -37,10 +37,40 @@ export type AdminUserDto = {
   name: string
   email: string
   avatar: string | null
+  /** Only in the detail and edit responses, and only for a caller with `users:pii`. */
+  phone?: string | null
   emailVerifiedAt: string | null
   lastLoginAt: string | null
   createdAt: string
 }
+
+/**
+ * A user as other modules show them (`loadUserRefs`, `searchUserRefs`): never a DTO on its own. `email` and `phone`
+ * are personal data: copy them into a response only behind the caller's `:pii` permission.
+ */
+export type UserRef = {
+  id: number
+  name: string | null
+  email: string | null
+  avatar: string | null
+  phone: string | null
+  /** The user's language (`da`, `en-GB`), or `null`: messages to them use it, English when it is not set. */
+  locale: string | null
+}
+
+/**
+ * One person in `UserPicker`: what its search route answers (an array of these, or a page with `items`). `email` is
+ * there only where the route lets the caller see it (`users:list` for the users route, a module's `:pii` elsewhere).
+ */
+export type UserPickerOption = {
+  id: number
+  name: string | null
+  email?: string | null
+  avatar?: string | null
+}
+
+/** What `UserPicker`'s "Create user" prefills: the search term, or what the host knows of the person (`openCreate(initial)`). */
+export type UserPickerCreateInitial = { name?: string, email?: string, phone?: string }
 
 /** The signed-in user's own profile, as the self-service routes return it. */
 export type ProfileDto = {
@@ -48,5 +78,8 @@ export type ProfileDto = {
   name: string
   email: string
   avatar: string | null
+  phone: string | null
+  /** The user's language (`da`, `en-GB`), or `null`. Filled from the app's language at sign-in when unset. */
+  locale: string | null
   emailVerifiedAt: string | null
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usersApi } from '../../utils/api'
+import { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from '../../utils/phone'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { UserDetail } from '../utils/admin-user'
@@ -24,12 +25,14 @@ const schema = z.object({
   name: z.string().trim().min(1, t('admin.nameRequired', 'Enter a name.')).max(120),
   email: z.string().trim().email(t('admin.emailInvalid', 'Enter a valid email address.')),
   emailVerified: z.boolean(),
+  // The server's rule (`phoneField`): digits, spaces and `+-().`; empty clears it.
+  phone: z.string().trim().max(USER_PHONE_MAX_LENGTH).regex(USER_PHONE_PATTERN, t('admin.phoneInvalid', 'Enter a phone number of digits, spaces and + - ( ).')),
 })
 type Schema = z.output<typeof schema>
 
-const form = reactive<Schema>({ name: '', email: '', emailVerified: false })
+const form = reactive<Schema>({ name: '', email: '', emailVerified: false, phone: '' })
 function fill(value: UserDetail) {
-  Object.assign(form, { name: value.name, email: value.email, emailVerified: !!value.emailVerifiedAt })
+  Object.assign(form, { name: value.name, email: value.email, emailVerified: !!value.emailVerifiedAt, phone: value.phone ?? '' })
 }
 fill(props.user)
 watch(() => props.user, fill)
@@ -44,11 +47,14 @@ const dirty = computed(() => (
   form.name !== props.user.name
   || form.email !== props.user.email
   || form.emailVerified !== !!props.user.emailVerifiedAt
+  || (props.user.can.pii && form.phone.trim() !== (props.user.phone ?? ''))
 ))
 
 async function save(event: FormSubmitEvent<Schema>) {
-  const { name, email, emailVerified } = event.data
+  const { name, email, emailVerified, phone } = event.data
   const emailChanged = email !== props.user.email
+  // Needs `users:pii`, so it is only sent when it changes.
+  const phoneChanged = props.user.can.pii && phone !== (props.user.phone ?? '')
   const saved = await run(
     () => $fetch(usersApi.admin.user(props.user.id), {
       method: 'PATCH',
@@ -58,6 +64,7 @@ async function save(event: FormSubmitEvent<Schema>) {
         // An unchanged address keeps its state unless staff toggled it; a changed one is verified by email. Both
         // need `users:manage`, so they are only sent when they change.
         ...(!emailChanged && emailVerified !== !!props.user.emailVerifiedAt ? { emailVerified } : {}),
+        ...(phoneChanged ? { phone: phone || null } : {}),
       },
     }).then(() => true),
     { success: emailChanged ? t('admin.detail.savedEmail', 'Saved. A verification email was sent to the new address.') : t('admin.detail.saved', 'Saved.') },
@@ -116,6 +123,20 @@ async function save(event: FormSubmitEvent<Schema>) {
               v-model="form.emailVerified"
               :label="t('admin.emailVerified', 'Mark the email address as verified')"
               :disabled="!user.can.manage || form.email !== user.email"
+            />
+          </FormRow>
+          <FormRow
+            v-if="user.phone !== undefined"
+            name="phone"
+            :label="t('admin.phone', 'Phone')"
+            :description="t('admin.detail.phoneHelp', 'Used for text messages. Leave it empty to remove it.')"
+          >
+            <UInput
+              v-model="form.phone"
+              type="tel"
+              autocomplete="off"
+              class="w-full sm:max-w-sm"
+              :disabled="!user.can.pii"
             />
           </FormRow>
         </UForm>

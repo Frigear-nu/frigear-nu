@@ -1,5 +1,6 @@
 import { db, schema } from '@nuxthub/db'
-import { eq, getTableColumns, getTableName, is, sql, Table, type Column } from 'drizzle-orm'
+import { eq, getTableColumns, getTableName, inArray, is, sql, Table, type Column } from 'drizzle-orm'
+import { inChunks } from '@frigear-nu/module-kit/server'
 import { getTableConfig as getSQLiteTableConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { getTableConfig as getPgTableConfig, PgTable } from 'drizzle-orm/pg-core'
 import type { AuthUserStore } from '@frigear-nu/auth/utils'
@@ -54,16 +55,22 @@ const store: AuthUserStore = {
     if (numeric === null) return null
     return await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, numeric) }) ?? null
   },
+  // Many at once (auth's `listRoleHolders`), in D1-sized chunks; ids that are not a user are left out.
+  async findByIds(ids) {
+    const numeric = [...new Set(ids.map(asId).filter((id): id is number => id !== null))]
+    if (!numeric.length) return []
+    return await inChunks(numeric, part => db.select().from(schema.users).where(inArray(schema.users.id, part)))
+  },
   // Case-insensitive, index first (see `findUserByEmail`).
   async findByEmail(email) {
     return await findUserByEmail(email)
   },
   async create(values) {
-    const [user] = await db.insert(schema.users).values(withNormalizedEmail(values)).returning()
+    const [user] = await db.insert(schema.users).values(withUserSearchText(withNormalizedEmail(values))).returning()
     return user!
   },
   async update(id, values) {
-    const [user] = await db.update(schema.users).set(withNormalizedEmail(values)).where(eq(schema.users.id, id)).returning()
+    const [user] = await db.update(schema.users).set(withUserSearchText(withNormalizedEmail(values))).where(eq(schema.users.id, id)).returning()
     return user ?? null
   },
   async remove(id) {

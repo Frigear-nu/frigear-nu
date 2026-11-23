@@ -52,7 +52,8 @@
         "loadFailed": "The user could not be loaded",
         "never": "Never",
         "saveProfile": "Save profile",
-        "notFoundHint": "It may have been deleted."
+        "notFoundHint": "It may have been deleted.",
+        "phoneHelp": "Used for text messages. Leave it empty to remove it."
       },
       "tabs": {
         "overview": "Overview"
@@ -74,7 +75,17 @@
       "deleteTitle": "Delete {name}?",
       "deleteBody": "This permanently removes the account and its sign-in methods. It cannot be undone.",
       "deleted": "User deleted.",
-      "roles": "Roles"
+      "roles": "Roles",
+      "phone": "Phone",
+      "phoneInvalid": "Enter a phone number of digits, spaces and + - ( ).",
+      "createdNamed": "Created {name}",
+      "createFailed": "The user could not be created",
+      "emailTaken": "This email already has an account",
+      "emailTakenHint": "{email} belongs to an existing user. Select that user instead of creating a new one.",
+      "selectExisting": "Select existing user",
+      "createPhoneHelp": "Optional. Used for text messages.",
+      "sendInvite": "Send invite email",
+      "sendInviteHelp": "A single-use link to sign in and verify the address, valid for several days."
     },
     "emailChange": {
       "verify": {
@@ -125,7 +136,14 @@
       "create": "Add users",
       "update": "Edit users",
       "delete": "Delete users",
-      "manage": "Manage sign-in of users"
+      "manage": "Manage sign-in of users",
+      "pii": "See users' phone numbers"
+    },
+    "picker": {
+      "placeholder": "Search people",
+      "create": "Create user \"{term}\"",
+      "empty": "Nobody matches",
+      "hint": "Type a name to search"
     }
   }
 }

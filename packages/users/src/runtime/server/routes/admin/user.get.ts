@@ -1,5 +1,6 @@
 import { db, schema } from '@nuxthub/db'
 import { count, eq } from 'drizzle-orm'
+import { usersAccess } from '../../../access'
 
 export default defineEventHandler(async (event) => {
   // `users:read`, also for API tokens / OAuth access tokens that carry it; `can` is what this credential may do (deleting
@@ -11,17 +12,19 @@ export default defineEventHandler(async (event) => {
     : 0
   const subscription = (await latestSubscriptions([target.id])).get(target.id) ?? null
 
-  const [canUpdate, canDelete, canManage] = await Promise.all([
+  const [canUpdate, canDelete, canManage, pii] = await Promise.all([
     canUsersAdminTarget(event, 'update', target),
     canUsersAdminTarget(event, 'delete', target),
     canUsersAdminTarget(event, 'manage', target),
+    // The phone number is personal data: shown (and editable) with `users:pii` only.
+    allows(event, usersAccess.permissions.pii, target),
   ])
 
   return {
-    ...toAdminUserDto(target),
+    ...toAdminUserDto(target, { pii }),
     hasPassword: !!target.password,
     passkeys,
     subscription,
-    can: { update: canUpdate, delete: canDelete && target.id !== actor.id, manage: canUpdate && canManage },
+    can: { update: canUpdate, delete: canDelete && target.id !== actor.id, manage: canUpdate && canManage, pii: canUpdate && pii },
   }
 })

@@ -32,8 +32,8 @@
       "created": "Oprettet",
       "filters": {
         "all": "Alle",
-        "verified": "Verificerede",
-        "unverified": "Ikke verificerede",
+        "verified": "Verificeret",
+        "unverified": "Ikke verificeret",
         "role": "Præcis rolle",
         "clear": "Ryd filtre",
         "allRoles": "Alle roller"
@@ -52,7 +52,8 @@
         "loadFailed": "Brugeren kunne ikke indlæses",
         "never": "Aldrig",
         "saveProfile": "Gem profil",
-        "notFoundHint": "Den er måske slettet."
+        "notFoundHint": "Den er måske slettet.",
+        "phoneHelp": "Bruges til sms'er. Lad feltet stå tomt for at fjerne det."
       },
       "tabs": {
         "overview": "Oversigt"
@@ -74,7 +75,17 @@
       "deleteTitle": "Slet {name}?",
       "deleteBody": "Kontoen og dens loginmetoder fjernes permanent. Det kan ikke fortrydes.",
       "deleted": "Brugeren er slettet.",
-      "roles": "Roller"
+      "roles": "Roller",
+      "phone": "Telefon",
+      "phoneInvalid": "Angiv et telefonnummer med cifre, mellemrum og + - ( ).",
+      "createdNamed": "{name} er oprettet",
+      "createFailed": "Brugeren kunne ikke oprettes",
+      "emailTaken": "Denne e-mail har allerede en konto",
+      "emailTakenHint": "{email} tilhører en eksisterende bruger. Vælg den bruger i stedet for at oprette en ny.",
+      "selectExisting": "Vælg eksisterende bruger",
+      "createPhoneHelp": "Valgfrit. Bruges til sms.",
+      "sendInvite": "Send invitation på e-mail",
+      "sendInviteHelp": "Et engangslink til at logge ind og bekræfte adressen, gyldigt i flere dage."
     },
     "emailChange": {
       "verify": {
@@ -125,7 +136,14 @@
       "create": "Tilføje brugere",
       "update": "Redigere brugere",
       "delete": "Slette brugere",
-      "manage": "Administrere brugeres login"
+      "manage": "Administrere brugeres login",
+      "pii": "Se brugeres telefonnumre"
+    },
+    "picker": {
+      "placeholder": "Søg efter personer",
+      "create": "Opret bruger \"{term}\"",
+      "empty": "Ingen matcher",
+      "hint": "Skriv et navn for at søge"
     }
   }
 }

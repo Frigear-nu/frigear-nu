@@ -1,5 +1,5 @@
 // The shapes of the users admin API, shared by the admin pages, their tabs and `useUserActions`.
-import type { AdminUserDto } from '../../../types'
+import type { AdminUserDto, UserPickerOption } from '../../../types'
 
 export type UserSubscription = { planKey: string | null, status: string }
 
@@ -29,8 +29,8 @@ export type UserDetail = AdminUserDto & {
   hasPassword: boolean
   passkeys: number
   subscription: UserSubscription | null
-  /** `manage`: change or verify the email address (`users:manage`). */
-  can: { update: boolean, delete: boolean, manage: boolean }
+  /** `manage`: change or verify the email address (`users:manage`). `pii`: see and change the phone number (`users:pii`). */
+  can: { update: boolean, delete: boolean, manage: boolean, pii: boolean }
 }
 
 /** What the actions need of a user: the list rows and the detail both satisfy it. */
@@ -38,3 +38,6 @@ export type UserSubject = Pick<UserRow, 'id' | 'name' | 'emailVerifiedAt'>
 
 /** The key of the list's `useFetch`, refreshed after a user is created or deleted. */
 export const ADMIN_USERS_KEY = 'admin-users'
+
+/** What the create form closes with: the created user, the existing user staff chose after a 409, or `false` (cancelled). */
+export type UserCreateResult = UserRow | { existing: UserPickerOption } | false

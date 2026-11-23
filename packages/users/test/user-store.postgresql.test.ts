@@ -29,8 +29,11 @@ beforeAll(async () => {
     create table users (
       id serial primary key,
       name text not null,
+      search_text text not null default '',
       email text not null unique,
       avatar text,
+      phone text,
+      locale text,
       accepted_terms_at bigint,
       created_at timestamptz not null,
       updated_at timestamptz not null

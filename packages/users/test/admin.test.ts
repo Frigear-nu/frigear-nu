@@ -2,8 +2,10 @@ import { fileURLToPath } from 'node:url'
 import { readFile, rm } from 'node:fs/promises'
 import { afterAll, describe, it, expect } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
+import { apiClient, expectApiError, fixtureSqlite, reindexOf, runSearchReindex } from '@frigear-nu/module-kit/testing'
 import { authApi } from '@frigear-nu/auth/api'
+import { adminApi } from '@frigear-nu/admin/api'
+import type { AdminSearchReindexDto } from '@frigear-nu/admin/api'
 import { usersApi } from '../src/runtime/utils/api'
 import type { AdminUserDto } from '../src/types'
 
@@ -99,7 +101,8 @@ describe('users admin', () => {
     expect(created.status, await created.clone().text()).toBe(201)
     const user = await created.json() as Row
     expect(user).toMatchObject({ name: 'New Person', email: 'new@example.com', emailVerifiedAt: null, avatar: null })
-    expect(Object.keys(user).sort()).toEqual(['avatar', 'createdAt', 'email', 'emailVerifiedAt', 'id', 'lastLoginAt', 'name'])
+    // The admin holds `users:pii`, so the (unset) phone number is in the answer.
+    expect(Object.keys(user).sort()).toEqual(['avatar', 'createdAt', 'email', 'emailVerifiedAt', 'id', 'lastLoginAt', 'name', 'phone'])
 
     // A sign-in link was emailed to the new user.
     expect((await sentMails()).some(mail => mail.to === 'new@example.com')).toBe(true)
@@ -211,8 +214,9 @@ describe('users admin', () => {
     const detail = await staff.json<Record<string, unknown>>('GET', usersApi.admin.user(items[0]!.id))
     expect(detail).toMatchObject({ email: 'staff@example.com', passkeys: 0, hasPassword: true, subscription: null })
     expect(detail).not.toHaveProperty('password')
-    // Deleting yourself is never offered.
-    expect(detail.can).toEqual({ update: true, delete: false, manage: true })
+    // Deleting yourself is never offered. The admin holds `users:pii` by name (`grantTo`), so the phone is there.
+    expect(detail.can).toEqual({ update: true, delete: false, manage: true, pii: true })
+    expect(detail).toHaveProperty('phone', null)
 
     await expectApiError(member.json('GET', usersApi.admin.user(items[0]!.id)), 403)
     await expectApiError(staff.json('GET', usersApi.admin.user(99999)), 404, 'not_found')
@@ -285,13 +289,20 @@ describe('users admin', () => {
       const plain = await coordinator.json<Row>('POST', usersApi.admin.users, { name: 'Plain', email: 'plain@example.com', sendWelcomeEmail: false })
       expect(await coordinator.json<Row>('PATCH', usersApi.admin.user(plain.id), { name: 'Plain Renamed' })).toMatchObject({ name: 'Plain Renamed' })
       const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(plain.id))
-      expect(detail.can).toEqual({ update: true, delete: true, manage: true })
+      // `users:*` never covers the sensitive `users:pii`: no phone number, and changing it is refused.
+      expect(detail.can).toEqual({ update: true, delete: true, manage: true, pii: false })
+      expect(detail).not.toHaveProperty('phone')
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: '+1 555 0100' }), 403)
+      // Resending the stored value (here: no number) is refused too, so the status never confirms a guess.
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: null }), 403)
+      await expectApiError(coordinator.json('PATCH', usersApi.admin.user(plain.id), { phone: '' }), 403)
+      expect(await coordinator.json<Row>('PATCH', usersApi.admin.user(plain.id), { name: 'Plain' })).not.toHaveProperty('phone')
       expect((await coordinator.fetch('DELETE', usersApi.admin.user(plain.id))).status).toBe(204)
     })
 
     it('refuses a coordinator every write on an admin (403 forbidden), but lets them read', async () => {
       const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(staffId))
-      expect(detail.can).toEqual({ update: false, delete: false, manage: false })
+      expect(detail.can).toEqual({ update: false, delete: false, manage: false, pii: false })
 
       await expectApiError(coordinator.json('PATCH', usersApi.admin.user(staffId), { name: 'Hijacked' }), 403, 'forbidden')
       await expectApiError(coordinator.json('PATCH', usersApi.admin.user(staffId), { email: 'mine@example.com' }), 403, 'forbidden')
@@ -303,7 +314,7 @@ describe('users admin', () => {
     it('fails closed when the target\'s roles cannot be resolved (403 forbidden, nothing changed)', async () => {
       const broken = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Broken', email: 'broken-roles@example.com', sendWelcomeEmail: false })
       const detail = await coordinator.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(broken.id))
-      expect(detail.can).toEqual({ update: false, delete: false, manage: false })
+      expect(detail.can).toEqual({ update: false, delete: false, manage: false, pii: false })
       await expectApiError(coordinator.json('PATCH', usersApi.admin.user(broken.id), { name: 'Renamed' }), 403, 'forbidden')
       await expectApiError(coordinator.json('DELETE', usersApi.admin.user(broken.id)), 403, 'forbidden')
       await expectApiError(staff.json('PATCH', usersApi.admin.user(broken.id), { name: 'Renamed' }), 403, 'forbidden')
@@ -314,7 +325,64 @@ describe('users admin', () => {
       const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=coordinator`)
       const id = items[0]!.id
       expect(await staff.json<Row>('PATCH', usersApi.admin.user(id), { name: 'Coord' })).toMatchObject({ name: 'Coord' })
-      expect((await staff.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(id))).can).toEqual({ update: true, delete: true, manage: true })
+      expect((await staff.json<{ can: Record<string, boolean> }>('GET', usersApi.admin.user(id))).can).toEqual({ update: true, delete: true, manage: true, pii: true })
+      // The phone number: set, shown, validated and cleared (an empty string clears it too).
+      expect(await staff.json('PATCH', usersApi.admin.user(id), { phone: ' +45 12 34 56 78 ' })).toMatchObject({ phone: '+45 12 34 56 78' })
+      expect(await staff.json('GET', usersApi.admin.user(id))).toMatchObject({ phone: '+45 12 34 56 78' })
+      await expectApiError(staff.json('PATCH', usersApi.admin.user(id), { phone: 'call me' }), 400)
+      expect(await staff.json('PATCH', usersApi.admin.user(id), { phone: '' })).toMatchObject({ phone: null })
+    })
+  })
+
+  describe('creating users (POST /api/admin/users)', () => {
+    let coordinator: ReturnType<typeof apiClient>
+    const loginAs = async (email: string) => {
+      const login = await apiClient().fetch('POST', authApi.login, { email, password: 'supersecret123' })
+      expect(login.status, await login.clone().text()).toBe(200)
+      return apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
+    }
+
+    it('refuses a user without users:create (403), before the body is looked at', async () => {
+      await expectApiError(member.json('POST', usersApi.admin.users, { name: 'X', email: 'x-create@example.com', phone: '+45 11 11 11 11' }), 403, 'forbidden')
+      await expectApiError(member.json('POST', usersApi.admin.users, { phone: 'not a phone' }), 403, 'forbidden')
+    })
+
+    it('answers 409 with the holder\'s id for a taken email, whatever its case', async () => {
+      const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff%40example.com`)
+      const response = await staff.fetch('POST', usersApi.admin.users, { name: 'Again', email: 'STAFF@example.com' })
+      expect(response.status).toBe(409)
+      expect((await response.json() as { data: unknown }).data).toMatchObject({ code: 'conflict', field: 'email', userId: items[0]!.id })
+    })
+
+    it('stores the phone number and language, and emails the invite only when asked', async () => {
+      const before = (await sentMails()).length
+      const invited = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Invited', email: 'invited@example.com', phone: ' +45 22 33 44 55 ', locale: 'da' })
+      expect(invited).toMatchObject({ email: 'invited@example.com', phone: '+45 22 33 44 55' })
+      const mails = await sentMails()
+      expect(mails.length).toBe(before + 1)
+      expect(mails.at(-1)!.to).toBe('invited@example.com')
+      const refsOf = async (id: number) => (await $fetch<{ refs: Array<{ id: number, locale: string | null }> }>('/api/test/user-refs', { method: 'POST', body: { ids: [id] } })).refs[0]
+      expect(await refsOf(invited.id)).toMatchObject({ id: invited.id, locale: 'da' })
+
+      const quiet = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Quiet', email: 'quiet@example.com', sendWelcomeEmail: false })
+      expect((await sentMails()).length).toBe(before + 1)
+      // Without a language from the staff member's UI it stays unset.
+      expect((await refsOf(quiet.id))!.locale).toBeNull()
+
+      await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'Bad', email: 'bad-phone@example.com', phone: 'call me' }), 400)
+    })
+
+    it('never tells a caller without users:pii that a phone number is taken', async () => {
+      coordinator = await loginAs('coordinator@example.com')
+      // `invited@example.com` holds +45 22 33 44 55: the same number is stored again, and the answer has no phone.
+      const first = await coordinator.fetch('POST', usersApi.admin.users, { name: 'Same Phone', email: 'same-phone@example.com', phone: '+45 22 33 44 55', sendWelcomeEmail: false })
+      const second = await coordinator.fetch('POST', usersApi.admin.users, { name: 'New Phone', email: 'new-phone@example.com', phone: '+45 99 88 77 66', sendWelcomeEmail: false })
+      expect([first.status, second.status]).toEqual([201, 201])
+      const [taken, fresh] = await Promise.all([first.json(), second.json()]) as Row[]
+      expect(taken).not.toHaveProperty('phone')
+      expect(Object.keys(taken!).sort()).toEqual(Object.keys(fresh!).sort())
+      // Staff with `users:pii` see what was stored.
+      expect(await staff.json('GET', usersApi.admin.user(taken!.id))).toMatchObject({ phone: '+45 22 33 44 55' })
     })
   })
 
@@ -357,6 +425,15 @@ describe('users admin', () => {
       await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { email: 'elsewhere@example.com' }), 403, 'session_required')
     })
 
+    it('lets a token with users:create create a user and send the invite; one without it gets insufficient_scope', async () => {
+      const token = await tokenClient(staff, ['users:create'])
+      const before = (await sentMails()).length
+      const created = await token.fetch('POST', usersApi.admin.users, { name: 'By Token', email: 'by-token@example.com' })
+      expect(created.status, await created.clone().text()).toBe(201)
+      expect((await sentMails()).length).toBe(before + 1)
+      await expectApiError((await tokenClient(staff, ['users:list'])).json('POST', usersApi.admin.users, { name: 'No', email: 'no-token@example.com' }), 403, 'insufficient_scope')
+    })
+
     it('refuses a token without the scope (403 insufficient_scope)', async () => {
       const token = await tokenClient(staff, ['test:read'])
       await expectApiError(token.json('GET', usersApi.admin.users), 403, 'insufficient_scope')
@@ -372,6 +449,35 @@ describe('users admin', () => {
       await expectApiError(token.json('GET', usersApi.admin.users), 403, 'insufficient_scope')
     })
   })
+
+  // `@frigear-nu/admin`'s Settings > Search button: this fixture has the admin module, auth and a search index (users).
+  describe('rebuilding search (POST /api/admin/search/reindex)', () => {
+    it('runs search:reindex for an admin session and answers the rows read and rewritten per table', async () => {
+      const { tables } = await staff.json<AdminSearchReindexDto>('POST', adminApi.search.reindex)
+      expect(tables.find(table => table.table === 'users')).toEqual({ table: 'users', scanned: expect.any(Number), updated: expect.any(Number) })
+      expect(tables.find(table => table.table === 'users')!.scanned).toBeGreaterThan(0)
+      // Idempotent: a second run rewrites nothing.
+      const again = await staff.json<AdminSearchReindexDto>('POST', adminApi.search.reindex)
+      expect(again.tables.every(table => table.updated === 0)).toBe(true)
+    })
+
+    it('refuses guests, users without the permission and every API token (session only)', async () => {
+      await expectApiError(anonymous.json('POST', adminApi.search.reindex), 401)
+      await expectApiError(member.json('POST', adminApi.search.reindex), 403, 'forbidden')
+      // `search:reindex` is session only: a token cannot be given it by name (400), and a staff `*` token, which covers
+      // everything its admin holds, is still turned away.
+      const named = await staff.fetch('POST', authApi.me.tokens, { name: 'reindex', scopes: ['search:reindex'] })
+      expect(named.status).toBe(400)
+      const minted = await staff.fetch('POST', authApi.me.tokens, { name: 'everything', scopes: ['*'] })
+      expect(minted.status, await minted.clone().text()).toBe(201)
+      const holder = apiClient({ bearer: (await minted.json() as { token: string }).token })
+      await expectApiError(holder.json('POST', adminApi.search.reindex), 403, 'session_required')
+      // A token without it.
+      const other = await staff.fetch('POST', authApi.me.tokens, { name: 'read', scopes: ['users:read'] })
+      const reader = apiClient({ bearer: (await other.json() as { token: string }).token })
+      await expectApiError(reader.json('POST', adminApi.search.reindex), 403)
+    })
+  })
 })
 
 describe('users self-service routes (authenticated)', () => {
@@ -381,11 +487,25 @@ describe('users self-service routes (authenticated)', () => {
 
     const result = await ada.json<Record<string, unknown>>('PATCH', usersApi.me.profile, { name: 'Ada Updated', avatar: 'https://example.com/ada.png' })
     expect(result).toMatchObject({ name: 'Ada Updated', email: 'lovelace@example.com', avatar: 'https://example.com/ada.png' })
-    expect(Object.keys(result).sort()).toEqual(['avatar', 'email', 'emailVerifiedAt', 'id', 'name'])
+    expect(Object.keys(result).sort()).toEqual(['avatar', 'email', 'emailVerifiedAt', 'id', 'locale', 'name', 'phone'])
+
+    // The caller's own phone number: set, kept when left out, cleared with `null`.
+    expect(await ada.json('PATCH', usersApi.me.profile, { phone: '+1 (555) 010-0101' })).toMatchObject({ phone: '+1 (555) 010-0101' })
+    expect(await ada.json('PATCH', usersApi.me.profile, { name: 'Ada Updated' })).toMatchObject({ phone: '+1 (555) 010-0101' })
+    await expectApiError(ada.json('PATCH', usersApi.me.profile, { phone: 'x'.repeat(41) }), 400)
+    expect(await ada.json('PATCH', usersApi.me.profile, { phone: null })).toMatchObject({ phone: null })
 
     // `null` clears the avatar, leaving it out keeps it.
     expect(await ada.json('PATCH', usersApi.me.profile, { name: 'Ada' })).toMatchObject({ avatar: 'https://example.com/ada.png' })
     expect(await ada.json('PATCH', usersApi.me.profile, { avatar: null })).toMatchObject({ name: 'Ada', avatar: null })
+
+    // The language: without i18n (this fixture) any short BCP-47 tag; kept when left out, cleared with `null` or `''`.
+    expect(result).toMatchObject({ locale: null })
+    expect(await ada.json('PATCH', usersApi.me.profile, { locale: ' en-GB ' })).toMatchObject({ locale: 'en-GB' })
+    expect(await ada.json('PATCH', usersApi.me.profile, { name: 'Ada' })).toMatchObject({ locale: 'en-GB' })
+    await expectApiError(ada.json('PATCH', usersApi.me.profile, { locale: 'english please' }), 400)
+    await expectApiError(ada.json('PATCH', usersApi.me.profile, { locale: 'x'.repeat(21) }), 400)
+    expect(await ada.json('PATCH', usersApi.me.profile, { locale: '' })).toMatchObject({ locale: null })
 
     await expectApiError(apiClient().json('PATCH', usersApi.me.profile, { name: 'Nobody' }), 401)
   })
@@ -491,5 +611,95 @@ describe('ssr', () => {
       newPassword: 'new-password123',
       confirmNewPassword: 'new-password123',
     }), 401)
+  })
+})
+
+describe('the user\'s language (users.locale)', () => {
+  it('fills an empty language at sign-in or a switch, and never replaces one the user has', async () => {
+    const cookie = await registerAndGetCookie({ name: 'Lang Lovelace', email: 'lang@example.com', password: 'supersecret123' })
+    const me = apiClient({ cookie })
+
+    // Empty: `ifUnset` fills it, and the session user carries it.
+    const response = await me.fetch('PUT', usersApi.me.locale, { locale: 'da', ifUnset: true })
+    expect(response.status, await response.clone().text()).toBe(200)
+    expect(await response.json()).toMatchObject({ locale: 'da' })
+    const session = await $fetch<{ user: { locale?: string } }>('/api/_auth/session', { headers: { cookie: response.headers.get('set-cookie')! } })
+    expect(session.user.locale).toBe('da')
+
+    // Set: another `ifUnset` (a later sign-in, a language switch) leaves it alone; an explicit PUT replaces it.
+    expect(await me.json('PUT', usersApi.me.locale, { locale: 'en', ifUnset: true })).toMatchObject({ locale: 'da' })
+    expect(await me.json('PUT', usersApi.me.locale, { locale: 'en' })).toMatchObject({ locale: 'en' })
+    await expectApiError(me.json('PUT', usersApi.me.locale, { locale: 'not a language' }), 400)
+    await expectApiError(me.json('PUT', usersApi.me.locale, { locale: null }), 400)
+    await expectApiError(apiClient().json('PUT', usersApi.me.locale, { locale: 'da' }), 401)
+
+    // notify's recipient store hands it to `notifyUser`.
+    expect(await $fetch('/api/test/recipient', { method: 'POST', body: { email: 'lang@example.com' } })).toEqual({ email: 'lang@example.com', phone: null, locale: 'en' })
+  })
+})
+
+describe('user lookups for other modules (loadUserRefs, searchUserRefs)', () => {
+  type Ref = { id: number, name: string | null, email: string | null, avatar: string | null, phone: string | null, locale: string | null }
+  const lookup = (body: Record<string, unknown>) => $fetch<{ refs: Ref[], found: Ref[] }>('/api/test/user-refs', { method: 'POST', body })
+
+  it('loads users by id in chunks, skipping ids that are not whole numbers or unknown', async () => {
+    const cookie = await registerAndGetCookie({ name: 'Lookup Lovelace', email: 'lookup@example.com', password: 'supersecret123' })
+    await apiClient({ cookie }).json('PATCH', usersApi.me.profile, { phone: '+1 555 0100' })
+    const { found: [me] } = await lookup({ q: 'Lookup Lovelace', pii: true })
+    expect(me).toEqual({ id: expect.any(Number), name: 'Lookup Lovelace', email: 'lookup@example.com', avatar: null, phone: '+1 555 0100', locale: null })
+
+    // More ids than one D1 statement binds, as numbers and numeric strings, with junk among them.
+    const ids = [...Array.from({ length: 250 }, (_, index) => 100_000 + index), String(me!.id), me!.id, 'abc', null, '1.5']
+    const { refs } = await lookup({ ids })
+    expect(refs).toEqual([me])
+  })
+
+  it('finds many users at once for auth\'s role holders (findByIds), in chunks', async () => {
+    const { found: [me] } = await lookup({ q: 'Lookup Lovelace', pii: true })
+    const ids = [...Array.from({ length: 250 }, (_, index) => 100_000 + index), me!.id, String(me!.id), 'abc']
+    expect(await $fetch('/api/test/find-by-ids', { method: 'POST', body: { ids } })).toEqual([me!.id])
+    expect(await $fetch('/api/test/find-by-ids', { method: 'POST', body: { ids: [] } })).toEqual([])
+  })
+
+  it('searches names, and emails only with pii, which also gates the email and phone in the answer', async () => {
+    expect((await lookup({ q: 'lookup@' })).found).toEqual([])
+    expect((await lookup({ q: 'lookup love' })).found).toEqual([expect.objectContaining({ name: 'Lookup Lovelace', email: null, phone: null })])
+    expect((await lookup({ q: 'LOOKUP@example', pii: true })).found).toEqual([expect.objectContaining({ email: 'lookup@example.com', phone: '+1 555 0100' })])
+    expect((await lookup({ q: '   ' })).found).toEqual([])
+    expect((await lookup({ q: 'a', limit: 1 })).found).toHaveLength(1)
+  })
+
+  it('folds capital Ø, Æ and Å in names on sqlite (users.searchText), also after a rename', async () => {
+    const cookie = await registerAndGetCookie({ name: 'ØRSTED ÆBLE', email: 'orsted@example.com', password: 'supersecret123' })
+    for (const q of ['ørsted', 'ØRSTED', 'Ørsted æble', 'æble']) {
+      expect((await lookup({ q })).found.map(ref => ref.name)).toEqual(['ØRSTED ÆBLE'])
+    }
+    // The admin list searches the same column.
+    const login = await apiClient().fetch('POST', authApi.login, { email: 'staff@example.com', password: 'supersecret123' })
+    expect(login.status, await login.clone().text()).toBe(200)
+    const admin = apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
+    const page = await admin.json<{ items: Array<{ name: string }> }>('GET', `${usersApi.admin.users}?q=${encodeURIComponent('ørsted')}`)
+    expect(page.items.map(item => item.name)).toEqual(['ØRSTED ÆBLE'])
+
+    await apiClient({ cookie }).json('PATCH', usersApi.me.profile, { name: 'Åse Ørsted' })
+    expect((await lookup({ q: 'åSE' })).found.map(ref => ref.name)).toEqual(['Åse Ørsted'])
+    expect((await lookup({ q: 'æble' })).found).toEqual([])
+  })
+
+  it('search:reindex refolds users.searchText left by an ASCII-only lower() backfill, and a second run changes nothing', async () => {
+    await registerAndGetCookie({ name: 'ÆRØ ÅSEN', email: 'aero@example.com', password: 'supersecret123' })
+    const sqlite = fixtureSqlite(`${dataDir}/db/sqlite.db`)
+    // What the migration's backfill stores: sqlite's lower() keeps Æ, Ø and Å.
+    sqlite.exec('update users set searchText = lower(name)')
+    const stale = () => sqlite.query<{ searchText: string }>('select searchText from users where email = ?', 'aero@example.com')[0]!.searchText
+    expect(stale()).toBe('ÆrØ Åsen')
+    expect((await lookup({ q: 'ærø' })).found).toEqual([])
+
+    const first = reindexOf(await runSearchReindex(), 'users')!
+    expect(first.updated).toBeGreaterThanOrEqual(1)
+    expect(stale()).toBe('ærø åsen')
+    expect((await lookup({ q: 'ærø' })).found.map(ref => ref.name)).toEqual(['ÆRØ ÅSEN'])
+
+    expect(reindexOf(await runSearchReindex(), 'users')).toEqual({ ...first, updated: 0 })
   })
 })

@@ -57,6 +57,27 @@
       "when": 1794493411828,
       "tag": "0007_oauth_scope_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795315687441,
+      "tag": "0008_users_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1795354533878,
+      "tag": "0009_users_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795381564570,
+      "tag": "0010_users_search_text",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,12 @@
 // Typed paths of the module's HTTP routes, for app code, tests and docs (no string literals elsewhere).
 // Also published as `@frigear-nu/users/api`: unlike `@frigear-nu/users/utils` (which carries the build-time
 // `extendUsersAdmin`), it is safe to import from another module's app code.
-import type { AdminUserDto, ProfileDto } from '../../types'
+import type { AdminUserDto, ProfileDto, UserPickerCreateInitial, UserPickerOption } from '../../types'
 
-export type { AdminUserDto, ProfileDto }
+export type { AdminUserDto, ProfileDto, UserPickerCreateInitial, UserPickerOption }
+
+// The phone number rule, so another module's form checks a number as the users routes do.
+export { USER_PHONE_MAX_LENGTH, USER_PHONE_PATTERN } from './phone'
 
 const base = '/api/users'
 const adminBase = '/api/admin/users'
@@ -11,8 +14,13 @@ const adminBase = '/api/admin/users'
 /** The users API: self-service under `/api/users`, staff under `/api/admin/users`. */
 export const usersApi = {
   me: {
-    /** `PATCH { name, avatar? }`: updates the caller's profile, answers the profile DTO. `profile:write` (implicit). */
+    /** `PATCH { name?, avatar?, phone?, locale? }`: updates the caller's profile, answers the profile DTO. `profile:write` (implicit). */
     profile: `${base}/me`,
+    /**
+     * `PUT { locale, ifUnset? }`: sets the caller's language, answers the profile DTO. With `ifUnset: true` it only fills
+     * an empty one (what the app does at sign-in and on a language switch). `profile:write` (implicit).
+     */
+    locale: `${base}/me/locale`,
     /** `PUT { email }`: changes the caller's email (or emails a confirmation link with `verifyEmailChange`). Session only. */
     email: `${base}/me/email`,
     /** `PUT { currentPassword, newPassword, confirmNewPassword }`: changes the caller's password. Session only. */
