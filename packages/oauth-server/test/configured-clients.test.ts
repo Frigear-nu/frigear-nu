@@ -103,9 +103,16 @@ describe('normalizeConfiguredClients', () => {
     expect(normalizeConfiguredClients([client])[0]!.corsOrigins).toEqual(['capacitor://localhost', 'https://app.example.com'])
     expect(normalizeConfiguredClients([{ ...client, corsOrigins: false }])[0]!.corsOrigins).toEqual([])
     expect(normalizeConfiguredClients([{ ...client, corsOrigins: ['https://localhost'] }])[0]!.corsOrigins).toEqual(['https://localhost'])
-    for (const origin of ['*', 'https://app.example.com/', 'https://app.example.com/path', 'com.example.app:']) {
+    for (const origin of ['*', 'https://app.example.com/', 'https://app.example.com/path', 'com.example.app:', 'http://localhost:*', 'https://127.0.0.1:*', 'https://app.example.com:*']) {
       expect(() => normalizeConfiguredClients([{ ...client, corsOrigins: [origin] }]), origin).toThrow(/exact origins/)
     }
+  })
+
+  it('accepts a loopback IP on any port, and derives it from a loopback redirect URI', () => {
+    const desktop = { ...mobile, redirectUris: ['com.example.desk:/auth/callback'] }
+    expect(normalizeConfiguredClients([{ ...desktop, corsOrigins: ['http://127.0.0.1:*', 'http://[::1]:*'] }])[0]!.corsOrigins).toEqual(['http://127.0.0.1:*', 'http://[::1]:*'])
+    const cli = { ...mobile, redirectUris: ['http://127.0.0.1:8123/callback', 'http://[::1]/callback'] }
+    expect(normalizeConfiguredClients([cli])[0]!.corsOrigins).toEqual(['http://127.0.0.1:*', 'http://[::1]:*'])
   })
 
   it('lists a client unless told otherwise', () => {

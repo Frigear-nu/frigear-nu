@@ -149,11 +149,15 @@ export type ModuleOptions = {
   scopes?: Array<string | OAuthScopeDefinition>
   /**
    * Browser apps on another origin (for example the webview of a Capacitor app at `capacitor://localhost`) may call the
-   * token, revocation, userinfo and discovery endpoints. Exact origins only, never `*`. The authorization endpoint is
+   * token, revocation, userinfo and discovery endpoints. Exact origins, or `http://127.0.0.1:*` / `http://[::1]:*` for a
+   * loopback IP on any port (a desktop app's bundled server), never `*`. The authorization endpoint is
    * never opened up: it is a top-level navigation. Cookies are not allowed cross-origin either.
    */
   cors?: {
-    /** Exact origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS`, comma separated). The `clients`' origins are added. */
+    /**
+     * Exact origins or a loopback IP on any port (`NUXT_OAUTH_SERVER_CORS_ORIGINS`, comma separated). The `clients`'
+     * origins are added.
+     */
     origins?: string[]
     /**
      * Path prefixes of the host's own API (`['/api/']`) the same origins may call with a bearer token: methods
@@ -221,7 +225,9 @@ export type OAuthConfiguredClient = {
   wildcardScopes?: boolean
   /**
    * Origins added to `cors.origins` for this client. Defaults to the origins of its redirect URIs that have one
-   * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`); `false` adds none.
+   * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`; a loopback redirect such as
+   * `http://127.0.0.1/cb` gives `http://127.0.0.1:*`, as it matches any port); `false` adds none. A desktop app whose
+   * window is served by its bundled server on a free port lists `http://127.0.0.1:*`.
    */
   corsOrigins?: string[] | false
   /**

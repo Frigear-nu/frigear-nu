@@ -26,7 +26,7 @@ import { oauthAccess } from './runtime/access'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
-import { OIDC_SCOPES, configuredClientWarnings, isExactOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
+import { OIDC_SCOPES, configuredClientWarnings, isCorsOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
 import { loadOrCreateDevSigningKey } from './dev-key'
 import type {
   ApplicationAccessContext,
@@ -164,8 +164,8 @@ export default defineNuxtModule<ModuleOptions>({
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
       // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
-      if (!isExactOrigin(origin)) {
-        throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${origin}".`)
+      if (!isCorsOrigin(origin)) {
+        throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", or "http://127.0.0.1:*" for a loopback IP on any port, got "${origin}".`)
       }
     }
     const corsPaths = parseList(options.cors?.paths)

@@ -291,6 +291,15 @@ export function isExactOrigin(origin: string): boolean {
   return !!url.host && origin === `${url.protocol}//${url.host}`
 }
 
+/**
+ * A CORS origin a client or `cors.origins` may list: an exact origin, or a loopback IP on any port (`http://127.0.0.1:*`,
+ * `http://[::1]:*`) for a native app whose window is served by a local server on a free port (a desktop app's bundled
+ * server). Matched by `matchesCorsOrigin` (`@frigear-nu/module-kit/server`).
+ */
+export function isCorsOrigin(origin: string): boolean {
+  return isExactOrigin(origin) || origin === 'http://127.0.0.1:*' || origin === 'http://[::1]:*'
+}
+
 /** The id of a configured client: 3 to 64 letters, digits, `.`, `_`, `-`; never the `app_` prefix of created ones. */
 export const CONFIGURED_CLIENT_ID = /^[a-z0-9][\w.-]{2,63}$/i
 
@@ -328,9 +337,13 @@ function isAllowedRedirectUri(uri: string): boolean {
   return !url.hash && !url.username && !url.password && (isSecureOrigin(url) || isNativeRedirectUri(url))
 }
 
-/** The origin a page at this redirect URI calls from, if it has one (`com.example.app:/cb` has none). */
+/**
+ * The origin a page at this redirect URI calls from, if it has one (`com.example.app:/cb` has none). A loopback redirect
+ * matches on any port (RFC 8252 §7.3), so its origin is the loopback IP on any port.
+ */
 function redirectOrigin(uri: string): string | undefined {
   const url = new URL(uri)
+  if (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)) return `http://${url.hostname}:*`
   return url.host ? `${url.protocol}//${url.host}` : undefined
 }
 
@@ -405,8 +418,8 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
     if (client.corsOrigins === false) corsOrigins = []
     else if (client.corsOrigins === undefined || client.corsOrigins === null) corsOrigins = redirectUris.map(redirectOrigin).filter((origin): origin is string => !!origin)
     else corsOrigins = stringList(client.corsOrigins, `${label}: corsOrigins`, 20, 2048)
-    const badOrigin = corsOrigins.find(origin => !isExactOrigin(origin))
-    if (badOrigin) throw new Error(`${label}: corsOrigins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${badOrigin}".`)
+    const badOrigin = corsOrigins.find(origin => !isCorsOrigin(origin))
+    if (badOrigin) throw new Error(`${label}: corsOrigins must be exact origins such as "https://app.example.com" or "capacitor://localhost", or "http://127.0.0.1:*" for a loopback IP on any port, got "${badOrigin}".`)
 
     const refreshToken = normalizeClientRefreshToken(client.refreshToken, label)
     if (client.allowLongBrowserSessions !== undefined && typeof client.allowLongBrowserSessions !== 'boolean') {

@@ -81,8 +81,8 @@ describe('resolveDesktopOptions', () => {
     const resource = (input: Parameters<typeof resolveDesktopOptions>[0]) => resolveDesktopOptions({ appId: 'a.b', ...input }, { authMode: 'resource' })
     expect(resource({ mode: 'local' }).options.spa).toBe(true)
     expect(resource({ mode: 'local' }).errors).toEqual([])
-    // The issuer allows exact origins for CORS: a port picked on every start cannot be registered.
-    expect(resource({ mode: 'local' }).warnings).toEqual([expect.stringMatching(/`local.port` is 0.*corsOrigins/)])
+    // The issuer allows `http://127.0.0.1:*` for CORS, so the free port of every start needs no warning.
+    expect(resource({ mode: 'local' }).warnings).toEqual([])
     expect(resource({ mode: 'local', local: { port: 47615 } }).warnings).toEqual([])
     expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local' }, { authMode: 'server' }).warnings).toEqual([])
     expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local' }, { authMode: 'server' }).options.spa).toBe(false)

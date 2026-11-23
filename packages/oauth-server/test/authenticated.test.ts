@@ -878,6 +878,17 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await preflight(oidc.token, 'https://app.example.com')).headers.get('access-control-allow-origin')).toBe('https://app.example.com')
     })
 
+    it('answers a loopback IP on any port for `http://127.0.0.1:*`, echoing the exact origin', async () => {
+      for (const origin of ['http://127.0.0.1:47615', 'http://127.0.0.1:51234']) {
+        const response = await preflight(oidc.token, origin)
+        expect(response.status, origin).toBe(204)
+        expect(response.headers.get('access-control-allow-origin'), origin).toBe(origin)
+      }
+      for (const origin of ['http://localhost:47615', 'http://[::1]:47615', 'https://127.0.0.1:47615']) {
+        expect((await preflight(oidc.token, origin)).headers.get('access-control-allow-origin'), origin).toBeNull()
+      }
+    })
+
     it('gives other origins nothing, and never uses a wildcard', async () => {
       for (const origin of ['https://evil.example.com', 'capacitor://localhost.evil.com', 'http://capacitor://localhost', 'null', '*']) {
         const response = await preflight(oidc.token, origin)

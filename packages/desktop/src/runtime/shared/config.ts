@@ -138,9 +138,6 @@ export function resolveDesktopOptions(input: ModuleOptions, context: ResolveCont
     if (!Number.isInteger(local.port) || local.port < 0 || local.port > 65535) errors.push('`local.port` must be a port number (0 picks a free one).')
     if (!DATA_DIR_NAME.test(local.dataDirName) || /^\.+$/.test(local.dataDirName)) errors.push(`\`local.dataDirName\` "${local.dataDirName}" must be one folder name.`)
     if (!singleInstance) warnings.push('`singleInstance: false` in local mode lets a second launch start a second server on the same database: keep it on.')
-    if (context.authMode === 'resource' && local.port === 0 && !context.prepare) {
-      warnings.push('`local.port` is 0 with `authentication.mode: \'resource\'`: the window\'s origin (`http://127.0.0.1:<port>`) changes on every start, and the issuer only allows the origins it knows for CORS on discovery, the token and userinfo. Set a fixed `local.port` and add `http://127.0.0.1:<port>` to the client\'s `corsOrigins` at the issuer.')
-    }
     if (context.authMode === 'resource' && input.spa === false) {
       errors.push('`spa: false` in local mode with `authentication.mode: \'resource\'`: resource mode renders on the client only (the tokens live in the window), so the bundled server serves the SPA shell. Remove `spa`.')
     }
