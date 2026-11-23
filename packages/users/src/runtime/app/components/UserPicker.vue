@@ -107,8 +107,10 @@ const current = computed<Item | Item[] | undefined>({
       for (const id of ids.filter(id => !before.includes(id))) emit('picked', optionOf(id))
       return
     }
-    model.value = value && !Array.isArray(value) ? value.value : undefined
-    if (typeof model.value === 'number') emit('picked', optionOf(model.value))
+    // `model.value` still reads the old value right after the write (the parent updates it), so use the new id.
+    const id = value && !Array.isArray(value) ? value.value : undefined
+    model.value = id
+    if (typeof id === 'number') emit('picked', optionOf(id))
   },
 })
 
