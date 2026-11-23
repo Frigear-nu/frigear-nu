@@ -171,6 +171,9 @@ describe('help center (authenticated, database-backed)', async () => {
       const edited = await ok(await json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { name: both('Safe', 'Sikker'), grants: [], display: 'list', icon: null }))
       expect(edited).toMatchObject({ name: both('Safe', 'Sikker'), public: false, grants: [], display: 'list', icon: null })
       await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { display: 'grid' }), 400)
+      // A help category shows as a list or questions, never as cards; an FAQ as cards or questions, never as a list.
+      await expectApiError(json(staff.cookie, 'PATCH', helpCenterApi.admin.category(created.id), { display: 'cards' }), 400, 'validation_failed')
+      await expectApiError(json(staff.cookie, 'POST', helpCenterApi.admin.categories, { slug: `faq-list-${++counter}`, kind: 'faq', name: both('FAQ', 'FAQ'), display: 'list' }), 400, 'validation_failed')
 
       expect((await json(staff.cookie, 'DELETE', helpCenterApi.admin.category(created.id))).status).toBe(204)
       expect(slugsOf(await ok(await json(staff.cookie, 'GET', helpCenterApi.admin.categories)) as unknown as Json[])).not.toContain(created.slug)
@@ -1222,31 +1225,21 @@ describe('help center (authenticated, database-backed)', async () => {
         '::',
       ].join('\n')
       const { category } = await publishedArticle(
-        { grants: PUBLIC, display: 'cards' },
+        { grants: PUBLIC, kind: 'faq', display: 'cards' },
         { title: both(`Card question ${suffix}`, `Kortspørgsmål ${suffix}`), body: both(body('en'), body('da')), icon: 'i-lucide-coins' },
       )
       await publish((await createArticle(category.id, { title: both(`Plain card ${suffix}`, `Enkelt kort ${suffix}`), body: both(`Just text ${suffix}.`, `Bare tekst ${suffix}.`) })).id)
 
       const faqs = await ok(await json(undefined, 'GET', `${helpCenterApi.faqs}?categories=${category.slug}`)) as unknown as Json[]
-      expect(faqs[0]).toMatchObject({ slug: category.slug, display: 'cards', kind: 'help' })
-      // Named, any kind shows; unnamed, only `faq` categories do.
-      expect(slugsOf(await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[])).not.toContain(category.slug)
+      expect(faqs[0]).toMatchObject({ slug: category.slug, display: 'cards', kind: 'faq' })
+      // Unnamed, the `faq` categories show.
+      expect(slugsOf(await ok(await json(undefined, 'GET', helpCenterApi.faqs)) as unknown as Json[])).toContain(category.slug)
 
-      const { status, html } = await page(`/help/${category.slug}`)
-      expect(status).toBe(200)
-      expect(html).toContain('data-test="help-center-cards"')
-      expect(html).toContain(`Card question ${suffix}`)
-      expect(html).toContain(`Card description en ${suffix}.`)
-      expect(html).toContain(`More about it en...`)
-      expect(html).toContain(`First line en.`)
-      expect(html).toContain(`Become a member en`)
-      expect(html).toContain(`Plain card ${suffix}`)
-      // The JSON-LD answer is plain text: no block fences, no `:br`.
-      const ld = html.match(/<script[^>]*application\/ld\+json[^>]*>(.*?)<\/script>/s)?.[1] ?? ''
-      expect(ld).toContain('"@type":"FAQPage"')
-      expect(ld).toContain(`Card description en ${suffix}. ✅ First line en. Still the first. ❌ Second line en.`)
-      expect(ld).not.toContain(':br')
-      expect(ld).not.toContain('faq-details')
+      // Question cards are an FAQ display: an FAQ category has no help page of its own, its cards show where the host
+      // puts the FAQ (`FaqGrid`). The card parts come from `faqCardProps` (unit tests); here, the API serves the text.
+      const cardArticles = faqs[0]!.articles as Json[]
+      expect(cardArticles.map(article => article.title.en)).toEqual([`Card question ${suffix}`, `Plain card ${suffix}`])
+      expect(cardArticles[0]!.body.en).toContain(`Card description en ${suffix}.`)
     })
 
     it('renders the FAQ blocks of an article on their own on its page', async () => {

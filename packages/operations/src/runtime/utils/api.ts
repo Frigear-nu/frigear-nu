@@ -32,5 +32,7 @@ export const operationsApi = {
     venueLayout: (id: string) => `${ADMIN_BASE}/${enc(id)}/venue-layout`,
     /** `POST` (multipart `file`) the underlay image of the venue layout. */
     venueUnderlay: (id: string) => `${ADMIN_BASE}/${enc(id)}/venue-layout/underlay`,
+    /** `PUT` `{ placement, revision? }` where the venue layout lies on the map and what is under it. */
+    venuePlacement: (id: string) => `${ADMIN_BASE}/${enc(id)}/venue-layout/placement`,
   },
 } as const

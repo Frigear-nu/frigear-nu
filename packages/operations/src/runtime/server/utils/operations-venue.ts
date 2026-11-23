@@ -1,8 +1,8 @@
 import { db, schema } from '@nuxthub/db'
 import { and, eq, isNull } from 'drizzle-orm'
 import { apiError } from '@frigear-nu/module-kit/server'
-import type { PlaneFeatureCollection } from '@frigear-nu/maps/utils'
-import type { OperationVenueLayout, OperationVenueUnderlay } from '../../../types'
+import type { PlaneFeatureCollection, PlanePlacement } from '@frigear-nu/maps/utils'
+import type { OperationVenueLayout, OperationVenuePlacement, OperationVenueUnderlay } from '../../../types'
 import type { OperationRow } from './operations'
 import { operationVenueRevision } from '../../utils/venue'
 
@@ -36,6 +36,7 @@ export async function saveOperationVenueLayout(existing: OperationRow, layout: P
   const keep = layout.underlay === null ? null : stored
   const venueLayout: OperationVenueLayout = {
     type: 'FeatureCollection',
+    ...(layout.crs === 'geo' ? { crs: 'geo' as const } : {}),
     features: layout.features,
     extent: layout.extent ?? null,
     underlay: keep,
@@ -53,4 +54,29 @@ export async function setOperationVenueUnderlay(existing: OperationRow, underlay
   const row = await writeOperationVenueLayout(existing, { ...layout, underlay })
   const replaced = layout.underlay && layout.underlay.pathname !== underlay.pathname ? layout.underlay : null
   return { row, replaced }
+}
+
+const placementChanged = () => apiError(409, 'venue_placement_changed', 'The placement of the venue layout was changed since it was loaded. Reload it and try again.')
+
+/**
+ * Saves the venue layout's placement (validated by `planePlacementSchema`; `null` removes it), only while the row still
+ * holds the placement the client read (`revision`) and the one read here (compare-and-set): 409
+ * `venue_placement_changed` otherwise. The layout itself is not touched, so drawing and placing never overwrite each other.
+ */
+export async function saveOperationVenuePlacement(existing: OperationRow, placement: PlanePlacement | null, revision: string | undefined): Promise<OperationRow> {
+  if (revision !== undefined && revision !== operationVenueRevision(existing.venuePlacement)) throw placementChanged()
+  const venuePlacement: OperationVenuePlacement | null = placement
+    ? {
+        georeference: placement.georeference ?? null,
+        underlayMode: placement.underlayMode ?? null,
+        underlayOpacity: placement.underlayOpacity ?? null,
+        gridUnit: placement.gridUnit ?? null,
+        gridSize: placement.gridSize ?? null,
+      }
+    : null
+  const column = schema.operations.venuePlacement
+  const unchanged = existing.venuePlacement === null || existing.venuePlacement === undefined ? isNull(column) : eq(column, existing.venuePlacement)
+  const [row] = await db.update(schema.operations).set({ venuePlacement }).where(and(eq(schema.operations.id, existing.id), unchanged)).returning()
+  if (!row) throw placementChanged()
+  return row
 }

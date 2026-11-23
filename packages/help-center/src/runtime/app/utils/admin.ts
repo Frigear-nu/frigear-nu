@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import type { AdminHelpArticleDto, AdminHelpCategoryDto, AdminHelpChecklistDto, Grant, HelpCategoryDisplay, HelpLink, Translated } from '../../../types'
+import type { AdminHelpArticleDto, AdminHelpCategoryDto, AdminHelpChecklistDto, Grant, HelpCategoryDisplay, HelpCategoryKind, HelpLink, Translated } from '../../../types'
+import { isHelpDisplayForKind } from '../../utils/faq'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from '../../utils/slug'
 
 // The staff views of the admin API's DTOs.
@@ -42,7 +43,7 @@ const slugSchema = (t: Translate) => z.string().trim()
 // --- Categories -------------------------------------------------------------------------------
 
 /** The category form, shared by the create slideover and the edit slideover so both validate the same way. */
-export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
+export function helpCategoryFormSchema(t: Translate, tr: TranslateText, kind?: HelpCategoryKind) {
   return z.object({
     name: z.custom<Translated | undefined>().refine(value => !!tr(value).trim(), t('admin.nameRequired', 'Enter a name.')),
     slug: slugSchema(t),
@@ -56,6 +57,9 @@ export function helpCategoryFormSchema(t: Translate, tr: TranslateText) {
   }).refine(value => value.ownerType === 'platform' || !!value.ownerId, {
     message: t('admin.ownerIdRequired', 'Enter the id of the owner.'),
     path: ['ownerId'],
+  }).refine(value => !kind || isHelpDisplayForKind(kind, value.display), {
+    message: t('admin.displayNotForKind', 'Choose how this kind of category is shown.'),
+    path: ['display'],
   })
 }
 

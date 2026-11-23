@@ -2,7 +2,8 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpCategoryFormState, type StaffHelpCategory, OWNER_TYPE_OPTIONS, categoryToForm, emptyHelpCategoryForm, formToCategoryBody, helpCategoryFormSchema, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import type { HelpCategoryKind } from '../../../types'
+import { helpDisplaysForKind } from '../../utils/faq'
+import type { HelpCategoryDisplay, HelpCategoryKind } from '../../../types'
 import { $fetch, computed, reactive, useAction, useHelpCenterTranslate, useModuleT, watch } from '#imports'
 
 defineOptions({ name: 'HelpCategoryFormSlideover' })
@@ -19,8 +20,8 @@ const t = useModuleT('helpCenter')
 const tr = useHelpCenterTranslate()
 const { busy, run } = useAction()
 
-const schema = helpCategoryFormSchema(t, tr)
-const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm(kind.value === 'faq' ? 'cards' : 'list'))
+const schema = computed(() => helpCategoryFormSchema(t, tr, kind.value))
+const state = reactive<HelpCategoryFormState>(props.category ? categoryToForm(props.category) : emptyHelpCategoryForm(helpDisplaysForKind(kind.value)[0]))
 
 // For a new category the URL name follows the name (in the current locale) until it is edited by hand.
 const draftName = computed(() => tr(state.name))
@@ -28,11 +29,18 @@ watch(draftName, (name, previous) => {
   if (!props.category && state.slug === slugify(previous)) state.slug = slugify(name)
 })
 
-const displays = computed(() => [
-  { value: 'list', label: t('admin.displays.list', 'Article list') },
-  { value: 'accordion', label: t('admin.displays.accordion', 'Questions (FAQ)') },
-  { value: 'cards', label: t('admin.displays.cards', 'Question cards (FAQ)') },
-])
+// Only the displays the kind offers: an FAQ shows as cards or questions, a help category as a list or questions. When
+// the kind changes, a display it does not offer falls back to the kind's first.
+const DISPLAY_LABELS: Record<HelpCategoryDisplay, [string, string]> = {
+  list: ['admin.displays.list', 'Article list'],
+  accordion: ['admin.displays.accordion', 'Questions (FAQ)'],
+  cards: ['admin.displays.cards', 'Question cards (FAQ)'],
+}
+const displays = computed(() => helpDisplaysForKind(kind.value).map(value => ({ value, label: t(...DISPLAY_LABELS[value]) })))
+watch(kind, (next) => {
+  const allowed = helpDisplaysForKind(next)
+  if (!allowed.includes(state.display)) state.display = allowed[0]!
+}, { immediate: true })
 
 const ownerTypes = computed(() => OWNER_TYPE_OPTIONS.map(value => ({ value, label: t(`admin.ownerTypes.${value}`, value) })))
 // A category cannot be its own parent; the API also refuses a parent below it.

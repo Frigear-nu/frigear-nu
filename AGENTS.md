@@ -348,9 +348,10 @@ live in `packages/ui` (reference: `apps/docs/content/3.modules/7.interface/1.ui/
 - **Areas pick the layout, not the page.** Public site = base-layer `default`; `/admin/**` = `admin` (grouped sidebar:
   Overview `admin.nav.overview`, Manage `admin.nav`, Settings `admin.nav.settings`); `/account/**` = `account` (a
   settings page inside the site: site header and footer, a left section list, `PageSectionSwitcher` on narrow screens).
-  `/admin/**` = `admin`, the shared `AppShell` (`@frigear-nu/ui`): no site header or footer, the account menu in the
-  top bar next to the language flag (every screen width; `AppShell`'s `navbar-actions` slot). New features go into an
-  existing nav group; a new group needs a reason. Colour mode lives in the account menu, not the chrome.
+  `/admin/**` = `admin`, the shared `AppShell` (`@frigear-nu/ui`): no site header or footer, the account menu in both
+  the sidebar footer and the top bar next to the language flag (every screen width; `AppShell`'s `navbar-actions`
+  slot). New features go into an existing nav group; a new group needs a reason. Colour mode lives in the account menu,
+  not the chrome.
 - **Headings.** App pages (admin, account) use `PageHeading`, and every app page renders its own (account pages through
   `AccountHeader`, or `PageHeading` with the menu item's i18n keys); neither layout renders a heading (the admin navbar eyebrow is not one), so a
   page has exactly one `<h1>`. Public pages use `UContainer > UPage > UPageHeader`. The page root is
