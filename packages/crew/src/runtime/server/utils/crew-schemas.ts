@@ -59,6 +59,8 @@ export const crewAddMemberInput = z.object({
   userId: z.number().int().positive(),
   teamId: key.optional(),
   role: key.optional(),
+  /** The inbox thread the person was added from: the addition goes on its audit trail (`inbox:thread:linked`). */
+  inboxThreadId: key.optional(),
 })
 
 /** The query of `GET /api/admin/crew/users`: the user search of the "Add crew member" picker. */

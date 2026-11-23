@@ -2,11 +2,13 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { z } from 'zod'
 import type { UserPickerCreateInitial, UserPickerOption } from '@frigear-nu/users/api'
+import { operationsApi } from '@frigear-nu/operations/api'
+import { teamsApi } from '@frigear-nu/teams/api'
 import type { CrewLadder, CrewTeamOption, StaffCrewMember } from '../utils/admin-crew'
 import { crewRoleOptions } from '../utils/admin-crew'
 import { crewApi } from '../../utils/api'
 import { CREW_STATUS_LABELS, isCrewStatus } from '../../utils/status'
-import { $fetch, computed, reactive, ref, useCrewTranslate, useErrorToast, useModuleT, useToast, watch } from '#imports'
+import { $fetch, computed, reactive, ref, useCrewTranslate, useErrorToast, useFetch, useModuleT, useToast, watch } from '#imports'
 
 defineOptions({ name: 'CrewAddMemberSlideover' })
 
@@ -15,10 +17,13 @@ defineOptions({ name: 'CrewAddMemberSlideover' })
 // role of the operation. `userId` preselects a person; `prefill` is what a host knows of someone without an account (an
 // inbox contact), offered as "Create user". A person who is in the crew already (applied, waiting list, approved) is
 // shown here, not added. Opened by `useCrewActions().add()`; closes with the added member, or `false`.
+// Without `operationId` (the inbox's "Add to crew") the form starts with an operation (planning or active; the list
+// needs `operations:manage`) and loads its teams. `inboxThreadId` records the addition on that thread's audit trail.
 const props = defineProps<{
-  operationId: string
-  teams: CrewTeamOption[]
-  ladders: CrewLadder[]
+  operationId?: string
+  teams?: CrewTeamOption[]
+  ladders?: CrewLadder[]
+  inboxThreadId?: string
   userId?: number
   selected?: UserPickerOption[]
   prefill?: UserPickerCreateInitial
@@ -37,20 +42,52 @@ const picked = ref<UserPickerOption | null>(props.selected?.find(user => user.id
 // The status of a person who is in the crew already (the 409 of the route).
 const already = ref<{ status: string, name: string } | null>(null)
 
-const schema = z.object({
-  userId: z.number({ error: t('admin.userRequired', 'Choose a person.') }).int().positive(),
-  // An operation without teams gets its default "Crew" team from the server, with the lowest role.
-  teamId: props.teams.length ? z.string().min(1, t('admin.teamRequired', 'Choose a team.')) : z.string(),
-  role: props.teams.length ? z.string().min(1, t('admin.roleRequired', 'Choose a role.')) : z.string(),
-})
-type State = { userId: number | undefined, teamId: string, role: string }
-const state = reactive<State>({ userId: props.userId, teamId: props.teams[0]?.id ?? '', role: '' })
+type State = { operationId: string, userId: number | undefined, teamId: string, role: string }
+const state = reactive<State>({ operationId: props.operationId ?? '', userId: props.userId, teamId: props.teams?.[0]?.id ?? '', role: '' })
 
-const teamOptions = computed(() => props.teams.map(team => ({ label: tr(team.name), value: team.id })))
-const kind = computed(() => props.teams.find(team => team.id === state.teamId)?.kind)
-const roleOptions = computed(() => crewRoleOptions(props.ladders, kind.value, tr))
+// The operation to choose from, and its teams and the ladders, when the host did not give them.
+const chooseOperation = !props.operationId
+const { data: operations, status: operationsStatus } = await useFetch<{ items: Array<{ id: string, name: Record<string, string> | string, status: string }> }>(operationsApi.admin.operations, {
+  query: { pageSize: 100, sort: 'startsAt', order: 'desc' },
+  immediate: chooseOperation,
+  server: false,
+  lazy: true,
+  default: () => ({ items: [] }),
+})
+const operationOptions = computed(() => (operations.value?.items ?? [])
+  .filter(operation => operation.status === 'planning' || operation.status === 'active')
+  .map(operation => ({ label: tr(operation.name), value: operation.id })))
+const { data: fetchedTeams } = await useFetch<{ items: CrewTeamOption[] }>(teamsApi.admin.teams, {
+  query: computed(() => ({ ownerType: 'operation', ownerId: state.operationId || undefined, pageSize: 100, sort: 'sort', order: 'asc' })),
+  immediate: !props.teams && !!state.operationId,
+  watch: false,
+  server: false,
+  lazy: true,
+  default: () => ({ items: [] }),
+})
+const { data: fetchedLadders } = await useFetch<CrewLadder[]>(teamsApi.admin.ladders, { immediate: !props.ladders, server: false, lazy: true, default: () => [] })
+const teamList = computed(() => props.teams ?? fetchedTeams.value?.items ?? [])
+const ladderList = computed(() => props.ladders ?? fetchedLadders.value ?? [])
+watch(() => state.operationId, async (operationId) => {
+  if (props.teams || !operationId) return
+  fetchedTeams.value = await $fetch<{ items: CrewTeamOption[] }>(teamsApi.admin.teams, { query: { ownerType: 'operation', ownerId: operationId, pageSize: 100, sort: 'sort', order: 'asc' } })
+  state.teamId = teamList.value[0]?.id ?? ''
+  already.value = null
+})
+
+// An operation without teams gets its default "Crew" team from the server, with the lowest role.
+const schema = computed(() => z.object({
+  operationId: z.string().min(1, t('admin.operationRequired', 'Choose an operation.')),
+  userId: z.number({ error: t('admin.userRequired', 'Choose a person.') }).int().positive(),
+  teamId: teamList.value.length ? z.string().min(1, t('admin.teamRequired', 'Choose a team.')) : z.string(),
+  role: teamList.value.length ? z.string().min(1, t('admin.roleRequired', 'Choose a role.')) : z.string(),
+}))
+
+const teamOptions = computed(() => teamList.value.map(team => ({ label: tr(team.name), value: team.id })))
+const kind = computed(() => teamList.value.find(team => team.id === state.teamId)?.kind)
+const roleOptions = computed(() => crewRoleOptions(ladderList.value, kind.value, tr))
 // Start from the lowest role of the team's ladder.
-watch(() => state.teamId, () => {
+watch([() => state.teamId, roleOptions], () => {
   if (!roleOptions.value.some(option => option.value === state.role)) state.role = roleOptions.value.at(-1)?.value ?? ''
 }, { immediate: true })
 watch(() => state.userId, () => {
@@ -68,14 +105,15 @@ async function createFromPrefill() {
 
 type ConflictError = { statusCode?: number, data?: { data?: { status?: unknown } } }
 
-async function save(event: FormSubmitEvent<z.output<typeof schema>>) {
-  const { userId, teamId, role } = event.data
+async function save(event: FormSubmitEvent<State>) {
+  const { operationId, userId, teamId, role } = event.data
+  if (!userId) return
   const name = nameOf(userId)
   already.value = null
   busy.value = true
   try {
-    const body = { userId, ...(teamId ? { teamId } : {}), ...(teamId && role ? { role } : {}) }
-    const added = await $fetch<StaffCrewMember>(crewApi.admin.addMember(props.operationId), { method: 'POST', body })
+    const body = { userId, ...(teamId ? { teamId } : {}), ...(teamId && role ? { role } : {}), ...(props.inboxThreadId ? { inboxThreadId: props.inboxThreadId } : {}) }
+    const added = await $fetch<StaffCrewMember>(crewApi.admin.addMember(operationId), { method: 'POST', body })
     toast.add({ title: t('admin.memberAdded', 'Added {name} to the crew', { name: added.name ?? name }), color: 'success', icon: 'i-lucide-check' })
     emit('close', added)
   }
@@ -138,6 +176,21 @@ const alreadyText = computed(() => {
         :actions="[{ label: t('admin.createUserAction', 'Create user'), icon: 'i-lucide-user-plus', onClick: createFromPrefill }]"
       />
       <UFormField
+        v-if="chooseOperation"
+        name="operationId"
+        :label="t('admin.operation', 'Operation')"
+        required
+      >
+        <USelectMenu
+          v-model="state.operationId"
+          :items="operationOptions"
+          value-key="value"
+          :loading="operationsStatus === 'pending'"
+          :placeholder="t('admin.chooseOperation', 'Choose an operation')"
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField
         name="userId"
         :label="t('admin.person', 'Person')"
         :description="t('admin.personHelp', 'Search by name, or by email where you may see emails.')"
@@ -153,7 +206,7 @@ const alreadyText = computed(() => {
         />
       </UFormField>
       <UFormField
-        v-if="teams.length"
+        v-if="teamList.length"
         name="teamId"
         :label="t('admin.team', 'Team')"
         required
@@ -165,7 +218,7 @@ const alreadyText = computed(() => {
         />
       </UFormField>
       <UFormField
-        v-if="teams.length"
+        v-if="teamList.length"
         name="role"
         :label="t('admin.role', 'Role')"
         required

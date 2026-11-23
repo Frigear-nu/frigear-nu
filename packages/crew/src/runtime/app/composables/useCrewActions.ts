@@ -20,7 +20,9 @@ export type CrewMenuOptions = {
 }
 
 /** Who the "Add crew member" form starts with: a person to preselect, or what is known of someone without an account. */
-export type CrewAddMemberOptions = Pick<CrewMenuOptions, 'teams' | 'ladders'> & {
+export type CrewAddMemberOptions = Partial<Pick<CrewMenuOptions, 'teams' | 'ladders'>> & {
+  /** Records the addition on this inbox thread's audit trail (`inbox:thread:linked`). */
+  inboxThreadId?: string
   /** Preselects this user (`selected` gives their name). */
   userId?: number
   selected?: UserPickerOption[]
@@ -100,8 +102,11 @@ export function useCrewActions() {
     return await overlay.create(CrewMemberSlideover, { destroyOnClose: true, props: { member, teams: options.teams, ladders: options.ladders, pii: options.pii ?? false } }).open() as StaffCrewMember | false
   }
 
-  /** Opens the "Add crew member" form. Resolves with the added member, or `false` when cancelled. */
-  async function add(operationId: string, options: CrewAddMemberOptions): Promise<StaffCrewMember | false> {
+  /**
+   * Opens the "Add crew member" form; without `operationId` it starts with a choice of operation (and loads its teams).
+   * Resolves with the added member, or `false` when cancelled.
+   */
+  async function add(operationId: string | undefined, options: CrewAddMemberOptions = {}): Promise<StaffCrewMember | false> {
     return await overlay.create(CrewAddMemberSlideover, { destroyOnClose: true, props: { operationId, ...options } }).open() as StaffCrewMember | false
   }
 
