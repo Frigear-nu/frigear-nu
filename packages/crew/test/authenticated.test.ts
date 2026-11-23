@@ -976,6 +976,31 @@ describe('crew (authenticated, database-backed)', async () => {
     })
   })
 
+  describe('who takes part, on the surfaces of other modules', () => {
+    it('lets a teams-added member and a crew-added approved member read a private operation and its venue layout, and hold the team grant', async () => {
+      const crew = await newCrew({}, { public: false })
+      const [viaTeams, viaCrew, pending, outsider] = [await user('Vteams'), await user('Vcrew'), await user('Vpending'), await user('Voutsider')]
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: viaTeams.id, role: 'volunteer' }))
+      await ok(await json(staff.cookie, 'POST', teamsApi.admin.members(crew.teamId), { userId: pending.id, role: 'volunteer', status: 'pending' }))
+      expect((await json(staff.cookie, 'POST', crewApi.admin.addMember(crew.op.id), { userId: viaCrew.id })).status).toBe(201)
+      for (const person of [viaTeams, viaCrew]) {
+        // The venue layout (maps visibility by operation) and the operation itself follow participation.
+        expect((await json(person.cookie, 'GET', operationsApi.venueLayout(crew.op.slug))).status).toBe(200)
+        expect((await myOperations(person.cookie)).map(operation => operation.id)).toEqual([crew.op.id])
+        // The team grant (help-center and inbox `team` grants, shifts' roles) comes from the same membership row.
+        expect((await myTeams(person.cookie)).map(grant => grant.teamId)).toContain(crew.teamId)
+        // The `operation` grant (help-center grants and checklists, sends) admits them and lists them.
+        expect(await getParticipation(person.cookie, crew.op.id)).toMatchObject({ matches: true })
+      }
+      for (const person of [pending, outsider]) {
+        expect((await json(person.cookie, 'GET', operationsApi.venueLayout(crew.op.slug))).status).toBeGreaterThanOrEqual(400)
+        expect(await myOperations(person.cookie)).toEqual([])
+        expect((await myTeams(person.cookie)).map(grant => grant.teamId)).not.toContain(crew.teamId)
+        expect(await getParticipation(person.cookie, crew.op.id)).toMatchObject({ matches: false })
+      }
+    })
+  })
+
   describe('redelivery', () => {
     it('ignores a submission that was delivered already, and keeps the first phone number', async () => {
       const crew = await newCrew()
