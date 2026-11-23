@@ -99,7 +99,8 @@ describe('users admin', () => {
     expect(created.status, await created.clone().text()).toBe(201)
     const user = await created.json() as Row
     expect(user).toMatchObject({ name: 'New Person', email: 'new@example.com', emailVerifiedAt: null, avatar: null })
-    expect(Object.keys(user).sort()).toEqual(['avatar', 'createdAt', 'email', 'emailVerifiedAt', 'id', 'lastLoginAt', 'name'])
+    // The admin holds `users:pii`, so the (unset) phone number is in the answer.
+    expect(Object.keys(user).sort()).toEqual(['avatar', 'createdAt', 'email', 'emailVerifiedAt', 'id', 'lastLoginAt', 'name', 'phone'])
 
     // A sign-in link was emailed to the new user.
     expect((await sentMails()).some(mail => mail.to === 'new@example.com')).toBe(true)
@@ -331,6 +332,58 @@ describe('users admin', () => {
     })
   })
 
+  describe('creating users (POST /api/admin/users)', () => {
+    let coordinator: ReturnType<typeof apiClient>
+    const loginAs = async (email: string) => {
+      const login = await apiClient().fetch('POST', authApi.login, { email, password: 'supersecret123' })
+      expect(login.status, await login.clone().text()).toBe(200)
+      return apiClient({ cookie: login.headers.get('set-cookie')!.split(';')[0]! })
+    }
+
+    it('refuses a user without users:create (403), before the body is looked at', async () => {
+      await expectApiError(member.json('POST', usersApi.admin.users, { name: 'X', email: 'x-create@example.com', phone: '+45 11 11 11 11' }), 403, 'forbidden')
+      await expectApiError(member.json('POST', usersApi.admin.users, { phone: 'not a phone' }), 403, 'forbidden')
+    })
+
+    it('answers 409 with the holder\'s id for a taken email, whatever its case', async () => {
+      const { items } = await staff.json<Page>('GET', `${usersApi.admin.users}?q=staff%40example.com`)
+      const response = await staff.fetch('POST', usersApi.admin.users, { name: 'Again', email: 'STAFF@example.com' })
+      expect(response.status).toBe(409)
+      expect((await response.json() as { data: unknown }).data).toMatchObject({ code: 'conflict', field: 'email', userId: items[0]!.id })
+    })
+
+    it('stores the phone number and language, and emails the invite only when asked', async () => {
+      const before = (await sentMails()).length
+      const invited = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Invited', email: 'invited@example.com', phone: ' +45 22 33 44 55 ', locale: 'da' })
+      expect(invited).toMatchObject({ email: 'invited@example.com', phone: '+45 22 33 44 55' })
+      const mails = await sentMails()
+      expect(mails.length).toBe(before + 1)
+      expect(mails.at(-1)!.to).toBe('invited@example.com')
+      const refsOf = async (id: number) => (await $fetch<{ refs: Array<{ id: number, locale: string | null }> }>('/api/test/user-refs', { method: 'POST', body: { ids: [id] } })).refs[0]
+      expect(await refsOf(invited.id)).toMatchObject({ id: invited.id, locale: 'da' })
+
+      const quiet = await staff.json<Row>('POST', usersApi.admin.users, { name: 'Quiet', email: 'quiet@example.com', sendWelcomeEmail: false })
+      expect((await sentMails()).length).toBe(before + 1)
+      // Without a language from the staff member's UI it stays unset.
+      expect((await refsOf(quiet.id))!.locale).toBeNull()
+
+      await expectApiError(staff.json('POST', usersApi.admin.users, { name: 'Bad', email: 'bad-phone@example.com', phone: 'call me' }), 400)
+    })
+
+    it('never tells a caller without users:pii that a phone number is taken', async () => {
+      coordinator = await loginAs('coordinator@example.com')
+      // `invited@example.com` holds +45 22 33 44 55: the same number is stored again, and the answer has no phone.
+      const first = await coordinator.fetch('POST', usersApi.admin.users, { name: 'Same Phone', email: 'same-phone@example.com', phone: '+45 22 33 44 55', sendWelcomeEmail: false })
+      const second = await coordinator.fetch('POST', usersApi.admin.users, { name: 'New Phone', email: 'new-phone@example.com', phone: '+45 99 88 77 66', sendWelcomeEmail: false })
+      expect([first.status, second.status]).toEqual([201, 201])
+      const [taken, fresh] = await Promise.all([first.json(), second.json()]) as Row[]
+      expect(taken).not.toHaveProperty('phone')
+      expect(Object.keys(taken!).sort()).toEqual(Object.keys(fresh!).sort())
+      // Staff with `users:pii` see what was stored.
+      expect(await staff.json('GET', usersApi.admin.user(taken!.id))).toMatchObject({ phone: '+45 22 33 44 55' })
+    })
+  })
+
   describe('API tokens with users:read', () => {
     const createToken = (client: ReturnType<typeof apiClient>, scopes: string[]) =>
       client.fetch('POST', authApi.me.tokens, { name: 'sync', scopes })
@@ -368,6 +421,15 @@ describe('users admin', () => {
       const token = await tokenClient(staff, ['users:update'])
       expect(await token.json<Row>('PATCH', usersApi.admin.user(memberId), { name: 'Member Renamed' })).toMatchObject({ name: 'Member Renamed' })
       await expectApiError(token.json('PATCH', usersApi.admin.user(memberId), { email: 'elsewhere@example.com' }), 403, 'session_required')
+    })
+
+    it('lets a token with users:create create a user and send the invite; one without it gets insufficient_scope', async () => {
+      const token = await tokenClient(staff, ['users:create'])
+      const before = (await sentMails()).length
+      const created = await token.fetch('POST', usersApi.admin.users, { name: 'By Token', email: 'by-token@example.com' })
+      expect(created.status, await created.clone().text()).toBe(201)
+      expect((await sentMails()).length).toBe(before + 1)
+      await expectApiError((await tokenClient(staff, ['users:list'])).json('POST', usersApi.admin.users, { name: 'No', email: 'no-token@example.com' }), 403, 'insufficient_scope')
     })
 
     it('refuses a token without the scope (403 insufficient_scope)', async () => {

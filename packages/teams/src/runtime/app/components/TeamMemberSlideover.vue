@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { refDebounced } from '@vueuse/core'
 import { z } from 'zod'
 import type { StaffTeam, StaffTeamLadder, StaffTeamMember } from '../utils/admin-team'
 import { teamRoleOptions } from '../utils/admin-team'
 import { teamsApi } from '../../utils/api'
-import type { TeamUserLookupDto } from '../../../types'
-import { $fetch, computed, reactive, ref, useAction, useLazyFetch, useModuleT, useTeamsTranslate } from '#imports'
+import type { UserPickerOption } from '@frigear-nu/users/api'
+import { $fetch, computed, reactive, ref, useAction, useModuleT, useTeamsTranslate } from '#imports'
 
 defineOptions({ name: 'TeamMemberSlideover' })
 
-// Adds a member to a team (a user search by name or email, and a role of the kind's ladder), or changes the role of
+// Adds a member to a team (the shared `UserPicker` of `@frigear-nu/users` on the teams lookup, which matches emails with
+// `teams:pii`, and offers "Create user" with `users:create`; and a role of the kind's ladder), or changes the role of
 // an explicit member (`member`). Opened by `useTeamMemberActions()`; closes with the saved member, or `false`.
 // Assigning a role to a mapped member (`member.source === 'mapped'`) makes the membership explicit.
 const props = defineProps<{ team: StaffTeam, ladders: StaffTeamLadder[], member?: StaffTeamMember }>()
@@ -23,20 +23,8 @@ const { busy, run } = useAction()
 const editing = computed(() => props.member?.source === 'explicit')
 const roleOptions = computed(() => teamRoleOptions(props.ladders, props.team.kind, tr))
 
-const search = ref('')
-const q = refDebounced(search, 250)
-const { data: found, status } = useLazyFetch<TeamUserLookupDto[]>(teamsApi.admin.users, {
-  query: computed(() => ({ q: q.value.trim() })),
-  immediate: false,
-  watch: [q],
-  default: () => [],
-})
-const userItems = computed(() => (q.value.trim() ? found.value : []).map(user => ({
-  label: user.name || user.email || `#${user.id}`,
-  description: user.email ?? undefined,
-  avatar: user.avatar ? { src: user.avatar } : undefined,
-  value: user.id,
-})))
+// The person picked (or created) in the picker, for the toast.
+const picked = ref<UserPickerOption | null>(null)
 
 const schema = z.object({
   userId: z.number({ error: t('admin.userRequired', 'Choose a person.') }).int().positive(),
@@ -49,7 +37,7 @@ const state = reactive<State>({ userId: props.member?.userId, role: props.member
 
 async function save(event: FormSubmitEvent<z.output<typeof schema>>) {
   const { userId, role } = event.data
-  const name = props.member?.name ?? userItems.value.find(item => item.value === userId)?.label ?? ''
+  const name = props.member?.name ?? (picked.value?.id === userId ? (picked.value.name || picked.value.email) : null) ?? `#${userId}`
   const saved = await run(
     () => editing.value
       ? $fetch<StaffTeamMember>(teamsApi.admin.member(props.team.id, userId), { method: 'PATCH', body: { role } })
@@ -85,16 +73,11 @@ async function save(event: FormSubmitEvent<z.output<typeof schema>>) {
         :description="t('admin.personHelp', 'Search by name or email.')"
         required
       >
-        <UInputMenu
+        <UserPicker
           v-model="state.userId"
-          v-model:search-term="search"
-          :items="userItems"
-          value-key="value"
-          ignore-filter
-          :loading="status === 'pending'"
-          icon="i-lucide-search"
+          :endpoint="teamsApi.admin.users"
           :placeholder="t('admin.searchPeople', 'Search people')"
-          class="w-full"
+          @picked="(user: UserPickerOption) => picked = user"
         />
       </UFormField>
       <UFormField
