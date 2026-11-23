@@ -36,3 +36,15 @@ export type PublicModuleOptions = {
   dashboard?: string
   backTo?: string | false
 }
+
+/** The answer of `POST /api/admin/search/reindex` (`adminApi.search.reindex`). */
+export type AdminSearchReindexDto = {
+  /** One entry per registered search index, in registration order. */
+  tables: Array<{
+    table: string
+    /** Rows read. */
+    scanned: number
+    /** Rows whose search columns differed and were rewritten. */
+    updated: number
+  }>
+}
