@@ -57,16 +57,23 @@ export async function getCrewEntryOr404(id: string): Promise<CrewEntry> {
   return row
 }
 
+/**
+ * The ONE rule of who takes part in an operation, on a `team_members` row of a team it owns: a membership that grants
+ * (`status` null or `active`, teams' rule) that is either a plain one (added in teams, no `crewStatus`) or an approved
+ * crew row. Applied, waitlisted, rejected and withdrawn people do not take part. My crew, the apply page and the
+ * `operations:participation:resolve` / `operations:participants:resolve` answers all use it, so everyone who takes part
+ * (and can be given shifts) sees their crew. Mapped team roles are no rows, so a mapping rule never makes anyone take part.
+ */
+export const crewTakesPart = () => and(
+  or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active')),
+  or(isNull(schema.teamMembers.crewStatus), eq(schema.teamMembers.crewStatus, 'approved')),
+)
+
 /** Whether the user holds a role on a team of the operation that crew did not create (a hand-added teams member). */
 export async function crewHasPlainMembership(userId: number, operationId: string): Promise<boolean> {
   const [row] = await db.select({ id: schema.teamMembers.id }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
-    .where(and(
-      eq(schema.teamMembers.userId, userId),
-      operationTeamOwned(operationId),
-      isNull(schema.teamMembers.crewStatus),
-      or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active')),
-    )).limit(1)
+    .where(and(eq(schema.teamMembers.userId, userId), operationTeamOwned(operationId), isNull(schema.teamMembers.crewStatus), crewTakesPart())).limit(1)
   return !!row
 }
 
@@ -126,27 +133,22 @@ export async function crewMyEntryOf(event: H3Event, entry: CrewEntry, operation:
   return toMyCrewDto({ member: entry.member, team: teamLite(entry.team), operation, roleLabel: await crewRoleLabelOf(event, entry.team.kind, entry.member.role) })
 }
 
-/** My crew status in every operation I applied to or work at. */
+/**
+ * My crew status in every operation I take part in (`crewTakesPart`: an approved crew row or a membership added in
+ * teams) or applied to (my own crew rows in any other status). A teams-added row shows as an approved place
+ * (`source: 'teams'`), which only teams staff can end.
+ */
 export async function crewMyEntries(event: H3Event, userId: number): Promise<MyCrewDto[]> {
   const rows = await db.select({ member: schema.teamMembers, team: schema.teams, operation: schema.operations }).from(schema.teamMembers)
     .innerJoin(schema.teams, eq(schema.teamMembers.teamId, schema.teams.id))
     .innerJoin(schema.operations, eq(schema.operations.id, schema.teams.ownerId))
-    .where(and(eq(schema.teamMembers.userId, userId), eq(schema.teams.ownerType, 'operation'), isNotNull(schema.teamMembers.crewStatus)))
+    .where(and(eq(schema.teamMembers.userId, userId), eq(schema.teams.ownerType, 'operation'), or(isNotNull(schema.teamMembers.crewStatus), crewTakesPart())))
     .orderBy(desc(schema.operations.startsAt))
   return Promise.all(rows.map(async row => toMyCrewDto({ member: row.member, team: teamLite(row.team), operation: row.operation, roleLabel: await crewRoleLabelOf(event, row.team.kind, row.member.role) })))
 }
 
-/**
- * A membership that makes its person take part in the team's operation: a team the operation owns, a membership that
- * grants (`status` null or `active`) and, for a crew row, an approved one. Applied, waitlisted, rejected and withdrawn
- * people do not take part; a row added by hand in teams (no `crewStatus`) does. Mapped team roles are no rows, so a
- * mapping rule never makes anyone take part.
- */
-const crewParticipating = () => and(
-  eq(schema.teams.ownerType, 'operation'),
-  or(isNull(schema.teamMembers.status), eq(schema.teamMembers.status, 'active')),
-  or(isNull(schema.teamMembers.crewStatus), eq(schema.teamMembers.crewStatus, 'approved')),
-)
+/** A membership that makes its person take part in the team's operation: a team the operation owns, by `crewTakesPart`. */
+const crewParticipating = () => and(eq(schema.teams.ownerType, 'operation'), crewTakesPart())
 
 /** The ids of the operations a user takes part in (`operations:participation:resolve`). */
 export async function crewParticipationOperationIds(userId: number): Promise<string[]> {
@@ -196,7 +198,7 @@ export async function crewApplyDto(operation: CrewOperationRow, settings: CrewSe
   let state: CrewApplyDto['state'] | undefined
   if (status === 'applied' || status === 'waitlisted' || status === 'approved') state = 'applied'
   else if (status === 'rejected') state = 'rejected'
-  else if (!entry && await crewHasPlainMembership(userId, operation.id)) state = 'member'
+  else if (await crewHasPlainMembership(userId, operation.id)) state = 'member'
   let formSlug: string | null = null
   if (!state) {
     state = crewOpenState(operation, settings)
