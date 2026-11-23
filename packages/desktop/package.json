@@ -1,0 +1,123 @@
+{
+  "name": "@frigear-nu/desktop",
+  "version": "0.0.1",
+  "description": "A Tauri v2 desktop shell for Nuxt (macOS, Windows, Linux): a static SPA in the Tauri window that signs in with @frigear-nu/auth in client mode, generated tauri.conf.json and capabilities, deep links, window controls and the frigear-desktop CLI.",
+  "homepage": "https://docs.frigear.dev/modules/interface/desktop",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frigear-nu/frigear-nu.git",
+    "directory": "packages/desktop"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/module.ts",
+  "types": "./src/module.ts",
+  "bin": {
+    "frigear-desktop": "./bin/frigear-desktop.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/module.ts",
+      "import": "./src/module.ts",
+      "default": "./src/module.ts"
+    },
+    "./types": "./src/types.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types.d.mts",
+        "import": "./dist/module.mjs",
+        "default": "./dist/module.mjs"
+      },
+      "./types": {
+        "types": "./dist/types.d.mts"
+      }
+    },
+    "main": "./dist/module.mjs",
+    "types": "./dist/types.d.mts",
+    "typesVersions": {
+      "*": {
+        ".": [
+          "./dist/types.d.mts"
+        ],
+        "types": [
+          "./dist/types.d.mts"
+        ]
+      }
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "dev:stub": "nuxt-module-build build --stub && nuxt-module-build prepare",
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@frigear-nu/auth": "workspace:^",
+    "@frigear-nu/module-kit": "workspace:^",
+    "@nuxt/kit": "catalog:",
+    "defu": "^6.1.4",
+    "jiti": "^2.7.0"
+  },
+  "peerDependencies": {
+    "@tauri-apps/api": ">=2.0.0",
+    "@tauri-apps/cli": ">=2.0.0",
+    "@tauri-apps/plugin-autostart": ">=2.0.0",
+    "@tauri-apps/plugin-deep-link": ">=2.0.0",
+    "@tauri-apps/plugin-opener": ">=2.0.0",
+    "@tauri-apps/plugin-store": ">=2.0.0",
+    "@tauri-apps/plugin-updater": ">=2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tauri-apps/api": {
+      "optional": true
+    },
+    "@tauri-apps/cli": {
+      "optional": true
+    },
+    "@tauri-apps/plugin-autostart": {
+      "optional": true
+    },
+    "@tauri-apps/plugin-deep-link": {
+      "optional": true
+    },
+    "@tauri-apps/plugin-opener": {
+      "optional": true
+    },
+    "@tauri-apps/plugin-store": {
+      "optional": true
+    },
+    "@tauri-apps/plugin-updater": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "catalog:",
+    "@nuxt/eslint-config": "catalog:",
+    "@nuxt/module-builder": "catalog:",
+    "@nuxt/schema": "catalog:",
+    "@nuxt/test-utils": "catalog:",
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/cli": "^2.12.6",
+    "@tauri-apps/plugin-autostart": "^2.7.0",
+    "@tauri-apps/plugin-deep-link": "^2.6.3",
+    "@tauri-apps/plugin-opener": "^2.7.3",
+    "@tauri-apps/plugin-store": "^2.5.1",
+    "@tauri-apps/plugin-updater": "^2.14.1",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "nuxt": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}
