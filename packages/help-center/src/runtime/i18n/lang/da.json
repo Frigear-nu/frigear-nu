@@ -138,6 +138,7 @@
       "sendFailed": "Artiklerne kunne ikke sendes",
       "sendGroups": "Grupper",
       "sendGroupsHelp": "Alle, der matcher en af disse: en rolle, et team, dem der deltager i en operation.",
+      "sendGroupsEmpty": "Ingen grupper endnu: tilføj de grupper, der skal modtage den, eller vælg personer ovenfor.",
       "sendNeedsArticles": "Vælg mindst én artikel.",
       "sendNeedsAudience": "Angiv mindst én person eller gruppe.",
       "sendNeedsChannel": "Vælg mail, sms eller begge.",

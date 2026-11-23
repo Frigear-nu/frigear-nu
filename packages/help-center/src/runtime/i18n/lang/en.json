@@ -138,6 +138,7 @@
       "sendFailed": "Could not send the articles",
       "sendGroups": "Groups",
       "sendGroupsHelp": "Everyone who matches one of these: a role, a team, the people who take part in an operation.",
+      "sendGroupsEmpty": "No groups yet: add the groups to send to, or pick people above.",
       "sendNeedsArticles": "Pick at least one article.",
       "sendNeedsAudience": "Name at least one person or group.",
       "sendNeedsChannel": "Choose email, SMS or both.",
