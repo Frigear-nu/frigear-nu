@@ -15,7 +15,9 @@ export const usersAccess = defineAccess('users', {
     // (their email, sign-in links) is session only. Roles themselves are `@frigear-nu/authorization`'s.
     'read': { label: 'View users', description: 'See a user\'s profile, sign-in methods and what other modules show on the user page.' },
     'list': { label: 'List users', description: 'Search the user directory and see the sign-up numbers.' },
-    'create': { label: 'Add users', description: 'Create users and email them a sign-in link.' },
+    // Granted to `admin` by name; give it to other staff roles in the host's `authorization.roles`. It covers an optional
+    // phone number on the new user (changing it later is `users:pii`).
+    'create': { label: 'Add users', description: 'Create users and email them an invite link.', grantTo: ['admin'] },
     'update': { label: 'Edit users', description: 'Change a user\'s name.' },
     'delete': { label: 'Delete users', description: 'Delete users and their sign-in methods.', sessionOnly: true },
     'manage': { label: 'Manage sign-in of users', description: 'Change or verify a user\'s email address and email them a sign-in link.', sessionOnly: true },

@@ -1,6 +1,6 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import UserCreateSlideover from '../components/UserCreateSlideover.vue'
-import type { UserRow, UserSubject } from '../utils/admin-user'
+import type { UserCreateResult, UserRow, UserSubject } from '../utils/admin-user'
 import { ADMIN_USERS_KEY } from '../utils/admin-user'
 import { usersApi } from '../../utils/api'
 import { $fetch, computed, navigateTo, refreshNuxtData, useAction, useConfirmDialog, useLocaleLink, useModuleT, useOverlay, useRuntimeConfig } from '#imports'
@@ -35,9 +35,10 @@ export function useUserActions() {
 
   /** Opens the create form, then opens the new user's page; resolves with the created user, or `false` when cancelled. */
   async function create(): Promise<UserRow | false> {
-    const created = await overlay.create(UserCreateSlideover).open() as UserRow | false
-    if (created) await navigateTo(userPath(created.id))
-    return created
+    const result = await overlay.create(UserCreateSlideover, { destroyOnClose: true }).open() as UserCreateResult
+    if (!result || 'existing' in result) return false
+    await navigateTo(userPath(result.id))
+    return result
   }
 
   /** Confirms, deletes and refreshes. Resolves `true` once the user is gone. */
