@@ -13,8 +13,8 @@ defineOptions({ name: 'UsersUserCreateSlideover' })
 // created user, or `false` when cancelled. With `offerExisting` (the picker), a taken email offers that user instead.
 // Roles are given afterwards, on the user's "Roles and permissions" tab (`@frigear-nu/authorization`).
 const props = withDefaults(defineProps<{
-  /** Prefills the form (the picker's search term). */
-  initial?: { name?: string, email?: string }
+  /** Prefills the form (the picker's search term, or what a host knows of the person). */
+  initial?: { name?: string, email?: string, phone?: string }
   /** Show "Mark the email address as verified" (`users:manage`). The admin list does, the picker does not. */
   verify?: boolean
   /** On a taken email, offer to select the user who has it (`{ existing }`). */
@@ -38,7 +38,7 @@ const schema = z.object({
 })
 type Schema = z.output<typeof schema>
 
-const state = reactive<Schema>({ name: props.initial?.name ?? '', email: props.initial?.email ?? '', phone: '', emailVerified: false, sendWelcomeEmail: true })
+const state = reactive<Schema>({ name: props.initial?.name ?? '', email: props.initial?.email ?? '', phone: props.initial?.phone ?? '', emailVerified: false, sendWelcomeEmail: true })
 // The user who already has the typed email (a 409), offered instead of a new one.
 const existing = ref<UserPickerOption | null>(null)
 
