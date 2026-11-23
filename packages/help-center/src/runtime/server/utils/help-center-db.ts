@@ -7,7 +7,7 @@ import { apiError, chunkParams, conflict, inChunks, isForeignKeyViolation, isUni
 import type { z } from 'zod'
 import type { AdminHelpCategoryKindChangeDto, HelpCategoryDisplay, HelpCategoryKind, HelpCenterSource, HelpSourceCategory, OwnerRef } from '../../../types'
 import { describeMissingTranslations, DEFAULT_REQUIRED_LOCALES, missingTranslations } from '../../utils/publish'
-import { checkReorder, defaultHelpDisplay, helpDisplayForKind, isValidReorder } from '../../utils/faq'
+import { checkReorder, defaultHelpDisplay, helpDisplayForKind, helpDisplaysForKind, isHelpDisplayForKind, isValidReorder } from '../../utils/faq'
 import { categoryChain, isHelpArticleReadableIn, isHelpChainReadable } from '../../utils/grants'
 import type { HelpRecordReader } from '../../utils/grants'
 import { helpCategoryKind, toHelpArticleDto, toHelpCategoryDto } from './help-center-dto'
@@ -299,10 +299,17 @@ async function nextArticleSort(categoryId: string): Promise<number> {
   return row?.max === null || row?.max === undefined ? 0 : Number(row.max) + 1
 }
 
+/** `400` with a `display` issue when a category of `kind` may not show as `display` (see `helpDisplaysForKind`). */
+export function assertHelpDisplayForKind(kind: HelpCategoryKind, display: string | null | undefined): void {
+  if (display === undefined || display === null || isHelpDisplayForKind(kind, display)) return
+  throw validationError([{ path: ['display'], message: `A ${kind} category shows as ${helpDisplaysForKind(kind).join(' or ')}.` }])
+}
+
 /** Inserts a category after the slug, parent, owner and grants checks. */
 export async function createHelpCategoryRow(event: H3Event, input: CategoryInput): Promise<HelpCategoryRow> {
   await assertHelpCategorySlugFree(input.slug)
   const kind = input.kind ?? 'help'
+  assertHelpDisplayForKind(kind, input.display)
   await assertHelpParent(input.parentId, kind)
   const owner = ownerValue(input.owner)
   await assertHelpOwner(event, owner)
@@ -415,6 +422,7 @@ export async function patchHelpCategoryRow(event: H3Event, existing: HelpCategor
   // parent, of the old kind, for the top level unless the patch names a parent of the new kind.
   const kind = patch.kind ?? helpCategoryKind(existing.kind)
   const kindChanged = kind !== helpCategoryKind(existing.kind)
+  assertHelpDisplayForKind(kind, patch.display)
   const parentId = patch.parentId !== undefined ? patch.parentId : kindChanged ? null : undefined
   if (patch.slug) await assertHelpCategorySlugFree(patch.slug, existing.id)
   if (parentId !== undefined && (parentId !== existing.parentId || kindChanged)) await assertHelpParent(parentId, kind, existing.id)

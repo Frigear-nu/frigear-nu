@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkReorder, faqCardProps, faqPageFromQuestions, faqPageJsonLd, isValidReorder, moveId } from '../../src/runtime/utils'
+import { checkReorder, faqCardProps, faqPageFromQuestions, faqPageJsonLd, helpDisplayForKind, helpDisplaysForKind, isHelpDisplayForKind, isValidReorder, moveId } from '../../src/runtime/utils'
 import type { HelpArticleDto, HelpFaqDto } from '../../src/runtime/utils'
 
 const article = (overrides: Partial<HelpArticleDto> = {}): HelpArticleDto => ({
@@ -119,5 +119,22 @@ describe('moveId', () => {
     expect(moveId(['a', 'b'], 1, 1)).toEqual(['a', 'b'])
     expect(moveId(['a', 'b'], 0, -1)).toEqual(['a', 'b'])
     expect(moveId(['a', 'b'], 0, 2)).toEqual(['a', 'b'])
+  })
+})
+
+describe('displays per kind', () => {
+  it('offers cards or questions for an FAQ, a list or questions for a help category, the default first', () => {
+    expect(helpDisplaysForKind('faq')).toEqual(['cards', 'accordion'])
+    expect(helpDisplaysForKind('help')).toEqual(['list', 'accordion'])
+    expect(isHelpDisplayForKind('faq', 'list')).toBe(false)
+    expect(isHelpDisplayForKind('help', 'cards')).toBe(false)
+    expect(isHelpDisplayForKind('help', 'accordion')).toBe(true)
+    expect(isHelpDisplayForKind('faq', undefined)).toBe(false)
+  })
+
+  it('resets a display the new kind does not offer to its first', () => {
+    expect(helpDisplayForKind('faq', 'list')).toBe('cards')
+    expect(helpDisplayForKind('help', 'cards')).toBe('list')
+    expect(helpDisplayForKind('faq', 'accordion')).toBe('accordion')
   })
 })

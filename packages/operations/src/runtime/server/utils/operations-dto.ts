@@ -1,9 +1,9 @@
 import type { schema } from '@nuxthub/db'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import type { PlaneFeatureCollection } from '@frigear-nu/maps/utils'
+import type { PlaneFeatureCollection, PlanePlacement } from '@frigear-nu/maps/utils'
 import { operationsApi } from '../../utils/api'
 import { operationVenueRevision } from '../../utils/venue'
-import type { AdminOperationDto, OperationDto, OperationStatus, OperationVenueLayout, OperationVenueLayoutDto } from '../../../types'
+import type { AdminOperationDto, OperationDto, OperationPublicVenueLayoutDto, OperationStatus, OperationVenueLayout, OperationVenueLayoutDto, OperationVenuePlacement, OperationVenuePlacementDto } from '../../../types'
 
 type OperationRow = typeof schema.operations.$inferSelect
 
@@ -46,6 +46,7 @@ export function toOperationVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venu
   const underlay = layout.underlay
   return {
     type: 'FeatureCollection',
+    ...(layout.crs === 'geo' ? { crs: 'geo' as const } : {}),
     features: layout.features ?? [],
     extent: layout.extent ?? null,
     underlay: underlay
@@ -54,7 +55,35 @@ export function toOperationVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venu
   }
 }
 
-/** The venue layout for the staff editor: `toOperationVenueLayoutDto` plus the stored layout's `revision`. */
-export function toOperationAdminVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venueLayout'>): OperationVenueLayoutDto {
-  return { ...toOperationVenueLayoutDto(row), revision: operationVenueRevision(row.venueLayout) }
+/** The stored placement, with only the keys of a `PlanePlacement` (`null` when the layout is not placed or shown otherwise). */
+export function toOperationVenuePlacement(row: Pick<OperationRow, 'venuePlacement'>): PlanePlacement | null {
+  const stored = row.venuePlacement as OperationVenuePlacement | null
+  if (!stored) return null
+  return {
+    georeference: stored.georeference ?? null,
+    underlayMode: stored.underlayMode ?? null,
+    underlayOpacity: stored.underlayOpacity ?? null,
+    gridUnit: stored.gridUnit ?? null,
+    gridSize: stored.gridSize ?? null,
+  }
+}
+
+/** The venue layout for whoever may read the operation: the layout and its placement, so it can be shown on a map. */
+export function toOperationPublicVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venueLayout' | 'venuePlacement'>): OperationPublicVenueLayoutDto {
+  return { ...toOperationVenueLayoutDto(row), placement: toOperationVenuePlacement(row) }
+}
+
+/** The venue layout for the staff editor: the layout and its placement, each with the `revision` a change sends back. */
+export function toOperationAdminVenueLayoutDto(row: Pick<OperationRow, 'slug' | 'venueLayout' | 'venuePlacement'>): OperationVenueLayoutDto {
+  return {
+    ...toOperationVenueLayoutDto(row),
+    revision: operationVenueRevision(row.venueLayout),
+    placement: toOperationVenuePlacement(row),
+    placementRevision: operationVenueRevision(row.venuePlacement),
+  }
+}
+
+/** What `PUT .../venue-layout/placement` answers. */
+export function toOperationVenuePlacementDto(row: Pick<OperationRow, 'venuePlacement'>): OperationVenuePlacementDto {
+  return { placement: toOperationVenuePlacement(row), revision: operationVenueRevision(row.venuePlacement) }
 }

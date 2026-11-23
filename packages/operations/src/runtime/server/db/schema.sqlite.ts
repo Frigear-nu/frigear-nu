@@ -17,6 +17,17 @@ type OperationVenueLayout = {
   features: Array<{ type: 'Feature', id: string, kind: string, geometry: { type: string, coordinates: unknown }, properties: Record<string, unknown>, label?: Translated | null }>
   extent?: { width: number, height: number } | null
   underlay?: { pathname: string, contentType: string, width: number, height: number } | null
+  /** `geo`: the positions are `[lng, lat]`, drawn on the map. Default `plane`. */
+  crs?: 'plane' | 'geo' | null
+}
+// How the venue layout is placed and shown, see `PlanePlacement` of `@frigear-nu/maps`: where the plane lies on the
+// earth, its underlay (none, map tiles or the image) and opacity, and the grid staff snap to.
+type OperationVenuePlacement = {
+  georeference?: { origin: GeoPoint, rotation: number, metersPerUnit: number } | null
+  underlayMode?: 'none' | 'tiles' | 'image' | null
+  underlayOpacity?: number | null
+  gridUnit?: 'plane' | 'metres' | null
+  gridSize?: number | null
 }
 
 export const operations = sqliteTable('operations', {
@@ -37,6 +48,8 @@ export const operations = sqliteTable('operations', {
   location: text({ mode: 'json' }).$type<OperationLocation>(),
   /** Where the bars, stations and containers are: drawn with the plane editor of `@frigear-nu/maps`. */
   venueLayout: text({ mode: 'json' }).$type<OperationVenueLayout>(),
+  /** Where the venue layout lies on the map and what is under it; saved apart from the layout (`PUT .../venue-layout/placement`). */
+  venuePlacement: text({ mode: 'json' }).$type<OperationVenuePlacement>(),
   /** `planning | active | wrapped_up | archived`. */
   status: text().notNull().default('planning'),
   /** Public operations have a public page and show for everyone; others only for those who take part and for staff. */
