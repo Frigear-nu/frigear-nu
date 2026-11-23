@@ -1,0 +1,82 @@
+import { fileURLToPath } from 'node:url'
+import { addRole, setRoleProvider } from '@frigear-nu/auth/utils'
+import CrewModule from '../../../src/module'
+
+export default defineNuxtConfig({
+  modules: [
+    '@nuxt/ui',
+    '@nuxthub/core',
+    '@frigear-nu/users',
+    '@frigear-nu/menu',
+    '@frigear-nu/widget',
+    '@frigear-nu/admin',
+    '@frigear-nu/operations',
+    '@frigear-nu/teams',
+    '@frigear-nu/forms',
+    '@frigear-nu/notify',
+    CrewModule,
+    // Roles without `@frigear-nu/authorization`: a provider reading the test user's email (see `server/roles/provider.ts`),
+    // and a small role chain: `supervisor` inherits `member`. `admin` holds what the modules `grantTo` it
+    // (operations, teams, forms and crew, `crew:pii` included). `coordinator` is this host's own role and names what it
+    // holds: the staff permissions of operations, teams and crew, without `crew:pii`. `seniorcoordinator` adds `crew:pii`
+    // by name on top of `coordinator`. `crewmanager` holds `crew:manage` only, so `crew:pii` can be told apart; `wild` holds `crew:*`,
+    // which never covers `crew:pii`.
+    (_options, nuxt) => {
+      addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
+      addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [], inherit: ['member'] })
+      addRole(nuxt, { name: 'crew', label: 'Crew', grant: [] })
+      addRole(nuxt, { name: 'admin', label: 'Admin', grant: [] })
+      addRole(nuxt, { name: 'coordinator', label: 'Coordinator', grant: ['operations:manage', 'teams:manage', 'teams:pii', 'crew:manage', 'crew:invite'] })
+      addRole(nuxt, { name: 'seniorcoordinator', label: 'Senior coordinator', grant: ['crew:pii'], inherit: ['coordinator'] })
+      addRole(nuxt, { name: 'crewmanager', label: 'Crew manager', grant: ['crew:manage'] })
+      addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['crew:*'] })
+      setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
+    },
+  ],
+  pages: true,
+  runtimeConfig: {
+    session: {
+      password: 'a-test-only-session-password-at-least-32-chars',
+    },
+  },
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      driver: 'libsql',
+      applyMigrationsDuringBuild: false,
+    },
+    kv: true,
+    blob: true,
+  },
+  // The log driver of notify (the default): the emails are captured by a `notify:email` listener of the fixture.
+  // The app's own presets and default team kind: crew ships none.
+  crew: {
+    defaultTeamKind: 'bar',
+    rolePresets: [
+      { match: { role: 'supervisor' }, teamRole: 'lead' },
+      { match: { role: 'crew' }, teamRole: 'bartender' },
+      { match: { plan: 'member-plan' }, teamRole: 'volunteer' },
+    ],
+  },
+  forms: {
+    settings: { rateLimit: 0, pages: { form: true } },
+  },
+  operations: {
+    settings: { pages: { public: true, admin: true, adminOperation: true } },
+  },
+  teams: {
+    settings: { pages: { admin: true, adminTeam: true } },
+    // The app's own ladder for the `bar` kind, led from `lead`.
+    ladders: {
+      bar: {
+        roles: [
+          { key: 'volunteer', label: { en: 'Volunteer', da: 'Frivillig' } },
+          { key: 'bartender', label: { en: 'Bartender', da: 'Bartender' } },
+          { key: 'lead', label: { en: 'Lead', da: 'Leder' } },
+          { key: 'coordinator', label: { en: 'Coordinator', da: 'Koordinator' } },
+        ],
+        leadFrom: 'lead',
+      },
+    },
+  },
+})
