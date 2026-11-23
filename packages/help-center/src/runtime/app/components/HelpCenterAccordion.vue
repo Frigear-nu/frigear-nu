@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import type { HelpArticleDto } from '../../../types'
-import { useHelpCenterTranslate } from '#imports'
+import { reactive, useHelpCenterTranslate, watch } from '#imports'
 
 defineOptions({ name: 'HelpCenterAccordion' })
 
 // The articles of an accordion category as questions whose text opens in place, with the article's icon and the buttons
 // under it. `public` renders embedded FAQ components as anonymous visitors read them (see `HelpCenterArticleBody`).
-defineProps<{ articles: HelpArticleDto[], public?: boolean }>()
+// `open` names an article (by slug) to show open, such as the FAQ question a search result links to; each question has
+// the id `faq-q-<slug>`.
+const props = defineProps<{ articles: HelpArticleDto[], public?: boolean, open?: string }>()
+
+const opened = reactive<Record<string, boolean>>({})
+watch(() => props.open, (slug) => {
+  if (slug) opened[slug] = true
+}, { immediate: true })
 
 const tr = useHelpCenterTranslate()
 </script>
@@ -18,8 +25,9 @@ const tr = useHelpCenterTranslate()
   >
     <UCollapsible
       v-for="article in articles"
+      :id="`faq-q-${article.slug}`"
       :key="article.id"
-      :default-open="false"
+      v-model:open="opened[article.slug]"
       :unmount-on-hide="false"
       class="flex w-full flex-col gap-2"
     >

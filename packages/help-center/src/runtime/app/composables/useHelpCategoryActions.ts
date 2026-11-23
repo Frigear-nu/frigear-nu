@@ -2,12 +2,12 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import HelpCategoryFormSlideover from '../components/HelpCategoryFormSlideover.vue'
 import HelpCategoryOrderSlideover from '../components/HelpCategoryOrderSlideover.vue'
 import type { StaffHelpCategory } from '../utils/admin'
-import type { HelpCategoryDisplay } from '../../../types'
+import type { HelpCategoryKind } from '../../../types'
 import { helpCenterApi } from '../../utils/api'
 import { $fetch, useAction, useConfirmDialog, useHelpCenterTranslate, useModuleT, useOverlay } from '#imports'
 
 export type HelpCategoryMenuOptions = {
-  /** The categories, for the parent picker of the form. */
+  /** The categories, for the parent picker of the form: only those of the page's kind. */
   categories: () => StaffHelpCategory[]
   /** Runs after the category was edited or deleted (refresh the list). */
   onChanged?: () => unknown
@@ -25,9 +25,9 @@ export function useHelpCategoryActions() {
   const { run } = useAction()
   const tr = useHelpCenterTranslate()
 
-  /** `display` presets how the new category shows (the FAQ page starts at `cards`). */
-  async function create(categories: StaffHelpCategory[], display?: HelpCategoryDisplay): Promise<StaffHelpCategory | false> {
-    return await overlay.create(HelpCategoryFormSlideover, { destroyOnClose: true, props: { category: undefined, categories, display } }).open() as StaffHelpCategory | false
+  /** `kind` is the kind of the new category (`faq` from the FAQ page, which also starts it at `cards`); fixed once saved. */
+  async function create(categories: StaffHelpCategory[], kind: HelpCategoryKind = 'help'): Promise<StaffHelpCategory | false> {
+    return await overlay.create(HelpCategoryFormSlideover, { destroyOnClose: true, props: { category: undefined, categories, kind } }).open() as StaffHelpCategory | false
   }
 
   async function edit(category: StaffHelpCategory, categories: StaffHelpCategory[]): Promise<StaffHelpCategory | false> {
@@ -51,7 +51,7 @@ export function useHelpCategoryActions() {
     if (!confirmed) return false
     const done = await run(
       // 204: resolves with no body, so map success to `true` (`run` resolves `undefined` on failure).
-      () => $fetch(helpCenterApi.admin.category(category.id), { method: 'DELETE' }).then(() => true),
+      () => $fetch(helpCenterApi.admin.category(category.id), { method: 'DELETE', query: { kind: category.kind } }).then(() => true),
       { success: t('admin.categoryDeleted', 'Deleted {name}', { name }), error: t('admin.categoryDeleteFailed', 'Could not delete the category') },
     )
     return done === true

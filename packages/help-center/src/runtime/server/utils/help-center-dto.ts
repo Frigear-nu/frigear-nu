@@ -1,7 +1,7 @@
 import type { schema } from '@nuxthub/db'
 import { readGrants } from '@frigear-nu/auth/grants'
 import { isoDate } from '@frigear-nu/module-kit/server'
-import type { AdminHelpArticleDto, AdminHelpCategoryDto, HelpArticleDto, HelpArticleStatus, HelpArticleSummaryDto, HelpCategoryDisplay, HelpCategoryDto } from '../../../types'
+import type { AdminHelpArticleDto, AdminHelpCategoryDto, HelpArticleDto, HelpArticleStatus, HelpArticleSummaryDto, HelpCategoryDisplay, HelpCategoryDto, HelpCategoryKind, HelpSourceArticle } from '../../../types'
 import { isHelpArticlePublic, isHelpChainPublic } from '../../utils/grants'
 
 export type HelpCategoryRow = typeof schema.helpCategories.$inferSelect
@@ -11,6 +11,9 @@ const iso = (value: Date | null | undefined) => value ? isoDate(value) : null
 
 /** The stored display of a category; anything unknown reads as `list`. */
 export const helpCategoryDisplay = (value: string | null | undefined): HelpCategoryDisplay => value === 'accordion' || value === 'cards' ? value : 'list'
+
+/** The stored kind of a category; anything unknown reads as `help`. */
+export const helpCategoryKind = (value: string | null | undefined): HelpCategoryKind => value === 'faq' ? 'faq' : 'help'
 
 /** What anybody who may read the category sees: an allowlist of the row's fields (no owner, grants or audit data). */
 export function toHelpCategoryDto(row: HelpCategoryRow, chain: HelpCategoryRow[] = [row]): HelpCategoryDto {
@@ -24,6 +27,7 @@ export function toHelpCategoryDto(row: HelpCategoryRow, chain: HelpCategoryRow[]
     // Public only when the category and every ancestor are.
     public: isHelpChainPublic(chain),
     source: 'database',
+    kind: helpCategoryKind(row.kind),
     display: helpCategoryDisplay(row.display),
     icon: row.icon ?? null,
   }
@@ -36,6 +40,7 @@ export function toHelpArticleSummaryDto(category: HelpCategoryRow, row: HelpArti
     slug: row.slug,
     title: row.title,
     categorySlug: category.slug,
+    kind: helpCategoryKind(category.kind),
     source: 'database',
     public: isHelpArticlePublic(chain, row),
     icon: row.icon ?? null,
@@ -69,7 +74,7 @@ export function toAdminHelpCategoryDto(row: HelpCategoryRow, articleCount = 0): 
 }
 
 /** The staff view of an article: every field, whatever its status. */
-export function toAdminHelpArticleDto(category: Pick<HelpCategoryRow, 'slug'>, row: HelpArticleRow): AdminHelpArticleDto {
+export function toAdminHelpArticleDto(category: Pick<HelpCategoryRow, 'slug' | 'kind'>, row: HelpArticleRow): AdminHelpArticleDto {
   return {
     id: row.id,
     slug: row.slug,
@@ -77,6 +82,7 @@ export function toAdminHelpArticleDto(category: Pick<HelpCategoryRow, 'slug'>, r
     body: row.body,
     categoryId: row.categoryId,
     categorySlug: category.slug,
+    kind: helpCategoryKind(category.kind),
     status: row.status as HelpArticleStatus,
     grants: row.grants === null || row.grants === undefined ? null : readGrants(row.grants),
     icon: row.icon ?? null,
@@ -92,7 +98,7 @@ export function toAdminHelpArticleDto(category: Pick<HelpCategoryRow, 'slug'>, r
 }
 
 /** The staff view of an article of a read-only source (Nuxt Content): always published and public. */
-export function toAdminContentArticleDto(article: HelpArticleDto): AdminHelpArticleDto {
+export function toAdminContentArticleDto(article: HelpSourceArticle): AdminHelpArticleDto {
   return {
     id: article.id,
     slug: article.slug,
@@ -100,6 +106,7 @@ export function toAdminContentArticleDto(article: HelpArticleDto): AdminHelpArti
     body: article.body,
     categoryId: null,
     categorySlug: article.categorySlug,
+    kind: article.kind ?? 'help',
     status: 'published',
     grants: [{ kind: 'public' }],
     icon: article.icon,

@@ -19,8 +19,8 @@ const slugList = (value: string | string[] | null | undefined): string[] =>
   (Array.isArray(value) ? value : (value ?? '').split(',')).map(slug => slug.trim()).filter(Boolean)
 
 /**
- * The categories `categories` names (a slug, an array of slugs, or a comma separated list; none for every accordion and
- * cards category the viewer may read), each with its published articles and their text. Built on `useAsyncData`, so it works
+ * The categories `categories` names (a slug, an array of slugs, or a comma separated list; none for every `faq`
+ * category the viewer may read), each with its published articles and their text. Built on `useAsyncData`, so it works
  * with SSR, and the request carries the session cookie on the server.
  *
  *     const { faqs, articles, status } = await useHelpCenterFaqs(['volunteering', 'summer-festival'])

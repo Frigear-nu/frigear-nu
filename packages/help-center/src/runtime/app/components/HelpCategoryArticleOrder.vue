@@ -25,7 +25,7 @@ async function applyOrder(next: string[]) {
   const byId = new Map(previous.map(article => [article.id, article]))
   ordered.value = next.map(id => byId.get(id)!)
   const saved = await run(
-    () => $fetch(helpCenterApi.admin.reorder(props.category.id), { method: 'POST', body: { articleIds: next } }).then(() => true),
+    () => $fetch(helpCenterApi.admin.reorder(props.category.id), { method: 'POST', query: { kind: props.category.kind }, body: { articleIds: next } }).then(() => true),
     { error: t('admin.reorderFailed', 'Could not save the new order') },
   )
   if (saved) emit('changed')

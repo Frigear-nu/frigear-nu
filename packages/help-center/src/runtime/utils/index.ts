@@ -28,6 +28,7 @@ export type {
   HelpAudience,
   HelpReader,
   HelpCategoryDisplay,
+  HelpCategoryKind,
   HelpCategoryDto,
   HelpFaqDto,
   HelpLink,

@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { getValidatedQuery } from 'h3'
+import type { H3Event } from 'h3'
 import { grantListShape } from '@frigear-nu/auth/grants'
 import { HELP_SLUG_PATTERN, isReservedHelpSlug } from '../../utils/slug'
 
@@ -32,8 +34,13 @@ export const helpOwnerSchema = z.object({
   id: z.string().trim().min(1).max(128).nullish(),
 })
 
+/** `help` or `faq` (`HelpCategoryKind`). */
+export const helpKindSchema = z.enum(['help', 'faq'])
+
 const categoryFields = z.object({
   slug: slugField,
+  // Set at create time (`help` when left out) and fixed afterwards: a PATCH may repeat it but not change it.
+  kind: helpKindSchema.optional(),
   name: helpTranslated,
   description: helpTranslated.nullish(),
   parentId: z.string().trim().min(1).max(128).nullish(),
@@ -72,12 +79,13 @@ export const helpArticlePatchSchema = articleFields.partial()
 const flag = z.enum(['1', 'true', '0', 'false']).optional().transform(value => value === '1' || value === 'true')
 
 /** The query of `GET /api/help-center/categories`. */
-export const helpCategoriesQuery = z.object({ public: flag })
+export const helpCategoriesQuery = z.object({ public: flag, kind: helpKindSchema.optional() })
 
 /** The query of `GET /api/help-center/articles`. */
 export const helpArticlesQuery = z.object({
   q: z.string().trim().min(1).max(200).optional(),
   category: z.string().trim().max(128).optional(),
+  kind: helpKindSchema.optional(),
   public: flag,
 })
 
@@ -86,7 +94,7 @@ export const helpArticleQuery = z.object({ public: flag })
 
 /** The query of `GET /api/help-center/faqs`. */
 export const helpFaqsQuery = z.object({
-  /** Comma separated category slugs, in the order to show them. None: every accordion category. */
+  /** Comma separated category slugs, in the order to show them. None: every `faq` category. */
   categories: z.string().trim().max(2000).optional(),
   public: flag,
 })
@@ -132,3 +140,11 @@ export const helpSendInput = z.object({
   /** The language of the message. Defaults to the first required language. */
   locale: z.string().trim().min(2).max(16).optional(),
 })
+
+/** `?kind=` of the admin routes: limits a list to one kind, and answers 404 for a record of the other kind. */
+export const helpAdminKindQuery = z.object({ kind: helpKindSchema.optional() })
+
+/** The `?kind=` of an admin request, or `undefined` for both kinds. */
+export async function readHelpKindScope(event: H3Event) {
+  return (await getValidatedQuery(event, helpAdminKindQuery.parse)).kind
+}

@@ -20,8 +20,10 @@ watch(tab, (value) => {
   router.replace({ query: { ...route.query, tab: value === 'articles' ? undefined : value } })
 })
 
+// Help categories only: FAQ categories and their questions live on the FAQ admin page, never here.
 const { data: categories, status, error, refresh } = await useFetch<StaffHelpCategory[]>(helpCenterApi.admin.categories, {
-  key: 'help-center:admin:categories',
+  query: { kind: 'help' },
+  key: 'help-center:admin:categories:help',
   default: () => [],
 })
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)

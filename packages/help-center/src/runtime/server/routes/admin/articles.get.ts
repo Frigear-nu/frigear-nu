@@ -14,12 +14,14 @@ const querySchema = pageQuery({
     status: z.enum(['draft', 'published']).optional(),
     category: z.string().trim().max(128).optional(),
     source: z.enum(['all', 'database', 'content']).default('all'),
+    kind: helpKindSchema.optional(),
   },
 })
 
 // Every article of every source, whatever its status or grants: the database ones (editable) and, with Nuxt Content,
 // its files (read-only, always published and public). `q` searches the title in every language and the URL name;
-// `category` is a category's URL name; `source` limits to one source. Sorted and paged in memory over the newest
+// `category` is a category's URL name; `source` limits to one source; `kind` to the articles of `help` or of `faq`
+// categories (content files are always `help`). Sorted and paged in memory over the newest
 // HELP_ADMIN_ARTICLE_CAP (5000) database rows; `total` is counted in SQL, so it stays right past the cap.
 export default defineEventHandler(async (event): Promise<Page<AdminHelpArticleDto>> => {
   await authorize(event, helpCenterAccess.permissions.manage)
@@ -29,13 +31,13 @@ export default defineEventHandler(async (event): Promise<Page<AdminHelpArticleDt
   const items: AdminHelpArticleDto[] = []
   let databaseTotal = 0
   if (query.source !== 'content') {
-    const filter = { q: query.q, status: query.status, categorySlug: query.category || undefined }
+    const filter = { q: query.q, status: query.status, categorySlug: query.category || undefined, kind: query.kind }
     const [rows, total] = await Promise.all([listHelpArticleRows(filter), countHelpArticleRows(filter)])
     databaseTotal = total
     if (total > rows.length) console.warn(`[@frigear-nu/help-center] the admin article list holds the newest ${rows.length} of ${total} articles: narrow it with a search or a filter.`)
     items.push(...rows.map(({ article, category }) => toAdminHelpArticleDto(category, article)))
   }
-  if (query.source !== 'database' && (!query.status || query.status === 'published')) {
+  if (query.source !== 'database' && query.kind !== 'faq' && (!query.status || query.status === 'published')) {
     for (const article of await helpCenterContentArticles(event)) {
       const dto = toAdminContentArticleDto(contentArticleDto(article))
       const text = [translate(dto.title), dto.slug].join('\n').toLocaleLowerCase()

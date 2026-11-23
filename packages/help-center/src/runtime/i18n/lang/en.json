@@ -193,11 +193,11 @@
       "faqBodyHelp": "In question cards the text before the first block is the card's description. A question that opens in the card: {details}, a list, then {end} on a line of its own. A button: {link}, then {end}.",
       "faq": {
         "title": "FAQ",
-        "description": "The questions and answers on the site's pages: the help center categories shown as questions.",
+        "description": "The questions and answers on the site's pages: the FAQ categories and their questions.",
         "openHelpCenter": "Open help center",
         "createCategory": "Add FAQ category",
         "empty": "No FAQ categories yet",
-        "emptyDescription": "Add a category shown as questions, then add its questions.",
+        "emptyDescription": "Add an FAQ category, then add its questions.",
         "question": "Question",
         "addQuestion": "Add question",
         "questionsEmpty": "No questions yet"
@@ -276,6 +276,8 @@
     },
     "faq": {
       "contact": "Contact us"
-    }
+    },
+    "faqLabel": "FAQ",
+    "faqTitle": "Frequently asked questions"
   }
 }

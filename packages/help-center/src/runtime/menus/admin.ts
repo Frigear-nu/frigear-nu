@@ -20,7 +20,7 @@ export default defineMenuSource(() => {
       order: 36,
     }))
   }
-  // The FAQ page: the questions of the accordion and cards categories (the FAQs of the site's pages), next to it.
+  // The FAQ page: the `faq` categories and their questions (the FAQs of the site's pages), next to it.
   if (config?.pages?.adminFaq) {
     extendMenuItem('admin.nav', defineMenuItem({
       id: 'help-center-faq',

@@ -29,7 +29,10 @@ watch(draftTitle, (title, previous) => {
   if (!props.article && state.slug === slugify(previous)) state.slug = slugify(title)
 })
 
-const categoryItems = computed(() => props.categories.map(category => ({ value: category.id, label: tr(category.name) })))
+// The page's kind: an existing article keeps its own, a new one takes the kind of the categories it is offered. The
+// picker offers categories of that kind only, and the API answers 404 / 400 for the other kind.
+const kind = computed(() => props.article?.kind ?? props.categories[0]?.kind ?? 'help')
+const categoryItems = computed(() => props.categories.filter(category => category.kind === kind.value).map(category => ({ value: category.id, label: tr(category.name) })))
 // The icon and the buttons show in a questions (FAQ) category, where the text opens under the title or is a card.
 const inAccordion = computed(() => isFaqDisplay(props.categories.find(category => category.id === state.categoryId)?.display))
 // "Same as the category" is an article without a list of its own (`grants: null`). Turning it off starts an empty list,
@@ -74,8 +77,8 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
   const body = formToArticleBody(event.data)
   const saved = await run(
     () => props.article
-      ? $fetch<StaffHelpArticle>(helpCenterApi.admin.article(props.article.id), { method: 'PATCH', body })
-      : $fetch<StaffHelpArticle>(helpCenterApi.admin.articles, { method: 'POST', body }),
+      ? $fetch<StaffHelpArticle>(helpCenterApi.admin.article(props.article.id), { method: 'PATCH', query: { kind: kind.value }, body })
+      : $fetch<StaffHelpArticle>(helpCenterApi.admin.articles, { method: 'POST', query: { kind: kind.value }, body }),
     // Publishing says so itself.
     { success: publishing
       ? undefined
