@@ -238,7 +238,7 @@ export type InboxThreadDetailDto = {
   hideRoles: string[]
 }
 
-export type InboxAuditAction = 'viewed' | 'replied' | 'noted' | 'assigned' | 'status' | 'hidden' | 'exported' | 'erased' | 'retention'
+export type InboxAuditAction = 'viewed' | 'replied' | 'noted' | 'assigned' | 'status' | 'hidden' | 'exported' | 'erased' | 'retention' | 'linked'
 
 export type InboxAuditDto = {
   id: string
@@ -286,6 +286,17 @@ export type InboxRetentionResult = {
 export type InboxMessageContext = { event: H3Event, thread: InboxThreadDto, message: InboxMessageDto }
 export type InboxThreadAssignedContext = { event: H3Event, thread: InboxThreadDto, assigneeId: number | null, previous: number | null }
 export type InboxThreadStatusContext = { event: H3Event, thread: InboxThreadDto, from: InboxThreadStatus, to: InboxThreadStatus }
+/**
+ * `inbox:thread:linked`: `module` did `kind` for the thread's person (`userId`) from the thread `threadId`; `label` and
+ * `url` describe it on the audit trail ("Added to the crew of Summer 2027"). `actorId` is who did it.
+ */
+export type InboxThreadLinkedContext = { event: H3Event, threadId: string, actorId: number | null, module: string, kind: string, label?: string, url?: string, userId?: number | null }
+
+/**
+ * What an `inbox.thread.actions` widget receives (as props) on the staff thread page: the thread, its contact (details
+ * only with `inbox:pii`; `userId` is the account of a verified contact) and `onChanged`, to refresh the page.
+ */
+export type InboxThreadActionContext = { threadId: string, contact: InboxContactDto | null, onChanged: () => unknown }
 
 // --- Options -----------------------------------------------------------------------------------------------------------
 
