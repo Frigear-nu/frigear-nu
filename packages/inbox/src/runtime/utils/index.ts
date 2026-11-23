@@ -65,6 +65,7 @@ export const INBOX_AUDIT_LABELS: Record<string, string> = {
   exported: 'Exported the contact',
   erased: 'Erased the contact',
   retention: 'Retention',
+  linked: 'Linked',
 }
 
 type InboxExtensions = { inbox?: { _extensions?: InboxExtension[] } | false }

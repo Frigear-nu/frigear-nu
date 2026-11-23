@@ -115,9 +115,6 @@
     "@frigear-nu/teams": {
       "optional": true
     },
-    "@frigear-nu/widget": {
-      "optional": true
-    },
     "@nuxt/ui": {
       "optional": true
     }
