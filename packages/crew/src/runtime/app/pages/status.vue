@@ -22,7 +22,8 @@ if (error.value?.statusCode === 401) {
 }
 
 const label = (status: MyCrewDto['crewStatus']) => t(`admin.statuses.${status}`, CREW_STATUS_LABELS[status])
-const withdrawable = (entry: MyCrewDto) => entry.crewStatus === 'applied' || entry.crewStatus === 'waitlisted' || entry.crewStatus === 'approved'
+// A place added in teams has no Withdraw: crew's withdraw only ends crew rows, teams staff end the others.
+const withdrawable = (entry: MyCrewDto) => entry.source === 'crew' && (entry.crewStatus === 'applied' || entry.crewStatus === 'waitlisted' || entry.crewStatus === 'approved')
 
 async function withdraw(entry: MyCrewDto) {
   const operation = tr(entry.operationName)
