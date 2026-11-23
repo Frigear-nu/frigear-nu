@@ -2,11 +2,6 @@
  * with its own `main.css` replaces the layer's, so it imports it to stay in one Tailwind compile unit. */
 @import "@frigear-nu/base/app/assets/css/main.css";
 
-/* Frigear's type: the system font, as on the old site (its tight headings), not the layer's `Public Sans`. */
-@theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
-
 /**
  * Content below is ONLY for advanced color linears that cannot be done in the file it is used in
  **/
