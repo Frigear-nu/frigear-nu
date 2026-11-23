@@ -202,6 +202,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: 'checklists/:id', file: 'admin/checklist.delete' },
       { method: 'get', path: 'checklists/:id/progress', file: 'admin/progress.get' },
       { method: 'post', path: 'send', file: 'admin/send.post' },
+      { method: 'get', path: 'users', file: 'admin/users.get' },
     ], { base: '/api/admin/help-center' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))

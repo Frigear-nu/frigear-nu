@@ -332,16 +332,41 @@ export type HelpProgressSummary = {
   totalCount: number
 }
 
+/**
+ * Why a recipient of a send got neither an email nor a text: the reason of the last channel tried (with "Fall back to
+ * email" on, the email). `unknown_user`: no such user. `no_access`: they may read none of the articles. `no_phone`: no
+ * phone number. `no_sms_consent`: SMS is off for them on `help-center.send` (off until they turn it on). `no_email`: no
+ * email address. `opted_out`: they turned email off for `help-center.send`. `failed`: the channel failed.
+ */
+export type HelpSendSkipReason = 'unknown_user' | 'no_access' | 'no_phone' | 'no_sms_consent' | 'no_email' | 'opted_out' | 'failed'
+
+/** A recipient that got nothing, with why. */
+export type HelpSendSkip = {
+  userId: string
+  name: string | null
+  reason: HelpSendSkipReason
+}
+
 /** The result of `POST /api/admin/help-center/send`. */
 export type HelpSendResult = {
   /** People the audience resolved to. */
   recipients: number
-  emailed: number
-  texted: number
-  /** Push notifications that went out (through notify's push driver). */
+  /** People by what they got: `sms` texted, `email` emailed (a fallback too), `none` neither (listed in `skipped`). */
+  counts: { sms: number, email: number, none: number }
+  /** People emailed because the text could not go to them ("Fall back to email"). */
+  fallback: number
+  /** Push notifications that went out with the email (through notify's push driver). */
   pushed: number
-  /** Recipients that got nothing: they cannot read any of the articles, or have no address for the channels asked for. */
-  skipped: number
+  /** Every recipient counted in `none`, with why. */
+  skipped: HelpSendSkip[]
+}
+
+/** A person found by `GET /api/admin/help-center/users` for the send form's picker. `email` only with `help-center:pii`. */
+export type HelpUserLookupDto = {
+  id: number
+  name: string | null
+  avatar: string | null
+  email?: string | null
 }
 
 /** The locales an article still lacks, by field, when it cannot be published. */

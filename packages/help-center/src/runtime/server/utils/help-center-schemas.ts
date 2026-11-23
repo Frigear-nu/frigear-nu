@@ -137,6 +137,8 @@ export const helpSendInput = z.object({
     userIds: z.array(z.string().trim().min(1).max(64)).max(500).optional(),
   }).refine(audience => !!audience.grants?.length || !!audience.userIds?.length, 'Name at least one person or group to send to.'),
   channels: z.array(z.enum(['email', 'sms'])).min(1).max(2),
+  /** Email the people a text cannot reach (no phone number, SMS off for the topic) instead. On by default. */
+  fallbackToEmail: z.boolean().default(true),
   /** The language of the message. Defaults to the first required language. */
   locale: z.string().trim().min(2).max(16).optional(),
 })
@@ -148,3 +150,6 @@ export const helpAdminKindQuery = z.object({ kind: helpKindSchema.optional() })
 export async function readHelpKindScope(event: H3Event) {
   return (await getValidatedQuery(event, helpAdminKindQuery.parse)).kind
 }
+
+/** The query of `GET /api/admin/help-center/users`: the search term of the send form's picker. */
+export const helpUserLookupQuery = z.object({ q: z.string().trim().min(1).max(200) })
