@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1791852836073,
+      "when": 1795437888958,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1791859672459,
-      "tag": "0001_split_auth_from_users",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1794017496565,
-      "tag": "0002_add_users_session_version",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1794492619468,
-      "tag": "0003_auth_user_tokens_permissions",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1795315684217,
-      "tag": "0004_users_phone",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1795354530752,
-      "tag": "0005_users_locale",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1795381699817,
-      "tag": "0006_users_search_text",
       "breakpoints": true
     }
   ]
