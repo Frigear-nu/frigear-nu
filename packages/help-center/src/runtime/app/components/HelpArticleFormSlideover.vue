@@ -3,7 +3,8 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { type HelpArticleFormState, type StaffHelpArticle, type StaffHelpCategory, articleToForm, emptyHelpArticleForm, formToArticleBody, helpArticleFormSchema, isFaqDisplay, missingLocales, slugify } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
 import { useHelpArticlePublish } from '../composables/useHelpArticlePublish'
-import { $fetch, computed, reactive, ref, useAction, useHelpCenterTranslate, useModuleT, useRuntimeConfig, useUiT, watch } from '#imports'
+import HelpArticleMoveModal from './HelpArticleMoveModal.vue'
+import { $fetch, computed, reactive, ref, useAction, useHelpCenterTranslate, useModuleT, useOverlay, useRuntimeConfig, useUiT, watch } from '#imports'
 
 defineOptions({ name: 'HelpArticleFormSlideover' })
 
@@ -32,6 +33,14 @@ watch(draftTitle, (title, previous) => {
 // The page's kind: an existing article keeps its own, a new one takes the kind of the categories it is offered. The
 // picker offers categories of that kind only, and the API answers 404 / 400 for the other kind.
 const kind = computed(() => props.article?.kind ?? props.categories[0]?.kind ?? 'help')
+// "Move to FAQ" / "Move to help center": a category of the other kind, picked in a dialog. The article then belongs to
+// the other admin page, so the slideover closes with it.
+const overlay = useOverlay()
+async function moveToOtherKind() {
+  if (!props.article) return
+  const moved = await overlay.create(HelpArticleMoveModal, { destroyOnClose: true, props: { article: props.article } }).open() as StaffHelpArticle | false
+  if (moved) emit('close', moved)
+}
 const categoryItems = computed(() => props.categories.filter(category => category.kind === kind.value).map(category => ({ value: category.id, label: tr(category.name) })))
 // The icon and the buttons show in a questions (FAQ) category, where the text opens under the title or is a card.
 const inAccordion = computed(() => isFaqDisplay(props.categories.find(category => category.id === state.categoryId)?.display))
@@ -144,6 +153,20 @@ async function save(event: FormSubmitEvent<HelpArticleFormState>) {
         :label="t('admin.category', 'Category')"
         required
       >
+        <template
+          v-if="article"
+          #hint
+        >
+          <UButton
+            variant="link"
+            color="neutral"
+            size="xs"
+            class="p-0"
+            :icon="kind === 'faq' ? 'i-lucide-life-buoy' : 'i-lucide-message-circle-question-mark'"
+            :label="kind === 'faq' ? t('admin.moveToHelp', 'Move to help center') : t('admin.moveToFaq', 'Move to FAQ')"
+            @click="moveToOtherKind"
+          />
+        </template>
         <USelect
           v-model="state.categoryId"
           :items="categoryItems"

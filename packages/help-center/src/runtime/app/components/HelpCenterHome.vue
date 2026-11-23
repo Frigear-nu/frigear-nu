@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HelpArticleSummaryDto, HelpCategoryDto } from '../../../types'
-import { computed, errorMessage, nextTick, onMounted, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterChecklists, useHelpCenterFaqs, useHelpCenterPaths, useHelpCenterSearch, useHelpCenterTranslate, useModuleT, useRoute, useSeoMeta, watch } from '#imports'
+import { computed, errorMessage, navigateTo, nextTick, onMounted, useHelpCenterArticles, useHelpCenterCategories, useHelpCenterChecklists, useHelpCenterFaqs, useHelpCenterPaths, useHelpCenterSearch, useHelpCenterTranslate, useModuleT, useRoute, useSeoMeta, watch } from '#imports'
 
 defineOptions({ name: 'HelpCenterHome' })
 
@@ -50,12 +50,24 @@ const recent = computed<HelpArticleSummaryDto[]>(() => isPublic
 // The question a link opened (`?faq=<slug>`): open in the FAQ section, which is scrolled to it.
 const route = useRoute()
 const openFaq = computed(() => typeof route.query.faq === 'string' ? route.query.faq : undefined)
+// Links follow a category's current kind: an FAQ link to a question or category that is now in the help center goes to
+// its page (a 301 for a question; a category's `#faq-<category>` never reaches the server, so the browser moves on).
+const movedArticle = openFaq.value ? articles.value.find(article => article.slug === openFaq.value && article.kind !== 'faq') : undefined
+const movedArticleHome = movedArticle ? links.article(movedArticle.categorySlug, movedArticle.slug) : undefined
+if (movedArticleHome) await navigateTo(movedArticleHome, { replace: true, redirectCode: 301 })
+function movedCategoryHome(): string | undefined {
+  if (!route.hash.startsWith('#faq-') || openFaq.value) return undefined
+  const slug = decodeURIComponent(route.hash.slice('#faq-'.length))
+  return helpCategories.value.some(category => category.slug === slug) ? links.category(slug) : undefined
+}
 const resultLink = (result: HelpArticleSummaryDto) => result.kind === 'faq'
   ? links.faq(result.categorySlug, result.slug)
   : links.article(result.categorySlug, result.slug)
 
 async function scrollToFaq() {
   if (!import.meta.client || !route.hash.startsWith('#faq-')) return
+  const moved = movedCategoryHome()
+  if (moved) return navigateTo(moved, { replace: true })
   await nextTick()
   const target = openFaq.value ? document.getElementById(`faq-q-${openFaq.value}`) : null
   ;(target ?? document.getElementById(decodeURIComponent(route.hash.slice(1))))?.scrollIntoView({ block: 'start' })
