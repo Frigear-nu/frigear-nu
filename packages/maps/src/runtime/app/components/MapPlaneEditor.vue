@@ -384,6 +384,11 @@ function render() {
   if (view.value === 'plane' && underlayMode.value === 'image' && model.value.underlay && isSameAppPath(model.value.underlay.url)) {
     background.push(underlayLayer(L, model.value.underlay, opacity.value).addTo(map))
   }
+  if (view.value === 'tiles' && georeference.value) {
+    // The plane's outline on the tiles, so staff see where the plan ends while they draw on the map.
+    const outline = extentCorners(extent.value, georeference.value).map(corner => [corner.lat, corner.lng] as [number, number])
+    background.push(L.polygon(outline, { pmIgnore: true, interactive: false, color: featureColor('neutral', null), weight: 2, dashArray: '8 6', fill: false } as Record<string, unknown>).addTo(map))
+  }
   group = L.featureGroup().addTo(map)
   if (view.value === 'place') {
     renderHandles()
