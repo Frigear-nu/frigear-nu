@@ -2,7 +2,7 @@
 import { formBusInjectionKey, formFieldInjectionKey } from '@nuxt/ui/composables/useFormField'
 import { authApi } from '@frigear-nu/auth/api'
 import { usersApi } from '../../utils/api'
-import type { UserPickerOption } from '../../../types'
+import type { UserPickerCreateInitial, UserPickerOption } from '../../../types'
 import type { UserCreateResult } from '../utils/admin-user'
 import UserCreateSlideover from './UserCreateSlideover.vue'
 import { computed, inject, nextTick, onBeforeUnmount, ref, useLazyFetch, useModuleT, useOverlay, watch } from '#imports'
@@ -137,20 +137,32 @@ const select = (user: UserPickerOption) => {
   void notifyFormField()
 }
 
-async function createUser(term: string) {
-  const value = term.trim()
-  const initial = value.includes('@') ? { email: value } : { name: value }
+/**
+ * Opens the create form prefilled with `initial` and selects the created user (or the existing one a taken email
+ * offers). Resolves with the selected user, or `null` when cancelled or not allowed. Exposed, so a host that knows the
+ * person (an inbox contact) can offer "Create user" before anything is typed.
+ */
+async function openCreate(initial: UserPickerCreateInitial = {}): Promise<UserPickerOption | null> {
+  if (!canCreate.value) return null
   const result = await overlay.create(UserCreateSlideover, { destroyOnClose: true })
     .open({ initial, verify: false, offerExisting: true }).result as UserCreateResult
-  if (!result) return
+  if (!result) return null
   if ('existing' in result) {
     select(result.existing)
-    return
+    return result.existing
   }
   const user = { id: result.id, name: result.name, email: result.email, avatar: result.avatar }
   select(user)
   emit('created', user)
+  return user
 }
+
+async function createUser(term: string) {
+  const value = term.trim()
+  await openCreate(value.includes('@') ? { email: value } : { name: value })
+}
+
+defineExpose({ openCreate, canCreate })
 </script>
 
 <template>
