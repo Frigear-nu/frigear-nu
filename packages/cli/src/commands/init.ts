@@ -16,6 +16,7 @@ export const STARTERS = {
   'mobile': { platforms: ['mobile'], hint: 'apps/mobile: a Capacitor app against any OAuth issuer' },
   'mobile-standalone': { platforms: ['web', 'mobile'], hint: 'apps/web + apps/mobile, with apps/web as the OAuth server' },
   'desktop': { platforms: ['desktop'], hint: 'apps/desktop: a Tauri app against any OAuth issuer, or offline with its own server' },
+  'multi-platform': { platforms: ['web', 'mobile', 'desktop'], hint: 'apps/web + apps/mobile + apps/desktop, with apps/web as the OAuth server' },
 } as const satisfies Record<string, { platforms: readonly Platform[], hint: string }>
 
 export type Starter = keyof typeof STARTERS
@@ -29,13 +30,17 @@ const nextSteps: Record<Starter, string[]> = {
     '  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/desktop/.env, or DESKTOP_MODE=local',
     '  pnpm desktop:init',
   ],
+  'multi-platform': [
+    '  put your email in NUXT_ACL_ADMINS in apps/web/.env',
+    '  pnpm desktop:init',
+  ],
 }
 
 const isStarter = (value: string): value is Starter => value in STARTERS
 
 /**
- * A starter from its name (`mobile-standalone`) or from its platforms (`web`, `mobile`, `desktop`, `web,mobile`, in any
- * order).
+ * A starter from its name (`mobile-standalone`) or from its platforms (`web`, `mobile`, `desktop`, `web,mobile`,
+ * `web,mobile,desktop`, in any order).
  */
 export const resolveStarter = (value: string): Starter | undefined => {
   const input = value.trim().toLowerCase()

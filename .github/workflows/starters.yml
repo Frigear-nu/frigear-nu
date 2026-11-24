@@ -2,8 +2,9 @@ name: Starters
 
 # Builds each starter in .starters/ against the published @frigear-nu versions, the way `giget` users get it, fails
 # when committed migrations no longer match the modules' schemas (regenerate them, see AGENTS.md "Starters"), smoke
-# tests the standalone mobile starter's OAuth server and the desktop starter's local mode, and fails when the files the
-# starters share drift apart. The desktop starter's Tauri shell is compiled on macOS, Linux and Windows on main only.
+# tests the OAuth server of the standalone mobile and multi-platform starters and the desktop app's local mode, and fails
+# when the files the starters share drift apart. The desktop starter's Tauri shell is compiled on macOS, Linux and
+# Windows on main only.
 on:
   pull_request:
     paths:
@@ -29,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        starter: [workspace, mobile, mobile-standalone, desktop]
+        starter: [workspace, mobile, mobile-standalone, desktop, multi-platform]
         # The committed migrations each starter checks (none for mobile).
         include:
           - starter: workspace
@@ -38,6 +39,8 @@ jobs:
             migrations: apps/web/server/db/migrations
           - starter: desktop
             migrations: apps/desktop/server/db/migrations
+          - starter: multi-platform
+            migrations: apps/web/server/db/migrations apps/desktop/server/db/migrations
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -126,10 +129,10 @@ jobs:
         working-directory: ${{ runner.temp }}/starter
         run: pnpm build
 
-      # The desktop starter's steps above check the remote SPA; this is its other mode, the app with its own server.
+      # The steps above check apps/desktop as the remote SPA; this is its other mode, the app with its own server.
       # The local mode smoke test below builds it.
       - name: Typecheck (desktop local mode)
-        if: steps.gate.outputs.published == 'true' && matrix.starter == 'desktop'
+        if: steps.gate.outputs.published == 'true' && (matrix.starter == 'desktop' || matrix.starter == 'multi-platform')
         working-directory: ${{ runner.temp }}/starter
         run: pnpm typecheck:local
 
@@ -147,9 +150,10 @@ jobs:
           fi
 
       # The built server answers what apps/mobile needs: discovery, the configured `mobile` client (302 to the login
-      # page) and bearer CORS for /api/ from the iOS webview's origin.
+      # page) and bearer CORS for /api/ from the iOS webview's origin. In multi-platform also what apps/desktop needs:
+      # the `desktop` client (deep link), the `desktop-local` client (a loopback redirect on any port) and the Tauri origin.
       - name: OAuth smoke test
-        if: steps.gate.outputs.published == 'true' && matrix.starter == 'mobile-standalone'
+        if: steps.gate.outputs.published == 'true' && (matrix.starter == 'mobile-standalone' || matrix.starter == 'multi-platform')
         working-directory: ${{ runner.temp }}/starter/apps/web
         run: |
           PORT=3000 node --env-file=.env .output/server/index.mjs > server.log 2>&1 &
@@ -168,26 +172,38 @@ jobs:
           check discovery 200 "$base/.well-known/openid-configuration"
           check authorize 302 "$base/oauth/authorize?client_id=mobile&response_type=code&redirect_uri=com.example.mobile:/auth/callback&scope=openid&state=ci-smoke-state-0001&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
           check 'api preflight' 204 -X OPTIONS -H 'Origin: capacitor://localhost' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization' "$base/api/me"
+          if [ "${{ matrix.starter }}" = multi-platform ]; then
+            pkce='response_type=code&scope=openid&state=ci-smoke-state-0001&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256'
+            check 'authorize desktop' 302 "$base/oauth/authorize?client_id=desktop&redirect_uri=com.example.desk:/auth/callback&$pkce"
+            check 'authorize desktop-local' 302 "$base/oauth/authorize?client_id=desktop-local&redirect_uri=http://127.0.0.1:49152/auth/frigear&$pkce"
+            check 'api preflight (tauri)' 204 -X OPTIONS -H 'Origin: tauri://localhost' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization' "$base/api/me"
+          fi
 
       - name: Setup Bun
-        if: steps.gate.outputs.published == 'true' && matrix.starter == 'desktop'
+        if: steps.gate.outputs.published == 'true' && (matrix.starter == 'desktop' || matrix.starter == 'multi-platform')
         uses: oven-sh/setup-bun@v2
 
       # The sidecar the desktop app ships in local mode (`nuxt build`, compiled with Bun), without Tauri: on a fresh data
-      # folder it applies the migrations, prints `READY <port>`, guards its pages and API, and registers and signs in a
-      # user with a cookie session.
+      # folder it applies the migrations, prints `READY <port>` and guards its pages and API. The desktop starter then
+      # registers and signs in a user with a cookie session; multi-platform starts a browser handoff at apps/web (built
+      # above, on :3000), whose authorize URL apps/web accepts for the `desktop-local` client on the sidecar's port.
       - name: Local mode smoke test
-        if: steps.gate.outputs.published == 'true' && matrix.starter == 'desktop'
+        if: steps.gate.outputs.published == 'true' && (matrix.starter == 'desktop' || matrix.starter == 'multi-platform')
         working-directory: ${{ runner.temp }}/starter
         env:
           DESKTOP_MODE: local
         run: |
+          web=
+          if [ "${{ matrix.starter }}" = multi-platform ]; then
+            (cd apps/web && PORT=3000 exec node --env-file=.env .output/server/index.mjs) > web.log 2>&1 &
+            web=$!
+          fi
           pnpm desktop:sidecar
           binary=$(ls apps/desktop/src-tauri/binaries/*)
           data=$(mktemp -d)
           DATA_DIR="$data" PORT=0 "$binary" > server.log 2>&1 &
           server=$!
-          trap 'rc=$?; [ $rc -eq 0 ] || { echo "--- server.log"; cat server.log; }; kill $server 2>/dev/null || true; exit $rc' EXIT
+          trap 'rc=$?; [ $rc -eq 0 ] || { echo "--- server.log"; cat server.log; [ -z "$web" ] || { echo "--- web.log"; cat web.log; }; }; kill $server $web 2>/dev/null || true; exit $rc' EXIT
           for _ in $(seq 1 30); do grep -q '^READY ' server.log && break; sleep 1; done
           port=$(sed -n 's/^READY \([0-9]*\)$/\1/p' server.log)
           [ -n "$port" ] || { echo "::error::the sidecar did not print READY"; exit 1; }
@@ -201,11 +217,21 @@ jobs:
           check 'home, signed out' 302 "$base/"
           check 'login page' 200 "$base/login"
           check 'api, signed out' 401 "$base/api/me"
-          body='{"name":"CI","email":"ci@example.com","password":"correct-horse-battery-9"}'
-          check register 201 -H 'content-type: application/json' -H "Origin: $base" -d "$body" "$base/api/auth/register"
-          check login 200 -H 'content-type: application/json' -H "Origin: $base" -d '{"email":"ci@example.com","password":"correct-horse-battery-9"}' "$base/api/auth/login"
-          check 'api, signed in' 200 "$base/api/me"
-          check 'home, signed in' 200 "$base/"
+          if [ "${{ matrix.starter }}" = desktop ]; then
+            body='{"name":"CI","email":"ci@example.com","password":"correct-horse-battery-9"}'
+            check register 201 -H 'content-type: application/json' -H "Origin: $base" -d "$body" "$base/api/auth/register"
+            check login 200 -H 'content-type: application/json' -H "Origin: $base" -d '{"email":"ci@example.com","password":"correct-horse-battery-9"}' "$base/api/auth/login"
+            check 'api, signed in' 200 "$base/api/me"
+            check 'home, signed in' 200 "$base/"
+          else
+            curl -s -o /dev/null --retry 30 --retry-connrefused --retry-delay 1 http://localhost:3000/.well-known/openid-configuration \
+              || { echo "::error::apps/web did not start"; exit 1; }
+            attempt=$(curl -s -c cookies -b cookies -H 'content-type: application/json' -H "Origin: $base" -d '{}' "$base/api/auth/frigear/handoffs")
+            echo "handoff: $attempt"
+            url=$(node -e 'const { authorizeUrl } = JSON.parse(process.argv[1]); if (!authorizeUrl?.includes("client_id=desktop-local")) process.exit(1); console.log(authorizeUrl)' "$attempt") \
+              || { echo "::error::the handoff did not answer an authorize URL for desktop-local"; exit 1; }
+            check 'authorize (handoff)' 302 "$url"
+          fi
 
   drift:
     name: Shared files are identical
@@ -225,19 +251,27 @@ jobs:
               failed=1
             fi
           }
-          for starter in mobile mobile-standalone desktop; do
+          for starter in mobile mobile-standalone desktop multi-platform; do
             for shared in .github .nvmrc .gitignore pnpm-workspace.yaml scripts packages; do
               compare ".starters/workspace/$shared" ".starters/$starter/$shared"
             done
           done
           compare .starters/mobile/apps/mobile .starters/mobile-standalone/apps/mobile
+          compare .starters/mobile/apps/mobile .starters/multi-platform/apps/mobile
+          # apps/web of multi-platform is the standalone one plus the desktop clients.
+          compare .starters/mobile-standalone/apps/web .starters/multi-platform/apps/web \
+            -x nuxt.config.ts -x package.json -x AGENTS.md -x migrations
+          # apps/desktop of multi-platform is the desktop starter's, signing in at apps/web in both modes.
+          compare .starters/desktop/apps/desktop .starters/multi-platform/apps/desktop \
+            -x nuxt.config.ts -x identity.ts -x .env.example -x AGENTS.md -x migrations
           # apps/web of the standalone starter is the workspace one plus the OAuth server: only these files differ.
           compare .starters/workspace/apps/web .starters/mobile-standalone/apps/web \
             -x nuxt.config.ts -x package.json -x .env.example -x AGENTS.md -x migrations -x api
           exit $failed
 
   # The desktop starter's Rust shell, in local mode (its src/lib.rs is the remote one plus the sidecar code), compiled
-  # and linked without bundling on each OS. On main and by hand only, to save minutes; it needs the published packages,
+  # and linked without bundling on each OS. multi-platform generates the same shell from the same module, so it is not
+  # compiled twice. On main and by hand only, to save minutes; it needs the published packages,
   # so it waits for the starter jobs.
   desktop-native:
     name: desktop starter, Tauri on ${{ matrix.os }}

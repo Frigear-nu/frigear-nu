@@ -41,6 +41,7 @@ are not part of this workspace: they use the published versions.
 - [.starters/mobile](./.starters/mobile) - pnpm monorepo + Capacitor app on `@frigear-nu/mobile` that signs in at frigear.nu or any OpenID Connect issuer ([guide](./apps/docs/content/4.examples/1.starters/2.mobile.md))
 - [.starters/mobile-standalone](./.starters/mobile-standalone) - the workspace starter plus the mobile app, with `apps/web` as its OAuth server and API ([guide](./apps/docs/content/4.examples/1.starters/3.mobile-standalone.md))
 - [.starters/desktop](./.starters/desktop) - pnpm monorepo + Tauri desktop app on `@frigear-nu/desktop` that signs in at any OpenID Connect issuer, or runs offline with its own server ([guide](./apps/docs/content/4.examples/1.starters/4.desktop.md))
+- [.starters/multi-platform](./.starters/multi-platform) - the standalone mobile starter plus the desktop app, all three signing in at `apps/web` ([guide](./apps/docs/content/4.examples/1.starters/5.multi-platform.md))
 
 
 ## Apps

@@ -84,6 +84,13 @@ describe('init', () => {
     expect(existsSync(join(cwd, 'desk/apps/desktop/src-tauri'))).toBe(false)
   })
 
+  it('creates the multi-platform starter from --platform web,mobile,desktop', async () => {
+    await run('init', ['all', '--platform', 'web,mobile,desktop', '--no-install', '--cwd', cwd])
+    expect((await readJson(join(cwd, 'all/package.json'))).name).toBe('all')
+    for (const app of ['web', 'mobile', 'desktop'])
+      expect(existsSync(join(cwd, `all/apps/${app}/nuxt.config.ts`))).toBe(true)
+  })
+
   it('rejects an unknown platform', async () => {
     await expect(run('init', ['x', '--platform', 'tv', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
   })
