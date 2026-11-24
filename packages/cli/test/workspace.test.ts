@@ -22,7 +22,11 @@ describe('resolveStarter', () => {
     ['Mobile, Web', 'mobile-standalone'],
     ['workspace', 'workspace'],
     ['mobile-standalone', 'mobile-standalone'],
-    ['desktop', undefined],
+    ['desktop', 'desktop'],
+    ['Desktop', 'desktop'],
+    ['desktop,mobile', undefined],
+    ['web,desktop', undefined],
+    ['tv', undefined],
     ['', undefined],
   ])('%s → %s', (input, expected) => {
     expect(resolveStarter(input)).toBe(expected)

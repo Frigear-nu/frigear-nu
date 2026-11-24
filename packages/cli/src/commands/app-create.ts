@@ -11,6 +11,7 @@ export const APP_TEMPLATES = {
   'web': '.starters/workspace/apps/web',
   'web-standalone': '.starters/mobile-standalone/apps/web',
   'mobile': '.starters/mobile/apps/mobile',
+  'desktop': '.starters/desktop/apps/desktop',
 } as const
 
 const isAppTemplate = (value: string): value is keyof typeof APP_TEMPLATES => value in APP_TEMPLATES

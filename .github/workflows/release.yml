@@ -32,6 +32,7 @@ on:
           - cookie-consent
           - crew
           - dashboard
+          - desktop
           - email-templates
           - eslint-config
           - events
@@ -96,7 +97,7 @@ jobs:
           PACKAGES: ${{ inputs.packages }}
           # Every releasable package, in dependency order (each after the workspace packages in its dependencies and
           # peerDependencies). Keep in sync with the `package` choices.
-          ALL: '["module-kit","menu","notify","email-templates","ui","widget","base-layer","auth","admin","mcp","users","stripe","subscriptions","payments","events","forms","cookie-consent","oauth-server","authorization","account","preferences","mobile","maps","dashboard","push","operations","teams","crew","help-center","shifts","inbox","oauth-resource","eslint-config","cli","create-frigear-app"]'
+          ALL: '["module-kit","menu","notify","email-templates","ui","widget","base-layer","auth","admin","mcp","users","stripe","subscriptions","payments","events","forms","cookie-consent","oauth-server","authorization","account","preferences","mobile","desktop","maps","dashboard","push","operations","teams","crew","help-center","shifts","inbox","oauth-resource","eslint-config","cli","create-frigear-app"]'
         run: |
           if [ -n "${PACKAGES//[ ,]/}" ]; then
             # A set: the named packages in the order of ALL, failing on a name that is not in it.

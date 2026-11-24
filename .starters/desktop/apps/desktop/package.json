@@ -1,0 +1,53 @@
+{
+  "name": "@workspace/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./identity": "./identity.ts"
+  },
+  "scripts": {
+    "build": "nuxt generate",
+    "build:local": "DESKTOP_MODE=local nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "typecheck:local": "DESKTOP_MODE=local nuxt typecheck",
+    "db:generate": "DESKTOP_MODE=local nuxt db generate",
+    "doctor": "frigear-desktop doctor",
+    "native": "frigear-desktop init",
+    "native:sync": "frigear-desktop sync",
+    "native:dev": "frigear-desktop dev",
+    "native:build": "frigear-desktop build",
+    "sidecar": "frigear-desktop sidecar"
+  },
+  "dependencies": {
+    "@frigear-nu/auth": "^0.6.3",
+    "@frigear-nu/authorization": "^0.6.0",
+    "@frigear-nu/desktop": "^0.0.1",
+    "@frigear-nu/users": "^3.1.1",
+    "@iconify-json/lucide": "^1.2.150",
+    "@libsql/client": "^0.18.0",
+    "@nuxt/ui": "^4.12.0",
+    "@nuxthub/core": "^0.10.12",
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/plugin-deep-link": "^2.6.3",
+    "@tauri-apps/plugin-opener": "^2.7.3",
+    "@tauri-apps/plugin-store": "^2.5.1",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "nuxt": "^4.6.1",
+    "tailwindcss": "^4.3.3",
+    "unstorage": "^1.17.5"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.17.0",
+    "@tauri-apps/cli": "^2.12.6",
+    "eslint": "^10.12.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.11"
+  }
+}

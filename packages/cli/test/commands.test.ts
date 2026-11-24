@@ -77,8 +77,15 @@ describe('init', () => {
     await expect(run('init', ['x', '-t', 'gh:a/b', '--platform', 'web', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
   })
 
+  it('creates the desktop starter from --platform desktop', async () => {
+    await run('init', ['desk', '--platform', 'desktop', '--no-install', '--cwd', cwd])
+    expect((await readJson(join(cwd, 'desk/package.json'))).name).toBe('desk')
+    expect(existsSync(join(cwd, 'desk/apps/desktop/nuxt.config.ts'))).toBe(true)
+    expect(existsSync(join(cwd, 'desk/apps/desktop/src-tauri'))).toBe(false)
+  })
+
   it('rejects an unknown platform', async () => {
-    await expect(run('init', ['x', '--platform', 'desktop', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
+    await expect(run('init', ['x', '--platform', 'tv', '--no-install', '--cwd', cwd])).rejects.toThrow('process.exit(1)')
   })
 
   it('rejects an unknown starter', async () => {
@@ -93,6 +100,15 @@ describe('app:create', () => {
     await run('app:create', ['mobile', '--template', 'mobile', '--no-install', '--cwd', project])
     const pkg = await readJson(join(project, 'apps/mobile/package.json'))
     expect(pkg.name).toBe('@workspace/mobile')
+  })
+
+  it('adds the desktop app', async () => {
+    await run('init', ['project', '--starter', 'workspace', '--no-install', '--cwd', cwd])
+    const project = join(cwd, 'project')
+    await run('app:create', ['desktop', '--template', 'desktop', '--no-install', '--cwd', project])
+    const pkg = await readJson(join(project, 'apps/desktop/package.json'))
+    expect(pkg.name).toBe('@workspace/desktop')
+    expect(pkg.dependencies['@frigear-nu/desktop']).toBeDefined()
   })
 
   it('fails outside a pnpm workspace', async () => {

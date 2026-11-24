@@ -130,6 +130,18 @@ Each starter is a ready-made project you copy. It runs on the published `@frigea
   #description
   For an app with its own users and API. It is the workspace starter plus a mobile app that signs in at it.
   :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-monitor
+  to: /examples/starters/desktop#_1-create-the-project
+  ---
+  #title
+  Desktop
+
+  #description
+  For a macOS, Windows and Linux app on Tauri that signs in at an issuer, or runs offline with its own server.
+  :::
 ::
 
 ::u-page-section
