@@ -337,6 +337,18 @@ Next steps
 
   :::u-page-feature
   ---
+  icon: i-lucide-square-terminal
+  to: /cli/overview
+  ---
+  #title
+  CLI
+
+  #description
+  Create a project, add web, mobile and desktop apps, install modules and upgrade.
+  :::
+
+  :::u-page-feature
+  ---
   icon: i-lucide-git-pull-request
   to: /contribute/overview
   ---

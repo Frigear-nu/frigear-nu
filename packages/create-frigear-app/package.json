@@ -9,7 +9,7 @@
     "email": "kontakt@frigear.nu",
     "url": "https://frigear.nu"
   },
-  "homepage": "https://docs.frigear.dev/contribute/tooling/cli",
+  "homepage": "https://docs.frigear.dev/cli/overview",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frigear-nu/frigear-nu.git",

@@ -283,7 +283,7 @@ if (termsMode && glossaryExists) {
   const regexes = [...variants].map(v => ({ v, re: new RegExp(`(?<![\\w-])${esc(v)}(?![\\w-])`, 'gi') }))
   const scoped = termFolders.length ? termFolders.map(f => resolve(f)) : [CONTENT]
   const perFile = new Map()
-  const termsSkip = ['apps/docs/content/2.guide/1.concepts/6.glossary.md', 'apps/docs/content/5.contribute/6.documentation.md']
+  const termsSkip = ['apps/docs/content/2.guide/1.concepts/6.glossary.md', 'apps/docs/content/6.contribute/6.documentation.md']
   let total = 0
   for (const { file, lines } of pages.values()) {
     if (!scoped.some(s => file === s || file.startsWith(s + '/'))) continue

@@ -29,7 +29,7 @@ follow them too. The root `AGENTS.md` (layout, commands, UX patterns, CI, commit
 
 ## Authentication in server routes
 
-Full guide: `apps/docs/content/5.contribute/3.writing-a-module/5.access-control.md`.
+Full guide: `apps/docs/content/6.contribute/3.writing-a-module/5.access-control.md`.
 
 - Check access with `await authorize(event, 'resource:action', record?)` (auto-imported from `@frigear-nu/auth`): it
   authenticates (cookie sessions, user API tokens, OAuth access tokens) and answers `401 unauthorized` or `403`

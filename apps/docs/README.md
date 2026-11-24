@@ -29,10 +29,11 @@ Content lives under `content/`, one numbered folder per header tab:
 | `2.guide/` | Guide | Concepts, UX patterns, best practices and deeper topics |
 | `3.modules/<category>/` | Modules | One page (or folder) per module, in its category |
 | `4.examples/` | Examples | Starters, reference apps and short task examples |
-| `5.contribute/` | Contribute | Working on this repository: local development, writing modules, releasing |
+| `5.cli/` | CLI | Every `@frigear-nu/cli` command, custom platforms, and calling it from code |
+| `6.contribute/` | Contribute | Working on this repository: local development, writing modules, releasing |
 
 Numbered names set the order in navigation; the name after the number is the route. Each folder's `.navigation.yml`
 sets its title and icon. When you move or rename a page, add the old URL to `redirects` in `nuxt.config.ts`: published
 packages link to these URLs from npm.
 
-The full guide is [Documentation](./content/5.contribute/6.documentation.md) (`/contribute/documentation` on the site).
+The full guide is [Documentation](./content/6.contribute/6.documentation.md) (`/contribute/documentation` on the site).
