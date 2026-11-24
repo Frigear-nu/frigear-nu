@@ -263,6 +263,7 @@ Routes the module registers, and who may call them. Paths come from `authorizati
 | Method | Path | Who | Answers |
 | --- | --- | --- | --- |
 | `GET` | `/api/admin/authorization/roles` (`admin.roles`) | `roles:read` | Every role, most senior first, with its user count. |
+| `GET` | `/api/admin/authorization/matrix` (`admin.matrix`) | `roles:read` | Every role against every registered permission: `{ roles, permissions, cells }`, a cell only where the role holds the permission. |
 | `GET` | `/api/admin/authorization/roles/:name` (`admin.role(name)`) | `roles:read` | One role: every registered permission, whether it holds it and why. `404` for an unknown role. |
 | `GET` | `/api/admin/authorization/roles/:name/users` (`admin.roleUsers(name)`) | `roles:read` | The users with that role assigned, paginated. |
 | `GET` | `/api/admin/authorization/users/:id/roles` (`admin.userRoles(id)`) | `roles:read` or `roles:assign` | A user's assigned and effective roles, their permissions, and the roles the caller may assign. |
