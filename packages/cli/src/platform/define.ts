@@ -102,6 +102,7 @@ export const BUILTIN_PLATFORMS: Record<string, PlatformDefinition> = {
       'dev:<name>': 'pnpm --filter <dir> dev',
       '<name>:native': 'pnpm --filter <dir> run native',
       '<name>:doctor': 'pnpm --filter <dir> run doctor',
+      '<name>:watch': 'pnpm --filter <dir> run watch',
       '<name>:sync': 'pnpm --filter <dir> run cap:sync',
       '<name>:ios': 'pnpm --filter <dir> run ios:run',
       '<name>:ios:device': 'pnpm --filter <dir> run ios:device',

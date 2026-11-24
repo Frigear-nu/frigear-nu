@@ -75,7 +75,7 @@ describe('addPlatform', () => {
     expect(scripts.dev).toBe('pnpm --filter ./apps/web dev')
     // The default names are the multi-platform starter's.
     const starter = Object.keys((await readJson(join(repoRoot, '.starters/multi-platform/package.json'))).scripts)
-    expect(result.scripts.added.every(key => starter.includes(key))).toBe(true)
+    expect(result.scripts.added.sort()).toEqual(starter.filter(key => key.startsWith('mobile:') || key === 'dev:mobile').sort())
   })
 
   it('reproduces the multi-platform starter\'s desktop script names', async () => {
