@@ -27,12 +27,12 @@ const command = (starter: StarterTab) => `pnpm create frigear-app my-app --platf
 
 <template>
   <div class="flex flex-col gap-3">
-    <!-- On phones the icons go and the list leaves room for the copy button, so all five tabs stay readable. -->
+    <!-- Below xl (where the hero's code column is narrow) the icons go and the list leaves room for the copy button, and on phones the tabs get smaller, so all five fit. -->
     <ProseCodeGroup
       v-model="tab"
       sync="frigear-starter"
       class="my-0"
-      :ui="{ list: 'pe-12', triggerIcon: 'hidden sm:inline-flex' }"
+      :ui="{ list: 'gap-0.5 sm:gap-1 pe-12', trigger: 'px-1.5 sm:px-2 text-xs sm:text-sm', triggerIcon: 'hidden xl:inline-flex' }"
     >
       <ProsePre
         v-for="starter in starters"
