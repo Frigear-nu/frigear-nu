@@ -2,7 +2,7 @@ import {
   addImports,
   addPlugin,
   addServerImportsDir,
-  addServerPlugin,
+  addNitroPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
@@ -178,6 +178,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     // Logs invalid push settings once at startup (see `pushConfigProblems`).
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/config-check'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/config-check'))
   },
 })

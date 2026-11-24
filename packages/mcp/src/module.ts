@@ -1,4 +1,4 @@
-import { addServerImportsDir, addServerPlugin, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addServerImportsDir, addNitroPlugin, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import type { ModuleOptions } from './types'
 
@@ -45,6 +45,6 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/mcp'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/mcp'))
   },
 })

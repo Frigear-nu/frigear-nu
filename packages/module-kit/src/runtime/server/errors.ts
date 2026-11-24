@@ -8,9 +8,18 @@ export type ApiErrorData = { code: string } & Record<string, unknown>
  * `@frigear-nu/ui` shows in a toast), `data.code` a stable snake_case code for clients and tests.
  *
  *     throw apiError(409, 'conflict', 'That slug is taken.', { field: 'slug' })
+ *
+ * Both spellings are set: h3 v1 (Nitro v2) reads `statusCode`/`statusMessage`, h3 v2 (Nitro v3) `status`/`statusText`,
+ * so the error body carries the same status and message on either host, with or without Nuxt's `nitroLegacy` layer.
  */
 export function apiError(statusCode: number, code: string, message: string, data: Record<string, unknown> = {}) {
-  return createError({ statusCode, statusMessage: message, data: { ...data, code } satisfies ApiErrorData })
+  return createError({
+    status: statusCode,
+    statusText: message,
+    statusCode,
+    statusMessage: message,
+    data: { ...data, code } satisfies ApiErrorData,
+  })
 }
 
 /** 400 `bad_request`. */

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import {
   addImports,
   addServerImportsDir,
-  addServerPlugin,
+  addNitroPlugin,
   addServerTemplate,
   addTypeTemplate,
   createResolver,
@@ -152,7 +152,7 @@ declare module '#preferences/definitions' {
     if (notificationsPath) addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
 
     if (hasNuxtModule('@frigear-nu/oauth-server')) {
-      addServerPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
     }
   },
 })

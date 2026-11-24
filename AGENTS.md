@@ -191,6 +191,11 @@ manually — check before assuming plain pnpm scripts are the only path.
   from `#imports` explicitly, since Nuxt does not auto-import into a module installed in `node_modules` (lint enforces
   it with `no-undef`). Server code under `src/runtime/server/**` may rely on auto-imports, as long as the module calls
   `inlineModuleRuntime` from `@frigear-nu/module-kit/utils`.
+- Modules run on Nitro v2 and, through Nuxt's `nitroLegacy` layer, on Nitro v3 (Nuxt 4.7+ with `nitro` installed).
+  Register plugins with `addNitroPlugin`, bundle extra files with `bundleServerDependencies` (never set
+  `externals` directly), branch on `getNitroVersion(nuxt)` for Nitro options v3 removed, and use only `/path` and
+  `/path/**` route rule patterns. Run `.github/workflows/nitro-v3.yml` on a branch that changes server code or Nitro
+  config. Guide: the module-kit docs page, "Nitro v2 and v3".
 - New packages: match the existing structure of a sibling package (tsconfig, build tool, test setup) rather than
   introducing a new toolchain.
 

@@ -1,12 +1,12 @@
 import {
   addServerImportsDir,
-  addServerPlugin,
+  addNitroPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
   updateTemplates,
 } from '@nuxt/kit'
-import { inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
+import { bundleServerDependencies, inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
 import { defu } from 'defu'
 import type { EmailTemplateSource } from '@frigear-nu/notify/types'
 import { layerTemplateDirs, mergeTemplates, templatesVirtualModule } from './templates'
@@ -75,8 +75,7 @@ export default defineNuxtModule<ModuleOptions>({
         nitroConfig.virtual ||= {}
         nitroConfig.virtual['#email-templates'] = templatesVirtualModule(mergeTemplates(moduleDirs, layerTemplateDirs(nuxt)))
         // Published modules ship their templates inside node_modules: bundle them so the Vue plugin compiles them.
-        nitroConfig.externals ||= {}
-        nitroConfig.externals.inline = [...(nitroConfig.externals.inline ?? []), ...moduleDirs]
+        bundleServerDependencies(nuxt, nitroConfig, moduleDirs)
         // In dev the renderer mounts its templates directory as `fs` storage even when the host has none,
         // and unstorage refuses an `fs` driver without a base. Hosts that only use module templates hit it.
         const emailsStorage = nitroConfig.devStorage?.emails
@@ -123,7 +122,7 @@ ${templates.map(template => `    ${JSON.stringify(template.name)}: TemplateCompo
     }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/notify-email'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/notify-email'))
     inlineModuleRuntime(nuxt, resolver)
   },
 })
