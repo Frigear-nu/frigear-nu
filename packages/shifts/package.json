@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/shifts",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Shifts for the frigear ecosystem: schedules, shift roles, assignment, swaps, QR check-in and who is on shift now, per operation, built on crew and teams.",
   "homepage": "https://docs.frigear.dev/modules/volunteering/shifts",
   "repository": {
