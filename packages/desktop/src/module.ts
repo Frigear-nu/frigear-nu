@@ -113,9 +113,16 @@ export default defineNuxtModule<ModuleOptions>({
         }
         handoff = (nuxt.options.runtimeConfig.public as { authentication?: { frigearHandoff?: boolean } }).authentication?.frigearHandoff === true
         if (handoff) {
-          // Without the opener the handoff falls back to `window.open`, which does nothing in Tauri: fail the build
-          // (`nuxt dev` and `nuxt prepare` too), as for the other config errors. `frigear-desktop doctor` reports it as well.
-          assertHandoffOpener(installed)
+          // Without the opener the handoff falls back to `window.open`, which does nothing in Tauri: fail `nuxt build` and
+          // `nuxt dev`. `nuxt prepare` only warns, so a postinstall that runs before the opener is installed still works.
+          // `frigear-desktop doctor` reports it as well.
+          try {
+            assertHandoffOpener(installed)
+          }
+          catch (error) {
+            if (!prepare) throw error
+            logger.warn((error as Error).message)
+          }
           addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-handoff.client'), mode: 'client' })
         }
         const settings = (nuxt.options as { authentication?: { settings?: { verifyEmail?: boolean } } }).authentication?.settings
