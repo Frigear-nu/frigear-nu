@@ -27,6 +27,8 @@ export const oauthServerApi = {
     scopes: '/api/admin/oauth-server/scopes',
     /** `GET`, `PATCH`, `DELETE` (204) of a database scope. */
     scope: (name: string) => `/api/admin/oauth-server/scopes/${enc(name)}`,
+    /** `GET`: the permissions a database scope may carry (never sensitive or session-only), for the scope form. */
+    permissions: '/api/admin/oauth-server/permissions',
   },
 } as const
 

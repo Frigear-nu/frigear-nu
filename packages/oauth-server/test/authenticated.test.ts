@@ -193,16 +193,30 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       await expectApiError(apiClient({ cookie: member.cookie }).json('GET', oauthServerApi.admin.application('app_unknown')), 403, 'forbidden')
     })
 
-    it('renders the admin page with a row menu per application', async () => {
+    it('renders the admin pages: one heading, tabs, a row menu per application', async () => {
       const created = await createApp({ name: 'Menu app' })
       const response = await fetch('/admin/oauth', { headers: { cookie: staff.cookie } })
       expect(response.status).toBe(200)
       const html = await response.text()
-      expect(html).toContain('OAuth applications')
+      expect(html.match(/<h1\b/g)).toHaveLength(1)
+      expect(html).toMatch(/<h1[^>]*>(?:\s|<!--[^>]*-->)*OAuth(?:\s|<!--[^>]*-->)*</)
       expect(html).toContain('Add application')
       // The row menu trigger is labelled with the application it acts on.
       expect(html).toContain('aria-label="Actions for Menu app"')
       await ok(await json(staff.cookie, 'DELETE', oauthServerApi.admin.application(created.id)))
+
+      // Applications and scopes share the heading; the active tab follows the route.
+      const currentTabs = (page: string) => [...page.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag)
+        .filter(tag => tag.includes('aria-current="page"')).map(tag => /href="([^"]*)"/.exec(tag)?.[1])
+      expect(currentTabs(html)).toContain('/admin/oauth')
+      expect(currentTabs(html)).not.toContain('/admin/oauth/scopes')
+      const scopes = await fetch('/admin/oauth/scopes', { headers: { cookie: staff.cookie } })
+      expect(scopes.status).toBe(200)
+      const scopesHtml = await scopes.text()
+      expect(scopesHtml.match(/<h1\b/g)).toHaveLength(1)
+      expect(scopesHtml).toContain('Add scope')
+      expect(currentTabs(scopesHtml)).toContain('/admin/oauth/scopes')
+      expect(currentTabs(scopesHtml)).not.toContain('/admin/oauth')
       // The first render compiles the page in dev mode.
     }, 120_000)
   })
@@ -1485,6 +1499,27 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await json(staff.cookie, 'DELETE', oauthServerApi.admin.scope(name))).status).toBe(204)
       await expectApiError(admin().json('GET', oauthServerApi.admin.scope(name)), 404, 'not_found')
       expect((await $fetch<Json>(oidc.configuration)).scopes_supported).not.toContain(name)
+    })
+
+    it('lists the permissions a scope may carry: staff only, never sensitive or session-only ones', async () => {
+      staff ??= await user('Staff', 'staff.test')
+      const member = await user('Member')
+      expect((await json(undefined, 'GET', oauthServerApi.admin.permissions)).status).toBe(401)
+      await expectApiError(apiClient({ cookie: member.cookie }).json('GET', oauthServerApi.admin.permissions), 403, 'forbidden')
+
+      const options = await admin().json<Json[]>('GET', oauthServerApi.admin.permissions)
+      const names = options.map(option => option.name)
+      expect(options.find(option => option.name === 'notes:read')).toMatchObject({ label: 'Read your notes', group: 'notes' })
+      expect(names).toEqual(expect.arrayContaining(['inventory:read', 'inventory:write', 'vouchers:read']))
+      expect(names).not.toContain('inventory:manage')
+      expect(names).not.toContain('inventory:pii')
+      expect(names).not.toContain('oauth:manage')
+      expect(names.some(name => name.endsWith(':*'))).toBe(false)
+      // Sorted by group, then name.
+      expect(names).toEqual([...options].sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name)).map(option => option.name))
+      // Everything offered can be saved.
+      const created = await admin().json<Json>('POST', oauthServerApi.admin.scopes, { name: `picked${++counter}`, permissions: ['inventory:read', 'notes:read'] })
+      expect(created.permissions).toEqual(['inventory:read', 'notes:read'])
     })
 
     it('grants database scopes like any other, asks again when one grew, and drops a removed one silently at refresh', async () => {
