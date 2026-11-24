@@ -51,3 +51,33 @@ export function loopbackRewriter(setting: boolean | string, currentHost: string 
   if (!host || isLoopbackHost(host)) return undefined
   return url => rewriteLoopbackUrl(url, host)
 }
+
+/** What `resolveApiTargets` reads of the client config. */
+export interface ApiTargetsConfig {
+  issuer: string
+  apiBase: string
+  apiOrigins: string[]
+  sameOrigin?: boolean
+}
+
+/**
+ * Where the bearer token goes and `$api`'s base, after the loopback rewrite:
+ *
+ * - `apiBase`: `apiBase` when set, else the app's own origin with `sameOrigin` (resource mode), else the issuer.
+ * - `clientAttachTo`: what the OAuth client's own requests may carry it to (the API base, the issuer, `apiOrigins`).
+ * - `apiAttachTo`: what `$api` sends it to: `apiOrigins` when set, else the API base and the issuer.
+ *
+ * With `sameOrigin` both lists also hold `origin` (the page's `location.origin`, never rewritten: it is where the app
+ * runs). Without an origin (outside a browser) it is left out.
+ */
+export function resolveApiTargets(config: ApiTargetsConfig, rewriteUrl: (url: string) => string, origin: string | undefined) {
+  const own = config.sameOrigin && origin ? origin : undefined
+  const apiBase = config.apiBase ? rewriteUrl(config.apiBase) : own ?? rewriteUrl(config.issuer)
+  const withOwn = (list: string[]) => own && !list.includes(own) ? [...list, own] : list
+  return {
+    apiBase,
+    ownOrigin: own,
+    clientAttachTo: withOwn([config.apiBase || config.issuer, config.issuer, ...config.apiOrigins].map(rewriteUrl)),
+    apiAttachTo: withOwn(config.apiOrigins.length ? config.apiOrigins.map(rewriteUrl) : [apiBase, rewriteUrl(config.issuer)]),
+  }
+}

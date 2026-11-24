@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, useAfterLogin, useAuthPages, useLogin, useMagicLink, useModuleT, usePasskeys, useRoute, useRuntimeConfig } from '#imports'
+import { computed, navigateTo, ref, useAfterLogin, useAuthPages, useFrigearHandoff, useLogin, useMagicLink, useModuleT, usePasskeys, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { isAppPage } from '../utils/after-login'
 
 defineOptions({ name: 'UsersLoginPage' })
 
@@ -22,6 +23,24 @@ const passkeyPending = ref(false)
 
 const { requested: requestedRedirect, go: afterLogin } = useAfterLogin()
 
+// "Log in with frigear.nu" in the system browser while this window waits (`oauth.frigear.handoff`, desktop apps).
+const handoff = useFrigearHandoff()
+const router = useRouter()
+const handoffError = computed(() => {
+  switch (handoff.error.value) {
+    case 'denied': return t('handoff.denied', 'The sign-in was cancelled in the browser.')
+    case 'expired': return t('handoff.expired', 'The sign-in took too long. Start it again.')
+    case 'unverified': return t('errors.signIn.unverifiedEmail', 'The account you signed in with has not verified this email address. Verify it there, or sign in another way.')
+    case 'failed': return t('handoff.failed', 'The sign-in could not be completed. Try again.')
+    default: return null
+  }
+})
+
+async function onFrigearHandoff() {
+  const target = await handoff.start({ redirect: requestedRedirect.value })
+  if (target) await navigateTo(target, { external: !isAppPage(router.resolve(target).matched) })
+}
+
 // Why the page that sent them here needs an account: `?reason=<namespace>` reads `<namespace>.signInReason.title` and
 // `.description`, so each module words its own reason. Unknown reasons get the generic text.
 const reason = route.query.reason
@@ -33,11 +52,14 @@ const signInReason = computed(() => ({
 
 const magicLinkOpen = ref(false)
 const providers = computed(() => [
-  ...oauthProviders.value.map(provider => ({
-    ...provider,
-    // OAuth round trips lose the page query, so the server remembers the target.
-    to: requestedRedirect.value ? `${provider.to}?redirect=${encodeURIComponent(requestedRedirect.value)}` : provider.to,
-  })),
+  ...oauthProviders.value.map(provider => provider.key === 'frigear' && handoff.isEnabled.value
+    // The window stays and waits; frigear.nu opens outside it.
+    ? { key: provider.key, label: provider.label, icon: provider.icon, loading: handoff.pending.value, onClick: onFrigearHandoff }
+    : {
+        ...provider,
+        // OAuth round trips lose the page query, so the server remembers the target.
+        to: requestedRedirect.value ? `${provider.to}?redirect=${encodeURIComponent(requestedRedirect.value)}` : provider.to,
+      }),
   ...(magicLink.isEnabled.value
     ? [{ label: t('magicLink.title', 'Magic Link'), icon: 'i-lucide-at-sign', onClick: () => { magicLinkOpen.value = !magicLinkOpen.value } }]
     : []),
@@ -137,6 +159,25 @@ async function onPasskeyLogin() {
       icon="i-lucide-lock"
       :title="signInReason.title"
       :description="signInReason.description"
+    />
+
+    <UAlert
+      v-if="handoff.pending.value"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-external-link"
+      :title="t('handoff.waiting.title', 'Finish signing in in your browser')"
+      :description="t('handoff.waiting.description', 'frigear.nu opened in your browser. Sign in there, and this window continues by itself.')"
+      :actions="[
+        { label: t('handoff.reopen', 'Open the browser again'), color: 'neutral', variant: 'outline', onClick: () => handoff.reopen() },
+        { label: t('handoff.cancel', 'Cancel sign-in'), color: 'neutral', variant: 'ghost', onClick: () => handoff.cancel() },
+      ]"
+    />
+    <UAlert
+      v-else-if="handoffError"
+      color="error"
+      variant="subtle"
+      :title="handoffError"
     />
 
     <template v-if="magicLinkOpen">

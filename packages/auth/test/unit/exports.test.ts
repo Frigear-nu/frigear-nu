@@ -39,7 +39,7 @@ describe('package exports', () => {
     const source = readFileSync(`${root}/src/runtime/mode.ts`, 'utf8') + readFileSync(`${root}/src/runtime/utils/redirect.ts`, 'utf8')
     expect(source).not.toMatch(/from '@nuxt\/kit'|from 'nuxt|from '#/)
     const mode = await import('../../src/runtime/mode')
-    expect(Object.keys(mode).sort()).toEqual(['isSafeRedirect', 'resolveAuthMode'])
+    expect(Object.keys(mode).sort()).toEqual(['authModeHasServer', 'authModeSignsInAtIssuer', 'isSafeRedirect', 'resolveAuthMode'])
   })
 
   it('keeps `@frigear-nu/auth/policies` framework-free, so shared policies load in the client and on resource servers', async () => {

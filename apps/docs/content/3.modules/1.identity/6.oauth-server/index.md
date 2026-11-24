@@ -142,7 +142,7 @@ Options go under the `oauthServer` key.
 | `codeTtl` | `number` | `600` | Lifetime of authorization codes, in seconds. |
 | `callbackPath` | `string` | `'/auth/frigear'` | Added to an application's website URL to form its redirect URI. |
 | `scopes` | `Array<string \| OAuthScopeDefinition>` | `[]` | Named [scopes](/guide/concepts/glossary) next to `openid profile email`, and how permission scopes read on the consent screen. |
-| `cors.origins` | `string[]` | `[]` | Exact browser origins that may call the token, revoke, userinfo and discovery endpoints. |
+| `cors.origins` | `string[]` | `[]` | Exact browser origins (or `http://127.0.0.1:*` for any loopback port) that may call the token, revoke, userinfo and discovery endpoints. |
 | `cors.paths` | `string[]` | `[]` | Path prefixes of your own API that the same origins may call with an access token. |
 | `clients` | `OAuthConfiguredClient[]` | `[]` | [Configured clients](/guide/concepts/glossary): public OAuth applications with a fixed `client_id`. |
 | `settings.pages.authorize` | `string \| boolean` | `true` (`/authorize`) | The consent screen. `false` lets you put your own page at `/authorize`. |

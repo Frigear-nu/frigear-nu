@@ -10,14 +10,16 @@ the desktop sibling of [Mobile](/modules/interface/mobile): the module writes th
 derive from your Nuxt config, and the `frigear-desktop` CLI creates and updates the `src-tauri/` project.
 
 The package is `@frigear-nu/desktop`. In remote mode, users sign in through
-[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server.
+[Auth in client mode](/modules/identity/auth/client-mode). In local mode, they sign in on the app's own bundled server
+(locally, or at an issuer such as frigear.nu through the system browser), or at a remote issuer with
+[Auth in resource mode](/modules/identity/auth/resource-mode).
 
 ## Modes
 
 | `mode` | What ships in the app |
 | --- | --- |
 | `remote` (default) | A static SPA (`nuxt generate`). It talks to a remote API and signs in at a remote issuer with OAuth PKCE. |
-| `local` | The whole app (SSR, API routes and server modules) compiled into one executable that runs offline on `127.0.0.1`, with a sqlite database in the app-data folder and cookie sessions. See [Local mode](/modules/interface/desktop/local-mode). |
+| `local` | The whole app (SSR, API routes and server modules) compiled into one executable that runs offline on `127.0.0.1`, with a sqlite database in the app-data folder. Users sign in with cookie sessions (Auth in server mode), or at a remote issuer whose access tokens the server accepts (Auth in resource mode). See [Local mode](/modules/interface/desktop/local-mode). |
 
 ## What you get
 
@@ -100,7 +102,7 @@ Options go under the `desktop` key.
 | `appName` | `string` | `appId` | The product name and the default window title. |
 | `version` | `string` | `package.json` version, else `0.1.0` | The app version (semver). |
 | `mode` | `'remote' \| 'local'` | `'remote'` | See [Modes](#modes). |
-| `spa` | `boolean` | `true` (remote), `false` (local) | Sets `ssr: false`, because Tauri serves a static build in remote mode. |
+| `spa` | `boolean` | `true` (remote and local with resource auth), `false` (local) | Sets `ssr: false`, because Tauri serves a static build in remote mode. |
 | `local` | `object` | see [Local mode](/modules/interface/desktop/local-mode#options) | `binaryName`, `port`, `secureCookie` and `dataDirName` of the bundled server. |
 | `window.title` | `string` | `appName` | The window title. |
 | `window.width`, `window.height` | `number` | `1280`, `800` | The window size at start. |
@@ -115,7 +117,7 @@ Options go under the `desktop` key.
 | `autostart` | `boolean` | `false` | Adds `tauri-plugin-autostart`, so the app can start at login. |
 | `updater` | `{ endpoints, pubkey } \| false` | `false` | Adds `tauri-plugin-updater` with your update endpoints and public key. |
 | `devUrl` | `string` | `http://localhost:<devServer.port>` | The URL the window loads under `frigear-desktop dev`. |
-| `doctor` | `boolean` | `true` | Warns about missing Tauri packages when dev or build starts. |
+| `doctor` | `boolean` | `true` | Warns about missing Tauri packages when dev or build starts. A missing `@tauri-apps/plugin-opener` fails the build, whatever this option says, when local mode turns on the frigear handoff ([Sign in at an issuer with server auth](/modules/interface/desktop/local-mode#sign-in-at-an-issuer-with-server-auth)). |
 
 **`appId`.** Letters, digits, `-` and `.`, in reverse-DNS form. Avoid a last segment of `app`, which clashes with the
 macOS bundle extension. In lowercase, with `_` turned into `-`, it becomes the deep-link scheme and Auth's
@@ -156,15 +158,17 @@ capability file. It grants:
 
 ## Sign-in
 
-This section covers remote mode. In local mode Auth runs in server mode on the bundled server, see
-[Local mode](/modules/interface/desktop/local-mode).
+This section covers remote mode. In local mode Auth runs on the bundled server, in server mode (see
+[Sign in at an issuer with server auth](/modules/interface/desktop/local-mode#sign-in-at-an-issuer-with-server-auth)) or
+in resource mode (see [Sign in at a remote issuer](/modules/interface/desktop/local-mode#sign-in-at-a-remote-issuer)).
 
 When the app configures `authentication`, Desktop installs Auth and fills in `client.native.scheme` from `appId`. It
 never sets the mode: the app sets `authentication.mode: 'client'` itself.
 
 ::warning
 In remote mode, Auth in server mode fails the build: a Tauri app in remote mode cannot send a same-origin session
-cookie to the API. In local mode, it is the other way around: client mode fails the build.
+cookie to the API. Resource mode fails it too: it needs a server of the app's own, which remote mode does not bundle.
+In local mode, client mode fails the build: it has no server half.
 ::
 
 A production build signs in through the user's default browser and gets the redirect back as a deep link. Under
@@ -213,7 +217,7 @@ const { isDesktop, os, getVersion, minimize, toggleMaximize, close, setFullscree
 | `isDesktop` | `true` inside the Tauri window. `false` in a browser and on the server. |
 | `os`, `isMacos`, `isWindows`, `isLinux` | The OS, from the webview's user agent: `macos`, `windows`, `linux` or `unknown`. |
 | `getVersion()` | The running app's version, else `desktop.version`. |
-| `minimize()`, `maximize()`, `unmaximize()`, `toggleMaximize()`, `close()`, `setFullscreen(on)` | Window controls (need `@tauri-apps/api`). They do nothing in a browser. |
+| `minimize()`, `maximize()`, `unmaximize()`, `toggleMaximize()`, `close()`, `setFullscreen(on)`, `focus()` | Window controls (need `@tauri-apps/api`). They do nothing in a browser. |
 | `openExternal(url)` | Opens the link in the default browser, or in a new tab outside the desktop app. |
 | `has(name)`, `load(name)` | Whether a Tauri package is installed, and the package inside the desktop app (`null` elsewhere): `window`, `app`, `deepLink`, `opener`, `store`, `autostart`, `updater`. |
 
@@ -224,7 +228,8 @@ the build.
 
 A link with one of `deepLinks.schemes` opens the matching page, on a cold start and while the app runs:
 `nu.frigear.crew:/shifts/12` and `nu.frigear.crew://shifts/12` both open `/shifts/12`. OAuth callbacks are left to
-Auth, and other links are ignored. Change the path, or handle the link yourself, in the `desktop:deep-link` hook:
+Auth, and other links are ignored. In local mode with server auth, `<scheme>:/auth/return` only brings the window to
+the front (the return link of "Log in with frigear.nu"). Change the path, or handle the link yourself, in the `desktop:deep-link` hook:
 
 ```ts [app/plugins/deep-links.client.ts]
 export default defineNuxtPlugin((nuxtApp) => {

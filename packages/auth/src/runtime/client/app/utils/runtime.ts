@@ -9,7 +9,7 @@ import { browserUserAgent, isNativePlatform, preferencesStorage, secureStorage, 
 import type { AppPluginLike } from '../../capacitor/adapters'
 import { isTauri, loadTauriStoreStorage, systemBrowserUserAgent } from '../../tauri/adapters'
 import type { DeepLinkPluginLike } from '../../tauri/adapters'
-import { loopbackRewriter, resolveRedirectUri, tauriUsesDeepLinks } from '../../utils'
+import { loopbackRewriter, resolveApiTargets, resolveRedirectUri, tauriUsesDeepLinks } from '../../utils'
 import type { AuthClientPublicConfig } from '../../types'
 import { normalizeIssuer } from '../../core/discovery'
 import type { ExpectedIdentity } from './user'
@@ -33,6 +33,10 @@ export interface AuthClientRuntime {
   /** The storage key of the tokens (cross-tab sync listens for it). */
   tokensKey: string
   apiBase: string
+  /** `$api`'s bearer origins (`resolveApiTargets`). */
+  apiAttachTo: string[]
+  /** Resource mode: the app's own origin, which is an API too (`sameOrigin`). */
+  ownOrigin: string | undefined
   /** Applied to `apiBase` too, so a device in development reaches the dev machine. */
   rewriteUrl: (url: string) => string
   /** Who stored tokens must be about. */
@@ -126,6 +130,7 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
   }
 
   const rewriteUrl = loopbackRewriter(config.rewriteLoopback, globalThis.location?.hostname, import.meta.dev) ?? ((url: string) => url)
+  const targets = resolveApiTargets(config, rewriteUrl, globalThis.location?.origin)
   const userAgent = capacitor && plugins.browser
     ? browserUserAgent(await plugins.browser())
     : tauriDeepLinks && plugins.opener
@@ -146,7 +151,7 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
     scope: config.scope,
     // Only declared in development (or with `allowClientSecretInBundle`); production builds that would embed one fail.
     clientSecret: config.clientSecret || undefined,
-    attachTo: [config.apiBase || config.issuer, config.issuer, ...config.apiOrigins].map(rewriteUrl),
+    attachTo: targets.clientAttachTo,
     storage,
     transientStorage: transient,
     storageKeyPrefix: prefix,
@@ -166,7 +171,9 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
     deepLink: tauriDeepLinks && plugins.deepLink ? await plugins.deepLink() : null,
     focusWindow: tauri && plugins.window ? await tauriFocus(plugins.window) : null,
     tokensKey: keys.tokens,
-    apiBase: rewriteUrl(config.apiBase || config.issuer),
+    apiBase: targets.apiBase,
+    apiAttachTo: targets.apiAttachTo,
+    ownOrigin: targets.ownOrigin,
     rewriteUrl,
     // As the core compares issuers when it validates an id_token.
     identity: { issuer: config.issuer, clientId: config.clientId, normalizeIssuer: value => rewriteUrl(normalizeIssuer(value)) },

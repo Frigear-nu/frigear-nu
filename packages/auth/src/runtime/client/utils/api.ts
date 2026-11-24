@@ -64,3 +64,40 @@ export function createAuthorizedApi({ client, request, baseURL: defaultBaseURL, 
     }
   }
 }
+
+export interface SameOriginTokenOptions {
+  /** The app's own origin (`location.origin`). */
+  origin: string
+  /** The current access token (refreshed when expired), or `null` when signed out. */
+  getAccessToken: () => Promise<string | null>
+  /** Requests to leave alone whatever their origin, such as the issuer's (its token endpoint must never wait on a token). */
+  skip?: (url: URL) => boolean
+}
+
+type Fetch = typeof globalThis.fetch
+
+/**
+ * Resource mode's `fetch`: a request to the app's own origin carries the bearer token, as a cookie session would, so
+ * every `$fetch` / `useFetch` of every module reaches the app's server signed in (ofetch calls `globalThis.fetch` on
+ * each request, while modules hold their own `$fetch` binding). A request that sets its own `authorization` header,
+ * goes to another origin or is skipped is left alone; a token that cannot be read sends it signed out.
+ */
+export function withSameOriginToken(base: Fetch, { origin, getAccessToken, skip }: SameOriginTokenOptions): Fetch {
+  return async (input, init) => {
+    const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    let url: URL
+    try {
+      url = new URL(href, origin)
+    }
+    catch {
+      return base(input, init)
+    }
+    if (url.origin !== new URL(origin).origin || skip?.(url)) return base(input, init)
+    const headers = new Headers(init?.headers ?? (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined))
+    if (headers.has('authorization')) return base(input, init)
+    const token = await getAccessToken().catch(() => null)
+    if (!token) return base(input, init)
+    headers.set('authorization', `Bearer ${token}`)
+    return base(input, { ...init, headers })
+  }
+}

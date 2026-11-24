@@ -1,11 +1,28 @@
 import type { H3Event } from 'h3'
+import type { AuthStoredUser } from '../../types'
 import type { FrigearSsoConfig } from './frigear-sso'
+
+/** A frigear.nu login that went through: the local user and the extra session data to start the session with. */
+export type FrigearLoginResult = { user: AuthStoredUser, session: Record<string, unknown> } | { error: 'oauth-unverified' }
 
 /**
  * Completes a frigear.nu login: verifies the id token, syncs the local user and starts the session. `response` is the
  * token endpoint response; with `keepTokens` its tokens are kept (`storeOAuthTokens`).
  */
 export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}) {
+  const result = await resolveFrigearLogin(sso, userinfo, response)
+  // An unverified address that belongs to an account here: back to the login page, which explains it.
+  if ('error' in result) return authLoginErrorRedirect(event, result.error)
+  await startAuthSession(event, result.user, result.session)
+  return sendRedirect(event, consumeLoginRedirect(event))
+}
+
+/**
+ * Everything of a frigear.nu login but the session: verifies the id token (and its `nonce`, when given), syncs the
+ * local user and keeps the tokens (`keepTokens`). Answers the user and the session data to start the session with,
+ * or `{ error: 'oauth-unverified' }`. The browser handoff (`frigear-handoff.ts`) starts the session later, in the window.
+ */
+export async function resolveFrigearLogin(sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}, options: { nonce?: string } = {}): Promise<FrigearLoginResult> {
   const tokens = response as Record<string, unknown>
   // The verified id token decides who the user is (`sub`); userinfo only fills in the profile, and only when it is
   // about the same user. Without an id token nothing binds the login to this client, so it is refused.
@@ -16,6 +33,9 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   const verified = await verifyFrigearIdToken(sso, idToken)
   if (typeof verified.sub !== 'string' || !verified.sub) {
     throw createError({ statusCode: 401, statusMessage: 'The frigear.nu identity token names no user.' })
+  }
+  if (options.nonce !== undefined && verified.nonce !== options.nonce) {
+    throw createError({ statusCode: 401, statusMessage: 'The frigear.nu identity token was not issued for this sign-in.' })
   }
   if (Object.keys(userinfo).length && String(userinfo.sub) !== verified.sub) {
     throw createError({ statusCode: 401, statusMessage: 'The frigear.nu profile is not about the signed-in user.' })
@@ -45,18 +65,20 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
   catch (error) {
     // An unverified address that belongs to an account here: back to the login page, which explains it.
     if ((error as { data?: { code?: string } }).data?.code !== 'frigear_email_unverified') throw error
-    return authLoginErrorRedirect(event, 'oauth-unverified')
+    return { error: 'oauth-unverified' }
   }
 
-  await startAuthSession(event, user, {
-    frigear: {
-      id: String(claims.sub),
-      colorMode: parseColorModeClaim(claims.color_mode),
-      loggedInAt: Date.now(),
-    },
-  })
   // The tokens of this login replace any kept before (e.g. a step-up login replaces the plain one).
   if (sso.keepTokens) await storeOAuthTokens(user.id, 'frigear', parseOAuthTokenResponse(tokens, sso.scopes))
 
-  return sendRedirect(event, consumeLoginRedirect(event))
+  return {
+    user,
+    session: {
+      frigear: {
+        id: String(claims.sub),
+        colorMode: parseColorModeClaim(claims.color_mode),
+        loggedInAt: Date.now(),
+      },
+    },
+  }
 }

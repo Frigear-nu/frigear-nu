@@ -31,6 +31,16 @@ export function useOAuthResourceConfig() {
   }
 }
 
+/**
+ * Resource mode (`authentication.mode: 'resource'`): whether the token was minted for this app's own sign-in, its
+ * `client_id` being `authentication.client.clientId` (read at runtime, so its env override counts). Such a token acts
+ * with the user's roles here; tokens of every other client stay foreign. Always `false` in server mode.
+ */
+export function isOAuthResourceFirstParty(payload: Pick<OAuthResourceAccessToken, 'client_id'>): boolean {
+  const auth = useRuntimeConfig().public.authentication as { mode?: string, client?: { clientId?: string } } | undefined
+  return auth?.mode === 'resource' && !!auth.client?.clientId && payload.client_id === auth.client.clientId
+}
+
 const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string')
 
 // Introspection answers per token (its `jti`, or the token), until `cacheTtl` or the token's expiry.

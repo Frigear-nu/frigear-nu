@@ -6,7 +6,8 @@ import { useDesktop } from '../composables/useDesktop'
 
 /**
  * Routes the URLs the OS opens the app with (`deepLinks.schemes`) to app pages, on a cold start and while running.
- * OAuth callbacks are left to `@frigear-nu/auth`. The `desktop:deep-link` hook can change the path or handle the link.
+ * OAuth callbacks are left to `@frigear-nu/auth`; `deepLinks.focusPath` only focuses the window. The `desktop:deep-link`
+ * hook can change the path or handle the link.
  */
 export default defineNuxtPlugin({
   name: 'desktop:deep-links',
@@ -22,7 +23,11 @@ export default defineNuxtPlugin({
       const link = classifyDeepLink(url, {
         schemes: config.deepLinks.schemes,
         isCallbackUrl: auth ? candidate => auth.isCallbackUrl(candidate) : undefined,
+        focusPath: config.deepLinks.focusPath || undefined,
       })
+      // The browser's "signed in" page of Auth's frigear handoff: only bring the window forward. The window collects
+      // the session itself; the link carries nothing.
+      if (link.type === 'focus') return desktop.focus()
       if (link.type !== 'route') return
       let prevented = false
       const ctx: DesktopDeepLinkContext = { url, path: link.path, preventDefault: () => (prevented = true) }

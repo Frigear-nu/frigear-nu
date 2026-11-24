@@ -23,7 +23,7 @@ export function createAuthApi(nuxtApp: NuxtApp): AuthApi {
   let authorized: AuthApi | undefined
   return async <T>(request: string, options: FetchOptions = {}): Promise<T> => {
     if (import.meta.server) {
-      // No tokens on the server: the request goes out signed out.
+      // No tokens on the server: the request goes out signed out. (Resource mode renders on the client only.)
       return request$<T>(request, { baseURL: config.apiBase || config.issuer, ...options } as Record<string, unknown>)
     }
     if (!authorized) {
@@ -32,7 +32,7 @@ export function createAuthApi(nuxtApp: NuxtApp): AuthApi {
         client: runtime.client,
         request: request$,
         baseURL: runtime.apiBase,
-        attachTo: config.apiOrigins.length ? config.apiOrigins.map(runtime.rewriteUrl) : [runtime.apiBase, runtime.rewriteUrl(config.issuer)],
+        attachTo: runtime.apiAttachTo,
         onUnauthorized: () => handleUnauthorized(nuxtApp, runtime.client, config),
       }) as AuthApi
     }

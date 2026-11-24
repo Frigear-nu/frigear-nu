@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { appIdScheme, FALLBACK_APP_ID, resolveDesktopOptions, resolveSchemes } from '../../src/runtime/shared/config'
-import { assertClientAuth, assertServerAuth, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
+import { assertClientAuth, assertHandoffOpener, assertLocalAuth, desktopDependencies, localSecretNames, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
 
 describe('resolveDesktopOptions', () => {
   it('fills in the defaults', () => {
@@ -72,14 +72,26 @@ describe('resolveDesktopOptions', () => {
     expect(options.mode).toBe('local')
     // The bundled server renders the pages.
     expect(options.spa).toBe(false)
-    expect(options.local).toEqual({ binaryName: 'crew-desk-server', port: 0, secureCookie: true, dataDirName: 'data' })
+    expect(options.local).toEqual({ binaryName: 'crew-desk-server', port: 0, secureCookie: false, dataDirName: 'data' })
     expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local', spa: true }).options.spa).toBe(true)
     expect(resolveDesktopOptions({ appId: 'a.b', local: { port: 4000 } }).options.local).toBeNull()
   })
 
+  it('makes local mode with resource auth a SPA served by the bundled server', () => {
+    const resource = (input: Parameters<typeof resolveDesktopOptions>[0]) => resolveDesktopOptions({ appId: 'a.b', ...input }, { authMode: 'resource' })
+    expect(resource({ mode: 'local' }).options.spa).toBe(true)
+    expect(resource({ mode: 'local' }).errors).toEqual([])
+    // The issuer allows `http://127.0.0.1:*` for CORS, so the free port of every start needs no warning.
+    expect(resource({ mode: 'local' }).warnings).toEqual([])
+    expect(resource({ mode: 'local', local: { port: 47615 } }).warnings).toEqual([])
+    expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local' }, { authMode: 'server' }).warnings).toEqual([])
+    expect(resolveDesktopOptions({ appId: 'a.b', mode: 'local' }, { authMode: 'server' }).options.spa).toBe(false)
+    expect(resource({ mode: 'local', spa: false }).errors).toEqual([expect.stringMatching(/`spa: false`.*renders on the client only/)])
+  })
+
   it('takes and checks the local options', () => {
-    const { options } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' } })
-    expect(options.local).toEqual({ binaryName: 'srv', port: 4321, secureCookie: false, dataDirName: 'server' })
+    const { options } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', local: { binaryName: 'srv', port: 4321, secureCookie: true, dataDirName: 'server' } })
+    expect(options.local).toEqual({ binaryName: 'srv', port: 4321, secureCookie: true, dataDirName: 'server' })
     const { errors, warnings } = resolveDesktopOptions({ appId: 'a.b', mode: 'local', singleInstance: false, local: { binaryName: 'my server', port: 70000, dataDirName: '../up' } })
     expect(errors.join('\n')).toMatch(/`local.binaryName` "my server"/)
     expect(errors.join('\n')).toMatch(/`local.port`/)
@@ -136,14 +148,43 @@ describe('schemes', () => {
 })
 
 describe('module rules', () => {
-  it('requires client auth', () => {
-    expect(() => assertClientAuth('server')).toThrow(/authentication.mode: 'client'/)
+  it('requires client auth in remote mode', () => {
+    expect(() => assertClientAuth('server')).toThrow(/runs in server mode.*authentication.mode: 'client'/)
+    // Resource mode needs a server, which remote mode does not bundle.
+    expect(() => assertClientAuth('resource')).toThrow(/runs in resource mode, which needs a server.*desktop.mode: 'local'/)
     expect(() => assertClientAuth('client')).not.toThrow()
   })
 
-  it('requires server auth in local mode', () => {
-    expect(() => assertServerAuth('client')).toThrow(/local.*server is the default/s)
-    expect(() => assertServerAuth('server')).not.toThrow()
+  it('takes server or resource auth in local mode, never client', () => {
+    expect(() => assertLocalAuth('client')).toThrow(/client mode, which has no server half.*server is the default.*authentication.mode: 'resource'/s)
+    expect(() => assertLocalAuth('server')).not.toThrow()
+    expect(() => assertLocalAuth('resource')).not.toThrow()
+  })
+
+  it('asks Auth for the deep-link scheme in remote mode and local mode with resource auth', () => {
+    const scheme = { client: { native: { scheme: 'nu.frigear.crew' } } }
+    expect(desktopDependencies({ appId: 'nu.frigear.Crew', authConfigured: true, authMode: 'client' })['@frigear-nu/auth']).toEqual({ version: '>=0.0.1', defaults: scheme })
+    expect(desktopDependencies({ appId: 'nu.frigear.crew', authConfigured: false, authMode: 'server' })['@frigear-nu/auth']).toBeUndefined()
+
+    const resource = desktopDependencies({ mode: 'local', appId: 'nu.frigear.crew', authConfigured: true, authMode: 'resource' })
+    expect(resource['@frigear-nu/auth']).toEqual({ version: '>=0.0.1', optional: false, defaults: scheme })
+    // Sign-in is at the issuer: no offline sign-in defaults, no KV for throttling.
+    expect(resource['@nuxthub/core']).toBeUndefined()
+  })
+
+  it('gives local mode with server auth its offline defaults, without a deep-link scheme', () => {
+    const server = desktopDependencies({ mode: 'local', appId: 'nu.frigear.crew', authConfigured: true, authMode: 'server' })
+    expect(server['@frigear-nu/auth']).toEqual({ version: '>=0.0.1', optional: false, defaults: { settings: { verifyEmail: false, trustRequestOrigin: true } } })
+    expect(server['@nuxthub/core']).toEqual({ optional: true, defaults: { kv: true } })
+    expect(desktopDependencies({ mode: 'local', authConfigured: false, authMode: 'server' })['@frigear-nu/auth']).toMatchObject({ optional: true })
+  })
+
+  it('generates the secrets each auth mode uses', () => {
+    expect(localSecretNames({ authMode: null, oauthServer: false })).toEqual(['NUXT_APP_SECRET'])
+    expect(localSecretNames({ authMode: 'server', oauthServer: false })).toEqual(['NUXT_APP_SECRET', 'NUXT_AUTH_TOKENS_KEY'])
+    expect(localSecretNames({ authMode: 'server', oauthServer: true })).toEqual(['NUXT_APP_SECRET', 'NUXT_AUTH_TOKENS_KEY', 'NUXT_OAUTH_SERVER_PRIVATE_KEY'])
+    // Resource mode keeps no OAuth tokens and signs none; Nuxt's own appSecret stays.
+    expect(localSecretNames({ authMode: 'resource', oauthServer: true })).toEqual(['NUXT_APP_SECRET'])
   })
 
   it('imports only installed Tauri packages', () => {
@@ -152,6 +193,11 @@ describe('module rules', () => {
     expect(source).toContain('app: () => import("@tauri-apps/api/app"),')
     expect(source).toContain('deepLink: () => import("@tauri-apps/plugin-deep-link"),')
     expect(source).toContain('opener: null,')
+  })
+
+  it('fails without the opener when the frigear handoff is on', () => {
+    expect(() => assertHandoffOpener(pkg => pkg === '@tauri-apps/plugin-opener')).not.toThrow()
+    expect(() => assertHandoffOpener(() => false)).toThrow(/`@tauri-apps\/plugin-opener`.*`pnpm add @tauri-apps\/plugin-opener`.*handoff: false/)
   })
 
   it('warns about missing packages', () => {

@@ -8,8 +8,12 @@ import { parseScopeString } from '@frigear-nu/auth/utils'
  * its `permissions` (the issuer's claim, or its introspection answer), not this service's roles for the user. Routes
  * check them with `authorize(event, permission)` (403 `insufficient_scope`). Tokens of another issuer are left to other
  * resolvers.
+ *
+ * In resource mode (`authentication.mode: 'resource'`) a token minted for the app's own sign-in (`client_id` is
+ * `authentication.client.clientId`) is the user signed in here, not a foreign client: it acts with the user's roles in
+ * this app, like a session, except for session-only permissions (`isOAuthResourceFirstParty`).
  */
-export default async function resolveOAuthResourceAccessToken(_event: H3Event, token: string): Promise<AuthPrincipal | null> {
+export default async function resolveOAuthResourceAccessToken(event: H3Event, token: string): Promise<AuthPrincipal | null> {
   const payload = await verifyOAuthResourceToken(token)
   if (!payload) return null
 
@@ -20,5 +24,9 @@ export default async function resolveOAuthResourceAccessToken(_event: H3Event, t
   const user = await resolveOAuthResourceUser(token, payload)
   if (!user) return null
 
+  // Still checked above (a malformed claim, an inactive token per introspection refuse it), then replaced.
+  if (isOAuthResourceFirstParty(payload)) {
+    return { kind: 'oauth', user, scopes, permissions: await getUserPermissions(event, user), client: { id: payload.client_id } }
+  }
   return { kind: 'oauth', user, scopes, permissions, foreign: true, client: { id: payload.client_id } }
 }

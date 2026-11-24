@@ -169,8 +169,12 @@ export default defineNuxtModule<ModuleOptions>({
     let clientAuth = false
     nuxt.hook('modules:done', () => {
       if (!hasNuxtModule('@frigear-nu/auth', nuxt)) return
-      if (resolveAuthMode(nuxt) !== 'client') {
-        throw new Error(`[${MODULE_NAME}] \`@frigear-nu/auth\` runs in server mode, which needs a same-origin session cookie a Capacitor app cannot send: set \`authentication.mode: 'client'\` in the app's config.`)
+      const mode = resolveAuthMode(nuxt)
+      if (mode !== 'client') {
+        const why = mode === 'resource'
+          ? 'which needs a server of the app\'s own, and a Capacitor app has none'
+          : 'which needs a same-origin session cookie a Capacitor app cannot send'
+        throw new Error(`[${MODULE_NAME}] \`@frigear-nu/auth\` runs in ${mode} mode, ${why}: set \`authentication.mode: 'client'\` in the app's config.`)
       }
       clientAuth = true
     })

@@ -150,6 +150,17 @@
         "remove": "Remove {kind}",
         "add": "Add who may see it"
       }
+    },
+    "handoff": {
+      "waiting": {
+        "title": "Finish signing in in your browser",
+        "description": "frigear.nu opened in your browser. Sign in there, and this window continues by itself."
+      },
+      "reopen": "Open the browser again",
+      "cancel": "Cancel sign-in",
+      "failed": "The sign-in could not be completed. Try again.",
+      "denied": "The sign-in was cancelled in the browser.",
+      "expired": "The sign-in took too long. Start it again."
     }
   }
 }

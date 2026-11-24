@@ -2,7 +2,10 @@ import type { H3Event } from 'h3'
 import { appendResponseHeader, getRequestHeader, setResponseHeaders, setResponseStatus } from 'h3'
 
 export type BearerCorsOptions = {
-  /** Exact origins allowed to call (`https://app.example.com`, `capacitor://localhost`). `*` is ignored. */
+  /**
+   * Origins allowed to call: exact (`https://app.example.com`, `capacitor://localhost`), or a loopback IP on any port
+   * (`http://127.0.0.1:*`, `http://[::1]:*`) for native apps whose local server picks a free port. `*` is ignored.
+   */
   origins: readonly string[]
   /** `Access-Control-Allow-Methods`, e.g. `['GET', 'POST', 'OPTIONS']`. */
   methods: readonly string[] | string
@@ -12,6 +15,24 @@ export type BearerCorsOptions = {
   exposeHeaders?: readonly string[] | string
   /** `Access-Control-Max-Age` in seconds. Defaults to `600`. */
   maxAge?: number
+}
+
+const LOOPBACK_ANY_PORT = new Set(['http://127.0.0.1:*', 'http://[::1]:*'])
+
+/**
+ * Whether `origin` (a request's `Origin`) is one of `allowed`: an exact match, or `http://127.0.0.1:<port>` /
+ * `http://[::1]:<port>` for the entry `http://127.0.0.1:*` / `http://[::1]:*`. Nothing else takes a wildcard.
+ */
+export function matchesCorsOrigin(origin: string, allowed: readonly string[]): boolean {
+  if (!origin || origin === '*') return false
+  if (allowed.includes(origin)) return true
+  const match = /^(http:\/\/(?:127\.0\.0\.1|\[::1\])):([1-9]\d{0,4})$/.exec(origin)
+  return !!match && Number(match[2]) <= 65535 && allowed.includes(`${match[1]}:*`)
+}
+
+/** Whether `entry` is a loopback origin on any port (`http://127.0.0.1:*`, `http://[::1]:*`). */
+export function isLoopbackAnyPortOrigin(entry: string): boolean {
+  return LOOPBACK_ANY_PORT.has(entry)
 }
 
 const headerList = (value: readonly string[] | string) => typeof value === 'string' ? value : value.join(', ')
@@ -32,7 +53,7 @@ export function applyBearerCors(event: H3Event, options: BearerCorsOptions): boo
   appendResponseHeader(event, 'Vary', 'Origin')
 
   const origin = getRequestHeader(event, 'origin')
-  if (!origin || origin === '*' || !options.origins.includes(origin)) return false
+  if (!origin || !matchesCorsOrigin(origin, options.origins)) return false
 
   setResponseHeaders(event, {
     'Access-Control-Allow-Origin': origin,

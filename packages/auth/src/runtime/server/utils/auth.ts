@@ -55,7 +55,8 @@ export async function resolveBearer(event: H3Event): Promise<void> {
 
 /**
  * The caller as a principal, or `null`. Bearer credentials first, then the cookie session (see `resolveAuthSession`).
- * Resolved once per request and kept on `event.context.auth`.
+ * Resolved once per request and kept on `event.context.auth`. In resource mode (`authentication.mode: 'resource'`)
+ * there are no cookie sessions: only bearer credentials authenticate, and the session is never read.
  */
 export async function getAuth(event: H3Event): Promise<AuthPrincipal | null> {
   if (event.context.auth) return event.context.auth
@@ -64,6 +65,7 @@ export async function getAuth(event: H3Event): Promise<AuthPrincipal | null> {
   await resolveBearer(event)
   if (event.context.auth) return event.context.auth
   if (event.context.authRejected) return null
+  if (useRuntimeConfig(event).public.authentication?.mode === 'resource') return null
 
   const principal = await resolveAuthSession(event)
   if (principal) event.context.auth = principal

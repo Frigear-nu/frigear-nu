@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSafeRedirect, resolveAuthMode } from '../../src/runtime/mode'
+import { authModeHasServer, authModeSignsInAtIssuer, isSafeRedirect, resolveAuthMode } from '../../src/runtime/mode'
 
 describe('isSafeRedirect', () => {
   it.each(['/', '/account', '/bills?x=1#top', '/a/b/c', '/oauth/authorize?client_id=x'])('accepts %s', (path) => {
@@ -36,10 +36,16 @@ describe('resolveAuthMode', () => {
     expect(resolveAuthMode(nuxt({}))).toBe('server')
     expect(resolveAuthMode(nuxt({ mode: 'server' }))).toBe('server')
     expect(resolveAuthMode(nuxt({ mode: 'client' }))).toBe('client')
+    expect(resolveAuthMode(nuxt({ mode: 'resource' }))).toBe('resource')
+  })
+
+  it('tells which modes have a server half and which sign in at an issuer', () => {
+    expect([authModeHasServer('server'), authModeHasServer('client'), authModeHasServer('resource')]).toEqual([true, false, true])
+    expect([authModeSignsInAtIssuer('server'), authModeSignsInAtIssuer('client'), authModeSignsInAtIssuer('resource')]).toEqual([false, true, true])
   })
 
   it('throws on anything else', () => {
-    expect(() => resolveAuthMode(nuxt({ mode: 'spa' }))).toThrow(/must be 'server' or 'client', got "spa"/)
-    expect(() => resolveAuthMode(nuxt({ mode: null }))).toThrow(/must be 'server' or 'client'/)
+    expect(() => resolveAuthMode(nuxt({ mode: 'spa' }))).toThrow(/must be 'server', 'client' or 'resource', got "spa"/)
+    expect(() => resolveAuthMode(nuxt({ mode: null }))).toThrow(/must be 'server', 'client' or 'resource'/)
   })
 })

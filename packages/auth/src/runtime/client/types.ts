@@ -36,11 +36,14 @@ export interface ClientModuleOptions {
    * `NUXT_PUBLIC_AUTHENTICATION_CLIENT_SCOPE` (space separated).
    */
   scopes?: string[]
-  /** Base URL of `$api` / `useApi`. Default: the issuer. Env `NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE`. */
+  /**
+   * Base URL of `$api` / `useApi`. Default: the issuer (resource mode: the app's own origin). Env
+   * `NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE`.
+   */
   apiBase?: string
   /**
    * Origins `$api` / `useApi` send the bearer token to. Default: the `apiBase` and issuer origins. A request to any
-   * other origin goes out without it.
+   * other origin goes out without it. In resource mode the app's own origin always gets it too.
    */
   apiOrigins?: string[]
   /**
@@ -135,6 +138,12 @@ export interface AuthClientPublicConfig {
   rewriteLoopback: boolean | string
   /** Development against a confidential client only: only declared in `nuxt dev` (or with `allowClientSecretInBundle`). */
   clientSecret?: string
+  /**
+   * Resource mode: the app's own origin (`location.origin`, read in the browser, so a port picked at startup works) is
+   * an API too. It gets the bearer token (`$api`, and plain `$fetch` / `useFetch` to it), is `$api`'s base unless
+   * `apiBase` is set, and answers `$authAccess`.
+   */
+  sameOrigin?: boolean
 }
 
 /** `app.config.ts` → `authentication`. */

@@ -5,7 +5,8 @@
  *   remote issuer (`@frigear-nu/auth` in client mode).
  * - `local`: the whole Nuxt app (pages, SSR and its server modules) built into one executable that the Tauri shell starts
  *   as a sidecar on `127.0.0.1`. Offline: sqlite in the OS app-data folder, cookie sessions (`@frigear-nu/auth` in
- *   server mode) on the same origin.
+ *   server mode) on the same origin, or sign-in at a remote issuer whose access tokens the server accepts
+ *   (`@frigear-nu/auth` in resource mode).
  */
 export type DesktopMode = 'remote' | 'local'
 
@@ -48,8 +49,10 @@ export interface DesktopLocalOptions {
   /** The port the server listens on. Default `0`: a free port the OS picks, read back from the `READY <port>` line. */
   port?: number
   /**
-   * Keep the session cookie `Secure`. Default `true`. Set `false` only if a webview refuses a `Secure` cookie on
-   * `http://127.0.0.1` (WKWebView and WebKitGTK are not verified yet).
+   * Keep the session cookie `Secure`. Default `false`: WKWebView (macOS) and WebKitGTK (Linux) drop a `Secure` cookie
+   * set over `http://127.0.0.1`, so nobody could stay signed in. The server only listens on `127.0.0.1`, so the cookie
+   * never crosses a network. Set `true` only for a Windows-only app (WebView2). Ignored with
+   * `authentication.mode: 'resource'`, which has no session cookie.
    */
   secureCookie?: boolean
   /** The folder inside the OS app-data folder (`app_data_dir()`) that holds the database and the secrets. Default `data`. */
@@ -70,7 +73,8 @@ export interface ModuleOptions {
   mode?: DesktopMode
   /**
    * Build a static SPA (`ssr: false`). Default `true` in remote mode, which needs it unless you set up SSR output
-   * yourself, and `false` in local mode, where the bundled server renders the pages.
+   * yourself, and `false` in local mode, where the bundled server renders the pages. Local mode with
+   * `authentication.mode: 'resource'` renders on the client only: `true`, and the bundled server serves the SPA shell.
    */
   spa?: boolean
   /** `local` mode: the bundled server. Ignored in remote mode. */
@@ -121,7 +125,11 @@ export interface DesktopPublicConfig {
   appName: string
   version: string
   mode: DesktopMode
-  deepLinks: { schemes: string[] }
+  /**
+   * `focusPath`: a deep-link path that only brings the window forward (`/auth/return` in local mode with server auth,
+   * the return link of Auth's frigear handoff); empty otherwise.
+   */
+  deepLinks: { schemes: string[], focusPath: string }
 }
 
 /** What the module writes to `.nuxt/desktop/manifest.json` for the `frigear-desktop` CLI. */

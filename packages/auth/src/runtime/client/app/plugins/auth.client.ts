@@ -7,6 +7,7 @@ import { createSessionMapper, setSessionMapper } from '../utils/session'
 import type { SessionMapperOptions } from '../utils/session'
 import { OAuthSessionError } from '../../core/errors'
 import { useAuthApiOf } from '../utils/api'
+import { withSameOriginToken } from '../../utils/api'
 import { handleUnauthorized } from '../utils/unauthorized'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
@@ -32,6 +33,17 @@ export default defineNuxtPlugin({
       return
     }
     const { client } = runtime
+    // Resource mode: the app's own server takes the issuer's token instead of a cookie, so every request to it (`$fetch`,
+    // `useFetch`, the pages of other modules too) carries it. Installed before any other plugin fetches. The issuer's own
+    // requests (token refresh) never wait on a token.
+    if (runtime.ownOrigin) {
+      const issuerOrigin = URL.canParse(runtime.rewriteUrl(config.issuer)) ? new URL(runtime.rewriteUrl(config.issuer)).origin : undefined
+      globalThis.fetch = withSameOriginToken(globalThis.fetch.bind(globalThis), {
+        origin: runtime.ownOrigin,
+        getAccessToken: () => client.getAccessToken(),
+        skip: url => url.origin === issuerOrigin,
+      })
+    }
     // A refused token was already handled (`onUnauthorized`); anything else is logged.
     const report = (error: unknown) => {
       if (!(error instanceof OAuthSessionError) && (error as { statusCode?: number })?.statusCode !== 401) console.error('[@frigear-nu/auth] Mapping the signed-in user failed:', error)

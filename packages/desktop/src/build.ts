@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { TAURI_PLUGINS, type TauriPluginName } from './runtime/shared/native'
+import { appIdScheme } from './runtime/shared/config'
+import type { SecretName } from './runtime/shared/local-secrets'
 
 // Build-time helpers of the module, pure so they can be tested without a Nuxt build.
 
@@ -27,14 +29,29 @@ export function isPackageInstalled(pkg: string, rootDir: string, modulesDirs: st
   return [...dirs].some(dir => existsSync(join(dir, pkg, 'package.json')))
 }
 
+/** `@frigear-nu/auth`'s modes (`@frigear-nu/auth/mode`), repeated so these helpers stay free of it. */
+export type DesktopAuthMode = 'server' | 'client' | 'resource'
+
 /**
- * A desktop app in remote mode cannot carry a same-origin session cookie to the API: Auth has to run as an OAuth
- * client. Throws for any other mode.
+ * A desktop app in remote mode cannot carry a same-origin session cookie to the API, and has no server of its own for
+ * resource mode: Auth has to run as an OAuth client. Throws for any other mode.
  */
 export function assertClientAuth(mode: string): void {
-  if (mode !== 'client') {
-    throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in server mode, which needs a same-origin session cookie a Tauri app in remote mode cannot send: set `authentication.mode: \'client\'` in the app\'s config.')
+  if (mode === 'client') return
+  if (mode === 'resource') {
+    throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in resource mode, which needs a server of the app\'s own, and a Tauri app in remote mode has none: set `authentication.mode: \'client\'`, or bundle the server with `desktop.mode: \'local\'`.')
   }
+  throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in server mode, which needs a same-origin session cookie a Tauri app in remote mode cannot send: set `authentication.mode: \'client\'` in the app\'s config.')
+}
+
+/**
+ * Local mode with server auth turns on Auth's frigear handoff, which opens the sign-in in the system browser through
+ * `@tauri-apps/plugin-opener`. Without it Auth falls back to `window.open`, which does nothing useful in a Tauri window,
+ * so "Log in with frigear.nu" would look broken: throws when the opener is not installed.
+ */
+export function assertHandoffOpener(installed: (pkg: string) => boolean): void {
+  if (installed(TAURI_PLUGINS.opener.pkg)) return
+  throw new Error(`[@frigear-nu/desktop] Local mode with server auth turns on "Log in with frigear.nu" in the system browser (\`authentication.settings.oauth.frigear.handoff\`), which opens it through \`${TAURI_PLUGINS.opener.pkg}\`, and it is not installed: add it to the app (\`pnpm add ${TAURI_PLUGINS.opener.pkg}\`), or turn the handoff off with \`oauth: { frigear: { handoff: false } }\`.`)
 }
 
 /** Warnings about Tauri packages the enabled features need but the app has not installed. */
@@ -45,13 +62,97 @@ export function missingPluginWarnings(plugins: { name: string, required: boolean
 }
 
 /**
- * Local mode bundles the app's own server, with cookie sessions on its origin: Auth has to run in server mode. Throws
- * for any other mode.
+ * Local mode bundles the app's own server, so Auth runs on it: in server mode (sign-in and cookie sessions on that
+ * server) or resource mode (sign-in at an issuer, the server accepts its access tokens). Throws for client mode, which
+ * has no server half.
  */
-export function assertServerAuth(mode: string): void {
-  if (mode !== 'server') {
-    throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` bundles the app\'s own server and signs in with a cookie session on it, but `@frigear-nu/auth` runs in client mode: remove `authentication.mode: \'client\'` (server is the default).')
+export function assertLocalAuth(mode: string): void {
+  if (mode === 'server' || mode === 'resource') return
+  throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` bundles the app\'s own server, but `@frigear-nu/auth` runs in client mode, which has no server half: remove `authentication.mode` for sign-in on the bundled server (server is the default), or set `authentication.mode: \'resource\'` to sign in at an issuer.')
+}
+
+/**
+ * What the desktop module asks of other modules (`moduleDependencies`). Only scalar defaults: array defaults would be
+ * appended to the app's own (defu).
+ *
+ * - Remote mode and local mode with resource auth: the app id is Auth's deep-link scheme (`client.native.scheme`), as
+ *   sign-in returns from the system browser through a deep link.
+ * - Local mode with server auth: offline defaults the app can override: no emailed verification (nobody receives the
+ *   email), emailed links from the request origin (the port changes every start), and NuxtHub KV for sign-in throttling
+ *   (fs-lite in `.data/kv`, inside the data folder at runtime; the app depends on `unstorage`, see `appHasUnstorage`).
+ *   Resource mode signs in at the issuer: none of it applies, and it throttles nothing. Plus the browser handoff of
+ *   "Log in with frigear.nu" (`frigearHandoffDefaults`).
+ */
+export function desktopDependencies(input: { mode?: string, appId?: string, authConfigured: boolean, authMode: DesktopAuthMode, frigear?: unknown }): Record<string, { version?: string, optional?: boolean, defaults?: Record<string, unknown>, overrides?: Record<string, unknown> }> {
+  const scheme = input.appId ? appIdScheme(input.appId) : undefined
+  const nativeScheme = { client: { ...(scheme ? { native: { scheme } } : {}) } }
+  const moduleKit = { '@frigear-nu/module-kit': { version: '>=0.0.1' } }
+  if (input.mode === 'local') {
+    if (input.authMode === 'resource') {
+      return { ...moduleKit, '@frigear-nu/auth': { version: '>=0.0.1', optional: !input.authConfigured, defaults: nativeScheme } }
+    }
+    const handoff = frigearHandoffDefaults(input.frigear)
+    const defaults = { settings: { verifyEmail: false, trustRequestOrigin: true } }
+    return {
+      ...moduleKit,
+      '@frigear-nu/auth': {
+        version: '>=0.0.1',
+        optional: !input.authConfigured,
+        defaults: handoff.defaults ? { settings: { ...defaults.settings, ...handoff.defaults.settings } } : defaults,
+        ...(handoff.overrides ? { overrides: handoff.overrides } : {}),
+      },
+      '@nuxthub/core': { optional: true, defaults: { kv: true } },
+    }
   }
+  return {
+    ...moduleKit,
+    ...(input.authConfigured ? { '@frigear-nu/auth': { version: '>=0.0.1', defaults: nativeScheme } } : {}),
+  }
+}
+
+/**
+ * Local mode with server auth: "Log in with frigear.nu" signs in in the system browser while the window waits
+ * (`authentication.settings.oauth.frigear.handoff`), so passkeys at frigear.nu work and no client secret ships in the
+ * app. Turned on only where the app enables the frigear provider itself (`settings.oauth.frigear`), as any key there
+ * enables it; `handoff: false` keeps it off.
+ *
+ * - `frigear: true`: an override (`{ handoff: true }`), since a default object would lose to the app's `true` (defu).
+ *   The two mean the same provider, only with the handoff.
+ * - `frigear: { ... }` without `handoff`: a default.
+ * - Anything else (not enabled, `false`, `handoff` set): nothing.
+ */
+export function frigearHandoffDefaults(frigear: unknown): { defaults?: { settings: Record<string, unknown> }, overrides?: { settings: Record<string, unknown> } } {
+  const value = { settings: { oauth: { frigear: { handoff: true } } } }
+  if (frigear === true) return { overrides: value }
+  if (frigear && typeof frigear === 'object' && !Array.isArray(frigear) && !('handoff' in frigear)) return { defaults: value }
+  return {}
+}
+
+/** The deep link the browser's "signed in" page opens to bring the app forward: `<scheme>:/auth/return`. */
+export const HANDOFF_RETURN_PATH = '/auth/return'
+
+/**
+ * Local mode with server auth: the default `frigear.handoff.returnUrl` (`NUXT_FRIGEAR_HANDOFF_RETURN_URL` overrides it).
+ * The app id's scheme when it is registered, else the first deep-link scheme; none without deep-link schemes.
+ */
+export function handoffReturnUrl(appId: string, schemes: string[]): string | undefined {
+  const own = appIdScheme(appId)
+  const scheme = own && schemes.includes(own) ? own : schemes[0]
+  return scheme ? `${scheme}:${HANDOFF_RETURN_PATH}` : undefined
+}
+
+/**
+ * The secrets the bundled server generates on its first start. `NUXT_APP_SECRET` always: it is Nuxt's root secret
+ * (`runtimeConfig.appSecret`), which nuxt-auth-utils seals sessions with and any module may derive its own from
+ * (`deriveSecret`). Server auth: `NUXT_AUTH_TOKENS_KEY` (kept OAuth tokens) and, with OAuth Server, its signing key.
+ * Resource auth keeps no tokens and signs none.
+ */
+export function localSecretNames(input: { authMode: DesktopAuthMode | null, oauthServer: boolean }): SecretName[] {
+  const names: SecretName[] = ['NUXT_APP_SECRET']
+  if (input.authMode === 'resource') return names
+  if (input.authMode) names.push('NUXT_AUTH_TOKENS_KEY')
+  if (input.oauthServer) names.push('NUXT_OAUTH_SERVER_PRIVATE_KEY')
+  return names
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -163,6 +264,7 @@ export function sqlite() {
       exec: sql => { db.exec(sql) },
       values: (sql, params) => db.query(sql).values(...params),
       run: (sql, params) => { db.query(sql).run(...params) },
+      close: () => { db.close() },
     }
     driver.exec(CONNECTION_PRAGMAS)
   }

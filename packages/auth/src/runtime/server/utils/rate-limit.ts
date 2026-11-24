@@ -3,7 +3,7 @@ import { apiError, sha256Hex } from '@frigear-nu/module-kit/server'
 import { kv } from '#auth/rate-limit-kv'
 
 /** The anonymous auth routes counted per client IP (`rateLimit.requests`). */
-export type AuthRateLimitRoute = 'register' | 'forgot-password' | 'magic-link' | 'webauthn'
+export type AuthRateLimitRoute = 'register' | 'forgot-password' | 'magic-link' | 'webauthn' | 'frigear-handoff'
 
 type RateLimitConfig = {
   enabled: boolean
@@ -78,6 +78,26 @@ export async function enforceAuthRateLimit(event: H3Event, route: AuthRateLimitR
   const { index, retryAfter } = windowOf(config)
   const key = `auth:rate:${route}:${await hashKey(authClientIp(event))}:${index}`
   if (await read(key) >= config.requests) throw tooMany(event, retryAfter)
+  await increment(key, config.windowSeconds)
+}
+
+/**
+ * Requests per attempt and client in one window (`rateLimit.windowSeconds`) to the routes of a running handoff (status,
+ * complete, cancel): room for a window polling every half second for the attempt's whole 10 minutes.
+ */
+export const FRIGEAR_HANDOFF_POLL_LIMIT = 1200
+
+/**
+ * Counts a request to a running browser handoff (`GET`, `POST .../complete`, `DELETE /api/auth/frigear/handoffs/:id`)
+ * per client IP and attempt, and refuses it with `429` past `FRIGEAR_HANDOFF_POLL_LIMIT` in the window. On with the
+ * other limits (`rateLimit`, NuxtHub KV); `rateLimit.requests: 0` does not turn it off.
+ */
+export async function enforceFrigearHandoffPollLimit(event: H3Event, id: string) {
+  const config = rateLimitConfig(event)
+  if (!config) return
+  const { index, retryAfter } = windowOf(config)
+  const key = `auth:rate:frigear-handoff-poll:${await hashKey(`${authClientIp(event)}\n${id}`)}:${index}`
+  if (await read(key) >= FRIGEAR_HANDOFF_POLL_LIMIT) throw tooMany(event, retryAfter)
   await increment(key, config.windowSeconds)
 }
 

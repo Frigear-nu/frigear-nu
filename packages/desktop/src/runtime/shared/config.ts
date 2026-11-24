@@ -46,6 +46,11 @@ export interface ResolveContext {
   devPort?: number
   /** `nuxt prepare`: a missing `appId` is not an error yet. */
   prepare?: boolean
+  /**
+   * `@frigear-nu/auth`'s mode when it is installed. In resource mode the app renders on the client only (Auth turns
+   * `ssr` off), so `spa` defaults to `true` in local mode too.
+   */
+  authMode?: 'server' | 'client' | 'resource'
 }
 
 export interface ResolveResult {
@@ -126,13 +131,16 @@ export function resolveDesktopOptions(input: ModuleOptions, context: ResolveCont
     local = {
       binaryName: input.local?.binaryName?.trim() || `${crateName(appId)}-server`,
       port: input.local?.port ?? 0,
-      secureCookie: input.local?.secureCookie !== false,
+      secureCookie: input.local?.secureCookie === true,
       dataDirName: input.local?.dataDirName?.trim() || 'data',
     }
     if (!BINARY_NAME.test(local.binaryName)) errors.push(`\`local.binaryName\` "${local.binaryName}" must be letters, digits, "-" and "_".`)
     if (!Number.isInteger(local.port) || local.port < 0 || local.port > 65535) errors.push('`local.port` must be a port number (0 picks a free one).')
     if (!DATA_DIR_NAME.test(local.dataDirName) || /^\.+$/.test(local.dataDirName)) errors.push(`\`local.dataDirName\` "${local.dataDirName}" must be one folder name.`)
     if (!singleInstance) warnings.push('`singleInstance: false` in local mode lets a second launch start a second server on the same database: keep it on.')
+    if (context.authMode === 'resource' && input.spa === false) {
+      errors.push('`spa: false` in local mode with `authentication.mode: \'resource\'`: resource mode renders on the client only (the tokens live in the window), so the bundled server serves the SPA shell. Remove `spa`.')
+    }
   }
 
   return {
@@ -141,8 +149,9 @@ export function resolveDesktopOptions(input: ModuleOptions, context: ResolveCont
       appName,
       version,
       mode,
-      // Remote mode bundles a static build; in local mode the bundled server renders the pages.
-      spa: input.spa ?? mode === 'remote',
+      // Remote mode bundles a static build; in local mode the bundled server renders the pages, or serves the SPA shell
+      // with resource auth (which renders on the client only).
+      spa: input.spa ?? (mode === 'remote' || context.authMode === 'resource'),
       window,
       deepLinks: { schemes },
       singleInstance,
@@ -239,14 +248,36 @@ export function capabilities(options: Pick<ResolvedDesktopOptions, 'autostart' |
   }
 }
 
-/** The JavaScript Tauri packages the enabled features use, required ones first. */
-export function usedPlugins(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater' | 'deepLinks'>, oauth: boolean): DesktopManifest['plugins'] {
+/**
+ * The JavaScript Tauri packages the enabled features use, required ones first. `oauth`: Auth signs in at an issuer
+ * (client mode, or resource mode in local mode). `handoff`: local mode with server auth signs in at frigear.nu in the
+ * system browser (Auth's `oauth.frigear.handoff`): the opener opens it, the deep link brings the window back. In local mode with a free port picked on every start, the window's
+ * origin changes each time, and with it `localStorage`: the sign-in only survives a restart in the Tauri store.
+ */
+export function usedPlugins(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater' | 'deepLinks'> & { local?: ResolvedDesktopOptions['local'] }, oauth: boolean, handoff = false): DesktopManifest['plugins'] {
   const plugins: DesktopManifest['plugins'] = [
     { name: '@tauri-apps/api', required: true, feature: TAURI_PLUGINS.window.feature },
   ]
-  if (oauth || options.deepLinks.schemes.length) plugins.push({ name: TAURI_PLUGINS.deepLink.pkg, required: true, feature: TAURI_PLUGINS.deepLink.feature })
-  plugins.push({ name: TAURI_PLUGINS.opener.pkg, required: oauth, feature: TAURI_PLUGINS.opener.feature })
-  if (oauth) plugins.push({ name: TAURI_PLUGINS.store.pkg, required: false, feature: TAURI_PLUGINS.store.feature })
+  if (oauth || handoff || options.deepLinks.schemes.length) {
+    plugins.push({
+      name: TAURI_PLUGINS.deepLink.pkg,
+      required: true,
+      feature: handoff && !oauth ? `${TAURI_PLUGINS.deepLink.feature}; the return link of "Log in with frigear.nu"` : TAURI_PLUGINS.deepLink.feature,
+    })
+  }
+  plugins.push({
+    name: TAURI_PLUGINS.opener.pkg,
+    required: oauth || handoff,
+    feature: handoff && !oauth ? `${TAURI_PLUGINS.opener.feature} ("Log in with frigear.nu")` : TAURI_PLUGINS.opener.feature,
+  })
+  if (oauth) {
+    const changingOrigin = !!options.local && options.local.port === 0
+    plugins.push({
+      name: TAURI_PLUGINS.store.pkg,
+      required: changingOrigin,
+      feature: changingOrigin ? `${TAURI_PLUGINS.store.feature}; the local server's port, and with it localStorage, changes every start` : TAURI_PLUGINS.store.feature,
+    })
+  }
   if (options.autostart) plugins.push({ name: TAURI_PLUGINS.autostart.pkg, required: true, feature: TAURI_PLUGINS.autostart.feature })
   if (options.updater) plugins.push({ name: TAURI_PLUGINS.updater.pkg, required: true, feature: TAURI_PLUGINS.updater.feature })
   return plugins.sort((a, b) => Number(b.required) - Number(a.required))

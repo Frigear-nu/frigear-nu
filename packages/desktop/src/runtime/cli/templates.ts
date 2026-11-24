@@ -121,7 +121,8 @@ ${desktop.join('\n\n') || '        // Desktop-only plugins go here.'}
 /**
  * Local mode: starts the sidecar with the data folder and port, waits for its \`READY <port>\` line, then navigates the
  * main window (showing the loading page) to the server. A server that exits before it is ready is reported on the
- * loading page. The sidecar generates its own secrets into the data folder on the first start.
+ * loading page. The sidecar generates its own secrets into the data folder on the first start. It is killed on exit, and
+ * stops by itself when the shell dies without exiting (its stdin closes, \`FRIGEAR_DESKTOP_PARENT_WATCH\`).
  */
 function localServerRs(local: NonNullable<DesktopManifest['local']>): string {
   return `
@@ -155,6 +156,10 @@ mod local_server {
             .env("PORT", PORT.to_string())
             .env("HOST", "127.0.0.1")
             .env("DATA_DIR", &data_dir)
+            // The server stops by itself when its stdin closes. The child below holds the pipe's write end until
+            // \`stop\`, and the OS closes it when this process dies however it dies (a crash, \`kill -9\`), so the server
+            // never outlives the app.
+            .env("FRIGEAR_DESKTOP_PARENT_WATCH", "1")
             .current_dir(&data_dir)
             .spawn()?;
         app.manage(Server(Mutex::new(Some(child))));

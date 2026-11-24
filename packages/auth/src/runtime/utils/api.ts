@@ -27,6 +27,15 @@ export const authApi = {
   frigear: '/auth/frigear',
   /** `GET`: `{ enabled }`, whether "Log in with frigear.nu" is active for this deployment. */
   frigearStatus: `${base}/frigear-status`,
+  /** The browser handoff of "Log in with frigear.nu" (`oauth.frigear.handoff`), authenticated by the window's attempt cookie. */
+  frigearHandoffs: {
+    /** `POST { redirect?, scope? }` (201): starts an attempt, answers it with the `authorizeUrl` to open outside the window. */
+    start: `${base}/frigear/handoffs`,
+    /** `GET`: the attempt's status (poll); `DELETE` (204): cancels it. */
+    handoff: (id: string) => `${base}/frigear/handoffs/${enc(id)}`,
+    /** `POST`: once `complete`, starts the window's session and answers `{ redirect }` (single use). */
+    complete: (id: string) => `${base}/frigear/handoffs/${enc(id)}/complete`,
+  },
   /** `GET` (session only): the scopes the caller may grant a token. */
   scopes: `${base}/scopes`,
   /** `GET ?scope=<scope>`: an area's user-scoped data in one request. */
