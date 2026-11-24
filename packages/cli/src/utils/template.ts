@@ -24,7 +24,7 @@ export const cachedTarball = (template: string, cacheDir = gigetCacheDir()) => {
 
 /**
  * Copies `template` into `path`. For this repository giget's cached tarball is deleted first: when a download fails
- * (a 404 without `GIGET_AUTH` while the repository is not public) giget silently falls back to that tarball, however
+ * (for example GitHub's rate limit on anonymous downloads) giget silently falls back to that tarball, however
  * old, and the project would get a stale starter. Without it the download error is reported instead.
  */
 export const downloadTemplateToDir = async (
@@ -40,7 +40,7 @@ export const downloadTemplateToDir = async (
   }).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
     if (template.startsWith(FRIGEAR_REPO) && /\b(?:401|403|404)\b/.test(message) && !process.env.GIGET_AUTH) {
-      throw new Error(`${message}\nWhile Frigear-nu/frigear-nu is not public, set GIGET_AUTH to a GitHub token that can read it, e.g. GIGET_AUTH=$(gh auth token).`, { cause: error })
+      throw new Error(`${message}\nGitHub refused the download; anonymous requests are rate limited. Set GIGET_AUTH to a GitHub token and retry, e.g. GIGET_AUTH=$(gh auth token).`, { cause: error })
     }
     throw error
   })

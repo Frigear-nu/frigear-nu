@@ -44,3 +44,23 @@ pnpm prepare:certs   # prepare the public/private key pair used for encryption i
 ```
 
 For other commands, see [`./package.json`](./package.json)
+
+## Conventions
+
+- Uses the Nuxt 4 directory structure: source lives under `apps/website/app/`
+  (`app/components`, `app/composables`, `app/pages`, `app/layouts`,
+  `app/middleware`, `app/utils`). Server code (event handlers, server-only utils) lives in `apps/website/server/`. Don't
+  recreate the old Nuxt 3 top-level `components/`, `pages/`, etc. folders outside `app/`.
+- `nuxt.config.ts` is the source of truth for modules, runtime config, and aliases — check it before assuming a module
+  or alias exists.
+- Auto-imports are enabled for `app/components`, `app/composables`, and
+  `app/utils`. Don't manually import things Nuxt already auto-imports; do add explicit imports for anything pulled from
+  a `packages/**` dependency.
+- Prefer `<script setup lang="ts">` for all new components.
+- Use Nuxt's `runtimeConfig` (`nuxt.config.ts`) for environment variables, not raw `process.env` reads inside
+  components/composables.
+- After changing `nuxt.config.ts`, module options, or adding a new
+  `packages/**` dependency, restart the dev server / rerun `nuxi prepare` so
+  `.nuxt/` types regenerate — stale `.nuxt` types are a common false-positive source for typecheck errors.
+- Server routes (`server/api/**`) and database code (`server/db/**`) follow the rules in `packages/AGENTS.md`:
+  access control, HTTP route conventions, one schema file per dialect, migrations. Read it before changing them.

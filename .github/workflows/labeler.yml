@@ -1,0 +1,20 @@
+# Labels pull requests by the areas they touch (.github/labeler.yml), so PRs and notifications can be filtered.
+# `pull_request_target` so PRs from forks get labels too; nothing from the PR is checked out or run.
+name: Labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/labeler@v6
+        with:
+          sync-labels: true

@@ -1,7 +1,7 @@
 name: Starters
 
 # Builds each starter in .starters/ against the published @frigear-nu versions, the way `giget` users get it, fails
-# when committed migrations no longer match the modules' schemas (regenerate them, see AGENTS.md "Starters"), smoke
+# when committed migrations no longer match the modules' schemas (regenerate them, see .starters/AGENTS.md), smoke
 # tests the OAuth server of the standalone mobile and multi-platform starters and the desktop app's local mode, and fails
 # when the files the starters share drift apart. The desktop starter's Tauri shell is compiled on macOS, Linux and
 # Windows on main only.
@@ -145,7 +145,7 @@ jobs:
           pnpm db:generate
           if [ -n "$(git status --porcelain ${{ matrix.migrations }})" ]; then
             git status --porcelain ${{ matrix.migrations }}
-            echo "::error::.starters/${{ matrix.starter }} migrations are stale: regenerate them (see AGENTS.md, Starters)"
+            echo "::error::.starters/${{ matrix.starter }} migrations are stale: regenerate them (see .starters/AGENTS.md)"
             exit 1
           fi
 
@@ -240,7 +240,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # Keep in step with AGENTS.md "Starters". Change a shared file in every starter in the same commit.
+      # Keep in step with .starters/AGENTS.md. Change a shared file in every starter in the same commit.
       - name: Compare the starters
         run: |
           failed=0
