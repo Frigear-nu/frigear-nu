@@ -9,8 +9,8 @@ Emails from modules, such as a sign-in link, go out as plain HTML by default. Em
 own emails, from Vue components with your logo and colours. Your app replaces any module's email by adding a file with
 the same name. To only choose how email is delivered, [Notify](/modules/communication/notify) is enough.
 
-The package is `@frigear-nu/email-templates`. It renders with [nuxt-email-renderer](https://nuxtemail.com) and sends
-through Notify.
+The package is `@frigear-nu/email-templates`. It renders with [nuxt-email-renderer](https://nuxtemail.com) v4, which
+needs Nuxt 4.1 or newer, and sends through Notify.
 
 ## What you get
 
@@ -83,7 +83,7 @@ Options go under the `emailTemplates` key. Each can also be set at runtime.
 Use an absolute URL for the logo. Mail clients cannot resolve relative paths.
 ::
 
-Templates may also live in `emails/` or the `nuxtEmailRenderer.emailsDir` folder. The renderer supplies the `E*`
+Templates may also live in a layer's `emails/` or the `nuxtEmailRenderer.emailsDir` folder (relative to the layer root). The renderer supplies the `E*`
 components, `<ESubject>`, `$t`, `globalCss` and the preview. Its `codeHighlighting` is off, which keeps Shiki out of
 the server bundle. Set `nuxtEmailRenderer.codeHighlighting: true` to use `<ECodeBlock>`.
 

@@ -47,3 +47,5 @@ catalog:
   # get a different test-utils instance than the test's setup() ("No context is available").
   h3: ^1.15.11
   oxc-parser: ^0.158.0
+minimumReleaseAgeExclude:
+  - nuxt-email-renderer@4.1.1

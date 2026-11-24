@@ -37,7 +37,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.1.0' },
     // Keeps Shiki (`ECodeBlock`) out of the server bundle unless the host turns it back on.
-    'nuxt-email-renderer': { version: '>=3.0.0', defaults: { codeHighlighting: false } },
+    'nuxt-email-renderer': { version: '>=4.1.0', defaults: { codeHighlighting: false } },
   },
   async setup(options, nuxt) {
     registerModule('@frigear-nu/email-templates', nuxt)
@@ -77,10 +77,6 @@ export default defineNuxtModule<ModuleOptions>({
         // Published modules ship their templates inside node_modules: bundle them so the Vue plugin compiles them.
         nitroConfig.externals ||= {}
         nitroConfig.externals.inline = [...(nitroConfig.externals.inline ?? []), ...moduleDirs]
-        // In dev the renderer mounts its templates directory as `fs` storage even when the host has none,
-        // and unstorage refuses an `fs` driver without a base. Hosts that only use module templates hit it.
-        const emailsStorage = nitroConfig.devStorage?.emails
-        if (emailsStorage && emailsStorage.driver === 'fs' && !emailsStorage.base) delete nitroConfig.devStorage!.emails
       })
     })
 
@@ -117,7 +113,7 @@ ${templates.map(template => `    ${JSON.stringify(template.name)}: TemplateCompo
       filename: 'types/email-templates-virtual.d.ts',
       getContents: () => `declare module '#email-templates' {
   export const emailTemplates: Record<string, import('vue').Component>
-  export const emailTemplateMapping: Record<string, import(${JSON.stringify(resolver.resolve('./runtime/types'))}).EmailTemplateFile>
+  export const emailTemplateInfos: Record<string, import(${JSON.stringify(resolver.resolve('./runtime/types'))}).EmailTemplateFile>
 }
 `,
     }, { nitro: true, nuxt: true })
