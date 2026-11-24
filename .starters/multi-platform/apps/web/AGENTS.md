@@ -39,6 +39,7 @@ Each module's page is `https://docs.frigear.dev/modules/<module>` (Markdown:
 | `@frigear-nu/users` | The `users` table, self-service profile/email/password, `/admin/users` |
 | `@frigear-nu/authorization` | Roles and their permissions, role assignment in the admin, `permission` / `authenticated` route rules, `useAuthorization()`, `<Can>` |
 | `@frigear-nu/account` | `/account/**` pages |
+| `@frigear-nu/dashboard` | The signed-in `/dashboard` users land on after sign-in (`afterLogin`), its menu and widgets |
 | `@frigear-nu/admin`, `widget`, `menu` | The `/admin` shell and dashboard, widget areas, named menus |
 | `@frigear-nu/notify` | Email/SMS; the `log` driver prints emails to the terminal |
 | `@frigear-nu/oauth-server` (config key `oauthServer`) | The OAuth / OpenID Connect server `apps/mobile` and `apps/desktop` sign in at, `/admin/oauth` |
