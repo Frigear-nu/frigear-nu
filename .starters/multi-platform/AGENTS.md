@@ -75,6 +75,7 @@ pnpm db:generate                      # generate the migrations of apps/web and 
 pnpm db:migrate                       # apply apps/web's migrations to the local database
 pnpm mobile:native                    # create ios/ and android/ and register the URL scheme (idempotent)
 pnpm mobile:doctor                    # missing Capacitor plugins and URL schemes
+pnpm mobile:watch                     # Apple Watch app: sources in apps/mobile/watch/, a target in ios/ (native restores it)
 pnpm mobile:sync                      # nuxt generate + cap sync, after every web change
 pnpm mobile:ios                       # build and run on an iOS simulator
 pnpm mobile:ios:device                # a build against this machine's LAN address, opened in Xcode for a phone
