@@ -83,7 +83,7 @@ Run everything from the repository root:
 ## Adding a module
 
 ```bash
-pnpx @frigear-nu/cli add <module>
+pnpx @frigear-nu/cli add <module> --app web
 ```
 
 This installs `@frigear-nu/<module>` in `apps/web` and adds it to `modules` in `apps/web/nuxt.config.ts` (the same as

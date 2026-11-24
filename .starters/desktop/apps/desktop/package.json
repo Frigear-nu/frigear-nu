@@ -28,7 +28,7 @@
     "@frigear-nu/auth": "^0.6.3",
     "@frigear-nu/authorization": "^0.6.0",
     "@frigear-nu/desktop": "^0.0.1",
-    "@frigear-nu/users": "^3.1.0",
+    "@frigear-nu/users": "^3.1.1",
     "@iconify-json/lucide": "^1.2.150",
     "@libsql/client": "^0.18.0",
     "@nuxt/ui": "^4.12.0",
