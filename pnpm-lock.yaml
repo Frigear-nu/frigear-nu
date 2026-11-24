@@ -495,7 +495,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -562,7 +562,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -668,7 +668,7 @@ importers:
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -753,7 +753,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -966,7 +966,7 @@ importers:
         version: link:../users
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1099,7 +1099,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1219,6 +1219,79 @@ importers:
         specifier: 'catalog:'
         version: 3.3.14(typescript@6.0.3)
 
+  packages/desktop:
+    dependencies:
+      '@frigear-nu/auth':
+        specifier: workspace:^
+        version: link:../auth
+      '@frigear-nu/module-kit':
+        specifier: workspace:^
+        version: link:../module-kit
+      '@nuxt/kit':
+        specifier: 'catalog:'
+        version: 4.6.4(@nuxt/schema@4.6.4)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.158.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6))
+      defu:
+        specifier: ^6.1.4
+        version: 6.1.7
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
+    devDependencies:
+      '@nuxt/devtools':
+        specifier: 'catalog:'
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
+      '@nuxt/eslint-config':
+        specifier: 'catalog:'
+        version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@nuxt/module-builder':
+        specifier: 'catalog:'
+        version: 1.0.4(@nuxt/cli@4.0.3(@nuxt/schema@4.6.4)(jiti@2.7.0)(oxc-parser@0.158.0)(rolldown@1.2.16)(vite@8.3.6))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/compiler-core@3.5.45)(@vue/language-core@3.3.11)(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.68.0)(typescript@6.0.3)(vite@8.3.6)(vue-tsc@3.3.14(typescript@6.0.3))(vue@3.5.45(typescript@6.0.3))
+      '@nuxt/schema':
+        specifier: 'catalog:'
+        version: 4.6.4
+      '@nuxt/test-utils':
+        specifier: 'catalog:'
+        version: 4.4.0(@nuxt/schema@4.6.4)(@oxc-project/types@0.151.0)(confbox@0.3.1)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(h3@1.15.11)(jiti@2.7.0)(mlly@1.8.2)(nuxt@4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4))(oxc-parser@0.158.0)(rolldown@1.2.16)(rollup@4.68.0)(vite@8.3.6)(vitest@5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6))(vue@3.5.45(typescript@6.0.3))
+      '@tauri-apps/api':
+        specifier: ^2.12.5
+        version: 2.12.5
+      '@tauri-apps/cli':
+        specifier: ^2.12.6
+        version: 2.12.6
+      '@tauri-apps/plugin-autostart':
+        specifier: ^2.7.0
+        version: 2.7.0
+      '@tauri-apps/plugin-deep-link':
+        specifier: ^2.6.3
+        version: 2.6.3
+      '@tauri-apps/plugin-opener':
+        specifier: ^2.7.3
+        version: 2.7.3
+      '@tauri-apps/plugin-store':
+        specifier: ^2.5.1
+        version: 2.5.1
+      '@tauri-apps/plugin-updater':
+        specifier: ^2.14.1
+        version: 2.14.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)(supports-color@10.2.2)
+      nuxt:
+        specifier: 'catalog:'
+        version: 4.6.4(8dd1bb51e18ee79f9c595f6c70f477d4)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(vite@8.3.6)
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.14(typescript@6.0.3)
+
   packages/email-templates:
     dependencies:
       '@frigear-nu/module-kit':
@@ -1239,7 +1312,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1348,7 +1421,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1439,7 +1512,7 @@ importers:
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1554,7 +1627,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1654,7 +1727,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1721,7 +1794,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1794,7 +1867,7 @@ importers:
         version: 0.18.0
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1852,7 +1925,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -1952,7 +2025,7 @@ importers:
         version: link:../ui
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2022,7 +2095,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2077,7 +2150,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2132,7 +2205,7 @@ importers:
         version: 0.18.0
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2220,7 +2293,7 @@ importers:
         version: link:../menu
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2317,7 +2390,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2405,7 +2478,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2490,7 +2563,7 @@ importers:
         version: link:../oauth-server
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2590,7 +2663,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2717,7 +2790,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2790,7 +2863,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2890,7 +2963,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -2990,7 +3063,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -3142,7 +3215,7 @@ importers:
         version: link:../widget
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -3194,7 +3267,7 @@ importers:
     devDependencies:
       '@nuxt/devtools':
         specifier: 'catalog:'
-        version: 4.2.0(e271b6790b8b93a246e21df703bca224)
+        version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
       '@nuxt/eslint-config':
         specifier: 'catalog:'
         version: 1.17.0(@typescript-eslint/utils@8.70.1(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.45)(eslint@10.15.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
@@ -7822,6 +7895,100 @@ packages:
     resolution: {integrity: sha512-+hh0M+apciv9RYYVGnaEmcTncH6dpo3e2MTexNlOaTo7WXdLvQ6JSvtmiZCMbcBacZxibXGvVzp7sa1WsmZRHA==}
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
+
+  '@tauri-apps/api@2.12.5':
+    resolution: {integrity: sha512-G9QIMt5fzED+aS4QhVK3w1HWLKpLIwH/MnpCr9z1ugGEHnS2ORmqrLkc0uALOjRK4qXJy+4Yiw8LDl/KicC1Hg==}
+
+  '@tauri-apps/cli-darwin-arm64@2.12.6':
+    resolution: {integrity: sha512-Uokwk1hFfJoG54+kD8iU0St33jAIkNvojnjEfBZ6UbL5rnM10AiFwUS/2DHTJ9R4/Kba4U44v7djfMuWFTQgeg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tauri-apps/cli-darwin-x64@2.12.6':
+    resolution: {integrity: sha512-WhahqzcyHCpCzh4Taf0ZbBm6nGkvuOSh5ffrgOO7EdYaYe+RBQK8LOlFu+bbjul5v9cdLDi3kco+0+7IlZtTVA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.6':
+    resolution: {integrity: sha512-GB6weN+iFHxiFZ9SOKW6fINis7gnxohoOldR7sryBe7uaavkFGaMCa0yQs5njeXPWvzlE9WTQ13z8oDjmqK+Ww==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.6':
+    resolution: {integrity: sha512-mdHoUFYKfztUtPKE0C2hhGkEo7j6swXjg+5yRRKSD7A2gLkRPQFIXWD/DAYhiJdeAkyA8MCP6nvvKvg/4YryWQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-arm64-musl@2.12.6':
+    resolution: {integrity: sha512-2BxB+9a3JRN0eJ0t0qGe8IKJfgBLOZDE8a499OXH+yg4J9bMpSK1oHXBxnHuSHFWhby4QnQ/t+sBf7tRC0UZeA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.6':
+    resolution: {integrity: sha512-sb58RsNHex9QVqHdN1cf9MMlamUWAtk1NzuxTZalUnBUHfblIbe71hfmdI6whDZ84MufgOdeg/bzvhrbZS1r0w==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-gnu@2.12.6':
+    resolution: {integrity: sha512-ZAb4/CHRma3ErjL2RGfHjITTUBIs4zySf0hIli9BddOtEdSx0ze0hEgxl+HfBVc5OEW/QmbiZ2E2+CkkHc8Pcg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-musl@2.12.6':
+    resolution: {integrity: sha512-ueSzM2Du6r4i1d/lby9kEvrhPnXw5zM/VYvcW1ldEWSpkUyVohsBXkmD+U7vMskEW5tXeCUenki7nYVxyGBGpQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.6':
+    resolution: {integrity: sha512-6bmOt2BQSe0Bba+5CJcTKSML7VOYDxyiAKyBrjo86VxMdC1usIQmklu3Xc83s3QoK1rOMwwbANlPF6i5R2mvIg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.6':
+    resolution: {integrity: sha512-9q9ZFNuFreBczwyJuhhlrEOBzGClwWUYirQ2GBl66Y6EaNl17IdLH8TRqoY9wYB1LnctNBi+Fa/WMGtFA4BtFQ==}
+    engines: {node: '>= 10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-x64-msvc@2.12.6':
+    resolution: {integrity: sha512-ion7Chbj21ROxMRpjQ7G8rz5sIOaI7IoBQum1oq5sl1V5zGWyc/oYnCrQhVqO2TxK/lBDWxt648BzLi02SY3Xg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@tauri-apps/cli@2.12.6':
+    resolution: {integrity: sha512-/cOeQgqq8PBDPODOjjT0YHs4qxKCHcQMWMiBm4rLM3JNr9mZE+PHNKOK4zAkhIUtYMNL/0fweW48VNvzD1AbqA==}
+    engines: {node: '>= 10'}
+    hasBin: true
+
+  '@tauri-apps/plugin-autostart@2.7.0':
+    resolution: {integrity: sha512-4uRq+rqKSAh6MWAxgk6FnUPigc8VMG8eDVYTLk3A7OfKs9sLVwfeM8kbUvzjpabRQvyl4zd9tfzXBTrrtuprsA==}
+
+  '@tauri-apps/plugin-deep-link@2.6.3':
+    resolution: {integrity: sha512-L+fjyGe5RPBtfh3VUSl1HslC0/xW7frDvdsZk37d9UdqOpKwD9P0PmblSk7Q/WCiAEHZ9J9Pn7VyiecBBdiy/A==}
+
+  '@tauri-apps/plugin-opener@2.7.3':
+    resolution: {integrity: sha512-Nm+v7vLBCDzYZxrmCJhpMgtPsPsKt5myMs7SMU/aBjPOmAFI1RrHfhMz7t5KlxjMOzRcelyNq1/j0pmC9SmBVA==}
+
+  '@tauri-apps/plugin-store@2.5.1':
+    resolution: {integrity: sha512-lm/84hFRWHKayZI08p4upYYvhujcULXZLIJuATz3Ky6ZUN0hlmgvOIUytl8iTJA/no0nfhnaxDDHrPk1C5psaQ==}
+
+  '@tauri-apps/plugin-updater@2.14.1':
+    resolution: {integrity: sha512-Hr7nlBm1wT6xbwzjZ/S36YULazu8MNlj5vvOwMl47fXI7HTa5Bjl1PbDEwVHaZTAKzE1VZsUy35UqnbrQxmYQw==}
 
   '@tiptap/core@3.31.3':
     resolution: {integrity: sha512-Cz50pvciQrxdSxgTkHOVz0uD0Yl/8Xt0QatGD6ILm47jW8EzyHR9RkUGs/D5IqzXKuVPntfw1ttaT926vXfiRg==}
@@ -15245,14 +15412,6 @@ snapshots:
       - crossws
       - ocache
 
-  '@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2)':
-    dependencies:
-      '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
-      devframe: 1.3.2(@devframes/agentic@1.3.2)(cac@7.1.0)(srvx@1.0.5)
-    optionalDependencies:
-      '@devframes/json-render': 1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2)
-    optional: true
-
   '@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5)':
     dependencies:
       '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
@@ -15279,15 +15438,6 @@ snapshots:
       '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
       devframe: 1.3.5(@devframes/agentic@1.3.2)(cac@7.1.0)(srvx@1.0.5)
 
-  '@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2)':
-    dependencies:
-      '@json-render/core': 0.21.4(zod@4.6.7)
-      devframe: 1.3.2(@devframes/agentic@1.3.2)(cac@7.1.0)(srvx@1.0.5)
-      zod: 4.6.7
-    optionalDependencies:
-      '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
-    optional: true
-
   '@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)':
     dependencies:
       '@json-render/core': 0.21.4(zod@4.6.7)
@@ -15308,9 +15458,9 @@ snapshots:
     optionalDependencies:
       vite: 8.3.6(@types/node@26.6.6)(@vitejs/devtools@0.8.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
-  '@devframes/plugin-code-server@1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)':
+  '@devframes/plugin-code-server@1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)':
     dependencies:
-      '@devframes/vite': 1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)
+      '@devframes/vite': 1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)
       cac: 7.1.0
       devframe: 1.3.5(@devframes/agentic@1.3.2)(cac@7.1.0)(srvx@1.0.5)
     optionalDependencies:
@@ -15381,13 +15531,13 @@ snapshots:
       '@devframes/hub-ui': 1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5)
       vite: 8.3.6(@types/node@26.6.6)(@vitejs/devtools@0.8.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
-  '@devframes/vite@1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)':
+  '@devframes/vite@1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)':
     dependencies:
       devframe: 1.3.5(@devframes/agentic@1.3.2)(cac@7.1.0)(srvx@1.0.5)
       pathe: 2.0.3
     optionalDependencies:
       '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
-      '@devframes/hub-ui': 1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2)
+      '@devframes/hub-ui': 1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5)
       vite: 8.3.6(@types/node@26.6.6)(@vitejs/devtools@0.8.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
   '@drizzle-team/brocli@0.10.2': {}
@@ -17620,11 +17770,11 @@ snapshots:
       - utf-8-validate
       - vue
 
-  '@nuxt/devtools@4.2.0(e271b6790b8b93a246e21df703bca224)':
+  '@nuxt/devtools@4.2.0(d54d639d501d8529848cef0be9cabc16)':
     dependencies:
       '@devframes/hub': 1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5)
       '@devframes/plugin-assets': 1.3.5(devframe@1.3.5)(vite@8.3.6)
-      '@devframes/plugin-code-server': 1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.2))(devframe@1.3.2))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)
+      '@devframes/plugin-code-server': 1.3.5(@devframes/hub-ui@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(@devframes/json-render@1.3.2(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5))(devframe@1.3.5))(@devframes/hub@1.3.5(@devframes/agentic@1.3.2)(crossws@0.4.17(srvx@1.0.5))(devframe@1.3.5))(devframe@1.3.5)(vite@8.3.6)
       '@devframes/plugin-data-inspector': 1.3.5(devframe@1.3.5)(vite@8.3.6)
       '@devframes/plugin-og': 1.3.5(devframe@1.3.5)(vite@8.3.6)
       '@nuxt/devtools-assets': 4.2.0
@@ -22549,6 +22699,75 @@ snapshots:
     dependencies:
       '@tanstack/virtual-core': 3.19.8
       vue: 3.5.45(typescript@6.0.3)
+
+  '@tauri-apps/api@2.12.5': {}
+
+  '@tauri-apps/cli-darwin-arm64@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-darwin-x64@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-musl@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-gnu@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-musl@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli-win32-x64-msvc@2.12.6':
+    optional: true
+
+  '@tauri-apps/cli@2.12.6':
+    optionalDependencies:
+      '@tauri-apps/cli-darwin-arm64': 2.12.6
+      '@tauri-apps/cli-darwin-x64': 2.12.6
+      '@tauri-apps/cli-linux-arm-gnueabihf': 2.12.6
+      '@tauri-apps/cli-linux-arm64-gnu': 2.12.6
+      '@tauri-apps/cli-linux-arm64-musl': 2.12.6
+      '@tauri-apps/cli-linux-riscv64-gnu': 2.12.6
+      '@tauri-apps/cli-linux-x64-gnu': 2.12.6
+      '@tauri-apps/cli-linux-x64-musl': 2.12.6
+      '@tauri-apps/cli-win32-arm64-msvc': 2.12.6
+      '@tauri-apps/cli-win32-ia32-msvc': 2.12.6
+      '@tauri-apps/cli-win32-x64-msvc': 2.12.6
+
+  '@tauri-apps/plugin-autostart@2.7.0':
+    dependencies:
+      '@tauri-apps/api': 2.12.5
+
+  '@tauri-apps/plugin-deep-link@2.6.3':
+    dependencies:
+      '@tauri-apps/api': 2.12.5
+
+  '@tauri-apps/plugin-opener@2.7.3':
+    dependencies:
+      '@tauri-apps/api': 2.12.5
+
+  '@tauri-apps/plugin-store@2.5.1':
+    dependencies:
+      '@tauri-apps/api': 2.12.5
+
+  '@tauri-apps/plugin-updater@2.14.1':
+    dependencies:
+      '@tauri-apps/api': 2.12.5
 
   '@tiptap/core@3.31.3(@tiptap/pm@3.31.3)':
     dependencies:

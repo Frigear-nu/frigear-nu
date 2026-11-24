@@ -126,6 +126,13 @@
     "test/unit/registry.test.ts": 1,
     "test/unit/stored-layouts.test.ts": 1
   },
+  "@frigear-nu/desktop": {
+    "test/unit/cli.test.ts": 1,
+    "test/unit/deep-links.test.ts": 1,
+    "test/unit/doctor.test.ts": 1,
+    "test/unit/options.test.ts": 1,
+    "test/unit/tauri-config.test.ts": 1
+  },
   "@frigear-nu/email-templates": {
     "test/email-templates.test.ts": 24
   },
