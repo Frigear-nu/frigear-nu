@@ -87,6 +87,23 @@ export type OAuthScopeInput = {
   isActive?: boolean
 }
 
+/**
+ * A permission a database scope may carry, for the scope form's picker (`GET /api/admin/oauth-server/permissions`):
+ * registered, never sensitive or `sessionOnly`. Wildcards are not offered, since database scopes refuse them.
+ */
+export type OAuthScopePermissionOptionDto = {
+  /** `resource:action`. */
+  name: string
+  label: string | null
+  labelKey: string | null
+  description: string | null
+  descriptionKey: string | null
+  /** Groups the picker; defaults to the resource. */
+  group: string
+  /** The module that registered it, when the registry knows. */
+  from: string | null
+}
+
 /** RFC 7662 introspection answer of `POST /oauth/introspect`. Inactive tokens answer `{ active: false }` only. */
 export type OAuthIntrospectionDto = {
   active: boolean

@@ -12,7 +12,9 @@
       "tabs": {
         "permissions": "Rettigheder",
         "users": "Brugere",
-        "userRoles": "Roller og rettigheder"
+        "userRoles": "Roller og rettigheder",
+        "roles": "Roller",
+        "matrix": "Matrix"
       },
       "title": "Roller og rettigheder",
       "description": "Hvad hver rolle må. Roller kommer fra appens konfiguration; tildel dem på en brugers side.",
@@ -98,6 +100,24 @@
         "rolesHint": "Standardroller og automatiske roller vises ikke: brugere har dem uden at få dem tildelt.",
         "fromSso": "Givet af single sign-on",
         "locked": "Den har rettigheder du ikke har"
+      },
+      "module": "Modul",
+      "app": "App",
+      "matrix": {
+        "granted": "Tildelt",
+        "inheritedLegend": "Arvet",
+        "implicit": "Alle (implicit)",
+        "via": "via {grant}",
+        "count": "{count} rettigheder",
+        "countOne": "1 rettighed",
+        "sensitiveHint": "Følsom: tildeles kun ved navn, aldrig via et wildcard",
+        "sessionOnlyHint": "Kun session: aldrig til API- eller OAuth-tokens",
+        "loadFailed": "Matrixen kunne ikke indlæses",
+        "search": "Søg i rettigheder...",
+        "allModules": "Alle moduler",
+        "hoverHint": "Hold musen over et mærke for at se, hvor tildelingen kommer fra.",
+        "noMatch": "Ingen rettigheder matcher",
+        "clearFilters": "Ryd filtre"
       }
     },
     "grants": {
