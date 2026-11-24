@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/operations",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Operations for the frigear ecosystem: the occasions an organisation works at, with a period, location and status, that crew, shifts and maps attach to.",
   "homepage": "https://docs.frigear.dev/modules/volunteering/operations",
   "repository": {
