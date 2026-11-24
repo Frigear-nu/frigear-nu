@@ -1,34 +1,18 @@
 import { defineCommand } from 'citty'
 import consola from 'consola'
-import { join } from 'node:path'
+import { addPlatform } from '../platform/add.ts'
+import { APP_TEMPLATES } from '../platform/define.ts'
 import { defineCommandArgs, templateArgs } from '../utils/args.ts'
-import { installDeps } from '../utils/install.ts'
-import { downloadTemplateToDir, repoSource } from '../utils/template.ts'
-import { findWorkspaceRoot, hasPackage, listDirs, packageScope, readPackage, renamePackage, toPackageName } from '../utils/workspace.ts'
+import { appsDirArg, exitWith } from './platform/shared.ts'
 
-/** App templates, as paths in the frigear-nu repository. */
-export const APP_TEMPLATES = {
-  'web': '.starters/workspace/apps/web',
-  'web-standalone': '.starters/mobile-standalone/apps/web',
-  'mobile': '.starters/mobile/apps/mobile',
-  'desktop': '.starters/desktop/apps/desktop',
-} as const
+export { APP_TEMPLATES } from '../platform/define.ts'
+export { resolveAppScope } from '../platform/add.ts'
 
-const isAppTemplate = (value: string): value is keyof typeof APP_TEMPLATES => value in APP_TEMPLATES
-
-/** The scope the workspace's apps use (`@workspace` in the starters), else the root package's scope. */
-export const resolveAppScope = async (root: string) => {
-  for (const dir of await listDirs(join(root, 'apps'))) {
-    const scope = packageScope((await readPackage(dir))?.name)
-    if (scope) return scope
-  }
-  return packageScope((await readPackage(root))?.name)
-}
-
+/** `app:create <name> --template <template>`: `platform add <template> <name>` with the template as the platform. */
 export default defineCommand({
   meta: {
     name: 'app:create',
-    description: 'Add an app from a Frigear starter to apps/<name> of a pnpm workspace',
+    description: 'Add an app from a Frigear starter to the workspace (same as platform add <template> <name>)',
   },
   args: defineCommandArgs({
     name: {
@@ -38,47 +22,25 @@ export default defineCommand({
     },
     template: {
       type: 'string',
-      description: `App template: ${Object.keys(APP_TEMPLATES).join(', ')}`,
+      description: `App template: ${Object.keys(APP_TEMPLATES).join(', ')}, a template from frigear.templates or a giget source`,
       default: 'web',
     },
+    ...appsDirArg,
     ...templateArgs,
   }),
   async run({ args }) {
     const logger = consola.withTag('app:create')
-    const { template } = args
-    if (!isAppTemplate(template)) {
-      logger.error(`Unknown template "${template}". Use one of: ${Object.keys(APP_TEMPLATES).join(', ')}`)
-      return process.exit(1)
-    }
-
-    const root = await findWorkspaceRoot(args.cwd)
-    if (!root) {
-      logger.error(`No pnpm-workspace.yaml found above ${args.cwd}. Run \`init\` to create a project first.`)
-      return process.exit(1)
-    }
-
-    const name = toPackageName(args.name)
-    const appPath = join(root, 'apps', name)
-    if (hasPackage(appPath)) {
-      logger.error(`App ${name} already exists at ${appPath}`)
-      return process.exit(1)
-    }
-
-    // Read before downloading, so the template's own package name is not mistaken for the workspace's scope.
-    const scope = await resolveAppScope(root)
-    await downloadTemplateToDir({ template: repoSource(APP_TEMPLATES[template], args.ref), path: appPath })
-      .catch((error) => {
-        logger.error(`Failed to create app ${name} at ${appPath}`)
-        logger.error(error instanceof Error ? error.message : error)
-        return process.exit(1)
-      })
-
-    await renamePackage(appPath, scope ? `${scope}/${name}` : name)
-    logger.success(`Created app ${name} at ${appPath}`)
-
-    if (args.install) {
-      logger.start('Installing dependencies')
-      await installDeps(root)
-    }
+    // A built-in template is also a platform of that name; anything else is copied as is.
+    const platform = args.template in APP_TEMPLATES ? args.template : args.name
+    await addPlatform({
+      cwd: args.cwd,
+      platform,
+      template: args.template,
+      name: args.name,
+      appsDir: args['apps-dir'],
+      ref: args.ref,
+      install: args.install,
+      logger,
+    }).catch(error => exitWith(logger, error))
   },
 })
