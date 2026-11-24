@@ -22,5 +22,7 @@ export default defineEventHandler(async (event) => {
     token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
     code_challenge_methods_supported: ['S256'],
     claims_supported: ['sub', 'iss', 'aud', 'exp', 'iat', 'auth_time', 'nonce', 'name', 'picture', 'email', 'email_verified'],
+    // The languages `ui_locales` can pick, with i18n.
+    ...(useOAuthConfig().i18n ? { ui_locales_supported: useOAuthConfig().i18n!.locales } : {}),
   }
 })

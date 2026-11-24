@@ -3,13 +3,14 @@ import type { ConsentDto, OAuthScopeDefinition } from '../../../types'
 import { isNativeRedirectUri, websiteDomain } from '../../utils'
 import { oauthServerApi, oidc } from '../../utils/api'
 import { authApi } from '@frigear-nu/auth/api'
-import { $fetch, computed, navigateTo, ref, useAppConfig, useAuthPages, useErrorToast, useFetch, useModuleT, useRoute } from '#imports'
+import { $fetch, computed, navigateTo, ref, useAppConfig, useAuthPages, useErrorToast, useFetch, useLocaleLink, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'OAuthAuthorizePage' })
 
 const t = useModuleT('oauthServer')
 const route = useRoute()
-const signInPath = useAuthPages().login
+// In this page's language, like the sign-in redirect of `/oauth/authorize`.
+const signInPath = useLocaleLink().localize(useAuthPages().login)
 const showError = useErrorToast()
 // The same branding as the sign-in pages (`app.config.ts`: `users: { authLogo }`).
 const logo = useAppConfig().users?.authLogo as string | { light: string, dark: string } | undefined

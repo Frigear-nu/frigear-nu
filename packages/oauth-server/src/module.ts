@@ -21,6 +21,7 @@ import {
   registerBootstrapProvider,
   addPageRedirects,
   resolveDashboardHubPath,
+  readLocaleRouting,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addScope, isKnownScope, registerAccess, validateRoleScopes } from '@frigear-nu/auth/utils'
@@ -261,7 +262,12 @@ export default defineNuxtModule<ModuleOptions>({
       clients: options.clients ?? [],
       authorizePath,
       signInPath: settings.signInPath,
+      i18n: null,
     }
+    // The app's locales, read once every module had the chance to add some: `ui_locales` picks among them.
+    nuxt.hook('modules:done', () => {
+      nuxt.options.runtimeConfig.oauthServer.i18n = readLocaleRouting(nuxt)
+    })
     nuxt.options.runtimeConfig.public.oauthServer = {
       pages: {
         authorize: settings.pages?.authorize === false ? undefined : authorizePath,
