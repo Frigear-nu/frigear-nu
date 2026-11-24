@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   groupScopesByService,
   isNativeRedirectUri,
+  isOAuthScopePermission,
   matchesLoopbackRedirect,
   mergeScopeDefinitions,
   matchesAllowedRoles,
@@ -302,5 +303,14 @@ describe('validateRedirectUri for native apps', () => {
     const publicRules = { websiteUrl: 'https://app.example.com', allowNativeRedirects: true }
     expect(validateRedirectUri('https://app.example.com/auth/frigear', publicRules)).toBe(true)
     expect(validateRedirectUri('http://app.example.com/auth/frigear', publicRules)).toBe(false)
+  })
+})
+
+describe('isOAuthScopePermission', () => {
+  it('allows a plain permission, never a sensitive or session-only one', () => {
+    expect(isOAuthScopePermission({})).toBe(true)
+    expect(isOAuthScopePermission({ sensitive: false, sessionOnly: false })).toBe(true)
+    expect(isOAuthScopePermission({ sensitive: true })).toBe(false)
+    expect(isOAuthScopePermission({ sessionOnly: true })).toBe(false)
   })
 })

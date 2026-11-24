@@ -546,4 +546,23 @@ describe('compileRoles contributions', () => {
     expect(value.roles.lead!.provenance['events:read']).toEqual([{ via: 'host' }, { via: 'inherit', from: 'crew' }])
     expect(value.roles.lead!.provenance['tickets:scan']).toEqual([{ via: 'inherit', from: 'crew' }])
   })
+
+  it('names the module of a `grantTo` grant and of the role itself', () => {
+    const withFrom = registry([...definitions, { name: 'tickets:scan', grantTo: ['crew', 'host'], from: 'tickets' }])
+    const { value } = compileRoles({
+      registry: withFrom,
+      contributions: [
+        { name: 'crew', source: 'host', label: 'Volunteers' },
+        { name: 'crew', grant: ['events:read'], from: 'events' },
+        { name: 'crew', grant: ['forms:read'], from: 'forms' },
+        { name: 'host', source: 'host', grant: [] },
+        { name: 'swapped', grant: ['events:read'], from: 'events' },
+        { name: 'swapped', source: 'host', replace: true, grant: ['forms:read'] },
+      ],
+    })
+    expect(value.roles.crew!.provenance['tickets:scan']).toEqual([{ via: 'grantTo', from: 'tickets' }])
+    expect(value.roles.crew!.from).toBe('events')
+    expect(value.roles.host!.from).toBeUndefined()
+    expect(value.roles.swapped!.from).toBeUndefined()
+  })
 })
