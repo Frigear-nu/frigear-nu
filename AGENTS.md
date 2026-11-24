@@ -417,14 +417,16 @@ break `apps/website`.
 
 ### CI
 
-`.github/workflows/ci.yml` runs on pull requests only, for the packages Turbo considers affected (changed packages
-plus their dependents): one `Lint & build` job (lint, then a build of the affected packages and their dependencies,
-not the apps) and four `Test (n/4)` jobs, each with a 10 minute ceiling. It does not run typecheck; the deploy preview
+`.github/workflows/ci.yml` runs on pull requests and in the merge queue: one `Lint & build` job (lint, then a build
+of the packages Turbo considers affected, changed packages plus their dependents, and their dependencies, not the
+apps) and four `Test (n/4)` jobs, each with a 10 minute ceiling. Tests run in two tiers: a pull request tests only the
+packages it changes (`--changed`), the merge queue tests the changed packages plus all their dependents (`--affected`)
+before anything reaches `main`. Merge through the queue; label a PR `full-ci` to get the queue's set on its next push. It does not run typecheck; the deploy preview
 builds the apps of collaborator PRs. Almost all test time is `@nuxt/test-utils/e2e` files,
 each building and booting a fixture (15–130 s on CI), so:
 
-- Reuse an existing fixture of the package when you can; a new fixture adds its boot time to every PR that affects
-  the package. Tests that need no Nuxt server go under `test/unit/`.
+- Reuse an existing fixture of the package when you can; a new fixture adds its boot time to every PR that changes
+  the package and to every queued merge that affects it. Tests that need no Nuxt server go under `test/unit/`.
 - `scripts/ci-test-shard.mjs` spreads the test files over the shards, weighted by `scripts/ci-test-timings.json`.
   Check the split with `node scripts/ci-test-shard.mjs all 4 --print`; when the shards drift apart, merge the
   "Measured file times" each CI shard prints at the end into the timings file.
