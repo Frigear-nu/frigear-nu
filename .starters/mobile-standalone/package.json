@@ -14,6 +14,7 @@
     "db:migrate": "pnpm --filter ./apps/web db:migrate",
     "mobile:native": "pnpm --filter ./apps/mobile run native",
     "mobile:doctor": "pnpm --filter ./apps/mobile run doctor",
+    "mobile:watch": "pnpm --filter ./apps/mobile run watch",
     "mobile:sync": "pnpm --filter ./apps/mobile run cap:sync",
     "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
     "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",

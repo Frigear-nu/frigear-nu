@@ -1,8 +1,10 @@
 import type { MobileNativeManifest } from '../../types'
 import { readAndroidStrings, readManifestLinks } from './manifest'
+import { dependsOn, embedsWatchApp, readAppTarget, readValue, readWatchTargets } from './pbxproj'
 import { readPlistLocalNetworking, readPlistSchemes } from './plist'
 
 export const IOS_PLIST = 'ios/App/App/Info.plist'
+export const IOS_PBXPROJ = 'ios/App/App.xcodeproj/project.pbxproj'
 export const ANDROID_MANIFEST = 'android/app/src/main/AndroidManifest.xml'
 export const ANDROID_STRINGS = 'android/app/src/main/res/values/strings.xml'
 
@@ -12,6 +14,8 @@ export interface DoctorInput {
   packageJson: { dependencies?: Record<string, string>, devDependencies?: Record<string, string> } | null
   /** Reads a file relative to the app's root, `null` when it does not exist. */
   readFile: (path: string) => string | null
+  /** The folders in the app's `watch/` (the watch apps' sources). */
+  watchFolders?: string[]
 }
 
 export interface DoctorFinding {
@@ -24,7 +28,8 @@ export interface DoctorFinding {
  *
  * - every Capacitor plugin a feature uses is a dependency of the app (`cap sync` only links the app's own
  *   dependencies into the native projects, not the module's);
- * - the iOS and Android projects register the OAuth redirect scheme and the deep-link schemes.
+ * - the iOS and Android projects register the OAuth redirect scheme and the deep-link schemes;
+ * - a watchOS companion target (`frigear-mobile watch`) is embedded in the iPhone app and names its bundle id.
  */
 export function runDoctor(input: DoctorInput): DoctorFinding[] {
   const findings: DoctorFinding[] = []
@@ -64,6 +69,16 @@ export function runDoctor(input: DoctorInput): DoctorFinding[] {
     }
   }
 
+  const pbxproj = input.readFile(IOS_PBXPROJ)
+  if (pbxproj !== null) {
+    try {
+      findings.push(...checkWatchTargets(pbxproj, manifest.appId, input.watchFolders ?? []))
+    }
+    catch (error) {
+      findings.push({ level: 'warning', message: `${IOS_PBXPROJ} could not be read: ${(error as Error).message}` })
+    }
+  }
+
   const androidManifest = input.readFile(ANDROID_MANIFEST)
   if (androidManifest !== null) {
     if (!deps['@capacitor/android']) findings.push({ level: 'warning', message: 'The app has an `android/` project but no `@capacitor/android` dependency.' })
@@ -76,6 +91,44 @@ export function runDoctor(input: DoctorInput): DoctorFinding[] {
     for (const host of manifest.hosts) {
       if (!links.hosts.includes(host.toLowerCase())) {
         findings.push({ level: 'warning', message: `${ANDROID_MANIFEST} has no app link for https://${host}. ${fix}` })
+      }
+    }
+  }
+  return findings
+}
+
+/** A watch target must be embedded in the iPhone app and name its bundle id, or it never installs on the watch. */
+function checkWatchTargets(pbxproj: string, appId: string, folders: string[]): DoctorFinding[] {
+  const watches = readWatchTargets(pbxproj)
+  const app = readAppTarget(pbxproj)
+  const findings: DoctorFinding[] = []
+  for (const folder of folders) {
+    if (!watches.some(watch => watch.name === folder)) {
+      findings.push({ level: 'warning', message: `watch/${folder}/ has no watch target in ${IOS_PBXPROJ}. Run \`frigear-mobile native --platform ios\` to add it.` })
+    }
+  }
+  if (!watches.length || !app) return findings
+  const settingOf = (settings: string | undefined, key: string) => (settings === undefined ? undefined : readValue(settings, key))
+  for (const watch of watches) {
+    if (!embedsWatchApp(pbxproj, app, watch)) {
+      findings.push({ level: 'error', message: `The watch target "${watch.name}" is not embedded in ${app.name}: ${IOS_PBXPROJ} has no "Embed Watch Content" phase that copies ${watch.name}.app to $(CONTENTS_FOLDER_PATH)/Watch. Add it in Xcode (${app.name} → Build Phases), or remove the target and run \`frigear-mobile watch\` again.` })
+    }
+    if (!dependsOn(pbxproj, app, watch)) {
+      findings.push({ level: 'warning', message: `${app.name} does not depend on the watch target "${watch.name}": building ${app.name} may embed a stale watch app.` })
+    }
+    for (const config of watch.configurations) {
+      const companion = settingOf(config.settings, 'INFOPLIST_KEY_WKCompanionAppBundleIdentifier')
+      const appBundleId = settingOf(app.configurations.find(other => other.name === config.name)?.settings, 'PRODUCT_BUNDLE_IDENTIFIER')
+      const expected = appBundleId && !appBundleId.includes('$(') ? appBundleId : appId
+      if (!companion) {
+        findings.push({ level: 'error', message: `The watch target "${watch.name}" (${config.name}) has no WKCompanionAppBundleIdentifier: set it to "${expected}".` })
+      }
+      else if (companion !== expected) {
+        findings.push({ level: 'error', message: `The watch target "${watch.name}" (${config.name}) names the companion app "${companion}", but the iPhone app is "${expected}": the watch app will not install.` })
+      }
+      const bundleId = settingOf(config.settings, 'PRODUCT_BUNDLE_IDENTIFIER')
+      if (bundleId && !bundleId.includes('$(') && !bundleId.startsWith(`${expected}.`)) {
+        findings.push({ level: 'error', message: `The watch target "${watch.name}" (${config.name}) has the bundle id "${bundleId}"; it must start with "${expected}.".` })
       }
     }
   }

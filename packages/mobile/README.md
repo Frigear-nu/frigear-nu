@@ -197,6 +197,7 @@ background).
 ```bash
 frigear-mobile native [--platform ios|android] [--if-missing]   # cap add + URL schemes, idempotent
 frigear-mobile doctor [--strict]                                # plugins and native projects
+frigear-mobile watch [--name <Target>] [--bundle-id <id>] [--force]  # Apple Watch companion target
 ```
 
 `native` reads the app's resolved settings from `.nuxt/mobile/native.json` (it runs `nuxt prepare` first), adds the
@@ -204,6 +205,17 @@ platforms that have `@capacitor/ios` / `@capacitor/android` installed and no fol
 `ios/App/App/Info.plist` (`CFBundleURLTypes` with the OAuth redirect scheme and the deep-link schemes,
 `NSAllowsLocalNetworking`) and `android/app/src/main/AndroidManifest.xml` (VIEW intent filters, verified app links).
 Running it again changes nothing. `--if-missing` returns right away when every platform folder exists.
+
+`watch` adds an Apple Watch (watchOS 10, SwiftUI) companion app to the Capacitor iOS project, adding `ios/` first when
+it is missing. It copies `templates/apple-watch` to `watch/<Target>/` in the app, outside `ios/` (`<Target>App.swift`,
+`ContentView.swift`, `PhoneSession.swift` with a `WCSession` stub, `Assets.xcassets`; existing files are kept unless
+`--force`) and adds a watchOS app target to `App.xcodeproj`: that folder as a file-system synchronized group
+(`../../watch/<Target>`), a generated Info.plist with
+`WKCompanionAppBundleIdentifier`, Debug / Release configurations, and an "Embed Watch Content" phase plus a target
+dependency on App. The target defaults to `<AppName>Watch`, the bundle id to `<appId>.watchkitapp`. A second run reports
+the existing watch target and stops. `native` adds the target back for every `watch/*/` folder, so a regenerated `ios/`
+keeps the watch app (a custom `--bundle-id` is kept in `watch/<Target>.json`). `doctor` checks that a watch target is
+embedded and names the iPhone app's bundle id, and warns about a `watch/` folder without a target.
 
 ## Device development
 

@@ -66,6 +66,7 @@ Run everything from the repository root:
 | `pnpm test` | Run the tests of every app and package that has them |
 | `pnpm mobile:native` | Create `ios/` and `android/` and register the URL scheme (safe to rerun) |
 | `pnpm mobile:doctor` | List missing Capacitor plugins and URL schemes |
+| `pnpm mobile:watch` | Add an Apple Watch companion app to the iOS project |
 | `pnpm mobile:sync` | `nuxt generate` and `cap sync`, after every web change |
 | `pnpm mobile:ios` | Build and run on an iOS simulator |
 | `pnpm mobile:ios:device` | Build against this machine's LAN address and open Xcode, to run on a phone |
