@@ -9,9 +9,8 @@ on:
       - 'scripts/docs-check-links.mjs'
       - 'packages/*/package.json'
       - 'packages/*/README.md'
-      - '.starters/**/AGENTS.md'
       - 'README.md'
-      - 'AGENTS.md'
+      - '**/AGENTS.md'
 
 permissions:
   contents: read

@@ -213,6 +213,9 @@ for (const [from, to] of redirects) {
     ...walk(join(ROOT, '.starters'), f => f.endsWith('/AGENTS.md')),
     join(ROOT, 'README.md'),
     join(ROOT, 'AGENTS.md'),
+    join(ROOT, 'packages/AGENTS.md'),
+    join(ROOT, 'apps/website/AGENTS.md'),
+    join(ROOT, 'apps/docs/AGENTS.md'),
   ].filter(existsSync)
   for (const file of externals) {
     const src = readFileSync(file, 'utf8')
