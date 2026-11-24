@@ -1,12 +1,13 @@
 /**
- * Grid classes of an item spanning `span` columns of `DashboardGrid`: one column below `md`, up to two from `md` and
- * up to four from `xl`. Static strings, so Tailwind sees every class.
+ * Grid classes of an item spanning `span` columns of `DashboardGrid`: one column below its two-column width, up to two
+ * from there and up to four from its four-column width. Container-query classes, so they need `DashboardGrid` (or any
+ * `@container` parent). Static strings, so Tailwind sees every class.
  */
 const spans: Record<1 | 2 | 3 | 4, string> = {
   1: '',
-  2: 'md:col-span-2',
-  3: 'md:col-span-2 xl:col-span-3',
-  4: 'md:col-span-2 xl:col-span-4',
+  2: '@2xl:col-span-2',
+  3: '@2xl:col-span-2 @4xl:col-span-3',
+  4: '@2xl:col-span-2 @4xl:col-span-4',
 }
 
 export function dashboardSpanClass(span?: number): string {

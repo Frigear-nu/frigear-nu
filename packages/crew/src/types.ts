@@ -31,13 +31,19 @@ export type ModuleOptions = {
   settings?: {
     pages?: {
       /**
-       * The crew member's home page: the `crew.home` dashboard (every module's items for the signed-in person). On by
-       * default (`/crew`), `false` turns it off. With `@frigear-nu/mobile` the dashboard's Home tab takes `/crew` first.
+       * The crew member's home page: the `crew.dashboard` tabs (Overview, the `crew.home` dashboard with every module's
+       * items for the signed-in person; My crew; shifts' My shifts and Swaps). On by default: `/dashboard/crew` (below
+       * the signed-in hub of `@frigear-nu/dashboard`, in its layout and `dashboard` menu), `/crew` when the hub is off.
+       * `false` turns it off.
        */
       home?: string | boolean
       /** The page volunteers apply on, with the operation's form; must contain an `:operationSlug` param. On by default (`/crew/apply/:operationSlug`), `false` turns it off. */
       apply?: string | boolean
-      /** The page that shows a volunteer's crew status per operation and how to step down. On by default (`/crew/status`), `false` turns it off. */
+      /**
+       * A volunteer's crew status per operation and how to step down. In the hub it is the My crew tab of the home page
+       * (`/crew/status` redirects to it) unless set to a path, which adds a page of its own; without the hub (or with
+       * `@frigear-nu/mobile`, whose Crew tab opens it) it is also a page at `/crew/status`. `false` turns both off.
+       */
       status?: string | boolean
       /** The page that accepts an invite link; must contain a `:token` param. On by default (`/crew/invite/:token`), `false` turns it off. */
       invite?: string | boolean

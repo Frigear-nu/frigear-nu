@@ -1,11 +1,13 @@
 import { defineNuxtPlugin, navigateTo } from '#imports'
 import { listenForCallbacks } from '../../capacitor/adapters'
+import { listenForDeepLinkCallbacks } from '../../tauri/adapters'
 import { safeReturnTo } from '../../utils'
 import { mapUser, userinfo } from '#auth/client-user'
 import { createSessionMapper, setSessionMapper } from '../utils/session'
 import type { SessionMapperOptions } from '../utils/session'
 import { OAuthSessionError } from '../../core/errors'
 import { useAuthApiOf } from '../utils/api'
+import { withSameOriginToken } from '../../utils/api'
 import { handleUnauthorized } from '../utils/unauthorized'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
@@ -31,6 +33,17 @@ export default defineNuxtPlugin({
       return
     }
     const { client } = runtime
+    // Resource mode: the app's own server takes the issuer's token instead of a cookie, so every request to it (`$fetch`,
+    // `useFetch`, the pages of other modules too) carries it. Installed before any other plugin fetches. The issuer's own
+    // requests (token refresh) never wait on a token.
+    if (runtime.ownOrigin) {
+      const issuerOrigin = URL.canParse(runtime.rewriteUrl(config.issuer)) ? new URL(runtime.rewriteUrl(config.issuer)).origin : undefined
+      globalThis.fetch = withSameOriginToken(globalThis.fetch.bind(globalThis), {
+        origin: runtime.ownOrigin,
+        getAccessToken: () => client.getAccessToken(),
+        skip: url => url.origin === issuerOrigin,
+      })
+    }
     // A refused token was already handled (`onUnauthorized`); anything else is logged.
     const report = (error: unknown) => {
       if (!(error instanceof OAuthSessionError) && (error as { statusCode?: number })?.statusCode !== 401) console.error('[@frigear-nu/auth] Mapping the signed-in user failed:', error)
@@ -79,44 +92,56 @@ export default defineNuxtPlugin({
       })
     }
 
+    // Anything that does not answer a sign-in we started (a forged or replayed link) is ignored outright: the browser
+    // stays open and the real sign-in can still complete.
+    const onCallback = async (url: string) => {
+      if (!(await client.matchesPendingAuthorization(url).catch(() => false))) return
+      try {
+        const { returnTo } = await runtime.flow.complete(url)
+        await nuxtApp.runWithContext(() => navigateTo(safeReturnTo(returnTo) ?? config.redirect.afterLogin, { replace: true }))
+      }
+      catch (error) {
+        console.error('[@frigear-nu/auth] Sign-in failed:', error)
+        await nuxtApp.runWithContext(() => navigateTo({ path: config.redirect.login, query: { error: 'sign-in' } }))
+      }
+    }
+    const launchUrlStore = {
+      get: () => {
+        try {
+          return globalThis.sessionStorage.getItem(LAUNCH_URL_KEY)
+        }
+        catch {
+          return null
+        }
+      },
+      set: (url: string) => {
+        try {
+          globalThis.sessionStorage.setItem(LAUNCH_URL_KEY, url)
+        }
+        catch {
+          // Not available: the pending check still makes a replay harmless.
+        }
+      },
+    }
+
     if (runtime.native && runtime.app) {
       await listenForCallbacks(runtime.app, {
         isCallbackUrl: url => client.isCallbackUrl(url),
-        onCallback: async (url) => {
-          // Anything that does not answer a sign-in we started (a forged or replayed link) is ignored outright: the
-          // browser stays open and the real sign-in can still complete.
-          if (!(await client.matchesPendingAuthorization(url).catch(() => false))) return
-          try {
-            const { returnTo } = await runtime.flow.complete(url)
-            await nuxtApp.runWithContext(() => navigateTo(safeReturnTo(returnTo) ?? config.redirect.afterLogin, { replace: true }))
-          }
-          catch (error) {
-            console.error('[@frigear-nu/auth] Sign-in failed:', error)
-            await nuxtApp.runWithContext(() => navigateTo({ path: config.redirect.login, query: { error: 'sign-in' } }))
-          }
-        },
-        launchUrlStore: {
-          get: () => {
-            try {
-              return globalThis.sessionStorage.getItem(LAUNCH_URL_KEY)
-            }
-            catch {
-              return null
-            }
-          },
-          set: (url) => {
-            try {
-              globalThis.sessionStorage.setItem(LAUNCH_URL_KEY, url)
-            }
-            catch {
-              // Not available: the pending check still makes a replay harmless.
-            }
-          },
-        },
+        onCallback,
+        launchUrlStore,
         // Back in the foreground: refresh a token that expired in the background before the first request needs it.
         onResume: async () => {
           if (state.status.value === 'signed-in') await client.getAccessToken().catch(() => null)
         },
+      })
+    }
+    else if (runtime.native && runtime.deepLink) {
+      // Tauri: the system browser hands the redirect to the app as a deep link; the browser keeps the focus.
+      await listenForDeepLinkCallbacks(runtime.deepLink, {
+        isCallbackUrl: url => client.isCallbackUrl(url),
+        onCallback,
+        launchUrlStore,
+        focus: runtime.focusWindow ?? undefined,
       })
     }
   },

@@ -11,6 +11,7 @@ import {
   mergeClientPublicConfig,
   SECRET_ENV_NAMES,
   nativeLoaderTemplate,
+  nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
 } from '../../../src/client-build'
@@ -68,6 +69,8 @@ describe('checkNativeStorage', () => {
     expect(checkNativeStorage({ ...base, mode: 'preferences' })).toEqual({})
     expect(checkNativeStorage({ ...base, secureStorage: true })).toEqual({})
     expect(checkNativeStorage({ ...base, capacitor: false })).toEqual({})
+    // A Tauri app keeps tokens in the Tauri store: the Capacitor plugins do not apply.
+    expect(checkNativeStorage({ ...base, tauri: true })).toEqual({})
   })
 })
 
@@ -100,13 +103,28 @@ describe('nativeLoaderTemplate', () => {
     expect(source).not.toContain('@capacitor/browser')
     expect(source).toContain('import("/abs/storage.ts")')
   })
+
+  it('loads the installed Tauri plugins as module namespaces', () => {
+    const source = nativeLoaderTemplate({ installed: { opener: true, deepLink: true, store: false, window: true }, helper: '/abs/adapters' })
+    expect(source).toContain('opener: () => import("@tauri-apps/plugin-opener"),')
+    expect(source).toContain('deepLink: () => import("@tauri-apps/plugin-deep-link"),')
+    expect(source).toContain('window: () => import("@tauri-apps/api/window"),')
+    expect(source).toContain('store: null')
+    expect(source).toContain('app: null')
+    expect(source).not.toContain('@tauri-apps/plugin-store')
+  })
+
+  it('declares a type for every loader', () => {
+    const types = nativeLoaderTypes(file => JSON.stringify(`/abs/${file}`))
+    for (const key of ['app', 'browser', 'preferences', 'secureStorage', 'opener', 'deepLink', 'store', 'window']) expect(types).toContain(`  ${key}: (() => Promise<`)
+  })
 })
 
 describe('mergeClientPublicConfig', () => {
   it('lets lists the host sets replace the module\'s instead of being appended', () => {
     const defaults = {
       issuer: 'https://id.test', clientId: 'app', scope: 'openid', apiBase: '', apiOrigins: ['https://api.test'],
-      onUnauthorized: 'signOut' as const, redirectUri: '', nativeRedirectUri: '', callbackPath: '/auth/callback',
+      onUnauthorized: 'signOut' as const, redirectUri: '', nativeRedirectUri: '', desktopFlow: 'auto' as const, callbackPath: '/auth/callback',
       discovery: true, endpoints: {}, authorizationParams: {}, storage: 'auto' as const,
       redirect: { login: '/login', afterLogin: '/', afterLogout: '/' }, rewriteLoopback: true,
     }

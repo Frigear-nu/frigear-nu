@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { AdminApplicationDto } from '../../../types'
 import { oauthApplicationsApi } from '../composables/useOAuthApplications'
+import OAuthAdminHeading from '../components/OAuthAdminHeading.vue'
 import { computed, errorMessage, numericColumn, onMounted, tableUi, useModuleT, useOAuthApplicationActions, useOAuthApplications, useRoute, useTableQuery, useTableSort, watch } from '#imports'
 
 type Application = AdminApplicationDto
@@ -43,10 +44,7 @@ watch(() => route.query.application, openFromQuery)
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeading
-      :title="t('admin.title', 'OAuth applications')"
-      :description="t('admin.description', 'The applications users can sign in to with their account.')"
-    >
+    <OAuthAdminHeading>
       <template
         v-if="!forbidden"
         #actions
@@ -57,7 +55,7 @@ watch(() => route.query.application, openFromQuery)
           @click="actions.create()"
         />
       </template>
-    </PageHeading>
+    </OAuthAdminHeading>
 
     <UEmpty
       v-if="forbidden"

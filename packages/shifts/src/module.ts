@@ -14,15 +14,19 @@ import {
   registerTailwindSource,
   resolvePagePath,
   addModulePages,
-  addOptionalMenuSource,
+  addPageRedirects,
   inlineModuleRuntime,
   addModuleRoutes,
+  isPathUnder,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { defineMapLayer, extendMaps } from '@frigear-nu/maps/utils'
 import { OPERATIONS_VENUE_SURFACE } from '@frigear-nu/operations/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { perksAccess, shiftsAccess } from './runtime/access'
-import { SHIFTS_DEFAULT_PAGES } from './runtime/utils/links'
+import { SHIFTS_DEFAULT_PAGES, SHIFTS_HOME_TAB, shiftsMinePath, shiftsSwapsPath } from './runtime/utils/links'
+import { resolveCrewHomePath } from '@frigear-nu/crew/utils'
+import type { ModuleOptions as CrewModuleOptions } from '@frigear-nu/crew/utils'
 import { isValidTimeZone } from '@frigear-nu/module-kit/time'
 import { normalizeReminderBatch, normalizeReminderOffsets } from './runtime/utils/reminders'
 import { SHIFTS_DASHBOARD, shiftsDashboardItems } from './runtime/dashboard'
@@ -148,15 +152,24 @@ export default defineNuxtModule<ModuleOptions>({
     if (timeZone && !isValidTimeZone(timeZone)) throw new Error(`[shifts] \`timeZone\` "${timeZone}" is not a time zone this runtime knows.`)
     const checkInOpensMinutes = Math.max(0, Math.round(options.checkInOpensMinutes ?? 60))
 
-    // The volunteer and lead pages are on unless a page is `false`.
-    const shiftsPath = resolvePagePath(settings.pages?.shifts ?? true, SHIFTS_DEFAULT_PAGES.shifts)
+    // The volunteer and lead pages are on unless a page is `false`. My shifts and the swaps are also tabs of the crew home
+    // (`crew.dashboard`, owned by `@frigear-nu/crew`; read from its options, as crew may be set up after this module as
+    // a dependency). When that home is in the
+    // signed-in hub of `@frigear-nu/dashboard` (`/dashboard/crew`) the tabs replace the two pages, and their old paths
+    // redirect there; a page set to a path stays. With `@frigear-nu/mobile` the pages stay (the Shifts tab opens one).
+    const hub = resolveDashboardHubPath(nuxt, { dependency: true })
+    const crewHome = resolveCrewHomePath((nuxt.options as { crew?: CrewModuleOptions }).crew?.settings?.pages?.home, hub)
+    const tabsOnly = !!(crewHome && hub && isPathUnder(crewHome, hub)) && !hasNuxtModule('@frigear-nu/mobile')
+    const shiftsSetting = settings.pages?.shifts ?? true
+    const swapsSetting = settings.pages?.swaps ?? true
+    const shiftsPath = tabsOnly && typeof shiftsSetting !== 'string' ? undefined : resolvePagePath(shiftsSetting, SHIFTS_DEFAULT_PAGES.shifts)
     const shiftPath = resolvePagePath(settings.pages?.shift ?? true, SHIFTS_DEFAULT_PAGES.shift)
-    const swapsPath = resolvePagePath(settings.pages?.swaps ?? true, SHIFTS_DEFAULT_PAGES.swaps)
+    const swapsPath = tabsOnly && typeof swapsSetting !== 'string' ? undefined : resolvePagePath(swapsSetting, SHIFTS_DEFAULT_PAGES.swaps)
     const checkInPath = resolvePagePath(settings.pages?.checkIn ?? true, SHIFTS_DEFAULT_PAGES.checkIn)
     const leadPath = resolvePagePath(settings.pages?.lead ?? true, SHIFTS_DEFAULT_PAGES.lead)
     const stationPath = resolvePagePath(settings.pages?.station ?? true, SHIFTS_DEFAULT_PAGES.station)
     nuxt.options.runtimeConfig.public.shifts = {
-      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath, lead: leadPath, station: stationPath },
+      pages: { shifts: shiftsPath, shift: shiftPath, swaps: swapsPath, checkIn: checkInPath, lead: leadPath, station: stationPath, home: crewHome },
       timeZone,
       checkInOpensMinutes,
     }
@@ -354,6 +367,25 @@ export default defineNuxtModule<ModuleOptions>({
       })
     }
 
+    // My shifts and Swaps on the crew home (`crew.dashboard`), after crew's Overview (0) and My crew (10). Each is there
+    // unless its page option is `false`.
+    if (crewHome && hasNuxtModule('@frigear-nu/widget')) {
+      const { extendTabs } = await import('@frigear-nu/widget/utils')
+      extendTabs(nuxt, 'crew.dashboard', [
+        ...(shiftsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.shifts, component: resolver.resolve('./runtime/app/tabs/HomeShifts.vue'), order: 20, label: 'My shifts', labelKey: 'shifts.home.tabs.shifts', icon: 'i-lucide-calendar-clock', permission: shiftsAccess.permissions.read }]),
+        ...(swapsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.swaps, component: resolver.resolve('./runtime/app/tabs/HomeSwaps.vue'), order: 30, label: 'Swaps', labelKey: 'shifts.home.tabs.swaps', icon: 'i-lucide-arrow-left-right', permission: shiftsAccess.permissions.swap }]),
+      ])
+    }
+
+    // The pages that became tabs answer with a redirect to them, so old links and bookmarks keep working.
+    if (tabsOnly && crewHome) {
+      const pages = { home: crewHome }
+      addPageRedirects(nuxt, {
+        ...(shiftsSetting === true ? { [SHIFTS_DEFAULT_PAGES.shifts]: shiftsMinePath(pages)! } : {}),
+        ...(swapsSetting === true ? { [SHIFTS_DEFAULT_PAGES.swaps]: shiftsSwapsPath(pages)! } : {}),
+      })
+    }
+
     // A "Shifts" tab in the mobile tab bar, on my shifts.
     if (shiftsPath && hasNuxtModule('@frigear-nu/mobile')) {
       const { extendMobileTabs } = await import('@frigear-nu/mobile/utils')
@@ -379,6 +411,7 @@ export default defineNuxtModule<ModuleOptions>({
       extendDashboard(nuxt, SHIFTS_DASHBOARD, shiftsDashboardItems(path => resolver.resolve(path)))
     }
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
+    // No menu entry of its own: my shifts and the swaps are tabs of the crew home, which crew lists in the hub's
+    // `dashboard` menu.
   },
 })

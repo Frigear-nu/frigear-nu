@@ -8,15 +8,20 @@ export type * from './core/types'
  *
  * - `auto` (default): Keychain/Keystore (`@aparajita/capacitor-secure-storage`) on a device, `localStorage` in a browser.
  *   A production build of an app with `@capacitor/core` but without the secure storage plugin fails; set
- *   `preferences` to accept unencrypted storage.
- * - `secure`: Keychain/Keystore, required on a device.
- * - `preferences`: `@capacitor/preferences` (UserDefaults / SharedPreferences, not encrypted) on a device.
+ *   `preferences` to accept unencrypted storage. In a Tauri app: `@tauri-apps/plugin-store` (`auth.json` in the app's
+ *   data directory, **not encrypted**) when installed, else `localStorage`.
+ * - `secure`: Keychain/Keystore, required on a device. In a Tauri app the same as `auto` (there is no encrypted store).
+ * - `preferences`: `@capacitor/preferences` (UserDefaults / SharedPreferences, not encrypted) on a device; the Tauri
+ *   store in a Tauri app.
  * - `local` / `session`: `localStorage` / `sessionStorage`.
  * - `memory`: signed out on every reload.
  * - any other string: a file (relative to the app's `rootDir`, or a package) whose default export is a `TokenStorage`
  *   or a function returning one.
  */
 export type StorageOption = 'auto' | 'secure' | 'preferences' | 'local' | 'session' | 'memory' | (string & {})
+
+/** `authentication.client.native.desktopFlow`. */
+export type DesktopFlow = 'auto' | 'deep-link' | 'redirect'
 
 export type StorageMode = 'auto' | 'secure' | 'preferences' | 'local' | 'session' | 'memory' | 'custom'
 
@@ -31,11 +36,14 @@ export interface ClientModuleOptions {
    * `NUXT_PUBLIC_AUTHENTICATION_CLIENT_SCOPE` (space separated).
    */
   scopes?: string[]
-  /** Base URL of `$api` / `useApi`. Default: the issuer. Env `NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE`. */
+  /**
+   * Base URL of `$api` / `useApi`. Default: the issuer (resource mode: the app's own origin). Env
+   * `NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE`.
+   */
   apiBase?: string
   /**
    * Origins `$api` / `useApi` send the bearer token to. Default: the `apiBase` and issuer origins. A request to any
-   * other origin goes out without it.
+   * other origin goes out without it. In resource mode the app's own origin always gets it too.
    */
   apiOrigins?: string[]
   /**
@@ -47,7 +55,7 @@ export interface ClientModuleOptions {
   redirectUri?: string
   /** Path of the callback page, and of the redirect URIs derived from it. Default `/auth/callback`. */
   callbackPath?: string
-  /** The redirect URI inside a Capacitor app. */
+  /** The redirect URI inside a Capacitor or Tauri app. */
   native?: {
     /**
      * The custom URL scheme, usually the app id (`nu.frigear.app`). The redirect URI is
@@ -56,6 +64,16 @@ export interface ClientModuleOptions {
     scheme?: string
     /** A full redirect URI instead (e.g. a claimed `https` universal link). */
     redirectUri?: string
+    /**
+     * How a Tauri (desktop) app signs in:
+     *
+     * - `auto` (default): `deep-link` in a production build, `redirect` in `nuxt dev`, where the webview loads the dev
+     *   server and deep links usually do not reach an unbundled app.
+     * - `deep-link`: the system browser (`@tauri-apps/plugin-opener`) and the custom-scheme redirect URI above, handed
+     *   back by `@tauri-apps/plugin-deep-link`.
+     * - `redirect`: a same-window redirect inside the webview with the web redirect URI, as in a browser.
+     */
+    desktopFlow?: DesktopFlow
   }
   /** Endpoints that win over discovered ones (absolute, or paths relative to the issuer). */
   endpoints?: Partial<OAuthEndpoints>
@@ -109,6 +127,8 @@ export interface AuthClientPublicConfig {
   onUnauthorized: 'signOut' | 'none'
   redirectUri: string
   nativeRedirectUri: string
+  /** How a Tauri app signs in (`native.desktopFlow`). */
+  desktopFlow: DesktopFlow
   callbackPath: string
   discovery: boolean
   endpoints: Partial<OAuthEndpoints>
@@ -118,6 +138,12 @@ export interface AuthClientPublicConfig {
   rewriteLoopback: boolean | string
   /** Development against a confidential client only: only declared in `nuxt dev` (or with `allowClientSecretInBundle`). */
   clientSecret?: string
+  /**
+   * Resource mode: the app's own origin (`location.origin`, read in the browser, so a port picked at startup works) is
+   * an API too. It gets the bearer token (`$api`, and plain `$fetch` / `useFetch` to it), is `$api`'s base unless
+   * `apiBase` is set, and answers `$authAccess`.
+   */
+  sameOrigin?: boolean
 }
 
 /** `app.config.ts` → `authentication`. */

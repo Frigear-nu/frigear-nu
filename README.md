@@ -28,7 +28,7 @@ Open http://localhost:3000, create an account with the email in `NUXT_ACL_ADMINS
 in the terminal, then visit `/account` and `/admin`.
 The full walkthrough, including how to add more modules, is the
 [Workspace starter guide](./apps/docs/content/4.examples/1.starters/1.workspace.md) in the docs. For an iOS and Android app,
-use one of the mobile starters below. Not sure which? The [Quick start](./apps/docs/content/1.get-started/2.installation.md) compares the three.
+use one of the mobile starters below, and for macOS, Windows and Linux the desktop starter. Not sure which? The [Quick start](./apps/docs/content/1.get-started/2.installation.md) compares them.
 
 To work on this repository itself, see [Local development](./apps/docs/content/5.contribute/2.local-development.md).
 
@@ -40,6 +40,8 @@ are not part of this workspace: they use the published versions.
 - [.starters/workspace](./.starters/workspace) - pnpm monorepo + Nuxt 4 app wired to users, auth, authorization, account and admin ([guide](./apps/docs/content/4.examples/1.starters/1.workspace.md))
 - [.starters/mobile](./.starters/mobile) - pnpm monorepo + Capacitor app on `@frigear-nu/mobile` that signs in at frigear.nu or any OpenID Connect issuer ([guide](./apps/docs/content/4.examples/1.starters/2.mobile.md))
 - [.starters/mobile-standalone](./.starters/mobile-standalone) - the workspace starter plus the mobile app, with `apps/web` as its OAuth server and API ([guide](./apps/docs/content/4.examples/1.starters/3.mobile-standalone.md))
+- [.starters/desktop](./.starters/desktop) - pnpm monorepo + Tauri desktop app on `@frigear-nu/desktop` that signs in at any OpenID Connect issuer, or runs offline with its own server ([guide](./apps/docs/content/4.examples/1.starters/4.desktop.md))
+- [.starters/multi-platform](./.starters/multi-platform) - the standalone mobile starter plus the desktop app, all three signing in at `apps/web` ([guide](./apps/docs/content/4.examples/1.starters/5.multi-platform.md))
 
 
 ## Apps
@@ -59,6 +61,7 @@ are not part of this workspace: they use the published versions.
 - [@frigear-nu/oauth-server](./packages/oauth-server) - OAuth 2.0 / OpenID Connect server: role-restricted applications, PKCE, host-enriched tokens, a scope registry for every service
 - [@frigear-nu/oauth-resource](./packages/oauth-resource) - OAuth resource server (defaults to frigear.nu): accepts the issuer's `at+jwt` access tokens (JWKS, audience, scopes), provisions users and allows the mobile app's bearer CORS
 - [@frigear-nu/mobile](./packages/mobile) - Capacitor app shell for Nuxt: one tab registry for native and web tab bars, page titles, safe areas, haptics, deep links, the Android back button and the `frigear-mobile` CLI
+- [@frigear-nu/desktop](./packages/desktop) - Tauri v2 desktop shell for Nuxt (macOS, Windows, Linux): a static SPA that signs in with `@frigear-nu/auth` in client mode, generated `tauri.conf.json` and capabilities, deep links, window controls and the `frigear-desktop` CLI
 - [@frigear-nu/auth](./packages/auth) - Authentication: sign-in flows (password, magic link, OAuth, passkeys), user API tokens and one `requireAuth` for cookie sessions, tokens and OAuth access tokens, plus the permission engine (permissions, policies, `authorize`); or, in client mode, a public PKCE client for SPAs and Capacitor apps
 - [@frigear-nu/mcp](./packages/mcp) - Scoped, PII-safe MCP tools contributed by modules on top of `@nuxtjs/mcp-toolkit`
 - [@frigear-nu/users](./packages/users) - The user entity: users table, staff administration and self-service profile, email and password changes

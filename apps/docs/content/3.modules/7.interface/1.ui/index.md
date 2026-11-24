@@ -12,7 +12,7 @@ The package is `@frigear-nu/ui`. Its components and composables are auto-importe
 
 ## What you get
 
-- **Components** (on by default): page components, the App shell and form inputs.
+- **Components** (on by default): page components, the App shell, the side-navigation area layout and form inputs.
 - **Composables and helpers** (on by default): confirmations, toasts, data loading, formatting and tables.
 - **Translations** (opt-in, with `@nuxtjs/i18n`): shared `da` and `en` strings that every module reuses.
 
@@ -61,7 +61,7 @@ The module has no options.
 | Page | What it covers | For |
 | --- | --- | --- |
 | [Page components](/modules/interface/ui/page-components) | Headings, tabs, cards, tables and forms. | Page authors |
-| [App shell](/modules/interface/ui/app-shell) | The admin dashboard layout. | Module authors |
+| [App shell](/modules/interface/ui/app-shell) | The admin dashboard layout (`AppShell`) and the side navigation of the account area and the hub (`AreaNavLayout`). | Module authors |
 | [Form inputs](/modules/interface/ui/form-inputs) | Money, date, tag and translated inputs. | Page authors |
 | [Composables and helpers](/modules/interface/ui/composables) | Confirmations, data loading, formatting and tables. | Page authors |
 | [UI reference](/modules/interface/ui/reference) | Import paths, helpers and translation keys. | Page authors |

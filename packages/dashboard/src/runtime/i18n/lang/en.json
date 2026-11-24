@@ -44,6 +44,28 @@
     "permissions": {
       "layouts": "Your dashboard layouts",
       "layoutsDescription": "See and change the order, hidden and collapsed items of your dashboards."
+    },
+    "hub": {
+      "title": "Your dashboard",
+      "greeting": "Hi {name}",
+      "description": "Your shortcuts and what is happening.",
+      "empty": {
+        "title": "Nothing here yet",
+        "description": "Shortcuts and overviews appear here as your organisation turns on more features."
+      }
+    },
+    "nav": {
+      "label": "Dashboard navigation"
+    },
+    "menu": {
+      "dashboard": {
+        "label": "Dashboard",
+        "description": "Your shortcuts and overview."
+      },
+      "overview": {
+        "label": "Overview",
+        "description": "Your shortcuts and overview."
+      }
     }
   }
 }

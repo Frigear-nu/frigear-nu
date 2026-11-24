@@ -4,6 +4,13 @@
 #  - PR opened/updated by a collaborator (OWNER/MEMBER/COLLABORATOR) -> deploy
 #    straight to a Cloudflare Worker preview version.
 #  - PR opened by anyone else -> no preview is deployed.
+#  - A collaborator PR is only deployed when it can change the website: a file
+#    under apps/website/**, under packages/** (except **/*.md and **/test/**),
+#    or pnpm-lock.yaml, pnpm-workspace.yaml or the root package.json. PRs that
+#    touch only docs, starters, workflows or scripts are ignored, so they skip
+#    the full website build. The files are listed through the API, never by
+#    checking out the PR. Adding the `preview` label forces a deploy (and keeps
+#    forcing it on later pushes while the label is on the PR).
 #  - PR closed (merged or not) -> delete the Worker Preview and the per-PR D1
 #    preview database, then update the preview comment to say the deployment was deleted (the link is
 #    inactive).
@@ -17,10 +24,12 @@ name: Deploy Preview
 
 on:
   pull_request_target:
-    types: [ opened, synchronize, reopened, closed ]
+    types: [ opened, synchronize, reopened, labeled, closed ]
 
+# Adding any other label gets a group of its own, so it cannot cancel a deploy
+# in progress (that run resolves to `ignore`).
 concurrency:
-  group: deploy-preview-${{ github.event.pull_request.number }}
+  group: deploy-preview-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'preview' && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -40,7 +49,6 @@ jobs:
       CLOUDFLARE_DB_NAME: ${{ vars.CLOUDFLARE_DB_NAME }}
       CLOUDFLARE_DOMAIN_ROOT: ${{ vars.CLOUDFLARE_DOMAIN_ROOT }}
       NITRO_PRESET: cloudflare_module
-      CLOUDFLARE_ENV: ${{ inputs.environment }}
     if: github.repository_owner == 'Frigear-nu'
     runs-on: ubuntu-latest
     outputs:
@@ -61,11 +69,35 @@ jobs:
             console.log({ authorAssociation, prNumber: pr.number, sha: pr.head.sha, closed })
 
             const authorized = ['OWNER', 'MEMBER', 'COLLABORATOR', 'ADMIN'].includes(authorAssociation)
+            const forced = pr.labels.some((label) => label.name === 'preview')
+
+            // Files that can change the website build (see the header comment).
+            const ROOT_FILES = ['pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json']
+            const affectsWebsite = (file) =>
+              ROOT_FILES.includes(file)
+              || file.startsWith('apps/website/')
+              || (file.startsWith('packages/') && !file.endsWith('.md') && !file.includes('/test/'))
 
             let action
-            if (closed) action = 'teardown'
-            else if (authorized) action = 'deploy'
-            else action = 'ignore'
+            // Labelling a PR that is already closed must not tear it down again.
+            if (closed) action = context.payload.action === 'closed' ? 'teardown' : 'ignore'
+            else if (!authorized) action = 'ignore'
+            // Another label was added: nothing to deploy that the last push did not.
+            else if (context.payload.action === 'labeled' && context.payload.label.name !== 'preview') action = 'ignore'
+            else if (forced) action = 'deploy'
+            else {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                ...context.repo,
+                pull_number: pr.number,
+                per_page: 100,
+              })
+              // A rename counts for both its old and its new path.
+              const relevant = files
+                .flatMap((file) => [file.filename, file.previous_filename])
+                .filter((file) => file && affectsWebsite(file))
+              console.log({ changedFiles: files.length, relevant: relevant.slice(0, 20) })
+              action = relevant.length ? 'deploy' : 'ignore'
+            }
             console.log('Action:', action)
 
             core.setOutput('action', action)

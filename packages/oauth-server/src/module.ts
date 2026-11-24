@@ -19,15 +19,19 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   registerBootstrapProvider,
+  addPageRedirects,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { addAuthResolver, addScope, isKnownScope, registerAccess, validateRoleScopes } from '@frigear-nu/auth/utils'
 import { oauthAccess } from './runtime/access'
+import { oauthDashboardItems } from './runtime/dashboard'
 import { addMcpDefinitions } from '@frigear-nu/mcp/utils'
 import { join, relative } from 'node:path'
 import { oidc } from './runtime/utils/api'
-import { OIDC_SCOPES, configuredClientWarnings, isExactOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
+import { OIDC_SCOPES, configuredClientWarnings, isCorsOrigin, normalizeConfiguredClients, parseList, resolveRefreshTokenOptions, splitConfiguredScopes } from './runtime/utils'
 import { loadOrCreateDevSigningKey } from './dev-key'
+import { resolveApplicationsPage } from './applications-page'
 import type {
   ApplicationAccessContext,
   ClaimsContext,
@@ -110,8 +114,10 @@ export default defineNuxtModule<ModuleOptions>({
     // Provides the admin shell (layout, nav groups) the admin page lives in.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
+    // The signed-in hub: the applications page lives in it, and its dashboard gets the "Your apps" item.
+    '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
   },
-  setup(options, nuxt) {
+  async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     // `oauth:read` (self-service) and `oauth:manage` (`runtime/access.ts`).
     registerAccess(nuxt, oauthAccess)
@@ -139,7 +145,13 @@ export default defineNuxtModule<ModuleOptions>({
     const scopesPath = hasNuxtModule('@frigear-nu/admin')
       ? resolvePagePath(settings.pages?.scopes ?? (adminPath ? `${adminPath.replace(/\/+$/, '')}/scopes` : undefined), adminRoute(nuxt, 'oauth', 'scopes'))
       : undefined
-    const applicationsPath = resolvePagePath(settings.pages?.applications, '/account/applications')
+    // The applications are an area of the signed-in hub of `@frigear-nu/dashboard` when there is one (`/dashboard/apps`,
+    // in its layout, guard and `dashboard` menu), else a section of the account (`/account/applications`).
+    const hub = resolveDashboardHubPath(nuxt)
+    const applicationsPage = resolveApplicationsPage(settings.pages?.applications, hub)
+    const applicationsPath = applicationsPage.path
+    // The page moved into the hub by default: the old address redirects there.
+    if (applicationsPage.redirectFrom && applicationsPath) addPageRedirects(nuxt, { [applicationsPage.redirectFrom]: applicationsPath })
 
     const accessTokenTtl = options.accessTokenTtl ?? 900
     if (!Number.isSafeInteger(accessTokenTtl) || accessTokenTtl <= 0) {
@@ -164,8 +176,8 @@ export default defineNuxtModule<ModuleOptions>({
     const corsOrigins = (options.cors?.origins ?? []).map(origin => origin.trim()).filter(Boolean)
     for (const origin of corsOrigins) {
       // An origin is `scheme://host[:port]`. `capacitor://localhost` is one even though `URL.origin` calls it "null".
-      if (!isExactOrigin(origin)) {
-        throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${origin}".`)
+      if (!isCorsOrigin(origin)) {
+        throw new Error(`[${MODULE_NAME}] cors.origins must be exact origins such as "https://app.example.com" or "capacitor://localhost", or "http://127.0.0.1:*" for a loopback IP on any port, got "${origin}".`)
       }
     }
     const corsPaths = parseList(options.cors?.paths)
@@ -257,6 +269,7 @@ export default defineNuxtModule<ModuleOptions>({
         scopes: scopesPath,
         applications: applicationsPath,
       },
+      applicationsMenu: applicationsPage.menu,
     }
 
     // --- Database -------------------------------------------------------------------------
@@ -309,6 +322,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'scopes/:name', file: 'api/admin/scope.get' },
       { method: 'patch', path: 'scopes/:name', file: 'api/admin/scope.patch' },
       { method: 'delete', path: 'scopes/:name', file: 'api/admin/scope.delete' },
+      { method: 'get', path: 'permissions', file: 'api/admin/permissions.get' },
     ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
@@ -333,5 +347,12 @@ export default defineNuxtModule<ModuleOptions>({
     ])
 
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
+
+    // "Your apps" on the hub's dashboard (or `settings.dashboard`), the applications the user can open from there.
+    if (settings.dashboard !== false && hasNuxtModule('@frigear-nu/dashboard')) {
+      const { extendDashboard, resolveHubDashboardName } = await import('@frigear-nu/dashboard/utils')
+      const dashboard = settings.dashboard ?? (hub ? resolveHubDashboardName(nuxt) : undefined)
+      if (dashboard) extendDashboard(nuxt, dashboard, oauthDashboardItems(path => resolver.resolve(path)))
+    }
   },
 })

@@ -3,8 +3,9 @@ import { errorMessage, useEventLinks, useModuleT, useMyTickets } from '#imports'
 
 defineOptions({ name: 'EventTicketsPage' })
 
-// No container of its own: the `account` layout of `@frigear-nu/account` (applied to `/account/**`) provides the
-// navigation. The heading uses the keys of the account menu item (`menus.ts`), so label and title stay the same.
+// No container of its own: the `dashboard` layout of `@frigear-nu/dashboard` (below the signed-in hub) or the `account`
+// layout of `@frigear-nu/account` (`/account/**`) provides the navigation. The heading uses the keys of the menu item
+// (`menus.ts`), so label and title stay the same.
 const t = useModuleT('events')
 // Awaited, so the server renders the tickets; on client navigation the remembered list shows at once.
 const { tickets, loading, error, refresh, pay } = await useMyTickets()

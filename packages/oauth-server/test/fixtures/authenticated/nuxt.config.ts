@@ -62,7 +62,7 @@ export default defineNuxtConfig({
       { name: 'inventory:write', description: 'Change the inventory', service: 'Inventory' },
     ],
     // `/api/test/` stands in for the host's API; the admin API stays closed.
-    cors: { origins: ['capacitor://localhost', 'https://app.example.com'], paths: ['/api/test/'] },
+    cors: { origins: ['capacitor://localhost', 'https://app.example.com', 'http://127.0.0.1:*'], paths: ['/api/test/'] },
     // A mobile app with a fixed client id, created on first use. The fixture runs in dev, so the dev URI counts.
     clients: [{
       id: 'test-mobile',

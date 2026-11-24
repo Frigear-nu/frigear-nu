@@ -1,0 +1,65 @@
+# Area labels for pull requests, applied by .github/workflows/labeler.yml. Filter PRs and notifications by area.
+# Core is the platform every module builds on; domain is the feature modules on top of it. A new package goes in one.
+# The CLI and create-frigear-app count as domain here.
+'area: core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/module-kit/**
+          - packages/auth/**
+          - packages/users/**
+          - packages/authorization/**
+          - packages/account/**
+          - packages/admin/**
+          - packages/ui/**
+          - packages/menu/**
+          - packages/widget/**
+          - packages/notify/**
+          - packages/email-templates/**
+          - packages/mcp/**
+          - packages/base-layer/**
+          - packages/eslint-config/**
+
+'area: domain':
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/cli/**
+          - packages/cookie-consent/**
+          - packages/create-frigear-app/**
+          - packages/crew/**
+          - packages/dashboard/**
+          - packages/desktop/**
+          - packages/events/**
+          - packages/forms/**
+          - packages/help-center/**
+          - packages/inbox/**
+          - packages/maps/**
+          - packages/mobile/**
+          - packages/oauth-resource/**
+          - packages/oauth-server/**
+          - packages/operations/**
+          - packages/payments/**
+          - packages/preferences/**
+          - packages/push/**
+          - packages/shifts/**
+          - packages/stripe/**
+          - packages/subscriptions/**
+          - packages/teams/**
+
+'area: website':
+  - changed-files:
+      - any-glob-to-any-file: apps/website/**
+
+'area: docs':
+  - changed-files:
+      - any-glob-to-any-file: apps/docs/**
+
+'area: starters':
+  - changed-files:
+      - any-glob-to-any-file: .starters/**
+
+'area: ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - scripts/**
+          - turbo.json

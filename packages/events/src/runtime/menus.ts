@@ -4,10 +4,12 @@ import { eventsAccess } from './access'
 
 // Only registered when `@frigear-nu/menu` is installed (see `module.ts`).
 export default defineMenuSource(() => {
-  const config = useRuntimeConfig().public.events as { pages?: { tickets?: string, admin?: string } } | undefined
+  const config = useRuntimeConfig().public.events as { pages?: { tickets?: string, admin?: string }, ticketsMenu?: string } | undefined
 
+  // The caller's tickets: an area of the signed-in hub (`dashboard` menu) when the page is there, else in the account.
   if (config?.pages?.tickets) {
-    extendMenuItem('account', defineMenuItem({
+    const hub = config.ticketsMenu === 'dashboard'
+    extendMenuItem(hub ? 'dashboard' : 'account', defineMenuItem({
       id: 'event-tickets',
       label: 'Tickets',
       labelKey: 'events.menu.tickets.label',
@@ -15,7 +17,7 @@ export default defineMenuSource(() => {
       descriptionKey: 'events.menu.tickets.description',
       icon: 'i-lucide-ticket',
       to: config.pages.tickets,
-      order: 40,
+      order: hub ? 30 : 40,
     }))
   }
 

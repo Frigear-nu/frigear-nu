@@ -6,7 +6,7 @@ import { installDeps, runPackageScript } from '../utils/install.ts'
 import { downloadTemplateToDir, repoSource } from '../utils/template.ts'
 import { hasPackage, isEmptyDir, readPackage, renamePackage, toPackageName } from '../utils/workspace.ts'
 
-export const PLATFORMS = ['web', 'mobile'] as const
+export const PLATFORMS = ['web', 'mobile', 'desktop'] as const
 
 export type Platform = typeof PLATFORMS[number]
 
@@ -15,14 +15,32 @@ export const STARTERS = {
   'workspace': { platforms: ['web'], hint: 'apps/web: users, auth, account and admin' },
   'mobile': { platforms: ['mobile'], hint: 'apps/mobile: a Capacitor app against any OAuth issuer' },
   'mobile-standalone': { platforms: ['web', 'mobile'], hint: 'apps/web + apps/mobile, with apps/web as the OAuth server' },
+  'desktop': { platforms: ['desktop'], hint: 'apps/desktop: a Tauri app against any OAuth issuer, or offline with its own server' },
+  'multi-platform': { platforms: ['web', 'mobile', 'desktop'], hint: 'apps/web + apps/mobile + apps/desktop, with apps/web as the OAuth server' },
 } as const satisfies Record<string, { platforms: readonly Platform[], hint: string }>
 
 export type Starter = keyof typeof STARTERS
 
+/** What to do after the install, before `pnpm dev`. */
+const nextSteps: Record<Starter, string[]> = {
+  'workspace': ['  put your email in NUXT_ACL_ADMINS in apps/web/.env'],
+  'mobile-standalone': ['  put your email in NUXT_ACL_ADMINS in apps/web/.env'],
+  'mobile': ['  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/mobile/.env'],
+  'desktop': [
+    '  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/desktop/.env, or DESKTOP_MODE=local',
+    '  pnpm desktop:init',
+  ],
+  'multi-platform': [
+    '  put your email in NUXT_ACL_ADMINS in apps/web/.env',
+    '  pnpm desktop:init',
+  ],
+}
+
 const isStarter = (value: string): value is Starter => value in STARTERS
 
 /**
- * A starter from its name (`mobile-standalone`) or from its platforms (`web`, `mobile`, `web,mobile`, in any order).
+ * A starter from its name (`mobile-standalone`) or from its platforms (`web`, `mobile`, `desktop`, `web,mobile`,
+ * `web,mobile,desktop`, in any order).
  */
 export const resolveStarter = (value: string): Starter | undefined => {
   const input = value.trim().toLowerCase()
@@ -35,7 +53,8 @@ export const resolveStarter = (value: string): Starter | undefined => {
   })
 }
 
-const choices = `${PLATFORMS.join(', ')}, ${PLATFORMS.join(',')} or a starter: ${Object.keys(STARTERS).join(', ')}`
+const combinations = Object.values(STARTERS).filter(({ platforms }) => platforms.length > 1).map(({ platforms }) => platforms.join(','))
+const choices = `${[...PLATFORMS, ...combinations].join(', ')} or a starter: ${Object.keys(STARTERS).join(', ')}`
 
 export default defineCommand({
   meta: {
@@ -131,11 +150,7 @@ export default defineCommand({
       'Next steps:',
       cd === '.' ? undefined : `  cd ${cd}`,
       args.install ? undefined : `  pnpm install${hasPrepareEnv ? ' && pnpm prepare:env' : ''}`,
-      ...(!starter
-        ? []
-        : starter === 'mobile'
-          ? ['  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/mobile/.env']
-          : ['  put your email in NUXT_ACL_ADMINS in apps/web/.env']),
+      ...(starter ? nextSteps[starter] : []),
       '  pnpm dev',
     ].filter(Boolean).join('\n'))
   },

@@ -1104,8 +1104,9 @@ describe('crew (authenticated, database-backed)', async () => {
       expect(appliedEmail!.text).toContain('Tak for din ansøgning.')
       // `{{status}}` is the Danish label.
       expect(approvedEmail).toMatchObject({ subject: `Du er med i crewet på ${crew.op.name.en}`, template: { props: { message: 'Status: Godkendt' } } })
-      // The fixture has no i18n, so the link has no locale prefix (`localizePath` of module-kit is unit-tested).
-      expect(appliedEmail!.template!.props!.statusUrl).toMatch(/^http.*\/crew\/status$/)
+      // The fixture has no i18n, so the link has no locale prefix (`localizePath` of module-kit is unit-tested). The status
+      // is the My crew tab of the crew home in the dashboard hub.
+      expect(appliedEmail!.template!.props!.statusUrl).toMatch(/^http.*\/dashboard\/crew\?tab=status$/)
       const brit = await user('Englishman')
       await ok(await json(brit.cookie, 'POST', formsApi.submit(crew.form.slug), { answers: { name: 'Englishman' }, locale: 'en' }))
       const [english] = await getEmailsTo(brit.email)
@@ -1178,15 +1179,41 @@ describe('crew (authenticated, database-backed)', async () => {
   })
 
   describe('home page', () => {
-    it('renders the crew.home dashboard at /crew, guarded for signed-in people', async () => {
+    it('renders the crew home in the dashboard hub at /dashboard/crew, with its tabs, guarded for signed-in people', async () => {
       const tess = await user('Hometess')
-      const html = await $fetch<string>('/crew', { headers: { cookie: tess.cookie } })
+      const html = await $fetch<string>('/dashboard/crew', { headers: { cookie: tess.cookie } })
+      // The tabs of `crew.dashboard`: Overview (the default, the `crew.home` dashboard) and My crew.
+      expect(html).toContain('id="tab-crew.dashboard-overview"')
+      expect(html).toContain('id="tab-crew.dashboard-status"')
       expect(html).toContain('data-dashboard="crew.home"')
+      // The hub's layout, with crew's entry in the `dashboard` menu.
+      expect(html).toContain('aria-label="Dashboard navigation"')
+      expect(html).toContain('href="/dashboard/crew"')
       // `guardPages` marks the page for `@frigear-nu/authorization` (which enforces it); the fixture has no
       // Authorization, so the rule is checked as config.
-      const rules = await $fetch<Record<string, { authenticated?: boolean }>>('/api/test/route-rules')
-      expect(rules['/crew']).toMatchObject({ authenticated: true })
-      expect(rules['/crew/status']).toBeUndefined()
+      const rules = await $fetch<Record<string, { authenticated?: boolean, redirect?: unknown }>>('/api/test/route-rules')
+      expect(rules['/dashboard/crew']).toMatchObject({ authenticated: true })
+    })
+
+    it('shows My crew in its tab, from ?tab=status', async () => {
+      const crew = await newCrew()
+      const tabby = await user('Tabby')
+      await applied(tabby, crew)
+      const html = await $fetch<string>('/dashboard/crew?tab=status', { headers: { cookie: tabby.cookie } })
+      expect(html).toContain('data-crew-status')
+      expect(html).toContain(crew.op.name.en)
+      expect(html).not.toContain('data-dashboard="crew.home"')
+    })
+
+    it('redirects the old pages to the crew home and its My crew tab', async () => {
+      const rules = await $fetch<Record<string, { redirect?: unknown }>>('/api/test/route-rules')
+      expect(rules['/crew']).toMatchObject({ redirect: { to: '/dashboard/crew', statusCode: 302 } })
+      expect(rules['/crew/status']).toMatchObject({ redirect: { to: '/dashboard/crew?tab=status', statusCode: 302 } })
+      for (const [path, location] of [['/crew', '/dashboard/crew'], ['/crew/status', '/dashboard/crew?tab=status']]) {
+        const response = await fetch(path!, { redirect: 'manual' })
+        expect(response.status, path).toBe(302)
+        expect(response.headers.get('location'), path).toBe(location)
+      }
     })
   })
 
@@ -1237,7 +1264,7 @@ describe('crew (authenticated, database-backed)', async () => {
     it('renders the volunteer pages', async () => {
       const crew = await newCrew()
       const uma = await user('Uma')
-      for (const path of [`/crew/apply/${crew.op.slug}`, '/crew/status', '/crew/invite/cvt_whatever']) {
+      for (const path of [`/crew/apply/${crew.op.slug}`, '/dashboard/crew?tab=status', '/crew/invite/cvt_whatever']) {
         const response = await fetch(path, { headers: { cookie: uma.cookie } })
         expect(response.status, path).toBe(200)
       }

@@ -3,7 +3,7 @@ import type { H3Event } from 'h3'
 import { createEvent } from 'h3'
 import { IncomingMessage, ServerResponse } from 'node:http'
 import { Socket } from 'node:net'
-import { applyBearerCors, matchesPathPrefix } from '../src/runtime/server'
+import { applyBearerCors, isLoopbackAnyPortOrigin, matchesCorsOrigin, matchesPathPrefix } from '../src/runtime/server'
 
 const makeEvent = (method: string, origin?: string): H3Event => {
   const req = new IncomingMessage(new Socket())
@@ -60,6 +60,40 @@ describe('applyBearerCors', () => {
     event.node.res.setHeader('vary', 'Accept-Encoding')
     applyBearerCors(event, options)
     expect(String(headers(event).vary)).toMatch(/Accept-Encoding.*Origin/)
+  })
+})
+
+describe('matchesCorsOrigin', () => {
+  it('matches exact origins', () => {
+    expect(matchesCorsOrigin('https://app.example.com', ['https://app.example.com'])).toBe(true)
+    expect(matchesCorsOrigin('https://app.example.com:8443', ['https://app.example.com'])).toBe(false)
+    expect(matchesCorsOrigin('*', ['*'])).toBe(false)
+    expect(matchesCorsOrigin('', [''])).toBe(false)
+  })
+
+  it('matches a loopback IP on any port only for the loopback wildcard entries', () => {
+    const allowed = ['http://127.0.0.1:*', 'http://[::1]:*']
+    expect(matchesCorsOrigin('http://127.0.0.1:47615', allowed)).toBe(true)
+    expect(matchesCorsOrigin('http://[::1]:1', allowed)).toBe(true)
+    expect(matchesCorsOrigin('http://127.0.0.1:47615', ['http://[::1]:*'])).toBe(false)
+    for (const origin of ['http://127.0.0.1', 'http://127.0.0.1:0', 'http://127.0.0.1:65536', 'http://127.0.0.1:080', 'https://127.0.0.1:443', 'http://localhost:3000', 'http://127.0.0.2:80', 'http://127.0.0.1.evil.test:80', 'http://127.0.0.1:80/path']) {
+      expect(matchesCorsOrigin(origin, allowed), origin).toBe(false)
+    }
+    // A wildcard entry for another host never matches.
+    expect(matchesCorsOrigin('https://app.example.com:1', ['https://app.example.com:*'])).toBe(false)
+  })
+
+  it('lets applyBearerCors answer a loopback origin on any port, echoing the exact origin', () => {
+    const event = makeEvent('OPTIONS', 'http://127.0.0.1:51234')
+    expect(applyBearerCors(event, { origins: ['http://127.0.0.1:*'], methods: 'GET, OPTIONS' })).toBe(true)
+    expect(headers(event)['access-control-allow-origin']).toBe('http://127.0.0.1:51234')
+  })
+
+  it('names the loopback wildcard entries', () => {
+    expect(isLoopbackAnyPortOrigin('http://127.0.0.1:*')).toBe(true)
+    expect(isLoopbackAnyPortOrigin('http://[::1]:*')).toBe(true)
+    expect(isLoopbackAnyPortOrigin('http://localhost:*')).toBe(false)
+    expect(isLoopbackAnyPortOrigin('https://127.0.0.1:*')).toBe(false)
   })
 })
 

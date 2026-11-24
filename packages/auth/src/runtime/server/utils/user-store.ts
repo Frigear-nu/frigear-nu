@@ -33,7 +33,8 @@ export async function loadAuthUsers(ids: Iterable<string | number>): Promise<Map
 export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeof db, 'update'> = db) {
   const roles = authorizationUserRoles()
   return [
-    executor.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from))),
+    // Resource mode has no API tokens (no `auth_user_tokens`).
+    ...(schema.authUserTokens ? [executor.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from)))] : []),
     // Assigned roles follow the user: left behind, the next holder of the id (a user moved aside by `changeId`, or a
     // reused id) would get them.
     ...(roles ? [executor.update(roles).set({ userId: to }).where(eq(roles.userId, from))] : []),
@@ -46,8 +47,8 @@ export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeo
 
 /** Removes everything this module keeps for a user. Call it when the user is deleted: these tables have no foreign key. */
 export async function deleteUserAuthData(userId: number) {
-  await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
-  // Each of these tables only exists when the feature owning it is enabled.
+  // Each of these tables only exists when the feature owning it is enabled (no API tokens in resource mode).
+  if (schema.authUserTokens) await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
   if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
@@ -89,8 +90,8 @@ export async function deleteUnusedAuthEmailCodes(userId: number) {
  */
 export async function clearUnverifiedAuthCredentials(userId: number, event?: H3Event) {
   await store.update(userId, { password: null })
-  await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
-  // Each of these tables only exists when the feature owning it is enabled.
+  // Each of these tables only exists when the feature owning it is enabled (no API tokens in resource mode).
+  if (schema.authUserTokens) await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
   if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
   if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
   await notifyAuthCredentialsChanged({ userId, reason: 'unverified-account', event })

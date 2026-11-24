@@ -257,8 +257,28 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
   if (rules.websiteUrl && redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
+  if (rules.allowNativeRedirects === true && rules.redirectUris?.some(registered => matchesLoopbackRedirect(redirectUri, registered))) return true
   if (rules.previewUrlPattern && rules.clientType !== 'public') return matchesPreviewUrlPattern(redirectUri, rules.previewUrlPattern, callbackPath)
   return false
+}
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '[::1]'])
+
+/**
+ * RFC 8252 §7.3: a native app (desktop shell, CLI) listens on an ephemeral loopback port, so a registered
+ * `http://127.0.0.1/cb` (or `http://[::1]/cb`, any port) matches the same URI on any port. Scheme, host, path and
+ * query must still match exactly; `localhost` is not a loopback redirect (§8.3), only the IP literals are.
+ */
+export function matchesLoopbackRedirect(redirectUri: string, registered: string): boolean {
+  if (!URL.canParse(redirectUri) || !URL.canParse(registered)) return false
+  const url = new URL(redirectUri)
+  const reg = new URL(registered)
+  if (url.protocol !== 'http:' || reg.protocol !== 'http:') return false
+  if (!LOOPBACK_HOSTS.has(url.hostname) || url.hostname !== reg.hostname) return false
+  if (url.username || url.password || url.hash || reg.username || reg.password || reg.hash) return false
+  // Compare the serialized forms without the port, so `..`, `%2e` and trailing-slash tricks cannot differ from what was registered.
+  const withoutPort = (u: URL) => `${u.protocol}//${u.hostname}${u.pathname}${u.search}`
+  return url.href === redirectUri && withoutPort(url) === withoutPort(reg)
 }
 
 /** Random, prefixed id (`<prefix>_<32 hex>`): the one of `@frigear-nu/module-kit/id`. */
@@ -269,6 +289,15 @@ export function isExactOrigin(origin: string): boolean {
   if (origin === '*' || !URL.canParse(origin)) return false
   const url = new URL(origin)
   return !!url.host && origin === `${url.protocol}//${url.host}`
+}
+
+/**
+ * A CORS origin a client or `cors.origins` may list: an exact origin, or a loopback IP on any port (`http://127.0.0.1:*`,
+ * `http://[::1]:*`) for a native app whose window is served by a local server on a free port (a desktop app's bundled
+ * server). Matched by `matchesCorsOrigin` (`@frigear-nu/module-kit/server`).
+ */
+export function isCorsOrigin(origin: string): boolean {
+  return isExactOrigin(origin) || origin === 'http://127.0.0.1:*' || origin === 'http://[::1]:*'
 }
 
 /** The id of a configured client: 3 to 64 letters, digits, `.`, `_`, `-`; never the `app_` prefix of created ones. */
@@ -308,9 +337,13 @@ function isAllowedRedirectUri(uri: string): boolean {
   return !url.hash && !url.username && !url.password && (isSecureOrigin(url) || isNativeRedirectUri(url))
 }
 
-/** The origin a page at this redirect URI calls from, if it has one (`com.example.app:/cb` has none). */
+/**
+ * The origin a page at this redirect URI calls from, if it has one (`com.example.app:/cb` has none). A loopback redirect
+ * matches on any port (RFC 8252 §7.3), so its origin is the loopback IP on any port.
+ */
 function redirectOrigin(uri: string): string | undefined {
   const url = new URL(uri)
+  if (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)) return `http://${url.hostname}:*`
   return url.host ? `${url.protocol}//${url.host}` : undefined
 }
 
@@ -385,8 +418,8 @@ export function normalizeConfiguredClients(input: unknown, options: NormalizeCli
     if (client.corsOrigins === false) corsOrigins = []
     else if (client.corsOrigins === undefined || client.corsOrigins === null) corsOrigins = redirectUris.map(redirectOrigin).filter((origin): origin is string => !!origin)
     else corsOrigins = stringList(client.corsOrigins, `${label}: corsOrigins`, 20, 2048)
-    const badOrigin = corsOrigins.find(origin => !isExactOrigin(origin))
-    if (badOrigin) throw new Error(`${label}: corsOrigins must be exact origins such as "https://app.example.com" or "capacitor://localhost", got "${badOrigin}".`)
+    const badOrigin = corsOrigins.find(origin => !isCorsOrigin(origin))
+    if (badOrigin) throw new Error(`${label}: corsOrigins must be exact origins such as "https://app.example.com" or "capacitor://localhost", or "http://127.0.0.1:*" for a loopback IP on any port, got "${badOrigin}".`)
 
     const refreshToken = normalizeClientRefreshToken(client.refreshToken, label)
     if (client.allowLongBrowserSessions !== undefined && typeof client.allowLongBrowserSessions !== 'boolean') {
@@ -503,4 +536,13 @@ export function configuredClientWarnings(clients: readonly OAuthNormalizedClient
   return clients
     .filter(client => !client.allowLongBrowserSessions && isLongBrowserSession(client, client.refreshToken.idleTtl ?? global.idleTtl))
     .map(client => `Client "${client.id}" is a browser client (it has a web redirect URI) whose refresh tokens live ${Math.round((client.refreshToken.idleTtl ?? global.idleTtl) / DAY)} days unused. Browsers keep them where any XSS can read them; keep it at 7 days or less, or set allowLongBrowserSessions: true.`)
+}
+
+/**
+ * Whether a registered permission may go in an OAuth scope: never a sensitive one (it must be granted by name, and a
+ * scope would hand it to an application) nor a `sessionOnly` one (no token may hold it). The scope form's picker and
+ * the validation of database scopes both use it, so they cannot disagree.
+ */
+export function isOAuthScopePermission(permission: { sensitive?: boolean, sessionOnly?: boolean }): boolean {
+  return !permission.sensitive && !permission.sessionOnly
 }

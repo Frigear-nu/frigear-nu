@@ -15,6 +15,8 @@ export default defineNuxtConfig({
     '@frigear-nu/authorization',
     '@frigear-nu/account',
     '@frigear-nu/admin',
+    // /dashboard: where users land after signing in (`afterLogin`), linked from the account menu.
+    '@frigear-nu/dashboard',
     '@frigear-nu/oauth-server',
   ],
 
@@ -58,13 +60,14 @@ export default defineNuxtConfig({
     settings: {
       webAuthn: true,
       verifyEmail: true,
-      afterLogin: '/account',
+      afterLogin: '/dashboard',
       pages: { login: true, register: true },
     },
   },
 
-  // @frigear-nu/authorization: guests on a guarded page (/account/**, /admin/**) go to the login page. A role is a
-  // bundle of permissions; `server/plugins/authorization-roles.ts` makes verified NUXT_ACL_ADMINS addresses admins.
+  // @frigear-nu/authorization: guests on a guarded page (/account/**, /dashboard/**, /admin/**) go to the login page. A
+  // role is a bundle of permissions; `server/plugins/authorization-roles.ts` makes verified NUXT_ACL_ADMINS addresses
+  // admins.
   authorization: {
     redirectTo: '/login',
     defaultRoles: ['user'],

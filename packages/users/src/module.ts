@@ -8,6 +8,7 @@ import {
 } from '@nuxt/kit'
 import { addModuleRoutes, registerDatabaseTable, registerSearchIndex, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
 import { registerAccess, setAuthUserStore } from '@frigear-nu/auth/utils'
+import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { setNotifyRecipientStore } from '@frigear-nu/notify/utils'
 import { USERS_SELF_SERVICE, usersAccess } from './runtime/access'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
@@ -74,6 +75,13 @@ export default defineNuxtModule<ModuleOptions>({
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
+    // Auth's resource mode (`authentication.mode: 'resource'`): people sign in at an issuer, which owns their email
+    // address and password. No cookie sessions and no sign-in links here, so the routes that change how someone signs
+    // in (email, password, the email change links, resending a sign-in link) are not registered.
+    const signInHere = resolveAuthMode(nuxt) !== 'resource'
+    if (!signInHere && settings.verifyEmailChange) {
+      console.warn('[@frigear-nu/users] `settings.verifyEmailChange` does nothing with `authentication.mode: \'resource\'`: the email address changes at the issuer.')
+    }
 
     // The one user picker other modules use (`<UserPicker v-model="userId" />`): search by name (and email where the
     // search route shows it), single or multiple, with "Create user" for callers holding `users:create`.
@@ -102,11 +110,15 @@ export default defineNuxtModule<ModuleOptions>({
     const selfRoutes: ModuleRoute[] = [
       { method: 'patch', path: 'me', file: 'me/profile.patch' },
       { method: 'put', path: 'me/locale', file: 'me/locale.put' },
-      { method: 'put', path: 'me/email', file: 'me/email.put' },
-      { method: 'put', path: 'me/password', file: 'me/password.put' },
     ]
+    if (signInHere) {
+      selfRoutes.push(
+        { method: 'put', path: 'me/email', file: 'me/email.put' },
+        { method: 'put', path: 'me/password', file: 'me/password.put' },
+      )
+    }
 
-    if (settings.verifyEmailChange) {
+    if (signInHere && settings.verifyEmailChange) {
       // The emailed links open pages (`/auth/verify-email-change`, `/auth/revert-email-change`) that only read
       // (GET); the change is applied by their buttons (POST), so mail scanners and link previews use nothing up.
       selfRoutes.push(
@@ -165,7 +177,7 @@ export default defineNuxtModule<ModuleOptions>({
       : undefined
 
     if (withAdmin) {
-      // Static segments (`new`, `stats`) win over `:id` in the router.
+      // Static segments (`new`, `stats`) win over `:id` in the router. Resource mode sends no sign-in links (no resend).
       addModuleRoutes(resolver, [
         { method: 'get', path: '', file: 'admin/users.get' },
         { method: 'post', path: '', file: 'admin/users.post' },
@@ -174,7 +186,7 @@ export default defineNuxtModule<ModuleOptions>({
         { method: 'get', path: ':id', file: 'admin/user.get' },
         { method: 'patch', path: ':id', file: 'admin/user.patch' },
         { method: 'delete', path: ':id', file: 'admin/user.delete' },
-        { method: 'post', path: ':id/resend', file: 'admin/user-resend.post' },
+        ...(signInHere ? [{ method: 'post', path: ':id/resend', file: 'admin/user-resend.post' } as const] : []),
       ], { base: '/api/admin/users' })
 
       if (adminPagePath) {

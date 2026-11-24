@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, provide, ref } from 'vue'
+import { computed, onBeforeUnmount, onErrorCaptured, provide, ref, watch } from 'vue'
 import { errorMessage, surfaceClass, useModuleT } from '#imports'
 import type { DashboardEntry } from '../composables/useDashboard'
 import { dashboardItemKey, type DashboardItemContext } from '../composables/useDashboardItem'
@@ -10,8 +10,8 @@ import { dashboardSpanClass } from '../utils/span'
 
 /**
  * The frame of one dashboard item: its title with a collapse toggle, the item's component, a skeleton while the item
- * reports `loading` and an error with a retry. Provides `useDashboardItem()` to the component. In `editing` mode it
- * shows the buttons to move and hide the item (the dashboard handles the events).
+ * reports `loading`, an error with a retry, and nothing while it reports `empty` or renders nothing at all (a `v-if` on
+ * its root, as widgets shared with other widget areas do). Provides `useDashboardItem()` to the component. In `editing` mode it shows the buttons to move and hide the item (the dashboard handles the events).
  */
 const props = defineProps<{
   item: DashboardEntry
@@ -36,6 +36,7 @@ const label = computed(() => props.item.title ?? props.item.id)
 
 const loading = ref(false)
 const error = ref<unknown>(null)
+const empty = ref(false)
 const renderKey = ref(0)
 let refreshHandler: (() => unknown) | undefined
 
@@ -45,6 +46,7 @@ const itemContext: DashboardItemContext = {
   id: props.item.id,
   loading,
   error,
+  empty,
   collapsed,
   settings: computed(() => layout.value.settings?.[props.item.id] ?? {}),
   setSettings: value => update(current => setItemSettings(current, props.item.id, value)),
@@ -67,10 +69,32 @@ onErrorCaptured((cause) => {
 })
 
 const toggle = () => update(current => toggleCollapsed(current, props.item.id))
+
+// Whether the component currently renders nothing (only comment or blank text nodes), watched as it changes. Kept while
+// the item is collapsed, so collapsing never makes a hidden item appear.
+const blank = ref(false)
+const content = ref<HTMLElement | null>(null)
+let observer: MutationObserver | undefined
+const check = () => {
+  if (content.value) blank.value = content.value.childElementCount === 0 && !content.value.textContent?.trim()
+}
+watch(content, (element) => {
+  observer?.disconnect()
+  if (!element || typeof MutationObserver === 'undefined') return
+  check()
+  observer = new MutationObserver(check)
+  observer.observe(element, { childList: true, subtree: true, characterData: true })
+}, { flush: 'post' })
+onBeforeUnmount(() => observer?.disconnect())
+
+const visible = computed(() => props.editing || !!error.value || (!empty.value && (loading.value || !blank.value)))
 </script>
 
 <template>
+  <!-- An item with nothing to show (`empty`, or nothing rendered) stays mounted, so it can come back, but takes no place in
+       the grid. -->
   <div
+    v-show="visible"
     :class="['flex min-w-0 flex-col gap-2', dashboardSpanClass(item.span)]"
     :data-dashboard-item="item.id"
   >
@@ -158,9 +182,11 @@ const toggle = () => update(current => toggleCollapsed(current, props.item.id))
         <USkeleton class="h-5 w-2/3" />
         <USkeleton class="h-4 w-1/2" />
       </div>
+      <!-- Grows to the row's height, and so does the component's root, so cards in a row line up. -->
       <div
         v-show="!error && !loading"
-        class="h-full"
+        ref="content"
+        class="flex min-h-0 flex-1 flex-col *:flex-1"
       >
         <component
           :is="component"

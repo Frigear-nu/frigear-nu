@@ -150,6 +150,17 @@
         "remove": "Fjern {kind}",
         "add": "Tilføj hvem der må se det"
       }
+    },
+    "handoff": {
+      "waiting": {
+        "title": "Gør log ind færdigt i din browser",
+        "description": "frigear.nu er åbnet i din browser. Log ind der, så fortsætter dette vindue af sig selv."
+      },
+      "reopen": "Åbn browseren igen",
+      "cancel": "Annuller log ind",
+      "failed": "Log ind kunne ikke gennemføres. Prøv igen.",
+      "denied": "Log ind blev annulleret i browseren.",
+      "expired": "Log ind tog for lang tid. Start forfra."
     }
   }
 }

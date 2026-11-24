@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/auth",
-  "version": "0.6.2",
-  "description": "Authentication for the frigear ecosystem: server-side sign-in flows (password, magic link, OAuth, passkeys), user API tokens and a shared requireAuth with scopes, or a public PKCE client mode for SPAs and Capacitor apps.",
+  "version": "0.6.4",
+  "description": "Authentication for the frigear ecosystem: server-side sign-in flows (password, magic link, OAuth, passkeys), user API tokens and a shared requireAuth with scopes, or a public PKCE client mode for SPAs, Capacitor and Tauri apps.",
   "homepage": "https://docs.frigear.dev/modules/identity/auth",
   "repository": {
     "type": "git",
@@ -57,6 +57,11 @@
       "import": "./src/runtime/client/capacitor/index.ts",
       "default": "./src/runtime/client/capacitor/index.ts"
     },
+    "./tauri": {
+      "types": "./src/runtime/client/tauri/index.ts",
+      "import": "./src/runtime/client/tauri/index.ts",
+      "default": "./src/runtime/client/tauri/index.ts"
+    },
     "./client-types": {
       "types": "./src/runtime/client/types.ts"
     }
@@ -108,6 +113,11 @@
         "import": "./dist/runtime/client/capacitor/index.js",
         "default": "./dist/runtime/client/capacitor/index.js"
       },
+      "./tauri": {
+        "types": "./dist/runtime/client/tauri/index.d.ts",
+        "import": "./dist/runtime/client/tauri/index.js",
+        "default": "./dist/runtime/client/tauri/index.js"
+      },
       "./client-types": {
         "types": "./dist/runtime/client/types.d.ts"
       }
@@ -135,6 +145,9 @@
         ],
         "capacitor": [
           "./dist/runtime/client/capacitor/index.d.ts"
+        ],
+        "tauri": [
+          "./dist/runtime/client/tauri/index.d.ts"
         ],
         "client-types": [
           "./dist/runtime/client/types.d.ts"

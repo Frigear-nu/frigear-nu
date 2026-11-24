@@ -3,7 +3,7 @@ import { useLocaleLink, useRuntimeConfig } from '#imports'
 
 /**
  * Locale-aware links to every page of the help center. Always use these instead of building a path by hand: they follow
- * `helpCenter.settings.pages` (`/help`, `/account/help`, the admin path), keep the locale prefix, and are `undefined`
+ * `helpCenter.settings.pages` (`/help`, `/dashboard/help` or `/account/help`, the admin path), keep the locale prefix, and are `undefined`
  * for an area that is off.
  *
  *     const paths = useHelpCenterPaths()

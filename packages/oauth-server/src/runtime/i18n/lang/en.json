@@ -5,18 +5,22 @@
         "label": "Applications",
         "description": "Applications you can sign in to."
       },
-      "admin": {
-        "label": "OAuth applications",
-        "description": "Manage the applications users can sign in to."
+      "apps": {
+        "label": "Apps",
+        "description": "Applications you can sign in to."
       },
-      "scopes": {
-        "label": "OAuth scopes",
-        "description": "What applications may ask users for."
+      "admin": {
+        "label": "OAuth",
+        "description": "Applications that sign in with this site, and the scopes they can request."
       }
     },
+    "heading": {
+      "title": "OAuth",
+      "description": "Applications that sign in with this site, and the scopes they can request.",
+      "applications": "Applications",
+      "scopes": "Scopes"
+    },
     "admin": {
-      "title": "OAuth applications",
-      "description": "The applications users can sign in to with their account.",
       "new": "Add application",
       "forbiddenTitle": "You are not allowed to manage OAuth applications",
       "forbiddenDescription": "Ask an administrator for access.",
@@ -171,8 +175,6 @@
       "manage": "Manage OAuth applications and scopes"
     },
     "scopes": {
-      "title": "OAuth scopes",
-      "description": "Names applications can ask for, each standing for a set of permissions.",
       "new": "Add scope",
       "scope": "Scope",
       "permissions": "Permissions",
@@ -204,7 +206,7 @@
         "nameHint": "What applications ask for, e.g. tickets. Cannot be changed later.",
         "nameInvalid": "One lower-case word: letters, digits, \".\", \"_\" or \"-\".",
         "permissions": "Permissions",
-        "permissionsHint": "Permissions or wildcards such as tickets:read or tickets:*. Never sensitive or session-only ones. Adding permissions asks users to consent again.",
+        "permissionsHint": "Pick a permission or type its name, e.g. tickets:read. Never sensitive or session-only ones, and no wildcards. Adding permissions asks users to consent again.",
         "permissionsRequired": "Add at least one permission.",
         "label": "Label",
         "labelHint": "Shown on the consent screen, e.g. “Your tickets”.",
@@ -212,8 +214,12 @@
         "icon": "Icon",
         "isActive": "Active",
         "isActiveHint": "A disabled scope is unknown to applications until it is enabled again.",
-        "version": "Version {version}"
+        "version": "Version {version}",
+        "permissionsPlaceholder": "Search permissions..."
       }
+    },
+    "dashboard": {
+      "apps": "Your apps"
     }
   }
 }

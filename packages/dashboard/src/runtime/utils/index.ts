@@ -1,5 +1,6 @@
 // Build-time utils, safe to import from another module's `setup()` (no `@nuxt/kit` import).
 export { extendDashboard, getDashboardItems } from './dashboard'
+export { resolveHubDashboardName } from './hub'
 export { dashboardArea, resolveDashboardRegistry } from '../shared/registry'
 export {
   applyLayout,

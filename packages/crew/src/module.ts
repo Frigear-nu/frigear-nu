@@ -18,10 +18,13 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   addModuleRoutes,
+  addPageRedirects,
+  isPathUnder,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, guardPages, registerAccess } from '@frigear-nu/auth/utils'
 import { crewAccess } from './runtime/access'
-import { CREW_DEFAULT_PAGES } from './runtime/utils/links'
+import { CREW_DEFAULT_PAGES, CREW_HOME_TAB, CREW_HOME_TABS, crewHomeTab, resolveCrewHomePath } from './runtime/utils/links'
 import { extendDashboard } from '@frigear-nu/dashboard/utils'
 import { CREW_DASHBOARD, crewDashboardItems } from './runtime/dashboard'
 import { extendNotificationTopics } from '@frigear-nu/notify/utils'
@@ -98,10 +101,17 @@ export default defineNuxtModule<ModuleOptions>({
     registerLocales(nuxt, resolver.resolve('./runtime/i18n/lang'))
     const settings = options.settings ?? {}
 
-    // The volunteer pages are on unless a page is `false`.
-    const homePath = resolvePagePath(settings.pages?.home ?? true, CREW_DEFAULT_PAGES.home)
+    // The volunteer pages are on unless a page is `false`. With the signed-in hub of `@frigear-nu/dashboard` the home
+    // page is the hub's Crew area (`/dashboard/crew`), and My crew is one of its tabs rather than a page of its own: the
+    // old paths redirect there. The mobile tab bar keeps the pages (its tabs open them, and the dashboard's Home tab
+    // owns `/crew`), so with `@frigear-nu/mobile` only the home page moves.
+    const hub = resolveDashboardHubPath(nuxt, { dependency: true })
+    const homePath = resolveCrewHomePath(settings.pages?.home, hub)
+    const inDashboard = !!(hub && homePath && isPathUnder(homePath, hub))
+    const tabsOnly = inDashboard && !hasNuxtModule('@frigear-nu/mobile')
+    const statusSetting = settings.pages?.status ?? true
+    const statusPath = tabsOnly && typeof statusSetting !== 'string' ? undefined : resolvePagePath(statusSetting, CREW_DEFAULT_PAGES.status)
     const applyPath = resolvePagePath(settings.pages?.apply ?? true, CREW_DEFAULT_PAGES.apply)
-    const statusPath = resolvePagePath(settings.pages?.status ?? true, CREW_DEFAULT_PAGES.status)
     const invitePath = resolvePagePath(settings.pages?.invite ?? true, CREW_DEFAULT_PAGES.invite)
     // How `@nuxtjs/i18n` puts locales in paths, so the status link in emails and pushes gets the person's prefix.
     const i18nOptions = (nuxt.options as { i18n?: { strategy?: string, defaultLocale?: string, locales?: Array<string | { code: string }> } }).i18n
@@ -175,8 +185,7 @@ export default defineNuxtModule<ModuleOptions>({
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
 
-    // The home page is the `crew.home` dashboard. With `@frigear-nu/mobile` the dashboard's Home tab registers the same
-    // path first (and wins); both render the same dashboard.
+    // The home page: the `crew.dashboard` tabs, the first of them the `crew.home` dashboard.
     addModulePages(MODULE_NAME, resolver, [
       { name: 'crew-home', path: homePath, file: './runtime/app/pages/home.vue' },
       { name: 'crew-apply', path: applyPath, file: './runtime/app/pages/apply.vue' },
@@ -185,6 +194,26 @@ export default defineNuxtModule<ModuleOptions>({
     ])
     // Only for signed-in people: a route rule `@frigear-nu/authorization` enforces (Auth warns at build time without it).
     if (homePath) guardPages(nuxt, [homePath])
+
+    // The tabs of the home page (`?tab=<id>`): Overview, the `crew.home` dashboard (every module's items for the person),
+    // and My crew. Shifts adds My shifts and Swaps; any module can add one with `extendTabs(nuxt, 'crew.dashboard', ...)`.
+    if (homePath) {
+      const { extendTabs } = await import('@frigear-nu/widget/utils')
+      extendTabs(nuxt, CREW_HOME_TABS, [
+        { id: CREW_HOME_TAB.overview, component: resolver.resolve('./runtime/app/tabs/HomeOverview.vue'), order: 0, label: 'Overview', labelKey: 'crew.home.tabs.overview', icon: 'i-lucide-layout-dashboard' },
+        ...(statusSetting === false
+          ? []
+          : [{ id: CREW_HOME_TAB.status, component: resolver.resolve('./runtime/app/tabs/HomeStatus.vue'), order: 10, label: 'My crew', labelKey: 'crew.home.tabs.status', icon: 'i-lucide-hand-heart', permission: crewAccess.permissions.read }]),
+      ])
+    }
+
+    // The pages that moved into the hub answer with a redirect to their tab, so old links and bookmarks keep working.
+    if (tabsOnly && homePath) {
+      addPageRedirects(nuxt, {
+        ...(homePath !== CREW_DEFAULT_PAGES.home ? { [CREW_DEFAULT_PAGES.home]: homePath } : {}),
+        ...(statusSetting === true ? { [CREW_DEFAULT_PAGES.status]: crewHomeTab(homePath, CREW_HOME_TAB.status) } : {}),
+      })
+    }
 
     // A "Crew" tab on the staff operation page (`admin.operations`, owned by `@frigear-nu/operations`), without importing
     // operations: a tab for an area nobody renders is harmless. Before teams' tab (order 20).
@@ -232,6 +261,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Dashboard: this module's items on `crew.home` (`runtime/dashboard.ts`).
     extendDashboard(nuxt, CREW_DASHBOARD, crewDashboardItems(path => resolver.resolve(path)))
 
-    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
+    // The Crew area of the hub's `dashboard` menu.
+    addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'dashboard' })
   },
 })

@@ -5,7 +5,7 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { authApi } from '@frigear-nu/auth/api'
 import type { AccessDto } from '@frigear-nu/auth/policies'
 import { authorizationApi } from '../src/runtime/utils/api'
-import type { AuthorizationRoleDto, AuthorizationRoleSummaryDto, AuthorizationRoleUsersPageDto, AuthorizationUserRolesDto } from '../src/runtime/utils/api'
+import type { AuthorizationRoleDto, AuthorizationRoleMatrixDto, AuthorizationRoleSummaryDto, AuthorizationRoleUsersPageDto, AuthorizationUserRolesDto } from '../src/runtime/utils/api'
 
 const password = 'supersecret123'
 
@@ -148,7 +148,7 @@ describe('authorization (authenticated)', async () => {
 
   describe('roles admin API', () => {
     it('is for staff holding roles:read only', async () => {
-      for (const route of [authorizationApi.admin.roles, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('admin'), authorizationApi.admin.userRoles(ada.id)]) {
+      for (const route of [authorizationApi.admin.roles, authorizationApi.admin.matrix, authorizationApi.admin.role('user'), authorizationApi.admin.roleUsers('admin'), authorizationApi.admin.userRoles(ada.id)]) {
         await expectError(await fetch(route), 401, 'unauthorized')
         await expectError(await fetch(route, as(ada.cookie)), 403, 'forbidden')
         expect((await fetch(route, as(grace.cookie))).status, route).toBe(200)
@@ -177,6 +177,31 @@ describe('authorization (authenticated)', async () => {
 
       await expectError(await fetch(authorizationApi.admin.role('nope'), as(grace.cookie)), 404, 'not_found')
       await expectError(await fetch(authorizationApi.admin.roleUsers('nope'), as(grace.cookie)), 404, 'not_found')
+    })
+
+    it('serves the role matrix with the module behind each permission and role', async () => {
+      const matrix = await $fetch<AuthorizationRoleMatrixDto>(authorizationApi.admin.matrix, as(grace.cookie))
+      expect(matrix.roles.map(role => role.name).sort()).toEqual(['admin', 'editor', 'member', 'user', 'writer'])
+      // Host roles and host permissions have no module ("App" in the admin).
+      expect(matrix.roles.every(role => role.from === null)).toBe(true)
+      const permission = (name: string) => matrix.permissions.find(row => row.name === name)
+      expect(permission('reports:read')).toMatchObject({ from: null })
+      expect(permission('roles:read')).toMatchObject({ from: 'authorization' })
+      expect(permission('roles:assign')).toMatchObject({ sessionOnly: true })
+      expect(matrix.cells.editor!['reports:read']).toEqual({ via: 'inherited', from: 'user', by: 'reports:read' })
+      expect(matrix.cells.admin!['reports:write']).toEqual({ via: 'granted', by: '*' })
+      expect(matrix.cells.writer).not.toHaveProperty('admin:access')
+    })
+
+    it('refuses the matrix to a token without roles:read (403 insufficient_scope)', async () => {
+      const created = await fetch(authApi.me.tokens, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cookie': grace.cookie },
+        body: JSON.stringify({ name: 'reports', scopes: ['reports:read'] }),
+      })
+      expect(created.status, await created.clone().text()).toBe(201)
+      const { token } = await created.json() as { token: string }
+      await expectError(await fetch(authorizationApi.admin.matrix, { headers: { authorization: `Bearer ${token}` } }), 403, 'insufficient_scope')
     })
 
     it('lists the users a role is assigned to', async () => {

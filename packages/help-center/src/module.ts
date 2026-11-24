@@ -21,6 +21,9 @@ import {
   registerModule,
   registerTailwindSource,
   resolvePagePath,
+  addPageRedirects,
+  joinPagePath,
+  resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, guardPages, localizedRoutePatterns, registerAccess } from '@frigear-nu/auth/utils'
 import { helpCenterAccess } from './runtime/access'
@@ -28,7 +31,7 @@ import { HELP_CENTER_DASHBOARD, helpCenterDashboardItems } from './runtime/dashb
 import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { helpCenterNotificationTopics } from './runtime/notifications'
 import { DEFAULT_REQUIRED_LOCALES } from './runtime/utils/publish'
-import { helpCenterRoutePatterns, isPathUnder, resolveHelpCenterAreas } from './runtime/utils/paths'
+import { DEFAULT_SIGNED_IN_PATH, HUB_SIGNED_IN_SEGMENT, helpCenterRoutePatterns, isPathUnder, resolveHelpCenterAreas } from './runtime/utils/paths'
 import { contentRowKey, frontmatterKeys, localizedContentCollection, missingContentLocales, validateContentFile } from './runtime/utils/content'
 import type { ModuleOptions, PublicModuleOptions } from './types'
 
@@ -98,7 +101,11 @@ export default defineNuxtModule<ModuleOptions>({
 
     // --- Where things live -------------------------------------------------------------------
     // The two areas are on unless `false` (they are the product); the admin pages are opt-in and need `@frigear-nu/admin`.
-    const areas = resolveHelpCenterAreas(settings.pages)
+    // The signed-in area is an area of the signed-in hub of `@frigear-nu/dashboard` when there is one (`/dashboard/help`,
+    // in the hub's layout, guard and `dashboard` menu), else a section of the account (`/account/help`).
+    const hub = resolveDashboardHubPath(nuxt)
+    const areas = resolveHelpCenterAreas(settings.pages, { signedIn: hub ? joinPagePath(hub, HUB_SIGNED_IN_SEGMENT) : undefined })
+    const signedInInHub = !!(hub && areas.signedIn && isPathUnder(areas.signedIn, hub))
     let adminPath: string | undefined
     if (hasNuxtModule('@frigear-nu/admin')) {
       const { adminRoute } = await import('@frigear-nu/admin/utils')
@@ -128,9 +135,10 @@ export default defineNuxtModule<ModuleOptions>({
     const perLocale = settings.content?.perLocale === true
 
     // --- Menus and widgets ---------------------------------------------------------------------
-    // The signed-in area goes into the account menu when it is under `/account`, and into `signedInMenu` anywhere else.
+    // The signed-in area goes into the account menu when it is under `/account`, and into `signedInMenu` anywhere else
+    // (by default the hub's `dashboard` menu when it is in the hub).
     const menuName = areas.signedIn
-      ? (isPathUnder(areas.signedIn, '/account') ? (settings.accountMenu === false ? undefined : 'account') : settings.signedInMenu)
+      ? (isPathUnder(areas.signedIn, '/account') ? (settings.accountMenu === false ? undefined : 'account') : settings.signedInMenu ?? (signedInInHub ? 'dashboard' : undefined))
       : undefined
     const inMenu = !!menuName && addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus/signed-in'), menu: menuName })
     if (adminPath) addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus/admin'), menu: 'admin.nav' })
@@ -331,6 +339,13 @@ export default defineNuxtModule<ModuleOptions>({
           for (const pattern of localizedRoutePatterns(nuxt, patterns)) rules[pattern] = { appLayout: layout, ...rules[pattern] } as (typeof rules)[string]
         }
       }
+    }
+    // The area moved into the hub by default: its old address (and everything below it) redirects there.
+    if (signedInInHub && (settings.pages?.signedIn ?? true) === true && areas.signedIn !== DEFAULT_SIGNED_IN_PATH) {
+      addPageRedirects(nuxt, {
+        [DEFAULT_SIGNED_IN_PATH]: areas.signedIn!,
+        [`${DEFAULT_SIGNED_IN_PATH}/**`]: `${areas.signedIn!}/**`,
+      })
     }
     // The mobile page shows the signed-in area, so it is for signed-in people as well.
     if (mobilePath && withAuthorization) guardPages(nuxt, [mobilePath])

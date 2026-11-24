@@ -13,7 +13,7 @@ const props = defineProps<{
   roleLabel?: (name: string) => string
 }>()
 
-const { t, translated, grantLabel, grantColors, provenanceLabel, provenanceColors } = useRoleLabels()
+const { t, translated, moduleLabel, grantLabel, grantColors, provenanceLabel, provenanceColors } = useRoleLabels()
 
 const held = computed(() => props.permissions.filter(permission => permission.grant))
 const notHeld = computed(() => props.permissions.filter(permission => !permission.grant))
@@ -38,8 +38,17 @@ const nameColumn: TableColumn<AuthorizationRolePermissionDto> = {
   }),
 }
 
+// The module that registered the permission ("App" for the app's own).
+const moduleColumn: TableColumn<AuthorizationRolePermissionDto> = {
+  id: 'module',
+  header: t('admin.module', 'Module'),
+  meta: { class: { th: 'w-0', td: 'w-0 whitespace-nowrap' } },
+  cell: ({ row }: Cell) => h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm', label: moduleLabel(row.original.from) }),
+}
+
 const heldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() => [
   nameColumn,
+  moduleColumn,
   {
     id: 'grant',
     header: t('admin.grantedBy', 'Granted by'),
@@ -54,7 +63,7 @@ const heldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() =
         : null,
   },
 ])
-const notHeldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() => [nameColumn])
+const notHeldColumns = computed<TableColumn<AuthorizationRolePermissionDto>[]>(() => [nameColumn, moduleColumn])
 </script>
 
 <template>

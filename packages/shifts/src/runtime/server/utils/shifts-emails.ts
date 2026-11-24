@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import type { ShiftDto, ShiftSwapDto, ShiftSwapOfferDto, Translated } from '../../../types'
-import { translate } from '../../utils'
+import { shiftsMinePath, shiftsSwapsPath, translate } from '../../utils'
+import type { ShiftsPages } from '../../utils'
 import { formatShiftWhen } from '../reminder-email'
 import { buildShiftSwapEmail } from '../swap-email'
 import type { ShiftSwapEmailKind } from '../swap-email'
@@ -26,7 +27,7 @@ export async function shiftsSendSwapEmail(event: H3Event, kind: ShiftSwapEmailKi
     const recipient = users.get(to)
     const locale = await shiftsLocaleOf(to, swap.shift.teamId)
     const { timeZone } = shiftsConfig(event)
-    const pages = (useRuntimeConfig(event).public.shifts as { pages?: { shifts?: string, shift?: string, swaps?: string, lead?: string } } | undefined)?.pages
+    const pages = (useRuntimeConfig(event).public.shifts as { pages?: ShiftsPages } | undefined)?.pages
     const origin = configuredAuthSiteOrigin(event)
     if (!origin && !shiftsWarnedNoOrigin) {
       shiftsWarnedNoOrigin = true
@@ -36,7 +37,7 @@ export async function shiftsSendSwapEmail(event: H3Event, kind: ShiftSwapEmailKi
       ? pages?.lead?.replace(':teamId', encodeURIComponent(input.teamId ?? swap.shift.teamId))
       : to === swap.owner.userId && kind !== 'completed' && pages?.shift
         ? pages.shift.replace(':assignmentId', encodeURIComponent(swap.assignmentId))
-        : kind === 'completed' ? pages?.shifts : pages?.swaps
+        : kind === 'completed' ? shiftsMinePath(pages) : shiftsSwapsPath(pages)
     const notification = buildShiftSwapEmail({
       kind,
       email: recipient?.email ?? null,

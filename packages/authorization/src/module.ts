@@ -28,7 +28,7 @@ import {
 import { addPolicies, addRole, extendGrants, registerAccess, setDefaultRoles, setRoleProvider } from '@frigear-nu/auth/utils'
 import { authorizationAccess } from './runtime/access'
 import type { PermissionRegistry } from '@frigear-nu/auth/utils'
-import { resolveAuthMode } from '@frigear-nu/auth/mode'
+import { authModeHasServer, resolveAuthMode } from '@frigear-nu/auth/mode'
 import { AUTHORIZATION_ROLES_READ, ROUTE_RULE_KEYS } from './runtime/utils/types'
 import { findUnenforcedPatterns, normalizeAuthorizeMeta } from './runtime/utils/rules'
 import type { AuthorizeMeta } from './runtime/utils/types'
@@ -36,11 +36,13 @@ import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from
 
 export type {
   AuthorizationAssignedRoleDto,
+  AuthorizationMatrixPermissionDto,
   AuthorizationPermissionGrant,
   AuthorizationPermissionSource,
   AuthorizationRoleOptions,
   AuthorizationResponse,
   AuthorizationRoleDto,
+  AuthorizationRoleMatrixDto,
   AuthorizationRolePermissionDto,
   AuthorizationRoleSummaryDto,
   AuthorizationRoleUserDto,
@@ -77,7 +79,8 @@ export default defineNuxtModule<ModuleOptions>({
     roles: {},
   },
   // The mode is the app's own `authentication.mode` (`resolveAuthMode`). Client mode has no server: the rules only
-  // decide what the app shows, the API decides what is allowed.
+  // decide what the app shows, the API decides what is allowed. Resource mode has a server (roles, the roles admin) and
+  // signs in at the issuer like client mode.
   moduleDependencies: (nuxt: Nuxt): Record<string, ModuleDependencyMeta> => resolveAuthMode(nuxt) === 'client'
     ? {
         '@frigear-nu/module-kit': { version: '>=0.0.1' },
@@ -96,14 +99,18 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule('@frigear-nu/authorization', nuxt)
     const resolver = createResolver(import.meta.url)
-    const server = resolveAuthMode(nuxt) === 'server'
+    const mode = resolveAuthMode(nuxt)
+    // Roles, the role provider, the `role` grant kind and the roles admin: wherever there is a server half.
+    const server = authModeHasServer(mode)
+    // The session lives in the browser (client and resource mode): `access` comes through Auth's `$authAccess`.
+    const browserSession = mode !== 'server'
     const logger = useLogger('@frigear-nu/authorization')
 
     nuxt.options.runtimeConfig.public.authorization = {
       routes: {},
       exempt: [],
       redirectTo: options.redirectTo || undefined,
-      client: !server || undefined,
+      client: browserSession || undefined,
     }
     // `definePageMeta({ authorize })` in `pages:resolved` too (`@frigear-nu/mobile` checks that something is guarded).
     nuxt.options.experimental.extraPageMetaExtractionKeys = [...new Set([...(nuxt.options.experimental.extraPageMetaExtractionKeys ?? []), 'authorize'])]
@@ -131,8 +138,8 @@ export default defineNuxtModule<ModuleOptions>({
       const exempt = [...new Set(publicPaths.flatMap(pattern => pattern.startsWith('/api/')
         ? [pattern]
         : prefixes.map(prefix => pattern === '/' ? (prefix || '/') : `${prefix}${pattern}`)))]
-      // Client mode sends guests to Auth's login path by default (`false` shows the 401 error instead).
-      const redirectTo = options.redirectTo ?? (server ? undefined : authentication?.client?.redirect?.login)
+      // Client and resource mode send guests to Auth's login path by default (`false` shows the 401 error instead).
+      const redirectTo = options.redirectTo ?? (browserSession ? authentication?.client?.redirect?.login : undefined)
       nuxt.options.runtimeConfig.public.authorization = { ...nuxt.options.runtimeConfig.public.authorization, routes, exempt, redirectTo: redirectTo || undefined }
     })
 
@@ -228,6 +235,7 @@ export default defineNuxtModule<ModuleOptions>({
         { method: 'get', path: 'roles', file: 'admin/roles.get' },
         { method: 'get', path: 'roles/:name', file: 'admin/role.get' },
         { method: 'get', path: 'roles/:name/users', file: 'admin/role-users.get' },
+        { method: 'get', path: 'matrix', file: 'admin/matrix.get' },
         { method: 'get', path: 'users/:id/roles', file: 'admin/user-roles.get' },
         { method: 'put', path: 'users/:id/roles', file: 'admin/user-roles.put' },
       ], { base: '/api/admin/authorization' })
@@ -284,7 +292,7 @@ export default defineNuxtModule<ModuleOptions>({
       getContents: () => `declare module '#auth-utils' {
   interface User {
     /** @deprecated Not read by access control; use \`useAuthorization().access.roles\`. */
-    role${server ? '' : '?'}: string
+    role${browserSession ? '?' : ''}: string
   }
 }
 export {}

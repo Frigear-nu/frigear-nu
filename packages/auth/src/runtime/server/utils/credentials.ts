@@ -48,6 +48,8 @@ export async function notifyAuthCredentialsChanged(context: AuthCredentialsChang
 
 /** Revokes every live API token of the user. The rows are kept for the audit trail, like a revoke from the account page. */
 export async function revokeAuthUserTokens(userId: number | string) {
+  // Resource mode has no API tokens (no `auth_user_tokens`).
+  if (!schema.authUserTokens) return
   await db.update(schema.authUserTokens).set({ revokedAt: new Date() })
     .where(and(eq(schema.authUserTokens.userId, String(userId)), isNull(schema.authUserTokens.revokedAt)))
 }

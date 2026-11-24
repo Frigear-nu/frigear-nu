@@ -31,8 +31,8 @@ export interface ModuleOptions {
   /** Roles every signed-in user holds (never `auto` roles). They cannot be assigned. */
   defaultRoles?: RoleName[]
   /**
-   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client mode; omit it in
-   * server mode, or set `false` in client mode, to show a 401 error instead.
+   * Where to send unauthenticated visitors on page navigation. Defaults to Auth's login path in client and resource
+   * mode; omit it in server mode, or set `false` in client or resource mode, to show a 401 error instead.
    */
   redirectTo?: string | false
   /**
@@ -58,7 +58,10 @@ export interface PublicModuleOptions {
   /** Auth's anonymous entry points (`public.authentication.publicPaths`): less specific guards stop there. */
   exempt?: string[]
   redirectTo?: string
-  /** Client mode: there is no server here, access comes from the issuer. */
+  /**
+   * Client and resource mode: the session lives in the browser and `access` comes through Auth's `$authAccess` (the
+   * issuer in client mode, this app's own server in resource mode).
+   */
   client?: boolean
   /** The admin pages (with `@frigear-nu/admin`). */
   pages?: { roles?: string }
@@ -92,6 +95,8 @@ export interface AuthorizationRoleSummaryDto {
   userCount: number
   /** Registered permissions it holds: granted, inherited and implicit (the role detail's held rows). */
   permissionCount: number
+  /** The module that defines the role; `null` when only the app defines it. */
+  from: string | null
 }
 
 /** A registered permission as one role sees it. */
@@ -108,6 +113,8 @@ export interface AuthorizationRolePermissionDto {
   sessionOnly: boolean
   /** Every signed-in user holds it. */
   implicit: boolean
+  /** The module that registered it; `null` for the app's own permissions. */
+  from: string | null
   grant: AuthorizationPermissionGrant | null
   /** Where the role's grant of it comes from (host config, a module, a module's `grantTo`, an inherited role). */
   sources: AuthorizationPermissionSource[]
@@ -118,6 +125,17 @@ export interface AuthorizationPermissionSource {
   via: 'host' | 'module' | 'grantTo' | 'inherit'
   /** The module name (`module`, `grantTo`) or role name (`inherit`). */
   from?: string
+}
+
+/** A registered permission as a row of the role matrix. */
+export type AuthorizationMatrixPermissionDto = Omit<AuthorizationRolePermissionDto, 'grant' | 'sources'>
+
+/** `GET /api/admin/authorization/matrix`: every role against every registered permission. */
+export interface AuthorizationRoleMatrixDto {
+  roles: AuthorizationRoleSummaryDto[]
+  permissions: AuthorizationMatrixPermissionDto[]
+  /** Role name -> permission name -> why the role holds it. A permission the role does not hold is left out. */
+  cells: Record<string, Record<string, AuthorizationPermissionGrant>>
 }
 
 /** `GET /api/admin/authorization/roles/:name`. */

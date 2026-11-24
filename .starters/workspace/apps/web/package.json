@@ -14,13 +14,14 @@
     "db:migrate": "NODE_ENV=development nuxt db migrate"
   },
   "dependencies": {
-    "@frigear-nu/account": "^0.6.0",
-    "@frigear-nu/admin": "^0.5.0",
+    "@frigear-nu/account": "^0.6.1",
+    "@frigear-nu/admin": "^0.5.1",
     "@frigear-nu/auth": "^0.6.2",
     "@frigear-nu/authorization": "^0.6.0",
+    "@frigear-nu/dashboard": "^0.1.0",
     "@frigear-nu/menu": "^0.4.0",
-    "@frigear-nu/users": "^3.1.0",
-    "@frigear-nu/widget": "^0.4.0",
+    "@frigear-nu/users": "^3.1.1",
+    "@frigear-nu/widget": "^0.4.1",
     "@libsql/client": "^0.18.0",
     "@nuxt/ui": "^4.12.0",
     "@nuxthub/core": "^0.10.8",

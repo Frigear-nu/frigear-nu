@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, extname, join, resolve } from 'node:path'
+import { getLayerDirectories } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import type { EmailTemplateFile } from './runtime/types'
 
@@ -14,29 +15,25 @@ export function scanTemplateDir(dir: string): EmailTemplateFile[] {
         name,
         filename,
         displayName: name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2').trim(),
-        importPath: `#email-templates/${name}`,
         filePath: join(dir, filename),
       }
     })
 }
 
 /**
- * The template directory of every layer, highest priority first: `nuxtEmailRenderer.emailsDir`,
- * else `app/emails`, else `emails/` - the same rule nuxt-email-renderer applies.
+ * The template directory of every layer, highest priority first: `nuxtEmailRenderer.emailsDir`
+ * (relative to the layer root), else `<srcDir>/emails`, else `emails/` - the rule nuxt-email-renderer applies.
  */
 export function layerTemplateDirs(nuxt: Nuxt): string[] {
   const emailsDir = (nuxt.options as { nuxtEmailRenderer?: { emailsDir?: string } }).nuxtEmailRenderer?.emailsDir
-  const dirs: string[] = []
-  for (const layer of nuxt.options._layers) {
+  return getLayerDirectories(nuxt).flatMap((layer) => {
     const candidates = [
-      ...(emailsDir ? [resolve(layer.cwd, emailsDir)] : []),
-      join(layer.cwd, 'app', 'emails'),
-      join(layer.cwd, 'emails'),
+      ...(emailsDir ? [resolve(layer.root, emailsDir)] : []),
+      join(layer.app, 'emails'),
+      join(layer.root, 'emails'),
     ]
-    const dir = candidates.find(candidate => existsSync(candidate))
-    if (dir) dirs.push(dir)
-  }
-  return dirs
+    return candidates.find(candidate => existsSync(candidate)) ?? []
+  })
 }
 
 /**
@@ -59,9 +56,7 @@ export function templatesVirtualModule(templates: Record<string, EmailTemplateFi
     '',
     `export const emailTemplates = {\n${entries.map((template, index) => `  ${JSON.stringify(template.name)}: Template${index}`).join(',\n')}\n}`,
     '',
-    `export const emailTemplateMapping = ${JSON.stringify(templates, null, 2)}`,
-    '',
-    'export function getEmailTemplate(name) {\n  return emailTemplates[name]\n}',
+    `export const emailTemplateInfos = ${JSON.stringify(templates, null, 2)}`,
     '',
   ].join('\n')
 }

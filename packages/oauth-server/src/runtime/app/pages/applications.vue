@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { errorMessage, useModuleT, useMyApplications } from '#imports'
+import { errorMessage, useModuleT, useMyApplications, useRuntimeConfig } from '#imports'
 
 defineOptions({ name: 'OAuthApplicationsPage' })
 
 const t = useModuleT('oauthServer')
+// In the signed-in hub the page is "Apps" (`dashboard` menu), in the account "Applications": the same keys as the item.
+const inHub = useRuntimeConfig().public.oauthServer?.applicationsMenu === 'dashboard'
+const heading = inHub ? 'menu.apps' : 'menu.applications'
 // Awaited, so the server renders the applications; on client navigation the remembered list shows at once.
 const { applications, loading, error, refresh } = await useMyApplications()
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
-    <!-- The same keys as the account menu item, so the label and the title cannot drift. -->
+    <!-- The same keys as the menu item, so the label and the title cannot drift. -->
     <PageHeading
-      :title="t('menu.applications.label', 'Applications')"
-      :description="t('menu.applications.description', 'Applications you can sign in to.')"
+      :title="t(`${heading}.label`, inHub ? 'Apps' : 'Applications')"
+      :description="t(`${heading}.description`, 'Applications you can sign in to.')"
     />
 
     <SectionCard

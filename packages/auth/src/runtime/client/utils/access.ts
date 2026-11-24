@@ -29,8 +29,10 @@ export type IssuerAccessRequest = <T>(url: string, options: { baseURL: string, h
 export interface LoadIssuerAccessOptions {
   client: Pick<OAuthClient, 'getAccessToken'>
   request: IssuerAccessRequest
-  /** The issuer's origin (after the loopback rewrite on a device). */
+  /** The issuer's origin (after the loopback rewrite on a device); in resource mode the app's own origin. */
   issuer: string
+  /** Fall back to the token's `permissions` claim when the request fails. Default `true`; `false` answers `null`. */
+  claimFallback?: boolean
 }
 
 const isAccessDto = (value: unknown): value is AccessDto => !!value && typeof value === 'object'
@@ -42,7 +44,7 @@ const isAccessDto = (value: unknown): value is AccessDto => !!value && typeof va
  * frigear app, or offline, or any other failure) it falls back to the token's own `permissions` claim
  * (`accessFromAccessToken`). `null` when nobody is signed in. UI only: the API decides what is allowed.
  */
-export async function loadIssuerAccess({ client, request, issuer }: LoadIssuerAccessOptions): Promise<AccessDto | null> {
+export async function loadIssuerAccess({ client, request, issuer, claimFallback = true }: LoadIssuerAccessOptions): Promise<AccessDto | null> {
   const token = await client.getAccessToken()
   if (!token) return null
   try {
@@ -52,5 +54,5 @@ export async function loadIssuerAccess({ client, request, issuer }: LoadIssuerAc
   catch {
     // Falls back to the claim below.
   }
-  return accessFromAccessToken(token)
+  return claimFallback ? accessFromAccessToken(token) : null
 }

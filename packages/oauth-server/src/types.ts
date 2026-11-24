@@ -87,6 +87,23 @@ export type OAuthScopeInput = {
   isActive?: boolean
 }
 
+/**
+ * A permission a database scope may carry, for the scope form's picker (`GET /api/admin/oauth-server/permissions`):
+ * registered, never sensitive or `sessionOnly`. Wildcards are not offered, since database scopes refuse them.
+ */
+export type OAuthScopePermissionOptionDto = {
+  /** `resource:action`. */
+  name: string
+  label: string | null
+  labelKey: string | null
+  description: string | null
+  descriptionKey: string | null
+  /** Groups the picker; defaults to the resource. */
+  group: string
+  /** The module that registered it, when the registry knows. */
+  from: string | null
+}
+
 /** RFC 7662 introspection answer of `POST /oauth/introspect`. Inactive tokens answer `{ active: false }` only. */
 export type OAuthIntrospectionDto = {
   active: boolean
@@ -149,11 +166,15 @@ export type ModuleOptions = {
   scopes?: Array<string | OAuthScopeDefinition>
   /**
    * Browser apps on another origin (for example the webview of a Capacitor app at `capacitor://localhost`) may call the
-   * token, revocation, userinfo and discovery endpoints. Exact origins only, never `*`. The authorization endpoint is
+   * token, revocation, userinfo and discovery endpoints. Exact origins, or `http://127.0.0.1:*` / `http://[::1]:*` for a
+   * loopback IP on any port (a desktop app's bundled server), never `*`. The authorization endpoint is
    * never opened up: it is a top-level navigation. Cookies are not allowed cross-origin either.
    */
   cors?: {
-    /** Exact origins (`NUXT_OAUTH_SERVER_CORS_ORIGINS`, comma separated). The `clients`' origins are added. */
+    /**
+     * Exact origins or a loopback IP on any port (`NUXT_OAUTH_SERVER_CORS_ORIGINS`, comma separated). The `clients`'
+     * origins are added.
+     */
     origins?: string[]
     /**
      * Path prefixes of the host's own API (`['/api/']`) the same origins may call with a bearer token: methods
@@ -178,9 +199,17 @@ export type ModuleOptions = {
       admin?: string | boolean
       /** Admin UI for scopes. Defaults to `<admin>/scopes` when the applications admin is on; `false` turns it off. */
       scopes?: string | boolean
-      /** The signed-in user's applications. `true` = `/account/applications`. Needs `@nuxt/ui`. */
+      /**
+       * The signed-in user's applications. `true` = `<hub>/apps` (`/dashboard/apps`) when the signed-in hub of
+       * `@frigear-nu/dashboard` is on, else `/account/applications`. Needs `@nuxt/ui`.
+       */
       applications?: string | boolean
     }
+    /**
+     * The "Your apps" item (`oauth-server.apps`) goes on this dashboard when `@frigear-nu/dashboard` is installed.
+     * Defaults to the hub's dashboard (`dashboard.settings.home.dashboard`) when the hub is on; `false` adds none.
+     */
+    dashboard?: string | false
     /** Where unauthenticated users are sent to sign in. Defaults to the `@frigear-nu/users` login page. */
     signInPath?: string
     /**
@@ -221,7 +250,9 @@ export type OAuthConfiguredClient = {
   wildcardScopes?: boolean
   /**
    * Origins added to `cors.origins` for this client. Defaults to the origins of its redirect URIs that have one
-   * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`); `false` adds none.
+   * (`https://app.example.com`, `http://localhost:3001`, `capacitor://localhost`; a loopback redirect such as
+   * `http://127.0.0.1/cb` gives `http://127.0.0.1:*`, as it matches any port); `false` adds none. A desktop app whose
+   * window is served by its bundled server on a free port lists `http://127.0.0.1:*`.
    */
   corsOrigins?: string[] | false
   /**
@@ -296,6 +327,8 @@ export type OAuthServerRuntimeConfig = {
 
 export type PublicModuleOptions = {
   pages: { authorize?: string, admin?: string, scopes?: string, applications?: string }
+  /** The menu the applications page is listed in: `dashboard` when it lives in the signed-in hub, else `account`. */
+  applicationsMenu?: 'account' | 'dashboard'
 }
 
 /** The user as read from the `users` table (including columns the host added through `extend.sqlite.ts`). */

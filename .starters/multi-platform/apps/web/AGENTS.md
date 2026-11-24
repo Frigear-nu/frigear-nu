@@ -1,0 +1,122 @@
+# AGENTS.md - `apps/web`
+
+A **Nuxt 4** app on the published `@frigear-nu` modules, and the OAuth server and API that `apps/mobile` and
+`apps/desktop` sign in at and call. Run every command from the repository root
+(`pnpm --filter ./apps/web <command>`), never from this folder. Module docs: https://docs.frigear.dev, also as
+Markdown at `https://docs.frigear.dev/raw/<path>.md` (start with
+https://docs.frigear.dev/raw/examples/starters/multi-platform.md). The source is
+https://github.com/Frigear-nu/frigear-nu/tree/main/apps/docs/content.
+
+## Layout
+
+```
+nuxt.config.ts                     modules and their options - the source of truth; check it before assuming a module exists
+app/                               Nuxt 4 app code: pages, components, composables, layouts, middleware, utils
+app/assets/css/main.css            Tailwind + Nuxt UI
+server/                            Nitro: api routes, plugins, utils
+server/plugins/authorization-roles.ts adds the `admin` role to verified emails in NUXT_ACL_ADMINS
+server/api/me.get.ts               GET /api/me, the sample route apps/mobile and apps/desktop call with their access token
+server/db/migrations/sqlite/       committed schema history, applied by NuxtHub on `nuxt dev`
+modules/libsql-binding.ts          ships libsql's native binding in .output (its require is not traceable)
+```
+
+- Nuxt 4 directory structure: app code lives under `app/`. Never create Nuxt 3 style top-level `components/`, `pages/`.
+- Auto-imports cover `app/components`, `app/composables`, `app/utils` and `server/utils`; import from packages
+  explicitly.
+- Environment variables go through `runtimeConfig` in `nuxt.config.ts` (`NUXT_*`), never raw `process.env` in app
+  code. Document new ones in `.env.example`.
+- After changing `nuxt.config.ts` or adding a module, restart the dev server (or `nuxt prepare`) so `.nuxt` types
+  regenerate.
+
+## The modules
+
+Each module's page is `https://docs.frigear.dev/modules/<module>` (Markdown:
+`https://docs.frigear.dev/raw/modules/<module>.md`); the full list is at https://docs.frigear.dev/modules.
+
+| Module | Owns |
+| --- | --- |
+| `@frigear-nu/auth` (config key `authentication`) | Sign-in with password or passkey (pages `/login`, `/register`), sessions, API tokens, `requireAuth` |
+| `@frigear-nu/users` | The `users` table, self-service profile/email/password, `/admin/users` |
+| `@frigear-nu/authorization` | Roles and their permissions, role assignment in the admin, `permission` / `authenticated` route rules, `useAuthorization()`, `<Can>` |
+| `@frigear-nu/account` | `/account/**` pages |
+| `@frigear-nu/dashboard` | The signed-in `/dashboard` users land on after sign-in (`afterLogin`), its menu and widgets |
+| `@frigear-nu/admin`, `widget`, `menu` | The `/admin` shell and dashboard, widget areas, named menus |
+| `@frigear-nu/notify` | Email/SMS; the `log` driver prints emails to the terminal |
+| `@frigear-nu/oauth-server` (config key `oauthServer`) | The OAuth / OpenID Connect server `apps/mobile` and `apps/desktop` sign in at, `/admin/oauth` |
+| `@frigear-nu/ui` | Shared components on top of Nuxt UI (`PageHeading`, `SectionCard`, `TableCard`, ...) |
+
+Modules install the modules they depend on. To add one: `pnpm --filter ./apps/web add @frigear-nu/<module>`, add it
+to `modules`, set its options from its docs page, then generate and commit a migration (see Database).
+
+## Authentication and authorization
+
+- Access control is permissions (`resource:action`), which modules register, and roles that bundle them. Roles live in
+  `authorization.roles` in `nuxt.config.ts`: `admin` holds `grant: ['*']` (every permission except sensitive `:pii`
+  ones, which a role names one by one), `user` (`defaultRoles`) holds nothing extra. Self-service (a user's own profile,
+  password, API tokens) is `implicit`: every signed-in user holds it. Admins assign roles on a user's page in the admin
+  (`roles:assign`); add a role with `grant` and `inherit`, for example
+  `support: { label: 'Support', grant: ['admin:access', 'users:read', 'users:list'], inherit: ['user'] }`.
+- Server routes: `requireAuth(event, { sessionOnly? })` (from `@frigear-nu/auth`) or `requireUser(event)` (from
+  `@frigear-nu/users`) authenticate (cookie sessions, API tokens and OAuth access tokens), never nuxt-auth-utils'
+  `requireUserSession`. Check access with `await authorize(event, 'resource:action', record?)` (`allows` for a
+  boolean). Every permission you check must be registered (`addPermission` in a module, or a module that owns it): an
+  unknown one is a `403`. Use `sessionOnly: true` for anything that changes who the user is or how they sign in.
+- Pages and UI: route rules and page meta take `permission` (`'/reports/**': { permission: 'reports:read' }`,
+  `definePageMeta({ authorize: 'reports:read' })`) or `authenticated: true`; in components use
+  `useAuthorization().can('resource:action')` or `<Can permission="...">`. They only decide what is shown: the server
+  checks every request.
+- `server/plugins/authorization-roles.ts` (`authorization:roles` hook) adds `admin` to verified emails in
+  `NUXT_ACL_ADMINS`. Nothing is stored, and it applies on the next request after a restart. Identify the user from
+  `ctx.user`, never from the session on `ctx.event` (it is empty for API token requests).
+- A rule a role cannot express (only admins may give someone a staff address, ...) is a policy in `server/policies.ts`
+  or an `authorization:before` listener. See https://docs.frigear.dev/raw/modules/identity/authorization/policies.md.
+- `/admin/**` needs `admin:access` (`admin.settings.permission`, granted to `admin` through `*`).
+
+## The OAuth server, apps/mobile and apps/desktop
+
+- `oauthServer.clients` registers `apps/mobile` as a public client (PKCE, no secret) from
+  `@workspace/mobile/identity` (`apps/mobile/identity.ts`): its `clientId`, the native redirect URI
+  `<app id>:/auth/callback` and, under `nuxt dev` only, `http://localhost:3001/auth/callback`. Rename the app there, not
+  here. `NUXT_OAUTH_SERVER_CLIENTS` (JSON) replaces the list per environment.
+- `oauthServer.clients` registers `apps/desktop` twice, from `@workspace/desktop/identity` (`apps/desktop/identity.ts`):
+  - `desktop` (remote mode, `DESKTOP_MODE=remote`): the SPA signs in like the mobile app, with the deep link
+    `<app id>:/auth/callback` and, under `nuxt dev` only, `http://localhost:3002/auth/callback`.
+  - `desktop-local` (local mode): the app's bundled server signs in through the browser handoff of `@frigear-nu/auth`
+    (`oauth.frigear`), with the loopback redirect URI `http://127.0.0.1/auth/frigear` (accepted on any port, RFC 8252)
+    and, under `nuxt dev` only, `http://localhost:3002/auth/frigear`. `corsOrigins: false`: the window only calls its
+    own server, which exchanges the code itself. No secret: both are public clients with PKCE.
+- `oauthServer.cors.origins` lets the webviews (`capacitor://localhost`, `https://localhost`, and Tauri's
+  `tauri://localhost` and `http://tauri.localhost`) call the token endpoints; `cors.paths: ['/api/']` opens your API to
+  the same origins with `Authorization: Bearer`. The dev servers' origins are added under `nuxt dev` only.
+- Routes the apps call use `requireUser(event)` / `requireAuth(event)`: both accept the access token. Put them under
+  `/api/`, check access with `authorize(event, 'resource:action')`, and return an allowlisted object, never a database
+  row. An access token holds the permissions frozen into it at issue, intersected with the user's current ones.
+- `/admin/oauth` needs `oauth:manage` (admins). A client's `allowedRoles` is checked against the user's roles from
+  `authorization.roles`, `NUXT_ACL_ADMINS` included; the configured clients have none, so every signed-in user may use
+  them.
+- Signing key: `NUXT_OAUTH_SERVER_PRIVATE_KEY` (`pnpm prepare:env` generates one in `.env`). Without it `nuxt dev` keeps
+  a dev key in `.data/oauth-server/dev-key.pem`, and a production server answers `500`. Use one key per environment.
+- `/admin/oauth` lists the applications; the mobile and desktop clients show as **Managed in nuxt.config**.
+
+## Database
+
+- NuxtHub (`hub.db`): SQLite via libsql locally, in `.data/` (never commit it). Import `db` from `@nuxthub/db`.
+- Modules register their own tables. **Every time you add, remove or upgrade a module**, run `pnpm db:generate` from
+  the root and commit the new files in `server/db/migrations/sqlite/` (SQL, snapshot and `_journal.json` together).
+  `No schema changes, nothing to migrate` means you are up to date.
+- Your own tables go in `server/db/schema.sqlite.ts`; extend module tables in `server/db/extend.sqlite.ts`. Then
+  generate a migration the same way.
+- Runtime code must not use sqlite-only SQL if you plan to move to Postgres or D1 later.
+
+## UI
+
+- Nuxt UI 4 (`U*` components) plus the `@frigear-nu/ui` building blocks. The app is wrapped in `<UApp>` (`app/app.vue`).
+- Follow the Frigear UX patterns (https://docs.frigear.dev/raw/getting-started/ux-patterns.md): admin
+  pages use `PageHeading` and `SectionCard` / `TableCard`, create/edit forms use `FormSlideover`, destructive actions
+  confirm with `useConfirmDialog({ destructive: true })`.
+- `<script setup lang="ts">` for every component.
+
+## Before finishing
+
+From the repository root: `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `pnpm db:generate` (must print
+`No schema changes` unless you meant to add a migration). Never commit `.nuxt/`, `.output/`, `.data/` or `.env`.

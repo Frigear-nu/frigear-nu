@@ -2,7 +2,8 @@ import { defineMenuItem, defineMenuSource, extendMenuItem } from '@frigear-nu/me
 import { useRuntimeConfig } from '#imports'
 
 // Only registered when `@frigear-nu/menu` is installed and the signed-in area has a menu (see `module.ts`): the `account`
-// menu when the area is under `/account`, `settings.signedInMenu` anywhere else. The target menu is `public.helpCenter.menu`.
+// menu when the area is under `/account`, `settings.signedInMenu` anywhere else (the hub's `dashboard` menu by default when the
+// area is in the hub). The target menu is `public.helpCenter.menu`.
 export default defineMenuSource(() => {
   const config = useRuntimeConfig().public.helpCenter as { menu?: string | null, pages?: { signedIn?: string } } | undefined
   if (!config?.menu || !config.pages?.signedIn) return

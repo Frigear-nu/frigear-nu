@@ -1,7 +1,7 @@
 import type { DashboardItem } from '@frigear-nu/dashboard/types'
 import { crewAccess } from './access'
 
-/** The dashboard crew adds its items to, and renders on its home page (`/crew`). */
+/** The dashboard crew adds its items to, and renders in the Overview tab of its home page (`/dashboard/crew`). */
 export const CREW_DASHBOARD = 'crew.home'
 
 /**

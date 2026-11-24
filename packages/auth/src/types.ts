@@ -72,6 +72,14 @@ export interface OAuthProviderOptions {
    * provider as the user with `getOAuthAccessToken`. Adds the table. Defaults to `false`.
    */
   keepTokens?: boolean
+  /**
+   * `frigear` only: sign in in the system browser while the window waits (a desktop app whose server runs on
+   * `http://127.0.0.1:<port>`). The login page starts an attempt (`POST /api/auth/frigear/handoffs`), opens frigear.nu
+   * outside the window (the `auth:frigear:open` app hook, else a new browser window), polls it and collects the cookie
+   * session once the browser came back to `/auth/frigear`. Only accepted from a loopback address. Adds the
+   * `auth_frigear_handoffs` table. Defaults to `false`.
+   */
+  handoff?: boolean
 }
 
 /** A user API token as the API returns it (`GET /api/auth/me/tokens`): never the hash, dates as ISO strings. */
@@ -115,7 +123,7 @@ export interface OAuthProviderButton {
 /** The subset of `settings` the client reads, exposed through `runtimeConfig.public.authentication`. */
 export type PublicModuleOptions = {
   mode: AuthMode
-  /** All `false` in client mode. */
+  /** All `false` in client and resource mode. */
   password: boolean
   passwordReset: boolean
   webAuthn: boolean
@@ -127,6 +135,8 @@ export type PublicModuleOptions = {
   apiTokens: boolean
   /** Show the "Log in with frigear.nu" button (the route itself re-checks at request time). */
   frigearSso?: boolean
+  /** "Log in with frigear.nu" hands off to the system browser (`oauth.frigear.handoff`). */
+  frigearHandoff?: boolean
   pages: { login?: string, register?: string }
   /** Where users land after signing in when no `redirect` was requested. */
   afterLogin: string
@@ -135,7 +145,7 @@ export type PublicModuleOptions = {
    * always let them through.
    */
   publicPaths: string[]
-  /** Client mode only. */
+  /** Client and resource mode only. */
   client?: AuthClientPublicConfig
 }
 
@@ -245,11 +255,13 @@ export interface AuthSettings {
 export interface ModuleOptions {
   /**
    * `server` (default): sign-in on this app's server, with a cookie session. `client`: a public OAuth client (PKCE)
-   * for SPAs and Capacitor apps that signs in at `client.issuer`, with no server or database. Set it in the app's own
-   * config; it cannot come from another module.
+   * for SPAs and Capacitor apps that signs in at `client.issuer`, with no server or database. `resource`: `client`'s
+   * sign-in, plus a server of its own that accepts only the issuer's access tokens (through `@frigear-nu/oauth-resource`):
+   * access control, users and server modules, without cookie sessions or sign-in routes. Set it in the app's own config;
+   * it cannot come from another module.
    */
   mode?: AuthMode
-  /** Client mode: the issuer and how this app talks to it. */
+  /** Client and resource mode: the issuer and how this app talks to it. */
   client?: ClientModuleOptions
   /**
    * User API tokens (`Authorization: Bearer <prefix>…`), created on the account page or through `/api/auth/me/tokens`.
@@ -275,3 +287,25 @@ export interface ModuleOptions {
   permissions?: import('./runtime/utils/permissions').PermissionDefinition[]
   settings?: AuthSettings
 }
+
+/**
+ * The `auth:frigear:open` app hook's context (`oauth.frigear.handoff`): open `url` (frigear.nu's authorize URL) outside
+ * the window, e.g. in the system browser through a desktop shell, and set `handled` so the default
+ * (`window.open(url, '_blank')`) is skipped.
+ */
+export interface FrigearHandoffOpenContext {
+  url: string
+  handled: boolean
+}
+
+/** An attempt of the browser handoff, as `GET /api/auth/frigear/handoffs/:id` answers it. */
+export interface FrigearHandoffDto {
+  id: string
+  status: 'pending' | 'complete' | 'failed' | 'expired'
+  /** Why it failed: `access_denied`, `oauth-unverified`, `exchange_failed`, ...; `null` otherwise. */
+  error: string | null
+  expiresAt: string
+}
+
+/** The response to `POST /api/auth/frigear/handoffs` (201): the attempt plus the URL to open in the system browser. */
+export type FrigearHandoffStartDto = FrigearHandoffDto & { authorizeUrl: string }

@@ -37,9 +37,8 @@ already work in a Nuxt 4 app. Then add only the modules you need.
   :::
 
 #default
-```bash [Terminal]
-pnpm create frigear-app my-app --platform web && cd my-app
-```
+  :::starter-install
+  :::
 ::
 
 ::u-page-section
@@ -129,6 +128,30 @@ Each starter is a ready-made project you copy. It runs on the published `@frigea
 
   #description
   For an app with its own users and API. It is the workspace starter plus a mobile app that signs in at it.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-monitor
+  to: /examples/starters/desktop#_1-create-the-project
+  ---
+  #title
+  Desktop
+
+  #description
+  For a macOS, Windows and Linux app on Tauri that signs in at an issuer, or runs offline with its own server.
+  :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-layers
+  to: /examples/starters/multi-platform#_1-create-the-project
+  ---
+  #title
+  Multi-platform
+
+  #description
+  For web, mobile and desktop at once: the mobile standalone starter plus a desktop app that signs in at the web app.
   :::
 ::
 

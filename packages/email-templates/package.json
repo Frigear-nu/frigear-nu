@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/email-templates",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Vue email templates for @frigear-nu/notify, rendered with nuxt-email-renderer: typed sendEmailTemplate for hosts, module-owned templates hosts can override.",
   "homepage": "https://docs.frigear.dev/modules/communication/email-templates",
   "repository": {
@@ -74,7 +74,7 @@
     "@frigear-nu/notify": "workspace:^",
     "@nuxt/kit": "catalog:",
     "defu": "^6.1.7",
-    "nuxt-email-renderer": "^3.0.0"
+    "nuxt-email-renderer": "^4.1.1"
   },
   "devDependencies": {
     "@nuxt/devtools": "catalog:",

@@ -5,7 +5,8 @@ const { can } = useAuthorization()
 
 const links = computed(() => loggedIn.value
   ? [
-      { label: 'My account', to: '/account', icon: 'i-lucide-user' },
+      { label: 'My dashboard', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
+      { label: 'My account', to: '/account', color: 'neutral' as const, variant: 'outline' as const },
       ...(can('admin:access') ? [{ label: 'Admin', to: '/admin', color: 'neutral' as const, variant: 'outline' as const }] : []),
     ]
   : [

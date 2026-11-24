@@ -4,6 +4,7 @@ import {
   addPlugin,
   addServerHandler,
   addTemplate,
+  addServerImports,
   addServerImportsDir,
   addNitroPlugin,
   addServerTemplate,
@@ -74,11 +75,15 @@ import {
   findGuardRules,
   isPackageInstalled,
   mergeClientPublicConfig,
+  NATIVE_PLUGIN_PACKAGES,
   nativeLoaderTemplate,
+  nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
   SECRET_ENV_NAMES,
+  TAURI_PLUGIN_KEYS,
 } from './client-build'
+import type { NativePluginKey } from './client-build'
 
 export type {
   AuthAppConfig,
@@ -93,6 +98,9 @@ export type {
   AuthScopeDto,
   AuthSettings,
   AuthTokenDto,
+  FrigearHandoffDto,
+  FrigearHandoffOpenContext,
+  FrigearHandoffStartDto,
   ModuleOptions,
   OAuthProvider,
   OAuthProviderButton,
@@ -148,6 +156,9 @@ declare module 'nuxt/schema' {
       defaultRole?: string
       // Keep the frigear.nu tokens in `auth_oauth_tokens` (`getOAuthAccessToken`). Defaults to `oauth.frigear.keepTokens`.
       keepTokens?: boolean
+      // The browser handoff (`oauth.frigear.handoff`, set at build time). `returnUrl` (`NUXT_FRIGEAR_HANDOFF_RETURN_URL`):
+      // a deep link the browser's "signed in" page offers to bring the app forward, e.g. `myapp:/auth/return`.
+      handoff?: { enabled?: boolean, returnUrl?: string }
     }
   }
 
@@ -212,7 +223,7 @@ async function assertNuxtHubInstalled(nuxt: Nuxt) {
   const from = [nuxt.options.rootDir, ...nuxt.options.modulesDir].map(dir => pathToFileURL(`${dir.replace(/\/$/, '')}/`).href)
   from.push(import.meta.url)
   if (await tryResolveModule('@nuxthub/core', from)) return
-  throw new Error(`[${MODULE_NAME}] Server mode needs \`@nuxthub/core\` (the database): install it, or set \`authentication.mode: 'client'\` for an app without a server.`)
+  throw new Error(`[${MODULE_NAME}] ${nuxt.options.authentication?.mode === 'resource' ? 'Resource' : 'Server'} mode needs \`@nuxthub/core\` (the database): install it, or set \`authentication.mode: 'client'\` for an app without a server.`)
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -232,7 +243,7 @@ export default defineNuxtModule<ModuleOptions>({
     dependencyModes.set(nuxt, mode)
     if (mode === 'client') return { '@frigear-nu/module-kit': { version: '>=0.0.1' } }
     if (!nuxt.options._prepare) await assertNuxtHubInstalled(nuxt)
-    return serverDependencies(nuxt)
+    return mode === 'resource' ? resourceDependencies : serverDependencies(nuxt)
   },
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
@@ -243,6 +254,7 @@ export default defineNuxtModule<ModuleOptions>({
       throw new Error(`[${MODULE_NAME}] \`authentication.mode\` ${JSON.stringify(options.mode)} did not come from the app's config: set it under the \`authentication\` key of nuxt.config, not as inline module options or another module's default, so every module sees the same mode.`)
     }
     if (mode === 'client') return setupClientMode(options, nuxt, resolver)
+    if (mode === 'resource') return setupResourceMode(options, nuxt, resolver)
     return setupServerMode(options, nuxt, resolver)
   },
 })
@@ -268,6 +280,13 @@ const serverDependencies = (nuxt: Nuxt) => ({
     defaults: { webAuthn: nuxt.options.authentication?.settings?.webAuthn === true },
   },
 })
+
+// Resource mode: the server half without sign-in, so no nuxt-auth-utils and no menu entries of its own.
+const resourceDependencies = {
+  '@nuxthub/core': { version: '>=0.0.1' },
+  '@frigear-nu/module-kit': { version: '>=0.0.1' },
+  '@frigear-nu/notify': { version: '>=0.0.1' },
+}
 
 const byGrantOrder = (kinds: GrantKindRegistration[]) =>
   [...kinds].sort((a, b) => (a.order ?? 100) - (b.order ?? 100) || a.kind.localeCompare(b.kind))
@@ -404,6 +423,10 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   }
   const keepsOAuthTokens = oauthProviders.some(keepsTokens)
   if (keepsOAuthTokens) tables.push('authOAuthTokens')
+  // "Log in with frigear.nu" in the system browser while the window waits (`oauth.frigear.handoff`, desktop apps).
+  const frigearOptions = oauthSettings.frigear
+  const withFrigearHandoff = oauthProviders.includes('frigear') && typeof frigearOptions === 'object' && frigearOptions.handoff === true
+  if (withFrigearHandoff) tables.push('authFrigearHandoffs')
 
   registerDatabaseTable(nuxt, {
     name: tables,
@@ -457,18 +480,260 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // `/api/_auth/session` answers the user as `getAuth` sees them: fresh from the store, or signed out.
   addNitroPlugin(resolver.resolve('./runtime/server/plugins/session-fetch'))
 
-  // Bearer resolvers: the built-in user-token one plus whatever other modules register.
+  // The server half both server and resource mode have, with the built-in user-token resolver.
+  setupServerHalf(options, nuxt, resolver, withApiTokens
+    ? [{
+        name: 'user-token',
+        prefix: apiTokenPrefix,
+        order: 50,
+        resolver: resolver.resolve('./runtime/server/resolvers/user-token'),
+      }]
+    : [])
+
+  // OAuth sign-in reuses nuxt-auth-utils' handlers: each `defineOAuth<Provider>EventHandler` it auto-imports is a
+  // provider here, loaded on first use and keyed like its `runtimeConfig.oauth` block, so its env vars turn it on.
+  let nitroInstance: Nitro | undefined
+  let nitroImports: NitroConfig['imports']
+  nuxt.hook('nitro:init', (nitro) => {
+    nitroInstance = nitro
+  })
+  nuxt.hook('nitro:config', (config) => {
+    nitroImports = config.imports
+  })
+  addServerTemplate({
+    filename: '#auth/oauth',
+    getContents: async () => {
+      const configKeys = Object.keys((nuxt.options.runtimeConfig as { oauth?: Record<string, unknown> }).oauth ?? {})
+      const keyOf = (name: string) => configKeys.find(key => key.toLowerCase() === name.toLowerCase()) ?? lowerFirst(name)
+      // Nitro v2 exposes its unimport context; on Nitro v3 Nuxt owns the server auto-imports, so read the dirs.
+      const imports = nitroInstance?.unimport
+        ? await nitroInstance.unimport.getImports()
+        : await scanOAuthHandlerExports((nitroImports ? nitroImports.dirs ?? [] : []).filter(dir => typeof dir === 'string'))
+      const handlers = imports.flatMap(({ name, as, from }) => {
+        const provider = /^defineOAuth(\w+)EventHandler$/.exec(as ?? name)?.[1]
+        return provider ? [`${JSON.stringify(keyOf(provider))}: () => import(${JSON.stringify(from)}).then(m => m[${JSON.stringify(name)}])`] : []
+      })
+      const providerSettings = Object.fromEntries(Object.entries(oauthSettings)
+        .map(([provider, value]) => [keyOf(provider), value === true ? {} : value]))
+      return [
+        `export const handlers = { ${handlers.join(', ')} }`,
+        `export const settings = ${JSON.stringify(providerSettings)}`,
+      ].join('\n')
+    },
+  })
+
+  // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
+  nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+  inlineModuleRuntime(nuxt, resolver)
+
+  // Every route of the module, read off one table (paths relative to `/api/auth`; `authApi` in
+  // `runtime/utils/api.ts` builds them for clients). The h3 router prefers static segments, so the static
+  // `/api/auth/*` routes win over `:provider` whatever their order; `:provider` is still listed last.
+  const routes: ModuleRoute[] = [
+    { method: 'post', path: 'logout', file: 'session/logout.post' },
+    { method: 'get', path: 'bootstrap', file: 'bootstrap.get' },
+    { method: 'get', path: 'scopes', file: 'scopes.get' },
+    { method: 'get', path: 'me/access', file: 'me/access.get' },
+  ]
+  // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
+  if (withApiTokens) {
+    routes.push(
+      { method: 'get', path: 'me/tokens', file: 'me/tokens.get' },
+      { method: 'post', path: 'me/tokens', file: 'me/tokens.post' },
+      { method: 'delete', path: 'me/tokens/:id', file: 'me/token.delete' },
+    )
+  }
+  if (withPassword) {
+    routes.push(
+      { method: 'post', path: 'login', file: 'session/login.post' },
+      { method: 'post', path: 'register', file: 'session/register.post' },
+    )
+  }
+  if (withPasswordReset) {
+    routes.push(
+      { method: 'post', path: 'forgot-password', file: 'session/forgot-password.post' },
+      { method: 'post', path: 'reset-password', file: 'session/reset-password.post' },
+    )
+  }
+  // The emailed link opens the `/auth/magic-link` page (below); its button signs in through this POST, so a GET
+  // (a mail scanner, a link preview) never uses a link up.
+  if (withMagicLink || withVerifyEmail) routes.push({ method: 'post', path: 'magic-link/confirm', file: 'session/magic-link-confirm.post' })
+  if (withMagicLink) routes.push({ method: 'post', path: 'magic-link', file: 'session/magic-link.post' })
+  if (withWebAuthn) {
+    routes.push(
+      { method: 'post', path: 'webauthn/register', file: 'webauthn/register.post' },
+      { method: 'post', path: 'webauthn/authenticate', file: 'webauthn/authenticate.post' },
+      { method: 'get', path: 'me/passkeys', file: 'me/passkeys.get' },
+      { method: 'delete', path: 'me/passkeys/:id', file: 'me/passkey.delete' },
+    )
+  }
+  routes.push({ method: 'get', path: 'providers', file: 'oauth/providers.get' })
+  // The IdP redirects the browser back to `/auth/frigear` (its registered redirect URI, a navigation), so it is
+  // not under `/api` and never moves.
+  if (oauthProviders.includes('frigear')) {
+    routes.push(
+      { method: 'get', path: '/auth/frigear', file: 'oauth/frigear.get' },
+      { method: 'get', path: 'frigear-status', file: 'oauth/frigear-status.get' },
+    )
+  }
+  // The browser handoff: the window starts an attempt, polls it and collects the session (or cancels).
+  if (withFrigearHandoff) {
+    routes.push(
+      { method: 'post', path: 'frigear/handoffs', file: 'oauth/frigear-handoffs.post' },
+      { method: 'get', path: 'frigear/handoffs/:id', file: 'oauth/frigear-handoff.get' },
+      { method: 'post', path: 'frigear/handoffs/:id/complete', file: 'oauth/frigear-handoff-complete.post' },
+      { method: 'delete', path: 'frigear/handoffs/:id', file: 'oauth/frigear-handoff.delete' },
+    )
+  }
+  // Every nuxt-auth-utils provider, answering 404 until it is configured (decided per request, credentials are
+  // runtime secrets). It is also each provider's registered callback URL, so the path never moves.
+  routes.push({ method: 'get', path: ':provider', file: 'oauth/provider.get' })
+  addModuleRoutes(resolver, routes, { base: '/api/auth' })
+
+  addImports([
+    'useLogin',
+    'useMagicLink',
+    'usePasskeys',
+    'usePasswordReset',
+    'useRegistration',
+    'useAuthPages',
+    'useAfterLogin',
+    'useFrigearHandoff',
+    // The client API both modes share (client mode registers its own).
+    'useAuth',
+    'useApi',
+  ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
+  addPlugin(resolver.resolve('./runtime/app/plugins/api'))
+  // The seam a desktop shell plugs into to open frigear.nu in the system browser (`oauth.frigear.handoff`).
+  addTypeTemplate({
+    filename: 'types/auth-frigear-handoff.d.ts',
+    getContents: () => `declare module '#app' {
+  interface RuntimeNuxtHooks {
+    /**
+     * "Log in with frigear.nu" hands off to the system browser: open \`ctx.url\` outside the window and set
+     * \`ctx.handled = true\`; otherwise it opens with \`window.open(url, '_blank')\`.
+     */
+    'auth:frigear:open': (ctx: import(${JSON.stringify(resolver.resolve('./types'))}).FrigearHandoffOpenContext) => void | Promise<void>
+  }
+}
+
+export {}
+`,
+  }, { nuxt: true })
+
+  // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
+  // default, since they require `@nuxt/ui` to be installed in the consuming app.
+  const loginPath = withPassword || oauthProviders.length > 0
+    ? resolvePagePath(settings.pages?.login, '/login')
+    : undefined
+  const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
+  // An absolute register URL only feeds the login page link; there is no local page to register.
+  const localRegisterPath = isExternalUrl(registerPath) ? undefined : registerPath
+
+  addModulePages('@frigear-nu/auth', resolver, [
+    { name: 'auth-login', path: loginPath, file: './runtime/app/pages/login.vue' },
+    { name: 'auth-register', path: localRegisterPath, file: './runtime/app/pages/register.vue' },
+    // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
+    { name: 'auth-forgot-password', path: loginPath && withPasswordReset ? '/forgot-password' : undefined, file: './runtime/app/pages/forgot-password.vue' },
+    { name: 'auth-reset-password', path: loginPath && withPasswordReset ? '/reset-password' : undefined, file: './runtime/app/pages/reset-password.vue' },
+  ])
+
+  // Pages that emailed links open (the magic link here, the email change pages of `@frigear-nu/users`) need
+  // `@nuxt/ui`, which may be installed by another module, so this is decided once every module is set up.
+  nuxt.hook('modules:done', () => {
+    const withUi = hasNuxtModule('@nuxt/ui', nuxt)
+    if (loginPath || localRegisterPath || withUi) {
+      addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
+    }
+    // The grant list editor (`<GrantsEditor v-model="grants" />`) is built from Nuxt UI components.
+    if (withUi) addComponent({ name: 'GrantsEditor', filePath: resolver.resolve('./runtime/app/components/GrantsEditor.vue') })
+    if (!withMagicLink && !withVerifyEmail) return
+    if (!withUi) {
+      console.warn('[@frigear-nu/auth] Magic links / email verification are on, but `@nuxt/ui` is not installed: add your own page at `/auth/magic-link` that posts the `code` to `/api/auth/magic-link/confirm`.')
+      return
+    }
+    addModulePages('@frigear-nu/auth', resolver, [
+      { name: 'auth-magic-link', path: '/auth/magic-link', file: './runtime/app/pages/magic-link.vue' },
+    ])
+  })
+
+  // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
+  // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
+  // `NUXT_PUBLIC_AUTHENTICATION_FRIGEAR_SSO`.
+  const runtimeConfig = nuxt.options.runtimeConfig
+  runtimeConfig.authTokensKey ??= ''
+  runtimeConfig.frigear = {
+    forceId: false,
+    keepTokens: keepsTokens('frigear'),
+    roleMap: {},
+    defaultRole: 'user',
+    ...runtimeConfig.frigear,
+    sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
+    // `enabled` follows the build (the table and routes exist only then); `returnUrl` is a runtime value.
+    handoff: { returnUrl: '', ...runtimeConfig.frigear?.handoff, enabled: withFrigearHandoff },
+  }
+  const frigearSso = runtimeConfig.frigear.sso!
+  // A client id is enough: without a secret the login is a public client (PKCE).
+  const frigearSsoEnabled = oauthProviders.includes('frigear')
+    && (runtimeConfig.previewDeployment === true || !!frigearSso.clientId)
+  if (oauthProviders.includes('frigear')) {
+    addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
+    const roleMap = runtimeConfig.frigear.roleMap
+    if (runtimeConfig.frigear.syncRole === true && !(typeof roleMap === 'string' ? roleMap.trim() : Object.keys(roleMap ?? {}).length)) {
+      useLogger('auth').warn('`runtimeConfig.frigear.syncRole` is on, but `frigear.roleMap` maps no role: no role is synced from frigear.nu. Map the frigear.nu roles to local ones (`NUXT_FRIGEAR_ROLE_MAP`).')
+    }
+  }
+
+  // Housekeeping for the single-use tokens (`auth:clear-expired-tokens`); the cron is opt-out.
+  if (withMagicLink || withVerifyEmail || withPasswordReset) {
+    nuxt.hook('nitro:config', (nitroConfig) => {
+      nitroConfig.experimental ||= {}
+      nitroConfig.experimental.tasks = true
+      nitroConfig.tasks ||= {}
+      nitroConfig.tasks['auth:clear-expired-tokens'] = {
+        handler: resolver.resolve('./runtime/server/tasks/clear-expired-tokens'),
+        description: 'Remove expired magic links and password resets.',
+      }
+      if (settings.cleanup !== false) {
+        const cron = settings.cleanup ?? '0 3 * * *'
+        nitroConfig.scheduledTasks ||= {}
+        const existing = nitroConfig.scheduledTasks[cron]
+        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'auth:clear-expired-tokens']
+      }
+    })
+  }
+
+  addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
+
+  nuxt.options.runtimeConfig.public.authentication = {
+    mode: 'server',
+    password: withPassword,
+    passwordReset: withPasswordReset,
+    webAuthn: withWebAuthn,
+    magicLink: withMagicLink,
+    verifyEmail: withVerifyEmail,
+    oauth: oauthProviders,
+    apiTokens: withApiTokens,
+    frigearSso: frigearSsoEnabled,
+    frigearHandoff: withFrigearHandoff,
+    pages: { login: loginPath, register: registerPath },
+    afterLogin: resolveAfterLogin(settings.afterLogin),
+    publicPaths: serverPublicPaths({ loginPath, registerPath: localRegisterPath, withPasswordReset }),
+  }
+}
+
+/**
+ * The server half of server and resource mode: the bearer resolvers (`builtInResolvers` first, then `auth:resolvers`),
+ * access control, the user store, the session mapper, grants, Auth's server utils and middleware, and the bootstrap
+ * registry. Sign-in, sessions and the routes are each mode's own.
+ */
+function setupServerHalf(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>, builtInResolvers: AuthResolverDefinition[]) {
+  const settings = options.settings ?? {}
+  // Bearer resolvers: the built-in ones (server mode: user tokens) plus whatever other modules register.
   addServerTemplate({
     filename: '#auth/resolvers',
     getContents: async () => {
-      const registered: AuthResolverDefinition[] = withApiTokens
-        ? [{
-            name: 'user-token',
-            prefix: apiTokenPrefix,
-            order: 50,
-            resolver: resolver.resolve('./runtime/server/resolvers/user-token'),
-          }]
-        : []
+      const registered: AuthResolverDefinition[] = [...builtInResolvers]
       await nuxt.callHook('auth:resolvers', registered)
       return [
         ...registered.map((definition, index) => `import resolve${index} from ${JSON.stringify(definition.resolver)}`),
@@ -601,42 +866,7 @@ export {}
 `,
   }, { nitro: true, nuxt: true })
 
-  // OAuth sign-in reuses nuxt-auth-utils' handlers: each `defineOAuth<Provider>EventHandler` it auto-imports is a
-  // provider here, loaded on first use and keyed like its `runtimeConfig.oauth` block, so its env vars turn it on.
-  let nitroInstance: Nitro | undefined
-  let nitroImports: NitroConfig['imports']
-  nuxt.hook('nitro:init', (nitro) => {
-    nitroInstance = nitro
-  })
-  nuxt.hook('nitro:config', (config) => {
-    nitroImports = config.imports
-  })
-  addServerTemplate({
-    filename: '#auth/oauth',
-    getContents: async () => {
-      const configKeys = Object.keys((nuxt.options.runtimeConfig as { oauth?: Record<string, unknown> }).oauth ?? {})
-      const keyOf = (name: string) => configKeys.find(key => key.toLowerCase() === name.toLowerCase()) ?? lowerFirst(name)
-      // Nitro v2 exposes its unimport context; on Nitro v3 Nuxt owns the server auto-imports, so read the dirs.
-      const imports = nitroInstance?.unimport
-        ? await nitroInstance.unimport.getImports()
-        : await scanOAuthHandlerExports((nitroImports ? nitroImports.dirs ?? [] : []).filter(dir => typeof dir === 'string'))
-      const handlers = imports.flatMap(({ name, as, from }) => {
-        const provider = /^defineOAuth(\w+)EventHandler$/.exec(as ?? name)?.[1]
-        return provider ? [`${JSON.stringify(keyOf(provider))}: () => import(${JSON.stringify(from)}).then(m => m[${JSON.stringify(name)}])`] : []
-      })
-      const providerSettings = Object.fromEntries(Object.entries(oauthSettings)
-        .map(([provider, value]) => [keyOf(provider), value === true ? {} : value]))
-      return [
-        `export const handlers = { ${handlers.join(', ')} }`,
-        `export const settings = ${JSON.stringify(providerSettings)}`,
-      ].join('\n')
-    },
-  })
-
-  // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
-  nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
   addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-  inlineModuleRuntime(nuxt, resolver)
   setupGrants(nuxt, resolver)
 
   addServerHandler({
@@ -647,171 +877,6 @@ export {}
   // One request for an area's user-scoped data (`GET /api/auth/bootstrap?scope=account`): it authenticates once
   // and runs every provider modules registered with `registerBootstrapProvider` for that scope.
   defineBootstrapRegistry(nuxt)
-
-  // Every route of the module, read off one table (paths relative to `/api/auth`; `authApi` in
-  // `runtime/utils/api.ts` builds them for clients). The h3 router prefers static segments, so the static
-  // `/api/auth/*` routes win over `:provider` whatever their order; `:provider` is still listed last.
-  const routes: ModuleRoute[] = [
-    { method: 'post', path: 'logout', file: 'session/logout.post' },
-    { method: 'get', path: 'bootstrap', file: 'bootstrap.get' },
-    { method: 'get', path: 'scopes', file: 'scopes.get' },
-    { method: 'get', path: 'me/access', file: 'me/access.get' },
-  ]
-  // The `authUserTokens` table stays registered when tokens are off: removing a user still clears its rows.
-  if (withApiTokens) {
-    routes.push(
-      { method: 'get', path: 'me/tokens', file: 'me/tokens.get' },
-      { method: 'post', path: 'me/tokens', file: 'me/tokens.post' },
-      { method: 'delete', path: 'me/tokens/:id', file: 'me/token.delete' },
-    )
-  }
-  if (withPassword) {
-    routes.push(
-      { method: 'post', path: 'login', file: 'session/login.post' },
-      { method: 'post', path: 'register', file: 'session/register.post' },
-    )
-  }
-  if (withPasswordReset) {
-    routes.push(
-      { method: 'post', path: 'forgot-password', file: 'session/forgot-password.post' },
-      { method: 'post', path: 'reset-password', file: 'session/reset-password.post' },
-    )
-  }
-  // The emailed link opens the `/auth/magic-link` page (below); its button signs in through this POST, so a GET
-  // (a mail scanner, a link preview) never uses a link up.
-  if (withMagicLink || withVerifyEmail) routes.push({ method: 'post', path: 'magic-link/confirm', file: 'session/magic-link-confirm.post' })
-  if (withMagicLink) routes.push({ method: 'post', path: 'magic-link', file: 'session/magic-link.post' })
-  if (withWebAuthn) {
-    routes.push(
-      { method: 'post', path: 'webauthn/register', file: 'webauthn/register.post' },
-      { method: 'post', path: 'webauthn/authenticate', file: 'webauthn/authenticate.post' },
-      { method: 'get', path: 'me/passkeys', file: 'me/passkeys.get' },
-      { method: 'delete', path: 'me/passkeys/:id', file: 'me/passkey.delete' },
-    )
-  }
-  routes.push({ method: 'get', path: 'providers', file: 'oauth/providers.get' })
-  // The IdP redirects the browser back to `/auth/frigear` (its registered redirect URI, a navigation), so it is
-  // not under `/api` and never moves.
-  if (oauthProviders.includes('frigear')) {
-    routes.push(
-      { method: 'get', path: '/auth/frigear', file: 'oauth/frigear.get' },
-      { method: 'get', path: 'frigear-status', file: 'oauth/frigear-status.get' },
-    )
-  }
-  // Every nuxt-auth-utils provider, answering 404 until it is configured (decided per request, credentials are
-  // runtime secrets). It is also each provider's registered callback URL, so the path never moves.
-  routes.push({ method: 'get', path: ':provider', file: 'oauth/provider.get' })
-  addModuleRoutes(resolver, routes, { base: '/api/auth' })
-
-  addImports([
-    'useLogin',
-    'useMagicLink',
-    'usePasskeys',
-    'usePasswordReset',
-    'useRegistration',
-    'useAuthPages',
-    'useAfterLogin',
-    // The client API both modes share (client mode registers its own).
-    'useAuth',
-    'useApi',
-  ].map(name => ({ name, from: resolver.resolve(`./runtime/app/composables/${name}`) })))
-  addPlugin(resolver.resolve('./runtime/app/plugins/api'))
-
-  // Login/register pages are opt-in (`settings.pages.login`/`settings.pages.register`) rather than enabled by
-  // default, since they require `@nuxt/ui` to be installed in the consuming app.
-  const loginPath = withPassword || oauthProviders.length > 0
-    ? resolvePagePath(settings.pages?.login, '/login')
-    : undefined
-  const registerPath = withPassword ? resolvePagePath(settings.pages?.register, '/register') : undefined
-  // An absolute register URL only feeds the login page link; there is no local page to register.
-  const localRegisterPath = isExternalUrl(registerPath) ? undefined : registerPath
-
-  addModulePages('@frigear-nu/auth', resolver, [
-    { name: 'auth-login', path: loginPath, file: './runtime/app/pages/login.vue' },
-    { name: 'auth-register', path: localRegisterPath, file: './runtime/app/pages/register.vue' },
-    // The reset link emailed by `/api/auth/forgot-password` points at `/reset-password`.
-    { name: 'auth-forgot-password', path: loginPath && withPasswordReset ? '/forgot-password' : undefined, file: './runtime/app/pages/forgot-password.vue' },
-    { name: 'auth-reset-password', path: loginPath && withPasswordReset ? '/reset-password' : undefined, file: './runtime/app/pages/reset-password.vue' },
-  ])
-
-  // Pages that emailed links open (the magic link here, the email change pages of `@frigear-nu/users`) need
-  // `@nuxt/ui`, which may be installed by another module, so this is decided once every module is set up.
-  nuxt.hook('modules:done', () => {
-    const withUi = hasNuxtModule('@nuxt/ui', nuxt)
-    if (loginPath || localRegisterPath || withUi) {
-      addComponent({ name: 'AuthCard', filePath: resolver.resolve('./runtime/app/components/AuthCard.vue') })
-    }
-    // The grant list editor (`<GrantsEditor v-model="grants" />`) is built from Nuxt UI components.
-    if (withUi) addComponent({ name: 'GrantsEditor', filePath: resolver.resolve('./runtime/app/components/GrantsEditor.vue') })
-    if (!withMagicLink && !withVerifyEmail) return
-    if (!withUi) {
-      console.warn('[@frigear-nu/auth] Magic links / email verification are on, but `@nuxt/ui` is not installed: add your own page at `/auth/magic-link` that posts the `code` to `/api/auth/magic-link/confirm`.')
-      return
-    }
-    addModulePages('@frigear-nu/auth', resolver, [
-      { name: 'auth-magic-link', path: '/auth/magic-link', file: './runtime/app/pages/magic-link.vue' },
-    ])
-  })
-
-  // frigear.nu SSO: the route is always registered when enabled in settings and decides at request time
-  // (`previewDeployment` / `frigear.sso`). The button flag is a build time default, overridable through
-  // `NUXT_PUBLIC_AUTHENTICATION_FRIGEAR_SSO`.
-  const runtimeConfig = nuxt.options.runtimeConfig
-  runtimeConfig.authTokensKey ??= ''
-  runtimeConfig.frigear = {
-    forceId: false,
-    keepTokens: keepsTokens('frigear'),
-    roleMap: {},
-    defaultRole: 'user',
-    ...runtimeConfig.frigear,
-    sso: { url: '', clientId: '', clientSecret: '', scopes: 'openid profile email', stepUpScopes: '', ...runtimeConfig.frigear?.sso },
-  }
-  const frigearSso = runtimeConfig.frigear.sso!
-  const frigearSsoEnabled = oauthProviders.includes('frigear')
-    && (runtimeConfig.previewDeployment === true || !!(frigearSso.clientId && frigearSso.clientSecret))
-  if (oauthProviders.includes('frigear')) {
-    addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
-    const roleMap = runtimeConfig.frigear.roleMap
-    if (runtimeConfig.frigear.syncRole === true && !(typeof roleMap === 'string' ? roleMap.trim() : Object.keys(roleMap ?? {}).length)) {
-      useLogger('auth').warn('`runtimeConfig.frigear.syncRole` is on, but `frigear.roleMap` maps no role: no role is synced from frigear.nu. Map the frigear.nu roles to local ones (`NUXT_FRIGEAR_ROLE_MAP`).')
-    }
-  }
-
-  // Housekeeping for the single-use tokens (`auth:clear-expired-tokens`); the cron is opt-out.
-  if (withMagicLink || withVerifyEmail || withPasswordReset) {
-    nuxt.hook('nitro:config', (nitroConfig) => {
-      nitroConfig.experimental ||= {}
-      nitroConfig.experimental.tasks = true
-      nitroConfig.tasks ||= {}
-      nitroConfig.tasks['auth:clear-expired-tokens'] = {
-        handler: resolver.resolve('./runtime/server/tasks/clear-expired-tokens'),
-        description: 'Remove expired magic links and password resets.',
-      }
-      if (settings.cleanup !== false) {
-        const cron = settings.cleanup ?? '0 3 * * *'
-        nitroConfig.scheduledTasks ||= {}
-        const existing = nitroConfig.scheduledTasks[cron]
-        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), 'auth:clear-expired-tokens']
-      }
-    })
-  }
-
-  addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account.dropdown' })
-
-  nuxt.options.runtimeConfig.public.authentication = {
-    mode: 'server',
-    password: withPassword,
-    passwordReset: withPasswordReset,
-    webAuthn: withWebAuthn,
-    magicLink: withMagicLink,
-    verifyEmail: withVerifyEmail,
-    oauth: oauthProviders,
-    apiTokens: withApiTokens,
-    frigearSso: frigearSsoEnabled,
-    pages: { login: loginPath, register: registerPath },
-    afterLogin: resolveAfterLogin(settings.afterLogin),
-    publicPaths: serverPublicPaths({ loginPath, registerPath: localRegisterPath, withPasswordReset }),
-  }
 }
 
 /** Auth's anonymous API entry points: every handler there checks the caller itself. */
@@ -1004,13 +1069,6 @@ function serverPublicPaths(input: { loginPath?: string, registerPath?: string, w
   return [...pages, '/auth/**', '/api/auth/**', '/api/_auth/**']
 }
 
-const NATIVE_PLUGINS = {
-  app: '@capacitor/app',
-  browser: '@capacitor/browser',
-  preferences: '@capacitor/preferences',
-  secureStorage: '@aparajita/capacitor-secure-storage',
-} as const
-
 /**
  * Who installs `name`: the app itself, or the modules that list it in their `moduleDependencies` (which may be
  * async). Nuxt keeps no record of who pulled a dependency in, so their dependency functions run once more; this only
@@ -1032,18 +1090,21 @@ async function installedBy(nuxt: Nuxt, name: string): Promise<string> {
 }
 
 // A public OAuth client (PKCE) for SPAs and Capacitor apps: no server, no database. The tokens live in the browser
-// or the Keychain, so the app renders on the client only.
-function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
+// or the Keychain, so the app renders on the client only. Resource mode runs this too (`mode: 'resource'`), as the
+// client half next to its server half: the app's own origin then also gets the token.
+function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>, mode: 'client' | 'resource' = 'client') {
   const logger = useLogger('auth')
+  const resource = mode === 'resource'
+  const modeName = resource ? 'Resource mode' : 'Client mode'
   const client = options.client ?? {}
   const settings = options.settings ?? {}
   const prepare = !!nuxt.options._prepare
-  inlineModuleRuntime(nuxt, resolver)
+  if (!resource) inlineModuleRuntime(nuxt, resolver)
   registerTailwindSource(nuxt, resolver.resolve('./runtime/client/app'))
 
   // A server render would always be signed out and never match the hydrated page.
   if (nuxt.options._layers.some(layer => (layer.config as { ssr?: unknown }).ssr === true)) {
-    throw new Error(`[${MODULE_NAME}] Client mode renders on the client only: remove \`ssr: true\` (the tokens live in the browser or the Keychain).`)
+    throw new Error(`[${MODULE_NAME}] ${modeName} renders on the client only: remove \`ssr: true\` (the tokens live in the browser or the Keychain).`)
   }
   nuxt.options.ssr = false
 
@@ -1069,6 +1130,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     onUnauthorized: client.onUnauthorized ?? 'signOut',
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
+    desktopFlow: client.native?.desktopFlow ?? 'auto',
     callbackPath,
     discovery: client.discovery !== false,
     endpoints: client.endpoints ?? {},
@@ -1081,6 +1143,9 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
       afterLogout: resolveAfterLogin(client.redirect?.afterLogout),
     },
     rewriteLoopback: client.dev?.rewriteLoopback ?? true,
+    // Resource mode: the app's own server is an API too. Its origin (read in the browser, so a port picked at startup
+    // works) gets the token, and is `$api`'s base unless `apiBase` is set. Left out in client mode, whose config stays as it was.
+    ...(resource ? { sameOrigin: true } : {}),
   }
   // Declared (so `NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_SECRET` maps onto it) only where a secret is allowed: in
   // production a runtime env var would otherwise end up in the bundle's config.
@@ -1105,9 +1170,9 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // Nuxt only maps `..._CLIENT_CLIENT_SECRET` onto `client.clientSecret` on its own; the shorter name is read too.
   if (secretAllowed && process.env[SECRET_ENV_NAMES[1]] && !clientConfig.clientSecret) clientConfig.clientSecret = process.env[SECRET_ENV_NAMES[1]]
 
-  // Every server feature flag is off, so code that checks them works in both modes.
+  // Every server feature flag is off, so code that checks them works in every mode.
   nuxt.options.runtimeConfig.public.authentication = {
-    mode: 'client',
+    mode,
     password: false,
     passwordReset: false,
     webAuthn: false,
@@ -1118,24 +1183,33 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     frigearSso: false,
     pages: { login: loginPage, register: undefined },
     afterLogin: resolveAfterLogin(clientConfig.redirect.afterLogin),
-    publicPaths: clientPublicPaths({ loginPage, loginPath, callbackPath }),
+    // Resource mode: Auth's API too, whose handlers check the caller themselves (as in server mode).
+    publicPaths: [...clientPublicPaths({ loginPage, loginPath, callbackPath }), ...(resource ? ['/api/auth/**'] : [])],
     client: clientConfig,
   }
 
   // Native plugins are optional peers: `#auth/native` only imports the installed ones.
   const installed = (pkg: string) => isPackageInstalled(pkg, nuxt.options.rootDir, nuxt.options.modulesDir)
-  const plugins = Object.fromEntries(Object.entries(NATIVE_PLUGINS).map(([key, pkg]) => [key, installed(pkg)])) as Record<keyof typeof NATIVE_PLUGINS, boolean>
+  const plugins = Object.fromEntries(Object.entries(NATIVE_PLUGIN_PACKAGES).map(([key, [pkg]]) => [key, installed(pkg)])) as Record<NativePluginKey, boolean>
+  const tauri = TAURI_PLUGIN_KEYS.some(key => plugins[key])
   const { warning } = checkNativeStorage({
     mode: storage,
     dev: nuxt.options.dev,
     prepare,
     capacitor: installed('@capacitor/core'),
+    tauri,
     secureStorage: plugins.secureStorage,
     preferences: plugins.preferences,
   })
   if (warning) logger.warn(warning)
   if (installed('@capacitor/core') && !plugins.browser) logger.warn('`@capacitor/browser` is not installed: a native app signs in by leaving the app for the system browser\'s redirect, which cannot come back. Install it.')
   if (installed('@capacitor/core') && !plugins.app) logger.warn('`@capacitor/app` is not installed: the app cannot receive the OAuth redirect. Install it.')
+  if (tauri && !prepare) {
+    // In a production build the Tauri app signs in through the system browser and a deep link (`native.desktopFlow`).
+    if (!plugins.opener) logger.warn('`@tauri-apps/plugin-opener` is not installed: a Tauri app cannot open the system browser to sign in and falls back to a redirect inside the webview. Install it.')
+    if (!plugins.deepLink) logger.warn('`@tauri-apps/plugin-deep-link` is not installed: a Tauri app cannot receive the OAuth redirect and falls back to a redirect inside the webview. Install it.')
+    if (!nativeRedirectUri && client.native?.desktopFlow !== 'redirect') logger.warn('Set `authentication.client.native.scheme` (the deep link scheme of the Tauri app): a production build signs in with a custom-scheme redirect URI.')
+  }
   const customStorage = storageFile && (isAbsolute(storageFile) || storageFile.startsWith('.') ? resolve(nuxt.options.rootDir, storageFile) : storageFile)
 
   defineVirtualRegistry(nuxt, {
@@ -1152,16 +1226,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   addTemplate({
     filename: 'auth/native.d.mts',
     write: true,
-    getContents: () => `import type { AppPluginLike, BrowserPluginLike, PreferencesPluginLike, SecureStoragePluginLike } from ${clientTypes('capacitor/adapters')}
-import type { TokenStorage } from ${clientTypes('core/types')}
-export declare const plugins: {
-  app: (() => Promise<AppPluginLike>) | null
-  browser: (() => Promise<BrowserPluginLike>) | null
-  preferences: (() => Promise<PreferencesPluginLike>) | null
-  secureStorage: (() => Promise<SecureStoragePluginLike>) | null
-}
-export declare const customStorage: (() => Promise<TokenStorage | (() => TokenStorage | Promise<TokenStorage>)>) | null
-`,
+    getContents: () => nativeLoaderTypes(clientTypes),
   })
   addTypeTemplate({
     filename: 'types/auth-client.d.ts',
@@ -1197,19 +1262,22 @@ export {}
 
   // The shared policies (`addPolicies({ shared: true })`: the host's `shared/policies.ts`, modules' own) for the app's
   // `can()` (`@frigear-nu/authorization`). Client mode has no registry or server policies: the issuer's API decides.
-  let sharedPolicyFiles: PolicyFileRegistration[] = []
-  nuxt.hook('modules:done', async () => {
-    const files: PolicyFileRegistration[] = []
-    await nuxt.callHook('auth:policies', files)
-    const errors = await sharedPolicyErrors(files)
-    if (errors.length) {
-      const message = `[${MODULE_NAME}] Access control is misconfigured:\n- ${errors.join('\n- ')}`
-      if (!prepare) throw new Error(message)
-      logger.warn(message)
-    }
-    sharedPolicyFiles = files.filter(file => file.shared)
-  })
-  addSharedPoliciesTemplate(nuxt, resolver, () => sharedPolicyFiles)
+  // Resource mode's access control (`setupAccessControl`) provides them.
+  if (!resource) {
+    let sharedPolicyFiles: PolicyFileRegistration[] = []
+    nuxt.hook('modules:done', async () => {
+      const files: PolicyFileRegistration[] = []
+      await nuxt.callHook('auth:policies', files)
+      const errors = await sharedPolicyErrors(files)
+      if (errors.length) {
+        const message = `[${MODULE_NAME}] Access control is misconfigured:\n- ${errors.join('\n- ')}`
+        if (!prepare) throw new Error(message)
+        logger.warn(message)
+      }
+      sharedPolicyFiles = files.filter(file => file.shared)
+    })
+    addSharedPoliciesTemplate(nuxt, resolver, () => sharedPolicyFiles)
+  }
 
   // The user mapping (`client.mapUser` / `client.userinfo`), imported statically by the client plugin.
   const clientUser = addTemplate({
@@ -1243,15 +1311,24 @@ export declare const userinfo: boolean
   addPlugin(resolver.resolve('./runtime/client/app/plugins/api'))
 
   nuxt.hook('modules:done', async () => {
-    // nuxt-auth-utils needs a server for its session endpoints, Users a database.
-    for (const [name, aliases, reason] of [
-      ['nuxt-auth-utils', ['nuxt-auth-utils', 'auth-utils'], 'it needs a server for its session endpoints'],
-      ['@frigear-nu/users', ['@frigear-nu/users'], 'it needs a database'],
-    ] as const) {
-      if (!aliases.some(alias => hasNuxtModule(alias, nuxt))) continue
-      throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${await installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\`.`)
+    // nuxt-auth-utils needs a server for its session endpoints, Users a database. Resource mode has a server and a
+    // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer.
+    if (resource) {
+      if (['nuxt-auth-utils', 'auth-utils'].some(alias => hasNuxtModule(alias, nuxt))) {
+        throw new Error(`[${MODULE_NAME}] \`nuxt-auth-utils\` is installed (by ${await installedBy(nuxt, 'nuxt-auth-utils')}), but resource mode has no cookie sessions: people sign in at the issuer. Remove it, or use \`authentication.mode: 'server'\`.`)
+      }
     }
-    const guarded = findGuardRules(nuxt.options.routeRules as Record<string, unknown>)
+    else {
+      for (const [name, aliases, reason] of [
+        ['nuxt-auth-utils', ['nuxt-auth-utils', 'auth-utils'], 'it needs a server for its session endpoints'],
+        ['@frigear-nu/users', ['@frigear-nu/users'], 'it needs a database'],
+      ] as const) {
+        if (!aliases.some(alias => hasNuxtModule(alias, nuxt))) continue
+        throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${await installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\` (or \`'resource'\` for a server that accepts the issuer's tokens).`)
+      }
+    }
+    // Resource mode's server enforces the `/api/**` rules itself; pages still need Authorization.
+    const guarded = findGuardRules(nuxt.options.routeRules as Record<string, unknown>).filter(pattern => !resource || !pattern.startsWith('/api/'))
     if (guarded.length && !hasNuxtModule('@frigear-nu/authorization', nuxt) && !prepare) {
       logger.warn(`\`routeRules\` guard ${guarded.map(pattern => `\`${pattern}\``).join(', ')} (\`authenticated\`, \`guest\`, \`permission\`), but \`@frigear-nu/authorization\` is not installed: nothing checks them. Install it.`)
     }
@@ -1289,4 +1366,87 @@ async function scanOAuthHandlerExports(dirs: string[]): Promise<Array<{ name: st
     }
   }
   return found
+}
+
+/** nuxt-auth-utils' session utils, which resource mode replaces with stand-ins (`runtime/server/no-sessions`). */
+const SESSION_UTILS = ['getUserSession', 'setUserSession', 'replaceUserSession', 'clearUserSession', 'requireUserSession']
+
+/**
+ * Resource mode: client mode's sign-in at the issuer (PKCE, the Capacitor and Tauri flows) plus a server of its own
+ * that accepts the issuer's access tokens as bearer credentials, through a resolver (`@frigear-nu/oauth-resource`). The
+ * server half is server mode's (access control, the user store, grants, `authorize`), without nuxt-auth-utils, cookie
+ * sessions, the sign-in, session and API token routes, or their tables. `sessionOnly` permissions are never granted.
+ */
+function setupResourceMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnType<typeof createResolver>) {
+  const logger = useLogger('auth')
+  const settings = options.settings ?? {}
+
+  // Options of sign-in on this server do nothing here: say so rather than ignore them.
+  const ignored = [
+    options.apiTokens !== undefined && 'apiTokens',
+    options.tokenTtlDays != null && 'tokenTtlDays',
+    settings.webAuthn === true && 'settings.webAuthn',
+    !!settings.magicLink && 'settings.magicLink',
+    settings.verifyEmail === true && 'settings.verifyEmail',
+    Object.keys(settings.oauth ?? {}).length > 0 && 'settings.oauth',
+    settings.session?.maxAge !== undefined && 'settings.session.maxAge',
+    !!settings.pages?.register && 'settings.pages.register',
+  ].filter((name): name is string => !!name)
+  if (ignored.length) {
+    logger.warn(`${ignored.map(name => `\`authentication.${name}\``).join(', ')} ${ignored.length > 1 ? 'do' : 'does'} nothing in resource mode: people sign in at the issuer, and there are no cookie sessions or API tokens.`)
+  }
+
+  setupClientMode(options, nuxt, resolver, 'resource')
+  inlineModuleRuntime(nuxt, resolver)
+
+  // The credential columns on `users` stay, so the users admin (`emailVerifiedAt`, `lastLoginAt`) reads the same
+  // table in every mode. No table of its own: user tokens, passkeys and emailed codes belong to sign-in on this server.
+  extendDatabaseTable(nuxt, {
+    resolver,
+    file: dialect => `./runtime/db/users.${dialect}`,
+  })
+
+  // Read by the server utils; nothing here signs in, emails links or throttles sign-ins.
+  nuxt.options.runtimeConfig.authentication = {
+    tokenTtlDays: null,
+    apiTokenPrefix: USER_TOKEN_PREFIX,
+    revokeTokensOnReset: false,
+    magicLinkSignUp: false,
+    magicLinkCooldown: 60,
+    inviteTtl: DEFAULT_INVITE_TTL_SECONDS,
+    trustRequestOrigin: settings.trustRequestOrigin === true,
+    passwordResetCooldown: 60,
+    rateLimit: resolveRateLimit(false, nuxt.options.dev),
+  }
+  addServerTemplate({ filename: '#auth/rate-limit-kv', getContents: () => 'export const kv = undefined' })
+  addServerTemplate({ filename: '#auth/oauth', getContents: () => 'export const handlers = {}\nexport const settings = {}' })
+  addServerImports(SESSION_UTILS.map(name => ({ name, from: resolver.resolve('./runtime/server/no-sessions') })))
+
+  // No built-in resolver: user tokens need the `auth_user_tokens` table. The issuer's tokens come in through a module's.
+  setupServerHalf(options, nuxt, resolver, [])
+
+  // What the app's own UI reads (`useAuthorization`, area bootstraps), with the issuer's access token.
+  addModuleRoutes(resolver, [
+    { method: 'get', path: 'bootstrap', file: 'bootstrap.get' },
+    { method: 'get', path: 'me/access', file: 'me/access.get' },
+  ], { base: '/api/auth' })
+
+  // Without a resolver nobody can ever be authenticated: every guarded route would answer 401, which looks like a token
+  // problem at runtime. Fail the build instead (`nuxi prepare` only warns, so types still generate).
+  nuxt.hook('modules:done', async () => {
+    const registered: AuthResolverDefinition[] = []
+    await nuxt.callHook('auth:resolvers', registered)
+    if (registered.length) return
+    const message = `[${MODULE_NAME}] Resource mode authenticates every request with a bearer token resolver, and none is registered: install \`@frigear-nu/oauth-resource\` (the issuer's access tokens), or register one with \`addAuthResolver\`.`
+    if (nuxt.options._prepare) logger.warn(message)
+    else throw new Error(message)
+  })
+
+  // Every credential is a bearer token, so a session-only permission is never granted (403 `session_required`).
+  nuxt.hook('auth:access-compiled', (access) => {
+    const sessionOnly = Object.values(access.registry.permissions).filter(permission => permission.sessionOnly).map(permission => permission.name)
+    if (sessionOnly.length && nuxt.options.dev) {
+      logger.info(`Resource mode has no cookie sessions, so these session-only permissions are never granted: ${sessionOnly.join(', ')}.`)
+    }
+  })
 }

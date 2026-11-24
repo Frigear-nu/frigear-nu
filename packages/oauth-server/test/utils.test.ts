@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   groupScopesByService,
   isNativeRedirectUri,
+  isOAuthScopePermission,
+  matchesLoopbackRedirect,
   mergeScopeDefinitions,
   matchesAllowedRoles,
   outdatedScopes,
@@ -209,6 +211,34 @@ describe('preview URL patterns', () => {
   })
 })
 
+describe('loopback redirects (RFC 8252 §7.3)', () => {
+  const rules = { websiteUrl: null, redirectUris: ['http://127.0.0.1/auth/callback', 'http://[::1]/auth/callback'], allowNativeRedirects: true, clientType: 'public' as const }
+
+  it('accepts a registered loopback redirect on any port for public clients', () => {
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback', rules)).toBe(true)
+    expect(validateRedirectUri('http://127.0.0.1/auth/callback', rules)).toBe(true)
+    expect(validateRedirectUri('http://[::1]:5000/auth/callback', rules)).toBe(true)
+  })
+
+  it('still matches scheme, host, path and query exactly', () => {
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/other', rules)).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback/', rules)).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback?x=1', rules)).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/../auth/callback', rules)).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback#x', rules)).toBe(false)
+    expect(validateRedirectUri('http://localhost:49152/auth/callback', rules)).toBe(false)
+    expect(validateRedirectUri('https://127.0.0.1:49152/auth/callback', rules)).toBe(false)
+    expect(validateRedirectUri('http://user@127.0.0.1:49152/auth/callback', rules)).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.2:49152/auth/callback', rules)).toBe(false)
+  })
+
+  it('needs a public client and a registered loopback URI', () => {
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback', { ...rules, allowNativeRedirects: false })).toBe(false)
+    expect(validateRedirectUri('http://127.0.0.1:49152/auth/callback', { ...rules, redirectUris: ['http://localhost/auth/callback'] })).toBe(false)
+    expect(matchesLoopbackRedirect('http://[::1]:1/cb', 'http://127.0.0.1/cb')).toBe(false)
+  })
+})
+
 describe('isNativeRedirectUri', () => {
   it('accepts private-use schemes and webview origins', () => {
     expect(isNativeRedirectUri('com.example.app:/callback')).toBe(true)
@@ -273,5 +303,14 @@ describe('validateRedirectUri for native apps', () => {
     const publicRules = { websiteUrl: 'https://app.example.com', allowNativeRedirects: true }
     expect(validateRedirectUri('https://app.example.com/auth/frigear', publicRules)).toBe(true)
     expect(validateRedirectUri('http://app.example.com/auth/frigear', publicRules)).toBe(false)
+  })
+})
+
+describe('isOAuthScopePermission', () => {
+  it('allows a plain permission, never a sensitive or session-only one', () => {
+    expect(isOAuthScopePermission({})).toBe(true)
+    expect(isOAuthScopePermission({ sensitive: false, sessionOnly: false })).toBe(true)
+    expect(isOAuthScopePermission({ sensitive: true })).toBe(false)
+    expect(isOAuthScopePermission({ sessionOnly: true })).toBe(false)
   })
 })

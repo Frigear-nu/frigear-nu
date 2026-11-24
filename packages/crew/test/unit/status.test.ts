@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { CREW_STATUSES, CREW_TRANSITIONS, canMoveCrew, crewApplyNotice, crewStatusGrants, isCrewStatus, teamStatusOf } from '../../src/runtime/utils/status'
 import type { CrewStatus } from '../../src/types'
-import { CREW_INVITE_DEFAULT_DAYS, createCrewLinks } from '../../src/runtime/utils/links'
+import { CREW_INVITE_DEFAULT_DAYS, createCrewLinks, crewStatusPath } from '../../src/runtime/utils/links'
 import { crewApi } from '../../src/runtime/utils/api'
 
 describe('crew statuses', () => {
@@ -55,6 +55,17 @@ describe('crew links and api paths', () => {
     expect(links.apply('a b')).toBe('/join/a%20b')
     expect(links.status()).toBe('/me/crew')
     expect(links.invite('x/y')).toBe('/i/x%2Fy')
+  })
+
+  it('links My crew to the tab of the crew home when there is no status page', () => {
+    const links = createCrewLinks({ home: '/dashboard/crew' }, localize)
+    expect(links.status()).toBe('/da/dashboard/crew?tab=status')
+    expect(links.home()).toBe('/da/dashboard/crew')
+    expect(links.home('overview')).toBe('/da/dashboard/crew')
+    expect(links.home('shifts')).toBe('/da/dashboard/crew?tab=shifts')
+    // A status page wins over the tab; with neither there is no status to link (emails go out without one).
+    expect(crewStatusPath({ home: '/dashboard/crew', status: '/me/crew' })).toBe('/me/crew')
+    expect(crewStatusPath({})).toBeUndefined()
   })
 
   it('never takes /crew itself: the mobile home tab defaults to it', () => {

@@ -358,12 +358,6 @@
       "viewExceptions": "Exceptions ({count})",
       "viewShifts": "All shifts"
     },
-    "menu": {
-      "mine": {
-        "description": "Your shifts, your QR pass and swaps.",
-        "label": "My shifts"
-      }
-    },
     "mine": {
       "description": "Your shifts, your check-in pass and your swaps.",
       "empty": "No shifts yet",
@@ -377,7 +371,8 @@
       "showAll": "Show all days",
       "showPast": "Show {count} past shifts",
       "title": "My shifts",
-      "today": "Today"
+      "today": "Today",
+      "calendar": "Calendar"
     },
     "mobile": {
       "tab": "Shifts"
@@ -621,6 +616,12 @@
       "min_rest": "Too little rest between two shifts.",
       "overlap": "Works another shift at the same time.",
       "shift_full": "The shift is full."
+    },
+    "home": {
+      "tabs": {
+        "shifts": "My shifts",
+        "swaps": "Swaps"
+      }
     }
   }
 }
