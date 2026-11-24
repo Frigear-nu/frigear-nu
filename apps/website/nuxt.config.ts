@@ -144,6 +144,9 @@ export default defineNuxtConfig({
       // Sets fields in the generated wrangler.json
       wrangler: {
         keep_vars: true,
+        // fetch() goes out over the public internet. Without it a subrequest to a workers.dev Worker on this account
+        // (a Preview signing in against frigear-nu.frigear.workers.dev) fails with Cloudflare error 1042 (404).
+        compatibility_flags: ['global_fetch_strictly_public'],
         observability: {
           enabled: true,
           logs: {
@@ -175,8 +178,17 @@ export default defineNuxtConfig({
         // bindings, and the block is required for `wrangler preview` to work. A PR build sets
         // NUXT_HUB_CLOUDFLARE_DATABASE_ID to the per-PR D1 database, so Previews are isolated from production.
         // KV/R2 point at the configured resources; use dedicated preview ones via the same env vars if needed.
-        // Secrets/vars: `wrangler preview base-config secret put <NAME>` (set once, copied to each new Preview).
+        // Secrets: `wrangler preview base-config secret put <NAME>` (set once, inherited by each Preview).
+        // Plain vars: only `previews.vars` below. `wrangler preview` sends this block as the Preview's whole env, so
+        // vars set in the dashboard or the base config are dropped on every deploy (secrets are inherited).
         previews: {
+          vars: {
+            // "Log in with frigear.nu" against the workers.dev host (NUXT_FRIGEAR_SSO_CLIENT_ID/_SECRET are secrets).
+            NUXT_FRIGEAR_SSO_URL: 'https://frigear-nu.frigear.workers.dev',
+            NUXT_NOTIFY_EMAIL_DRIVER: 'resend',
+            NUXT_NOTIFY_EMAIL_FROM: 'PREVIEW frigear.nu <no-reply@frigear.nu>',
+            NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_51StpTcGeoReTs5WFTo0VnGyr3iafzIFbeMWuMvXVkhxmPv1gi6BCfRvaI9UXYlujukeCz6EYSvfu5Sn1OnNv9Muw002tBS0zzO',
+          },
           ...(process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID && {
             d1_databases: [{
               binding: 'DB',

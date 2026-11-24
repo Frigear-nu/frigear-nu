@@ -166,7 +166,9 @@ live in `packages/ui` (reference: `apps/docs/content/3.modules/7.interface/1.ui/
   `window.confirm`.
 - **Loading.** Pages `await` their data (`useCachedFetch` for data that should survive navigation); `useLazyFetch`
   only in widgets. Never render an empty, "join" or "not a member" state while `status` is `'pending'` or after an
-  error: show a skeleton (`SectionCard`/`ListCard`/`TableCard :loading`) or the error instead.
+  error: show a skeleton (`SectionCard`/`ListCard`/`TableCard :loading`) or the error instead. Anything lazy (a tab,
+  a widget, an async component) shows a skeleton while it loads, never a blank space: `WidgetTabs` does it for its
+  tabs; panels a page switches itself go in `<Suspense :key="tab">` with a skeleton `#fallback`.
 - **Feedback** is a toast with a title and the record name; errors go through `useErrorToast` / `errorToToast`, busy
   state through `useAction`. Pass context through the URL (deep links), not state hand-offs.
 - **Text.** Every string goes through `useModuleT('<ns>')` with an English fallback and `da`/`en` JSON. Buttons name the
