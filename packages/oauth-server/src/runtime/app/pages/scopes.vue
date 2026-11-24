@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { AdminOAuthScopeDto } from '../../../types'
-import { computed, errorMessage, tableUi, useModuleT, useOAuthScopeActions, useOAuthScopes, useRuntimeConfig } from '#imports'
+import OAuthAdminHeading from '../components/OAuthAdminHeading.vue'
+import { computed, errorMessage, tableUi, useModuleT, useOAuthScopeActions, useOAuthScopes } from '#imports'
 
 defineOptions({ name: 'OAuthScopesAdminPage' })
 
 const t = useModuleT('oauthServer')
 const { scopes, data, error, loading, refresh } = await useOAuthScopes()
 const actions = useOAuthScopeActions()
-const applicationsPath = (useRuntimeConfig().public.oauthServer as { pages?: { admin?: string } } | undefined)?.pages?.admin
 
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
 const failed = computed(() => !!error.value && !forbidden.value && !data.value)
@@ -22,11 +22,7 @@ const columns = computed<TableColumn<AdminOAuthScopeDto>[]>(() => [
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeading
-      :title="t('scopes.title', 'OAuth scopes')"
-      :description="t('scopes.description', 'Names applications can ask for, each standing for a set of permissions.')"
-      :breadcrumb="applicationsPath ? [{ label: t('admin.title', 'OAuth applications'), to: applicationsPath }] : undefined"
-    >
+    <OAuthAdminHeading>
       <template
         v-if="!forbidden"
         #actions
@@ -37,7 +33,7 @@ const columns = computed<TableColumn<AdminOAuthScopeDto>[]>(() => [
           @click="actions.create()"
         />
       </template>
-    </PageHeading>
+    </OAuthAdminHeading>
 
     <UEmpty
       v-if="forbidden"

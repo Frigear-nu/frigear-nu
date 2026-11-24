@@ -36,11 +36,13 @@ import type { AuthorizationRouteRules, ModuleOptions, PublicModuleOptions } from
 
 export type {
   AuthorizationAssignedRoleDto,
+  AuthorizationMatrixPermissionDto,
   AuthorizationPermissionGrant,
   AuthorizationPermissionSource,
   AuthorizationRoleOptions,
   AuthorizationResponse,
   AuthorizationRoleDto,
+  AuthorizationRoleMatrixDto,
   AuthorizationRolePermissionDto,
   AuthorizationRoleSummaryDto,
   AuthorizationRoleUserDto,
@@ -233,6 +235,7 @@ export default defineNuxtModule<ModuleOptions>({
         { method: 'get', path: 'roles', file: 'admin/roles.get' },
         { method: 'get', path: 'roles/:name', file: 'admin/role.get' },
         { method: 'get', path: 'roles/:name/users', file: 'admin/role-users.get' },
+        { method: 'get', path: 'matrix', file: 'admin/matrix.get' },
         { method: 'get', path: 'users/:id/roles', file: 'admin/user-roles.get' },
         { method: 'put', path: 'users/:id/roles', file: 'admin/user-roles.put' },
       ], { base: '/api/admin/authorization' })

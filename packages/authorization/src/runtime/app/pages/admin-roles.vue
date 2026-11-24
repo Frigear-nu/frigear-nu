@@ -2,23 +2,32 @@
 import type { TableColumn } from '@nuxt/ui'
 import { authorizationApi } from '../../utils/api'
 import type { AuthorizationRoleSummaryDto } from '../../utils/api'
-import { useRoleLabels } from '../admin/useRoleLabels'
+import RoleMatrix from '../admin/RoleMatrix.vue'
+import { useQueryTab, useRoleLabels } from '../admin/useRoleLabels'
 import { computed, emptyCell, errorMessage, h, navigateTo, numericColumn, resolveComponent, tableUi, useFetch } from '#imports'
 
 defineOptions({ name: 'AuthorizationAdminRolesPage' })
 
 // The roles admin: every configured role, read-only (roles come from `authorization.roles` and modules). Users get
-// roles on their own page (the "Roles and permissions" tab).
-const { t, rolePath, roleLabel, kindOf, kindLabel, kindColors } = useRoleLabels()
+// roles on their own page (the "Roles and permissions" tab). The matrix tab (`?tab=matrix`) sets every role against
+// every permission.
+const { t, rolePath, roleLabel, moduleLabel, kindOf, kindLabel, kindColors } = useRoleLabels()
 
 const { data: roles, error, refresh } = await useFetch<AuthorizationRoleSummaryDto[]>(authorizationApi.admin.roles, { key: 'authorization-admin-roles' })
 const forbidden = computed(() => [401, 403].includes(error.value?.statusCode ?? 0))
+
+const tab = useQueryTab(['roles', 'matrix'] as const)
+const tabs = computed(() => [
+  { value: 'roles', label: t('admin.tabs.roles', 'Roles'), icon: 'i-lucide-shield', badge: roles.value?.length },
+  { value: 'matrix', label: t('admin.tabs.matrix', 'Matrix'), icon: 'i-lucide-grid-3x3' },
+])
 const labelOf = (name: string) => {
   const role = roles.value?.find(candidate => candidate.name === name)
   return role ? roleLabel(role) : name
 }
 
 const StatusBadge = resolveComponent('StatusBadge')
+const UBadge = resolveComponent('UBadge')
 const TableIdentity = resolveComponent('TableIdentity')
 const RowMenu = resolveComponent('RowMenu')
 
@@ -37,6 +46,11 @@ const columns = computed<TableColumn<AuthorizationRoleSummaryDto>[]>(() => [
       const kind = kindOf(row.original)
       return h(StatusBadge, { status: kind, colors: kindColors, label: kindLabel(kind) })
     },
+  },
+  {
+    id: 'module',
+    header: t('admin.module', 'Module'),
+    cell: ({ row }: RoleCell) => h(UBadge, { color: 'neutral', variant: 'subtle', size: 'sm', label: moduleLabel(row.original.from) }),
   },
   {
     accessorKey: 'inherit',
@@ -75,22 +89,30 @@ function openRole(_event: Event, row: { original: AuthorizationRoleSummaryDto })
       :actions="forbidden ? [] : [{ label: t('admin.tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
 
-    <TableCard v-else>
-      <UTable
-        :data="roles ?? []"
-        :columns="columns"
-        :ui="tableUi()"
-        @select="openRole"
-      >
-        <template #empty>
-          <UEmpty
-            icon="i-lucide-shield"
-            variant="naked"
-            :title="t('admin.noRoles', 'No roles are configured')"
-            :description="t('admin.noRolesHint', 'Define them in `authorization.roles`.')"
-          />
-        </template>
-      </UTable>
-    </TableCard>
+    <template v-else>
+      <PageTabs
+        v-model="tab"
+        :items="tabs"
+      />
+
+      <RoleMatrix v-if="tab === 'matrix'" />
+      <TableCard v-else>
+        <UTable
+          :data="roles ?? []"
+          :columns="columns"
+          :ui="tableUi()"
+          @select="openRole"
+        >
+          <template #empty>
+            <UEmpty
+              icon="i-lucide-shield"
+              variant="naked"
+              :title="t('admin.noRoles', 'No roles are configured')"
+              :description="t('admin.noRolesHint', 'Define them in `authorization.roles`.')"
+            />
+          </template>
+        </UTable>
+      </TableCard>
+    </template>
   </div>
 </template>

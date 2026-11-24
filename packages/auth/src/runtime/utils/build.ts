@@ -130,7 +130,10 @@ export interface RegisterAccessOptions<P extends string = string, S extends stri
    * roles that is not registered is dropped, so an opt-in role needs no second permission list.
    */
   roles?: boolean | readonly R[]
-  /** The roles' provenance (`from`), shown on the roles admin pages. Defaults to the resource. */
+  /**
+   * The module behind the permissions, scopes and roles (`from`), shown on the roles admin pages. Defaults to the
+   * resource. A definition's own `from` wins.
+   */
   from?: string
 }
 
@@ -164,13 +167,13 @@ export function registerAccess<P extends string, S extends string, R extends str
   const skippedRoles = new Set(Object.keys(roles).filter(name => !registeredRoles.some(([key]) => key === name)))
   const from = options.from ?? access.resource
 
-  const permissionList = pick(permissions, options.permissions).map(([, definition]) => (
-    definition.grantTo?.some(role => skippedRoles.has(role))
-      ? { ...definition, grantTo: definition.grantTo.filter(role => !skippedRoles.has(role)) }
-      : definition
-  ))
+  const permissionList = pick(permissions, options.permissions).map(([, definition]) => ({
+    ...definition,
+    from: definition.from ?? from,
+    ...(definition.grantTo?.some(role => skippedRoles.has(role)) && { grantTo: definition.grantTo.filter(role => !skippedRoles.has(role)) }),
+  }))
   if (permissionList.length) addPermission(nuxt, ...permissionList)
-  const scopeList = pick(scopes, options.scopes).map(([, definition]) => definition)
+  const scopeList = pick(scopes, options.scopes).map(([, definition]) => ({ ...definition, from: definition.from ?? from }))
   if (scopeList.length) addScope(nuxt, ...scopeList)
   if (registeredRoles.length) addRole(nuxt, ...registeredRoles.map(([, role]) => ({ ...role, from: role.from ?? from })))
 }
