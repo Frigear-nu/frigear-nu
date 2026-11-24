@@ -9,7 +9,7 @@ pnpx @frigear-nu/cli --help
 
 | Command | What it does |
 | --- | --- |
-| `init [dir] --platform <web\|mobile\|desktop\|web,mobile>` | New project from a starter (or `-t <giget source>`), then `pnpm install` and `pnpm prepare:env`. |
+| `init [dir] --platform <web\|mobile\|desktop\|web,mobile\|web,mobile,desktop>` | New project from a starter (or `-t <giget source>`), then `pnpm install` and `pnpm prepare:env`. |
 | `app:create <name> --template <web\|web-standalone\|mobile\|desktop>` | Adds a starter's app to `apps/<name>`. |
 | `module:create <name> [--scope @acme]` | Scaffolds a Nuxt module in `packages/<name>`. |
 | `add <module...> [--app <app>]` | `pnpm add` in the app and adds the modules to its `nuxt.config`. |

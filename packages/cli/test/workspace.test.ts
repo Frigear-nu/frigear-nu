@@ -26,6 +26,9 @@ describe('resolveStarter', () => {
     ['Desktop', 'desktop'],
     ['desktop,mobile', undefined],
     ['web,desktop', undefined],
+    ['web,mobile,desktop', 'multi-platform'],
+    ['Desktop, web, MOBILE', 'multi-platform'],
+    ['multi-platform', 'multi-platform'],
     ['tv', undefined],
     ['', undefined],
   ])('%s → %s', (input, expected) => {

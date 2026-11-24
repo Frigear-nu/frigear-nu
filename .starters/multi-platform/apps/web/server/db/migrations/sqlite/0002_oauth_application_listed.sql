@@ -1,0 +1,1 @@
+ALTER TABLE `oauth_applications` ADD `isListed` integer DEFAULT true NOT NULL;

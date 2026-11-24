@@ -141,6 +141,18 @@ Each starter is a ready-made project you copy. It runs on the published `@frigea
   #description
   For a macOS, Windows and Linux app on Tauri that signs in at an issuer, or runs offline with its own server.
   :::
+
+  :::u-page-feature
+  ---
+  icon: i-lucide-layers
+  to: /examples/starters/multi-platform#_1-create-the-project
+  ---
+  #title
+  Multi-platform
+
+  #description
+  For web, mobile and desktop at once: the mobile standalone starter plus a desktop app that signs in at the web app.
+  :::
 ::
 
 ::u-page-section
