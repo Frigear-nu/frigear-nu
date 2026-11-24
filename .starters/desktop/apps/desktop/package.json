@@ -25,7 +25,7 @@
     "sidecar": "frigear-desktop sidecar"
   },
   "dependencies": {
-    "@frigear-nu/auth": "^0.6.3",
+    "@frigear-nu/auth": "^0.6.4",
     "@frigear-nu/authorization": "^0.6.0",
     "@frigear-nu/desktop": "^0.0.1",
     "@frigear-nu/users": "^3.1.1",
