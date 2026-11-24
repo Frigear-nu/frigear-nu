@@ -81,12 +81,36 @@ function onKeydown(event: KeyboardEvent, index: number) {
       role="tabpanel"
       :aria-labelledby="`tab-${name}-${active.id}`"
     >
-      <component
-        :is="getTabComponent(name, active.id)"
-        :key="active.id"
-        v-bind="{ ...active.props, ...context }"
-        @refresh="emit('refresh')"
-      />
+      <!-- A boundary per tab: the tab's chunk and its awaited data load behind a skeleton instead of leaving the
+           panel blank. On the server it resolves, so `?tab=` renders the tab itself. -->
+      <Suspense :key="active.id">
+        <component
+          :is="getTabComponent(name, active.id)"
+          v-bind="{ ...active.props, ...context }"
+          @refresh="emit('refresh')"
+        />
+        <template #fallback>
+          <slot
+            name="loading"
+            :tab="active"
+          >
+            <div
+              aria-busy="true"
+              class="overflow-hidden rounded-lg border border-default"
+            >
+              <div class="border-b border-default px-4 py-3.5">
+                <USkeleton class="h-5 w-40" />
+              </div>
+              <div class="space-y-3 p-4">
+                <USkeleton class="h-5 w-full" />
+                <USkeleton class="h-5 w-5/6" />
+                <USkeleton class="h-5 w-2/3" />
+                <USkeleton class="h-5 w-3/4" />
+              </div>
+            </div>
+          </slot>
+        </template>
+      </Suspense>
     </div>
   </div>
   <slot
