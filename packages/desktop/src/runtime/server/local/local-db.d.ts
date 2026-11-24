@@ -6,5 +6,7 @@ declare module '#desktop/local-db' {
     exec(sql: string): void
     values(sql: string, params: unknown[]): unknown[][]
     run(sql: string, params: unknown[]): void
+    /** Closes the connection (on shutdown). */
+    close?(): void
   })
 }

@@ -67,6 +67,8 @@ describe('local templates', () => {
     expect(rs).toMatch(/#\[cfg\(not\(dev\)\)\]\s+local_server::start\(_app\.handle\(\)\)\?;/)
     expect(rs).toMatch(/tauri::RunEvent::Exit = _event[\s\S]*local_server::stop\(_app\)/)
     expect(rs).toContain('child.kill()')
+    // ...and stops by itself when the shell dies without exiting (its stdin closes).
+    expect(rs).toMatch(/\.env\("FRIGEAR_DESKTOP_PARENT_WATCH", "1"\)[\s\S]*\.spawn\(\)\?;\s+app\.manage\(Server\(Mutex::new\(Some\(child\)\)\)\);/)
     // Single instance stays on.
     expect(rs).toContain('tauri_plugin_single_instance::init')
   })
@@ -257,6 +259,8 @@ describe('local build', () => {
     expect(db).toContain('join(process.env.DATA_DIR || process.cwd(), \'app.db\')')
     expect(db).toContain('drizzle(proxy.query, proxy.batch, { schema, casing: "snake_case" })')
     expect(localDbTemplate('/pkg/local-db')).toContain('{ schema })')
+    // The parent watch closes the connection on shutdown.
+    expect(db).toContain('close: () => { db.close() }')
     expect(localBootstrapTemplate('/pkg/bootstrap', { port: 0, secrets: ['NUXT_APP_SECRET'] })).toContain('prepareLocalServer({"port":0,"secrets":["NUXT_APP_SECRET"]})')
     const entry = localEntryTemplate('/app/.nuxt/desktop/local/bootstrap.mjs', '/nitro/presets/bun/runtime/bun.mjs')
     expect(entry.indexOf('bootstrap.mjs')).toBeLessThan(entry.indexOf('bun.mjs'))

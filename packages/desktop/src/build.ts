@@ -264,6 +264,7 @@ export function sqlite() {
       exec: sql => { db.exec(sql) },
       values: (sql, params) => db.query(sql).values(...params),
       run: (sql, params) => { db.query(sql).run(...params) },
+      close: () => { db.close() },
     }
     driver.exec(CONNECTION_PRAGMAS)
   }

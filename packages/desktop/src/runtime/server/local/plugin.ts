@@ -4,9 +4,11 @@ import { defineNitroPlugin, useStorage } from 'nitropack/runtime'
 import { sqlite } from '#desktop/local-db'
 import { applyMigrations, selectMigrations } from '../../shared/local-db'
 import { CLIENT_IP_HEADER, withClientAddress, type BunServeOptions, type BunServerLike } from '../../shared/client-address'
+import { parentWatchEnabled, watchParent } from '../../shared/parent-watch'
 
 // Local mode: applies the bundled migrations before the first request, then prints `READY <port>` on stdout, the line
-// the Tauri shell waits for before it opens the window on the server.
+// the Tauri shell waits for before it opens the window on the server. Started by the shell, it stops when the shell goes
+// away (shared/parent-watch).
 
 const MIGRATIONS = 'assets:desktop-migrations'
 
@@ -46,7 +48,30 @@ function listeningPort(): Promise<number> {
   })
 }
 
+/** Closes Nitro (its `close` hooks, at most 2 s) and the database, then exits. */
+async function shutdown(nitroApp: { hooks: { callHook: (name: 'close') => Promise<unknown> } }): Promise<never> {
+  await Promise.race([nitroApp.hooks.callHook('close'), new Promise(resolve => setTimeout(resolve, 2000))]).catch(() => {})
+  try {
+    sqlite?.().close?.()
+  }
+  catch (error) {
+    console.error(`[desktop] Closing the database: ${(error as Error).message}`)
+  }
+  process.exit(0)
+}
+
 export default defineNitroPlugin((nitroApp) => {
+  if (parentWatchEnabled(process.env)) {
+    watchParent({
+      stdin: process.stdin,
+      ppid: () => process.ppid,
+      platform: process.platform,
+      onParentGone: (reason) => {
+        console.log(`[desktop] The app quit (${reason === 'stdin' ? 'stdin closed' : 'parent process changed'}): stopping the server.`)
+        void shutdown(nitroApp)
+      },
+    })
+  }
   const port = listeningPort()
   const migrated = migrate().catch((error: unknown) => {
     console.error(`[desktop] ${(error as Error).message}`)
