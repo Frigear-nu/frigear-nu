@@ -21,6 +21,7 @@ vi.mock('../src/utils/install.ts', () => ({
   installDeps: vi.fn(),
   addDeps: vi.fn(),
   runPackageScript: vi.fn(),
+  execBin: vi.fn(),
 }))
 
 const run = async (name: string, rawArgs: string[]) => {
