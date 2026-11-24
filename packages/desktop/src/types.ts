@@ -3,7 +3,9 @@
  *
  * - `remote`: a static SPA (`nuxt generate`) bundled in the Tauri app, talking to a remote API and signing in at a
  *   remote issuer (`@frigear-nu/auth` in client mode).
- * - `local`: reserved for a Nitro server bundled as a sidecar on `127.0.0.1`. Not implemented yet: the module throws.
+ * - `local`: the whole Nuxt app (pages, SSR and its server modules) built into one executable that the Tauri shell starts
+ *   as a sidecar on `127.0.0.1`. Offline: sqlite in the OS app-data folder, cookie sessions (`@frigear-nu/auth` in
+ *   server mode) on the same origin.
  */
 export type DesktopMode = 'remote' | 'local'
 
@@ -36,6 +38,24 @@ export interface DesktopUpdaterOptions {
   pubkey: string
 }
 
+/** `local` mode: the bundled server. */
+export interface DesktopLocalOptions {
+  /**
+   * The sidecar's name: `src-tauri/binaries/<binaryName>-<target triple>` and Tauri's `bundle.externalBin`. Default:
+   * `<last segment of appId>-server`.
+   */
+  binaryName?: string
+  /** The port the server listens on. Default `0`: a free port the OS picks, read back from the `READY <port>` line. */
+  port?: number
+  /**
+   * Keep the session cookie `Secure`. Default `true`. Set `false` only if a webview refuses a `Secure` cookie on
+   * `http://127.0.0.1` (WKWebView and WebKitGTK are not verified yet).
+   */
+  secureCookie?: boolean
+  /** The folder inside the OS app-data folder (`app_data_dir()`) that holds the database and the secrets. Default `data`. */
+  dataDirName?: string
+}
+
 export interface ModuleOptions {
   /**
    * Reverse-DNS app id (`nu.frigear.crew`): the Tauri `identifier` and, lowercased, the default deep-link scheme and
@@ -46,10 +66,15 @@ export interface ModuleOptions {
   appName?: string
   /** The app version (semver). Default: the app's `package.json` version, else `0.1.0`. */
   version?: string
-  /** Default `remote`. `local` is not implemented yet. */
+  /** Default `remote`. */
   mode?: DesktopMode
-  /** Build a static SPA (`ssr: false`). Default `true`; remote mode needs it unless you set up SSR output yourself. */
+  /**
+   * Build a static SPA (`ssr: false`). Default `true` in remote mode, which needs it unless you set up SSR output
+   * yourself, and `false` in local mode, where the bundled server renders the pages.
+   */
   spa?: boolean
+  /** `local` mode: the bundled server. Ignored in remote mode. */
+  local?: DesktopLocalOptions
   window?: DesktopWindowOptions
   /** Deep links routed into the app (OAuth callbacks are always left to `@frigear-nu/auth`). */
   deepLinks?: {
@@ -84,7 +109,11 @@ export interface ResolvedDesktopOptions {
   autostart: boolean
   updater: DesktopUpdaterOptions | false
   devUrl: string
+  /** `null` in remote mode. */
+  local: ResolvedDesktopLocalOptions | null
 }
+
+export type ResolvedDesktopLocalOptions = Required<DesktopLocalOptions>
 
 /** `runtimeConfig.public.desktop`. */
 export interface DesktopPublicConfig {
@@ -110,6 +139,8 @@ export interface DesktopManifest {
   updater: boolean
   /** JavaScript Tauri plugins the enabled features use. */
   plugins: { name: string, required: boolean, feature: string }[]
+  /** The bundled server of local mode, `null` in remote mode. */
+  local: Pick<ResolvedDesktopLocalOptions, 'binaryName' | 'port' | 'dataDirName'> | null
 }
 
 export interface DesktopDeepLinkContext {

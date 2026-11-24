@@ -43,3 +43,163 @@ export function missingPluginWarnings(plugins: { name: string, required: boolean
     .filter(plugin => !installed(plugin.name))
     .map(plugin => `\`${plugin.name}\` is not installed (${plugin.feature})${plugin.required ? '' : ', optional'}: \`pnpm add ${plugin.name}\`.`)
 }
+
+/**
+ * Local mode bundles the app's own server, with cookie sessions on its origin: Auth has to run in server mode. Throws
+ * for any other mode.
+ */
+export function assertServerAuth(mode: string): void {
+  if (mode !== 'server') {
+    throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` bundles the app\'s own server and signs in with a cookie session on it, but `@frigear-nu/auth` runs in client mode: remove `authentication.mode: \'client\'` (server is the default).')
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Local mode: the production build of the bundled server.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * What local mode relies on in `@nuxthub/core`, checked by `test/unit/nuxthub-seam.test.ts` against the installed
+ * version. NuxtHub writes its database client as a package in the app's `node_modules/@nuxthub/db` (`db.mjs`, and
+ * `schema.mjs` with the merged schema) and imports it as `@nuxthub/db` (`hub:db` is an alias of it). The local build
+ * points `@nuxthub/db` at its own client and keeps `@nuxthub/db/schema`.
+ */
+export const NUXTHUB_SEAM = {
+  /** The `@nuxthub/core` versions the seam was checked against (major.minor). */
+  versions: ['0.10'],
+  dbPackage: '@nuxthub/db',
+  dbAlias: 'hub:db',
+  schemaSpecifier: '@nuxthub/db/schema',
+  schemaAlias: 'hub:db:schema',
+  /** The generated schema, relative to the app's root. */
+  schemaFile: ['node_modules', '@nuxthub', 'db', 'schema.mjs'],
+  /** NuxtHub's own copy of every layer's and module's migrations, relative to `hub.dir`. */
+  migrationsDir: ['db', 'migrations'],
+} as const
+
+/** The `nitro` options local mode sets (a structural subset of Nitro's config). */
+export interface LocalNitroConfig {
+  preset?: string
+  serveStatic?: boolean | 'node' | 'deno' | 'inline'
+  noExternals?: boolean | unknown
+  inlineDynamicImports?: boolean
+  alias?: Record<string, string>
+  serverAssets?: { baseName: string, dir: string }[]
+  plugins?: string[]
+  rollupConfig?: { external?: unknown, [key: string]: unknown }
+}
+
+export interface LocalBuildPaths {
+  /** The generated `@nuxthub/db` replacement (`#desktop/local-db`; without `hub.db`, a module exporting `sqlite = null`). */
+  dbModule: string
+  /** Whether the app has a NuxtHub database (`hub.db`): only then is `@nuxthub/db` replaced and migrated. */
+  hubDb: boolean
+  /** NuxtHub's generated schema (`node_modules/@nuxthub/db/schema.mjs`). */
+  schemaModule: string
+  /** NuxtHub's migrations folder (`<hub.dir>/db/migrations`), or `null` without a database. */
+  migrationsDir: string | null
+  /** The server plugin that migrates and prints `READY <port>`. */
+  plugin: string
+}
+
+/** `bun:sqlite` is the runtime's own module: never bundled. */
+function withExternal(external: unknown, id: string): unknown {
+  if (external === undefined) return [id]
+  if (Array.isArray(external)) return external.includes(id) ? external : [...external, id]
+  if (typeof external === 'function') {
+    return (source: string, ...rest: unknown[]) => source === id || (external as (...args: unknown[]) => unknown)(source, ...rest)
+  }
+  return [external, id]
+}
+
+/**
+ * Turns the production build into one self-contained file for `bun build --compile`: the `bun` preset, public assets
+ * inlined, every dependency bundled into one chunk, NuxtHub's database client replaced by `bun:sqlite` (libsql's native
+ * addon cannot load from inside a compiled binary), the migrations bundled as server assets and the boot plugin.
+ */
+export function applyLocalNitroConfig(nitro: LocalNitroConfig, paths: LocalBuildPaths): LocalNitroConfig {
+  nitro.preset = 'bun'
+  nitro.serveStatic = 'inline'
+  nitro.noExternals = true
+  nitro.inlineDynamicImports = true
+  nitro.rollupConfig ||= {}
+  nitro.rollupConfig.external = withExternal(nitro.rollupConfig.external, 'bun:sqlite')
+  nitro.alias ||= {}
+  nitro.alias['#desktop/local-db'] = paths.dbModule
+  if (paths.hubDb) {
+    // The schema keeps NuxtHub's file; the longer alias wins over `@nuxthub/db`, which would otherwise prefix-match it.
+    nitro.alias[NUXTHUB_SEAM.schemaSpecifier] = paths.schemaModule
+    nitro.alias[NUXTHUB_SEAM.schemaAlias] = paths.schemaModule
+    nitro.alias[NUXTHUB_SEAM.dbPackage] = paths.dbModule
+    nitro.alias[NUXTHUB_SEAM.dbAlias] = paths.dbModule
+  }
+  nitro.serverAssets ||= []
+  if (paths.hubDb && paths.migrationsDir && !nitro.serverAssets.some(asset => asset.baseName === 'desktop-migrations')) {
+    nitro.serverAssets.push({ baseName: 'desktop-migrations', dir: paths.migrationsDir })
+  }
+  nitro.plugins ||= []
+  if (!nitro.plugins.includes(paths.plugin)) nitro.plugins.push(paths.plugin)
+  return nitro
+}
+
+/**
+ * The `@nuxthub/db` replacement of the local build: drizzle's sqlite-proxy over `bun:sqlite` on `$DATA_DIR/app.db`.
+ * Written into the build dir, so `drizzle-orm` and the schema resolve from the app like NuxtHub's own client does.
+ */
+export function localDbTemplate(localDbModule: string, casing?: string): string {
+  return `// Generated by @frigear-nu/desktop (local mode): NuxtHub's \`@nuxthub/db\` on bun:sqlite, $DATA_DIR/app.db.
+import { Database } from 'bun:sqlite'
+import { join } from 'node:path'
+import { drizzle } from 'drizzle-orm/sqlite-proxy'
+import * as schema from '@nuxthub/db/schema'
+import { CONNECTION_PRAGMAS, createSqliteProxy } from ${JSON.stringify(localDbModule)}
+
+let driver
+/** The raw connection (one per process): the migrations run on it before the first request. */
+export function sqlite() {
+  if (!driver) {
+    const db = new Database(join(process.env.DATA_DIR || process.cwd(), 'app.db'), { create: true })
+    driver = {
+      exec: sql => { db.exec(sql) },
+      values: (sql, params) => db.query(sql).values(...params),
+      run: (sql, params) => { db.query(sql).run(...params) },
+    }
+    driver.exec(CONNECTION_PRAGMAS)
+  }
+  return driver
+}
+
+const proxy = createSqliteProxy(sqlite)
+export const db = drizzle(proxy.query, proxy.batch, { schema${casing ? `, casing: ${JSON.stringify(casing)}` : ''} })
+export { schema }
+`
+}
+
+/** Runs `prepareLocalServer` with the build's options, as the first module of the server. */
+export function localBootstrapTemplate(bootstrapModule: string, options: { port: number, secrets: string[] }): string {
+  return `// Generated by @frigear-nu/desktop (local mode).
+import { prepareLocalServer } from ${JSON.stringify(bootstrapModule)}
+prepareLocalServer(${JSON.stringify(options)})
+`
+}
+
+/** Nitro's entry, behind the bootstrap: ES modules evaluate in import order, so the env is ready before Nitro reads it. */
+export function localEntryTemplate(bootstrapFile: string, entry: string): string {
+  return `// Generated by @frigear-nu/desktop (local mode).
+import ${JSON.stringify(bootstrapFile)}
+import ${JSON.stringify(entry)}
+`
+}
+
+/** Whether `version` is one `NUXTHUB_SEAM` was checked against. */
+export function isCheckedNuxtHubVersion(version: string | undefined): boolean {
+  return !!version && NUXTHUB_SEAM.versions.some(prefix => version === prefix || version.startsWith(`${prefix}.`))
+}
+
+/**
+ * Local mode: NuxtHub writes its KV client (`hub.kv`) into the app's `node_modules/@nuxthub/kv`, importing `unstorage`
+ * from there, so the app must depend on `unstorage` itself (pnpm does not hoist it). `true` when it resolves.
+ */
+export function appHasUnstorage(rootDir: string): boolean {
+  return existsSync(join(rootDir, 'node_modules', 'unstorage', 'package.json'))
+}

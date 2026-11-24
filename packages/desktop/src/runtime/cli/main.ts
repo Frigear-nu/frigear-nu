@@ -2,20 +2,22 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { DesktopManifest } from '../../types'
-import { CAPABILITY_FILE, FALLBACK_APP_ID, mergeTauriConfig, toJson, type JsonObject } from '../shared/config'
-import { CARGO_TOML, runDoctor, TAURI_CONFIG, type DoctorFinding } from './doctor'
+import { BINARIES_DIR, CAPABILITY_FILE, FALLBACK_APP_ID, LOADING_DIR, mergeTauriConfig, toJson, type JsonObject } from '../shared/config'
+import { CARGO_TOML, resolveBun, runDoctor, TAURI_CONFIG, type DoctorFinding } from './doctor'
 import { pngIco, solidPng } from './icon'
-import { baseTauriConfig, BUILD_RS, cargoToml, GITIGNORE, libRs, mainRs } from './templates'
+import { baseTauriConfig, BUILD_RS, cargoToml, GITIGNORE, libRs, loadingPage, mainRs } from './templates'
 
 export interface CliArgs {
-  command: 'init' | 'sync' | 'dev' | 'build' | 'doctor' | 'help'
+  command: 'init' | 'sync' | 'dev' | 'build' | 'sidecar' | 'doctor' | 'help'
   cwd: string
   force: boolean
+  /** `sidecar`: the Rust target triple to compile the server for. Default: the host's. */
+  target?: string
   /** Everything after `--`, passed on to `tauri dev` / `tauri build`. */
   passthrough: string[]
 }
 
-const COMMANDS = ['init', 'sync', 'dev', 'build', 'doctor'] as const
+const COMMANDS = ['init', 'sync', 'dev', 'build', 'sidecar', 'doctor'] as const
 
 const USAGE = `Usage: frigear-desktop <command> [options] [-- <tauri options>]
 
@@ -23,12 +25,15 @@ Commands:
   init      Create src-tauri/ (Cargo project, plugins, placeholder icons), then sync. Existing files are kept.
   sync      Merge the app's desktop settings into src-tauri/tauri.conf.json and src-tauri/capabilities/frigear.json.
   dev       sync, then \`tauri dev\` (starts \`nuxt dev\` and opens the window on it).
-  build     sync, then \`tauri build\` (runs \`nuxt generate\` first and bundles the app).
+  build     sync, then \`tauri build\` (runs \`nuxt generate\` first and bundles the app). Local mode: \`nuxt build\`,
+            the server compiled with Bun into src-tauri/binaries/, then \`tauri build\`.
+  sidecar   Local mode: \`nuxt build\` and the compiled server only, without Tauri.
   doctor    Check Rust, @tauri-apps/cli, the OS prerequisites, src-tauri/ and the app's Tauri packages.
 
 Options:
-  --cwd <dir>   The app's directory. Default: the current directory.
-  --force       init: overwrite the files it creates.
+  --cwd <dir>        The app's directory. Default: the current directory.
+  --force            init: overwrite the files it creates.
+  --target <triple>  sidecar: the Rust target triple (default: this machine's). For build, pass \`-- --target <triple>\`.
 `
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -51,6 +56,12 @@ export function parseArgs(argv: string[]): CliArgs {
       if (!value) throw new Error(`--cwd needs a value.\n\n${USAGE}`)
       args.cwd = resolve(value)
     }
+    else if (flag === '--target') {
+      const value = inline ?? (rest[0]?.startsWith('--') ? undefined : rest.shift())
+      if (!value) throw new Error(`--target needs a value.\n\n${USAGE}`)
+      if (args.command !== 'sidecar') throw new Error('--target is only for `sidecar`; pass it to `build` after `--`.')
+      args.target = value
+    }
     else if (flag === '--force') {
       if (inline !== undefined) throw new Error('--force takes no value.')
       if (args.command !== 'init') throw new Error('--force is only for `init`.')
@@ -69,6 +80,10 @@ export interface Io {
   /** Runs a command quietly: whether it succeeded and its output. */
   probe: (command: string, args: string[]) => { ok: boolean, stdout: string }
   platform: NodeJS.Platform
+  /** `process.arch`. Default: this process's. */
+  arch?: string
+  /** The environment (`BUN`). Default: `process.env`. */
+  env?: Record<string, string | undefined>
 }
 
 const shell = process.platform === 'win32'
@@ -82,6 +97,8 @@ export const defaultIo: Io = {
     return { ok: !result.error && result.status === 0, stdout: result.stdout ?? '' }
   },
   platform: process.platform,
+  arch: process.arch,
+  env: process.env,
 }
 
 const readJson = <T>(file: string): T | null => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : null)
@@ -140,15 +157,93 @@ function writeIfChanged(file: string, contents: string | Buffer): boolean {
  * Merges the generated config into `src-tauri/tauri.conf.json` (keys the module does not own are kept) and writes the
  * capability file it owns. Changes nothing when both are up to date.
  */
-export function syncProject(cwd: string, generated: Pick<Generated, 'config' | 'capabilities'>, io: Pick<Io, 'log'>): string[] {
+export function syncProject(cwd: string, generated: Pick<Generated, 'config' | 'capabilities'> & Partial<Pick<Generated, 'manifest'>>, io: Pick<Io, 'log'>): string[] {
   const configFile = join(cwd, TAURI_CONFIG)
   const existing = readJson<JsonObject>(configFile)
   if (!existing) throw new Error(`${TAURI_CONFIG} does not exist: run \`frigear-desktop init\` first.`)
   const changed: string[] = []
   if (writeIfChanged(configFile, toJson(mergeTauriConfig(existing, generated.config)))) changed.push(TAURI_CONFIG)
   if (writeIfChanged(join(cwd, 'src-tauri', CAPABILITY_FILE), toJson(generated.capabilities))) changed.push(`src-tauri/${CAPABILITY_FILE}`)
-  io.log(changed.length ? `✔ Updated ${changed.join(' and ')}.` : '✔ src-tauri/ is up to date.')
+  // Local mode: the loading page the window shows until the server is ready (`build.frontendDist`).
+  const manifest = generated.manifest
+  if (manifest?.local && writeIfChanged(join(cwd, 'src-tauri', LOADING_DIR, 'index.html'), loadingPage(manifest.appName))) {
+    changed.push(`src-tauri/${LOADING_DIR}/index.html`)
+  }
+  io.log(changed.length ? `✔ Updated ${changed.join(', ')}.` : '✔ src-tauri/ is up to date.')
   return changed
+}
+
+/** Rust target triples by `process.platform` and `process.arch`, when `rustc` cannot say. */
+const HOST_TRIPLES: Record<string, string> = {
+  'darwin-arm64': 'aarch64-apple-darwin',
+  'darwin-x64': 'x86_64-apple-darwin',
+  'linux-x64': 'x86_64-unknown-linux-gnu',
+  'linux-arm64': 'aarch64-unknown-linux-gnu',
+  'win32-x64': 'x86_64-pc-windows-msvc',
+  'win32-arm64': 'aarch64-pc-windows-msvc',
+}
+
+/** The Rust target triple of this machine: `rustc -vV`'s `host`, else from the platform and architecture. */
+export function hostTriple(io: Pick<Io, 'probe' | 'platform' | 'arch'>): string {
+  const rustc = io.probe('rustc', ['-vV'])
+  const host = rustc.ok ? /^host:\s*(\S+)/m.exec(rustc.stdout)?.[1] : undefined
+  if (host) return host
+  const triple = HOST_TRIPLES[`${io.platform}-${io.arch ?? process.arch}`]
+  if (!triple) throw new Error(`Cannot tell the Rust target triple of ${io.platform}-${io.arch}: install Rust or pass \`--target\`.`)
+  return triple
+}
+
+/** Bun's `--target` for a Rust target triple (`aarch64-apple-darwin` → `bun-darwin-arm64`). */
+export function bunTarget(triple: string): string {
+  const arch = triple.startsWith('x86_64-') ? 'x64' : triple.startsWith('aarch64-') ? 'arm64' : undefined
+  const os = triple.includes('-apple-darwin') ? 'darwin' : triple.includes('-windows-') ? 'windows' : triple.includes('-linux-') ? 'linux' : undefined
+  if (!arch || !os) throw new Error(`Bun cannot compile the server for ${triple}: supported are x86_64 and aarch64 on macOS, Windows and Linux.`)
+  return `bun-${os}-${arch}${os === 'linux' && triple.endsWith('-musl') ? '-musl' : ''}`
+}
+
+/** Where the compiled server goes: Tauri's `externalBin` naming, `<name>-<triple>` (`.exe` on Windows). */
+export function sidecarPath(binaryName: string, triple: string): string {
+  return `src-tauri/${BINARIES_DIR}/${binaryName}-${triple}${triple.includes('-windows-') ? '.exe' : ''}`
+}
+
+/** The target triple of `tauri build` options (`--target <triple>`, `--target=<triple>`, `-t <triple>`). */
+export function passthroughTarget(passthrough: string[]): string | undefined {
+  for (let i = 0; i < passthrough.length; i++) {
+    const arg = passthrough[i]!
+    if (arg === '--target' || arg === '-t') return passthrough[i + 1]
+    if (arg.startsWith('--target=')) return arg.slice('--target='.length)
+  }
+  return undefined
+}
+
+/**
+ * Local mode: `nuxt build` (the module turns it into one self-contained file for Bun), then `bun build --compile` into
+ * `src-tauri/binaries/<name>-<triple>`. Returns the binary's path, relative to the app.
+ */
+export function buildSidecar(cwd: string, manifest: DesktopManifest, target: string | undefined, io: Io): string {
+  if (!manifest.local) throw new Error('`desktop.mode` is not `local`: there is no server to compile.')
+  const bun = resolveBun(io.env ?? process.env, io.probe)
+  if (!bun) throw new Error('Bun was not found: local mode compiles the server with it. Install it from https://bun.sh, or set `BUN` to its path.')
+  const triple = target ?? hostTriple(io)
+  const bunTargetName = bunTarget(triple)
+  io.log('Building the server (`nuxt build`)…')
+  io.exec('npx', ['nuxt', 'build'], cwd)
+  const entry = join(cwd, '.output/server/index.mjs')
+  if (!existsSync(entry)) throw new Error('`nuxt build` did not write .output/server/index.mjs.')
+  const output = sidecarPath(manifest.local.binaryName, triple)
+  mkdirSync(dirname(join(cwd, output)), { recursive: true })
+  io.log(`Compiling the server for ${triple} (\`${bunTargetName}\`)…`)
+  io.exec(bun, ['build', '--compile', '--minify', '--sourcemap=none', `--target=${bunTargetName}`, entry, '--outfile', join(cwd, output)], cwd)
+  io.log(`✔ ${output}`)
+  return output
+}
+
+/** Local mode: a config file `tauri dev` / `tauri build` merge (`--config`), written under node_modules/.cache. */
+function tauriConfigOverride(cwd: string, name: string, config: JsonObject): string {
+  const file = join(cwd, 'node_modules/.cache/frigear-desktop', `${name}.json`)
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, toJson(config))
+  return file
 }
 
 /** The files of a new `src-tauri/`, relative to the app's root. */
@@ -189,6 +284,7 @@ export function doctor(cwd: string, io: Io): DoctorFinding[] {
     isInstalled: pkg => isResolvable(pkg, cwd),
     readFile: path => (existsSync(join(cwd, path)) ? readFileSync(join(cwd, path), 'utf8') : null),
     manifest: readGenerated(cwd)?.manifest ?? null,
+    env: io.env ?? process.env,
   })
 }
 
@@ -223,11 +319,29 @@ export async function main(argv: string[] = process.argv.slice(2), io: Io = defa
       case 'sync':
         syncProject(cwd, loadGenerated(cwd, io), io)
         return 0
+      case 'sidecar': {
+        const generated = loadGenerated(cwd, io)
+        buildSidecar(cwd, generated.manifest, args.target, io)
+        return 0
+      }
       case 'dev':
       case 'build': {
         if (!isResolvable('@tauri-apps/cli', cwd)) throw new Error('`@tauri-apps/cli` is not installed in the app: `pnpm add -D @tauri-apps/cli`.')
-        syncProject(cwd, loadGenerated(cwd, io), io)
-        io.exec('npx', ['tauri', args.command, ...args.passthrough], cwd)
+        const generated = loadGenerated(cwd, io)
+        syncProject(cwd, generated, io)
+        const tauriArgs = ['tauri', args.command]
+        if (generated.manifest.local) {
+          if (args.command === 'build') {
+            // The server and the sidecar first; Tauri's own beforeBuildCommand would run `nuxt generate`.
+            buildSidecar(cwd, generated.manifest, passthroughTarget(args.passthrough), io)
+            tauriArgs.push('--config', tauriConfigOverride(cwd, 'tauri-build', { build: { beforeBuildCommand: '' } }))
+          }
+          else {
+            // No sidecar under `tauri dev`: the window loads `nuxt dev` (devUrl).
+            tauriArgs.push('--config', tauriConfigOverride(cwd, 'tauri-dev', { bundle: { externalBin: [] } }))
+          }
+        }
+        io.exec('npx', [...tauriArgs, ...args.passthrough], cwd)
         return 0
       }
     }

@@ -7,7 +7,9 @@ A Tauri v2 desktop shell for Nuxt (macOS, Windows, Linux), the desktop sibling o
 - the owned parts of `tauri.conf.json` and a capability file generated from `nuxt.config` (`.nuxt/desktop/`)
 - `useDesktop()`: `isDesktop`, the OS, the app version, window controls, `openExternal`, lazy Tauri packages
 - deep links with the app's scheme routed to pages (`desktop:deep-link` hook), `<html class="desktop" data-desktop>`
-- the `frigear-desktop` CLI: `init` (creates `src-tauri/`), `sync`, `dev`, `build`, `doctor`
+- **local mode**: the whole app (SSR, server modules) compiled with Bun into one sidecar the shell starts on
+  `127.0.0.1`, offline, with sqlite in the app-data folder, startup migrations and cookie sessions (Auth in server mode)
+- the `frigear-desktop` CLI: `init` (creates `src-tauri/`), `sync`, `dev`, `build`, `sidecar`, `doctor`
 
 Everything does nothing in a plain browser.
 

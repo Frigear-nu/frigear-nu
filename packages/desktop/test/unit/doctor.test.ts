@@ -5,7 +5,7 @@ import { cargoToml } from '../../src/runtime/cli/templates'
 
 const manifest: DesktopManifest = {
   appId: 'nu.frigear.crew', appName: 'Crew', version: '1.0.0', mode: 'remote', devUrl: 'http://localhost:3000', redirectUri: '',
-  schemes: ['nu.frigear.crew'], singleInstance: true, autostart: false, updater: false,
+  schemes: ['nu.frigear.crew'], singleInstance: true, autostart: false, updater: false, local: null,
   plugins: [
     { name: '@tauri-apps/plugin-opener', required: true, feature: 'sign-in' },
     { name: '@tauri-apps/plugin-store', required: false, feature: 'tokens' },

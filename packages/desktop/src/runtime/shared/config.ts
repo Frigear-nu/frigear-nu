@@ -16,6 +16,22 @@ export const DEFAULT_VERSION = '0.1.0'
 export const MAIN_WINDOW = 'main'
 /** The capability file `frigear-desktop sync` owns. */
 export const CAPABILITY_FILE = 'capabilities/frigear.json'
+/** Local mode: the loading page `frigear-desktop sync` owns, relative to `src-tauri/` (`build.frontendDist`). */
+export const LOADING_DIR = 'frigear-loading'
+/** Local mode: where the compiled sidecars go, relative to `src-tauri/`. */
+export const BINARIES_DIR = 'binaries'
+/** Local mode: the origin pattern of the bundled server, for the capability's `remote.urls`. */
+export const LOCAL_ORIGIN_PATTERN = 'http://127.0.0.1:*'
+
+const BINARY_NAME = /^[a-z0-9][\w-]*$/i
+const DATA_DIR_NAME = /^[\w.-]+$/
+
+/** The Rust crate name from the app id's last segment (`nu.frigear.crew` → `crew`). */
+export function crateName(appId: string): string {
+  const last = appId.split('.').pop() ?? ''
+  const name = last.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^[^a-z]+/, '').replace(/-+$/, '')
+  return name || 'app'
+}
 
 /** The URL scheme of an app id: lowercase, `_` becomes `-`. `undefined` when no valid scheme comes out of it. */
 export function appIdScheme(appId: string): string | undefined {
@@ -38,18 +54,15 @@ export interface ResolveResult {
   warnings: string[]
 }
 
-/**
- * Normalizes the `desktop` options. Throws for `mode: 'local'` (not implemented yet); every other problem is returned
- * in `errors`, which the module turns into one error.
- */
+/** Normalizes the `desktop` options. Problems are returned in `errors`, which the module turns into one error. */
 export function resolveDesktopOptions(input: ModuleOptions, context: ResolveContext = {}): ResolveResult {
   const errors: string[] = []
   const warnings: string[] = []
-  const mode = input.mode ?? 'remote'
-  if (mode === 'local') {
-    throw new Error('[@frigear-nu/desktop] `desktop.mode: \'local\'` (a bundled Nitro server) is not implemented yet. Use `mode: \'remote\'` (the default): a static SPA that signs in at a remote issuer.')
+  let mode = input.mode ?? 'remote'
+  if (mode !== 'remote' && mode !== 'local') {
+    errors.push(`\`mode\` must be 'remote' or 'local', got ${JSON.stringify(mode)}.`)
+    mode = 'remote'
   }
-  if (mode !== 'remote') errors.push(`\`mode\` must be 'remote' or 'local', got ${JSON.stringify(mode)}.`)
 
   let appId = input.appId?.trim() ?? ''
   if (!appId) {
@@ -107,19 +120,36 @@ export function resolveDesktopOptions(input: ModuleOptions, context: ResolveCont
   const devUrl = input.devUrl ?? `http://localhost:${context.devPort ?? 3000}`
   if (!/^https?:\/\/[^/]+/.test(devUrl)) errors.push(`\`devUrl\` "${devUrl}" must be an http(s) URL.`)
 
+  const singleInstance = input.singleInstance !== false
+  let local: ResolvedDesktopOptions['local'] = null
+  if (mode === 'local') {
+    local = {
+      binaryName: input.local?.binaryName?.trim() || `${crateName(appId)}-server`,
+      port: input.local?.port ?? 0,
+      secureCookie: input.local?.secureCookie !== false,
+      dataDirName: input.local?.dataDirName?.trim() || 'data',
+    }
+    if (!BINARY_NAME.test(local.binaryName)) errors.push(`\`local.binaryName\` "${local.binaryName}" must be letters, digits, "-" and "_".`)
+    if (!Number.isInteger(local.port) || local.port < 0 || local.port > 65535) errors.push('`local.port` must be a port number (0 picks a free one).')
+    if (!DATA_DIR_NAME.test(local.dataDirName) || /^\.+$/.test(local.dataDirName)) errors.push(`\`local.dataDirName\` "${local.dataDirName}" must be one folder name.`)
+    if (!singleInstance) warnings.push('`singleInstance: false` in local mode lets a second launch start a second server on the same database: keep it on.')
+  }
+
   return {
     options: {
       appId,
       appName,
       version,
-      mode: 'remote',
-      spa: input.spa !== false,
+      mode,
+      // Remote mode bundles a static build; in local mode the bundled server renders the pages.
+      spa: input.spa ?? mode === 'remote',
       window,
       deepLinks: { schemes },
-      singleInstance: input.singleInstance !== false,
+      singleInstance,
       autostart: input.autostart === true,
       updater,
       devUrl,
+      local,
     },
     errors,
     warnings,
@@ -152,8 +182,9 @@ export function tauriConfig(options: ResolvedDesktopOptions, schemes: string[] =
     version: options.version,
     identifier: options.appId,
     build: {
-      // Relative to `src-tauri/`: the output of `nuxt generate`.
-      frontendDist: '../.output/public',
+      // Relative to `src-tauri/`. Remote: the output of `nuxt generate`. Local: the loading page the window shows until
+      // the bundled server is ready (the shell then navigates it to the server).
+      frontendDist: options.local ? LOADING_DIR : '../.output/public',
       devUrl: options.devUrl,
     },
     app: {
@@ -163,6 +194,8 @@ export function tauriConfig(options: ResolvedDesktopOptions, schemes: string[] =
     bundle: {
       active: true,
       ...(options.updater ? { createUpdaterArtifacts: true } : {}),
+      // Local: the compiled server, `binaries/<name>-<target triple>` (Tauri appends the triple).
+      ...(options.local ? { externalBin: [`${BINARIES_DIR}/${options.local.binaryName}`] } : {}),
     },
   }
 }
@@ -189,14 +222,19 @@ export function capabilityPermissions(options: Pick<ResolvedDesktopOptions, 'aut
   return permissions
 }
 
-/** The capability file `frigear-desktop sync` writes (it owns the whole file; add your own permissions in another one). */
-export function capabilities(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater'>): JsonObject {
+/**
+ * The capability file `frigear-desktop sync` writes (it owns the whole file; add your own permissions in another one).
+ * In local mode the window shows pages of the bundled server, a remote origin to Tauri: `remote.urls` lets those pages
+ * use the same permissions. The sidecar is started from Rust, so no `shell:*` permission is granted to the pages.
+ */
+export function capabilities(options: Pick<ResolvedDesktopOptions, 'autostart' | 'updater'> & { local?: ResolvedDesktopOptions['local'] }): JsonObject {
   return {
     $schema: '../gen/schemas/desktop-schema.json',
     identifier: 'frigear',
     description: 'Generated by frigear-desktop sync from the desktop options in nuxt.config. Do not edit: add your own permissions in another capability file.',
     windows: [MAIN_WINDOW],
     platforms: ['macOS', 'windows', 'linux'],
+    ...(options.local ? { remote: { urls: [LOCAL_ORIGIN_PATTERN] } } : {}),
     permissions: capabilityPermissions(options),
   }
 }
