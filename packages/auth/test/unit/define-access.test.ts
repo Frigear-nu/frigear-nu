@@ -112,6 +112,20 @@ describe('registerAccess', () => {
     expect(roles()).toEqual([expect.objectContaining({ name: 'eventmanager', from: '@frigear-nu/events' })])
   })
 
+  it('stamps the module on permissions and scopes too, keeping an explicit `from`', () => {
+    const { nuxt, permissions, scopes } = fakeNuxt()
+    const access = defineAccess('crew', { permissions: { read: {}, own: { from: 'elsewhere' } }, scopes: { crew: { permissions: ['crew:read'] } } })
+    registerAccess(nuxt, access, { from: '@frigear-nu/crew' })
+    expect(permissions().map(p => p.from)).toEqual(['@frigear-nu/crew', 'elsewhere'])
+    expect(scopes()[0]!.from).toBe('@frigear-nu/crew')
+    const defaults = fakeNuxt()
+    registerAccess(defaults.nuxt, eventsAccess)
+    expect(defaults.permissions().every(p => p.from === 'events')).toBe(true)
+    const compiled = compileAccess({ permissions: [...defaults.permissions(), { name: 'events:manage' }, { name: 'app:read' }], roles: defaults.roles() })
+    expect(compiled.registry.permissions['events:manage']!.from).toBe('events')
+    expect(compiled.registry.permissions['app:read']!.from).toBeUndefined()
+  })
+
   it('throws on a key the access does not define', () => {
     const { nuxt } = fakeNuxt()
     // @ts-expect-error not a permission key

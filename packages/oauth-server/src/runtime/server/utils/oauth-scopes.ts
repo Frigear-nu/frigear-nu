@@ -4,10 +4,10 @@ import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import { apiError, badRequest, conflict, isoDate, notFound, validationError } from '@frigear-nu/module-kit/server'
 import { expandScopes, isKnownScope, scopeGrantable, validateNamedScopes } from '@frigear-nu/auth/utils'
-import type { AuthUser, NamedScopes, ScopeDefinition } from '@frigear-nu/auth/utils'
+import type { AuthUser, NamedScopes, ResolvedPermission, ScopeDefinition } from '@frigear-nu/auth/utils'
 import { namedScopes, registry } from '#auth/permissions'
-import type { AdminOAuthScopeDto, OAuthApplication, OAuthDbScope, OAuthScopeInput } from '../../../types'
-import { OIDC_SCOPES } from '../../utils'
+import type { AdminOAuthScopeDto, OAuthApplication, OAuthDbScope, OAuthScopeInput, OAuthScopePermissionOptionDto } from '../../../types'
+import { OIDC_SCOPES, isOAuthScopePermission } from '../../utils'
 
 // The scopes this server accepts: the OIDC ones, every permission a token may hold (with aliases and wildcards), the
 // named scopes of config and modules (`addScope`, compiled into `#auth/permissions`) and the database scopes staff
@@ -197,8 +197,39 @@ function assertScopePermissions(name: string, permissions: string[]) {
     ? [{ path: ['permissions', index], message: `"${permission}" is a wildcard: list the permissions by name.` }]
     : [])
   if (wildcards.length) throw validationError(wildcards, 'A database scope cannot contain wildcards.')
+  // Sensitive and session-only permissions, by the same rule as the form's picker (an alias stands for its targets).
+  const refused = permissions.flatMap((permission, index) => {
+    const definitions = (Object.hasOwn(registry.aliases, permission) ? registry.aliases[permission]! : [permission])
+      .map(target => Object.hasOwn(registry.permissions, target) ? registry.permissions[target] : undefined)
+    return definitions.some(definition => definition && !isOAuthScopePermission(definition))
+      ? [{ path: ['permissions', index], message: `"${permission}" is sensitive or session-only: it cannot go in a scope.` }]
+      : []
+  })
+  if (refused.length) throw validationError(refused, 'A scope cannot contain sensitive or session-only permissions.')
   const errors = validateNamedScopes({ [name]: { name, permissions } }, registry)
   if (errors.length) throw badRequest(errors.join(' '))
+}
+
+export function toOAuthPermissionOptionDto(permission: ResolvedPermission): OAuthScopePermissionOptionDto {
+  // `from` (the registering module) is read when the registry records it.
+  const from = (permission as ResolvedPermission & { from?: unknown }).from
+  return {
+    name: permission.name,
+    label: permission.label ?? null,
+    labelKey: permission.labelKey ?? null,
+    description: permission.description ?? null,
+    descriptionKey: permission.descriptionKey ?? null,
+    group: permission.group || permission.resource,
+    from: typeof from === 'string' && from ? from : null,
+  }
+}
+
+/** The permissions a database scope may carry (`isOAuthScopePermission`), for the scope form: by group, then name. */
+export function listOAuthScopePermissionOptions(): OAuthScopePermissionOptionDto[] {
+  return Object.values(registry.permissions)
+    .filter(isOAuthScopePermission)
+    .map(toOAuthPermissionOptionDto)
+    .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name))
 }
 
 export function toAdminOAuthScopeDto(scope: OAuthDbScope): AdminOAuthScopeDto {

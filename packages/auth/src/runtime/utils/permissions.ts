@@ -50,6 +50,8 @@ export interface PermissionDefinition {
    * not configured is skipped (a build note), as is a host role defined with `replace: true`.
    */
   grantTo?: string[]
+  /** The module that registered it (`registerAccess` sets the resource), shown on the roles admin pages. None for the host's. */
+  from?: string
 }
 
 /** A registered permission with its defaults applied. */
@@ -67,6 +69,8 @@ export interface ResolvedPermission {
   aliases: string[]
   /** Roles it is granted to by default (`grantTo`), unioned over every registration. */
   grantTo: string[]
+  /** The module that registered it; none for a permission only the host registered. */
+  from?: string
 }
 
 export interface PermissionRegistry {
@@ -132,6 +136,7 @@ export function resolvePermission(definition: PermissionDefinition): ResolvedPer
     implicit: definition.implicit ?? false,
     aliases: [...new Set(definition.aliases ?? [])],
     grantTo: [...new Set(definition.grantTo ?? [])],
+    ...(definition.from && { from: definition.from }),
   }
 }
 
@@ -163,6 +168,8 @@ export function createPermissionRegistry(definitions: readonly PermissionDefinit
         ...Object.fromEntries(Object.entries(next).filter(([, value]) => value !== undefined)),
         // The resource is only a default group: keep an explicit group unless this definition names one.
         group: definition.group ?? previous.group,
+        // The first module to register a permission owns it: a later registration (the host's) does not move it.
+        ...((previous.from ?? next.from) && { from: previous.from ?? next.from }),
         aliases: [...new Set([...previous.aliases, ...next.aliases])],
         grantTo: [...new Set([...previous.grantTo, ...next.grantTo])],
       } as ResolvedPermission
@@ -239,6 +246,8 @@ export interface ScopeDefinition {
   icon?: string
   /** The service (module) the scope belongs to, for grouping on consent and token screens. */
   service?: string
+  /** The module that registered it (`registerAccess` sets the resource). None for the host's. */
+  from?: string
   /** Permission names or wildcards. Never sensitive or `sessionOnly` permissions. */
   permissions?: string[]
   /** Bumped when `permissions` grows, so users are asked to consent again. */
@@ -348,6 +357,8 @@ export interface CompiledRole {
   assignable: boolean
   /** Where each of `permissions` comes from: one entry per source (a role may get a permission several ways). */
   provenance: Record<string, RoleGrantOrigin[]>
+  /** The module that defines the role (its first module definition); none when only the host defines it or replaces it. */
+  from?: string
 }
 
 /** How a role came to hold a permission. */
@@ -395,6 +406,8 @@ export interface CompileRolesInput {
 
 interface MergedRoles {
   roles: Record<string, RoleDefinition>
+  /** The module behind each role: the first module definition's `from` (none for host-only or replaced roles). */
+  from: Record<string, string | undefined>
   /** Each role's own grants with where they came from. */
   origins: Record<string, Array<{ grant: string } & RoleGrantOrigin>>
   /** Roles a host defined with `replace: true`. */
@@ -418,6 +431,7 @@ export function mergeRoleContributions(contributions: readonly RoleContribution[
     byName.set(contribution.name, list)
   }
   const roles: Record<string, RoleDefinition> = {}
+  const from: MergedRoles['from'] = {}
   const origins: MergedRoles['origins'] = {}
   const replaced = new Set<string>()
   for (const [name, list] of byName) {
@@ -464,9 +478,10 @@ export function mergeRoleContributions(contributions: readonly RoleContribution[
     merged.inherit = [...new Set(merged.inherit)]
     merged.grant = [...new Set(own.map(entry => entry.grant))]
     roles[name] = merged
+    from[name] = modules.find(module => module.from)?.from
     origins[name] = own
   }
-  return { roles, origins, replaced, errors }
+  return { roles, from, origins, replaced, errors }
 }
 
 /** Builds the role table and reports every configuration error at once. */
@@ -487,7 +502,7 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
         continue
       }
       if (merged.replaced.has(role)) continue
-      merged.origins[role]!.push({ grant: permission.name, via: 'grantTo' })
+      merged.origins[role]!.push({ grant: permission.name, via: 'grantTo', ...(permission.from && { from: permission.from }) })
       if (!roles[role]!.grant!.includes(permission.name)) roles[role]!.grant!.push(permission.name)
     }
   }
@@ -570,6 +585,7 @@ export function compileRoles(input: CompileRolesInput): BuildResult<RoleTable> {
       default: isDefault,
       assignable: !auto && !isDefault && (role.assignable ?? true),
       provenance: {},
+      ...(merged.from[name] && { from: merged.from[name] }),
     }
   }
 
