@@ -144,6 +144,11 @@
       "create": "Create user \"{term}\"",
       "empty": "Nobody matches",
       "hint": "Type a name to search"
+    },
+    "offerLocale": {
+      "title": "Your language is {language}",
+      "description": "Your account is set to {language}. Show this site in it?",
+      "switch": "Switch to {language}"
     }
   }
 }

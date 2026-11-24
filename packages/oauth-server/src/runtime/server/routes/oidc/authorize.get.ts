@@ -14,12 +14,13 @@ export default defineEventHandler(async (event) => {
 
   const url = getRequestURL(event)
   const session = await getUserSession(event)
+  // The sign-in and consent pages open in the language the application asked for (`ui_locales`), when the app has it.
   if (!session.user) {
-    return sendRedirect(event, `${getSignInPath()}?redirect=${encodeURIComponent(`${url.pathname}${url.search}`)}`, 302)
+    return sendRedirect(event, `${localizeAuthorizePath(getSignInPath(), query)}?redirect=${encodeURIComponent(`${url.pathname}${url.search}`)}`, 302)
   }
 
   const user = await requireOAuthUser(await requireSessionUserId(event))
   await assertApplicationAccess(event, user, application)
 
-  return sendRedirect(event, `${useOAuthConfig().authorizePath}${url.search}`, 302)
+  return sendRedirect(event, `${localizeAuthorizePath(useOAuthConfig().authorizePath, query)}${url.search}`, 302)
 })

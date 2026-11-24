@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { H3Event } from 'h3'
-import { badRequest, forbidden } from '@frigear-nu/module-kit/server'
+import { badRequest, forbidden, localizePath, pickLocale } from '@frigear-nu/module-kit/server'
 import type { OAuthApplication, OAuthUser } from '../../../types'
 import { resolveScope, validateRedirectUri } from '../../utils'
 
@@ -14,6 +14,9 @@ export const authorizeRequestSchema = z.object({
   code_challenge_method: z.literal('S256'),
   scope: z.string().max(1024).optional(),
   nonce: z.string().max(512).optional(),
+  // OIDC: the languages the application would like the sign-in and consent pages in, most preferred first. Only a hint:
+  // a malformed one is dropped rather than failing the request.
+  ui_locales: z.string().max(256).optional().catch(undefined),
 })
 
 export type AuthorizeRequest = z.infer<typeof authorizeRequestSchema>
@@ -77,4 +80,22 @@ export async function assertApplicationAccess(event: H3Event, user: OAuthUser, a
 export function getSignInPath(): string {
   const config = useRuntimeConfig()
   return config.oauthServer.signInPath || getLoginPath()
+}
+
+/**
+ * The language the application asked for (`ui_locales`): the first of them this app's i18n has (`en-GB` counts as
+ * `en`). `null` without i18n or when none matches.
+ */
+export function authorizeUiLocale(request: Pick<AuthorizeRequest, 'ui_locales'>): string | null {
+  const i18n = useOAuthConfig().i18n
+  return i18n ? pickLocale(request.ui_locales, i18n.locales) : null
+}
+
+/**
+ * A path of this site in the language the application asked for (`authorizeUiLocale`): with its locale prefix, the way
+ * `useLocaleLink().localize` builds links in the app. Anything that is not a site path stays as it is.
+ */
+export function localizeAuthorizePath(path: string, request: Pick<AuthorizeRequest, 'ui_locales'>): string {
+  if (!path.startsWith('/') || path.startsWith('//')) return path
+  return localizePath(path, authorizeUiLocale(request), useOAuthConfig().i18n)
 }

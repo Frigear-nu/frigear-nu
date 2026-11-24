@@ -10,6 +10,14 @@ vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string
 vi.stubGlobal('verifyFrigearIdToken', async () => verified)
 vi.stubGlobal('syncFrigearUser', syncFrigearUser)
 vi.stubGlobal('parseColorModeClaim', () => undefined)
+const { parseFrigearLocaleClaim } = await import('../../src/runtime/server/utils/frigear-locale')
+vi.stubGlobal('parseFrigearLocaleClaim', parseFrigearLocaleClaim)
+// `auth:frigear:login` listeners, as a module would register them.
+type LoginHook = (ctx: { user: Record<string, unknown>, claims: Record<string, unknown> }) => void | Promise<void>
+const loginHooks: LoginHook[] = []
+vi.stubGlobal('useNitroApp', () => ({
+  hooks: { callHook: async (_name: string, ctx: Parameters<LoginHook>[0]) => { for (const hook of loginHooks) await hook(ctx) } },
+}))
 vi.stubGlobal('mapUserToSession', (user: unknown) => user)
 vi.stubGlobal('replaceUserSession', replaceUserSession)
 // `startAuthSession` (session.ts) is the sign-in: a replaced session with the mapped user.
@@ -31,6 +39,7 @@ beforeEach(() => {
   verified = { sub: '7', email: 'ada@example.com', email_verified: true }
   syncFrigearUser.mockClear()
   replaceUserSession.mockClear()
+  loginHooks.length = 0
 })
 
 describe('handleFrigearLogin', () => {
@@ -93,5 +102,37 @@ describe('handleFrigearLogin roles', () => {
     verified.role = 'admin'
     await handleFrigearLogin(event, sso, {}, { id_token: 'id' })
     expect(rolesOf()).toBeUndefined()
+  })
+})
+
+describe('handleFrigearLogin language', () => {
+  const withI18n = { ...sso, i18n: { strategy: 'prefix_except_default', defaultLocale: 'da', locales: ['da', 'en'] } } as FrigearSsoConfig
+  const sessionOf = () => (replaceUserSession.mock.calls.at(-1) as unknown as [unknown, { frigear: { locale?: string }, user: Record<string, unknown> }])[1]
+
+  it('keeps the `locale` claim in the session as one of the app\'s locales', async () => {
+    verified.locale = 'en-GB'
+    await handleFrigearLogin(event, withI18n, {}, { id_token: 'id' })
+    expect(sessionOf().frigear.locale).toBe('en')
+  })
+
+  it('ignores a locale the app does not have, and any without i18n', async () => {
+    verified.locale = 'sv'
+    await handleFrigearLogin(event, withI18n, {}, { id_token: 'id' })
+    expect(sessionOf().frigear.locale).toBeUndefined()
+    verified.locale = 'en'
+    await handleFrigearLogin(event, sso, {}, { id_token: 'id' })
+    expect(sessionOf().frigear.locale).toBeUndefined()
+  })
+
+  it('hands the synced user and the claims to `auth:frigear:login`, and starts the session with the user it leaves', async () => {
+    const seen: Array<Record<string, unknown>> = []
+    loginHooks.push((ctx) => {
+      seen.push(ctx.claims)
+      ctx.user = { ...ctx.user, locale: ctx.claims.locale }
+    })
+    verified.locale = 'en'
+    await handleFrigearLogin(event, withI18n, { sub: '7', name: 'Ada' }, { id_token: 'id' })
+    expect(seen).toEqual([expect.objectContaining({ sub: '7', email: 'ada@example.com', name: 'Ada', locale: 'en' })])
+    expect(sessionOf().user).toMatchObject({ id: 7, locale: 'en' })
   })
 })

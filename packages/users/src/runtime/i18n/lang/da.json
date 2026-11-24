@@ -144,6 +144,11 @@
       "create": "Opret bruger \"{term}\"",
       "empty": "Ingen matcher",
       "hint": "Skriv et navn for at søge"
+    },
+    "offerLocale": {
+      "title": "Dit sprog er {language}",
+      "description": "Din konto er sat til {language}. Vil du se siden på det sprog?",
+      "switch": "Skift til {language}"
     }
   }
 }

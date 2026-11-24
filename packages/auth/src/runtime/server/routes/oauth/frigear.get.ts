@@ -18,6 +18,9 @@ export default eventHandler(async (event) => {
   rememberLoginRedirect(event)
   // Step-up (`?scope=users:read`) only shapes the authorization request; the callback carries no `scope`.
   const scope = frigearLoginScopes(sso, getQuery(event).scope)
+  // The language of the page the login started on, so frigear.nu opens its sign-in and consent pages in it (OIDC
+  // `ui_locales`). Only on the way out: the callback carries no page.
+  const uiLocales = getQuery(event).code ? undefined : resolveFrigearUiLocale(event, sso)
 
   // nuxt-auth-utils 0.6 types its handlers with Nuxt's `RequestEvent`; under Nitro 2 that is this same h3 event.
   return defineOAuthOidcEventHandler({
@@ -26,6 +29,7 @@ export default eventHandler(async (event) => {
       clientSecret: sso.clientSecret,
       openidConfig: sso.openidConfig,
       scope,
+      ...(uiLocales ? { params: { authorization_endpoint: { ui_locales: uiLocales } } } : {}),
     },
     async onSuccess(oauthEvent, { user, tokens }) {
       return handleFrigearLogin(oauthEvent as unknown as H3Event, sso, user as Record<string, unknown>, tokens)

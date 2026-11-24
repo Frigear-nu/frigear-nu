@@ -97,6 +97,12 @@ describe('PKCE and the authorization request', () => {
     })
   })
 
+  it('asks for the window\'s language with `ui_locales` when it is known', () => {
+    const params = { clientId: 'desktop', redirectUri: 'http://127.0.0.1:43123/auth/frigear', scopes: ['openid'], state: 's', nonce: 'n', codeChallenge: 'c' }
+    expect(new URL(buildFrigearHandoffAuthorizeUrl('https://issuer.example/oauth/authorize', { ...params, uiLocales: 'en' })).searchParams.get('ui_locales')).toBe('en')
+    expect(new URL(buildFrigearHandoffAuthorizeUrl('https://issuer.example/oauth/authorize', params)).searchParams.has('ui_locales')).toBe(false)
+  })
+
   it('stores only hashes of the window secret and the state', async () => {
     const attempt = await start()
     const stored = JSON.stringify(await row(attempt.id))
