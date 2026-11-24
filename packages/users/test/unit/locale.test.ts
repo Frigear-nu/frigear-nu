@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeUserLocale } from '../../src/runtime/utils/locale'
+import { normalizeUserLocale, userLocaleOfferKey, userLocaleToOffer } from '../../src/runtime/utils/locale'
 import { localeField } from '../../src/runtime/server/schemas'
 
 describe('normalizeUserLocale', () => {
@@ -28,5 +28,28 @@ describe('localeField', () => {
     expect(localeField().parse(null)).toBeNull()
     expect(localeField(['da', 'en']).safeParse('de').success).toBe(false)
     expect(localeField().safeParse('not a tag').success).toBe(false)
+  })
+})
+
+describe('userLocaleToOffer', () => {
+  const known = ['da', 'en']
+
+  it('offers the saved language, as the app spells it, when the page is in another', () => {
+    expect(userLocaleToOffer('da', 'en', known)).toBe('da')
+    expect(userLocaleToOffer('EN', 'da', known)).toBe('en')
+  })
+
+  it('offers nothing when the page is in it, it is not one of the app\'s, or nothing is saved', () => {
+    expect(userLocaleToOffer('da', 'da', known)).toBeNull()
+    expect(userLocaleToOffer('da', 'DA', known)).toBeNull()
+    expect(userLocaleToOffer('sv', 'da', known)).toBeNull()
+    expect(userLocaleToOffer(null, 'da', known)).toBeNull()
+    expect(userLocaleToOffer('da', 'en', [])).toBeNull()
+    expect(userLocaleToOffer('da', '', known)).toBeNull()
+  })
+
+  it('remembers an answered offer per user and language', () => {
+    expect(userLocaleOfferKey(7, 'da')).toBe('users:locale-offer:7:da')
+    expect(userLocaleOfferKey(7, 'en')).not.toBe(userLocaleOfferKey(8, 'en'))
   })
 })

@@ -19,3 +19,18 @@ export function normalizeUserLocale(value: unknown, known: readonly string[] = [
   if (known.length) return known.find(code => code.toLowerCase() === tag.toLowerCase()) ?? null
   return USER_LOCALE_PATTERN.test(tag) ? tag : null
 }
+
+/**
+ * The saved language (`users.locale`) to offer a signed-in user, as the app spells it: one of the app's locales
+ * (`known`) other than the one the page is shown in (`current`). `null` when there is nothing to offer.
+ */
+export function userLocaleToOffer(saved: unknown, current: string | null | undefined, known: readonly string[]): string | null {
+  if (!known.length || !current) return null
+  const code = normalizeUserLocale(saved, known)
+  return code && code.toLowerCase() !== current.toLowerCase() ? code : null
+}
+
+/** The `sessionStorage` key that remembers an answered offer of `locale` to `userId`, so it is not made again. */
+export function userLocaleOfferKey(userId: unknown, locale: string): string {
+  return `users:locale-offer:${String(userId)}:${locale}`
+}
