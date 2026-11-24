@@ -37,9 +37,8 @@ already work in a Nuxt 4 app. Then add only the modules you need.
   :::
 
 #default
-```bash [Terminal]
-pnpm create frigear-app my-app --platform web && cd my-app
-```
+  :::starter-install
+  :::
 ::
 
 ::u-page-section
