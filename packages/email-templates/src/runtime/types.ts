@@ -15,12 +15,11 @@ export type TemplateComponentProps<TComponent> = TComponent extends new () => { 
   ? Omit<P, keyof VNodeProps | keyof AllowedComponentProps>
   : never
 
-/** A scanned template file. Same shape as nuxt-email-renderer's template mapping entries. */
+/** A scanned template file. Same shape as nuxt-email-renderer's `EmailTemplateInfo`. */
 export type EmailTemplateFile = {
   name: string
   filename: string
   displayName: string
-  importPath: string
   filePath: string
 }
 

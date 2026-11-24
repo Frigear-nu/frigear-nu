@@ -16,9 +16,6 @@ export type SendEmailTemplateMessage = Omit<EmailNotification, 'subject' | 'body
   locale?: string
 }
 
-const toParts = (rendered: string | { html: string, subject: string }) =>
-  typeof rendered === 'string' ? { content: rendered, subject: undefined } : { content: rendered.html, subject: rendered.subject }
-
 /**
  * Renders an email template (an SFC in `app/emails`, or one a module ships) to HTML, plus plain
  * text unless `text: false`. Throws a 404 error when no template has that name.
@@ -28,16 +25,15 @@ export async function renderEmailTemplate<N extends EmailTemplateName>(
   props: EmailTemplateProps<N>,
   options: RenderEmailTemplateOptions = {},
 ): Promise<RenderedEmailTemplate> {
-  const renderProps = props as Record<string, unknown>
-  const html = toParts(await renderEmailComponent(name, renderProps, { locale: options.locale }))
+  const { html, text, subject } = await renderEmailComponent(name, props as Record<string, unknown>, {
+    locale: options.locale,
+    plainText: options.text !== false,
+  })
   // Vue SSR logs errors thrown while rendering and leaves the markup empty rather than rejecting.
-  if (!html.content.replace(/<!DOCTYPE[^>]*>/i, '').trim()) {
+  if (!html.replace(/<!DOCTYPE[^>]*>/i, '').trim()) {
     throw new Error(`[@frigear-nu/email-templates] Template "${name}" rendered nothing.`)
   }
-  const text = options.text === false
-    ? undefined
-    : toParts(await renderEmailComponent(name, renderProps, { locale: options.locale, plainText: true })).content
-  return { subject: html.subject, body: html.content, text }
+  return { subject, body: html, text }
 }
 
 /**
