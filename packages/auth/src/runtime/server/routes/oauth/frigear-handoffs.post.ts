@@ -21,5 +21,10 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, bodySchema.parse) ?? {}
   if (!sso.clientId) throw notConfigured('frigear.nu has no client id configured (`frigear.sso.clientId`).')
   await enforceAuthRateLimit(event, 'frigear-handoff')
-  return created(event, await startFrigearHandoff(event, sso, { redirect: body.redirect, scopes: frigearLoginScopes(sso, body.scope) }))
+  return created(event, await startFrigearHandoff(event, sso, {
+    redirect: body.redirect,
+    scopes: frigearLoginScopes(sso, body.scope),
+    // The window's language (the page that started it), for frigear.nu's pages in the browser.
+    uiLocales: resolveFrigearUiLocale(event, sso, body.redirect),
+  }))
 })

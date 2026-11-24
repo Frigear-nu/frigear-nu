@@ -2,6 +2,13 @@ import type { H3Event } from 'h3'
 import type { AuthStoredUser } from '../../types'
 import type { FrigearSsoConfig } from './frigear-sso'
 
+/**
+ * The `auth:frigear:login` hook: a frigear.nu login synced the local `user`, the session is not started yet. `claims`
+ * are the verified id token's claims filled in by userinfo about the same user. A listener that changes the stored
+ * user replaces `user` with the stored row, so the session starts with it.
+ */
+export type FrigearLoginContext = { user: AuthStoredUser, claims: Record<string, unknown> }
+
 /** A frigear.nu login that went through: the local user and the extra session data to start the session with. */
 export type FrigearLoginResult = { user: AuthStoredUser, session: Record<string, unknown> } | { error: 'oauth-unverified' }
 
@@ -71,12 +78,19 @@ export async function resolveFrigearLogin(sso: FrigearSsoConfig, userinfo: Recor
   // The tokens of this login replace any kept before (e.g. a step-up login replaces the plain one).
   if (sso.keepTokens) await storeOAuthTokens(user.id, 'frigear', parseOAuthTokenResponse(tokens, sso.scopes))
 
+  // Other modules take what they own from the claims (`@frigear-nu/users`: the `locale` claim into `users.locale`).
+  const context: FrigearLoginContext = { user, claims }
+  await useNitroApp().hooks.callHook('auth:frigear:login', context)
+  user = context.user
+
   return {
     user,
     session: {
       frigear: {
         id: String(claims.sub),
         colorMode: parseColorModeClaim(claims.color_mode),
+        // One of the app's i18n locales; applied once per login (`frigear-locale.client`).
+        locale: parseFrigearLocaleClaim(claims.locale, sso.i18n?.locales ?? []),
         loggedInAt: Date.now(),
       },
     },

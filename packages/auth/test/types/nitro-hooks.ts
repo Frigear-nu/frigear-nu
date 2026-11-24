@@ -10,4 +10,7 @@ export default defineNitroPlugin((nitro) => {
     ctx.notification.subject = `[Example] ${ctx.notification.subject}`
   })
   nitro.hooks.hook('auth:credentials:changed', ctx => void ctx.reason)
+  nitro.hooks.hook('auth:frigear:login', (ctx) => {
+    if (typeof ctx.claims.locale === 'string') ctx.user = { ...ctx.user, locale: ctx.claims.locale }
+  })
 })

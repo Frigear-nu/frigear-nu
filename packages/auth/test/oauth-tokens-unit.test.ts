@@ -63,6 +63,8 @@ describe('handleFrigearLogin', async () => {
   vi.stubGlobal('syncFrigearUser', async (profile: { id: number, email: string }) => ({ id: profile.id, email: profile.email, name: 'Ada' }))
   vi.stubGlobal('mapRoleClaim', () => 'user')
   vi.stubGlobal('parseColorModeClaim', () => undefined)
+  vi.stubGlobal('parseFrigearLocaleClaim', () => undefined)
+  vi.stubGlobal('useNitroApp', () => ({ hooks: { callHook: async () => {} } }))
   vi.stubGlobal('mapUserToSession', (user: unknown) => user)
   const replaceUserSession = vi.fn(async () => ({}))
   vi.stubGlobal('setUserSession', async () => {

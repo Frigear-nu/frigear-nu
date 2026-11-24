@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import { createLocalJWKSet, jwtVerify, type JWK, type JWTPayload } from 'jose'
+import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 
 const DEFAULT_SSO_URL = 'https://frigear.nu'
 const DEFAULT_SCOPES = ['openid', 'profile', 'email']
@@ -32,6 +33,8 @@ export type FrigearSsoConfig = {
    * (`frigear.handoff.returnUrl`) is a deep link the browser's "signed in" page offers to bring the app forward.
    */
   handoff: { enabled: boolean, returnUrl: string }
+  /** The app's i18n routing (`frigear.i18n`, set by the module); `null` without i18n. */
+  i18n: LocaleRouting | null
 }
 
 /**
@@ -69,6 +72,7 @@ export function resolveFrigearSso(event?: H3Event): FrigearSsoConfig {
     clientSecret,
     openidConfig: sso?.url || !oidcConfig ? `${url}/.well-known/openid-configuration` : oidcConfig,
     handoff: { enabled: handoff?.enabled === true, returnUrl: typeof handoff?.returnUrl === 'string' ? handoff.returnUrl.trim() : '' },
+    i18n: (config.frigear?.i18n as LocaleRouting | null | undefined) ?? null,
   }
 }
 

@@ -30,8 +30,10 @@ import {
   defineBootstrapRegistry,
   addOptionalImports,
   defineVirtualRegistry,
+  readLocaleRouting,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
+import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 import type { Nitro } from 'nitropack'
 import { lowerFirst } from 'scule'
 import { isAbsolute, resolve } from 'node:path'
@@ -63,6 +65,7 @@ import { extendGrants, registeredGrantKinds } from './runtime/utils/grants-build
 import type { GrantFieldMeta, GrantKindRegistration } from './runtime/utils/grants'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
+import type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
 import { resolveAuthMode } from './runtime/mode'
 import type { AuthMode } from './runtime/mode'
@@ -107,6 +110,7 @@ export type {
   PublicModuleOptions,
 } from './types'
 export type { AuthCredentialsChangedContext, AuthCredentialsChangeReason } from './runtime/server/utils/credentials'
+export type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
 
 // Only same-site paths are followed after sign in (`isSafeRedirect`, as on the server).
 function resolveAfterLogin(path: string | undefined) {
@@ -158,6 +162,9 @@ declare module 'nuxt/schema' {
       // The browser handoff (`oauth.frigear.handoff`, set at build time). `returnUrl` (`NUXT_FRIGEAR_HANDOFF_RETURN_URL`):
       // a deep link the browser's "signed in" page offers to bring the app forward, e.g. `myapp:/auth/return`.
       handoff?: { enabled?: boolean, returnUrl?: string }
+      // How the app's i18n puts locales in paths and its cookie (filled at `modules:done`; `null` without i18n): the
+      // login sends the page's language as `ui_locales` and takes the `locale` claim only in one of these locales.
+      i18n?: LocaleRouting | null
     }
   }
 
@@ -206,6 +213,12 @@ declare module 'nitropack' {
      * opened here.
      */
     'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
+    /**
+     * Someone signed in with frigear.nu (both the redirect login and the browser handoff): the local user is synced,
+     * the session not started yet. `ctx.claims` are the verified id token's claims filled in by userinfo about the same
+     * user. A listener that changes the stored user replaces `ctx.user` with the stored row, so the session gets it.
+     */
+    'auth:frigear:login': (ctx: FrigearLoginContext) => void | Promise<void>
   }
 }
 
@@ -666,6 +679,14 @@ export {}
     && (runtimeConfig.previewDeployment === true || !!frigearSso.clientId)
   if (oauthProviders.includes('frigear')) {
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-color-mode.client'), mode: 'client' })
+    // The app's locales, read once every module had the chance to add some. With i18n, the `locale` claim switches the
+    // site's language once per login, like the colour mode.
+    nuxt.hook('modules:done', () => {
+      runtimeConfig.frigear!.i18n = readLocaleRouting(nuxt)
+      if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
+        addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-locale.client'), mode: 'client' })
+      }
+    })
     const roleMap = runtimeConfig.frigear.roleMap
     if (runtimeConfig.frigear.syncRole === true && !(typeof roleMap === 'string' ? roleMap.trim() : Object.keys(roleMap ?? {}).length)) {
       useLogger('auth').warn('`runtimeConfig.frigear.syncRole` is on, but `frigear.roleMap` maps no role: no role is synced from frigear.nu. Map the frigear.nu roles to local ones (`NUXT_FRIGEAR_ROLE_MAP`).')
@@ -848,6 +869,7 @@ export {}
     'authorization:roles': (ctx: import('${resolver.resolve('./runtime/types')}').AuthorizationRolesContext) => void | Promise<void>
     'auth:email': (ctx: import('${resolver.resolve('./runtime/server/utils/auth-email')}').AuthEmailContext) => void | Promise<void>
     'auth:credentials:changed': (ctx: import('${resolver.resolve('./runtime/server/utils/credentials')}').AuthCredentialsChangedContext) => void | Promise<void>
+    'auth:frigear:login': (ctx: import('${resolver.resolve('./runtime/server/utils/frigear-login')}').FrigearLoginContext) => void | Promise<void>
   }
 }
 export {}
