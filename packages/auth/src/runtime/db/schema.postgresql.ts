@@ -86,8 +86,8 @@ export const authOAuthTokens = pgTable('auth_oauth_tokens', {
 /**
  * "Log in with frigear.nu" handed off to the system browser (`oauth.frigear.handoff`, a desktop app): the window starts
  * an attempt, the browser signs in at frigear.nu and lands on `/auth/frigear`, and the window, which waits, collects
- * the session. Only hashes of the window's secret and of the `state` are stored. Rows live 10 minutes and are removed
- * when the window collects or cancels them, and when later attempts start.
+ * the session. Only hashes of the window's secret and of the `state` are stored, and the PKCE verifier encrypted. Rows
+ * live 10 minutes and are removed when the window collects or cancels them, and when later attempts start.
  */
 export const authFrigearHandoffs = pgTable('auth_frigear_handoffs', {
   /** `afh_` + random id, named in the routes. */
@@ -96,7 +96,7 @@ export const authFrigearHandoffs = pgTable('auth_frigear_handoffs', {
   secretHash: text().notNull(),
   /** SHA-256 of the OAuth `state` sent to frigear.nu, how the browser callback finds the attempt. */
   stateHash: text().notNull().unique(),
-  /** The PKCE `code_verifier`, never sent anywhere but frigear.nu's token endpoint. */
+  /** The PKCE `code_verifier`, encrypted (AES-GCM, key from `appSecret`), only ever sent to frigear.nu's token endpoint. */
   codeVerifier: text().notNull(),
   nonce: text().notNull(),
   redirectUri: text().notNull(),

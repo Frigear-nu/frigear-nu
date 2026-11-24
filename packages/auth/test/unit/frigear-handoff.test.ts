@@ -9,6 +9,9 @@ import { challengeFor } from '../../src/runtime/client/core/pkce'
 const client = createClient({ url: ':memory:' })
 const db = drizzle(client, { schema })
 vi.mock('@nuxthub/db', () => ({ db, schema }))
+// Nuxt's `deriveSecret` (from `appSecret`), which keys the stored PKCE verifiers.
+let appSecret = 'a-test-only-app-secret'
+vi.mock('nuxt/server', () => ({ deriveSecret: async (purpose: string) => `${appSecret}:${purpose}` }))
 
 let query: Record<string, string> = {}
 const fetchCalls: Array<{ url: string, options: { body?: string, headers?: Record<string, string> } }> = []
@@ -16,6 +19,8 @@ let tokenResponse: Record<string, unknown> = { id_token: 'id', access_token: 'ac
 let loginResult: unknown = { user: { id: 7 }, session: { frigear: { id: '7' } } }
 const resolveFrigearLogin = vi.fn(async () => loginResult)
 const responseStatus = vi.fn()
+// Nitro's, used by the discovery cache of `frigear-sso` (reached through the token encryption of `oauth-tokens`).
+vi.stubGlobal('cachedFunction', <T>(fn: T) => fn)
 vi.stubGlobal('getQuery', () => query)
 vi.stubGlobal('getRequestHeader', () => undefined)
 vi.stubGlobal('setResponseStatus', responseStatus)
@@ -28,7 +33,7 @@ vi.stubGlobal('$fetch', async (url: string, options: { body?: string }) => {
 vi.stubGlobal('resolveFrigearLogin', resolveFrigearLogin)
 
 const handoff = await import('../../src/runtime/server/utils/frigear-handoff')
-const { insertFrigearHandoff, findFrigearHandoff, beginFrigearHandoffCallback, finishFrigearHandoff, takeFrigearHandoff,
+const { openFrigearHandoffVerifier, insertFrigearHandoff, findFrigearHandoff, beginFrigearHandoffCallback, finishFrigearHandoff, takeFrigearHandoff,
   removeFrigearHandoff, frigearHandoffStatusOf, isFrigearHandoffState, buildFrigearHandoffAuthorizeUrl,
   handleFrigearHandoffCallback, safeFrigearHandoffReturnUrl, FRIGEAR_HANDOFF_TTL_SECONDS } = handoff
 
@@ -47,6 +52,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
   query = {}
+  appSecret = 'a-test-only-app-secret'
   fetchCalls.length = 0
   tokenResponse = { id_token: 'id', access_token: 'access' }
   loginResult = { user: { id: 7 }, session: { frigear: { id: '7' } } }
@@ -58,14 +64,16 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+const verifierOf = async (id: string) => openFrigearHandoffVerifier({ id, codeVerifier: String((await row(id))!.codeVerifier) })
+
 const start = () => insertFrigearHandoff({ redirectUri: 'http://127.0.0.1:43123/auth/frigear', redirectTo: '/events' })
 
 describe('PKCE and the authorization request', () => {
   it('asks for the code with an S256 challenge of the stored verifier, a nonce and a handoff state', async () => {
     const attempt = await start()
-    const stored = await row(attempt.id)
-    expect(attempt.codeChallenge).toBe(await challengeFor(String(stored!.codeVerifier)))
-    expect(String(stored!.codeVerifier)).toMatch(/^[\w-]{43,128}$/)
+    const verifier = await verifierOf(attempt.id)
+    expect(attempt.codeChallenge).toBe(await challengeFor(verifier!))
+    expect(verifier).toMatch(/^[\w-]{43,128}$/)
     expect(isFrigearHandoffState(attempt.state)).toBe(true)
     expect(isFrigearHandoffState('plain-state')).toBe(false)
 
@@ -94,6 +102,19 @@ describe('PKCE and the authorization request', () => {
     const stored = JSON.stringify(await row(attempt.id))
     expect(stored).not.toContain(attempt.secret)
     expect(stored).not.toContain(attempt.state)
+  })
+
+  it('stores the PKCE verifier encrypted, bound to its attempt and to appSecret', async () => {
+    const attempt = await start()
+    const sealed = String((await row(attempt.id))!.codeVerifier)
+    expect(sealed).toMatch(/^v1\./)
+    const verifier = await verifierOf(attempt.id)
+    expect(verifier).toMatch(/^[\w-]{43,128}$/)
+    expect(sealed).not.toContain(verifier)
+    // Moved to another attempt's row, it does not open.
+    expect(await openFrigearHandoffVerifier({ id: 'afh_other', codeVerifier: sealed })).toBeNull()
+    appSecret = 'another-app-secret'
+    expect(await openFrigearHandoffVerifier({ id: attempt.id, codeVerifier: sealed })).toBeNull()
   })
 })
 
@@ -168,7 +189,7 @@ describe('attempt lifecycle', () => {
 describe('the browser callback', () => {
   it('exchanges the code with the stored verifier and no secret, checks the nonce, and completes the attempt', async () => {
     const attempt = await start()
-    const stored = await row(attempt.id)
+    const verifier = await verifierOf(attempt.id)
     query = { code: 'the-code', state: attempt.state }
     const page = await handleFrigearHandoffCallback(event, sso)
     expect(page).toContain('Signed in')
@@ -180,7 +201,7 @@ describe('the browser callback', () => {
       grant_type: 'authorization_code',
       code: 'the-code',
       redirect_uri: 'http://127.0.0.1:43123/auth/frigear',
-      code_verifier: String(stored!.codeVerifier),
+      code_verifier: verifier,
       client_id: 'desktop',
     })
     expect(resolveFrigearLogin).toHaveBeenCalledWith(sso, {}, tokenResponse, { nonce: attempt.nonce })

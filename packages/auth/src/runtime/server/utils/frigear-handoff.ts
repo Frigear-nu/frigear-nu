@@ -1,10 +1,13 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, gt, lt } from 'drizzle-orm'
+import { deriveSecret } from 'nuxt/server'
 import { apiError, sha256Hex } from '@frigear-nu/module-kit/server'
+import { deriveHkdfKey } from '@frigear-nu/module-kit/crypto'
 import { challengeFor, randomString } from '../../client/core/pkce'
 import type { FrigearHandoffDto, FrigearHandoffStartDto } from '../../../types'
 import type { FrigearSsoConfig } from './frigear-sso'
+import { openOAuthToken, sealOAuthToken } from './oauth-tokens'
 
 // "Log in with frigear.nu" handed off to the system browser (`oauth.frigear.handoff`). The window starts an attempt and
 // waits; the system browser signs in at frigear.nu (passkeys work there, unlike in an embedded webview) and comes back
@@ -28,6 +31,7 @@ export type FrigearHandoffRow = {
   id: string
   secretHash: string
   stateHash: string
+  /** Encrypted (`sealFrigearHandoffVerifier`); `openFrigearHandoffVerifier` reads it. */
   codeVerifier: string
   nonce: string
   redirectUri: string
@@ -44,6 +48,32 @@ function handoffTable() {
   const table = schema.authFrigearHandoffs
   if (!table) throw apiError(404, 'handoff_disabled', 'The browser handoff is not enabled (`oauth.frigear.handoff`).')
   return table
+}
+
+const verifierKeys = new Map<string, Promise<CryptoKey>>()
+
+/**
+ * The AES-GCM key for stored PKCE verifiers: from Nuxt's `appSecret` (the secret the cookie sessions are sealed with),
+ * through `deriveSecret`, so no key of its own is configured.
+ */
+async function frigearHandoffKey() {
+  const secret = await deriveSecret('@frigear-nu/auth:frigear-handoff')
+  let key = verifierKeys.get(secret)
+  if (!key) {
+    key = deriveHkdfKey(secret, { salt: '@frigear-nu/auth', info: 'auth_frigear_handoffs' }, { name: 'AES-GCM', length: 256 }, ['encrypt', 'decrypt'])
+    verifierKeys.set(secret, key)
+  }
+  return key
+}
+
+/** Encrypts an attempt's PKCE verifier for storage, bound to the attempt id so rows cannot be swapped. */
+export async function sealFrigearHandoffVerifier(id: string, verifier: string) {
+  return sealOAuthToken(await frigearHandoffKey(), verifier, `auth_frigear_handoffs:${id}`)
+}
+
+/** The PKCE verifier of a stored attempt; `null` when it does not open (`appSecret` changed, tampered). */
+export async function openFrigearHandoffVerifier(row: Pick<FrigearHandoffRow, 'id' | 'codeVerifier'>) {
+  return openOAuthToken(await frigearHandoffKey(), row.codeVerifier, `auth_frigear_handoffs:${row.id}`)
 }
 
 /** Constant-time comparison of two strings (hashes of equal length). */
@@ -73,7 +103,7 @@ export function toFrigearHandoffDto(row: FrigearHandoffRow, now = Date.now()): F
 /**
  * Stores a new attempt (and removes expired ones). Answers what only the caller may see: the window's `secret` (for its
  * cookie), the `state`, the PKCE challenge and the nonce for the authorization request. Only hashes of the secret and
- * the state are stored.
+ * the state are stored, and the PKCE verifier encrypted.
  */
 export async function insertFrigearHandoff(input: { redirectUri: string, redirectTo?: string | null }, now = Date.now()) {
   const table = handoffTable()
@@ -88,7 +118,7 @@ export async function insertFrigearHandoff(input: { redirectUri: string, redirec
     id,
     secretHash: await sha256Hex(secret),
     stateHash: await sha256Hex(state),
-    codeVerifier,
+    codeVerifier: await sealFrigearHandoffVerifier(id, codeVerifier),
     nonce,
     redirectUri: input.redirectUri,
     redirectTo: input.redirectTo ?? null,
@@ -244,11 +274,13 @@ export async function requireFrigearHandoff(event: H3Event, id: string): Promise
 async function exchangeFrigearHandoffCode(sso: FrigearSsoConfig, row: FrigearHandoffRow, code: string) {
   const metadata = await loadOAuthOpenIdConfiguration(sso.openidConfig)
   if (!metadata?.token_endpoint) throw new Error('frigear.nu has no token endpoint.')
+  const codeVerifier = await openFrigearHandoffVerifier(row)
+  if (!codeVerifier) throw new Error('The stored PKCE verifier does not decrypt (did `appSecret` change?).')
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     redirect_uri: row.redirectUri,
-    code_verifier: row.codeVerifier,
+    code_verifier: codeVerifier,
     client_id: sso.clientId,
   })
   if (sso.clientSecret) body.set('client_secret', sso.clientSecret)

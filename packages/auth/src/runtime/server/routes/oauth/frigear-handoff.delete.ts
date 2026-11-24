@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
   assertAuthSameOrigin(event)
   const secret = requireFrigearHandoffSecret(event)
   const { id } = await getValidatedRouterParams(event, idParams().parse)
+  await enforceFrigearHandoffPollLimit(event, id)
   await requireFrigearHandoff(event, id)
   await removeFrigearHandoff(id, secret)
   clearFrigearHandoffCookie(event)
