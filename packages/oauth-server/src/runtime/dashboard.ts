@@ -16,6 +16,8 @@ export function oauthDashboardItems(resolve: (path: string) => string): Dashboar
       order: 5,
       span: 4,
       platforms: ['web'],
+      // Most users have no applications: the item joins the grid only once it has some, instead of flashing.
+      optional: true,
       // Implicit: every signed-in user sees their own applications.
       permission: oauthAccess.permissions.read,
     },

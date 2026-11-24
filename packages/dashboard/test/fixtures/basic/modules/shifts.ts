@@ -13,6 +13,7 @@ export default defineNuxtModule({
       { id: 'shifts.mobile', component: resolver.resolve('./runtime/Marker.vue'), title: 'Mobile only', order: 35, props: { marker: 'item-mobile-only' }, platforms: ['mobile'] },
       { id: 'shifts.absent', component: resolver.resolve('./runtime/Marker.vue'), title: 'Absent module', order: 36, props: { marker: 'item-when-absent' }, when: { module: 'not-installed-module' } },
       { id: 'shifts.hours', component: resolver.resolve('./runtime/Hours.vue'), title: 'Hours worked', order: 60 },
+      { id: 'shifts.optional', component: resolver.resolve('./runtime/Optional.vue'), title: 'Optional item', order: 70, props: { marker: 'item-optional' }, optional: true },
     ])
   },
 })

@@ -13,7 +13,7 @@ describe('dashboard (two modules, one dashboard)', async () => {
 
   it('renders both modules\' items in registered order, with props and the page context', async () => {
     const html = await $fetch<string>('/')
-    expect(frames(html)).toEqual(['shifts.next', 'faq.latest', 'faq.web', 'faq.with-shifts', 'shifts.hours'])
+    expect(frames(html)).toEqual(['shifts.next', 'faq.latest', 'faq.web', 'faq.with-shifts', 'shifts.hours', 'shifts.optional'])
     expect(html).toContain('item-next-shift:Saturday:volunteer')
     expect(html).toContain('item-faq')
     // The title falls back to `title` when `titleKey` cannot be translated.
@@ -23,7 +23,7 @@ describe('dashboard (two modules, one dashboard)', async () => {
   it('hides an item whose permission the viewer lacks, shows it to one who has it', async () => {
     expect(await page('/')).not.toContain('item-staff')
     const allowed = await page('/', { 'x-test-permissions': 'shifts:manage' })
-    expect(frames(allowed)).toEqual(['shifts.next', 'faq.latest', 'shifts.staff', 'faq.web', 'faq.with-shifts', 'shifts.hours'])
+    expect(frames(allowed)).toEqual(['shifts.next', 'faq.latest', 'shifts.staff', 'faq.web', 'faq.with-shifts', 'shifts.hours', 'shifts.optional'])
   })
 
   it('filters by platform: web-only items show on the web, mobile-only items do not', async () => {
@@ -45,12 +45,22 @@ describe('dashboard (two modules, one dashboard)', async () => {
     expect(rendered(await page('/', { 'x-test-layout': JSON.stringify(layout) }))).toContain('item-hours:year')
   })
 
+  it('keeps an optional item out of the server-rendered grid, title included, while its content still renders', async () => {
+    const html = rendered(await page('/'))
+    const frame = html.match(/<div[^>]*data-dashboard-item="shifts\.optional"[^>]*>/)?.[0]
+    expect(frame).toContain('display:none')
+    // Rendered (hidden) so the client can check it for content and show the frame.
+    expect(html).toContain('item-optional')
+    // A regular item is shown from the start.
+    expect(html.match(/<div[^>]*data-dashboard-item="shifts\.hours"[^>]*>/)?.[0]).not.toContain('display:none')
+  })
+
   it('applies the user\'s layout: order, hidden and collapsed items', async () => {
     const layout = { order: ['faq.web', 'shifts.next'], hidden: ['faq.latest'], collapsed: ['faq.with-shifts'] }
     const html = rendered(await page('/', { 'x-test-layout': JSON.stringify(layout) }))
     // Items missing from `order` follow their registered predecessor: `faq.with-shifts` (then `shifts.hours`) after
     // `faq.web`.
-    expect(frames(html)).toEqual(['faq.web', 'faq.with-shifts', 'shifts.hours', 'shifts.next'])
+    expect(frames(html)).toEqual(['faq.web', 'faq.with-shifts', 'shifts.hours', 'shifts.optional', 'shifts.next'])
     expect(html).not.toContain('item-faq')
     // Collapsed: the frame and its title stay, the content is not rendered.
     expect(html).toContain('Expand With shifts')
@@ -63,7 +73,7 @@ describe('dashboard (two modules, one dashboard)', async () => {
     // The first item is drawn with its frame, the rest as the page's own list.
     expect(html.slice(html.indexOf('data-custom-featured'))).toContain('item-next-shift:Saturday:nobody')
     const listed = [...html.matchAll(/custom:([^:<]+):([^<]*)</g)].map(match => match[1])
-    expect(listed).toEqual(['faq.latest', 'faq.with-shifts', 'shifts.hours'])
+    expect(listed).toEqual(['faq.latest', 'faq.with-shifts', 'shifts.hours', 'shifts.optional'])
     expect(html).toContain('hidden:faq.web')
     expect(html).not.toContain('item-staff')
   })
