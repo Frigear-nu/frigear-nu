@@ -62,7 +62,8 @@
   },
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "templates"
   ],
   "workspaces": [
     "playground"
