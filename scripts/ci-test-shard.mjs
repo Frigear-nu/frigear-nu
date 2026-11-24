@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs one shard of the workspace's Vitest files (CI's `test` matrix, see .github/workflows/ci.yml).
 //
-//   node scripts/ci-test-shard.mjs <index> <total> [--affected] [--print]
+//   node scripts/ci-test-shard.mjs <index> <total> [--affected | --changed] [--print]
 //
 // Most test time is @nuxt/test-utils e2e files, each building and booting a Nuxt fixture (15-130 s). Vitest's own
 // `--shard` splits every package separately, which piles all single-file packages into one shard, so this script
@@ -10,6 +10,9 @@
 // the runner has 2 vCPU and a Nuxt fixture build keeps one core busy.
 //
 //   --affected  only packages Turbo considers affected (changed + dependents; TURBO_SCM_BASE / TURBO_SCM_HEAD)
+//   --changed   only the packages changed in TURBO_SCM_BASE...TURBO_SCM_HEAD, without their dependents. Pull
+//               requests use it; the merge queue runs --affected, so a break in a dependent is still caught before
+//               it reaches main. (Direct dependents would not help: nearly every package depends on auth directly.)
 //   --print     print the assignment and exit; `all` as <index> prints every shard
 //
 // Zero dependencies: runs right after `pnpm install`.
@@ -24,7 +27,7 @@ const [indexArg, totalArg] = args.filter(a => !a.startsWith('--'))
 const total = Number(totalArg)
 const index = indexArg === 'all' ? 'all' : Number(indexArg)
 if (!Number.isInteger(total) || total < 1 || (index !== 'all' && !(Number.isInteger(index) && index >= 1 && index <= total))) {
-  console.error('usage: node scripts/ci-test-shard.mjs <index|all> <total> [--affected] [--print]')
+  console.error('usage: node scripts/ci-test-shard.mjs <index|all> <total> [--affected | --changed] [--print]')
   process.exit(2)
 }
 const PARALLEL = 2
@@ -62,9 +65,16 @@ async function mapLimit(items, limit, fn) {
   return results
 }
 
-// 1. Packages with a `test` script (affected ones with --affected).
-const ls = JSON.parse(await capture('pnpm', ['exec', 'turbo', 'ls', '--output=json', ...(flags.has('--affected') ? ['--affected'] : [])]))
-const packages = (await Promise.all(ls.packages.items.map(async ({ name, path }) => {
+// 1. Packages with a `test` script (affected ones with --affected, only the changed ones with --changed).
+async function turboLs(extra) {
+  return JSON.parse(await capture('pnpm', ['exec', 'turbo', 'ls', '--output=json', ...extra])).packages.items
+}
+const base = process.env.TURBO_SCM_BASE ?? 'HEAD^1'
+const head = process.env.TURBO_SCM_HEAD ?? 'HEAD'
+const selected = await turboLs(
+  flags.has('--changed') ? [`--filter=[${base}...${head}]`] : flags.has('--affected') ? ['--affected'] : [],
+)
+const packages = (await Promise.all(selected.map(async ({ name, path }) => {
   const pkg = JSON.parse(await readFile(join(root, path, 'package.json'), 'utf8'))
   return pkg.scripts?.test ? { name, path } : null
 }))).filter(Boolean)
