@@ -100,11 +100,16 @@ export type ShiftCheckInRule = {
 export type ModuleOptions = {
   settings?: {
     pages?: {
-      /** My shifts (list and calendar). On by default (`/shifts`), `false` turns it off. */
+      /**
+       * My shifts (list and calendar): the My shifts tab of the crew home (`crew.dashboard` of `@frigear-nu/crew`), and a
+       * page at `/shifts`. When the crew home is in the signed-in hub (`/dashboard/crew`) only the tab is there and
+       * `/shifts` redirects to it, unless this is a path (a page there too) or `@frigear-nu/mobile` is installed (its
+       * Shifts tab opens the page). `false` turns both off.
+       */
       shifts?: string | boolean
       /** One of my shifts: the lead on duty, the QR pass and the swap; must contain an `:assignmentId` param. On by default (`/shifts/:assignmentId`). */
       shift?: string | boolean
-      /** The swap marketplace. On by default (`/shifts/swaps`). */
+      /** The swap marketplace: the Swaps tab of the crew home, and a page at `/shifts/swaps` on the same terms as `shifts`. */
       swaps?: string | boolean
       /** The check-in scanner of a team's leads; must contain a `:teamId` param. On by default (`/shifts/check-in/:teamId`). */
       checkIn?: string | boolean
@@ -158,7 +163,8 @@ export type ShiftsRemindersOptions = {
 }
 
 export type PublicModuleOptions = {
-  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string, station?: string }
+  /** `home`: the crew home of `@frigear-nu/crew`, where the My shifts and Swaps tabs are. */
+  pages: { shifts?: string, shift?: string, swaps?: string, checkIn?: string, lead?: string, station?: string, home?: string }
   timeZone: string
   checkInOpensMinutes: number
 }

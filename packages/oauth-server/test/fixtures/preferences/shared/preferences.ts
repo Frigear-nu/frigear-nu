@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePreferences } from '../../../../src/runtime/define'
+import { definePreferences } from '../../../../../preferences/src/runtime/define'
 
 export default definePreferences({
   colorMode: { schema: z.enum(['light', 'dark', 'system']), claim: 'color_mode' },

@@ -358,12 +358,6 @@
       "viewExceptions": "Undtagelser ({count})",
       "viewShifts": "Alle vagter"
     },
-    "menu": {
-      "mine": {
-        "description": "Dine vagter, dit QR-pas og bytter.",
-        "label": "Mine vagter"
-      }
-    },
     "mine": {
       "description": "Dine vagter, dit check-in-pas og dine bytter.",
       "empty": "Ingen vagter endnu",
@@ -377,7 +371,8 @@
       "showAll": "Vis alle dage",
       "showPast": "Vis {count} tidligere vagter",
       "title": "Mine vagter",
-      "today": "I dag"
+      "today": "I dag",
+      "calendar": "Kalender"
     },
     "mobile": {
       "tab": "Vagter"
@@ -621,6 +616,12 @@
       "min_rest": "For lidt hvile mellem to vagter.",
       "overlap": "Har en anden vagt på samme tid.",
       "shift_full": "Vagten er fuld."
+    },
+    "home": {
+      "tabs": {
+        "shifts": "Mine vagter",
+        "swaps": "Bytter"
+      }
     }
   }
 }

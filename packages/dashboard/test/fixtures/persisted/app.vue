@@ -1,3 +1,7 @@
 <template>
-  <div>persisted</div>
+  <UApp>
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+  </UApp>
 </template>

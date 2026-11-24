@@ -88,21 +88,16 @@
   },
   "peerDependencies": {
     "@frigear-nu/menu": "workspace:^",
-    "@frigear-nu/oauth-server": ">=0.0.1",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:"
   },
   "peerDependenciesMeta": {
     "@frigear-nu/menu": {
       "optional": true
-    },
-    "@frigear-nu/oauth-server": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@frigear-nu/menu": "workspace:^",
-    "@frigear-nu/oauth-server": "workspace:^",
     "@nuxt/ui": "catalog:",
     "@nuxt/devtools": "catalog:",
     "@nuxt/eslint-config": "catalog:",

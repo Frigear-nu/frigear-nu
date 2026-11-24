@@ -61,7 +61,26 @@ export interface DashboardHomeTabOptions {
   icon?: string
 }
 
+/** The pages of the signed-in hub. */
+export interface DashboardPagesOptions {
+  /**
+   * The hub: a signed-in page with shortcuts to the areas of the `dashboard` menu and the `settings.home.dashboard`
+   * dashboard, in the `dashboard` layout. A path, `true` for `/dashboard` (the default), or `false` to turn the area
+   * off. Needs `@frigear-nu/auth`.
+   */
+  home?: string | boolean
+}
+
+export interface DashboardSettings {
+  pages?: DashboardPagesOptions
+  home?: {
+    /** The dashboard the hub page renders below its shortcuts. Default `home`. */
+    dashboard?: string
+  }
+}
+
 export interface ModuleOptions {
+  settings?: DashboardSettings
   /**
    * With `@frigear-nu/mobile`: a Home tab and a page at `path` rendering `<Dashboard :name>`. `false` turns it off.
    * Without mobile nothing is registered: a web app places `<Dashboard>` on a page itself.
@@ -72,4 +91,10 @@ export interface ModuleOptions {
 export interface DashboardPublicConfig {
   /** The dashboard the Home tab page renders, `''` without one. */
   home: string
+  pages: {
+    /** The hub's path, unset when the area is off. */
+    home?: string
+  }
+  /** The dashboard the hub page renders, `''` when the area is off. */
+  homeDashboard: string
 }

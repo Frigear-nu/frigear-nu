@@ -15,7 +15,8 @@ The package is `@frigear-nu/events`. Money goes through [Payments](/modules/comm
 ## What you get
 
 - **Pages** (opt-in): the event list at `/events`, an event page at `/events/:slug`, and the signed-in user's tickets
-  at `/account/tickets`.
+  at `/dashboard/tickets`, an area of the signed-in hub of [Dashboard](/modules/interface/dashboard#the-hub)
+  (`/account/tickets` without it).
 - **Admin area** (opt-in, with [Admin](/modules/interface/admin)): an event list at `/admin/events`, and an event page
   with Details, Tickets and Attendees tabs. With [Widget](/modules/interface/widget), upcoming events also appear on the
   admin dashboard.
@@ -35,7 +36,8 @@ The package is `@frigear-nu/events`. Money goes through [Payments](/modules/comm
 **You add:** `@nuxthub/core` (Events turns on its key-value storage), and `@nuxt/ui` for the pages.
 **Optional:** [Admin](/modules/interface/admin) for the admin pages, [Subscriptions](/modules/commerce/subscriptions) as
 the membership provider, [Widget](/modules/interface/widget) for the event page tabs, [Menu](/modules/interface/menu)
-for menu items, and [Account](/modules/identity/account) for the navigation around the tickets page.
+for menu items, and [Dashboard](/modules/interface/dashboard) (or [Account](/modules/identity/account)) for the navigation
+around the tickets page.
 ::
 
 ## Quick setup
@@ -113,7 +115,7 @@ export default defineNuxtConfig({
 
 ::callout{color="success" icon="i-lucide-check"}
 **What you should see:** after staff publish an event, it appears at `/events`. A ticket bought there redirects to
-Stripe Checkout, and once paid it shows on `/account/tickets` as `paid`.
+Stripe Checkout, and once paid it shows on `/dashboard/tickets` as `paid`.
 ::
 
 ## Options
@@ -127,7 +129,7 @@ Options go under the `events` key.
 | `settings.mcp` | `boolean` | `false` | Adds the module's [MCP tools](/modules/features/events/server#mcp-tools). |
 | `settings.pages.events` | `string \| boolean` | off | The event list. `true` is `/events`. |
 | `settings.pages.event` | `string \| boolean` | off | The event page. `true` is `/events/:slug`. |
-| `settings.pages.tickets` | `string \| boolean` | off | The signed-in user's tickets. `true` is `/account/tickets`. |
+| `settings.pages.tickets` | `string \| boolean` | off | The signed-in user's tickets. `true` is `/dashboard/tickets` with the hub of Dashboard (`/account/tickets` redirects there), else `/account/tickets`. |
 | `settings.pages.admin` | `string \| boolean` | off | The staff event list. `true` is `/admin/events`. |
 | `settings.pages.adminEvent` | `string \| boolean` | off | The staff event page. `true` is `/admin/events/:id`. |
 

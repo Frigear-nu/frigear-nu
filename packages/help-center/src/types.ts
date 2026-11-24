@@ -96,7 +96,8 @@ export type ModuleOptions = {
       public?: string | false
       /**
        * The signed-in area: public and restricted articles for the reader, onboarding checklists with read state.
-       * Defaults to `/account/help`; `false` turns it off.
+       * Defaults to `/dashboard/help` with the signed-in hub of `@frigear-nu/dashboard` (its layout, guard and
+       * `dashboard` menu; `/account/help` redirects there), else `/account/help`. `false` turns it off.
        */
       signedIn?: string | false
       /** Staff categories, articles and checklists (needs `help-center:manage`). `true` = `/admin/help-center`. Off by default. */
@@ -113,9 +114,9 @@ export type ModuleOptions = {
     accountMenu?: boolean
     /** Add the "Your onboarding" widget to `account.overview`. On by default. */
     accountWidget?: boolean
-    /** A layout for a signed-in area outside `/account` (where the account layout does not reach). */
+    /** A layout for a signed-in area outside `/account` and the hub (where the account and dashboard layouts do not reach). */
     signedInLayout?: string
-    /** The menu to put the signed-in area in when it is outside `/account` (for example `crew`). */
+    /** The menu to put the signed-in area in when it is outside `/account`. Defaults to `dashboard` when the area is in the hub. */
     signedInMenu?: string
     /**
      * The article sources, in the order they are merged. `['database']` by default; `'content'` is added when

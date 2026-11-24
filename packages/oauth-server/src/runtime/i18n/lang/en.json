@@ -5,6 +5,10 @@
         "label": "Applications",
         "description": "Applications you can sign in to."
       },
+      "apps": {
+        "label": "Apps",
+        "description": "Applications you can sign in to."
+      },
       "admin": {
         "label": "OAuth",
         "description": "Applications that sign in with this site, and the scopes they can request."
@@ -213,6 +217,9 @@
         "version": "Version {version}",
         "permissionsPlaceholder": "Search permissions..."
       }
+    },
+    "dashboard": {
+      "apps": "Your apps"
     }
   }
 }

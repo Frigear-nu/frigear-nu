@@ -249,7 +249,7 @@ export default defineNuxtConfig({
       // which Cloudflare fixes by routing (a request for another host never reaches this Worker).
       siteUrl: process.env.PR_NUMBER ? undefined : knownSiteUrl,
       trustRequestOrigin: true,
-      afterLogin: '/account',
+      afterLogin: '/dashboard',
       // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
       pages: {
         login: '/sign-in',

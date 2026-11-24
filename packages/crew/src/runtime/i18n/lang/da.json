@@ -195,9 +195,9 @@
       "unknown": "Dette invitationslink er ikke gyldigt"
     },
     "menu": {
-      "status": {
-        "description": "Dine ansøgninger og crewpladser.",
-        "label": "Mit crew"
+      "home": {
+        "label": "Crew",
+        "description": "Dine crewpladser, dine vagter og bytninger."
       }
     },
     "mobile": {
@@ -231,7 +231,11 @@
     "tryAgain": "Prøv igen",
     "home": {
       "title": "Crew",
-      "description": "Det, der sker for dig på crewet."
+      "description": "Dine crewpladser, dine vagter og det, der sker for dig.",
+      "tabs": {
+        "overview": "Overblik",
+        "status": "Mit crew"
+      }
     }
   }
 }

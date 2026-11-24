@@ -1164,6 +1164,12 @@ importers:
       '@frigear-nu/auth':
         specifier: workspace:^
         version: link:../auth
+      '@frigear-nu/authorization':
+        specifier: workspace:^
+        version: link:../authorization
+      '@frigear-nu/menu':
+        specifier: workspace:^
+        version: link:../menu
       '@frigear-nu/mobile':
         specifier: workspace:^
         version: link:../mobile
@@ -2294,6 +2300,9 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@frigear-nu/dashboard':
+        specifier: workspace:^
+        version: link:../dashboard
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
@@ -2564,9 +2573,6 @@ importers:
       '@frigear-nu/menu':
         specifier: workspace:^
         version: link:../menu
-      '@frigear-nu/oauth-server':
-        specifier: workspace:^
-        version: link:../oauth-server
       '@nuxt/devtools':
         specifier: 'catalog:'
         version: 4.2.0(d54d639d501d8529848cef0be9cabc16)
