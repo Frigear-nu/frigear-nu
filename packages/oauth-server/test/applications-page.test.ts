@@ -26,7 +26,7 @@ describe('resolveApplicationsPage (settings.pages.applications)', () => {
 })
 
 describe('oauthDashboardItems', () => {
-  it('adds "Your apps" first, across the grid, on the web, for every signed-in user (oauth:read is implicit)', () => {
+  it('adds "Your apps" first, across the grid, on the web, for every signed-in user (oauth:read is implicit), only once they have apps', () => {
     const [item, ...rest] = oauthDashboardItems(path => `/abs/${path}`)
     expect(rest).toEqual([])
     expect(item).toMatchObject({
@@ -36,6 +36,7 @@ describe('oauthDashboardItems', () => {
       order: 5,
       span: 4,
       platforms: ['web'],
+      optional: true,
       permission: 'oauth:read',
     })
   })

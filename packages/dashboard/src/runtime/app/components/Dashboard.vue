@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { surfaceClass, useConfirmDialog, useModuleT } from '#imports'
 import { useDashboard } from '../composables/useDashboard'
 
@@ -7,18 +7,35 @@ import { useDashboard } from '../composables/useDashboard'
  * A named dashboard in the default grid: every item the viewer may see on this platform, in their order. With
  * `editable` (default) the viewer can move, hide and show items and reset the layout. Each item receives its static
  * `props`, then every entry of `context` as a prop.
+ *
+ * The edit mode is `v-model:editing`. With `:edit-button="false"` the page draws its own button to start it (the hub puts
+ * it in its heading), reading `canEdit` from the component's ref to know when there is anything to customise.
  */
 const props = withDefaults(defineProps<{
   name: string
   context?: Record<string, unknown>
   editable?: boolean
-}>(), { editable: true })
+  /** Draws the button that starts editing, a small icon above the grid. Default `true`. */
+  editButton?: boolean
+}>(), { editable: true, editButton: true })
+
+const editing = defineModel<boolean>('editing', { default: false })
+
+/** Whether there is anything to customise: the viewer may edit and the dashboard has items (shown or hidden). */
+const canEdit = ref(false)
+const start = () => {
+  editing.value = true
+}
+// Exposed before the dashboard loads (`defineExpose` must come before any `await`).
+defineExpose({ canEdit, start })
 
 const t = useModuleT('dashboard')
 const confirm = useConfirmDialog()
 const { items, hidden, status, error, persisted, saving, move, hide, show, reset, refresh } = await useDashboard(props.name, () => props.context)
 
-const editing = ref(false)
+watchEffect(() => {
+  canEdit.value = props.editable && (items.value.length > 0 || hidden.value.length > 0)
+})
 
 async function resetLayout() {
   const ok = await confirm({
@@ -39,7 +56,7 @@ async function resetLayout() {
     :data-dashboard="name"
   >
     <div
-      v-if="editable && (items.length || hidden.length)"
+      v-if="canEdit && (editing || editButton)"
       class="flex flex-wrap items-center justify-end gap-2"
     >
       <template v-if="editing">
@@ -64,14 +81,20 @@ async function resetLayout() {
           @click="editing = false"
         />
       </template>
-      <UButton
+      <UTooltip
         v-else
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-layout-dashboard"
-        :label="t('edit.start', 'Customise dashboard')"
-        @click="editing = true"
-      />
+        :text="t('edit.start', 'Customise dashboard')"
+      >
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-settings-2"
+          :aria-label="t('edit.start', 'Customise dashboard')"
+          data-dashboard-edit
+          @click="start"
+        />
+      </UTooltip>
     </div>
 
     <DashboardGrid
@@ -131,7 +154,7 @@ async function resetLayout() {
       :title="t('allHidden.title', 'Every item is hidden')"
       :description="t('allHidden.description', 'Show the items you want to see again.')"
       :action-label="t('edit.start', 'Customise dashboard')"
-      @action="editing = true"
+      @action="start"
     />
 
     <section
