@@ -144,6 +144,9 @@ export default defineNuxtConfig({
       // Sets fields in the generated wrangler.json
       wrangler: {
         keep_vars: true,
+        // fetch() goes out over the public internet. Without it a subrequest to a workers.dev Worker on this account
+        // (a Preview signing in against frigear-nu.frigear.workers.dev) fails with Cloudflare error 1042 (404).
+        compatibility_flags: ['global_fetch_strictly_public'],
         observability: {
           enabled: true,
           logs: {
