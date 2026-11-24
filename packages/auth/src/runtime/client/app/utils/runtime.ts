@@ -7,7 +7,9 @@ import { defaultStorageKeyPrefix, memoryStorage, storageKeys, webStorage } from 
 import type { OAuthClient, TokenStorage } from '../../core/types'
 import { browserUserAgent, isNativePlatform, preferencesStorage, secureStorage, withInstallMarker } from '../../capacitor/adapters'
 import type { AppPluginLike } from '../../capacitor/adapters'
-import { loopbackRewriter, resolveRedirectUri } from '../../utils'
+import { isTauri, loadTauriStoreStorage, systemBrowserUserAgent } from '../../tauri/adapters'
+import type { DeepLinkPluginLike } from '../../tauri/adapters'
+import { loopbackRewriter, resolveRedirectUri, tauriUsesDeepLinks } from '../../utils'
 import type { AuthClientPublicConfig } from '../../types'
 import { normalizeIssuer } from '../../core/discovery'
 import type { ExpectedIdentity } from './user'
@@ -15,9 +17,19 @@ import type { ExpectedIdentity } from './user'
 export interface AuthClientRuntime {
   client: OAuthClient
   flow: SignInFlow
+  /** Where the app runs: a browser, a Capacitor app or a Tauri (desktop) webview. */
+  platform: 'web' | 'capacitor' | 'tauri'
+  /**
+   * OAuth callbacks come as deep links to the native redirect URI (Capacitor; Tauri with `native.desktopFlow`
+   * `deep-link`, or `auto` outside `nuxt dev`), not as a page load of the callback page.
+   */
   native: boolean
   /** `@capacitor/app` inside a native app, when installed. */
   app: AppPluginLike | null
+  /** `@tauri-apps/plugin-deep-link` when a Tauri app signs in through deep links. */
+  deepLink: DeepLinkPluginLike | null
+  /** Brings the Tauri window to the front (`@tauri-apps/api/window`, when installed). */
+  focusWindow: (() => Promise<void>) | null
   /** The storage key of the tokens (cross-tab sync listens for it). */
   tokensKey: string
   apiBase: string
@@ -50,6 +62,12 @@ export function getAuthClientRuntime(onSigningIn?: (value: boolean) => void): Pr
   return runtime
 }
 
+/** `setFocus` of the current Tauri window. */
+async function tauriFocus(load: () => Promise<{ getCurrentWindow(): { setFocus(): Promise<void> } }>): Promise<() => Promise<void>> {
+  const { getCurrentWindow } = await load()
+  return () => getCurrentWindow().setFocus()
+}
+
 /** Picks the token storage, the pending-authorization storage and the user agent for this platform. */
 async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (value: boolean) => void): Promise<AuthClientRuntime> {
   // The user comes from the id_token, so a runtime override of the scope must keep `openid` too.
@@ -57,10 +75,20 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
     throw new OAuthConfigError('missing_openid_scope', '`authentication.client.scopes` must contain `openid`.')
   }
   const { plugins, customStorage } = await import('#auth/native')
-  const native = isNativePlatform()
+  const capacitor = isNativePlatform()
+  const tauri = !capacitor && isTauri()
+  const platform = capacitor ? 'capacitor' : tauri ? 'tauri' : 'web'
+  let tauriDeepLinks = tauri && tauriUsesDeepLinks(config.desktopFlow, import.meta.dev)
+  if (tauriDeepLinks && !(plugins.opener && plugins.deepLink)) {
+    console.warn('[@frigear-nu/auth] A Tauri app signs in through deep links, but `@tauri-apps/plugin-opener` or `@tauri-apps/plugin-deep-link` is not installed: falling back to a redirect inside the webview.')
+    tauriDeepLinks = false
+  }
+  const native = capacitor || tauriDeepLinks
+  // `@tauri-apps/plugin-store` is not encrypted (a JSON file in the app's data directory), like `localStorage`.
+  const tauriStore = tauri && plugins.store && ['auto', 'secure', 'preferences', 'custom'].includes(config.storage) ? await loadTauriStoreStorage(await plugins.store()) : null
   const prefix = defaultStorageKeyPrefix(config.clientId)
   const keys = storageKeys(prefix)
-  const preferences = native && plugins.preferences ? preferencesStorage(await plugins.preferences()) : null
+  const preferences = capacitor && plugins.preferences ? preferencesStorage(await plugins.preferences()) : null
   const local = webStorage(() => globalThis.localStorage)
   const session = webStorage(() => globalThis.sessionStorage)
 
@@ -69,7 +97,7 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
   if (config.storage === 'custom' && customStorage) {
     const exported: unknown = await customStorage()
     storage = typeof exported === 'function' ? await (exported as () => TokenStorage | Promise<TokenStorage>)() : exported as TokenStorage
-    transient = preferences ?? storage
+    transient = preferences ?? tauriStore ?? storage
   }
   else if (config.storage === 'memory') {
     storage = transient = memoryStorage()
@@ -77,16 +105,20 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
   else if (config.storage === 'session') {
     storage = transient = session
   }
-  else if (native && (config.storage === 'auto' || config.storage === 'secure') && plugins.secureStorage) {
+  else if (tauri) {
+    // `auto`, `secure` and `preferences`: the store when installed (no encrypted store exists), else `localStorage`.
+    storage = transient = tauriStore ?? local
+  }
+  else if (capacitor && (config.storage === 'auto' || config.storage === 'secure') && plugins.secureStorage) {
     const secure = secureStorage(await plugins.secureStorage())
     // Keychain items outlive a reinstall; the marker in Preferences does not.
     storage = preferences ? withInstallMarker(secure, { marker: preferences, keys: [keys.tokens], markerKey: `${prefix}installed` }) : secure
     transient = preferences ?? storage
   }
-  else if (native && config.storage === 'secure') {
+  else if (capacitor && config.storage === 'secure') {
     throw new Error('[@frigear-nu/auth] `authentication.client.storage: \'secure\'` needs `@aparajita/capacitor-secure-storage`.')
   }
-  else if (native && preferences && config.storage !== 'local') {
+  else if (capacitor && preferences && config.storage !== 'local') {
     storage = transient = preferences
   }
   else {
@@ -94,7 +126,11 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
   }
 
   const rewriteUrl = loopbackRewriter(config.rewriteLoopback, globalThis.location?.hostname, import.meta.dev) ?? ((url: string) => url)
-  const userAgent = native && plugins.browser ? browserUserAgent(await plugins.browser()) : redirectUserAgent()
+  const userAgent = capacitor && plugins.browser
+    ? browserUserAgent(await plugins.browser())
+    : tauriDeepLinks && plugins.opener
+      ? systemBrowserUserAgent(await plugins.opener())
+      : redirectUserAgent()
   const redirectUri = resolveRedirectUri({
     native,
     origin: globalThis.location.origin,
@@ -124,8 +160,11 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
   return {
     client,
     flow: createSignInFlow(client, { userAgent, onChange: onSigningIn }),
+    platform,
     native,
-    app: native && plugins.app ? await plugins.app() : null,
+    app: capacitor && plugins.app ? await plugins.app() : null,
+    deepLink: tauriDeepLinks && plugins.deepLink ? await plugins.deepLink() : null,
+    focusWindow: tauri && plugins.window ? await tauriFocus(plugins.window) : null,
     tokensKey: keys.tokens,
     apiBase: rewriteUrl(config.apiBase || config.issuer),
     rewriteUrl,

@@ -257,8 +257,28 @@ export function validateRedirectUri(redirectUri: string, rules: RedirectUriRules
   if (!isSecureOrigin(url)) return rules.allowNativeRedirects === true && isNativeRedirectUri(url) && !!rules.redirectUris?.includes(redirectUri)
   if (rules.websiteUrl && redirectUri === `${rules.websiteUrl.replace(/\/+$/, '')}${callbackPath}`) return true
   if (rules.redirectUris?.includes(redirectUri)) return true
+  if (rules.allowNativeRedirects === true && rules.redirectUris?.some(registered => matchesLoopbackRedirect(redirectUri, registered))) return true
   if (rules.previewUrlPattern && rules.clientType !== 'public') return matchesPreviewUrlPattern(redirectUri, rules.previewUrlPattern, callbackPath)
   return false
+}
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '[::1]'])
+
+/**
+ * RFC 8252 §7.3: a native app (desktop shell, CLI) listens on an ephemeral loopback port, so a registered
+ * `http://127.0.0.1/cb` (or `http://[::1]/cb`, any port) matches the same URI on any port. Scheme, host, path and
+ * query must still match exactly; `localhost` is not a loopback redirect (§8.3), only the IP literals are.
+ */
+export function matchesLoopbackRedirect(redirectUri: string, registered: string): boolean {
+  if (!URL.canParse(redirectUri) || !URL.canParse(registered)) return false
+  const url = new URL(redirectUri)
+  const reg = new URL(registered)
+  if (url.protocol !== 'http:' || reg.protocol !== 'http:') return false
+  if (!LOOPBACK_HOSTS.has(url.hostname) || url.hostname !== reg.hostname) return false
+  if (url.username || url.password || url.hash || reg.username || reg.password || reg.hash) return false
+  // Compare the serialized forms without the port, so `..`, `%2e` and trailing-slash tricks cannot differ from what was registered.
+  const withoutPort = (u: URL) => `${u.protocol}//${u.hostname}${u.pathname}${u.search}`
+  return url.href === redirectUri && withoutPort(url) === withoutPort(reg)
 }
 
 /** Random, prefixed id (`<prefix>_<32 hex>`): the one of `@frigear-nu/module-kit/id`. */

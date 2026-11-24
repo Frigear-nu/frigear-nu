@@ -2,7 +2,8 @@ import { computed, navigateTo, readonly } from '#imports'
 import { isCallbackUrlFor } from '../../core/urls'
 import type { CallbackResult, GetAccessTokenOptions, OAuthClient } from '../../core/types'
 import { isNativePlatform } from '../../capacitor/adapters'
-import { resolveRedirectUri, safeReturnTo } from '../../utils'
+import { isTauri } from '../../tauri/adapters'
+import { resolveRedirectUri, safeReturnTo, tauriUsesDeepLinks } from '../../utils'
 import { isSafeRedirect } from '../../../utils/redirect'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
@@ -64,7 +65,7 @@ export function useAuth() {
       if (import.meta.server) return false
       try {
         const redirectUri = resolveRedirectUri({
-          native: isNativePlatform(),
+          native: isNativePlatform() || (isTauri() && tauriUsesDeepLinks(config.desktopFlow, import.meta.dev)),
           origin: globalThis.location.origin,
           callbackPath: config.callbackPath,
           redirectUri: config.redirectUri,
