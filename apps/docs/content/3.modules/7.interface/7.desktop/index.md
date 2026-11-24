@@ -117,7 +117,7 @@ Options go under the `desktop` key.
 | `autostart` | `boolean` | `false` | Adds `tauri-plugin-autostart`, so the app can start at login. |
 | `updater` | `{ endpoints, pubkey } \| false` | `false` | Adds `tauri-plugin-updater` with your update endpoints and public key. |
 | `devUrl` | `string` | `http://localhost:<devServer.port>` | The URL the window loads under `frigear-desktop dev`. |
-| `doctor` | `boolean` | `true` | Warns about missing Tauri packages when dev or build starts. |
+| `doctor` | `boolean` | `true` | Warns about missing Tauri packages when dev or build starts. A missing `@tauri-apps/plugin-opener` fails the build, whatever this option says, when local mode turns on the frigear handoff ([Sign in at an issuer with server auth](/modules/interface/desktop/local-mode#sign-in-at-an-issuer-with-server-auth)). |
 
 **`appId`.** Letters, digits, `-` and `.`, in reverse-DNS form. Avoid a last segment of `app`, which clashes with the
 macOS bundle extension. In lowercase, with `_` turned into `-`, it becomes the deep-link scheme and Auth's

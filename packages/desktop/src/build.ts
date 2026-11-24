@@ -44,6 +44,16 @@ export function assertClientAuth(mode: string): void {
   throw new Error('[@frigear-nu/desktop] `@frigear-nu/auth` runs in server mode, which needs a same-origin session cookie a Tauri app in remote mode cannot send: set `authentication.mode: \'client\'` in the app\'s config.')
 }
 
+/**
+ * Local mode with server auth turns on Auth's frigear handoff, which opens the sign-in in the system browser through
+ * `@tauri-apps/plugin-opener`. Without it Auth falls back to `window.open`, which does nothing useful in a Tauri window,
+ * so "Log in with frigear.nu" would look broken: throws when the opener is not installed.
+ */
+export function assertHandoffOpener(installed: (pkg: string) => boolean): void {
+  if (installed(TAURI_PLUGINS.opener.pkg)) return
+  throw new Error(`[@frigear-nu/desktop] Local mode with server auth turns on "Log in with frigear.nu" in the system browser (\`authentication.settings.oauth.frigear.handoff\`), which opens it through \`${TAURI_PLUGINS.opener.pkg}\`, and it is not installed: add it to the app (\`pnpm add ${TAURI_PLUGINS.opener.pkg}\`), or turn the handoff off with \`oauth: { frigear: { handoff: false } }\`.`)
+}
+
 /** Warnings about Tauri packages the enabled features need but the app has not installed. */
 export function missingPluginWarnings(plugins: { name: string, required: boolean, feature: string }[], installed: (pkg: string) => boolean): string[] {
   return plugins

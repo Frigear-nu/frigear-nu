@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { appIdScheme, FALLBACK_APP_ID, resolveDesktopOptions, resolveSchemes } from '../../src/runtime/shared/config'
-import { assertClientAuth, assertLocalAuth, desktopDependencies, localSecretNames, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
+import { assertClientAuth, assertHandoffOpener, assertLocalAuth, desktopDependencies, localSecretNames, missingPluginWarnings, nativeLoaderTemplate } from '../../src/build'
 
 describe('resolveDesktopOptions', () => {
   it('fills in the defaults', () => {
@@ -193,6 +193,11 @@ describe('module rules', () => {
     expect(source).toContain('app: () => import("@tauri-apps/api/app"),')
     expect(source).toContain('deepLink: () => import("@tauri-apps/plugin-deep-link"),')
     expect(source).toContain('opener: null,')
+  })
+
+  it('fails without the opener when the frigear handoff is on', () => {
+    expect(() => assertHandoffOpener(pkg => pkg === '@tauri-apps/plugin-opener')).not.toThrow()
+    expect(() => assertHandoffOpener(() => false)).toThrow(/`@tauri-apps\/plugin-opener`.*`pnpm add @tauri-apps\/plugin-opener`.*handoff: false/)
   })
 
   it('warns about missing packages', () => {

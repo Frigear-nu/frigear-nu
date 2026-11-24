@@ -7,7 +7,7 @@ import { defu } from 'defu'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import type { DesktopDeepLinkContext, DesktopManifest, DesktopPublicConfig, ModuleOptions } from './types'
 import {
-  applyLocalNitroConfig, assertClientAuth, assertLocalAuth, desktopDependencies, isCheckedNuxtHubVersion, isPackageInstalled,
+  applyLocalNitroConfig, assertClientAuth, assertHandoffOpener, assertLocalAuth, desktopDependencies, isCheckedNuxtHubVersion, isPackageInstalled,
   localBootstrapTemplate, localDbTemplate, localEntryTemplate, localSecretNames, missingPluginWarnings, nativeLoaderTemplate, NUXTHUB_SEAM,
   appHasUnstorage, handoffReturnUrl, HANDOFF_RETURN_PATH, type DesktopAuthMode, type LocalNitroConfig,
 } from './build'
@@ -112,7 +112,12 @@ export default defineNuxtModule<ModuleOptions>({
           return
         }
         handoff = (nuxt.options.runtimeConfig.public as { authentication?: { frigearHandoff?: boolean } }).authentication?.frigearHandoff === true
-        if (handoff) addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-handoff.client'), mode: 'client' })
+        if (handoff) {
+          // Without the opener the handoff falls back to `window.open`, which does nothing in Tauri: fail the build
+          // (`nuxt dev` and `nuxt prepare` too), as for the other config errors. `frigear-desktop doctor` reports it as well.
+          assertHandoffOpener(installed)
+          addPlugin({ src: resolver.resolve('./runtime/app/plugins/frigear-handoff.client'), mode: 'client' })
+        }
         const settings = (nuxt.options as { authentication?: { settings?: { verifyEmail?: boolean } } }).authentication?.settings
         if (settings?.verifyEmail === true && !prepare) {
           logger.warn('`authentication.settings.verifyEmail` is on in local mode: the verification email cannot reach anyone offline, so new accounts cannot sign in. Turn it off for the desktop build.')
