@@ -1,7 +1,7 @@
 # Publishes public `packages/**` packages to npm using release-it.
 #
 # Triggered manually so a maintainer picks which packages to release and what kind of version bump to apply - see
-# apps/docs/content/5.contribute/4.publishing.md for the full walkthrough (including npm Trusted Publishing / OIDC
+# apps/docs/content/6.contribute/4.publishing.md for the full walkthrough (including npm Trusted Publishing / OIDC
 # setup).
 #
 # `packages` is `changed` (every package with commits since its last release tag), `all`, or a comma or space separated

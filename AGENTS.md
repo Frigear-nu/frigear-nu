@@ -65,10 +65,11 @@ pnpm create nuxt@latest -t gh:hareland/nuxt-app-template <app-name>
 pnpx giget@latest gh:hareland/nuxt-app-template <app-name>
 ```
 
-**An app from a starter** (`web`, `web-standalone`, `mobile`), renamed into the workspace's scope:
+**An app of a platform** (`web`, `web-standalone`, `mobile`, `desktop`), renamed into the workspace's scope, with its
+root scripts:
 
 ```bash
-pnpm cli app:create <app-name> --template web
+pnpm cli platform add <platform> <app-name>
 ```
 
 **Bringing in an existing app / arbitrary source:**

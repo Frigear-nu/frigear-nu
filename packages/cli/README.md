@@ -29,7 +29,7 @@ or tag). While that repository is not public, set `GIGET_AUTH` to a GitHub token
 
 `pnpm create frigear-app` ([create-frigear-app](../create-frigear-app)) runs `init` of the latest CLI.
 
-Full reference: [docs.frigear.dev/contribute/tooling/cli](https://docs.frigear.dev/contribute/tooling/cli).
+Full reference: [docs.frigear.dev/cli/overview](https://docs.frigear.dev/cli/overview).
 
 ## In this repository
 
