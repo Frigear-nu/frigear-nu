@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/maps",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Maps as a building block for other modules: a location picker on OpenStreetMap, a plane layout editor with underlay and snapping, web and mobile viewers with live layers, feature kinds, zod schemas and geometry helpers. No tables of its own.",
   "homepage": "https://docs.frigear.dev/modules/interface/maps",
   "repository": {
