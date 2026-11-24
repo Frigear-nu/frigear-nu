@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { compileRoles, createPermissionRegistry, rolePermissions } from '@frigear-nu/auth/utils'
 import { assignableRoles, canManageRole, isRoleBelowActor, missingForRole, planRoleAssignment } from '../../src/runtime/utils/assignment'
 import type { StoredRole } from '../../src/runtime/utils/assignment'
-import { permissionGrant, toRoleDetail } from '../../src/runtime/utils/roles-view'
+import { permissionGrant, toRoleDetail, toRoleMatrix } from '../../src/runtime/utils/roles-view'
 
 const registry = createPermissionRegistry([
   { name: 'events:read' },
@@ -114,5 +114,39 @@ describe('roles admin view', () => {
     expect(detail.permissions.every(row => Array.isArray(row.sources))).toBe(true)
     // The tab badge and the "Held" card count the same rows, implicit permissions included.
     expect(detail.permissionCount).toBe(detail.permissions.filter(row => row.grant).length)
+  })
+
+  it('builds the role matrix: every role against every permission, cells only where held', () => {
+    const matrix = toRoleMatrix(table, registry, new Map([['manager', 2]]))
+    // Display order: assignable roles, then default, then automatic.
+    expect(matrix.roles.map(role => role.name)).toEqual(['admin', 'eventmanager', 'locked', 'manager', 'user', 'member'])
+    expect(matrix.roles.find(role => role.name === 'manager')).toMatchObject({ userCount: 2, from: null })
+    expect(matrix.permissions).toHaveLength(Object.keys(registry.permissions).length)
+    expect(matrix.permissions[0]).not.toHaveProperty('grant')
+    expect(matrix.permissions[0]).not.toHaveProperty('sources')
+    expect(matrix.cells.manager!['events:update']).toEqual({ via: 'inherited', from: 'eventmanager', by: 'events:*' })
+    expect(matrix.cells.manager!['tickets:read']).toEqual({ via: 'implicit' })
+    expect(matrix.cells.admin!['events:read']).toEqual({ via: 'granted', by: '*' })
+    // Not held: no cell at all.
+    expect(matrix.cells.manager).not.toHaveProperty('users:pii')
+    expect(Object.keys(matrix.cells.user!).sort()).toEqual(['events:read', 'tickets:read'])
+  })
+
+  it('names the module behind a role and a permission (null for the app\'s own)', () => {
+    const withModules = createPermissionRegistry([
+      { name: 'events:read', from: '@frigear-nu/events', grantTo: ['crew'] },
+      { name: 'app:read' },
+    ]).value
+    const { value: modular } = compileRoles({
+      registry: withModules,
+      contributions: [{ name: 'crew', grant: [], from: '@frigear-nu/events' }],
+      roles: { staff: { grant: ['app:read'] } },
+    })
+    const matrix = toRoleMatrix(modular, withModules)
+    expect(matrix.roles.find(role => role.name === 'crew')!.from).toBe('@frigear-nu/events')
+    expect(matrix.roles.find(role => role.name === 'staff')!.from).toBeNull()
+    expect(matrix.permissions.map(permission => [permission.name, permission.from])).toEqual([['app:read', null], ['events:read', '@frigear-nu/events']])
+    const detail = toRoleDetail(modular.roles.crew!, 0, modular, withModules)
+    expect(detail.permissions.find(row => row.name === 'events:read')).toMatchObject({ from: '@frigear-nu/events', sources: [{ via: 'grantTo', from: '@frigear-nu/events' }] })
   })
 })

@@ -6,17 +6,17 @@
         "description": "Applikationer du kan logge ind på."
       },
       "admin": {
-        "label": "OAuth-applikationer",
-        "description": "Administrer de applikationer, brugere kan logge ind på."
-      },
-      "scopes": {
-        "label": "OAuth-scopes",
-        "description": "Hvad applikationer må bede brugerne om."
+        "label": "OAuth",
+        "description": "Applikationer, der logger ind med dette site, og de scopes, de kan bede om."
       }
     },
+    "heading": {
+      "title": "OAuth",
+      "description": "Applikationer, der logger ind med dette site, og de scopes, de kan bede om.",
+      "applications": "Applikationer",
+      "scopes": "Scopes"
+    },
     "admin": {
-      "title": "OAuth-applikationer",
-      "description": "De applikationer, brugere kan logge ind på med deres konto.",
       "new": "Tilføj applikation",
       "forbiddenTitle": "Du har ikke adgang til at administrere OAuth-applikationer",
       "forbiddenDescription": "Bed en administrator om adgang.",
@@ -171,8 +171,6 @@
       "manage": "Administrer OAuth-applikationer og scopes"
     },
     "scopes": {
-      "title": "OAuth-scopes",
-      "description": "Navne applikationer kan bede om, som hver står for en række tilladelser.",
       "new": "Tilføj scope",
       "scope": "Scope",
       "permissions": "Tilladelser",
@@ -204,7 +202,7 @@
         "nameHint": "Det applikationer beder om, fx tickets. Kan ikke ændres senere.",
         "nameInvalid": "Ét ord med små bogstaver: bogstaver, tal, \".\", \"_\" eller \"-\".",
         "permissions": "Tilladelser",
-        "permissionsHint": "Tilladelser eller wildcards som tickets:read eller tickets:*. Aldrig følsomme eller kun-session-tilladelser. Tilføjede tilladelser beder brugerne om samtykke igen.",
+        "permissionsHint": "Vælg en tilladelse eller skriv dens navn, f.eks. tickets:read. Aldrig følsomme eller kun-session-tilladelser, og ingen wildcards. Tilføjede tilladelser beder brugerne om samtykke igen.",
         "permissionsRequired": "Tilføj mindst én tilladelse.",
         "label": "Etiket",
         "labelHint": "Vises på samtykkesiden, fx “Dine billetter”.",
@@ -212,7 +210,8 @@
         "icon": "Ikon",
         "isActive": "Aktiv",
         "isActiveHint": "Et deaktiveret scope er ukendt for applikationer, indtil det aktiveres igen.",
-        "version": "Version {version}"
+        "version": "Version {version}",
+        "permissionsPlaceholder": "Søg i tilladelser..."
       }
     }
   }

@@ -21,8 +21,8 @@ which roles may sign in where and which scopes a user may hand to an application
   - The consent screen at `/authorize`, where a person allows an app to sign them in. On by default.
   - The signed-in user's applications at `/account/applications`. Opt-in.
 - **Admin area.**
-  - An **OAuth applications** screen at `/admin/oauth` to create, edit and disable applications, and an **OAuth
-    scopes** screen at `/admin/oauth/scopes` to define scopes. Opt-in, and only with [Admin](/modules/interface/admin).
+  - An **OAuth** area with two tabs: **Applications** at `/admin/oauth` to create, edit and disable applications, and
+    **Scopes** at `/admin/oauth/scopes` to define scopes. Opt-in, and only with [Admin](/modules/interface/admin).
   - Menu items in the account menu and the admin sidebar, with [Menu](/modules/interface/menu). On when Menu is
     installed.
 - **Server routes.**

@@ -309,6 +309,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'scopes/:name', file: 'api/admin/scope.get' },
       { method: 'patch', path: 'scopes/:name', file: 'api/admin/scope.patch' },
       { method: 'delete', path: 'scopes/:name', file: 'api/admin/scope.delete' },
+      { method: 'get', path: 'permissions', file: 'api/admin/permissions.get' },
     ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
