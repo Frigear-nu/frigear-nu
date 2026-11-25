@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/crew",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Crew for the frigear ecosystem: applications, approvals and invites that turn people into an operation's crew, built on teams.",
   "homepage": "https://docs.frigear.dev/modules/volunteering/crew",
   "repository": {
