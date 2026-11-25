@@ -309,8 +309,9 @@ function setupLocalMode(nuxt: Nuxt, local: NonNullable<ReturnType<typeof resolve
     }
     // The bootstrap goes first: it sets the env (data folder, port, secrets) Nitro's runtime config is read from. A
     // virtual module, since Nuxt clears unknown files from the build dir before Nitro builds.
-    // Nitro tree-shakes the side effects of modules it does not list, and both imports are nothing but side effects.
-    nitro.options.moduleSideEffects.push(bootstrap.dst, nitro.options.entry)
+    // Nitro v2 tree-shakes the side effects of modules it does not list, and both imports are nothing but side effects.
+    // Nitro v3 has no `moduleSideEffects` and keeps them.
+    nitro.options.moduleSideEffects?.push(bootstrap.dst, nitro.options.entry)
     nitro.options.virtual[LOCAL_ENTRY] = localEntryTemplate(bootstrap.dst, nitro.options.entry)
     nitro.options.entry = LOCAL_ENTRY
   })

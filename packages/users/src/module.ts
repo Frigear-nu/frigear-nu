@@ -2,7 +2,7 @@ import {
   addComponent,
   addPlugin,
   addServerImportsDir,
-  addServerPlugin,
+  addNitroPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -167,11 +167,11 @@ export default defineNuxtModule<ModuleOptions>({
       }
       // Applications that sign in here get `users.locale` as the OIDC `locale` claim.
       if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {
-        addServerPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
+        addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
       }
     })
     // Signed in with frigear.nu: its `locale` claim becomes the user's language here.
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/frigear-locale'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/frigear-locale'))
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin

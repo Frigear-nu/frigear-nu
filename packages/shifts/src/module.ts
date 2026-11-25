@@ -2,7 +2,7 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addServerPlugin,
+  addNitroPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -268,8 +268,8 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     // Cancels future assignments when people leave a team or lose the role a shift needs.
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/teams'))
-    addServerPlugin(resolver.resolve('./runtime/server/plugins/station-key'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/teams'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/station-key'))
 
     // The `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails, as templates `@frigear-nu/email-templates` renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))

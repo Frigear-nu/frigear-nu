@@ -221,6 +221,28 @@ dependency. The helper changes two things:
 
 Host apps then need no Nuxt or Nitro config of their own.
 
+Both work on Nitro v2 and v3 (Nuxt 4.7 builds with v3 when the app lists `nitro`): on v2 the runtime goes into
+`externals.inline`, on v3 Nuxt turns `build.transpile` into `noExternals` itself. To bundle other files, such as
+templates a module ships, call `bundleServerDependencies(nuxt, config, paths)` from a `nitro:config` hook: it writes
+whichever of the two options the host's Nitro has.
+
+### Nitro v2 and v3
+
+Modules run on Nitro v3 through Nuxt's `nitroLegacy` layer, which keeps h3 v1 helpers, `nitropack` imports and the
+server auto-imports working. Until each module moves to `nuxt/server`, keep to what the layer covers:
+
+- Register plugins with `addNitroPlugin` (`addServerPlugin` is its old name).
+- Augment `nitropack` or `nitropack/types` (`NitroRuntimeHooks`, `NitroRouteConfig`): the layer maps both to
+  `nitro/types`. Augmentations of `nitropack/runtime` or `#internal/nitro` do not carry over.
+- `return sendRedirect(...)`, and throw errors through `apiError` (`/server`), which sets both `statusCode` and
+  `status`.
+- Branch on `getNitroVersion(nuxt)` (`@nuxt/kit`) for Nitro options v3 removed, such as `externals` and
+  `moduleSideEffects`; Nuxt warns about each one it ignores (`NUXT_B9001`).
+- Route rule patterns: use `/path` and `/path/**`. A single `*` matches one segment on v2 and many on v3.
+
+The `Nitro v3` workflow (`.github/workflows/nitro-v3.yml`) runs module tests on Nitro v3, by hand on a branch
+(`gh workflow run nitro-v3.yml --ref <branch>`).
+
 ::warning
 App code in `src/runtime/**` outside `server/` gets no auto-imports in `node_modules`. Import from `#imports`
 explicitly. The `no-undef` rule of `@frigear-nu/eslint-config` enforces it.
