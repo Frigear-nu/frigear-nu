@@ -6,7 +6,7 @@ import {
   addPlugin,
   addRouteMiddleware,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
@@ -229,7 +229,7 @@ export default defineNuxtModule<ModuleOptions>({
         resolver,
         file: dialect => `./runtime/server/db/users.${dialect}`,
       })
-      addNitroPlugin(resolver.resolve('./runtime/server/plugins/role-migration'))
+      addServerPlugin(resolver.resolve('./runtime/server/plugins/role-migration'))
 
       addModuleRoutes(resolver, [
         { method: 'get', path: 'roles', file: 'admin/roles.get' },

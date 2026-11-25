@@ -3,7 +3,7 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -181,9 +181,9 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/seed'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([

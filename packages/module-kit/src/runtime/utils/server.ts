@@ -1,11 +1,10 @@
-import { addServerHandler, addTemplate, createResolver, getNitroVersion, useLogger } from '@nuxt/kit'
+import { addServerHandler, addTemplate, createResolver, useLogger } from '@nuxt/kit'
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { kebabCase } from 'scule'
 import { joinURL, withLeadingSlash, withoutTrailingSlash } from 'ufo'
 import type { Nuxt } from '@nuxt/schema'
-import type { NitroConfig } from 'nitropack/types'
 import type { ColumnBuilderBase } from 'drizzle-orm'
 import { listRegularTableExportNames, parseRegularTableExport } from './regular-table'
 
@@ -368,29 +367,6 @@ ${[...properties.values()].map(property => `  ${property},`).join('\n')}
   })
 }
 
-/** Nitro v3's `noExternals` (the replacement for `externals.inline`); Nitro v2 types it as a boolean only. */
-type NitroConfigWithNoExternals = Omit<NitroConfig, 'noExternals'> & { noExternals?: boolean | Array<string | RegExp> }
-
-/**
- * Makes Nitro bundle `paths` (files or directories, often under `node_modules`) instead of externalizing them: through
- * `externals.inline` on Nitro v2 and `noExternals` on Nitro v3, which has no `externals` (Nuxt warns when it is set).
- * Call it from a `nitro:config` hook.
- */
-export const bundleServerDependencies = (nuxt: Nuxt, config: NitroConfig, paths: string[]) => {
-  if (getNitroVersion(nuxt) === 3) {
-    const options = config as NitroConfigWithNoExternals
-    if (options.noExternals === true) return
-    const current = options.noExternals || []
-    options.noExternals = [...current, ...paths.filter(path => !current.includes(path))]
-    return
-  }
-  config.externals ||= {}
-  config.externals.inline ||= []
-  for (const path of paths) {
-    if (!config.externals.inline.includes(path)) config.externals.inline.push(path)
-  }
-}
-
 const escapeRE = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 /**
  * What `inlineModuleRuntime` wraps around a pattern: `^(?!<runtime>/)[\s\S]*?(?:<pattern>)`. The state lives in the
@@ -403,15 +379,9 @@ const escapeRE = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * its own modules keep being excluded. Hosts avoid that with one copy (an `overrides` / `resolutions` entry).
  */
 const runtimeCarveOut = (runtime: string) => `^(?!${escapeRE(runtime)}/)`
-/**
- * Nuxt's node_modules exclude: `node_modules\/(?!<layers>)` up to Nuxt 4.6, `[\\/]node_modules[\\/](?!<layers>)` from
- * 4.7 (on Nitro v2 and v3 alike).
- */
-const NUXT_NODE_MODULES_SOURCES = ['node_modules', '[\\\\/]node_modules']
-/** Nuxt's node_modules pattern, or one that any copy of `inlineModuleRuntime` wrapped. */
+/** Nuxt's `node_modules\/(?!<layers>)` pattern, or one that any copy of `inlineModuleRuntime` wrapped. */
 const isNodeModulesExclude = (source: string) =>
-  NUXT_NODE_MODULES_SOURCES.some(start =>
-    source.startsWith(start) || (source.startsWith('^(?!') && source.includes(`[\\s\\S]*?(?:${start}`)))
+  source.startsWith('node_modules') || (source.startsWith('^(?!') && source.includes('[\\s\\S]*?(?:node_modules'))
 
 /**
  * Makes Nitro bundle (instead of externalize) a module's `runtime` directory, and pushes it into `build.transpile`
@@ -420,8 +390,7 @@ const isNodeModulesExclude = (source: string) =>
  * file except its layers out of Nitro's auto-imports (`nitro.imports.exclude`), so the runtime is carved out of those
  * patterns: its server code can use `useNitroApp`, `useRuntimeConfig` and other modules' server utils without
  * importing them. Call it in every module that ships a `runtime` directory, so hosts need neither
- * `nitro.externals.inline` nor an `imports.exclude` override. Works on Nitro v2 and v3 (Nuxt 4.7+), where Nuxt turns
- * `build.transpile` into `noExternals` and still reads `imports.exclude` for the server auto-imports it owns.
+ * `nitro.externals.inline` nor an `imports.exclude` override.
  *
  * App code (components, composables, plugins) gets no such carve-out: Nuxt reads `imports.transform` once, before
  * modules installed through `moduleDependencies` run. It imports what it uses from `#imports` instead.
@@ -430,8 +399,9 @@ export const inlineModuleRuntime = (nuxt: Nuxt, resolver: ReturnType<typeof crea
   const runtime = resolver.resolve('./runtime')
   nuxt.options.build.transpile.push(runtime)
   nuxt.hook('nitro:config', (config) => {
-    // On Nitro v3 Nuxt already turns every `build.transpile` entry into a `noExternals` one.
-    if (getNitroVersion(nuxt) !== 3) bundleServerDependencies(nuxt, config, [runtime])
+    config.externals ||= {}
+    config.externals.inline ||= []
+    if (!config.externals.inline.includes(runtime)) config.externals.inline.push(runtime)
     if (!config.imports) return
     // Nuxt's pattern is `node_modules\/(?!<layer paths>)`; ids under the runtime no longer match it.
     config.imports.exclude = [config.imports.exclude ?? []].flat().map((pattern) => {

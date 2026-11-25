@@ -2,7 +2,7 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -155,7 +155,7 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     // Answers `teams:owner:resolve` for `team`, and for `operation` when the operations table is there.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/owners'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/owners'))
     // The `team` grant kind (`@frigear-nu/auth`): the users holding a minimum role on one team.
     extendGrants(nuxt, {
       kind: 'team',
@@ -168,17 +168,17 @@ export default defineNuxtModule<ModuleOptions>({
       order: 20,
     })
     // Stores the option's ladders on the first request (insert-if-missing).
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/ladders'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/ladders'))
 
     // Optional integrations, checked once every module has registered (they may come after this one in `modules`).
     nuxt.hook('modules:done', () => {
       // `plan` mapping rules: an active subscription to the plan.
       if (hasNuxtModule('@frigear-nu/subscriptions', nuxt)) {
-        addNitroPlugin(resolver.resolve('./runtime/server/plugins/subscriptions'))
+        addServerPlugin(resolver.resolve('./runtime/server/plugins/subscriptions'))
       }
       // The `teams` claim of id tokens and userinfo, with the `teams` / `teams:read` scope.
       if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {
-        addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
+        addServerPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
       }
     })
 

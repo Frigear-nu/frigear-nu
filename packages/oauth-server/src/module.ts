@@ -2,7 +2,7 @@ import {
   addImports,
   addServerHandler,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -332,7 +332,7 @@ export default defineNuxtModule<ModuleOptions>({
     ], { base: '/api/admin/oauth-server' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/credentials-changed'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/credentials-changed'))
     inlineModuleRuntime(nuxt, resolver)
     if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 

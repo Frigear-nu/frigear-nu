@@ -69,9 +69,8 @@ export default defineNuxtConfig({
     // nuxt-llms skips `/llms.txt`. Previews keep the production canonical; override with NUXT_SITE_URL.
     url: process.env.NUXT_SITE_URL || "https://docs.frigear.dev",
   },
-  // `statusCode` for Nitro v2, `status` for Nitro v3 (where `statusCode` is deprecated).
   routeRules: Object.fromEntries(
-    Object.entries(redirects).map(([from, to]) => [from, { redirect: { to, statusCode: 301, status: 301 } }]),
+    Object.entries(redirects).map(([from, to]) => [from, { redirect: { to, statusCode: 301 } }]),
   ),
   content: {
     experimental: {

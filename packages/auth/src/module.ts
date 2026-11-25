@@ -6,12 +6,11 @@ import {
   addTemplate,
   addServerImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   addServerTemplate,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
-  getNitroVersion,
   hasNuxtModule,
   resolvePath,
   tryResolveModule,
@@ -35,10 +34,10 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { LocaleRouting } from '@frigear-nu/module-kit/server'
-import type { Nitro, NitroConfig } from 'nitropack'
+import type { Nitro } from 'nitropack'
 import { lowerFirst } from 'scule'
 import { isAbsolute, resolve } from 'node:path'
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import type {
   AuthResolverDefinition,
@@ -415,12 +414,9 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     // `@simplewebauthn/server` 13 loads `@peculiar/x509`, whose tsyringe throws at import without the
     // `reflect-metadata` polyfill. x509 imports it for its side effect only, and Nitro tree-shakes side effects of
     // modules not listed in `moduleSideEffects`, so the server bundle would crash on startup (Cloudflare Workers).
-    // Nitro v3 has no `moduleSideEffects` (Nuxt warns about it) and keeps the side effects of such imports.
-    if (getNitroVersion(nuxt) !== 3) {
-      nuxt.options.nitro.moduleSideEffects ||= []
-      if (!nuxt.options.nitro.moduleSideEffects.includes('reflect-metadata/')) {
-        nuxt.options.nitro.moduleSideEffects.push('reflect-metadata/')
-      }
+    nuxt.options.nitro.moduleSideEffects ||= []
+    if (!nuxt.options.nitro.moduleSideEffects.includes('reflect-metadata/')) {
+      nuxt.options.nitro.moduleSideEffects.push('reflect-metadata/')
     }
   }
 
@@ -489,9 +485,9 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // Where emailed links point (`authSiteOrigin`); `NUXT_PUBLIC_SITE_URL` sets it at runtime.
   const publicConfig = nuxt.options.runtimeConfig.public as { siteUrl?: string }
   publicConfig.siteUrl ||= settings.siteUrl || process.env.NUXT_SITE_URL || ''
-  addNitroPlugin(resolver.resolve('./runtime/server/plugins/site-url'))
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/site-url'))
   // `/api/_auth/session` answers the user as `getAuth` sees them: fresh from the store, or signed out.
-  addNitroPlugin(resolver.resolve('./runtime/server/plugins/session-fetch'))
+  addServerPlugin(resolver.resolve('./runtime/server/plugins/session-fetch'))
 
   // The server half both server and resource mode have, with the built-in user-token resolver.
   setupServerHalf(options, nuxt, resolver, withApiTokens
@@ -506,23 +502,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // OAuth sign-in reuses nuxt-auth-utils' handlers: each `defineOAuth<Provider>EventHandler` it auto-imports is a
   // provider here, loaded on first use and keyed like its `runtimeConfig.oauth` block, so its env vars turn it on.
   let nitroInstance: Nitro | undefined
-  let nitroImports: NitroConfig['imports']
   nuxt.hook('nitro:init', (nitro) => {
     nitroInstance = nitro
-  })
-  nuxt.hook('nitro:config', (config) => {
-    nitroImports = config.imports
   })
   addServerTemplate({
     filename: '#auth/oauth',
     getContents: async () => {
       const configKeys = Object.keys((nuxt.options.runtimeConfig as { oauth?: Record<string, unknown> }).oauth ?? {})
       const keyOf = (name: string) => configKeys.find(key => key.toLowerCase() === name.toLowerCase()) ?? lowerFirst(name)
-      // Nitro v2 exposes its unimport context; on Nitro v3 Nuxt owns the server auto-imports, so read the dirs.
-      const imports = nitroInstance?.unimport
-        ? await nitroInstance.unimport.getImports()
-        : await scanOAuthHandlerExports((nitroImports ? nitroImports.dirs ?? [] : []).filter(dir => typeof dir === 'string'))
-      const handlers = imports.flatMap(({ name, as, from }) => {
+      const handlers = (await nitroInstance?.unimport?.getImports() ?? []).flatMap(({ name, as, from }) => {
         const provider = /^defineOAuth(\w+)EventHandler$/.exec(as ?? name)?.[1]
         return provider ? [`${JSON.stringify(keyOf(provider))}: () => import(${JSON.stringify(from)}).then(m => m[${JSON.stringify(name)}])`] : []
       })
@@ -1077,7 +1065,7 @@ function setupAccessControl(options: ModuleOptions, nuxt: Nuxt, resolver: Return
   }, { nuxt: true, nitro: true, node: true, shared: true })
 
   // A listener of a removed hook (`auth:user-permissions`, `events:authorize`, ...) never runs: say so in development.
-  if (nuxt.options.dev) addNitroPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))
+  if (nuxt.options.dev) addServerPlugin(resolver.resolve('./runtime/server/plugins/removed-hooks'))
 }
 
 /**
@@ -1368,26 +1356,6 @@ export declare const userinfo: boolean
       { name: 'auth-callback', path: settings.pages?.callback === false ? undefined : callbackPath, file: './runtime/client/app/pages/callback.vue' },
     ])
   })
-}
-
-const OAUTH_HANDLER_EXPORT = /export\s+(?:async\s+)?(?:function\s+|const\s+)(defineOAuth\w+EventHandler)\b/g
-const SCRIPT_FILE = /\.(?:[cm]?js|[cm]?ts)$/
-
-/**
- * The `defineOAuth<Provider>EventHandler` exports of the files in the server auto-import `dirs` (nuxt-auth-utils
- * registers `runtime/server/lib/oauth`), for hosts on Nitro v3, where there is no `nitro.unimport` to ask.
- */
-async function scanOAuthHandlerExports(dirs: string[]): Promise<Array<{ name: string, as?: string, from: string }>> {
-  const found: Array<{ name: string, from: string }> = []
-  for (const dir of dirs.map(dir => dir.replace(/\/\*.*$/, ''))) {
-    const files = await readdir(dir).catch(() => [] as string[])
-    for (const file of files.filter(file => SCRIPT_FILE.test(file) && !file.endsWith('.d.ts'))) {
-      const from = resolve(dir, file)
-      const code = await readFile(from, 'utf8').catch(() => '')
-      for (const [, name] of code.matchAll(OAUTH_HANDLER_EXPORT)) found.push({ name: name!, from })
-    }
-  }
-  return found
 }
 
 /** nuxt-auth-utils' session utils, which resource mode replaces with stand-ins (`runtime/server/no-sessions`). */

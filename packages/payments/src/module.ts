@@ -1,7 +1,7 @@
 import {
   addImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -168,7 +168,7 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     // Stores membership (invoice) payments announced by `@frigear-nu/subscriptions` when that module is installed.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/invoice-payments'))
     if (options.settings?.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
 
     addImports([

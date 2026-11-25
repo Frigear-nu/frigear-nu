@@ -2,7 +2,7 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
@@ -258,13 +258,13 @@ declare module '#inbox/server-registry' {
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     // Creates the mailboxes of `inbox.mailboxes` on the first request.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/seed'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/seed'))
 
     // --- Soft integrations ------------------------------------------------------------------------------------------
     // The contact form: submissions of forms connected to a mailbox (a `form` channel account) become threads.
-    if (hasNuxtModule('@frigear-nu/forms')) addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms'))
+    if (hasNuxtModule('@frigear-nu/forms')) addServerPlugin(resolver.resolve('./runtime/server/plugins/forms'))
     // Team mailboxes: a team's leads read its mailbox (`isTeamLead` of teams).
-    if (hasNuxtModule('@frigear-nu/teams')) addNitroPlugin(resolver.resolve('./runtime/server/plugins/teams'))
+    if (hasNuxtModule('@frigear-nu/teams')) addServerPlugin(resolver.resolve('./runtime/server/plugins/teams'))
     // The assignee hears about new messages on the channels they chose for `inbox.message` (notify's `notifyUser`).
     extendNotificationTopics(nuxt, [{
       id: 'inbox.message',
@@ -273,9 +273,9 @@ declare module '#inbox/server-registry' {
       defaults: { email: false, sms: false, push: true },
       channels: ['email', 'push'],
     }])
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/notify'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/notify'))
     // `inbox:thread:linked`: another module's action on a thread goes on the thread's audit trail.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/links'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/links'))
 
     // --- Retention --------------------------------------------------------------------------------------------------
     // The `inbox:retention` Nitro task, on `retention.cron` (nightly unless set; `false` registers it without a

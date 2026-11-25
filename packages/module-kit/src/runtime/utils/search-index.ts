@@ -2,7 +2,6 @@ import { isAbsolute, resolve } from 'node:path'
 import { addTypeTemplate, createResolver } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import { defineVirtualRegistry } from './registry'
-import { bundleServerDependencies } from './server'
 
 export interface SearchIndexRegistration {
   /** A unique name for the log and the task result, usually the table (`users`, `help_articles`). */
@@ -96,6 +95,8 @@ export {}
       description: 'Recompute the normalised search columns of every registered table.',
     }
     // The task lives in module-kit's runtime, which is bundled (not externalised) like every module's.
-    bundleServerDependencies(nuxt, config, [runtime])
+    config.externals ||= {}
+    config.externals.inline ||= []
+    if (!config.externals.inline.includes(runtime)) config.externals.inline.push(runtime)
   })
 }

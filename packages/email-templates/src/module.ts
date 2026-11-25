@@ -1,12 +1,12 @@
 import {
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
   updateTemplates,
 } from '@nuxt/kit'
-import { bundleServerDependencies, inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
+import { inlineModuleRuntime, registerModule } from '@frigear-nu/module-kit/utils'
 import { defu } from 'defu'
 import type { EmailTemplateSource } from '@frigear-nu/notify/types'
 import { layerTemplateDirs, mergeTemplates, templatesVirtualModule } from './templates'
@@ -75,7 +75,8 @@ export default defineNuxtModule<ModuleOptions>({
         nitroConfig.virtual ||= {}
         nitroConfig.virtual['#email-templates'] = templatesVirtualModule(mergeTemplates(moduleDirs, layerTemplateDirs(nuxt)))
         // Published modules ship their templates inside node_modules: bundle them so the Vue plugin compiles them.
-        bundleServerDependencies(nuxt, nitroConfig, moduleDirs)
+        nitroConfig.externals ||= {}
+        nitroConfig.externals.inline = [...(nitroConfig.externals.inline ?? []), ...moduleDirs]
       })
     })
 
@@ -118,7 +119,7 @@ ${templates.map(template => `    ${JSON.stringify(template.name)}: TemplateCompo
     }, { nitro: true, nuxt: true })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/notify-email'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/notify-email'))
     inlineModuleRuntime(nuxt, resolver)
   },
 })

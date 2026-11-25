@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createResolver } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import type { NitroConfig } from 'nitropack/types'
-import { bundleServerDependencies, inlineModuleRuntime } from '../src/runtime/utils/server'
+import { inlineModuleRuntime } from '../src/runtime/utils/server'
 
 const store = '/app/node_modules/.pnpm'
 const notify = `${store}/@frigear-nu+notify@1.0.0/node_modules/@frigear-nu/notify/dist`
@@ -15,10 +15,10 @@ const oauthServer = `${store}/@frigear-nu+oauth-server@1.0.0/node_modules/@frige
  * Runs `inlineModuleRuntime` for each module dir, then the `nitro:config` hooks on `config`, as Nuxt does. A module
  * given as `[dir, inline]` uses its own copy of `inlineModuleRuntime`, as when an app installs module-kit twice.
  */
-function setup(modules: Array<string | [string, InlineModuleRuntime]>, config: NitroConfig, nitroMajor = 2) {
+function setup(modules: Array<string | [string, InlineModuleRuntime]>, config: NitroConfig) {
   const hooks: Array<(config: NitroConfig) => void> = []
   const nuxt = {
-    options: { build: { transpile: [] }, _nitroMajor: nitroMajor },
+    options: { build: { transpile: [] } },
     hook: (name: string, fn: (config: NitroConfig) => void) => {
       if (name === 'nitro:config') hooks.push(fn)
     },
@@ -61,17 +61,12 @@ function legacyCopy(): InlineModuleRuntime {
 const nitroConfigFor = (modules: Parameters<typeof setup>[0], config: NitroConfig) => setup(modules, config).config
 
 // What Nuxt sets: everything in `node_modules` except its layers (here `some-layer`) and `.git`.
-const nuxt46Imports = () => ({ exclude: [/node_modules\/(?!some-layer)/, /[\\/]\.git[\\/]/] })
-// Nuxt 4.7 (Nitro v2 and v3) anchors the pattern on a path separator.
-const nuxt47Imports = () => ({ exclude: [/[\\/]node_modules[\\/](?!some-layer(?:\/|$))/, /[\\/]\.git[\\/]/] })
+const nuxtImports = () => ({ exclude: [/node_modules\/(?!some-layer)/, /[\\/]\.git[\\/]/] })
 
 const excluded = (config: NitroConfig, id: string) =>
   [config.imports && config.imports.exclude].flat().some(pattern => pattern instanceof RegExp && pattern.test(id))
 
-describe.each([
-  ['Nuxt 4.6', nuxt46Imports],
-  ['Nuxt 4.7', nuxt47Imports],
-])('inlineModuleRuntime (%s)', (_, nuxtImports) => {
+describe('inlineModuleRuntime', () => {
   it('inlines the runtime for Nitro and the app build', () => {
     const config = nitroConfigFor([notify], { imports: nuxtImports() })
     expect(config.externals?.inline).toEqual([`${notify}/runtime`])
@@ -130,44 +125,11 @@ describe.each([
     it('builds on patterns a copy from before 1.3.1 wrapped first', () => {
       const legacy = legacyCopy()
       const config = nitroConfigFor([[notify, legacy], [users, legacy], oauthServer], { imports: nuxtImports() })
-      // Copies before 1.3.1 only know Nuxt 4.6's pattern: on 4.7 the runtimes of their modules stay excluded.
-      expectCarvedOut(config, nuxtImports === nuxt46Imports ? [notify, users, oauthServer] : [oauthServer])
+      expectCarvedOut(config, [notify, users, oauthServer])
     })
-  })
-
-  it('leaves externals alone on Nitro v3, where transpile becomes noExternals', () => {
-    const { nuxt, config } = setup([notify], { imports: nuxtImports() }, 3)
-    expect(config.externals).toBeUndefined()
-    expect(nuxt.options.build.transpile).toEqual([`${notify}/runtime`])
-    expect(excluded(config, `${notify}/runtime/server/utils/dispatch.js`)).toBe(false)
-    expect(excluded(config, `${notify}/module.mjs`)).toBe(true)
   })
 
   it('leaves disabled auto-imports alone', () => {
     expect(nitroConfigFor([notify], { imports: false }).imports).toBe(false)
-  })
-})
-
-describe('bundleServerDependencies', () => {
-  const nuxtOn = (nitroMajor: number) => ({ options: { _nitroMajor: nitroMajor } }) as unknown as Nuxt
-
-  it('inlines externals on Nitro v2, once each', () => {
-    const config: NitroConfig = { externals: { inline: ['/a'] } }
-    bundleServerDependencies(nuxtOn(2), config, ['/a', '/b'])
-    expect(config.externals?.inline).toEqual(['/a', '/b'])
-    expect(config).not.toHaveProperty('noExternals')
-  })
-
-  it('adds noExternals on Nitro v3 and leaves externals alone', () => {
-    const config = { noExternals: ['/a'] } as unknown as NitroConfig & { noExternals?: unknown }
-    bundleServerDependencies(nuxtOn(3), config, ['/a', '/b'])
-    expect(config.noExternals).toEqual(['/a', '/b'])
-    expect(config.externals).toBeUndefined()
-  })
-
-  it('keeps noExternals: true on Nitro v3', () => {
-    const config = { noExternals: true } as NitroConfig & { noExternals?: unknown }
-    bundleServerDependencies(nuxtOn(3), config, ['/a'])
-    expect(config.noExternals).toBe(true)
   })
 })

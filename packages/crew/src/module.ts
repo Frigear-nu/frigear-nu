@@ -2,7 +2,7 @@ import {
   addComponentsDir,
   addImports,
   addServerImportsDir,
-  addNitroPlugin,
+  addServerPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -170,9 +170,9 @@ export default defineNuxtModule<ModuleOptions>({
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
     // Answers `operations:participation:resolve` and `operations:participants:resolve`: who takes part in an operation.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/participation'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/participation'))
     // Registers an application when the operation's crew form is submitted (`forms:submitted`).
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms'))
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/forms'))
 
     // The `crew-status-*` emails, as templates `@frigear-nu/email-templates` renders when installed.
     nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
