@@ -11,24 +11,26 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
 minimumReleaseAgeExclude:
-  # Released for the dashboard and starter updates; drop these once they are older than the release-age window.
-  - '@frigear-nu/module-kit@1.3.8'
-  - '@frigear-nu/notify@0.2.6'
-  - '@frigear-nu/ui@0.2.8'
-  - '@frigear-nu/email-templates@0.1.2'
-  - '@frigear-nu/widget@0.4.1'
-  - '@frigear-nu/auth@0.6.4'
-  - '@frigear-nu/users@3.1.2'
-  - '@frigear-nu/authorization@0.6.2'
-  - '@frigear-nu/admin@0.5.1'
-  - '@frigear-nu/account@0.6.1'
-  - '@frigear-nu/preferences@0.3.2'
-  - '@frigear-nu/dashboard@0.1.1'
-  - '@frigear-nu/oauth-server@0.8.5'
-  - '@frigear-nu/mobile@0.6.2'
-  - '@frigear-nu/oauth-resource@0.3.2'
-  - '@frigear-nu/desktop@0.0.1'
+  # The latest @frigear-nu releases the starters use (directly or through other modules); drop these once they are
+  # older than the release-age window.
+  - '@frigear-nu/account@0.6.2'
+  - '@frigear-nu/admin@0.5.2'
+  - '@frigear-nu/auth@0.6.6'
+  - '@frigear-nu/authorization@0.6.4'
+  - '@frigear-nu/dashboard@0.1.2'
+  - '@frigear-nu/desktop@0.0.3'
+  - '@frigear-nu/email-templates@0.1.4'
+  - '@frigear-nu/mcp@0.5.2'
+  - '@frigear-nu/menu@0.4.1'
+  - '@frigear-nu/mobile@0.6.3'
+  - '@frigear-nu/module-kit@1.3.10'
+  - '@frigear-nu/notify@0.2.7'
+  - '@frigear-nu/oauth-server@0.8.7'
+  - '@frigear-nu/preferences@0.3.4'
+  - '@frigear-nu/ui@0.2.9'
+  - '@frigear-nu/users@3.1.4'
+  - '@frigear-nu/widget@0.4.2'
 overrides:
   # Safeguard: keep a single copy of module-kit for every @frigear-nu module, since they share build-time state through
   # it. module-kit 1.3.1 also works with duplicate copies; before that a second copy crashed the built server on start.
-  '@frigear-nu/module-kit': ^1.3.8
+  '@frigear-nu/module-kit': ^1.3.10

@@ -25,10 +25,10 @@
     "sidecar": "frigear-desktop sidecar"
   },
   "dependencies": {
-    "@frigear-nu/auth": "^0.6.4",
-    "@frigear-nu/authorization": "^0.6.0",
-    "@frigear-nu/desktop": "^0.0.1",
-    "@frigear-nu/users": "^3.1.1",
+    "@frigear-nu/auth": "^0.6.6",
+    "@frigear-nu/authorization": "^0.6.4",
+    "@frigear-nu/desktop": "^0.0.3",
+    "@frigear-nu/users": "^3.1.4",
     "@iconify-json/lucide": "^1.2.150",
     "@libsql/client": "^0.18.0",
     "@nuxt/ui": "^4.12.0",
