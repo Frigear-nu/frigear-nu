@@ -53,7 +53,7 @@ The source of the docs and modules is https://github.com/Frigear-nu/frigear-nu (
 corepack enable
 pnpm install          # installs all workspaces from the repo root
 pnpm prepare:env      # creates the apps' .env files, generates NUXT_APP_SECRET and the OAuth signing key
-pnpm desktop:init     # creates apps/desktop/src-tauri/ for the current mode
+pnpm desktop:setup    # installs Rust and Bun if missing, creates apps/desktop/src-tauri/
 ```
 
 ## Common commands
@@ -80,6 +80,7 @@ pnpm mobile:sync                      # nuxt generate + cap sync, after every we
 pnpm mobile:ios                       # build and run on an iOS simulator
 pnpm mobile:ios:device                # a build against this machine's LAN address, opened in Xcode for a phone
 pnpm mobile:android                   # build and run on an Android emulator or device
+pnpm desktop:setup                    # install Rust, Bun (local mode) and the Tauri packages if missing, then init
 pnpm desktop:doctor                   # Rust, the OS prerequisites, Bun (local mode) and the Tauri packages
 pnpm desktop:init                     # create apps/desktop/src-tauri/ for the current mode (keeps existing files)
 pnpm desktop:sync                     # merge the desktop settings of nuxt.config into src-tauri/

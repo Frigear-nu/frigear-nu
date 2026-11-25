@@ -21,7 +21,8 @@ is nothing to set up by hand.
 
 Requirements: Node 24 (see `.nvmrc`), pnpm 12 (`corepack enable`). For the native apps: Xcode for iOS or Android Studio
 for Android; Rust from [rustup.rs](https://rustup.rs) and your OS's prerequisites for the desktop app, and
-[Bun](https://bun.sh) for its local mode (`pnpm desktop:doctor` checks them).
+[Bun](https://bun.sh) for its local mode (`pnpm desktop:setup` installs Rust and Bun when they are missing,
+`pnpm desktop:doctor` checks the rest).
 
 ```bash
 pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/multi-platform my-app
@@ -30,7 +31,7 @@ git init
 corepack enable
 pnpm install
 pnpm prepare:env
-pnpm desktop:init     # creates apps/desktop/src-tauri/ for the current mode
+pnpm desktop:setup    # installs Rust and Bun if missing, creates apps/desktop/src-tauri/
 ```
 
 `pnpm prepare:env` creates each app's `.env`, and generates `NUXT_APP_SECRET` (it seals the session cookie) and the
@@ -98,6 +99,7 @@ Run everything from the repository root:
 | `pnpm mobile:ios` | Build and run on an iOS simulator |
 | `pnpm mobile:ios:device` | Build against this machine's LAN address and open Xcode, to run on a phone |
 | `pnpm mobile:android` | Build and run on an Android emulator or device |
+| `pnpm desktop:setup` | Install what is missing (Rust, Bun in local mode, the Tauri packages), create `src-tauri/`, then check |
 | `pnpm desktop:doctor` | Check Rust, the OS prerequisites, Bun (local mode) and the Tauri packages |
 | `pnpm desktop:init` | Create `apps/desktop/src-tauri/` for the current mode (`--force` to recreate it) |
 | `pnpm desktop:sync` | Merge the `desktop` options of `apps/desktop/nuxt.config.ts` into `src-tauri/` |

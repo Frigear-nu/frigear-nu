@@ -8,6 +8,7 @@
     "build:local": "pnpm --filter ./apps/desktop run build:local",
     "prepare:env": "node scripts/prepare-env.mjs",
     "db:generate": "pnpm --filter ./apps/desktop run db:generate",
+    "desktop:setup": "pnpm --filter ./apps/desktop run setup",
     "desktop:doctor": "pnpm --filter ./apps/desktop run doctor",
     "desktop:init": "pnpm --filter ./apps/desktop run native",
     "desktop:sync": "pnpm --filter ./apps/desktop run native:sync",
