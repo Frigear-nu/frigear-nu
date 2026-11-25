@@ -176,8 +176,9 @@ export default defineNuxtModule<ModuleOptions>({
     const runtime = nuxt.options.runtimeConfig as unknown as Record<string, unknown>
     const reminders = { offsets: normalizeReminderOffsets(options.reminders?.offsets), sms: options.reminders?.sms === true, batchSize: normalizeReminderBatch(options.reminders?.batchSize) }
     const automation = { batchSize: normalizeAutomationBatch(options.automation?.batchSize) }
-    // `stationKey` (`NUXT_SHIFTS_STATION_KEY`): the secret station QR codes are signed with. Empty (the default), station
-    // check-in is off: its API answers 501 `not_configured` and the admin cannot turn the mode on. No other secret stands in.
+    // `stationKey` (`NUXT_SHIFTS_STATION_KEY`): the secret station QR codes are signed with. Empty (the default), a key
+    // derived from Nuxt's `appSecret` (`NUXT_APP_SECRET`) stands in; with neither, station check-in is off: its API answers
+    // 501 `not_configured` and the admin cannot turn the mode on.
     runtime.shifts = { stationKey: '', ...(runtime.shifts as Record<string, unknown> | undefined), timeZone, checkInOpensMinutes, reminders, automation } satisfies ShiftsRuntimeConfig & { stationKey: unknown }
     // A key shorter than 32 characters is refused: here when it is in the config, at server startup when it comes from
     // the environment (`runtime/server/plugins/station-key`).

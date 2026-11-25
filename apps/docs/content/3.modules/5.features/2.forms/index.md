@@ -128,7 +128,9 @@ off.
 
 **`captcha.<provider>`** is `turnstile`, `recaptcha` or `hcaptcha`.
 
-**`encryptionKey`** falls back to `NUXT_ENCRYPTION_KEY`, then to the session password.
+**`encryptionKey`** falls back to a key derived from `NUXT_APP_SECRET` (see [Secrets](/get-started/configuration#secrets)).
+`NUXT_ENCRYPTION_KEY` and `NUXT_SESSION_PASSWORD` come before it, in that order, but are deprecated: they only keep
+secrets encrypted with them readable.
 
 ### Runtime config
 

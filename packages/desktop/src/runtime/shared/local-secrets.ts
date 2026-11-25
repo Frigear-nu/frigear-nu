@@ -3,15 +3,15 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto'
 import { dirname } from 'node:path'
 
 // Local mode: the secrets of one installation, generated on its first start into the data folder and loaded into the
-// environment on every start (before Nitro reads its runtime config). An env var that is already set wins.
+// environment on every start (before Nitro reads its runtime config). An env var that is already set wins. Every secret
+// in the file is loaded, also ones no longer generated: an installation from before `@frigear-nu/auth` derived its token
+// key from `NUXT_APP_SECRET` keeps its `NUXT_AUTH_TOKENS_KEY`, so its kept OAuth tokens stay readable.
 
 /** The secrets the bundled server may need, by env var. */
 export const SECRET_GENERATORS = {
-  // Nuxt's `appSecret`: nuxt-auth-utils seals the session cookie with it (32+ characters).
+  // Nuxt's `appSecret` (32+ characters): nuxt-auth-utils seals the session cookie with it, and modules derive their own
+  // keys from it (`@frigear-nu/auth`'s key for kept OAuth tokens among them).
   NUXT_APP_SECRET: () => randomBytes(32).toString('base64'),
-  // `@frigear-nu/auth`: encrypts kept OAuth tokens (`runtimeConfig.authTokensKey`). Not `NUXT_SESSION_PASSWORD`, its
-  // fallback, which nuxt-auth-utils warns about.
-  NUXT_AUTH_TOKENS_KEY: () => randomBytes(32).toString('base64'),
   // `@frigear-nu/oauth-server`: signs its tokens (a PKCS#8 RSA key).
   NUXT_OAUTH_SERVER_PRIVATE_KEY: () => generateKeyPairSync('rsa', {
     modulusLength: 2048,

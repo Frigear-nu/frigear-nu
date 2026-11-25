@@ -449,7 +449,7 @@ export default defineNuxtConfig({
   push: {},
   shifts: {
     // Shift times follow the app's time zone (`frigearUi.timeZone` in app.config.ts).
-    // Station check-in needs NUXT_SHIFTS_STATION_KEY (see .env.example).
+    // Station codes are signed with a key derived from NUXT_APP_SECRET, or NUXT_SHIFTS_STATION_KEY (see .env.example).
   },
   // Secrets come from NUXT_STRIPE_SECRET_KEY, NUXT_STRIPE_WEBHOOK_SECRET and NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
   stripe: {},

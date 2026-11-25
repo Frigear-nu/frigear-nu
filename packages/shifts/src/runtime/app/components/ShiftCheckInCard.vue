@@ -39,8 +39,8 @@ function reset() {
 }
 watch(() => props.schedule, reset, { immediate: true })
 
-// Without a station key on the server (`NUXT_SHIFTS_STATION_KEY`) station check-in cannot work: the mode cannot be
-// turned on, and one already on can only be turned off.
+// Without a station key on the server (`NUXT_SHIFTS_STATION_KEY`, or `NUXT_APP_SECRET` to derive one from) station
+// check-in cannot work: the mode cannot be turned on, and one already on can only be turned off.
 const stationReady = computed(() => props.schedule.stationKeyConfigured)
 const stationInUse = computed(() => modes.value.includes('station') || overrides.value.some(item => item.modes.includes('station')))
 const modeItemsFor = (selected: SelfMode[]) => [
@@ -48,7 +48,7 @@ const modeItemsFor = (selected: SelfMode[]) => [
     label: t('checkIn.modes.station', 'Station'),
     description: stationReady.value
       ? t('checkIn.modes.stationHelp', 'Volunteers scan the rotating QR code of a station of their team.')
-      : t('checkIn.modes.stationNeedsKey', 'Needs a station key on the server (NUXT_SHIFTS_STATION_KEY).'),
+      : t('checkIn.modes.stationNeedsKey', 'Needs NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY) on the server.'),
     value: 'station',
     disabled: !stationReady.value && !selected.includes('station'),
   },
@@ -112,8 +112,8 @@ const columns = computed<TableColumn<ShiftStationDto>[]>(() => [
       variant="subtle"
       :title="t('checkIn.stationKeyMissing', 'Station check-in needs a station key')"
       :description="stationInUse
-        ? t('checkIn.stationKeyMissingInUse', 'Station check-in is on, but the server has no NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set the key, or turn the mode off. The other modes work.')
-        : t('checkIn.stationKeyMissingHint', 'Set NUXT_SHIFTS_STATION_KEY on the server to use station check-in and station screens. The other modes work without it.')"
+        ? t('checkIn.stationKeyMissingInUse', 'Station check-in is on, but the server has neither NUXT_APP_SECRET nor NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY), or turn the mode off. The other modes work.')
+        : t('checkIn.stationKeyMissingHint', 'Set NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY) on the server to use station check-in and station screens. The other modes work without it.')"
     />
     <SectionCard
       :title="t('checkIn.title', 'How volunteers check in')"

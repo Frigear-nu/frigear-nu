@@ -181,9 +181,10 @@ describe('module rules', () => {
 
   it('generates the secrets each auth mode uses', () => {
     expect(localSecretNames({ authMode: null, oauthServer: false })).toEqual(['NUXT_APP_SECRET'])
-    expect(localSecretNames({ authMode: 'server', oauthServer: false })).toEqual(['NUXT_APP_SECRET', 'NUXT_AUTH_TOKENS_KEY'])
-    expect(localSecretNames({ authMode: 'server', oauthServer: true })).toEqual(['NUXT_APP_SECRET', 'NUXT_AUTH_TOKENS_KEY', 'NUXT_OAUTH_SERVER_PRIVATE_KEY'])
-    // Resource mode keeps no OAuth tokens and signs none; Nuxt's own appSecret stays.
+    // Auth derives the key of kept OAuth tokens from NUXT_APP_SECRET: no NUXT_AUTH_TOKENS_KEY for a new installation.
+    expect(localSecretNames({ authMode: 'server', oauthServer: false })).toEqual(['NUXT_APP_SECRET'])
+    expect(localSecretNames({ authMode: 'server', oauthServer: true })).toEqual(['NUXT_APP_SECRET', 'NUXT_OAUTH_SERVER_PRIVATE_KEY'])
+    // Resource mode signs nothing; Nuxt's own appSecret stays.
     expect(localSecretNames({ authMode: 'resource', oauthServer: true })).toEqual(['NUXT_APP_SECRET'])
   })
 

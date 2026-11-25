@@ -54,6 +54,11 @@
       "import": "./src/runtime/server/index.ts",
       "default": "./src/runtime/server/index.ts"
     },
+    "./secret": {
+      "types": "./src/runtime/server/secret.ts",
+      "import": "./src/runtime/server/secret.ts",
+      "default": "./src/runtime/server/secret.ts"
+    },
     "./testing": {
       "types": "./src/runtime/testing/index.ts",
       "import": "./src/runtime/testing/index.ts",
@@ -82,6 +87,9 @@
       ],
       "server": [
         "./src/runtime/server/index.ts"
+      ],
+      "secret": [
+        "./src/runtime/server/secret.ts"
       ],
       "testing": [
         "./src/runtime/testing/index.ts"
@@ -125,6 +133,11 @@
         "import": "./dist/runtime/server/index.js",
         "default": "./dist/runtime/server/index.js"
       },
+      "./secret": {
+        "types": "./dist/runtime/server/secret.d.ts",
+        "import": "./dist/runtime/server/secret.js",
+        "default": "./dist/runtime/server/secret.js"
+      },
       "./testing": {
         "types": "./dist/runtime/testing/index.d.ts",
         "import": "./dist/runtime/testing/index.js",
@@ -154,6 +167,9 @@
         ],
         "server": [
           "./dist/runtime/server/index.d.ts"
+        ],
+        "secret": [
+          "./dist/runtime/server/secret.d.ts"
         ],
         "testing": [
           "./dist/runtime/testing/index.d.ts"

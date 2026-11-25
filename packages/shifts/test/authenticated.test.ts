@@ -1505,7 +1505,32 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect(await ok(await selfCheckIn(bo, bos.assignment.id, { mode: 'station', token: screen.token }))).toMatchObject({ alreadyCheckedIn: false })
     })
 
-    it('station: without a station key the screen and the check-in answer not_configured; the other modes keep working', async () => {
+    it('station: without a station key the key derived from the app secret signs; codes of the station key no longer verify', async () => {
+      const setup = await newSetup({ checkIn: { modes: ['station'] } })
+      const [ann, lead] = await Promise.all([user('Aann'), user('Alead')])
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, lead, 'lead')
+      await patchShift(setup.shifts[0]!.id, { startsAt: iso(HOUR / 2), endsAt: iso(3 * HOUR) })
+      const { assignment } = await assigned(setup.shifts[0]!.id, ann)
+      const station = await createStation(setup.schedule.id, setup.team.id)
+      const signedWithOwnKey = (await stationToken(station.id)).token
+
+      await setStationKey(false, { appSecret: true })
+      try {
+        expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedule(setup.schedule.id)))).toMatchObject({ stationKeyConfigured: true })
+        expect((await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(assignment.id)))).checkIn.modes).toEqual(['station', 'lead'])
+        // Another key signs: a code of the station key is not one any more, the screen's code is.
+        await expectApiError(selfCheckIn(ann, assignment.id, { mode: 'station', token: signedWithOwnKey }), 400, 'invalid_token')
+        const screen = await ok(await json(lead.cookie, 'GET', shiftsApi.stationToken(station.id)))
+        expect(screen.token).not.toBe(signedWithOwnKey)
+        expect(await ok(await selfCheckIn(ann, assignment.id, { mode: 'station', token: screen.token }))).toMatchObject({ method: 'station', assignment: { status: 'attended' } })
+      }
+      finally {
+        await setStationKey(true)
+      }
+    })
+
+    it('station: without a station key or an app secret the screen and the check-in answer not_configured; the other modes keep working', async () => {
       const setup = await newSetup({ checkIn: { modes: ['station', 'location'], location: { point: bar } } })
       const [ann, lead] = await Promise.all([user('Kann'), user('Klead')])
       await addMember(setup.team.id, ann)
@@ -1521,7 +1546,7 @@ describe('shifts (authenticated, database-backed)', async () => {
         expect(await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedule(setup.schedule.id)))).toMatchObject({ stationKeyConfigured: false })
         expect((await ok(await json(staff.cookie, 'GET', shiftsApi.admin.schedules))).find((item: Json) => item.id === setup.schedule.id)).toMatchObject({ stationKeyConfigured: false })
         expect((await createStation(setup.schedule.id, setup.team.id)).id).toMatch(/^sst_/)
-        // The screen and a station check-in: 501, even with a code signed while the key was there. No other secret stands in.
+        // The screen and a station check-in: 501, even with a code signed while the key was there.
         await expectApiError(json(lead.cookie, 'GET', shiftsApi.stationToken(station.id)), 501, 'not_configured')
         await expectApiError(selfCheckIn(ann, assignment.id, { mode: 'station', token: signed }), 501, 'not_configured')
         await expectApiError(selfCheckIn(ann, assignment.id, { mode: 'station', token: 'not-a-token' }), 501, 'not_configured')
