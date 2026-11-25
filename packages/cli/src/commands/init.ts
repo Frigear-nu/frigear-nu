@@ -28,11 +28,11 @@ const nextSteps: Record<Starter, string[]> = {
   'mobile': ['  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/mobile/.env'],
   'desktop': [
     '  set NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER (and _API_BASE) in apps/desktop/.env, or DESKTOP_MODE=local',
-    '  pnpm desktop:init',
+    '  pnpm desktop:setup',
   ],
   'multi-platform': [
     '  put your email in NUXT_ACL_ADMINS in apps/web/.env',
-    '  pnpm desktop:init',
+    '  pnpm desktop:setup',
   ],
 }
 

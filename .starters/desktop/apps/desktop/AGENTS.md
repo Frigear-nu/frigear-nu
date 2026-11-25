@@ -58,7 +58,8 @@ src-tauri/                the Tauri project, created by `pnpm desktop:init` (not
   in another capability file. `src/lib.rs` is yours after `init`.
 - Commit `src-tauri/` once created. Never commit `src-tauri/target/`, `gen/schemas/` or `binaries/` (its `.gitignore`).
 - `pnpm desktop:doctor` checks Rust, the OS prerequisites (Xcode tools, WebView2, WebKitGTK 4.1) and, in local mode,
-  Bun.
+  Bun. `pnpm desktop:setup` (`frigear-desktop doctor --fix`) installs Rust and Bun with their official installers,
+  adds missing Tauri packages and runs `init`; it never runs sudo.
 
 ## Local mode
 
