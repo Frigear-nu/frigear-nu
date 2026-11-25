@@ -36,8 +36,8 @@ export function useOAuthApplicationActions() {
     return router.replace({ query: id ? { ...rest, application: id } : rest })
   }
 
-  /** Shows the client secret once. */
-  function showCredentials(credentials: { name: string, clientId: string, clientSecret: string | null }) {
+  /** Shows the client secret once, with the `.env` an app needs to sign in with it. */
+  function showCredentials(credentials: { name: string, clientId: string, clientSecret: string | null, issuer: string, redirectUri: string | null }) {
     overlay.create(OAuthCredentialsModal, { destroyOnClose: true, props: credentials }).open()
   }
 
@@ -55,7 +55,7 @@ export function useOAuthApplicationActions() {
     }).open()
     if (saved && 'clientSecret' in saved) {
       toast.add({ title: t('admin.created', 'Application created'), description: saved.name, color: 'success', icon: 'i-lucide-check' })
-      showCredentials({ name: saved.name, clientId: saved.clientId, clientSecret: saved.clientSecret })
+      showCredentials({ name: saved.name, clientId: saved.clientId, clientSecret: saved.clientSecret, issuer: saved.issuer, redirectUri: saved.callbackUrl ?? saved.redirectUris[0] ?? null })
     }
     return saved
   }
@@ -122,12 +122,20 @@ export function useOAuthApplicationActions() {
       destructive: true,
     })
     if (!confirmed) return
-    const clientSecret = await run(async () => {
-      const secret = await oauthApplicationsApi.rotateSecret(application.id)
+    const rotated = await run(async () => {
+      const result = await oauthApplicationsApi.rotateSecret(application.id)
       await refresh()
-      return secret
+      return result
     }, { success: t('admin.secretReplaced', 'Client secret replaced') })
-    if (clientSecret) showCredentials({ name: application.name, clientId: application.id, clientSecret })
+    if (rotated) {
+      showCredentials({
+        name: application.name,
+        clientId: application.id,
+        clientSecret: rotated.clientSecret,
+        issuer: rotated.issuer,
+        redirectUri: application.callbackUrl ?? application.redirectUris[0] ?? null,
+      })
+    }
   }
 
   async function signOutEveryone(application: AdminApplicationDto) {

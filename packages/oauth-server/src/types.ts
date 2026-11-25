@@ -476,6 +476,15 @@ export type CreatedApplicationDto = AdminApplicationDto & {
   clientId: string
   /** `null` for public clients: they have no secret. */
   clientSecret: string | null
+  /** The issuer URL the client signs in against (the configured issuer, or this server's origin). */
+  issuer: string
+}
+
+/** Returned once when an application's client secret is replaced. */
+export type RotatedSecretDto = {
+  clientSecret: string
+  /** The issuer URL the client signs in against. */
+  issuer: string
 }
 
 export type ConsentDto = {

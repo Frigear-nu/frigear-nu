@@ -130,7 +130,17 @@
       "copiedClientId": "Client ID copied",
       "copiedClientSecret": "Client secret copied",
       "publicDescription": "This is a public client: it has no client secret and signs in with PKCE only.",
-      "noSecret": "None (public client)"
+      "noSecret": "None (public client)",
+      "issuer": "Issuer",
+      "copiedIssuer": "Issuer copied",
+      "showEnv": "Show .env",
+      "hideEnv": "Hide .env",
+      "tabFrigear": "Frigear Auth",
+      "tabOidc": "OIDC (nuxt-auth-utils)",
+      "copyEnv": "Copy .env",
+      "copiedEnv": ".env copied",
+      "serverApp": "Server-rendered app (PKCE)",
+      "clientApp": "Browser, desktop or mobile app (client mode)"
     },
     "applications": {
       "open": "Open",

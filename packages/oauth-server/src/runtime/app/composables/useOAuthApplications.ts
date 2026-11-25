@@ -1,6 +1,6 @@
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 import type { AsyncData, NuxtError } from 'nuxt/app'
-import type { AdminApplicationDto, AdminApplicationsPage, ApplicationInput, CreatedApplicationDto, UserApplicationDto } from '../../../types'
+import type { AdminApplicationDto, AdminApplicationsPage, ApplicationInput, CreatedApplicationDto, RotatedSecretDto, UserApplicationDto } from '../../../types'
 import { oauthServerApi } from '../../utils/api'
 import { $fetch, computed, useCachedFetch, useFetch, useUserSession, watch } from '#imports'
 
@@ -23,8 +23,8 @@ export const oauthApplicationsApi = {
     return null
   },
   /** Returns the new client secret; the old one stops working. */
-  rotateSecret: async (id: string) =>
-    (await $fetch<{ clientSecret: string }>(oauthServerApi.admin.rotateSecret(id), { method: 'POST' })).clientSecret,
+  rotateSecret: (id: string) =>
+    $fetch<RotatedSecretDto>(oauthServerApi.admin.rotateSecret(id), { method: 'POST' }),
   /** Signs everyone out of the application; resolves with the application. */
   revokeGrants: (id: string) =>
     $fetch<Application>(oauthServerApi.admin.revoke(id), { method: 'POST' }),
@@ -48,7 +48,7 @@ export interface OAuthApplicationsState {
   create: (input: ApplicationInput) => Promise<CreatedApplicationDto>
   update: (id: string, patch: Partial<ApplicationInput>) => Promise<Application>
   remove: (id: string) => Promise<null>
-  rotateSecret: (id: string) => Promise<string>
+  rotateSecret: (id: string) => Promise<RotatedSecretDto>
   revokeGrants: (id: string) => Promise<Application>
 }
 
@@ -87,11 +87,11 @@ export function useOAuthApplications(
     return null
   }
 
-  /** Returns the new client secret; the old one stops working. */
+  /** Returns the new client secret (and the issuer); the old secret stops working. */
   async function rotateSecret(id: string) {
-    const clientSecret = await oauthApplicationsApi.rotateSecret(id)
+    const rotated = await oauthApplicationsApi.rotateSecret(id)
     await refresh()
-    return clientSecret
+    return rotated
   }
 
   async function revokeGrants(id: string) {
