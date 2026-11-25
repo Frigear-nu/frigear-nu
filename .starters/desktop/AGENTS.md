@@ -66,6 +66,7 @@ pnpm lint                             # eslint across workspaces
 pnpm lint:fix
 pnpm test                             # run all tests
 pnpm db:generate                      # generate a migration for local mode (commit it)
+pnpm desktop:setup                    # install Rust, Bun (local mode) and the Tauri packages if missing, then init
 pnpm desktop:doctor                   # Rust, the OS prerequisites, Bun (local mode) and the Tauri packages
 pnpm desktop:init                     # create apps/desktop/src-tauri/ for the current mode (keeps existing files)
 pnpm desktop:sync                     # merge the desktop settings of nuxt.config into src-tauri/

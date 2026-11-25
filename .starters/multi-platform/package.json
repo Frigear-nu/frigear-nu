@@ -21,6 +21,7 @@
     "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
     "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",
     "mobile:android": "pnpm --filter ./apps/mobile run android:run",
+    "desktop:setup": "pnpm --filter ./apps/desktop run setup",
     "desktop:doctor": "pnpm --filter ./apps/desktop run doctor",
     "desktop:init": "pnpm --filter ./apps/desktop run native",
     "desktop:sync": "pnpm --filter ./apps/desktop run native:sync",

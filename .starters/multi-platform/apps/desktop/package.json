@@ -17,6 +17,7 @@
     "typecheck": "nuxt typecheck",
     "typecheck:local": "DESKTOP_MODE=local nuxt typecheck",
     "db:generate": "DESKTOP_MODE=local nuxt db generate",
+    "setup": "frigear-desktop doctor --fix",
     "doctor": "frigear-desktop doctor",
     "native": "frigear-desktop init",
     "native:sync": "frigear-desktop sync",
@@ -27,7 +28,7 @@
   "dependencies": {
     "@frigear-nu/auth": "^0.6.6",
     "@frigear-nu/authorization": "^0.6.4",
-    "@frigear-nu/desktop": "^0.0.3",
+    "@frigear-nu/desktop": "^0.0.4",
     "@frigear-nu/users": "^3.1.4",
     "@iconify-json/lucide": "^1.2.150",
     "@libsql/client": "^0.18.0",
