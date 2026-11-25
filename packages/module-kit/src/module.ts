@@ -1,4 +1,4 @@
-import { defineNuxtModule, createResolver, addImports } from '@nuxt/kit'
+import { defineNuxtModule, createResolver, addImports, addNitroPlugin, getNitroVersion } from '@nuxt/kit'
 import { inlineModuleRuntime } from './runtime/utils/server'
 
 export * from './runtime/utils/index'
@@ -25,6 +25,10 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(_nuxt, _resolver)
 
     addImports({ name: 'useModuleT', from: _resolver.resolve('./runtime/composables/useModuleT') })
+
+    // Previews get the i18n base URL from the request origin; a no-op without `@nuxtjs/i18n` or with a base URL set.
+    // Nitro v3's runtime config is one object for every request, so setting it per request would leak between them.
+    if (getNitroVersion(_nuxt) !== 3) addNitroPlugin(_resolver.resolve('./runtime/server/plugins/i18n-base-url'))
 
     _nuxt.options.moduleKit ||= {}
     _nuxt.options.moduleKit._modules = [

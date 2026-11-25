@@ -8,7 +8,6 @@ const t = useModuleT('auth')
 const route = useRoute()
 const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthProviders } = useLogin()
 const magicLink = useMagicLink()
-const magicLinkEmail = ref('')
 const magicLinkSent = ref(false)
 // The emailed link redirects back here with `?error=magic-link` when it is invalid, used or expired.
 const linkFailed = computed(() => route.query.error === 'magic-link')
@@ -50,7 +49,12 @@ const signInReason = computed(() => ({
   description: reasonT('signInReason.description', t('signInReason.description', 'Sign in to continue. Afterwards you are sent straight back to where you were.')),
 }))
 
-const magicLinkOpen = ref(false)
+// The sign-in link goes to the email typed in the form: a second button under "Log in", so the action sits under the
+// field it uses. Without password sign-in, the form is the email alone and its submit sends the link.
+const magicLinkOnly = computed(() => !passwordLoginEnabled.value && magicLink.isEnabled.value)
+const magicLinkExtra = computed(() => passwordLoginEnabled.value && magicLink.isEnabled.value)
+const authForm = ref<{ state: { email?: string } } | null>(null)
+const sentTo = ref('')
 const providers = computed(() => [
   ...oauthProviders.value.map(provider => provider.key === 'frigear' && handoff.isEnabled.value
     // The window stays and waits; frigear.nu opens outside it.
@@ -60,20 +64,43 @@ const providers = computed(() => [
         // OAuth round trips lose the page query, so the server remembers the target.
         to: requestedRedirect.value ? `${provider.to}?redirect=${encodeURIComponent(requestedRedirect.value)}` : provider.to,
       }),
-  ...(magicLink.isEnabled.value
-    ? [{ label: t('magicLink.title', 'Magic Link'), icon: 'i-lucide-at-sign', onClick: () => { magicLinkOpen.value = !magicLinkOpen.value } }]
-    : []),
   ...(passkeyLoginEnabled.value
     ? [{ label: t('passkey.login', 'Log in with a passkey'), icon: 'i-lucide-key-round', onClick: onPasskeyLogin }]
     : []),
 ])
 
-const fields = computed(() => passwordLoginEnabled.value
-  ? [
-      { name: 'email', type: 'text' as const, label: t('email.label', 'Email'), required: true },
-      { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), required: true },
+const fields = computed(() => {
+  if (passwordLoginEnabled.value) {
+    return [
+      { name: 'email', type: 'email' as const, label: t('email.label', 'Email'), autocomplete: 'username', required: true },
+      { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), autocomplete: 'current-password', required: true },
     ]
-  : [])
+  }
+  if (magicLinkOnly.value) {
+    return [{
+      name: 'email',
+      type: 'email' as const,
+      label: t('email.label', 'Email'),
+      description: t('magicLink.modal.in.description', 'You can sign in with your e-mail, we\'ll send you a link.'),
+      autocomplete: 'email',
+      required: true,
+    }]
+  }
+  return []
+})
+
+/** Emails a sign-in link to `email`; a failed send is shown through `magicLink.error`. */
+async function sendLink(email: string | undefined) {
+  error.value = null
+  const address = email?.trim() ?? ''
+  if (!/^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/.test(address)) {
+    magicLink.error.value = t('magicLink.emailRequired', 'Enter your e-mail above to get a sign-in link.')
+    return
+  }
+  await magicLink.sendMagicLink({ email: address, redirect: requestedRedirect.value }).catch(() => {})
+  magicLinkSent.value = !magicLink.error.value
+  if (magicLinkSent.value) sentTo.value = address
+}
 
 const registerPath = useAuthPages().register
 // An absolute register URL (e.g. the central frigear.nu sign-up) leaves the app and gets no `?redirect=`.
@@ -84,14 +111,13 @@ const registerLink = computed(() => registerPath
 const forgotPasswordEnabled = useRuntimeConfig().public.authentication?.passwordReset === true
 
 async function onSubmit(payload: { data: { email: string, password: string } }) {
+  if (magicLinkOnly.value) return sendLink(payload.data.email)
+  magicLink.error.value = null
   await login(payload.data)
   await afterLogin()
 }
 
-async function onMagicLink() {
-  await magicLink.sendMagicLink({ email: magicLinkEmail.value, redirect: requestedRedirect.value })
-  magicLinkSent.value = true
-}
+const formError = computed(() => magicLink.error.value || error.value)
 
 async function onPasskeyLogin() {
   error.value = null
@@ -180,40 +206,13 @@ async function onPasskeyLogin() {
       :title="handoffError"
     />
 
-    <template v-if="magicLinkOpen">
-      <UAlert
-        v-if="magicLinkSent"
-        :title="t('email.sent.title', 'E-mail sent!')"
-        :description="t('email.sent.description', 'We have sent you an e-mail. Check your inbox or spam.')"
-      />
-      <form
-        v-else
-        class="flex gap-2"
-        @submit.prevent="onMagicLink"
-      >
-        <UInput
-          v-model="magicLinkEmail"
-          type="email"
-          required
-          autofocus
-          class="flex-1"
-          :placeholder="t('email.label', 'Email')"
-        />
-        <UButton
-          type="submit"
-          :loading="magicLink.pending.value"
-        >
-          {{ t('magicLink.submit', 'Send link') }}
-        </UButton>
-      </form>
-    </template>
-
     <UAuthForm
+      ref="authForm"
       :fields="fields"
       :providers="providers"
       :separator="t('or', 'or')"
-      :loading="pending"
-      :submit="{ label: t('signIn', 'Log in'), block: true }"
+      :loading="magicLinkOnly ? magicLink.pending.value : pending"
+      :submit="{ label: magicLinkOnly ? t('magicLink.submit', 'Send link') : t('signIn', 'Log in'), block: true }"
       @submit="onSubmit"
     >
       <template
@@ -229,13 +228,55 @@ async function onPasskeyLogin() {
         </ULink>
       </template>
       <template
-        v-if="error"
+        v-if="magicLinkSent"
+        #submit
+      >
+        <UButton
+          v-if="passwordLoginEnabled"
+          type="submit"
+          :label="t('signIn', 'Log in')"
+          :loading="pending"
+          block
+        />
+        <UAlert
+          color="success"
+          variant="subtle"
+          icon="i-lucide-mail-check"
+          :title="t('magicLink.sentTitle', 'Check your inbox')"
+          :description="t('magicLink.sentTo', 'If there is an account for {email}, a sign-in link is on its way. It works once and expires after 2 hours.', { email: sentTo })"
+          :actions="[{ label: t('magicLink.sendAgain', 'Send the link again'), color: 'success', variant: 'outline', loading: magicLink.pending.value, onClick: () => sendLink(sentTo) }]"
+        />
+      </template>
+      <template
+        v-else-if="magicLinkExtra"
+        #submit
+      >
+        <div class="flex flex-col gap-2">
+          <UButton
+            type="submit"
+            :label="t('signIn', 'Log in')"
+            :loading="pending"
+            block
+          />
+          <UButton
+            :label="t('magicLink.send', 'Email me a sign-in link')"
+            icon="i-lucide-mail"
+            color="neutral"
+            variant="outline"
+            :loading="magicLink.pending.value"
+            block
+            @click="sendLink(authForm?.state.email)"
+          />
+        </div>
+      </template>
+      <template
+        v-if="formError"
         #validation
       >
         <UAlert
           color="error"
           variant="subtle"
-          :title="error"
+          :title="formError"
         />
       </template>
     </UAuthForm>
