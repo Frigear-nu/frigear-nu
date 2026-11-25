@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/push",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Push notifications for the frigear ecosystem: device registration, FCM and APNs delivery (iOS through FCM too), as the push driver of @frigear-nu/notify. Runs in server and client mode.",
   "homepage": "https://docs.frigear.dev/modules/communication/push",
   "repository": {
