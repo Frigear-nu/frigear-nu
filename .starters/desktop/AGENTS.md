@@ -8,7 +8,6 @@ Guidance for AI coding agents (and humans) working in this repository.
 /apps/desktop     Tauri v2 desktop app (Nuxt 4) on @frigear-nu/desktop: remote SPA (auth client mode) or local server
 /apps/**          Other apps - could be any language or deployment target
 /packages/**      Shared workspace packages (config, types, utils, ...)
-/scripts          Workspace scripts (prepare-env.mjs)
 ```
 
 This is a pnpm workspace monorepo. Packages under `packages/**` are consumed by the apps (and each other) via

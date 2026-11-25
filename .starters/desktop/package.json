@@ -6,7 +6,7 @@
     "dev": "pnpm --filter ./apps/desktop dev",
     "build": "pnpm -r build",
     "build:local": "pnpm --filter ./apps/desktop run build:local",
-    "prepare:env": "node scripts/prepare-env.mjs",
+    "prepare:env": "pnpx @frigear-nu/cli prepare env",
     "db:generate": "pnpm --filter ./apps/desktop run db:generate",
     "desktop:setup": "pnpm --filter ./apps/desktop run setup",
     "desktop:doctor": "pnpm --filter ./apps/desktop run doctor",

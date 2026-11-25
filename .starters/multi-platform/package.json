@@ -11,7 +11,7 @@
     "build": "pnpm -r build",
     "build:local": "pnpm --filter ./apps/desktop run build:local",
     "preview": "pnpm --filter ./apps/web preview",
-    "prepare:env": "node scripts/prepare-env.mjs",
+    "prepare:env": "pnpx @frigear-nu/cli prepare env",
     "db:generate": "pnpm --filter ./apps/web --filter ./apps/desktop run db:generate",
     "db:migrate": "pnpm --filter ./apps/web db:migrate",
     "mobile:native": "pnpm --filter ./apps/mobile run native",
