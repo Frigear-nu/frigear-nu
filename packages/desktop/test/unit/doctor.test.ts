@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DesktopManifest } from '../../src/types'
-import { runDoctor, type DoctorInput } from '../../src/runtime/cli/doctor'
+import { resolveBun, resolveCargo, runDoctor, type DoctorInput } from '../../src/runtime/cli/doctor'
 import { cargoToml } from '../../src/runtime/cli/templates'
 
 const manifest: DesktopManifest = {
@@ -34,10 +34,45 @@ describe('runDoctor', () => {
       isInstalled: pkg => pkg !== '@tauri-apps/cli',
     })), 'error')
     expect(errors).toEqual([
-      expect.stringMatching(/`cargo` was not found: install Rust: `curl/),
-      expect.stringMatching(/`rustc` was not found/),
+      expect.stringMatching(/`cargo` was not found: run `frigear-desktop doctor --fix`, or install Rust with `curl/),
       expect.stringMatching(/pnpm add -D @tauri-apps\/cli/),
     ])
+  })
+
+  it('marks what --fix can fix', () => {
+    const findings = runDoctor(input({
+      exec: command => ({ ok: command !== 'cargo' && command !== 'xcode-select', stdout: '' }),
+      isInstalled: pkg => pkg !== '@tauri-apps/cli' && pkg !== '@tauri-apps/plugin-opener',
+      readFile: () => null,
+    }))
+    expect(findings.map(finding => finding.fix)).toEqual([
+      { kind: 'rust' },
+      { kind: 'packages', names: ['@tauri-apps/cli'], dev: true },
+      { kind: 'xcode' },
+      { kind: 'init' },
+      { kind: 'packages', names: ['@tauri-apps/plugin-opener'], dev: false },
+    ])
+    // Windows needs the GUI installer: nothing to run.
+    expect(runDoctor(input({ platform: 'win32', exec: () => ({ ok: false, stdout: '' }) }))[0]!.fix).toBeUndefined()
+  })
+
+  it('finds Rust in ~/.cargo/bin when the terminal does not have it on the PATH yet', () => {
+    const exec = (command: string) => ({ ok: command.startsWith('/home/me/.cargo/bin/') || (command !== 'cargo' && command !== 'rustc'), stdout: '' })
+    expect(resolveCargo({ HOME: '/home/me' }, exec, 'linux')).toBe('/home/me/.cargo/bin')
+    expect(resolveCargo({ HOME: '/home/me', CARGO_HOME: '/opt/cargo' }, command => ({ ok: command === '/opt/cargo/bin/cargo', stdout: '' }), 'linux')).toBe('/opt/cargo/bin')
+    expect(resolveCargo({}, () => ({ ok: false, stdout: '' }), 'linux')).toBeNull()
+    const findings = runDoctor(input({ platform: 'linux', env: { HOME: '/home/me' }, exec: command => (command === 'pkg-config' ? { ok: true, stdout: '' } : exec(command)) }))
+    expect(messages(findings, 'error')).toEqual([])
+    expect(messages(findings, 'info')).toEqual([expect.stringMatching(/Rust is installed in \/home\/me\/.cargo\/bin/)])
+  })
+
+  it('finds Bun in BUN, on the PATH, or where bun.sh installed it', () => {
+    const only = (path: string) => (command: string) => ({ ok: command === path, stdout: '' })
+    expect(resolveBun({ HOME: '/home/me' }, only('bun'), 'linux')).toBe('bun')
+    expect(resolveBun({ HOME: '/home/me' }, only('/home/me/.bun/bin/bun'), 'linux')).toBe('/home/me/.bun/bin/bun')
+    expect(resolveBun({ HOME: '/home/me', BUN_INSTALL: '/opt/bun' }, only('/opt/bun/bin/bun'), 'linux')).toBe('/opt/bun/bin/bun')
+    expect(resolveBun({ BUN: '/x/bun' }, only('bun'), 'linux')).toBeNull()
+    expect(resolveBun({}, only('/home/me/.bun/bin/bun'), 'linux')).toBeNull()
   })
 
   it('checks the Xcode Command Line Tools on macOS', () => {

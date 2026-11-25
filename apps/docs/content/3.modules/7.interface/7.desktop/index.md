@@ -79,7 +79,7 @@ export default defineNuxtConfig({
 ### Create the Tauri project and run it
 
 ```bash
-npx frigear-desktop doctor    # Rust, @tauri-apps/cli and your OS's prerequisites
+npx frigear-desktop doctor --fix   # installs Rust and the Tauri packages if needed, then checks again
 npx frigear-desktop init      # src-tauri/ with the Rust plugins, placeholder icons, then sync
 npx frigear-desktop dev       # nuxt dev in a Tauri window
 npx frigear-desktop build     # nuxt generate, then the installers in src-tauri/target/release/bundle

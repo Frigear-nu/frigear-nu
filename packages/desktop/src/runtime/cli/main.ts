@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { DesktopManifest } from '../../types'
 import { BINARIES_DIR, CAPABILITY_FILE, FALLBACK_APP_ID, LOADING_DIR, mergeTauriConfig, toJson, type JsonObject } from '../shared/config'
-import { CARGO_TOML, resolveBun, runDoctor, TAURI_CONFIG, type DoctorFinding } from './doctor'
+import { BUN_MISSING, CARGO_TOML, resolveBun, resolveCargo, runDoctor, TAURI_CONFIG, type DoctorFinding } from './doctor'
+import { addCommand, BUN_INSTALL, detectPackageManager, planFixes, RUSTUP_INSTALL } from './fix'
 import { pngIco, solidPng } from './icon'
 import { baseTauriConfig, BUILD_RS, cargoToml, GITIGNORE, libRs, loadingPage, mainRs } from './templates'
 
@@ -11,6 +12,8 @@ export interface CliArgs {
   command: 'init' | 'sync' | 'dev' | 'build' | 'sidecar' | 'doctor' | 'help'
   cwd: string
   force: boolean
+  /** `doctor`: install what is missing, then check again. */
+  fix: boolean
   /** `sidecar`: the Rust target triple to compile the server for. Default: the host's. */
   target?: string
   /** Everything after `--`, passed on to `tauri dev` / `tauri build`. */
@@ -29,15 +32,18 @@ Commands:
             the server compiled with Bun into src-tauri/binaries/, then \`tauri build\`.
   sidecar   Local mode: \`nuxt build\` and the compiled server only, without Tauri.
   doctor    Check Rust, @tauri-apps/cli, the OS prerequisites, src-tauri/ and the app's Tauri packages.
+            --fix installs what is missing (Rust with rustup, Bun with bun.sh's installer in local mode, the app's
+            packages) and runs init, then checks again.
 
 Options:
   --cwd <dir>        The app's directory. Default: the current directory.
   --force            init: overwrite the files it creates.
+  --fix              doctor: install what is missing, then check again.
   --target <triple>  sidecar: the Rust target triple (default: this machine's). For build, pass \`-- --target <triple>\`.
 `
 
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { command: 'help', cwd: process.cwd(), force: false, passthrough: [] }
+  const args: CliArgs = { command: 'help', cwd: process.cwd(), force: false, fix: false, passthrough: [] }
   const rest = [...argv]
   const separator = rest.indexOf('--')
   if (separator !== -1) args.passthrough = rest.splice(separator).slice(1)
@@ -67,6 +73,11 @@ export function parseArgs(argv: string[]): CliArgs {
       if (args.command !== 'init') throw new Error('--force is only for `init`.')
       args.force = true
     }
+    else if (flag === '--fix') {
+      if (inline !== undefined) throw new Error('--fix takes no value.')
+      if (args.command !== 'doctor') throw new Error('--fix is only for `doctor`.')
+      args.fix = true
+    }
     else throw new Error(`Unknown option "${arg}".\n\n${USAGE}`)
   }
   return args
@@ -75,14 +86,14 @@ export function parseArgs(argv: string[]): CliArgs {
 export interface Io {
   log: (message: string) => void
   error: (message: string) => void
-  /** Runs a command in the app's directory with the terminal attached; throws when it fails. */
-  exec: (command: string, args: string[], cwd: string) => void
+  /** Runs a command in the app's directory with the terminal attached; throws when it fails. `env` replaces the environment. */
+  exec: (command: string, args: string[], cwd: string, env?: Record<string, string | undefined>) => void
   /** Runs a command quietly: whether it succeeded and its output. */
   probe: (command: string, args: string[]) => { ok: boolean, stdout: string }
   platform: NodeJS.Platform
   /** `process.arch`. Default: this process's. */
   arch?: string
-  /** The environment (`BUN`). Default: `process.env`. */
+  /** The environment (`BUN`, `CARGO_HOME`, `HOME`, `PATH`). Default: `process.env`. */
   env?: Record<string, string | undefined>
 }
 
@@ -91,7 +102,7 @@ const shell = process.platform === 'win32'
 export const defaultIo: Io = {
   log: message => console.log(message),
   error: message => console.error(message),
-  exec: (command, args, cwd) => execFileSync(command, args, { cwd, stdio: 'inherit', shell }),
+  exec: (command, args, cwd, env) => execFileSync(command, args, { cwd, stdio: 'inherit', shell, ...(env && { env }) }),
   probe: (command, args) => {
     const result = spawnSync(command, args, { encoding: 'utf8', shell })
     return { ok: !result.error && result.status === 0, stdout: result.stdout ?? '' }
@@ -112,6 +123,15 @@ export function isResolvable(pkg: string, cwd: string): boolean {
     if (existsSync(join(dir, 'node_modules', pkg, 'package.json'))) return true
     if (dirname(dir) === dir) return false
   }
+}
+
+/** The environment for `tauri dev` / `tauri build`: rustup's directory on the PATH when the terminal does not have it yet. */
+function tauriEnv(io: Io): Record<string, string | undefined> | undefined {
+  const env = io.env ?? process.env
+  const cargoDir = resolveCargo(env, io.probe, io.platform)
+  if (!cargoDir) return undefined
+  const key = Object.keys(env).find(name => name.toUpperCase() === 'PATH') ?? 'PATH'
+  return { ...env, [key]: [cargoDir, env[key]].filter(Boolean).join(io.platform === 'win32' ? ';' : ':') }
 }
 
 export interface Generated {
@@ -154,6 +174,27 @@ function writeIfChanged(file: string, contents: string | Buffer): boolean {
 }
 
 /**
+ * Keeps the `beforeDevCommand` that `init` wrote (`npx nuxt dev --port <port>`) on the port of `devUrl`, so a changed dev
+ * port does not leave the window waiting on one the dev server does not use. A command the app changed is its own.
+ */
+export function followDevPort(config: JsonObject): JsonObject {
+  const build = config.build as JsonObject | undefined
+  const command = build?.beforeDevCommand
+  const devUrl = build?.devUrl
+  if (typeof command !== 'string' || typeof devUrl !== 'string') return config
+  const match = /^npx nuxt dev --port (\d+)$/.exec(command)
+  let port: string | undefined
+  try {
+    port = new URL(devUrl).port || undefined
+  }
+  catch {
+    return config
+  }
+  if (!match || !port || match[1] === port) return config
+  return { ...config, build: { ...build, beforeDevCommand: `npx nuxt dev --port ${port}` } }
+}
+
+/**
  * Merges the generated config into `src-tauri/tauri.conf.json` (keys the module does not own are kept) and writes the
  * capability file it owns. Changes nothing when both are up to date.
  */
@@ -162,7 +203,7 @@ export function syncProject(cwd: string, generated: Pick<Generated, 'config' | '
   const existing = readJson<JsonObject>(configFile)
   if (!existing) throw new Error(`${TAURI_CONFIG} does not exist: run \`frigear-desktop init\` first.`)
   const changed: string[] = []
-  if (writeIfChanged(configFile, toJson(mergeTauriConfig(existing, generated.config)))) changed.push(TAURI_CONFIG)
+  if (writeIfChanged(configFile, toJson(followDevPort(mergeTauriConfig(existing, generated.config))))) changed.push(TAURI_CONFIG)
   if (writeIfChanged(join(cwd, 'src-tauri', CAPABILITY_FILE), toJson(generated.capabilities))) changed.push(`src-tauri/${CAPABILITY_FILE}`)
   // Local mode: the loading page the window shows until the server is ready (`build.frontendDist`).
   const manifest = generated.manifest
@@ -222,8 +263,8 @@ export function passthroughTarget(passthrough: string[]): string | undefined {
  */
 export function buildSidecar(cwd: string, manifest: DesktopManifest, target: string | undefined, io: Io): string {
   if (!manifest.local) throw new Error('`desktop.mode` is not `local`: there is no server to compile.')
-  const bun = resolveBun(io.env ?? process.env, io.probe)
-  if (!bun) throw new Error('Bun was not found: local mode compiles the server with it. Install it from https://bun.sh, or set `BUN` to its path.')
+  const bun = resolveBun(io.env ?? process.env, io.probe, io.platform)
+  if (!bun) throw new Error(BUN_MISSING)
   const triple = target ?? hostTriple(io)
   const bunTargetName = bunTarget(triple)
   io.log('Building the server (`nuxt build`)…')
@@ -288,6 +329,53 @@ export function doctor(cwd: string, io: Io): DoctorFinding[] {
   })
 }
 
+/**
+ * `frigear-desktop doctor --fix`: prepares the app (so local mode and its Tauri packages are known), runs the fixes of
+ * the doctor's findings (rustup, bun.sh, one install per dependency type, init), then checks again. Never runs sudo: system
+ * packages (Linux) and the Windows installers stay printed.
+ */
+export function fix(cwd: string, io: Io): DoctorFinding[] {
+  const prepare = () => {
+    try {
+      io.exec('npx', ['nuxt', 'prepare'], cwd)
+    }
+    catch {
+      io.error('⚠ `nuxt prepare` failed; fixing what does not need it.')
+    }
+  }
+  prepare()
+  const plan = planFixes(doctor(cwd, io))
+  const pm = detectPackageManager(cwd, (io.env ?? process.env).npm_config_user_agent)
+  for (const step of plan) {
+    if (step.kind === 'xcode') {
+      io.log('Installing the Xcode Command Line Tools (`xcode-select --install`): finish the dialog, then run this again.')
+      io.exec('xcode-select', ['--install'], cwd)
+    }
+    else if (step.kind === 'rust') {
+      io.log(`Installing Rust with rustup (${RUSTUP_INSTALL})…`)
+      io.exec('sh', ['-c', RUSTUP_INSTALL], cwd)
+    }
+    else if (step.kind === 'bun') {
+      const windows = io.platform === 'win32'
+      const command = windows ? BUN_INSTALL.windows : BUN_INSTALL.unix
+      io.log(`Installing Bun (${command})…`)
+      if (windows) io.exec('powershell', ['-c', 'irm bun.sh/install.ps1 | iex'], cwd)
+      else io.exec('bash', ['-c', command], cwd)
+    }
+    else if (step.kind === 'packages') {
+      const [command, args] = addCommand(pm, step.names, step.dev)
+      io.log(`Adding ${step.names.join(', ')} (\`${[command, ...args].join(' ')}\`)…`)
+      io.exec(command, args, cwd)
+      prepare()
+    }
+    else {
+      init(cwd, loadGenerated(cwd, io), false, io)
+    }
+  }
+  if (!plan.length) io.log('Nothing to fix automatically.')
+  return doctor(cwd, io)
+}
+
 function printFindings(findings: DoctorFinding[], io: Io) {
   if (!findings.length) {
     io.log('✔ Ready to build the desktop app.')
@@ -298,6 +386,7 @@ function printFindings(findings: DoctorFinding[], io: Io) {
     if (finding.level === 'info') io.log(line)
     else io.error(line)
   }
+  if (findings.every(finding => finding.level === 'info')) io.log('✔ Ready to build the desktop app.')
 }
 
 export async function main(argv: string[] = process.argv.slice(2), io: Io = defaultIo): Promise<number> {
@@ -309,7 +398,7 @@ export async function main(argv: string[] = process.argv.slice(2), io: Io = defa
         io.log(USAGE)
         return 0
       case 'doctor': {
-        const findings = doctor(cwd, io)
+        const findings = args.fix ? fix(cwd, io) : doctor(cwd, io)
         printFindings(findings, io)
         return findings.some(finding => finding.level === 'error') ? 1 : 0
       }
@@ -341,7 +430,9 @@ export async function main(argv: string[] = process.argv.slice(2), io: Io = defa
             tauriArgs.push('--config', tauriConfigOverride(cwd, 'tauri-dev', { bundle: { externalBin: [] } }))
           }
         }
-        io.exec('npx', [...tauriArgs, ...args.passthrough], cwd)
+        const env = tauriEnv(io)
+        if (env) io.exec('npx', [...tauriArgs, ...args.passthrough], cwd, env)
+        else io.exec('npx', [...tauriArgs, ...args.passthrough], cwd)
         return 0
       }
     }
