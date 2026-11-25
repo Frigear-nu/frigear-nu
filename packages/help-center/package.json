@@ -174,7 +174,7 @@
     "@nuxt/test-utils": "catalog:",
     "@nuxt/ui": "catalog:",
     "@nuxthub/core": "catalog:",
-    "@nuxtjs/mdc": "^0.23.2",
+    "@nuxtjs/mdc": "^0.23.4",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "nuxt": "catalog:",

@@ -87,7 +87,7 @@
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "h3": "catalog:",
-    "stripe": "^23.1.0",
+    "stripe": "^23.2.0",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
