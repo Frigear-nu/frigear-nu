@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopManifest } from '../../src/types'
-import { init, initFiles, main, parseArgs, syncProject, type Io } from '../../src/runtime/cli/main'
+import { followDevPort, init, initFiles, main, parseArgs, syncProject, type Io } from '../../src/runtime/cli/main'
 import { capabilities, resolveDesktopOptions, tauriConfig } from '../../src/runtime/shared/config'
 import { cargoToml, crateName, libName, libRs, mainRs } from '../../src/runtime/cli/templates'
 import { pngIco, solidPng } from '../../src/runtime/cli/icon'
@@ -18,8 +18,9 @@ const generated = { config: tauriConfig(options), capabilities: capabilities(opt
 
 describe('parseArgs', () => {
   it('parses commands and options', () => {
-    expect(parseArgs(['init', '--force', '--cwd', '/tmp/app'])).toEqual({ command: 'init', force: true, cwd: '/tmp/app', passthrough: [] })
-    expect(parseArgs(['build', '--cwd=/tmp/a=b', '--', '--debug', '--bundles', 'dmg'])).toEqual({ command: 'build', force: false, cwd: '/tmp/a=b', passthrough: ['--debug', '--bundles', 'dmg'] })
+    expect(parseArgs(['init', '--force', '--cwd', '/tmp/app'])).toEqual({ command: 'init', force: true, fix: false, cwd: '/tmp/app', passthrough: [] })
+    expect(parseArgs(['build', '--cwd=/tmp/a=b', '--', '--debug', '--bundles', 'dmg'])).toEqual({ command: 'build', force: false, fix: false, cwd: '/tmp/a=b', passthrough: ['--debug', '--bundles', 'dmg'] })
+    expect(parseArgs(['doctor', '--fix'])).toMatchObject({ command: 'doctor', fix: true })
     expect(parseArgs([])).toMatchObject({ command: 'help' })
     expect(parseArgs(['--help'])).toMatchObject({ command: 'help' })
   })
@@ -30,6 +31,7 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['init', '--force=yes'])).toThrow(/takes no value/)
     expect(() => parseArgs(['sync', '--cwd'])).toThrow(/--cwd needs a value/)
     expect(() => parseArgs(['sync', '--', '--debug'])).toThrow(/only for `dev` and `build`/)
+    expect(() => parseArgs(['init', '--fix'])).toThrow(/only for `doctor`/)
   })
 })
 
@@ -107,6 +109,13 @@ describe('init and sync', () => {
     expect(log.at(-1)).toMatch(/up to date/)
   })
 
+  it('moves the dev command init wrote to the port of devUrl, and leaves the app\'s own command alone', () => {
+    const config = (command: string, devUrl = 'http://localhost:3005') => ({ build: { beforeDevCommand: command, devUrl } })
+    expect(followDevPort(config('npx nuxt dev --port 3001'))).toEqual(config('npx nuxt dev --port 3005'))
+    expect(followDevPort(config('pnpm dev --port 3001'))).toEqual(config('pnpm dev --port 3001'))
+    expect(followDevPort(config('npx nuxt dev --port 3005'))).toEqual(config('npx nuxt dev --port 3005'))
+  })
+
   it('needs src-tauri to sync', () => {
     expect(() => syncProject(dir, generated, io)).toThrow(/frigear-desktop init/)
   })
@@ -165,6 +174,45 @@ describe('main', () => {
     })
     expect(await main(['sync', '--cwd', dir], io)).toBe(1)
     expect(lines.join('\n')).toMatch(/desktop.appId/)
+  })
+
+  it('fixes what is missing: rustup, the packages with the app\'s package manager, then init', async () => {
+    writeFileSync(join(dir, 'package-lock.json'), '{}')
+    let rust = false
+    const probe = (command: string) => ({ ok: rust || (command !== 'cargo' && command !== 'rustc'), stdout: '' })
+    exec.mockImplementation((command: string, args: string[], cwd: string) => {
+      if (command === 'sh') rust = true
+      if (command === 'npm') {
+        mkdirSync(join(cwd, 'node_modules/@tauri-apps/cli'), { recursive: true })
+        writeFileSync(join(cwd, 'node_modules/@tauri-apps/cli/package.json'), '{}')
+      }
+      if (args[0] === 'nuxt') {
+        mkdirSync(join(cwd, '.nuxt/desktop'), { recursive: true })
+        writeFileSync(join(cwd, '.nuxt/desktop/tauri.json'), JSON.stringify(generated.config))
+        writeFileSync(join(cwd, '.nuxt/desktop/capabilities.json'), JSON.stringify(generated.capabilities))
+        writeFileSync(join(cwd, '.nuxt/desktop/manifest.json'), JSON.stringify(generated.manifest))
+      }
+    })
+    mkdirSync(join(dir, 'node_modules/@tauri-apps/api'), { recursive: true })
+    writeFileSync(join(dir, 'node_modules/@tauri-apps/api/package.json'), '{}')
+    expect(await main(['doctor', '--fix', '--cwd', dir], { ...io, probe, env: {} })).toBe(0)
+    const commands = exec.mock.calls.map(call => [call[0], ...call[1]].join(' '))
+    expect(commands.filter(command => !command.startsWith('npx nuxt'))).toEqual([
+      expect.stringMatching(/^sh -c curl .*sh\.rustup\.rs \| sh -s -- -y/),
+      'npm install -D @tauri-apps/cli',
+    ])
+    expect(existsSync(join(dir, 'src-tauri/Cargo.toml'))).toBe(true)
+    expect(lines.join('\n')).toMatch(/Ready to build/)
+  })
+
+  it('runs tauri with rustup\'s directory on the PATH when the terminal does not have it', async () => {
+    mkdirSync(join(dir, 'node_modules/@tauri-apps/cli'), { recursive: true })
+    writeFileSync(join(dir, 'node_modules/@tauri-apps/cli/package.json'), '{}')
+    await main(['init', '--cwd', dir], io)
+    exec.mockClear()
+    const probe = (command: string) => ({ ok: command !== 'cargo', stdout: '' })
+    expect(await main(['dev', '--cwd', dir], { ...io, probe, env: { HOME: '/home/me', PATH: '/usr/bin' } })).toBe(0)
+    expect(exec.mock.calls.at(-1)![3]).toMatchObject({ PATH: '/home/me/.cargo/bin:/usr/bin' })
   })
 
   it('exits with 1 when the doctor finds a blocker', async () => {
