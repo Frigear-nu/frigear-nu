@@ -20,7 +20,7 @@
     "@frigear-nu/authorization": "^0.6.4",
     "@frigear-nu/dashboard": "^0.1.2",
     "@frigear-nu/menu": "^0.4.1",
-    "@frigear-nu/oauth-server": "^0.8.7",
+    "@frigear-nu/oauth-server": "^0.9.0",
     "@frigear-nu/users": "^3.1.4",
     "@frigear-nu/widget": "^0.4.2",
     "@libsql/client": "^0.18.0",
