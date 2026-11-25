@@ -66,7 +66,11 @@
         "signedIn": "Du er logget ind som {email}. Fortsætter du, bliver du logget ind på kontoen, linket blev sendt til.",
         "invalidHint": "Et link kan kun bruges én gang og udløber efter 2 timer. Bed om et nyt fra login-siden.",
         "failed": "Noget gik galt. Prøv igen."
-      }
+      },
+      "send": "Send mig et login-link",
+      "sendAgain": "Send linket igen",
+      "sentTo": "Tjek {email} for et login-link. Det virker én gang og udløber efter 2 timer.",
+      "emailRequired": "Skriv din e-mail ovenfor for at få et login-link."
     },
     "verifyEmail": {
       "title": "Verificer din e-mail",

@@ -14,9 +14,9 @@ const loginLink = computed(() => requestedRedirect.value
   : loginPath)
 
 const fields = computed(() => [
-  { name: 'name', type: 'text' as const, label: t('name.label', 'Name'), required: true },
-  { name: 'email', type: 'text' as const, label: t('email.label', 'Email'), required: true },
-  { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), required: true },
+  { name: 'name', type: 'text' as const, label: t('name.label', 'Name'), autocomplete: 'name', required: true },
+  { name: 'email', type: 'email' as const, label: t('email.label', 'Email'), autocomplete: 'email', required: true },
+  { name: 'password', type: 'password' as const, label: t('password.label', 'Password'), autocomplete: 'new-password', required: true },
 ])
 
 // With `verifyEmail` no session is created: the emailed link verifies the address and signs the user in.
