@@ -27,7 +27,8 @@ export type FrigearProfile = {
  */
 export async function syncFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
   const user = await findOrCreateFrigearUser(profile, options)
-  if (profile.roles) await setAuthUserRoles(user.id, profile.roles, { source: 'sso' })
+  // frigear.nu publishes effective roles (`admin` and everything it inherits); store only those that grant the rest.
+  if (profile.roles) await setAuthUserRoles(user.id, withoutInheritedRoles(profile.roles), { source: 'sso' })
   return user
 }
 

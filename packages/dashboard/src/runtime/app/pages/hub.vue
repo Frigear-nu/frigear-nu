@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useDashboardNav, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
+import { computed, ref, useDashboardNav, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 import { useUserSession } from '#dashboard/optional'
 
 // The signed-in hub (`dashboard.settings.pages.home`): a greeting, shortcuts to the areas of the `dashboard` menu, and
@@ -12,6 +12,10 @@ const name = useRuntimeConfig().public.dashboard?.homeDashboard || 'home'
 const session = typeof useUserSession === 'function' ? useUserSession() : undefined
 const { shortcuts } = await useDashboardNav()
 
+// The dashboard's edit mode, started from a small button in the heading instead of a row of its own above the grid.
+const editing = ref(false)
+const dashboard = ref<{ canEdit: boolean } | null>(null)
+
 const firstName = computed(() => {
   const user = session?.user.value as { name?: string | null } | null | undefined
   return user?.name?.trim().split(/\s+/)[0] || ''
@@ -23,7 +27,23 @@ const firstName = computed(() => {
     <PageHeading
       :title="firstName ? t('hub.greeting', 'Hi {name}', { name: firstName }) : t('hub.title', 'Your dashboard')"
       :description="t('hub.description', 'Your shortcuts and what is happening.')"
-    />
+    >
+      <template
+        v-if="dashboard?.canEdit && !editing"
+        #actions
+      >
+        <UTooltip :text="t('edit.start', 'Customise dashboard')">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-settings-2"
+            :aria-label="t('edit.start', 'Customise dashboard')"
+            data-dashboard-edit
+            @click="editing = true"
+          />
+        </UTooltip>
+      </template>
+    </PageHeading>
 
     <UPageGrid
       v-if="shortcuts.length"
@@ -46,7 +66,12 @@ const firstName = computed(() => {
       />
     </UPageGrid>
 
-    <Dashboard :name="name">
+    <Dashboard
+      ref="dashboard"
+      v-model:editing="editing"
+      :name="name"
+      :edit-button="false"
+    >
       <!-- An empty dashboard: the hub's own empty state, or nothing below the shortcuts (an empty slot would show the
            dashboard's default one). -->
       <template #empty>

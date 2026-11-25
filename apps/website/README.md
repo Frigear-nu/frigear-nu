@@ -5,3 +5,4 @@ The new website, that is taking over from [nuxt-frigear-nu](https://github.com/f
 ## NOTE
 
 Make sure you run `pnpm` commands from the repo root as it mentions in the roo repo README!
+

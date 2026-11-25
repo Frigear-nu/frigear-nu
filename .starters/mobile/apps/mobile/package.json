@@ -15,6 +15,7 @@
     "typecheck": "nuxt typecheck",
     "native": "frigear-mobile native",
     "doctor": "frigear-mobile doctor",
+    "watch": "frigear-mobile watch",
     "cap:sync": "nuxt generate && cap sync",
     "ios:run": "frigear-mobile native --if-missing && nuxt generate && cap sync ios && cap run ios",
     "ios:device": "frigear-mobile native --if-missing && MOBILE_LAN=1 nuxt generate && cap sync ios && cap open ios",

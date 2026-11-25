@@ -255,6 +255,16 @@ export async function setAuthUserRoles(userId: number, roles: string[], options:
   await provider.setRoles(userId, [...new Set(roles)], options)
 }
 
+/**
+ * `roles` without those another of them already inherits (`admin` and `crew` -> `admin` when `admin` inherits `crew`),
+ * in their order. An identity provider's effective roles become the few roles that grant them. Unknown roles stay.
+ */
+export function withoutInheritedRoles(roles: readonly string[]): string[] {
+  const unique = [...new Set(roles)]
+  const covered = new Set(unique.flatMap(name => Object.hasOwn(table.roles, name) ? table.roles[name]!.inherited : []))
+  return unique.filter(name => !covered.has(name))
+}
+
 /** What `user`'s roles grant (as configured, wildcards included) plus the `implicit` permissions. Cached per request. */
 export function getUserGrants(event: H3Event | undefined, user: AuthUser): Promise<string[]> {
   return memo(cacheOf(event).granted, idOf(user), async () => rolePermissions(await getEffectiveRoles(event, user), table, registry))

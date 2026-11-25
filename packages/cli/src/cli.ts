@@ -9,6 +9,7 @@ export const mainCmd = defineCommand({
   },
   subCommands: {
     'init': () => import('./commands/init.ts').then(module => module.default),
+    'platform': () => import('./commands/platform/index.ts').then(module => module.default),
     'app:create': () => import('./commands/app-create.ts').then(module => module.default),
     'module:create': () => import('./commands/module-create.ts').then(module => module.default),
     'module:folder': () => import('./commands/module-folder.ts').then(module => module.default),

@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { LocaleRouting } from '@frigear-nu/module-kit/server'
 
 /** `confidential` applications authenticate with a client secret; `public` ones (native apps, SPAs) rely on PKCE alone. */
 export type ClientType = 'confidential' | 'public'
@@ -323,6 +324,8 @@ export type OAuthServerRuntimeConfig = {
   clients: OAuthConfiguredClient[] | string
   authorizePath: string
   signInPath?: string
+  /** How the app's i18n puts locales in paths (filled at `modules:done`); `null` without i18n. Used for `ui_locales`. */
+  i18n?: LocaleRouting | null
 }
 
 export type PublicModuleOptions = {

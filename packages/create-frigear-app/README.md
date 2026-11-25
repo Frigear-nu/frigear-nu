@@ -17,7 +17,7 @@ init`, or `npx`, `yarn dlx`, `bunx`, after the package manager that started it),
 Set `FRIGEAR_CLI` to run another CLI than `@frigear-nu/cli@latest`: a version (`@frigear-nu/cli@0.1.0`) or a packed
 tarball.
 
-Full reference: [docs.frigear.dev/contribute/tooling/cli](https://docs.frigear.dev/contribute/tooling/cli).
+Full reference: [docs.frigear.dev/cli/overview](https://docs.frigear.dev/cli/overview).
 
 ## Releasing
 

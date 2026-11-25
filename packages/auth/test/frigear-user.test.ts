@@ -22,6 +22,8 @@ const store = {
 const clearUnverifiedAuthCredentials = vi.fn()
 const setAuthUserRoles = vi.fn(async () => {})
 vi.stubGlobal('setAuthUserRoles', setAuthUserRoles)
+// `admin` inherits `crew`, as in the website's role chain.
+vi.stubGlobal('withoutInheritedRoles', (roles: string[]) => roles.filter(role => !(role === 'crew' && roles.includes('admin'))))
 vi.stubGlobal('useAuthUserStore', () => store)
 vi.stubGlobal('clearUnverifiedAuthCredentials', clearUnverifiedAuthCredentials)
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
@@ -93,6 +95,11 @@ describe('syncFrigearUser roles', () => {
   it('replaces the single sign-on roles through the role provider, never writing users.role', async () => {
     const user = await syncFrigearUser({ ...profile, roles: ['admin'] }, { forceId: false })
     expect(user.role).toBeUndefined()
+    expect(setAuthUserRoles).toHaveBeenCalledWith(user.id, ['admin'], { source: 'sso' })
+  })
+
+  it('stores only the roles that are not inherited from another claimed role', async () => {
+    const user = await syncFrigearUser({ ...profile, roles: ['admin', 'crew'] }, { forceId: false })
     expect(setAuthUserRoles).toHaveBeenCalledWith(user.id, ['admin'], { source: 'sso' })
   })
 

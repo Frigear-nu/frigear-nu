@@ -11,7 +11,10 @@ import { dashboardSpanClass } from '../utils/span'
 /**
  * The frame of one dashboard item: its title with a collapse toggle, the item's component, a skeleton while the item
  * reports `loading`, an error with a retry, and nothing while it reports `empty` or renders nothing at all (a `v-if` on
- * its root, as widgets shared with other widget areas do). Provides `useDashboardItem()` to the component. In `editing` mode it shows the buttons to move and hide the item (the dashboard handles the events).
+ * its root, as widgets shared with other widget areas do). An `optional` item stays out of the grid, with no title or
+ * skeleton, until it has shown content once, so an item with nothing for this viewer never flashes. Provides
+ * `useDashboardItem()` to the component. In `editing` mode it shows the buttons to move and hide the item (the dashboard
+ * handles the events).
  */
 const props = defineProps<{
   item: DashboardEntry
@@ -71,8 +74,9 @@ onErrorCaptured((cause) => {
 const toggle = () => update(current => toggleCollapsed(current, props.item.id))
 
 // Whether the component currently renders nothing (only comment or blank text nodes), watched as it changes. Kept while
-// the item is collapsed, so collapsing never makes a hidden item appear.
-const blank = ref(false)
+// the item is collapsed, so collapsing never makes a hidden item appear. An `optional` item counts as blank until it is
+// checked, so the server and the first client render leave it out (a collapsed one renders no content to check).
+const blank = ref(!!props.item.optional && !collapsed.value)
 const content = ref<HTMLElement | null>(null)
 let observer: MutationObserver | undefined
 const check = () => {
@@ -87,7 +91,13 @@ watch(content, (element) => {
 }, { flush: 'post' })
 onBeforeUnmount(() => observer?.disconnect())
 
-const visible = computed(() => props.editing || !!error.value || (!empty.value && (loading.value || !blank.value)))
+// Whether the item has been in the grid: from then on it shows a skeleton while it reloads. An `optional` item starts
+// unsettled, hidden while it loads, until it has something to show.
+const settled = ref(!props.item.optional)
+const visible = computed(() => props.editing || !!error.value || (!empty.value && (settled.value ? loading.value || !blank.value : !loading.value && !blank.value)))
+watch(() => visible.value && !props.editing, (shown) => {
+  if (shown) settled.value = true
+}, { immediate: true })
 </script>
 
 <template>
@@ -174,7 +184,7 @@ const visible = computed(() => props.editing || !!error.value || (!empty.value &
         />
       </div>
       <div
-        v-if="!error && loading"
+        v-if="!error && loading && (settled || editing)"
         :class="[surfaceClass, 'space-y-3 p-4']"
         data-dashboard-skeleton
       >

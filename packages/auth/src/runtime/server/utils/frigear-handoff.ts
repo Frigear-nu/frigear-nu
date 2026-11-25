@@ -185,8 +185,8 @@ export async function removeFrigearHandoff(id: string, secret: string) {
   await db.delete(table).where(and(eq(table.id, id), eq(table.secretHash, await sha256Hex(secret))))
 }
 
-/** The authorization request for an attempt: authorization code with PKCE (S256) and a nonce. */
-export function buildFrigearHandoffAuthorizeUrl(endpoint: string, params: { clientId: string, redirectUri: string, scopes: string[], state: string, nonce: string, codeChallenge: string }) {
+/** The authorization request for an attempt: authorization code with PKCE (S256) and a nonce; `uiLocales` (OIDC) when known. */
+export function buildFrigearHandoffAuthorizeUrl(endpoint: string, params: { clientId: string, redirectUri: string, scopes: string[], state: string, nonce: string, codeChallenge: string, uiLocales?: string }) {
   const url = new URL(endpoint)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id', params.clientId)
@@ -196,6 +196,7 @@ export function buildFrigearHandoffAuthorizeUrl(endpoint: string, params: { clie
   url.searchParams.set('nonce', params.nonce)
   url.searchParams.set('code_challenge', params.codeChallenge)
   url.searchParams.set('code_challenge_method', 'S256')
+  if (params.uiLocales) url.searchParams.set('ui_locales', params.uiLocales)
   return url.toString()
 }
 
@@ -224,7 +225,7 @@ export function frigearHandoffRedirectUri(event: H3Event) {
  * Starts an attempt for the window: stores it, sets the window's attempt cookie and answers the attempt with the
  * frigear.nu authorize URL to open in the system browser.
  */
-export async function startFrigearHandoff(event: H3Event, sso: FrigearSsoConfig, options: { redirect?: string, scopes: string[] }): Promise<FrigearHandoffStartDto> {
+export async function startFrigearHandoff(event: H3Event, sso: FrigearSsoConfig, options: { redirect?: string, scopes: string[], uiLocales?: string }): Promise<FrigearHandoffStartDto> {
   const metadata = await loadOAuthOpenIdConfiguration(sso.openidConfig).catch(() => undefined)
   if (!metadata?.authorization_endpoint || !metadata.token_endpoint) {
     throw apiError(502, 'issuer_unavailable', 'Could not load the sign-in configuration of frigear.nu.')
@@ -245,6 +246,7 @@ export async function startFrigearHandoff(event: H3Event, sso: FrigearSsoConfig,
     state: attempt.state,
     nonce: attempt.nonce,
     codeChallenge: attempt.codeChallenge,
+    uiLocales: options.uiLocales,
   })
   return { id: attempt.id, status: 'pending', error: null, expiresAt: attempt.expiresAt.toISOString(), authorizeUrl }
 }

@@ -2,6 +2,7 @@ import {
   addComponent,
   addPlugin,
   addServerImportsDir,
+  addNitroPlugin,
   createResolver,
   defineNuxtModule,
   hasNuxtModule,
@@ -159,8 +160,18 @@ export default defineNuxtModule<ModuleOptions>({
       // it). Only with i18n, whose plugin it waits for (`dependsOn`); without it there is no language to save.
       if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
         addPlugin({ src: resolver.resolve('./runtime/app/plugins/remember-locale.client'), mode: 'client' })
+        // A signed-in user whose saved language is not the page's gets a toast offering to switch (once per session).
+        if (hasNuxtModule('@nuxt/ui', nuxt)) {
+          addPlugin({ src: resolver.resolve('./runtime/app/plugins/offer-locale.client'), mode: 'client' })
+        }
+      }
+      // Applications that sign in here get `users.locale` as the OIDC `locale` claim.
+      if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {
+        addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
       }
     })
+    // Signed in with frigear.nu: its `locale` claim becomes the user's language here.
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/frigear-locale'))
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin

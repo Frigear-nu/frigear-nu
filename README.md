@@ -30,7 +30,7 @@ The full walkthrough, including how to add more modules, is the
 [Workspace starter guide](./apps/docs/content/4.examples/1.starters/1.workspace.md) in the docs. For an iOS and Android app,
 use one of the mobile starters below, and for macOS, Windows and Linux the desktop starter. Not sure which? The [Quick start](./apps/docs/content/1.get-started/2.installation.md) compares them.
 
-To work on this repository itself, see [Local development](./apps/docs/content/5.contribute/2.local-development.md).
+To work on this repository itself, see [Local development](./apps/docs/content/6.contribute/2.local-development.md).
 
 ## Starters
 
@@ -54,7 +54,7 @@ are not part of this workspace: they use the published versions.
 
 - [@frigear-nu/ui](./packages/ui) - Shared UI components
 - [@frigear-nu/base](./packages/base-layer) - Nuxt layer with the shared config, UI defaults and content-driven pages that websites extend
-- [@frigear-nu/cli](./packages/cli) - CLI for new projects, apps and modules (`pnpx @frigear-nu/cli init`, `app:create`, `module:create`, `add`)
+- [@frigear-nu/cli](./packages/cli) - CLI for new projects, apps and modules (`pnpx @frigear-nu/cli init`, `platform add`, `module:create`, `add`, `upgrade`)
 - [create-frigear-app](./packages/create-frigear-app) - `pnpm create frigear-app`: runs the latest CLI's `init`
 - [@frigear-nu/eslint-config](./packages/eslint-config)
 - [@frigear-nu/module-kit](./packages/module-kit) - Shared module kit for building nuxt modules within frigear

@@ -22,6 +22,11 @@ export type DashboardItem = WidgetDefinition & {
   titleKey?: string
   /** The platforms the item shows on. Default: both. */
   platforms?: DashboardPlatform[]
+  /**
+   * The item often has nothing for this viewer (no apps, no mailbox): it shows no title or skeleton while it loads, and
+   * joins the grid only once it renders content, so it never appears just to vanish again.
+   */
+  optional?: boolean
   when?: DashboardItemCondition
 }
 
@@ -31,6 +36,7 @@ export interface DashboardRegistryEntry {
   title?: string
   titleKey?: string
   platforms?: DashboardPlatform[]
+  optional?: boolean
   when?: DashboardItemCondition
 }
 

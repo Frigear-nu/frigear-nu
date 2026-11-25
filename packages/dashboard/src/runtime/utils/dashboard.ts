@@ -36,7 +36,7 @@ export function extendDashboard(nuxt: Nuxt, name: string, items: DashboardItem |
   const widgets: WidgetDefinition[] = []
   const entries: DashboardRegistryEntry[] = []
   for (const item of list) {
-    const { title, titleKey, platforms, when, ...widget } = item
+    const { title, titleKey, platforms, optional, when, ...widget } = item
     const id = deriveWidgetId(widget)
     widgets.push({ ...widget, id })
     entries.push({
@@ -44,6 +44,7 @@ export function extendDashboard(nuxt: Nuxt, name: string, items: DashboardItem |
       ...(title !== undefined ? { title } : {}),
       ...(titleKey !== undefined ? { titleKey } : {}),
       ...(platforms !== undefined ? { platforms: [...platforms] } : {}),
+      ...(optional ? { optional: true } : {}),
       ...(when !== undefined ? { when: { ...when } } : {}),
     })
   }

@@ -67,17 +67,23 @@ const tabs = computed(() => [
         v-model="tab"
         :items="tabs"
       />
-      <HelpAdminArticles
-        v-if="tab === 'articles'"
-        :categories="categories ?? []"
-      />
-      <HelpAdminCategories
-        v-else-if="tab === 'categories'"
-        :categories="categories ?? []"
-        :loading="loading"
-        @changed="refresh"
-      />
-      <HelpAdminChecklists v-else />
+      <!-- Articles and checklists await their lists: a boundary per tab shows a skeleton while one loads. -->
+      <Suspense :key="tab">
+        <HelpAdminArticles
+          v-if="tab === 'articles'"
+          :categories="categories ?? []"
+        />
+        <HelpAdminCategories
+          v-else-if="tab === 'categories'"
+          :categories="categories ?? []"
+          :loading="loading"
+          @changed="refresh"
+        />
+        <HelpAdminChecklists v-else />
+        <template #fallback>
+          <TableCard loading />
+        </template>
+      </Suspense>
     </template>
   </div>
 </template>
