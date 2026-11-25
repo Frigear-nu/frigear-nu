@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/desktop",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A Tauri v2 desktop shell for Nuxt (macOS, Windows, Linux): a static SPA in the Tauri window that signs in with @frigear-nu/auth in client mode, or the whole app with its own offline server as a sidecar (local mode), generated tauri.conf.json and capabilities, deep links, window controls and the frigear-desktop CLI.",
   "homepage": "https://docs.frigear.dev/modules/interface/desktop",
   "repository": {
