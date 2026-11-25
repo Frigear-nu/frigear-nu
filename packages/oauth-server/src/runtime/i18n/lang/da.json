@@ -130,7 +130,17 @@
       "copiedClientId": "Klient-id kopieret",
       "copiedClientSecret": "Klienthemmelighed kopieret",
       "publicDescription": "Dette er en offentlig klient: den har ingen klienthemmelighed og logger kun ind med PKCE.",
-      "noSecret": "Ingen (offentlig klient)"
+      "noSecret": "Ingen (offentlig klient)",
+      "issuer": "Udsteder",
+      "copiedIssuer": "Udsteder kopieret",
+      "showEnv": "Vis .env",
+      "hideEnv": "Skjul .env",
+      "tabFrigear": "Frigear Auth",
+      "tabOidc": "OIDC (nuxt-auth-utils)",
+      "copyEnv": "Kopiér .env",
+      "copiedEnv": ".env kopieret",
+      "serverApp": "Server-renderet app (PKCE)",
+      "clientApp": "Browser-, desktop- eller mobilapp (klienttilstand)"
     },
     "applications": {
       "open": "Åbn",

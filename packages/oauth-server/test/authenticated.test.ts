@@ -127,6 +127,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect(created.clientId).toBe(created.id)
       expect(created.clientId).toMatch(/^app_/)
       expect(created.clientSecret).toHaveLength(64)
+      expect(created.issuer).toMatch(/^https?:\/\/\S+[^/]$/)
       expect(created.secretHash).toBeUndefined()
       expect(created.allowedRoles).toEqual(['member', 'staff'])
       expect(created.tags).toEqual(['b', 'a'])
@@ -538,7 +539,8 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       await ok(await admin('PATCH', '', { isActive: true }))
 
       const fresh = await signIn(app)
-      const { clientSecret } = await apiClient({ cookie: staff.cookie }).json<Json>('POST', oauthServerApi.admin.rotateSecret(app.id))
+      const { clientSecret, issuer } = await apiClient({ cookie: staff.cookie }).json<Json>('POST', oauthServerApi.admin.rotateSecret(app.id))
+      expect(issuer).toMatch(/^https?:\/\/\S+[^/]$/)
       expect((await refresh(app, fresh.refresh_token)).status).toBe(401) // old secret
       expect((await form(oidc.token, { grant_type: 'refresh_token', refresh_token: fresh.refresh_token }, { authorization: basic(app.clientId, clientSecret) })).status).toBe(400) // revoked with the secret
 

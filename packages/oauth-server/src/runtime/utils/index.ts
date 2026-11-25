@@ -3,6 +3,8 @@ import type { ClientType, OAuthClientKind, OAuthConfiguredClient, OAuthNormalize
 
 export type * from '../../types'
 export { oauthServerApi, oidc } from './api'
+export { credentialsEnv } from './credentials-env'
+export type { CredentialsEnvBlock, CredentialsEnvInput } from './credentials-env'
 
 export const DEFAULT_SCOPES = ['openid', 'profile', 'email'] as const
 export const DEFAULT_CALLBACK_PATH = '/auth/frigear'
