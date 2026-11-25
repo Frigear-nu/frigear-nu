@@ -17,6 +17,7 @@ export const mainCmd = defineCommand({
     'package:rename': () => import('./commands/package-rename.ts').then(module => module.default),
     'add': () => import('./commands/add.ts').then(module => module.default),
     'upgrade': () => import('./commands/upgrade.ts').then(module => module.default),
+    'prepare': () => import('./commands/prepare/index.ts').then(module => module.default),
   },
 })
 
